@@ -61,7 +61,7 @@ Right-click the panel (or use the **Options** button in its footer) for the menu
 | Assistants | switch each tool on or off |
 | Claude Code hook | show the `settings.json` snippet with a Copy button, or merge it in after a backup ([docs/hooks.md](docs/hooks.md)) |
 
-The top layout merges with the physical notch (compact rings beside it, the panel below). The edge layouts are Codenotch-style pills that open into the same panel; they keep clear of the Dock.
+The top layout merges with the physical notch (compact rings beside it, the panel below). The edge layouts are Codenotch-style pills that open into the same panel; they keep clear of the Dock. The panel is never taller than the screen's usable height: past that (four tools, the cost card and advice on a small display) it scrolls, and it shows no scroller while it fits.
 
 **Hover.** The panel opens once the pointer has rested on the rings for 250 ms, so passing the top of the screen does nothing, and closes 400 ms after the pointer has left the panel (with 8 pt of grace), at once on a click outside it, a Spaces switch or the screen lock, and never while set to Always open. The decision is a pure state machine ([`HoverIntent.swift`](Sources/Notchmeter/HoverIntent.swift)) fed with the pointer's position against the two visible shapes, measured from the notch and the content rather than from the window, and it ignores the pointer for up to 350 ms after each transition, so the panel's own open and close animation can never re-trigger it. `--smoke --hover-sim` drives that path with a scripted pointer and prints every decision.
 
@@ -153,7 +153,7 @@ sudo powermetrics --samplers tasks --show-process-energy -i 60000 -n 5 | grep -E
 ```
 
 - *Claude: needs your permission* — the Keychain prompt was denied or dismissed; toggle Claude off and on in Settings to ask again.
-- *Claude: login has expired* — run Claude Code once; it refreshes its own token and the notch picks it up.
+- *Claude: login has expired* — run `claude` in a terminal once; it refreshes its own token and the notch picks it up. Notchmeter never refreshes tokens itself. Until then the card keeps the last reading, marked with when it was taken.
 - *Codex: login was refused / expired* — run Codex once; it signs back in and the notch picks it up.
 - *Codex: Session — No data* — the plan publishes no 5-hour window (free plans get a monthly one).
 - *Cursor: plan has nothing to meter* — free plans publish no included-usage limit; the ring appears once a paid plan does.

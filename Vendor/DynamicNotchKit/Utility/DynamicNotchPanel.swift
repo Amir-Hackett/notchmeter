@@ -4,6 +4,8 @@
 //
 // Created by <Huy D.> on 2024-11-01.
 //
+// Notchmeter: isOpaque is set false explicitly. A clear background alone leaves NSPanel opaque, and the
+// window now spans the screen's full height, so its transparent area must stay click-through.
 
 import AppKit
 
@@ -21,6 +23,7 @@ final class DynamicNotchPanel: NSPanel {
             defer: flag
         )
         self.hasShadow = false
+        self.isOpaque = false
         self.backgroundColor = .clear
         self.level = .screenSaver
         self.collectionBehavior = [.canJoinAllSpaces, .stationary]

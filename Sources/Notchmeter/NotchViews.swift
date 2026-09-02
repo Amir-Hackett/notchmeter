@@ -226,15 +226,39 @@ struct EdgeCompactView: View {
 
 // MARK: - Expanded panel
 
+/// The panel's content, never taller than the screen's usable height: past that it scrolls, with no scroller and
+/// no bounce while it fits. The cap is read from the screen at each layout unless `maxHeight` overrides it.
 struct NotchExpandedView: View {
     let store: UsageStore
     let prefs: Preferences
     let actions: NotchActions
+    var maxHeight: CGFloat? = nil
+
+    static let screenMargin: CGFloat = 24
+
+    /// Room for the content: the screen's usable height less the notch and a margin above the Dock.
+    static func maxHeight(visibleHeight: CGFloat, notchHeight: CGFloat) -> CGFloat {
+        max(0, visibleHeight - notchHeight - screenMargin)
+    }
+
+    static func maxHeight(on screen: NSScreen) -> CGFloat {
+        maxHeight(visibleHeight: screen.visibleFrame.height, notchHeight: NotchController.notchRect(on: screen).height)
+    }
 
     var body: some View {
+        ScrollView(.vertical) {
+            content
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(maxHeight: maxHeight ?? Self.maxHeight(on: .panelScreen))
+        .foregroundStyle(.white)
+        .environment(\.colorScheme, .dark)
+    }
+
+    private var content: some View {
         let tools = store.visibleTools
         let advice = store.advice
-        VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 10) {
             if prefs.showSpend, tools.contains(.claude) {
                 SpendCard(store: store)
             }
@@ -261,8 +285,6 @@ struct NotchExpandedView: View {
         .padding(.top, 8)
         .padding(.bottom, 10)
         .frame(width: 380, alignment: .leading)
-        .foregroundStyle(.white)
-        .environment(\.colorScheme, .dark)
     }
 }
 
@@ -402,7 +424,8 @@ struct ToolCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 if let reading = status.reading {
                     ForEach(reading.windows) { window in
-                        MeterRow(toolName: tool.displayName, window: window, color: tool.color, prefs: prefs)
+                        MeterRow(toolName: tool.displayName, window: window, color: tool.color, prefs: prefs,
+                                 stale: status.staleReading != nil)
                     }
                     .opacity(status.problem == nil ? 1 : 0.55)
                     if let observed = reading.observedAt, Date().timeIntervalSince(observed) > 600 {
@@ -427,6 +450,10 @@ struct ToolCard: View {
                 default:
                     EmptyView()
                 }
+                if let stale = status.staleReading {
+                    Text(StaleReading.line(fetchedAt: stale.fetchedAt, timeFormat: prefs.timeFormat))
+                        .font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
+                }
                 if let trend, trend.contains(where: { $0.cost > 0 }) {
                     HStack {
                         Text("Usage Trend").font(.system(size: 13, weight: .semibold))
@@ -445,13 +472,15 @@ struct MeterRow: View {
     let window: LimitWindow
     let color: Color
     let prefs: Preferences
+    /// The window comes from a reading its tool can no longer refresh (ToolStatus.staleReading).
+    var stale = false
 
     var body: some View {
         let pace = Pace.note(for: window)
         let usage = prefs.usageLine(for: window)
         let reset = window.usedFraction == nil
-            ? (window.note ?? prefs.resetLine(for: window))
-            : (window.resetsAt == nil ? (window.note ?? "") : prefs.resetLine(for: window))
+            ? (window.note ?? prefs.resetLine(for: window, stale: stale))
+            : (window.resetsAt == nil ? (window.note ?? "") : prefs.resetLine(for: window, stale: stale))
         let detail = window.usedFraction != nil && window.resetsAt != nil ? window.note : nil
         let unused = window.usedFraction == 0 ? window.periodDuration.map(ResetText.unusedLine) : nil
         VStack(alignment: .leading, spacing: 5) {

@@ -112,7 +112,7 @@ struct HoverIntent: Equatable {
 }
 
 /// The two visible shapes in screen coordinates. Never a window frame: DynamicNotchKit's window is an invisible
-/// area half the screen wide around the notch.
+/// column half the screen wide and the full screen tall, hung from the notch.
 struct HoverRegions: Equatable {
     var compact: CGRect
     var expanded: CGRect
