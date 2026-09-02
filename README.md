@@ -4,6 +4,8 @@
 
 *Hover the rings beside the notch and the panel opens: cost, pace, projections and what to do next.*
 
+**Your menu bar ran out of room three apps ago. This one doesn't take any.**
+
 [![CI](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml/badge.svg)](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml)
 
 Usage meters for AI coding tools, living in the MacBook notch — or on any screen edge you prefer. Small rings sit beside the notch all the time; hover and it opens into the full readout.
@@ -183,6 +185,19 @@ sudo powermetrics --samplers tasks --show-process-energy -i 60000 -n 5 | grep -E
 - *Cost card says "Pricing local transcripts"* — the first scan of a large `~/.claude/projects` takes a few seconds; later scans only read files that changed.
 - *Footer says "Next update in 12m · no agent activity"* — nothing of the tool's has changed on disk for 30 minutes, so the meter polls a quarter as often; start a session (or install the hook) and it returns to the base cadence within a minute. "Paused while the screen is locked" clears on unlock.
 - *The hook badge never appears* — see the checks at the end of [docs/hooks.md](docs/hooks.md).
+
+## Documentation
+
+- [docs/accuracy.md](docs/accuracy.md): every rule behind the cost estimate, the primary sources, where it is known to differ from a bill, and why there is no rate-limit-header probe.
+- [docs/hooks.md](docs/hooks.md): the optional Claude Code hook, what it sends, and how to install and remove it.
+- [docs/release.md](docs/release.md): the signed, notarised, Sparkle-updated release pipeline and its one-time setup.
+- [docs/roadmap.md](docs/roadmap.md): what is shipped against the plan, what is pending or blocked, the fleet roll-up design sketch, monetisation, the domain check and the open questions.
+- [docs/anthropic-inquiry.md](docs/anthropic-inquiry.md): a draft letter asking Anthropic whether the read-only usage request is acceptable.
+- Launch: [Show HN](docs/launch/show-hn.md), [Product Hunt](docs/launch/product-hunt.md), [awesome lists and GitHub topics](docs/launch/awesome-lists.md).
+
+## Contributing
+
+Run `scripts/test.sh` before a pull request; CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the same tests plus a release build that fails on any compiler warning under `Sources/`, and assembles the app. A cost-estimate disagreement is best reported as a golden-transcript fixture in `Tests/NotchmeterTests/CostGoldenTests.swift`; a new tool is one `UsageProvider` actor and one `ProviderRegistry` line.
 
 ## Credits
 
