@@ -292,7 +292,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         for presenter in presenters { presenter.holdCompact(true) }
         prefs.refreshLaunchAtLogin()
-        settings?.present(on: .pointerScreen)
+        settings?.present(on: .pointerScreen, below: presenter?.hover.regions.compact)
         Oracle.shared.emit("settings", settingsFields(action: "shown"))
     }
 

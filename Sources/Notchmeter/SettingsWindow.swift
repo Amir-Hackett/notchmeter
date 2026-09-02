@@ -1103,6 +1103,8 @@ final class SettingsWindowController: NSWindowController {
     /// The window's top sits this far below the screen's top safe area: under the notch and the menu bar, with
     /// the collapsed panel's rings clear above it.
     nonisolated static let topClearance: CGFloat = 60
+    /// Gap between the readouts' lower edge and the window below them.
+    nonisolated static let readoutClearance: CGFloat = 12
 
     init(store: UsageStore, prefs: Preferences, actions: NotchActions, notifier: Notifier, requests: SettingsRequests) {
         let panel = SettingsPanel(contentRect: NSRect(origin: .zero, size: Self.contentSize),
@@ -1129,10 +1131,10 @@ final class SettingsWindowController: NSWindowController {
     /// Centred under the notch (or the top of the chosen screen), ordered front and made key without activating
     /// the app. The panel controller has collapsed the panel before this is called and holds it closed until the
     /// window closes (AppDelegate), so the two never share the screen with the panel open.
-    func present(on screen: NSScreen) {
+    func present(on screen: NSScreen, below readouts: CGRect? = nil) {
         guard let window else { return }
         window.setFrame(Self.frame(for: window.frame.size, screen: screen.frame, safeAreaTop: screen.safeAreaInsets.top,
-                                   visible: screen.visibleFrame), display: false)
+                                   visible: screen.visibleFrame, readouts: readouts), display: false)
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
     }
@@ -1141,9 +1143,12 @@ final class SettingsWindowController: NSWindowController {
         window?.styleMask.contains(.nonactivatingPanel) ?? false
     }
 
-    /// Horizontally centred; the top `topClearance` below the safe area, never below the usable area's bottom.
-    nonisolated static func frame(for size: NSSize, screen: NSRect, safeAreaTop: CGFloat, visible: NSRect) -> NSRect {
-        let top = screen.maxY - safeAreaTop - topClearance
+    /// Horizontally centred, and clear of the readouts: they draw above every other window, so a fixed
+    /// clearance below the safe area is not enough on a screen whose strip hangs lower than that.
+    nonisolated static func frame(for size: NSSize, screen: NSRect, safeAreaTop: CGFloat, visible: NSRect,
+                                  readouts: CGRect? = nil) -> NSRect {
+        var top = screen.maxY - safeAreaTop - topClearance
+        if let readouts, readouts.width > 0 { top = min(top, readouts.minY - readoutClearance) }
         let origin = NSPoint(x: (screen.midX - size.width / 2).rounded(), y: max(visible.minY, top - size.height))
         return NSRect(origin: origin, size: size)
     }
