@@ -9,6 +9,8 @@ final class NotchActions {
     var openSettings: () -> Void = {}
     var showOptions: () -> Void = {}
     var applyLayout: () -> Void = {}
+    /// Nil while the updater is inactive (see Updater); the Options menu offers "Check for Updates…" only when set.
+    var checkForUpdates: (() -> Void)?
 }
 
 /// One on-screen presentation of the readings: the notch itself or a Codenotch-style edge pill.
@@ -82,6 +84,9 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         login.state = prefs.launchAtLogin ? .on : .off
         menu.addItem(login)
         menu.addItem(item("Settings…", #selector(showSettings)))
+        if actions.checkForUpdates != nil {
+            menu.addItem(item("Check for Updates…", #selector(checkForUpdates)))
+        }
         menu.addItem(.separator())
         menu.addItem(item("Quit \(AppInfo.name)", #selector(quit)))
         return menu
@@ -109,6 +114,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
 
     @objc private func toggleLaunchAtLogin() { try? prefs.setLaunchAtLogin(!prefs.launchAtLogin) }
     @objc private func showSettings() { actions.openSettings() }
+    @objc private func checkForUpdates() { actions.checkForUpdates?() }
     @objc private func quit() { NSApp.terminate(nil) }
 }
 

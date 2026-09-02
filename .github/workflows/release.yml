@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  release:
+    name: ${{ github.ref_name }}
+    runs-on: macos-15
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # BUILD_NUMBER is the commit count, which needs the whole history.
+          fetch-depth: 0
+
+      - name: Toolchain
+        run: |
+          xcode="$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -viE 'beta|rc' | sort -V | tail -n 1 || true)"
+          if [ -n "$xcode" ]; then sudo xcode-select -s "$xcode"; fi
+          xcode-select -p
+          swift --version
+
+      - name: Test
+        run: scripts/test.sh
+
+      - name: Decide whether this release can be signed
+        id: mode
+        env:
+          DEVELOPER_ID_APP: ${{ secrets.DEVELOPER_ID_APP }}
+          DEVELOPER_ID_APP_P12: ${{ secrets.DEVELOPER_ID_APP_P12 }}
+          DEVELOPER_ID_APP_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APP_P12_PASSWORD }}
+          NOTARY_API_KEY: ${{ secrets.NOTARY_API_KEY }}
+          NOTARY_API_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          NOTARY_API_ISSUER: ${{ secrets.NOTARY_API_ISSUER }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          missing=""
+          for name in DEVELOPER_ID_APP DEVELOPER_ID_APP_P12 DEVELOPER_ID_APP_P12_PASSWORD NOTARY_API_KEY NOTARY_API_KEY_ID NOTARY_API_ISSUER SPARKLE_PRIVATE_KEY; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -z "$missing" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "missing=$missing" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Import the signing identity and notarisation credentials
+        if: steps.mode.outputs.signed == 'true'
+        env:
+          DEVELOPER_ID_APP_P12: ${{ secrets.DEVELOPER_ID_APP_P12 }}
+          DEVELOPER_ID_APP_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_APP_P12_PASSWORD }}
+          NOTARY_API_KEY: ${{ secrets.NOTARY_API_KEY }}
+          NOTARY_API_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          NOTARY_API_ISSUER: ${{ secrets.NOTARY_API_ISSUER }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          printf '%s' "$DEVELOPER_ID_APP_P12" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+          security import "$RUNNER_TEMP/developer-id.p12" -P "$DEVELOPER_ID_APP_P12_PASSWORD" -f pkcs12 -k "$KEYCHAIN" -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$RUNNER_TEMP/developer-id.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          printf '%s' "$NOTARY_API_KEY" > "$RUNNER_TEMP/AuthKey.p8"
+          xcrun notarytool store-credentials notchmeter --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$NOTARY_API_KEY_ID" --issuer "$NOTARY_API_ISSUER" --keychain "$KEYCHAIN"
+          rm -f "$RUNNER_TEMP/AuthKey.p8"
+          echo "NOTARY_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Fetch the previous appcast so its items survive
+        run: |
+          mkdir -p previous
+          gh release download --pattern appcast.xml --dir previous || echo "no published appcast yet"
+
+      - name: Build, sign, notarise and generate the appcast
+        if: steps.mode.outputs.signed == 'true'
+        env:
+          DEVELOPER_ID_APP: ${{ secrets.DEVELOPER_ID_APP }}
+          NOTARY_PROFILE: notchmeter
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: VERSION="${TAG#v}" PREVIOUS_APPCAST=previous/appcast.xml scripts/release.sh
+
+      - name: Build unsigned (signing secrets missing)
+        if: steps.mode.outputs.signed != 'true'
+        run: VERSION="${TAG#v}" scripts/release.sh --dry-run
+
+      - name: Publish to the GitHub release
+        run: |
+          if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
+            gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "Notchmeter ${TAG#v}" --generate-notes
+            gh release upload "$TAG" dist/Notchmeter.dmg dist/appcast.xml --clobber
+          else
+            # A prerelease keeps releases/latest, and with it SUFeedURL, on the last signed build; no appcast is uploaded
+            # because an ad-hoc build can never be installed as an update.
+            gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "Notchmeter ${TAG#v} (unsigned)" --generate-notes --prerelease
+            gh release upload "$TAG" dist/Notchmeter.dmg --clobber
+          fi
+
+      - name: Summary
+        run: |
+          sha="$(shasum -a 256 dist/Notchmeter.dmg | cut -d ' ' -f 1)"
+          if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
+            {
+              echo "## Notchmeter ${TAG#v}: signed release"
+              echo "Universal Notchmeter.dmg (Developer ID, hardened runtime, notarised, stapled) and appcast.xml uploaded to the $TAG release."
+              echo
+              echo "DMG sha256 \`$sha\` for packaging/homebrew/notchmeter.rb."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## Notchmeter ${TAG#v}: UNSIGNED build"
+              echo "Signing secrets missing:${{ steps.mode.outputs.missing }}."
+              echo
+              echo "Uploaded an ad-hoc-signed Notchmeter.dmg to the $TAG **prerelease**. Gatekeeper refuses it on other Macs, the in-app updater stays inactive, and no appcast was published. docs/release.md lists the secrets to set."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
