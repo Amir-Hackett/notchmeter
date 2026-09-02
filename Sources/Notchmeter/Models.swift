@@ -1,13 +1,14 @@
 import Foundation
 
 enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
-    case claude, codex, cursor
+    case claude, codex, cursor, antigravity
 
     var displayName: String {
         switch self {
         case .claude: "Claude"
         case .codex: "Codex"
         case .cursor: "Cursor"
+        case .antigravity: "Antigravity"
         }
     }
 
@@ -16,6 +17,7 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
         case .claude: "sparkle"
         case .codex: "chevron.left.forwardslash.chevron.right"
         case .cursor: "cursorarrow"
+        case .antigravity: "sparkles.rectangle.stack"
         }
     }
 }
@@ -45,6 +47,7 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
 
 enum Period {
     static let fiveHours: TimeInterval = 5 * 3600
+    static let day: TimeInterval = 86400
     static let week: TimeInterval = 7 * 86400
 }
 
@@ -152,7 +155,7 @@ protocol UsageProvider: Sendable {
 
 enum ProviderRegistry {
     static func all() -> [any UsageProvider] {
-        [ClaudeProvider(), CodexProvider(), CursorProvider()]
+        [ClaudeProvider(), CodexProvider(), CursorProvider(), AntigravityProvider()]
     }
 }
 

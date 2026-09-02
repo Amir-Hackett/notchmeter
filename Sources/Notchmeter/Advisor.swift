@@ -102,7 +102,7 @@ enum Advisor {
         context.readings.compactMap { reading in
             let scoped = reading.windows.filter { $0.model != nil && $0.usedFraction != nil }
             guard let hot = scoped.filter({ ($0.usedFraction ?? 0) >= modelNearlyOut }).max(by: { ($0.usedFraction ?? 0) < ($1.usedFraction ?? 0) }),
-                  let model = hot.model, let used = hot.usedFraction
+                  let used = hot.usedFraction
             else { return nil }
             let alternative: (name: String, used: Double)?
             if let other = scoped.filter({ $0.id != hot.id && left(of: $0) >= modelHeadroom }).max(by: { left(of: $0) < left(of: $1) }),
@@ -115,7 +115,7 @@ enum Advisor {
             }
             guard let alternative else { return nil }
             return Advice(id: "model/\(reading.tool.rawValue)/\(hot.id)", tool: reading.tool, priority: .warn, symbol: "arrow.left.arrow.right",
-                          text: "\(model) weekly is \(percent(used))%. \(alternative.name) is \(percent(alternative.used))%. Switch models, not tools.")
+                          text: "\(name(hot)) is \(percent(used))%. \(alternative.name) is \(percent(alternative.used))%. Switch models, not tools.")
         }
     }
 
@@ -184,9 +184,21 @@ enum Advisor {
         return " \(other.tool.displayName) \(name(other.window)) is at \(percent(used))%."
     }
 
-    /// "weekly", "session", "included usage"; a per-model window reads "Fable weekly".
+    /// "weekly", "session", "included usage"; a per-model window carries its cadence: "Fable weekly", "Gemini Pro
+    /// daily", or "Gemini Pro quota" while the tool declares no window length.
     static func name(_ window: LimitWindow) -> String {
-        window.model.map { "\($0) weekly" } ?? window.label.lowercased()
+        guard let model = window.model else { return window.label.lowercased() }
+        return "\(model) \(cadence(window.periodDuration))"
+    }
+
+    static func cadence(_ period: TimeInterval?) -> String {
+        switch period {
+        case nil: "quota"
+        case Period.week?: "weekly"
+        case Period.day?: "daily"
+        case Period.fiveHours?: "session"
+        case let period?: "\(ResetText.windowName(period: period)) window"
+        }
     }
 
     static func percent(_ fraction: Double) -> Int {

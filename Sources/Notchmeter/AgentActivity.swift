@@ -10,19 +10,33 @@ enum PowerSource {
 }
 
 /// When each tool last touched its files, sampled with a few directory listings rather than a scan: Claude Code's
-/// three most recently changed project folders, Codex's rollouts for today and yesterday, and the modification
-/// time of Cursor's state database.
+/// three most recently changed project folders, Codex's rollouts for today and yesterday, the modification time of
+/// Cursor's state database, and Gemini CLI's login file and per-project folders.
 struct AgentActivity: Sendable {
     var claudeRoots: [URL] = ClaudeCostScanner.defaultRoots()
     var codexSessions: URL = Paths.home.appendingPathComponent(".codex/sessions")
     var cursorState: URL = Paths.home.appendingPathComponent("Library/Application Support/Cursor/User/globalStorage/state.vscdb")
+    var geminiRoot: URL = Paths.home.appendingPathComponent(".gemini")
 
     func sample(now: Date = Date()) -> [ToolID: Date] {
         var result: [ToolID: Date] = [:]
         result[.claude] = claudeRoots.compactMap { Self.newestClaude(projects: $0.appendingPathComponent("projects")) }.max()
         result[.codex] = Self.newestCodex(sessions: codexSessions, now: now)
         result[.cursor] = Self.newestCursor(database: cursorState)
+        result[.antigravity] = Self.newestGemini(root: geminiRoot)
         return result
+    }
+
+    /// Gemini CLI rewrites its login file on every token refresh and keeps a folder per project under `tmp`;
+    /// Antigravity's CLI keeps its conversations under `antigravity-cli`. Each folder is one listing, not a walk.
+    static func newestGemini(root: URL) -> Date? {
+        var candidates = [modified(root.appendingPathComponent("oauth_creds.json"))]
+        for folder in ["tmp", "antigravity", "antigravity-cli/conversations"] {
+            let url = root.appendingPathComponent(folder)
+            guard let entries = try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) else { continue }
+            candidates.append(contentsOf: entries.map(modified))
+        }
+        return candidates.compactMap { $0 }.max()
     }
 
     /// The newest entry inside the `folders` most recently changed project folders. A folder's own date moves
