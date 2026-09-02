@@ -646,7 +646,7 @@ final class Preferences {
         hoverDelay = defaults.object(forKey: Keys.hoverDelay) as? Double ?? HoverIntent.expandDwell
         edge = PanelEdge(rawValue: defaults.string(forKey: Keys.edge) ?? "") ?? .top
         display = DisplayChoice(rawValue: defaults.string(forKey: Keys.display) ?? "") ?? .builtIn
-        showOverFullScreenApps = defaults.object(forKey: Keys.fullScreen) as? Bool ?? true
+        showOverFullScreenApps = defaults.object(forKey: Keys.fullScreen) as? Bool ?? false
         compactStyle = CompactStyle(rawValue: defaults.string(forKey: Keys.compactStyle) ?? "") ?? .rings
         showResetCountdown = defaults.bool(forKey: Keys.resetCountdown)
         showSpend = defaults.object(forKey: Keys.showSpend) as? Bool ?? true

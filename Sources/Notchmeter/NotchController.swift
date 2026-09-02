@@ -300,12 +300,22 @@ final class NotchController: NSObject, PanelPresenting {
         return storedScreen
     }
 
+    private var fullScreenWatch: FullScreenWatch?
+    private var suppressedForFullScreen = false
+
     var window: NSWindow? { notch.windowController?.window }
     var isVisible: Bool { window?.isVisible ?? false }
     var expandedContentSize: CGSize { fittingSize(expandedProbe, NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen)) }
     var expandedIntrinsicContentSize: CGSize { fittingSize(expandedProbe, NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, unclamped: true)) }
 
     func show() {
+        guard !suppressedForFullScreen else { return }
+        if fullScreenWatch == nil {
+            fullScreenWatch = FullScreenWatch(screen: { [weak self] in self?.screen ?? .panelScreen }) { [weak self] active in
+                self?.fullScreenChanged(active)
+            }
+            if suppressedForFullScreen { return }
+        }
         hover.mode = prefs.visibility.hoverMode
         hover.dwell = prefs.hoverDelay
         hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced
@@ -336,7 +346,27 @@ final class NotchController: NSObject, PanelPresenting {
         refreshRegions()
     }
 
+    /// Ordered out while another app is full-screen, unless the preference says to stay: a window that joins
+    /// every space draws over full-screen apps whatever its collection behaviour.
+    private func fullScreenChanged(_ active: Bool) {
+        let hide = active && !prefs.showOverFullScreenApps
+        guard hide != suppressedForFullScreen else { return }
+        suppressedForFullScreen = hide
+        reporter.report(.compact, cause: .fullScreen)
+        if hide {
+            hover.stop()
+            window?.orderOut(nil)
+        } else {
+            show()
+        }
+    }
+
     func applyWindowBehaviour() {
+        if prefs.showOverFullScreenApps, suppressedForFullScreen {
+            suppressedForFullScreen = false
+            show()
+        }
+        fullScreenWatch?.refresh()
         notch.collectionBehavior = Self.collectionBehavior(showOverFullScreen: prefs.showOverFullScreenApps)
         // The notch panel stays black so it reads as one shape with the hardware notch: a glass backdrop
         // over black renders as pale grey and breaks that join. Glass belongs to the edge pills.

@@ -14,6 +14,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
     private let actions: NotchActions
     private let menu: OptionsMenu
     private let panel: EdgePanel
+    private var fullScreenWatch: FullScreenWatch?
+    private var suppressedForFullScreen = false
     private let host: NSHostingView<EdgePanelRoot>
     private let probe: NSHostingView<EdgePanelRoot>
     private let contentProbe: NSHostingView<NotchExpandedView>
@@ -106,7 +108,27 @@ final class EdgePanelController: NSObject, PanelPresenting {
         return contentProbe.fittingSize
     }
 
+    /// Ordered out while another app is full-screen, unless the preference says to stay. See NotchController.
+    private func fullScreenChanged(_ active: Bool) {
+        let hide = active && !prefs.showOverFullScreenApps
+        guard hide != suppressedForFullScreen else { return }
+        suppressedForFullScreen = hide
+        if hide {
+            hover.stop()
+            panel.orderOut(nil)
+        } else {
+            show()
+        }
+    }
+
     func show() {
+        guard !suppressedForFullScreen else { return }
+        if fullScreenWatch == nil {
+            fullScreenWatch = FullScreenWatch(screen: { [weak self] in self?.screen ?? .panelScreen }) { [weak self] active in
+                self?.fullScreenChanged(active)
+            }
+            if suppressedForFullScreen { return }
+        }
         hover.mode = prefs.visibility.hoverMode
         hover.dwell = prefs.hoverDelay
         hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced
@@ -130,6 +152,11 @@ final class EdgePanelController: NSObject, PanelPresenting {
     }
 
     func applyWindowBehaviour() {
+        if prefs.showOverFullScreenApps, suppressedForFullScreen {
+            suppressedForFullScreen = false
+            show()
+        }
+        fullScreenWatch?.refresh()
         panel.collectionBehavior = Self.collectionBehavior(showOverFullScreen: prefs.showOverFullScreenApps)
     }
 
