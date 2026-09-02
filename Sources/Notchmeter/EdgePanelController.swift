@@ -5,16 +5,18 @@ import SwiftUI
 @MainActor
 final class EdgePanelController: NSObject, PanelPresenting {
     let edge: PanelEdge
+    let hover: HoverDriver
     private let store: UsageStore
     private let prefs: Preferences
     private let actions: NotchActions
     private let menu: OptionsMenu
     private let panel: EdgePanel
     private let host: NSHostingView<EdgePanelRoot>
+    private let probe: NSHostingView<EdgePanelRoot>
     private var expanded = false
-    private var collapseTask: Task<Void, Never>?
     private var rightClickMonitor: Any?
     private var screenObserver: NSObjectProtocol?
+    private var transitionSerial = 0
 
     init(edge: PanelEdge, store: UsageStore, prefs: Preferences, actions: NotchActions) {
         self.edge = edge
@@ -25,6 +27,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
         panel = EdgePanel(contentRect: NSRect(x: 0, y: 0, width: 10, height: 10),
                           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         host = NSHostingView(rootView: EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, expanded: false))
+        probe = NSHostingView(rootView: EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, expanded: true))
+        hover = HoverDriver(mode: prefs.visibility.hoverMode)
         super.init()
 
         panel.isOpaque = false
@@ -34,18 +38,11 @@ final class EdgePanelController: NSObject, PanelPresenting {
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
         panel.isMovableByWindowBackground = false
-        let hover = HoverView(frame: .zero)
-        hover.onHover = { [weak self] inside in self?.hoverChanged(inside) }
-        hover.addSubview(host)
-        host.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            host.leadingAnchor.constraint(equalTo: hover.leadingAnchor),
-            host.trailingAnchor.constraint(equalTo: hover.trailingAnchor),
-            host.topAnchor.constraint(equalTo: hover.topAnchor),
-            host.bottomAnchor.constraint(equalTo: hover.bottomAnchor),
-        ])
-        panel.contentView = hover
+        panel.contentView = host
 
+        hover.watch(panel)
+        hover.perform = { [weak self] output in self?.act(output) }
+        hover.isPaused = { [weak self] in self?.menu.isOpen ?? false }
         rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
             let handled = MainActor.assumeIsolated {
                 guard let self, event.window === self.panel else { return false }
@@ -57,23 +54,28 @@ final class EdgePanelController: NSObject, PanelPresenting {
         screenObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.layout(animated: false) }
         }
+        observeContent()
     }
 
     var isVisible: Bool { panel.isVisible }
     var windowFrame: NSRect? { panel.frame }
 
     func show() {
-        expanded = prefs.visibility == .always
+        hover.mode = prefs.visibility.hoverMode
+        if hover.mode == .always { expanded = true }
         layout(animated: false)
+        hover.adopt(expanded ? .expanded : .compact)
+        hover.start()
         panel.orderFrontRegardless()
     }
 
     func hide() async {
+        hover.stop()
         if let rightClickMonitor { NSEvent.removeMonitor(rightClickMonitor) }
         rightClickMonitor = nil
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
         screenObserver = nil
-        collapseTask?.cancel()
+        transitionSerial += 1
         panel.orderOut(nil)
     }
 
@@ -85,28 +87,41 @@ final class EdgePanelController: NSObject, PanelPresenting {
         NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.main ?? NSScreen.screens[0]
     }
 
-    private func hoverChanged(_ inside: Bool) {
-        collapseTask?.cancel()
-        if inside {
-            guard !expanded else { return }
+    private func act(_ output: HoverIntent.Output) {
+        switch output {
+        case .expand:
             expanded = true
-            layout(animated: true)
             store.refreshAll(force: false)
-        } else if prefs.visibility != .always {
-            collapseTask = Task {
-                try? await Task.sleep(for: .seconds(0.45))
-                guard !Task.isCancelled else { return }
-                self.expanded = false
-                self.layout(animated: true)
-            }
+        case .collapse:
+            expanded = false
+        case .none:
+            return
+        }
+        transitionSerial += 1
+        let serial = transitionSerial
+        let duration = layout(animated: true)
+        Task {
+            try? await Task.sleep(for: .seconds(duration))
+            guard serial == self.transitionSerial else { return }
+            self.hover.transitionSettled()
         }
     }
 
-    /// Sizes the window to its content and pins it to the chosen edge; visibleFrame keeps it clear of the Dock.
-    private func layout(animated: Bool) {
-        host.rootView = EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, expanded: expanded)
+    /// Sizes the window to its content and pins it to the chosen edge; returns how long the move animates.
+    @discardableResult
+    private func layout(animated: Bool) -> TimeInterval {
+        host.rootView = root(expanded: expanded)
         host.layoutSubtreeIfNeeded()
-        let size = host.fittingSize
+        let frame = placement(for: host.fittingSize)
+        let animate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let duration = animate ? panel.animationResizeTime(frame) : 0
+        panel.setFrame(frame, display: true, animate: animate)
+        refreshRegions()
+        return duration
+    }
+
+    /// visibleFrame keeps the panel clear of the Dock.
+    private func placement(for size: NSSize) -> NSRect {
         let area = screen.visibleFrame
         let margin: CGFloat = 6
         var origin = NSPoint.zero
@@ -119,30 +134,36 @@ final class EdgePanelController: NSObject, PanelPresenting {
             origin = NSPoint(x: area.midX - size.width / 2, y: area.minY + margin)
         }
         origin.y = min(max(origin.y, area.minY), area.maxY - size.height)
-        let frame = NSRect(origin: origin, size: size)
-        panel.setFrame(frame, display: true, animate: animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+        return NSRect(origin: origin, size: size)
+    }
+
+    private func root(expanded: Bool) -> EdgePanelRoot {
+        EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, expanded: expanded)
+    }
+
+    /// The pill and the panel are the whole window here, so both regions are window frames: the state on screen
+    /// from the live view, the other measured off screen.
+    private func refreshRegions() {
+        probe.rootView = root(expanded: !expanded)
+        probe.layoutSubtreeIfNeeded()
+        let other = placement(for: probe.fittingSize)
+        let current = placement(for: host.fittingSize)
+        hover.regions = expanded ? HoverRegions(compact: other, expanded: current) : HoverRegions(compact: current, expanded: other)
+    }
+
+    /// Re-measures whenever something that shapes the panel changes; the tracking is one-shot, so it re-arms itself.
+    private func observeContent() {
+        withObservationTracking {
+            _ = (store.statuses, store.awaitingInput, store.cost, prefs.enabledTools, prefs.showSpend)
+            refreshRegions()
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeContent() }
+        }
     }
 }
 
 final class EdgePanel: NSPanel {
     override var canBecomeKey: Bool { true }
-}
-
-/// Reports mouse enter/exit over the whole panel, following frame changes automatically.
-final class HoverView: NSView {
-    var onHover: ((Bool) -> Void)?
-    private var tracking: NSTrackingArea?
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let tracking { removeTrackingArea(tracking) }
-        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil)
-        addTrackingArea(area)
-        tracking = area
-    }
-
-    override func mouseEntered(with event: NSEvent) { onHover?(true) }
-    override func mouseExited(with event: NSEvent) { onHover?(false) }
 }
 
 struct EdgePanelRoot: View {

@@ -33,6 +33,7 @@ scripts/test.sh           # unit tests for the parsers, pace math and cost engin
 swift run Notchmeter --probe            # print what each provider reads, from the terminal
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke               # on-screen self check (no Keychain prompt)
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --edge left   # same, trying another layout
+build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --hover-sim   # scripted hover: one open, no flicker, one close
 build/Notchmeter.app/Contents/MacOS/Notchmeter --hook                # Claude Code hook command, see docs/hooks.md
 ```
 
@@ -57,6 +58,8 @@ Right-click the panel (or use the **Options** button in its footer) for the menu
 | Claude Code hook | show the `settings.json` snippet with a Copy button, or merge it in after a backup ([docs/hooks.md](docs/hooks.md)) |
 
 The top layout merges with the physical notch (compact rings beside it, the panel below). The edge layouts are Codenotch-style pills that open into the same panel; they keep clear of the Dock.
+
+**Hover.** The panel opens once the pointer has rested on the rings for 250 ms, so passing the top of the screen does nothing, and closes 400 ms after the pointer has left the panel (with 8 pt of grace), at once on a click outside it, a Spaces switch or the screen lock, and never while set to Always open. The decision is a pure state machine ([`HoverIntent.swift`](Sources/Notchmeter/HoverIntent.swift)) fed with the pointer's position against the two visible shapes, measured from the notch and the content rather than from the window, and it ignores the pointer for up to 350 ms after each transition, so the panel's own open and close animation can never re-trigger it. `--smoke --hover-sim` drives that path with a scripted pointer and prints every decision.
 
 ## How it reads each tool
 
