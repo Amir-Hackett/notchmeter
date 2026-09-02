@@ -28,6 +28,9 @@ enum FullScreen {
 @MainActor
 final class FullScreenWatch {
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
+    /// Space notifications are the signal; this only runs while a full-screen app is up, so a missed one
+    /// cannot strand the panel off screen.
+    private var poll: Timer?
     private(set) var isActive = false
     private let screen: () -> NSScreen
     private let changed: (Bool) -> Void
@@ -52,11 +55,22 @@ final class FullScreenWatch {
         let active = FullScreen.isActive(on: screen())
         guard active != isActive else { return }
         isActive = active
+        setPolling(active)
         changed(active)
+    }
+
+    private func setPolling(_ on: Bool) {
+        poll?.invalidate()
+        poll = nil
+        guard on else { return }
+        poll = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refresh() }
+        }
     }
 
     func stop() {
         for (center, token) in observers { center.removeObserver(token) }
         observers = []
+        setPolling(false)
     }
 }

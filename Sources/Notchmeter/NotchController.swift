@@ -355,7 +355,11 @@ final class NotchController: NSObject, PanelPresenting {
         reporter.report(.compact, cause: .fullScreen)
         if hide {
             hover.stop()
-            window?.orderOut(nil)
+            // Drive the notch to hidden rather than ordering its window out: it early-returns from a
+            // transition into the state it believes it is already in, so a window ordered out behind its
+            // back would never come back.
+            transitionSerial += 1
+            Task { await self.notch.hide() }
         } else {
             show()
         }
