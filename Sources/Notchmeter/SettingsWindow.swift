@@ -60,7 +60,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 440)
+        .frame(minWidth: 440, minHeight: 480)
     }
 
     private func subtitle(for tool: ToolID) -> String {
@@ -82,7 +82,10 @@ final class SettingsWindowController: NSWindowController {
         let host = NSHostingController(rootView: SettingsView(store: store, prefs: prefs, applyVisibility: applyVisibility))
         let window = NSWindow(contentViewController: host)
         window.title = "\(AppInfo.name) Settings"
-        window.styleMask = [.titled, .closable]
+        window.styleMask = [.titled, .closable, .resizable]
+        // A grouped Form has no intrinsic height, so the window must be sized explicitly.
+        window.setContentSize(NSSize(width: 440, height: 480))
+        window.minSize = NSSize(width: 440, height: 360)
         window.isReleasedWhenClosed = false
         super.init(window: window)
     }
