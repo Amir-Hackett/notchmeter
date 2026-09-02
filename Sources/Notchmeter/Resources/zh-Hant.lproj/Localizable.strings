@@ -25,10 +25,12 @@
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ 已達 %2$ld%%，%3$@ 為 %4$ld%%。換模型，不必換工具。";
 "%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@." = "會先將 %1$@ 複製為 settings.json.bak-<日期>。既有的掛鉤會保留；Notchmeter 的項目會附加在 %2$@ 之下。";
 "%1$@ is waiting in %2$@." = "%1$@ 正在 %2$@ 中等待你。";
+"%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ 過去一小時 %2$@ · 為其 30 天平均的 %3$@";
 "%1$@ of %2$@" = "%1$@ / %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "今日每 1%% 工作階段額度 %1$@，30 天中位數 %2$@";
 "%1$@ today · %2$@ over 30 days · %3$@" = "今天 %1$@ · 30 天 %2$@ · %3$@";
-"%1$@ · %2$ld%% cache reads" = "%1$@ · 快取讀取佔 %2$ld%%";
+"%1$@ used %2$@" = "%1$@ 用了 %2$@";
+"%1$@ used %2$@ · %3$ld%% cache reads" = "%1$@ 用了 %2$@ · 快取讀取佔 %3$ld%%";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "%1$@ 的用量介面回傳 HTTP %2$ld；請查看其狀態頁。";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%1$ld 個%2$@額度 — 請在 Codex 中領取";
 "%1$ld of %2$ld left" = "剩餘 %1$ld / %2$ld";
@@ -37,6 +39,7 @@
 "%1$ldd %2$ldh" = "%1$ld 天 %2$ld 小時";
 "%1$ldh %2$ldm" = "%1$ld 小時 %2$ld 分";
 "%@ advice" = "%@ 建議";
+"%@ as the vendor's own usage export priced it" = "%@ 取自廠商自己的用量匯出，由廠商計價";
 "%@ billed this month" = "本月已計費 %@";
 "%@ hit its rate limit; wait for the reset." = "%@ 已觸及速率限制；請等待重設。";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "會先將 %@ 複製為 settings.json.bak-<日期>。既有的狀態列會在 Notchmeter 之後繼續執行，並收到相同的 JSON。";
@@ -47,6 +50,7 @@
 "%@ org spend" = "%@ 組織支出";
 "%@ per 1%% of session today" = "今日每 1%% 工作階段額度 %@";
 "%@ plan has nothing for Cursor to meter yet" = "%@ 方案尚無可供 Cursor 計量的額度";
+"%@ priced here from local files at published list rates" = "%@ 由本機依據本機檔案按公布標價計算";
 "%@ remaining" = "剩餘 %@";
 "%@ s" = "%@ 秒";
 "%@ Settings" = "%@ 設定";
@@ -296,7 +300,6 @@
 "Language" = "語言";
 "Last 24h" = "最近 24 小時";
 "Last checked %@" = "上次檢查：%@";
-"Last hour %1$@ · %2$@ your 30-day average" = "過去一小時 %1$@ · 為你 30 天平均的 %2$@";
 "Last reading %@ · may be out of date" = "上次讀取 %@ · 可能已過時";
 "Left" = "剩餘";
 "Left edge" = "左側邊緣";
@@ -307,7 +310,6 @@
 "likely a %@ window" = "可能是 %@ 視窗";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "在 ~/.local/bin（或 /usr/local/bin）建立指向本應用程式的 `notchmeter` 連結，終端機或 Claude Code 技能中的 `notchmeter` 便讀取執行中應用程式的快取報告，而不再逐個詢問廠商；`notchmeter --force` 重新讀取。";
 "Local API on 127.0.0.1:%ld" = "本機 API（127.0.0.1:%ld）";
-"Local files at published list rates; an export is the vendor's own figure" = "本機檔案依公布定價計算；匯出資料為廠商自己的金額";
 "local sessions" = "本機工作階段";
 "local transcripts" = "本機記錄";
 "low power mode" = "低耗電模式";
@@ -332,6 +334,8 @@
 "no cost yet" = "尚無花費";
 "No data" = "沒有資料";
 "No limit published" = "未公布上限";
+"no sessions on this Mac yet" = "本機上尚無工作階段";
+"no spend read yet" = "尚未讀取到花費";
 "None" = "無";
 "Not available: %@ is running unbundled." = "無法使用：%@ 未以 App 套件形式執行。";
 "Not checked yet" = "尚未檢查";
@@ -407,7 +411,6 @@
 "Premium requests" = "進階請求";
 "Press keys…" = "請按下按鍵…";
 "Preview" = "試聽";
-"Priced from local files at published list rates" = "依公布的定價計算本機檔案";
 "Pricing local files" = "正在計算本機檔案";
 "Privacy" = "隱私權";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "將所有設定回復預設值，清除快取的讀數與已送出通知的記錄，然後重新啟動。記錄檔、花費快取與消耗記錄會保留。";
@@ -572,3 +575,4 @@
 "Your menu bar ran out of room three apps ago. This one doesn't take any." = "你的選單列三個 App 之前就滿了。這一個不佔位置。";
 "~%ld%% left at reset" = "重設時約剩 %ld%%";
 "~%ld%% over at reset" = "重設時約超出 %ld%%";
+"“%@” is off in Settings" = "設定中的「%@」已關閉";

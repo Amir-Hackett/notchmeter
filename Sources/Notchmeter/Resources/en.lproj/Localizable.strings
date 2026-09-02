@@ -41,10 +41,12 @@
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools.";
 "%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@." = "%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@.";
 "%1$@ is waiting in %2$@." = "%1$@ is waiting in %2$@.";
+"%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ last hour %2$@ · %3$@ its 30-day average";
 "%1$@ of %2$@" = "%1$@ of %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "%1$@ per 1%% of session today vs %2$@ 30-day median";
 "%1$@ today · %2$@ over 30 days · %3$@" = "%1$@ today · %2$@ over 30 days · %3$@";
-"%1$@ · %2$ld%% cache reads" = "%1$@ · %2$ld%% cache reads";
+"%1$@ used %2$@" = "%1$@ used %2$@";
+"%1$@ used %2$@ · %3$ld%% cache reads" = "%1$@ used %2$@ · %3$ld%% cache reads";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page.";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%1$ld %2$@ credit(s) — claim them in Codex";
 "%1$ld of %2$ld left" = "%1$ld of %2$ld left";
@@ -53,6 +55,7 @@
 "%1$ldd %2$ldh" = "%1$ldd %2$ldh";
 "%1$ldh %2$ldm" = "%1$ldh %2$ldm";
 "%@ advice" = "%@ advice";
+"%@ as the vendor's own usage export priced it" = "%@ as the vendor's own usage export priced it";
 "%@ billed this month" = "%@ billed this month";
 "%@ hit its rate limit; wait for the reset." = "%@ hit its rate limit; wait for the reset.";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON.";
@@ -63,6 +66,7 @@
 "%@ org spend" = "%@ org spend";
 "%@ per 1%% of session today" = "%@ per 1%% of session today";
 "%@ plan has nothing for Cursor to meter yet" = "%@ plan has nothing for Cursor to meter yet";
+"%@ priced here from local files at published list rates" = "%@ priced here from local files at published list rates";
 "%@ remaining" = "%@ remaining";
 "%@ s" = "%@ s";
 "%@ Settings" = "%@ Settings";
@@ -312,7 +316,6 @@
 "Language" = "Language";
 "Last 24h" = "Last 24h";
 "Last checked %@" = "Last checked %@";
-"Last hour %1$@ · %2$@ your 30-day average" = "Last hour %1$@ · %2$@ your 30-day average";
 "Last reading %@ · may be out of date" = "Last reading %@ · may be out of date";
 "Left" = "Left";
 "Left edge" = "Left edge";
@@ -323,7 +326,6 @@
 "likely a %@ window" = "likely a %@ window";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh.";
 "Local API on 127.0.0.1:%ld" = "Local API on 127.0.0.1:%ld";
-"Local files at published list rates; an export is the vendor's own figure" = "Local files at published list rates; an export is the vendor's own figure";
 "local sessions" = "local sessions";
 "local transcripts" = "local transcripts";
 "low power mode" = "low power mode";
@@ -348,6 +350,8 @@
 "no cost yet" = "no cost yet";
 "No data" = "No data";
 "No limit published" = "No limit published";
+"no sessions on this Mac yet" = "no sessions on this Mac yet";
+"no spend read yet" = "no spend read yet";
 "None" = "None";
 "Not available: %@ is running unbundled." = "Not available: %@ is running unbundled.";
 "Not checked yet" = "Not checked yet";
@@ -423,7 +427,6 @@
 "Premium requests" = "Premium requests";
 "Press keys…" = "Press keys…";
 "Preview" = "Preview";
-"Priced from local files at published list rates" = "Priced from local files at published list rates";
 "Pricing local files" = "Pricing local files";
 "Privacy" = "Privacy";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept.";
@@ -588,3 +591,4 @@
 "Your menu bar ran out of room three apps ago. This one doesn't take any." = "Your menu bar ran out of room three apps ago. This one doesn't take any.";
 "~%ld%% left at reset" = "~%ld%% left at reset";
 "~%ld%% over at reset" = "~%ld%% over at reset";
+"“%@” is off in Settings" = "“%@” is off in Settings";

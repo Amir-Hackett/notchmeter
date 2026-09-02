@@ -25,10 +25,12 @@
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ は %2$ld%%、%3$@ は %4$ld%%。ツールではなくモデルを切り替えましょう。";
 "%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@." = "まず %1$@ を settings.json.bak-<日付> にコピーします。既存のフックは保持され、Notchmeter の項目が %2$@ の下に追加されます。";
 "%1$@ is waiting in %2$@." = "%1$@ が %2$@ で待っています。";
+"%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ 直近 1 時間 %2$@ · 30 日平均の %3$@";
 "%1$@ of %2$@" = "%1$@ / %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "本日はセッション 1%% あたり %1$@、30 日中央値 %2$@";
 "%1$@ today · %2$@ over 30 days · %3$@" = "本日 %1$@ · 30日間 %2$@ · %3$@";
-"%1$@ · %2$ld%% cache reads" = "%1$@ · キャッシュ読み取り %2$ld%%";
+"%1$@ used %2$@" = "%1$@ は %2$@ を使用";
+"%1$@ used %2$@ · %3$ld%% cache reads" = "%1$@ は %2$@ を使用 · キャッシュ読み取り %3$ld%%";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "%1$@ の使用量エンドポイントが HTTP %2$ld を返しています。ステータスページを確認してください。";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%2$@ クレジット %1$ld 件 — Codex で受け取ってください";
 "%1$ld of %2$ld left" = "残り %1$ld / %2$ld";
@@ -37,6 +39,7 @@
 "%1$ldd %2$ldh" = "%1$ld日 %2$ld時間";
 "%1$ldh %2$ldm" = "%1$ld時間 %2$ld分";
 "%@ advice" = "%@ のアドバイス";
+"%@ as the vendor's own usage export priced it" = "%@ はベンダー自身の使用量エクスポートが付けた価格";
 "%@ billed this month" = "今月 %@ を請求";
 "%@ hit its rate limit; wait for the reset." = "%@ がレート制限に達しました。リセットをお待ちください。";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "まず %@ を settings.json.bak-<日付> にコピーします。既存のステータスラインは Notchmeter の後に同じ JSON で引き続き実行されます。";
@@ -47,6 +50,7 @@
 "%@ org spend" = "%@ 組織支出";
 "%@ per 1%% of session today" = "本日はセッション 1%% あたり %@";
 "%@ plan has nothing for Cursor to meter yet" = "%@ プランには Cursor が計測できる項目がまだありません";
+"%@ priced here from local files at published list rates" = "%@ はローカルファイルから公表価格でここで算出";
 "%@ remaining" = "残り %@";
 "%@ s" = "%@ 秒";
 "%@ Settings" = "%@ の設定";
@@ -296,7 +300,6 @@
 "Language" = "言語";
 "Last 24h" = "直近 24 時間";
 "Last checked %@" = "最終確認: %@";
-"Last hour %1$@ · %2$@ your 30-day average" = "直近 1 時間 %1$@ · 30 日平均の %2$@";
 "Last reading %@ · may be out of date" = "最終読み取り %@ · 古い可能性があります";
 "Left" = "残り";
 "Left edge" = "左端";
@@ -307,7 +310,6 @@
 "likely a %@ window" = "おそらく %@ ウィンドウ";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "~/.local/bin（または /usr/local/bin）にこのアプリへの `notchmeter` リンクを作ります。ターミナルや Claude Code スキルの `notchmeter` は各ベンダーに問い合わせ直さず、実行中のアプリのキャッシュ済みレポートを読みます。`notchmeter --force` は読み直します。";
 "Local API on 127.0.0.1:%ld" = "ローカル API（127.0.0.1:%ld）";
-"Local files at published list rates; an export is the vendor's own figure" = "ローカルファイルは公開定価で計算、エクスポートはベンダー自身の金額";
 "local sessions" = "ローカルのセッション";
 "local transcripts" = "ローカルの記録";
 "low power mode" = "低電力モード";
@@ -332,6 +334,8 @@
 "no cost yet" = "まだコストなし";
 "No data" = "データなし";
 "No limit published" = "上限は公開されていません";
+"no sessions on this Mac yet" = "この Mac にはまだセッションがありません";
+"no spend read yet" = "支出はまだ読み取られていません";
 "None" = "なし";
 "Not available: %@ is running unbundled." = "利用できません: %@ はバンドルなしで実行されています。";
 "Not checked yet" = "未確認";
@@ -407,7 +411,6 @@
 "Premium requests" = "プレミアムリクエスト";
 "Press keys…" = "キーを押してください…";
 "Preview" = "試聴";
-"Priced from local files at published list rates" = "ローカルファイルを公開定価で計算";
 "Pricing local files" = "ローカルファイルを計算中";
 "Privacy" = "プライバシー";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "すべての設定を初期値に戻し、キャッシュ済みの読み取りと送信済み通知の記録を消去して再起動します。記録、コストキャッシュ、消費ログは保持されます。";
@@ -572,3 +575,4 @@
 "Your menu bar ran out of room three apps ago. This one doesn't take any." = "メニューバーは 3 つ前のアプリで満杯になりました。これはスペースを取りません。";
 "~%ld%% left at reset" = "リセット時に約 %ld%% 残る見込み";
 "~%ld%% over at reset" = "リセット時に約 %ld%% 超過";
+"“%@” is off in Settings" = "設定の「%@」がオフです";

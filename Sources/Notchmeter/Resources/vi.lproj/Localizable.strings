@@ -25,10 +25,12 @@
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ ở mức %2$ld%%. %3$@ ở mức %4$ld%%. Đổi mô hình, không cần đổi công cụ.";
 "%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@." = "%1$@ được sao chép thành settings.json.bak-<ngày> trước. Các hook đã có được giữ nguyên; mục của Notchmeter được thêm dưới %2$@.";
 "%1$@ is waiting in %2$@." = "%1$@ đang chờ trong %2$@.";
+"%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ giờ vừa qua %2$@ · gấp %3$@ trung bình 30 ngày của nó";
 "%1$@ of %2$@" = "%1$@ / %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "Hôm nay %1$@ mỗi 1%% phiên, trung vị 30 ngày %2$@";
 "%1$@ today · %2$@ over 30 days · %3$@" = "Hôm nay %1$@ · 30 ngày %2$@ · %3$@";
-"%1$@ · %2$ld%% cache reads" = "%1$@ · %2$ld%% đọc từ bộ đệm";
+"%1$@ used %2$@" = "%1$@ đã dùng %2$@";
+"%1$@ used %2$@ · %3$ld%% cache reads" = "%1$@ đã dùng %2$@ · %3$ld%% đọc từ bộ đệm";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "Điểm cuối dùng của %1$@ trả về HTTP %2$ld; hãy xem trang trạng thái.";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%1$ld tín dụng %2$@ — hãy nhận trong Codex";
 "%1$ld of %2$ld left" = "Còn %1$ld / %2$ld";
@@ -37,6 +39,7 @@
 "%1$ldd %2$ldh" = "%1$ld ngày %2$ld giờ";
 "%1$ldh %2$ldm" = "%1$ld giờ %2$ld phút";
 "%@ advice" = "Lời khuyên của %@";
+"%@ as the vendor's own usage export priced it" = "%@ theo giá trong bản xuất mức dùng của chính nhà cung cấp";
 "%@ billed this month" = "Đã tính phí %@ tháng này";
 "%@ hit its rate limit; wait for the reset." = "%@ đã chạm giới hạn tốc độ; hãy đợi đặt lại.";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "%@ được sao chép thành settings.json.bak-<ngày> trước. Dòng trạng thái đã có tiếp tục chạy sau dòng của Notchmeter, với cùng JSON.";
@@ -47,6 +50,7 @@
 "%@ org spend" = "Chi tiêu tổ chức %@";
 "%@ per 1%% of session today" = "Hôm nay %@ mỗi 1%% phiên";
 "%@ plan has nothing for Cursor to meter yet" = "Gói %@ chưa có gì để Cursor đo";
+"%@ priced here from local files at published list rates" = "%@ được tính tại đây từ tệp cục bộ theo bảng giá công bố";
 "%@ remaining" = "Còn %@";
 "%@ s" = "%@ giây";
 "%@ Settings" = "Cài đặt %@";
@@ -296,7 +300,6 @@
 "Language" = "Ngôn ngữ";
 "Last 24h" = "24 giờ qua";
 "Last checked %@" = "Kiểm tra lần cuối %@";
-"Last hour %1$@ · %2$@ your 30-day average" = "Giờ vừa qua %1$@ · gấp %2$@ trung bình 30 ngày của bạn";
 "Last reading %@ · may be out of date" = "Lần đọc gần nhất %@ · có thể đã cũ";
 "Left" = "Còn lại";
 "Left edge" = "Cạnh trái";
@@ -307,7 +310,6 @@
 "likely a %@ window" = "có lẽ là cửa sổ %@";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "Liên kết `notchmeter` trong ~/.local/bin (hoặc /usr/local/bin) tới ứng dụng này, để `notchmeter` trong terminal hay kỹ năng Claude Code đọc báo cáo đã cache của ứng dụng đang chạy thay vì hỏi lại từng nhà cung cấp; `notchmeter --force` đọc mới.";
 "Local API on 127.0.0.1:%ld" = "API cục bộ tại 127.0.0.1:%ld";
-"Local files at published list rates; an export is the vendor's own figure" = "Tệp cục bộ tính theo giá niêm yết; bản xuất là số liệu của chính nhà cung cấp";
 "local sessions" = "phiên cục bộ";
 "local transcripts" = "bản ghi cục bộ";
 "low power mode" = "chế độ tiết kiệm pin";
@@ -332,6 +334,8 @@
 "no cost yet" = "chưa có chi phí";
 "No data" = "Không có dữ liệu";
 "No limit published" = "Không công bố giới hạn";
+"no sessions on this Mac yet" = "chưa có phiên nào trên máy Mac này";
+"no spend read yet" = "chưa đọc được chi tiêu nào";
 "None" = "Không";
 "Not available: %@ is running unbundled." = "Không khả dụng: %@ đang chạy không đóng gói.";
 "Not checked yet" = "Chưa kiểm tra";
@@ -407,7 +411,6 @@
 "Premium requests" = "Yêu cầu cao cấp";
 "Press keys…" = "Nhấn phím…";
 "Preview" = "Nghe thử";
-"Priced from local files at published list rates" = "Tính từ tệp cục bộ theo giá niêm yết công bố";
 "Pricing local files" = "Đang tính giá tệp cục bộ";
 "Privacy" = "Quyền riêng tư";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "Đưa mọi cài đặt về mặc định, xóa các chỉ số đã lưu và danh sách thông báo đã gửi, rồi khởi chạy lại. Bản ghi, bộ đệm chi phí và nhật ký tiêu hao được giữ lại.";
@@ -572,3 +575,4 @@
 "Your menu bar ran out of room three apps ago. This one doesn't take any." = "Thanh menu của bạn đã hết chỗ từ ba ứng dụng trước. Ứng dụng này không chiếm chỗ nào.";
 "~%ld%% left at reset" = "~%ld%% còn lại khi đặt lại";
 "~%ld%% over at reset" = "~%ld%% vượt mức khi đặt lại";
+"“%@” is off in Settings" = "“%@” đang tắt trong Cài đặt";

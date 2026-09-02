@@ -157,3 +157,129 @@ import Testing
         #expect(Preferences(defaults: defaults).costCardTools == [.claude])
     }
 }
+
+/// The lines under the Cost card's legend, which describe the assistant at the top of the card's order rather
+/// than the blend the donut and the legend show.
+@Suite struct CostCardDetailBlock {
+    init() { Localization.use(language: "en") }
+
+    let now = DateParsing.iso8601("2026-09-01T15:00:00Z")!
+
+    var utc: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
+    var today: Date { utc.startOfDay(for: now) }
+
+    /// Claude Code's kind of day: five token buckets, a folder per turn, and entries carrying a time of day.
+    var claude: ProviderCost {
+        let tokens = TokenBreakdown(input: 1_000_000, cacheWrite5m: 200_000, cacheWrite1h: 800_000, cacheRead: 8_000_000, output: 100_000)
+        let record = CostHistory.Record(cost: 40, tokens: tokens, byModel: ["claude-sonnet-4-5": 40], byProject: ["notchmeter": 30, "scout": 10])
+        return ProviderCost.build(tool: .claude, source: .localTranscripts, days: [today: record], now: now, weekStart: today,
+                                  calendar: utc, hourly: HourlyBurn(lastHour: 6, typicalHourly: 3, activeHours: 8), scannedAt: now)!
+    }
+
+    /// Cursor's kind of day: the vendor's own dollars, tokens with a cache-read count, no folder and no hour.
+    var cursor: ProviderCost {
+        let tokens = TokenBreakdown(input: 300_000, cacheRead: 700_000, output: 50_000)
+        let record = CostHistory.Record(cost: 12, tokens: tokens, byModel: ["auto": 12], byProject: [:])
+        return ProviderCost.build(tool: .cursor, source: .billingExport, days: [today: record], now: now, weekStart: today,
+                                  calendar: utc, scannedAt: now)!
+    }
+
+    /// The Claude-window figures the summary carries whichever assistant leads.
+    var summary: CostSummary {
+        CostSummary(today: 52, yesterday: 0, last30Days: 52, daily: [], lastHour: 6, typicalHourly: 3, burnMultiple: 2,
+                    unpricedModels: [], scannedAt: now,
+                    week: WeekCost(start: today, cost: 1200, perPercent: 12.4),
+                    block: BlockCost(start: now, end: now, cost: 18, tokens: TokenBreakdown(input: 500_000), tokensPerMinute: 4200),
+                    firstUse: today, sinceFirstUse: 41_300)
+    }
+
+    func detail(_ order: [ToolID], range: CostRange = .today) throws -> CostDetail {
+        let selection = CostSelection(all: [claude, cursor], order: order, carried: [.claude, .cursor])
+        return CostDetail(provider: try #require(selection.providers.first), range: range, claude: summary, now: now, calendar: utc)
+    }
+
+    @Test func withCursorAtTheTopTheBlockIsCursors() throws {
+        let detail = try detail([.cursor, .claude])
+        #expect(detail.tokens == "Cursor used 1.1M tokens · 67% cache reads")
+        #expect(detail.source == "Cursor as the vendor's own usage export priced it")
+        // Every line Cursor's export cannot answer is absent rather than filled from Claude, who is on the card.
+        #expect(detail.burn == nil)
+        #expect(detail.projects == nil)
+        #expect(detail.cacheWrites == nil)
+        #expect(detail.detailCaptions == ["Cursor used 1.1M tokens · 67% cache reads"])
+        #expect(detail.detailLines.isEmpty)
+    }
+
+    @Test func withClaudeAtTheTopTheBlockIsClaudes() throws {
+        let detail = try detail([.claude, .cursor])
+        #expect(detail.burn == "Claude last hour $6.00 · 2x its 30-day average")
+        #expect(detail.tokens == "Claude used 10M tokens · 79% cache reads")
+        #expect(detail.cacheWrites == "cache writes 80% 1-hour · 20% 5-minute")
+        #expect(detail.projects == "Top: notchmeter $30 · scout $10")
+        #expect(detail.source == "Claude priced here from local files at published list rates")
+    }
+
+    /// The weekly window, the 5-hour block and "since first use" are Claude Code's own metering, so they follow
+    /// the leader rather than the fact that Claude happens to be installed.
+    @Test func claudesOwnWindowsAppearOnlyWhileClaudeLeads() throws {
+        #expect(try detail([.claude, .cursor], range: .week).week?.contains("per 1% of weekly") == true)
+        #expect(try detail([.claude, .cursor]).block == "This session block $18.00 · 4K/min")
+        #expect(try detail([.claude, .cursor], range: .last90Days).since?.hasPrefix("Claude since today") == true)
+        #expect(try detail([.cursor, .claude], range: .week).week == nil)
+        #expect(try detail([.cursor, .claude]).block == nil)
+        #expect(try detail([.cursor, .claude], range: .last90Days).since == nil)
+        // Both are range-scoped as they always were: the week's line only under Week, "since" only under 90d.
+        #expect(try detail([.claude, .cursor]).week == nil)
+        #expect(try detail([.claude, .cursor]).since == nil)
+    }
+
+    /// A range the leader spent nothing in has no tokens, no folders and no cache split to report.
+    @Test func aRangeTheLeaderHasNothingInDropsEveryLineItCannotFill() throws {
+        let detail = try detail([.claude, .cursor], range: .yesterday)
+        #expect(detail.tokens == nil)
+        #expect(detail.projects == nil)
+        #expect(detail.cacheWrites == nil)
+        #expect(detail.detailCaptions.isEmpty)
+        // The hour and the provenance are the provider's, not the range's, so they stay.
+        #expect(detail.burn == "Claude last hour $6.00 · 2x its 30-day average")
+        #expect(detail.source == "Claude priced here from local files at published list rates")
+    }
+}
+
+/// Why a tool the Cost card carries reported nothing. The card used to leave it out in silence, which reads as
+/// "it costs nothing" rather than "nothing was read".
+@Suite struct CostCardAbsence {
+    init() { Localization.use(language: "en") }
+
+    @Test func aCarriedToolWithNoSpendGivesTheReasonTheAppKnows() {
+        let gaps = CostAbsence.gaps(carried: [.cursor, .claude, .codex], reporting: [.claude], cursorUsageEvents: false,
+                                    problems: [:], nothingLocal: [.codex])
+        #expect(gaps.map(\.tool) == [.cursor, .codex])
+        #expect(gaps[0].text == "Cursor: “Also read Cursor's usage events” is off in Settings")
+        #expect(gaps[1].text == "Codex: no sessions on this Mac yet")
+    }
+
+    @Test func aReadThatWentWrongSpeaksInItsOwnWords() {
+        let gaps = CostAbsence.gaps(carried: [.cursor], reporting: [], cursorUsageEvents: true,
+                                    problems: [.cursor: "Signed out of cursor.com"], nothingLocal: [])
+        #expect(gaps.map(\.text) == ["Cursor: Signed out of cursor.com"])
+        // The switch outranks the error: with the read off there is nothing for an error to be about.
+        #expect(CostAbsence.reason(for: .cursor, cursorUsageEvents: false, problem: "Signed out of cursor.com", nothingLocal: false)
+            == .settingOff("Also read Cursor's usage events"))
+    }
+
+    @Test func nothingIsSaidWhenEveryCarriedToolReports() {
+        #expect(CostAbsence.gaps(carried: [.claude, .codex], reporting: [.claude, .codex], cursorUsageEvents: true,
+                                 problems: [:], nothingLocal: []).isEmpty)
+        // A tool that can never report spend was never a row, so it is not a gap either (docs/accuracy.md).
+        #expect(CostAbsence.gaps(carried: [.copilot, .antigravity], reporting: [], cursorUsageEvents: true,
+                                 problems: [:], nothingLocal: []).isEmpty)
+        // With nothing else known the line says exactly that rather than guessing at a cause.
+        #expect(CostAbsence.reason(for: .claude, cursorUsageEvents: true, problem: nil, nothingLocal: false) == .notReadYet)
+    }
+}
