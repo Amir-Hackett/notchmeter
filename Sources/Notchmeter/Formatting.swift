@@ -159,3 +159,12 @@ enum Money {
         return String(format: "$%.2f", value)
     }
 }
+
+enum Burn {
+    /// "6x", "1.5x", "0.3x": one decimal below ten, none from ten up.
+    static func multiple(_ value: Double) -> String {
+        if value >= 10 { return "\(Int(value.rounded()))x" }
+        let text = String(format: "%.1f", value)
+        return (text.hasSuffix(".0") ? String(text.dropLast(2)) : text) + "x"
+    }
+}

@@ -7,6 +7,17 @@ struct UsageEntry: Codable, Equatable, Sendable {
     let costUSD: Double?
     /// `message.id` + `requestId`; streaming writes the same message several times.
     let dedupeKey: String?
+    /// `usage.inference_geo`; "us" is billed at 1.1x list.
+    let inferenceGeo: String?
+
+    init(timestamp: Date, model: String?, tokens: TokenBreakdown, costUSD: Double?, dedupeKey: String?, inferenceGeo: String? = nil) {
+        self.timestamp = timestamp
+        self.model = model
+        self.tokens = tokens
+        self.costUSD = costUSD
+        self.dedupeKey = dedupeKey
+        self.inferenceGeo = inferenceGeo
+    }
 }
 
 struct DailySpend: Equatable, Sendable, Identifiable {
@@ -22,15 +33,22 @@ struct CostSummary: Equatable, Sendable {
     let last30Days: Double
     /// One entry per calendar day for the last 30 days, oldest first.
     let daily: [DailySpend]
+    /// Everything priced in the last 60 minutes.
+    let lastHour: Double
+    /// Median cost of an active hour (a clock hour with at least one entry) across the window.
+    let typicalHourly: Double
+    /// lastHour / typicalHourly; nil until five active hours exist and the median is above zero.
+    let burnMultiple: Double?
     let unpricedModels: Set<String>
     let scannedAt: Date
 
-    static let empty = CostSummary(today: 0, yesterday: 0, last30Days: 0, daily: [], unpricedModels: [], scannedAt: .distantPast)
+    static let empty = CostSummary(today: 0, yesterday: 0, last30Days: 0, daily: [], lastHour: 0, typicalHourly: 0,
+                                   burnMultiple: nil, unpricedModels: [], scannedAt: .distantPast)
 }
 
-/// Prices what Claude Code has already written to disk. Ports the ccusage rules OpenUsage also follows:
-/// only assistant lines carrying `usage`, deduplicated by message id + request id keeping the first
-/// occurrence in path order, a line's own `costUSD` when present, otherwise tokens times list price.
+/// Prices what Claude Code has already written to disk: assistant lines carrying `usage`, one per message id +
+/// request id, a line's own `costUSD` when present, otherwise tokens times list price times the residency
+/// multiplier. The rules and their sources are written down in docs/accuracy.md.
 actor ClaudeCostScanner {
     private struct CachedFile: Codable {
         let size: Int
@@ -48,9 +66,10 @@ actor ClaudeCostScanner {
         self.cacheURL = cacheURL
     }
 
+    /// Versioned: entries parsed by an older rule set must not be reused.
     static func defaultCacheURL() -> URL? {
         guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
-        return caches.appendingPathComponent("Notchmeter/claude-usage-cache.json")
+        return caches.appendingPathComponent("Notchmeter/claude-usage-cache-v2.json")
     }
 
     private func loadCacheIfNeeded() {
@@ -108,7 +127,7 @@ actor ClaudeCostScanner {
         return Self.summarize(Self.dedupe(ordered), now: now, daysBack: daysBack)
     }
 
-    /// Every transcript under each root's projects/, path-sorted so keep-first dedupe is deterministic.
+    /// Every transcript under each root's projects/, path-sorted so the scan order is deterministic.
     static func transcriptFiles(under roots: [URL]) -> [URL] {
         var files: [URL] = []
         for root in roots {
@@ -167,16 +186,37 @@ actor ClaudeCostScanner {
             model: model,
             tokens: tokens,
             costUSD: (usage["costUSD"] as? Double) ?? (object["costUSD"] as? Double),
-            dedupeKey: key
+            dedupeKey: key,
+            inferenceGeo: usage["inference_geo"] as? String
         )
     }
 
+    /// One entry per message id + request id. A streamed message is written once per content block with the
+    /// `message_start` output count, then once more with the real count, so the line with the most output wins.
     static func dedupe(_ entries: [UsageEntry]) -> [UsageEntry] {
-        var seen: Set<String> = []
-        return entries.filter { entry in
-            guard let key = entry.dedupeKey else { return true }
-            return seen.insert(key).inserted
+        var kept: [UsageEntry] = []
+        var position: [String: Int] = [:]
+        for entry in entries {
+            guard let key = entry.dedupeKey else {
+                kept.append(entry)
+                continue
+            }
+            if let at = position[key] {
+                if entry.tokens.output > kept[at].tokens.output { kept[at] = entry }
+            } else {
+                position[key] = kept.count
+                kept.append(entry)
+            }
         }
+        return kept
+    }
+
+    /// A line's own `costUSD` wins; otherwise tokens at list price times the residency multiplier.
+    static func price(_ entry: UsageEntry, unpriced: inout Set<String>) -> Double {
+        if let explicit = entry.costUSD { return explicit }
+        if let priced = ModelPricing.cost(of: entry.tokens, model: entry.model, inferenceGeo: entry.inferenceGeo) { return priced }
+        if let model = entry.model { unpriced.insert(model) }
+        return 0
     }
 
     static func summarize(_ entries: [UsageEntry], now: Date, daysBack: Int) -> CostSummary {
@@ -185,20 +225,16 @@ actor ClaudeCostScanner {
         guard let windowStart = calendar.date(byAdding: .day, value: -(daysBack - 1), to: today) else { return .empty }
         var costByDay: [Date: Double] = [:]
         var tokensByDay: [Date: Int] = [:]
+        var costByHour: [Int: Double] = [:]
+        var lastHour = 0.0
         var unpriced: Set<String> = []
         for entry in entries where entry.timestamp >= windowStart {
+            let cost = price(entry, unpriced: &unpriced)
             let day = calendar.startOfDay(for: entry.timestamp)
-            let cost: Double
-            if let explicit = entry.costUSD {
-                cost = explicit
-            } else if let priced = ModelPricing.cost(of: entry.tokens, model: entry.model) {
-                cost = priced
-            } else {
-                if let model = entry.model { unpriced.insert(model) }
-                cost = 0
-            }
             costByDay[day, default: 0] += cost
             tokensByDay[day, default: 0] += entry.tokens.total
+            costByHour[Int((entry.timestamp.timeIntervalSince1970 / 3600).rounded(.down)), default: 0] += cost
+            if now.timeIntervalSince(entry.timestamp) < 3600 { lastHour += cost }
         }
         var daily: [DailySpend] = []
         for offset in 0..<daysBack {
@@ -206,13 +242,24 @@ actor ClaudeCostScanner {
             daily.append(DailySpend(day: day, cost: costByDay[day] ?? 0, tokens: tokensByDay[day] ?? 0))
         }
         let yesterday = calendar.date(byAdding: .day, value: -1, to: today).flatMap { costByDay[$0] } ?? 0
+        let typicalHourly = median(Array(costByHour.values))
         return CostSummary(
             today: costByDay[today] ?? 0,
             yesterday: yesterday,
             last30Days: daily.reduce(0) { $0 + $1.cost },
             daily: daily,
+            lastHour: lastHour,
+            typicalHourly: typicalHourly,
+            burnMultiple: costByHour.count >= 5 && typicalHourly > 0 ? lastHour / typicalHourly : nil,
             unpricedModels: unpriced,
             scannedAt: now
         )
+    }
+
+    static func median(_ values: [Double]) -> Double {
+        guard !values.isEmpty else { return 0 }
+        let sorted = values.sorted()
+        let middle = sorted.count / 2
+        return sorted.count % 2 == 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
     }
 }
