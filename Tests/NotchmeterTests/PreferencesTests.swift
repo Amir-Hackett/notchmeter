@@ -144,3 +144,30 @@ import Testing
         #expect(ProxySettings.dictionary(for: "http://noport") == nil)
     }
 }
+
+/// A plan whose headline window publishes no limit — Cursor Free's "Included usage" — must not take the rings
+/// and leave the tool showing nothing when other windows do report a figure.
+@Suite struct RingsPreferWindowsWithFigures {
+    private func window(_ id: String, _ used: Double?) -> LimitWindow {
+        LimitWindow(id: id, label: .vendor(id), usedFraction: used, resetsAt: nil)
+    }
+
+    @Test func anUnlimitedHeadlineYieldsToWindowsThatReport() {
+        let reading = UsageReading(tool: .cursor, windows: [window("included", nil), window("cursorModels", 0), window("other", 0)],
+                                   plan: "Free", fetchedAt: Date(), observedAt: nil)
+        let rings = RingSelection.windows(of: reading, chosen: [], hidden: [])
+        #expect(rings.map(\.id) == ["cursorModels", "other"])
+    }
+
+    @Test func anExplicitChoiceStillWins() {
+        let reading = UsageReading(tool: .cursor, windows: [window("included", nil), window("cursorModels", 0)],
+                                   plan: "Free", fetchedAt: Date(), observedAt: nil)
+        #expect(RingSelection.windows(of: reading, chosen: ["included"], hidden: []).map(\.id) == ["included", "cursorModels"])
+    }
+
+    @Test func allWithoutFiguresKeepsTheReadingOrder() {
+        let reading = UsageReading(tool: .cursor, windows: [window("a", nil), window("b", nil)],
+                                   plan: "Free", fetchedAt: Date(), observedAt: nil)
+        #expect(RingSelection.windows(of: reading, chosen: [], hidden: []).map(\.id) == ["a", "b"])
+    }
+}

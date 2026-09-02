@@ -913,7 +913,10 @@ enum RingSelection {
         for id in chosen {
             if let window = shown.first(where: { $0.id == id }), !result.contains(where: { $0.id == id }) { result.append(window) }
         }
-        for window in shown where result.count < 2 && !result.contains(where: { $0.id == window.id }) {
+        // Windows that publish a figure come first when nothing was chosen: a plan whose headline window has no
+        // limit (Cursor Free's "Included usage") would otherwise fill the rings with a tool that shows nothing.
+        let byData = shown.filter { $0.usedFraction != nil } + shown.filter { $0.usedFraction == nil }
+        for window in byData where result.count < 2 && !result.contains(where: { $0.id == window.id }) {
             result.append(window)
         }
         return Array(result.prefix(2))
