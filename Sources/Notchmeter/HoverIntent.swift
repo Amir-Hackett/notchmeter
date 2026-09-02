@@ -120,7 +120,9 @@ struct HoverIntent: Equatable {
         switch (swipe, state) {
         case (.down, .compact) where inCompact:
             return begin(.expanded, at: Self.milliseconds(time))
-        case (.up, .expanded) where inExpanded && mode != .always:
+        // Only over the strip beside the notch: inside the panel an upward swipe is the user scrolling
+        // the content, and closing on it makes a scrollable panel impossible to read.
+        case (.up, .expanded) where inCompact && !inExpanded && mode != .always:
             return begin(.compact, at: Self.milliseconds(time))
         default:
             return .none
