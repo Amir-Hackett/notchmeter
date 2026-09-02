@@ -15,6 +15,7 @@ actor CursorProvider: UsageProvider {
     static let summaryURL = URL(string: "https://cursor.com/api/usage-summary")!
     static let legacyUsageURL = URL(string: "https://cursor.com/api/usage")!
     static let usageEventsURL = URL(string: "https://cursor.com/api/dashboard/get-filtered-usage-events")!
+    static let teamsURL = URL(string: "https://cursor.com/api/dashboard/teams")!
 
     /// One priced request from the account's usage-events export.
     struct UsageEvent: Equatable, Sendable {
@@ -82,10 +83,26 @@ actor CursorProvider: UsageProvider {
         guard let history else { return }
         let calendar = Calendar.current
         let start = calendar.date(byAdding: .day, value: -29, to: calendar.startOfDay(for: now)) ?? now
-        let body = Self.usageEventsRequestBody(start: start, end: now)
-        guard let (data, response) = try? await send(Self.usageEventsURL, cookie: cookie, body: body), response?.statusCode == 200 else { return }
+        var teamId = 0
+        if let (teamData, teamResponse) = try? await send(Self.teamsURL, cookie: cookie, body: Data("{}".utf8)),
+           teamResponse?.statusCode == 200, let found = Self.parseTeamId(teamData) {
+            teamId = found
+        }
+        let body = Self.usageEventsRequestBody(start: start, end: now, teamId: teamId)
+        guard let (data, response) = try? await send(Self.usageEventsURL, cookie: cookie, body: body) else {
+            log.error("Cursor usage events: the request failed")
+            return
+        }
+        guard response?.statusCode == 200 else {
+            // Silence here is what hid an empty Cost card: a refusal reads exactly like a month with no spend.
+            log.error("Cursor usage events: HTTP \(response?.statusCode ?? 0) for team \(teamId)")
+            return
+        }
         let events = Self.parseUsageEvents(data)
-        guard !events.isEmpty else { return }
+        guard !events.isEmpty else {
+            log.info("Cursor usage events: none in the last 30 days for team \(teamId)")
+            return
+        }
         let existing = history.load(calendar: calendar)
         history.record(Self.dayRecords(events, calendar: calendar), existing: existing, calendar: calendar)
     }
@@ -223,10 +240,22 @@ actor CursorProvider: UsageProvider {
     // MARK: - Usage events
 
     /// The dashboard's own query: a 30-day range in epoch milliseconds, one page of up to 500 events.
-    static func usageEventsRequestBody(start: Date, end: Date, page: Int = 1, pageSize: Int = 500) -> Data {
-        let object: [String: Any] = ["teamId": 0, "startDate": String(Int(start.timeIntervalSince1970 * 1000)),
+    /// A seat on a team keeps its events under that team's id; an individual account has none and uses 0. Sending
+    /// the wrong one is not an empty answer but a refusal ("Team ID is required"), so the id is looked up first.
+    static func usageEventsRequestBody(start: Date, end: Date, teamId: Int = 0, page: Int = 1, pageSize: Int = 500) -> Data {
+        let object: [String: Any] = ["teamId": teamId, "startDate": String(Int(start.timeIntervalSince1970 * 1000)),
                                      "endDate": String(Int(end.timeIntervalSince1970 * 1000)), "page": page, "pageSize": pageSize]
         return (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data()
+    }
+
+    /// The first team the account sits on, or nil for an individual account, which is 0's meaning.
+    static func parseTeamId(_ data: Data) -> Int? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        let list = (root["teams"] ?? root["teamsList"]) as? [Any] ?? []
+        for case let team as [String: Any] in list {
+            if let id = JSON.number(team["id"] ?? team["teamId"]), id > 0 { return Int(id) }
+        }
+        return nil
     }
 
     /// `usageEventsDisplay[]`: `timestamp` (epoch milliseconds, as a string or a number), `model`, and the cost as
