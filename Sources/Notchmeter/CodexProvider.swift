@@ -1,9 +1,13 @@
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "codex")
 
 /// Asks the same backend endpoint Codex itself uses for its rate-limit windows, with the login Codex keeps in
-/// `~/.codex/auth.json`. Falls back to the snapshots Codex writes into session rollouts when the network is out.
-/// The token is never refreshed or written; Codex does that whenever it runs. The reset-credits endpoint is a
-/// second request on the same login and runs only when the user opts in.
+/// its home (`$CODEX_HOME`, else `~/.config/codex`, else `~/.codex`, the order Codex resolves it). Falls back to the
+/// snapshots Codex writes into session rollouts when the network is out. The token is never refreshed or written;
+/// Codex does that whenever it runs. The reset-credits endpoint is a second request on the same login and runs
+/// only when the user opts in.
 actor CodexProvider: UsageProvider {
     nonisolated let tool: ToolID = .codex
     nonisolated let refreshInterval: TimeInterval = 300
@@ -25,14 +29,24 @@ actor CodexProvider: UsageProvider {
         let kind: String?
     }
 
-    private let session: URLSession
+    private let session: URLSession?
     private let readResetCredits: @Sendable () -> Bool
 
-    init(session: URLSession = NetworkSession.shared, root: URL = Paths.home.appendingPathComponent(".codex"),
+    init(session: URLSession? = nil, root: URL = CodexProvider.defaultHome(),
          readResetCredits: @escaping @Sendable () -> Bool = { false }) {
         self.session = session
         self.root = root
         self.readResetCredits = readResetCredits
+    }
+
+    /// `$CODEX_HOME` when set; else `~/.config/codex` when it exists; else `~/.codex`.
+    static func defaultHome(environment: [String: String] = ProcessInfo.processInfo.environment, home: URL = Paths.home,
+                            exists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }) -> URL {
+        if let custom = ProcessEnvironment.value("CODEX_HOME", environment: environment), !custom.isEmpty {
+            return URL(fileURLWithPath: (custom as NSString).expandingTildeInPath)
+        }
+        let config = home.appendingPathComponent(".config/codex")
+        return exists(config) ? config : home.appendingPathComponent(".codex")
     }
 
     nonisolated func isInstalled() -> Bool {
@@ -50,35 +64,35 @@ actor CodexProvider: UsageProvider {
         }
 
         let body: Data
-        let status: Int
+        let response: HTTPURLResponse?
         do {
-            (body, status) = try await get(Self.usageURL, auth: auth)
+            (body, response) = try await get(Self.usageURL, auth: auth)
         } catch {
             if let local = try? localReading() { return local }
             if let offline = ProviderError.offline(from: error) { throw offline }
             throw ProviderError.unavailable(L("Codex usage is unreachable: %@", error.localizedDescription))
         }
 
-        switch status {
+        switch response?.statusCode ?? 0 {
         case 200:
             var reading = try Self.parseBackend(body)
-            if readResetCredits(), let (credits, creditStatus) = try? await get(Self.resetCreditsURL, auth: auth), creditStatus == 200,
+            if readResetCredits(), let (credits, creditResponse) = try? await get(Self.resetCreditsURL, auth: auth), creditResponse?.statusCode == 200,
                let window = Self.resetCreditWindow(Self.parseResetCredits(credits)) {
-                reading = UsageReading(tool: .codex, windows: reading.windows + [window], plan: reading.plan, fetchedAt: reading.fetchedAt, observedAt: nil)
+                reading = reading.with(windows: reading.windows + [window])
             }
             return reading
         case 401, 403:
             if let local = try? localReading() { return local }
             throw ProviderError.tokenExpired(L("Codex's login was refused. Run Codex once so it signs back in"))
         case 429:
-            throw ProviderError.rateLimited(retryAfter: nil)
-        default:
+            throw ProviderError.rateLimited(retryAfter: RetryAfter.seconds(from: response))
+        case let status:
             if let local = try? localReading() { return local }
             throw ProviderError.http(status, L("Codex usage endpoint answered"))
         }
     }
 
-    private func get(_ url: URL, auth: Auth) async throws -> (Data, Int) {
+    private func get(_ url: URL, auth: Auth) async throws -> (Data, HTTPURLResponse?) {
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
         request.setValue("Bearer \(auth.accessToken)", forHTTPHeaderField: "Authorization")
@@ -87,8 +101,10 @@ actor CodexProvider: UsageProvider {
         if let accountID = auth.accountID {
             request.setValue(accountID, forHTTPHeaderField: "ChatGPT-Account-Id")
         }
-        let (received, response) = try await session.data(for: request)
-        return (received, (response as? HTTPURLResponse)?.statusCode ?? 0)
+        let (received, response) = try await (session ?? NetworkSession.shared).data(for: request)
+        let http = response as? HTTPURLResponse
+        DiagnosticLog.request(log, url.lastPathComponent, status: http?.statusCode ?? 0, bytes: received.count)
+        return (received, http)
     }
 
     // MARK: - Backend
@@ -134,9 +150,9 @@ actor CodexProvider: UsageProvider {
         }
         if let credits = root["credits"] as? [String: Any], (credits["has_credits"] as? Bool) == true, (credits["unlimited"] as? Bool) != true,
            let balance = JSON.number(credits["balance"]) {
-            windows.append(LimitWindow(id: "credits", label: L("Credits"), usedFraction: nil, resetsAt: nil, note: L("%@ remaining", Money.dollars(balance))))
+            windows.append(LimitWindow(id: "credits", label: L("Credits"), usedFraction: nil, resetsAt: nil, note: L("%@ remaining", Money.dollars(balance)), amountUSD: balance))
         }
-        let plan = (root["plan_type"] as? String).map(Naming.plan)
+        let plan = (root["plan_type"] as? String).map(Naming.codexPlan)
         return UsageReading(tool: .codex, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
     }
 
@@ -284,6 +300,8 @@ actor CodexProvider: UsageProvider {
         return try? handle.readToEnd()
     }
 
+    /// A snapshot Codex wrote into a rollout: tagged as such, and a reset that has already passed reads as a fresh
+    /// window rather than a stale figure.
     static func reading(from limits: [String: Any], observedAt: Date, now: Date) throws -> UsageReading {
         var windows: [LimitWindow] = []
         for (key, fallbackLabel) in [("primary", L("Session")), ("secondary", L("Weekly"))] {
@@ -307,11 +325,12 @@ actor CodexProvider: UsageProvider {
                 usedFraction: fraction,
                 resetsAt: resetsAt,
                 note: note,
-                periodDuration: minutes.map { TimeInterval($0 * 60) }
+                periodDuration: minutes.map { TimeInterval($0 * 60) },
+                source: .localSnapshot
             ))
         }
         guard !windows.isEmpty else { throw ProviderError.unavailable(L("Codex reported no usage windows")) }
-        let plan = (limits["plan_type"] as? String).map(Naming.plan)
+        let plan = (limits["plan_type"] as? String).map(Naming.codexPlan)
         return UsageReading(tool: .codex, windows: windows, plan: plan, fetchedAt: now, observedAt: observedAt)
     }
 

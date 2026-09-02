@@ -112,3 +112,25 @@ import Testing
         }
     }
 }
+
+
+/// The in-app language picker's mechanism.
+@Suite struct LanguagePicker {
+    @Test func aShippedCodeIsWrittenAsAppleLanguagesAndReadBack() {
+        let suite = "NotchmeterTests.LanguagePicker"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        Localization.applyPreferred(language: "ja", defaults: defaults)
+        #expect(defaults.persistentDomain(forName: suite)?["AppleLanguages"] as? [String] == ["ja"])
+        #expect(Localization.preferred(domain: defaults.persistentDomain(forName: suite)) == "ja")
+        Localization.applyPreferred(language: "ZH-HANS", defaults: defaults)
+        #expect(defaults.persistentDomain(forName: suite)?["AppleLanguages"] as? [String] == ["zh-Hans"])
+        Localization.applyPreferred(language: "fr", defaults: defaults)
+        #expect(defaults.persistentDomain(forName: suite)?["AppleLanguages"] == nil)
+        Localization.applyPreferred(language: nil, defaults: defaults)
+        #expect(Localization.preferred(domain: defaults.persistentDomain(forName: suite)) == nil)
+        #expect(Localization.preferred(domain: ["AppleLanguages": ["en-US"]]) == nil)
+        for code in Localization.languages { #expect(Localization.nativeNames[code] != nil) }
+    }
+}

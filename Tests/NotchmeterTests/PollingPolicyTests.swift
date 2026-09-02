@@ -65,3 +65,52 @@ import Testing
         #expect(PollingPolicy.decide(inputs(minutes: 1, base: 30)) == .after(30))
     }
 }
+
+
+/// A switched-out user session pauses like sleep; an exhausted main window backs the tool off to the ceiling.
+@Suite struct PollingRoundTwo {
+    init() { Localization.use(language: "en") }
+
+    let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
+
+    @Test func anotherUsersSessionPausesEverything() {
+        var inputs = PollingInputs(baseInterval: 300, minutesSinceLastAgentActivity: 1)
+        inputs.sessionInactive = true
+        #expect(PollingPolicy.decide(inputs) == .paused(.sessionInactive))
+        #expect(PauseReason.sessionInactive.footerText == "Paused while another user is logged in")
+        inputs.asleep = true
+        #expect(PollingPolicy.decide(inputs) == .paused(.asleep))
+    }
+
+    @Test func anExhaustedWindowIdlesUntilItsResetAndTheFooterSaysWhen() {
+        var inputs = PollingInputs(baseInterval: 300, minutesSinceLastAgentActivity: 1, now: now)
+        inputs.exhaustedUntil = now.addingTimeInterval(32 * 60)
+        #expect(PollingPolicy.isExhausted(inputs))
+        #expect(PollingPolicy.decide(inputs) == .after(PollingPolicy.ceiling))
+        inputs.exhaustedUntil = now.addingTimeInterval(-1)
+        #expect(!PollingPolicy.isExhausted(inputs))
+        #expect(PollingPolicy.decide(inputs) == .after(300))
+        inputs.exhaustedUntil = nil
+        #expect(PollingPolicy.decide(inputs) == .after(300))
+        #expect(L("Resets in %@", ResetText.duration(32 * 60)) == "Resets in 32m")
+    }
+
+    @MainActor @Test func theStoreBacksOffAnExhaustedToolAndNamesTheReset() {
+        let suite = "NotchmeterTests.Polling.exhausted"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let prefs = Preferences(defaults: defaults)
+        let now = Date()
+        let out = UsageReading(tool: .codex, windows: [
+            LimitWindow(id: "session", label: "Session", usedFraction: 0.2, resetsAt: now.addingTimeInterval(3600), periodDuration: Period.fiveHours),
+            LimitWindow(id: "weekly", label: "Weekly", usedFraction: 1, resetsAt: now.addingTimeInterval(32 * 60), periodDuration: Period.week),
+        ], plan: nil, fetchedAt: now, observedAt: nil)
+        let store = UsageStore(prefs: prefs, providers: [FixtureProvider(reading: out)], cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
+        store.seed(readings: [out], cost: .empty, nextUpdate: now.addingTimeInterval(60), now: now)
+        let inputs = store.pollingInputs(for: .codex, now: now)
+        #expect(inputs.exhaustedUntil == now.addingTimeInterval(32 * 60))
+        #expect(PollingPolicy.decide(inputs) == .after(PollingPolicy.ceiling))
+        #expect(store.scheduleNote?.hasPrefix("Resets in 3") == true)
+    }
+}

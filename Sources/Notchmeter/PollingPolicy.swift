@@ -17,12 +17,19 @@ struct PollingInputs: Equatable {
     var hookNudge = false
     /// A Claude Code status line reported the same windows this recently; the endpoint read is skipped while it is fresh.
     var secondsSinceStatusline: TimeInterval?
+    /// Another user's session is in front (fast user switching): nobody can see this one's screen.
+    var sessionInactive = false
+    /// The tool's main window is at 100 % with a known reset: nothing can change before it, so the tool idles until then.
+    var exhaustedUntil: Date?
+    var now = Date()
 }
 
 enum PauseReason: Equatable {
     case screenLocked, asleep, screensAsleep
     /// The Claude Code status line is supplying the windows; nothing is asked of the endpoint meanwhile.
     case statusline
+    /// Another user is logged in and this session is switched out.
+    case sessionInactive
 
     var footerText: String {
         switch self {
@@ -30,6 +37,7 @@ enum PauseReason: Equatable {
         case .asleep: L("Paused until wake")
         case .screensAsleep: L("Paused while the display sleeps")
         case .statusline: L("From Claude Code's status line")
+        case .sessionInactive: L("Paused while another user is logged in")
         }
     }
 }
@@ -39,9 +47,11 @@ enum PollingDecision: Equatable {
     case after(TimeInterval)
 }
 
-/// Adaptive polling: nothing while nobody can see the screen, half as often on battery or in Low Power Mode, a
-/// quarter as often once no agent has been active for half an hour, never more than fifteen minutes apart while
-/// awake, and never faster than the provider's own cadence. A fresh status-line reading replaces the read entirely.
+/// Adaptive polling: nothing while nobody can see the screen (locked, asleep, or another user's session in front),
+/// half as often on battery or in Low Power Mode, a quarter as often once no agent has been active for half an
+/// hour, at the ceiling while a window is exhausted with a known reset (nothing can change before it; a reset
+/// timer reads at the reset itself), never more than fifteen minutes apart while awake, and never faster than the
+/// provider's own cadence. A fresh status-line reading replaces the read entirely.
 enum PollingPolicy {
     static let idleAfter: TimeInterval = 30 * 60
     static let idleMultiplier: Double = 4
@@ -53,11 +63,19 @@ enum PollingPolicy {
         if inputs.asleep { return .paused(.asleep) }
         if inputs.screenLocked { return .paused(.screenLocked) }
         if inputs.screensAsleep { return .paused(.screensAsleep) }
+        if inputs.sessionInactive { return .paused(.sessionInactive) }
         if let seconds = inputs.secondsSinceStatusline, seconds < statuslineFreshFor { return .paused(.statusline) }
         var interval = inputs.baseInterval
         if isIdle(inputs) { interval = min(interval * idleMultiplier, ceiling) }
         if inputs.onBattery || inputs.lowPowerMode { interval = min(interval * batteryMultiplier, ceiling) }
+        if isExhausted(inputs) { interval = ceiling }
         return .after(max(interval, inputs.baseInterval))
+    }
+
+    /// The main window is used up and its reset is still ahead.
+    static func isExhausted(_ inputs: PollingInputs) -> Bool {
+        guard let until = inputs.exhaustedUntil else { return false }
+        return until > inputs.now
     }
 
     static func isIdle(_ inputs: PollingInputs) -> Bool {

@@ -27,11 +27,27 @@ cask "notchmeter" do
   depends_on macos: ">= :sonoma"
 
   app "Notchmeter.app"
+  # The command-line tool is the same executable; Settings › General also links it into ~/.local/bin.
+  binary "#{appdir}/Notchmeter.app/Contents/MacOS/Notchmeter", target: "notchmeter"
 
   uninstall quit: "com.amirhackett.notchmeter"
 
+  # Everything the app writes (README, "What it keeps"): the caches and the daily history, the drain log and the
+  # report file under Application Support, the preferences, the pre-2026-09-02 URL cache and cookie jar of the
+  # bundle identifier, and the same for the --probe and --render-assets variants.
   zap trash: [
+    "~/Library/Application Support/Notchmeter",
     "~/Library/Caches/Notchmeter",
+    "~/Library/Caches/com.amirhackett.notchmeter",
+    "~/Library/Caches/com.amirhackett.notchmeter.probe",
+    "~/Library/Caches/com.amirhackett.notchmeter.render-assets",
+    "~/Library/HTTPStorages/com.amirhackett.notchmeter",
+    "~/Library/HTTPStorages/com.amirhackett.notchmeter.binarycookies",
+    "~/Library/HTTPStorages/com.amirhackett.notchmeter.probe",
+    "~/Library/HTTPStorages/com.amirhackett.notchmeter.probe.binarycookies",
+    "~/Library/HTTPStorages/com.amirhackett.notchmeter.render-assets",
+    "~/Library/HTTPStorages/com.amirhackett.notchmeter.render-assets.binarycookies",
     "~/Library/Preferences/com.amirhackett.notchmeter.plist",
+    "~/Library/Preferences/com.amirhackett.notchmeter.render-assets.plist",
   ]
 end

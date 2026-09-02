@@ -79,6 +79,12 @@ struct RangeTotals: Equatable, Sendable {
     var models: [CostShare] { CostShare.top(byModel) }
     var projects: [CostShare] { CostShare.top(byProject) }
 
+    /// Dollars per million tokens across every bucket, cache reads included: the number that explains why a day
+    /// cost more (the model mix and the cache share). nil without tokens.
+    var costPerMillionTokens: Double? {
+        tokens.total > 0 ? cost / Double(tokens.total) * 1_000_000 : nil
+    }
+
     mutating func add(_ other: RangeTotals) {
         cost += other.cost
         tokens += other.tokens
@@ -128,10 +134,15 @@ struct CostSummary: Equatable, Sendable {
     let block: BlockCost?
     let firstUse: Date?
     let sinceFirstUse: Double
+    /// Tokens per one per cent of the session window today, against the 30-day median (MeteringRatio).
+    let sessionMetering: MeteringRatio?
+    /// Cursor's per-day spend from its usage-events export (opt-in), the last 30 days, oldest first; empty without it.
+    let cursorDaily: [DailySpend]
 
     init(today: Double, yesterday: Double, last30Days: Double, daily: [DailySpend], daily90: [DailySpend] = [], lastHour: Double,
          typicalHourly: Double, burnMultiple: Double?, unpricedModels: Set<String>, scannedAt: Date,
-         ranges: [CostRange: RangeTotals] = [:], week: WeekCost? = nil, block: BlockCost? = nil, firstUse: Date? = nil, sinceFirstUse: Double = 0) {
+         ranges: [CostRange: RangeTotals] = [:], week: WeekCost? = nil, block: BlockCost? = nil, firstUse: Date? = nil, sinceFirstUse: Double = 0,
+         sessionMetering: MeteringRatio? = nil, cursorDaily: [DailySpend] = []) {
         self.today = today
         self.yesterday = yesterday
         self.last30Days = last30Days
@@ -147,6 +158,15 @@ struct CostSummary: Equatable, Sendable {
         self.block = block
         self.firstUse = firstUse
         self.sinceFirstUse = sinceFirstUse
+        self.sessionMetering = sessionMetering
+        self.cursorDaily = cursorDaily
+    }
+
+    /// The same summary with the figures the store adds after the scan.
+    func with(sessionMetering: MeteringRatio?? = nil, cursorDaily: [DailySpend]? = nil) -> CostSummary {
+        CostSummary(today: today, yesterday: yesterday, last30Days: last30Days, daily: daily, daily90: daily90, lastHour: lastHour, typicalHourly: typicalHourly,
+                    burnMultiple: burnMultiple, unpricedModels: unpricedModels, scannedAt: scannedAt, ranges: ranges, week: week, block: block, firstUse: firstUse,
+                    sinceFirstUse: sinceFirstUse, sessionMetering: sessionMetering ?? self.sessionMetering, cursorDaily: cursorDaily ?? self.cursorDaily)
     }
 
     func totals(_ range: CostRange) -> RangeTotals {
@@ -283,7 +303,8 @@ actor ClaudeCostScanner {
         return root
     }
 
-    func scan(now: Date = Date(), daysBack: Int = 30, weeklyResetsAt: Date? = nil, weeklyUsed: Double? = nil, sessionResetsAt: Date? = nil) -> CostSummary {
+    func scan(now: Date = Date(), daysBack: Int = 30, weeklyResetsAt: Date? = nil, weeklyUsed: Double? = nil, sessionResetsAt: Date? = nil,
+              sessionUsed: Double? = nil, cursorHistory: CostHistory? = CostHistory(tool: .cursor)) -> CostSummary {
         loadCacheIfNeeded()
         let files = Self.transcriptFiles(under: roots)
         let calendar = Calendar.current
@@ -319,10 +340,37 @@ actor ClaudeCostScanner {
             cacheSavedAt = now
         }
         let stored = history?.load() ?? [:]
-        let summary = Self.summarize(digests: digests, fine: fine, now: now, daysBack: daysBack, weeklyResetsAt: weeklyResetsAt,
+        var summary = Self.summarize(digests: digests, fine: fine, now: now, daysBack: daysBack, weeklyResetsAt: weeklyResetsAt,
                                      weeklyUsed: weeklyUsed, sessionResetsAt: sessionResetsAt, history: stored, calendar: calendar)
-        history?.record(Self.dayRecords(digests: digests, now: now, daysBack: daysBack, calendar: calendar), existing: stored)
+        var records = Self.dayRecords(digests: digests, now: now, daysBack: daysBack, calendar: calendar)
+        let today = calendar.startOfDay(for: now)
+        let metering = Self.metering(blockTokens: summary.block?.tokens.total, sessionUsed: sessionUsed, history: stored, today: today)
+        if let metering, var record = records[today] {
+            record.sessionTokensPerPercent = metering.tokensPerPercent
+            records[today] = record
+        }
+        let cursor = cursorHistory.map { Self.series(from: $0.load(calendar: calendar), days: daysBack, now: now, calendar: calendar) } ?? []
+        summary = summary.with(sessionMetering: .some(metering), cursorDaily: cursor)
+        history?.record(records, existing: stored)
         return summary
+    }
+
+    /// Today's tokens per one per cent of the session window, against the median of the days the history holds.
+    static func metering(blockTokens: Int?, sessionUsed: Double?, history: [Date: CostHistory.Record], today: Date) -> MeteringRatio? {
+        guard let blockTokens, let sessionUsed, let ratio = MeteringRatio.tokensPerPercent(blockTokens: blockTokens, usedFraction: sessionUsed) else { return nil }
+        let past = history.filter { $0.key < today }.compactMap { $0.value.sessionTokensPerPercent }
+        return MeteringRatio(tokensPerPercent: ratio, median: MeteringRatio.median(past))
+    }
+
+    /// A per-day series over the last `days`, oldest first, from a history's records.
+    static func series(from records: [Date: CostHistory.Record], days: Int, now: Date, calendar: Calendar) -> [DailySpend] {
+        let today = calendar.startOfDay(for: now)
+        guard let first = calendar.date(byAdding: .day, value: -(days - 1), to: today), !records.isEmpty else { return [] }
+        return (0..<days).compactMap { offset in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: first) else { return nil }
+            let record = records[day]
+            return DailySpend(day: day, cost: record?.cost ?? 0, tokens: record?.tokens.total ?? 0, topModel: record?.topModel)
+        }
     }
 
     /// Every transcript under each root, path-sorted so the scan order is deterministic, with the project name its
@@ -600,6 +648,16 @@ struct CostHistory: Sendable {
         var tokens: TokenBreakdown
         var byModel: [String: Double]
         var byProject: [String: Double]
+        /// The day's session metering ratio (MeteringRatio), kept so it survives transcript cleanup.
+        var sessionTokensPerPercent: Double?
+
+        init(cost: Double, tokens: TokenBreakdown, byModel: [String: Double], byProject: [String: Double], sessionTokensPerPercent: Double? = nil) {
+            self.cost = cost
+            self.tokens = tokens
+            self.byModel = byModel
+            self.byProject = byProject
+            self.sessionTokensPerPercent = sessionTokensPerPercent
+        }
 
         var topModel: String? {
             byModel.filter { $0.value > 0 }.max { ($0.value, $1.key) < ($1.value, $0.key) }?.key
@@ -613,6 +671,7 @@ struct CostHistory: Sendable {
         let tokens: TokenBreakdown
         let byModel: [String: Double]
         let byProject: [String: Double]
+        var sessionTokensPerPercent: Double?
     }
 
     let url: URL
@@ -651,7 +710,8 @@ struct CostHistory: Sendable {
         let decoder = JSONDecoder()
         for line in data.split(separator: 0x0A) where !line.isEmpty {
             guard let parsed = try? decoder.decode(Line.self, from: line), parsed.tool == tool.rawValue, let day = day(parsed.day, calendar: calendar) else { continue }
-            result[day] = Record(cost: parsed.cost, tokens: parsed.tokens, byModel: parsed.byModel, byProject: parsed.byProject)
+            result[day] = Record(cost: parsed.cost, tokens: parsed.tokens, byModel: parsed.byModel, byProject: parsed.byProject,
+                                 sessionTokensPerPercent: parsed.sessionTokensPerPercent ?? result[day]?.sessionTokensPerPercent)
         }
         return result
     }
@@ -663,10 +723,14 @@ struct CostHistory: Sendable {
         var appended = Data()
         var merged = existing
         for (day, record) in days where record.cost > 0 {
-            if let known = existing[day], known.cost >= record.cost - 0.0005 { continue }
+            if let known = existing[day], known.cost >= record.cost - 0.0005,
+               record.sessionTokensPerPercent == nil || known.sessionTokensPerPercent == record.sessionTokensPerPercent { continue }
+            var record = record
+            if let known = existing[day], known.cost > record.cost { record = known }
+            if record.sessionTokensPerPercent == nil { record.sessionTokensPerPercent = existing[day]?.sessionTokensPerPercent }
             merged[day] = record
             let line = Line(day: Self.key(day, calendar: calendar), tool: tool.rawValue, cost: record.cost, tokens: record.tokens,
-                            byModel: record.byModel, byProject: record.byProject)
+                            byModel: record.byModel, byProject: record.byProject, sessionTokensPerPercent: record.sessionTokensPerPercent)
             guard let data = try? encoder.encode(line) else { continue }
             appended.append(data)
             appended.append(0x0A)
@@ -679,7 +743,7 @@ struct CostHistory: Sendable {
             var whole = Data()
             for (day, record) in merged.sorted(by: { $0.key < $1.key }) {
                 let line = Line(day: Self.key(day, calendar: calendar), tool: tool.rawValue, cost: record.cost, tokens: record.tokens,
-                                byModel: record.byModel, byProject: record.byProject)
+                                byModel: record.byModel, byProject: record.byProject, sessionTokensPerPercent: record.sessionTokensPerPercent)
                 if let data = try? encoder.encode(line) {
                     whole.append(data)
                     whole.append(0x0A)
@@ -695,5 +759,30 @@ struct CostHistory: Sendable {
         } else {
             try? appended.write(to: url, options: .atomic)
         }
+    }
+
+    /// "Export history…": one row per day, oldest first, with the five token buckets, the top model and the
+    /// per-model and per-project splits as `name:cost` pairs; values with a comma or a quote are quoted.
+    static func csv(_ records: [Date: Record], calendar: Calendar = .current) -> String {
+        func cell(_ text: String) -> String {
+            text.contains(",") || text.contains("\"") || text.contains("\n") ? "\"" + text.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : text
+        }
+        func split(_ shares: [String: Double]) -> String {
+            shares.sorted { ($0.value, $1.key) > ($1.value, $0.key) }.map { "\($0.key):\(String(format: "%.4f", $0.value))" }.joined(separator: "; ")
+        }
+        var lines = ["day,costUSD,input,output,cacheWrite5m,cacheWrite1h,cacheRead,topModel,sessionTokensPerPercent,byModel,byProject"]
+        for (day, record) in records.sorted(by: { $0.key < $1.key }) {
+            lines.append([
+                key(day, calendar: calendar), String(format: "%.4f", record.cost), String(record.tokens.input), String(record.tokens.output),
+                String(record.tokens.cacheWrite5m), String(record.tokens.cacheWrite1h), String(record.tokens.cacheRead), record.topModel ?? "",
+                record.sessionTokensPerPercent.map { String(Int($0.rounded())) } ?? "", split(record.byModel), split(record.byProject),
+            ].map(cell).joined(separator: ","))
+        }
+        return lines.joined(separator: "\n") + "\n"
+    }
+
+    /// The same rows as JSON, the shape `--probe --json --history` prints under `history`.
+    static func json(_ records: [Date: Record], calendar: Calendar = .current) -> Data {
+        (try? JSONSerialization.data(withJSONObject: UsageReport.historyRows(records, calendar: calendar), options: [.sortedKeys, .prettyPrinted, .withoutEscapingSlashes])) ?? Data("[]".utf8)
     }
 }

@@ -10,6 +10,11 @@ enum Localization {
     static let languages = ["en", "zh-Hans", "zh-Hant", "ja", "ko", "vi"]
     static let bundleName = "Notchmeter_Notchmeter.bundle"
 
+    /// The name each language gives itself, for the picker.
+    static let nativeNames: [String: String] = [
+        "en": "English", "zh-Hans": "简体中文", "zh-Hant": "繁體中文", "ja": "日本語", "ko": "한국어", "vi": "Tiếng Việt",
+    ]
+
     /// The resource bundle SwiftPM builds. Its own accessor looks beside the executable and at the build path, which
     /// covers `swift run` and the tests; scripts/build.sh puts a copy under Contents/Resources, which covers the app.
     static let resources: Bundle = {
@@ -54,6 +59,23 @@ enum Localization {
     /// The entry of `languages` a code names, whatever its case; nil for a language not shipped.
     static func canonical(_ language: String) -> String? {
         languages.first { $0.caseInsensitiveCompare(language) == .orderedSame }
+    }
+
+    /// The in-app language picker: a shipped code is written as `AppleLanguages` into the app's own defaults domain,
+    /// which macOS reads at the next launch (the same key System Settings › Language & Region › Applications sets);
+    /// nil removes it so the app follows the system again. Takes effect at relaunch, as the picker says.
+    static func applyPreferred(language: String?, defaults: UserDefaults) {
+        if let language, let code = canonical(language) {
+            defaults.set([code], forKey: "AppleLanguages")
+        } else {
+            defaults.removeObject(forKey: "AppleLanguages")
+        }
+    }
+
+    /// What the picker stored in the domain, when it stored a shipped language; the global domain's own
+    /// AppleLanguages (the system language) is not consulted.
+    static func preferred(domain: [String: Any]?) -> String? {
+        (domain?["AppleLanguages"] as? [String])?.first.flatMap(canonical)
     }
 }
 

@@ -149,12 +149,13 @@ enum TimeFormatPreference: String, CaseIterable, Codable {
 }
 
 /// Reset copy in either style: "Resets in 4d 17h" or "Resets today at 10:50 PM". A stale reading whose reset has
-/// gone by says "Reset passed": the numbers are from before it, so nothing is about to change.
+/// gone by says "Reset passed": the numbers are from before it, so nothing is about to change. A rolling window
+/// that has not begun (nothing used, no reset declared) says "Not started" rather than nothing.
 enum ResetText {
     static func line(resetsAt: Date?, hasLimit: Bool, display: ResetDisplay, timeFormat: TimeFormatPreference,
-                     stale: Bool = false, now: Date = Date(), calendar: Calendar = .current) -> String {
+                     stale: Bool = false, unused: Bool = false, now: Date = Date(), calendar: Calendar = .current) -> String {
         guard hasLimit else { return L("No limit published") }
-        guard let resetsAt else { return "" }
+        guard let resetsAt else { return unused ? L("Not started") : "" }
         let remaining = resetsAt.timeIntervalSince(now)
         if remaining <= 0 { return stale ? L("Reset passed") : L("Resets now") }
         switch display {

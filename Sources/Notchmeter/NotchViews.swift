@@ -323,8 +323,10 @@ private struct WaitingDot: View {
 }
 
 /// One tool while the panel is closed, in the style the user chose. The presence level sets how loud it is
-/// (Presence.swift): 70 % opacity when quiet, full when legible, a 1.5 s opacity pulse when urgent; no pulse
-/// under Reduce Motion. While the screen is shared and the privacy setting is on, the digits are withheld.
+/// (Presence.swift): 70 % opacity when quiet, full when legible, three 1.5 s opacity pulses on becoming urgent and
+/// then steady, because a SwiftUI animation that never ends re-renders the readout every frame (measured at 5–9 % of
+/// a core while a ring pulsed); no pulse under Reduce Motion. While the screen is shared and the privacy setting is
+/// on, the digits are withheld.
 /// VoiceOver reads the tool and every window's figure and pace, whatever is drawn.
 struct CompactReadout: View {
     let tool: ToolID
@@ -338,7 +340,12 @@ struct CompactReadout: View {
     var hideFigures = false
     var presence: PresenceLevel = .legible
     var axis: Axis = .horizontal
+    /// Claude Code on an API key: no rings to draw; the month's cost stands in for the digits when they are shown.
+    var apiKeyCost: String? = nil
     @State private var pulsing = false
+    @State private var pulseTask: Task<Void, Never>?
+    static let pulseCycles = 3
+    static let pulseDuration = 1.5
 
     var body: some View {
         let reduceMotion = AccessibilityDisplay.shared.motionReduced
@@ -352,7 +359,7 @@ struct CompactReadout: View {
         .opacity(presence == .quiet && !AccessibilityDisplay.shared.contrast ? 0.7 : 1)
         .animation(reduceMotion ? nil : .snappy(duration: 0.4), value: presence)
         .opacity(pulsing ? 0.4 : 1)
-        .animation(pulsing ? .easeInOut(duration: 1.5).repeatForever(autoreverses: true) : .easeInOut(duration: 0.3), value: pulsing)
+        .animation(pulsing ? .easeInOut(duration: Self.pulseDuration).repeatCount(Self.pulseCycles * 2 - 1, autoreverses: true) : .easeInOut(duration: 0.3), value: pulsing)
         .onChange(of: presence, initial: true) { updatePulse() }
         .onChange(of: reduceMotion) { updatePulse() }
         .accessibilityElement(children: .combine)
@@ -362,26 +369,49 @@ struct CompactReadout: View {
 
     @ViewBuilder private var parts: some View {
         let showNumbers = style.showsNumbers && !hideFigures && presence != .hidden
-        if style.showsRings || hideFigures || presence == .hidden {
-            CompactRings(tool: tool, status: status, windows: windows, waiting: waiting, contextUsed: contextUsed, presence: presence)
-        }
-        if showNumbers {
-            CompactNumbers(tool: tool, status: status, windows: windows, display: display, countdown: countdown, badges: !style.showsRings, waiting: waiting)
+        if let apiKeyCost {
+            if showNumbers {
+                Text(verbatim: apiKeyCost)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(tool.color)
+            }
+        } else {
+            if style.showsRings || hideFigures || presence == .hidden {
+                CompactRings(tool: tool, status: status, windows: windows, waiting: waiting, contextUsed: contextUsed, presence: presence)
+            }
+            if showNumbers {
+                CompactNumbers(tool: tool, status: status, windows: windows, display: display, countdown: countdown, badges: !style.showsRings, waiting: waiting)
+            }
         }
     }
 
     private func updatePulse() {
-        pulsing = presence == .urgent && !AccessibilityDisplay.shared.motionReduced
+        pulseTask?.cancel()
+        let urgent = presence == .urgent && !AccessibilityDisplay.shared.motionReduced
+        pulsing = urgent
+        guard urgent else { return }
+        pulseTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(Double(Self.pulseCycles * 2 - 1) * Self.pulseDuration))
+            guard !Task.isCancelled else { return }
+            pulsing = false
+        }
     }
 }
 
 private extension UsageStore {
     func readout(_ tool: ToolID, presence: PresenceLevel, axis: Axis = .horizontal) -> CompactReadout {
         let status = status(tool)
+        let apiKeyCost = tool == .claude && claudeOnAPIKey ? Money.dollars(cost?.totals(.month).cost ?? 0, cents: false) : nil
         return CompactReadout(tool: tool, status: status, style: prefs.compactStyle, display: prefs.usageDisplay,
                               windows: status.reading.map(prefs.ringWindows) ?? [], waiting: tool == .claude ? waitingCount : 0,
                               contextUsed: tool == .claude ? contextUsed : nil, countdown: prefs.showResetCountdown, hideFigures: hidesFigures,
-                              presence: presence, axis: axis)
+                              presence: presence, axis: axis, apiKeyCost: apiKeyCost)
+    }
+
+    /// The tools with a compact readout: Claude on an API key has nothing to draw unless the digits are shown.
+    var compactTools: [ToolID] {
+        visibleTools.filter { !($0 == .claude && claudeOnAPIKey && !prefs.compactStyle.showsNumbers) }
     }
 }
 
@@ -395,7 +425,7 @@ struct NotchCompactView: View {
     let side: Side
 
     private var tools: [ToolID] {
-        let visible = store.visibleTools
+        let visible = store.compactTools
         return side == .leading ? Array(visible.prefix(1)) : Array(visible.dropFirst())
     }
 
@@ -418,7 +448,7 @@ struct EdgeCompactView: View {
     let edge: PanelEdge
 
     var body: some View {
-        let tools = store.visibleTools
+        let tools = store.compactTools
         let presence = store.presence
         let horizontal = edge == .bottom || edge == .top
         let readouts = ForEach(tools, id: \.self) { tool in
@@ -480,7 +510,7 @@ struct NotchExpandedView: View {
                 SpendCard(store: store)
             }
             if !advice.isEmpty {
-                AdviceStrip(advice: advice)
+                AdviceStrip(advice: advice, open: actions.open)
             }
             if tools.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
@@ -492,8 +522,8 @@ struct NotchExpandedView: View {
                 .modifier(CardBackground())
             }
             ForEach(tools, id: \.self) { tool in
-                ToolCard(tool: tool, status: store.status(tool), store: store, prefs: prefs,
-                         trend: tool == .claude && prefs.showSpend && !store.hidesFigures ? store.cost?.daily : nil)
+                ToolCard(tool: tool, status: store.status(tool), store: store, prefs: prefs, actions: actions,
+                         trend: tool == .claude && prefs.showSpend && !store.hidesFigures ? store.cost?.daily : tool == .cursor && prefs.showSpend && !store.hidesFigures ? store.cost?.cursorDaily : nil)
             }
             FooterView(store: store, actions: actions)
         }
@@ -562,6 +592,8 @@ struct SpendCard: View {
     @State private var range: Range = .today
     @Environment(\.density) private var density
 
+    private var mode: CostCardMode { store.prefs.costCardMode }
+
     private var totals: RangeTotals? {
         store.cost?.totals(range.costRange)
     }
@@ -576,6 +608,30 @@ struct SpendCard: View {
         }
     }
 
+    /// The ring's figure in the chosen unit: dollars, tokens, or dollars per million tokens.
+    static func headline(mode: CostCardMode, amount: Double?, totals: RangeTotals?) -> String {
+        switch mode {
+        case .cost: return amount.map { Money.dollars($0, cents: false) } ?? "—"
+        case .tokens: return totals.map { Money.tokens($0.tokens.total).replacingOccurrences(of: " tokens", with: "") } ?? "—"
+        case .perMillionTokens: return totals?.costPerMillionTokens.map { Money.dollars($0) } ?? "—"
+        }
+    }
+
+    static func unit(mode: CostCardMode) -> String {
+        switch mode {
+        case .cost: Money.code == "USD" ? L("dollars") : Money.code
+        case .tokens: L("tokens")
+        case .perMillionTokens: L("per MTok")
+        }
+    }
+
+    /// The month's spend against the budget: the ring's fill and where an even burn would sit right now.
+    private var budget: (fill: Double, tick: Double, budget: Double)? {
+        guard let budget = store.prefs.monthlyBudgetUSD, budget > 0, let cost = store.cost else { return nil }
+        let period = BudgetPeriod.month(now: Date())
+        return (min(1, cost.totals(.month).cost / budget), period.elapsedFraction(now: Date()), budget)
+    }
+
     private var burnLine: String? {
         guard let cost = store.cost, let burn = cost.burnMultiple else { return nil }
         return L("Last hour %1$@ · %2$@ your 30-day average", Money.dollars(cost.lastHour), Burn.multiple(burn))
@@ -587,11 +643,22 @@ struct SpendCard: View {
         return L("%1$@ · %2$ld%% cache reads", Money.tokens(totals.tokens.total), Int((share * 100).rounded()))
     }
 
+    private var cacheWritesLine: String? {
+        guard let totals, let share = CacheTTL.oneHourShare(totals.tokens) else { return nil }
+        return L("cache writes %1$ld%% 1-hour · %2$ld%% 5-minute", Int((share * 100).rounded()), Int(((1 - share) * 100).rounded()))
+    }
+
     private var weekLine: String? {
         guard range == .week, let week = store.cost?.week else { return nil }
         let since = ResetText.dayPhrase(week.start, now: Date(), calendar: .current)
         guard let perPercent = week.perPercent else { return L("%1$@ since %2$@", Money.dollars(week.cost), since) }
         return L("%1$@ since %2$@ · %3$@ per 1%% of weekly", Money.dollars(week.cost), since, Money.dollars(perPercent))
+    }
+
+    private var budgetLine: String? {
+        guard let budget else { return nil }
+        let spent = store.cost?.totals(.month).cost ?? 0
+        return L("Month %1$@ of a %2$@ budget", Money.dollars(spent, cents: false), Money.dollars(budget.budget, cents: false))
     }
 
     private var blockLine: String? {
@@ -611,7 +678,16 @@ struct SpendCard: View {
         return L("Top: %@", top)
     }
 
+    private var cursorLine: String? {
+        guard let cost = store.cost, !cost.cursorDaily.isEmpty else { return nil }
+        let today = cost.cursorDaily.last?.cost ?? 0
+        let month = cost.cursorDaily.reduce(0) { $0 + $1.cost }
+        return L("Cursor %1$@ today · %2$@ in 30 days", Money.dollars(today), Money.dollars(month, cents: false))
+    }
+
     var body: some View {
+        let headline = Self.headline(mode: mode, amount: amount, totals: totals)
+        let unit = Self.unit(mode: mode)
         VStack(alignment: .leading, spacing: density.cardSpacing) {
             HStack {
                 Text(L("Cost")).font(.headline)
@@ -631,24 +707,52 @@ struct SpendCard: View {
             HStack(spacing: 20) {
                 ZStack {
                     Circle().stroke(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.25 : 0.1), lineWidth: 13)
-                    Circle()
-                        .trim(from: 0.012, to: 0.988)
-                        .stroke(ToolID.claude.color, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
-                        .rotationEffect(.degrees(-90))
+                    if let budget {
+                        Circle()
+                            .trim(from: 0, to: CGFloat(max(0.012, budget.fill)))
+                            .stroke(budget.fill >= 1 ? Palette.danger : budget.fill > budget.tick + 0.1 ? Palette.warn : ToolID.claude.color, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
+                            .rotationEffect(.degrees(-90))
+                        Rectangle()
+                            .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 1 : 0.8))
+                            .frame(width: 2, height: 15)
+                            .offset(y: -density.costRing / 2)
+                            .rotationEffect(.degrees(360 * budget.tick))
+                            .accessibilityHidden(true)
+                    } else {
+                        Circle()
+                            .trim(from: 0.012, to: 0.988)
+                            .stroke(ToolID.claude.color, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
+                            .rotationEffect(.degrees(-90))
+                    }
                     VStack(spacing: 1) {
-                        Text(amount.map { Money.dollars($0, cents: false) } ?? "—")
+                        Text(headline)
                             .font(.system(.title2, design: .rounded).bold())
                             .monospacedDigit()
-                        Text(Money.code == "USD" ? L("dollars") : Money.code).font(.caption2).foregroundStyle(.secondary)
+                            .minimumScaleFactor(0.6)
+                            .lineLimit(1)
+                        Text(unit).font(.caption2).foregroundStyle(.secondary)
                     }
+                    .padding(.horizontal, 10)
                 }
                 .frame(width: density.costRing, height: density.costRing)
+                .contentShape(Circle())
+                .onTapGesture { store.prefs.costCardMode = mode.next }
+                .help(L("Click to show %@", mode.next.title))
+                .contextMenu {
+                    ForEach(CostCardMode.allCases, id: \.self) { choice in
+                        Button(choice.title) { store.prefs.costCardMode = choice }
+                    }
+                }
+                .accessibilityAction(named: L("Show %@", mode.next.title)) { store.prefs.costCardMode = mode.next }
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Circle().fill(ToolID.claude.color).frame(width: 7, height: 7)
                         Text(verbatim: ToolID.claude.displayName).font(.callout)
                         Spacer()
                         Text(amount.map { Money.dollars($0) } ?? "—").font(.callout).monospacedDigit()
+                    }
+                    if let budgetLine {
+                        Text(budgetLine).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                     }
                     if let burnLine {
                         // A non-breaking hyphen keeps "30-day" whole when the line wraps.
@@ -667,8 +771,14 @@ struct SpendCard: View {
                     if let tokensLine {
                         Text(tokensLine).modifier(Caption()).monospacedDigit()
                     }
+                    if let cacheWritesLine {
+                        Text(cacheWritesLine).modifier(Caption()).monospacedDigit()
+                    }
                     if let projectsLine {
                         Text(projectsLine).modifier(Caption()).monospacedDigit().lineLimit(2)
+                    }
+                    if let cursorLine {
+                        Text(cursorLine).modifier(Caption()).monospacedDigit()
                     }
                     if let cost = store.cost, !cost.unpricedModels.isEmpty {
                         Text(L("Unpriced: %@", cost.unpricedModels.sorted().joined(separator: ", ")))
@@ -681,10 +791,10 @@ struct SpendCard: View {
             .padding(.top, 2)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L("Cost, %@", range.title))
-            .accessibilityValue(Spoken.line(amount.map { "\(ToolID.claude.displayName) \(Money.dollars($0))" } ?? L("no cost yet"), burnLine, weekLine,
-                                            blockLine, tokensLine, projectsLine, L("Claude Code sessions at API list prices")))
+            .accessibilityValue(Spoken.line("\(headline) \(unit)", amount.map { "\(ToolID.claude.displayName) \(Money.dollars($0))" } ?? L("no cost yet"), budgetLine, burnLine, weekLine,
+                                            blockLine, tokensLine, cacheWritesLine, projectsLine, cursorLine, L("Claude Code sessions at API list prices")))
             if let totals, !totals.models.isEmpty, totals.cost > 0 {
-                ModelShares(shares: totals.models, total: totals.cost)
+                ModelShares(shares: totals.models, total: totals.cost, byModel: totals.byModel, tokensByModel: nil, mode: mode, rangeTokens: totals.tokens.total)
             }
         }
         .modifier(CardBackground())
@@ -694,10 +804,26 @@ struct SpendCard: View {
     }
 }
 
-/// The range's models ranked by cost, each with its share; the fifth and beyond fold into Other.
+/// The range's models ranked by cost, each with its share; the fifth and beyond fold into Other. In the tokens
+/// and per-MTok modes the figure follows the mode: the model's share of the range's tokens, or its cost per
+/// million of the range's tokens (per-model token counts are not kept in the digests, so the share stands in).
 private struct ModelShares: View {
     let shares: [CostShare]
     let total: Double
+    let byModel: [String: Double]
+    let tokensByModel: [String: Int]?
+    let mode: CostCardMode
+    let rangeTokens: Int
+
+    private func figure(_ share: CostShare) -> String {
+        switch mode {
+        case .cost: return Money.dollars(share.cost)
+        case .tokens: return Money.tokens(Int((Double(rangeTokens) * share.cost / max(total, 0.0001)).rounded())).replacingOccurrences(of: " tokens", with: "")
+        case .perMillionTokens:
+            let tokens = Double(rangeTokens) * share.cost / max(total, 0.0001)
+            return tokens > 0 ? Money.dollars(share.cost / tokens * 1_000_000) : "—"
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -708,19 +834,20 @@ private struct ModelShares: View {
                     Spacer(minLength: 6)
                     Text(verbatim: "\(Int((share.cost / max(total, 0.0001) * 100).rounded()))%")
                         .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
-                    Text(Money.dollars(share.cost)).font(.caption2).monospacedDigit().frame(width: 62, alignment: .trailing)
+                    Text(figure(share)).font(.caption2).monospacedDigit().frame(width: 62, alignment: .trailing)
                 }
             }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L("By model"))
-        .accessibilityValue(shares.map { "\($0.name == CostShare.other ? L("Other") : ModelNames.display($0.name)) \(Money.dollars($0.cost))" }.joined(separator: ", "))
+        .accessibilityValue(shares.map { "\($0.name == CostShare.other ? L("Other") : ModelNames.display($0.name)) \(figure($0))" }.joined(separator: ", "))
     }
 }
 
 /// What to do next, under the Cost card (or at the top when spend is hidden); absent when there is nothing to say.
 struct AdviceStrip: View {
     let advice: [Advice]
+    var open: (URL) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -734,6 +861,17 @@ struct AdviceStrip: View {
                         .font(.caption)
                         .monospacedDigit()
                         .fixedSize(horizontal: false, vertical: true)
+                    if let url = item.url {
+                        Button {
+                            open(url)
+                        } label: {
+                            Image(systemName: "arrow.up.right.square").font(.caption2)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .help(url.host ?? url.absoluteString)
+                        .accessibilityLabel(L("Open %@", url.host ?? url.absoluteString))
+                    }
                 }
             }
         }
@@ -750,6 +888,7 @@ struct ToolCard: View {
     let status: ToolStatus
     let store: UsageStore
     let prefs: Preferences
+    var actions: NotchActions? = nil
     let trend: [DailySpend]?
     @Environment(\.density) private var density
 
@@ -762,6 +901,14 @@ struct ToolCard: View {
                     Text(plan).font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer()
+                Button {
+                    actions?.open(ProviderLinks.usage(tool))
+                } label: {
+                    Image(systemName: "arrow.up.right.square").font(.caption).foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help(L("Open %@'s usage page", tool.displayName))
+                .accessibilityLabel(L("Open %@'s usage page", tool.displayName))
                 if let problem = status.problem {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(Palette.warn)
@@ -778,7 +925,8 @@ struct ToolCard: View {
                     ForEach(prefs.shownWindows(of: reading)) { window in
                         MeterRow(toolName: tool.displayName, window: window, color: tool.color, prefs: prefs,
                                  stale: status.staleReading != nil, hideFigures: store.hidesFigures,
-                                 drain: store.drain(for: tool, window: window))
+                                 drain: store.drain(for: tool, window: window), runOut: store.runOut(for: tool, window: window),
+                                 metering: tool == .claude && window.id == "five_hour" && prefs.showSpend ? store.cost?.sessionMetering : nil)
                     }
                     .opacity(status.problem == nil ? 1 : 0.55)
                     if let observed = reading.observedAt, Date().timeIntervalSince(observed) > 600 {
@@ -827,14 +975,22 @@ struct ToolCard: View {
                         Spacer()
                         Sparkline(series: trend, color: tool.color).frame(width: 160, height: 22)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(L("Usage Trend"))
+                    .accessibilityValue(Spoken.phrase(Sparkline.summary(trend)))
                 }
             }
             .modifier(CardBackground())
         }
         .contextMenu {
-            Button(L("Refresh")) { Task { await store.refresh(tool, force: true) } }
+            Button(L("Refresh")) { Keychain.setInteractive(tool == .claude); Task { await store.refresh(tool, force: true) } }
             Button(L("Copy as image")) {
                 CardImage.copy(ToolCard(tool: tool, status: status, store: store, prefs: prefs, trend: trend).environment(\.density, density), width: prefs.panelWidth.points - 28)
+            }
+            Divider()
+            Button(L("Open %@'s usage page", tool.displayName)) { actions?.open(ProviderLinks.usage(tool)) }
+            if let status = ProviderLinks.status(tool) {
+                Button(L("Open %@'s status page", tool.displayName)) { actions?.open(status) }
             }
         }
     }
@@ -854,6 +1010,24 @@ private struct SessionLine: View {
                         Text(Self.sessionsText(sessions, now: context.date))
                             .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                     }
+                    if let place = Self.placeText(sessions) {
+                        HStack(spacing: 5) {
+                            Text(place.text).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                            if let badge = place.badge {
+                                Text(badge)
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .padding(.horizontal, 4).padding(.vertical, 1)
+                                    .background(Capsule().fill(.white.opacity(0.14)))
+                                    .accessibilityLabel(L("permission mode %@", badge))
+                            }
+                            if let pr = place.pr {
+                                Button { store.openURL(pr) } label: { Image(systemName: "arrow.up.right.square").font(.caption2) }
+                                    .buttonStyle(.plain).foregroundStyle(.secondary)
+                                    .help(pr.absoluteString)
+                                    .accessibilityLabel(L("Open the pull request"))
+                            }
+                        }
+                    }
                     if let contextUsed = store.contextUsed {
                         Text(Self.contextText(contextUsed, statusline: statusline, hideFigures: store.hidesFigures))
                             .font(.caption).foregroundStyle(contextUsed >= 0.9 ? Palette.warn : .secondary).monospacedDigit()
@@ -861,24 +1035,41 @@ private struct SessionLine: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(L("Sessions"))
-                .accessibilityValue(Spoken.phrase(Self.sessionsText(sessions, now: context.date)))
+                .accessibilityValue(Spoken.line(Self.sessionsText(sessions, now: context.date), Self.placeText(sessions)?.text,
+                                                Self.placeText(sessions)?.badge.map { L("permission mode %@", $0) }))
             }
         }
     }
 
+    /// "2 sessions · 3 agents · working 2m 10s", then the newest session's place: "notchmeter · feat/hooks · PR #12".
     static func sessionsText(_ sessions: SessionTracker, now: Date) -> String {
         var parts = [sessions.count == 1 ? L("1 session") : L("%ld sessions", sessions.count)]
+        if sessions.agentCount > 0 {
+            parts.append(sessions.agentCount == 1 ? L("1 agent") : L("%ld agents", sessions.agentCount))
+        }
         if let waiting = SessionTracker.waitingPhrase(sessions.waiting) {
             parts.append(L("waiting in %@", waiting))
         } else if let working = sessions.working.first, let since = working.stateDuration(now: now) {
             parts.append(L("working %@", ResetText.duration(since)))
         }
+        if sessions.quotaWaiting.count > 0 { parts.append(L("waiting on quota")) }
         return parts.joined(separator: " · ")
+    }
+
+    /// The newest session's project, branch and pull request, when the hook or status line reported them.
+    static func placeText(_ sessions: SessionTracker) -> (text: String, pr: URL?, badge: String?)? {
+        guard let session = sessions.all.first else { return nil }
+        var parts: [String] = []
+        if let name = session.displayName { parts.append(name) }
+        if let branch = session.branch { parts.append(branch) }
+        if let pr = session.prNumber { parts.append(L("PR %@", pr)) }
+        guard !parts.isEmpty else { return nil }
+        return (parts.joined(separator: " · "), session.prURL.flatMap(URL.init(string:)), Hook.permissionBadge(session.permissionMode))
     }
 
     static func contextText(_ used: Double, statusline: Statusline.Message?, hideFigures: Bool) -> String {
         var parts = [L("Context %ld%%", Int((used * 100).rounded()))]
-        if let model = statusline?.model { parts.append(model) }
+        if let model = statusline?.model { parts.append(statusline?.effort.map { "\(model) \($0)" } ?? model) }
         if !hideFigures, let cost = statusline?.sessionCost { parts.append(L("%@ this session", Money.dollars(cost))) }
         return parts.joined(separator: " · ")
     }
@@ -893,19 +1084,42 @@ struct MeterRow: View {
     var stale = false
     var hideFigures = false
     var drain: Drain? = nil
+    var runOut: RunOutInterval? = nil
+    var metering: MeteringRatio? = nil
+
+    /// The pace note, with the run-out interval's range in place of the point when the log has a wide one.
+    static func paceNote(window: LimitWindow, runOut: RunOutInterval?, format: TimeFormatPreference, now: Date = Date()) -> (text: String, status: Pace.Status)? {
+        guard let pace = Pace.note(for: window, now: now) else { return nil }
+        guard pace.status == .behind, let runOut, let resetsAt = window.resetsAt, let text = runOut.text(now: now, resetsAt: resetsAt, format: format) else { return pace }
+        return (text, pace.status)
+    }
 
     var body: some View {
-        let pace = Pace.note(for: window)
+        let pace = Self.paceNote(window: window, runOut: runOut, format: prefs.timeFormat)
         let usage = hideFigures ? nil : prefs.usageLine(for: window)
         let reset = window.usedFraction == nil
             ? (window.note ?? prefs.resetLine(for: window, stale: stale))
-            : (window.resetsAt == nil ? (window.note ?? "") : prefs.resetLine(for: window, stale: stale))
-        let detail = window.usedFraction != nil && window.resetsAt != nil ? window.note : nil
+            : (window.resetsAt == nil && window.usedFraction != 0 ? (window.note ?? "") : prefs.resetLine(for: window, stale: stale))
+        let detail = window.usedFraction != nil && (window.resetsAt != nil || window.usedFraction == 0) ? window.note : nil
         let unused = window.usedFraction == 0 ? window.periodDuration.map(ResetText.unusedLine) : nil
         let drainLine = drain.flatMap { $0.to > $0.from + 0.005 && !hideFigures ? DrainLog.line($0) : nil }
+        let meteringLine = metering.flatMap { ratio -> String? in
+            guard !hideFigures else { return nil }
+            let today = Money.tokens(Int(ratio.tokensPerPercent.rounded()))
+            guard let median = ratio.median else { return L("%@ per 1%% of session today", today) }
+            return L("%1$@ per 1%% of session today vs %2$@ 30-day median", today, Money.tokens(Int(median.rounded())))
+        }
         VStack(alignment: .leading, spacing: 5) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text(window.label).font(.subheadline.weight(.semibold))
+                if let tag = window.source.tag {
+                    Text(tag)
+                        .font(.system(size: 9, weight: .medium))
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(Capsule().fill(.white.opacity(0.12)))
+                        .foregroundStyle(.secondary)
+                        .help(L("Source: %@", tag))
+                }
                 Spacer(minLength: 8)
                 if let pace, !hideFigures {
                     HStack(spacing: 3) {
@@ -945,6 +1159,9 @@ struct MeterRow: View {
                 if let drainLine {
                     Text(drainLine).modifier(Caption()).monospacedDigit()
                 }
+                if let meteringLine {
+                    Text(meteringLine).modifier(Caption()).monospacedDigit()
+                }
             } else {
                 Meter(fraction: 0, tick: nil, color: .clear)
                 HStack {
@@ -957,7 +1174,8 @@ struct MeterRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(toolName) \(window.label)")
-        .accessibilityValue(Spoken.line(unused ?? usage, unused == nil ? reset : nil, detail, hideFigures ? nil : pace?.text, drainLine))
+        .accessibilityValue(Spoken.line(unused ?? usage, unused == nil ? reset : nil, detail, hideFigures ? nil : pace?.text, drainLine, meteringLine,
+                                        window.source.tag.map { L("Source: %@", $0) }))
     }
 
     private func flipUsage() {
@@ -969,10 +1187,18 @@ struct MeterRow: View {
     }
 }
 
+/// The pace meter: the fill grows from the left and the tick sits where an even burn would be. Quantity and time
+/// run left to right in every language, so the meter is pinned to that direction rather than mirrored under a
+/// right-to-left layout, where the fill would mirror and the offset tick would not.
 struct Meter: View {
     let fraction: Double
     let tick: Double?
     let color: Color
+
+    /// The tick's x from the leading edge, kept inside the bar.
+    static func tickOffset(width: CGFloat, tick: Double) -> CGFloat {
+        min(max(width * CGFloat(tick) - 1, 0), max(width - 2, 0))
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -986,12 +1212,13 @@ struct Meter: View {
                     Rectangle()
                         .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 1 : 0.7))
                         .frame(width: 2, height: 11)
-                        .offset(x: min(max(width * CGFloat(tick) - 1, 0), max(width - 2, 0)))
+                        .offset(x: Self.tickOffset(width: width, tick: tick))
                 }
             }
             .animation(AccessibilityDisplay.shared.motionReduced ? nil : .snappy(duration: 0.4), value: fraction)
         }
         .frame(height: 6)
+        .environment(\.layoutDirection, .leftToRight)
     }
 }
 
@@ -1016,12 +1243,24 @@ struct Sparkline: View {
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottomLeading)
         }
+        .environment(\.layoutDirection, .leftToRight)
     }
 
     static func tooltip(_ day: DailySpend) -> String {
         var parts = [ResetText.dayPhrase(day.day, now: Date(), calendar: .current), Money.dollars(day.cost)]
         if let model = day.topModel { parts.append(ModelNames.display(model)) }
         return parts.joined(separator: " · ")
+    }
+
+    /// "30 days, $118 today, peak $212 on Tuesday, top model Opus": the series as VoiceOver reads it.
+    static func summary(_ series: [DailySpend], now: Date = Date(), calendar: Calendar = .current) -> String {
+        guard let today = series.last else { return "" }
+        var parts = [L("%ld days", series.count), L("%@ today", Money.dollars(today.cost, cents: false))]
+        if let peak = series.max(by: { $0.cost < $1.cost }), peak.cost > 0 {
+            parts.append(L("peak %1$@ on %2$@", Money.dollars(peak.cost, cents: false), ResetText.dayPhrase(peak.day, now: now, calendar: calendar)))
+        }
+        if let model = today.topModel { parts.append(L("top model %@", ModelNames.display(model))) }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -1044,6 +1283,7 @@ struct DrainSparkline: View {
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottomLeading)
         }
+        .environment(\.layoutDirection, .leftToRight)
     }
 }
 
@@ -1098,6 +1338,7 @@ struct FooterView: View {
         let seconds = next.timeIntervalSince(now)
         if seconds <= 5 { return L("Updating…") }
         let line = L("Next update in %@", ResetText.duration(seconds))
-        return store.scheduleNote.map { "\(line) · \($0)" } ?? line
+        let withNote = store.scheduleNote.map { "\(line) · \($0)" } ?? line
+        return store.footerNote.map { "\(withNote) · \($0)" } ?? withNote
     }
 }

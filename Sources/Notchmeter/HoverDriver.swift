@@ -5,7 +5,7 @@ import AppKit
 /// Always open preference, the Settings window holding it closed, the Options menu switching to Open on hover,
 /// a notification's Open button, or the state it launched in.
 enum PanelCause: String {
-    case dwell, exit, clickOutside, click, swipe, hotkey, escape, space, lock, always, settings, menu, notification, launch
+    case dwell, exit, clickOutside, click, swipe, hotkey, escape, space, lock, always, settings, menu, notification, launch, glance
 }
 
 /// What a mouse monitor saw, reduced to what the machine needs.
@@ -31,6 +31,9 @@ final class HoverDriver {
     var perform: (HoverIntent.Output, PanelCause) -> Void = { _, _ in }
     /// True while a menu owns the pointer; samples are skipped so an open Options menu cannot close the panel.
     var isPaused: () -> Bool = { false }
+    /// True while the presenter's window is not on the active Space (a full-screen app's, with "Show over
+    /// full-screen apps" off): the machine idles, so a pointer parked at the top of that Space opens nothing.
+    var isOffScreen: () -> Bool = { false }
     /// Where the pointer is; `--smoke --hover-sim` substitutes a scripted path.
     var pointerLocation: () -> CGPoint = { NSEvent.mouseLocation }
     /// The pointer came to rest on the rings; Hide when idle brings them back for it.
@@ -173,6 +176,13 @@ final class HoverDriver {
         act(intent.toggle(at: now), cause: cause)
     }
 
+    /// Opens a closed panel for a few seconds; the pointer coming in keeps it open, otherwise it settles.
+    func glance(for duration: TimeInterval = HoverIntent.glanceDuration) {
+        act(intent.glance(for: duration, at: now), cause: .glance)
+    }
+
+    var isGlancing: Bool { intent.isGlancing }
+
     private var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
 
     nonisolated static func reduce(_ event: NSEvent) -> PointerEvent {
@@ -214,12 +224,13 @@ final class HoverDriver {
     }
 
     private func sample() {
-        guard !isPaused() else { return }
+        guard !isPaused(), !isOffScreen() else { return }
         let hit = regions.hit(pointerLocation())
         if hit.inCompact, !wasInCompact { pointerEnteredCompact() }
         wasInCompact = hit.inCompact
+        let glancing = intent.isGlancing
         let output = intent.pointer(inCompact: hit.inCompact, inExpanded: hit.inExpanded, at: now)
-        act(output, cause: output == .expand ? .dwell : .exit)
+        act(output, cause: output == .expand ? .dwell : glancing ? .glance : .exit)
     }
 
     private func act(_ output: HoverIntent.Output, cause: PanelCause) {
@@ -251,7 +262,7 @@ final class HoverDriver {
             deadline?.task.cancel()
             deadline = nil
         }
-        if intent.state == .expanded, intent.mode == .onHover {
+        if intent.state == .expanded, intent.mode == .onHover || intent.isGlancing {
             if tick == nil {
                 tick = Task { [weak self] in
                     while !Task.isCancelled {

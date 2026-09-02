@@ -229,3 +229,80 @@ import Testing
         #expect(ClaudeCostScanner.transcriptFolder(of: roots[0]) == roots[0])
     }
 }
+
+
+/// Dollars per million tokens, the cache-tier shift, and the history export.
+@Suite struct CostRoundTwo {
+    init() { Localization.use(language: "en") }
+
+    @Test func costPerMillionTokensCountsEveryBucket() {
+        // $2 across 1.5M input, 0.5M cache reads: $1.00 per MTok.
+        let totals = RangeTotals(cost: 2, tokens: TokenBreakdown(input: 1_500_000, cacheRead: 500_000))
+        #expect(totals.costPerMillionTokens == 1)
+        #expect(RangeTotals().costPerMillionTokens == nil)
+        #expect(SpendCard.headline(mode: .perMillionTokens, amount: 2, totals: totals) == "$1.00")
+        #expect(SpendCard.headline(mode: .tokens, amount: 2, totals: totals) == "2.0M")
+        #expect(SpendCard.headline(mode: .cost, amount: 2.4, totals: totals) == "$2")
+        #expect(SpendCard.headline(mode: .cost, amount: nil, totals: nil) == "—")
+        #expect(CostCardMode.cost.next == .tokens)
+        #expect(CostCardMode.perMillionTokens.next == .cost)
+        #expect(SpendCard.unit(mode: .perMillionTokens) == "per MTok")
+    }
+
+    @Test func aCacheTierShiftIsNoticedAgainstTheNorm() {
+        let norm = TokenBreakdown(cacheWrite5m: 180_000, cacheWrite1h: 820_000)
+        let today = TokenBreakdown(cacheWrite5m: 164_000, cacheWrite1h: 36_000)
+        #expect(CacheTTL.oneHourShare(norm) == 0.82)
+        #expect(CacheTTL.oneHourShare(TokenBreakdown()) == nil)
+        let shift = CacheTTL.shift(today: today, norm: norm)
+        #expect(shift?.today == 0.18)
+        #expect(shift?.norm == 0.82)
+        #expect(CacheTTL.shift(today: TokenBreakdown(cacheWrite5m: 1000, cacheWrite1h: 0), norm: norm) == nil)
+        #expect(CacheTTL.shift(today: TokenBreakdown(cacheWrite5m: 60_000, cacheWrite1h: 140_000), norm: norm) == nil)
+        let cost = CostSummary(today: 0, yesterday: 0, last30Days: 0, daily: [], lastHour: 0, typicalHourly: 0, burnMultiple: nil, unpricedModels: [], scannedAt: Date(),
+                               ranges: [.today: RangeTotals(cost: 1, tokens: today), .last30Days: RangeTotals(cost: 30, tokens: norm)])
+        #expect(Advisor.cacheShift(cost)?.text == "Cache writes today are 18% 1-hour against a 30-day norm of 82%: the 5-minute tier re-caches more often and costs more quota per turn.")
+        #expect(Advisor.cacheShift(nil) == nil)
+        // The fixture flips the mix: three 1-hour lines yesterday, three 5-minute lines today.
+        let now = DateParsing.iso8601("2026-09-01T15:00:00Z")!
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        var lines: [String] = []
+        for i in 0..<3 {
+            lines.append(#"{"type":"assistant","timestamp":"2026-08-31T10:0\#(i):00.000Z","requestId":"y\#(i)","message":{"id":"y\#(i)","model":"claude-sonnet-5","usage":{"input_tokens":10,"output_tokens":1,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":200000}}}}"#)
+            lines.append(#"{"type":"assistant","timestamp":"2026-09-01T14:0\#(i):00.000Z","requestId":"t\#(i)","message":{"id":"t\#(i)","model":"claude-sonnet-5","usage":{"input_tokens":10,"output_tokens":1,"cache_creation":{"ephemeral_5m_input_tokens":200000,"ephemeral_1h_input_tokens":0}}}}"#)
+        }
+        let entries = ClaudeCostScanner.dedupe(ClaudeCostScanner.parseFile(Data(lines.joined(separator: "\n").utf8)))
+        let summary = ClaudeCostScanner.summarize(entries, now: now, daysBack: 30, calendar: utc)
+        #expect(CacheTTL.oneHourShare(summary.totals(.today).tokens) == 0)
+        #expect(CacheTTL.oneHourShare(summary.totals(.last30Days).tokens) == 0.5)
+        #expect(Advisor.cacheShift(summary)?.text.hasPrefix("Cache writes today are 0% 1-hour against a 30-day norm of 50%") == true)
+        let object = UsageReport(tools: [:], cost: summary, advice: [], now: now).object
+        let ranges = (object["cost"] as? [String: Any])?["ranges"] as? [String: Any]
+        let buckets = (ranges?["today"] as? [String: Any])?["tokenBuckets"] as? [String: Any]
+        #expect(buckets?["cacheWrite5m"] as? Int == 600_000)
+        #expect(buckets?["cacheWrite1h"] as? Int == 0)
+    }
+
+    @Test func historyExportsAsCSVAndJSONRows() throws {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let day = utc.date(from: DateComponents(year: 2026, month: 9, day: 1))!
+        let records = [day: CostHistory.Record(cost: 12.5, tokens: TokenBreakdown(input: 1, cacheWrite5m: 2, cacheWrite1h: 3, cacheRead: 4, output: 5),
+                                               byModel: ["claude-opus-5": 10, "claude-sonnet-5": 2.5], byProject: ["notchmeter": 12.5], sessionTokensPerPercent: 140_000)]
+        let csv = CostHistory.csv(records, calendar: utc)
+        let lines = csv.split(separator: "\n")
+        #expect(lines[0] == "day,costUSD,input,output,cacheWrite5m,cacheWrite1h,cacheRead,topModel,sessionTokensPerPercent,byModel,byProject")
+        #expect(lines[1] == "2026-09-01,12.5000,1,5,2,3,4,claude-opus-5,140000,claude-opus-5:10.0000; claude-sonnet-5:2.5000,notchmeter:12.5000")
+        let rows = try #require(try JSONSerialization.jsonObject(with: CostHistory.json(records, calendar: utc)) as? [[String: Any]])
+        #expect(rows.count == 1)
+        #expect(rows[0]["day"] as? String == "2026-09-01")
+        #expect((rows[0]["tokenBuckets"] as? [String: Any])?["cacheRead"] as? Int == 4)
+        #expect(rows[0]["topModel"] as? String == "claude-opus-5")
+        #expect(rows[0]["sessionTokensPerPercent"] as? Int == 140_000)
+        let quoted = CostHistory.csv([day: CostHistory.Record(cost: 1, tokens: TokenBreakdown(), byModel: [:], byProject: ["a,b": 1])], calendar: utc)
+        #expect(quoted.contains("\"a,b:1.0000\""))
+        let report = UsageReport(tools: [:], cost: nil, advice: [], history: records, now: day)
+        #expect(((report.object["history"] as? [[String: Any]])?.first?["cost"] as? NSNumber)?.doubleValue == 12.5)
+    }
+}

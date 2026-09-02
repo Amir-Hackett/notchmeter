@@ -8,6 +8,11 @@
 #                                  key, so the pipeline can be proved on a Mac without an Apple Developer account.
 #                                  The hardened runtime is left off there: its library validation wants the app and
 #                                  Sparkle.framework to share a Team ID, which ad-hoc signatures do not carry.
+#   --channel beta                 marks the appcast item <sparkle:channel>beta</sparkle:channel>, so only copies with
+#                                  "Beta updates" on in Settings are offered it (Updater.swift, allowedChannels).
+#
+# The app is signed with scripts/Notchmeter.entitlements (the time-sensitive notifications entitlement); the matching
+# capability must be enabled on the App ID in the developer account or the signature is refused (docs/release.md).
 #
 # Environment:
 #   DEVELOPER_ID_APP     "Developer ID Application: Your Name (TEAMID)", as `security find-identity -v -p codesigning` lists it
@@ -24,11 +29,15 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 DRY_RUN=0
-case "${1:-}" in
-  --dry-run) DRY_RUN=1 ;;
-  "") ;;
-  *) echo "usage: scripts/release.sh [--dry-run]" >&2; exit 2 ;;
-esac
+CHANNEL=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+    --channel) shift; CHANNEL="${1:-}"; [ -n "$CHANNEL" ] || { echo "usage: scripts/release.sh [--dry-run] [--channel beta]" >&2; exit 2; } ;;
+    *) echo "usage: scripts/release.sh [--dry-run] [--channel beta]" >&2; exit 2 ;;
+  esac
+  shift
+done
 
 REPO_URL=https://github.com/Amir-Hackett/notchmeter
 APP=build/Notchmeter.app
@@ -37,6 +46,7 @@ DMG="$DIST/Notchmeter.dmg"
 APPCAST="$DIST/appcast.xml"
 SPARKLE_BIN=.build/artifacts/sparkle/Sparkle/bin
 PLACEHOLDER_KEY=REPLACE_WITH_SPARKLE_PUBLIC_KEY
+ENTITLEMENTS=scripts/Notchmeter.entitlements
 
 fail() { echo "release: $*" >&2; exit 1; }
 step() { printf '\n== %s\n' "$*"; }
@@ -93,7 +103,8 @@ sign_code --preserve-metadata=entitlements "$FRAMEWORK/Versions/B/XPCServices/Do
 sign_code "$FRAMEWORK/Versions/B/Autoupdate"
 sign_code "$FRAMEWORK/Versions/B/Updater.app"
 sign_code "$FRAMEWORK"
-sign_code "$APP"
+# The app itself carries the entitlements; an ad-hoc dry run signs without them (they need a provisioning identity).
+if [ "$DRY_RUN" = 1 ]; then sign_code "$APP"; else sign_code --entitlements "$ENTITLEMENTS" "$APP"; fi
 codesign --verify --deep --strict --verbose=2 "$APP"
 
 if [ "$DRY_RUN" = 0 ]; then
@@ -134,11 +145,16 @@ if [ -n "${SPARKLE_PRIVATE_KEY:-}" ]; then
 elif [ -n "${SPARKLE_KEY_PATH:-}" ]; then
   KEY_ARGS=(--ed-key-file "$SPARKLE_KEY_PATH")
 fi
-printf '%s' "${SPARKLE_PRIVATE_KEY:-}" | "$SPARKLE_BIN/generate_appcast" ${KEY_ARGS[@]+"${KEY_ARGS[@]}"} \
+CHANNEL_ARGS=()
+if [ -n "$CHANNEL" ]; then CHANNEL_ARGS=(--channel "$CHANNEL"); fi
+printf '%s' "${SPARKLE_PRIVATE_KEY:-}" | "$SPARKLE_BIN/generate_appcast" ${KEY_ARGS[@]+"${KEY_ARGS[@]}"} ${CHANNEL_ARGS[@]+"${CHANNEL_ARGS[@]}"} \
   --download-url-prefix "$REPO_URL/releases/download/v$VERSION/" \
   --link "$REPO_URL" \
   --full-release-notes-url "$REPO_URL/releases/tag/v$VERSION" \
   -o "$APPCAST" "$DIST"
+if [ -n "$CHANNEL" ]; then
+  grep -q "<sparkle:channel>$CHANNEL</sparkle:channel>" "$APPCAST" || fail "generate_appcast did not write the $CHANNEL channel into $APPCAST"
+fi
 
 step "Checking the appcast against the public key the app ships"
 swift scripts/appcast-check.swift verify "$DMG" "$APPCAST" "$PUBLIC_KEY" "$DOWNLOAD_URL"

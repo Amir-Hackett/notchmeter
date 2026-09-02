@@ -106,3 +106,119 @@ import Testing
         #expect(Advisor.resetCredits(Advisor.Context(readings: [calm], now: now)).isEmpty)
     }
 }
+
+
+/// Every saved token is tried, newest file first; a refused one is passed over; organisation billing parses.
+@Suite(.serialized) struct CopilotRoundTwo {
+    init() { Localization.use(language: "en") }
+
+    final class Answers: @unchecked Sendable {
+        private let lock = NSLock()
+        private(set) var tokens: [String] = []
+        var status: @Sendable (String, URL) -> (Int, Data) = { _, _ in (401, Data()) }
+
+        func record(_ token: String) {
+            lock.lock()
+            tokens.append(token)
+            lock.unlock()
+        }
+    }
+
+    final class StubProtocol: URLProtocol {
+        nonisolated(unsafe) static var answers = Answers()
+
+        override class func canInit(with request: URLRequest) -> Bool { true }
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+        override func stopLoading() {}
+
+        override func startLoading() {
+            let token = request.value(forHTTPHeaderField: "Authorization")?.replacingOccurrences(of: "token ", with: "") ?? ""
+            Self.answers.record(token)
+            let (status, data) = Self.answers.status(token, request.url!)
+            let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+    }
+
+    @Test func candidatesAreOrderedNewestFileFirstAndDeduplicated() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("notchmeter-copilot-order-\(UUID().uuidString)")
+        let config = dir.appendingPathComponent("github-copilot")
+        let gh = dir.appendingPathComponent("gh/hosts.yml")
+        try fm.createDirectory(at: config, withIntermediateDirectories: true)
+        try fm.createDirectory(at: gh.deletingLastPathComponent(), withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+        try Data(#"{"github.com:Iv1.old":{"oauth_token":"gho_stale"}}"#.utf8).write(to: config.appendingPathComponent("apps.json"))
+        try fm.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -86400)], ofItemAtPath: config.appendingPathComponent("apps.json").path)
+        try Data("github.com:\n    oauth_token: gho_live\n".utf8).write(to: gh)
+        try Data(#"{"github.com":{"oauth_token":"gho_live"}}"#.utf8).write(to: config.appendingPathComponent("hosts.json"))
+        let candidates = CopilotProvider.tokenCandidates(configRoot: config, ghHosts: gh)
+        #expect(candidates.map(\.token) == ["gho_live", "gho_stale"])
+        #expect(candidates.first?.file.lastPathComponent != "apps.json")
+        #expect(CopilotProvider.token(configRoot: config, ghHosts: gh) == "gho_live")
+        #expect(CopilotProvider.shortPath(Paths.home.appendingPathComponent(".config/gh/hosts.yml")) == "~/.config/gh/hosts.yml")
+    }
+
+    @Test func aStaleTokenIsPassedOverForTheLiveOneAndNamedWhenAllFail() async throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("notchmeter-copilot-live-\(UUID().uuidString)")
+        let config = dir.appendingPathComponent("github-copilot")
+        let gh = dir.appendingPathComponent("gh/hosts.yml")
+        try fm.createDirectory(at: config, withIntermediateDirectories: true)
+        try fm.createDirectory(at: gh.deletingLastPathComponent(), withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+        try Data(#"{"github.com:Iv1.old":{"oauth_token":"gho_stale"}}"#.utf8).write(to: config.appendingPathComponent("apps.json"))
+        try Data("github.com:\n    oauth_token: gho_live\n".utf8).write(to: gh)
+        try fm.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -86400)], ofItemAtPath: gh.path)
+        let answers = Answers()
+        let user = try JSONSerialization.data(withJSONObject: ["copilot_plan": "individual", "quota_reset_date": "2026-10-01",
+                                                                "quota_snapshots": ["premium_interactions": ["entitlement": 300, "remaining": 100, "unlimited": false]]])
+        answers.status = { token, _ in token == "gho_live" ? (200, user) : (401, Data()) }
+        StubProtocol.answers = answers
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubProtocol.self]
+        let provider = CopilotProvider(session: URLSession(configuration: configuration), configRoot: config, ghHosts: gh)
+        let reading = try await provider.fetch()
+        #expect(abs((reading.windows[0].usedFraction ?? 0) - 2.0 / 3) < 1e-9)
+        #expect(answers.tokens == ["gho_stale", "gho_live"])
+        // The live token is remembered and tried first next time.
+        _ = try await provider.fetch()
+        #expect(answers.tokens.last == "gho_live")
+        #expect(answers.tokens.count == 3)
+        let refused = Answers()
+        refused.status = { _, _ in (401, Data()) }
+        StubProtocol.answers = refused
+        do {
+            _ = try await CopilotProvider(session: URLSession(configuration: configuration), configRoot: config, ghHosts: gh).fetch()
+            Issue.record("expected a refusal")
+        } catch let error as ProviderError {
+            #expect(error.needsAttention)
+            #expect(error.message.contains("apps.json"))
+            #expect(error.message.contains("hosts.yml"))
+        }
+        #expect(refused.tokens.count == 2)
+    }
+
+    @Test func organisationBillingBecomesHiddenWindows() throws {
+        let orgs = CopilotProvider.parseOrgs(Data(#"[{"login":"acme","id":1},{"login":"","id":2},{"id":3}]"#.utf8))
+        #expect(orgs == ["acme"])
+        let url = try #require(CopilotProvider.orgBillingURL(org: "acme", now: DateParsing.iso8601("2026-09-15T12:00:00Z")!))
+        #expect(url.absoluteString == "https://api.github.com/orgs/acme/settings/billing/usage/summary?year=2026&month=9")
+        let summary = """
+        {"usageItems":[{"date":"2026-09-01","product":"copilot","sku":"Copilot Premium Request","quantity":120,"unitType":"Requests","pricePerUnit":0.04,"grossAmount":4.8,"discountAmount":3.2,"netAmount":1.6,"organizationName":"acme"},
+                       {"date":"2026-09-02","product":"actions","quantity":9,"netAmount":9},
+                       {"date":"2026-09-02","product":"Copilot","quantity":30,"grossAmount":1.2,"discountAmount":1.2,"netAmount":0}]}
+        """
+        let windows = CopilotProvider.parseOrgBilling(Data(summary.utf8), org: "acme")
+        #expect(windows.map(\.id) == ["org_acme_credits", "org_acme_spend"])
+        #expect(windows[0].label == "acme org credits")
+        #expect(windows[0].hiddenByDefault)
+        #expect(windows[0].usedFraction == nil)
+        #expect(abs((windows[0].amountUSD ?? 0) - 4.4) < 1e-9)
+        #expect(windows[0].note == "$4.40 covered by the allowance · 150 requests this month")
+        #expect(windows[1].note == "$1.60 billed this month")
+        #expect(CopilotProvider.parseOrgBilling(Data(#"{"usageItems":[{"product":"actions","netAmount":1}]}"#.utf8), org: "acme").isEmpty)
+    }
+}

@@ -40,6 +40,29 @@ struct ReadingCache {
     }
 }
 
+extension ProviderRegistry {
+    /// The providers with their opt-in second reads wired to the preferences (read through UserDefaults, which is
+    /// thread-safe, because the closures run on the provider actors).
+    static func all(defaults: UserDefaults = .standard) -> [any UsageProvider] {
+        nonisolated(unsafe) let defaults = defaults
+        return [ClaudeProvider(),
+         CodexProvider(readResetCredits: { defaults.bool(forKey: "codexResetCredits") }),
+         CursorProvider(readUsageEvents: { defaults.bool(forKey: "cursorUsageEvents") }),
+         AntigravityProvider(),
+         CopilotProvider(readOrgBilling: { defaults.bool(forKey: "copilotOrgBilling") })]
+    }
+}
+
+/// The last extra-usage figure seen, persisted so a relaunch cannot report the same rise twice.
+struct ExtraUsageMemory: Codable, Equatable {
+    var amountUSD: Double
+    var seenAt: Date
+    /// "2026-09": the month a rise was last reported in.
+    var risenIn: String?
+
+    static let defaultsKey = "extraUsageMemory"
+}
+
 @MainActor
 @Observable
 final class UsageStore {
@@ -69,15 +92,26 @@ final class UsageStore {
     /// The last hour's move per window, and 24 hourly points per window, from the drain log.
     private(set) var drains: [DrainLog.Key: Drain] = [:]
     private(set) var drainSeries: [DrainLog.Key: [Double?]] = [:]
+    /// The run-out interval per window where the drain log holds enough history.
+    private(set) var runOuts: [DrainLog.Key: RunOutInterval] = [:]
     /// Set by `--smoke --idle-sim`: the idle clock pretends this much time has passed since any activity.
     private(set) var simulatedIdle: TimeInterval?
     /// Something is capturing the screen (ScreenCaptureMonitor); with the privacy setting on, figures are hidden.
     private(set) var screenCaptured = false
+    /// One line the footer shows beside the schedule: a hook repaired at launch, the awake assertion held.
+    private(set) var footerNote: String?
+    /// Extra-usage credits rose since the last reading (kept for an hour, for the advice strip).
+    private(set) var extraUsageRise: ExtraUsageRise?
+    /// Tools whose endpoint last answered a server error, by status code.
+    private(set) var serverTrouble: [ToolID: Int] = [:]
+    /// Whether the awake assertion is held right now (AwakeKeeper mirrors it).
+    private(set) var keepingAwake = false
     let prefs: Preferences
 
     @ObservationIgnored private let providers: [ToolID: any UsageProvider]
     @ObservationIgnored private var loops: [ToolID: Task<Void, Never>] = [:]
     @ObservationIgnored private var sleepers: [ToolID: Task<Void, Error>] = [:]
+    @ObservationIgnored private var resetTimers: [ToolID: Task<Void, Never>] = [:]
     @ObservationIgnored private var inflight: Set<ToolID> = []
     @ObservationIgnored private var backoff: [ToolID: TimeInterval] = [:]
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
@@ -93,6 +127,7 @@ final class UsageStore {
     @ObservationIgnored private var screenLocked = false
     @ObservationIgnored private var asleep = false
     @ObservationIgnored private var screensAsleep = false
+    @ObservationIgnored private var sessionInactive = false
     @ObservationIgnored private var lastHook: Date?
     @ObservationIgnored private var lastHookRefresh: Date?
     @ObservationIgnored private var wokeAt: Date?
@@ -101,27 +136,45 @@ final class UsageStore {
     @ObservationIgnored private var watchedResets: [String: WatchedReset] = [:]
     @ObservationIgnored private var reportedAdvice: [String]?
     @ObservationIgnored private var started = false
+    @ObservationIgnored private var extraUsageMemory: ExtraUsageMemory?
+    @ObservationIgnored private var extraUsageRiseAt: Date?
+    @ObservationIgnored private var lastReportWrite: Date?
+    @ObservationIgnored private let reportFile: URL?
     /// Receives each batch of pace alerts the scheduler decides on; wired to the Notifier by the app delegate.
     @ObservationIgnored var deliverAlerts: ([PaceAlert]) -> Void = { _ in }
+    /// Advice lines worth a banner of their own (extra usage, a cache-tier shift, heavy metering).
+    @ObservationIgnored var deliverAdvice: ([Advice]) -> Void = { _ in }
     /// A Claude Code session began waiting, or finished a turn; wired to the Notifier by the app delegate.
     @ObservationIgnored var deliverSessionEvent: (Notifier.SessionEvent, AgentSession) -> Void = { _, _ in }
+    /// Notices whose state has passed, to withdraw from Notification Center.
+    @ObservationIgnored var removeNotifications: ([String]) -> Void = { _ in }
+    /// The working-session count changed, or the power source did; the app applies the awake assertion.
+    @ObservationIgnored var awakeChanged: (Bool) -> Void = { _ in }
 
     static let costInterval: TimeInterval = 60
     static let hookRefreshSpacing: TimeInterval = 30
     static let awaitingInputTimeout: TimeInterval = SessionTracker.waitingTimeout
     static let resetCheckInterval: TimeInterval = 30
+    /// A refresh a few seconds after a window's reset, so the freshly reset figure is on the ring at once.
+    static let resetRefreshDelay: TimeInterval = 5
+    static let reportWriteSpacing: TimeInterval = 30
+    static let extraUsageRiseShownFor: TimeInterval = 3600
 
     init(prefs: Preferences, providers: [any UsageProvider] = ProviderRegistry.all(), cache: ReadingCache = ReadingCache(),
-         defaults: UserDefaults = .standard, drainLog: DrainLog? = DrainLog()) {
+         defaults: UserDefaults = .standard, drainLog: DrainLog? = DrainLog(), reportFile: URL? = Paths.reportFile) {
         self.prefs = prefs
         self.cache = cache
         self.defaults = defaults
         self.drainLog = drainLog
+        self.reportFile = reportFile
         self.alertMemory = AlertMemory.load(from: defaults)
         self.providers = providers.reduce(into: [:]) { $0[$1.tool] = $1 }
         let roots = ClaudeCostScanner.defaultRoots(extra: prefs.extraTranscriptRoots)
         self.costScanner = ClaudeCostScanner(roots: roots)
         self.activity = AgentActivity(claudeRoots: roots)
+        if let data = defaults.data(forKey: ExtraUsageMemory.defaultsKey) {
+            extraUsageMemory = try? JSONDecoder().decode(ExtraUsageMemory.self, from: data)
+        }
         let cached = cache.load()
         for tool in ToolID.allCases {
             statuses[tool] = initialStatus(for: tool, cached: cached[tool])
@@ -141,6 +194,12 @@ final class UsageStore {
 
     func status(_ tool: ToolID) -> ToolStatus {
         statuses[tool] ?? .waiting
+    }
+
+    /// Claude Code is billed by API key on this Mac: no plan windows to meter, the Cost card is the meter.
+    var claudeOnAPIKey: Bool {
+        if case .idle(let message) = status(.claude), message.contains("API key") { return true }
+        return false
     }
 
     /// Tools waiting on the user: a permission prompt or a question in Claude Code, reported by its hook.
@@ -189,6 +248,16 @@ final class UsageStore {
         if screenCaptured != captured { screenCaptured = captured }
     }
 
+    func setFooterNote(_ note: String?) {
+        footerNote = note
+    }
+
+    /// A vendor's page or a pull request, from the card.
+    func openURL(_ url: URL) {
+        Oracle.shared.emit("open", ["host": url.host ?? url.absoluteString])
+        NSWorkspace.shared.open(url)
+    }
+
     /// Digits and dollar figures are withheld while the screen is shared and the privacy setting is on.
     var hidesFigures: Bool {
         prefs.hideFromScreenShare && screenCaptured
@@ -206,9 +275,27 @@ final class UsageStore {
         drains.reduce(into: [:]) { if let rate = $1.value.perHour { $0["\($1.key.tool.rawValue)/\($1.key.window)"] = rate } }
     }
 
+    var runOutsByKey: [String: RunOutInterval] {
+        runOuts.reduce(into: [:]) { $0["\($1.key.tool.rawValue)/\($1.key.window)"] = $1.value }
+    }
+
+    /// Inside a tool's peak window right now, for the footer.
+    var peakNow: Bool {
+        visibleTools.contains { prefs.peakHours(for: $0)?.isPeak(at: Date()) ?? false }
+    }
+
     func adviceContext(now: Date = Date()) -> Advisor.Context {
-        Advisor.Context(readings: readyReadings, awaitingInput: awaitingInput.filter(isShown), waitingSessions: sessions.waiting,
-                        cost: prefs.showSpend ? cost : nil, timeFormat: prefs.timeFormat, toolOrder: prefs.toolOrder, drainRates: drainRates, now: now)
+        var context = Advisor.Context(readings: readyReadings, awaitingInput: awaitingInput.filter(isShown), waitingSessions: sessions.waiting,
+                                      cost: prefs.showSpend ? cost : nil, timeFormat: prefs.timeFormat, toolOrder: prefs.toolOrder, drainRates: drainRates, now: now)
+        context.runOuts = runOutsByKey
+        context.monthlyBudgetUSD = prefs.showSpend ? prefs.monthlyBudgetUSD : nil
+        context.weeklyBudgetUSD = prefs.showSpend ? prefs.weeklyBudgetUSD : nil
+        context.extraUsageRise = extraUsageRiseAt.map { now.timeIntervalSince($0) < Self.extraUsageRiseShownFor } == true ? extraUsageRise : nil
+        context.peakHours = visibleTools.reduce(into: [:]) { $0[$1] = prefs.peakHours(for: $1) }
+        context.limitHitTools = sessions.limitHit(now: now) && isShown(.claude) ? [.claude] : []
+        context.serverTrouble = serverTrouble.filter { isShown($0.key) }
+        context.metering = prefs.showSpend ? cost?.sessionMetering : nil
+        return context
     }
 
     /// What to do next, from Advisor.swift; empty when there is nothing to say.
@@ -225,16 +312,20 @@ final class UsageStore {
     var scheduleNote: String? {
         guard let tool = visibleTools.min(by: { (nextRefresh[$0] ?? .distantFuture) < (nextRefresh[$1] ?? .distantFuture) }) else { return nil }
         var notes: [String] = []
-        if PollingPolicy.isIdle(pollingInputs(for: tool)) { notes.append(L("no agent activity")) }
+        let inputs = pollingInputs(for: tool)
+        if let until = inputs.exhaustedUntil, PollingPolicy.isExhausted(inputs) { notes.append(L("Resets in %@", ResetText.duration(until.timeIntervalSinceNow))) }
+        if PollingPolicy.isIdle(inputs) { notes.append(L("no agent activity")) }
         if onBattery { notes.append(L("on battery")) }
         if lowPowerMode { notes.append(L("low power mode")) }
+        if peakNow { notes.append(L("peak hours")) }
         if visibleTools.contains(where: { status($0).isOffline }) { notes.append(L("Offline, retrying")) }
         return notes.isEmpty ? nil : notes.joined(separator: ", ")
     }
 
     /// Everything the app knows, for `--probe --json`, the local API and the oracle.
-    func report(now: Date = Date()) -> UsageReport {
-        UsageReport(tools: statuses, order: prefs.toolOrder, cost: prefs.showSpend ? cost : nil, advice: advice, drains: drains, sessions: sessions.all, now: now)
+    func report(now: Date = Date(), history: Bool = false) -> UsageReport {
+        UsageReport(tools: statuses, order: prefs.toolOrder, cost: prefs.showSpend ? cost : nil, advice: advice, drains: drains, runOuts: runOuts,
+                    sessions: sessions.all, history: history ? costScanner.history?.load() : nil, now: now)
     }
 
     func start() {
@@ -272,6 +363,7 @@ final class UsageStore {
         if enabled {
             prefs.enabledTools.insert(tool)
             statuses[tool] = initialStatus(for: tool, cached: nil)
+            if tool == .claude { Keychain.setInteractive(true) }
             startLoop(tool)
         } else {
             prefs.enabledTools.remove(tool)
@@ -290,7 +382,10 @@ final class UsageStore {
         Task { await refreshCost() }
     }
 
-    func refreshAll(force: Bool = true) {
+    /// `interactive` marks a read the user asked for (Refresh, the ring, a card's menu): the one kind that may
+    /// raise the Keychain dialog under the "On Refresh only" policy.
+    func refreshAll(force: Bool = true, interactive: Bool = false) {
+        if interactive { Keychain.setInteractive(true) }
         for tool in visibleTools {
             Task { await refresh(tool, force: force) }
         }
@@ -307,9 +402,12 @@ final class UsageStore {
         let weekly = claude?.windows.first { $0.id == "seven_day" }
         let session = claude?.windows.first { $0.id == "five_hour" }
         let scanner = costScanner
-        let summary = await scanner.scan(weeklyResetsAt: weekly?.resetsAt, weeklyUsed: weekly?.usedFraction, sessionResetsAt: session?.resetsAt)
+        let summary = await scanner.scan(weeklyResetsAt: weekly?.resetsAt, weeklyUsed: weekly?.usedFraction, sessionResetsAt: session?.resetsAt,
+                                         sessionUsed: session?.usedFraction)
         cost = summary
         costScanning = false
+        evaluateAlerts()
+        writeReportIfDue()
     }
 
     /// Unforced refreshes are throttled so hovering the notch cannot hammer the APIs. While the Claude Code status
@@ -323,7 +421,10 @@ final class UsageStore {
         if !force, let last = lastFetch[tool], Date().timeIntervalSince(last) < 60 { return }
         guard !inflight.contains(tool) else { return }
         inflight.insert(tool)
-        defer { inflight.remove(tool) }
+        defer {
+            inflight.remove(tool)
+            if tool == .claude { Keychain.setInteractive(false) }
+        }
         if tool == .claude, let reading = statuslineReading() {
             adopt(reading)
             return
@@ -334,11 +435,13 @@ final class UsageStore {
         do {
             let reading = try await provider.fetch()
             log.info("\(tool.displayName, privacy: .public) usage -> \(Probe.describe(reading), privacy: .public)")
+            serverTrouble[tool] = nil
             adopt(reading)
         } catch let error as ProviderError {
             log.error("\(tool.displayName, privacy: .public) failed: \(error.message, privacy: .public)")
-            if case .nothingYet(let message) = error {
-                statuses[tool] = .idle(message)
+            if case .http(let code, _) = error, code >= 500 { serverTrouble[tool] = code } else { serverTrouble[tool] = nil }
+            if error.isCalm {
+                statuses[tool] = .idle(error.message)
                 backoff[tool] = 0
             } else if case .offline = error {
                 statuses[tool] = .offline(cached: cached)
@@ -371,8 +474,14 @@ final class UsageStore {
         }
     }
 
-    /// A good reading: on screen, cached, logged for the drain, and checked for alerts.
+    /// A good reading: on screen, cached, logged for the drain, watched for its reset, and checked for alerts.
     private func adopt(_ reading: UsageReading, now: Date = Date()) {
+        var reading = reading
+        if reading.tool == .antigravity {
+            let resets = drainSamples.filter { $0.key.tool == .antigravity }.reduce(into: [String: [Date]]()) { $0[$1.key.window] = $1.value.compactMap(\.resetsAt) }
+            reading = AntigravityPeriods.apply(reading, resets: resets, now: now)
+        }
+        if reading.tool == .claude { noteExtraUsage(reading, now: now) }
         statuses[reading.tool] = .ready(reading)
         backoff[reading.tool] = 0
         cache.store(reading)
@@ -386,7 +495,52 @@ final class UsageStore {
                 watchedResets[key] = nil
             }
         }
+        scheduleResetRefresh(for: reading, now: now)
         evaluateAlerts(now: now)
+        writeReportIfDue(now: now)
+    }
+
+    /// Extra-usage credits rose since the last reading: remember it, log it with the plan windows beside it, and
+    /// keep the rise for the advice strip.
+    private func noteExtraUsage(_ reading: UsageReading, now: Date) {
+        guard let extra = reading.windows.first(where: { $0.id == "extra_usage" }), let amount = extra.amountUSD else { return }
+        let month = String(CostHistory.key(now).prefix(7))
+        var memory = extraUsageMemory ?? ExtraUsageMemory(amountUSD: amount, seenAt: now, risenIn: nil)
+        if amount > memory.amountUSD + 0.005 {
+            let plan = reading.windows.filter { $0.id == "five_hour" || $0.id == "seven_day" }
+            let rise = ExtraUsageRise(amountUSD: amount - memory.amountUSD, over: now.timeIntervalSince(memory.seenAt),
+                                      planUsed: plan.compactMap(\.usedFraction).max(), firstThisMonth: memory.risenIn != month)
+            drainLog?.appendExtraUsage(tool: .claude, amountUSD: amount, previousUSD: memory.amountUSD, planWindows: plan, now: now)
+            log.notice("extra usage rose by \(Money.dollars(rise.amountUSD), privacy: .public)")
+            extraUsageRise = rise
+            extraUsageRiseAt = now
+            memory.risenIn = month
+        }
+        memory.amountUSD = amount
+        memory.seenAt = now
+        if memory != extraUsageMemory {
+            extraUsageMemory = memory
+            if let data = try? JSONEncoder().encode(memory) { defaults.set(data, forKey: ExtraUsageMemory.defaultsKey) }
+        }
+    }
+
+    /// A refresh of the tool a few seconds after its soonest reset, whatever the notification settings, so a ring
+    /// at 100 % does not sit there for a poll interval after the limit has lifted.
+    private func scheduleResetRefresh(for reading: UsageReading, now: Date) {
+        resetTimers[reading.tool]?.cancel()
+        guard let soonest = reading.windows.compactMap({ $0.usedFraction != nil ? $0.resetsAt : nil }).filter({ $0 > now }).min() else {
+            resetTimers[reading.tool] = nil
+            return
+        }
+        let wait = soonest.timeIntervalSince(now) + Self.resetRefreshDelay
+        let tool = reading.tool
+        resetTimers[tool] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard !Task.isCancelled, let self else { return }
+            log.info("\(tool.displayName, privacy: .public) reset passed; refreshing")
+            Oracle.shared.emit("resetRefresh", ["tool": tool.rawValue])
+            await self.refresh(tool, force: true)
+        }
     }
 
     /// The session and weekly windows from a status line under three minutes old, laid over the cached reading.
@@ -406,6 +560,17 @@ final class UsageStore {
         }
         self.cost = cost
         lastUpdated = now
+    }
+
+    /// The report file beside the drain log, for the command-line tool and the status line, at most every 30 s.
+    private func writeReportIfDue(now: Date = Date()) {
+        guard let reportFile, started, lastReportWrite.map({ now.timeIntervalSince($0) >= Self.reportWriteSpacing }) ?? true else { return }
+        lastReportWrite = now
+        let data = report(now: now).json
+        Task.detached(priority: .utility) {
+            try? FileManager.default.createDirectory(at: reportFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? data.write(to: reportFile, options: .atomic)
+        }
     }
 
     // MARK: - Drain log
@@ -434,12 +599,18 @@ final class UsageStore {
     private func recomputeDrains(now: Date) {
         var drains: [DrainLog.Key: Drain] = [:]
         var series: [DrainLog.Key: [Double?]] = [:]
+        var runOuts: [DrainLog.Key: RunOutInterval] = [:]
         for (key, samples) in drainSamples {
             if let drain = DrainLog.drain(samples, now: now) { drains[key] = drain }
             series[key] = DrainLog.hourly(samples, now: now)
+            if let window = statuses[key.tool]?.reading?.windows.first(where: { $0.id == key.window }), let used = window.usedFraction, let resetsAt = window.resetsAt,
+               let interval = RunOutInterval.estimate(samples: samples, usedFraction: used, resetsAt: resetsAt, now: now, peak: prefs.peakHours(for: key.tool)) {
+                runOuts[key] = interval
+            }
         }
         self.drains = drains
         drainSeries = series
+        self.runOuts = runOuts
     }
 
     func drain(for tool: ToolID, window: LimitWindow) -> Drain? {
@@ -450,6 +621,10 @@ final class UsageStore {
         drainSeries[DrainLog.Key(tool: tool, window: window.id)]
     }
 
+    func runOut(for tool: ToolID, window: LimitWindow) -> RunOutInterval? {
+        runOuts[DrainLog.Key(tool: tool, window: window.id)]
+    }
+
     // MARK: - Pace alerts
 
     private var alertOptions: NotificationScheduler.Options {
@@ -458,23 +633,41 @@ final class UsageStore {
     }
 
     /// Only new readings can make a pace worse, so this runs after each one; nothing is remembered while the
-    /// setting is off, so switching it on reports whatever is behind at that moment.
+    /// setting is off, so switching it on reports whatever is behind at that moment. The budget rides along as a
+    /// window of its own, and advice lines worth a banner go out here too.
     private func evaluateAlerts(now: Date = Date()) {
         guard prefs.notificationsEnabled else { return }
-        let plan = NotificationScheduler.plan(memory: alertMemory, readings: readyReadings, now: now, options: alertOptions, rates: drainRates)
+        var readings = readyReadings
+        if let budget = NotificationScheduler.budgetReading(cost: prefs.showSpend ? cost : nil, monthlyUSD: prefs.monthlyBudgetUSD, weeklyUSD: prefs.weeklyBudgetUSD, now: now) {
+            readings.append(budget)
+        }
+        let plan = NotificationScheduler.plan(memory: alertMemory, readings: readings, now: now, options: alertOptions, rates: drainRates, runOuts: runOutsByKey)
         remember(plan.memory)
         send(plan.alerts)
+        let lines = NotificationScheduler.planAdvice(memory: alertMemory, advice: advice, now: now) { line in
+            if line.id.hasPrefix("extra/") { return prefs.notifyExtraUsage ? (line.id == "extra/room" ? 3600 : 30 * 86400) : nil }
+            if line.id == "cache-ttl" { return prefs.notifyCacheShift ? 86400 : nil }
+            if line.id == "metering" { return prefs.notifyCacheShift ? 86400 : nil }
+            return nil
+        }
+        remember(lines.memory)
+        if !lines.advice.isEmpty {
+            for line in lines.advice { Oracle.shared.emit("notification", ["action": "scheduled", "title": line.text, "stage": "advice"]) }
+            deliverAdvice(lines.advice)
+        }
     }
 
-    /// The timer's half: resets and reminders for windows that were nearly gone when last seen.
+    /// The timer's half: resets and reminders for windows that were nearly gone when last seen; the pace notices
+    /// of a window that has reset are withdrawn.
     private func checkResets(now: Date = Date()) {
         guard prefs.notificationsEnabled, !watchedResets.isEmpty else { return }
         let plan = NotificationScheduler.planResets(memory: alertMemory, watched: Array(watchedResets.values), now: now, options: alertOptions)
         watchedResets = plan.watched.reduce(into: [:]) { $0[AlertMemory.key($1.tool, $1.window)] = $1 }
         remember(plan.memory)
         send(plan.alerts)
-        if plan.alerts.contains(where: { $0.stage == .reset }) {
-            Task { await refresh(.claude, force: true) }
+        let passed = plan.alerts.filter { $0.stage == .reset }
+        if !passed.isEmpty {
+            removeNotifications(passed.flatMap { PaceAlert.identifiers(tool: $0.tool, window: $0.window) })
         }
     }
 
@@ -497,7 +690,8 @@ final class UsageStore {
     // MARK: - Scheduling
 
     func pollingInputs(for tool: ToolID, base: TimeInterval? = nil, now: Date = Date()) -> PollingInputs {
-        PollingInputs(
+        let main = status(tool).reading.flatMap(Advisor.mainWindow(of:))
+        return PollingInputs(
             baseInterval: base ?? providers[tool]?.refreshInterval ?? 60,
             screenLocked: screenLocked,
             asleep: asleep,
@@ -506,13 +700,16 @@ final class UsageStore {
             lowPowerMode: lowPowerMode,
             minutesSinceLastAgentActivity: simulatedIdle.map { $0 / 60 } ?? lastActivity[tool].map { now.timeIntervalSince($0) / 60 },
             hookNudge: tool == .claude && simulatedIdle == nil && (lastHook.map { now.timeIntervalSince($0) < PollingPolicy.idleAfter } ?? false),
-            secondsSinceStatusline: tool == .claude && base == nil ? statusline.flatMap { $0.windows.isEmpty ? nil : now.timeIntervalSince($0.receivedAt) } : nil
+            secondsSinceStatusline: tool == .claude && base == nil ? statusline.flatMap { $0.windows.isEmpty ? nil : now.timeIntervalSince($0.receivedAt) } : nil,
+            sessionInactive: sessionInactive,
+            exhaustedUntil: main.flatMap { ($0.usedFraction ?? 0) >= 1 ? $0.resetsAt : nil },
+            now: now
         )
     }
 
     /// One line for `--smoke`: the environment and each tool's cadence.
     func scheduleDescription() -> String {
-        var parts = ["battery=\(onBattery)", "lowPower=\(lowPowerMode)", "locked=\(screenLocked)", "asleep=\(asleep)", "screensAsleep=\(screensAsleep)"]
+        var parts = ["battery=\(onBattery)", "lowPower=\(lowPowerMode)", "locked=\(screenLocked)", "asleep=\(asleep)", "screensAsleep=\(screensAsleep)", "sessionInactive=\(sessionInactive)"]
         for tool in visibleTools {
             let seen = lastActivity[tool].map { RelativeTime.ago($0) } ?? "never"
             let cadence: String = switch PollingPolicy.decide(pollingInputs(for: tool)) {
@@ -539,6 +736,8 @@ final class UsageStore {
         loops[tool]?.cancel()
         loops[tool] = nil
         sleepers[tool]?.cancel()
+        resetTimers[tool]?.cancel()
+        resetTimers[tool] = nil
         nextRefresh[tool] = nil
     }
 
@@ -616,7 +815,9 @@ final class UsageStore {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(Self.resetCheckInterval))
                 guard !Task.isCancelled, let self else { return }
+                let before = self.sessions
                 self.sessions.expire(now: Date())
+                if before != self.sessions { self.applyAwake() }
                 self.checkResets()
             }
         }
@@ -630,7 +831,10 @@ final class UsageStore {
         let lowPower = PowerSource.lowPowerMode()
         let before = visibleTools.map { PollingPolicy.decide(pollingInputs(for: $0)) }
         if sampled != lastActivity { lastActivity = sampled }
-        if battery != onBattery { onBattery = battery }
+        if battery != onBattery {
+            onBattery = battery
+            applyAwake()
+        }
         if lowPower != lowPowerMode { lowPowerMode = lowPower }
         let after = visibleTools.map { PollingPolicy.decide(pollingInputs(for: $0)) }
         if before != after { reschedule() }
@@ -656,6 +860,12 @@ final class UsageStore {
         })
         observers.append(workspace.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.setScreensAsleep(false) }
+        })
+        observers.append(workspace.addObserver(forName: NSWorkspace.sessionDidResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.setSessionInactive(true) }
+        })
+        observers.append(workspace.addObserver(forName: NSWorkspace.sessionDidBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.setSessionInactive(false) }
         })
         observers.append(distributed.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.setScreenLocked(true) }
@@ -694,6 +904,17 @@ final class UsageStore {
         environmentChanged()
     }
 
+    /// Fast user switching: the session behind another user's is paused like sleep; the app may also have been
+    /// launched into an inactive session, which `--smoke` cannot simulate, so the flag is set directly here too.
+    func setSessionInactive(_ value: Bool) {
+        guard sessionInactive != value else { return }
+        sessionInactive = value
+        Oracle.shared.emit("session", ["inactive": value])
+        environmentChanged(delayed: !value)
+    }
+
+    var isSessionInactive: Bool { sessionInactive }
+
     private func setLowPowerMode(_ value: Bool) {
         guard lowPowerMode != value else { return }
         lowPowerMode = value
@@ -722,25 +943,46 @@ final class UsageStore {
         }
     }
 
+    // MARK: - Keep awake
+
+    /// The rule in AwakeKeeper.swift over the working sessions and the power source; the app holds the assertion.
+    func applyAwake() {
+        let hold = AwakeRule.shouldHold(working: sessions.working.count, enabled: prefs.keepAwake, onBattery: onBattery, allowOnBattery: prefs.keepAwakeOnBattery)
+        guard hold != keepingAwake else { return }
+        keepingAwake = hold
+        awakeChanged(hold)
+    }
+
     // MARK: - Claude Code hook and status line
 
     /// Every event is activity; a refresh follows at most once every 30 s, and the session tracker keeps who is
-    /// working, idle or waiting for the user.
+    /// working, idle or waiting for the user. A remote host's event arrives here through the local API.
     func hookReceived(_ message: Hook.Message, now: Date = Date()) {
-        log.info("hook \(message.event, privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)")
-        Oracle.shared.emit("hook", ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any])
+        log.info("hook \(message.event, privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
+        Oracle.shared.emit("hook", ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any,
+                                    "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any])
         lastHook = now
         lastActivity[.claude] = now
         wokeAt = now
         let outcome = sessions.apply(message, now: now)
+        applyAwake()
         if let waiting = outcome.startedWaiting, prefs.notifyWaiting {
             deliverSessionEvent(.waiting, waiting)
+        }
+        if !outcome.stoppedWaiting.isEmpty {
+            removeNotifications(outcome.stoppedWaiting.map { Notifier.identifier(session: $0, kind: "waiting") })
         }
         if let finished = outcome.finished, prefs.notifyFinished, finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
         }
         guard isShown(.claude) else { return }
-        if lastHookRefresh.map({ now.timeIntervalSince($0) >= Self.hookRefreshSpacing }) ?? true {
+        if outcome.limitHit != nil, prefs.notificationsEnabled {
+            let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: .claude, reading: status(.claude).reading, now: now, options: alertOptions)
+            remember(plan.memory)
+            send(plan.alerts)
+        }
+        let urgent = outcome.limitHit != nil || outcome.quotaResumed
+        if urgent || (lastHookRefresh.map({ now.timeIntervalSince($0) >= Self.hookRefreshSpacing }) ?? true) {
             lastHookRefresh = now
             Task {
                 await refresh(.claude, force: true)
@@ -755,11 +997,11 @@ final class UsageStore {
     /// session cost go to the Claude card.
     func statuslineReceived(_ message: Statusline.Message, now: Date = Date()) {
         Oracle.shared.emit("statusline", ["context": message.contextUsed.map(Oracle.fraction) as Any, "windows": message.windows.map(\.id),
-                                          "session": message.sessionID as Any, "model": message.model as Any])
+                                          "session": message.sessionID as Any, "model": message.model as Any, "branch": message.branch as Any])
         statusline = message
         lastHook = now
         lastActivity[.claude] = now
-        sessions.statusline(sessionID: message.sessionID, project: message.project, now: now)
+        sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL, now: now)
         guard isShown(.claude) else { return }
         if let reading = statuslineReading(now: now) {
             adopt(reading, now: now)

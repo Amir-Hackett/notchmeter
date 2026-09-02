@@ -3,3 +3,6 @@ contact_links:
   - name: Accuracy rules
     url: https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md
     about: Every rule behind the cost estimate and where it is known to diverge, before filing a cost report.
+  - name: Security issue
+    url: https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md
+    about: A token exposure, an unexpected network destination or a hole in the local API goes to the private route in SECURITY.md, not to a public issue.

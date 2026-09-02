@@ -55,6 +55,15 @@ Without Xcode the certificate comes from the website:
 If `codesign` later says *unable to build chain to self-signed root*, install Apple's *Developer ID - G2* intermediate
 from <https://www.apple.com/certificateauthority/>.
 
+**The time-sensitive notifications capability.** The release is signed with `scripts/Notchmeter.entitlements`, which
+carries `com.apple.developer.usernotifications.time-sensitive` so the *waiting for you* and *limit hit* notifications
+can break through a Focus. Developer ID signing accepts that entitlement only when the App ID carries the capability,
+which is one action in the developer account: <https://developer.apple.com/account/resources/identifiers/list> →
+`com.amirhackett.notchmeter` (register it as an explicit App ID if it is not there) → tick *Time Sensitive
+Notifications* → Save. Without it, macOS delivers those notifications at the ordinary level and logs the missing
+entitlement once; `scripts/release.sh --dry-run` signs ad hoc and leaves the entitlements off, because they need a
+provisioning identity.
+
 ### 3. Notarisation credentials
 
 Use an App Store Connect API key rather than your Apple ID; it has no two-factor prompt, so the same key works locally
@@ -126,6 +135,12 @@ publishes; without them it publishes an unsigned DMG as a prerelease and says so
    `SPARKLE_KEY_PATH=~/sparkle-private-key.txt` uses the exported key instead of the keychain. `RELEASE_NOTES=notes.html`
    embeds an HTML fragment as the update's release notes. Notarisation usually takes one to five minutes; the script
    waits and fails loudly with the `notarytool log` command if Apple rejects the build.
+
+   `scripts/release.sh --channel beta` writes `<sparkle:channel>beta</sparkle:channel>` into the new appcast item, so
+   only copies with *Beta updates* on (Settings › Advanced; `Updater.swift`, `allowedChannels`) are offered it and
+   everyone else keeps the last stable item. Because the feed is the newest non-prerelease's `appcast.xml`, a beta is
+   published as a GitHub prerelease for its DMG, and the merged appcast (`PREVIOUS_APPCAST` plus the beta item) is
+   re-uploaded to the current stable release's assets so the feed carries both items.
 3. Publish. The script ends with the exact commands; in short:
 
    ```bash

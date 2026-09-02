@@ -1,8 +1,12 @@
 import Foundation
+import os
 import SQLite3
 
+private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "cursor")
+
 /// Cursor keeps its web session token in the editor's state database. The token doubles as the dashboard
-/// cookie, which is how cursor.com's own usage page reads the billing-cycle numbers.
+/// cookie, which is how cursor.com's own usage page reads the billing-cycle numbers. The usage-events export
+/// is a second read on the same cookie, opt-in, and feeds the daily-totals file with a Cursor series.
 actor CursorProvider: UsageProvider {
     nonisolated let tool: ToolID = .cursor
     nonisolated let refreshInterval: TimeInterval = 300
@@ -10,13 +14,27 @@ actor CursorProvider: UsageProvider {
 
     static let summaryURL = URL(string: "https://cursor.com/api/usage-summary")!
     static let legacyUsageURL = URL(string: "https://cursor.com/api/usage")!
+    static let usageEventsURL = URL(string: "https://cursor.com/api/dashboard/get-filtered-usage-events")!
 
-    private let session: URLSession
+    /// One priced request from the account's usage-events export.
+    struct UsageEvent: Equatable, Sendable {
+        let timestamp: Date
+        let model: String?
+        let tokens: TokenBreakdown
+        let costUSD: Double
+    }
 
-    init(session: URLSession = NetworkSession.shared,
-         stateDatabase: URL = Paths.home.appendingPathComponent("Library/Application Support/Cursor/User/globalStorage/state.vscdb")) {
+    private let session: URLSession?
+    private let readUsageEvents: @Sendable () -> Bool
+    private let history: CostHistory?
+
+    init(session: URLSession? = nil,
+         stateDatabase: URL = Paths.home.appendingPathComponent("Library/Application Support/Cursor/User/globalStorage/state.vscdb"),
+         readUsageEvents: @escaping @Sendable () -> Bool = { false }, history: CostHistory? = CostHistory(tool: .cursor)) {
         self.session = session
         self.stateDatabase = stateDatabase
+        self.readUsageEvents = readUsageEvents
+        self.history = history
     }
 
     nonisolated func isInstalled() -> Bool {
@@ -37,34 +55,57 @@ actor CursorProvider: UsageProvider {
         let userID = try Self.userID(fromClaims: claims)
         let cookie = "WorkosCursorSessionToken=\(userID)%3A%3A\(token)"
 
-        let (data, status) = try await get(Self.summaryURL, cookie: cookie)
-        switch status {
+        let (data, response) = try await send(Self.summaryURL, cookie: cookie)
+        switch response?.statusCode ?? 0 {
         case 200:
-            return try Self.parseSummary(data)
+            let reading = try Self.parseSummary(data)
+            if readUsageEvents() { await recordUsageEvents(cookie: cookie) }
+            return reading
         case 401, 403:
             throw ProviderError.notSignedIn(L("Cursor's login was refused. Sign in to Cursor in the editor again"))
         case 404:
             var components = URLComponents(url: Self.legacyUsageURL, resolvingAgainstBaseURL: false)!
             components.queryItems = [URLQueryItem(name: "user", value: userID)]
-            let (legacy, legacyStatus) = try await get(components.url!, cookie: cookie)
-            guard legacyStatus == 200 else { throw ProviderError.http(legacyStatus, L("Cursor usage endpoint answered")) }
+            let (legacy, legacyResponse) = try await send(components.url!, cookie: cookie)
+            guard legacyResponse?.statusCode == 200 else { throw ProviderError.http(legacyResponse?.statusCode ?? 0, L("Cursor usage endpoint answered")) }
             return try Self.parseLegacyUsage(legacy)
         case 429:
-            throw ProviderError.rateLimited(retryAfter: nil)
-        default:
+            throw ProviderError.rateLimited(retryAfter: RetryAfter.seconds(from: response))
+        case let status:
             throw ProviderError.http(status, L("Cursor usage endpoint answered"))
         }
     }
 
-    private func get(_ url: URL, cookie: String) async throws -> (Data, Int) {
+    /// The last 30 days of usage events, folded into per-day records of the daily-totals file; a failure here
+    /// never fails the reading.
+    private func recordUsageEvents(cookie: String, now: Date = Date()) async {
+        guard let history else { return }
+        let calendar = Calendar.current
+        let start = calendar.date(byAdding: .day, value: -29, to: calendar.startOfDay(for: now)) ?? now
+        let body = Self.usageEventsRequestBody(start: start, end: now)
+        guard let (data, response) = try? await send(Self.usageEventsURL, cookie: cookie, body: body), response?.statusCode == 200 else { return }
+        let events = Self.parseUsageEvents(data)
+        guard !events.isEmpty else { return }
+        let existing = history.load(calendar: calendar)
+        history.record(Self.dayRecords(events, calendar: calendar), existing: existing, calendar: calendar)
+    }
+
+    private func send(_ url: URL, cookie: String, body: Data? = nil) async throws -> (Data, HTTPURLResponse?) {
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(cookie, forHTTPHeaderField: "Cookie")
         request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
+        if let body {
+            request.httpMethod = "POST"
+            request.httpBody = body
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
         do {
-            let (data, response) = try await session.data(for: request)
-            return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+            let (data, response) = try await (session ?? NetworkSession.shared).data(for: request)
+            let http = response as? HTTPURLResponse
+            DiagnosticLog.request(log, url.lastPathComponent, status: http?.statusCode ?? 0, bytes: data.count)
+            return (data, http)
         } catch {
             if let offline = ProviderError.offline(from: error) { throw offline }
             throw error
@@ -73,6 +114,10 @@ actor CursorProvider: UsageProvider {
 
     // MARK: - Parsing
 
+    /// The dashboard's summary: the plan's included usage (the main window under `limitType` "user"), the team's
+    /// pooled usage (the main window under "team"), on-demand spend, and the split of the plan's usage between
+    /// Cursor's own models and other models, which the switch-models advice can act on and which stay off the
+    /// card until revealed in Settings.
     static func parseSummary(_ data: Data, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ProviderError.parse(L("Cursor usage summary unreadable"))
@@ -83,7 +128,9 @@ actor CursorProvider: UsageProvider {
         let cycleStart = (root["billingCycleStart"] as? String).flatMap(DateParsing.iso8601)
         let cycle: TimeInterval? = if let cycleStart, let cycleEnd, cycleEnd > cycleStart { cycleEnd.timeIntervalSince(cycleStart) } else { nil }
         let unlimited = (root["isUnlimited"] as? Bool) ?? false
+        let teamScoped = (root["limitType"] as? String)?.lowercased() == "team"
         let individual = root["individualUsage"] as? [String: Any]
+        let team = root["teamUsage"] as? [String: Any]
         let plan = individual?["plan"] as? [String: Any]
         let onDemand = individual?["onDemand"] as? [String: Any]
 
@@ -103,7 +150,7 @@ actor CursorProvider: UsageProvider {
             windows.append(LimitWindow(
                 id: "included", label: L("Included usage"), usedFraction: min(max(fraction, 0), 1), resetsAt: cycleEnd,
                 note: planUsed.map { L("%1$@ of %2$@", dollars($0), dollars(planLimit)) },
-                periodDuration: cycle
+                periodDuration: cycle, amountUSD: planUsed.map { $0 / 100 }
             ))
         } else {
             windows.append(LimitWindow(
@@ -112,12 +159,36 @@ actor CursorProvider: UsageProvider {
             ))
         }
 
+        if let pooled = team?["pooled"] as? [String: Any], let limit = number(pooled["limit"]), limit > 0 {
+            let used = number(pooled["used"]) ?? 0
+            let fraction = number(pooled["totalPercentUsed"]).map { $0 / 100 } ?? used / limit
+            let window = LimitWindow(
+                id: "team_pooled", label: L("Team pooled"), usedFraction: min(max(fraction, 0), 1), resetsAt: cycleEnd,
+                note: L("%1$@ of %2$@", dollars(used), dollars(limit)), periodDuration: cycle, amountUSD: used / 100
+            )
+            if teamScoped { windows.insert(window, at: 0) } else { windows.append(window) }
+        }
+
+        for (key, id, label) in [("autoPercentUsed", "cursor_models", L("Cursor models")), ("apiPercentUsed", "other_models", L("Other models"))] {
+            guard let percent = number(plan?[key]) else { continue }
+            windows.append(LimitWindow(id: id, label: label, usedFraction: JSON.fraction(percent), resetsAt: cycleEnd,
+                                       note: L("Share of the plan's included usage"), periodDuration: cycle, model: label, hiddenByDefault: true))
+        }
+
         if let onDemand, (onDemand["enabled"] as? Bool) == true, let limit = number(onDemand["limit"]), limit > 0 {
             let used = number(onDemand["used"]) ?? 0
             windows.append(LimitWindow(
                 id: "on_demand", label: L("On-demand"), usedFraction: min(max(used / limit, 0), 1), resetsAt: cycleEnd,
                 note: L("%1$@ of %2$@", dollars(used), dollars(limit)),
-                periodDuration: cycle
+                periodDuration: cycle, amountUSD: used / 100
+            ))
+        }
+        if let teamOnDemand = team?["onDemand"] as? [String: Any], (teamOnDemand["enabled"] as? Bool) == true,
+           let limit = number(teamOnDemand["limit"]), limit > 0 {
+            let used = number(teamOnDemand["used"]) ?? 0
+            windows.append(LimitWindow(
+                id: "team_on_demand", label: L("Team on-demand"), usedFraction: min(max(used / limit, 0), 1), resetsAt: cycleEnd,
+                note: L("%1$@ of %2$@", dollars(used), dollars(limit)), periodDuration: cycle, hiddenByDefault: true, amountUSD: used / 100
             ))
         }
 
@@ -143,6 +214,54 @@ actor CursorProvider: UsageProvider {
             note: limit.map { L("%1$ld of %2$ld requests", Int(used), Int($0)) }
         )
         return UsageReading(tool: .cursor, windows: [window], plan: nil, fetchedAt: now, observedAt: nil)
+    }
+
+    // MARK: - Usage events
+
+    /// The dashboard's own query: a 30-day range in epoch milliseconds, one page of up to 500 events.
+    static func usageEventsRequestBody(start: Date, end: Date, page: Int = 1, pageSize: Int = 500) -> Data {
+        let object: [String: Any] = ["teamId": 0, "startDate": String(Int(start.timeIntervalSince1970 * 1000)),
+                                     "endDate": String(Int(end.timeIntervalSince1970 * 1000)), "page": page, "pageSize": pageSize]
+        return (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data()
+    }
+
+    /// `usageEventsDisplay[]`: `timestamp` (epoch milliseconds, as a string or a number), `model`, and the cost as
+    /// `tokenUsage.totalCents` when the call was token-based, else the `usageBasedCosts` dollar string ("$0.05";
+    /// "-" and "Included" cost nothing). Token counts come from `tokenUsage` when present.
+    static func parseUsageEvents(_ data: Data) -> [UsageEvent] {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
+        let list = (root["usageEventsDisplay"] ?? root["usageEvents"] ?? root["events"]) as? [Any] ?? []
+        return list.compactMap { item -> UsageEvent? in
+            guard let object = item as? [String: Any] else { return nil }
+            let stamp: Double? = (object["timestamp"] as? String).flatMap(Double.init) ?? JSON.number(object["timestamp"])
+            guard let stamp else { return nil }
+            let timestamp = Date(timeIntervalSince1970: stamp > 1e11 ? stamp / 1000 : stamp)
+            let usage = object["tokenUsage"] as? [String: Any]
+            var tokens = TokenBreakdown()
+            tokens.input = Int(JSON.number(usage?["inputTokens"]) ?? 0)
+            tokens.output = Int(JSON.number(usage?["outputTokens"]) ?? 0)
+            tokens.cacheWrite5m = Int(JSON.number(usage?["cacheWriteTokens"]) ?? 0)
+            tokens.cacheRead = Int(JSON.number(usage?["cacheReadTokens"]) ?? 0)
+            var cost = (JSON.number(usage?["totalCents"]) ?? 0) / 100
+            if cost == 0, let text = object["usageBasedCosts"] as? String {
+                cost = Double(text.filter { $0.isNumber || $0 == "." }) ?? 0
+            }
+            return UsageEvent(timestamp: timestamp, model: object["model"] as? String, tokens: tokens, costUSD: cost)
+        }
+    }
+
+    /// Per local day: cost, tokens and the per-model split; projects are not part of the export.
+    static func dayRecords(_ events: [UsageEvent], calendar: Calendar = .current) -> [Date: CostHistory.Record] {
+        var days: [Date: CostHistory.Record] = [:]
+        for event in events {
+            let day = calendar.startOfDay(for: event.timestamp)
+            var record = days[day] ?? CostHistory.Record(cost: 0, tokens: TokenBreakdown(), byModel: [:], byProject: [:])
+            record.cost += event.costUSD
+            record.tokens += event.tokens
+            if let model = event.model { record.byModel[model, default: 0] += event.costUSD }
+            days[day] = record
+        }
+        return days
     }
 
     private static func number(_ value: Any?) -> Double? { JSON.number(value) }

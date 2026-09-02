@@ -183,3 +183,120 @@ import Testing
         #expect(abs(cursor.timeIntervalSince(fresh)) < 1)
     }
 }
+
+
+/// The round-2 hook fields: the branch from `.git`, the permission mode, subagents, StopFailure, the quota
+/// auto-resume types, the events the installer adds, and the launch-time repair being idempotent.
+@Suite struct HookRoundTwo {
+    init() { Localization.use(language: "en") }
+
+    @Test func forwardsPermissionModeAgentIdAndAStopFailuresKind() throws {
+        let plan = try #require(Hook.message(from: Data(#"{"hook_event_name":"UserPromptSubmit","session_id":"s","cwd":"/x/notchmeter","permission_mode":"plan"}"#.utf8), branch: { _ in nil }))
+        #expect(plan.permissionMode == "plan")
+        #expect(Hook.permissionBadge("plan") == "plan")
+        #expect(Hook.permissionBadge("bypassPermissions") == "bypass")
+        #expect(Hook.permissionBadge("auto") == "auto")
+        #expect(Hook.permissionBadge("default") == nil)
+        #expect(Hook.permissionBadge("acceptEdits") == nil)
+        let agent = try #require(Hook.message(from: Data(#"{"hook_event_name":"SubagentStart","session_id":"s","agent_id":"a1","agent_type":"Explore"}"#.utf8), branch: { _ in nil }))
+        #expect(agent.agentID == "a1")
+        let failure = try #require(Hook.message(from: Data(#"{"hook_event_name":"StopFailure","session_id":"s","error":"rate_limit","error_message":"You've hit your limit"}"#.utf8), branch: { _ in nil }))
+        #expect(failure.failure == "rate_limit")
+        #expect(failure.hitRateLimit)
+        #expect(failure.clearsWaiting)
+        let overloaded = try #require(Hook.message(from: Data(#"{"hook_event_name":"StopFailure","session_id":"s","error":"overloaded"}"#.utf8), branch: { _ in nil }))
+        #expect(!overloaded.hitRateLimit)
+        let stop = try #require(Hook.message(from: Data(#"{"hook_event_name":"Stop","session_id":"s","error":"rate_limit"}"#.utf8), branch: { _ in nil }))
+        #expect(stop.failure == nil)
+        let info = failure.userInfo
+        #expect(info[Hook.failureKey] as? String == "rate_limit")
+        #expect(Hook.Message(userInfo: info) == failure)
+        let full = Hook.Message(event: "SubagentStart", needsInput: false, sessionID: "s", project: "p", branch: "main", permissionMode: "auto", agentID: "a", failure: nil, host: "box")
+        #expect(Hook.Message(userInfo: full.userInfo) == full)
+        #expect(Set(full.userInfo.keys) == ["hook_event_name", "needsInput", "session_id", "project", "branch", "permission_mode", "agent_id", "host"])
+    }
+
+    @Test func readsTheBranchFromDotGitWithoutForkingGit() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("notchmeter-git-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: dir) }
+        let repo = dir.appendingPathComponent("repo")
+        try fm.createDirectory(at: repo.appendingPathComponent(".git"), withIntermediateDirectories: true)
+        try Data("ref: refs/heads/feat/hooks\n".utf8).write(to: repo.appendingPathComponent(".git/HEAD"))
+        #expect(Hook.gitBranch(cwd: repo.path) == "feat/hooks")
+        let message = try #require(Hook.message(from: Data("{\"hook_event_name\":\"Stop\",\"cwd\":\"\(repo.path)\"}".utf8)))
+        #expect(message.branch == "feat/hooks")
+        #expect(message.project == "repo")
+        try Data("0123456789abcdef0123456789abcdef01234567\n".utf8).write(to: repo.appendingPathComponent(".git/HEAD"))
+        #expect(Hook.gitBranch(cwd: repo.path) == nil)
+        let worktree = dir.appendingPathComponent("wt")
+        try fm.createDirectory(at: worktree, withIntermediateDirectories: true)
+        try fm.createDirectory(at: repo.appendingPathComponent(".git/worktrees/wt"), withIntermediateDirectories: true)
+        try Data("gitdir: \(repo.path)/.git/worktrees/wt\n".utf8).write(to: worktree.appendingPathComponent(".git"))
+        try Data("ref: refs/heads/release/1.0\n".utf8).write(to: repo.appendingPathComponent(".git/worktrees/wt/HEAD"))
+        #expect(Hook.gitBranch(cwd: worktree.path) == "release/1.0")
+        #expect(Hook.gitBranch(cwd: dir.path) == nil)
+    }
+
+    @Test func quotaAutoResumeTypesEndOrExtendAWait() {
+        #expect(Hook.Message(event: "Notification", needsInput: false, notificationType: "quota_auto_resume_fired").resumesFromQuota)
+        #expect(Hook.Message(event: "Notification", needsInput: false, notificationType: "quota_auto_resume_fired").clearsWaiting)
+        #expect(Hook.Message(event: "Notification", needsInput: false, notificationType: "quota_auto_resume_stale").waitsOnQuota)
+        #expect(Hook.Message(event: "Notification", needsInput: false, notificationType: "quota_auto_resume_disabled").waitsOnQuota)
+        #expect(!Hook.Message(event: "Notification", needsInput: false, notificationType: "auth_success").waitsOnQuota)
+        #expect(!Hook.needsInput(event: "Notification", notificationType: "quota_auto_resume_stale"))
+    }
+
+    @Test func installerCoversSubagentsAndStopFailureAndRepairAddsThemToAnOlderInstall() throws {
+        #expect(HookSettings.events.contains("SubagentStart"))
+        #expect(HookSettings.events.contains("SubagentStop"))
+        #expect(HookSettings.events.contains("StopFailure"))
+        let executable = "/Applications/Notchmeter.app/Contents/MacOS/Notchmeter"
+        var older = HookSettings.merge(into: [:], executable: executable).settings
+        var hooks = older["hooks"] as? [String: Any] ?? [:]
+        hooks["SubagentStart"] = nil
+        hooks["SubagentStop"] = nil
+        hooks["StopFailure"] = nil
+        older["hooks"] = hooks
+        #expect(HookSettings.status(settings: older, executable: executable) == .stale(path: executable))
+        let repaired = HookSettings.repair(older, executable: executable)
+        #expect(Set(repaired.added) == ["SubagentStart", "SubagentStop", "StopFailure"])
+        #expect(repaired.repaired.isEmpty)
+        #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
+        let again = HookSettings.repair(repaired.settings, executable: executable)
+        #expect(again.added.isEmpty)
+        #expect(again.repaired.isEmpty)
+        #expect(NSDictionary(dictionary: again.settings) == NSDictionary(dictionary: repaired.settings))
+    }
+
+    @Test func launchRepairRewritesOnlyNotchmetersEntriesOnceAndIsIdempotent() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("notchmeter-repair-\(UUID().uuidString)")
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("settings.json")
+        let old = "/Users/me/Downloads/Notchmeter.app/Contents/MacOS/Notchmeter"
+        let new = "/Applications/Notchmeter.app/Contents/MacOS/Notchmeter"
+        var settings = HookSettings.merge(into: ["hooks": ["Stop": [["hooks": [["type": "command", "command": "/usr/local/bin/worklog.sh"]]]]]], executable: old).settings
+        settings["statusLine"] = ["type": "command", "command": HookSettings.command(executable: old, flag: "--statusline"), "padding": 0]
+        try JSONSerialization.data(withJSONObject: settings).write(to: url)
+        #expect(HookSettings.status(at: url, executable: new) == .stale(path: old))
+        #expect(HookSettings.statuslineStatus(at: url, executable: new) == .stale(path: old))
+        let now = Date(timeIntervalSince1970: 1_788_300_000)
+        let first = try HookSettings.repairInstall(at: url, executable: new, now: now)
+        #expect(first.backup != nil)
+        #expect(first.added.count == HookSettings.events.count)
+        let statusline = try HookSettings.installStatusline(at: url, executable: new, now: now.addingTimeInterval(1))
+        #expect(statusline.previous == nil)
+        #expect(HookSettings.status(at: url, executable: new) == .installed(path: new))
+        #expect(HookSettings.statuslineStatus(at: url, executable: new) == .installed(path: new))
+        let written = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let stop = try #require((written["hooks"] as? [String: Any])?["Stop"] as? [[String: Any]])
+        #expect((stop[0]["hooks"] as? [[String: Any]])?.first?["command"] as? String == "/usr/local/bin/worklog.sh")
+        let second = try HookSettings.repairInstall(at: url, executable: new, now: now.addingTimeInterval(120))
+        #expect(second.backup == nil)
+        #expect(second.added.isEmpty)
+        #expect(try HookSettings.installStatusline(at: url, executable: new, now: now.addingTimeInterval(121)).backup == nil)
+        #expect(try fm.contentsOfDirectory(atPath: dir.path).filter { $0.contains(".bak-") }.count == 2)
+    }
+}

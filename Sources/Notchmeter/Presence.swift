@@ -12,7 +12,7 @@ enum PresenceLevel: Equatable {
     case quiet
     /// Full size, no motion.
     case legible
-    /// Full size and a slow opacity pulse (none under Reduce Motion).
+    /// Full size and three slow opacity pulses on entry, then steady (none under Reduce Motion).
     case urgent
 }
 

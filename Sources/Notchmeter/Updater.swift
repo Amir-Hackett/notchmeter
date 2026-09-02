@@ -10,6 +10,7 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "upd
 /// to 32 bytes, which the REPLACE_WITH_SPARKLE_PUBLIC_KEY placeholder in scripts/Info.plist does not); and the code
 /// signature names a certificate. The ad-hoc signature scripts/build.sh applies names none, and Sparkle could not
 /// install over it anyway, so a local build never starts the updater and never sees one of its alerts.
+/// Settings › Updates binds the automatic check and download switches and the beta channel to it.
 @MainActor
 final class Updater {
     enum Gate: Equatable {
@@ -41,19 +42,49 @@ final class Updater {
     }
 
     /// Nil unless the gate is open; nothing of Sparkle's is touched before then.
-    static func start(gate: Gate) -> Updater? {
+    static func start(gate: Gate, beta: @escaping () -> Bool) -> Updater? {
         log.notice("updater \(gate.summary, privacy: .public)")
-        return gate == .active ? Updater() : nil
+        return gate == .active ? Updater(beta: beta) : nil
     }
 
     private let controller: SPUStandardUpdaterController
+    private let channels: ChannelDelegate
 
-    private init() {
-        controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    private init(beta: @escaping () -> Bool) {
+        channels = ChannelDelegate(beta: beta)
+        controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: channels, userDriverDelegate: nil)
     }
 
     func checkForUpdates() {
         controller.checkForUpdates(nil)
+    }
+
+    var automaticallyChecks: Bool {
+        get { controller.updater.automaticallyChecksForUpdates }
+        set { controller.updater.automaticallyChecksForUpdates = newValue }
+    }
+
+    var automaticallyDownloads: Bool {
+        get { controller.updater.automaticallyDownloadsUpdates }
+        set { controller.updater.automaticallyDownloadsUpdates = newValue }
+    }
+
+    var lastCheck: Date? {
+        controller.updater.lastUpdateCheckDate
+    }
+}
+
+/// The beta channel: with the toggle on, items marked `<sparkle:channel>beta</sparkle:channel>` in the appcast are
+/// offered too; off, only unmarked (release) items are.
+final class ChannelDelegate: NSObject, SPUUpdaterDelegate {
+    private let beta: () -> Bool
+
+    init(beta: @escaping () -> Bool) {
+        self.beta = beta
+    }
+
+    func allowedChannels(for updater: SPUUpdater) -> Set<String> {
+        beta() ? ["beta"] : []
     }
 }
 

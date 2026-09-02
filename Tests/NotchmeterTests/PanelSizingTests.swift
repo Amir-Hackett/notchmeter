@@ -29,3 +29,28 @@ import Testing
         return host.fittingSize.height
     }
 }
+
+
+/// The meter and both sparklines are pinned left to right, so a right-to-left layout renders them unchanged.
+@Suite struct RightToLeftMeters {
+    @MainActor @Test func meterRowRendersTheSameUnderRightToLeft() {
+        let defaults = UserDefaults(suiteName: "NotchmeterTests.RTL")!
+        defaults.removePersistentDomain(forName: "NotchmeterTests.RTL")
+        defer { defaults.removePersistentDomain(forName: "NotchmeterTests.RTL") }
+        let prefs = Preferences(defaults: defaults)
+        let now = Date()
+        let window = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.3, resetsAt: now.addingTimeInterval(3 * 3600), periodDuration: Period.fiveHours)
+        let row = MeterRow(toolName: "Claude", window: window, color: .orange, prefs: prefs)
+        let ltr = NSHostingView(rootView: row.frame(width: 320).environment(\.layoutDirection, .leftToRight))
+        let rtl = NSHostingView(rootView: row.frame(width: 320).environment(\.layoutDirection, .rightToLeft))
+        ltr.layoutSubtreeIfNeeded()
+        rtl.layoutSubtreeIfNeeded()
+        #expect(ltr.fittingSize.height > 20)
+        #expect(ltr.fittingSize == rtl.fittingSize)
+        let tick = Meter.tickOffset(width: 320, tick: 0.4)
+        #expect(tick == 320 * 0.4 - 1)
+        let sparkline = NSHostingView(rootView: Sparkline(series: [DailySpend(day: now, cost: 1, tokens: 1)], color: .orange).frame(width: 160, height: 22).environment(\.layoutDirection, .rightToLeft))
+        sparkline.layoutSubtreeIfNeeded()
+        #expect(sparkline.fittingSize.width == 160)
+    }
+}
