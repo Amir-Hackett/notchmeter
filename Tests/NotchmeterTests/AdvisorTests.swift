@@ -160,6 +160,34 @@ import Testing
         #expect(Advisor.modelRouting(context([full])).isEmpty)
     }
 
+    @Test func perModelWindowsAreNamedByTheirCadence() {
+        let daily = window("gemini_pro", label: "Gemini Pro", used: 0.9, elapsed: 12 * 3600, period: Period.day, model: "Gemini Pro")
+        let undeclared = LimitWindow(id: "gemini_pro", label: "Gemini Pro", usedFraction: 0.9, resetsAt: now.addingTimeInterval(3600), model: "Gemini Pro")
+        #expect(Advisor.name(daily) == "Gemini Pro daily")
+        #expect(Advisor.name(undeclared) == "Gemini Pro quota")
+        #expect(Advisor.name(window("included", label: "Included usage", used: 0.1, elapsed: 86400, period: 30 * 86400)) == "included usage")
+        #expect(Advisor.cadence(Period.week) == "weekly")
+        #expect(Advisor.cadence(Period.fiveHours) == "session")
+        #expect(Advisor.cadence(30 * 86400) == "30-day window")
+    }
+
+    @Test func routesBetweenGeminiModelsLikeAnyOtherTool() {
+        // Google declares no window length, so the fractions alone drive the model advice.
+        let antigravity = reading(.antigravity, [
+            LimitWindow(id: "gemini_pro", label: "Gemini Pro", usedFraction: 0.9, resetsAt: now.addingTimeInterval(3600), model: "Gemini Pro"),
+            LimitWindow(id: "gemini_flash", label: "Gemini Flash", usedFraction: 0.2, resetsAt: now.addingTimeInterval(3600), model: "Gemini Flash"),
+        ])
+        let advice = Advisor.advise(context([antigravity, codexAhead]))
+        #expect(advice.map(\.text) == ["Gemini Pro quota is 90%. Gemini Flash is 20%. Switch models, not tools."])
+        #expect(advice.first?.tool == .antigravity)
+        #expect(advice.first?.priority == .warn)
+
+        // Given a length, a per-model daily window runs out and names the tool with room like every other window:
+        // 60 % half a day in projects to 1.2, out in 8 h, 4 h before the reset.
+        let daily = reading(.antigravity, [window("gemini_pro", label: "Gemini Pro", used: 0.6, elapsed: 12 * 3600, period: Period.day, model: "Gemini Pro")])
+        #expect(Advisor.advise(context([daily, codexAhead])).map(\.text) == ["At this rate you hit the Antigravity Gemini Pro daily cap today at 20:00, 4h before reset. Codex weekly is at 22%."])
+    }
+
     // MARK: Session burn
 
     @Test func burnFromThreeTimesTheUsual() {

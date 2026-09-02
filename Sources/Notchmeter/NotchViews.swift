@@ -6,6 +6,7 @@ extension ToolID {
         case .claude: Color(red: 0.85, green: 0.47, blue: 0.34)
         case .codex: Color(red: 0.36, green: 0.83, blue: 0.62)
         case .cursor: Color(red: 0.65, green: 0.55, blue: 0.98)
+        case .antigravity: Color(hex: 0x56B4E9)  // #56B4E9 sky blue, from Wong's set
         }
     }
 }
@@ -184,7 +185,7 @@ struct NotchCompactView: View {
     let side: Side
 
     private var tools: [ToolID] {
-        let mine: [ToolID] = side == .leading ? [.claude] : [.codex, .cursor]
+        let mine: [ToolID] = side == .leading ? [.claude] : [.codex, .cursor, .antigravity]
         return mine.filter(store.isShown)
     }
 
@@ -244,7 +245,7 @@ struct NotchExpandedView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Connect an assistant to get started")
                         .font(.callout)
-                    Text("Install and sign in to Claude Code, Codex or Cursor; its meters appear here.")
+                    Text("Install and sign in to Claude Code, Codex, Cursor or Gemini CLI; its meters appear here.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
