@@ -4,6 +4,10 @@ import PackageDescription
 let package = Package(
     name: "Notchmeter",
     platforms: [.macOS(.v14)],
+    dependencies: [
+        // Binary xcframework; scripts/build.sh embeds it in Contents/Frameworks and Updater.swift decides whether to start it.
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
+    ],
     targets: [
         // MrKai77/DynamicNotchKit 1.1.0 (MIT), vendored so it builds without Xcode's SwiftUI macro plugins.
         .target(
@@ -19,7 +23,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "Notchmeter",
-            dependencies: ["DynamicNotchKit", "NotchmeterShims"],
+            dependencies: ["DynamicNotchKit", "NotchmeterShims", .product(name: "Sparkle", package: "Sparkle")],
             path: "Sources/Notchmeter",
             linkerSettings: [.linkedLibrary("sqlite3"), .linkedFramework("IOKit")]
         ),

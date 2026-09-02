@@ -36,6 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var store: UsageStore!
     private var presenter: (any PanelPresenting)?
     private var settings: SettingsWindowController?
+    private var updater: Updater?
+    private let updaterGate = Updater.gate()
 
     private var smokeRestoreEdge: PanelEdge?
 
@@ -58,8 +60,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.showOptions = { [weak self] in self?.presenter?.showOptions() }
         actions.applyLayout = { [weak self] in self?.applyLayout() }
         buildPresenter()
-        if CommandLine.arguments.contains("--smoke") {
+        // A self check reports the gate and never starts Sparkle, so a signed build's --smoke neither reaches the feed
+        // nor shows an update.
+        if arguments.contains("--smoke") {
             Task { await self.smokeTest() }
+        } else if let updater = Updater.start(gate: updaterGate) {
+            self.updater = updater
+            actions.checkForUpdates = { updater.checkForUpdates() }
         }
     }
 
@@ -127,6 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         Probe.emit(Probe.describe(store.advice))
         Probe.emit("notifications: \(prefs.notificationsEnabled ? "on" : "off") in settings, \(notifier.isAvailable ? "available" : "no-op in this run")")
+        Probe.emit("updater: \(updaterGate.summary); never started under --smoke")
         let settingsProbe = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: notifier)
         settingsProbe.window?.layoutIfNeeded()
         Probe.emit("settings window: \(settingsProbe.window?.frame.size ?? .zero)")

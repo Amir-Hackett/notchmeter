@@ -40,6 +40,8 @@ build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --hover-sim   # scripted 
 build/Notchmeter.app/Contents/MacOS/Notchmeter --hook                # Claude Code hook command, see docs/hooks.md
 ```
 
+A local build is ad-hoc signed and never checks for updates. Shipped builds are signed with Developer ID, notarised and updated through Sparkle by `scripts/release.sh`; [docs/release.md](docs/release.md) has the one-time setup and the per-release command.
+
 ## First launch
 
 macOS asks once whether Notchmeter may read Claude Code's saved login from the Keychain. Choose **Always Allow**; plain Allow asks again on every read. Codex, Cursor and Antigravity need no permission. Rebuilding changes the ad-hoc signature, so the question comes back after each rebuild.
