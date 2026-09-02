@@ -1,5 +1,9 @@
 # Notchmeter
 
+![Rings beside the notch open into the usage panel on hover](docs/media/demo.gif)
+
+*Hover the rings beside the notch and the panel opens: cost, pace, projections and what to do next.*
+
 [![CI](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml/badge.svg)](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml)
 
 Usage meters for AI coding tools, living in the MacBook notch — or on any screen edge you prefer. Small rings sit beside the notch all the time; hover and it opens into the full readout.
@@ -18,6 +22,14 @@ Every other meter tells you how much. Notchmeter also tells you what to do about
 With the optional [Claude Code hook](docs/hooks.md), the notch refreshes the moment a turn ends and shows a small dot on the Claude ring while Claude Code waits for your permission or your answer.
 
 Notchmeter never signs in anywhere and never stores a token. Each reading is borrowed from the tool that owns the account; switch accounts in that tool and the notch follows.
+
+## Screenshots
+
+| The open panel | Left edge | Settings |
+|---|---|---|
+| ![The open panel: the Cost card, the Advice strip, a pace meter per window with its projection, and the footer](docs/media/expanded.png) | ![The left-edge pill, one ring per tool](docs/media/edge-left.png) | ![The Settings window](docs/media/settings.png) |
+
+The pictures are drawn by `Notchmeter --render-assets docs/media` from the real views over fixed readings (Claude on Max 5x a third of the way into a quiet session, Codex and Cursor on free plans), not from a live account, so they come out the same on every build and show nobody's usage.
 
 ## Build and install
 
@@ -38,6 +50,7 @@ build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke               # on-screen
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --edge left   # same, trying another layout
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --hover-sim   # scripted hover: one open, no flicker, one close
 build/Notchmeter.app/Contents/MacOS/Notchmeter --hook                # Claude Code hook command, see docs/hooks.md
+build/Notchmeter.app/Contents/MacOS/Notchmeter --render-assets docs/media   # the README's pictures, from fixed readings (no Keychain, no network)
 ```
 
 A local build is ad-hoc signed and never checks for updates. Shipped builds are signed with Developer ID, notarised and updated through Sparkle by `scripts/release.sh`; [docs/release.md](docs/release.md) has the one-time setup and the per-release command.
