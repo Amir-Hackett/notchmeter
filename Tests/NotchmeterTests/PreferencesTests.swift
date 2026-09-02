@@ -76,3 +76,71 @@ import Testing
         }
     }
 }
+
+
+/// The language picker, the Keychain policy, the budget and the proxy preference all persist and apply.
+@MainActor @Suite struct PreferencesRoundTwo {
+    func withSuite(_ name: String, _ body: (UserDefaults) throws -> Void) rethrows {
+        let suite = "NotchmeterTests.RoundTwo.\(name)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        try body(defaults)
+    }
+
+    @Test func theLanguagePickerWritesAppleLanguagesIntoTheAppsOwnDomain() {
+        withSuite("language") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            #expect(prefs.language == nil)
+            prefs.language = "zh-Hans"
+            #expect(defaults.persistentDomain(forName: "NotchmeterTests.RoundTwo.language")?["AppleLanguages"] as? [String] == ["zh-Hans"])
+            #expect(Preferences(defaults: defaults).language == "zh-Hans")
+            prefs.language = "fr"
+            #expect(Preferences(defaults: defaults).language == nil)
+            prefs.language = nil
+            #expect(defaults.persistentDomain(forName: "NotchmeterTests.RoundTwo.language")?["AppleLanguages"] == nil)
+            #expect(Localization.nativeNames.keys.sorted() == Localization.languages.sorted())
+        }
+    }
+
+    @Test func keychainPolicyBudgetsAndProxyPersist() {
+        withSuite("policy") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            #expect(prefs.keychainPrompts == .refreshOnly)
+            prefs.keychainPrompts = .never
+            prefs.monthlyBudgetUSD = 200
+            prefs.weeklyBudgetUSD = 0
+            prefs.proxyURL = "socks5://127.0.0.1:1080"
+            prefs.sessionAttention = .glance
+            prefs.menuBarStyle = .bars
+            prefs.menuBarPinnedTools = [.codex]
+            prefs.peakHoursTools = [.claude, .codex]
+            prefs.peakHours.startMinute = 6 * 60
+            prefs.costCardMode = .perMillionTokens
+            prefs.soundWaiting = "system:Glass"
+            let reloaded = Preferences(defaults: defaults)
+            #expect(reloaded.keychainPrompts == .never)
+            #expect(reloaded.monthlyBudgetUSD == 200)
+            #expect(reloaded.weeklyBudgetUSD == nil)
+            #expect(reloaded.proxyURL == "socks5://127.0.0.1:1080")
+            #expect(reloaded.sessionAttention == .glance)
+            #expect(reloaded.menuBarStyle == .bars)
+            #expect(reloaded.menuBarPinnedTools == [.codex])
+            #expect(reloaded.peakHoursTools == [.claude, .codex])
+            #expect(reloaded.peakHours.startMinute == 6 * 60)
+            #expect(reloaded.peakHours(for: .cursor) == nil)
+            #expect(reloaded.peakHours(for: .claude)?.startMinute == 6 * 60)
+            #expect(reloaded.costCardMode == .perMillionTokens)
+            #expect(reloaded.sound(for: .waiting) == "system:Glass")
+            reloaded.notificationSound = false
+            #expect(reloaded.sound(for: .waiting) == NotificationSound.none)
+            prefs.keychainPrompts = .refreshOnly
+            prefs.proxyURL = ""
+        }
+        #expect(ProxySettings.dictionary(for: "socks5://proxy.local:1080")?[kCFNetworkProxiesSOCKSProxy] as? String == "proxy.local")
+        #expect(ProxySettings.dictionary(for: "http://proxy.local:3128")?[kCFNetworkProxiesHTTPSPort] as? Int == 3128)
+        #expect(ProxySettings.dictionary(for: "") == nil)
+        #expect(ProxySettings.dictionary(for: "ftp://x:1") == nil)
+        #expect(ProxySettings.dictionary(for: "http://noport") == nil)
+    }
+}

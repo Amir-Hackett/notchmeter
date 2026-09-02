@@ -10,16 +10,16 @@ body:
     validations:
       required: true
   - type: textarea
-    id: smoke
+    id: diagnostics
     attributes:
-      label: --smoke output
-      description: Run `/Applications/Notchmeter.app/Contents/MacOS/Notchmeter --smoke` (add `--edge left` etc. to match your layout) and paste the output. It prints readings as labels and percentages only, never a token.
+      label: Diagnostics
+      description: Settings › Advanced › Copy diagnostics, then paste. It carries the last 10 minutes of the app's own log, each assistant's status, the hook and status-line state, the layout and the macOS version, with your home folder scrubbed; never a token. Turn on Debug logging first if the problem is a vendor answering oddly, and reproduce it before copying.
       render: text
   - type: textarea
-    id: log
+    id: smoke
     attributes:
-      label: Unified log
-      description: "`/usr/bin/log show --last 10m --info --predicate 'subsystem == \"com.amirhackett.notchmeter\"' --style compact` around the time it happened."
+      label: --smoke output (optional)
+      description: Run `/Applications/Notchmeter.app/Contents/MacOS/Notchmeter --smoke` (add `--edge left` etc. to match your layout) and paste the output. It prints readings as labels and percentages only, never a token.
       render: text
   - type: input
     id: setup

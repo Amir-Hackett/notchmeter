@@ -2,6 +2,7 @@ import AppKit
 import Observation
 import ServiceManagement
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// What the app delegate asks the Settings window to do beyond showing itself.
 @MainActor
@@ -11,11 +12,17 @@ final class SettingsRequests {
     var hookOffer = false
     /// `--smoke`: drive the hook-install sheet against this file instead of settings.json, then close it.
     var hookSheetDryRun: URL?
+    /// The outcome of the last "Install command line tool…" press.
+    var commandLineToolMessage: String?
     var rootsChanged: () -> Void = {}
     var menuBarChanged: () -> Void = {}
     var hotkeysChanged: () -> Void = {}
     var localAPIChanged: () -> Void = {}
     var privacyChanged: () -> Void = {}
+    var awakeChanged: () -> Void = {}
+    var diagnostics: () -> String = { "" }
+    var installCommandLineTool: () -> Void = {}
+    var updater: () -> Updater? = { nil }
 }
 
 struct SettingsView: View {
@@ -28,13 +35,20 @@ struct SettingsView: View {
     @State private var loginError: String?
     @State private var showHookSnippet = false
     @State private var showStatuslineSnippet = false
+    @State private var showMCPSnippet = false
     @State private var hookMessage: String?
     @State private var statuslineMessage: String?
     @State private var notificationMessage: String?
+    @State private var diagnosticsMessage: String?
+    @State private var exportMessage: String?
     @State private var hookStatus = HookSettings.status()
     @State private var statuslineStatus = HookSettings.statuslineStatus()
     @State private var currencyText = ""
     @State private var rateText = ""
+    @State private var monthlyBudgetText = ""
+    @State private var weeklyBudgetText = ""
+    @State private var proxyText = ""
+    @State private var originText = ""
 
     var body: some View {
         Form {
@@ -46,7 +60,9 @@ struct SettingsView: View {
             notificationsSection
             assistantsSection
             hookSection
+            integrationsSection
             transcriptsSection
+            updatesSection
             advancedSection
             Section {
                 Text(L("%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.", AppInfo.name))
@@ -67,6 +83,10 @@ struct SettingsView: View {
             HookSnippetView(title: L("Claude Code status line"), explanation: L("Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar.", HookSettings.settingsURL.path, AppInfo.name),
                             snippet: HookSettings.statuslineSnippet())
         }
+        .sheet(isPresented: $showMCPSnippet) {
+            HookSnippetView(title: L("MCP server"), explanation: L("Paste this into the MCP configuration of Cursor, Codex or Claude Desktop. The server speaks JSON-RPC over stdio and offers one tool, get_limits, which answers with the same object as --probe --json, from the running app's cache when it has one."),
+                            snippet: MCPServer.snippet(executable: HookSettings.executablePath))
+        }
         .sheet(isPresented: Binding(get: { requests.hookOffer }, set: { requests.hookOffer = $0 })) {
             HookOfferView(install: { requests.hookOffer = false; installHook() }, later: { requests.hookOffer = false })
         }
@@ -74,6 +94,9 @@ struct SettingsView: View {
             prefs.refreshLaunchAtLogin()
             currencyText = prefs.currencyCode
             rateText = prefs.currencyRate == 1 ? "1" : String(prefs.currencyRate)
+            monthlyBudgetText = prefs.monthlyBudgetUSD.map { Self.budgetText($0) } ?? ""
+            weeklyBudgetText = prefs.weeklyBudgetUSD.map { Self.budgetText($0) } ?? ""
+            proxyText = prefs.proxyURL
             refreshHookStatus()
         }
         .onChange(of: requests.hookSheetDryRun) { _, url in
@@ -88,7 +111,7 @@ struct SettingsView: View {
         Section(L("General")) {
             Toggle(L("Show total spend"), isOn: Binding(
                 get: { prefs.showSpend },
-                set: { prefs.showSpend = $0; if $0 { store.refreshAll() } }
+                set: { prefs.showSpend = $0; if $0 { store.refreshAll(interactive: true) } }
             ))
             Toggle(L("Open at login"), isOn: Binding(
                 get: { prefs.launchAtLogin },
@@ -121,6 +144,17 @@ struct SettingsView: View {
             if let loginError {
                 Text(loginError).font(.caption).foregroundStyle(Palette.danger)
             }
+            Picker(L("Language"), selection: Binding(get: { prefs.language ?? "" }, set: { prefs.language = $0.isEmpty ? nil : $0 })) {
+                Text(L("System")).tag("")
+                ForEach(Localization.languages, id: \.self) { code in
+                    Text(Localization.nativeNames[code] ?? code).tag(code)
+                }
+            }
+            HStack {
+                Text(L("Takes effect at relaunch.")).font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button(L("Relaunch")) { relaunch() }.controlSize(.small)
+            }
             Toggle(L("Show menu bar icon"), isOn: Binding(
                 get: { prefs.showMenuBarItem ?? MenuBarPolicy.defaultShown() },
                 set: { prefs.showMenuBarItem = $0; requests.menuBarChanged() }
@@ -128,7 +162,25 @@ struct SettingsView: View {
             Text(L("Off by default so the menu bar keeps its room; the Options menu is then a right-click on the rings. On, it puts Quit and Settings one click (and VoiceOver's VO-M-M) away, which a Mac without a notch needs."))
                 .font(.caption).foregroundStyle(.secondary)
             if prefs.showMenuBarItem ?? MenuBarPolicy.defaultShown() {
-                Toggle(L("Pin the first assistant's figures beside the icon"), isOn: Binding(get: { prefs.menuBarPin }, set: { prefs.menuBarPin = $0 }))
+                Toggle(L("Pin figures beside the icon"), isOn: Binding(get: { prefs.menuBarPin }, set: { prefs.menuBarPin = $0 }))
+                if prefs.menuBarPin {
+                    Picker(L("Icon style"), selection: Binding(get: { prefs.menuBarStyle }, set: { prefs.menuBarStyle = $0 })) {
+                        ForEach(MenuBarStyle.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    Text(L("Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace."))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            HStack {
+                Button(L("Install command line tool…")) { requests.installCommandLineTool() }
+                if let installed = CommandLineTool.installedLink() {
+                    Text(installed.link.path.replacingOccurrences(of: Paths.home.path, with: "~")).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                }
+            }
+            Text(L("Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh."))
+                .font(.caption).foregroundStyle(.secondary)
+            if let message = requests.commandLineToolMessage {
+                Text(message).font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -151,10 +203,17 @@ struct SettingsView: View {
                 ForEach(DisplayChoice.fixed, id: \.rawValue) { choice in
                     Text(choice.title).tag(choice)
                 }
-                ForEach(NSScreen.screens, id: \.localizedName) { screen in
-                    Text(screen.localizedName).tag(DisplayChoice.named(screen.localizedName))
+                let screens = NSScreen.screens
+                let keys = DisplayIdentity.keys(for: screens)
+                let titles = DisplayIdentity.titles(for: screens.map(\.localizedName))
+                ForEach(Array(screens.indices), id: \.self) { index in
+                    Text(titles[index]).tag(DisplayChoice.named(keys[index]))
                 }
             }
+            Text(prefs.display == .pointer
+                 ? L("The panel follows the pointer: it moves to the display the pointer has rested on for half a second.")
+                 : L("A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it."))
+                .font(.caption).foregroundStyle(.secondary)
             Picker(L("Show"), selection: Binding(
                 get: { prefs.visibility },
                 set: { prefs.visibility = $0; actions.applyLayout() }
@@ -189,6 +248,8 @@ struct SettingsView: View {
                 ForEach(PanelWidth.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             Toggle(L("Show over full-screen apps"), isOn: Binding(get: { prefs.showOverFullScreenApps }, set: { prefs.showOverFullScreenApps = $0; actions.applyLayout() }))
+            Text(L("Off, the rings and the panel stay off a full-screen app's Space and the hover machine idles there, so a pointer parked at the top of that Space opens nothing."))
+                .font(.caption).foregroundStyle(.secondary)
             Toggle(L("Gestures: swipe down to open, swipe up to close"), isOn: Binding(get: { prefs.gesturesEnabled }, set: { prefs.gesturesEnabled = $0 }))
             Toggle(L("Reduce animations"), isOn: Binding(get: { prefs.reduceAnimations }, set: { prefs.reduceAnimations = $0 }))
         }
@@ -198,7 +259,7 @@ struct SettingsView: View {
         Section(L("Keyboard shortcuts")) {
             HotkeyRow(title: L("Toggle the panel"), hotkey: Binding(get: { prefs.togglePanelHotkey }, set: { prefs.togglePanelHotkey = $0; requests.hotkeysChanged() }))
             HotkeyRow(title: L("Open Settings"), hotkey: Binding(get: { prefs.openSettingsHotkey }, set: { prefs.openSettingsHotkey = $0; requests.hotkeysChanged() }))
-            Text(L("Global: they work from any app. The panel's own keys: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits."))
+            Text(L("Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard."))
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -228,6 +289,19 @@ struct SettingsView: View {
             }
             Text(L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours."))
                 .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Text(L("Monthly budget"))
+                Spacer()
+                TextField(Money.code, text: $monthlyBudgetText).frame(width: 90).onSubmit { applyBudgets() }
+                Text(L("Weekly")).foregroundStyle(.secondary)
+                TextField(Money.code, text: $weeklyBudgetText).frame(width: 90).onSubmit { applyBudgets() }
+                Button(L("Apply")) { applyBudgets() }
+            }
+            Text(L("In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period."))
+                .font(.caption).foregroundStyle(.secondary)
+            Picker(L("Cost card shows"), selection: Binding(get: { prefs.costCardMode }, set: { prefs.costCardMode = $0 })) {
+                ForEach(CostCardMode.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
         }
     }
 
@@ -236,9 +310,32 @@ struct SettingsView: View {
             Toggle(L("Hide usage while the screen is shared or recorded"), isOn: Binding(get: { prefs.hideFromScreenShare }, set: { prefs.hideFromScreenShare = $0; requests.privacyChanged() }))
             Text(L("While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds."))
                 .font(.caption).foregroundStyle(.secondary)
-            Toggle(L("Local API on 127.0.0.1:%ld", Int(LocalAPI.port)), isOn: Binding(get: { prefs.localAPIEnabled }, set: { prefs.localAPIEnabled = $0; requests.localAPIChanged() }))
-            Text(L("GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts and widgets on this Mac. Loopback only, no authentication; off because it widens the surface of an app whose point is that nothing leaves the Mac."))
+            Picker(L("Ask for Keychain access"), selection: Binding(get: { prefs.keychainPrompts }, set: { prefs.keychainPrompts = $0 })) {
+                ForEach(KeychainPromptPolicy.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            Text(L("Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only."))
                 .font(.caption).foregroundStyle(.secondary)
+            Toggle(L("Local API on 127.0.0.1:%ld", Int(LocalAPI.port)), isOn: Binding(get: { prefs.localAPIEnabled }, set: { prefs.localAPIEnabled = $0; requests.localAPIChanged() }))
+            Text(L("GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's Claude Code hook events over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address."))
+                .font(.caption).foregroundStyle(.secondary)
+            if prefs.localAPIEnabled {
+                ForEach(prefs.localAPIOrigins, id: \.self) { origin in
+                    HStack {
+                        Text(origin).font(.caption)
+                        Spacer()
+                        Button(L("Remove")) { prefs.localAPIOrigins.removeAll { $0 == origin } }.controlSize(.small)
+                    }
+                }
+                HStack {
+                    TextField(L("Allowed origin, e.g. http://localhost:3000"), text: $originText)
+                    Button(L("Add")) {
+                        let trimmed = originText.trimmingCharacters(in: .whitespaces)
+                        if !trimmed.isEmpty, !prefs.localAPIOrigins.contains(trimmed) { prefs.localAPIOrigins.append(trimmed) }
+                        originText = ""
+                    }
+                    .controlSize(.small)
+                }
+            }
         }
     }
 
@@ -248,18 +345,24 @@ struct SettingsView: View {
                 get: { prefs.notificationsEnabled },
                 set: { prefs.notificationsEnabled = $0; if $0 { notifier.requestAuthorization() } }
             ))
-            Text(L("Once per window and reset period: when its pace first reaches on track or behind, and again when it comes within an hour of running out. Each one says what to do about it. macOS asks for permission when this is turned on or the first alert is due, never at launch."))
+            Text(L("Once per window and reset period: when its pace first reaches on track or behind, again when it comes within an hour of running out, and once more when it is out. Each one says what to do about it. macOS asks for permission when this is turned on or the first alert is due, never at launch."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             if prefs.notificationsEnabled {
                 Toggle(L("Cutting it close (on track)"), isOn: Binding(get: { prefs.notifyOnTrack }, set: { prefs.notifyOnTrack = $0 }))
                 Toggle(L("Will run out (behind pace)"), isOn: Binding(get: { prefs.notifyBehind }, set: { prefs.notifyBehind = $0 }))
-                Toggle(L("Almost out (under an hour left)"), isOn: Binding(get: { prefs.notifyRunningOut }, set: { prefs.notifyRunningOut = $0 }))
+                Toggle(L("Almost out (under an hour left), and out"), isOn: Binding(get: { prefs.notifyRunningOut }, set: { prefs.notifyRunningOut = $0 }))
                 Toggle(L("When a window resets"), isOn: Binding(get: { prefs.notifyOnReset }, set: { prefs.notifyOnReset = $0 }))
                 Picker(L("Remind me before a reset"), selection: Binding(get: { prefs.resetReminder }, set: { prefs.resetReminder = $0 })) {
                     ForEach(ResetReminder.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
-                Text(L("Reset and reminder notices cover windows that were at least 80% used or behind pace when last read."))
+                Text(L("Reset and reminder notices cover windows that were at least 80% used or behind pace when last read; a window's pace notices are withdrawn from Notification Center when it resets."))
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle(L("When you start paying (extra usage rises)"), isOn: Binding(get: { prefs.notifyExtraUsage }, set: { prefs.notifyExtraUsage = $0 }))
+                Text(L("Once a month when Claude's extra-usage credits first rise, and within the hour whenever they rise while the plan windows still have room: the sign that work is being billed instead of drawn from the plan. Every rise is written to the drain log with the plan windows beside it."))
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle(L("When the cache tier or the metering shifts"), isOn: Binding(get: { prefs.notifyCacheShift }, set: { prefs.notifyCacheShift = $0 }))
+                Text(L("Once a day when today's cache writes moved to the 5-minute tier against the 30-day norm, or the session meters about twice as heavily as usual."))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Toggle(L("Notify when Claude Code waits for you"), isOn: Binding(get: { prefs.notifyWaiting }, set: { prefs.notifyWaiting = $0; if $0 { notifier.requestAuthorization() } }))
@@ -273,9 +376,19 @@ struct SettingsView: View {
                     }
                 }
             }
-            Text(L("Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost."))
+            Picker(L("When Claude Code waits for you or a turn finishes"), selection: Binding(get: { prefs.sessionAttention }, set: { prefs.sessionAttention = $0 })) {
+                ForEach(SessionAttention.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            Text(L("Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release."))
                 .font(.caption).foregroundStyle(.secondary)
             Toggle(L("Sound"), isOn: Binding(get: { prefs.notificationSound }, set: { prefs.notificationSound = $0 }))
+            if prefs.notificationSound {
+                SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))
+                SoundPicker(title: L("Waiting for you"), choice: Binding(get: { prefs.soundWaiting }, set: { prefs.soundWaiting = $0 }))
+                SoundPicker(title: L("Turn finished"), choice: Binding(get: { prefs.soundFinished }, set: { prefs.soundFinished = $0 }))
+                Text(L("A chosen file is copied into ~/Library/Sounds, where Notification Center can play it."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Toggle(L("Quiet hours"), isOn: Binding(get: { prefs.quietHoursEnabled }, set: { prefs.quietHoursEnabled = $0 }))
             if prefs.quietHoursEnabled {
                 HStack {
@@ -320,19 +433,56 @@ struct SettingsView: View {
                     if store.isShown(tool), let reading = store.status(tool).reading, reading.windows.count > 1 {
                         WindowChoices(tool: tool, reading: reading, prefs: prefs)
                     }
+                    if store.isShown(tool) {
+                        HStack(spacing: 8) {
+                            Toggle(L("Pin to menu bar"), isOn: Binding(
+                                get: { prefs.menuBarPinnedTools.contains(tool) },
+                                set: { if $0 { prefs.menuBarPinnedTools.insert(tool) } else { prefs.menuBarPinnedTools.remove(tool) } }
+                            ))
+                            .toggleStyle(.checkbox).controlSize(.small).font(.caption)
+                            Toggle(L("Peak hours"), isOn: Binding(
+                                get: { prefs.peakHoursTools.contains(tool) },
+                                set: { if $0 { prefs.peakHoursTools.insert(tool) } else { prefs.peakHoursTools.remove(tool) } }
+                            ))
+                            .toggleStyle(.checkbox).controlSize(.small).font(.caption)
+                        }
+                        .padding(.leading, 20)
+                    }
+                    if tool == .claude, store.isShown(tool) {
+                        Toggle(L("Keep the Mac awake while Claude Code is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
+                            .font(.caption)
+                        if prefs.keepAwake {
+                            Toggle(L("Also on battery"), isOn: Binding(get: { prefs.keepAwakeOnBattery }, set: { prefs.keepAwakeOnBattery = $0; requests.awakeChanged() }))
+                                .font(.caption)
+                        }
+                        Text(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held."))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
                     if tool == .codex, store.isShown(tool) {
                         Toggle(L("Also read Codex reset credits"), isOn: Binding(get: { prefs.codexResetCredits }, set: { prefs.codexResetCredits = $0; store.refreshAll() }))
                             .font(.caption)
                         Text(L("A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex."))
                             .font(.caption2).foregroundStyle(.secondary)
                     }
+                    if tool == .cursor, store.isShown(tool) {
+                        Toggle(L("Also read Cursor's usage events"), isOn: Binding(get: { prefs.cursorUsageEvents }, set: { prefs.cursorUsageEvents = $0; store.refreshAll() }))
+                            .font(.caption)
+                        Text(L("A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)."))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                    if tool == .copilot, store.isShown(tool) {
+                        Toggle(L("Also read organisation billing"), isOn: Binding(get: { prefs.copilotOrgBilling }, set: { prefs.copilotOrgBilling = $0; store.refreshAll() }))
+                            .font(.caption)
+                        Text(L("One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month."))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
             }
-            Button(L("Refresh now")) { store.refreshAll() }
+            Button(L("Refresh now")) { store.refreshAll(interactive: true) }
         } header: {
             Text(L("Assistants"))
         } footer: {
-            Text(L("The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order."))
+            Text(L("The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -341,7 +491,7 @@ struct SettingsView: View {
     private var hookSection: some View {
         Section(L("Claude Code hook")) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(L("Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id and the folder's name; the meter refreshes at once, the card counts sessions, and a badge shows while Claude waits for your input."))
+                Text(L("Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(hookStatus.text).font(.caption).foregroundStyle(hookStatusColor(hookStatus))
@@ -356,9 +506,13 @@ struct SettingsView: View {
                 if let hookMessage {
                     Text(hookMessage).font(.caption).foregroundStyle(.secondary)
                 }
+                Toggle(L("Repair a hook that points at an old copy at launch"), isOn: Binding(get: { prefs.autoRepairHooks }, set: { prefs.autoRepairHooks = $0 }))
+                    .font(.caption)
+                Text(L("After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke."))
+                    .font(.caption2).foregroundStyle(.secondary)
                 Divider()
                 Text(L("Claude Code status line")).font(.subheadline.weight(.semibold))
-                Text(L("After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max) and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it."))
+                Text(L("After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it."))
                     .font(.caption).foregroundStyle(.secondary)
                 Text(statuslineStatus.text).font(.caption).foregroundStyle(hookStatusColor(statuslineStatus))
                 HStack {
@@ -369,6 +523,21 @@ struct SettingsView: View {
                 if let statuslineMessage {
                     Text(statuslineMessage).font(.caption).foregroundStyle(.secondary)
                 }
+            }
+        }
+    }
+
+    private var integrationsSection: some View {
+        Section(L("Other tools")) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L("MCP server")).font(.subheadline.weight(.semibold))
+                Text(L("Cursor, Codex and Claude Desktop can ask for the limits through the Model Context Protocol: `%@ --mcp` speaks JSON-RPC over stdio with one tool, get_limits.", AppInfo.name))
+                    .font(.caption).foregroundStyle(.secondary)
+                Button(L("Show snippet…")) { showMCPSnippet = true }
+                Divider()
+                Text(L("Remote Claude Code over SSH")).font(.subheadline.weight(.semibold))
+                Text(L("With the local API on, a hook on another machine reaches this notch through `ssh -R %1$ld:127.0.0.1:%1$ld host`: its command is `curl -s -X POST http://127.0.0.1:%1$ld/v1/hook -d @-` with a `host` label; the recipe is in docs/hooks.md.", Int(LocalAPI.port)))
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -395,8 +564,55 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder private var updatesSection: some View {
+        if let updater = requests.updater() {
+            Section(L("Updates")) {
+                Toggle(L("Check for updates automatically"), isOn: Binding(get: { updater.automaticallyChecks }, set: { updater.automaticallyChecks = $0 }))
+                Toggle(L("Download updates automatically"), isOn: Binding(get: { updater.automaticallyDownloads }, set: { updater.automaticallyDownloads = $0 }))
+                Toggle(L("Beta updates"), isOn: Binding(get: { prefs.betaUpdates }, set: { prefs.betaUpdates = $0 }))
+                HStack {
+                    Text(updater.lastCheck.map { L("Last checked %@", RelativeTime.ago($0)) } ?? L("Not checked yet")).font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button(L("Check for Updates…")) { updater.checkForUpdates() }
+                }
+            }
+        }
+    }
+
     private var advancedSection: some View {
         Section(L("Advanced")) {
+            PeakHoursEditor(prefs: prefs)
+            HStack {
+                Text(L("Route requests through"))
+                Spacer()
+                TextField(L("System (default)"), text: $proxyText).frame(width: 220).onSubmit { applyProxy() }
+                Button(L("Apply")) { applyProxy() }
+            }
+            Text(L("Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on."))
+                .font(.caption).foregroundStyle(.secondary)
+            Toggle(L("Debug logging"), isOn: Binding(get: { prefs.debugLogging }, set: { prefs.debugLogging = $0 }))
+            Text(L("Writes each vendor request's outcome (status code and size, never a token or a body) to the unified log at info level, where Copy diagnostics and `log show --info` pick it up."))
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Button(L("Copy diagnostics")) {
+                    let text = requests.diagnostics()
+                    Diagnostics.copy(text)
+                    diagnosticsMessage = L("Copied %ld lines.", text.split(separator: "\n").count)
+                }
+                if let diagnosticsMessage {
+                    Text(diagnosticsMessage).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Text(L("The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token."))
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Button(L("Export history…")) { exportHistory() }
+                if let exportMessage {
+                    Text(exportMessage).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Text(L("The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost."))
+                .font(.caption).foregroundStyle(.secondary)
             Button(L("Reset All Settings…")) { resetAll() }
             Text(L("Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept."))
                 .font(.caption).foregroundStyle(.secondary)
@@ -439,6 +655,38 @@ struct SettingsView: View {
         rateText = prefs.currencyRate == 1 ? "1" : String(prefs.currencyRate)
     }
 
+    static func budgetText(_ usd: Double) -> String {
+        let amount = usd * Money.rate
+        return amount == amount.rounded() ? String(Int(amount)) : String(format: "%.2f", amount)
+    }
+
+    /// The typed amount is in the user's currency; stored in US dollars.
+    static func budgetUSD(_ text: String, rate: Double) -> Double? {
+        guard let amount = Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")), amount > 0, rate > 0 else { return nil }
+        return amount / rate
+    }
+
+    private func applyBudgets() {
+        prefs.monthlyBudgetUSD = Self.budgetUSD(monthlyBudgetText, rate: Money.rate)
+        prefs.weeklyBudgetUSD = Self.budgetUSD(weeklyBudgetText, rate: Money.rate)
+        monthlyBudgetText = prefs.monthlyBudgetUSD.map { Self.budgetText($0) } ?? ""
+        weeklyBudgetText = prefs.weeklyBudgetUSD.map { Self.budgetText($0) } ?? ""
+    }
+
+    private func applyProxy() {
+        let trimmed = proxyText.trimmingCharacters(in: .whitespaces)
+        prefs.proxyURL = ProxySettings.dictionary(for: trimmed) != nil ? trimmed : ""
+        proxyText = prefs.proxyURL
+    }
+
+    private func relaunch() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-n", Bundle.main.bundlePath]
+        try? process.run()
+        NSApp.terminate(nil)
+    }
+
     private func addRoot() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
@@ -453,6 +701,27 @@ struct SettingsView: View {
                     prefs.extraTranscriptRoots.append(url.path)
                 }
                 requests.rootsChanged()
+            }
+        }
+    }
+
+    private func exportHistory() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.commaSeparatedText, .json]
+        panel.nameFieldStringValue = "notchmeter-history.csv"
+        panel.canSelectHiddenExtension = true
+        NSApp.activate()
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { @MainActor in
+                let records = CostHistory().load()
+                let data = url.pathExtension.lowercased() == "json" ? CostHistory.json(records) : Data(CostHistory.csv(records).utf8)
+                do {
+                    try data.write(to: url, options: .atomic)
+                    exportMessage = L("Wrote %ld days to %@.", records.count, url.lastPathComponent)
+                } catch {
+                    exportMessage = error.localizedDescription
+                }
             }
         }
     }
@@ -534,11 +803,7 @@ struct SettingsView: View {
         let finish: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .alertFirstButtonReturn else { return }
             Preferences.resetAll()
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            process.arguments = ["-n", Bundle.main.bundlePath]
-            try? process.run()
-            NSApp.terminate(nil)
+            relaunch()
         }
         if let window = hostWindow() {
             alert.beginSheetModal(for: window) { response in Task { @MainActor in finish(response) } }
@@ -565,7 +830,7 @@ private struct WindowChoices: View {
 
     var body: some View {
         let chosen = prefs.ringWindows[tool] ?? []
-        let ring = RingSelection.windows(of: reading, chosen: chosen, hidden: prefs.hiddenWindows[tool] ?? [])
+        let ring = prefs.ringWindows(of: reading)
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(L("Rings show")).font(.caption)
@@ -581,16 +846,76 @@ private struct WindowChoices: View {
             HStack(spacing: 8) {
                 Text(L("Hide")).font(.caption)
                 ForEach(reading.windows) { window in
-                    Toggle(window.label, isOn: Binding(get: { prefs.isHidden(window, of: tool) }, set: { prefs.setHidden($0, window: window.id, of: tool) }))
+                    Toggle(window.label, isOn: Binding(get: { prefs.isHidden(window, of: tool) }, set: { prefs.setHidden($0, window: window, of: tool) }))
                         .toggleStyle(.checkbox).controlSize(.small).font(.caption)
                 }
             }
+            let _ = chosen
         }
         .padding(.leading, 20)
     }
 
     private func set(outer: String?, inner: String?) {
         prefs.ringWindows[tool] = [outer, inner].compactMap { $0 }.filter { !$0.isEmpty }
+    }
+}
+
+/// One event class's sound: the system alert sounds, the user's imported files, none, or a file to import.
+private struct SoundPicker: View {
+    let title: String
+    @Binding var choice: String
+
+    var body: some View {
+        HStack {
+            Picker(title, selection: $choice) {
+                Text(L("Default")).tag(NotificationSound.defaultChoice)
+                Text(L("None")).tag(NotificationSound.none)
+                Divider()
+                ForEach(NotificationSound.systemSounds(), id: \.self) { name in Text(name).tag("system:\(name)") }
+                let custom = NotificationSound.customSounds()
+                if !custom.isEmpty {
+                    Divider()
+                    ForEach(custom, id: \.self) { name in Text((name as NSString).deletingPathExtension).tag("custom:\(name)") }
+                }
+            }
+            Button(L("Preview")) { NotificationSound.preview(choice) }.controlSize(.small)
+            Button(L("Choose file…")) { chooseFile() }.controlSize(.small)
+        }
+    }
+
+    private func chooseFile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.audio]
+        panel.allowsMultipleSelection = false
+        NSApp.activate()
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { @MainActor in
+                if let imported = try? NotificationSound.importCustom(url) { choice = imported }
+            }
+        }
+    }
+}
+
+/// Anthropic's peak window, editable: the hours in Pacific time and the weekday rule.
+private struct PeakHoursEditor: View {
+    let prefs: Preferences
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(L("Peak hours (Anthropic's tighter session limits)"), isOn: Binding(get: { prefs.peakHours.enabled }, set: { prefs.peakHours.enabled = $0 }))
+            if prefs.peakHours.enabled {
+                HStack {
+                    QuietHourPicker(title: L("From"), minutes: Binding(get: { prefs.peakHours.startMinute }, set: { prefs.peakHours.startMinute = $0 }))
+                    QuietHourPicker(title: L("To"), minutes: Binding(get: { prefs.peakHours.endMinute }, set: { prefs.peakHours.endMinute = $0 }))
+                    Text(prefs.peakHours.timeZone.abbreviation() ?? prefs.peakHours.timeZoneID).font(.caption).foregroundStyle(.secondary)
+                    Toggle(L("Weekdays only"), isOn: Binding(get: { prefs.peakHours.weekdaysOnly }, set: { prefs.peakHours.weekdaysOnly = $0 }))
+                        .toggleStyle(.checkbox).controlSize(.small).font(.caption)
+                }
+            }
+            Text(L("Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants."))
+                .font(.caption).foregroundStyle(.secondary)
+        }
     }
 }
 

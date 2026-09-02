@@ -27,7 +27,7 @@ import Testing
         let (soon, t3) = session(used: 0.7, elapsed: 5400)
         #expect(NotificationScheduler.stage(for: soon, now: t3) == .runningOut)
         let (out, t4) = session(used: 1, elapsed: 5400)
-        #expect(NotificationScheduler.stage(for: out, now: t4) == .behind)
+        #expect(NotificationScheduler.stage(for: out, now: t4) == .limitHit)
         #expect(NotificationScheduler.stage(for: LimitWindow(id: "x", label: "X", usedFraction: 0.9, resetsAt: nil), now: t4) == nil)
     }
 
@@ -115,9 +115,11 @@ import Testing
         #expect(Set(result.alerts.map(\.identifier)).count == 2)
     }
 
+    /// A fixed suite name, emptied before and after, so cfprefsd leaves no plist per run under ~/Library/Preferences.
     @Test func memoryRoundTripsThroughDefaults() throws {
-        let suite = "notchmeter-alerts-\(UUID().uuidString)"
+        let suite = "NotchmeterTests.Alerts.memoryRoundTrips"
         let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }
         #expect(AlertMemory.load(from: defaults) == .empty)
         let (behind, t0) = session(used: 0.5, elapsed: 3600)
@@ -131,5 +133,77 @@ import Testing
         #expect(!Notifier.isAvailable(arguments: ["Notchmeter", "--smoke"], bundleIdentifier: "com.amirhackett.notchmeter"))
         #expect(!Notifier.isAvailable(arguments: ["Notchmeter", "--probe", "--no-prompt"], bundleIdentifier: "com.amirhackett.notchmeter"))
         #expect(Notifier.isAvailable(arguments: ["Notchmeter"], bundleIdentifier: "com.amirhackett.notchmeter"))
+    }
+}
+
+
+/// Interruption levels per stage and event, the notices withdrawn at a reset, the limit-hit stage from the hook,
+/// and the sound choices.
+@Suite struct NotificationRoundTwo {
+    init() { Localization.use(language: "en") }
+
+    let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
+
+    @Test func timeSensitiveIsReservedForRunningOutAndWaiting() {
+        #expect(Notifier.level(for: .onTrack) == .passive)
+        #expect(Notifier.level(for: .behind) == .active)
+        #expect(Notifier.level(for: .runningOut) == .timeSensitive)
+        #expect(Notifier.level(for: .limitHit) == .timeSensitive)
+        #expect(Notifier.level(for: .reset) == .active)
+        #expect(Notifier.level(for: .reminder) == .active)
+        #expect(Notifier.level(for: .waiting) == .timeSensitive)
+        #expect(Notifier.level(for: .finished(turn: 600)) == .active)
+        #expect(NotificationScheduler.Options(runningOut: false).wants(.limitHit) == false)
+        #expect(NotificationScheduler.Options().wants(.limitHit))
+    }
+
+    @Test func aWindowsNoticesAreWithdrawnWhenItResets() {
+        let window = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.9, resetsAt: now.addingTimeInterval(600), periodDuration: Period.fiveHours)
+        let identifiers = PaceAlert.identifiers(tool: .claude, window: window)
+        #expect(identifiers.count == 5)
+        #expect(identifiers.contains(PaceAlert(tool: .claude, window: window, stage: .behind).identifier))
+        #expect(identifiers.contains(PaceAlert(tool: .claude, window: window, stage: .limitHit).identifier))
+        #expect(!identifiers.contains(PaceAlert(tool: .claude, window: window, stage: .reset).identifier))
+        #expect(PaceAlert(tool: .claude, window: window, stage: .behind).identifier == "claude/five_hour/2/\(Int(window.resetsAt!.timeIntervalSince1970))")
+    }
+
+    @Test func theHookLimitHitFiresOncePerPeriodOnTheFullestWindow() throws {
+        let reading = UsageReading(tool: .claude, windows: [
+            LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.97, resetsAt: now.addingTimeInterval(3600), periodDuration: Period.fiveHours),
+            LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.4, resetsAt: now.addingTimeInterval(3 * 86400), periodDuration: Period.week),
+        ], plan: nil, fetchedAt: now, observedAt: nil)
+        let first = NotificationScheduler.planLimitHit(memory: .empty, tool: .claude, reading: reading, now: now, options: .all)
+        #expect(first.alerts.map(\.stage) == [.limitHit])
+        #expect(first.alerts.first?.window.id == "five_hour")
+        #expect(first.memory.entries["claude/five_hour"]?.stage == .limitHit)
+        #expect(NotificationScheduler.planLimitHit(memory: first.memory, tool: .claude, reading: reading, now: now.addingTimeInterval(60), options: .all).alerts.isEmpty)
+        // A later pace plan in the same period never repeats a lower stage.
+        #expect(NotificationScheduler.plan(memory: first.memory, readings: [reading], now: now.addingTimeInterval(120)).alerts.isEmpty)
+        #expect(NotificationScheduler.planLimitHit(memory: .empty, tool: .claude, reading: nil, now: now, options: .all).alerts.isEmpty)
+        #expect(NotificationScheduler.planLimitHit(memory: .empty, tool: .claude, reading: reading, now: now, options: NotificationScheduler.Options(runningOut: false)).alerts.isEmpty)
+        let body = Advisor.alertBody(first.alerts[0], context: Advisor.Context(readings: [], timeFormat: .twentyFourHour, now: now))
+        #expect(body.hasPrefix("Claude session has run out.") || body.hasPrefix("At this rate"))
+    }
+
+    @Test func soundChoicesMapToNotificationSounds() {
+        #expect(NotificationSound.unSound(for: NotificationSound.none) == nil)
+        #expect(NotificationSound.unSound(for: NotificationSound.defaultChoice) == .default)
+        #expect(NotificationSound.unSound(for: "") == .default)
+        #expect(NotificationSound.unSound(for: "system:Glass") != nil)
+        #expect(NotificationSound.unSound(for: "custom:My Chime.aiff") != nil)
+        #expect(NotificationSound.title(for: "system:Glass") == "Glass")
+        #expect(NotificationSound.title(for: "custom:My Chime.aiff") == "My Chime")
+        #expect(NotificationSound.title(for: NotificationSound.none) == "None")
+        #expect(NotificationSound.systemSounds().contains("Glass"))
+        #expect(NotificationSound.customSounds(folder: URL(fileURLWithPath: "/nonexistent")).isEmpty)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-sounds-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let source = dir.appendingPathComponent("src/chime.aiff")
+        try? FileManager.default.createDirectory(at: source.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? Data([0, 1, 2]).write(to: source)
+        let folder = dir.appendingPathComponent("Sounds")
+        #expect((try? NotificationSound.importCustom(source, folder: folder)) == "custom:chime.aiff")
+        #expect((try? NotificationSound.importCustom(source, folder: folder)) == "custom:chime 2.aiff")
+        #expect(NotificationSound.customSounds(folder: folder) == ["chime 2.aiff", "chime.aiff"])
     }
 }

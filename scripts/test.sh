@@ -3,6 +3,8 @@
 # module, so the framework path is passed explicitly and cross-import overlays are disabled.
 # Xcode keeps the same frameworks under its macOS platform; a toolchain with neither layout is
 # left to resolve Testing on its own.
+# Tests that need UserDefaults use fixed suite names (NotchmeterTests.*) emptied before and after,
+# so a run leaves nothing new under ~/Library/Preferences (docs/testing.md).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 DEVELOPER="$(xcode-select -p)"

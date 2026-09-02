@@ -15,17 +15,26 @@ Notchmeter is a macOS app that shows AI coding-tool usage beside the MacBook not
 
 ## The command
 
+Prefer the command-line tool when it is installed (Settings › Advanced › *Install command line tool…* links it into `~/.local/bin` or `/usr/local/bin`):
+
+```bash
+notchmeter --json            # every tool
+notchmeter claude --json     # one tool
+```
+
+It answers from the running app's cached report (the same object, at most a few minutes old) or its local API, and only asks the vendors when the app is not running; `notchmeter --force` reads afresh. If `notchmeter` is not on the PATH, the app answers directly:
+
 ```bash
 /Applications/Notchmeter.app/Contents/MacOS/Notchmeter --probe --no-prompt --json
 ```
 
-If the app is built from source instead, the path is `build/Notchmeter.app/Contents/MacOS/Notchmeter` inside the repository, or `swift run Notchmeter --probe --no-prompt --json` there. `--no-prompt` matters: without it a locked Keychain item raises a dialog. The command makes one read-only request per signed-in tool, prices the local Claude Code transcripts, and prints one JSON object (schema `notchmeter.limits.v1`) with sorted keys. It never prints a token.
+If the app is built from source instead, the path is `build/Notchmeter.app/Contents/MacOS/Notchmeter` inside the repository, or `swift run Notchmeter --probe --no-prompt --json` there. `--no-prompt` matters: without it a locked Keychain item raises a dialog. The command makes one read-only request per signed-in tool, prices the local Claude Code transcripts, and prints one JSON object (schema `notchmeter.limits.v1`) with sorted keys. It never prints a token. `--history` adds the daily cost history. The same object is available as an MCP tool, `get_limits`, from `Notchmeter --mcp` (a stdio server; the snippet is in Settings › Advanced).
 
 The exit code summarises the picture: `0` fine, `10` a window is at 80 % or behind pace, `11` a window is at 100 %, `20` readings exist but nothing has been used, `30` no reading at all (nothing signed in, or the Keychain item is locked).
 
 ## Reading the output
 
-- `tools[]`: one entry per tool. `status` is `ready`, `needsAttention` (the tool needs the user: sign in, allow the Keychain), `failed`, `offline` or `notInstalled`. `windows[]` carry `id` (`five_hour`, `seven_day`, `scoped_fable`…), `usedFraction` (0…1, or null for a window with no limit), `resetsAt` (ISO 8601), `pace` (`ahead`, `onTrack`, `behind`), `projectedFraction` (where an even burn lands at the reset), `model` for a per-model window, and `drainLastHour` when the app's log has the last hour's move.
+- `tools[]`: one entry per tool. `status` is `ready`, `needsAttention` (the tool needs the user: sign in, allow the Keychain), `failed`, `offline` or `notInstalled`. `windows[]` carry `id` (`five_hour`, `seven_day`, `scoped_fable`…), `usedFraction` (0…1, or null for a window with no limit), `resetsAt` (ISO 8601), `pace` (`ahead`, `onTrack`, `behind`), `projectedFraction` (where an even burn lands at the reset), `model` for a per-model window, `drainLastHour` when the app's log has the last hour's move, and `source`: where the figure came from, in decreasing order of trust, `vendorEndpoint` (the vendor's own usage endpoint), `statusline` (Claude Code's own status-line payload, equally authoritative but only as fresh as the last turn), `rateLimitHeaders`, `localSnapshot` (the newest figure the tool itself wrote to disk, possibly stale) and `localEstimate` (Notchmeter's own arithmetic, such as the budget window). Say which when it is not the vendor's figure.
 - `cost`: the Claude Code estimate at API list prices (`today`, `yesterday`, `week` since the weekly window started, `month`, `last30Days`, `last90Days`, `lastHour`, `burnMultiple`, the current `block`, and `ranges` with per-model and per-project splits). It is not a bill; on a subscription it is the API-equivalent value of the work.
 - `advice[]`: the prescriptive lines the app shows, highest priority first. Read them out as they are; they are worded as instructions ("Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.").
 

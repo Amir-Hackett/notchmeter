@@ -304,3 +304,64 @@ import Testing
         #expect(!HoverRegions.none.hit(.zero).inCompact)
     }
 }
+
+
+/// The glance: opens a closed panel for a few seconds, keeps it open when the pointer comes in, never fights it.
+@Suite struct GlanceRules {
+    let settle = HoverIntent.settleTimeout
+
+    @Test func aGlanceOpensAndSettlesUnlessThePointerComesIn() {
+        var intent = HoverIntent(mode: .onHover)
+        #expect(intent.glance(at: 0) == .expand)
+        #expect(intent.isGlancing)
+        #expect(intent.state == .expanded)
+        #expect(intent.nextDeadline == HoverIntent.glanceDuration)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: 1) == .none)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: HoverIntent.glanceDuration - 0.01) == .none)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: HoverIntent.glanceDuration) == .collapse)
+        #expect(!intent.isGlancing)
+        #expect(intent.state == .compact)
+        var kept = HoverIntent(mode: .onHover)
+        _ = kept.glance(at: 0)
+        #expect(kept.pointer(inCompact: false, inExpanded: true, at: settle + 0.1) == .none)
+        #expect(!kept.isGlancing)
+        #expect(kept.pointer(inCompact: false, inExpanded: true, at: 10) == .none)
+        #expect(kept.pointer(inCompact: false, inExpanded: false, at: 11) == .none)
+        #expect(kept.pointer(inCompact: false, inExpanded: false, at: 11 + HoverIntent.collapseDwell) == .collapse)
+    }
+
+    @Test func aGlanceNeverFightsAnOpenPanelOrAlwaysMode() {
+        var open = HoverIntent(mode: .onHover, state: .expanded)
+        #expect(open.glance(at: 0) == .none)
+        #expect(!open.isGlancing)
+        var always = HoverIntent(mode: .always)
+        #expect(always.glance(at: 0) == .none)
+        var click = HoverIntent(mode: .onClick)
+        #expect(click.glance(at: 0) == .expand)
+        #expect(click.pointer(inCompact: false, inExpanded: false, at: HoverIntent.glanceDuration + 1) == .collapse)
+        var interrupted = HoverIntent(mode: .onHover)
+        _ = interrupted.glance(at: 0)
+        #expect(interrupted.clickOutside(at: 1) == .collapse)
+        #expect(!interrupted.isGlancing)
+        var custom = HoverIntent(mode: .onHover)
+        _ = custom.glance(for: 5, at: 0)
+        #expect(custom.nextDeadline == 5)
+    }
+
+    @Test func aClickedOpenPanelTakesTheKeyboardAndEscapeGivesItBack() {
+        var intent = HoverIntent(mode: .onClick)
+        #expect(intent.clickInside(at: 0) == .expand)
+        #expect(PanelKeyPolicy.takesKeyboard(.click))
+        #expect(PanelKeyPolicy.takesKeyboard(.swipe))
+        #expect(PanelKeyPolicy.takesKeyboard(.hotkey))
+        #expect(PanelKeyPolicy.takesKeyboard(.notification))
+        #expect(!PanelKeyPolicy.takesKeyboard(.dwell))
+        #expect(!PanelKeyPolicy.takesKeyboard(.glance))
+        #expect(!PanelKeyPolicy.takesKeyboard(.always))
+        #expect(intent.escape(at: 1) == .collapse)
+        #expect(intent.state == .compact)
+        var swiped = HoverIntent(mode: .onHover)
+        #expect(swiped.swipe(.down, inCompact: true, inExpanded: true, at: 0) == .expand)
+        #expect(swiped.escape(at: 1) == .collapse)
+    }
+}

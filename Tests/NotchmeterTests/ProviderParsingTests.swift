@@ -271,3 +271,37 @@ import Testing
         #expect(ModelPricing.rates(for: "gpt-5") == nil)
     }
 }
+
+
+/// Codex plan names, the Codex home resolution, and the snapshot's provenance tag.
+@Suite struct CodexRoundTwo {
+    init() { Localization.use(language: "en") }
+
+    @Test func planSlugsMapToChatGPTNames() throws {
+        #expect(Naming.codexPlan("self_serve_business_prolite") == "Business Premium")
+        #expect(Naming.codexPlan("plus") == "Plus")
+        #expect(Naming.codexPlan("PRO") == "Pro")
+        #expect(Naming.codexPlan("team") == "Team")
+        #expect(Naming.codexPlan("enterprise") == "Enterprise")
+        #expect(Naming.codexPlan("edu") == "Edu")
+        #expect(Naming.codexPlan("some_new_tier") == "Some New Tier")
+        let json = #"{"plan_type":"self_serve_business_prolite","rate_limit":{"primary_window":{"used_percent":1,"reset_at":1759352940,"limit_window_seconds":18000}}}"#
+        #expect(try CodexProvider.parseBackend(Data(json.utf8)).plan == "Business Premium")
+        let limits: [String: Any] = ["primary": ["used_percent": 5, "window_minutes": 300, "resets_at": 1_800_000_000], "plan_type": "self_serve_business_prolite"]
+        let snapshot = try CodexProvider.reading(from: limits, observedAt: Date(timeIntervalSince1970: 1_756_720_000), now: Date(timeIntervalSince1970: 1_756_720_100))
+        #expect(snapshot.plan == "Business Premium")
+        #expect(snapshot.windows[0].source == .localSnapshot)
+        #expect(snapshot.windows[0].source.tag == "snapshot")
+    }
+
+    @Test func homeFollowsCodexHomeThenTheConfigFolderThenTheDotFolder() {
+        let home = URL(fileURLWithPath: "/Users/me")
+        #expect(CodexProvider.defaultHome(environment: ["CODEX_HOME": "/srv/codex", "TERM": "x"], home: home, exists: { _ in false }).path == "/srv/codex")
+        #expect(CodexProvider.defaultHome(environment: ["CODEX_HOME": "~/cx", "TERM": "x"], home: home, exists: { _ in false }).path == (("~/cx" as NSString).expandingTildeInPath))
+        #expect(CodexProvider.defaultHome(environment: ["TERM": "x"], home: home, exists: { $0.path == "/Users/me/.config/codex" }).path == "/Users/me/.config/codex")
+        #expect(CodexProvider.defaultHome(environment: ["TERM": "x"], home: home, exists: { _ in false }).path == "/Users/me/.codex")
+        #expect(ProcessEnvironment.value("NOTCHMETER_TEST_MISSING", environment: ["TERM": "x"]) == nil)
+        #expect(ProcessEnvironment.value("A", environment: ["A": "b"]) == "b")
+        #expect(ProcessEnvironment.value("A", environment: ["A": ""]) == nil)
+    }
+}

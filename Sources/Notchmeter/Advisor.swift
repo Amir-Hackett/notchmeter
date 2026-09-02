@@ -1,16 +1,16 @@
 import Foundation
 
 /// One line saying what to do next. Priority orders the strip and the notifications; the symbol is the
-/// non-colour channel beside the text.
+/// non-colour channel beside the text; a URL, when there is one, is where the line points (a vendor's status page).
 struct Advice: Identifiable, Equatable, Sendable {
     enum Priority: Int, Comparable, Sendable {
         /// A tool is waiting on the user.
         case attention
-        /// A window runs out before its reset.
+        /// A window runs out before its reset, or real money started flowing.
         case danger
         /// A concrete move is available now: switch models, wait for a reset, notice an unusual burn.
         case warn
-        /// Headroom elsewhere.
+        /// Headroom elsewhere, or the time of day.
         case info
 
         static func < (lhs: Priority, rhs: Priority) -> Bool { lhs.rawValue < rhs.rawValue }
@@ -21,6 +21,26 @@ struct Advice: Identifiable, Equatable, Sendable {
     let priority: Priority
     let symbol: String
     let text: String
+    let url: URL?
+
+    init(id: String, tool: ToolID?, priority: Priority, symbol: String, text: String, url: URL? = nil) {
+        self.id = id
+        self.tool = tool
+        self.priority = priority
+        self.symbol = symbol
+        self.text = text
+        self.url = url
+    }
+}
+
+/// Extra-usage credits rose since the last reading: by how much, over how long, and whether the plan windows
+/// still had room (the "why am I paying" signature).
+struct ExtraUsageRise: Equatable, Sendable {
+    let amountUSD: Double
+    let over: TimeInterval
+    /// The most-used plan window's used fraction at the time; nil with no plan window.
+    let planUsed: Double?
+    let firstThisMonth: Bool
 }
 
 /// The prescriptive layer: every meter in the panel says how much; these rules say what to do about it. Each
@@ -39,6 +59,19 @@ enum Advisor {
         var toolOrder: [ToolID] = ToolID.allCases
         /// Measured drain per window ("tool/window" → fraction per hour) from the drain log; used before the even-burn projection.
         var drainRates: [String: Double] = [:]
+        /// The run-out interval per window ("tool/window") where the drain log has enough history.
+        var runOuts: [String: RunOutInterval] = [:]
+        /// The spend budget, in US dollars, for the calendar month and the week.
+        var monthlyBudgetUSD: Double? = nil
+        var weeklyBudgetUSD: Double? = nil
+        var extraUsageRise: ExtraUsageRise? = nil
+        /// The peak window that applies to a tool.
+        var peakHours: [ToolID: PeakHours] = [:]
+        /// Tools whose session stopped on a rate limit or waits on quota, per the hook.
+        var limitHitTools: Set<ToolID> = []
+        /// Tools whose endpoint is answering server errors, so the wait line points at the status page.
+        var serverTrouble: [ToolID: Int] = [:]
+        var metering: MeteringRatio? = nil
         var now: Date = Date()
         var calendar: Calendar = .current
 
@@ -60,16 +93,30 @@ enum Advisor {
     static let waitHorizon: TimeInterval = 3600
     /// A Codex reset credit expiring within this while a window is behind is worth a line.
     static let creditHorizon: TimeInterval = 24 * 3600
+    /// Off-peak arriving within this is worth telling the user to queue the long job for.
+    static let offPeakHorizon: TimeInterval = 3600
+    /// The plan windows both under this while extra usage rises is the mis-routing signature.
+    static let planRoomForAlarm = 0.9
+    /// Today's 1-hour cache-write share this far under the 30-day norm is a TTL shift.
+    static let cacheShiftMargin = 0.25
+    static let cacheShiftMinimumWrites = 100_000
 
     static func advise(_ context: Context) -> [Advice] {
         let runOuts = runOut(context)
         let alreadyRouted = Set(runOuts.compactMap(\.tool))
         let all = waiting(context)
+            + extraUsage(context)
             + runOuts
+            + limitHit(context)
+            + budget(context)
             + modelRouting(context)
             + waitForReset(context)
             + resetCredits(context)
             + [sessionBurn(context.cost)].compactMap { $0 }
+            + [metering(context)].compactMap { $0 }
+            + [cacheShift(context.cost)].compactMap { $0 }
+            + serverTrouble(context)
+            + peak(context)
             + crossProvider(context).filter { $0.tool.map { !alreadyRouted.contains($0) } ?? true }
         return Array(all.enumerated()
             .sorted { ($0.element.priority.rawValue, $0.offset) < ($1.element.priority.rawValue, $1.offset) }
@@ -105,6 +152,66 @@ enum Advisor {
             }
         }
         return found.sorted { $0.eta < $1.eta }.map(\.advice)
+    }
+
+    /// Real money started flowing: the first rise of extra-usage credits in a month is worth a line, and a rise
+    /// while the plan windows still have room is the mis-routing signature and is said louder.
+    static func extraUsage(_ context: Context) -> [Advice] {
+        guard let rise = context.extraUsageRise, rise.amountUSD > 0 else { return [] }
+        let over = ResetText.duration(max(60, rise.over))
+        if let planUsed = rise.planUsed, planUsed < planRoomForAlarm {
+            return [Advice(id: "extra/room", tool: .claude, priority: .danger, symbol: "creditcard.trianglebadge.exclamationmark",
+                           text: L("Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage.", Money.dollars(rise.amountUSD), over, percent(1 - planUsed)),
+                           url: ProviderLinks.usage(.claude))]
+        }
+        guard rise.firstThisMonth else { return [] }
+        return [Advice(id: "extra/first", tool: .claude, priority: .warn, symbol: "creditcard",
+                       text: L("You are now paying: extra usage rose %@ this month.", Money.dollars(rise.amountUSD)), url: ProviderLinks.usage(.claude))]
+    }
+
+    /// The hook says a session stopped on a rate limit or waits on quota: name the reset, whatever else has room.
+    static func limitHit(_ context: Context) -> [Advice] {
+        context.readings.compactMap { reading in
+            guard context.limitHitTools.contains(reading.tool) else { return nil }
+            let candidates = reading.windows.filter { window in
+                guard let resetsAt = window.resetsAt, resetsAt > context.now, let used = window.usedFraction else { return false }
+                return used >= 0.9
+            }
+            guard let window = candidates.min(by: { ($0.resetsAt ?? .distantFuture) < ($1.resetsAt ?? .distantFuture) }), let resetsAt = window.resetsAt else {
+                return Advice(id: "limit/\(reading.tool.rawValue)", tool: reading.tool, priority: .warn, symbol: "clock.arrow.circlepath",
+                              text: L("%@ hit its rate limit; wait for the reset.", reading.tool.productName))
+            }
+            return Advice(id: "limit/\(reading.tool.rawValue)/\(window.id)", tool: reading.tool, priority: .warn, symbol: "clock.arrow.circlepath",
+                          text: L("%1$@ hit its limit; %2$@ resets in %3$@.", reading.tool.productName, name(window), ResetText.duration(resetsAt.timeIntervalSince(context.now))))
+        }
+    }
+
+    /// The month (or the week since the weekly window started) projected against the budget.
+    static func budget(_ context: Context) -> [Advice] {
+        guard let cost = context.cost else { return [] }
+        var lines: [Advice] = []
+        if let budget = context.monthlyBudgetUSD, budget > 0 {
+            let spent = cost.totals(.month).cost
+            let elapsed = BudgetPeriod.month(now: context.now, calendar: context.calendar).elapsedFraction(now: context.now)
+            lines.append(contentsOf: budgetLines(id: "month", spent: spent, budget: budget, elapsed: elapsed, period: L("month")))
+        }
+        if let budget = context.weeklyBudgetUSD, budget > 0, let week = cost.week {
+            let elapsed = min(1, max(0, context.now.timeIntervalSince(week.start) / Period.week))
+            lines.append(contentsOf: budgetLines(id: "week", spent: week.cost, budget: budget, elapsed: elapsed, period: L("week")))
+        }
+        return lines
+    }
+
+    private static func budgetLines(id: String, spent: Double, budget: Double, elapsed: Double, period: String) -> [Advice] {
+        if spent >= budget {
+            return [Advice(id: "budget/\(id)/over", tool: .claude, priority: .danger, symbol: "dollarsign.circle.fill",
+                           text: L("The %1$@'s %2$@ is past the %3$@ budget.", period, Money.dollars(spent, cents: false), Money.dollars(budget, cents: false)))]
+        }
+        guard elapsed >= 0.1 else { return [] }
+        let projected = spent / elapsed
+        guard projected > budget else { return [] }
+        return [Advice(id: "budget/\(id)", tool: .claude, priority: .warn, symbol: "dollarsign.circle",
+                       text: L("At this rate the %1$@ costs %2$@ against a %3$@ budget.", period, Money.dollars(projected, cents: false), Money.dollars(budget, cents: false)))]
     }
 
     /// A tool whose main window is on track or behind, while another tool still has most of its own left.
@@ -143,10 +250,11 @@ enum Advisor {
     }
 
     /// A window that is out or behind pace, resetting within the hour, while no other tool has room: waiting beats
-    /// switching. Said once per tool for the soonest reset.
+    /// switching. Said once per tool for the soonest reset; it points at the status page while the tool's endpoint
+    /// is answering server errors.
     static func waitForReset(_ context: Context) -> [Advice] {
         context.readings.compactMap { reading in
-            guard headroom(besides: reading.tool, in: context) == nil else { return nil }
+            guard headroom(besides: reading.tool, in: context) == nil, !context.limitHitTools.contains(reading.tool) else { return nil }
             let soon = reading.windows.filter { window in
                 guard let used = window.usedFraction, let resetsAt = window.resetsAt, resetsAt > context.now,
                       resetsAt.timeIntervalSince(context.now) <= waitHorizon else { return false }
@@ -155,7 +263,8 @@ enum Advisor {
             guard let window = soon.min(by: { ($0.resetsAt ?? .distantFuture) < ($1.resetsAt ?? .distantFuture) }), let resetsAt = window.resetsAt else { return nil }
             return Advice(id: "wait/\(reading.tool.rawValue)/\(window.id)", tool: reading.tool, priority: .warn, symbol: "clock.arrow.circlepath",
                           text: L("%1$@ %2$@ resets in %3$@; wait rather than switch.", reading.tool.displayName, name(window),
-                                  ResetText.duration(resetsAt.timeIntervalSince(context.now))))
+                                  ResetText.duration(resetsAt.timeIntervalSince(context.now))),
+                          url: context.serverTrouble[reading.tool] != nil ? ProviderLinks.status(reading.tool) : nil)
         }
     }
 
@@ -178,6 +287,44 @@ enum Advisor {
                       text: L("This hour burned %1$@ — %2$@ your 30-day average.", Money.dollars(cost.lastHour), Burn.multiple(burn)))
     }
 
+    /// The session window metering about twice as heavily as the 30-day norm: the number behind "did they change something".
+    static func metering(_ context: Context) -> Advice? {
+        guard let ratio = context.metering, ratio.isHeavier, let multiple = ratio.multiple, let median = ratio.median else { return nil }
+        return Advice(id: "metering", tool: .claude, priority: .warn, symbol: "scalemass",
+                      text: L("The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@.", Burn.multiple(multiple),
+                              Money.tokens(Int(ratio.tokensPerPercent.rounded())), Money.tokens(Int(median.rounded()))))
+    }
+
+    /// Today's cache writes moved to the 5-minute tier against the 30-day norm: more re-caching, more quota per turn.
+    static func cacheShift(_ cost: CostSummary?) -> Advice? {
+        guard let cost, let shift = CacheTTL.shift(today: cost.totals(.today).tokens, norm: cost.totals(.last30Days).tokens) else { return nil }
+        return Advice(id: "cache-ttl", tool: .claude, priority: .warn, symbol: "clock.badge.exclamationmark",
+                      text: L("Cache writes today are %1$ld%% 1-hour against a 30-day norm of %2$ld%%: the 5-minute tier re-caches more often and costs more quota per turn.",
+                              percent(shift.today), percent(shift.norm)))
+    }
+
+    /// A vendor answering server errors: the reading is stale through no fault of the login; the status page says why.
+    static func serverTrouble(_ context: Context) -> [Advice] {
+        context.serverTrouble.sorted { context.rank($0.key) < context.rank($1.key) }.map { tool, code in
+            Advice(id: "status/\(tool.rawValue)", tool: tool, priority: .info, symbol: "antenna.radiowaves.left.and.right.slash",
+                   text: L("%1$@'s usage endpoint is answering HTTP %2$ld; check its status page.", tool.displayName, code), url: ProviderLinks.status(tool))
+        }
+    }
+
+    /// Inside Anthropic's peak window: say so, and when off-peak is under an hour away, say to queue the long job for it.
+    static func peak(_ context: Context) -> [Advice] {
+        context.readings.compactMap { reading in
+            guard let peak = context.peakHours[reading.tool], peak.isPeak(at: context.now), let boundary = peak.nextBoundary(after: context.now) else { return nil }
+            let until = boundary.date.timeIntervalSince(context.now)
+            if until <= offPeakHorizon {
+                return Advice(id: "peak/\(reading.tool.rawValue)/soon", tool: reading.tool, priority: .info, symbol: "moon",
+                              text: L("Off-peak in %@: start the long job then.", ResetText.duration(until)))
+            }
+            return Advice(id: "peak/\(reading.tool.rawValue)", tool: reading.tool, priority: .info, symbol: "sun.max",
+                          text: L("Peak hours until %@: the session projection assumes the peak rate.", PeakHours.clock(boundary.date, format: context.timeFormat, timeZone: context.calendar.timeZone)))
+        }
+    }
+
     // MARK: - Notification copy
 
     static func alertTitle(_ alert: PaceAlert) -> String {
@@ -189,7 +336,7 @@ enum Advisor {
         let window = alert.window
         let suffix = headroomSuffix(besides: alert.tool, in: context)
         switch alert.stage {
-        case .behind, .runningOut:
+        case .behind, .runningOut, .limitHit:
             if let text = runOutText(tool: alert.tool, window: window, context: context) { return text }
             let reset = ResetText.line(resetsAt: window.resetsAt, hasLimit: true, display: .exact, timeFormat: context.timeFormat,
                                        now: context.now, calendar: context.calendar)
@@ -219,21 +366,29 @@ enum Advisor {
     // MARK: - Pieces
 
     /// "At this rate you hit the Claude weekly cap tomorrow at 2:00 PM, 3d 4h before reset. Codex weekly is at 22%."
+    /// With a wide run-out interval from the drain log: "…cap between 2:10 and 3:40 PM…".
     static func runOutText(tool: ToolID, window: LimitWindow, context: Context) -> String? {
         guard let resetsAt = window.resetsAt, let eta = secondsToRunOut(window, tool: tool, context: context) else { return nil }
         let runsOutAt = context.now.addingTimeInterval(eta)
+        let suffix = headroomSuffix(besides: tool, in: context)
+        if let interval = context.runOuts["\(tool.rawValue)/\(window.id)"], interval.isWide, context.now.addingTimeInterval(interval.latest) < resetsAt {
+            let from = ResetText.time(context.now.addingTimeInterval(interval.earliest), format: context.timeFormat, calendar: context.calendar)
+            let to = ResetText.time(context.now.addingTimeInterval(interval.latest), format: context.timeFormat, calendar: context.calendar)
+            let day = ResetText.dayPhrase(context.now.addingTimeInterval(interval.earliest), now: context.now, calendar: context.calendar)
+            return L("At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@", tool.displayName, name(window), day, from, to, suffix)
+        }
         let when = L("%1$@ at %2$@", ResetText.dayPhrase(runsOutAt, now: context.now, calendar: context.calendar),
                      ResetText.time(runsOutAt, format: context.timeFormat, calendar: context.calendar))
         let margin = ResetText.duration(resetsAt.timeIntervalSince(runsOutAt))
         return L("At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@",
-                 tool.displayName, name(window), when, margin, headroomSuffix(besides: tool, in: context))
+                 tool.displayName, name(window), when, margin, suffix)
     }
 
     /// The window a routing decision spends: the longest tool-wide window with a limit (weekly for Claude and
     /// Codex, the billing cycle for Cursor).
     static func mainWindow(of reading: UsageReading) -> LimitWindow? {
         reading.windows
-            .filter { $0.usedFraction != nil && $0.model == nil && $0.periodDuration != nil }
+            .filter { $0.usedFraction != nil && $0.model == nil && $0.periodDuration != nil && !$0.id.hasPrefix("budget_") }
             .max { ($0.periodDuration ?? 0) < ($1.periodDuration ?? 0) }
     }
 
@@ -277,13 +432,52 @@ enum Advisor {
         1 - (window.usedFraction ?? 1)
     }
 
-    /// The measured drain when the log has one for the window, else the even-burn projection.
+    /// The pessimistic edge of the run-out interval when the log has one, else the measured drain, else the even-burn projection.
     private static func secondsToRunOut(_ window: LimitWindow, tool: ToolID, context: Context) -> TimeInterval? {
         guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
         guard Pace.status(for: window, now: context.now) == .behind else { return nil }
+        if let interval = context.runOuts["\(tool.rawValue)/\(window.id)"], context.now.addingTimeInterval(interval.earliest) < resetsAt {
+            return interval.earliest
+        }
         if let measured = Pace.secondsToRunOut(usedFraction: used, rate: context.drainRates["\(tool.rawValue)/\(window.id)"], resetsAt: resetsAt, now: context.now) {
             return measured
         }
         return Pace.secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: context.now)
+    }
+}
+
+/// The calendar month as a budget period: where it stands between its first and last moment.
+struct BudgetPeriod: Equatable, Sendable {
+    let start: Date
+    let end: Date
+
+    static func month(now: Date, calendar: Calendar = .current) -> BudgetPeriod {
+        let start = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+        let end = calendar.date(byAdding: .month, value: 1, to: start) ?? now.addingTimeInterval(Period.month)
+        return BudgetPeriod(start: start, end: end)
+    }
+
+    var duration: TimeInterval { end.timeIntervalSince(start) }
+
+    func elapsedFraction(now: Date) -> Double {
+        guard duration > 0 else { return 1 }
+        return min(1, max(0, now.timeIntervalSince(start) / duration))
+    }
+}
+
+/// The 1-hour share of cache writes, today against the 30-day norm.
+enum CacheTTL {
+    static func oneHourShare(_ tokens: TokenBreakdown) -> Double? {
+        let writes = tokens.cacheWrite5m + tokens.cacheWrite1h
+        guard writes > 0 else { return nil }
+        return Double(tokens.cacheWrite1h) / Double(writes)
+    }
+
+    /// Today's share and the norm when today sits more than the margin under it and has enough writes to mean it.
+    static func shift(today: TokenBreakdown, norm: TokenBreakdown) -> (today: Double, norm: Double)? {
+        guard today.cacheWrite5m + today.cacheWrite1h >= Advisor.cacheShiftMinimumWrites,
+              let todayShare = oneHourShare(today), let normShare = oneHourShare(norm), normShare - todayShare > Advisor.cacheShiftMargin
+        else { return nil }
+        return (todayShare, normShare)
     }
 }

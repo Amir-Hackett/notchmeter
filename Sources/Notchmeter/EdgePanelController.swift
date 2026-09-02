@@ -2,11 +2,12 @@ import AppKit
 import SwiftUI
 
 /// Codenotch-style layouts: a pill on the left, right or bottom edge (or under the menu bar of a notchless screen
-/// in the top layout) that opens into the full panel on hover.
+/// in the top layout) that opens into the full panel on hover. The screen is resolved from its identity key at
+/// every layout, never kept as an instance (Apple: screens can be reconfigured at any time).
 @MainActor
 final class EdgePanelController: NSObject, PanelPresenting {
     let edge: PanelEdge
-    let screen: NSScreen
+    let screenKey: String
     let hover: HoverDriver
     private let store: UsageStore
     private let prefs: Preferences
@@ -16,17 +17,19 @@ final class EdgePanelController: NSObject, PanelPresenting {
     private let host: NSHostingView<EdgePanelRoot>
     private let probe: NSHostingView<EdgePanelRoot>
     private let contentProbe: NSHostingView<NotchExpandedView>
+    private var storedScreen: NSScreen
     private var expanded = false
     private var held = false
     private var reporter = PanelReporter()
     private var clickMonitor: Any?
     private var keyMonitor: Any?
-    private var observers: [NSObjectProtocol] = []
+    private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     private var transitionSerial = 0
 
     init(edge: PanelEdge, screen: NSScreen, store: UsageStore, prefs: Preferences, actions: NotchActions) {
         self.edge = edge
-        self.screen = screen
+        self.screenKey = screen.identityKey
+        self.storedScreen = screen
         self.store = store
         self.prefs = prefs
         self.actions = actions
@@ -51,6 +54,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         hover.watch(panel)
         hover.perform = { [weak self] output, cause in self?.act(output, cause: cause) }
         hover.isPaused = { [weak self] in self.map { $0.menu.isOpen || $0.held } ?? false }
+        hover.isOffScreen = { [weak self] in self.map { $0.panel.isVisible && !$0.panel.isOnActiveSpace } ?? false }
         hover.pointerEnteredCompact = { [weak self] in self?.store.wakeFromIdle() }
         clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown, .leftMouseDown]) { [weak self] event in
             let secondary = event.type == .rightMouseDown || event.modifierFlags.contains(.control)
@@ -70,17 +74,28 @@ final class EdgePanelController: NSObject, PanelPresenting {
             }
             return handled ? nil : event
         }
-        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
+        observers.append((.default, NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.layout(animated: false) }
-        })
-        observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+        }))
+        let workspace = NSWorkspace.shared.notificationCenter
+        observers.append((workspace, workspace.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.layout(animated: false) }
-        })
+        }))
         observeContent()
+    }
+
+    /// The current NSScreen behind the key; the instance it was built with only until the key resolves again.
+    var screen: NSScreen {
+        if let current = NSScreen.screen(withKey: screenKey) {
+            storedScreen = current
+            return current
+        }
+        return storedScreen
     }
 
     var isVisible: Bool { panel.isVisible }
     var window: NSWindow? { panel }
+    var isExpanded: Bool { expanded }
 
     var expandedContentSize: CGSize {
         contentProbe.rootView = NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen)
@@ -124,13 +139,17 @@ final class EdgePanelController: NSObject, PanelPresenting {
         hover.toggle(cause: cause)
     }
 
+    func glance() {
+        hover.glance(for: AccessibilityDisplay.shared.motionReduced ? HoverIntent.glanceDuration + 2 : HoverIntent.glanceDuration)
+    }
+
     func hide() async {
         hover.stop()
         if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
         clickMonitor = nil
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
-        for observer in observers { NotificationCenter.default.removeObserver(observer); NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+        for (center, token) in observers { center.removeObserver(token) }
         observers = []
         transitionSerial += 1
         panel.orderOut(nil)
@@ -144,7 +163,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         switch output {
         case .expand:
             expanded = true
-            store.refreshAll(force: false)
+            if !hover.isOffScreen() { store.refreshAll(force: false) }
         case .collapse:
             expanded = false
         case .none:
@@ -154,7 +173,11 @@ final class EdgePanelController: NSObject, PanelPresenting {
         transitionSerial += 1
         let serial = transitionSerial
         let duration = layout(animated: true)
-        if expanded, cause == .hotkey || cause == .notification { panel.makeKey() }
+        if expanded, PanelKeyPolicy.takesKeyboard(cause) {
+            panel.makeKey()
+        } else if !expanded, panel.isKeyWindow {
+            panel.resignKey()
+        }
         Task {
             try? await Task.sleep(for: .seconds(duration))
             guard serial == self.transitionSerial else { return }
@@ -175,24 +198,51 @@ final class EdgePanelController: NSObject, PanelPresenting {
         return duration
     }
 
-    /// visibleFrame keeps the panel clear of the Dock and the menu bar; with the Dock set to hide, the bottom bar
-    /// sits above the strip that reveals it rather than inside it.
+    /// visibleFrame keeps the panel clear of the Dock and the menu bar; the chrome that comes and goes (an
+    /// auto-hidden bar or Dock, Stage Manager's strip) is read at each layout.
     private func placement(for size: NSSize) -> NSRect {
-        Self.placement(for: size, edge: edge, area: screen.visibleFrame, dockHides: screen.dockHidesOnThisScreen && SystemChrome.dockAutoHides)
+        let screen = self.screen
+        return Self.placement(for: size, edge: edge, area: screen.visibleFrame,
+                              chrome: Chrome(dockHides: screen.dockHidesOnThisScreen && SystemChrome.dockAutoHides, dockOrientation: SystemChrome.dockOrientation,
+                                             menuBarHides: SystemChrome.menuBarAutoHides && screen.menuBarHeightNow < 1, menuBarThickness: SystemChrome.menuBarThickness,
+                                             stageManager: SystemChrome.stageManagerEnabled, stageManagerStripHides: SystemChrome.stageManagerStripAutoHides))
+    }
+
+    /// What the placement has to keep clear of beyond visibleFrame.
+    struct Chrome: Equatable, Sendable {
+        var dockHides = false
+        var dockOrientation = "bottom"
+        /// The menu bar auto-hides and is away right now, so visibleFrame reaches the screen's top.
+        var menuBarHides = false
+        var menuBarThickness: CGFloat = 24
+        var stageManager = false
+        var stageManagerStripHides = false
     }
 
     nonisolated static func placement(for size: NSSize, edge: PanelEdge, area: NSRect, dockHides: Bool) -> NSRect {
+        placement(for: size, edge: edge, area: area, chrome: Chrome(dockHides: dockHides))
+    }
+
+    /// A hidden Dock's reveal strip is kept clear on the Dock's own side, a hidden menu bar's full height on the
+    /// top, and Stage Manager's strip (shown, or its reveal zone when it hides) on the left.
+    nonisolated static func placement(for size: NSSize, edge: PanelEdge, area: NSRect, chrome: Chrome) -> NSRect {
         let margin: CGFloat = 6
         var origin = NSPoint.zero
         switch edge {
         case .left:
-            origin = NSPoint(x: area.minX + margin, y: area.midY - size.height / 2)
+            var x = area.minX + margin
+            if chrome.dockHides, chrome.dockOrientation == "left" { x += SystemChrome.dockRevealStrip }
+            if chrome.stageManager { x += chrome.stageManagerStripHides ? SystemChrome.dockRevealStrip : SystemChrome.stageManagerStripWidth }
+            origin = NSPoint(x: x, y: area.midY - size.height / 2)
         case .right:
-            origin = NSPoint(x: area.maxX - size.width - margin, y: area.midY - size.height / 2)
+            var x = area.maxX - size.width - margin
+            if chrome.dockHides, chrome.dockOrientation == "right" { x -= SystemChrome.dockRevealStrip }
+            origin = NSPoint(x: x, y: area.midY - size.height / 2)
         case .bottom:
-            origin = NSPoint(x: area.midX - size.width / 2, y: area.minY + margin + (dockHides ? SystemChrome.dockRevealStrip : 0))
+            origin = NSPoint(x: area.midX - size.width / 2, y: area.minY + margin + (chrome.dockHides && chrome.dockOrientation == "bottom" ? SystemChrome.dockRevealStrip : 0))
         case .top:
-            origin = NSPoint(x: area.midX - size.width / 2, y: area.maxY - size.height - margin)
+            let bar = chrome.menuBarHides ? chrome.menuBarThickness : 0
+            origin = NSPoint(x: area.midX - size.width / 2, y: area.maxY - bar - size.height - margin)
         }
         origin.y = min(max(origin.y, area.minY), area.maxY - size.height)
         return NSRect(origin: origin, size: size)
@@ -216,15 +266,27 @@ final class EdgePanelController: NSObject, PanelPresenting {
     /// shape here, so it must follow its content); the tracking is one-shot, so it re-arms itself.
     private func observeContent() {
         withObservationTracking {
-            _ = (store.statuses, store.sessions, store.cost, store.statusline, store.screenCaptured, prefs.enabledTools, prefs.showSpend, prefs.toolOrder,
+            _ = (store.statuses, store.sessions, store.cost, store.statusline, store.screenCaptured, store.footerNote, prefs.enabledTools, prefs.showSpend, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
-                 prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps)
+                 prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
+                 prefs.monthlyBudgetUSD)
             layout(animated: false)
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced
             applyWindowBehaviour()
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeContent() }
+        }
+    }
+}
+
+/// Which opens give the panel the keyboard: a deliberate click, swipe, shortcut or notification; never a hover
+/// or a glance, which must not take the keyboard from the user's app.
+enum PanelKeyPolicy {
+    static func takesKeyboard(_ cause: PanelCause) -> Bool {
+        switch cause {
+        case .click, .swipe, .hotkey, .notification: true
+        default: false
         }
     }
 }

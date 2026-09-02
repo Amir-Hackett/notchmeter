@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
     case claude, codex, cursor, antigravity, copilot
@@ -29,6 +30,31 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
     }
 }
 
+/// Where a window's figure came from, so a script or the skill can tell an endpoint read from a rollout snapshot.
+enum WindowSource: String, Codable, Equatable, Sendable {
+    /// The vendor's own usage endpoint, the figure the vendor's dashboard shows.
+    case vendorEndpoint
+    /// Claude Code's status line payload: official, local, zero-network.
+    case statusline
+    /// Anthropic's unified rate-limit headers on a response.
+    case rateLimitHeaders
+    /// A figure the tool wrote to disk earlier (a Codex rollout), possibly stale.
+    case localSnapshot
+    /// Built here from local observation (an inferred window length); not something the vendor said.
+    case localEstimate
+
+    /// The small tag on the card; nil for the endpoint, which needs no explanation.
+    var tag: String? {
+        switch self {
+        case .vendorEndpoint: nil
+        case .statusline: L("status line")
+        case .rateLimitHeaders: L("headers")
+        case .localSnapshot: L("snapshot")
+        case .localEstimate: L("inferred")
+        }
+    }
+}
+
 struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     let id: String
     let label: String
@@ -40,8 +66,16 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     let periodDuration: TimeInterval?
     /// The model a per-model window is scoped to ("Fable", "Opus"); nil for a tool-wide window.
     let model: String?
+    let source: WindowSource
+    /// Left off the card and the rings until the user reveals it in Settings (a secondary split of a main figure).
+    let hiddenByDefault: Bool
+    /// The vendor's own percentage before the 0...1 cap, for a window that can run past 100 (a gateway spend limit).
+    let rawUsedPercent: Double?
+    /// The money behind the fraction, in US dollars, for a window that meters spend (extra usage, on-demand).
+    let amountUSD: Double?
 
-    init(id: String, label: String, usedFraction: Double?, resetsAt: Date?, note: String? = nil, periodDuration: TimeInterval? = nil, model: String? = nil) {
+    init(id: String, label: String, usedFraction: Double?, resetsAt: Date?, note: String? = nil, periodDuration: TimeInterval? = nil, model: String? = nil,
+         source: WindowSource = .vendorEndpoint, hiddenByDefault: Bool = false, rawUsedPercent: Double? = nil, amountUSD: Double? = nil) {
         self.id = id
         self.label = label
         self.usedFraction = usedFraction
@@ -49,6 +83,37 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
         self.note = note
         self.periodDuration = periodDuration
         self.model = model
+        self.source = source
+        self.hiddenByDefault = hiddenByDefault
+        self.rawUsedPercent = rawUsedPercent
+        self.amountUSD = amountUSD
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, label, usedFraction, resetsAt, note, periodDuration, model, source, hiddenByDefault, rawUsedPercent, amountUSD
+    }
+
+    /// Readings cached by an earlier version carry no source; they were endpoint reads.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        label = try container.decode(String.self, forKey: .label)
+        usedFraction = try container.decodeIfPresent(Double.self, forKey: .usedFraction)
+        resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
+        note = try container.decodeIfPresent(String.self, forKey: .note)
+        periodDuration = try container.decodeIfPresent(TimeInterval.self, forKey: .periodDuration)
+        model = try container.decodeIfPresent(String.self, forKey: .model)
+        source = try container.decodeIfPresent(WindowSource.self, forKey: .source) ?? .vendorEndpoint
+        hiddenByDefault = try container.decodeIfPresent(Bool.self, forKey: .hiddenByDefault) ?? false
+        rawUsedPercent = try container.decodeIfPresent(Double.self, forKey: .rawUsedPercent)
+        amountUSD = try container.decodeIfPresent(Double.self, forKey: .amountUSD)
+    }
+
+    /// The same window with another source (a provider re-labelling what a parser built).
+    func with(source: WindowSource, note: String? = nil, periodDuration: TimeInterval?? = nil) -> LimitWindow {
+        LimitWindow(id: id, label: label, usedFraction: usedFraction, resetsAt: resetsAt, note: note ?? self.note,
+                    periodDuration: periodDuration.map { $0 } ?? self.periodDuration, model: model, source: source,
+                    hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD)
     }
 }
 
@@ -113,6 +178,10 @@ struct UsageReading: Codable, Equatable, Sendable {
         }
         return UsageReading(tool: tool, windows: merged, plan: plan, fetchedAt: fetchedAt, observedAt: observedAt)
     }
+
+    func with(windows: [LimitWindow]) -> UsageReading {
+        UsageReading(tool: tool, windows: windows, plan: plan, fetchedAt: fetchedAt, observedAt: observedAt)
+    }
 }
 
 enum ProviderError: Error, Equatable {
@@ -127,10 +196,12 @@ enum ProviderError: Error, Equatable {
     case nothingYet(String)
     /// The network is down or the host unreachable: the last reading stays, without a problem mark, until it is back.
     case offline(String)
+    /// The tool is billed by API key: no plan windows exist to meter, and that is not a fault.
+    case apiKeyOnly(String)
 
     var message: String {
         switch self {
-        case .notSignedIn(let m), .tokenExpired(let m), .accessDenied(let m), .parse(let m), .unavailable(let m), .nothingYet(let m), .offline(let m):
+        case .notSignedIn(let m), .tokenExpired(let m), .accessDenied(let m), .parse(let m), .unavailable(let m), .nothingYet(let m), .offline(let m), .apiKeyOnly(let m):
             m
         case .rateLimited(let retry):
             retry.map { L("Rate limited, retrying in %lds", Int($0)) } ?? L("Rate limited, backing off")
@@ -143,6 +214,14 @@ enum ProviderError: Error, Equatable {
     var needsAttention: Bool {
         switch self {
         case .notSignedIn, .tokenExpired, .accessDenied: true
+        default: false
+        }
+    }
+
+    /// A calm state rather than a fault: nothing is wrong, there is simply nothing to meter yet.
+    var isCalm: Bool {
+        switch self {
+        case .nothingYet, .apiKeyOnly: true
         default: false
         }
     }
@@ -225,18 +304,128 @@ enum Paths {
         (FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first ?? home.appendingPathComponent("Library/Caches"))
             .appendingPathComponent(AppInfo.name)
     }
+    /// The running app's newest machine-readable report, beside the drain log, for the command-line tool and the
+    /// status line to read instead of polling every vendor again.
+    static var reportFile: URL { applicationSupport.appendingPathComponent("report-v1.json") }
+}
+
+/// A value from the process environment, or from launchd's when the app was launched from the Finder and
+/// inherited nothing of the shell's (`launchctl getenv`, the same source a login shell's exports reach).
+enum ProcessEnvironment {
+    static func value(_ name: String, environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
+        if let direct = environment[name], !direct.isEmpty { return direct }
+        guard environment["TERM"] == nil else { return nil }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        process.arguments = ["getenv", name]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        guard (try? process.run()) != nil else { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        let value = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
 }
 
 /// The shared session every provider uses: it waits for connectivity rather than failing at once after a wake, and
-/// gives up on a request after a minute so a stalled network cannot hold a loop.
+/// gives up on a request after a minute so a stalled network cannot hold a loop. "Route requests through" in
+/// Settings replaces it with one carrying a proxy; providers read it at each request so the change applies at once.
 enum NetworkSession {
-    static let shared: URLSession = {
+    private static let state = OSAllocatedUnfairLock<URLSession>(initialState: make(proxy: nil))
+
+    static var shared: URLSession { state.withLock { $0 } }
+
+    static func configure(proxy: String?) {
+        let session = make(proxy: proxy)
+        state.withLock { $0 = session }
+    }
+
+    private static func make(proxy: String?) -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.waitsForConnectivity = true
         configuration.timeoutIntervalForRequest = 20
         configuration.timeoutIntervalForResource = 60
+        if let dictionary = ProxySettings.dictionary(for: proxy) {
+            configuration.connectionProxyDictionary = dictionary
+        }
         return URLSession(configuration: configuration)
-    }()
+    }
+}
+
+/// `http://host:port`, `https://host:port` or `socks5://host:port`, as CFNetwork's proxy dictionary; nil (the system
+/// proxy from Network settings) for anything else.
+enum ProxySettings {
+    static func dictionary(for proxy: String?) -> [AnyHashable: Any]? {
+        guard let proxy = proxy?.trimmingCharacters(in: .whitespacesAndNewlines), !proxy.isEmpty,
+              let url = URL(string: proxy), let host = url.host, let port = url.port, let scheme = url.scheme?.lowercased()
+        else { return nil }
+        switch scheme {
+        case "http", "https":
+            return [kCFNetworkProxiesHTTPEnable: 1, kCFNetworkProxiesHTTPProxy: host, kCFNetworkProxiesHTTPPort: port,
+                    kCFNetworkProxiesHTTPSEnable: 1, kCFNetworkProxiesHTTPSProxy: host, kCFNetworkProxiesHTTPSPort: port]
+        case "socks5", "socks":
+            return [kCFNetworkProxiesSOCKSEnable: 1, kCFNetworkProxiesSOCKSProxy: host, kCFNetworkProxiesSOCKSPort: port]
+        default:
+            return nil
+        }
+    }
+}
+
+/// How long a vendor asked us to wait: `Retry-After` in seconds or as an HTTP date, else GitHub's
+/// `x-ratelimit-reset` (epoch seconds); nil when neither is present or parseable.
+enum RetryAfter {
+    static func seconds(from response: HTTPURLResponse?, now: Date = Date()) -> TimeInterval? {
+        guard let response else { return nil }
+        return seconds(retryAfter: response.value(forHTTPHeaderField: "Retry-After"),
+                       rateLimitReset: response.value(forHTTPHeaderField: "x-ratelimit-reset"), now: now)
+    }
+
+    static func seconds(retryAfter: String?, rateLimitReset: String?, now: Date = Date()) -> TimeInterval? {
+        if let retryAfter = retryAfter?.trimmingCharacters(in: .whitespaces), !retryAfter.isEmpty {
+            if let seconds = TimeInterval(retryAfter) { return max(0, seconds) }
+            if let date = httpDate(retryAfter) { return max(0, date.timeIntervalSince(now)) }
+        }
+        if let reset = rateLimitReset.flatMap({ TimeInterval($0.trimmingCharacters(in: .whitespaces)) }) {
+            return max(0, Date(timeIntervalSince1970: reset).timeIntervalSince(now))
+        }
+        return nil
+    }
+
+    private static func httpDate(_ text: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        for format in ["EEE, dd MMM yyyy HH:mm:ss zzz", "EEEE, dd-MMM-yy HH:mm:ss zzz", "EEE MMM d HH:mm:ss yyyy"] {
+            formatter.dateFormat = format
+            if let date = formatter.date(from: text) { return date }
+        }
+        return nil
+    }
+}
+
+/// Each vendor's own usage page and status page, for the card's context menu and the wait-for-reset advice.
+enum ProviderLinks {
+    static func usage(_ tool: ToolID) -> URL {
+        switch tool {
+        case .claude: URL(string: "https://claude.ai/settings/usage")!
+        case .codex: URL(string: "https://chatgpt.com/codex/settings/usage")!
+        case .cursor: URL(string: "https://cursor.com/dashboard")!
+        case .antigravity: URL(string: "https://geminicli.com/docs/resources/quota-and-pricing/")!
+        case .copilot: URL(string: "https://github.com/settings/copilot")!
+        }
+    }
+
+    static func status(_ tool: ToolID) -> URL? {
+        switch tool {
+        case .claude: URL(string: "https://status.anthropic.com")
+        case .codex: URL(string: "https://status.openai.com")
+        case .cursor: URL(string: "https://status.cursor.com")
+        case .antigravity: nil
+        case .copilot: URL(string: "https://www.githubstatus.com")
+        }
+    }
 }
 
 enum AppInfo {
@@ -270,6 +459,17 @@ enum Naming {
             return "\(base) \(tier[match])"
         }
         return base
+    }
+
+    /// Codex's `plan_type` slugs as ChatGPT names them; an unknown slug is prettified.
+    static let codexPlans: [String: String] = [
+        "free": "Free", "go": "Go", "plus": "Plus", "pro": "Pro", "team": "Team", "business": "Business", "enterprise": "Enterprise",
+        "edu": "Edu", "self_serve_business": "Business", "self_serve_business_prolite": "Business Premium", "business_prolite": "Business Premium",
+    ]
+
+    static func codexPlan(_ raw: String) -> String {
+        let slug = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return codexPlans[slug] ?? plan(slug)
     }
 
     static func prettify(_ key: String) -> String {

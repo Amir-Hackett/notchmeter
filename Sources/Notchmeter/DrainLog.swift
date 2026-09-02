@@ -34,6 +34,20 @@ struct DrainLog: Sendable {
         let window: String
         let used: Double
         let resetsAt: Date?
+        /// "extra" marks an extra-usage transition row (below); absent on a utilization row.
+        var kind: String?
+        /// The extra-usage credits spent, in dollars, on a transition row.
+        var amount: Double?
+        /// The plan windows' used fractions at that moment, by window id.
+        var plan: [String: Double]?
+    }
+
+    /// One extra-usage transition: the credits rose, from what to what, with the plan windows at that moment.
+    struct ExtraUsageRow: Equatable, Sendable {
+        let t: Date
+        let amountUSD: Double
+        let previousUSD: Double?
+        let planWindows: [String: Double]
     }
 
     let url: URL
@@ -82,6 +96,39 @@ struct DrainLog: Sendable {
         }
     }
 
+    /// Appends the moment extra-usage credits rose, with the plan windows' figures beside it, so the user keeps a
+    /// local record of when real money started flowing and what the plan had left.
+    func appendExtraUsage(tool: ToolID, amountUSD: Double, previousUSD: Double?, planWindows: [LimitWindow], now: Date = Date()) {
+        let plan = planWindows.reduce(into: [String: Double]()) { if let used = $1.usedFraction { $0[$1.id] = used } }
+        var line = Line(t: now, tool: tool.rawValue, window: "extra_usage", used: previousUSD ?? 0, resetsAt: nil)
+        line.kind = "extra"
+        line.amount = amountUSD
+        line.plan = plan
+        guard let encoded = try? Self.encoder.encode(line) else { return }
+        let fm = FileManager.default
+        try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if let handle = try? FileHandle(forWritingTo: url) {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: encoded + Data([0x0A]))
+            try? handle.close()
+        } else {
+            try? (encoded + Data([0x0A])).write(to: url, options: .atomic)
+        }
+    }
+
+    /// The extra-usage transitions on file, oldest first.
+    func loadExtraUsage() -> [ExtraUsageRow] {
+        guard let data = try? Data(contentsOf: url) else { return [] }
+        return Self.parseExtraUsage(data)
+    }
+
+    static func parseExtraUsage(_ data: Data) -> [ExtraUsageRow] {
+        data.split(separator: 0x0A).compactMap { row in
+            guard let line = try? decoder.decode(Line.self, from: row), line.kind == "extra", let amount = line.amount else { return nil }
+            return ExtraUsageRow(t: line.t, amountUSD: amount, previousUSD: line.used > 0 ? line.used : nil, planWindows: line.plan ?? [:])
+        }.sorted { $0.t < $1.t }
+    }
+
     /// Everything within the keep window, oldest first per window; rows older than that are dropped from the file
     /// once it has grown past a few thousand lines.
     func load(now: Date = Date()) -> [Key: [DrainSample]] {
@@ -90,6 +137,16 @@ struct DrainLog: Sendable {
         let lines = data.split(separator: 0x0A).count
         if lines > Self.compactAbove {
             var whole = Data()
+            for extra in Self.parseExtraUsage(data) {
+                var line = Line(t: extra.t, tool: ToolID.claude.rawValue, window: "extra_usage", used: extra.previousUSD ?? 0, resetsAt: nil)
+                line.kind = "extra"
+                line.amount = extra.amountUSD
+                line.plan = extra.planWindows
+                if let encoded = try? Self.encoder.encode(line) {
+                    whole.append(encoded)
+                    whole.append(0x0A)
+                }
+            }
             for (key, rows) in samples {
                 for sample in rows {
                     if let encoded = try? Self.encoder.encode(Line(t: sample.t, tool: key.tool.rawValue, window: key.window, used: sample.used, resetsAt: sample.resetsAt)) {
@@ -107,7 +164,7 @@ struct DrainLog: Sendable {
         let cutoff = now.addingTimeInterval(-keepFor)
         var result: [Key: [DrainSample]] = [:]
         for row in data.split(separator: 0x0A) where !row.isEmpty {
-            guard let line = try? decoder.decode(Line.self, from: row), line.t >= cutoff, let tool = ToolID(rawValue: line.tool) else { continue }
+            guard let line = try? decoder.decode(Line.self, from: row), line.kind == nil, line.t >= cutoff, let tool = ToolID(rawValue: line.tool) else { continue }
             result[Key(tool: tool, window: line.window), default: []].append(DrainSample(t: line.t, used: line.used, resetsAt: line.resetsAt))
         }
         for key in result.keys { result[key]?.sort { $0.t < $1.t } }

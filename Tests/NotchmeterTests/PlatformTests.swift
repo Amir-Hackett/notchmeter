@@ -167,7 +167,7 @@ import Testing
         #expect(LocalAPI.path(of: "") == nil)
         let response = String(decoding: LocalAPI.response(status: 404, body: Data("{}".utf8)), as: UTF8.self)
         #expect(response.hasPrefix("HTTP/1.1 404 Not Found\r\n"))
-        #expect(response.contains("Access-Control-Allow-Origin: *"))
+        #expect(!response.contains("Access-Control-Allow-Origin"))
         #expect(response.hasSuffix("\r\n\r\n{}"))
     }
 }

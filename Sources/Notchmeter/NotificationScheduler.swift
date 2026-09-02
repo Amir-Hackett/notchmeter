@@ -10,6 +10,8 @@ struct PaceAlert: Equatable, Sendable {
         case behind
         /// Behind, and under an hour from running out.
         case runningOut
+        /// The window is used up (or the hook said the limit was hit).
+        case limitHit
         /// The reset is within the user's lead time.
         case reminder = 10
         /// The window that was nearly gone has reset.
@@ -24,8 +26,14 @@ struct PaceAlert: Equatable, Sendable {
     let window: LimitWindow
     let stage: Stage
 
+    /// Stable within a period and a stage, so a repeat replaces rather than piles up in Notification Center.
     var identifier: String {
         "\(tool.rawValue)/\(window.id)/\(stage.rawValue)/\(Int(window.resetsAt?.timeIntervalSince1970 ?? 0))"
+    }
+
+    /// Every identifier a window's pace notices could carry in its current period, for withdrawing them at its reset.
+    static func identifiers(tool: ToolID, window: LimitWindow) -> [String] {
+        [Stage.onTrack, .behind, .runningOut, .limitHit, .reminder].map { PaceAlert(tool: tool, window: window, stage: $0).identifier }
     }
 }
 
@@ -42,9 +50,23 @@ struct AlertMemory: Codable, Equatable, Sendable {
     var resets: [String: Date] = [:]
     /// Per window, the reset a reminder was sent for.
     var reminders: [String: Date] = [:]
+    /// Per advice id, when it was last sent as a notification.
+    var advice: [String: Date] = [:]
 
     static let empty = AlertMemory()
     static let defaultsKey = "paceAlertMemory"
+
+    private enum CodingKeys: String, CodingKey { case entries, resets, reminders, advice }
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        entries = try container.decodeIfPresent([String: Entry].self, forKey: .entries) ?? [:]
+        resets = try container.decodeIfPresent([String: Date].self, forKey: .resets) ?? [:]
+        reminders = try container.decodeIfPresent([String: Date].self, forKey: .reminders) ?? [:]
+        advice = try container.decodeIfPresent([String: Date].self, forKey: .advice) ?? [:]
+    }
 
     static func key(_ tool: ToolID, _ window: LimitWindow) -> String {
         "\(tool.rawValue)/\(window.id)"
@@ -78,10 +100,12 @@ struct WatchedReset: Equatable, Sendable, Codable {
 }
 
 /// Pace-crossing notifications: a window is reported when its pace first reaches on track or behind, and again
-/// when it first comes within an hour of running out. Each stage fires once per reset period, only as an
-/// escalation, and only once a tenth of the period has elapsed, because the projection from the first minutes
-/// of a window is noise no one should be interrupted for. Reset and reminder alerts are timer-driven: they fire
-/// when the clock passes the reset (or the lead time before it) of a watched window, once each per period.
+/// when it first comes within an hour of running out, and once more when it is used up. Each stage fires once per
+/// reset period, only as an escalation, and only once a tenth of the period has elapsed, because the projection
+/// from the first minutes of a window is noise no one should be interrupted for. Reset and reminder alerts are
+/// timer-driven: they fire when the clock passes the reset (or the lead time before it) of a watched window, once
+/// each per period. A spend budget is a window too: the calendar month (or the week) is its period, so the same
+/// stages and toggles apply.
 enum NotificationScheduler {
     static let runningOutWithin: TimeInterval = 3600
     static let minimumElapsedFraction = 0.1
@@ -102,27 +126,29 @@ enum NotificationScheduler {
             switch stage {
             case .onTrack: onTrack
             case .behind: behind
-            case .runningOut: runningOut
+            case .runningOut, .limitHit: runningOut
             case .reset: reset
             case .reminder: reminderLead != nil
             }
         }
     }
 
-    /// `rate` is a measured drain in fraction per hour (DrainLog); with one, the run-out time comes from it rather
-    /// than the even-burn projection.
-    static func stage(for window: LimitWindow, now: Date, rate: Double? = nil) -> PaceAlert.Stage? {
+    /// `rate` is a measured drain in fraction per hour (DrainLog) and `runOut` the interval from its history; with
+    /// either, the run-out time comes from it (the pessimistic edge of an interval) rather than the even-burn projection.
+    static func stage(for window: LimitWindow, now: Date, rate: Double? = nil, runOut: RunOutInterval? = nil) -> PaceAlert.Stage? {
         guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration,
               let elapsed = Pace.elapsedFraction(resetsAt: resetsAt, period: period, now: now), elapsed >= minimumElapsedFraction,
               let result = Pace.evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
         else { return nil }
+        if used >= 1 { return .limitHit }
         switch result.status {
         case .ahead:
             return nil
         case .onTrack:
             return .onTrack
         case .behind:
-            let eta = Pace.secondsToRunOut(usedFraction: used, rate: rate, resetsAt: resetsAt, now: now)
+            let eta = runOut.map(\.earliest)
+                ?? Pace.secondsToRunOut(usedFraction: used, rate: rate, resetsAt: resetsAt, now: now)
                 ?? Pace.secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
             if let eta, eta < runningOutWithin { return .runningOut }
             return .behind
@@ -130,7 +156,7 @@ enum NotificationScheduler {
     }
 
     static func plan(memory: AlertMemory, readings: [UsageReading], now: Date, options: Options = .all,
-                     rates: [String: Double] = [:]) -> (alerts: [PaceAlert], memory: AlertMemory) {
+                     rates: [String: Double] = [:], runOuts: [String: RunOutInterval] = [:]) -> (alerts: [PaceAlert], memory: AlertMemory) {
         var memory = memory
         var alerts: [PaceAlert] = []
         for reading in readings {
@@ -139,7 +165,7 @@ enum NotificationScheduler {
                 let key = AlertMemory.key(reading.tool, window)
                 let previous = memory.entries[key]
                 let samePeriod = previous.map { abs($0.resetsAt.timeIntervalSince(resetsAt)) < samePeriodTolerance } ?? false
-                guard let stage = stage(for: window, now: now, rate: rates[key]) else {
+                guard let stage = stage(for: window, now: now, rate: rates[key], runOut: runOuts[key]) else {
                     if !samePeriod { memory.entries[key] = nil }
                     continue
                 }
@@ -177,6 +203,64 @@ enum NotificationScheduler {
         memory.resets = memory.resets.filter { now.timeIntervalSince($0.value) < 2 * Period.week }
         memory.reminders = memory.reminders.filter { $0.value > now.addingTimeInterval(-Period.week) }
         return (alerts, memory, remaining)
+    }
+
+    /// The hook said the limit was hit: the tool's fullest window with a reset ahead gets the limitHit stage at
+    /// once, once per period, whatever its pace maths says.
+    static func planLimitHit(memory: AlertMemory, tool: ToolID, reading: UsageReading?, now: Date, options: Options) -> (alerts: [PaceAlert], memory: AlertMemory) {
+        var memory = memory
+        let candidates = (reading?.windows ?? []).filter { $0.usedFraction != nil && ($0.resetsAt ?? .distantPast) > now }
+        func rank(_ window: LimitWindow) -> (Double, Double) {
+            (window.usedFraction ?? 0, -(window.resetsAt?.timeIntervalSince1970 ?? 0))
+        }
+        guard let window = candidates.max(by: { rank($0) < rank($1) }), let resetsAt = window.resetsAt else { return ([], memory) }
+        let key = AlertMemory.key(tool, window)
+        let hitStage: PaceAlert.Stage = .limitHit
+        if let previous = memory.entries[key], abs(previous.resetsAt.timeIntervalSince(resetsAt)) < samePeriodTolerance, previous.stage >= hitStage {
+            return ([], memory)
+        }
+        memory.entries[key] = AlertMemory.Entry(resetsAt: resetsAt, stage: .limitHit)
+        return (options.wants(.limitHit) ? [PaceAlert(tool: tool, window: window, stage: .limitHit)] : [], memory)
+    }
+
+    /// Advice lines worth a notification of their own (extra usage, a cache-tier shift, heavy metering), each at
+    /// most once per `repeatAfter`, remembered by id.
+    static func planAdvice(memory: AlertMemory, advice: [Advice], now: Date, wants: (Advice) -> TimeInterval?) -> (advice: [Advice], memory: AlertMemory) {
+        var memory = memory
+        var chosen: [Advice] = []
+        for line in advice {
+            guard let repeatAfter = wants(line) else { continue }
+            if let sent = memory.advice[line.id], now.timeIntervalSince(sent) < repeatAfter { continue }
+            memory.advice[line.id] = now
+            chosen.append(line)
+        }
+        memory.advice = memory.advice.filter { now.timeIntervalSince($0.value) < 60 * 86400 }
+        return (chosen, memory)
+    }
+
+    // MARK: - Budget
+
+    /// The month's (or the week's) spend as a window against the budget, so the pace stages apply to it.
+    static func budgetWindow(id: String, label: String, spentUSD: Double, budgetUSD: Double, period: BudgetPeriod) -> LimitWindow {
+        LimitWindow(id: id, label: label, usedFraction: min(1, max(0, spentUSD / budgetUSD)), resetsAt: period.end,
+                    note: L("%1$@ of %2$@", Money.dollars(spentUSD, cents: false), Money.dollars(budgetUSD, cents: false)),
+                    periodDuration: period.duration, source: .localEstimate, amountUSD: spentUSD)
+    }
+
+    /// A Claude reading carrying only the budget windows, for the scheduler; nil with no budget set.
+    static func budgetReading(cost: CostSummary?, monthlyUSD: Double?, weeklyUSD: Double?, now: Date, calendar: Calendar = .current) -> UsageReading? {
+        guard let cost else { return nil }
+        var windows: [LimitWindow] = []
+        if let monthlyUSD, monthlyUSD > 0 {
+            windows.append(budgetWindow(id: "budget_month", label: L("Monthly budget"), spentUSD: cost.totals(.month).cost, budgetUSD: monthlyUSD,
+                                        period: BudgetPeriod.month(now: now, calendar: calendar)))
+        }
+        if let weeklyUSD, weeklyUSD > 0, let week = cost.week {
+            windows.append(budgetWindow(id: "budget_week", label: L("Weekly budget"), spentUSD: week.cost, budgetUSD: weeklyUSD,
+                                        period: BudgetPeriod(start: week.start, end: week.start.addingTimeInterval(Period.week))))
+        }
+        guard !windows.isEmpty else { return nil }
+        return UsageReading(tool: .claude, windows: windows, plan: nil, fetchedAt: now, observedAt: nil)
     }
 }
 

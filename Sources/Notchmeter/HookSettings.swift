@@ -4,7 +4,8 @@ import Foundation
 /// already there, the status line entry beside it, and the check that says whether either points at the copy of
 /// Notchmeter that is running. Nothing here writes unless the user presses a button in Settings.
 enum HookSettings {
-    static let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Notification", "Stop", "SessionEnd"]
+    /// SubagentStart, SubagentStop and StopFailure joined in round 2; Repair adds them to an older install.
+    static let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Notification", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd"]
 
     struct Installed: Equatable {
         let backup: URL?

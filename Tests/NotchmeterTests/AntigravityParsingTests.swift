@@ -282,7 +282,7 @@ import Testing
 
 /// Which ProviderError a fetch ends in, by case; nil when it succeeds or fails some other way.
 enum ProviderFailure: Equatable {
-    case notSignedIn, tokenExpired, accessDenied, rateLimited, http, parse, unavailable, nothingYet, offline
+    case notSignedIn, tokenExpired, accessDenied, rateLimited, http, parse, unavailable, nothingYet, offline, apiKeyOnly
 }
 
 func failure(of provider: AntigravityProvider) async -> ProviderFailure? {
@@ -300,8 +300,55 @@ func failure(of provider: AntigravityProvider) async -> ProviderFailure? {
         case .unavailable: return .unavailable
         case .nothingYet: return .nothingYet
         case .offline: return .offline
+        case .apiKeyOnly: return .apiKeyOnly
         }
     } catch {
         return nil
+    }
+}
+
+
+/// The inferred window length: confirmed by two resets the log has seen, guessed from the first reset otherwise.
+@Suite struct AntigravityPeriodInference {
+    init() { Localization.use(language: "en") }
+
+    let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
+
+    @Test func twoConsecutiveResetsFiveHoursApartConfirmASessionWindow() throws {
+        #expect(AntigravityPeriods.period(betweenResets: 5 * 3600) == Period.fiveHours)
+        #expect(AntigravityPeriods.period(betweenResets: 5.5 * 3600) == Period.fiveHours)
+        #expect(AntigravityPeriods.period(betweenResets: 7 * 86400 - 3600) == Period.week)
+        #expect(AntigravityPeriods.period(betweenResets: 3 * 3600) == nil)
+        let first = now.addingTimeInterval(-5 * 3600)
+        #expect(AntigravityPeriods.confirmedPeriod(resets: [first, first, now, now.addingTimeInterval(30)]) == Period.fiveHours)
+        #expect(AntigravityPeriods.confirmedPeriod(resets: [now]) == nil)
+        #expect(AntigravityPeriods.confirmedPeriod(resets: [now.addingTimeInterval(-2 * 86400), now]) == nil)
+        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: now.addingTimeInterval(3 * 3600), now: now) == Period.fiveHours)
+        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: now.addingTimeInterval(20 * 3600), now: now) == Period.day)
+        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: now.addingTimeInterval(5 * 86400), now: now) == Period.week)
+        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: now.addingTimeInterval(-1), now: now) == nil)
+    }
+
+    @Test func aConfirmedLengthGivesThePaceTickAndTheInferredTag() throws {
+        let reset = now.addingTimeInterval(2 * 3600)
+        let reading = UsageReading(tool: .antigravity, windows: [
+            LimitWindow(id: "gemini_pro", label: "Gemini Pro", usedFraction: 0.6, resetsAt: reset, model: "Gemini Pro"),
+            LimitWindow(id: "gemini_flash", label: "Gemini Flash", usedFraction: 0.1, resetsAt: now.addingTimeInterval(6 * 86400), note: "a · b", model: "Gemini Flash"),
+        ], plan: nil, fetchedAt: now, observedAt: nil)
+        let provisional = AntigravityPeriods.apply(reading, resets: [:], now: now)
+        #expect(provisional.windows[0].periodDuration == nil)
+        #expect(provisional.windows[0].note == "likely a 5-hour window")
+        #expect(provisional.windows[0].source == .vendorEndpoint)
+        #expect(provisional.windows[1].note == "a · b · likely a 7-day window")
+        #expect(Pace.status(for: provisional.windows[0], now: now) == nil)
+        let confirmed = AntigravityPeriods.apply(reading, resets: ["gemini_pro": [reset.addingTimeInterval(-5 * 3600), reset.addingTimeInterval(-5 * 3600)]], now: now)
+        #expect(confirmed.windows[0].periodDuration == Period.fiveHours)
+        #expect(confirmed.windows[0].source == .localEstimate)
+        #expect(confirmed.windows[0].source.tag == "inferred")
+        #expect(confirmed.windows[0].note == "5-hour window inferred from its resets")
+        #expect(Pace.status(for: confirmed.windows[0], now: now) == .onTrack)
+        #expect(confirmed.windows[1].periodDuration == nil)
+        let other = AntigravityPeriods.apply(UsageReading(tool: .codex, windows: reading.windows, plan: nil, fetchedAt: now, observedAt: nil), resets: [:], now: now)
+        #expect(other.windows[0].note == nil)
     }
 }

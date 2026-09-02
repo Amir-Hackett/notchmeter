@@ -11,7 +11,8 @@ import Foundation
 /// or at once on a click outside, a Spaces switch, the screen lock or Escape. In Open on click mode the pointer
 /// never opens or closes anything: a click on the rings toggles, a click outside closes. A swipe down over the
 /// rings opens and a swipe up over the panel closes. Never close in Always mode by pointer; a hotkey toggle
-/// still can. Never repeat the current state.
+/// still can. A glance opens a closed panel for a few seconds and closes it again unless the pointer has come in
+/// meanwhile, in which case it is an ordinary open from then on. Never repeat the current state.
 struct HoverIntent: Equatable {
     enum Mode: Equatable { case onHover, onClick, always }
     enum State: String, Equatable { case compact, expanded }
@@ -22,6 +23,7 @@ struct HoverIntent: Equatable {
     static let collapseDwell: TimeInterval = 0.4
     static let settleTimeout: TimeInterval = 0.35
     static let expandedMargin: CGFloat = 8
+    static let glanceDuration: TimeInterval = 3
 
     var mode: Mode
     /// The rest before an open, 0.1 to 1 s.
@@ -30,6 +32,7 @@ struct HoverIntent: Equatable {
     private var settlingUntil: Int?
     private var insideCompactSince: Int?
     private var outsideExpandedSince: Int?
+    private var glanceUntil: Int?
 
     init(mode: Mode, state: State = .compact, expandDwell: TimeInterval = HoverIntent.expandDwell) {
         self.mode = mode
@@ -37,11 +40,18 @@ struct HoverIntent: Equatable {
         self.expandDwell = min(1, max(0.1, expandDwell))
     }
 
+    /// A glance is open and the pointer has not come in.
+    var isGlancing: Bool { glanceUntil != nil }
+
     /// When re-sampling an unchanged pointer would decide something; nil while nothing is pending.
     var nextDeadline: TimeInterval? {
         switch state {
-        case .compact: insideCompactSince.map { Self.seconds($0 + Self.milliseconds(expandDwell)) }
-        case .expanded: outsideExpandedSince.map { Self.seconds($0 + Self.milliseconds(Self.collapseDwell)) }
+        case .compact:
+            return insideCompactSince.map { Self.seconds($0 + Self.milliseconds(expandDwell)) }
+        case .expanded:
+            let leave = outsideExpandedSince.map { Self.seconds($0 + Self.milliseconds(Self.collapseDwell)) }
+            let glance = glanceUntil.map(Self.seconds)
+            return [leave, glance].compactMap { $0 }.min()
         }
     }
 
@@ -64,6 +74,16 @@ struct HoverIntent: Equatable {
             guard now - since >= Self.milliseconds(expandDwell) else { return .none }
             return begin(.expanded, at: now)
         case .expanded:
+            if let until = glanceUntil {
+                if inExpanded {
+                    glanceUntil = nil
+                } else if now >= until {
+                    glanceUntil = nil
+                    return begin(.compact, at: now)
+                } else {
+                    return .none
+                }
+            }
             guard mode == .onHover, !inExpanded else {
                 outsideExpandedSince = nil
                 return .none
@@ -112,6 +132,15 @@ struct HoverIntent: Equatable {
         begin(state == .compact ? .expanded : .compact, at: Self.milliseconds(time))
     }
 
+    /// Opens a closed panel for `duration`; nothing while it is already open or in Always mode.
+    mutating func glance(for duration: TimeInterval = HoverIntent.glanceDuration, at time: TimeInterval) -> Output {
+        guard state == .compact, mode != .always else { return .none }
+        let now = Self.milliseconds(time)
+        let output = begin(.expanded, at: now)
+        glanceUntil = now + Self.milliseconds(duration)
+        return output
+    }
+
     /// The morph finished; pointer facts count again from here.
     mutating func transitionSettled(at time: TimeInterval) {
         settlingUntil = nil
@@ -133,6 +162,7 @@ struct HoverIntent: Equatable {
         settlingUntil = now + Self.milliseconds(Self.settleTimeout)
         insideCompactSince = nil
         outsideExpandedSince = nil
+        glanceUntil = nil
         return next == .expanded ? .expand : .collapse
     }
 

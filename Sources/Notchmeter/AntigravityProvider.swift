@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "antigravity")
 
 struct AntigravityCredentials: Equatable {
     let accessToken: String
@@ -50,9 +53,9 @@ actor AntigravityProvider: UsageProvider {
         let unsupported: Bool
     }
 
-    private let session: URLSession
+    private let session: URLSession?
 
-    init(session: URLSession = NetworkSession.shared,
+    init(session: URLSession? = nil,
          geminiHome: URL = Paths.home.appendingPathComponent(".gemini"),
          applicationBundle: URL = URL(fileURLWithPath: "/Applications/Antigravity.app"),
          antigravityHome: URL = Paths.home.appendingPathComponent(".antigravity")) {
@@ -82,8 +85,8 @@ actor AntigravityProvider: UsageProvider {
         if account.unsupported { throw ProviderError.unavailable(Self.shutdownMessage) }
 
         let body: [String: Any] = account.project.map { ["project": $0] } ?? [:]
-        let (quota, status) = try await post(Self.quotaURL, token: credentials.accessToken, body: body)
-        switch status {
+        let (quota, response) = try await post(Self.quotaURL, token: credentials.accessToken, body: body)
+        switch response?.statusCode ?? 0 {
         case 200:
             return try Self.parseQuota(quota, plan: account.plan)
         case 401:
@@ -92,28 +95,28 @@ actor AntigravityProvider: UsageProvider {
             guard Self.isSubscriptionRequired(quota) else { throw ProviderError.accessDenied(L("Google refused the quota read for this account")) }
             throw ProviderError.unavailable(Self.shutdownMessage)
         case 429:
-            throw ProviderError.rateLimited(retryAfter: nil)
-        default:
+            throw ProviderError.rateLimited(retryAfter: RetryAfter.seconds(from: response))
+        case let status:
             throw ProviderError.http(status, L("Google's quota endpoint answered"))
         }
     }
 
     /// A refused account is final; any other trouble here leaves the project unknown and lets the quota call decide.
     private func loadAccount(token: String) async throws -> Account {
-        let (data, status) = try await post(Self.codeAssistURL, token: token, body: Self.codeAssistBody)
-        switch status {
+        let (data, response) = try await post(Self.codeAssistURL, token: token, body: Self.codeAssistBody)
+        switch response?.statusCode ?? 0 {
         case 200:
             return try Self.parseAccount(data)
         case 401:
             throw ProviderError.notSignedIn(L("Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in"))
         case 429:
-            throw ProviderError.rateLimited(retryAfter: nil)
+            throw ProviderError.rateLimited(retryAfter: RetryAfter.seconds(from: response))
         default:
             return Account(project: nil, plan: nil, unsupported: false)
         }
     }
 
-    private func post(_ url: URL, token: String, body: [String: Any]) async throws -> (Data, Int) {
+    private func post(_ url: URL, token: String, body: [String: Any]) async throws -> (Data, HTTPURLResponse?) {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 20
@@ -123,8 +126,10 @@ actor AntigravityProvider: UsageProvider {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
         do {
-            let (data, response) = try await session.data(for: request)
-            return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+            let (data, response) = try await (session ?? NetworkSession.shared).data(for: request)
+            let http = response as? HTTPURLResponse
+            DiagnosticLog.request(log, url.lastPathComponent, status: http?.statusCode ?? 0, bytes: data.count)
+            return (data, http)
         } catch {
             if let offline = ProviderError.offline(from: error) { throw offline }
             throw error
@@ -246,6 +251,62 @@ actor AntigravityProvider: UsageProvider {
             }
             return LimitWindow(id: id, label: label, usedFraction: 1 - tightest.remaining, resetsAt: tightest.resetsAt, note: note, model: label)
         }
+    }
+}
+
+/// Google declares no window length for its quota buckets, only a reset time, so the length is inferred here and
+/// said to be: two consecutive resets a window has been seen to count to, about five hours, a day or a week apart,
+/// confirm a rolling window of that length and give the meter its pace tick; a first read can only guess from how
+/// far off the reset is, which is written as a note and drives nothing. Low confidence by design: Google's own
+/// documentation calls these per-day request limits, so a confirmed length is still labelled "inferred".
+enum AntigravityPeriods {
+    static let candidates: [TimeInterval] = [Period.fiveHours, Period.day, Period.week]
+    static let tolerance = 0.2
+
+    /// The window length two resets `apart` imply, when they sit within the tolerance of a candidate.
+    static func period(betweenResets apart: TimeInterval) -> TimeInterval? {
+        candidates.first { abs(apart - $0) <= $0 * tolerance }
+    }
+
+    /// The length a window has been seen to count to: the newest pair of consecutive distinct resets that agree
+    /// with one candidate.
+    static func confirmedPeriod(resets: [Date]) -> TimeInterval? {
+        let distinct = resets.sorted().reduce(into: [Date]()) { list, date in
+            if let last = list.last, abs(date.timeIntervalSince(last)) < 60 { return }
+            list.append(date)
+        }
+        guard distinct.count >= 2 else { return nil }
+        for (earlier, later) in zip(distinct, distinct.dropFirst()).reversed() {
+            if let period = period(betweenResets: later.timeIntervalSince(earlier)) { return period }
+        }
+        return nil
+    }
+
+    /// On a first read, the candidate the time to the reset fits inside.
+    static func provisionalPeriod(resetsAt: Date, now: Date) -> TimeInterval? {
+        let remaining = resetsAt.timeIntervalSince(now)
+        guard remaining > 0 else { return nil }
+        return candidates.first { remaining <= $0 * (1 + tolerance) }
+    }
+
+    /// The reading with each window's length filled in where the reset history confirms one (tagged as an
+    /// estimate), and a note naming the likely length where it does not.
+    static func apply(_ reading: UsageReading, resets: [String: [Date]], now: Date = Date()) -> UsageReading {
+        guard reading.tool == .antigravity else { return reading }
+        let windows = reading.windows.map { window -> LimitWindow in
+            guard window.periodDuration == nil, let resetsAt = window.resetsAt else { return window }
+            let history = (resets[window.id] ?? []) + [resetsAt]
+            if let confirmed = confirmedPeriod(resets: history) {
+                let note = L("%@ window inferred from its resets", ResetText.windowName(period: confirmed))
+                return window.with(source: .localEstimate, note: window.note.map { "\($0) · \(note)" } ?? note, periodDuration: .some(confirmed))
+            }
+            if let likely = provisionalPeriod(resetsAt: resetsAt, now: now) {
+                let note = L("likely a %@ window", ResetText.windowName(period: likely))
+                return window.with(source: window.source, note: window.note.map { "\($0) · \(note)" } ?? note)
+            }
+            return window
+        }
+        return reading.with(windows: windows)
     }
 }
 

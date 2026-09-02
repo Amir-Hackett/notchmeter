@@ -11,6 +11,9 @@ final class NotchActions {
     var applyLayout: () -> Void = {}
     var togglePanel: () -> Void = {}
     var copyPanelImage: () -> Void = {}
+    var installCommandLineTool: () -> Void = {}
+    /// Opens a URL in the browser (a vendor's usage or status page).
+    var open: (URL) -> Void = { NSWorkspace.shared.open($0) }
     /// Nil while the updater is inactive (see Updater); the Options menu offers "Check for Updates…" only when set.
     var checkForUpdates: (() -> Void)?
 }
@@ -38,6 +41,8 @@ protocol PanelPresenting: AnyObject {
     /// Opens the panel for a notification's Open button or the shortcut; the machine adopts the state.
     func toggle(cause: PanelCause)
     func expandNow(cause: PanelCause)
+    /// Opens a closed panel for a few seconds (SessionAttention.glance); the pointer coming in keeps it open.
+    func glance()
 }
 
 extension PanelPresenting {
@@ -126,6 +131,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         compact.submenu = styles
         menu.addItem(compact)
         menu.addItem(item(L("Copy panel as image"), #selector(copyImage)))
+        menu.addItem(item(L("Install command line tool…"), #selector(installCLI)))
         menu.addItem(.separator())
         let login = item(L("Open at login"), #selector(toggleLaunchAtLogin))
         login.state = prefs.launchAtLogin ? .on : .off
@@ -154,6 +160,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
     @objc private func refreshNow() { actions.refresh() }
     @objc private func togglePanel() { actions.togglePanel() }
     @objc private func copyImage() { actions.copyPanelImage() }
+    @objc private func installCLI() { actions.installCommandLineTool() }
 
     @objc private func setVisibility(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let visibility = NotchVisibility(rawValue: raw) else { return }
@@ -193,7 +200,8 @@ extension NotchVisibility {
 @MainActor
 final class NotchController: NSObject, PanelPresenting {
     let edge: PanelEdge = .top
-    let screen: NSScreen
+    let screenKey: String
+    private var storedScreen: NSScreen
     let hover: HoverDriver
     private let store: UsageStore
     private let prefs: Preferences
@@ -219,7 +227,8 @@ final class NotchController: NSObject, PanelPresenting {
     static let compactMargin: CGFloat = 8
 
     init(screen: NSScreen, store: UsageStore, prefs: Preferences, actions: NotchActions) {
-        self.screen = screen
+        self.screenKey = screen.identityKey
+        self.storedScreen = screen
         self.store = store
         self.prefs = prefs
         self.actions = actions
@@ -240,6 +249,10 @@ final class NotchController: NSObject, PanelPresenting {
         configureTransition(closing: false)
         hover.perform = { [weak self] output, cause in self?.act(output, cause: cause) }
         hover.isPaused = { [weak self] in self.map { $0.menu.isOpen || $0.held } ?? false }
+        hover.isOffScreen = { [weak self] in
+            guard let self, let window = self.notch.windowController?.window, window.isVisible else { return false }
+            return !window.isOnActiveSpace
+        }
         hover.pointerEnteredCompact = { [weak self] in self?.store.wakeFromIdle() }
         let workspace = NSWorkspace.shared.notificationCenter
         observers.append((workspace, workspace.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
@@ -273,6 +286,15 @@ final class NotchController: NSObject, PanelPresenting {
             return handled ? nil : event
         }
         observeContent()
+    }
+
+    /// The current NSScreen behind the key; the instance it was built with only until the key resolves again.
+    var screen: NSScreen {
+        if let current = NSScreen.screen(withKey: screenKey) {
+            storedScreen = current
+            return current
+        }
+        return storedScreen
     }
 
     var window: NSWindow? { notch.windowController?.window }
@@ -324,6 +346,10 @@ final class NotchController: NSObject, PanelPresenting {
         hover.toggle(cause: cause)
     }
 
+    func glance() {
+        hover.glance(for: AccessibilityDisplay.shared.motionReduced ? HoverIntent.glanceDuration + 2 : HoverIntent.glanceDuration)
+    }
+
     func hide() async {
         hover.stop()
         if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
@@ -345,7 +371,7 @@ final class NotchController: NSObject, PanelPresenting {
     private func act(_ output: HoverIntent.Output, cause: PanelCause) {
         switch output {
         case .expand:
-            store.refreshAll(force: false)
+            if !hover.isOffScreen() { store.refreshAll(force: false) }
             Task { await self.expand(cause: cause) }
         case .collapse:
             Task { await self.compact(cause: cause) }
@@ -361,7 +387,7 @@ final class NotchController: NSObject, PanelPresenting {
         reporter.report(.expanded, cause: cause)
         let serial = beginTransition()
         await notch.expand(on: screen)
-        if cause == .hotkey || cause == .notification { window?.makeKey() }
+        if PanelKeyPolicy.takesKeyboard(cause) { window?.makeKey() }
         endTransition(serial)
     }
 
@@ -369,6 +395,7 @@ final class NotchController: NSObject, PanelPresenting {
         configureTransition(closing: true)
         hover.adopt(.compact)
         reporter.report(.compact, cause: cause)
+        if let window, window.isKeyWindow { window.resignKey() }
         let serial = beginTransition()
         await notch.compact(on: screen)
         endTransition(serial)
@@ -455,9 +482,10 @@ final class NotchController: NSObject, PanelPresenting {
     /// Re-measures whenever something that shapes the panel changes; the tracking is one-shot, so it re-arms itself.
     private func observeContent() {
         withObservationTracking {
-            _ = (store.statuses, store.sessions, store.cost, store.statusline, store.screenCaptured, prefs.enabledTools, prefs.showSpend, prefs.toolOrder,
+            _ = (store.statuses, store.sessions, store.cost, store.statusline, store.screenCaptured, store.footerNote, prefs.enabledTools, prefs.showSpend, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
-                 prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps)
+                 prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
+                 prefs.monthlyBudgetUSD)
             refreshRegions()
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced

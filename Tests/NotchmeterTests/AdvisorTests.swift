@@ -292,3 +292,50 @@ import Testing
         #expect(sample.hasSuffix(" before reset. Codex weekly is at 22%."))
     }
 }
+
+
+/// The wait line's status link, the server-trouble line, and the run-out interval in the run-out line.
+@Suite struct AdvisorRoundTwo {
+    init() { Localization.use(language: "en") }
+
+    let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
+    var utc: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
+    @Test func serverTroublePointsAtTheStatusPage() {
+        let out = LimitWindow(id: "five_hour", label: "Session", usedFraction: 1, resetsAt: now.addingTimeInterval(40 * 60), periodDuration: Period.fiveHours)
+        var context = Advisor.Context(readings: [UsageReading(tool: .claude, windows: [out], plan: nil, fetchedAt: now, observedAt: nil)], now: now)
+        #expect(Advisor.waitForReset(context).first?.url == nil)
+        context.serverTrouble = [.claude: 503]
+        #expect(Advisor.waitForReset(context).first?.url == ProviderLinks.status(.claude))
+        let trouble = Advisor.serverTrouble(context)
+        #expect(trouble.map(\.text) == ["Claude's usage endpoint is answering HTTP 503; check its status page."])
+        #expect(trouble.first?.url?.host == "status.anthropic.com")
+        #expect(trouble.first?.priority == .info)
+        let object = UsageReport(tools: [:], cost: nil, advice: trouble, now: now).object
+        #expect(((object["advice"] as? [[String: Any]])?.first?["url"] as? String) == "https://status.anthropic.com")
+    }
+
+    @Test func aWideRunOutIntervalNamesBothEdges() {
+        let session = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.5, resetsAt: now.addingTimeInterval(4 * 3600), periodDuration: Period.fiveHours)
+        var context = Advisor.Context(readings: [UsageReading(tool: .claude, windows: [session], plan: nil, fetchedAt: now, observedAt: nil)], timeFormat: .twentyFourHour, now: now, calendar: utc)
+        #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap today at 13:00, 3h before reset."])
+        context.runOuts = ["claude/five_hour": RunOutInterval(earliest: 70 * 60, latest: 160 * 60, sampleCount: 8)]
+        #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap today between 13:10 and 14:40."])
+        context.runOuts = ["claude/five_hour": RunOutInterval(earliest: 70 * 60, latest: 75 * 60, sampleCount: 8)]
+        #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap today at 13:10, 2h 50m before reset."])
+        context.runOuts = ["claude/five_hour": RunOutInterval(earliest: 5 * 3600, latest: 6 * 3600, sampleCount: 8)]
+        #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap today at 13:00, 3h before reset."])
+        let note = MeterRow.paceNote(window: session, runOut: RunOutInterval(earliest: 70 * 60, latest: 160 * 60, sampleCount: 8), format: .twentyFourHour, now: now)
+        #expect(note?.status == .behind)
+        #expect(note?.text.hasPrefix("Runs out ") == true)
+        let object = UsageReport(tools: [.claude: .ready(context.readings[0])], order: [.claude], cost: nil, advice: [],
+                                 runOuts: [DrainLog.Key(tool: .claude, window: "five_hour"): RunOutInterval(earliest: 70 * 60, latest: 160 * 60, sampleCount: 8)], now: now).object
+        let window = ((object["tools"] as? [[String: Any]])?.first?["windows"] as? [[String: Any]])?.first
+        #expect((window?["runOut"] as? [String: Any])?["earliestAt"] as? String == Oracle.timestamp(now.addingTimeInterval(70 * 60)))
+        #expect(window?["source"] as? String == "vendorEndpoint")
+    }
+}

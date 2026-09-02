@@ -31,7 +31,7 @@ enum PanelEdge: String, CaseIterable, Codable {
     var detail: String {
         switch self {
         case .top: L("Readings sit beside the notch and open below it.")
-        case .left: L("A pill down the left-hand edge, clear of a Dock on that side.")
+        case .left: L("A pill down the left-hand edge, clear of a Dock on that side and of Stage Manager's strip.")
         case .right: L("A pill down the right-hand edge, clear of a Dock on that side.")
         case .bottom: L("A bar resting on top of the Dock.")
         }
@@ -60,7 +60,8 @@ enum CompactStyle: String, CaseIterable, Codable {
 }
 
 /// Which display carries the panel: the built-in one with the notch, the main (menu bar) display, the one under the
-/// pointer, every display at once, or one named by macOS ("DELL U2723QE").
+/// pointer, every display at once, or one named by its identity key (DisplayIdentity; an older preference holds
+/// the localizedName and still matches on it).
 enum DisplayChoice: Hashable, Codable {
     case builtIn, main, pointer, all, named(String)
 
@@ -69,7 +70,7 @@ enum DisplayChoice: Hashable, Codable {
     var title: String {
         switch self {
         case .builtIn: L("Built-in display")
-        case .main: L("Main display")
+        case .main: L("Main display (the one with the menu bar)")
         case .pointer: L("Display with the pointer")
         case .all: L("All displays")
         case .named(let name): name
@@ -127,6 +128,53 @@ enum PanelWidth: String, CaseIterable, Codable {
     }
 
     var points: CGFloat { self == .wide ? 460 : 380 }
+}
+
+/// What the notch does when Claude Code waits for the user or a long turn ends: nothing beyond the dot and the
+/// notification, a glance (the panel opens for a few seconds and settles), or the panel opening.
+enum SessionAttention: String, CaseIterable, Codable {
+    case nothing, glance, openPanel
+
+    var title: String {
+        switch self {
+        case .nothing: L("Do nothing")
+        case .glance: L("Glance (open for a few seconds)")
+        case .openPanel: L("Open the panel")
+        }
+    }
+}
+
+/// The menu bar pin's shape: the figures as text, or up to four mini bars in one template glyph.
+enum MenuBarStyle: String, CaseIterable, Codable {
+    case text, bars
+
+    var title: String {
+        switch self {
+        case .text: L("Text")
+        case .bars: L("Bars")
+        }
+    }
+}
+
+/// The Cost card's unit: dollars, tokens, or dollars per million tokens (cache reads included).
+enum CostCardMode: String, CaseIterable, Codable {
+    case cost, tokens, perMillionTokens
+
+    var title: String {
+        switch self {
+        case .cost: L("Cost")
+        case .tokens: L("Tokens")
+        case .perMillionTokens: L("$/MTok")
+        }
+    }
+
+    var next: CostCardMode {
+        switch self {
+        case .cost: .tokens
+        case .tokens: .perMillionTokens
+        case .perMillionTokens: .cost
+        }
+    }
 }
 
 /// A key combination for a global shortcut: a Carbon virtual key code and Carbon modifier flags.
@@ -266,9 +314,19 @@ final class Preferences {
             report(Keys.menuBarItem, showMenuBarItem as Any, changed: showMenuBarItem != oldValue)
         }
     }
-    /// The two main figures of the first tool beside the menu bar icon.
+    /// The pinned tools' two main figures beside the menu bar icon.
     var menuBarPin: Bool {
         didSet { defaults.set(menuBarPin, forKey: Keys.menuBarPin); report(Keys.menuBarPin, menuBarPin, changed: menuBarPin != oldValue) }
+    }
+    /// Which tools the pin shows; empty means the first visible tool.
+    var menuBarPinnedTools: Set<ToolID> {
+        didSet {
+            defaults.set(menuBarPinnedTools.map(\.rawValue).sorted(), forKey: Keys.menuBarPinnedTools)
+            report(Keys.menuBarPinnedTools, menuBarPinnedTools.map(\.rawValue).sorted(), changed: menuBarPinnedTools != oldValue)
+        }
+    }
+    var menuBarStyle: MenuBarStyle {
+        didSet { defaults.set(menuBarStyle.rawValue, forKey: Keys.menuBarStyle); report(Keys.menuBarStyle, menuBarStyle.rawValue, changed: menuBarStyle != oldValue) }
     }
     /// While the screen is captured, the rings lose their digits and the panel its Cost card.
     var hideFromScreenShare: Bool {
@@ -280,6 +338,16 @@ final class Preferences {
     }
     var currencyRate: Double {
         didSet { defaults.set(currencyRate, forKey: Keys.currencyRate); report(Keys.currencyRate, currencyRate, changed: currencyRate != oldValue); Money.configure(code: currencyCode, rate: currencyRate) }
+    }
+    /// A spend budget for the calendar month (and optionally the week), stored in US dollars, typed in the user's currency.
+    var monthlyBudgetUSD: Double? {
+        didSet { store(monthlyBudgetUSD, forKey: Keys.monthlyBudget); report(Keys.monthlyBudget, monthlyBudgetUSD as Any, changed: monthlyBudgetUSD != oldValue) }
+    }
+    var weeklyBudgetUSD: Double? {
+        didSet { store(weeklyBudgetUSD, forKey: Keys.weeklyBudget); report(Keys.weeklyBudget, weeklyBudgetUSD as Any, changed: weeklyBudgetUSD != oldValue) }
+    }
+    var costCardMode: CostCardMode {
+        didSet { defaults.set(costCardMode.rawValue, forKey: Keys.costCardMode); report(Keys.costCardMode, costCardMode.rawValue, changed: costCardMode != oldValue) }
     }
     /// Per tool, the ids of the windows the outer and inner rings show; empty means the reading's first two.
     var ringWindows: [ToolID: [String]] {
@@ -293,6 +361,13 @@ final class Preferences {
         didSet {
             defaults.set(hiddenWindows.reduce(into: [String: [String]]()) { $0[$1.key.rawValue] = $1.value.sorted() }, forKey: Keys.hiddenWindows)
             report(Keys.hiddenWindows, hiddenWindows.map { "\($0.key.rawValue):\($0.value.sorted().joined(separator: ","))" }.sorted(), changed: hiddenWindows != oldValue)
+        }
+    }
+    /// Per tool, the window ids the user revealed although they are hidden by default (LimitWindow.hiddenByDefault).
+    var revealedWindows: [ToolID: Set<String>] {
+        didSet {
+            defaults.set(revealedWindows.reduce(into: [String: [String]]()) { $0[$1.key.rawValue] = $1.value.sorted() }, forKey: Keys.revealedWindows)
+            report(Keys.revealedWindows, revealedWindows.map { "\($0.key.rawValue):\($0.value.sorted().joined(separator: ","))" }.sorted(), changed: revealedWindows != oldValue)
         }
     }
     /// Pace-crossing notifications (NotificationScheduler.swift); on by default, asked for on first use.
@@ -332,8 +407,30 @@ final class Preferences {
             report(Keys.finishedAfter, finishedAfterMinutes, changed: finishedAfterMinutes != oldValue)
         }
     }
+    /// The first time extra-usage credits rise in a month, and louder when the plan still has room.
+    var notifyExtraUsage: Bool {
+        didSet { defaults.set(notifyExtraUsage, forKey: Keys.notifyExtraUsage); report(Keys.notifyExtraUsage, notifyExtraUsage, changed: notifyExtraUsage != oldValue) }
+    }
+    /// When today's cache writes moved to the 5-minute tier against the 30-day norm.
+    var notifyCacheShift: Bool {
+        didSet { defaults.set(notifyCacheShift, forKey: Keys.notifyCacheShift); report(Keys.notifyCacheShift, notifyCacheShift, changed: notifyCacheShift != oldValue) }
+    }
+    /// What the notch itself does when Claude Code waits or a long turn finishes.
+    var sessionAttention: SessionAttention {
+        didSet { defaults.set(sessionAttention.rawValue, forKey: Keys.sessionAttention); report(Keys.sessionAttention, sessionAttention.rawValue, changed: sessionAttention != oldValue) }
+    }
     var notificationSound: Bool {
         didSet { defaults.set(notificationSound, forKey: Keys.notificationSound); report(Keys.notificationSound, notificationSound, changed: notificationSound != oldValue) }
+    }
+    /// The sound per event class (NotificationSound): a pace crossing, Claude Code waiting, a turn finishing.
+    var soundPace: String {
+        didSet { defaults.set(soundPace, forKey: Keys.soundPace); report(Keys.soundPace, soundPace, changed: soundPace != oldValue) }
+    }
+    var soundWaiting: String {
+        didSet { defaults.set(soundWaiting, forKey: Keys.soundWaiting); report(Keys.soundWaiting, soundWaiting, changed: soundWaiting != oldValue) }
+    }
+    var soundFinished: String {
+        didSet { defaults.set(soundFinished, forKey: Keys.soundFinished); report(Keys.soundFinished, soundFinished, changed: soundFinished != oldValue) }
     }
     var quietHoursEnabled: Bool {
         didSet { defaults.set(quietHoursEnabled, forKey: Keys.quietHours); report(Keys.quietHours, quietHoursEnabled, changed: quietHoursEnabled != oldValue) }
@@ -345,6 +442,16 @@ final class Preferences {
     var quietHoursEnd: Int {
         didSet { defaults.set(quietHoursEnd, forKey: Keys.quietEnd); report(Keys.quietEnd, quietHoursEnd, changed: quietHoursEnd != oldValue) }
     }
+    /// Anthropic's weekday peak window, editable; applied to the tools in `peakHoursTools`.
+    var peakHours: PeakHours {
+        didSet { storeCodable(peakHours, forKey: Keys.peakHours); report(Keys.peakHours, "\(peakHours.startMinute)-\(peakHours.endMinute) \(peakHours.timeZoneID)", changed: peakHours != oldValue) }
+    }
+    var peakHoursTools: Set<ToolID> {
+        didSet {
+            defaults.set(peakHoursTools.map(\.rawValue).sorted(), forKey: Keys.peakHoursTools)
+            report(Keys.peakHoursTools, peakHoursTools.map(\.rawValue).sorted(), changed: peakHoursTools != oldValue)
+        }
+    }
     /// Folders beyond Claude Code's own config directory whose transcripts are priced (synced logs, other machines).
     var extraTranscriptRoots: [String] {
         didSet { defaults.set(extraTranscriptRoots, forKey: Keys.extraRoots); report(Keys.extraRoots, extraTranscriptRoots, changed: extraTranscriptRoots != oldValue) }
@@ -353,15 +460,74 @@ final class Preferences {
     var localAPIEnabled: Bool {
         didSet { defaults.set(localAPIEnabled, forKey: Keys.localAPI); report(Keys.localAPI, localAPIEnabled, changed: localAPIEnabled != oldValue) }
     }
+    /// Web origins the local API may answer; empty means none (a request carrying an Origin header is refused).
+    var localAPIOrigins: [String] {
+        didSet { defaults.set(localAPIOrigins, forKey: Keys.localAPIOrigins); report(Keys.localAPIOrigins, localAPIOrigins, changed: localAPIOrigins != oldValue) }
+    }
     /// A second Codex endpoint (rate-limit reset credits), opt-in under the one-request-per-token rule.
     var codexResetCredits: Bool {
         didSet { defaults.set(codexResetCredits, forKey: Keys.codexCredits); report(Keys.codexCredits, codexResetCredits, changed: codexResetCredits != oldValue) }
     }
+    /// Cursor's usage-events export on the same cookie, for the daily history; opt-in.
+    var cursorUsageEvents: Bool {
+        didSet { defaults.set(cursorUsageEvents, forKey: Keys.cursorEvents); report(Keys.cursorEvents, cursorUsageEvents, changed: cursorUsageEvents != oldValue) }
+    }
+    /// Copilot organisation billing on the same token; opt-in.
+    var copilotOrgBilling: Bool {
+        didSet { defaults.set(copilotOrgBilling, forKey: Keys.copilotOrg); report(Keys.copilotOrg, copilotOrgBilling, changed: copilotOrgBilling != oldValue) }
+    }
+    /// When the Keychain dialog for Claude Code's login may appear.
+    var keychainPrompts: KeychainPromptPolicy {
+        didSet {
+            defaults.set(keychainPrompts.rawValue, forKey: Keys.keychainPrompts)
+            report(Keys.keychainPrompts, keychainPrompts.rawValue, changed: keychainPrompts != oldValue)
+            Keychain.setPolicy(keychainPrompts)
+        }
+    }
+    /// A power assertion while a Claude Code session is working; mains power only unless the override is on.
+    var keepAwake: Bool {
+        didSet { defaults.set(keepAwake, forKey: Keys.keepAwake); report(Keys.keepAwake, keepAwake, changed: keepAwake != oldValue) }
+    }
+    var keepAwakeOnBattery: Bool {
+        didSet { defaults.set(keepAwakeOnBattery, forKey: Keys.keepAwakeBattery); report(Keys.keepAwakeBattery, keepAwakeOnBattery, changed: keepAwakeOnBattery != oldValue) }
+    }
+    /// A hook or status line that names an old copy of this app is rewritten at launch, after the usual backup.
+    var autoRepairHooks: Bool {
+        didSet { defaults.set(autoRepairHooks, forKey: Keys.autoRepair); report(Keys.autoRepair, autoRepairHooks, changed: autoRepairHooks != oldValue) }
+    }
+    /// "http://host:port" or "socks5://host:port"; empty follows the system proxy.
+    var proxyURL: String {
+        didSet {
+            defaults.set(proxyURL, forKey: Keys.proxy)
+            report(Keys.proxy, proxyURL, changed: proxyURL != oldValue)
+            NetworkSession.configure(proxy: proxyURL)
+        }
+    }
+    /// The providers' request outcomes in the unified log at info level.
+    var debugLogging: Bool {
+        didSet {
+            defaults.set(debugLogging, forKey: Keys.debugLogging)
+            report(Keys.debugLogging, debugLogging, changed: debugLogging != oldValue)
+            DiagnosticLog.verbose = debugLogging
+        }
+    }
+    /// Sparkle's beta channel; the feed carries a `sparkle:channel` on such items (scripts/release.sh --channel beta).
+    var betaUpdates: Bool {
+        didSet { defaults.set(betaUpdates, forKey: Keys.betaUpdates); report(Keys.betaUpdates, betaUpdates, changed: betaUpdates != oldValue) }
+    }
+    /// The language the app runs in: nil follows macOS, else a shipped code written to AppleLanguages at relaunch.
+    var language: String? {
+        didSet {
+            if let language { defaults.set(language, forKey: Keys.language) } else { defaults.removeObject(forKey: Keys.language) }
+            Localization.applyPreferred(language: language, defaults: defaults)
+            report(Keys.language, language as Any, changed: language != oldValue)
+        }
+    }
     var togglePanelHotkey: Hotkey? {
-        didSet { store(togglePanelHotkey, forKey: Keys.hotkeyToggle); report(Keys.hotkeyToggle, togglePanelHotkey?.description as Any, changed: togglePanelHotkey != oldValue) }
+        didSet { storeCodable(togglePanelHotkey, forKey: Keys.hotkeyToggle); report(Keys.hotkeyToggle, togglePanelHotkey?.description as Any, changed: togglePanelHotkey != oldValue) }
     }
     var openSettingsHotkey: Hotkey? {
-        didSet { store(openSettingsHotkey, forKey: Keys.hotkeySettings); report(Keys.hotkeySettings, openSettingsHotkey?.description as Any, changed: openSettingsHotkey != oldValue) }
+        didSet { storeCodable(openSettingsHotkey, forKey: Keys.hotkeySettings); report(Keys.hotkeySettings, openSettingsHotkey?.description as Any, changed: openSettingsHotkey != oldValue) }
     }
     /// The one-time first-launch offer to install the Claude Code hook has been shown.
     var hookOfferShown: Bool {
@@ -390,11 +556,17 @@ final class Preferences {
         static let reduceAnimations = "reduceAnimations"
         static let menuBarItem = "showMenuBarItem"
         static let menuBarPin = "menuBarPin"
+        static let menuBarPinnedTools = "menuBarPinnedTools"
+        static let menuBarStyle = "menuBarStyle"
         static let screenShare = "hideFromScreenShare"
         static let currencyCode = "currencyCode"
         static let currencyRate = "currencyRate"
+        static let monthlyBudget = "monthlyBudgetUSD"
+        static let weeklyBudget = "weeklyBudgetUSD"
+        static let costCardMode = "costCardMode"
         static let ringWindows = "ringWindows"
         static let hiddenWindows = "hiddenWindows"
+        static let revealedWindows = "revealedWindows"
         static let notificationsEnabled = "notificationsEnabled"
         static let notifyOnTrack = "notifyOnTrack"
         static let notifyBehind = "notifyBehind"
@@ -404,13 +576,32 @@ final class Preferences {
         static let notifyWaiting = "notifyWaiting"
         static let notifyFinished = "notifyFinished"
         static let finishedAfter = "finishedAfterMinutes"
+        static let notifyExtraUsage = "notifyExtraUsage"
+        static let notifyCacheShift = "notifyCacheShift"
+        static let sessionAttention = "sessionAttention"
         static let notificationSound = "notificationSound"
+        static let soundPace = "soundPace"
+        static let soundWaiting = "soundWaiting"
+        static let soundFinished = "soundFinished"
         static let quietHours = "quietHoursEnabled"
         static let quietStart = "quietHoursStart"
         static let quietEnd = "quietHoursEnd"
+        static let peakHours = "peakHours"
+        static let peakHoursTools = "peakHoursTools"
         static let extraRoots = "extraTranscriptRoots"
         static let localAPI = "localAPIEnabled"
+        static let localAPIOrigins = "localAPIOrigins"
         static let codexCredits = "codexResetCredits"
+        static let cursorEvents = "cursorUsageEvents"
+        static let copilotOrg = "copilotOrgBilling"
+        static let keychainPrompts = "keychainPrompts"
+        static let keepAwake = "keepAwake"
+        static let keepAwakeBattery = "keepAwakeOnBattery"
+        static let autoRepair = "autoRepairHooks"
+        static let proxy = "proxyURL"
+        static let debugLogging = "debugLogging"
+        static let betaUpdates = "betaUpdates"
+        static let language = "language"
         static let hotkeyToggle = "hotkeyTogglePanel"
         static let hotkeySettings = "hotkeyOpenSettings"
         static let hookOffer = "hookOfferShown"
@@ -442,12 +633,19 @@ final class Preferences {
         reduceAnimations = defaults.bool(forKey: Keys.reduceAnimations)
         showMenuBarItem = defaults.object(forKey: Keys.menuBarItem) as? Bool
         menuBarPin = defaults.bool(forKey: Keys.menuBarPin)
+        menuBarPinnedTools = Set((defaults.array(forKey: Keys.menuBarPinnedTools) as? [String] ?? []).compactMap(ToolID.init(rawValue:)))
+        menuBarStyle = MenuBarStyle(rawValue: defaults.string(forKey: Keys.menuBarStyle) ?? "") ?? .text
         hideFromScreenShare = defaults.bool(forKey: Keys.screenShare)
         currencyCode = defaults.string(forKey: Keys.currencyCode) ?? "USD"
         currencyRate = defaults.object(forKey: Keys.currencyRate) as? Double ?? 1
+        monthlyBudgetUSD = defaults.object(forKey: Keys.monthlyBudget) as? Double
+        weeklyBudgetUSD = defaults.object(forKey: Keys.weeklyBudget) as? Double
+        costCardMode = CostCardMode(rawValue: defaults.string(forKey: Keys.costCardMode) ?? "") ?? .cost
         ringWindows = (defaults.dictionary(forKey: Keys.ringWindows) as? [String: [String]] ?? [:])
             .reduce(into: [:]) { if let tool = ToolID(rawValue: $1.key) { $0[tool] = $1.value } }
         hiddenWindows = (defaults.dictionary(forKey: Keys.hiddenWindows) as? [String: [String]] ?? [:])
+            .reduce(into: [:]) { if let tool = ToolID(rawValue: $1.key) { $0[tool] = Set($1.value) } }
+        revealedWindows = (defaults.dictionary(forKey: Keys.revealedWindows) as? [String: [String]] ?? [:])
             .reduce(into: [:]) { if let tool = ToolID(rawValue: $1.key) { $0[tool] = Set($1.value) } }
         notificationsEnabled = defaults.object(forKey: Keys.notificationsEnabled) as? Bool ?? true
         notifyOnTrack = defaults.object(forKey: Keys.notifyOnTrack) as? Bool ?? true
@@ -458,33 +656,59 @@ final class Preferences {
         notifyWaiting = defaults.bool(forKey: Keys.notifyWaiting)
         notifyFinished = defaults.bool(forKey: Keys.notifyFinished)
         finishedAfterMinutes = defaults.object(forKey: Keys.finishedAfter) as? Int ?? 2
+        notifyExtraUsage = defaults.object(forKey: Keys.notifyExtraUsage) as? Bool ?? true
+        notifyCacheShift = defaults.bool(forKey: Keys.notifyCacheShift)
+        sessionAttention = SessionAttention(rawValue: defaults.string(forKey: Keys.sessionAttention) ?? "") ?? .nothing
         notificationSound = defaults.object(forKey: Keys.notificationSound) as? Bool ?? true
+        soundPace = defaults.string(forKey: Keys.soundPace) ?? NotificationSound.defaultChoice
+        soundWaiting = defaults.string(forKey: Keys.soundWaiting) ?? NotificationSound.defaultChoice
+        soundFinished = defaults.string(forKey: Keys.soundFinished) ?? NotificationSound.defaultChoice
         quietHoursEnabled = defaults.bool(forKey: Keys.quietHours)
         quietHoursStart = defaults.object(forKey: Keys.quietStart) as? Int ?? 22 * 60
         quietHoursEnd = defaults.object(forKey: Keys.quietEnd) as? Int ?? 8 * 60
+        peakHours = Self.codable(defaults, Keys.peakHours) ?? .anthropic
+        peakHoursTools = (defaults.array(forKey: Keys.peakHoursTools) as? [String]).map { Set($0.compactMap(ToolID.init(rawValue:))) } ?? [.claude]
         extraTranscriptRoots = defaults.stringArray(forKey: Keys.extraRoots) ?? []
         localAPIEnabled = defaults.bool(forKey: Keys.localAPI)
+        localAPIOrigins = defaults.stringArray(forKey: Keys.localAPIOrigins) ?? []
         codexResetCredits = defaults.bool(forKey: Keys.codexCredits)
-        togglePanelHotkey = Self.hotkey(defaults, Keys.hotkeyToggle)
-        openSettingsHotkey = Self.hotkey(defaults, Keys.hotkeySettings)
+        cursorUsageEvents = defaults.bool(forKey: Keys.cursorEvents)
+        copilotOrgBilling = defaults.bool(forKey: Keys.copilotOrg)
+        keychainPrompts = KeychainPromptPolicy(rawValue: defaults.string(forKey: Keys.keychainPrompts) ?? "") ?? .refreshOnly
+        keepAwake = defaults.bool(forKey: Keys.keepAwake)
+        keepAwakeOnBattery = defaults.bool(forKey: Keys.keepAwakeBattery)
+        autoRepairHooks = defaults.object(forKey: Keys.autoRepair) as? Bool ?? true
+        proxyURL = defaults.string(forKey: Keys.proxy) ?? ""
+        debugLogging = defaults.bool(forKey: Keys.debugLogging)
+        betaUpdates = defaults.bool(forKey: Keys.betaUpdates)
+        language = defaults.string(forKey: Keys.language).flatMap(Localization.canonical)
+        togglePanelHotkey = Self.codable(defaults, Keys.hotkeyToggle)
+        openSettingsHotkey = Self.codable(defaults, Keys.hotkeySettings)
         hookOfferShown = defaults.bool(forKey: Keys.hookOffer)
         let status = SMAppService.mainApp.status
         launchAtLoginStatus = status
         launchAtLogin = status == .enabled
         Money.configure(code: currencyCode, rate: currencyRate)
+        Keychain.setPolicy(keychainPrompts)
+        NetworkSession.configure(proxy: proxyURL)
+        DiagnosticLog.verbose = debugLogging
     }
 
-    private static func hotkey(_ defaults: UserDefaults, _ key: String) -> Hotkey? {
+    private static func codable<T: Decodable>(_ defaults: UserDefaults, _ key: String) -> T? {
         guard let data = defaults.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(Hotkey.self, from: data)
+        return try? JSONDecoder().decode(T.self, from: data)
     }
 
-    private func store(_ hotkey: Hotkey?, forKey key: String) {
-        if let hotkey, let data = try? JSONEncoder().encode(hotkey) {
+    private func storeCodable<T: Encodable>(_ value: T?, forKey key: String) {
+        if let value, let data = try? JSONEncoder().encode(value) {
             defaults.set(data, forKey: key)
         } else {
             defaults.removeObject(forKey: key)
         }
+    }
+
+    private func store(_ value: Double?, forKey key: String) {
+        if let value, value > 0 { defaults.set(value, forKey: key) } else { defaults.removeObject(forKey: key) }
     }
 
     func setLaunchAtLogin(_ enabled: Bool) throws {
@@ -510,14 +734,22 @@ final class Preferences {
         toolOrder.swapAt(index, index + offset)
     }
 
+    /// Hidden by the user, or hidden by default and not revealed.
     func isHidden(_ window: LimitWindow, of tool: ToolID) -> Bool {
-        hiddenWindows[tool]?.contains(window.id) ?? false
+        if window.hiddenByDefault { return !(revealedWindows[tool]?.contains(window.id) ?? false) }
+        return hiddenWindows[tool]?.contains(window.id) ?? false
     }
 
-    func setHidden(_ hidden: Bool, window id: String, of tool: ToolID) {
-        var set = hiddenWindows[tool] ?? []
-        if hidden { set.insert(id) } else { set.remove(id) }
-        hiddenWindows[tool] = set.isEmpty ? nil : set
+    func setHidden(_ hidden: Bool, window: LimitWindow, of tool: ToolID) {
+        if window.hiddenByDefault {
+            var set = revealedWindows[tool] ?? []
+            if hidden { set.remove(window.id) } else { set.insert(window.id) }
+            revealedWindows[tool] = set.isEmpty ? nil : set
+        } else {
+            var set = hiddenWindows[tool] ?? []
+            if hidden { set.insert(window.id) } else { set.remove(window.id) }
+            hiddenWindows[tool] = set.isEmpty ? nil : set
+        }
     }
 
     /// The reading's windows in the order the card shows them, hidden ones left out.
@@ -527,12 +759,12 @@ final class Preferences {
 
     /// The two windows the rings show: the chosen ids when they exist in the reading, else the first two shown.
     func ringWindows(of reading: UsageReading) -> [LimitWindow] {
-        RingSelection.windows(of: reading, chosen: ringWindows[reading.tool] ?? [], hidden: hiddenWindows[reading.tool] ?? [])
+        RingSelection.windows(of: reading, chosen: ringWindows[reading.tool] ?? [], hidden: Set(reading.windows.filter { isHidden($0, of: reading.tool) }.map(\.id)))
     }
 
     func resetLine(for window: LimitWindow, stale: Bool = false, now: Date = Date()) -> String {
         ResetText.line(resetsAt: window.resetsAt, hasLimit: window.usedFraction != nil, display: resetDisplay, timeFormat: timeFormat,
-                       stale: stale, now: now)
+                       stale: stale, unused: window.usedFraction == 0, now: now)
     }
 
     func usageLine(for window: LimitWindow) -> String? {
@@ -548,6 +780,21 @@ final class Preferences {
         guard quietHoursEnabled else { return false }
         return QuietHours.contains(minute: calendar.component(.hour, from: date) * 60 + calendar.component(.minute, from: date),
                                    start: quietHoursStart, end: quietHoursEnd)
+    }
+
+    /// The peak window that applies to a tool, when one does.
+    func peakHours(for tool: ToolID) -> PeakHours? {
+        peakHours.enabled && peakHoursTools.contains(tool) ? peakHours : nil
+    }
+
+    /// The notification sound choice for one event class.
+    func sound(for event: Notifier.SoundEvent) -> String {
+        guard notificationSound else { return NotificationSound.none }
+        switch event {
+        case .pace: return soundPace
+        case .waiting: return soundWaiting
+        case .finished: return soundFinished
+        }
     }
 
     /// Empties this app's defaults domain; the caller relaunches, so nothing here needs to be re-read.

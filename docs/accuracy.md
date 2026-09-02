@@ -103,7 +103,7 @@ Claude Code's own figure is an API-price estimate and Anthropic says so. [B]: *"
 What the Cost card means on each kind of account:
 
 - **Pro, Max, Team, Enterprise seat.** Nothing here is a bill. The figure is the API-equivalent value of the work your sessions did, useful for pace, for comparing days and for judging what a plan is worth. Usage credits drawn past the plan limit are billed by Anthropic at its own rates; the card does not know which lines were inside the allowance and which drew credits.
-- **API key or Console.** The figure is an estimate at list price. [B]: *"By default, Claude Code computes every cost figure it shows developers at list price, so if your organization pays contracted rates, the figures in `/usage`, the status line, and OpenTelemetry don't match your bill."* Notchmeter has no `modelPricing` equivalent, so contracted rates are not modelled either. The authoritative number is the Usage page in the Claude Console.
+- **API key or Console.** The figure is an estimate at list price. [B]: *"By default, Claude Code computes every cost figure it shows developers at list price, so if your organization pays contracted rates, the figures in `/usage`, the status line, and OpenTelemetry don't match your bill."* Notchmeter reads Claude Code's `modelPricing` table and its own overrides file (above), so contracted rates are modelled exactly when one of those carries them and not otherwise. The authoritative number is the Usage page in the Claude Console.
 - **Bedrock, Vertex, Foundry.** Priced at Anthropic list. Partner platforms have their own price lists; per [C], *"Regional and multi-region endpoints include a 10% premium over global endpoints"* on Bedrock and Google Cloud, which is not modelled.
 
 ## Known divergences
@@ -134,6 +134,30 @@ The Cost card's "Last hour $8.40 · 6x your 30-day average" line, and the Advice
 - **Last hour** is the priced sum of entries whose timestamp is within the past 60 minutes.
 - **Typical hourly** is the mean priced cost of an active hour across the 30-day window: the window's total divided by its number of active hours, an active hour being any clock hour (UTC-aligned) with at least one entry. Hours you were not using Claude Code do not pull the average down. It was a median until 2026-09-02; agent work is bursty, most active hours cost cents and a few cost tens of dollars, so the median sat near zero and an ordinary hour read as "83x your usual". The mean is the figure the multiple is named after, and a burst is now measured against the whole month.
 - **Burn multiple** is last hour ÷ typical hourly, shown with one decimal below ten ("2.3x") and none from ten up ("18x"). It is not shown until five active hours exist and the average is above zero, so a fresh install or an all-unpriced history never shows "∞x".
+
+## Peak hours
+
+Anthropic applies tighter session limits on weekdays between 05:00 and 11:00 Pacific. That window is reporting, not documentation: The Register described it on 2026-03-26 from Anthropic's announcement, and Anthropic's support article on usage limits does not publish the hours. So it is a preference (Settings › Advanced › Peak hours, on for Claude only by default, editable, off for every other vendor because none has announced one), not a constant the meter vouches for. What it changes: inside the window the session projection assumes the peak rate observed in the drain log; the advice names the next off-peak start for a long job ("Off-peak in 1h 20m: start the long job then"); and the run-out interval below keeps peak and off-peak rates apart when it has enough of each. Pinned by `PeakHoursTests`.
+
+## The run-out interval
+
+The even-burn projection and the last-hour drain both answer with one time. The interval answers with two, from the drain log: every hour of the last seven days in which the window moved gives a rate (used fraction per hour, from the log's rows, reset boundaries excluded); the 20th and 80th percentiles of those rates give the latest and the earliest run-out for what is left, and the card and the notification say "Runs out between 2:10 PM and 4:40 PM" when the two are more than an hour apart, or one time when they are not. Fewer than four rates give no interval, a run-out past the reset gives none, and with peak hours on and at least four rates on each side the estimate uses only the rates that match the current side of the boundary. It is a description of your own recent hours, not a model of the vendor's metering. Pinned by `RunOutTests`.
+
+## Session metering
+
+Anthropic meters the session window in something other than tokens, and the ratio moves: the same work costs a different share of the window on different days. Notchmeter measures the ratio it can see: the current 5-hour block's tokens (from the transcripts, aligned to `five_hour.resets_at`) divided by the session window's used percentage from the same reading, "1.1M tokens per 1% of session", recorded once a day in the daily-history file (`sessionTokensPerPercent`) and compared with the median of the last 30 days' values (at least four are needed). When today's figure is half the median or less, that is, the session is metering at least twice as heavily as usual, the Cost card says so and the Advice strip carries "The session is metering about 2.1x heavier than your norm"; the *When the cache tier or the metering shifts* notification fires for it once a day. A ratio under 1 % of the window used is not recorded, because the division is too noisy there.
+
+## The cache tier shift
+
+Per [A], a subscription gets the 1-hour cache TTL inside the plan's included usage and drops to the 5-minute tier once it draws on usage credits, and the 5-minute tier re-caches the prompt more often, which costs more per turn. The transcripts show which tier each write used (`ephemeral_1h_input_tokens` against `ephemeral_5m_input_tokens`), so the share of today's cache writes on the 1-hour tier is compared with the same share over the last 30 days; when today is at least 25 points lower and today has at least 100,000 cache-write tokens to judge by, the Cost card notes the shift and the Advice strip says "Cache writes today are 12% 1-hour against a 30-day norm of 64%". It is an observation of the tier, not of the credits: the transcripts do not say why the tier changed.
+
+## The budget
+
+A monthly or weekly budget (Settings › Cost, in the currency shown) is treated as one more window: the month's spend over the budget is the used fraction, the calendar month (or the week from its start) is the period, the same pace tick applies, and the on-track, behind and run-out notifications fire for it with the month as their once-per-period memory. Its `source` is `localEstimate`, because both sides of the fraction are this Mac's arithmetic. The extra-usage notice ("Extra usage rose $4.20 in 1h while your plan has 87% left") reads the vendor's own extra-usage figure from the usage endpoint and says it once a month, louder while the plan still has room.
+
+## Cursor's usage events
+
+With *Also read Cursor's usage events* on (off by default), a second read of cursor.com on the same session cookie (`POST /api/dashboard/get-filtered-usage-events`, the request the dashboard's usage page makes) returns the last 30 days of usage events with the cost Cursor itself assigns to each; those are folded into the daily-history file as a Cursor series and shown as Today, 30 days and the trend on the Cost card's Cursor mode. Nothing is priced here: the figures are Cursor's own, in Cursor's cents, and a model or request Cursor left unpriced stays unpriced. The endpoint is undocumented, its shape was taken from the dashboard's own traffic and pinned in `CursorParsingTests`, and this Mac's free plan returns no events, so the first live run with a paid plan is a user's.
 
 ## The golden tests
 

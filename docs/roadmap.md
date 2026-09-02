@@ -2,20 +2,20 @@
 
 Where Notchmeter stands against the plan it is built to, what is shipped, what is pending, what is blocked on a decision or an account, and the questions still open. Repository facts below were read on 2026-09-02; the plan's competitive figures are from 2026-09-01.
 
-## Where the repository stands (2026-09-02, after the round-1 gap fixes)
+## Where the repository stands (2026-09-02, after the round-2 gap fixes)
 
 | | |
 |---|---|
 | Visibility | private, 0 stars, 0 forks, created 2026-09-02, no topics |
 | Version | 0.1.0 (`scripts/Info.plist`), no tag, no release |
-| Code | 43 Swift files under `Sources/Notchmeter`, about 11,200 lines; `Vendor/DynamicNotchKit` (MIT) |
-| Tests | 218 tests in 46 suites, `scripts/test.sh`, 0.1 s |
+| Code | 50 Swift files under `Sources/Notchmeter`, about 15,200 lines; `Vendor/DynamicNotchKit` (MIT) |
+| Tests | 299 tests in 72 suites, `scripts/test.sh`, 0.5 s |
 | Languages | en, zh-Hans, zh-Hant, ja, ko, vi (the last four drafted here, native review pending) |
 | CI | `.github/workflows/ci.yml` on macos-15 (gate) and macos-latest (allowed to fail): release build with a zero-warnings check on `Sources/`, tests, app assembly, artifact; `pricing.yml` weekly, diffing the pricing page against the committed snapshot |
 | Release pipeline | `scripts/release.sh` and `.github/workflows/release.yml`: universal binary, Developer ID, hardened runtime, notarisation, stapled DMG, EdDSA-signed Sparkle appcast, Homebrew cask file. Proven with `--dry-run`; **unsigned until the Developer ID, notary key and Sparkle key exist** |
 | Licence | MIT at the root |
 | Assets | `docs/media`: GIF, five PNGs (an Increase Contrast variant included); `docs/launch/gallery`: the eight Product Hunt composites and the thumbnail, all drawn from fixture readings by `--render-assets` and `--render-gallery` |
-| Skill | `skills/notchmeter/SKILL.md` over `--probe --no-prompt --json` |
+| Skill | `skills/notchmeter/SKILL.md` over the `notchmeter` command-line tool (falling back to `--probe --no-prompt --json`); `--mcp` serves the same object as an MCP tool |
 
 The plan's premise, that "best in the world" is reachable on craft, correctness and prescription rather than on features, is unchanged. Its reference-class forecast for a new notch meter launched into this field, P(more than 2,342 stars in 12 months) ≈ 12% and P(more than 500) ≈ 35%, resolves on 2027-09-01 and is the number the day-90 decision is scored against.
 
@@ -36,7 +36,17 @@ Update this table at each stage's commit: `ls Sources/Notchmeter/*.swift | wc -l
 | Measured drain (the utilization log) ahead of the even-burn projection, in the strip, the notifications and `--probe` | shipped | `DrainLog.swift`, `DrainLogTests.swift` |
 | "Waiting for you" per session, with the project name and a count; session presence ("2 sessions · working 2m 10s") | shipped | `SessionTracker.swift`, `Hook.swift`, `docs/hooks.md` |
 | A skill so Claude Code itself can read the windows and the advice before long work | shipped | `skills/notchmeter/SKILL.md`, `UsageReport.swift` |
-| Claude Code's `quota_auto_resume_*` notification types as an input to the wait rule | pending | passed through as activity today; `Hook.swift` |
+| Claude Code's `quota_auto_resume_*` notification types as an input to the wait rule | shipped | `Hook.quotaWaitNotificationTypes`, `SessionTracker.quotaWaiting`; `StopFailure` rate limits raise the *Limit hit* stage at once |
+| A monthly or weekly budget treated as one more window (pace tick, projection, the pace notifications with the month as the period) | shipped | `BudgetPeriod`, `NotificationScheduler.budgetReading`, `BudgetTests.swift`; accuracy doc "The budget" |
+| Peak hours (Anthropic's weekday 05:00–11:00 Pacific window, editable, reporting not documentation) in the projection, the advice and the run-out | shipped | `PeakHours.swift`, `Advisor.peak`; accuracy doc "Peak hours" |
+| A run-out *interval* from the drain log's hourly rates (20th/80th percentile, peak and off-peak apart) | shipped | `RunOut.swift`, `RunOutTests.swift`; accuracy doc "The run-out interval" |
+| Session metering ratio (tokens per 1 % of the session against the 30-day median) and the cache-tier shift, on the card, in the advice and as a once-a-day notification | shipped | `MeteringRatio`, `CacheTTL`, `Advisor.metering`, `Advisor.cacheShift` |
+| Extra-usage rise ("you are now paying"), once a month, louder while the plan has room; each rise in the drain log with the plan windows | shipped | `Advisor.extraUsage`, `DrainLog.appendExtraUsage` |
+| Advice lines as notifications with their own repeat memory; per-event sounds; time-sensitive *waiting* and *limit hit*; delivered notifications withdrawn when their reason passes | shipped | `NotificationScheduler.planAdvice`, `NotificationSound.swift`, `Notifier.removeDelivered`, `scripts/Notchmeter.entitlements` |
+| A vendor's Usage and Status links on the card and in the advice; server trouble named with the status page | shipped | `ProviderLinks`, `Advisor.serverTrouble` |
+| The `notchmeter` command-line tool over the running app's report file and local API; `--mcp` server; `--history` | shipped | `CommandLineTool.swift`, `MCPServer.swift`, `Paths.reportFile` |
+| Hooks from another machine over the local API (`POST /v1/hook`), subagent counting, the branch and permission mode | shipped | `LocalAPI.swift`, `Hook.swift`, `SessionTracker.agents`; docs/hooks.md |
+| Status line: the spend limit as a third window (kept past 100 %), effort, today and block from the report file, pace colours | shipped | `Statusline.swift` |
 
 ### Wedge 2: correctness as a published, tested guarantee
 
@@ -47,6 +57,10 @@ Update this table at each stage's commit: `ls Sources/Notchmeter/*.swift | wc -l
 | Real output count (last line of a streamed response), measured: 35% more output tokens than first-line dedupe on this machine | shipped | accuracy doc "The output_tokens placeholder" |
 | Golden-transcript suite pinning eight fixtures to nine decimals, plus the round-1 fixtures (web search, fast mode, projects, week/month/90 days, history, digests, overrides, Cowork layout) | shipped | `CostGoldenTests.swift`, `CostBreakdownTests.swift` |
 | Rate-limit-header parser as a degradation path; **no** inference probe for headers, by decision | shipped | `ClaudeProvider.swift`; accuracy doc "Why there is no header fallback" |
+| Every window carries its source (`vendorEndpoint`, `statusline`, `rateLimitHeaders`, `localSnapshot`, `localEstimate`), tagged on the card and in `--probe --json` | shipped | `WindowSource`, `LimitWindow.source` |
+| Claude Code's login read without a Keychain dialog: prompts-off Keychain read, `/usr/bin/security`, the credential files, `CLAUDE_CODE_OAUTH_TOKEN`; a prompt only on an interactive refresh under the *Keychain prompts* policy; API-key setups named | shipped | `Keychain.swift`, `ClaudeProvider.resolveCredentials`, `KeychainPolicyTests.swift` |
+| Codex home (`$CODEX_HOME`, `~/.config/codex`), plan slugs; Cursor model split, team pool and opt-in usage events as a cost series; Copilot token fall-through and opt-in organisation billing; Antigravity window periods inferred from the reset times | shipped | `CodexProvider.swift`, `CursorProvider.swift`, `CopilotProvider.swift`, `AntigravityPeriods` |
+| Cost card modes (Cost, Tokens, $/MTok), CSV and JSON export of the daily history | shipped | `CostHistory.csv`, `CostHistory.json`, `SpendCard` |
 | Claude Code status line as a sanctioned, local, zero-network source for the session and weekly windows, the context fill and the session cost; the endpoint is not polled while a report is under three minutes old | shipped | `Statusline.swift`, `HookSettings.installStatusline`, `docs/hooks.md`; the fallback if Anthropic says no ([anthropic-inquiry.md](anthropic-inquiry.md)) |
 | Web search per-request fee, fast-mode rates | shipped (modelled) | accuracy doc "Web search", "Fast mode" |
 | Claude Code's `modelPricing` and a pricing-overrides file | shipped | `ModelPricing.loadOverrides` |
@@ -76,7 +90,9 @@ Update this table at each stage's commit: `ls Sources/Notchmeter/*.swift | wc -l
 | Copy a card or the panel as an image | shipped | `CardImage` |
 | Offline state without a fault mark; display sleep; Low Power Mode; delayed read after wake | shipped | `PollingPolicy.swift`, `UsageStore.swift` |
 | First-launch hook offer (a button, never automatic); hook status and Repair; hook alert as a sheet; login-item approval; App Translocation offer; Reset All Settings | shipped | `SettingsWindow.swift`, `Translocation.swift` |
-| Measured energy figure on the README (ps/top) | shipped, predates the incremental summing; re-measure | README "Energy" |
+| Measured energy figure on the README (ps/top) | shipped, re-measured 2026-09-02 on this build | README "Energy" |
+| Display identity by vendor, model, serial and unit numbers; rebuilds debounced and counted; pointer following with a settle; menu bar and Dock auto-hide, the Stage Manager strip, off-Space presenters, fast user switching, per-tool reset refresh, keep-awake while working | shipped | `DisplayIdentity`, `EdgePanelController.Chrome`, `HoverDriver.isOffScreen`, `AwakeKeeper.swift` |
+| Local API hardening (no CORS wildcard, Origin allow-list, loopback Host), proxy setting, debug logging, Copy diagnostics, beta update channel, in-app language picker, per-tool menu bar pin with a Bars style, hook auto-repair at launch | shipped | `LocalAPI.swift`, `NetworkSession`, `Diagnostics.swift`, `Updater.ChannelDelegate`, `Localization.applyPreferred`, `MenuBarBars`, `HookRepair` |
 | `powermetrics` Energy Impact figure | **blocked: needs sudo**; one command in the README's Energy section | run it once on the release build and replace the table's headline |
 | Bullet bars instead of rings in the expanded panel (the plan's position-over-angle argument) | closed | the panel's pace meters are horizontal bars with the pace tick already; the rings stay in the compact state |
 | Simplified Chinese, Traditional Chinese, Japanese, Korean, Vietnamese | shipped; the last four need a native review before release | `Resources/*.lproj` |
@@ -102,6 +118,19 @@ The round-1 gap analysis (2026-09-02) listed these as "defer": document, do not 
 | Signed, notarised, Sparkle-updated release v0.1.0 and everything gated on it (tap, Setapp, Show HN, Product Hunt) | docs/release.md steps 1–5 need the Apple Developer Program (US$99), a Developer ID certificate, an App Store Connect API key and a Sparkle EdDSA key; `SUPublicEDKey` and the cask's sha256 are placeholders until then. The pipeline is proven with `--dry-run` | [release.md](release.md); `scripts/Info.plist`; `packaging/homebrew/notchmeter.rb` |
 | Public repository, GitHub topics, the Anthropic inquiry, launch posts, awesome-list submissions and the domain | The user's actions, all with copy written: flip the repo to public and apply the topics ([launch/awesome-lists.md](launch/awesome-lists.md)), send [anthropic-inquiry.md](anthropic-inquiry.md) from a personal address, post [show-hn.md](launch/show-hn.md) then [product-hunt.md](launch/product-hunt.md), file the list submissions on their gates, confirm notchmeter.app/.com at a registrar | this file, "Days 46–90" and "Domain" |
 | Fleet roll-up (Wedge 4) | Gated on the day-90 decision (2026-12-01), not on this machine; the daily document schema and its key allow-list test come first when it is taken | plan §4 Wedge 4, §8; this file, "Fleet roll-up: design sketch" |
+
+## Deferred gaps (round 2)
+
+The round-2 gap analysis (2026-09-02) listed these as "defer": document, do not build now. Each carries the source the analysis cited.
+
+| Gap | Why deferred | Source |
+|---|---|---|
+| Hooks for Codex, Cursor and Gemini CLI, so presence, the waiting badge and instant refresh are not Claude-only: an installer with status and Repair per tool (`~/.codex/hooks.json`, `~/.cursor/hooks.json`, the `hooks` object of `~/.gemini/settings.json`), a per-tool parser onto `Hook.Message`, `SessionTracker` keyed by tool and session, the waiting dot and the sessions line on every card | Large: three more installers writing three vendors' settings files, each with its own event names and payloads, and the presence rule's per-tool quiet; the Claude path was built first because its hook reference is stable and the status line rides on it | https://github.com/wxtsky/CodeIsland (README, "Auto hook installation"); https://learn.chatgpt.com/docs/hooks; https://cursor.com/docs/agent/hooks; https://geminicli.com/docs/hooks/reference/; `Sources/Notchmeter/HookSettings.swift`; `Sources/Notchmeter/Hook.swift` |
+| Multiple accounts per provider (personal + work Claude, two Codex logins): a provider instance as tool + config dir + label, Claude instances discovered from the hashed `Claude Code-credentials-<hash>` Keychain items and their config dirs, Codex from `CODEX_HOME`, each with its own card, ring pair, drain-log key and cost roots, keyed everywhere by a stable instance id | Large, and deferred in round 1 for the same reason: `ToolID` is a fixed enum through Preferences, UsageStore, the rings, Advisor and the oracle, and a second live account cannot be exercised from this machine; the most-requested feature on both GUI incumbents, so it is next once the single-account path has had external review | https://github.com/robinebers/openusage/issues/402 |
+| `powermetrics` Energy Impact figure | Needs sudo and a human at the keyboard: `sudo powermetrics --samplers tasks --show-process-energy -i 60000 -n 5 \| grep -E '^Name\|Notchmeter'` on the release build with the panel idle, then paste the figure into the README Energy table's headline, the Show HN paragraph and the gallery frame | https://blog.mozilla.org/nnethercote/2015/08/26/what-does-the-os-x-activity-monitors-energy-impact-actually-measure/ ; README "Energy"; this file, Wedge 3 |
+| Native review of the zh-Hant, ja, ko and vi tables before release | Nothing on this machine can supply it; the tables pass the key-coverage test only. One native speaker per language reads `Resources/<lang>.lproj/Localizable.strings` against the English table and the `--smoke --lang <code>` output; corrections land as one-line pull requests and the README sentence is removed | README "Languages"; this file, Wedge 3 and "Open questions" |
+| Signed, notarised, Sparkle-updated v0.1.0 | docs/release.md steps 1–4 need the Apple Developer Program (US$99), a Developer ID certificate, a notarytool profile and `generate_keys`; `scripts/Info.plist` still carries `REPLACE_WITH_SPARKLE_PUBLIC_KEY` and the cask `REPLACE_WITH_DMG_SHA256`. The pipeline is proven with `scripts/release.sh --dry-run`; the time-sensitive notifications capability on the App ID is one more click there | [release.md](release.md); README "Install"; `scripts/Info.plist` |
+| Public repository, GitHub topics, the Anthropic inquiry, list submissions and the domain | The user's actions: `gh repo edit Amir-Hackett/notchmeter --visibility public` and the topic command in [launch/awesome-lists.md](launch/awesome-lists.md), the inquiry sent from a personal address, the four list submissions on their dated gates, and notchmeter.app/.com confirmed at a registrar; changing visibility, sending mail and posting are prohibited from the sessions that write this code | this file, "Where the repository stands" and "Days 46–90"; [launch/awesome-lists.md](launch/awesome-lists.md); [anthropic-inquiry.md](anthropic-inquiry.md) |
 
 ## The 90-day plan against the repository
 
@@ -182,7 +211,7 @@ Carried from the plan, with what has changed:
 - **Domain availability** is RDAP absence, not a registrar answer (above).
 - **Chinese-market share of this audience** is an inference from CodeIsland's bilingual UI and Chinese developers' tool preferences; the zh-Hans localisation is shipped, so the question is now measurable from download and issue language once the app is public.
 - **The four new languages** were drafted without a native speaker; a review before the first release is the honest requirement.
-- **The Copilot, Codex-extras and status-line parsers** were written against documented payload shapes and fixtures, not against a live account on this Mac (no Copilot token here; Codex on a free plan reports no additional limits or credits; the status line has not been installed in this session's settings.json by decision). Their first live run is a user's.
+- **The Copilot, Codex-extras and status-line parsers** were written against documented payload shapes and fixtures, not against a live account on this Mac (no Copilot token here; Codex on a free plan reports no additional limits or credits; the status line has not been installed in this session's settings.json by decision). Their first live run is a user's. The same holds for the round-2 additions that this Mac cannot exercise: Cursor's usage-events endpoint (free plan, no events), Copilot organisation billing (no token), the Stage Manager strip (off here; its 152 pt width is from screenshots), remote hooks over a tunnel (tested against the loopback API only) and the beta update channel (the updater is gated off until the Sparkle key exists).
 - **Not investigated:** undocumented rate limits on Anthropic's usage endpoint that would make five minutes risky for a reason other than the terms (the app backs off on 429, which is the only observable); whether Team/Enterprise Claude Code tokens answer the same endpoint; an Intel energy figure.
-- **The `powermetrics` figure** needs sudo and a human at the keyboard; one command, in the README. The energy figures on the README also predate the incremental summing and should be re-measured on the release build.
+- **The `powermetrics` figure** needs sudo and a human at the keyboard; one command, in the README. The ps/top figures were re-measured on 2026-09-02 on this build with a Claude Code session writing transcripts in the background.
 - **Bullet bars vs rings in the expanded panel** is closed unless a screenshot review reopens it; the panel already uses horizontal meters with the pace tick.
