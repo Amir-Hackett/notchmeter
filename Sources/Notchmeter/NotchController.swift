@@ -109,6 +109,7 @@ final class NotchController: NSObject, PanelPresenting {
     private var cancellables = Set<AnyCancellable>()
     private var collapseTask: Task<Void, Never>?
     private var rightClickMonitor: Any?
+    private var motionObserver: NSObjectProtocol?
 
     init(store: UsageStore, prefs: Preferences, actions: NotchActions) {
         self.store = store
@@ -124,6 +125,10 @@ final class NotchController: NSObject, PanelPresenting {
         }
         super.init()
         notch.transitionConfiguration.skipIntermediateHides = true
+        applyMotionPreference()
+        motionObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.applyMotionPreference() }
+        }
         notch.$isHovering
             .removeDuplicates()
             .sink { [weak self] hovering in
@@ -156,12 +161,22 @@ final class NotchController: NSObject, PanelPresenting {
     func hide() async {
         if let rightClickMonitor { NSEvent.removeMonitor(rightClickMonitor) }
         rightClickMonitor = nil
+        if let motionObserver { NSWorkspace.shared.notificationCenter.removeObserver(motionObserver) }
+        motionObserver = nil
         collapseTask?.cancel()
         await notch.hide()
     }
 
     func showOptions() {
         menu.popUp(in: notch.windowController?.window)
+    }
+
+    /// Reduce Motion swaps the notch's spring transitions for instant state changes; the hover grace period stays.
+    private func applyMotionPreference() {
+        let instant: Animation? = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? .linear(duration: 0) : nil
+        notch.transitionConfiguration.openingAnimation = instant
+        notch.transitionConfiguration.closingAnimation = instant
+        notch.transitionConfiguration.conversionAnimation = instant
     }
 
     private func hoverChanged(_ hovering: Bool) {

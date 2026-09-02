@@ -10,20 +10,43 @@ extension ToolID {
     }
 }
 
+/// Status colours are Wong's colour-blind-safe set, and every status also carries a shape or a symbol so the
+/// meaning never rests on hue alone. Tool identity keeps its own colours on the bars.
+enum Palette {
+    static let calm = Color(hex: 0x0072B2)    // #0072B2 blue: needs you, not running out
+    static let warn = Color(hex: 0xE69F00)    // #E69F00 orange: on track, nearly full, needs attention
+    static let danger = Color(hex: 0xD55E00)  // #D55E00 vermillion: behind pace, out
+}
+
+private extension Color {
+    init(hex: UInt32) {
+        self.init(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
+    }
+}
+
 private extension Pace.Status {
     var meterColor: Color? {
         switch self {
         case .ahead: nil
-        case .onTrack: .yellow
-        case .behind: .red
+        case .onTrack: Palette.warn
+        case .behind: Palette.danger
         }
     }
 
     var noteColor: Color {
         switch self {
         case .ahead: .secondary
-        case .onTrack: .yellow
-        case .behind: .red
+        case .onTrack: Palette.warn
+        case .behind: Palette.danger
+        }
+    }
+
+    /// The non-colour channel beside a pace note; ahead is the quiet state and carries none.
+    var symbolName: String? {
+        switch self {
+        case .ahead: nil
+        case .onTrack: "arrow.up.right"
+        case .behind: "exclamationmark.triangle.fill"
         }
     }
 }
@@ -42,47 +65,80 @@ struct RingView: View {
     var fraction: Double?
     var color: Color
     var lineWidth: CGFloat = 3
+    /// Drawn as a cap on the arc's end: hollow when on track, filled when behind. Shape, not colour, carries it.
+    var pace: Pace.Status? = nil
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
             Circle()
                 .stroke(color.opacity(0.22), lineWidth: lineWidth)
             if let fraction {
+                let shown = max(0.015, min(1, fraction))
                 Circle()
-                    .trim(from: 0, to: CGFloat(max(0.015, min(1, fraction))))
+                    .trim(from: 0, to: CGFloat(shown))
                     .stroke(tint(fraction), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
+                if let pace, pace != .ahead {
+                    GeometryReader { geometry in
+                        let radius = min(geometry.size.width, geometry.size.height) / 2 - lineWidth / 2
+                        let angle = -Double.pi / 2 + 2 * .pi * shown
+                        PaceCap(filled: pace == .behind, color: pace == .behind ? Palette.danger : Palette.warn, diameter: lineWidth * 2.2)
+                            .position(x: geometry.size.width / 2 + radius * cos(angle), y: geometry.size.height / 2 + radius * sin(angle))
+                    }
+                }
             } else {
                 Circle()
                     .stroke(color.opacity(0.55), style: StrokeStyle(lineWidth: lineWidth, dash: [2, 3]))
             }
         }
-        .animation(.snappy(duration: 0.4), value: fraction)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.4), value: fraction)
     }
 
     private func tint(_ fraction: Double) -> Color {
-        fraction >= 0.95 ? .red : fraction >= 0.8 ? .yellow : color
+        fraction >= 0.95 ? Palette.danger : fraction >= 0.8 ? Palette.warn : color
     }
 }
 
-struct CompactRings: View {
-    let status: ToolStatus
+private struct PaceCap: View {
+    let filled: Bool
     let color: Color
+    let diameter: CGFloat
+
+    var body: some View {
+        Circle()
+            .fill(filled ? color : .black)
+            .overlay(Circle().stroke(color, lineWidth: filled ? 0 : 1))
+            .frame(width: diameter, height: diameter)
+    }
+}
+
+/// One tool's rings. The presence level sets how loud they are (Presence.swift): 14 pt at 70 % when quiet,
+/// 18 pt when legible, 18 pt with a 1.5 s opacity pulse when urgent; no pulse under Reduce Motion.
+struct CompactRings: View {
+    let tool: ToolID
+    let status: ToolStatus
     var awaitingInput = false
+    var presence: PresenceLevel = .legible
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulsing = false
 
     var body: some View {
         let windows = status.reading?.windows ?? []
+        let quiet = presence == .quiet
         ZStack {
-            RingView(fraction: windows.first?.usedFraction, color: color, lineWidth: 2.5)
-                .frame(width: 18, height: 18)
+            RingView(fraction: windows.first?.usedFraction, color: tool.color, lineWidth: quiet ? 2 : 2.5,
+                     pace: windows.first.flatMap { Pace.status(for: $0) })
+                .frame(width: quiet ? 14 : 18, height: quiet ? 14 : 18)
             if windows.count > 1 {
-                RingView(fraction: windows[1].usedFraction, color: color.opacity(0.8), lineWidth: 2)
-                    .frame(width: 10, height: 10)
+                RingView(fraction: windows[1].usedFraction, color: tool.color.opacity(0.8), lineWidth: quiet ? 1.5 : 2,
+                         pace: Pace.status(for: windows[1]))
+                    .frame(width: quiet ? 8 : 10, height: quiet ? 8 : 10)
             }
             if status.problem != nil {
                 Image(systemName: "exclamationmark")
                     .font(.system(size: 7, weight: .bold))
-                    .foregroundStyle(.yellow)
+                    .foregroundStyle(Palette.warn)
             }
             if awaitingInput {
                 Circle()
@@ -90,10 +146,22 @@ struct CompactRings: View {
                     .frame(width: 5, height: 5)
                     .overlay(Circle().stroke(.black, lineWidth: 1))
                     .offset(x: 7, y: -7)
-                    .accessibilityLabel("Waiting for your input")
             }
         }
-        .opacity(status.reading == nil && status.problem == nil ? 0.5 : 1)
+        .frame(width: 18, height: 18)
+        .opacity((status.reading == nil && status.problem == nil ? 0.5 : 1) * (quiet ? 0.7 : 1))
+        .animation(reduceMotion ? nil : .snappy(duration: 0.4), value: presence)
+        .opacity(pulsing ? 0.4 : 1)
+        .animation(pulsing ? .easeInOut(duration: 1.5).repeatForever(autoreverses: true) : .easeInOut(duration: 0.3), value: pulsing)
+        .onChange(of: presence, initial: true) { updatePulse() }
+        .onChange(of: reduceMotion) { updatePulse() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(tool.displayName)
+        .accessibilityValue(Spoken.status(status, awaitingInput: awaitingInput))
+    }
+
+    private func updatePulse() {
+        pulsing = presence == .urgent && !reduceMotion
     }
 }
 
@@ -110,23 +178,26 @@ struct NotchCompactView: View {
     }
 
     var body: some View {
+        let presence = store.presence
         HStack(spacing: 7) {
             ForEach(tools, id: \.self) { tool in
-                CompactRings(status: store.status(tool), color: tool.color, awaitingInput: store.isAwaitingInput(tool))
+                CompactRings(tool: tool, status: store.status(tool), awaitingInput: store.isAwaitingInput(tool), presence: presence)
             }
         }
         .padding(.horizontal, tools.isEmpty ? 0 : 6)
     }
 }
 
-/// The pill that sits on a screen edge (Codenotch-style layouts).
+/// The rings inside the pill that sits on a screen edge (Codenotch-style layouts); EdgePanelRoot draws the pill.
 struct EdgeCompactView: View {
     let store: UsageStore
     let edge: PanelEdge
 
     var body: some View {
-        let rings = ForEach(store.visibleTools, id: \.self) { tool in
-            CompactRings(status: store.status(tool), color: tool.color, awaitingInput: store.isAwaitingInput(tool))
+        let tools = store.visibleTools
+        let presence = store.presence
+        let rings = ForEach(tools, id: \.self) { tool in
+            CompactRings(tool: tool, status: store.status(tool), awaitingInput: store.isAwaitingInput(tool), presence: presence)
         }
         Group {
             if edge == .bottom {
@@ -135,9 +206,9 @@ struct EdgeCompactView: View {
                 VStack(spacing: 10) { rings }.padding(.vertical, 12).padding(.horizontal, 7)
             }
         }
-        .background(Capsule().fill(.black))
-        .overlay(Capsule().stroke(.white.opacity(0.12), lineWidth: 0.5))
-        .environment(\.colorScheme, .dark)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(AppInfo.name)
+        .accessibilityValue(tools.map { "\($0.displayName): \(Spoken.status(store.status($0), awaitingInput: store.isAwaitingInput($0)))" }.joined(separator: ". "))
     }
 }
 
@@ -198,6 +269,11 @@ struct SpendCard: View {
         }
     }
 
+    private var burnLine: String? {
+        guard let cost = store.cost, let burn = cost.burnMultiple else { return nil }
+        return "Last hour \(Money.dollars(cost.lastHour)) · \(Burn.multiple(burn)) your usual"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -237,8 +313,8 @@ struct SpendCard: View {
                         Spacer()
                         Text(amount.map { Money.dollars($0) } ?? "—").font(.callout).monospacedDigit()
                     }
-                    if let cost = store.cost, let burn = cost.burnMultiple {
-                        Text("Last hour \(Money.dollars(cost.lastHour)) · \(Burn.multiple(burn)) your usual")
+                    if let burnLine {
+                        Text(burnLine)
                             .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                     }
                     if let cost = store.cost, !cost.unpricedModels.isEmpty {
@@ -250,6 +326,9 @@ struct SpendCard: View {
                 }
             }
             .padding(.top, 2)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Cost, \(range.rawValue)")
+            .accessibilityValue(Spoken.line(amount.map { "Claude \(Money.dollars($0))" } ?? "no cost yet", burnLine, "Claude Code sessions at API list prices"))
         }
         .modifier(CardBackground())
     }
@@ -273,25 +352,26 @@ struct ToolCard: View {
                 Spacer()
                 if let problem = status.problem {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.yellow)
+                        .foregroundStyle(Palette.warn)
                         .help(problem)
+                        .accessibilityLabel(problem)
                 }
             }
             .padding(.leading, 2)
             if awaitingInput {
                 Label("Claude Code is waiting for your input", systemImage: "hand.raised.fill")
                     .font(.caption)
-                    .foregroundStyle(tool.color)
+                    .foregroundStyle(Palette.calm)
                     .padding(.leading, 2)
             }
             VStack(alignment: .leading, spacing: 12) {
                 if let reading = status.reading {
                     ForEach(reading.windows) { window in
-                        MeterRow(window: window, color: tool.color, prefs: prefs)
+                        MeterRow(toolName: tool.displayName, window: window, color: tool.color, prefs: prefs)
                     }
                     .opacity(status.problem == nil ? 1 : 0.55)
                     if let observed = reading.observedAt, Date().timeIntervalSince(observed) > 600 {
-                        Text("As of \(RelativeTime.ago(observed))").font(.caption2).foregroundStyle(.tertiary)
+                        Text("As of \(RelativeTime.ago(observed))").font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
                     }
                 }
                 switch status {
@@ -305,10 +385,10 @@ struct ToolCard: View {
                     Text(message).font(.caption).foregroundStyle(.secondary)
                 case .needsAttention(let message, _):
                     Label(message, systemImage: "person.crop.circle.badge.exclamationmark")
-                        .font(.caption).foregroundStyle(.yellow)
+                        .font(.caption).foregroundStyle(Palette.warn)
                 case .failed(let message, _):
                     Label(message, systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 default:
                     EmptyView()
                 }
@@ -326,18 +406,30 @@ struct ToolCard: View {
 }
 
 struct MeterRow: View {
+    let toolName: String
     let window: LimitWindow
     let color: Color
     let prefs: Preferences
 
     var body: some View {
         let pace = Pace.note(for: window)
+        let usage = prefs.usageLine(for: window)
+        let reset = window.usedFraction == nil
+            ? (window.note ?? prefs.resetLine(for: window))
+            : (window.resetsAt == nil ? (window.note ?? "") : prefs.resetLine(for: window))
+        let detail = window.usedFraction != nil && window.resetsAt != nil ? window.note : nil
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline) {
                 Text(window.label).font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 8)
                 if let pace {
-                    Text(pace.text).font(.caption).foregroundStyle(pace.status.noteColor)
+                    HStack(spacing: 3) {
+                        if let symbol = pace.status.symbolName {
+                            Image(systemName: symbol).font(.system(size: 9, weight: .semibold))
+                        }
+                        Text(pace.text).monospacedDigit()
+                    }
+                    .font(.caption).foregroundStyle(pace.status.noteColor)
                 }
             }
             if let used = window.usedFraction {
@@ -347,24 +439,27 @@ struct MeterRow: View {
                     color: pace?.status.meterColor ?? color
                 )
                 HStack {
-                    Text(prefs.usageLine(for: window) ?? "")
+                    Text(usage ?? "").monospacedDigit()
                     Spacer()
-                    Text(window.resetsAt == nil ? (window.note ?? "") : prefs.resetLine(for: window))
+                    Text(reset).monospacedDigit()
                 }
                 .font(.caption).foregroundStyle(.secondary)
-                if window.resetsAt != nil, let note = window.note {
-                    Text(note).font(.caption2).foregroundStyle(.tertiary)
+                if let detail {
+                    Text(detail).font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
                 }
             } else {
                 Meter(fraction: 0, tick: nil, color: .clear)
                 HStack {
                     Text("—")
                     Spacer()
-                    Text(window.note ?? prefs.resetLine(for: window))
+                    Text(reset).monospacedDigit()
                 }
                 .font(.caption).foregroundStyle(.secondary)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(toolName) \(window.label)")
+        .accessibilityValue(Spoken.line(usage, reset, detail, pace?.text))
     }
 }
 
@@ -372,6 +467,7 @@ struct Meter: View {
     let fraction: Double
     let tick: Double?
     let color: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geometry in
@@ -388,7 +484,7 @@ struct Meter: View {
                         .offset(x: min(max(width * CGFloat(tick) - 1, 0), max(width - 2, 0)))
                 }
             }
-            .animation(.snappy(duration: 0.4), value: fraction)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.4), value: fraction)
         }
         .frame(height: 6)
     }
@@ -422,13 +518,17 @@ struct FooterView: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 10)) { context in
+            let next = nextUpdate(now: context.date)
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("\(AppInfo.name) \(AppInfo.version)")
-                    Text(nextUpdate(now: context.date))
+                    Text("\(AppInfo.name) \(AppInfo.version)").monospacedDigit()
+                    Text(next).monospacedDigit()
                 }
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(AppInfo.name) \(AppInfo.version)")
+                .accessibilityValue(Spoken.phrase(next))
                 Spacer()
                 Button {
                     actions.showOptions()
