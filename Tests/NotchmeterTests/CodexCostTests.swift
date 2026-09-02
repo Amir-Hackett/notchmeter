@@ -70,18 +70,18 @@ import Testing
         #expect(abs(result.cost - 0.00175) < 1e-9)
     }
 
-    /// The page prices only Codex's current model, so an older Codex variant falls back to the numbered model it
-    /// is built on: gpt-5.1-codex at gpt-5.1's $1.25 / $0.125 / $10.00.
-    @Test func anOlderCodexVariantFallsBackToItsNumberedModel() {
+    /// Each Codex variant carries its own published row; a provider prefix and case are the only things normalised.
+    @Test func codexVariantsCarryTheirOwnRow() {
         let jsonl = [turnContext(model: "gpt-5.1-codex"), record("resp_a", input: 2000, cached: 1000, output: 1000)].joined(separator: "\n")
         #expect(abs(priced(jsonl).cost - 0.011375) < 1e-9)
         #expect(OpenAIPricing.rates(for: "gpt-5-codex")?.output == 10)
         #expect(OpenAIPricing.rates(for: "openai/GPT-5.3-Codex")?.output == 14)
-        #expect(OpenAIPricing.codexBase(of: "gpt-5.1-codex-mini") == "gpt-5.1")
+        #expect(OpenAIPricing.rates(for: "gpt-5.1-codex-mini")?.output == 2)
     }
 
-    /// Longest prefix first, so a dated id and a size variant never take the wrong row.
-    @Test func modelIdsResolveByTheirLongestPrefix() {
+    /// Ids resolve by exact row, with only a trailing date snapshot stripped. Nothing is matched by prefix: a
+    /// family member absent from the table must price as unknown rather than collapse onto a sibling's row.
+    @Test func idsResolveExactlyAndDatedSnapshotsShareTheirRow() {
         #expect(OpenAIPricing.rates(for: "gpt-5-mini-2025-08-07")?.input == 0.25)
         #expect(OpenAIPricing.rates(for: "gpt-5-2025-08-07")?.input == 1.25)
         #expect(OpenAIPricing.rates(for: "gpt-5.2-pro")?.output == 168)
@@ -89,6 +89,10 @@ import Testing
         #expect(OpenAIPricing.rates(for: "o3")?.cachedInput == 0.5)
         // A model with no published cached rate never prices a cached token below its input rate.
         #expect(OpenAIPricing.rates(for: "gpt-5-pro")?.cachedInput == 15)
+        // The bug this replaced: an unlisted sibling used to collapse onto the first row sharing its prefix.
+        #expect(OpenAIPricing.rates(for: "gpt-5-turbo") == nil)
+        #expect(OpenAIPricing.rates(for: "gpt-5.9") == nil)
+        #expect(OpenAIPricing.rates(for: "gpt-5.4-cyber") == nil)
     }
 
     @Test func anUnknownModelCostsNothingAndIsNamed() {
