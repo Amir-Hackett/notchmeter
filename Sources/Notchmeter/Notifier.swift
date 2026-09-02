@@ -15,7 +15,7 @@ final class Notifier {
     private var authorizationRequested = false
 
     nonisolated static func isAvailable(arguments: [String] = CommandLine.arguments, bundleIdentifier: String? = Bundle.main.bundleIdentifier) -> Bool {
-        bundleIdentifier != nil && !arguments.contains("--probe") && !arguments.contains("--smoke")
+        bundleIdentifier != nil && !arguments.contains("--probe") && !arguments.contains("--smoke") && !arguments.contains("--render-assets")
     }
 
     init(available: Bool = Notifier.isAvailable()) {

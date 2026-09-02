@@ -10,7 +10,7 @@ enum NotchmeterMain {
             Hook.runCommand()
         }
         // --no-prompt: never raise the Keychain dialog; a locked item reports "needs attention" instead.
-        if arguments.contains("--no-prompt") || arguments.contains("--smoke") {
+        if arguments.contains("--no-prompt") || arguments.contains("--smoke") || arguments.contains("--render-assets") {
             Keychain.setPromptsAllowed(false)
         }
         if arguments.contains("--probe") {
@@ -43,6 +43,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let arguments = CommandLine.arguments
+        // --render-assets <dir>: the README's pictures from fixture readings; no store, no provider, no panel.
+        if let index = arguments.firstIndex(of: "--render-assets"), index + 1 < arguments.count {
+            exit(AssetRenderer.render(into: URL(fileURLWithPath: arguments[index + 1])) ? 0 : 1)
+        }
         if arguments.contains("--smoke"), let index = arguments.firstIndex(of: "--edge"), index + 1 < arguments.count,
            let edge = PanelEdge(rawValue: arguments[index + 1]) {
             smokeRestoreEdge = prefs.edge

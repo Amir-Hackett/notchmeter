@@ -241,6 +241,18 @@ final class UsageStore {
         }
     }
 
+    /// `--render-assets` (DemoFixtures): readings and a cost summary in place of provider reads. The loops never
+    /// start, so nothing is fetched, cached or written.
+    func seed(readings: [UsageReading], cost: CostSummary, nextUpdate: Date, now: Date = Date()) {
+        for reading in readings {
+            statuses[reading.tool] = .ready(reading)
+            nextRefresh[reading.tool] = nextUpdate
+            lastActivity[reading.tool] = now
+        }
+        self.cost = cost
+        lastUpdated = now
+    }
+
     // MARK: - Pace alerts
 
     /// Only new readings can make a pace worse, so this runs after each one; nothing is remembered while the
