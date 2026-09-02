@@ -607,7 +607,7 @@ struct SpendCard: View {
 
     private var projectsLine: String? {
         guard let totals, !totals.projects.isEmpty else { return nil }
-        let top = totals.projects.prefix(2).map { "\($0.name) \(Money.dollars($0.cost, cents: $0.cost < 10))" }.joined(separator: " · ")
+        let top = totals.projects.prefix(2).map { "\($0.name == CostShare.other ? L("Other") : $0.name) \(Money.dollars($0.cost, cents: $0.cost < 10))" }.joined(separator: " · ")
         return L("Top: %@", top)
     }
 
@@ -714,7 +714,7 @@ private struct ModelShares: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L("By model"))
-        .accessibilityValue(shares.map { "\($0.name) \(Money.dollars($0.cost))" }.joined(separator: ", "))
+        .accessibilityValue(shares.map { "\($0.name == CostShare.other ? L("Other") : ModelNames.display($0.name)) \(Money.dollars($0.cost))" }.joined(separator: ", "))
     }
 }
 

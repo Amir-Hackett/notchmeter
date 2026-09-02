@@ -173,7 +173,7 @@ actor CodexProvider: UsageProvider {
                 return value.contains(" ") ? value : ModelNames.display(value)
             }
         }
-        return "Extra"
+        return L("Extra")
     }
 
     /// Labels a window by its declared length: 5-hour sessions, weekly and monthly limits, or "N-day".
