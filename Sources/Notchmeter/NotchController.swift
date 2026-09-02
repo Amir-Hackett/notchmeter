@@ -61,7 +61,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
     private func build() -> NSMenu {
         let menu = NSMenu()
         menu.delegate = self
-        menu.addItem(item("Refresh now", #selector(refreshNow)))
+        menu.addItem(item(L("Refresh now"), #selector(refreshNow)))
         menu.addItem(.separator())
         for visibility in NotchVisibility.allCases {
             let entry = item(visibility.title, #selector(setVisibility(_:)))
@@ -69,7 +69,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
             entry.state = prefs.visibility == visibility ? .on : .off
             menu.addItem(entry)
         }
-        let position = NSMenuItem(title: "Position", action: nil, keyEquivalent: "")
+        let position = NSMenuItem(title: L("Position"), action: nil, keyEquivalent: "")
         let submenu = NSMenu()
         for edge in PanelEdge.allCases {
             let entry = item(edge.title, #selector(setEdge(_:)))
@@ -80,15 +80,15 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         position.submenu = submenu
         menu.addItem(position)
         menu.addItem(.separator())
-        let login = item("Open at login", #selector(toggleLaunchAtLogin))
+        let login = item(L("Open at login"), #selector(toggleLaunchAtLogin))
         login.state = prefs.launchAtLogin ? .on : .off
         menu.addItem(login)
-        menu.addItem(item("Settings…", #selector(showSettings)))
+        menu.addItem(item(L("Settings…"), #selector(showSettings)))
         if actions.checkForUpdates != nil {
-            menu.addItem(item("Check for Updates…", #selector(checkForUpdates)))
+            menu.addItem(item(L("Check for Updates…"), #selector(checkForUpdates)))
         }
         menu.addItem(.separator())
-        menu.addItem(item("Quit \(AppInfo.name)", #selector(quit)))
+        menu.addItem(item(L("Quit %@", AppInfo.name), #selector(quit)))
         return menu
     }
 

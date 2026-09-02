@@ -38,7 +38,9 @@ actor AntigravityProvider: UsageProvider {
     static let codeAssistURL = URL(string: "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist")!
     static let quotaURL = URL(string: "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota")!
     static let codeAssistBody: [String: Any] = ["metadata": ["ideType": "GEMINI_CLI", "platform": "PLATFORM_UNSPECIFIED", "pluginType": "GEMINI"]]
-    static let shutdownMessage = "Google stopped serving Gemini CLI quota to personal accounts in June 2026; Code Assist Standard and Enterprise accounts still report it"
+    static var shutdownMessage: String {
+        L("Google stopped serving Gemini CLI quota to personal accounts in June 2026; Code Assist Standard and Enterprise accounts still report it")
+    }
 
     /// What loadCodeAssist says about the account: the project the quota is metered on and the tier it is on.
     struct Account: Equatable {
@@ -69,11 +71,11 @@ actor AntigravityProvider: UsageProvider {
 
     func fetch() async throws -> UsageReading {
         guard let data = try? Data(contentsOf: credentialsFile) else {
-            throw ProviderError.notSignedIn("Sign in to Gemini CLI (run `gemini` and choose Login with Google) to read your quota")
+            throw ProviderError.notSignedIn(L("Sign in to Gemini CLI (run `gemini` and choose Login with Google) to read your quota"))
         }
         let credentials = try Self.parseCredentials(data)
         if let expiresAt = credentials.expiresAt, expiresAt.timeIntervalSinceNow < 30 {
-            throw ProviderError.tokenExpired("Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in")
+            throw ProviderError.tokenExpired(L("Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in"))
         }
 
         let account = try await loadAccount(token: credentials.accessToken)
@@ -85,14 +87,14 @@ actor AntigravityProvider: UsageProvider {
         case 200:
             return try Self.parseQuota(quota, plan: account.plan)
         case 401:
-            throw ProviderError.notSignedIn("Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in")
+            throw ProviderError.notSignedIn(L("Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in"))
         case 403:
-            guard Self.isSubscriptionRequired(quota) else { throw ProviderError.accessDenied("Google refused the quota read for this account") }
+            guard Self.isSubscriptionRequired(quota) else { throw ProviderError.accessDenied(L("Google refused the quota read for this account")) }
             throw ProviderError.unavailable(Self.shutdownMessage)
         case 429:
             throw ProviderError.rateLimited(retryAfter: nil)
         default:
-            throw ProviderError.http(status, "Google's quota endpoint answered")
+            throw ProviderError.http(status, L("Google's quota endpoint answered"))
         }
     }
 
@@ -103,7 +105,7 @@ actor AntigravityProvider: UsageProvider {
         case 200:
             return try Self.parseAccount(data)
         case 401:
-            throw ProviderError.notSignedIn("Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in")
+            throw ProviderError.notSignedIn(L("Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in"))
         case 429:
             throw ProviderError.rateLimited(retryAfter: nil)
         default:
@@ -130,14 +132,14 @@ actor AntigravityProvider: UsageProvider {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let token = root["access_token"] as? String, !token.isEmpty
         else {
-            throw ProviderError.notSignedIn("Gemini CLI has not signed in with Google. Run `gemini` and choose Login with Google")
+            throw ProviderError.notSignedIn(L("Gemini CLI has not signed in with Google. Run `gemini` and choose Login with Google"))
         }
         return AntigravityCredentials(accessToken: token, expiresAt: JSON.number(root["expiry_date"]).map { Date(timeIntervalSince1970: $0 / 1000) })
     }
 
     static func parseAccount(_ data: Data) throws -> Account {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ProviderError.parse("Google's Code Assist response unreadable")
+            throw ProviderError.parse(L("Google's Code Assist response unreadable"))
         }
         let project: String? = switch root["cloudaicompanionProject"] {
         case let id as String: id.isEmpty ? nil : id
@@ -175,7 +177,7 @@ actor AntigravityProvider: UsageProvider {
 
     static func parseQuota(_ data: Data, plan: String?, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ProviderError.parse("Antigravity quota response unreadable")
+            throw ProviderError.parse(L("Antigravity quota response unreadable"))
         }
         var pools: [Pool] = []
         for case let object as [String: Any] in (root["buckets"] as? [Any]) ?? [] {
@@ -196,7 +198,7 @@ actor AntigravityProvider: UsageProvider {
             }
         }
         let windows = pools.sorted { ($0.rank, $0.order) < ($1.rank, $1.order) }.map(\.window)
-        guard !windows.isEmpty else { throw ProviderError.parse("Antigravity reported no quota buckets") }
+        guard !windows.isEmpty else { throw ProviderError.parse(L("Antigravity reported no quota buckets")) }
         return UsageReading(tool: .antigravity, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
     }
 
@@ -233,7 +235,7 @@ actor AntigravityProvider: UsageProvider {
             if buckets.count > 1 {
                 note = buckets.map { ModelNames.display($0.modelID) }.joined(separator: " · ")
             } else if let left = tightest.remainingAmount, tightest.remaining > 0 {
-                note = "\(left) of \(Int((Double(left) / tightest.remaining).rounded())) left"
+                note = L("%1$ld of %2$ld left", left, Int((Double(left) / tightest.remaining).rounded()))
             } else {
                 note = nil
             }

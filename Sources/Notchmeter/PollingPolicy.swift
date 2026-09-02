@@ -18,8 +18,8 @@ enum PauseReason: Equatable {
 
     var footerText: String {
         switch self {
-        case .screenLocked: "Paused while the screen is locked"
-        case .asleep: "Paused until wake"
+        case .screenLocked: L("Paused while the screen is locked")
+        case .asleep: L("Paused until wake")
         }
     }
 }

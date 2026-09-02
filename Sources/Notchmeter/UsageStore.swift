@@ -147,8 +147,8 @@ final class UsageStore {
     var scheduleNote: String? {
         guard let tool = visibleTools.min(by: { (nextRefresh[$0] ?? .distantFuture) < (nextRefresh[$1] ?? .distantFuture) }) else { return nil }
         var notes: [String] = []
-        if PollingPolicy.isIdle(pollingInputs(for: tool)) { notes.append("no agent activity") }
-        if onBattery { notes.append("on battery") }
+        if PollingPolicy.isIdle(pollingInputs(for: tool)) { notes.append(L("no agent activity")) }
+        if onBattery { notes.append(L("on battery")) }
         return notes.isEmpty ? nil : notes.joined(separator: ", ")
     }
 
@@ -225,7 +225,7 @@ final class UsageStore {
                 if let cached {
                     statuses[tool] = .ready(cached)
                 } else {
-                    statuses[tool] = .failed("Rate limited, retrying in \(Int(wait))s", cached: nil)
+                    statuses[tool] = .failed(L("Rate limited, retrying in %lds", Int(wait)), cached: nil)
                 }
             } else if error.needsAttention {
                 statuses[tool] = .needsAttention(error.message, cached: cached)

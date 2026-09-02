@@ -5,6 +5,8 @@ import Testing
 /// Windows are built from how far into the period they are, so the projection is `used / elapsed × period`:
 /// a weekly window three days in at 60 % projects to 1.4 (behind), at 40 % to 0.93 (on track), at 22 % to 0.51 (ahead).
 @Suite struct AdvisorRules {
+    init() { Localization.use(language: "en") }
+
     let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
     var utc: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -233,6 +235,8 @@ import Testing
 }
 
 @Suite struct PaceAlertCopy {
+    init() { Localization.use(language: "en") }
+
     let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
     var utc: Calendar {
         var calendar = Calendar(identifier: .gregorian)

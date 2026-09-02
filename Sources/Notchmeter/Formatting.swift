@@ -63,12 +63,12 @@ enum Pace {
         switch result.status {
         case .behind:
             if let eta = secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: now) {
-                return ("Runs out in \(ResetText.duration(eta))", .behind)
+                return (L("Runs out in %@", ResetText.duration(eta)), .behind)
             }
-            return ("~\(Int(((result.projectedFraction - 1) * 100).rounded()))% over at reset", .behind)
+            return (L("~%ld%% over at reset", Int(((result.projectedFraction - 1) * 100).rounded())), .behind)
         case .ahead, .onTrack:
             let left = max(0, 1 - result.projectedFraction)
-            return ("~\(Int((left * 100).rounded()))% left at reset", result.status)
+            return (L("~%ld%% left at reset", Int((left * 100).rounded())), result.status)
         }
     }
 }
@@ -78,8 +78,8 @@ enum UsageDisplay: String, CaseIterable, Codable {
 
     var title: String {
         switch self {
-        case .used: "Used"
-        case .left: "Left"
+        case .used: L("Used")
+        case .left: L("Left")
         }
     }
 }
@@ -89,8 +89,8 @@ enum ResetDisplay: String, CaseIterable, Codable {
 
     var title: String {
         switch self {
-        case .countdown: "Countdown"
-        case .exact: "Exact time"
+        case .countdown: L("Countdown")
+        case .exact: L("Exact time")
         }
     }
 }
@@ -100,9 +100,9 @@ enum TimeFormatPreference: String, CaseIterable, Codable {
 
     var title: String {
         switch self {
-        case .auto: "Auto"
-        case .twelveHour: "12-hour"
-        case .twentyFourHour: "24-hour"
+        case .auto: L("Auto")
+        case .twelveHour: L("12-hour")
+        case .twentyFourHour: L("24-hour")
         }
     }
 }
@@ -112,30 +112,30 @@ enum TimeFormatPreference: String, CaseIterable, Codable {
 enum ResetText {
     static func line(resetsAt: Date?, hasLimit: Bool, display: ResetDisplay, timeFormat: TimeFormatPreference,
                      stale: Bool = false, now: Date = Date(), calendar: Calendar = .current) -> String {
-        guard hasLimit else { return "No limit published" }
+        guard hasLimit else { return L("No limit published") }
         guard let resetsAt else { return "" }
         let remaining = resetsAt.timeIntervalSince(now)
-        if remaining <= 0 { return stale ? "Reset passed" : "Resets now" }
+        if remaining <= 0 { return stale ? L("Reset passed") : L("Resets now") }
         switch display {
         case .countdown:
-            return "Resets in \(duration(remaining))"
+            return L("Resets in %@", duration(remaining))
         case .exact:
-            return "Resets \(dayPhrase(resetsAt, now: now, calendar: calendar)) at \(time(resetsAt, format: timeFormat, calendar: calendar))"
+            return L("Resets %1$@ at %2$@", dayPhrase(resetsAt, now: now, calendar: calendar), time(resetsAt, format: timeFormat, calendar: calendar))
         }
     }
 
     /// An unused window has no reset worth showing: Codex reports now + period for one, so the time would slide
     /// with the clock. Name the period instead.
     static func unusedLine(period: TimeInterval) -> String {
-        "Nothing used · \(windowName(period: period)) window"
+        L("Nothing used · %@ window", windowName(period: period))
     }
 
     /// "5-hour", "7-day", "30-day", "90-minute".
     static func windowName(period: TimeInterval) -> String {
         let minutes = max(1, Int((period / 60).rounded()))
-        if minutes % 1440 == 0 { return "\(minutes / 1440)-day" }
-        if minutes % 60 == 0 { return "\(minutes / 60)-hour" }
-        return "\(minutes)-minute"
+        if minutes % 1440 == 0 { return L("%ld-day", minutes / 1440) }
+        if minutes % 60 == 0 { return L("%ld-hour", minutes / 60) }
+        return L("%ld-minute", minutes)
     }
 
     static func duration(_ seconds: TimeInterval) -> String {
@@ -143,16 +143,16 @@ enum ResetText {
         let days = total / 86400
         let hours = (total % 86400) / 3600
         let minutes = (total % 3600) / 60
-        if days > 0 { return hours > 0 ? "\(days)d \(hours)h" : "\(days)d" }
-        if hours > 0 { return minutes > 0 ? "\(hours)h \(minutes)m" : "\(hours)h" }
-        if minutes > 0 { return "\(minutes)m" }
-        return "\(total)s"
+        if days > 0 { return hours > 0 ? L("%1$ldd %2$ldh", days, hours) : L("%ldd", days) }
+        if hours > 0 { return minutes > 0 ? L("%1$ldh %2$ldm", hours, minutes) : L("%ldh", hours) }
+        if minutes > 0 { return L("%ldm", minutes) }
+        return L("%lds", total)
     }
 
     static func dayPhrase(_ date: Date, now: Date, calendar: Calendar) -> String {
-        if calendar.isDate(date, inSameDayAs: now) { return "today" }
-        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(date, inSameDayAs: tomorrow) { return "tomorrow" }
-        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) { return "yesterday" }
+        if calendar.isDate(date, inSameDayAs: now) { return L("today") }
+        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(date, inSameDayAs: tomorrow) { return L("tomorrow") }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) { return L("yesterday") }
         let formatter = DateFormatter()
         formatter.calendar = calendar
         formatter.timeZone = calendar.timeZone
@@ -181,8 +181,8 @@ enum StaleReading {
         let time = ResetText.time(fetchedAt, format: timeFormat, calendar: calendar)
         let when = calendar.isDate(fetchedAt, inSameDayAs: now)
             ? time
-            : "\(ResetText.dayPhrase(fetchedAt, now: now, calendar: calendar)) at \(time)"
-        return "Last reading \(when) · may be out of date"
+            : L("%1$@ at %2$@", ResetText.dayPhrase(fetchedAt, now: now, calendar: calendar), time)
+        return L("Last reading %@ · may be out of date", when)
     }
 }
 
@@ -196,20 +196,22 @@ enum Money {
 enum Burn {
     /// "6x", "1.5x", "0.3x": one decimal below ten, none from ten up.
     static func multiple(_ value: Double) -> String {
-        if value >= 10 { return "\(Int(value.rounded()))x" }
+        if value >= 10 { return L("%@x", String(Int(value.rounded()))) }
         let text = String(format: "%.1f", value)
-        return (text.hasSuffix(".0") ? String(text.dropLast(2)) : text) + "x"
+        return L("%@x", text.hasSuffix(".0") ? String(text.dropLast(2)) : text)
     }
 }
 
 /// VoiceOver copy: the on-screen abbreviations read as words, so "~58% left" is spoken "about 58 percent left"
 /// and "4d 17h" as "4 days 17 hours".
 enum Spoken {
+    /// The suffix letters are the ones the English ResetText.duration and Burn.multiple emit. Another language's
+    /// units ("4 天 17 小时") are words already, and pass through untouched.
     private static let units: [Character: String] = ["d": "day", "h": "hour", "m": "minute", "s": "second", "x": "time"]
 
     static func phrase(_ text: String) -> String {
-        text.replacingOccurrences(of: "~", with: "about ")
-            .replacingOccurrences(of: "%", with: " percent")
+        text.replacingOccurrences(of: "~", with: L("about "))
+            .replacingOccurrences(of: "%", with: L(" percent"))
             .replacingOccurrences(of: " · ", with: ", ")
             .replacingOccurrences(of: " — ", with: ", ")
             .split(separator: " ")
@@ -225,25 +227,25 @@ enum Spoken {
     /// One tool for the compact rings: "Session 19 percent used, close to pace; Weekly 5 percent used".
     static func status(_ status: ToolStatus, awaitingInput: Bool, now: Date = Date()) -> String {
         var parts: [String] = []
-        if awaitingInput { parts.append("waiting for your input") }
+        if awaitingInput { parts.append(L("waiting for your input")) }
         if let problem = status.problem { parts.append(phrase(problem)) }
         if let reading = status.reading {
             for window in reading.windows {
                 guard let used = window.usedFraction else { continue }
-                var part = "\(window.label) \(Int((used * 100).rounded())) percent used"
+                var part = L("%1$@ %2$ld percent used", window.label, Int((used * 100).rounded()))
                 switch Pace.status(for: window, now: now) {
-                case .behind: part += ", behind pace"
-                case .onTrack: part += ", close to pace"
+                case .behind: part += L(", behind pace")
+                case .onTrack: part += L(", close to pace")
                 case .ahead, nil: break
                 }
                 parts.append(part)
             }
         } else {
             switch status {
-            case .waiting: parts.append("waiting for the first reading")
+            case .waiting: parts.append(L("waiting for the first reading"))
             case .idle(let message): parts.append(phrase(message))
-            case .off: parts.append("off")
-            case .notInstalled: parts.append("not installed")
+            case .off: parts.append(L("off"))
+            case .notInstalled: parts.append(L("not installed"))
             case .ready, .needsAttention, .failed: break
             }
         }

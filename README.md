@@ -49,6 +49,7 @@ swift run Notchmeter --probe            # print what each provider reads and the
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke               # on-screen self check (no Keychain prompt)
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --edge left   # same, trying another layout
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --hover-sim   # scripted hover: one open, no flicker, one close
+build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --lang zh-Hans   # same, with the copy pinned to Simplified Chinese
 build/Notchmeter.app/Contents/MacOS/Notchmeter --hook                # Claude Code hook command, see docs/hooks.md
 build/Notchmeter.app/Contents/MacOS/Notchmeter --render-assets docs/media   # the README's pictures, from fixed readings (no Keychain, no network)
 ```
@@ -79,6 +80,10 @@ Right-click the panel (or use the **Options** button in its footer) for the menu
 The top layout merges with the physical notch (compact rings beside it, the panel below). The edge layouts are Codenotch-style pills that open into the same panel; they keep clear of the Dock. The panel is never taller than the screen's usable height: past that (four tools, the cost card and advice on a small display) it scrolls, and it shows no scroller while it fits.
 
 **Hover.** The panel opens once the pointer has rested on the rings for 250 ms, so passing the top of the screen does nothing, and closes 400 ms after the pointer has left the panel (with 8 pt of grace), at once on a click outside it, a Spaces switch or the screen lock, and never while set to Always open. The decision is a pure state machine ([`HoverIntent.swift`](Sources/Notchmeter/HoverIntent.swift)) fed with the pointer's position against the two visible shapes, measured from the notch and the content rather than from the window, and it ignores the pointer for up to 350 ms after each transition, so the panel's own open and close animation can never re-trigger it. `--smoke --hover-sim` drives that path with a scripted pointer and prints every decision.
+
+## Languages
+
+Notchmeter runs in English and Simplified Chinese (简体中文), in whichever of the two macOS picks for it from System Settings › General › Language & Region (system-wide, or just for Notchmeter under Applications). Product and tool names stay as they are; everything else, the panel, Settings, the Options menu, notifications and every provider message, comes from [`Sources/Notchmeter/Resources/<language>.lproj/Localizable.strings`](Sources/Notchmeter/Resources), a classic `.strings` table keyed by the English copy and read through `L("…")` ([`Localization.swift`](Sources/Notchmeter/Localization.swift)). `--lang zh-Hans` pins the copy for one run whatever the system language; `--smoke --lang zh-Hans` prints a line of it. To add a language, add its `.lproj` with the same keys, list it in `Localization.languages` and in `CFBundleLocalizations` in `scripts/Info.plist`; `scripts/test.sh` checks that every table carries every key the code uses, with the same format arguments, and nothing else.
 
 ## Advice and notifications
 

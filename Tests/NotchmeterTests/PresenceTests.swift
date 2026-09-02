@@ -45,6 +45,8 @@ import Testing
 }
 
 @Suite struct SpokenCopy {
+    init() { Localization.use(language: "en") }
+
     let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
 
     @Test func expandsTheAbbreviations() {

@@ -5,6 +5,8 @@ import Testing
 /// A reading kept on screen after its tool stopped answering says how old it is, and a reset it has already
 /// passed is not announced as imminent.
 @Suite struct StaleReadingCopy {
+    init() { Localization.use(language: "en") }
+
     var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "America/New_York")!

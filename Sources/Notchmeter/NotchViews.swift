@@ -267,9 +267,9 @@ struct NotchExpandedView: View {
             }
             if tools.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Connect an assistant to get started")
+                    Text(L("Connect an assistant to get started"))
                         .font(.callout)
-                    Text("Install and sign in to Claude Code, Codex, Cursor or Gemini CLI; its meters appear here.")
+                    Text(L("Install and sign in to Claude Code, Codex, Cursor or Gemini CLI; its meters appear here."))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -289,9 +289,17 @@ struct NotchExpandedView: View {
 }
 
 struct SpendCard: View {
-    enum Range: String, CaseIterable, Identifiable {
-        case today = "Today", yesterday = "Yesterday", month = "30 Days"
-        var id: String { rawValue }
+    enum Range: CaseIterable, Identifiable {
+        case today, yesterday, month
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .today: L("Today")
+            case .yesterday: L("Yesterday")
+            case .month: L("30 Days")
+            }
+        }
     }
 
     let store: UsageStore
@@ -308,23 +316,23 @@ struct SpendCard: View {
 
     private var burnLine: String? {
         guard let cost = store.cost, let burn = cost.burnMultiple else { return nil }
-        return "Last hour \(Money.dollars(cost.lastHour)) · \(Burn.multiple(burn)) your usual"
+        return L("Last hour %1$@ · %2$@ your usual", Money.dollars(cost.lastHour), Burn.multiple(burn))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Cost").font(.system(size: 15, weight: .semibold))
+                Text(L("Cost")).font(.system(size: 15, weight: .semibold))
                 Spacer()
                 if store.costScanning {
                     HStack(spacing: 5) {
                         ProgressView().controlSize(.mini)
-                        Text("Pricing local transcripts").font(.caption2).foregroundStyle(.secondary)
+                        Text(L("Pricing local transcripts")).font(.caption2).foregroundStyle(.secondary)
                     }
                 }
             }
-            Picker("Range", selection: $range) {
-                ForEach(Range.allCases) { Text($0.rawValue).tag($0) }
+            Picker(L("Range"), selection: $range) {
+                ForEach(Range.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -339,14 +347,14 @@ struct SpendCard: View {
                         Text(amount.map { Money.dollars($0, cents: false) } ?? "—")
                             .font(.system(size: 19, weight: .bold, design: .rounded))
                             .monospacedDigit()
-                        Text("dollars").font(.caption2).foregroundStyle(.secondary)
+                        Text(L("dollars")).font(.caption2).foregroundStyle(.secondary)
                     }
                 }
                 .frame(width: 92, height: 92)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Circle().fill(ToolID.claude.color).frame(width: 7, height: 7)
-                        Text("Claude").font(.callout)
+                        Text(verbatim: ToolID.claude.displayName).font(.callout)
                         Spacer()
                         Text(amount.map { Money.dollars($0) } ?? "—").font(.callout).monospacedDigit()
                     }
@@ -355,17 +363,18 @@ struct SpendCard: View {
                             .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                     }
                     if let cost = store.cost, !cost.unpricedModels.isEmpty {
-                        Text("Unpriced: \(cost.unpricedModels.sorted().joined(separator: ", "))")
+                        Text(L("Unpriced: %@", cost.unpricedModels.sorted().joined(separator: ", ")))
                             .font(.caption2).foregroundStyle(.tertiary).lineLimit(2)
                     }
-                    Text("Claude Code sessions at API list prices")
+                    Text(L("Claude Code sessions at API list prices"))
                         .font(.caption2).foregroundStyle(.tertiary)
                 }
             }
             .padding(.top, 2)
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Cost, \(range.rawValue)")
-            .accessibilityValue(Spoken.line(amount.map { "Claude \(Money.dollars($0))" } ?? "no cost yet", burnLine, "Claude Code sessions at API list prices"))
+            .accessibilityLabel(L("Cost, %@", range.title))
+            .accessibilityValue(Spoken.line(amount.map { "\(ToolID.claude.displayName) \(Money.dollars($0))" } ?? L("no cost yet"), burnLine,
+                                            L("Claude Code sessions at API list prices")))
         }
         .modifier(CardBackground())
     }
@@ -393,7 +402,7 @@ struct AdviceStrip: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .modifier(CardBackground())
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Advice")
+        .accessibilityLabel(L("Advice"))
         .accessibilityValue(advice.map { Spoken.phrase($0.text) }.joined(separator: " "))
     }
 }
@@ -429,14 +438,14 @@ struct ToolCard: View {
                     }
                     .opacity(status.problem == nil ? 1 : 0.55)
                     if let observed = reading.observedAt, Date().timeIntervalSince(observed) > 600 {
-                        Text("As of \(RelativeTime.ago(observed))").font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
+                        Text(L("As of %@", RelativeTime.ago(observed))).font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
                     }
                 }
                 switch status {
                 case .waiting:
                     HStack(spacing: 6) {
                         ProgressView().controlSize(.mini)
-                        Text("Waiting for the first reading")
+                        Text(L("Waiting for the first reading"))
                     }
                     .font(.caption).foregroundStyle(.secondary)
                 case .idle(let message):
@@ -456,7 +465,7 @@ struct ToolCard: View {
                 }
                 if let trend, trend.contains(where: { $0.cost > 0 }) {
                     HStack {
-                        Text("Usage Trend").font(.system(size: 13, weight: .semibold))
+                        Text(L("Usage Trend")).font(.system(size: 13, weight: .semibold))
                         Spacer()
                         Sparkline(series: trend, color: tool.color).frame(width: 160, height: 22)
                     }
@@ -519,7 +528,7 @@ struct MeterRow: View {
             } else {
                 Meter(fraction: 0, tick: nil, color: .clear)
                 HStack {
-                    Text("—")
+                    Text(verbatim: "—")
                     Spacer()
                     Text(reset).monospacedDigit()
                 }
@@ -590,7 +599,7 @@ struct FooterView: View {
             let next = nextUpdate(now: context.date)
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("\(AppInfo.name) \(AppInfo.version)").monospacedDigit()
+                    Text(verbatim: "\(AppInfo.name) \(AppInfo.version)").monospacedDigit()
                     Text(next).monospacedDigit()
                 }
                 .font(.caption2)
@@ -603,7 +612,7 @@ struct FooterView: View {
                     actions.showOptions()
                 } label: {
                     HStack(spacing: 4) {
-                        Text("Options")
+                        Text(L("Options"))
                         Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
                     }
                 }
@@ -617,10 +626,10 @@ struct FooterView: View {
 
     private func nextUpdate(now: Date) -> String {
         if let reason = store.pauseReason { return reason.footerText }
-        guard let next = store.nextUpdate else { return "Waiting for the first reading" }
+        guard let next = store.nextUpdate else { return L("Waiting for the first reading") }
         let seconds = next.timeIntervalSince(now)
-        if seconds <= 5 { return "Updating…" }
-        let line = "Next update in \(ResetText.duration(seconds))"
+        if seconds <= 5 { return L("Updating…") }
+        let line = L("Next update in %@", ResetText.duration(seconds))
         return store.scheduleNote.map { "\(line) · \($0)" } ?? line
     }
 }

@@ -3,6 +3,8 @@ import Testing
 @testable import Notchmeter
 
 @Suite struct AntigravityParsing {
+    init() { Localization.use(language: "en") }
+
     let resetsAt = "2026-09-02T07:00:00Z"
 
     @Test func groupsGeminiTiersAndKeepsOtherModelsApart() throws {

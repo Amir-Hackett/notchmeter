@@ -3,6 +3,8 @@ import Testing
 @testable import Notchmeter
 
 @Suite struct ClaudeParsing {
+    init() { Localization.use(language: "en") }
+
     @Test func parsesSessionWeeklyAndScopedLimits() throws {
         let json = """
         {"five_hour":{"utilization":9.0,"resets_at":"2026-09-02T02:50:00.313Z"},
@@ -82,6 +84,8 @@ import Testing
 }
 
 @Suite struct CodexParsing {
+    init() { Localization.use(language: "en") }
+
     @Test func parsesBackendWindows() throws {
         let json = """
         {"plan_type":"free","rate_limit":{"primary_window":{"used_percent":12,"reset_at":1759352940,"limit_window_seconds":18000},
@@ -163,6 +167,8 @@ import Testing
 }
 
 @Suite struct PaceProjection {
+    init() { Localization.use(language: "en") }
+
     let resetsAt = Date(timeIntervalSince1970: 100_000)
 
     @Test func projectsAtCurrentRate() throws {
@@ -193,6 +199,8 @@ import Testing
 }
 
 @Suite struct ResetFormatting {
+    init() { Localization.use(language: "en") }
+
     var calendar: Calendar {
         var c = Calendar(identifier: .gregorian)
         c.timeZone = TimeZone(identifier: "America/New_York")!

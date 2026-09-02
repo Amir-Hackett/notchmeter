@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "Notchmeter",
+    defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     dependencies: [
         // Binary xcframework; scripts/build.sh embeds it in Contents/Frameworks and Updater.swift decides whether to start it.
@@ -25,6 +26,7 @@ let package = Package(
             name: "Notchmeter",
             dependencies: ["DynamicNotchKit", "NotchmeterShims", .product(name: "Sparkle", package: "Sparkle")],
             path: "Sources/Notchmeter",
+            resources: [.process("Resources")],
             linkerSettings: [.linkedLibrary("sqlite3"), .linkedFramework("IOKit")]
         ),
         .testTarget(
