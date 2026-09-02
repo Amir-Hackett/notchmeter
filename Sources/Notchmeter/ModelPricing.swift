@@ -75,9 +75,15 @@ enum ModelPricing {
         return nil
     }
 
-    static func cost(of tokens: TokenBreakdown, model: String?) -> Double? {
+    /// Claude Code prices a response whose `usage.inference_geo` is "us" at 1.1x list on every token bucket;
+    /// "global", "not_available" and a missing field all stay at list. Per-request fees are never multiplied.
+    static func residencyMultiplier(inferenceGeo: String?) -> Double {
+        inferenceGeo == "us" ? 1.1 : 1
+    }
+
+    static func cost(of tokens: TokenBreakdown, model: String?, inferenceGeo: String? = nil) -> Double? {
         guard let model, let rates = rates(for: model) else { return nil }
-        return rates.cost(tokens)
+        return rates.cost(tokens) * residencyMultiplier(inferenceGeo: inferenceGeo)
     }
 
     /// Bedrock/Vertex ids (`anthropic.claude-…`, `claude-…@20250101`) and dated suffixes all collapse to the plain id.

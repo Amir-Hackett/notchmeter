@@ -96,7 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Probe.emit("\(tool.displayName): \(Probe.describe(store.status(tool)))")
         }
         if let cost = store.cost {
-            Probe.emit("cost: today \(Money.dollars(cost.today)) yesterday \(Money.dollars(cost.yesterday)) 30d \(Money.dollars(cost.last30Days)) unpriced=\(cost.unpricedModels.sorted())")
+            Probe.emit(Probe.describe(cost))
         } else {
             Probe.emit("cost: still scanning")
         }
@@ -128,6 +128,8 @@ enum Probe {
                     emit("\(name): \(error.localizedDescription)")
                 }
             }
+            emit("Claude Code cost: pricing local transcripts…")
+            emit(describe(await ClaudeCostScanner().scan()))
             exit(0)
         }
         RunLoop.main.run()
@@ -153,6 +155,15 @@ enum Probe {
             lines.append("  observed \(RelativeTime.ago(observed))")
         }
         return lines.joined(separator: "\n")
+    }
+
+    static func describe(_ cost: CostSummary) -> String {
+        var line = "cost: today \(Money.dollars(cost.today)) yesterday \(Money.dollars(cost.yesterday)) 30d \(Money.dollars(cost.last30Days))"
+        line += " last hour \(Money.dollars(cost.lastHour))"
+        if let burn = cost.burnMultiple {
+            line += " (\(Burn.multiple(burn)) the usual \(Money.dollars(cost.typicalHourly)) per active hour)"
+        }
+        return line + " unpriced=\(cost.unpricedModels.sorted())"
     }
 
     static func describe(_ status: ToolStatus) -> String {

@@ -227,6 +227,10 @@ struct SpendCard: View {
                         Spacer()
                         Text(amount.map { Money.dollars($0) } ?? "—").font(.callout).monospacedDigit()
                     }
+                    if let cost = store.cost, let burn = cost.burnMultiple {
+                        Text("Last hour \(Money.dollars(cost.lastHour)) · \(Burn.multiple(burn)) your usual")
+                            .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                    }
                     if let cost = store.cost, !cost.unpricedModels.isEmpty {
                         Text("Unpriced: \(cost.unpricedModels.sorted().joined(separator: ", "))")
                             .font(.caption2).foregroundStyle(.tertiary).lineLimit(2)
