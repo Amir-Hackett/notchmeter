@@ -88,6 +88,28 @@ import Testing
         #expect(intent.nextDeadline == nil)
     }
 
+    @Test func restingOnRingsThatOverhangTheOpenPanelKeepsItOpen() {
+        // A readout strip wider than the panel it opens: the pointer that opened it rests on the part of the strip
+        // the panel does not reach. It is still on the rings, so the panel stays open rather than flickering.
+        var intent = expanded()
+        var time = dwell
+        while time < 30 {
+            time += 0.05
+            #expect(intent.pointer(inCompact: true, inExpanded: false, at: time) == .none)
+        }
+        #expect(intent.state == .expanded)
+        #expect(intent.nextDeadline == nil)
+    }
+
+    @Test func leavingTheRingsAndThePanelStillCollapses() {
+        var intent = expanded()
+        let left = 2.0
+        #expect(intent.pointer(inCompact: true, inExpanded: false, at: left) == .none)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: left + 0.05) == .none)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: left + 0.05 + leave) == .collapse)
+        #expect(intent.state == .compact)
+    }
+
     @Test func morphingShapeCannotFlipTheDecision() {
         // The rings' region shrinks and grows under a cursor that has not moved: only the pre-computed rects count,
         // and inside the expanded rect the compact flag is irrelevant.

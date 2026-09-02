@@ -74,8 +74,12 @@ struct HoverIntent: Equatable {
             guard now - since >= Self.milliseconds(expandDwell) else { return .none }
             return begin(.expanded, at: now)
         case .expanded:
+            // The rings belong to the open panel: a readout strip wider than the panel below it (or beside it)
+            // would otherwise leave the pointer that opened the panel standing outside it, and a pointer that has
+            // not moved would collapse and re-open for as long as it rested there.
+            let inside = inCompact || inExpanded
             if let until = glanceUntil {
-                if inExpanded {
+                if inside {
                     glanceUntil = nil
                 } else if now >= until {
                     glanceUntil = nil
@@ -84,7 +88,7 @@ struct HoverIntent: Equatable {
                     return .none
                 }
             }
-            guard mode == .onHover, !inExpanded else {
+            guard mode == .onHover, !inside else {
                 outsideExpandedSince = nil
                 return .none
             }

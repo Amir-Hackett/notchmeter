@@ -37,7 +37,7 @@ Flags:
 | `--display builtIn` / `main` / `pointer` / `all` / `named:<name>` | run with that display choice; restored on exit; the `display:` line lists the screens chosen |
 | `--idle-sim` | runs the Hide when idle clock 31 minutes ahead and prints the presence before and after |
 | `--glance-sim` | opens a real glance through the presenter and fails the run if it does not close again |
-| `--hover-sim` | a scripted pointer path through the live hover machine; fails the run if the panel loops |
+| `--hover-sim` | a scripted pointer path through the live hover machine: a fast sweep that must not open, then a dwell that opens once, a 3 s rest that must not collapse, and a leave that collapses once. Fails the run if the panel loops. Needs *Open on hover*, so pair it with `--visibility onHover`; under the other two it says so and passes |
 | `--hover-log` | prints each decision the real mouse produces meanwhile |
 | `--lang zh-Hans` | pins the copy to one shipped language |
 | `--e2e-oracle <path>` | writes the oracle file described below, and ends the run with a `snapshot` line |

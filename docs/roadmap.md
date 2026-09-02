@@ -2,14 +2,14 @@
 
 Where Notchmeter stands against the plan it is built to, what is shipped, what is pending, what is blocked on a decision or an account, and the questions still open. Repository facts below were read on 2026-09-02; the plan's competitive figures are from 2026-09-01.
 
-## Where the repository stands (2026-09-02, after the round-2 gap fixes)
+## Where the repository stands (2026-09-02, after the completeness pass)
 
 | | |
 |---|---|
 | Visibility | private, 0 stars, 0 forks, created 2026-09-02, no topics |
 | Version | 0.1.0 (`scripts/Info.plist`), no tag, no release |
-| Code | 50 Swift files under `Sources/Notchmeter`, about 15,200 lines; `Vendor/DynamicNotchKit` (MIT) |
-| Tests | 299 tests in 72 suites, `scripts/test.sh`, 0.5 s |
+| Code | 51 Swift files under `Sources/Notchmeter`, about 15,700 lines; `Vendor/DynamicNotchKit` (MIT) |
+| Tests | 310 tests in 76 suites, `scripts/test.sh`, 0.5 s |
 | Languages | en, zh-Hans, zh-Hant, ja, ko, vi (the last four drafted here, native review pending) |
 | CI | `.github/workflows/ci.yml` on macos-15 (gate) and macos-latest (allowed to fail): release build with a zero-warnings check on `Sources/`, tests, app assembly, artifact; `pricing.yml` weekly, diffing the pricing page against the committed snapshot |
 | Release pipeline | `scripts/release.sh` and `.github/workflows/release.yml`: universal binary, Developer ID, hardened runtime, notarisation, stapled DMG, EdDSA-signed Sparkle appcast, Homebrew cask file. Proven with `--dry-run`; **unsigned until the Developer ID, notary key and Sparkle key exist** |
@@ -82,8 +82,8 @@ Update this table at each stage's commit: `ls Sources/Notchmeter/*.swift | wc -l
 | The argument on the README's first screen: "Your menu bar ran out of room three apps ago. This one doesn't take any." | shipped | README |
 | Edge layouts (left, right, bottom) as the hedge for notch-less Macs and the hardware risk; the top layout on a notchless screen is a pill under the menu bar | shipped | `EdgePanelController.swift`, `AppDelegate.buildPresenters` |
 | Calm presence rule: quiet under 40%, legible from 40% (orange from 80%), urgent at pace crossing; quiet with no session when the hook reports; Hide when idle | shipped | `Presence.swift`; the "legible at 80%" copy was corrected to what the code does |
-| Colour-blind-safe status (Wong set) with a non-colour channel, `monospacedDigit`, Reduce Motion, Reduce animations, Increase Contrast, Reduce Transparency, VoiceOver labels and actions, text styles with a Dynamic Type cap, Liquid Glass on macOS 26 for the pills and the notch panel | shipped | `NotchViews.swift`, `EdgePanelController.swift`, vendored `NotchView.swift` |
-| Hover as a dwell-and-settle state machine with a scripted test (`--smoke --hover-sim`); Open on click; hover delay; swipe gestures with haptics; Escape; global shortcuts; Control-click as secondary click | shipped | `HoverIntent.swift`, `HoverDriver.swift`, `Hotkeys.swift` |
+| Colour-blind-safe status (Wong set) with a non-colour channel, `monospacedDigit`, Reduce Motion, Reduce animations, Increase Contrast, Reduce Transparency, VoiceOver labels and actions, text styles with a Dynamic Type cap, Liquid Glass on macOS 26 for the edge pills only | shipped | `NotchViews.swift`, `PanelSurface` in `EdgePanelController.swift`; the notch layout sets `expandedGlass = false` (`NotchController.applyWindowBehaviour`) |
+| Hover as a dwell-and-settle state machine with a scripted test (`--smoke --visibility onHover --hover-sim`, sweep and dwell); Open on click; hover delay; swipe gestures with haptics; Escape; global shortcuts; Control-click as secondary click | shipped | `HoverIntent.swift`, `HoverDriver.swift`, `Hotkeys.swift` |
 | Display choice (built-in, main, pointer, all, named), hot-plug and lid handling, full-screen behaviour on both windows, Dock auto-hide, menu bar auto-hide | shipped | `ScreenSelection.swift`, `AppDelegate.screensChanged` |
 | Main menu with ⌘, ⌘Q ⌘W and the Edit menu; optional menu bar item (on by default without a notch) | shipped | `MainMenu`, `MenuBarItem.swift` |
 | Privacy: hide figures while the screen is shared or recorded | shipped | `ScreenCapture.swift` |
@@ -132,6 +132,19 @@ The round-2 gap analysis (2026-09-02) listed these as "defer": document, do not 
 | Signed, notarised, Sparkle-updated v0.1.0 | docs/release.md steps 1–4 need the Apple Developer Program (US$99), a Developer ID certificate, a notarytool profile and `generate_keys`; `scripts/Info.plist` still carries `REPLACE_WITH_SPARKLE_PUBLIC_KEY` and the cask `REPLACE_WITH_DMG_SHA256`. The pipeline is proven with `scripts/release.sh --dry-run`; the time-sensitive notifications capability on the App ID is one more click there | [release.md](release.md); README "Install"; `scripts/Info.plist` |
 | Public repository, GitHub topics, the Anthropic inquiry, list submissions and the domain | The user's actions: `gh repo edit Amir-Hackett/notchmeter --visibility public` and the topic command in [launch/awesome-lists.md](launch/awesome-lists.md), the inquiry sent from a personal address, the four list submissions on their dated gates, and notchmeter.app/.com confirmed at a registrar; changing visibility, sending mail and posting are prohibited from the sessions that write this code | this file, "Where the repository stands" and "Days 46–90"; [launch/awesome-lists.md](launch/awesome-lists.md); [anthropic-inquiry.md](anthropic-inquiry.md) |
 
+## Deferred gaps (round 3)
+
+The completeness pass (2026-09-02) closed the gaps it could reach without a hand on the mouse and without an
+account. These are what it left, and why.
+
+| Gap | Why deferred | Where |
+|---|---|---|
+| Liquid Glass on the notch panel | The flag and the vendored `GlassBackdrop` are still there, and the backdrop is already padded to sit below the notch, but the panel is drawn over an opaque black rectangle, and glass over black is pale grey. Making it work means taking the black out from under the expanded region and letting the desktop show through, which changes legibility over an arbitrary wallpaper and the join with the hardware notch: a judgment that needs a person looking at a macOS 26 screen, which these sessions must not take over. Until then the README and this file say the edge pills only | `NotchController.applyWindowBehaviour`; `Vendor/DynamicNotchKit/Views/NotchView.swift`; commit 0341bf6 |
+| The four end-to-end steps that need a real pointer | `--smoke --visibility onHover --hover-sim` now drives the dwell-open, the stationary rest, the collapse **and** a fast sweep that must not open, in all four layouts, and `--smoke` builds and walks the Options menu (every command's target answers its selector; the visibility, Position and compact-style groups each carry one item per case with exactly one tick; ⌘, and ⌘Q are on Settings… and Quit). What is left is AppKit's own: a secondary click actually putting the menu up, Escape dismissing it, choosing Position → Left edge from it, and Quit ending the process. `docs/qa/e2e-report.md` carries the script for a human | `HoverSimulation.swift`, `AppDelegate.reportMenu`; [qa/e2e-report.md](qa/e2e-report.md) |
+| Codex reset credits are read but never claimed | Deliberate, not a gap: claiming is a write against a vendor account, and the app is a read-only instrument that never signs in anywhere. The credit is surfaced as advice so the person can claim it themselves | `CodexProvider.swift`; README "Privacy and terms" |
+| No landing page beyond the README | Deliberate for now: the accuracy argument the plan asks to publish is on the README's first screen and links [accuracy.md](accuracy.md). A separate site waits on a domain, which waits on a registrar (see "Domain") | README; [accuracy.md](accuracy.md) |
+| No inference request for rate-limit headers | Deliberate, argued in full: the parser ships as a degradation path, but obtaining the headers means making an inference call, which is the one thing the terms paragraph promises the app never does. The status line is the sanctioned zero-network fallback | [accuracy.md](accuracy.md) "Why there is no header fallback"; `Statusline.swift` |
+
 ## The 90-day plan against the repository
 
 The plan was written for 90 days. Most of the first 45 days' items landed in the first two, because they were code; what remains is accounts, decisions and other people.
@@ -140,7 +153,7 @@ The plan was written for 90 days. Most of the first 45 days' items landed in the
 
 **Days 8–21, trustworthy.** Developer ID, notarisation, Sparkle, appcast: pipeline done, **blocked on the Apple Developer Program enrolment (US$99/year), the Developer ID certificate, an App Store Connect API key and a Sparkle key**; [release.md](release.md) is the one-time setup, and the placeholder `SUPublicEDKey` in `scripts/Info.plist` keeps the updater off until then. Accuracy doc with the residency multiplier and the placeholder disclosure: done. Golden tests: done. Rate-limit-header fallback: parser done, probe refused by decision; the status line is the sanctioned local source instead. Adaptive polling and the energy figure: done; `powermetrics` needs sudo.
 
-**Days 22–45, the wedge.** Pace-crossing notifications with prescriptive copy: done. Cross-provider routing: done. Minimal presentation state: done, and Hide when idle beyond it. Liquid Glass: done on both layouts. VoiceOver: done, with a walk-through in docs/testing.md. Antigravity/Gemini via `retrieveUserQuota`: done, and Google has since limited that endpoint to Code Assist Standard and Enterprise accounts, which the meter reports in a sentence. zh-Hans: done; zh-Hant, ja, ko, vi drafted.
+**Days 22–45, the wedge.** Pace-crossing notifications with prescriptive copy: done. Cross-provider routing: done. Minimal presentation state: done, and Hide when idle beyond it. Liquid Glass: done on the edge pills, refused for the notch panel (0341bf6) because glass over the black backdrop the panel is drawn on renders pale grey and breaks the join with the hardware notch; the vendored `GlassBackdrop` and its `expandedGlass` flag are still there for a later attempt that gets the backdrop out of the way first. VoiceOver: done, with a walk-through in docs/testing.md. Antigravity/Gemini via `retrieveUserQuota`: done, and Google has since limited that endpoint to Code Assist Standard and Enterprise accounts, which the meter reports in a sentence. zh-Hans: done; zh-Hant, ja, ko, vi drafted.
 
 **Days 46–90, distribute and decide.** All pending, in this order, with the gates:
 
@@ -204,7 +217,7 @@ Controls run in the same minute: `openusage.app` and `anthropic.com` both return
 
 Carried from the plan, with what has changed:
 
-- **Nobody outside this machine has run the app.** All design judgments are from the code and from fixture renders. The Show HN thread is the first external review; treat its first ten comments as the design review the plan could not do.
+- **Nobody outside this machine has run the app.** All design judgments are from the code, from fixture renders and from what the app's own self checks report; the round-1 end-to-end run and the completeness pass drove everything that can be driven without a pointer, and the four steps that cannot are listed above. The Show HN thread is the first external review; treat its first ten comments as the design review the plan could not do.
 - **Anthropic's position** is unasked. The draft is written; sending it is the user's action. Until an answer exists, the README's Terms paragraph is the position, and the status line, now shipped, is the fallback.
 - **Claude Code's "4.2M weekly active developers"** is from an aggregator and unconfirmed against a primary source; the better-sourced figures are WAU doubling between 2026-01-01 and 2026-02-12 and a $2.5B run rate. None of them is the addressable market; OpenUsage's estimated 15,000–25,000 active Macs is.
 - **The 15,000–25,000 OpenUsage install estimate** rests on two inferences about Sparkle download counts; two methods converged, it is still not a measured number.
