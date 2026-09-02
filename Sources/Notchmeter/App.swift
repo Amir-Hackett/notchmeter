@@ -59,6 +59,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for tool in ToolID.allCases {
             Probe.emit("\(tool.displayName): \(Probe.describe(store.status(tool)))")
         }
+        let settingsProbe = SettingsWindowController(store: store, prefs: prefs) {}
+        settingsProbe.window?.layoutIfNeeded()
+        Probe.emit("settings window: \(settingsProbe.window?.frame.size ?? .zero)")
         exit(notch?.isVisible == true ? 0 : 1)
     }
 }
