@@ -55,9 +55,123 @@ enum WindowSource: String, Codable, Equatable, Sendable {
     }
 }
 
+/// A window's name, kept free of any one language so a reading cached in one run reads correctly in the next: the
+/// fixed vocabulary travels as its English key and is looked up when the name is read, and the vendor's own words
+/// (a model, an organisation) travel as they came and are never translated.
+enum WindowLabel: Codable, Equatable, Sendable, ExpressibleByStringLiteral {
+    /// The vendor's own words: a model, a pool.
+    case vendor(String)
+    /// A name from the fixed vocabulary, as its English key ("Session", "Weekly").
+    case key(String)
+    /// A key whose placeholders take values that carry no language of their own: the vendor's words, or a count.
+    case filled(String, [Argument])
+    /// A model-scoped window: the vendor's model name before another name ("Spark Session").
+    indirect case scoped(model: String, of: WindowLabel)
+
+    /// The name as the panel shows it, in the language this run is speaking.
+    var text: String {
+        switch self {
+        case .vendor(let text): text
+        case .key(let key): L(key)
+        case .filled(let key, let values): String(format: Localization.string(key), arguments: values.map(\.value))
+        case .scoped(let model, let inner): "\(model) \(inner.text)"
+        }
+    }
+
+    /// The name inside a sentence ("you hit the Claude weekly cap"). Only the translated part is lowercased, with
+    /// the running language's own casing rules; the vendor's words keep the case the vendor gave them.
+    var inSentence: String {
+        let locale = Locale(identifier: Localization.current)
+        switch self {
+        case .vendor(let text): return text
+        case .key(let key): return L(key).lowercased(with: locale)
+        case .filled(let key, let values): return String(format: Localization.string(key).lowercased(with: locale), arguments: values.map(\.value))
+        case .scoped(let model, let inner): return "\(model) \(inner.inSentence)"
+        }
+    }
+
+    /// A bare string is read as a key: a name that is not in the tables reads as itself, so this is safe for
+    /// anything, while the vendor's own words are marked as such where they are built.
+    init(stringLiteral value: String) { self = .key(value) }
+
+    /// What a key's placeholders take: text `%@` reads, or a count `%ld` reads.
+    enum Argument: Codable, Equatable, Sendable {
+        case text(String)
+        case number(Int)
+
+        var value: CVarArg {
+            switch self {
+            case .text(let text): text
+            case .number(let number): number
+            }
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let number = try? container.decode(Int.self) {
+                self = .number(number)
+            } else {
+                self = .text(try container.decode(String.self))
+            }
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            switch self {
+            case .text(let text): try container.encode(text)
+            case .number(let number): try container.encode(number)
+            }
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey { case key, values, model, of }
+
+    /// The vendor's own words encode as a bare string, which is also what every reading cached before this type
+    /// existed holds.
+    init(from decoder: Decoder) throws {
+        if let text = try? decoder.singleValueContainer().decode(String.self) {
+            self = .vendor(text)
+            return
+        }
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let model = try container.decodeIfPresent(String.self, forKey: .model) {
+            self = .scoped(model: model, of: try container.decode(WindowLabel.self, forKey: .of))
+            return
+        }
+        let key = try container.decode(String.self, forKey: .key)
+        if let values = try container.decodeIfPresent([Argument].self, forKey: .values) {
+            self = .filled(key, values)
+        } else {
+            self = .key(key)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case .vendor(let text):
+            var single = encoder.singleValueContainer()
+            try single.encode(text)
+        case .key(let key):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(key, forKey: .key)
+        case .filled(let key, let values):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(key, forKey: .key)
+            try container.encode(values, forKey: .values)
+        case .scoped(let model, let inner):
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(model, forKey: .model)
+            try container.encode(inner, forKey: .of)
+        }
+    }
+}
+
 struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     let id: String
-    let label: String
+    /// The window's name, localised when it is read rather than when the reading is parsed.
+    let name: WindowLabel
+    /// The name in this run's language.
+    var label: String { name.text }
     /// Share of the window already consumed, 0...1. nil when the tool publishes no limit.
     let usedFraction: Double?
     let resetsAt: Date?
@@ -74,10 +188,10 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     /// The money behind the fraction, in US dollars, for a window that meters spend (extra usage, on-demand).
     let amountUSD: Double?
 
-    init(id: String, label: String, usedFraction: Double?, resetsAt: Date?, note: String? = nil, periodDuration: TimeInterval? = nil, model: String? = nil,
+    init(id: String, label: WindowLabel, usedFraction: Double?, resetsAt: Date?, note: String? = nil, periodDuration: TimeInterval? = nil, model: String? = nil,
          source: WindowSource = .vendorEndpoint, hiddenByDefault: Bool = false, rawUsedPercent: Double? = nil, amountUSD: Double? = nil) {
         self.id = id
-        self.label = label
+        self.name = label
         self.usedFraction = usedFraction
         self.resetsAt = resetsAt
         self.note = note
@@ -90,14 +204,15 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, label, usedFraction, resetsAt, note, periodDuration, model, source, hiddenByDefault, rawUsedPercent, amountUSD
+        case id, usedFraction, resetsAt, note, periodDuration, model, source, hiddenByDefault, rawUsedPercent, amountUSD
+        case name = "label"
     }
 
     /// Readings cached by an earlier version carry no source; they were endpoint reads.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
-        label = try container.decode(String.self, forKey: .label)
+        name = try container.decode(WindowLabel.self, forKey: .name)
         usedFraction = try container.decodeIfPresent(Double.self, forKey: .usedFraction)
         resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
         note = try container.decodeIfPresent(String.self, forKey: .note)
@@ -111,7 +226,7 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
 
     /// The same window with another source (a provider re-labelling what a parser built).
     func with(source: WindowSource, note: String? = nil, periodDuration: TimeInterval?? = nil) -> LimitWindow {
-        LimitWindow(id: id, label: label, usedFraction: usedFraction, resetsAt: resetsAt, note: note ?? self.note,
+        LimitWindow(id: id, label: name, usedFraction: usedFraction, resetsAt: resetsAt, note: note ?? self.note,
                     periodDuration: periodDuration.map { $0 } ?? self.periodDuration, model: model, source: source,
                     hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD)
     }
@@ -199,12 +314,21 @@ enum ProviderError: Error, Equatable {
     /// The tool is billed by API key: no plan windows exist to meter, and that is not a fault.
     case apiKeyOnly(String)
 
+    /// The shortest a rate-limit backoff is ever allowed to be. A vendor that answers `Retry-After: 0` still gets a
+    /// minute, so the wait the message names is the wait the app takes.
+    static let rateLimitFloor: TimeInterval = 60
+
+    /// How long the app will really wait after a rate-limit answer: the vendor's own delay, never under the floor.
+    static func rateLimitWait(retryAfter: TimeInterval?) -> TimeInterval {
+        max(rateLimitFloor, retryAfter ?? 0)
+    }
+
     var message: String {
         switch self {
         case .notSignedIn(let m), .tokenExpired(let m), .accessDenied(let m), .parse(let m), .unavailable(let m), .nothingYet(let m), .offline(let m), .apiKeyOnly(let m):
             m
         case .rateLimited(let retry):
-            retry.map { L("Rate limited, retrying in %lds", Int($0)) } ?? L("Rate limited, backing off")
+            retry.map { L("Rate limited, retrying in %lds", Int(Self.rateLimitWait(retryAfter: $0))) } ?? L("Rate limited, backing off")
         case .http(let code, let m):
             L("%1$@ (HTTP %2$ld)", m, code)
         }

@@ -108,9 +108,9 @@ actor ClaudeProvider: UsageProvider {
     }
 
     static func rateLimitWindows(header: (String) -> String?) -> [LimitWindow] {
-        let specs: [(prefix: String, id: String, label: String, period: TimeInterval)] = [
-            ("anthropic-ratelimit-unified-5h", "five_hour", L("Session"), Period.fiveHours),
-            ("anthropic-ratelimit-unified-7d", "seven_day", L("Weekly"), Period.week),
+        let specs: [(prefix: String, id: String, label: WindowLabel, period: TimeInterval)] = [
+            ("anthropic-ratelimit-unified-5h", "five_hour", .key("Session"), Period.fiveHours),
+            ("anthropic-ratelimit-unified-7d", "seven_day", .key("Weekly"), Period.week),
         ]
         return specs.compactMap { spec in
             guard let utilization = header("\(spec.prefix)-utilization").flatMap(number) else { return nil }
@@ -239,15 +239,15 @@ actor ClaudeProvider: UsageProvider {
             throw ProviderError.parse(L("usage response unreadable"))
         }
         var windows: [LimitWindow] = []
-        if let session = window(root["five_hour"], id: "five_hour", label: L("Session"), period: Period.fiveHours) {
+        if let session = window(root["five_hour"], id: "five_hour", label: .key("Session"), period: Period.fiveHours) {
             windows.append(session)
         }
-        if let weekly = window(root["seven_day"], id: "seven_day", label: L("Weekly"), period: Period.week) {
+        if let weekly = window(root["seven_day"], id: "seven_day", label: .key("Weekly"), period: Period.week) {
             windows.append(weekly)
         }
         windows.append(contentsOf: scopedWeeklyLimits(root["limits"]))
         for (key, label) in [("seven_day_opus", "Opus"), ("seven_day_sonnet", "Sonnet")] where !windows.contains(where: { $0.label == label }) {
-            if let legacy = window(root[key], id: key, label: label, period: Period.week, model: label) {
+            if let legacy = window(root[key], id: key, label: .vendor(label), period: Period.week, model: label) {
                 windows.append(legacy)
             }
         }
@@ -269,10 +269,10 @@ actor ClaudeProvider: UsageProvider {
             ?? L("%@ spent", Money.dollars(usedCents / 100))
         let cycleEnd = ["resets_at", "reset_at", "billing_cycle_end", "cycle_end", "period_end"].lazy
             .compactMap { extra[$0] as? String }.compactMap(DateParsing.iso8601).first
-        return LimitWindow(id: "extra_usage", label: L("Extra usage"), usedFraction: fraction, resetsAt: cycleEnd, note: note, amountUSD: usedCents / 100)
+        return LimitWindow(id: "extra_usage", label: .key("Extra usage"), usedFraction: fraction, resetsAt: cycleEnd, note: note, amountUSD: usedCents / 100)
     }
 
-    private static func window(_ value: Any?, id: String, label: String, period: TimeInterval, model: String? = nil) -> LimitWindow? {
+    private static func window(_ value: Any?, id: String, label: WindowLabel, period: TimeInterval, model: String? = nil) -> LimitWindow? {
         guard let object = value as? [String: Any], let utilization = JSON.number(object["utilization"]) else { return nil }
         return LimitWindow(
             id: id,
@@ -296,7 +296,7 @@ actor ClaudeProvider: UsageProvider {
             else { continue }
             result.append(LimitWindow(
                 id: "scoped_\(name.lowercased().replacingOccurrences(of: " ", with: "_"))",
-                label: name,
+                label: .vendor(name),
                 usedFraction: JSON.fraction(percent),
                 resetsAt: (object["resets_at"] as? String).flatMap(DateParsing.iso8601),
                 periodDuration: Period.week,

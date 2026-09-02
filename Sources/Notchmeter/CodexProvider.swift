@@ -138,10 +138,10 @@ actor CodexProvider: UsageProvider {
         }
         var windows = parseRateLimit(root["rate_limit"] as? [String: Any], model: nil)
         if !windows.contains(where: { $0.id == "session" }) {
-            windows.insert(LimitWindow(id: "session", label: L("Session"), usedFraction: nil, resetsAt: nil, note: L("No data")), at: 0)
+            windows.insert(LimitWindow(id: "session", label: .key("Session"), usedFraction: nil, resetsAt: nil, note: L("No data")), at: 0)
         }
         if windows.count == 1 {
-            windows.append(LimitWindow(id: "weekly", label: L("Weekly"), usedFraction: nil, resetsAt: nil, note: L("No data")))
+            windows.append(LimitWindow(id: "weekly", label: .key("Weekly"), usedFraction: nil, resetsAt: nil, note: L("No data")))
         }
         for case let extra as [String: Any] in (root["additional_rate_limits"] as? [Any]) ?? [] {
             let name = additionalModelName(extra)
@@ -150,7 +150,7 @@ actor CodexProvider: UsageProvider {
         }
         if let credits = root["credits"] as? [String: Any], (credits["has_credits"] as? Bool) == true, (credits["unlimited"] as? Bool) != true,
            let balance = JSON.number(credits["balance"]) {
-            windows.append(LimitWindow(id: "credits", label: L("Credits"), usedFraction: nil, resetsAt: nil, note: L("%@ remaining", Money.dollars(balance)), amountUSD: balance))
+            windows.append(LimitWindow(id: "credits", label: .key("Credits"), usedFraction: nil, resetsAt: nil, note: L("%@ remaining", Money.dollars(balance)), amountUSD: balance))
         }
         let plan = (root["plan_type"] as? String).map(Naming.codexPlan)
         return UsageReading(tool: .codex, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
@@ -167,7 +167,7 @@ actor CodexProvider: UsageProvider {
             let slug = model.map { $0.lowercased().replacingOccurrences(of: " ", with: "_") + "_" } ?? ""
             let parsed = LimitWindow(
                 id: slug + kind.id,
-                label: model.map { "\($0) \(kind.label)" } ?? kind.label,
+                label: model.map { WindowLabel.scoped(model: $0, of: kind.label) } ?? kind.label,
                 usedFraction: JSON.fraction(used),
                 resetsAt: JSON.number(window["reset_at"]).map { Date(timeIntervalSince1970: $0) },
                 periodDuration: seconds ?? (kind.id == "session" ? Period.fiveHours : Period.week),
@@ -192,15 +192,16 @@ actor CodexProvider: UsageProvider {
         return L("Extra")
     }
 
-    /// Labels a window by its declared length: 5-hour sessions, weekly and monthly limits, or "N-day".
-    static func windowKind(seconds: Double?, fallbackIsWeekly: Bool) -> (id: String, label: String) {
-        guard let seconds else { return fallbackIsWeekly ? ("weekly", L("Weekly")) : ("session", L("Session")) }
-        if seconds <= 6 * 3600 { return ("session", L("Session")) }
+    /// Labels a window by its declared length: 5-hour sessions, weekly and monthly limits, or "N-day". The name
+    /// travels unlocalised, so a per-model window reads in whatever language shows it.
+    static func windowKind(seconds: Double?, fallbackIsWeekly: Bool) -> (id: String, label: WindowLabel) {
+        guard let seconds else { return fallbackIsWeekly ? ("weekly", .key("Weekly")) : ("session", .key("Session")) }
+        if seconds <= 6 * 3600 { return ("session", .key("Session")) }
         let days = seconds / 86400
-        if (5...9).contains(days) { return ("weekly", L("Weekly")) }
-        if (25...35).contains(days) { return ("monthly", L("Monthly")) }
+        if (5...9).contains(days) { return ("weekly", .key("Weekly")) }
+        if (25...35).contains(days) { return ("monthly", .key("Monthly")) }
         let rounded = Int(days.rounded())
-        return ("window_\(rounded)d", L("%ld-day", rounded))
+        return ("window_\(rounded)d", .filled("%ld-day", [.number(rounded)]))
     }
 
     // MARK: - Reset credits
@@ -233,7 +234,7 @@ actor CodexProvider: UsageProvider {
         } else {
             note = L("%1$ld %2$@ credit(s) — claim them in Codex", total, name)
         }
-        return LimitWindow(id: "reset_credits", label: L("Reset credits"), usedFraction: nil, resetsAt: soonest.expiresAt, note: note)
+        return LimitWindow(id: "reset_credits", label: .key("Reset credits"), usedFraction: nil, resetsAt: soonest.expiresAt, note: note)
     }
 
     // MARK: - Local rollouts (fallback)
@@ -304,7 +305,7 @@ actor CodexProvider: UsageProvider {
     /// window rather than a stale figure.
     static func reading(from limits: [String: Any], observedAt: Date, now: Date) throws -> UsageReading {
         var windows: [LimitWindow] = []
-        for (key, fallbackLabel) in [("primary", L("Session")), ("secondary", L("Weekly"))] {
+        for (key, fallbackLabel) in [("primary", WindowLabel.key("Session")), ("secondary", WindowLabel.key("Weekly"))] {
             guard let window = limits[key] as? [String: Any], let usedPercent = JSON.number(window["used_percent"]) else { continue }
             var resetsAt: Date?
             if let epoch = JSON.number(window["resets_at"]) {
@@ -334,13 +335,13 @@ actor CodexProvider: UsageProvider {
         return UsageReading(tool: .codex, windows: windows, plan: plan, fetchedAt: now, observedAt: observedAt)
     }
 
-    static func label(forMinutes minutes: Int) -> String {
+    static func label(forMinutes minutes: Int) -> WindowLabel {
         switch minutes {
-        case 300: L("Session")
-        case 10080: L("Weekly")
-        case ..<60: L("%ld-minute", minutes)
-        case 60..<1440: minutes % 60 == 0 ? L("%ld-hour", minutes / 60) : L("%ld-minute", minutes)
-        default: L("%ld-day", minutes / 1440)
+        case 300: .key("Session")
+        case 10080: .key("Weekly")
+        case ..<60: .filled("%ld-minute", [.number(minutes)])
+        case 60..<1440: minutes % 60 == 0 ? .filled("%ld-hour", [.number(minutes / 60)]) : .filled("%ld-minute", [.number(minutes)])
+        default: .filled("%ld-day", [.number(minutes / 1440)])
         }
     }
 }

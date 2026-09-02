@@ -8,7 +8,7 @@ import Testing
     let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
 
     func window(_ id: String = "session", used: Double?, elapsed: TimeInterval = 3600, period: TimeInterval = Period.fiveHours) -> LimitWindow {
-        LimitWindow(id: id, label: id.capitalized, usedFraction: used, resetsAt: now.addingTimeInterval(period - elapsed), periodDuration: period)
+        LimitWindow(id: id, label: .key(id.capitalized), usedFraction: used, resetsAt: now.addingTimeInterval(period - elapsed), periodDuration: period)
     }
 
     func level(_ windows: [LimitWindow], awaiting: Bool = false) -> PresenceLevel {

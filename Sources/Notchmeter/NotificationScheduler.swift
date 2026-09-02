@@ -241,7 +241,7 @@ enum NotificationScheduler {
     // MARK: - Budget
 
     /// The month's (or the week's) spend as a window against the budget, so the pace stages apply to it.
-    static func budgetWindow(id: String, label: String, spentUSD: Double, budgetUSD: Double, period: BudgetPeriod) -> LimitWindow {
+    static func budgetWindow(id: String, label: WindowLabel, spentUSD: Double, budgetUSD: Double, period: BudgetPeriod) -> LimitWindow {
         LimitWindow(id: id, label: label, usedFraction: min(1, max(0, spentUSD / budgetUSD)), resetsAt: period.end,
                     note: L("%1$@ of %2$@", Money.dollars(spentUSD, cents: false), Money.dollars(budgetUSD, cents: false)),
                     periodDuration: period.duration, source: .localEstimate, amountUSD: spentUSD)
@@ -252,11 +252,11 @@ enum NotificationScheduler {
         guard let cost else { return nil }
         var windows: [LimitWindow] = []
         if let monthlyUSD, monthlyUSD > 0 {
-            windows.append(budgetWindow(id: "budget_month", label: L("Monthly budget"), spentUSD: cost.totals(.month).cost, budgetUSD: monthlyUSD,
+            windows.append(budgetWindow(id: "budget_month", label: .key("Monthly budget"), spentUSD: cost.totals(.month).cost, budgetUSD: monthlyUSD,
                                         period: BudgetPeriod.month(now: now, calendar: calendar)))
         }
         if let weeklyUSD, weeklyUSD > 0, let week = cost.week {
-            windows.append(budgetWindow(id: "budget_week", label: L("Weekly budget"), spentUSD: week.cost, budgetUSD: weeklyUSD,
+            windows.append(budgetWindow(id: "budget_week", label: .key("Weekly budget"), spentUSD: week.cost, budgetUSD: weeklyUSD,
                                         period: BudgetPeriod(start: week.start, end: week.start.addingTimeInterval(Period.week))))
         }
         guard !windows.isEmpty else { return nil }

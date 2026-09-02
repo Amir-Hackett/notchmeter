@@ -82,7 +82,7 @@ import Testing
 
     let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
 
-    @Test func splitsThePlanByModelKindAndHidesTheSplitByDefault() throws {
+    @MainActor @Test func splitsThePlanByModelKindAndHidesTheSplitByDefault() throws {
         let json = """
         {"billingCycleStart":"2026-08-24T05:12:03.105Z","billingCycleEnd":"2026-09-24T05:12:03.105Z","membershipType":"pro","limitType":"user","isUnlimited":false,
          "individualUsage":{"plan":{"enabled":true,"used":250,"limit":2000,"remaining":1750,"totalPercentUsed":12.5,"autoPercentUsed":9.5,"apiPercentUsed":3},
@@ -100,16 +100,14 @@ import Testing
         let defaults = UserDefaults(suiteName: "NotchmeterTests.CursorHidden")!
         defaults.removePersistentDomain(forName: "NotchmeterTests.CursorHidden")
         defer { defaults.removePersistentDomain(forName: "NotchmeterTests.CursorHidden") }
-        Task { @MainActor in
-            let prefs = Preferences(defaults: defaults)
-            #expect(prefs.shownWindows(of: reading).map(\.id) == ["included"])
-            prefs.setHidden(false, window: reading.windows[1], of: .cursor)
-            #expect(prefs.shownWindows(of: reading).map(\.id) == ["included", "cursor_models"])
-            prefs.setHidden(true, window: reading.windows[1], of: .cursor)
-            #expect(prefs.shownWindows(of: reading).map(\.id) == ["included"])
-            prefs.setHidden(true, window: reading.windows[0], of: .cursor)
-            #expect(prefs.shownWindows(of: reading).isEmpty)
-        }
+        let prefs = Preferences(defaults: defaults)
+        #expect(prefs.shownWindows(of: reading).map(\.id) == ["included"])
+        prefs.setHidden(false, window: reading.windows[1], of: .cursor)
+        #expect(prefs.shownWindows(of: reading).map(\.id) == ["included", "cursor_models"])
+        prefs.setHidden(true, window: reading.windows[1], of: .cursor)
+        #expect(prefs.shownWindows(of: reading).map(\.id) == ["included"])
+        prefs.setHidden(true, window: reading.windows[0], of: .cursor)
+        #expect(prefs.shownWindows(of: reading).isEmpty)
     }
 
     @Test func aTeamPlanPutsThePooledUsageFirst() throws {

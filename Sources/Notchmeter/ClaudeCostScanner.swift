@@ -224,8 +224,15 @@ actor ClaudeCostScanner {
         let size: Int
         let modified: Date
         let pricing: String
-        let entries: [UsageEntry]
+        /// The file's parsed entries, held only while the file is inside the fine horizon; nil once it has aged
+        /// out, when the digest answers everything asked of it. Holding a month of transcripts at entry level was
+        /// most of the app's resident memory, and none of it was ever read again.
+        let entries: [UsageEntry]?
         let digest: FileDigest
+
+        func withoutEntries() -> CachedFile {
+            CachedFile(size: size, modified: modified, pricing: pricing, entries: nil, digest: digest)
+        }
     }
 
     nonisolated let roots: [URL]
@@ -250,18 +257,35 @@ actor ClaudeCostScanner {
         self.history = history
     }
 
+    static let cachePrefix = "claude-usage-cache"
+
     /// Versioned: entries parsed by an older rule set must not be reused.
     static func defaultCacheURL() -> URL? {
-        Paths.caches.appendingPathComponent("claude-usage-cache-v3.json")
+        Paths.caches.appendingPathComponent("\(cachePrefix)-v3.json")
     }
 
     private func loadCacheIfNeeded() {
         guard !cacheLoaded else { return }
         cacheLoaded = true
+        removeSupersededCaches()
         guard let cacheURL, let data = try? Data(contentsOf: cacheURL),
               let stored = try? JSONDecoder().decode([String: CachedFile].self, from: data)
         else { return }
         cache = stored
+    }
+
+    /// The cache files earlier rule sets wrote: tens of megabytes each, never read again once the version in the
+    /// name moved on, and nothing else removes them.
+    private func removeSupersededCaches() {
+        guard let cacheURL else { return }
+        let folder = cacheURL.deletingLastPathComponent()
+        let current = cacheURL.lastPathComponent
+        guard current.hasPrefix(Self.cachePrefix),
+              let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path)
+        else { return }
+        for name in names where name != current && name.hasPrefix(Self.cachePrefix) && name.hasSuffix(".json") {
+            try? FileManager.default.removeItem(at: folder.appendingPathComponent(name))
+        }
     }
 
     private func saveCache() {
@@ -322,8 +346,9 @@ actor ClaudeCostScanner {
             let modified = values?.contentModificationDate ?? .distantPast
             guard modified >= cutoff else { continue }
             live.insert(path)
-            let cached: CachedFile
-            if let hit = cache[path], hit.size == size, hit.modified == modified, hit.pricing == pricing {
+            let needsEntries = modified >= fineSince
+            var cached: CachedFile
+            if let hit = cache[path], hit.size == size, hit.modified == modified, hit.pricing == pricing, hit.entries != nil || !needsEntries {
                 cached = hit
             } else {
                 let entries = Self.dedupe((try? Data(contentsOf: url)).map { Self.parseFile($0, project: project) } ?? [])
@@ -331,8 +356,13 @@ actor ClaudeCostScanner {
                 cache[path] = cached
                 changed = true
             }
+            if !needsEntries, cached.entries != nil {
+                cached = cached.withoutEntries()
+                cache[path] = cached
+                changed = true
+            }
             digests.append(cached.digest)
-            if modified >= fineSince { fine.append(contentsOf: cached.entries) }
+            if needsEntries, let entries = cached.entries { fine.append(contentsOf: entries) }
         }
         cache = cache.filter { live.contains($0.key) }
         if changed, cacheSavedAt.map({ now.timeIntervalSince($0) >= Self.cacheSaveSpacing }) ?? true {

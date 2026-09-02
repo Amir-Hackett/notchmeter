@@ -660,17 +660,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// The open panel must fit where it is drawn: inside DynamicNotchKit's fixed window for the top layout, inside
-    /// the screen's usable height for the edge pills, which size their window to the content. The top window is
-    /// mostly transparent, so a hit test below the panel also confirms that area still reaches whatever is under it.
+    /// the screen's usable height for the edge pills, which size their window to the content. Content taller than
+    /// the cap scrolls instead of being clipped, so the natural height is printed but only the drawn one is a
+    /// verdict. The top window is mostly transparent, so a hit test below the panel also confirms that area still
+    /// reaches whatever is under it.
     private func reportSizing(_ presenter: any PanelPresenting) -> Bool {
         let screen = presenter.screen
-        let content = presenter.expandedIntrinsicContentSize
+        let content = presenter.expandedContentSize
+        let natural = presenter.expandedIntrinsicContentSize
         let cap = NotchExpandedView.maxHeight(on: screen)
         let notchLayout = presenter is NotchController
         let room = notchLayout ? (presenter.window?.frame.height ?? 0) : screen.visibleFrame.height
         let roomName = notchLayout ? "window height" : "usable screen height"
-        var passed = content.height <= room && content.height <= cap
-        Probe.emit("panel sizing: \(roomName)=\(room) expanded content height=\(content.height) width=\(content.width) (density=\(prefs.density.rawValue), panel width=\(prefs.panelWidth.rawValue)) max content height=\(cap) → \(passed ? "fits" : "CLIPPED")")
+        let fit = NotchExpandedView.Fit.of(drawn: content.height, natural: natural.height, room: room, cap: cap)
+        var passed = fit.holds
+        Probe.emit("panel sizing: \(roomName)=\(room) drawn content height=\(content.height) natural height=\(natural.height) width=\(content.width) "
+                   + "(density=\(prefs.density.rawValue), panel width=\(prefs.panelWidth.rawValue)) max content height=\(cap) → \(fit == .clipped ? "CLIPPED" : fit.rawValue)")
         if notchLayout, let window = presenter.window {
             let below = NSPoint(x: window.frame.midX, y: window.frame.minY + 20)
             let hit = NSWindow.windowNumber(at: below, belowWindowWithWindowNumber: 0)

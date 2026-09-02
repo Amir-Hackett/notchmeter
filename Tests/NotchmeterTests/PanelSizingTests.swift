@@ -24,6 +24,18 @@ import Testing
         #expect(fittingHeight(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: natural + 100)) == natural)
     }
 
+    /// The self check reads the panel as it is drawn. Content taller than the cap scrolls, which is what the panel's
+    /// scroll view is for; only a panel drawn larger than the room it has is a fault.
+    @Test func contentPastTheCapScrollsAndOnlyAnOversizedPanelIsAFault() {
+        #expect(NotchExpandedView.Fit.of(drawn: 400, natural: 400, room: 982, cap: 835) == .fits)
+        #expect(NotchExpandedView.Fit.of(drawn: 835, natural: 1114, room: 982, cap: 835) == .scrolls)
+        #expect(NotchExpandedView.Fit.of(drawn: 835.4, natural: 1114, room: 982, cap: 835) == .scrolls)
+        #expect(NotchExpandedView.Fit.of(drawn: 900, natural: 1114, room: 982, cap: 835) == .clipped)
+        #expect(NotchExpandedView.Fit.of(drawn: 780, natural: 780, room: 700, cap: 835) == .clipped)
+        #expect(NotchExpandedView.Fit.of(drawn: 835, natural: 1114, room: 982, cap: 835).holds)
+        #expect(!NotchExpandedView.Fit.of(drawn: 900, natural: 1114, room: 982, cap: 835).holds)
+    }
+
     @MainActor private func fittingHeight(_ view: NotchExpandedView) -> CGFloat {
         let host = NSHostingView(rootView: view)
         host.layoutSubtreeIfNeeded()

@@ -12,7 +12,7 @@ import Testing
 
     /// A five-hour window one hour in, so used × 5 is the projection: 0.1 lands ahead, 0.21 behind.
     func session(_ id: String, used: Double?) -> LimitWindow {
-        LimitWindow(id: id, label: id, usedFraction: used, resetsAt: now.addingTimeInterval(4 * 3600), periodDuration: Period.fiveHours)
+        LimitWindow(id: id, label: .key(id), usedFraction: used, resetsAt: now.addingTimeInterval(4 * 3600), periodDuration: Period.fiveHours)
     }
 
     @Test func mainAndSecondWindowInTheChosenSense() {

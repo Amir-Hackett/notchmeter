@@ -52,3 +52,66 @@ import Testing
         #expect(ResetText.line(resetsAt: nil, hasLimit: false, display: .exact, timeFormat: .auto, stale: true, now: now, calendar: calendar) == "No limit published")
     }
 }
+
+/// A rate-limit answer names the wait the app will really take. A vendor that asks for no delay at all still gets
+/// the minute the store backs off for, so the line on the card and the line in the log are the same minute.
+@Suite struct RateLimitBackoff {
+    init() { Localization.use(language: "en") }
+
+    @Test func theWaitNamedIsTheWaitTaken() {
+        #expect(ProviderError.rateLimitWait(retryAfter: 0) == 60)
+        #expect(ProviderError.rateLimitWait(retryAfter: nil) == 60)
+        #expect(ProviderError.rateLimitWait(retryAfter: 15) == 60)
+        #expect(ProviderError.rateLimitWait(retryAfter: 300) == 300)
+        #expect(ProviderError.rateLimited(retryAfter: 0).message == "Rate limited, retrying in 60s")
+        #expect(ProviderError.rateLimited(retryAfter: 300).message == "Rate limited, retrying in 300s")
+        #expect(ProviderError.rateLimited(retryAfter: nil).message == "Rate limited, backing off")
+    }
+}
+
+/// A reading carries no language of its own: a window's name travels as the key it will be looked up under, so a
+/// reading cached in one language reads in whichever language shows it, and the advice built from it is whole.
+@Suite struct CachedReadingLanguage {
+    init() { Localization.use(language: "en") }
+
+    @Test func aCachedWindowKeepsItsKeyRatherThanItsTranslation() throws {
+        let json = """
+        {"plan_type":"plus","rate_limit":{"primary_window":{"used_percent":40,"reset_at":1759352940,"limit_window_seconds":18000},
+         "secondary_window":{"used_percent":10,"reset_at":1759852940,"limit_window_seconds":604800}}}
+        """
+        let reading = try CodexProvider.parseBackend(Data(json.utf8))
+        let encoded = try JSONEncoder().encode(reading)
+        let root = try #require(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        let windows = try #require(root["windows"] as? [[String: Any]])
+        #expect(windows.map { ($0["label"] as? [String: Any])?["key"] as? String } == ["Session", "Weekly"])
+        for language in Localization.languages {
+            let table = try #require(Localization.table(language: language))
+            #expect(table["Session"]?.isEmpty == false, "\(language) cannot name a session window")
+        }
+        let restored = try JSONDecoder().decode(UsageReading.self, from: encoded)
+        #expect(restored == reading)
+        #expect(restored.windows.map(\.label) == ["Session", "Weekly"])
+    }
+
+    @Test func aReadingCachedAsPlainTextStillReads() throws {
+        let window = LimitWindow(id: "included", label: .key("Included usage"), usedFraction: 0.5, resetsAt: nil)
+        let reading = UsageReading(tool: .cursor, windows: [window], plan: nil, fetchedAt: Date(), observedAt: nil)
+        let text = String(decoding: try JSONEncoder().encode(reading), as: UTF8.self)
+            .replacingOccurrences(of: #"{"key":"Included usage"}"#, with: #""Included usage""#)
+        let restored = try JSONDecoder().decode(UsageReading.self, from: Data(text.utf8))
+        #expect(restored.windows[0].name == .vendor("Included usage"))
+        #expect(restored.windows[0].label == "Included usage")
+    }
+
+    @Test func aSentenceLowercasesTheTranslationAndNotTheVendorsWords() {
+        #expect(WindowLabel.key("Weekly").inSentence == "weekly")
+        #expect(WindowLabel.key("Included usage").inSentence == "included usage")
+        #expect(WindowLabel.vendor("Gemini Pro").inSentence == "Gemini Pro")
+        #expect(WindowLabel.filled("%@ org spend", [.text("Acme")]).inSentence == "Acme org spend")
+        #expect(WindowLabel.filled("%ld-day", [.number(14)]).text == "14-day")
+        #expect(WindowLabel.scoped(model: "Spark", of: .key("Session")).text == "Spark Session")
+        #expect(WindowLabel.scoped(model: "Spark", of: .key("Session")).inSentence == "Spark session")
+        let org = LimitWindow(id: "org_acme_spend", label: .filled("%@ org spend", [.text("Acme")]), usedFraction: 0.5, resetsAt: nil)
+        #expect(Advisor.name(org) == "Acme org spend")
+    }
+}

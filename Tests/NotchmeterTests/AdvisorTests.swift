@@ -14,7 +14,7 @@ import Testing
         return calendar
     }
 
-    func window(_ id: String, label: String, used: Double?, elapsed: TimeInterval, period: TimeInterval = Period.week, model: String? = nil) -> LimitWindow {
+    func window(_ id: String, label: WindowLabel, used: Double?, elapsed: TimeInterval, period: TimeInterval = Period.week, model: String? = nil) -> LimitWindow {
         LimitWindow(id: id, label: label, usedFraction: used, resetsAt: now.addingTimeInterval(period - elapsed), periodDuration: period, model: model)
     }
 

@@ -142,19 +142,19 @@ actor CursorProvider: UsageProvider {
         let planPercent = number(plan?["totalPercentUsed"])
         if unlimited {
             windows.append(LimitWindow(
-                id: "included", label: L("Included usage"), usedFraction: nil, resetsAt: cycleEnd,
+                id: "included", label: .key("Included usage"), usedFraction: nil, resetsAt: cycleEnd,
                 note: L("Unlimited on the %@ plan", planName ?? L("current"))
             ))
         } else if planEnabled, let planLimit, planLimit > 0 {
             let fraction = planPercent.map { $0 / 100 } ?? (planUsed.map { $0 / planLimit } ?? 0)
             windows.append(LimitWindow(
-                id: "included", label: L("Included usage"), usedFraction: min(max(fraction, 0), 1), resetsAt: cycleEnd,
+                id: "included", label: .key("Included usage"), usedFraction: min(max(fraction, 0), 1), resetsAt: cycleEnd,
                 note: planUsed.map { L("%1$@ of %2$@", dollars($0), dollars(planLimit)) },
                 periodDuration: cycle, amountUSD: planUsed.map { $0 / 100 }
             ))
         } else {
             windows.append(LimitWindow(
-                id: "included", label: L("Included usage"), usedFraction: nil, resetsAt: cycleEnd,
+                id: "included", label: .key("Included usage"), usedFraction: nil, resetsAt: cycleEnd,
                 note: L("%@ plan has nothing for Cursor to meter yet", planName ?? L("This"))
             ))
         }
@@ -163,22 +163,26 @@ actor CursorProvider: UsageProvider {
             let used = number(pooled["used"]) ?? 0
             let fraction = number(pooled["totalPercentUsed"]).map { $0 / 100 } ?? used / limit
             let window = LimitWindow(
-                id: "team_pooled", label: L("Team pooled"), usedFraction: min(max(fraction, 0), 1), resetsAt: cycleEnd,
+                id: "team_pooled", label: .key("Team pooled"), usedFraction: min(max(fraction, 0), 1), resetsAt: cycleEnd,
                 note: L("%1$@ of %2$@", dollars(used), dollars(limit)), periodDuration: cycle, amountUSD: used / 100
             )
             if teamScoped { windows.insert(window, at: 0) } else { windows.append(window) }
         }
 
-        for (key, id, label) in [("autoPercentUsed", "cursor_models", L("Cursor models")), ("apiPercentUsed", "other_models", L("Other models"))] {
+        let splits: [(key: String, id: String, label: WindowLabel)] = [
+            ("autoPercentUsed", "cursor_models", .key("Cursor models")),
+            ("apiPercentUsed", "other_models", .key("Other models")),
+        ]
+        for (key, id, label) in splits {
             guard let percent = number(plan?[key]) else { continue }
             windows.append(LimitWindow(id: id, label: label, usedFraction: JSON.fraction(percent), resetsAt: cycleEnd,
-                                       note: L("Share of the plan's included usage"), periodDuration: cycle, model: label, hiddenByDefault: true))
+                                       note: L("Share of the plan's included usage"), periodDuration: cycle, model: label.text, hiddenByDefault: true))
         }
 
         if let onDemand, (onDemand["enabled"] as? Bool) == true, let limit = number(onDemand["limit"]), limit > 0 {
             let used = number(onDemand["used"]) ?? 0
             windows.append(LimitWindow(
-                id: "on_demand", label: L("On-demand"), usedFraction: min(max(used / limit, 0), 1), resetsAt: cycleEnd,
+                id: "on_demand", label: .key("On-demand"), usedFraction: min(max(used / limit, 0), 1), resetsAt: cycleEnd,
                 note: L("%1$@ of %2$@", dollars(used), dollars(limit)),
                 periodDuration: cycle, amountUSD: used / 100
             ))
@@ -187,7 +191,7 @@ actor CursorProvider: UsageProvider {
            let limit = number(teamOnDemand["limit"]), limit > 0 {
             let used = number(teamOnDemand["used"]) ?? 0
             windows.append(LimitWindow(
-                id: "team_on_demand", label: L("Team on-demand"), usedFraction: min(max(used / limit, 0), 1), resetsAt: cycleEnd,
+                id: "team_on_demand", label: .key("Team on-demand"), usedFraction: min(max(used / limit, 0), 1), resetsAt: cycleEnd,
                 note: L("%1$@ of %2$@", dollars(used), dollars(limit)), periodDuration: cycle, hiddenByDefault: true, amountUSD: used / 100
             ))
         }
@@ -208,7 +212,7 @@ actor CursorProvider: UsageProvider {
         let resets = start.flatMap { Calendar.current.date(byAdding: .month, value: 1, to: $0) }
         let window = LimitWindow(
             id: "requests",
-            label: L("Fast requests"),
+            label: .key("Fast requests"),
             usedFraction: limit.flatMap { $0 > 0 ? min(max(used / $0, 0), 1) : nil },
             resetsAt: resets,
             note: limit.map { L("%1$ld of %2$ld requests", Int(used), Int($0)) }

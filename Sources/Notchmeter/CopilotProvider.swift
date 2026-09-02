@@ -178,10 +178,10 @@ actor CopilotProvider: UsageProvider {
         let resetsAt = (root["quota_reset_date"] as? String).flatMap(resetDate)
         let snapshots = root["quota_snapshots"] as? [String: Any] ?? [:]
         var windows: [LimitWindow] = []
-        let specs: [(key: String, id: String, label: String)] = [
-            ("premium_interactions", "premium", L("Premium requests")),
-            ("chat", "chat", L("Chat")),
-            ("completions", "completions", L("Completions")),
+        let specs: [(key: String, id: String, label: WindowLabel)] = [
+            ("premium_interactions", "premium", .key("Premium requests")),
+            ("chat", "chat", .key("Chat")),
+            ("completions", "completions", .key("Completions")),
         ]
         for spec in specs {
             guard let snapshot = snapshots[spec.key] as? [String: Any] else { continue }
@@ -257,9 +257,9 @@ actor CopilotProvider: UsageProvider {
         let requests = copilot.reduce(0.0) { $0 + (JSON.number($1["quantity"]) ?? 0) }
         let slug = org.lowercased().replacingOccurrences(of: " ", with: "_")
         return [
-            LimitWindow(id: "org_\(slug)_credits", label: L("%@ org credits", org), usedFraction: nil, resetsAt: nil,
+            LimitWindow(id: "org_\(slug)_credits", label: .filled("%@ org credits", [.text(org)]), usedFraction: nil, resetsAt: nil,
                         note: L("%1$@ covered by the allowance · %2$ld requests this month", Money.dollars(credits), Int(requests)), hiddenByDefault: true, amountUSD: credits),
-            LimitWindow(id: "org_\(slug)_spend", label: L("%@ org spend", org), usedFraction: nil, resetsAt: nil,
+            LimitWindow(id: "org_\(slug)_spend", label: .filled("%@ org spend", [.text(org)]), usedFraction: nil, resetsAt: nil,
                         note: L("%@ billed this month", Money.dollars(spend)), hiddenByDefault: true, amountUSD: spend),
         ]
     }

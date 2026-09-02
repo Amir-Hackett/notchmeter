@@ -50,7 +50,7 @@ import Testing
 
     let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
 
-    @Test func aFreshWindowWithoutAResetSaysSo() {
+    @MainActor @Test func aFreshWindowWithoutAResetSaysSo() {
         #expect(ResetText.line(resetsAt: nil, hasLimit: true, display: .exact, timeFormat: .auto, unused: true, now: now) == "Not started")
         #expect(ResetText.line(resetsAt: nil, hasLimit: true, display: .countdown, timeFormat: .auto, unused: false, now: now) == "")
         #expect(ResetText.line(resetsAt: nil, hasLimit: false, display: .exact, timeFormat: .auto, unused: true, now: now) == "No limit published")
@@ -59,14 +59,12 @@ import Testing
         #expect(Pace.note(for: fresh, now: now) == nil)
         #expect(CompactLabel.text(for: [fresh], display: .used, countdown: true, now: now) == "0%")
         #expect(CompactLabel.segments(for: [fresh], display: .used, now: now).first?.pace == nil)
-        Task { @MainActor in
-            let defaults = UserDefaults(suiteName: "NotchmeterTests.NotStarted")!
-            defaults.removePersistentDomain(forName: "NotchmeterTests.NotStarted")
-            defer { defaults.removePersistentDomain(forName: "NotchmeterTests.NotStarted") }
-            let prefs = Preferences(defaults: defaults)
-            #expect(prefs.resetLine(for: fresh, now: now) == "Not started")
-            let used = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.3, resetsAt: nil, periodDuration: Period.fiveHours)
-            #expect(prefs.resetLine(for: used, now: now) == "")
-        }
+        let defaults = UserDefaults(suiteName: "NotchmeterTests.NotStarted")!
+        defaults.removePersistentDomain(forName: "NotchmeterTests.NotStarted")
+        defer { defaults.removePersistentDomain(forName: "NotchmeterTests.NotStarted") }
+        let prefs = Preferences(defaults: defaults)
+        #expect(prefs.resetLine(for: fresh, now: now) == "Not started")
+        let used = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.3, resetsAt: nil, periodDuration: Period.fiveHours)
+        #expect(prefs.resetLine(for: used, now: now) == "")
     }
 }
