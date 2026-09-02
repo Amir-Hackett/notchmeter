@@ -138,6 +138,7 @@
 "Beta updates" = "測試版更新";
 "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "兩者都需要 Claude Code hook，且在終端機或編輯器位於最前、以及安靜時段內保持安靜。「一瞥」會將面板連同工作階段行開啟幾秒後再收起，除非指標移入；開啟「減少動態效果」時無動畫開啟並停留稍久。你回覆後「等待中」通知會被撤回。未簽署的組建中任何通知都無法突破專注模式或勿擾模式；簽署版本中的時效性通知（即將用盡、等待你）可以。";
 "Both sides" = "兩側";
+"Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "兩側顯示時以瀏海為中心。選單較多的應用程式可能超出瀏海左緣；選擇瀏海右側則始終避開。";
 "Bottom, above the Dock" = "底部，Dock 上方";
 "Built-in display" = "內建顯示器";
 "By model" = "依模型";
@@ -482,7 +483,6 @@
 "Test notification" = "測試通知";
 "Text" = "文字";
 "The %1$@'s %2$@ is past the %3$@ budget." = "本%1$@已花費 %2$@，超出 %3$@ 的預算。";
-"The app's menu titles sit immediately left of the notch, so the right side is usually the free one." = "應用程式的選單標題緊鄰瀏海左側，因此右側通常較空。";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "每日總計檔案匯出為 CSV 或 JSON：每天一行，含費用、五類 token 計數、最高模型以及按模型和按專案的費用。";
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "第一個助理位於瀏海左側，其餘位於右側；面板卡片和邊緣膠囊沿用同一順序。「尖峰時段」將 Anthropic 的平日時段（進階）套用於該助理的建議和預測。";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "鑰匙圈請求已被關閉。在設定中關閉再開啟 Claude 可重新詢問";
@@ -498,11 +498,11 @@
 "This session block %@" = "本工作階段時段 %@";
 "Time format" = "時間格式";
 "To" = "至";
-"Today" = "今天";
 "today" = "今天";
+"Today" = "今天";
 "Toggle the panel" = "切換面板";
-"tokens" = "token";
 "Tokens" = "Token";
+"tokens" = "token";
 "tomorrow" = "明天";
 "top model %@" = "最高模型 %@";
 "Top, in the notch" = "頂部，在瀏海處";
@@ -520,8 +520,8 @@
 "Used" = "已用";
 "Version %@" = "版本 %@";
 "Waiting for permission." = "正在等待授權。";
-"waiting for the first reading" = "等待第一次讀取";
 "Waiting for the first reading" = "等待第一次讀取";
+"waiting for the first reading" = "等待第一次讀取";
 "Waiting for you" = "等待你";
 "Waiting for your approval in System Settings › General › Login Items." = "等待你在「系統設定 › 一般 › 登入項目」中核准。";
 "waiting for your input" = "正在等待你的輸入";
@@ -546,8 +546,8 @@
 "working %@" = "已工作 %@";
 "Writes each vendor request's outcome (status code and size, never a token or a body) to the unified log at info level, where Copy diagnostics and `log show --info` pick it up." = "將每個廠商要求的結果（狀態碼和大小，絕不含權杖或內文）以 info 層級寫入統一記錄，供「複製診斷資訊」和 `log show --info` 讀取。";
 "Wrote %ld days to %@." = "已將 %ld 天寫入 %@。";
-"yesterday" = "昨天";
 "Yesterday" = "昨天";
+"yesterday" = "昨天";
 "You are now paying: extra usage rose %@ this month." = "你現在在付費：本月額外用量上漲了 %@。";
 "Your menu bar ran out of room three apps ago. This one doesn't take any." = "你的選單列三個 App 之前就滿了。這一個不佔位置。";
 "~%ld%% left at reset" = "重設時約剩 %ld%%";

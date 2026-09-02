@@ -338,7 +338,9 @@ final class NotchController: NSObject, PanelPresenting {
 
     func applyWindowBehaviour() {
         notch.collectionBehavior = Self.collectionBehavior(showOverFullScreen: prefs.showOverFullScreenApps)
-        notch.expandedGlass = !AccessibilityDisplay.shared.reduceTransparency
+        // The notch panel stays black so it reads as one shape with the hardware notch: a glass backdrop
+        // over black renders as pale grey and breaks that join. Glass belongs to the edge pills.
+        notch.expandedGlass = false
     }
 
     func toggle(cause: PanelCause) {

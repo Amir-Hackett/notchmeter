@@ -109,8 +109,8 @@
 "All displays" = "すべてのディスプレイ";
 "Allowed origin, e.g. http://localhost:3000" = "許可するオリジン（例: http://localhost:3000）";
 "Almost out (under an hour left), and out" = "まもなく尽きる（残り 1 時間未満）、および尽きた";
-"already present for %@" = "%@ には既に存在します";
 "Already present for %@" = "%@ には既に存在します";
+"already present for %@" = "%@ には既に存在します";
 "Also on battery" = "バッテリー駆動時も";
 "Also read Codex reset credits" = "Codex のリセットクレジットも読む";
 "Also read Cursor's usage events" = "Cursor の使用イベントも読む";
@@ -138,6 +138,7 @@
 "Beta updates" = "ベータ版アップデート";
 "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらも Claude Code フックが必要で、ターミナルやエディタが最前面のときと静寂時間中は鳴りません。「ちら見」はパネルをセッション行とともに数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
 "Both sides" = "両側";
+"Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "両側はノッチを中心に見えます。メニューの多いアプリはノッチの左端を越えることがあり、ノッチの右側なら必ず避けられます。";
 "Bottom, above the Dock" = "下、Dock の上";
 "Built-in display" = "内蔵ディスプレイ";
 "By model" = "モデル別";
@@ -375,8 +376,8 @@
 "Paused while the display sleeps" = "ディスプレイのスリープ中は一時停止";
 "Paused while the screen is locked" = "画面ロック中は一時停止";
 "peak %1$@ on %2$@" = "ピーク %1$@（%2$@）";
-"Peak hours" = "ピーク時間";
 "peak hours" = "ピーク時間";
+"Peak hours" = "ピーク時間";
 "Peak hours (Anthropic's tighter session limits)" = "ピーク時間（Anthropic のより厳しいセッション上限）";
 "Peak hours until %@: the session projection assumes the peak rate." = "%@ までピーク時間: セッションの予測はピーク時のレートを前提にします。";
 "per MTok" = "百万トークンあたり";
@@ -438,8 +439,8 @@
 "Runs out in %@" = "%@ 後に使い切ります";
 "Select All" = "すべてを選択";
 "Sent." = "送信しました。";
-"Session" = "セッション";
 "session" = "セッション";
+"Session" = "セッション";
 "Session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "セッションブロック、トークン、主なプロジェクト、スパークライン。オフにするとパネルが短くなり、スクロールが不要になります。";
 "Sessions" = "セッション";
 "Set the Notchmeter status line in settings.json?" = "settings.json に Notchmeter のステータスラインを設定しますか？";
@@ -482,7 +483,6 @@
 "Test notification" = "テスト通知";
 "Text" = "テキスト";
 "The %1$@'s %2$@ is past the %3$@ budget." = "%1$@の %2$@ は予算 %3$@ を超えています。";
-"The app's menu titles sit immediately left of the notch, so the right side is usually the free one." = "アプリのメニュー項目はノッチのすぐ左に並ぶため、通常は右側が空いています。";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "日次合計ファイルを CSV または JSON で書き出します。1 日 1 行で、コスト、5 つのトークン区分、最多モデル、モデル別とプロジェクト別のコストを含みます。";
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "最初のアシスタントはノッチの左に、残りは右に並びます。パネルのカードとエッジのピルも同じ順序です。「ピーク時間」は Anthropic の平日ウィンドウ（詳細）をそのアシスタントのアドバイスと予測に適用します。";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "キーチェーンの要求が閉じられました。設定で Claude をオフにしてから再度オンにすると再度確認します";
@@ -498,8 +498,8 @@
 "This session block %@" = "このセッション枠 %@";
 "Time format" = "時刻形式";
 "To" = "終了";
-"today" = "今日";
 "Today" = "今日";
+"today" = "今日";
 "Toggle the panel" = "パネルの表示切り替え";
 "tokens" = "トークン";
 "Tokens" = "トークン";
@@ -527,11 +527,11 @@
 "waiting for your input" = "入力を待っています";
 "waiting in %@" = "%@ で待機中";
 "waiting on quota" = "クォータ待ち";
-"Week" = "今週";
 "week" = "週";
+"Week" = "今週";
 "Weekdays only" = "平日のみ";
-"weekly" = "週間";
 "Weekly" = "週間";
+"weekly" = "週間";
 "Weekly budget" = "週次予算";
 "When a window resets" = "ウィンドウがリセットされたとき";
 "When Claude Code waits for you or a turn finishes" = "Claude Code が待機したときやターンが終わったとき";

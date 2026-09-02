@@ -125,8 +125,8 @@
 "All displays" = "All displays";
 "Allowed origin, e.g. http://localhost:3000" = "Allowed origin, e.g. http://localhost:3000";
 "Almost out (under an hour left), and out" = "Almost out (under an hour left), and out";
-"Already present for %@" = "Already present for %@";
 "already present for %@" = "already present for %@";
+"Already present for %@" = "Already present for %@";
 "Also on battery" = "Also on battery";
 "Also read Codex reset credits" = "Also read Codex reset credits";
 "Also read Cursor's usage events" = "Also read Cursor's usage events";
@@ -146,14 +146,15 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "At this rate the %1$@ costs %2$@ against a %3$@ budget.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@";
-"Auto" = "Auto";
 "auto" = "auto";
+"Auto" = "Auto";
 "backup at %@" = "backup at %@";
 "Bars" = "Bars";
 "Beside the notch" = "Beside the notch";
 "Beta updates" = "Beta updates";
 "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release.";
 "Both sides" = "Both sides";
+"Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them.";
 "Bottom, above the Dock" = "Bottom, above the Dock";
 "Built-in display" = "Built-in display";
 "By model" = "By model";
@@ -454,8 +455,8 @@
 "Runs out in %@" = "Runs out in %@";
 "Select All" = "Select All";
 "Sent." = "Sent.";
-"Session" = "Session";
 "session" = "session";
+"Session" = "Session";
 "Session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "Session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll.";
 "Sessions" = "Sessions";
 "Set the Notchmeter status line in settings.json?" = "Set the Notchmeter status line in settings.json?";
@@ -498,7 +499,6 @@
 "Test notification" = "Test notification";
 "Text" = "Text";
 "The %1$@'s %2$@ is past the %3$@ budget." = "The %1$@'s %2$@ is past the %3$@ budget.";
-"The app's menu titles sit immediately left of the notch, so the right side is usually the free one." = "The app's menu titles sit immediately left of the notch, so the right side is usually the free one.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost.";
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections.";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again";
@@ -536,8 +536,8 @@
 "Used" = "Used";
 "Version %@" = "Version %@";
 "Waiting for permission." = "Waiting for permission.";
-"waiting for the first reading" = "waiting for the first reading";
 "Waiting for the first reading" = "Waiting for the first reading";
+"waiting for the first reading" = "waiting for the first reading";
 "Waiting for you" = "Waiting for you";
 "Waiting for your approval in System Settings › General › Login Items." = "Waiting for your approval in System Settings › General › Login Items.";
 "waiting for your input" = "waiting for your input";
@@ -562,8 +562,8 @@
 "working %@" = "working %@";
 "Writes each vendor request's outcome (status code and size, never a token or a body) to the unified log at info level, where Copy diagnostics and `log show --info` pick it up." = "Writes each vendor request's outcome (status code and size, never a token or a body) to the unified log at info level, where Copy diagnostics and `log show --info` pick it up.";
 "Wrote %ld days to %@." = "Wrote %ld days to %@.";
-"yesterday" = "yesterday";
 "Yesterday" = "Yesterday";
+"yesterday" = "yesterday";
 "You are now paying: extra usage rose %@ this month." = "You are now paying: extra usage rose %@ this month.";
 "Your menu bar ran out of room three apps ago. This one doesn't take any." = "Your menu bar ran out of room three apps ago. This one doesn't take any.";
 "~%ld%% left at reset" = "~%ld%% left at reset";

@@ -138,6 +138,7 @@
 "Beta updates" = "Cập nhật beta";
 "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Cả hai cần hook Claude Code và im lặng khi terminal hay trình soạn thảo ở trước nhất và trong giờ yên tĩnh. Liếc mở bảng vài giây với dòng phiên rồi thu lại trừ khi con trỏ vào; với Giảm chuyển động nó mở không hoạt ảnh và ở lâu hơn chút. Thông báo \"đang chờ\" bị rút khi bạn trả lời. Bản chưa ký không thông báo nào xuyên qua Focus hay Không làm phiền; các thông báo nhạy thời gian (sắp hết, chờ bạn) xuyên qua trong bản phát hành đã ký.";
 "Both sides" = "Cả hai bên";
+"Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "Cả hai bên trông như căn giữa notch. Ứng dụng nhiều trình đơn có thể vượt qua mép trái notch; bên phải notch luôn tránh được.";
 "Bottom, above the Dock" = "Dưới cùng, phía trên Dock";
 "Built-in display" = "Màn hình tích hợp";
 "By model" = "Theo mô hình";
@@ -331,8 +332,8 @@
 "Notify when a window is on pace to run out" = "Thông báo khi một cửa sổ sắp hết theo nhịp";
 "Notify when Claude Code waits for you" = "Thông báo khi Claude Code chờ bạn";
 "Numbers" = "Số";
-"off" = "tắt";
 "Off" = "Tắt";
+"off" = "tắt";
 "Off by default so the menu bar keeps its room; the Options menu is then a right-click on the rings. On, it puts Quit and Settings one click (and VoiceOver's VO-M-M) away, which a Mac without a notch needs." = "Mặc định tắt để thanh menu giữ chỗ trống; khi đó menu Tùy chọn mở bằng cách bấm chuột phải vào các vòng. Khi bật, Thoát và Cài đặt chỉ cách một cú bấm (và VO-M-M của VoiceOver), điều mà máy Mac không có tai thỏ cần.";
 "Off, the rings and the panel stay off a full-screen app's Space and the hover machine idles there, so a pointer parked at the top of that Space opens nothing." = "Tắt thì các vòng và bảng không xuất hiện trên Space của ứng dụng toàn màn hình và máy di chuột nghỉ ở đó, nên con trỏ đậu trên đỉnh Space ấy không mở gì.";
 "Off-peak in %@: start the long job then." = "Ngoài giờ cao điểm sau %@: bắt đầu việc dài khi đó.";
@@ -438,8 +439,8 @@
 "Runs out in %@" = "Hết sau %@";
 "Select All" = "Chọn tất cả";
 "Sent." = "Đã gửi.";
-"Session" = "Phiên";
 "session" = "phiên";
+"Session" = "Phiên";
 "Session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "Khối phiên, token, dự án chính và biểu đồ nhỏ. Tắt để bảng đủ ngắn, không cần cuộn.";
 "Sessions" = "Phiên";
 "Set the Notchmeter status line in settings.json?" = "Đặt dòng trạng thái Notchmeter trong settings.json?";
@@ -482,7 +483,6 @@
 "Test notification" = "Thông báo thử";
 "Text" = "Chữ";
 "The %1$@'s %2$@ is past the %3$@ budget." = "%2$@ của %1$@ đã vượt ngân sách %3$@.";
-"The app's menu titles sit immediately left of the notch, so the right side is usually the free one." = "Trình đơn của ứng dụng nằm ngay bên trái notch, nên bên phải thường trống hơn.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "Tệp tổng ngày dạng CSV hoặc JSON: mỗi ngày một dòng với chi phí, năm nhóm token, mô hình cao nhất và chi phí theo mô hình và theo dự án.";
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "Trợ lý đầu nằm bên trái notch và phần còn lại bên phải; thẻ trong bảng và viên nang ở cạnh theo cùng thứ tự. Giờ cao điểm áp cửa sổ ngày thường của Anthropic (Nâng cao) cho lời khuyên và dự phóng của trợ lý đó.";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "Yêu cầu Keychain đã bị đóng. Tắt rồi bật lại Claude trong Cài đặt để hỏi lại";
@@ -501,8 +501,8 @@
 "today" = "hôm nay";
 "Today" = "Hôm nay";
 "Toggle the panel" = "Bật/tắt bảng";
-"tokens" = "token";
 "Tokens" = "Token";
+"tokens" = "token";
 "tomorrow" = "ngày mai";
 "top model %@" = "mô hình cao nhất %@";
 "Top, in the notch" = "Trên cùng, trong tai thỏ";
@@ -520,18 +520,18 @@
 "Used" = "Đã dùng";
 "Version %@" = "Phiên bản %@";
 "Waiting for permission." = "Đang chờ cấp quyền.";
-"Waiting for the first reading" = "Đang chờ lần đọc đầu tiên";
 "waiting for the first reading" = "đang chờ lần đọc đầu tiên";
+"Waiting for the first reading" = "Đang chờ lần đọc đầu tiên";
 "Waiting for you" = "Đang chờ bạn";
 "Waiting for your approval in System Settings › General › Login Items." = "Đang chờ bạn phê duyệt trong Cài đặt hệ thống › Chung › Mục đăng nhập.";
 "waiting for your input" = "đang chờ bạn nhập";
 "waiting in %@" = "đang chờ trong %@";
 "waiting on quota" = "đang chờ hạn mức";
-"Week" = "Tuần";
 "week" = "tuần";
+"Week" = "Tuần";
 "Weekdays only" = "Chỉ ngày thường";
-"weekly" = "hằng tuần";
 "Weekly" = "Hằng tuần";
+"weekly" = "hằng tuần";
 "Weekly budget" = "Ngân sách tuần";
 "When a window resets" = "Khi một cửa sổ đặt lại";
 "When Claude Code waits for you or a turn finishes" = "Khi Claude Code chờ bạn hoặc một lượt xong";
@@ -546,8 +546,8 @@
 "working %@" = "đang làm %@";
 "Writes each vendor request's outcome (status code and size, never a token or a body) to the unified log at info level, where Copy diagnostics and `log show --info` pick it up." = "Ghi kết quả mỗi yêu cầu tới nhà cung cấp (mã trạng thái và kích thước, không bao giờ token hay nội dung) vào nhật ký hợp nhất ở mức info, nơi Sao chép chẩn đoán và `log show --info` đọc được.";
 "Wrote %ld days to %@." = "Đã ghi %ld ngày vào %@.";
-"yesterday" = "hôm qua";
 "Yesterday" = "Hôm qua";
+"yesterday" = "hôm qua";
 "You are now paying: extra usage rose %@ this month." = "Bạn đang trả tiền: dùng thêm tăng %@ tháng này.";
 "Your menu bar ran out of room three apps ago. This one doesn't take any." = "Thanh menu của bạn đã hết chỗ từ ba ứng dụng trước. Ứng dụng này không chiếm chỗ nào.";
 "~%ld%% left at reset" = "~%ld%% còn lại khi đặt lại";
