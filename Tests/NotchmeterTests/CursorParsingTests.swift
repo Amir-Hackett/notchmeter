@@ -216,3 +216,17 @@ private extension Data {
         #expect(soloObject["teamId"] as? Int == 0)
     }
 }
+
+/// The store must build its providers through the registry that wires the opt-in second reads to preferences.
+/// An unwired overload used to win resolution for a bare `all()`, leaving Cursor's usage-events read switched
+/// off in the running app while the CLI path had it on — the Cost card showed no Cursor spend and logged nothing.
+@Suite struct ProviderRegistryIsWired {
+    @Test func theStoreGetsProvidersWiredToTheDefaults() {
+        let defaults = UserDefaults(suiteName: "NotchmeterTests.RegistryWiring")!
+        defaults.removePersistentDomain(forName: "NotchmeterTests.RegistryWiring")
+        defaults.set(true, forKey: "cursorUsageEvents")
+        let tools = ProviderRegistry.all(defaults: defaults).map(\.tool)
+        #expect(Set(tools) == Set(ToolID.allCases))
+        defaults.removePersistentDomain(forName: "NotchmeterTests.RegistryWiring")
+    }
+}
