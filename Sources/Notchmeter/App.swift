@@ -658,7 +658,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let smokeRestoreStyle { prefs.compactStyle = smokeRestoreStyle }
         if let smokeRestoreVisibility { prefs.visibility = smokeRestoreVisibility }
         if let smokeRestoreDisplay { prefs.display = smokeRestoreDisplay }
-        exit(presenter?.isVisible == true && hoverPassed && sizingPassed && settingsPassed && glancePassed && keyPassed && menuPassed && rebuildPassed ? 0 : 1)
+        let checks: [(String, Bool)] = [("panel visible", presenter?.isVisible == true), ("hover", hoverPassed),
+                                        ("sizing", sizingPassed), ("settings", settingsPassed), ("glance", glancePassed),
+                                        ("click-to-key", keyPassed), ("menu", menuPassed), ("rebuild", rebuildPassed)]
+        let failed = checks.filter { !$0.1 }.map(\.0)
+        Probe.emit("self check: \(checks.count - failed.count)/\(checks.count) passed"
+                   + (failed.isEmpty ? "" : "; failed: \(failed.joined(separator: ", "))"))
+        exit(failed.isEmpty ? 0 : 1)
     }
 
     /// The open panel must fit where it is drawn: inside DynamicNotchKit's fixed window for the top layout, inside
@@ -829,10 +835,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return passed
     }
 
-    /// Opens Settings the way the menu does and checks what the user reported: a floating, non-activating panel
-    /// in front of a collapsed notch panel, clear of it, with someone else's app still frontmost; closing it puts
-    /// the panel back the way the visibility preference wants it. The hook-install sheet is driven against a
-    /// scratch file so the alert is seen to attach to the window without touching settings.json.
+    /// Opens Settings the way the menu does and checks what the user reported: a non-activating window ordered
+    /// above the panel's own level and clear of the collapsed panel, with someone else's app still frontmost;
+    /// closing it puts the panel back the way the visibility preference wants it. The hook-install sheet is
+    /// driven against a scratch file so the alert is seen to attach to the window without touching settings.json.
     private func smokeSettings() async -> Bool {
         showSettings()
         try? await Task.sleep(for: .seconds(1))
@@ -845,11 +851,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let state = presenter.hover.state
         let shape = state == .expanded ? presenter.hover.regions.expanded : presenter.hover.regions.compact
         let intersects = window.frame.intersects(shape)
-        Probe.emit("settings window: level=\(window.level.rawValue) (floating=\(window.level == .floating)) frame=\(window.frame) "
+        let panelLevel = presenter.window?.level ?? .normal
+        let ordered = window.level.rawValue > panelLevel.rawValue && window.level.rawValue >= NSWindow.Level.floating.rawValue
+        Probe.emit("settings window: level=\(window.level.rawValue) panel level=\(panelLevel.rawValue) (above=\(ordered)) frame=\(window.frame) "
                    + "nonActivating=\(settings.isNonActivating) visible=\(window.isVisible) key=\(window.isKeyWindow) "
                    + "(key window: \(NSApp.keyWindow.map { $0.title.isEmpty ? "the panel" : $0.title } ?? "none"))")
         Probe.emit("settings: frontmost=\(frontmost) panel=\(state.rawValue) intersects=\(intersects)")
-        var passed = window.level == .floating && settings.isNonActivating && window.isVisible && frontmost != ours
+        var passed = ordered && settings.isNonActivating && window.isVisible && frontmost != ours
             && state == .compact && !intersects
         let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-smoke-\(UUID().uuidString)/settings.json")
         requests.hookSheetDryRun = scratch

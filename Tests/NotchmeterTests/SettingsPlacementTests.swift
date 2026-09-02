@@ -48,4 +48,12 @@ import Testing
         let ignored = SettingsWindowController.frame(for: size, screen: screen, safeAreaTop: 0, visible: visible, readouts: sideStrip)
         #expect(ignored.maxY == 982 - SettingsWindowController.topClearance)
     }
+
+    /// The panel draws at screen-saver level so it can cover the menu bar, and it collapses on an animation:
+    /// the window has to be ordered above it outright rather than waiting for the collapse to finish.
+    @Test func windowOrdersOneLevelAboveThePanel() {
+        #expect(SettingsWindowController.level(above: .screenSaver).rawValue == NSWindow.Level.screenSaver.rawValue + 1)
+        #expect(SettingsWindowController.level(above: .floating) > .floating)
+        #expect(SettingsWindowController.level(above: .normal) == .floating)
+    }
 }
