@@ -5,7 +5,7 @@ import AppKit
 /// Always open preference, the Settings window holding it closed, the Options menu switching to Open on hover,
 /// a notification's Open button, or the state it launched in.
 enum PanelCause: String {
-    case dwell, exit, clickOutside, click, swipe, hotkey, escape, space, lock, always, settings, menu, notification, launch, glance
+    case dwell, exit, clickOutside, click, swipe, hotkey, escape, space, lock, always, settings, menu, notification, launch, glance, fullScreen
 }
 
 /// What a mouse monitor saw, reduced to what the machine needs.
