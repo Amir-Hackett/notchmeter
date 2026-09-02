@@ -16,6 +16,7 @@ actor CursorProvider: UsageProvider {
     static let legacyUsageURL = URL(string: "https://cursor.com/api/usage")!
     static let usageEventsURL = URL(string: "https://cursor.com/api/dashboard/get-filtered-usage-events")!
     static let teamsURL = URL(string: "https://cursor.com/api/dashboard/teams")!
+    static let origin = "https://cursor.com"
 
     /// One priced request from the account's usage-events export.
     struct UsageEvent: Equatable, Sendable {
@@ -117,6 +118,9 @@ actor CursorProvider: UsageProvider {
             request.httpMethod = "POST"
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            // Cursor's dashboard POSTs are CSRF-checked: without a matching Origin they answer 403, whatever the
+            // cookie says. The GETs the usage summary uses are not, which is why only the exports were refused.
+            request.setValue(Self.origin, forHTTPHeaderField: "Origin")
         }
         do {
             let (data, response) = try await (session ?? NetworkSession.shared).data(for: request)

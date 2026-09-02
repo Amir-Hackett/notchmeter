@@ -429,11 +429,10 @@ protocol UsageProvider: Sendable {
     func fetch() async throws -> UsageReading
 }
 
-enum ProviderRegistry {
-    static func all() -> [any UsageProvider] {
-        [ClaudeProvider(), CodexProvider(), CursorProvider(), AntigravityProvider(), CopilotProvider()]
-    }
-}
+/// Declared empty on purpose: the only way to build the providers is `all(defaults:)` in UsageStore.swift, which
+/// wires their opt-in second reads to the preferences. An unwired overload here would win overload resolution for
+/// a bare `all()` call and hand back providers whose extra reads are all switched off.
+enum ProviderRegistry {}
 
 enum Paths {
     static var home: URL { FileManager.default.homeDirectoryForCurrentUser }
