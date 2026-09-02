@@ -15,6 +15,7 @@ import Testing
         """
         let reading = try ClaudeProvider.parseUsage(Data(json.utf8), plan: "Max 5x", now: Date(timeIntervalSince1970: 0))
         #expect(reading.windows.map(\.label) == ["Session", "Weekly", "Fable"])
+        #expect(reading.windows.map(\.model) == [nil, nil, "Fable"])
         #expect(reading.windows[0].usedFraction == 0.09)
         #expect(reading.windows[0].periodDuration == Period.fiveHours)
         #expect(reading.windows[1].periodDuration == Period.week)

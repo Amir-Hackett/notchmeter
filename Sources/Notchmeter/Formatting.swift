@@ -197,6 +197,7 @@ enum Spoken {
         text.replacingOccurrences(of: "~", with: "about ")
             .replacingOccurrences(of: "%", with: " percent")
             .replacingOccurrences(of: " · ", with: ", ")
+            .replacingOccurrences(of: " — ", with: ", ")
             .split(separator: " ")
             .map { expand(String($0)) }
             .joined(separator: " ")

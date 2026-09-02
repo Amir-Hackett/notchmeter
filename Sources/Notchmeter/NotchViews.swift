@@ -51,6 +51,17 @@ private extension Pace.Status {
     }
 }
 
+private extension Advice.Priority {
+    var color: Color {
+        switch self {
+        case .attention: Palette.calm
+        case .danger: Palette.danger
+        case .warn: Palette.warn
+        case .info: .secondary
+        }
+    }
+}
+
 private struct CardBackground: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -221,9 +232,13 @@ struct NotchExpandedView: View {
 
     var body: some View {
         let tools = store.visibleTools
+        let advice = store.advice
         VStack(alignment: .leading, spacing: 10) {
             if prefs.showSpend, tools.contains(.claude) {
                 SpendCard(store: store)
+            }
+            if !advice.isEmpty {
+                AdviceStrip(advice: advice)
             }
             if tools.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
@@ -237,8 +252,7 @@ struct NotchExpandedView: View {
             }
             ForEach(tools, id: \.self) { tool in
                 ToolCard(tool: tool, status: store.status(tool), prefs: prefs,
-                         trend: tool == .claude && prefs.showSpend ? store.cost?.daily : nil,
-                         awaitingInput: store.isAwaitingInput(tool))
+                         trend: tool == .claude && prefs.showSpend ? store.cost?.daily : nil)
             }
             FooterView(store: store, actions: actions)
         }
@@ -334,12 +348,38 @@ struct SpendCard: View {
     }
 }
 
+/// What to do next, under the Cost card (or at the top when spend is hidden); absent when there is nothing to say.
+struct AdviceStrip: View {
+    let advice: [Advice]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(advice) { item in
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Image(systemName: item.symbol)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(item.priority.color)
+                        .frame(width: 13)
+                    Text(item.text)
+                        .font(.caption)
+                        .monospacedDigit()
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(CardBackground())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Advice")
+        .accessibilityValue(advice.map { Spoken.phrase($0.text) }.joined(separator: " "))
+    }
+}
+
 struct ToolCard: View {
     let tool: ToolID
     let status: ToolStatus
     let prefs: Preferences
     let trend: [DailySpend]?
-    var awaitingInput = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -358,12 +398,6 @@ struct ToolCard: View {
                 }
             }
             .padding(.leading, 2)
-            if awaitingInput {
-                Label("Claude Code is waiting for your input", systemImage: "hand.raised.fill")
-                    .font(.caption)
-                    .foregroundStyle(Palette.calm)
-                    .padding(.leading, 2)
-            }
             VStack(alignment: .leading, spacing: 12) {
                 if let reading = status.reading {
                     ForEach(reading.windows) { window in
