@@ -43,9 +43,17 @@ actor ClaudeProvider: UsageProvider {
 
         let (data, response) = try await session.data(for: request)
         let http = response as? HTTPURLResponse
+        let plan = Naming.plan(subscriptionType: credentials.subscriptionType, rateLimitTier: credentials.rateLimitTier)
+        let now = Date()
+        let headerWindows = http.map(Self.rateLimitWindows) ?? []
         switch http?.statusCode ?? 0 {
         case 200:
-            break
+            do {
+                return try Self.parseUsage(data, plan: plan, now: now)
+            } catch let error as ProviderError {
+                guard !headerWindows.isEmpty else { throw error }
+                return UsageReading(tool: .claude, windows: headerWindows, plan: plan, fetchedAt: now, observedAt: nil)
+            }
         case 401, 403:
             cached = nil
             throw ProviderError.notSignedIn("Claude Code's login was refused. Run Claude Code once to refresh it")
@@ -53,10 +61,40 @@ actor ClaudeProvider: UsageProvider {
             let retry = http?.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
             throw ProviderError.rateLimited(retryAfter: retry)
         case let code:
-            throw ProviderError.http(code, "usage endpoint answered")
+            guard !headerWindows.isEmpty else { throw ProviderError.http(code, "usage endpoint answered") }
+            return UsageReading(tool: .claude, windows: headerWindows, plan: plan, fetchedAt: now, observedAt: nil)
         }
-        let plan = Naming.plan(subscriptionType: credentials.subscriptionType, rateLimitTier: credentials.rateLimitTier)
-        return try Self.parseUsage(data, plan: plan)
+    }
+
+    // MARK: - Rate-limit headers
+
+    /// Anthropic's `anthropic-ratelimit-unified-*` headers: utilization as a 0–1 fraction, reset as epoch seconds.
+    /// Today they arrive only on inference responses, which Notchmeter never makes (docs/accuracy.md); should the
+    /// usage endpoint ever carry them, they stand in for a body that cannot be read.
+    static func rateLimitWindows(from response: HTTPURLResponse) -> [LimitWindow] {
+        rateLimitWindows { response.value(forHTTPHeaderField: $0) }
+    }
+
+    static func rateLimitWindows(header: (String) -> String?) -> [LimitWindow] {
+        let specs: [(prefix: String, id: String, label: String, period: TimeInterval)] = [
+            ("anthropic-ratelimit-unified-5h", "five_hour", "Session", Period.fiveHours),
+            ("anthropic-ratelimit-unified-7d", "seven_day", "Weekly", Period.week),
+        ]
+        return specs.compactMap { spec in
+            guard let utilization = header("\(spec.prefix)-utilization").flatMap(number) else { return nil }
+            return LimitWindow(
+                id: spec.id,
+                label: spec.label,
+                usedFraction: min(max(utilization, 0), 1),
+                resetsAt: header("\(spec.prefix)-reset").flatMap(number).map { Date(timeIntervalSince1970: $0) },
+                note: "From rate-limit headers",
+                periodDuration: spec.period
+            )
+        }
+    }
+
+    private static func number(_ value: String) -> Double? {
+        Double(value.trimmingCharacters(in: .whitespaces))
     }
 
     private func loadCredentials() throws -> ClaudeCredentials {

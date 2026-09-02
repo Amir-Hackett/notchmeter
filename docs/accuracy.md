@@ -14,7 +14,7 @@ The code is `Sources/Notchmeter/ClaudeCostScanner.swift` (reading, dedupe, summi
 
 Claude Code keeps one JSONL transcript per session under `projects/` in its config directory. Notchmeter looks in `$CLAUDE_CONFIG_DIR`, `~/.config/claude` and `~/.claude`, and reads every `*.jsonl` under each `projects/` it finds, including the `subagents/*.jsonl` files written beside a session. Subagent requests are real API requests and are priced like any other; the `isSidechain` flag is not consulted.
 
-Only files whose modification time falls inside the 30-day window are opened. Within a file, a line is an entry when it contains `"usage":{` and parses with a `timestamp`, a `message.usage.input_tokens` and a `message.usage.output_tokens`; everything else (user turns, tool results, summaries, progress lines) is skipped. Per-file results are cached in `~/Library/Caches/Notchmeter/claude-usage-cache-v2.json`, keyed by path, size and modification time; the `-v2` suffix is bumped whenever a parsing rule changes so entries parsed under an older rule are never reused. The cache holds timestamps, model ids, token counts, message and request ids and the `inference_geo` value, never any prompt or response text.
+Only files whose modification time falls inside the 30-day window are opened. Within a file, a line is an entry when it contains `"usage":{` and parses with a `timestamp`, a `message.usage.input_tokens` and a `message.usage.output_tokens`; everything else (user turns, tool results, summaries, progress lines) is skipped. Per-file results are cached in `~/Library/Caches/Notchmeter/claude-usage-cache-v2.json`, keyed by path, size and modification time; the `-v2` suffix is bumped whenever a parsing rule changes so entries parsed under an older rule are never reused. The cache is written after the first full parse and then at most once every ten minutes, because rewriting a cache of this size on every scan while a session is appending to its transcript was the app's largest CPU cost (README, "Energy"); files parsed since the last write are parsed again on the next launch, which costs a few milliseconds. The cache holds timestamps, model ids, token counts, message and request ids and the `inference_geo` value, never any prompt or response text.
 
 ## The token buckets
 
@@ -144,3 +144,24 @@ jq -c 'select(.message.usage) | [.timestamp, .message.id, .requestId, .message.m
 ```
 
 Group by the id and request id columns, keep the line with the largest `output_tokens` in each group, price the five buckets from the table, multiply by 1.1 where `inference_geo` is `"us"`, and sum. Claude Code's `/usage` Session block will not match this figure and is not meant to: it covers one session since its last `/clear`, while the card covers every transcript on the Mac for the day.
+
+## Why there is no header fallback
+
+Anthropic attaches rate-limit headers to some responses for OAuth accounts: `anthropic-ratelimit-unified-5h-utilization` and `-7d-utilization` (a 0–1 fraction of the window), `-5h-reset` and `-7d-reset` (epoch seconds), plus `-overage-utilization` and `-representative-claim`. They describe the same Session and Weekly windows the usage endpoint reports, so they look like a way to keep the meter alive if the usage endpoint ever changes.
+
+Checked on 2026-09-01 against [OpenUsage issue #1098](https://github.com/robinebers/openusage/issues/1098), which records the requests and their responses verbatim:
+
+- `GET https://api.anthropic.com/api/oauth/usage` (with `anthropic-beta: oauth-2025-04-20`) does **not** carry the headers. Its answer is the JSON body Notchmeter already parses.
+- `POST https://api.anthropic.com/v1/messages/count_tokens` does **not** carry them either.
+- The headers arrive only on `POST https://api.anthropic.com/v1/messages`, the inference endpoint. The probe recorded there sends a Haiku request with `max_tokens: 0`, and the issue measures it at roughly eight input tokens of Haiku per call.
+
+So the only request that yields the headers is an inference request made with Claude Code's OAuth token. That is exactly the call Notchmeter promises never to make: it consumes model capacity, it would appear in Anthropic's records as third-party inference with a Claude Code credential, which the [Claude Code legal page](https://code.claude.com/docs/en/legal-and-compliance) restricts and Anthropic began enforcing server-side in 2026, and it would move the very Session number the meter reports. Eight tokens per poll is small, but the meter's standing rests on being read-only, and there is no read-only request that returns the headers.
+
+OpenUsage itself does not read them: its `ClaudeUsageClient.swift` fetches the usage endpoint and the profile endpoint only, its `ClaudeUsageMapper.swift` maps the JSON body, and the fallback it ships for tokens without the `user:profile` scope is its local transcript scanner for spend, not a header probe (both files read from `main` on 2026-09-01).
+
+What Notchmeter does instead, in `ClaudeProvider.swift`:
+
+- Every response from the usage endpoint is checked for the unified headers (`rateLimitWindows(from:)`, unit-tested in `ProviderParsingTests.swift`). If the JSON body is missing or unreadable but the headers are present, the Session and Weekly windows are built from the headers and the meters carry the note "From rate-limit headers"; per-model weekly limits and extra usage are unavailable in that mode. Today this path never fires, because the endpoint does not send the headers; it is there so that a change on Anthropic's side degrades to coarser numbers rather than to an error.
+- If the usage endpoint answers with an error and no headers, the meter reports the error and waits. It does not probe `/v1/messages`.
+
+Should Anthropic publish a read-only endpoint that returns the headers, or add them to the usage endpoint's response, the parser is already in place.

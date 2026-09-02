@@ -60,6 +60,12 @@ actor ClaudeCostScanner {
     nonisolated let cacheURL: URL?
     private var cache: [String: CachedFile] = [:]
     private var cacheLoaded = false
+    private var cacheSavedAt: Date?
+
+    /// The cache is tens of megabytes on a busy Mac; rewriting it on every minute's scan while a session appends
+    /// to a transcript cost more CPU than everything else the app does, so writes are spaced out. Entries parsed
+    /// since the last write are simply parsed again on the next launch.
+    static let cacheSaveSpacing: TimeInterval = 600
 
     init(roots: [URL] = ClaudeCostScanner.defaultRoots(), cacheURL: URL? = ClaudeCostScanner.defaultCacheURL()) {
         self.roots = roots
@@ -121,9 +127,11 @@ actor ClaudeCostScanner {
             ordered.append(contentsOf: entries)
             changed = true
         }
-        let before = cache.count
         cache = cache.filter { live.contains($0.key) }
-        if changed || cache.count != before { saveCache() }
+        if changed, cacheSavedAt.map({ now.timeIntervalSince($0) >= Self.cacheSaveSpacing }) ?? true {
+            saveCache()
+            cacheSavedAt = now
+        }
         return Self.summarize(Self.dedupe(ordered), now: now, daysBack: daysBack)
     }
 

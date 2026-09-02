@@ -41,6 +41,32 @@ import Testing
         }
     }
 
+    @Test func buildsWindowsFromUnifiedRateLimitHeaders() throws {
+        let response = try #require(HTTPURLResponse(url: ClaudeProvider.usageURL, statusCode: 200, httpVersion: nil, headerFields: [
+            "Anthropic-Ratelimit-Unified-5h-Utilization": "0.22",
+            "anthropic-ratelimit-unified-5h-reset": "1786518600",
+            "anthropic-ratelimit-unified-7d-utilization": " 0.03",
+            "anthropic-ratelimit-unified-7d-reset": "1787058000",
+            "anthropic-ratelimit-unified-overage-utilization": "0.0",
+        ]))
+        let windows = ClaudeProvider.rateLimitWindows(from: response)
+        #expect(windows.map(\.label) == ["Session", "Weekly"])
+        #expect(windows[0].id == "five_hour")
+        #expect(windows[0].usedFraction == 0.22)
+        #expect(windows[0].resetsAt == Date(timeIntervalSince1970: 1_786_518_600))
+        #expect(windows[0].periodDuration == Period.fiveHours)
+        #expect(windows[0].note == "From rate-limit headers")
+        #expect(windows[1].usedFraction == 0.03)
+        #expect(windows[1].resetsAt == Date(timeIntervalSince1970: 1_787_058_000))
+        #expect(windows[1].periodDuration == Period.week)
+
+        #expect(ClaudeProvider.rateLimitWindows { _ in nil }.isEmpty)
+        let partial = ClaudeProvider.rateLimitWindows { $0 == "anthropic-ratelimit-unified-7d-utilization" ? "1.4" : nil }
+        #expect(partial.map(\.usedFraction) == [1])
+        #expect(partial[0].resetsAt == nil)
+        #expect(ClaudeProvider.rateLimitWindows { _ in "n/a" }.isEmpty)
+    }
+
     @Test func parsesCredentialsAndPlanTier() throws {
         let json = """
         {"claudeAiOauth":{"accessToken":"sk-ant-oat01-test","refreshToken":"x","expiresAt":1756771200000,"scopes":["user:inference"],"subscriptionType":"max","rateLimitTier":"default_claude_max_5x"}}

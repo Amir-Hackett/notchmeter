@@ -68,6 +68,7 @@ struct RingView: View {
 struct CompactRings: View {
     let status: ToolStatus
     let color: Color
+    var awaitingInput = false
 
     var body: some View {
         let windows = status.reading?.windows ?? []
@@ -82,6 +83,14 @@ struct CompactRings: View {
                 Image(systemName: "exclamationmark")
                     .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(.yellow)
+            }
+            if awaitingInput {
+                Circle()
+                    .fill(.white)
+                    .frame(width: 5, height: 5)
+                    .overlay(Circle().stroke(.black, lineWidth: 1))
+                    .offset(x: 7, y: -7)
+                    .accessibilityLabel("Waiting for your input")
             }
         }
         .opacity(status.reading == nil && status.problem == nil ? 0.5 : 1)
@@ -103,7 +112,7 @@ struct NotchCompactView: View {
     var body: some View {
         HStack(spacing: 7) {
             ForEach(tools, id: \.self) { tool in
-                CompactRings(status: store.status(tool), color: tool.color)
+                CompactRings(status: store.status(tool), color: tool.color, awaitingInput: store.isAwaitingInput(tool))
             }
         }
         .padding(.horizontal, tools.isEmpty ? 0 : 6)
@@ -117,7 +126,7 @@ struct EdgeCompactView: View {
 
     var body: some View {
         let rings = ForEach(store.visibleTools, id: \.self) { tool in
-            CompactRings(status: store.status(tool), color: tool.color)
+            CompactRings(status: store.status(tool), color: tool.color, awaitingInput: store.isAwaitingInput(tool))
         }
         Group {
             if edge == .bottom {
@@ -157,7 +166,8 @@ struct NotchExpandedView: View {
             }
             ForEach(tools, id: \.self) { tool in
                 ToolCard(tool: tool, status: store.status(tool), prefs: prefs,
-                         trend: tool == .claude && prefs.showSpend ? store.cost?.daily : nil)
+                         trend: tool == .claude && prefs.showSpend ? store.cost?.daily : nil,
+                         awaitingInput: store.isAwaitingInput(tool))
             }
             FooterView(store: store, actions: actions)
         }
@@ -250,6 +260,7 @@ struct ToolCard: View {
     let status: ToolStatus
     let prefs: Preferences
     let trend: [DailySpend]?
+    var awaitingInput = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -267,6 +278,12 @@ struct ToolCard: View {
                 }
             }
             .padding(.leading, 2)
+            if awaitingInput {
+                Label("Claude Code is waiting for your input", systemImage: "hand.raised.fill")
+                    .font(.caption)
+                    .foregroundStyle(tool.color)
+                    .padding(.leading, 2)
+            }
             VStack(alignment: .leading, spacing: 12) {
                 if let reading = status.reading {
                     ForEach(reading.windows) { window in
@@ -430,9 +447,11 @@ struct FooterView: View {
     }
 
     private func nextUpdate(now: Date) -> String {
+        if let reason = store.pauseReason { return reason.footerText }
         guard let next = store.nextUpdate else { return "Waiting for the first reading" }
         let seconds = next.timeIntervalSince(now)
         if seconds <= 5 { return "Updating…" }
-        return "Next update in \(ResetText.duration(seconds))"
+        let line = "Next update in \(ResetText.duration(seconds))"
+        return store.scheduleNote.map { "\(line) · \($0)" } ?? line
     }
 }
