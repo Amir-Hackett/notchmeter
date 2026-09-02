@@ -499,6 +499,7 @@ struct NotchExpandedView: View {
     @State private var contentHeight: CGFloat = 0
 
     static let screenMargin: CGFloat = 24
+    private static let topAnchor = "panel.top"
 
     /// Room for the content: the screen's usable height less a margin above the Dock. `visibleFrame` already
     /// excludes the menu bar the notch sits in, so the notch height is not subtracted a second time.
@@ -534,11 +535,18 @@ struct NotchExpandedView: View {
             if unclamped {
                 content
             } else {
-                ScrollView(.vertical) {
-                    content
-                        .background(GeometryReader { proxy in
-                            Color.clear.preference(key: PanelContentHeight.self, value: proxy.size.height)
-                        })
+                ScrollViewReader { scroller in
+                    ScrollView(.vertical) {
+                        content
+                            .id(Self.topAnchor)
+                            .background(GeometryReader { proxy in
+                                Color.clear.preference(key: PanelContentHeight.self, value: proxy.size.height)
+                            })
+                    }
+                    // The panel is a readout, not a document: every opening starts at the Cost card rather
+                    // than wherever the last look left it. The expanded content is inserted on each open, so
+                    // onAppear is the opening.
+                    .onAppear { scroller.scrollTo(Self.topAnchor, anchor: .top) }
                 }
                 // The scroll view paints its own light backing, which would show through the notch's black
                 // on the first frame; the panel draws the background itself.
