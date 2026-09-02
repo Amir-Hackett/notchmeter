@@ -75,6 +75,8 @@ actor CursorProvider: UsageProvider {
         let membership = root["membershipType"] as? String
         let planName = membership.map(Naming.plan)
         let cycleEnd = (root["billingCycleEnd"] as? String).flatMap(DateParsing.iso8601)
+        let cycleStart = (root["billingCycleStart"] as? String).flatMap(DateParsing.iso8601)
+        let cycle: TimeInterval? = if let cycleStart, let cycleEnd, cycleEnd > cycleStart { cycleEnd.timeIntervalSince(cycleStart) } else { nil }
         let unlimited = (root["isUnlimited"] as? Bool) ?? false
         let individual = root["individualUsage"] as? [String: Any]
         let plan = individual?["plan"] as? [String: Any]
@@ -95,7 +97,8 @@ actor CursorProvider: UsageProvider {
             let fraction = planPercent.map { $0 / 100 } ?? (planUsed.map { $0 / planLimit } ?? 0)
             windows.append(LimitWindow(
                 id: "included", label: "Included usage", usedFraction: min(max(fraction, 0), 1), resetsAt: cycleEnd,
-                note: planUsed.map { "\(dollars($0)) of \(dollars(planLimit)) · \(RelativeTime.resets(cycleEnd, hasLimit: true, now: now))" }
+                note: planUsed.map { "\(dollars($0)) of \(dollars(planLimit))" },
+                periodDuration: cycle
             ))
         } else {
             windows.append(LimitWindow(
@@ -108,7 +111,8 @@ actor CursorProvider: UsageProvider {
             let used = number(onDemand["used"]) ?? 0
             windows.append(LimitWindow(
                 id: "on_demand", label: "On-demand", usedFraction: min(max(used / limit, 0), 1), resetsAt: cycleEnd,
-                note: "\(dollars(used)) of \(dollars(limit))"
+                note: "\(dollars(used)) of \(dollars(limit))",
+                periodDuration: cycle
             ))
         }
 
@@ -136,14 +140,7 @@ actor CursorProvider: UsageProvider {
         return UsageReading(tool: .cursor, windows: [window], plan: nil, fetchedAt: now, observedAt: nil)
     }
 
-    private static func number(_ value: Any?) -> Double? {
-        switch value {
-        case let d as Double: d
-        case let i as Int: Double(i)
-        case let n as NSNumber: n.doubleValue
-        default: nil
-        }
-    }
+    private static func number(_ value: Any?) -> Double? { JSON.number(value) }
 
     /// Cursor reports plan amounts in cents.
     private static func dollars(_ cents: Double) -> String {
@@ -154,13 +151,7 @@ actor CursorProvider: UsageProvider {
     // MARK: - Session token
 
     static func jwtClaims(_ token: String) throws -> [String: Any] {
-        let parts = token.split(separator: ".")
-        guard parts.count >= 2 else { throw ProviderError.parse("Cursor session token is not a JWT") }
-        var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
-        while payload.count % 4 != 0 { payload.append("=") }
-        guard let data = Data(base64Encoded: payload),
-              let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else { throw ProviderError.parse("Cursor session token could not be decoded") }
+        guard let claims = JWT.claims(token) else { throw ProviderError.parse("Cursor session token could not be decoded") }
         return claims
     }
 

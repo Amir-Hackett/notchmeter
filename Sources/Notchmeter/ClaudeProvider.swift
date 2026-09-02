@@ -4,6 +4,7 @@ struct ClaudeCredentials: Equatable {
     let accessToken: String
     let expiresAt: Date?
     let subscriptionType: String?
+    let rateLimitTier: String?
 }
 
 /// Reads the login Claude Code keeps in the Keychain and asks Anthropic's usage endpoint for the rolling windows.
@@ -14,16 +15,6 @@ actor ClaudeProvider: UsageProvider {
 
     static let keychainService = "Claude Code-credentials"
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
-
-    static let windowOrder = ["five_hour", "seven_day", "seven_day_opus", "seven_day_sonnet", "seven_day_oauth_apps", "seven_day_cowork"]
-    static let labels: [String: String] = [
-        "five_hour": "Current session",
-        "seven_day": "All models",
-        "seven_day_opus": "Opus",
-        "seven_day_sonnet": "Sonnet",
-        "seven_day_oauth_apps": "OAuth apps",
-        "seven_day_cowork": "Cowork",
-    ]
 
     private let session: URLSession
     private var cached: ClaudeCredentials?
@@ -64,7 +55,8 @@ actor ClaudeProvider: UsageProvider {
         case let code:
             throw ProviderError.http(code, "usage endpoint answered")
         }
-        return try Self.parseUsage(data, plan: credentials.subscriptionType)
+        let plan = Naming.plan(subscriptionType: credentials.subscriptionType, rateLimitTier: credentials.rateLimitTier)
+        return try Self.parseUsage(data, plan: plan)
     }
 
     private func loadCredentials() throws -> ClaudeCredentials {
@@ -98,46 +90,75 @@ actor ClaudeProvider: UsageProvider {
         else {
             throw ProviderError.notSignedIn("Claude Code has not signed in")
         }
-        let expiresAt = (oauth["expiresAt"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) }
-        return ClaudeCredentials(accessToken: token, expiresAt: expiresAt, subscriptionType: oauth["subscriptionType"] as? String)
+        let expiresAt = JSON.number(oauth["expiresAt"]).map { Date(timeIntervalSince1970: $0 / 1000) }
+        return ClaudeCredentials(
+            accessToken: token,
+            expiresAt: expiresAt,
+            subscriptionType: oauth["subscriptionType"] as? String,
+            rateLimitTier: oauth["rateLimitTier"] as? String
+        )
     }
 
+    /// Session and weekly windows, then the per-model weekly limits Anthropic now publishes in `limits`
+    /// (each named by its model, e.g. "Fable"), then the legacy per-model keys if they still carry data.
     static func parseUsage(_ data: Data, plan: String?, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ProviderError.parse("usage response unreadable")
         }
         var windows: [LimitWindow] = []
-        for key in windowOrder {
-            guard let object = root[key] as? [String: Any] else { continue }
-            windows.append(window(id: key, object: object))
+        if let session = window(root["five_hour"], id: "five_hour", label: "Session", period: Period.fiveHours) {
+            windows.append(session)
         }
-        // Windows Anthropic adds later still show up, after the known ones.
-        for key in root.keys.sorted() where !windowOrder.contains(key) && key != "extra_usage" {
-            guard let object = root[key] as? [String: Any], object["utilization"] != nil, object["resets_at"] != nil else { continue }
-            windows.append(window(id: key, object: object))
+        if let weekly = window(root["seven_day"], id: "seven_day", label: "Weekly", period: Period.week) {
+            windows.append(weekly)
+        }
+        windows.append(contentsOf: scopedWeeklyLimits(root["limits"]))
+        for (key, label) in [("seven_day_opus", "Opus"), ("seven_day_sonnet", "Sonnet")] where !windows.contains(where: { $0.label == label }) {
+            if let legacy = window(root[key], id: key, label: label, period: Period.week) {
+                windows.append(legacy)
+            }
         }
         if let extra = root["extra_usage"] as? [String: Any], (extra["is_enabled"] as? Bool) == true {
-            let utilization = extra["utilization"] as? Double
-            windows.append(LimitWindow(
-                id: "extra_usage",
-                label: "Extra usage",
-                usedFraction: utilization.map { min(max($0 / 100, 0), 1) },
-                resetsAt: nil,
-                note: extra["monthly_limit"].flatMap { limit in (limit as? Double).map { "monthly limit $\(Int($0))" } }
-            ))
+            let usedCents = JSON.number(extra["used_credits"]) ?? 0
+            let limitCents = JSON.number(extra["monthly_limit"])
+            let fraction = limitCents.flatMap { $0 > 0 ? JSON.fraction(usedCents / $0 * 100) : nil }
+            let note = limitCents.map { "\(Money.dollars(usedCents / 100)) of \(Money.dollars($0 / 100, cents: false))" }
+                ?? "\(Money.dollars(usedCents / 100)) spent"
+            windows.append(LimitWindow(id: "extra_usage", label: "Extra usage", usedFraction: fraction, resetsAt: nil, note: note))
         }
         guard !windows.isEmpty else { throw ProviderError.parse("Claude reported no usage windows") }
-        return UsageReading(tool: .claude, windows: windows, plan: plan.map(Naming.plan), fetchedAt: now, observedAt: nil)
+        return UsageReading(tool: .claude, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
     }
 
-    private static func window(id: String, object: [String: Any]) -> LimitWindow {
-        let utilization = object["utilization"] as? Double
-        let resetsAt = (object["resets_at"] as? String).flatMap(DateParsing.iso8601)
+    private static func window(_ value: Any?, id: String, label: String, period: TimeInterval) -> LimitWindow? {
+        guard let object = value as? [String: Any], let utilization = JSON.number(object["utilization"]) else { return nil }
         return LimitWindow(
             id: id,
-            label: labels[id] ?? Naming.prettify(id),
-            usedFraction: utilization.map { min(max($0 / 100, 0), 1) },
-            resetsAt: resetsAt
+            label: label,
+            usedFraction: JSON.fraction(utilization),
+            resetsAt: (object["resets_at"] as? String).flatMap(DateParsing.iso8601),
+            periodDuration: period
         )
+    }
+
+    static func scopedWeeklyLimits(_ value: Any?) -> [LimitWindow] {
+        guard let array = value as? [Any] else { return [] }
+        var result: [LimitWindow] = []
+        for case let object as [String: Any] in array {
+            guard object["kind"] as? String == "weekly_scoped",
+                  let scope = object["scope"] as? [String: Any],
+                  let model = scope["model"] as? [String: Any],
+                  let name = model["display_name"] as? String, !name.isEmpty,
+                  let percent = JSON.number(object["percent"])
+            else { continue }
+            result.append(LimitWindow(
+                id: "scoped_\(name.lowercased().replacingOccurrences(of: " ", with: "_"))",
+                label: name,
+                usedFraction: JSON.fraction(percent),
+                resetsAt: (object["resets_at"] as? String).flatMap(DateParsing.iso8601),
+                periodDuration: Period.week
+            ))
+        }
+        return result
     }
 }

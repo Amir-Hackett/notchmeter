@@ -45,6 +45,9 @@ struct ReadingCache {
 final class UsageStore {
     private(set) var statuses: [ToolID: ToolStatus] = [:]
     private(set) var lastUpdated: Date?
+    private(set) var nextRefresh: [ToolID: Date] = [:]
+    private(set) var cost: CostSummary?
+    private(set) var costScanning = false
     let prefs: Preferences
 
     @ObservationIgnored private let providers: [ToolID: any UsageProvider]
@@ -54,6 +57,8 @@ final class UsageStore {
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
     @ObservationIgnored private var wakeObserver: NSObjectProtocol?
+    @ObservationIgnored private let costScanner = ClaudeCostScanner()
+    @ObservationIgnored private var costLoop: Task<Void, Never>?
 
     init(prefs: Preferences, providers: [any UsageProvider] = ProviderRegistry.all(), cache: ReadingCache = ReadingCache()) {
         self.prefs = prefs
@@ -79,10 +84,16 @@ final class UsageStore {
         statuses[tool] ?? .waiting
     }
 
+    /// When the next scheduled provider read happens, for the footer.
+    var nextUpdate: Date? {
+        visibleTools.compactMap { nextRefresh[$0] }.min()
+    }
+
     func start() {
         for tool in ToolID.allCases where isShown(tool) {
             startLoop(tool)
         }
+        startCostLoop()
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -107,6 +118,26 @@ final class UsageStore {
     func refreshAll(force: Bool = true) {
         for tool in visibleTools {
             Task { await refresh(tool, force: force) }
+        }
+        Task { await refreshCost() }
+    }
+
+    /// Prices Claude Code's local transcripts. Incremental after the first pass, so it is cheap to call often.
+    func refreshCost() async {
+        guard prefs.showSpend, isShown(.claude) else { return }
+        if cost == nil { costScanning = true }
+        let summary = await costScanner.scan()
+        cost = summary
+        costScanning = false
+    }
+
+    private func startCostLoop() {
+        costLoop?.cancel()
+        costLoop = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.refreshCost()
+                try? await Task.sleep(for: .seconds(60))
+            }
         }
     }
 
@@ -161,6 +192,7 @@ final class UsageStore {
                 guard let self else { return }
                 await self.refresh(tool, force: true)
                 let delay = (self.providers[tool]?.refreshInterval ?? 60) + (self.backoff[tool] ?? 0)
+                self.nextRefresh[tool] = Date().addingTimeInterval(delay)
                 try? await Task.sleep(for: .seconds(delay))
             }
         }

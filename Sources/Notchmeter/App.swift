@@ -28,17 +28,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     static var shared: AppDelegate?
 
     let prefs = Preferences()
+    let actions = NotchActions()
     private(set) var store: UsageStore!
-    private var notch: NotchController?
+    private var presenter: (any PanelPresenting)?
     private var settings: SettingsWindowController?
 
+    private var smokeRestoreEdge: PanelEdge?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let arguments = CommandLine.arguments
+        if arguments.contains("--smoke"), let index = arguments.firstIndex(of: "--edge"), index + 1 < arguments.count,
+           let edge = PanelEdge(rawValue: arguments[index + 1]) {
+            smokeRestoreEdge = prefs.edge
+            prefs.edge = edge
+        }
         store = UsageStore(prefs: prefs)
         store.start()
-        let notch = NotchController(store: store, prefs: prefs)
-        notch.openSettings = { [weak self] in self?.showSettings() }
-        notch.show()
-        self.notch = notch
+        actions.refresh = { [weak self] in self?.store.refreshAll() }
+        actions.openSettings = { [weak self] in self?.showSettings() }
+        actions.showOptions = { [weak self] in self?.presenter?.showOptions() }
+        actions.applyLayout = { [weak self] in self?.applyLayout() }
+        buildPresenter()
         if CommandLine.arguments.contains("--smoke") {
             Task { await self.smokeTest() }
         }
@@ -46,23 +56,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showSettings() {
         if settings == nil {
-            settings = SettingsWindowController(store: store, prefs: prefs) { [weak self] in self?.notch?.show() }
+            settings = SettingsWindowController(store: store, prefs: prefs, actions: actions)
         }
         settings?.present()
     }
 
+    /// Re-applies the visibility preference, or swaps the whole presenter when the edge changed.
+    func applyLayout() {
+        guard let presenter, presenter.edge == prefs.edge else {
+            let old = presenter
+            presenter = nil
+            Task {
+                await old?.hide()
+                self.buildPresenter()
+            }
+            return
+        }
+        presenter.show()
+    }
+
+    private func buildPresenter() {
+        let built: any PanelPresenting = prefs.edge == .top
+            ? NotchController(store: store, prefs: prefs, actions: actions)
+            : EdgePanelController(edge: prefs.edge, store: store, prefs: prefs, actions: actions)
+        presenter = built
+        built.show()
+    }
+
     /// `--smoke`: run for a few seconds, report what is on screen and what each provider returned, then exit.
     private func smokeTest() async {
+        let started = Date()
         try? await Task.sleep(for: .seconds(8))
-        let frame = notch?.windowFrame.map { "\($0)" } ?? "none"
-        Probe.emit("notch window: visible=\(notch?.isVisible ?? false) frame=\(frame)")
+        while store.cost == nil, Date().timeIntervalSince(started) < 90 {
+            try? await Task.sleep(for: .seconds(2))
+        }
+        Probe.emit("smoke ran \(Int(Date().timeIntervalSince(started)))s")
+        let frame = presenter?.windowFrame.map { "\($0)" } ?? "none"
+        Probe.emit("panel (\(prefs.edge.rawValue)): visible=\(presenter?.isVisible ?? false) frame=\(frame)")
         for tool in ToolID.allCases {
             Probe.emit("\(tool.displayName): \(Probe.describe(store.status(tool)))")
         }
-        let settingsProbe = SettingsWindowController(store: store, prefs: prefs) {}
+        if let cost = store.cost {
+            Probe.emit("cost: today \(Money.dollars(cost.today)) yesterday \(Money.dollars(cost.yesterday)) 30d \(Money.dollars(cost.last30Days)) unpriced=\(cost.unpricedModels.sorted())")
+        } else {
+            Probe.emit("cost: still scanning")
+        }
+        let settingsProbe = SettingsWindowController(store: store, prefs: prefs, actions: actions)
         settingsProbe.window?.layoutIfNeeded()
         Probe.emit("settings window: \(settingsProbe.window?.frame.size ?? .zero)")
-        exit(notch?.isVisible == true ? 0 : 1)
+        if let smokeRestoreEdge { prefs.edge = smokeRestoreEdge }
+        exit(presenter?.isVisible == true ? 0 : 1)
     }
 }
 
