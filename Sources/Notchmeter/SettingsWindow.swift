@@ -1148,8 +1148,17 @@ final class SettingsWindowController: NSWindowController {
     nonisolated static func frame(for size: NSSize, screen: NSRect, safeAreaTop: CGFloat, visible: NSRect,
                                   readouts: CGRect? = nil) -> NSRect {
         var top = screen.maxY - safeAreaTop - topClearance
-        if let readouts, readouts.width > 0 { top = min(top, readouts.minY - readoutClearance) }
-        let origin = NSPoint(x: (screen.midX - size.width / 2).rounded(), y: max(visible.minY, top - size.height))
-        return NSRect(origin: origin, size: size)
+        var floor = visible.minY
+        let x = (screen.midX - size.width / 2).rounded()
+        if let readouts, readouts.width > 0, readouts.maxX > x, readouts.minX < x + size.width {
+            // Only the strip that shares this column matters, and which way to dodge depends on where it sits:
+            // a strip along the top is passed underneath, one resting on the Dock is passed above.
+            if readouts.midY > screen.midY {
+                top = min(top, readouts.minY - readoutClearance)
+            } else {
+                floor = max(floor, readouts.maxY + readoutClearance)
+            }
+        }
+        return NSRect(origin: NSPoint(x: x, y: max(floor, top - size.height)), size: size)
     }
 }
