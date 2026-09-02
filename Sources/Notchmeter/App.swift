@@ -664,7 +664,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// mostly transparent, so a hit test below the panel also confirms that area still reaches whatever is under it.
     private func reportSizing(_ presenter: any PanelPresenting) -> Bool {
         let screen = presenter.screen
-        let content = presenter.expandedContentSize
+        let content = presenter.expandedIntrinsicContentSize
         let cap = NotchExpandedView.maxHeight(on: screen)
         let notchLayout = presenter is NotchController
         let room = notchLayout ? (presenter.window?.frame.height ?? 0) : screen.visibleFrame.height

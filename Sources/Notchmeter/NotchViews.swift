@@ -426,7 +426,11 @@ struct NotchCompactView: View {
 
     private var tools: [ToolID] {
         let visible = store.compactTools
-        return side == .leading ? Array(visible.prefix(1)) : Array(visible.dropFirst())
+        switch store.prefs.compactSide {
+        case .trailing: return side == .leading ? [] : visible
+        case .leading: return side == .leading ? visible : []
+        case .split: return side == .leading ? Array(visible.prefix(1)) : Array(visible.dropFirst())
+        }
     }
 
     var body: some View {
@@ -470,6 +474,11 @@ struct EdgeCompactView: View {
 
 // MARK: - Expanded panel
 
+private struct PanelContentHeight: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
 /// The panel's content, never taller than the screen's usable height: past that it scrolls, with no scroller and
 /// no bounce while it fits. The cap is read from the screen at each layout unless `maxHeight` overrides it.
 struct NotchExpandedView: View {
@@ -478,12 +487,17 @@ struct NotchExpandedView: View {
     let actions: NotchActions
     var maxHeight: CGFloat? = nil
     var screen: NSScreen? = nil
+    /// Measures the content at its natural height, so the sizing self-check reads what the panel wants
+    /// rather than what the cap already forced on it.
+    var unclamped = false
+    @State private var contentHeight: CGFloat = 0
 
     static let screenMargin: CGFloat = 24
 
-    /// Room for the content: the screen's usable height less the notch and a margin above the Dock.
+    /// Room for the content: the screen's usable height less a margin above the Dock. `visibleFrame` already
+    /// excludes the menu bar the notch sits in, so the notch height is not subtracted a second time.
     static func maxHeight(visibleHeight: CGFloat, notchHeight: CGFloat) -> CGFloat {
-        max(0, visibleHeight - notchHeight - screenMargin)
+        max(0, visibleHeight - screenMargin)
     }
 
     static func maxHeight(on screen: NSScreen) -> CGFloat {
@@ -491,11 +505,28 @@ struct NotchExpandedView: View {
     }
 
     var body: some View {
-        ScrollView(.vertical) {
-            content
+        let cap = maxHeight ?? Self.maxHeight(on: screen ?? .panelScreen)
+        let overflows = contentHeight > cap + 0.5
+        return Group {
+            if unclamped {
+                content
+            } else {
+                ScrollView(.vertical) {
+                    content
+                        .background(GeometryReader { proxy in
+                            Color.clear.preference(key: PanelContentHeight.self, value: proxy.size.height)
+                        })
+                }
+                // The scroll view paints its own light backing, which would show through the notch's black
+                // on the first frame; the panel draws the background itself.
+                .scrollContentBackground(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(overflows ? .automatic : .never)
+                .scrollDisabled(!overflows)
+                .frame(maxHeight: cap)
+                .onPreferenceChange(PanelContentHeight.self) { contentHeight = $0 }
+            }
         }
-        .scrollBounceBehavior(.basedOnSize)
-        .frame(maxHeight: maxHeight ?? Self.maxHeight(on: screen ?? .panelScreen))
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
         .environment(\.density, prefs.density)
@@ -765,20 +796,22 @@ struct SpendCard: View {
                     if let sinceLine {
                         Text(sinceLine).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                     }
-                    if let blockLine {
-                        Text(blockLine).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
-                    }
-                    if let tokensLine {
-                        Text(tokensLine).modifier(Caption()).monospacedDigit()
-                    }
-                    if let cacheWritesLine {
-                        Text(cacheWritesLine).modifier(Caption()).monospacedDigit()
-                    }
-                    if let projectsLine {
-                        Text(projectsLine).modifier(Caption()).monospacedDigit().lineLimit(2)
-                    }
-                    if let cursorLine {
-                        Text(cursorLine).modifier(Caption()).monospacedDigit()
+                    if store.prefs.showDetails {
+                        if let blockLine {
+                            Text(blockLine).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                        }
+                        if let tokensLine {
+                            Text(tokensLine).modifier(Caption()).monospacedDigit()
+                        }
+                        if let cacheWritesLine {
+                            Text(cacheWritesLine).modifier(Caption()).monospacedDigit()
+                        }
+                        if let projectsLine {
+                            Text(projectsLine).modifier(Caption()).monospacedDigit().lineLimit(2)
+                        }
+                        if let cursorLine {
+                            Text(cursorLine).modifier(Caption()).monospacedDigit()
+                        }
                     }
                     if let cost = store.cost, !cost.unpricedModels.isEmpty {
                         Text(L("Unpriced: %@", cost.unpricedModels.sorted().joined(separator: ", ")))
@@ -958,7 +991,7 @@ struct ToolCard: View {
                     Text(StaleReading.line(fetchedAt: stale.fetchedAt, timeFormat: prefs.timeFormat))
                         .modifier(Caption()).monospacedDigit()
                 }
-                if let reading = status.reading, let main = prefs.shownWindows(of: reading).first(where: { $0.usedFraction != nil }),
+                if prefs.showDetails, let reading = status.reading, let main = prefs.shownWindows(of: reading).first(where: { $0.usedFraction != nil }),
                    let series = store.drainSeries(for: tool, window: main), series.contains(where: { $0 != nil }) {
                     HStack {
                         Text(L("Last 24h")).font(.subheadline.weight(.semibold))
@@ -969,7 +1002,7 @@ struct ToolCard: View {
                     .accessibilityLabel(L("Last 24h"))
                     .accessibilityValue(Spoken.phrase(L("%1$@ %2$ld percent used", main.label, Int(((series.last { $0 != nil } ?? 0) ?? 0) * 100))))
                 }
-                if let trend, trend.contains(where: { $0.cost > 0 }) {
+                if prefs.showDetails, let trend, trend.contains(where: { $0.cost > 0 }) {
                     HStack {
                         Text(L("Usage Trend")).font(.subheadline.weight(.semibold))
                         Spacer()

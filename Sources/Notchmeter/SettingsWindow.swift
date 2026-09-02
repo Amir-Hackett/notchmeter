@@ -187,6 +187,22 @@ struct SettingsView: View {
 
     private var panelSection: some View {
         Section(L("Panel")) {
+            Picker(L("Readouts"), selection: Binding(
+                get: { prefs.compactSide },
+                set: { prefs.compactSide = $0 }
+            )) {
+                ForEach(CompactSide.allCases, id: \.self) { side in
+                    Text(side.title).tag(side)
+                }
+            }
+            Text(L("The app's menu titles sit immediately left of the notch, so the right side is usually the free one."))
+                .font(.caption).foregroundStyle(.secondary)
+            Toggle(L("Show details"), isOn: Binding(
+                get: { prefs.showDetails },
+                set: { prefs.showDetails = $0 }
+            ))
+            Text(L("Session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll."))
+                .font(.caption).foregroundStyle(.secondary)
             Picker(L("Position"), selection: Binding(
                 get: { prefs.edge },
                 set: { prefs.edge = $0; actions.applyLayout() }

@@ -27,6 +27,9 @@ protocol PanelPresenting: AnyObject {
     var window: NSWindow? { get }
     /// What the open panel's content measures right now, before any window or chrome around it.
     var expandedContentSize: CGSize { get }
+    /// The same content at its natural height, ignoring the cap that makes it scroll. The sizing self-check
+    /// reads this: measuring the capped view can never exceed the cap, so it would always report a fit.
+    var expandedIntrinsicContentSize: CGSize { get }
     var hover: HoverDriver { get }
     func show()
     func hide() async
@@ -300,6 +303,7 @@ final class NotchController: NSObject, PanelPresenting {
     var window: NSWindow? { notch.windowController?.window }
     var isVisible: Bool { window?.isVisible ?? false }
     var expandedContentSize: CGSize { fittingSize(expandedProbe, NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen)) }
+    var expandedIntrinsicContentSize: CGSize { fittingSize(expandedProbe, NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, unclamped: true)) }
 
     func show() {
         hover.mode = prefs.visibility.hoverMode

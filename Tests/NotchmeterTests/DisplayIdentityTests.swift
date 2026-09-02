@@ -46,6 +46,7 @@ import Testing
             var isVisible: Bool { true }
             var window: NSWindow? { nil }
             var expandedContentSize: CGSize { .zero }
+            var expandedIntrinsicContentSize: CGSize { .zero }
             let hover = HoverDriver(mode: .onHover)
             init(screen: NSScreen) { self.screen = screen }
             func show() {}
