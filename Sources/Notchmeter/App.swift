@@ -1,5 +1,4 @@
 import AppKit
-import Security
 
 @main
 enum NotchmeterMain {
@@ -8,7 +7,7 @@ enum NotchmeterMain {
         let arguments = CommandLine.arguments
         // --no-prompt: never raise the Keychain dialog; a locked item reports "needs attention" instead.
         if arguments.contains("--no-prompt") || arguments.contains("--smoke") {
-            SecKeychainSetUserInteractionAllowed(false)
+            Keychain.setPromptsAllowed(false)
         }
         if arguments.contains("--probe") {
             Probe.run()

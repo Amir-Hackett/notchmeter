@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    # macos-15 is the gate; macos-latest tracks whatever GitHub moves to next and is allowed to fail.
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            experimental: false
+          - os: macos-latest
+            experimental: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        # The package is developed on the current Command Line Tools; use the newest stable Xcode the image has.
+        run: |
+          xcode="$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -viE 'beta|rc' | sort -V | tail -n 1 || true)"
+          if [ -n "$xcode" ]; then sudo xcode-select -s "$xcode"; fi
+          xcode-select -p
+          swift --version
+
+      - name: Build (release)
+        # A warning from anything under Sources/ fails the build; Vendor/ is exempt.
+        run: |
+          set -o pipefail
+          swift build -c release 2>&1 | tee build.log
+          if grep -E '/Sources/[^:]+:[0-9]+:[0-9]+: warning:' build.log; then
+            echo "::error::compiler warnings originating under Sources/"
+            exit 1
+          fi
+
+      - name: Test
+        run: scripts/test.sh
+
+      - name: Assemble Notchmeter.app
+        run: scripts/build.sh
+
+      - name: Zip the app bundle
+        run: ditto -c -k --keepParent build/Notchmeter.app build/Notchmeter.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Notchmeter-${{ matrix.os }}
+          path: build/Notchmeter.zip
+          if-no-files-found: error

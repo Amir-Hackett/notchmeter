@@ -1,5 +1,7 @@
 # Notchmeter
 
+[![CI](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml/badge.svg)](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml)
+
 Usage meters for AI coding tools, living in the MacBook notch — or on any screen edge you prefer. Small rings sit beside the notch all the time; hover and it opens into the full readout.
 
 - **Claude Code** — the 5-hour session window, the weekly window, and the per-model weekly limits Anthropic publishes (Fable, Sonnet, Opus…), plus what your local Claude Code sessions would have cost at API list prices: today, yesterday, and the last 30 days, with a 30-day trend.
@@ -59,9 +61,30 @@ The top layout merges with the physical notch (compact rings beside it, the pane
 | Codex | `~/.codex/auth.json` (token read, never refreshed or written) | `GET https://chatgpt.com/backend-api/wham/usage`, falling back to the newest `rate_limits` line in `~/.codex/sessions/**/*.jsonl` |
 | Cursor | `cursorAuth/accessToken` in `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb` | `GET https://cursor.com/api/usage-summary` (falls back to `/api/usage` on request-metered plans) |
 
-Cost is an estimate at Anthropic's published API rates for the models in your transcripts (`Sources/Notchmeter/ModelPricing.swift`); a subscription does not bill this way, it is the API-equivalent value of the work. Only transcripts touched in the last 30 days are read, and parsed results are cached in `~/Library/Caches/Notchmeter/` so relaunches are instant.
+Cost is an estimate at Anthropic's published API rates for the models in your transcripts (`Sources/Notchmeter/ModelPricing.swift`); a subscription does not bill this way, it is the API-equivalent value of the work. Only transcripts touched in the last 30 days are read, and parsed results are cached in `~/Library/Caches/Notchmeter/` so relaunches are instant. How the estimate is built, and where it is known to diverge from a bill, is written down in [docs/accuracy.md](docs/accuracy.md).
 
 Antigravity is not supported (not installed here). Adding a tool means one `UsageProvider` actor in `Sources/Notchmeter` and one line in `ProviderRegistry`.
+
+## Privacy and terms
+
+Notchmeter is a read-only instrument. In plain terms:
+
+**What it reads.**
+
+- Claude Code's saved login: the Keychain item `Claude Code-credentials`, or `~/.claude/.credentials.json` when the Keychain has no such item. The access token, its expiry and the plan name are taken from it.
+- Codex's saved login: the access token, account id and expiry in `~/.codex/auth.json`.
+- Cursor's saved login: the `cursorAuth/accessToken` row of `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`. The database is copied to a private temporary file for the read and deleted straight after, so the editor's live database is never opened.
+- Local transcripts, for the cost card and the offline fallback: the `usage` lines of `~/.claude/projects/**/*.jsonl` (also `$CLAUDE_CONFIG_DIR` and `~/.config/claude`; only files touched in the last 30 days) and the newest `rate_limits` lines in `~/.codex/sessions/**/*.jsonl`.
+
+**Where it sends things.** Each token goes to exactly one place: the usage endpoint of the vendor that issued it, over HTTPS, in the same read-only status request the vendor's own app or dashboard makes: `api.anthropic.com/api/oauth/usage`, `chatgpt.com/backend-api/wham/usage`, `cursor.com/api/usage-summary`. Every request identifies itself with a `User-Agent: Notchmeter/<version>` header; nothing is disguised. Nothing is sent anywhere else. There is no telemetry, no analytics, no crash reporting and no server of ours.
+
+**What it keeps.** No token is copied anywhere lasting, logged, or printed; `--probe` and the unified log show parsed numbers only. What is persisted: your settings and the last good reading per tool in this app's own preferences, and per-transcript totals in `~/Library/Caches/Notchmeter/` so relaunches are instant. That cache holds timestamps, model names, token counts and message ids, never prompt or response text.
+
+**What it never does.** It never signs in, never refreshes a token, never opens a login page, and never makes an inference request, so it consumes no model capacity and cannot change the usage it reports. Each reading is borrowed from a tool you are already signed in to; sign out of that tool and the reading goes with it.
+
+**How often.** Claude every 3 minutes, Codex every 2 minutes, Cursor every 5 minutes. The local cost scan runs every minute and only re-reads files that changed. Hovering the panel refreshes a tool at most once a minute, waking from sleep refreshes at once, and a rate-limit answer backs off for at least a minute; other failures back off from 30 seconds up to 10 minutes.
+
+**Terms.** Each vendor's terms are written for its own apps and restrict automated access to its services in broad language, and reading an app's saved login from outside that app is a grey area under all three. Notchmeter stays on the narrowest path there is: a login the vendor's own tool put on this Mac, used for one status read that tool itself makes, never stored, never passed on, never used for inference. Whether to run it under your account is your decision. If a vendor withdraws its usage endpoint, the meter reports the error and waits; it does not look for another way in.
 
 ## Troubleshooting
 
@@ -80,3 +103,7 @@ Antigravity is not supported (not installed here). Adding a tool means one `Usag
 
 - The notch window is [DynamicNotchKit](https://github.com/MrKai77/DynamicNotchKit) 1.1.0 by Kai Azim (MIT), vendored in `Vendor/DynamicNotchKit` with its `@Entry`/`#Preview` macros replaced by plain code so it compiles without Xcode.
 - Pace projection, reset copy, window naming and the cost rules follow [OpenUsage](https://github.com/robinebers/openusage) (MIT), which in turn ports ccusage's transcript semantics. Feature set modelled on Codenotch and OpenUsage, reimplemented from scratch.
+
+## License
+
+MIT, see [LICENSE](LICENSE). DynamicNotchKit keeps its own MIT licence in `Vendor/DynamicNotchKit/LICENSE`.

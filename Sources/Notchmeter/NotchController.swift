@@ -98,11 +98,6 @@ final class OptionsMenu: NSObject {
     @objc private func quit() { NSApp.terminate(nil) }
 }
 
-private struct UncheckedBox<Value>: @unchecked Sendable {
-    let value: Value
-    init(_ value: Value) { self.value = value }
-}
-
 /// Top layout: compact rings beside the physical notch, the full panel below it on hover.
 @MainActor
 final class NotchController: NSObject, PanelPresenting {
@@ -135,15 +130,15 @@ final class NotchController: NSObject, PanelPresenting {
                 Task { @MainActor in self?.hoverChanged(hovering) }
             }
             .store(in: &cancellables)
-        // Local monitors are delivered on the main thread; the box keeps the non-Sendable NSEvent out of the closure's capture check.
+        // Local monitors run on the main thread. assumeIsolated must return something Sendable, which NSEvent is not,
+        // so the closure reports whether it handled the event and the event is passed on outside it.
         rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
-            let boxed = UncheckedBox(event)
-            return MainActor.assumeIsolated {
-                let event = boxed.value
-                guard let self, let window = self.notch.windowController?.window, event.window === window else { return event }
+            let handled = MainActor.assumeIsolated {
+                guard let self, let window = self.notch.windowController?.window, event.window === window else { return false }
                 self.menu.popUp(in: window, event: event)
-                return nil
+                return true
             }
+            return handled ? nil : event
         }
     }
 

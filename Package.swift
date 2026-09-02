@@ -11,9 +11,15 @@ let package = Package(
             path: "Vendor/DynamicNotchKit",
             exclude: ["LICENSE"]
         ),
+        // C wrappers for Security calls that are deprecated without replacement; clang can silence those, Swift cannot.
+        .target(
+            name: "NotchmeterShims",
+            path: "Sources/NotchmeterShims",
+            linkerSettings: [.linkedFramework("Security")]
+        ),
         .executableTarget(
             name: "Notchmeter",
-            dependencies: ["DynamicNotchKit"],
+            dependencies: ["DynamicNotchKit", "NotchmeterShims"],
             path: "Sources/Notchmeter",
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),

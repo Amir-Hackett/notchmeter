@@ -1,4 +1,5 @@
 import Foundation
+import NotchmeterShims
 import Security
 
 enum KeychainError: Error, Equatable {
@@ -8,6 +9,13 @@ enum KeychainError: Error, Equatable {
 }
 
 enum Keychain {
+    /// Whether reads may raise the Keychain's access dialog for this process. Off, a locked item fails with
+    /// errSecInteractionNotAllowed instead of asking. Goes through the C shim because the underlying call is
+    /// deprecated with no replacement and Swift has no way to silence that warning.
+    static func setPromptsAllowed(_ allowed: Bool) {
+        notchmeter_keychain_set_prompts_allowed(allowed)
+    }
+
     /// Reads a generic-password item. The first read of another app's item makes macOS ask the user;
     /// "Always Allow" keeps it quiet afterwards, "Allow" asks again next time.
     static func genericPassword(service: String) throws -> Data {

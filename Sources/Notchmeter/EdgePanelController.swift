@@ -47,13 +47,12 @@ final class EdgePanelController: NSObject, PanelPresenting {
         panel.contentView = hover
 
         rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
-            let boxed = UncheckedEventBox(event)
-            return MainActor.assumeIsolated {
-                let event = boxed.value
-                guard let self, event.window === self.panel else { return event }
+            let handled = MainActor.assumeIsolated {
+                guard let self, event.window === self.panel else { return false }
                 self.menu.popUp(in: self.panel, event: event)
-                return nil
+                return true
             }
+            return handled ? nil : event
         }
         screenObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.layout(animated: false) }
@@ -123,11 +122,6 @@ final class EdgePanelController: NSObject, PanelPresenting {
         let frame = NSRect(origin: origin, size: size)
         panel.setFrame(frame, display: true, animate: animated)
     }
-}
-
-private struct UncheckedEventBox: @unchecked Sendable {
-    let value: NSEvent
-    init(_ value: NSEvent) { self.value = value }
 }
 
 final class EdgePanel: NSPanel {
