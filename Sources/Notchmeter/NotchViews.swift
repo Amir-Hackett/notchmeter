@@ -507,6 +507,23 @@ struct NotchExpandedView: View {
         maxHeight(visibleHeight: screen.visibleFrame.height, notchHeight: NotchController.notchRect(on: screen).height)
     }
 
+    /// What a measurement of the open panel means. The content is drawn inside a scroll view capped at
+    /// `maxHeight`, so content taller than the cap is the design working, not a fault; the fault is a panel drawn
+    /// taller than the room it has.
+    enum Fit: String {
+        case fits
+        case scrolls
+        case clipped
+
+        /// `drawn` is the panel as it is laid out (capped), `natural` the same content with no cap on it.
+        static func of(drawn: CGFloat, natural: CGFloat, room: CGFloat, cap: CGFloat, tolerance: CGFloat = 0.5) -> Fit {
+            if drawn > min(room, cap) + tolerance { return .clipped }
+            return natural > cap + tolerance ? .scrolls : .fits
+        }
+
+        var holds: Bool { self != .clipped }
+    }
+
     var body: some View {
         let cap = maxHeight ?? Self.maxHeight(on: screen ?? .panelScreen)
         let overflows = contentHeight > cap + 0.5

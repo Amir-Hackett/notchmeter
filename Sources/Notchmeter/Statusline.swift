@@ -86,16 +86,16 @@ enum Statusline {
 
     struct WindowSpec {
         let id: String
-        let label: String
+        let label: WindowLabel
         let period: TimeInterval?
         let short: String
     }
 
     /// The spend limit declares no period: Claude Code reports its reset but not its length.
     static let windowSpecs: [WindowSpec] = [
-        WindowSpec(id: "five_hour", label: L("Session"), period: Period.fiveHours, short: "5h"),
-        WindowSpec(id: "seven_day", label: L("Weekly"), period: Period.week, short: "7d"),
-        WindowSpec(id: "spend_limit", label: L("Spend limit"), period: nil, short: "spend"),
+        WindowSpec(id: "five_hour", label: .key("Session"), period: Period.fiveHours, short: "5h"),
+        WindowSpec(id: "seven_day", label: .key("Weekly"), period: Period.week, short: "7d"),
+        WindowSpec(id: "spend_limit", label: .key("Spend limit"), period: nil, short: "spend"),
     ]
 
     /// A window from a `used_percentage`, which for the spend limit may exceed 100: the fraction is capped and the

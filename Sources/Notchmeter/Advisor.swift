@@ -410,7 +410,7 @@ enum Advisor {
     /// "weekly", "session", "included usage"; a per-model window carries its cadence: "Fable weekly", "Gemini Pro
     /// daily", or "Gemini Pro quota" while the tool declares no window length.
     static func name(_ window: LimitWindow) -> String {
-        guard let model = window.model else { return window.label.lowercased() }
+        guard let model = window.model else { return window.name.inSentence }
         return "\(model) \(cadence(window.periodDuration))"
     }
 

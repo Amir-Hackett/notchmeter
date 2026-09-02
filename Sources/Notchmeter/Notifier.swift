@@ -181,8 +181,8 @@ final class Notifier {
 
     /// The run-out line for a Claude weekly window at 60 % with three of seven days gone, beside a Codex week at 22 %.
     nonisolated static func sampleBody(timeFormat: TimeFormatPreference, now: Date = Date()) -> String {
-        let claude = LimitWindow(id: "seven_day", label: L("Weekly"), usedFraction: 0.6, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)
-        let codex = LimitWindow(id: "weekly", label: L("Weekly"), usedFraction: 0.22, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)
+        let claude = LimitWindow(id: "seven_day", label: .key("Weekly"), usedFraction: 0.6, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)
+        let codex = LimitWindow(id: "weekly", label: .key("Weekly"), usedFraction: 0.22, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)
         let context = Advisor.Context(readings: [
             UsageReading(tool: .claude, windows: [claude], plan: nil, fetchedAt: now, observedAt: nil),
             UsageReading(tool: .codex, windows: [codex], plan: nil, fetchedAt: now, observedAt: nil),

@@ -30,9 +30,10 @@ import Testing
         return ordered + positional.sorted { $0.0 < $1.0 }.map { "\($0.0)$\($0.1)" }
     }
 
-    /// The literal first argument of every `L("…")` call under Sources/Notchmeter.
+    /// The literal key of every lookup under Sources/Notchmeter: an `L("…")` call, and the `WindowLabel` cases
+    /// that carry a key for a lookup made later, when the window's name is read.
     static func keysInSources() throws -> Set<String> {
-        let pattern = try NSRegularExpression(pattern: #"\bL\("((?:[^"\\]|\\.)*)""#)
+        let pattern = try NSRegularExpression(pattern: #"(?:\bL\(|\.key\(|\.filled\()"((?:[^"\\]|\\.)*)""#)
         var keys: Set<String> = []
         let files = try FileManager.default.contentsOfDirectory(at: sources, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "swift" }

@@ -249,7 +249,7 @@ actor AntigravityProvider: UsageProvider {
             } else {
                 note = nil
             }
-            return LimitWindow(id: id, label: label, usedFraction: 1 - tightest.remaining, resetsAt: tightest.resetsAt, note: note, model: label)
+            return LimitWindow(id: id, label: .vendor(label), usedFraction: 1 - tightest.remaining, resetsAt: tightest.resetsAt, note: note, model: label)
         }
     }
 }

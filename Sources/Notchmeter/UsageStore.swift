@@ -448,7 +448,7 @@ final class UsageStore {
                 backoff[tool] = min(300, max(30, (backoff[tool] ?? 15) * 2))
             } else if case .rateLimited(let retry) = error {
                 // Transient: keep the last good numbers on screen and try again later.
-                let wait = max(60, retry ?? 0)
+                let wait = ProviderError.rateLimitWait(retryAfter: retry)
                 backoff[tool] = wait
                 if let cached {
                     statuses[tool] = .ready(cached)

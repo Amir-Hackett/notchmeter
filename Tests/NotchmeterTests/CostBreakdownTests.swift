@@ -228,6 +228,42 @@ import Testing
         #expect(ClaudeCostScanner.transcriptFolder(of: dir.appendingPathComponent("synced")).lastPathComponent == "projects")
         #expect(ClaudeCostScanner.transcriptFolder(of: roots[0]) == roots[0])
     }
+
+    /// Entry-level detail is only ever asked for inside the fine horizon (the last hour and the current block), so
+    /// the cache holds entries for that recent a file alone and folds every older one from its digest. Loading the
+    /// cache also clears the files earlier versions left behind, which nothing else removes.
+    @Test func theCacheHoldsEntriesOnlyForRecentFilesAndClearsOlderVersions() async throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("notchmeter-cache-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: dir) }
+        let projects = dir.appendingPathComponent("projects/-Users-a-Developer-notchmeter")
+        try fm.createDirectory(at: projects, withIntermediateDirectories: true)
+        func line(_ request: String) -> String {
+            #"{"type":"assistant","timestamp":"2026-09-01T14:00:00.000Z","requestId":"@","message":{"id":"m@","model":"claude-sonnet-5","usage":{"input_tokens":1000000,"output_tokens":0}}}"#
+                .replacingOccurrences(of: "@", with: request) + "\n"
+        }
+        let recent = projects.appendingPathComponent("recent.jsonl")
+        let old = projects.appendingPathComponent("old.jsonl")
+        try Data(line("r").utf8).write(to: recent)
+        try Data(line("o").utf8).write(to: old)
+        try fm.setAttributes([.modificationDate: now.addingTimeInterval(-4 * 3600)], ofItemAtPath: old.path)
+        let superseded = dir.appendingPathComponent("claude-usage-cache-v2.json")
+        try Data("{}".utf8).write(to: superseded)
+        let cacheURL = dir.appendingPathComponent("claude-usage-cache-v3.json")
+        let scanner = ClaudeCostScanner(roots: [dir], cacheURL: cacheURL, history: nil)
+        let first = await scanner.scan(now: now)
+        #expect(!fm.fileExists(atPath: superseded.path))
+        let stored = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: cacheURL)) as? [String: [String: Any]])
+        let aged = try #require(stored.first { $0.key.hasSuffix("old.jsonl") }?.value)
+        let fresh = try #require(stored.first { $0.key.hasSuffix("recent.jsonl") }?.value)
+        #expect(aged["entries"] == nil)
+        #expect(aged["digest"] != nil)
+        #expect((fresh["entries"] as? [Any])?.count == 1)
+        // The aged file's money survives it: the digest carries the day, and a second scan reads the same totals.
+        #expect(abs(first.today - 4) < 1e-9)
+        let again = await scanner.scan(now: now)
+        #expect(again.today == first.today)
+    }
 }
 
 

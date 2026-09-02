@@ -117,7 +117,7 @@ import Testing
         let free = try CodexProvider.parseBackend(Data(monthly.utf8))
         #expect(free.windows.map(\.label) == ["Session", "Monthly"])
         #expect(free.windows[1].periodDuration == 2_592_000)
-        #expect(CodexProvider.windowKind(seconds: 14 * 86400, fallbackIsWeekly: false).label == "14-day")
+        #expect(CodexProvider.windowKind(seconds: 14 * 86400, fallbackIsWeekly: false).label.text == "14-day")
     }
 
     @Test func parsesAuthWithAccountFromIdToken() throws {
@@ -159,10 +159,10 @@ import Testing
     }
 
     @Test func labelsWindows() {
-        #expect(CodexProvider.label(forMinutes: 300) == "Session")
-        #expect(CodexProvider.label(forMinutes: 10080) == "Weekly")
-        #expect(CodexProvider.label(forMinutes: 1440) == "1-day")
-        #expect(CodexProvider.label(forMinutes: 90) == "90-minute")
+        #expect(CodexProvider.label(forMinutes: 300).text == "Session")
+        #expect(CodexProvider.label(forMinutes: 10080).text == "Weekly")
+        #expect(CodexProvider.label(forMinutes: 1440).text == "1-day")
+        #expect(CodexProvider.label(forMinutes: 90).text == "90-minute")
     }
 }
 
