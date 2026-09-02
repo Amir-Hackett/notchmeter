@@ -12,6 +12,9 @@ final class NotchActions {
     var togglePanel: () -> Void = {}
     var copyPanelImage: () -> Void = {}
     var installCommandLineTool: () -> Void = {}
+    /// The user picking which side of the notch the readouts sit on. Not `prefs.compactSide = side` directly:
+    /// picking Auto is what asks for Accessibility (AutoSideWatcher.sideChosen).
+    var chooseCompactSide: (CompactSide) -> Void = { _ in }
     /// Opens a URL in the browser (a vendor's usage or status page).
     var open: (URL) -> Void = { NSWorkspace.shared.open($0) }
     /// Nil while the updater is inactive (see Updater); the Options menu offers "Check for Updates…" only when set.
@@ -138,6 +141,16 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         }
         compact.submenu = styles
         menu.addItem(compact)
+        let readouts = NSMenuItem(title: L("Readouts"), action: nil, keyEquivalent: "")
+        let sides = NSMenu()
+        for side in CompactSide.allCases {
+            let entry = item(side.title, #selector(setCompactSide(_:)))
+            entry.representedObject = side.rawValue
+            entry.state = prefs.compactSide == side ? .on : .off
+            sides.addItem(entry)
+        }
+        readouts.submenu = sides
+        menu.addItem(readouts)
         menu.addItem(item(L("Copy panel as image"), #selector(copyImage)))
         menu.addItem(item(L("Install command line tool…"), #selector(installCLI)))
         menu.addItem(.separator())
@@ -185,6 +198,11 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
     @objc private func setCompactStyle(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let style = CompactStyle(rawValue: raw) else { return }
         prefs.compactStyle = style
+    }
+
+    @objc private func setCompactSide(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let side = CompactSide(rawValue: raw) else { return }
+        actions.chooseCompactSide(side)
     }
 
     @objc private func toggleLaunchAtLogin() { try? prefs.setLaunchAtLogin(!prefs.launchAtLogin) }
@@ -530,7 +548,7 @@ final class NotchController: NSObject, PanelPresenting {
             _ = (store.statuses, store.sessions, store.cost, store.statusline, store.screenCaptured, store.footerNote, prefs.enabledTools, prefs.showSpend, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
-                 prefs.monthlyBudgetUSD)
+                 prefs.monthlyBudgetUSD, prefs.compactSide, prefs.compactSideFallback, prefs.autoCompactSide)
             refreshRegions()
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced

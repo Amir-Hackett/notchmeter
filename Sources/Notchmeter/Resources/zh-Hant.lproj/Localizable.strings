@@ -100,6 +100,7 @@
 "a session" = "某個工作階段";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "僅當 hook 回報的工作階段處於一輪之中時持有防睡眠斷言，在其 Stop 時釋放，因此從手機或透過 SSH 啟動的工作階段在接電源合蓋時仍能繼續。持有期間頁尾顯示「保持喚醒 · 2 個工作階段」。";
 "about " = "約 ";
+"Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "輔助使用未開啟，因此「自動」會維持在選擇它之前的那一側。Notchmeter 只讀取最前方 App 選單列的位置和大小，不讀取其他任何內容；App 的其他部分都不需要輔助使用權限。";
 "Add" = "加入";
 "Add folder…" = "加入檔案夾…";
 "Add the Notchmeter hook to settings.json?" = "要將 Notchmeter 掛鉤加入 settings.json 嗎？";
@@ -135,6 +136,7 @@
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "照此速度，你將在 %3$@ 觸及 %1$@ 的%2$@上限，距離重設還有 %4$@。%5$@";
 "Auto" = "自動";
 "auto" = "自動";
+"Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "「自動」會測量最前方 App 的選單標題延伸到哪裡：選單在左側讀數之前結束時用兩側，會撞上左側讀數時移到瀏海右側。它在 App 切換到前景時測量，並記住每個 App。";
 "backup at %@" = "備份於 %@";
 "Bars" = "長條";
 "Beside the notch" = "瀏海旁";
@@ -362,6 +364,7 @@
 "Open %@" = "開啟 %@";
 "Open %@'s status page" = "開啟 %@ 的狀態頁";
 "Open %@'s usage page" = "開啟 %@ 的用量頁";
+"Open Accessibility settings…" = "打開輔助使用設定…";
 "Open at login" = "登入時開啟";
 "Open on click" = "點按時開啟";
 "Open on hover" = "懸停時開啟";

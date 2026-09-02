@@ -100,6 +100,7 @@
 "a session" = "セッション";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "フックが報告するセッションがターン中の間だけスリープ抑止を保持し、Stop で解放します。電源接続中なら、スマートフォンや SSH から始めたセッションが蓋を閉じても動き続けます。保持中はフッターに「スリープ抑止中 · 2 セッション」と出ます。";
 "about " = "約 ";
+"Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "アクセシビリティがオフのため、自動は選ぶ前の側のままになります。Notchmeter は最前面のアプリのメニューバーの位置と大きさだけを読み、ほかは何も読みません。アプリの他の部分がアクセシビリティを求めることはありません。";
 "Add" = "追加";
 "Add folder…" = "フォルダを追加…";
 "Add the Notchmeter hook to settings.json?" = "Notchmeter のフックを settings.json に追加しますか？";
@@ -135,6 +136,7 @@
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "このペースでは %1$@ の%2$@上限に %3$@ に達し、リセットまで %4$@ 残ります。%5$@";
 "Auto" = "自動";
 "auto" = "自動";
+"Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "自動は最前面のアプリのメニュー項目がどこまで伸びているかを測ります。左側の表示に届かないうちは両側に、ぶつかるときはノッチの右側にまとめます。アプリが前面に出たときに測り、アプリごとに覚えます。";
 "backup at %@" = "バックアップ: %@";
 "Bars" = "バー";
 "Beside the notch" = "ノッチの横";
@@ -362,6 +364,7 @@
 "Open %@" = "%@ を開く";
 "Open %@'s status page" = "%@ のステータスページを開く";
 "Open %@'s usage page" = "%@ の使用量ページを開く";
+"Open Accessibility settings…" = "アクセシビリティ設定を開く…";
 "Open at login" = "ログイン時に開く";
 "Open on click" = "クリックで開く";
 "Open on hover" = "ホバーで開く";

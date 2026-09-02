@@ -48,6 +48,7 @@ struct SettingsView: View {
     @State private var monthlyBudgetText = ""
     @State private var weeklyBudgetText = ""
     @State private var proxyText = ""
+    @State private var accessibilityTrusted = MenuBarExtent.isTrusted
     @State private var originText = ""
 
     var body: some View {
@@ -97,6 +98,7 @@ struct SettingsView: View {
             monthlyBudgetText = prefs.monthlyBudgetUSD.map { Self.budgetText($0) } ?? ""
             weeklyBudgetText = prefs.weeklyBudgetUSD.map { Self.budgetText($0) } ?? ""
             proxyText = prefs.proxyURL
+            accessibilityTrusted = MenuBarExtent.isTrusted
             refreshHookStatus()
         }
         .onChange(of: requests.hookSheetDryRun) { _, url in
@@ -189,7 +191,7 @@ struct SettingsView: View {
         Section(L("Panel")) {
             Picker(L("Readouts"), selection: Binding(
                 get: { prefs.compactSide },
-                set: { prefs.compactSide = $0 }
+                set: { actions.chooseCompactSide($0); accessibilityTrusted = MenuBarExtent.isTrusted }
             )) {
                 ForEach(CompactSide.allCases, id: \.self) { side in
                     Text(side.title).tag(side)
@@ -197,6 +199,18 @@ struct SettingsView: View {
             }
             Text(L("Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them."))
                 .font(.caption).foregroundStyle(.secondary)
+            if prefs.compactSide == .auto {
+                Text(L("Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app."))
+                    .font(.caption).foregroundStyle(.secondary)
+                if !accessibilityTrusted {
+                    Text(L("Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility."))
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button(L("Open Accessibility settings…")) {
+                        MenuBarExtent.openSettings()
+                        accessibilityTrusted = MenuBarExtent.isTrusted
+                    }
+                }
+            }
             Toggle(L("Show details"), isOn: Binding(
                 get: { prefs.showDetails },
                 set: { prefs.showDetails = $0 }

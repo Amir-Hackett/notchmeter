@@ -100,6 +100,7 @@
 "a session" = "một phiên";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "Giữ khẳng định chống ngủ chỉ khi phiên do hook báo đang giữa lượt, thả ra khi Stop, nên phiên khởi động từ điện thoại hay qua SSH vẫn chạy khi gập máy có cắm điện. Chân trang hiện \"Giữ máy thức · 2 phiên\" khi đang giữ.";
 "about " = "khoảng ";
+"Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "Trợ năng đang tắt nên Tự động giữ nguyên bên đã chọn trước đó. Notchmeter chỉ đọc vị trí và kích thước thanh menu của ứng dụng đang ở trước, không đọc gì khác; không phần nào khác của ứng dụng cần Trợ năng.";
 "Add" = "Thêm";
 "Add folder…" = "Thêm thư mục…";
 "Add the Notchmeter hook to settings.json?" = "Thêm hook Notchmeter vào settings.json?";
@@ -135,6 +136,7 @@
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "Với tốc độ này bạn sẽ chạm trần %2$@ của %1$@ vào %3$@, còn %4$@ trước khi đặt lại.%5$@";
 "Auto" = "Tự động";
 "auto" = "tự động";
+"Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "Tự động đo các tiêu đề menu của ứng dụng đang ở trước vươn tới đâu: dùng cả hai bên khi chúng kết thúc trước các chỉ số bên trái, dồn sang phải tai thỏ khi chúng sẽ chạm vào. Nó đo khi một ứng dụng lên trước và nhớ từng ứng dụng.";
 "backup at %@" = "sao lưu tại %@";
 "Bars" = "Thanh";
 "Beside the notch" = "Cạnh tai thỏ";
@@ -362,6 +364,7 @@
 "Open %@" = "Mở %@";
 "Open %@'s status page" = "Mở trang trạng thái của %@";
 "Open %@'s usage page" = "Mở trang dùng của %@";
+"Open Accessibility settings…" = "Mở cài đặt Trợ năng…";
 "Open at login" = "Mở khi đăng nhập";
 "Open on click" = "Mở khi bấm";
 "Open on hover" = "Mở khi rê chuột";
