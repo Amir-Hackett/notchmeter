@@ -18,6 +18,16 @@ enum CostSource: String, Codable, Equatable, Sendable {
         }
     }
 
+    /// The same provenance in the width a legend row beside a donut has, where the line under the rows already
+    /// says that local files are priced here and an export is the vendor's own figure.
+    var shortLabel: String {
+        switch self {
+        case .localTranscripts: L("transcripts")
+        case .localSessions: L("sessions")
+        case .billingExport: L("export")
+        }
+    }
+
     /// True where the dollars are this Mac's arithmetic over published rates rather than a figure the vendor sent.
     var isEstimate: Bool { self != .billingExport }
 }

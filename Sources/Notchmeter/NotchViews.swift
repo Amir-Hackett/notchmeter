@@ -557,7 +557,7 @@ struct NotchExpandedView: View {
         let tools = store.visibleTools
         let advice = store.advice
         return VStack(alignment: .leading, spacing: prefs.density.cardSpacing) {
-            if prefs.showSpend, !store.hidesFigures, tools.contains(where: \.reportsCost) {
+            if prefs.showSpend, !store.hidesFigures, tools.contains(where: { $0.reportsCost && prefs.costCardTools.contains($0) }) {
                 SpendCard(store: store)
             }
             if !advice.isEmpty {
@@ -573,8 +573,7 @@ struct NotchExpandedView: View {
                 .modifier(CardBackground())
             }
             ForEach(tools, id: \.self) { tool in
-                ToolCard(tool: tool, status: store.status(tool), store: store, prefs: prefs, actions: actions,
-                         trend: prefs.showSpend && !store.hidesFigures ? store.cost?.provider(tool)?.daily : nil)
+                ToolCard(tool: tool, status: store.status(tool), store: store, prefs: prefs, actions: actions)
             }
             FooterView(store: store, actions: actions)
         }
@@ -645,19 +644,18 @@ struct SpendCard: View {
 
     private var mode: CostCardMode { store.prefs.costCardMode }
 
-    private var totals: RangeTotals? {
-        store.cost?.totals(range.costRange)
+    /// The assistants this card carries, in the user's order. Every figure on the card is theirs added up, so
+    /// leaving one out under Settings takes it out of the total as well as out of the donut.
+    private var selection: CostSelection {
+        CostSelection(all: store.cost?.providers ?? [], order: store.prefs.toolOrder, carried: store.prefs.costCardTools)
     }
 
-    private var amount: Double? {
-        guard let cost = store.cost else { return nil }
-        switch range {
-        case .today: return cost.today
-        case .yesterday: return cost.yesterday
-        case .thirtyDays: return cost.last30Days
-        default: return totals?.cost
-        }
+    private var totals: RangeTotals? {
+        let selection = selection
+        return selection.isEmpty ? nil : selection.totals(range.costRange)
     }
+
+    private var amount: Double? { totals?.cost }
 
     /// The ring's figure in the chosen unit: dollars, tokens, or dollars per million tokens.
     static func headline(mode: CostCardMode, amount: Double?, totals: RangeTotals?) -> String {
@@ -676,16 +674,27 @@ struct SpendCard: View {
         }
     }
 
+    /// One assistant's figure in the chosen unit, for its row in the legend: the figure in the middle keeps the
+    /// cents off a total that has to fit a ring, a row has the room for them.
+    static func rowFigure(mode: CostCardMode, totals: RangeTotals) -> String {
+        switch mode {
+        case .cost: return Money.dollars(totals.cost)
+        case .tokens: return Money.tokens(totals.tokens.total).replacingOccurrences(of: " tokens", with: "")
+        case .perMillionTokens: return totals.costPerMillionTokens.map { Money.dollars($0) } ?? "—"
+        }
+    }
+
     /// The month's spend against the budget: the ring's fill and where an even burn would sit right now.
     private var budget: (fill: Double, tick: Double, budget: Double)? {
-        guard let budget = store.prefs.monthlyBudgetUSD, budget > 0, let cost = store.cost else { return nil }
+        guard let budget = store.prefs.monthlyBudgetUSD, budget > 0, !selection.isEmpty else { return nil }
         let period = BudgetPeriod.month(now: Date())
-        return (min(1, cost.totals(.month).cost / budget), period.elapsedFraction(now: Date()), budget)
+        return (min(1, selection.totals(.month).cost / budget), period.elapsedFraction(now: Date()), budget)
     }
 
     private var burnLine: String? {
-        guard let cost = store.cost, let burn = cost.burnMultiple else { return nil }
-        return L("Last hour %1$@ · %2$@ your 30-day average", Money.dollars(cost.lastHour), Burn.multiple(burn))
+        let selection = selection
+        guard let burn = selection.burnMultiple else { return nil }
+        return L("Last hour %1$@ · %2$@ your 30-day average", Money.dollars(selection.lastHour), Burn.multiple(burn))
     }
 
     private var tokensLine: String? {
@@ -700,9 +709,10 @@ struct SpendCard: View {
     }
 
     /// The Claude weekly window, which is where the week's boundary comes from: its own spend, and what one per
-    /// cent of the window has cost. Not a total — the ring above it is.
+    /// cent of the window has cost. Not a total — the donut above it is. Absent while the card is not carrying
+    /// Claude, whose window it describes.
     private var weekLine: String? {
-        guard range == .week, let week = store.cost?.week else { return nil }
+        guard range == .week, selection.provider(.claude) != nil, let week = store.cost?.week else { return nil }
         let since = ResetText.dayPhrase(week.start, now: Date(), calendar: .current)
         guard let perPercent = week.perPercent else { return L("Claude %1$@ since %2$@", Money.dollars(week.cost), since) }
         return L("Claude %1$@ since %2$@ · %3$@ per 1%% of weekly", Money.dollars(week.cost), since, Money.dollars(perPercent))
@@ -710,18 +720,17 @@ struct SpendCard: View {
 
     private var budgetLine: String? {
         guard let budget else { return nil }
-        let spent = store.cost?.totals(.month).cost ?? 0
-        return L("Month %1$@ of a %2$@ budget", Money.dollars(spent, cents: false), Money.dollars(budget.budget, cents: false))
+        return L("Month %1$@ of a %2$@ budget", Money.dollars(selection.totals(.month).cost, cents: false), Money.dollars(budget.budget, cents: false))
     }
 
     private var blockLine: String? {
-        guard let block = store.cost?.block, block.cost > 0 || block.tokens.total > 0 else { return nil }
+        guard selection.provider(.claude) != nil, let block = store.cost?.block, block.cost > 0 || block.tokens.total > 0 else { return nil }
         guard let rate = block.tokensPerMinute else { return L("This session block %@", Money.dollars(block.cost)) }
         return L("This session block %1$@ · %2$@/min", Money.dollars(block.cost), Money.tokens(Int(rate.rounded())).replacingOccurrences(of: " tokens", with: ""))
     }
 
     private var sinceLine: String? {
-        guard range == .ninetyDays, let cost = store.cost, let first = cost.firstUse else { return nil }
+        guard range == .ninetyDays, selection.provider(.claude) != nil, let cost = store.cost, let first = cost.firstUse else { return nil }
         return L("Claude since %1$@: %2$@", ResetText.dayPhrase(first, now: Date(), calendar: .current), Money.dollars(cost.sinceFirstUse))
     }
 
@@ -731,8 +740,19 @@ struct SpendCard: View {
         return L("Top: %@", top)
     }
 
-    /// One row per tool that can report spend, in tool order. A tool that cannot is absent rather than zero.
-    private var providers: [ProviderCost] { store.cost?.providers ?? [] }
+    /// One row per assistant the card carries, in the user's order. One that cannot report spend, or that the
+    /// card is set to leave out, is absent rather than a zero row.
+    private var providers: [ProviderCost] { selection.providers }
+
+    /// The lines the card keeps behind Show details, so the donut, the legend and the burn line hold the height
+    /// budget on their own however many assistants report.
+    private var detailLines: [String] {
+        [budgetLine, weekLine, sinceLine, blockLine].compactMap { $0 }
+    }
+
+    private var detailCaptions: [String] {
+        [tokensLine, cacheWritesLine, projectsLine].compactMap { $0 }
+    }
 
     /// What the figures are: this Mac's arithmetic over published rates, the vendor's own export, or both.
     private var sourceLine: String {
@@ -746,15 +766,36 @@ struct SpendCard: View {
         providers.compactMap { provider in provider.problem.map { "\(provider.tool.displayName): \($0)" } }
     }
 
-    /// The ring wears the colour of whichever tool is most of the range's spend.
-    private var ringColor: Color {
-        (providers.max { $0.totals(range.costRange).cost < $1.totals(range.costRange).cost }?.tool ?? .claude).color
+    /// The donut's arcs: one per assistant that spent in the range, sized by its share of it. Against a monthly
+    /// budget the arc is the month against that budget, so it is split by who spent the month rather than the
+    /// range on show above it.
+    private var arcs: [CostArc] {
+        let selection = selection
+        guard let budget else { return CostDonut.arcs(selection.weights(range: range.costRange, mode: mode)) }
+        return CostDonut.arcs(selection.weights(range: .month, mode: .cost), fill: budget.fill)
     }
 
-    /// The provider rows as one spoken phrase.
+    /// Each assistant's own colour, except where the month is over its budget or past its pace: a warning
+    /// outranks identity, and it is the same colour the single ring has always turned.
+    private func arcColor(_ arc: CostArc) -> Color {
+        guard let budget else { return arc.tool.color }
+        return budget.fill >= 1 ? Palette.danger : budget.fill > budget.tick + 0.1 ? Palette.warn : arc.tool.color
+    }
+
+    /// A provider's share of the range, printed beside its figure once there is something to share it with.
+    private func share(_ provider: ProviderCost) -> Double? {
+        guard providers.count > 1 else { return nil }
+        return selection.share(of: provider.tool, range: range.costRange, mode: mode)
+    }
+
+    /// The legend as one spoken phrase.
     private var providerSpoken: String {
         guard !providers.isEmpty else { return L("no cost yet") }
-        return providers.map { "\($0.tool.displayName) \(Money.dollars($0.totals(range.costRange).cost))" }.joined(separator: ", ")
+        return providers.map { provider in
+            let figure = Self.rowFigure(mode: mode, totals: provider.totals(range.costRange))
+            guard let share = share(provider) else { return "\(provider.tool.displayName) \(figure)" }
+            return L("%1$@ %2$@, %3$ld%% of it", provider.tool.displayName, figure, Int((share * 100).rounded()))
+        }.joined(separator: ", ")
     }
 
     var body: some View {
@@ -776,25 +817,22 @@ struct SpendCard: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            HStack(spacing: 20) {
+            HStack(spacing: 16) {
                 ZStack {
                     Circle().stroke(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.25 : 0.1), lineWidth: 13)
-                    if let budget {
+                    ForEach(arcs) { arc in
                         Circle()
-                            .trim(from: 0, to: CGFloat(max(0.012, budget.fill)))
-                            .stroke(budget.fill >= 1 ? Palette.danger : budget.fill > budget.tick + 0.1 ? Palette.warn : ringColor, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
+                            .trim(from: arc.start, to: arc.end)
+                            .stroke(arcColor(arc), style: StrokeStyle(lineWidth: 13, lineCap: .butt))
                             .rotationEffect(.degrees(-90))
+                    }
+                    if let budget {
                         Rectangle()
                             .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 1 : 0.8))
                             .frame(width: 2, height: 15)
                             .offset(y: -density.costRing / 2)
                             .rotationEffect(.degrees(360 * budget.tick))
                             .accessibilityHidden(true)
-                    } else {
-                        Circle()
-                            .trim(from: 0.012, to: 0.988)
-                            .stroke(ringColor, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
-                            .rotationEffect(.degrees(-90))
                     }
                     VStack(spacing: 1) {
                         Text(headline)
@@ -821,47 +859,37 @@ struct SpendCard: View {
                         Text(L("no cost yet")).font(.callout).foregroundStyle(.secondary)
                     }
                     ForEach(providers) { provider in
-                        HStack(spacing: 8) {
+                        let totals = provider.totals(range.costRange)
+                        HStack(spacing: 6) {
                             Circle().fill(provider.tool.color).frame(width: 7, height: 7)
-                            Text(verbatim: provider.tool.displayName).font(.callout)
-                            Text(provider.source.label).font(.caption2).foregroundStyle(.secondary)
-                            Spacer()
-                            Text(Money.dollars(provider.totals(range.costRange).cost)).font(.callout).monospacedDigit()
+                            Text(verbatim: provider.tool.displayName).font(.callout).lineLimit(1)
+                            Text(provider.source.shortLabel).font(.caption2).foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1)
+                            Spacer(minLength: 4)
+                            if let share = share(provider) {
+                                Text(verbatim: "\(Int((share * 100).rounded()))%")
+                                    .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                            }
+                            Text(Self.rowFigure(mode: mode, totals: totals)).font(.callout).monospacedDigit()
                         }
                     }
                     ForEach(problemLines, id: \.self) { line in
                         Text(line).modifier(Caption()).lineLimit(2)
-                    }
-                    if let budgetLine {
-                        Text(budgetLine).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                     }
                     if let burnLine {
                         // A non-breaking hyphen keeps "30-day" whole when the line wraps.
                         Text(burnLine.replacingOccurrences(of: "-", with: "\u{2011}"))
                             .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                     }
-                    if let weekLine {
-                        Text(weekLine).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
-                    }
-                    if let sinceLine {
-                        Text(sinceLine).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
-                    }
                     if store.prefs.showDetails {
-                        if let blockLine {
-                            Text(blockLine).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                        ForEach(detailLines, id: \.self) { line in
+                            Text(line).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                         }
-                        if let tokensLine {
-                            Text(tokensLine).modifier(Caption()).monospacedDigit()
-                        }
-                        if let cacheWritesLine {
-                            Text(cacheWritesLine).modifier(Caption()).monospacedDigit()
-                        }
-                        if let projectsLine {
-                            Text(projectsLine).modifier(Caption()).monospacedDigit().lineLimit(2)
+                        ForEach(detailCaptions, id: \.self) { line in
+                            Text(line).modifier(Caption()).monospacedDigit().lineLimit(2)
                         }
                     }
-                    if let cost = store.cost, !cost.unpricedModels.isEmpty {
-                        Text(L("Unpriced: %@", cost.unpricedModels.sorted().joined(separator: ", ")))
+                    if !selection.unpricedModels.isEmpty {
+                        Text(L("Unpriced: %@", selection.unpricedModels.sorted().joined(separator: ", ")))
                             .modifier(Caption()).lineLimit(2)
                     }
                     Text(sourceLine).modifier(Caption()).lineLimit(2)
@@ -870,9 +898,9 @@ struct SpendCard: View {
             .padding(.top, 2)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L("Cost, %@", range.title))
-            .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, budgetLine, burnLine, weekLine,
-                                            blockLine, tokensLine, cacheWritesLine, projectsLine, problemLines.first, sourceLine))
-            if let totals, !totals.models.isEmpty, totals.cost > 0 {
+            .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, burnLine, problemLines.first,
+                                            store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine))
+            if store.prefs.showDetails, let totals, !totals.models.isEmpty, totals.cost > 0 {
                 ModelShares(shares: totals.models, total: totals.cost, byModel: totals.byModel, tokensByModel: nil, mode: mode, rangeTokens: totals.tokens.total)
             }
         }
@@ -971,8 +999,24 @@ struct ToolCard: View {
     let store: UsageStore
     let prefs: Preferences
     var actions: NotchActions? = nil
-    let trend: [DailySpend]?
     @Environment(\.density) private var density
+
+    /// This assistant's own spend, where it reports any and the panel is showing figures. The spend line and the
+    /// trend below both come from it, so no card has to know which assistants can report cost: one that cannot
+    /// has no `ProviderCost` and so shows neither (docs/accuracy.md).
+    private var spend: ProviderCost? {
+        guard prefs.showSpend, !store.hidesFigures else { return nil }
+        return store.cost?.provider(tool)
+    }
+
+    /// "$118.31 today · $6,600 over 30 days · local transcripts".
+    private var spendLine: String? {
+        guard let spend else { return nil }
+        let today = spend.totals(.today).cost
+        let month = spend.totals(.last30Days).cost
+        guard today > 0 || month > 0 else { return nil }
+        return L("%1$@ today · %2$@ over 30 days · %3$@", Money.dollars(today), Money.dollars(month, cents: false), spend.source.label)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1040,6 +1084,12 @@ struct ToolCard: View {
                     Text(StaleReading.line(fetchedAt: stale.fetchedAt, timeFormat: prefs.timeFormat))
                         .modifier(Caption()).monospacedDigit()
                 }
+                if let spendLine {
+                    Text(spendLine)
+                        .modifier(Caption()).monospacedDigit().lineLimit(2)
+                        .accessibilityLabel(L("Spend"))
+                        .accessibilityValue(Spoken.phrase(spendLine))
+                }
                 if prefs.showDetails, let reading = status.reading, let main = prefs.shownWindows(of: reading).first(where: { $0.usedFraction != nil }),
                    let series = store.drainSeries(for: tool, window: main), series.contains(where: { $0 != nil }) {
                     HStack {
@@ -1051,7 +1101,7 @@ struct ToolCard: View {
                     .accessibilityLabel(L("Last 24h"))
                     .accessibilityValue(Spoken.phrase(L("%1$@ %2$ld percent used", main.label, Int(((series.last { $0 != nil } ?? 0) ?? 0) * 100))))
                 }
-                if prefs.showDetails, let trend, trend.contains(where: { $0.cost > 0 }) {
+                if prefs.showDetails, let trend = spend?.daily, trend.contains(where: { $0.cost > 0 }) {
                     HStack {
                         Text(L("Usage Trend")).font(.subheadline.weight(.semibold))
                         Spacer()
@@ -1067,7 +1117,7 @@ struct ToolCard: View {
         .contextMenu {
             Button(L("Refresh")) { Keychain.setInteractive(tool == .claude); Task { await store.refresh(tool, force: true) } }
             Button(L("Copy as image")) {
-                CardImage.copy(ToolCard(tool: tool, status: status, store: store, prefs: prefs, trend: trend).environment(\.density, density), width: prefs.panelWidth.points - 28)
+                CardImage.copy(ToolCard(tool: tool, status: status, store: store, prefs: prefs).environment(\.density, density), width: prefs.panelWidth.points - 28)
             }
             Divider()
             Button(L("Open %@'s usage page", tool.displayName)) { actions?.open(ProviderLinks.usage(tool)) }

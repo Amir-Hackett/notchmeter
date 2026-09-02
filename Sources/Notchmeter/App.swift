@@ -92,6 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var smokeRestoreStyle: CompactStyle?
     private var smokeRestoreVisibility: NotchVisibility?
     private var smokeRestoreDisplay: DisplayChoice?
+    private var smokeRestoreDetails: Bool?
 
     static let screenDebounceInterval: TimeInterval = 0.15
     static let pointerSettleInterval: TimeInterval = 0.5
@@ -137,6 +138,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
            let display = DisplayChoice(rawValue: arguments[index + 1]) {
             smokeRestoreDisplay = prefs.display
             prefs.display = display
+        }
+        if arguments.contains("--smoke"), let index = arguments.firstIndex(of: "--details"), index + 1 < arguments.count,
+           ["on", "off"].contains(arguments[index + 1]) {
+            smokeRestoreDetails = prefs.showDetails
+            prefs.showDetails = arguments[index + 1] == "on"
         }
         MainMenu.install(actions: actions)
         AccessibilityDisplay.shared.reduceAnimations = prefs.reduceAnimations
@@ -588,7 +594,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// `--smoke`: run for a few seconds, report what is on screen and what each provider returned, then exit.
     /// `--hover-sim` adds a scripted pointer path through the live hover machine and fails the run if it loops;
     /// `--hover-log` prints each decision the real mouse produces meanwhile; `--edge`, `--compact-style`,
-    /// `--visibility` and `--display` pick the layout for the run and are restored on exit; `--idle-sim` runs the
+    /// `--visibility`, `--display` and `--details on|off` pick the layout for the run and are restored on exit; `--idle-sim` runs the
     /// Hide when idle clock 31 minutes ahead; `--glance-sim` opens a glance and checks it settles. Two simulated
     /// screen changes are fired back to back on every run and the presenter count checked after; the Options menu
     /// is built and walked without a pointer. The copy line names the language the panel is in and shows five of
@@ -658,6 +664,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let smokeRestoreStyle { prefs.compactStyle = smokeRestoreStyle }
         if let smokeRestoreVisibility { prefs.visibility = smokeRestoreVisibility }
         if let smokeRestoreDisplay { prefs.display = smokeRestoreDisplay }
+        if let smokeRestoreDetails { prefs.showDetails = smokeRestoreDetails }
         let checks: [(String, Bool)] = [("panel visible", presenter?.isVisible == true), ("hover", hoverPassed),
                                         ("sizing", sizingPassed), ("settings", settingsPassed), ("glance", glancePassed),
                                         ("click-to-key", keyPassed), ("menu", menuPassed), ("rebuild", rebuildPassed)]
