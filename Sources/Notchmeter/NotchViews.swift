@@ -835,7 +835,9 @@ struct SpendCard: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            HStack(spacing: 16) {
+            // Top-aligned, not centred: the legend column grows with the detail lines, and centring sank the ring
+            // below the first legend row whenever it did.
+            HStack(alignment: .top, spacing: 16) {
                 ZStack {
                     Circle().stroke(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.25 : 0.1), lineWidth: 13)
                     ForEach(arcs) { arc in
