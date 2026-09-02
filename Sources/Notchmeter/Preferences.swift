@@ -745,7 +745,9 @@ final class Preferences {
         localAPIEnabled = defaults.bool(forKey: Keys.localAPI)
         localAPIOrigins = defaults.stringArray(forKey: Keys.localAPIOrigins) ?? []
         codexResetCredits = defaults.bool(forKey: Keys.codexCredits)
-        cursorUsageEvents = defaults.bool(forKey: Keys.cursorEvents)
+        // On by default: the events come from the same account over the same session cookie the usage summary
+        // already uses, so hiding a tool's own spend behind a switch cost more than it protected.
+        cursorUsageEvents = defaults.object(forKey: Keys.cursorEvents) as? Bool ?? true
         copilotOrgBilling = defaults.bool(forKey: Keys.copilotOrg)
         keychainPrompts = KeychainPromptPolicy(rawValue: defaults.string(forKey: Keys.keychainPrompts) ?? "") ?? .refreshOnly
         keepAwake = defaults.bool(forKey: Keys.keepAwake)
