@@ -109,11 +109,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? await Task.sleep(for: .seconds(2))
         }
         Probe.emit("smoke ran \(Int(Date().timeIntervalSince(started)))s")
-        let frame = presenter?.windowFrame.map { "\($0)" } ?? "none"
+        let frame = presenter?.window.map { "\($0.frame)" } ?? "none"
         Probe.emit("panel (\(prefs.edge.rawValue)): visible=\(presenter?.isVisible ?? false) frame=\(frame)")
         if let regions = presenter?.hover.regions {
             Probe.emit("hover regions: compact=\(regions.compact) expanded=\(regions.expanded)")
         }
+        let sizingPassed = presenter.map(reportSizing) ?? false
         for tool in ToolID.allCases {
             Probe.emit("\(tool.displayName): \(Probe.describe(store.status(tool)))")
         }
@@ -130,7 +131,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsProbe.window?.layoutIfNeeded()
         Probe.emit("settings window: \(settingsProbe.window?.frame.size ?? .zero)")
         if let smokeRestoreEdge { prefs.edge = smokeRestoreEdge }
-        exit(presenter?.isVisible == true && hoverPassed ? 0 : 1)
+        exit(presenter?.isVisible == true && hoverPassed && sizingPassed ? 0 : 1)
+    }
+
+    /// The open panel must fit where it is drawn: inside DynamicNotchKit's fixed window for the top layout, inside
+    /// the screen's usable height for the edge pills, which size their window to the content. The top window is
+    /// mostly transparent, so a hit test below the panel also confirms that area still reaches whatever is under it.
+    private func reportSizing(_ presenter: any PanelPresenting) -> Bool {
+        let screen = NSScreen.panelScreen
+        let content = presenter.expandedContentSize
+        let cap = NotchExpandedView.maxHeight(on: screen)
+        let room = presenter.edge == .top ? (presenter.window?.frame.height ?? 0) : screen.visibleFrame.height
+        let roomName = presenter.edge == .top ? "window height" : "usable screen height"
+        var passed = content.height <= room && content.height <= cap
+        Probe.emit("panel sizing: \(roomName)=\(room) expanded content height=\(content.height) max content height=\(cap) → \(passed ? "fits" : "CLIPPED")")
+        if presenter.edge == .top, let window = presenter.window {
+            let below = NSPoint(x: window.frame.midX, y: window.frame.minY + 20)
+            let hit = NSWindow.windowNumber(at: below, belowWindowWithWindowNumber: 0)
+            let clickThrough = hit != window.windowNumber
+            passed = passed && clickThrough
+            Probe.emit("panel window: opaque=\(window.isOpaque) click-through below the panel=\(clickThrough)")
+        }
+        return passed
     }
 }
 

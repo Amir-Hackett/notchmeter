@@ -89,8 +89,9 @@ final class Preferences {
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
-    func resetLine(for window: LimitWindow, now: Date = Date()) -> String {
-        ResetText.line(resetsAt: window.resetsAt, hasLimit: window.usedFraction != nil, display: resetDisplay, timeFormat: timeFormat, now: now)
+    func resetLine(for window: LimitWindow, stale: Bool = false, now: Date = Date()) -> String {
+        ResetText.line(resetsAt: window.resetsAt, hasLimit: window.usedFraction != nil, display: resetDisplay, timeFormat: timeFormat,
+                       stale: stale, now: now)
     }
 
     func usageLine(for window: LimitWindow) -> String? {

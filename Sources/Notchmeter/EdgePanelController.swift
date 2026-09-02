@@ -13,6 +13,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
     private let panel: EdgePanel
     private let host: NSHostingView<EdgePanelRoot>
     private let probe: NSHostingView<EdgePanelRoot>
+    private let contentProbe: NSHostingView<NotchExpandedView>
     private var expanded = false
     private var rightClickMonitor: Any?
     private var screenObserver: NSObjectProtocol?
@@ -28,6 +29,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
                           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         host = NSHostingView(rootView: EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, expanded: false))
         probe = NSHostingView(rootView: EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, expanded: true))
+        contentProbe = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions))
         hover = HoverDriver(mode: prefs.visibility.hoverMode)
         super.init()
 
@@ -58,7 +60,13 @@ final class EdgePanelController: NSObject, PanelPresenting {
     }
 
     var isVisible: Bool { panel.isVisible }
-    var windowFrame: NSRect? { panel.frame }
+    var window: NSWindow? { panel }
+
+    var expandedContentSize: CGSize {
+        contentProbe.rootView = NotchExpandedView(store: store, prefs: prefs, actions: actions)
+        contentProbe.layoutSubtreeIfNeeded()
+        return contentProbe.fittingSize
+    }
 
     func show() {
         hover.mode = prefs.visibility.hoverMode
@@ -81,10 +89,6 @@ final class EdgePanelController: NSObject, PanelPresenting {
 
     func showOptions() {
         menu.popUp(in: panel)
-    }
-
-    private var screen: NSScreen {
-        NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.main ?? NSScreen.screens[0]
     }
 
     private func act(_ output: HoverIntent.Output) {
@@ -122,7 +126,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
 
     /// visibleFrame keeps the panel clear of the Dock.
     private func placement(for size: NSSize) -> NSRect {
-        let area = screen.visibleFrame
+        let area = NSScreen.panelScreen.visibleFrame
         let margin: CGFloat = 6
         var origin = NSPoint.zero
         switch edge {

@@ -4,6 +4,9 @@
 //
 //  Created by Kai Azim on 2023-08-24.
 //
+//  Notchmeter: the panel window is the full screen height rather than half of it, so expanded content
+//  taller than half the screen is no longer clipped above the top edge. NotchContentView anchors the
+//  content to the top of the window; the extra height below is transparent and click-through.
 
 import SwiftUI
 
@@ -367,7 +370,7 @@ private extension DynamicNotch {
 
         let size = NSSize(
             width: screen.frame.width / 2,
-            height: screen.frame.height / 2
+            height: screen.frame.height
         )
         let origin = NSPoint(
             x: screen.frame.midX - (size.width / 2),

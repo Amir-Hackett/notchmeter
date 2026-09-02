@@ -16,11 +16,20 @@ final class NotchActions {
 protocol PanelPresenting: AnyObject {
     var edge: PanelEdge { get }
     var isVisible: Bool { get }
-    var windowFrame: NSRect? { get }
+    var window: NSWindow? { get }
+    /// What the open panel's content measures right now, before any window or chrome around it.
+    var expandedContentSize: CGSize { get }
     var hover: HoverDriver { get }
     func show()
     func hide() async
     func showOptions()
+}
+
+extension NSScreen {
+    /// Where the panel lives: the display with the notch when there is one, else the main screen.
+    static var panelScreen: NSScreen {
+        screens.first { $0.safeAreaInsets.top > 0 } ?? main ?? screens[0]
+    }
 }
 
 /// The right-click / Options menu shared by every panel style.
@@ -177,12 +186,9 @@ final class NotchController: NSObject, PanelPresenting {
         observeContent()
     }
 
-    var targetScreen: NSScreen {
-        NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.main ?? NSScreen.screens[0]
-    }
-
-    var windowFrame: NSRect? { notch.windowController?.window?.frame }
-    var isVisible: Bool { notch.windowController?.window?.isVisible ?? false }
+    var window: NSWindow? { notch.windowController?.window }
+    var isVisible: Bool { window?.isVisible ?? false }
+    var expandedContentSize: CGSize { fittingSize(expandedProbe, NotchExpandedView(store: store, prefs: prefs, actions: actions)) }
 
     func show() {
         hover.mode = prefs.visibility.hoverMode
@@ -229,7 +235,7 @@ final class NotchController: NSObject, PanelPresenting {
         configureTransition(closing: false)
         hover.adopt(.expanded)
         let serial = beginTransition()
-        await notch.expand(on: targetScreen)
+        await notch.expand(on: .panelScreen)
         endTransition(serial)
     }
 
@@ -237,7 +243,7 @@ final class NotchController: NSObject, PanelPresenting {
         configureTransition(closing: true)
         hover.adopt(.compact)
         let serial = beginTransition()
-        await notch.compact(on: targetScreen)
+        await notch.compact(on: .panelScreen)
         endTransition(serial)
     }
 
@@ -280,8 +286,9 @@ final class NotchController: NSObject, PanelPresenting {
         return CGRect(x: frame.midX - floatingNotchWidth / 2, y: frame.maxY - height, width: floatingNotchWidth, height: height)
     }
 
-    /// Both visible shapes from the notch and the content's fitting sizes; never DynamicNotchKit's window, which
-    /// is an invisible area half the screen wide that would flip a stationary pointer inside and outside as it morphs.
+    /// Both visible shapes from the notch and the content's fitting sizes; never DynamicNotchKit's window, an
+    /// invisible column half the screen wide and the full screen tall that would flip a stationary pointer inside
+    /// and outside as it morphs.
     static func regions(notch: CGRect, leadingWidth: CGFloat, trailingWidth: CGFloat, expanded: CGSize, floating: Bool) -> HoverRegions {
         let compact = CGRect(
             x: notch.minX - leadingWidth - compactMargin,
@@ -303,10 +310,10 @@ final class NotchController: NSObject, PanelPresenting {
 
     private func refreshRegions() {
         hover.regions = Self.regions(
-            notch: Self.notchRect(on: targetScreen),
+            notch: Self.notchRect(on: .panelScreen),
             leadingWidth: fittingSize(leadingProbe, NotchCompactView(store: store, side: .leading)).width,
             trailingWidth: fittingSize(trailingProbe, NotchCompactView(store: store, side: .trailing)).width,
-            expanded: fittingSize(expandedProbe, NotchExpandedView(store: store, prefs: prefs, actions: actions)),
+            expanded: expandedContentSize,
             floating: floating
         )
     }

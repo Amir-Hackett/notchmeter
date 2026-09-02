@@ -144,6 +144,14 @@ enum ToolStatus: Equatable {
         default: nil
         }
     }
+
+    /// The reading still on screen after the tool stopped answering; its numbers may be out of date.
+    var staleReading: UsageReading? {
+        switch self {
+        case .needsAttention(_, let c), .failed(_, let c): c
+        default: nil
+        }
+    }
 }
 
 protocol UsageProvider: Sendable {

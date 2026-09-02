@@ -107,14 +107,15 @@ enum TimeFormatPreference: String, CaseIterable, Codable {
     }
 }
 
-/// Reset copy in either style: "Resets in 4d 17h" or "Resets today at 10:50 PM".
+/// Reset copy in either style: "Resets in 4d 17h" or "Resets today at 10:50 PM". A stale reading whose reset has
+/// gone by says "Reset passed": the numbers are from before it, so nothing is about to change.
 enum ResetText {
     static func line(resetsAt: Date?, hasLimit: Bool, display: ResetDisplay, timeFormat: TimeFormatPreference,
-                     now: Date = Date(), calendar: Calendar = .current) -> String {
+                     stale: Bool = false, now: Date = Date(), calendar: Calendar = .current) -> String {
         guard hasLimit else { return "No limit published" }
         guard let resetsAt else { return "" }
         let remaining = resetsAt.timeIntervalSince(now)
-        if remaining <= 0 { return "Resets now" }
+        if remaining <= 0 { return stale ? "Reset passed" : "Resets now" }
         switch display {
         case .countdown:
             return "Resets in \(duration(remaining))"
@@ -151,6 +152,7 @@ enum ResetText {
     static func dayPhrase(_ date: Date, now: Date, calendar: Calendar) -> String {
         if calendar.isDate(date, inSameDayAs: now) { return "today" }
         if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(date, inSameDayAs: tomorrow) { return "tomorrow" }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) { return "yesterday" }
         let formatter = DateFormatter()
         formatter.calendar = calendar
         formatter.timeZone = calendar.timeZone
@@ -169,6 +171,18 @@ enum ResetText {
         case .twentyFourHour: formatter.dateFormat = "HH:mm"
         }
         return formatter.string(from: date)
+    }
+}
+
+/// Under a tool that has stopped answering, when its last reading is still on screen: "Last reading 10:52 PM ·
+/// may be out of date". The day is named once the reading is not from today.
+enum StaleReading {
+    static func line(fetchedAt: Date, timeFormat: TimeFormatPreference, now: Date = Date(), calendar: Calendar = .current) -> String {
+        let time = ResetText.time(fetchedAt, format: timeFormat, calendar: calendar)
+        let when = calendar.isDate(fetchedAt, inSameDayAs: now)
+            ? time
+            : "\(ResetText.dayPhrase(fetchedAt, now: now, calendar: calendar)) at \(time)"
+        return "Last reading \(when) · may be out of date"
     }
 }
 
