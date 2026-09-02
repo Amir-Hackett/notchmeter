@@ -195,7 +195,7 @@ struct SettingsView: View {
                     Text(side.title).tag(side)
                 }
             }
-            Text(L("The app's menu titles sit immediately left of the notch, so the right side is usually the free one."))
+            Text(L("Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them."))
                 .font(.caption).foregroundStyle(.secondary)
             Toggle(L("Show details"), isOn: Binding(
                 get: { prefs.showDetails },

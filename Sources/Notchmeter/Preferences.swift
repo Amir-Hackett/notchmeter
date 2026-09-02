@@ -651,7 +651,7 @@ final class Preferences {
         showResetCountdown = defaults.bool(forKey: Keys.resetCountdown)
         showSpend = defaults.object(forKey: Keys.showSpend) as? Bool ?? true
         showDetails = defaults.object(forKey: Keys.showDetails) as? Bool ?? false
-        compactSide = CompactSide(rawValue: defaults.string(forKey: Keys.compactSide) ?? "") ?? .trailing
+        compactSide = CompactSide(rawValue: defaults.string(forKey: Keys.compactSide) ?? "") ?? .split
         usageDisplay = UsageDisplay(rawValue: defaults.string(forKey: Keys.usageDisplay) ?? "") ?? .used
         resetDisplay = ResetDisplay(rawValue: defaults.string(forKey: Keys.resetDisplay) ?? "") ?? .exact
         timeFormat = TimeFormatPreference(rawValue: defaults.string(forKey: Keys.timeFormat) ?? "") ?? .auto

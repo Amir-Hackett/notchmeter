@@ -429,7 +429,10 @@ struct NotchCompactView: View {
         switch store.prefs.compactSide {
         case .trailing: return side == .leading ? [] : visible
         case .leading: return side == .leading ? visible : []
-        case .split: return side == .leading ? Array(visible.prefix(1)) : Array(visible.dropFirst())
+        case .split:
+            // Half either side, so the strip reads as centred on the notch rather than hanging off one edge.
+            let left = Int((Double(visible.count) / 2).rounded())
+            return side == .leading ? Array(visible.prefix(left)) : Array(visible.dropFirst(left))
         }
     }
 

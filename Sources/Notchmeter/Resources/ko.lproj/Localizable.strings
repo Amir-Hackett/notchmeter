@@ -109,8 +109,8 @@
 "All displays" = "모든 디스플레이";
 "Allowed origin, e.g. http://localhost:3000" = "허용할 출처, 예: http://localhost:3000";
 "Almost out (under an hour left), and out" = "거의 소진(1시간 미만 남음) 및 소진됨";
-"already present for %@" = "%@에 이미 있음";
 "Already present for %@" = "%@에 이미 있음";
+"already present for %@" = "%@에 이미 있음";
 "Also on battery" = "배터리에서도";
 "Also read Codex reset credits" = "Codex 초기화 크레딧도 읽기";
 "Also read Cursor's usage events" = "Cursor 사용 이벤트도 읽기";
@@ -138,6 +138,7 @@
 "Beta updates" = "베타 업데이트";
 "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "둘 다 Claude Code 훅이 필요하며 터미널이나 편집기가 맨 앞이거나 조용한 시간에는 울리지 않습니다. 잠깐 보기는 패널을 세션 줄과 함께 몇 초 열었다가 포인터가 들어오지 않으면 다시 닫습니다. 동작 줄이기에서는 애니메이션 없이 열리고 조금 더 머뭅니다. \"대기 중\" 알림은 응답하면 철회됩니다. 서명되지 않은 빌드에서는 어떤 알림도 집중 모드나 방해금지를 뚫지 못하고, 서명된 릴리스에서는 시간 민감 알림(소진 임박, 대기 중)이 뚫습니다.";
 "Both sides" = "양쪽";
+"Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "양쪽은 노치를 중심으로 보입니다. 메뉴가 많은 앱은 노치 왼쪽 가장자리를 넘을 수 있으며, 노치 오른쪽은 항상 이를 피합니다.";
 "Bottom, above the Dock" = "하단, Dock 위";
 "Built-in display" = "내장 디스플레이";
 "By model" = "모델별";
@@ -299,8 +300,8 @@
 "Main display (the one with the menu bar)" = "주 디스플레이(메뉴 막대가 있는 쪽)";
 "MCP server" = "MCP 서버";
 "Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits." = "이것을 %1$@에 병합하거나 'settings.json에 추가…'로 자동 병합하세요. 각 항목은 %2$@ --hook을 실행해 실행 중인 앱에 이벤트 이름을 보내고 종료합니다.";
-"Month" = "이번 달";
 "month" = "달";
+"Month" = "이번 달";
 "Month %1$@ of a %2$@ budget" = "이번 달 %1$@ / 예산 %2$@";
 "Monthly" = "월간";
 "Monthly budget" = "월 예산";
@@ -375,8 +376,8 @@
 "Paused while the display sleeps" = "디스플레이 잠자기 중 일시 정지";
 "Paused while the screen is locked" = "화면 잠금 중 일시 정지";
 "peak %1$@ on %2$@" = "최고 %1$@(%2$@)";
-"Peak hours" = "혼잡 시간";
 "peak hours" = "혼잡 시간";
+"Peak hours" = "혼잡 시간";
 "Peak hours (Anthropic's tighter session limits)" = "혼잡 시간(Anthropic의 더 엄격한 세션 한도)";
 "Peak hours until %@: the session projection assumes the peak rate." = "%@까지 혼잡 시간: 세션 예측은 혼잡 시간 속도를 가정합니다.";
 "per MTok" = "백만 토큰당";
@@ -482,7 +483,6 @@
 "Test notification" = "테스트 알림";
 "Text" = "텍스트";
 "The %1$@'s %2$@ is past the %3$@ budget." = "이번 %1$@의 %2$@은(는) %3$@ 예산을 넘었습니다.";
-"The app's menu titles sit immediately left of the notch, so the right side is usually the free one." = "앱의 메뉴 제목이 노치 바로 왼쪽에 있으므로 보통 오른쪽이 비어 있습니다.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "일별 합계 파일을 CSV 또는 JSON으로: 하루 한 줄에 비용, 다섯 토큰 버킷, 최다 모델, 모델별·프로젝트별 비용을 담습니다.";
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "첫 어시스턴트는 노치 왼쪽에, 나머지는 오른쪽에 놓입니다. 패널 카드와 가장자리 알약도 같은 순서를 따릅니다. 혼잡 시간은 Anthropic의 평일 창(고급)을 그 어시스턴트의 조언과 예측에 적용합니다.";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "키체인 요청이 닫혔습니다. 설정에서 Claude를 껐다 켜면 다시 묻습니다";
@@ -498,8 +498,8 @@
 "This session block %@" = "이 세션 블록 %@";
 "Time format" = "시간 형식";
 "To" = "종료";
-"today" = "오늘";
 "Today" = "오늘";
+"today" = "오늘";
 "Toggle the panel" = "패널 토글";
 "tokens" = "토큰";
 "Tokens" = "토큰";
@@ -546,8 +546,8 @@
 "working %@" = "작업 중 %@";
 "Writes each vendor request's outcome (status code and size, never a token or a body) to the unified log at info level, where Copy diagnostics and `log show --info` pick it up." = "각 공급자 요청의 결과(상태 코드와 크기, 토큰이나 본문은 절대 아님)를 통합 로그에 info 수준으로 기록해 진단 정보 복사와 `log show --info`가 읽습니다.";
 "Wrote %ld days to %@." = "%ld일치를 %@에 썼습니다.";
-"yesterday" = "어제";
 "Yesterday" = "어제";
+"yesterday" = "어제";
 "You are now paying: extra usage rose %@ this month." = "이제 결제되고 있습니다: 이번 달 추가 사용이 %@ 올랐습니다.";
 "Your menu bar ran out of room three apps ago. This one doesn't take any." = "메뉴 막대는 앱 세 개 전에 이미 꽉 찼습니다. 이 앱은 자리를 차지하지 않습니다.";
 "~%ld%% left at reset" = "초기화 시 약 %ld%% 남음";
