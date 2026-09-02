@@ -308,6 +308,16 @@ final class Preferences {
     var showSpend: Bool {
         didSet { defaults.set(showSpend, forKey: Keys.showSpend); report(Keys.showSpend, showSpend, changed: showSpend != oldValue) }
     }
+    /// Which assistants the Cost card carries: its donut, its legend and the total in the middle. Every one that
+    /// can report spend by default, and a stored name that cannot is dropped on load — a tool with no figure to
+    /// carry has no `ProviderCost` and so could never be a row anyway. The card as a whole is hidden by Show
+    /// total spend, not by this.
+    var costCardTools: Set<ToolID> {
+        didSet {
+            defaults.set(costCardTools.map(\.rawValue).sorted(), forKey: Keys.costCardTools)
+            report(Keys.costCardTools, costCardTools.map(\.rawValue).sorted(), changed: costCardTools != oldValue)
+        }
+    }
     var usageDisplay: UsageDisplay {
         didSet { defaults.set(usageDisplay.rawValue, forKey: Keys.usageDisplay); report(Keys.usageDisplay, usageDisplay.rawValue, changed: usageDisplay != oldValue) }
     }
@@ -590,6 +600,7 @@ final class Preferences {
         static let monthlyBudget = "monthlyBudgetUSD"
         static let weeklyBudget = "weeklyBudgetUSD"
         static let costCardMode = "costCardMode"
+        static let costCardTools = "costCardTools"
         static let ringWindows = "ringWindows"
         static let hiddenWindows = "hiddenWindows"
         static let revealedWindows = "revealedWindows"
@@ -669,6 +680,8 @@ final class Preferences {
         monthlyBudgetUSD = defaults.object(forKey: Keys.monthlyBudget) as? Double
         weeklyBudgetUSD = defaults.object(forKey: Keys.weeklyBudget) as? Double
         costCardMode = CostCardMode(rawValue: defaults.string(forKey: Keys.costCardMode) ?? "") ?? .cost
+        costCardTools = (defaults.array(forKey: Keys.costCardTools) as? [String])
+            .map { Set($0.compactMap(ToolID.init(rawValue:)).filter(\.reportsCost)) } ?? Set(ToolID.allCases.filter(\.reportsCost))
         ringWindows = (defaults.dictionary(forKey: Keys.ringWindows) as? [String: [String]] ?? [:])
             .reduce(into: [:]) { if let tool = ToolID(rawValue: $1.key) { $0[tool] = $1.value } }
         hiddenWindows = (defaults.dictionary(forKey: Keys.hiddenWindows) as? [String: [String]] ?? [:])

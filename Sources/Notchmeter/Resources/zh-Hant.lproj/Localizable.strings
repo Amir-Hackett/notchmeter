@@ -12,6 +12,7 @@
 "%1$@ %2$@ reset — 100%% until it %3$@." = "%1$@ 的%2$@已重設 — 在它%3$@之前有 100%% 可用。";
 "%1$@ %2$@ resets in %3$@." = "%1$@ 的%2$@將在 %3$@ 後重設。";
 "%1$@ %2$@ resets in %3$@; wait rather than switch." = "%1$@ 的%2$@將在 %3$@ 後重設；等待即可，無需切換。";
+"%1$@ %2$@, %3$ld%% of it" = "%1$@ %2$@，占 %3$ld%%";
 "%1$@ %2$ld percent used" = "%1$@ 已用百分之 %2$ld";
 "%1$@ (and %2$ld more)" = "%1$@（還有 %2$ld 個）";
 "%1$@ (HTTP %2$ld)" = "%1$@（HTTP %2$ld）";
@@ -26,6 +27,7 @@
 "%1$@ is waiting in %2$@." = "%1$@ 正在 %2$@ 中等待你。";
 "%1$@ of %2$@" = "%1$@ / %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "今日每 1%% 工作階段額度 %1$@，30 天中位數 %2$@";
+"%1$@ today · %2$@ over 30 days · %3$@" = "今天 %1$@ · 30 天 %2$@ · %3$@";
 "%1$@ · %2$ld%% cache reads" = "%1$@ · 快取讀取佔 %2$ld%%";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "%1$@ 的用量介面回傳 HTTP %2$ld；請查看其狀態頁。";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%1$ld 個%2$@額度 — 請在 Codex 中領取";
@@ -230,6 +232,7 @@
 "Every setting returns to its default and %@ relaunches. This cannot be undone." = "所有設定將回復預設值，%@ 會重新啟動。此動作無法復原。";
 "Every tool together burned %1$@ this hour — %2$@ your 30-day average." = "所有工具這一小時共花了 %1$@ — 為你 30 天平均的 %2$@。";
 "Exact time" = "確切時間";
+"export" = "匯出資料";
 "Export history…" = "匯出歷史…";
 "Extra" = "額外";
 "Extra usage" = "額外用量";
@@ -263,6 +266,7 @@
 "Hover delay" = "懸停延遲";
 "Hover the rings. The panel opens." = "將游標停在圓環上，面板便會展開。";
 "Icon style" = "圖示樣式";
+"In the Cost card" = "費用卡片中顯示";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "以上方的貨幣計；留空表示無預算。費用卡片的圓環按本月預算填充，並帶有與儀表相同的進度刻度；建議條會據此預測本月；「接近」「落後」「即將用盡」通知以月為週期適用於它。";
 "In the pill" = "膠囊內";
 "Included usage" = "方案內用量";
@@ -449,8 +453,8 @@
 "Sent." = "已傳送。";
 "Session" = "工作階段";
 "session" = "工作階段";
-"Session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "工作階段區塊、權杖、主要專案和走勢圖。關閉後面板夠短，無需捲動。";
 "Sessions" = "工作階段";
+"sessions" = "工作階段檔";
 "Set the Notchmeter status line in settings.json?" = "要在 settings.json 中設定 Notchmeter 狀態列嗎？";
 "Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar." = "將此設為 %1$@ 中的 statusLine，或使用「安裝狀態列…」自動寫入。Claude Code 會在每一輪結束後執行 %2$@ --statusline；它把上下文佔用、速率限制與本工作階段花費轉送給 App，並為 Claude Code 自己的狀態列輸出一行。";
 "Settings…" = "設定…";
@@ -476,6 +480,7 @@
 "snapshot" = "快照";
 "Sound" = "聲音";
 "Source: %@" = "來源：%@";
+"Spend" = "花費";
 "Spend limit" = "支出上限";
 "Standard" = "標準";
 "status line" = "狀態列";
@@ -490,6 +495,7 @@
 "Test notification" = "測試通知";
 "Text" = "文字";
 "The %1$@'s %2$@ is past the %3$@ budget." = "本%1$@已花費 %2$@，超出 %3$@ 的預算。";
+"The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "費用卡片上圓環、圖例和消耗速率以外的內容（預算、本週和模型明細），以及工作階段區塊、權杖、主要專案和走勢圖。關閉後面板夠短，無需捲動。";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "每日總計檔案匯出為 CSV 或 JSON：每天一行，含費用、五類 token 計數、最高模型以及按模型和按專案的費用。";
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "第一個助理位於瀏海左側，其餘位於右側；面板卡片和邊緣膠囊沿用同一順序。「尖峰時段」將 Anthropic 的平日時段（進階）套用於該助理的建議和預測。";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "鑰匙圈請求已被關閉。在設定中關閉再開啟 Claude 可重新詢問";
@@ -513,6 +519,7 @@
 "top model %@" = "最高模型 %@";
 "Top, in the notch" = "頂部，在瀏海處";
 "Top: %@" = "最高：%@";
+"transcripts" = "轉錄檔";
 "Turn finished" = "一輪結束";
 "Undo" = "還原";
 "Unlimited on the %@ plan" = "%@ 方案不限量";
@@ -544,6 +551,7 @@
 "When the cache tier or the metering shifts" = "快取檔位或計量發生變化時";
 "When you start paying (extra usage rises)" = "當你開始付費時（額外用量上漲）";
 "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "固定哪些助理在下方按助理選擇；未選擇時固定第一個可見助理。「長條」把每個固定視窗畫成小條，按進度著色。";
+"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "卡片的圓環、圖例和總額包含哪些助理，順序與「助理」中設定的一致。無法回報花費的助理不會出現在這裡；未勾選的助理仍會在自己的卡片上顯示花費。";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "當 Zoom、Meet、QuickTime 或螢幕共享正在擷取螢幕時，圓環保留形狀但隱藏數字，面板隱藏花費卡片。每五秒檢查一次。";
 "Wide" = "加寬";
 "Will run out (behind pace)" = "將會用完（進度落後）";

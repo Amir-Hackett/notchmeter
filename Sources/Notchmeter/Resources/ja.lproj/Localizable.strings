@@ -12,6 +12,7 @@
 "%1$@ %2$@ reset — 100%% until it %3$@." = "%1$@ の%2$@がリセットされました — 次に%3$@まで 100%% 利用可能。";
 "%1$@ %2$@ resets in %3$@." = "%1$@ の%2$@は %3$@ 後にリセットされます。";
 "%1$@ %2$@ resets in %3$@; wait rather than switch." = "%1$@ の%2$@は %3$@ 後にリセットされます。切り替えずに待ちましょう。";
+"%1$@ %2$@, %3$ld%% of it" = "%1$@ %2$@、うち %3$ld%%";
 "%1$@ %2$ld percent used" = "%1$@ %2$ld パーセント使用";
 "%1$@ (and %2$ld more)" = "%1$@（他 %2$ld 件）";
 "%1$@ (HTTP %2$ld)" = "%1$@（HTTP %2$ld）";
@@ -26,6 +27,7 @@
 "%1$@ is waiting in %2$@." = "%1$@ が %2$@ で待っています。";
 "%1$@ of %2$@" = "%1$@ / %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "本日はセッション 1%% あたり %1$@、30 日中央値 %2$@";
+"%1$@ today · %2$@ over 30 days · %3$@" = "本日 %1$@ · 30日間 %2$@ · %3$@";
 "%1$@ · %2$ld%% cache reads" = "%1$@ · キャッシュ読み取り %2$ld%%";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "%1$@ の使用量エンドポイントが HTTP %2$ld を返しています。ステータスページを確認してください。";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%2$@ クレジット %1$ld 件 — Codex で受け取ってください";
@@ -230,6 +232,7 @@
 "Every setting returns to its default and %@ relaunches. This cannot be undone." = "すべての設定が初期値に戻り、%@ が再起動します。取り消せません。";
 "Every tool together burned %1$@ this hour — %2$@ your 30-day average." = "全ツール合計でこの 1 時間に %1$@ を消費 — 30 日平均の %2$@。";
 "Exact time" = "正確な時刻";
+"export" = "エクスポート";
 "Export history…" = "履歴を書き出す…";
 "Extra" = "追加";
 "Extra usage" = "追加利用";
@@ -263,6 +266,7 @@
 "Hover delay" = "ホバーの遅延";
 "Hover the rings. The panel opens." = "リングにホバーするとパネルが開きます。";
 "Icon style" = "アイコンのスタイル";
+"In the Cost card" = "コストカードに表示";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "上の通貨で入力し、空欄なら予算なしです。コストカードのリングは月の予算に対して満たされ、メーターと同じペース目盛りが付きます。アドバイス欄は月を予算に対して予測し、「順調」「遅れ」「枯渇」の通知が月を期間として適用されます。";
 "In the pill" = "ピル内";
 "Included usage" = "プラン内利用";
@@ -449,8 +453,8 @@
 "Sent." = "送信しました。";
 "session" = "セッション";
 "Session" = "セッション";
-"Session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "セッションブロック、トークン、主なプロジェクト、スパークライン。オフにするとパネルが短くなり、スクロールが不要になります。";
 "Sessions" = "セッション";
+"sessions" = "セッション";
 "Set the Notchmeter status line in settings.json?" = "settings.json に Notchmeter のステータスラインを設定しますか？";
 "Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar." = "これを %1$@ の statusLine に設定するか、「ステータスラインをインストール…」で自動的に書き込んでください。Claude Code は各ターンの後に %2$@ --statusline を実行し、コンテキスト使用率、レート制限、セッションコストをアプリに転送して、Claude Code 自身のバーに 1 行出力します。";
 "Settings…" = "設定…";
@@ -476,6 +480,7 @@
 "snapshot" = "スナップショット";
 "Sound" = "サウンド";
 "Source: %@" = "ソース: %@";
+"Spend" = "コスト";
 "Spend limit" = "支出上限";
 "Standard" = "標準";
 "status line" = "ステータスライン";
@@ -490,6 +495,7 @@
 "Test notification" = "テスト通知";
 "Text" = "テキスト";
 "The %1$@'s %2$@ is past the %3$@ budget." = "%1$@の %2$@ は予算 %3$@ を超えています。";
+"The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "コストカードのドーナツ・凡例・消費ペース以外の行（予算、今週、モデル別）と、セッションブロック、トークン、主なプロジェクト、スパークライン。オフにするとパネルが短くなり、スクロールが不要になります。";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "日次合計ファイルを CSV または JSON で書き出します。1 日 1 行で、コスト、5 つのトークン区分、最多モデル、モデル別とプロジェクト別のコストを含みます。";
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "最初のアシスタントはノッチの左に、残りは右に並びます。パネルのカードとエッジのピルも同じ順序です。「ピーク時間」は Anthropic の平日ウィンドウ（詳細）をそのアシスタントのアドバイスと予測に適用します。";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "キーチェーンの要求が閉じられました。設定で Claude をオフにしてから再度オンにすると再度確認します";
@@ -513,6 +519,7 @@
 "top model %@" = "最多モデル %@";
 "Top, in the notch" = "上、ノッチ内";
 "Top: %@" = "上位: %@";
+"transcripts" = "トランスクリプト";
 "Turn finished" = "ターン完了";
 "Undo" = "取り消す";
 "Unlimited on the %@ plan" = "%@ プランでは無制限";
@@ -544,6 +551,7 @@
 "When the cache tier or the metering shifts" = "キャッシュ層や計測が変わったとき";
 "When you start paying (extra usage rises)" = "支払いが始まったとき（追加使用の増加）";
 "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "どのアシスタントを固定するかは下でアシスタントごとに選びます。未選択なら最初に表示されるものです。「バー」は固定した各ウィンドウをミニバーで描き、ペースで色付けします。";
+"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "カードのドーナツ、凡例、合計に含めるアシスタント。並び順は「アシスタント」の設定に従います。コストを報告できないアシスタントはここに現れません。外したアシスタントも自身のカードにはコストを表示します。";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Zoom、Meet、QuickTime、画面共有が画面をキャプチャしている間、リングは形を保ったまま数値を隠し、パネルはコストカードを隠します。5 秒ごとに確認します。";
 "Wide" = "ワイド";
 "Will run out (behind pace)" = "使い切る見込み（ペースより遅れ）";

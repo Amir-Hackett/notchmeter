@@ -201,7 +201,7 @@ struct SettingsView: View {
                 get: { prefs.showDetails },
                 set: { prefs.showDetails = $0 }
             ))
-            Text(L("Session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll."))
+            Text(L("The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll."))
                 .font(.caption).foregroundStyle(.secondary)
             Picker(L("Position"), selection: Binding(
                 get: { prefs.edge },
@@ -318,6 +318,21 @@ struct SettingsView: View {
             Picker(L("Cost card shows"), selection: Binding(get: { prefs.costCardMode }, set: { prefs.costCardMode = $0 })) {
                 ForEach(CostCardMode.allCases, id: \.self) { Text($0.title).tag($0) }
             }
+            HStack(spacing: 10) {
+                Text(L("In the Cost card"))
+                Spacer()
+                ForEach(ToolID.allCases.filter(\.reportsCost), id: \.self) { tool in
+                    Toggle(isOn: Binding(
+                        get: { prefs.costCardTools.contains(tool) },
+                        set: { if $0 { prefs.costCardTools.insert(tool) } else { prefs.costCardTools.remove(tool) } }
+                    )) {
+                        Text(verbatim: tool.displayName)
+                    }
+                    .toggleStyle(.checkbox).controlSize(.small)
+                }
+            }
+            Text(L("Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card."))
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
