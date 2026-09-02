@@ -74,14 +74,21 @@ final class UsageStore {
     @ObservationIgnored private var lastHook: Date?
     @ObservationIgnored private var lastHookRefresh: Date?
     @ObservationIgnored private var awaitingInputExpiry: Task<Void, Never>?
+    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private var alertMemory: AlertMemory
+    /// Receives each batch of pace alerts the scheduler decides on; wired to the Notifier by the app delegate.
+    @ObservationIgnored var deliverAlerts: ([PaceAlert]) -> Void = { _ in }
 
     static let costInterval: TimeInterval = 60
     static let hookRefreshSpacing: TimeInterval = 30
     static let awaitingInputTimeout: TimeInterval = 600
 
-    init(prefs: Preferences, providers: [any UsageProvider] = ProviderRegistry.all(), cache: ReadingCache = ReadingCache()) {
+    init(prefs: Preferences, providers: [any UsageProvider] = ProviderRegistry.all(), cache: ReadingCache = ReadingCache(),
+         defaults: UserDefaults = .standard) {
         self.prefs = prefs
         self.cache = cache
+        self.defaults = defaults
+        self.alertMemory = AlertMemory.load(from: defaults)
         self.providers = providers.reduce(into: [:]) { $0[$1.tool] = $1 }
         let cached = cache.load()
         for tool in ToolID.allCases {
@@ -111,6 +118,24 @@ final class UsageStore {
     var presence: PresenceLevel {
         Presence.level(windows: visibleTools.flatMap { status($0).reading?.windows ?? [] },
                        awaitingInput: visibleTools.contains(where: isAwaitingInput))
+    }
+
+    /// Live readings of the visible tools; a cached reading shown beside an error is left out.
+    var readyReadings: [UsageReading] {
+        visibleTools.compactMap {
+            if case .ready(let reading) = status($0) { return reading }
+            return nil
+        }
+    }
+
+    func adviceContext(now: Date = Date()) -> Advisor.Context {
+        Advisor.Context(readings: readyReadings, awaitingInput: awaitingInput.filter(isShown), cost: prefs.showSpend ? cost : nil,
+                        timeFormat: prefs.timeFormat, now: now)
+    }
+
+    /// What to do next, from Advisor.swift; empty when there is nothing to say.
+    var advice: [Advice] {
+        Advisor.advise(adviceContext())
     }
 
     /// When the next scheduled provider read happens, for the footer.
@@ -187,6 +212,7 @@ final class UsageStore {
             backoff[tool] = 0
             cache.store(reading)
             lastUpdated = Date()
+            evaluateAlerts()
         } catch let error as ProviderError {
             log.error("\(tool.displayName, privacy: .public) failed: \(error.message, privacy: .public)")
             if case .nothingYet(let message) = error {
@@ -213,6 +239,24 @@ final class UsageStore {
             backoff[tool] = min(600, max(30, (backoff[tool] ?? 15) * 2))
             statuses[tool] = .failed(error.localizedDescription, cached: cached)
         }
+    }
+
+    // MARK: - Pace alerts
+
+    /// Only new readings can make a pace worse, so this runs after each one; nothing is remembered while the
+    /// setting is off, so switching it on reports whatever is behind at that moment.
+    private func evaluateAlerts(now: Date = Date()) {
+        guard prefs.notificationsEnabled else { return }
+        let plan = NotificationScheduler.plan(memory: alertMemory, readings: readyReadings, now: now)
+        if plan.memory != alertMemory {
+            alertMemory = plan.memory
+            alertMemory.save(to: defaults)
+        }
+        guard !plan.alerts.isEmpty else { return }
+        for alert in plan.alerts {
+            log.info("pace alert \(alert.identifier, privacy: .public)")
+        }
+        deliverAlerts(plan.alerts)
     }
 
     // MARK: - Scheduling

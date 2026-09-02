@@ -29,14 +29,17 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     let note: String?
     /// Length of the rolling window, when known; drives the pace tick and the "left at reset" projection.
     let periodDuration: TimeInterval?
+    /// The model a per-model window is scoped to ("Fable", "Opus"); nil for a tool-wide window.
+    let model: String?
 
-    init(id: String, label: String, usedFraction: Double?, resetsAt: Date?, note: String? = nil, periodDuration: TimeInterval? = nil) {
+    init(id: String, label: String, usedFraction: Double?, resetsAt: Date?, note: String? = nil, periodDuration: TimeInterval? = nil, model: String? = nil) {
         self.id = id
         self.label = label
         self.usedFraction = usedFraction
         self.resetsAt = resetsAt
         self.note = note
         self.periodDuration = periodDuration
+        self.model = model
     }
 }
 

@@ -5,9 +5,11 @@ struct SettingsView: View {
     let store: UsageStore
     let prefs: Preferences
     let actions: NotchActions
+    let notifier: Notifier
     @State private var loginError: String?
     @State private var showHookSnippet = false
     @State private var hookMessage: String?
+    @State private var notificationMessage: String?
 
     var body: some View {
         Form {
@@ -59,6 +61,23 @@ struct SettingsView: View {
                 }
                 Picker("Time format", selection: Binding(get: { prefs.timeFormat }, set: { prefs.timeFormat = $0 })) {
                     ForEach(TimeFormatPreference.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+            }
+            Section("Notifications") {
+                Toggle("Notify when a window is on pace to run out", isOn: Binding(
+                    get: { prefs.notificationsEnabled },
+                    set: { prefs.notificationsEnabled = $0; if $0 { notifier.requestAuthorization() } }
+                ))
+                Text("Once per window and reset period: when its pace first reaches on track or behind, and again when it comes within an hour of running out. Each one says what to do about it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Button("Test notification") {
+                        Task { notificationMessage = await notifier.sendTest(timeFormat: prefs.timeFormat) }
+                    }
+                    if let notificationMessage {
+                        Text(notificationMessage).font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
             Section("Assistants") {
@@ -172,8 +191,8 @@ struct HookSnippetView: View {
 
 @MainActor
 final class SettingsWindowController: NSWindowController {
-    init(store: UsageStore, prefs: Preferences, actions: NotchActions) {
-        let host = NSHostingController(rootView: SettingsView(store: store, prefs: prefs, actions: actions))
+    init(store: UsageStore, prefs: Preferences, actions: NotchActions, notifier: Notifier) {
+        let host = NSHostingController(rootView: SettingsView(store: store, prefs: prefs, actions: actions, notifier: notifier))
         let window = NSWindow(contentViewController: host)
         window.title = "\(AppInfo.name) Settings"
         window.styleMask = [.titled, .closable, .resizable]

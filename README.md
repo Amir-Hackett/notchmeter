@@ -12,6 +12,8 @@ Every meter shows a pace tick (where an even burn would be right now), a project
 
 The rings follow a calm rule ([`Presence.swift`](Sources/Notchmeter/Presence.swift)): small and dim while every window is under 40 % and on pace, full size once one passes 40 % or runs close to its pace, and slowly pulsing once one is behind pace, has run out, or Claude Code is waiting for you. Status never rests on colour alone: pace notes carry a symbol and the rings a cap, the status colours are Wong's colour-blind-safe set, every meter has a VoiceOver label, Reduce Motion is honoured, and on macOS 26 the edge pills are Liquid Glass.
 
+Every other meter tells you how much. Notchmeter also tells you what to do about it: an **Advice** strip under the Cost card, and a notification when a window's pace crosses, both worded as an instruction rather than a percentage. See [Advice and notifications](#advice-and-notifications).
+
 With the optional [Claude Code hook](docs/hooks.md), the notch refreshes the moment a turn ends and shows a small dot on the Claude ring while Claude Code waits for your permission or your answer.
 
 Notchmeter never signs in anywhere and never stores a token. Each reading is borrowed from the tool that owns the account; switch accounts in that tool and the notch follows.
@@ -30,7 +32,7 @@ That builds `build/Notchmeter.app`, ad-hoc signs it, copies it to `/Applications
 scripts/build.sh          # just build the .app
 scripts/build.sh run      # build and launch from build/
 scripts/test.sh           # unit tests for the parsers, pace math and cost engine
-swift run Notchmeter --probe            # print what each provider reads, from the terminal
+swift run Notchmeter --probe            # print what each provider reads and the advice it adds up to, from the terminal
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke               # on-screen self check (no Keychain prompt)
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --edge left   # same, trying another layout
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --hover-sim   # scripted hover: one open, no flicker, one close
@@ -54,12 +56,29 @@ Right-click the panel (or use the **Options** button in its footer) for the menu
 | Reset times | Countdown ("Resets in 3h 40m") · Exact time ("Resets today at 10:50 PM") |
 | Time format | Auto · 12-hour · 24-hour |
 | Open at login | on / off |
+| Notify when a window is on pace to run out | on / off, with a **Test notification** button |
 | Assistants | switch each tool on or off |
 | Claude Code hook | show the `settings.json` snippet with a Copy button, or merge it in after a backup ([docs/hooks.md](docs/hooks.md)) |
 
 The top layout merges with the physical notch (compact rings beside it, the panel below). The edge layouts are Codenotch-style pills that open into the same panel; they keep clear of the Dock.
 
 **Hover.** The panel opens once the pointer has rested on the rings for 250 ms, so passing the top of the screen does nothing, and closes 400 ms after the pointer has left the panel (with 8 pt of grace), at once on a click outside it, a Spaces switch or the screen lock, and never while set to Always open. The decision is a pure state machine ([`HoverIntent.swift`](Sources/Notchmeter/HoverIntent.swift)) fed with the pointer's position against the two visible shapes, measured from the notch and the content rather than from the window, and it ignores the pointer for up to 350 ms after each transition, so the panel's own open and close animation can never re-trigger it. `--smoke --hover-sim` drives that path with a scripted pointer and prints every decision.
+
+## Advice and notifications
+
+The rules are pure functions in [`Advisor.swift`](Sources/Notchmeter/Advisor.swift), run over every visible tool's live reading and the cost summary, and pinned by unit tests. The strip shows at most three lines, highest priority first, and is not there at all when there is nothing to say.
+
+| Priority | When | Reads |
+|---|---|---|
+| Needs you | Claude Code's [hook](docs/hooks.md) reports a permission prompt or a question | *Claude Code is waiting for your input.* |
+| Run-out | any window is behind pace and has a run-out time; if another tool still has half of its main window, it is named | *At this rate you hit the Claude weekly cap Thursday at 2:00 PM, 3d 4h before reset. Codex weekly is at 22%.* |
+| Switch models | a per-model weekly window (Fable, Sonnet, Opus…) is 85 % used and another model, or the overall weekly, has 40 % left | *Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.* |
+| Burn | the last hour cost at least three times your usual active hour (see the Cost card) | *This hour burned $8.40 — 6x your 30-day usual.* |
+| Room elsewhere | a tool's main window is on track or behind and another tool has half of its own left | *Codex has 78% of its weekly left.* |
+
+A tool's *main window* is its longest tool-wide one: the weekly for Claude and Codex, the billing cycle for Cursor. Times follow the Reset times and Time format settings.
+
+**Notifications** fire at pace crossings, not percentage crossings, because a percentage alert arrives when it is too late to change anything. Per window and reset period, [`NotificationScheduler.swift`](Sources/Notchmeter/NotificationScheduler.swift) sends one notification when the pace first reaches *on track*, one when it first reaches *behind*, and one when the run-out time first comes within an hour; a state never repeats within a period, a calmer state is never announced, and nothing is sent during the first tenth of a window, when the projection is noise. The body is the same line the strip would show. What was sent is remembered across relaunches. The setting is on by default; macOS asks for permission the first time the app runs with it on, and `--smoke` and `--probe` never send anything.
 
 ## How it reads each tool
 
@@ -89,7 +108,7 @@ Notchmeter is a read-only instrument. In plain terms:
 
 **Where it sends things.** Each token goes to exactly one place: the usage endpoint of the vendor that issued it, over HTTPS, in the same read-only status request the vendor's own app or dashboard makes: `api.anthropic.com/api/oauth/usage`, `chatgpt.com/backend-api/wham/usage`, `cursor.com/api/usage-summary`. Every request identifies itself with a `User-Agent: Notchmeter/<version>` header; nothing is disguised. Nothing is sent anywhere else. There is no telemetry, no analytics, no crash reporting and no server of ours.
 
-**What it keeps.** No token is copied anywhere lasting, logged, or printed; `--probe` and the unified log show parsed numbers only. What is persisted: your settings and the last good reading per tool in this app's own preferences, and per-transcript totals in `~/Library/Caches/Notchmeter/` so relaunches are instant. That cache holds timestamps, model names, token counts, message ids and the inference-geography flag, never prompt or response text.
+**What it keeps.** No token is copied anywhere lasting, logged, or printed; `--probe` and the unified log show parsed numbers only. What is persisted: your settings, the last good reading per tool and which pace notifications have been sent in this app's own preferences, and per-transcript totals in `~/Library/Caches/Notchmeter/` so relaunches are instant. That cache holds timestamps, model names, token counts, message ids and the inference-geography flag, never prompt or response text.
 
 **What it never does.** It never signs in, never refreshes a token, never opens a login page, and never makes an inference request, so it consumes no model capacity and cannot change the usage it reports. Each reading is borrowed from a tool you are already signed in to; sign out of that tool and the reading goes with it.
 

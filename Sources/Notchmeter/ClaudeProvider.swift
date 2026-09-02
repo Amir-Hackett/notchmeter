@@ -152,7 +152,7 @@ actor ClaudeProvider: UsageProvider {
         }
         windows.append(contentsOf: scopedWeeklyLimits(root["limits"]))
         for (key, label) in [("seven_day_opus", "Opus"), ("seven_day_sonnet", "Sonnet")] where !windows.contains(where: { $0.label == label }) {
-            if let legacy = window(root[key], id: key, label: label, period: Period.week) {
+            if let legacy = window(root[key], id: key, label: label, period: Period.week, model: label) {
                 windows.append(legacy)
             }
         }
@@ -168,14 +168,15 @@ actor ClaudeProvider: UsageProvider {
         return UsageReading(tool: .claude, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
     }
 
-    private static func window(_ value: Any?, id: String, label: String, period: TimeInterval) -> LimitWindow? {
+    private static func window(_ value: Any?, id: String, label: String, period: TimeInterval, model: String? = nil) -> LimitWindow? {
         guard let object = value as? [String: Any], let utilization = JSON.number(object["utilization"]) else { return nil }
         return LimitWindow(
             id: id,
             label: label,
             usedFraction: JSON.fraction(utilization),
             resetsAt: (object["resets_at"] as? String).flatMap(DateParsing.iso8601),
-            periodDuration: period
+            periodDuration: period,
+            model: model
         )
     }
 
@@ -194,7 +195,8 @@ actor ClaudeProvider: UsageProvider {
                 label: name,
                 usedFraction: JSON.fraction(percent),
                 resetsAt: (object["resets_at"] as? String).flatMap(DateParsing.iso8601),
-                periodDuration: Period.week
+                periodDuration: Period.week,
+                model: name
             ))
         }
         return result

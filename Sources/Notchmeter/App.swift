@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     let prefs = Preferences()
     let actions = NotchActions()
+    let notifier = Notifier()
     private(set) var store: UsageStore!
     private var presenter: (any PanelPresenting)?
     private var settings: SettingsWindowController?
@@ -46,6 +47,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             prefs.edge = edge
         }
         store = UsageStore(prefs: prefs)
+        store.deliverAlerts = { [weak self] alerts in
+            guard let self else { return }
+            self.notifier.send(alerts, context: self.store.adviceContext())
+        }
+        if prefs.notificationsEnabled { notifier.requestAuthorization() }
         store.start()
         actions.refresh = { [weak self] in self?.store.refreshAll() }
         actions.openSettings = { [weak self] in self?.showSettings() }
@@ -59,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showSettings() {
         if settings == nil {
-            settings = SettingsWindowController(store: store, prefs: prefs, actions: actions)
+            settings = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: notifier)
         }
         settings?.present()
     }
@@ -118,7 +124,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             Probe.emit("cost: still scanning")
         }
-        let settingsProbe = SettingsWindowController(store: store, prefs: prefs, actions: actions)
+        Probe.emit(Probe.describe(store.advice))
+        Probe.emit("notifications: \(prefs.notificationsEnabled ? "on" : "off") in settings, \(notifier.isAvailable ? "available" : "no-op in this run")")
+        let settingsProbe = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: notifier)
         settingsProbe.window?.layoutIfNeeded()
         Probe.emit("settings window: \(settingsProbe.window?.frame.size ?? .zero)")
         if let smokeRestoreEdge { prefs.edge = smokeRestoreEdge }
@@ -131,6 +139,7 @@ enum Probe {
     static func run() {
         emit("\(AppInfo.name) probe: reads usage from tools signed in on this Mac; tokens are never printed.")
         Task.detached {
+            var readings: [UsageReading] = []
             for provider in ProviderRegistry.all() {
                 let name = provider.tool.displayName
                 guard provider.isInstalled() else {
@@ -139,7 +148,9 @@ enum Probe {
                 }
                 emit("\(name): reading…")
                 do {
-                    emit(describe(try await provider.fetch()))
+                    let reading = try await provider.fetch()
+                    readings.append(reading)
+                    emit(describe(reading))
                 } catch let error as ProviderError {
                     emit("\(name): \(error.message)")
                 } catch {
@@ -147,7 +158,9 @@ enum Probe {
                 }
             }
             emit("Claude Code cost: pricing local transcripts…")
-            emit(describe(await ClaudeCostScanner().scan()))
+            let cost = await ClaudeCostScanner().scan()
+            emit(describe(cost))
+            emit(describe(Advisor.advise(Advisor.Context(readings: readings, cost: cost))))
             exit(0)
         }
         RunLoop.main.run()
@@ -182,6 +195,11 @@ enum Probe {
             line += " (\(Burn.multiple(burn)) the usual \(Money.dollars(cost.typicalHourly)) per active hour)"
         }
         return line + " unpriced=\(cost.unpricedModels.sorted())"
+    }
+
+    static func describe(_ advice: [Advice]) -> String {
+        guard !advice.isEmpty else { return "advice: nothing to say" }
+        return "advice:\n" + advice.map { "  [\($0.priority)] \($0.text)" }.joined(separator: "\n")
     }
 
     static func describe(_ status: ToolStatus) -> String {

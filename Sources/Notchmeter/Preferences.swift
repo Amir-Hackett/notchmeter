@@ -48,6 +48,8 @@ final class Preferences {
     var usageDisplay: UsageDisplay { didSet { defaults.set(usageDisplay.rawValue, forKey: Keys.usageDisplay) } }
     var resetDisplay: ResetDisplay { didSet { defaults.set(resetDisplay.rawValue, forKey: Keys.resetDisplay) } }
     var timeFormat: TimeFormatPreference { didSet { defaults.set(timeFormat.rawValue, forKey: Keys.timeFormat) } }
+    /// Pace-crossing notifications (NotificationScheduler.swift); on by default, asked for on first use.
+    var notificationsEnabled: Bool { didSet { defaults.set(notificationsEnabled, forKey: Keys.notificationsEnabled) } }
     private(set) var launchAtLogin: Bool
 
     private enum Keys {
@@ -58,6 +60,7 @@ final class Preferences {
         static let usageDisplay = "usageDisplay"
         static let resetDisplay = "resetDisplay"
         static let timeFormat = "timeFormat"
+        static let notificationsEnabled = "notificationsEnabled"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -73,6 +76,7 @@ final class Preferences {
         usageDisplay = UsageDisplay(rawValue: defaults.string(forKey: Keys.usageDisplay) ?? "") ?? .used
         resetDisplay = ResetDisplay(rawValue: defaults.string(forKey: Keys.resetDisplay) ?? "") ?? .exact
         timeFormat = TimeFormatPreference(rawValue: defaults.string(forKey: Keys.timeFormat) ?? "") ?? .auto
+        notificationsEnabled = defaults.object(forKey: Keys.notificationsEnabled) as? Bool ?? true
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 

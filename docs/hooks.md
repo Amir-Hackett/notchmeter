@@ -4,7 +4,7 @@ Notchmeter polls each vendor's usage endpoint on a schedule ([README, "How often
 
 - **A refresh the moment a turn ends**, instead of up to three minutes later.
 - **The right polling cadence.** A hook event is proof an agent is active, so the meter stays on its base interval while you work and backs off when you stop, even when the file check in [PollingPolicy.swift](../Sources/Notchmeter/PollingPolicy.swift) would lag.
-- **A "waiting for you" badge.** When Claude Code raises a permission prompt or asks a question, a small white dot appears on the Claude ring beside the notch and the panel says *Claude Code is waiting for your input*. It clears on the next `Stop`, `SessionEnd` or `UserPromptSubmit` event, or after ten minutes.
+- **A "waiting for you" badge.** When Claude Code raises a permission prompt or asks a question, a small white dot appears on the Claude ring beside the notch and the panel's Advice strip says *Claude Code is waiting for your input*, above everything else it has to say. It clears on the next `Stop`, `SessionEnd` or `UserPromptSubmit` event, or after ten minutes.
 
 The hook is optional. Without it everything works; the meter simply learns about activity from file modification times once a minute.
 
