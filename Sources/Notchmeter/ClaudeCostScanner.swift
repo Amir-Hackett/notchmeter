@@ -846,14 +846,7 @@ struct CostHistory: Sendable {
         try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let lines = (try? Data(contentsOf: url))?.split(separator: 0x0A).count ?? 0
         if lines + days.count > Self.compactAbove {
-            var whole = Data()
-            for (day, record) in merged.sorted(by: { $0.key < $1.key }) {
-                if let data = try? encoder.encode(Line(day: Self.key(day, calendar: calendar), tool: tool.rawValue, record: record)) {
-                    whole.append(data)
-                    whole.append(0x0A)
-                }
-            }
-            try? whole.write(to: url, options: .atomic)
+            try? compacted(merged, calendar: calendar, encoder: encoder).write(to: url, options: .atomic)
             return
         }
         if let handle = try? FileHandle(forWritingTo: url) {
@@ -863,6 +856,32 @@ struct CostHistory: Sendable {
         } else {
             try? appended.write(to: url, options: .atomic)
         }
+    }
+
+    /// The whole file rewritten with one line per tool and day: this tool's days from `merged`, and the newest
+    /// line of every other tool's days kept as they stand. The file is shared — Claude's transcripts and Cursor's
+    /// export both write to it — so a compaction that emitted only the calling tool's records deleted the other's
+    /// history outright.
+    private func compacted(_ merged: [Date: Record], calendar: Calendar, encoder: JSONEncoder) -> Data {
+        var newest: [String: Line] = [:]
+        if let data = try? Data(contentsOf: url) {
+            let decoder = JSONDecoder()
+            for raw in data.split(separator: 0x0A) where !raw.isEmpty {
+                guard let parsed = try? decoder.decode(Line.self, from: raw), parsed.tool != tool.rawValue else { continue }
+                newest["\(parsed.tool)/\(parsed.day)"] = parsed
+            }
+        }
+        for (day, record) in merged {
+            let line = Line(day: Self.key(day, calendar: calendar), tool: tool.rawValue, record: record)
+            newest["\(line.tool)/\(line.day)"] = line
+        }
+        var whole = Data()
+        for key in newest.keys.sorted() {
+            guard let line = newest[key], let data = try? encoder.encode(line) else { continue }
+            whole.append(data)
+            whole.append(0x0A)
+        }
+        return whole
     }
 
     /// "Export history…": one row per day, oldest first, with the five token buckets, the top model and the

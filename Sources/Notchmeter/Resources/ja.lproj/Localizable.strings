@@ -69,6 +69,7 @@
 "%ld min" = "%ld 分";
 "%ld sessions" = "%ld セッション";
 "%ld tokens" = "%ld トークン";
+"%ld usage events in the last 30 days, none of them billed" = "過去 30 日間に %ld 件の使用イベント、いずれも課金なし";
 "%ld%% left" = "%ld%% 残り";
 "%ld%% used" = "%ld%% 使用";
 "%ld-day" = "%ld 日";
@@ -221,6 +222,7 @@
 "Cursor's state database could not be opened" = "Cursor の状態データベースを開けません";
 "Cursor's state database has no ItemTable" = "Cursor の状態データベースに ItemTable がありません";
 "Cursor, Codex and Claude Desktop can ask for the limits through the Model Context Protocol: `%@ --mcp` speaks JSON-RPC over stdio with one tool, get_limits." = "Cursor、Codex、Claude Desktop は Model Context Protocol で上限を尋ねられます。`%@ --mcp` は stdio 上の JSON-RPC で、get_limits という 1 つのツールを提供します。";
+"cursor.com refused its usage export (HTTP %ld)" = "cursor.com が使用状況のエクスポートを拒否しました（HTTP %ld）";
 "Cut" = "カット";
 "Cutting it close (on track)" = "ぎりぎり（ペース内）";
 "daily" = "日間";
@@ -290,6 +292,7 @@
 "Installed · pointing at %@" = "インストール済み · %@ を参照";
 "Installed." = "インストールしました。";
 "Installed; your previous status line (%@) runs after it." = "インストールしました。以前のステータスライン（%@）はその後に実行されます。";
+"its usage export could not be fetched" = "使用状況のエクスポートを取得できませんでした";
 "just now" = "たった今";
 "Keep the Mac awake while Claude Code is working" = "Claude Code の作業中は Mac をスリープさせない";
 "Keeping awake" = "スリープ抑止中";
@@ -344,6 +347,7 @@
 "Not installed on this Mac" = "この Mac にはインストールされていません";
 "Not now" = "後で";
 "Not started" = "未開始";
+"nothing used in the last 30 days" = "過去 30 日間の使用はありません";
 "Nothing used · %@ window" = "未使用 · %@ ウィンドウ";
 "Notifications" = "通知";
 "Notifications are off for %@ in System Settings › Notifications." = "システム設定 › 通知で %@ の通知がオフになっています。";

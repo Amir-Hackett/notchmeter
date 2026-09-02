@@ -85,6 +85,7 @@
 "%ld min" = "%ld 分钟";
 "%ld sessions" = "%ld 个会话";
 "%ld tokens" = "%ld 个令牌";
+"%ld usage events in the last 30 days, none of them billed" = "最近 30 天有 %ld 条用量记录，均未计费";
 "%ld%% left" = "剩余 %ld%%";
 "%ld%% used" = "已用 %ld%%";
 "%ld-day" = "%ld 天";
@@ -237,6 +238,7 @@
 "Cursor's state database could not be opened" = "无法打开 Cursor 的状态数据库";
 "Cursor's state database has no ItemTable" = "Cursor 的状态数据库中没有 ItemTable";
 "Cursor, Codex and Claude Desktop can ask for the limits through the Model Context Protocol: `%@ --mcp` speaks JSON-RPC over stdio with one tool, get_limits." = "Cursor、Codex 和 Claude Desktop 可通过 Model Context Protocol 询问限额：`%@ --mcp` 在 stdio 上以 JSON-RPC 通信，提供一个工具 get_limits。";
+"cursor.com refused its usage export (HTTP %ld)" = "cursor.com 拒绝了用量导出请求（HTTP %ld）";
 "Cut" = "剪切";
 "Cutting it close (on track)" = "接近节奏（勉强够用）";
 "daily" = "每日";
@@ -306,6 +308,7 @@
 "Installed · pointing at %@" = "已安装 · 指向 %@";
 "Installed." = "已安装。";
 "Installed; your previous status line (%@) runs after it." = "已安装；你原有的状态行（%@）会在其后继续运行。";
+"its usage export could not be fetched" = "无法获取其用量导出";
 "just now" = "刚刚";
 "Keep the Mac awake while Claude Code is working" = "Claude Code 工作时保持 Mac 唤醒";
 "Keeping awake" = "保持唤醒";
@@ -360,6 +363,7 @@
 "Not installed on this Mac" = "未安装在这台 Mac 上";
 "Not now" = "暂不";
 "Not started" = "尚未开始";
+"nothing used in the last 30 days" = "最近 30 天没有任何用量";
 "Nothing used · %@ window" = "尚未使用 · %@窗口";
 "Notifications" = "通知";
 "Notifications are off for %@ in System Settings › Notifications." = "%@ 的通知已在“系统设置 › 通知”中关闭。";

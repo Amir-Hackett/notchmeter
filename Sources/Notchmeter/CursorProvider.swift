@@ -17,6 +17,10 @@ actor CursorProvider: UsageProvider {
     static let usageEventsURL = URL(string: "https://cursor.com/api/dashboard/get-filtered-usage-events")!
     static let teamsURL = URL(string: "https://cursor.com/api/dashboard/teams")!
     static let origin = "https://cursor.com"
+    /// One page of the export, and the most pages one read will ask for: an account with more than these events
+    /// in the window would be understated, so the cap is loud rather than silent.
+    static let eventPageSize = 500
+    static let maxEventPages = 20
 
     /// One priced request from the account's usage-events export.
     struct UsageEvent: Equatable, Sendable {
@@ -29,13 +33,17 @@ actor CursorProvider: UsageProvider {
     private let session: URLSession?
     private let readUsageEvents: @Sendable () -> Bool
     private let history: CostHistory?
+    /// Where the last export read is written down for the Cost card; the switch above is read from it too.
+    private let defaults: UserDefaults
 
     init(session: URLSession? = nil,
          stateDatabase: URL = Paths.home.appendingPathComponent("Library/Application Support/Cursor/User/globalStorage/state.vscdb"),
-         readUsageEvents: @escaping @Sendable () -> Bool = { false }, history: CostHistory? = CostHistory(tool: .cursor)) {
+         defaults: UserDefaults = .standard, readUsageEvents: (@Sendable () -> Bool)? = nil,
+         history: CostHistory? = CostHistory(tool: .cursor)) {
         self.session = session
         self.stateDatabase = stateDatabase
-        self.readUsageEvents = readUsageEvents
+        self.defaults = defaults
+        self.readUsageEvents = readUsageEvents ?? ProviderOptIn.cursorUsageEvents.reader(defaults)
         self.history = history
     }
 
@@ -79,7 +87,8 @@ actor CursorProvider: UsageProvider {
     }
 
     /// The last 30 days of usage events, folded into per-day records of the daily-totals file; a failure here
-    /// never fails the reading.
+    /// never fails the reading. Every outcome is written down (CursorExportRead) as well as logged, because a
+    /// refusal, an empty export and an export nobody ever fetched all reach the Cost card as the same silence.
     private func recordUsageEvents(cookie: String, now: Date = Date()) async {
         guard let history else { return }
         let calendar = Calendar.current
@@ -89,23 +98,42 @@ actor CursorProvider: UsageProvider {
            teamResponse?.statusCode == 200, let found = Self.parseTeamId(teamData) {
             teamId = found
         }
-        let body = Self.usageEventsRequestBody(start: start, end: now, teamId: teamId)
-        guard let (data, response) = try? await send(Self.usageEventsURL, cookie: cookie, body: body) else {
-            log.error("Cursor usage events: the request failed")
-            return
+        var events: [UsageEvent] = []
+        var page = 1
+        while page <= Self.maxEventPages {
+            let body = Self.usageEventsRequestBody(start: start, end: now, teamId: teamId, page: page)
+            guard let (data, response) = try? await send(Self.usageEventsURL, cookie: cookie, body: body) else {
+                log.error("Cursor usage events: the request failed on page \(page)")
+                CursorExportRead(readAt: now, problem: L("its usage export could not be fetched")).save(to: defaults)
+                return
+            }
+            guard response?.statusCode == 200 else {
+                // Silence here is what hid an empty Cost card: a refusal reads exactly like a month with no spend.
+                let status = response?.statusCode ?? 0
+                log.error("Cursor usage events: HTTP \(status) for team \(teamId)")
+                CursorExportRead(readAt: now, problem: L("cursor.com refused its usage export (HTTP %ld)", status)).save(to: defaults)
+                return
+            }
+            let batch = Self.parseUsageEvents(data)
+            // A server that ignores `page` answers the same events forever; stopping is a short total, counting
+            // them twice is a made-up one.
+            guard !batch.isEmpty, batch != Array(events.suffix(batch.count)) else { break }
+            events += batch
+            if batch.count < Self.eventPageSize { break }
+            page += 1
         }
-        guard response?.statusCode == 200 else {
-            // Silence here is what hid an empty Cost card: a refusal reads exactly like a month with no spend.
-            log.error("Cursor usage events: HTTP \(response?.statusCode ?? 0) for team \(teamId)")
-            return
+        if page > Self.maxEventPages {
+            log.error("Cursor usage events: stopped after \(Self.maxEventPages) pages; the total is short")
         }
-        let events = Self.parseUsageEvents(data)
+        let total = events.reduce(0) { $0 + $1.costUSD }
+        CursorExportRead(readAt: now, events: events.count, costUSD: total).save(to: defaults)
         guard !events.isEmpty else {
-            log.info("Cursor usage events: none in the last 30 days for team \(teamId)")
+            log.notice("Cursor usage events: none in the last 30 days for team \(teamId)")
             return
         }
-        let existing = history.load(calendar: calendar)
-        history.record(Self.dayRecords(events, calendar: calendar), existing: existing, calendar: calendar)
+        let days = Self.dayRecords(events, calendar: calendar)
+        history.record(days, existing: history.load(calendar: calendar), calendar: calendar)
+        log.notice("Cursor usage events: \(events.count) over \(days.count) days worth \(Money.dollars(total), privacy: .public)")
     }
 
     private func send(_ url: URL, cookie: String, body: Data? = nil) async throws -> (Data, HTTPURLResponse?) {
@@ -246,7 +274,7 @@ actor CursorProvider: UsageProvider {
     /// The dashboard's own query: a 30-day range in epoch milliseconds, one page of up to 500 events.
     /// A seat on a team keeps its events under that team's id; an individual account has none and uses 0. Sending
     /// the wrong one is not an empty answer but a refusal ("Team ID is required"), so the id is looked up first.
-    static func usageEventsRequestBody(start: Date, end: Date, teamId: Int = 0, page: Int = 1, pageSize: Int = 500) -> Data {
+    static func usageEventsRequestBody(start: Date, end: Date, teamId: Int = 0, page: Int = 1, pageSize: Int = eventPageSize) -> Data {
         let object: [String: Any] = ["teamId": teamId, "startDate": String(Int(start.timeIntervalSince1970 * 1000)),
                                      "endDate": String(Int(end.timeIntervalSince1970 * 1000)), "page": page, "pageSize": pageSize]
         return (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data()
