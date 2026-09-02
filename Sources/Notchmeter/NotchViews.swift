@@ -709,6 +709,9 @@ struct SpendCard: View {
         return (min(1, selection.totals(.month).cost / budget), period.elapsedFraction(now: Date()), budget)
     }
 
+    /// The donut's line, drawn inside its frame so the ring lines up with the card's text margin.
+    static let ringWidth: CGFloat = 13
+
     private var burnLine: String? {
         let selection = selection
         guard let burn = selection.burnMultiple else { return nil }
@@ -839,18 +842,21 @@ struct SpendCard: View {
             // below the first legend row whenever it did.
             HStack(alignment: .top, spacing: 16) {
                 ZStack {
-                    Circle().stroke(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.25 : 0.1), lineWidth: 13)
+                    // strokeBorder and an inset arc, never stroke: a stroked path is centred on the circle, so
+                    // half the 13 pt line falls outside the frame and the ring hangs past the card's text margin.
+                    Circle().strokeBorder(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.25 : 0.1), lineWidth: Self.ringWidth)
                     ForEach(arcs) { arc in
                         Circle()
+                            .inset(by: Self.ringWidth / 2)
                             .trim(from: arc.start, to: arc.end)
-                            .stroke(arcColor(arc), style: StrokeStyle(lineWidth: 13, lineCap: .butt))
+                            .stroke(arcColor(arc), style: StrokeStyle(lineWidth: Self.ringWidth, lineCap: .butt))
                             .rotationEffect(.degrees(-90))
                     }
                     if let budget {
                         Rectangle()
                             .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 1 : 0.8))
                             .frame(width: 2, height: 15)
-                            .offset(y: -density.costRing / 2)
+                            .offset(y: -(density.costRing - Self.ringWidth) / 2)
                             .rotationEffect(.degrees(360 * budget.tick))
                             .accessibilityHidden(true)
                     }
