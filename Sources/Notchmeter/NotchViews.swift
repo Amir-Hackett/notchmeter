@@ -871,10 +871,13 @@ private struct ModelShares: View {
     private func figure(_ share: CostShare) -> String {
         switch mode {
         case .cost: return Money.dollars(share.cost)
-        case .tokens: return Money.tokens(Int((Double(rangeTokens) * share.cost / max(total, 0.0001)).rounded())).replacingOccurrences(of: " tokens", with: "")
+        case .tokens:
+            let tokens = share.tokens > 0 ? Double(share.tokens) : Double(rangeTokens) * share.cost / max(total, 0.0001)
+            return Money.tokens(Int(tokens.rounded())).replacingOccurrences(of: " tokens", with: "")
         case .perMillionTokens:
-            let tokens = Double(rangeTokens) * share.cost / max(total, 0.0001)
-            return tokens > 0 ? Money.dollars(share.cost / tokens * 1_000_000) : "—"
+            // From this share's own tokens: apportioning the range's tokens by cost cancels the cost out and
+            // prints the blended rate on every row.
+            return share.tokens > 0 ? Money.dollars(share.cost / Double(share.tokens) * 1_000_000) : "—"
         }
     }
 

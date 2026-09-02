@@ -52,14 +52,16 @@ struct DailySpend: Equatable, Sendable, Identifiable {
 struct CostShare: Equatable, Sendable, Identifiable {
     let name: String
     let cost: Double
+    /// Tokens actually attributed to this name, so dollars per million is its own rate rather than the blend.
+    var tokens: Int = 0
     var id: String { name }
 
     static let other = "Other"
 
     /// The top `limit` by cost, the rest folded into "Other"; zero-cost names are dropped.
-    static func top(_ totals: [String: Double], limit: Int = 4) -> [CostShare] {
+    static func top(_ totals: [String: Double], tokens: [String: Int] = [:], limit: Int = 4) -> [CostShare] {
         let sorted = totals.filter { $0.value > 0 }.sorted { ($0.value, $1.key) > ($1.value, $0.key) }
-        var shares = sorted.prefix(limit).map { CostShare(name: $0.key, cost: $0.value) }
+        var shares = sorted.prefix(limit).map { CostShare(name: $0.key, cost: $0.value, tokens: tokens[$0.key] ?? 0) }
         let rest = sorted.dropFirst(limit).reduce(0) { $0 + $1.value }
         if rest > 0 { shares.append(CostShare(name: other, cost: rest)) }
         return shares
@@ -75,9 +77,11 @@ struct RangeTotals: Equatable, Sendable {
     var tokens = TokenBreakdown()
     var byModel: [String: Double] = [:]
     var byProject: [String: Double] = [:]
+    var byModelTokens: [String: Int] = [:]
+    var byProjectTokens: [String: Int] = [:]
 
-    var models: [CostShare] { CostShare.top(byModel) }
-    var projects: [CostShare] { CostShare.top(byProject) }
+    var models: [CostShare] { CostShare.top(byModel, tokens: byModelTokens) }
+    var projects: [CostShare] { CostShare.top(byProject, tokens: byProjectTokens) }
 
     /// Dollars per million tokens across every bucket, cache reads included: the number that explains why a day
     /// cost more (the model mix and the cache share). nil without tokens.
@@ -90,6 +94,8 @@ struct RangeTotals: Equatable, Sendable {
         tokens += other.tokens
         byModel.merge(other.byModel, uniquingKeysWith: +)
         byProject.merge(other.byProject, uniquingKeysWith: +)
+        byModelTokens.merge(other.byModelTokens, uniquingKeysWith: +)
+        byProjectTokens.merge(other.byProjectTokens, uniquingKeysWith: +)
     }
 }
 
@@ -186,6 +192,8 @@ struct FileDigest: Codable, Equatable, Sendable {
         var tokens = TokenBreakdown()
         var byModel: [String: Double] = [:]
         var byProject: [String: Double] = [:]
+        var byModelTokens: [String: Int] = [:]
+        var byProjectTokens: [String: Int] = [:]
     }
 
     static let bucketSeconds: TimeInterval = 900
@@ -208,8 +216,12 @@ struct FileDigest: Codable, Equatable, Sendable {
             var bucket = digest.buckets[index(of: entry.timestamp)] ?? Bucket()
             bucket.cost += cost
             bucket.tokens += entry.tokens
-            if let model = entry.model { bucket.byModel[model, default: 0] += cost }
+            if let model = entry.model {
+                bucket.byModel[model, default: 0] += cost
+                bucket.byModelTokens[model, default: 0] += entry.tokens.total
+            }
             bucket.byProject[entry.project ?? CostShare.other, default: 0] += cost
+            bucket.byProjectTokens[entry.project ?? CostShare.other, default: 0] += entry.tokens.total
             digest.buckets[index(of: entry.timestamp)] = bucket
         }
         return digest
@@ -553,6 +565,8 @@ actor ClaudeCostScanner {
                 record.cost += bucket.cost
                 record.tokens += bucket.tokens
                 record.byModel.merge(bucket.byModel, uniquingKeysWith: +)
+                record.byModelTokens.merge(bucket.byModelTokens, uniquingKeysWith: +)
+                record.byProjectTokens.merge(bucket.byProjectTokens, uniquingKeysWith: +)
                 record.byProject.merge(bucket.byProject, uniquingKeysWith: +)
                 days[day] = record
             }
@@ -597,7 +611,8 @@ actor ClaudeCostScanner {
             var totals = RangeTotals()
             for day in chosen {
                 guard let record = days[day] else { continue }
-                totals.add(RangeTotals(cost: record.cost, tokens: record.tokens, byModel: record.byModel, byProject: record.byProject))
+                totals.add(RangeTotals(cost: record.cost, tokens: record.tokens, byModel: record.byModel, byProject: record.byProject,
+                                       byModelTokens: record.byModelTokens, byProjectTokens: record.byProjectTokens))
             }
             return totals
         }
@@ -614,7 +629,8 @@ actor ClaudeCostScanner {
         var weekTotals = RangeTotals()
         for digest in digests {
             for (index, bucket) in digest.buckets where FileDigest.start(of: index) >= weekStart {
-                weekTotals.add(RangeTotals(cost: bucket.cost, tokens: bucket.tokens, byModel: bucket.byModel, byProject: bucket.byProject))
+                weekTotals.add(RangeTotals(cost: bucket.cost, tokens: bucket.tokens, byModel: bucket.byModel, byProject: bucket.byProject,
+                                           byModelTokens: bucket.byModelTokens, byProjectTokens: bucket.byProjectTokens))
             }
         }
         ranges[.week] = weekTotals
@@ -678,14 +694,19 @@ struct CostHistory: Sendable {
         var tokens: TokenBreakdown
         var byModel: [String: Double]
         var byProject: [String: Double]
+        var byModelTokens: [String: Int]
+        var byProjectTokens: [String: Int]
         /// The day's session metering ratio (MeteringRatio), kept so it survives transcript cleanup.
         var sessionTokensPerPercent: Double?
 
-        init(cost: Double, tokens: TokenBreakdown, byModel: [String: Double], byProject: [String: Double], sessionTokensPerPercent: Double? = nil) {
+        init(cost: Double, tokens: TokenBreakdown, byModel: [String: Double], byProject: [String: Double],
+             byModelTokens: [String: Int] = [:], byProjectTokens: [String: Int] = [:], sessionTokensPerPercent: Double? = nil) {
             self.cost = cost
             self.tokens = tokens
             self.byModel = byModel
             self.byProject = byProject
+            self.byModelTokens = byModelTokens
+            self.byProjectTokens = byProjectTokens
             self.sessionTokensPerPercent = sessionTokensPerPercent
         }
 

@@ -342,3 +342,24 @@ import Testing
         #expect(((report.object["history"] as? [[String: Any]])?.first?["cost"] as? NSNumber)?.doubleValue == 12.5)
     }
 }
+
+/// Per-million rates must come from each share's own tokens. Apportioning the range's tokens by cost share
+/// cancels the cost out algebraically, which printed one blended rate on every model row.
+@Suite struct PerMillionRates {
+    @Test func eachShareUsesItsOwnTokens() {
+        let totals = RangeTotals(cost: 3, tokens: TokenBreakdown(input: 3_000_000),
+                                 byModel: ["expensive": 2, "cheap": 1], byProject: [:],
+                                 byModelTokens: ["expensive": 1_000_000, "cheap": 2_000_000], byProjectTokens: [:])
+        let shares = totals.models
+        let expensive = shares.first { $0.name == "expensive" }
+        let cheap = shares.first { $0.name == "cheap" }
+        #expect(expensive?.tokens == 1_000_000)
+        #expect(cheap?.tokens == 2_000_000)
+        // $2 over 1M tokens against $1 over 2M: the rates differ by a factor of four.
+        let expensiveRate = (expensive?.cost ?? 0) / Double(expensive?.tokens ?? 1) * 1_000_000
+        let cheapRate = (cheap?.cost ?? 0) / Double(cheap?.tokens ?? 1) * 1_000_000
+        #expect(expensiveRate == 2)
+        #expect(cheapRate == 0.5)
+        #expect(totals.costPerMillionTokens == 1)
+    }
+}
