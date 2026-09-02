@@ -196,42 +196,54 @@ A `TokenUsage` carries `input_tokens`, `cached_input_tokens`, `cache_write_input
 
 - **`input_tokens` includes the cached tokens.** codex-rs computes `non_cached_input()` as `input_tokens - cached_input()`. So the billed fresh input is `input_tokens − cached_input_tokens`, and the cached part is priced at the cached rate. Counting `input_tokens` whole would charge the cached tokens twice.
 - **`reasoning_output_tokens` is inside `output_tokens`.** codex-rs prints `output={output_tokens} (reasoning {reasoning_output_tokens})` and its `blended_total()` is `non_cached_input + output_tokens`, with reasoning never added on top. So output is taken whole and reasoning is not added again.
-- **`cache_write_input_tokens` is carried and priced at nothing.** OpenAI charges to read the prompt cache, not to write it.
+- **`cache_write_input_tokens` is carried into the cache-write bucket.** Whether writing the cache costs anything depends on the model, and the rule is under *Cache writes* below.
 
 `token_usage_record` is the per-response record and is what a current build writes. Where a file has any, the `token_count` events in the same file are ignored, because they describe the same turns; a file that has only events (an older build) is priced from each event's `last_token_usage`, which is the turn that just finished, so the events sum to the session rather than to a running total counted repeatedly. Resuming a thread replays the turns it inherited under the same `response_id`, so one entry per response id is kept and the first wins.
 
-**The rates.** OpenAI list prices per million tokens, read on **2026-09-02** from [developers.openai.com/api/docs/pricing](https://developers.openai.com/api/docs/pricing) (to which platform.openai.com/docs/pricing now redirects). The snapshot date is `OpenAIPricing.snapshotDate`, and it is part of the cache key, so day records priced under older rates are never reused.
+**The rates.** OpenAI list prices per million tokens, read on **2026-09-02** from [developers.openai.com/api/docs/pricing](https://developers.openai.com/api/docs/pricing) (to which platform.openai.com/docs/pricing now redirects), from the per-model page under `developers.openai.com/api/docs/models/<id>` for the Codex ids that page does not list, and from the [prompt-caching guide](https://developers.openai.com/api/docs/guides/prompt-caching) for the cache-write rule. These are the **standard** tier: Batch, Flex, Priority and Fast mode are separate published tables, and a rollout does not record which one a turn ran on. `OpenAIPricing.fingerprint` is the snapshot date *and* a digest of the rows themselves, and it is part of the cache key, so day records priced under other rates are never reused — including after a rate is corrected on the same day the snapshot was taken.
 
-| Model | Input | Cached input | Output |
-|---|---|---|---|
-| gpt-5.6-sol | $4.00 | $0.40 | $20.00 |
-| gpt-5.6-terra | $2.00 | $0.20 | $12.00 |
-| gpt-5.6-luna | $0.20 | $0.02 | $1.20 |
-| gpt-5.5 | $5.00 | $0.50 | $30.00 |
-| gpt-5.5-pro | $30.00 | — | $180.00 |
-| gpt-5.4 | $2.50 | $0.25 | $15.00 |
-| gpt-5.4-mini | $0.75 | $0.075 | $4.50 |
-| gpt-5.4-nano | $0.20 | $0.02 | $1.25 |
-| gpt-5.4-pro | $30.00 | — | $180.00 |
-| gpt-5.3-codex | $1.75 | $0.175 | $14.00 |
-| gpt-5.2 | $1.75 | $0.175 | $14.00 |
-| gpt-5.2-pro | $21.00 | — | $168.00 |
-| gpt-5.1 | $1.25 | $0.125 | $10.00 |
-| gpt-5 | $1.25 | $0.125 | $10.00 |
-| gpt-5-mini | $0.25 | $0.025 | $2.00 |
-| gpt-5-nano | $0.05 | $0.005 | $0.40 |
-| gpt-5-pro | $15.00 | — | $120.00 |
-| gpt-4.1 | $2.00 | $0.50 | $8.00 |
-| gpt-4.1-mini | $0.40 | $0.10 | $1.60 |
-| gpt-4.1-nano | $0.10 | $0.025 | $0.40 |
-| o3 | $2.00 | $0.50 | $8.00 |
-| o3-pro | $20.00 | — | $80.00 |
-| o3-mini | $1.10 | $0.55 | $4.40 |
-| o4-mini | $1.10 | $0.275 | $4.40 |
+| Model | Input | Cached input | Cache write | Output | >272K tier |
+|---|---|---|---|---|---|
+| gpt-5.6-sol | $4.00 | $0.40 | $5.00 | $20.00 | yes |
+| gpt-5.6-terra | $2.00 | $0.20 | $2.50 | $12.00 | yes |
+| gpt-5.6-luna | $0.20 | $0.02 | $0.25 | $1.20 | yes |
+| gpt-5.6-cyber | $12.50 | $1.25 | $15.625 | $75.00 | yes |
+| gpt-5.5-cyber | $12.50 | $1.25 | not billed | $75.00 | — |
+| gpt-5.5 | $5.00 | $0.50 | not billed | $30.00 | yes |
+| gpt-5.5-pro | $30.00 | — | not billed | $180.00 | yes |
+| gpt-5.4 | $2.50 | $0.25 | not billed | $15.00 | yes |
+| gpt-5.4-mini | $0.75 | $0.075 | not billed | $4.50 | — |
+| gpt-5.4-nano | $0.20 | $0.02 | not billed | $1.25 | — |
+| gpt-5.4-pro | $30.00 | — | not billed | $180.00 | yes |
+| gpt-5.3-codex | $1.75 | $0.175 | not billed | $14.00 | — |
+| gpt-5.2, gpt-5.2-codex | $1.75 | $0.175 | not billed | $14.00 | — |
+| gpt-5.2-pro | $21.00 | — | not billed | $168.00 | — |
+| gpt-5.1, gpt-5.1-codex | $1.25 | $0.125 | not billed | $10.00 | — |
+| gpt-5.1-codex-mini | $0.25 | $0.025 | not billed | $2.00 | — |
+| gpt-5, gpt-5-codex | $1.25 | $0.125 | not billed | $10.00 | — |
+| gpt-5-mini | $0.25 | $0.025 | not billed | $2.00 | — |
+| gpt-5-nano | $0.05 | $0.005 | not billed | $0.40 | — |
+| gpt-5-pro | $15.00 | — | not billed | $120.00 | — |
+| gpt-4.1 | $2.00 | $0.50 | not billed | $8.00 | — |
+| gpt-4.1-mini | $0.40 | $0.10 | not billed | $1.60 | — |
+| gpt-4.1-nano | $0.10 | $0.025 | not billed | $0.40 | — |
+| o3 | $2.00 | $0.50 | not billed | $8.00 | — |
+| o3-pro | $20.00 | — | not billed | $80.00 | — |
+| o3-mini | $1.10 | $0.55 | not billed | $4.40 | — |
+| o4-mini | $1.10 | $0.275 | not billed | $4.40 | — |
 
-A model id is matched by its longest prefix, so `gpt-5-mini-2025-08-07` never takes `gpt-5`'s row and `gpt-5.3-codex` never takes `gpt-5.3`'s; a `provider/model` id is reduced to the part after the slash. Where the page prices no cached rate (the `pro` tiers, which do not serve the prompt cache) the input rate is used for cached tokens too, so a cached count that should never arrive cannot come out cheaper than it was. `gpt-5.3-codex` is the only `-codex` id the page prices; an older Codex variant falls back to the numbered model it is built on (`gpt-5.1-codex` and `gpt-5.1-codex-mini` → `gpt-5.1`), which is a stated rule rather than a measurement, and the fallback only ever applies rates OpenAI published for that number.
+**How an id finds its row.** By **exact match on the id**, never by prefix. A `provider/model` id is reduced to the part after the slash and the id is lower-cased first, and a trailing date snapshot is stripped (`gpt-5-mini-2025-08-07` → `gpt-5-mini`) because the page lists a dated id and the id it snapshots at the same price. Nothing else is rewritten, so an id the table does not hold cannot land on a shorter row that happens to be a prefix of it: `gpt-5.6-nova` is not priced as `gpt-5.6`, and `gpt-5.4-cyber` is not priced as `gpt-5.4`. Until 2026-09-02 the lookup was a prefix scan in table order and did exactly that, which is why `unlistedIdsAreNamedRatherThanCollapsed` now pins every id in the table resolving to its own row and a set of unlisted family members resolving to none. Where the page prices no cached rate (the `pro` tiers, which do not serve the prompt cache) the input rate is used for cached tokens too, so a cached count that should never arrive cannot come out cheaper than it was. Each `-codex` id carries the row **its own model page** publishes; the pricing table lists only `gpt-5.3-codex`, and nothing is inferred from the numbered model a Codex variant is built on.
 
-**What is not priced.** A turn whose rollout never named a model is counted in tokens and priced at nothing, and the card says so ("1 Codex turn(s) name no model and are not priced") rather than showing a confident $0. A model the table cannot reach contributes nothing and is named under "Unpriced: …". Both are visible, neither is guessed at.
+**Cache writes.** The prompt-caching guide states them per family: "For GPT-5.6 and later, cache writes cost 1.25× the standard, uncached input-token rate", and "No additional cache-write charge" for "GPT-5.5 and GPT-5.5 Pro" and "Other earlier models". So the write bucket is billed on the four gpt-5.6 rows and at nothing on every other row, and each of those four published write rates is that rule's own arithmetic ($4.00 → $5.00, $2.00 → $2.50, $0.20 → $0.25, $12.50 → $15.625), which is the cross-check `cacheWritesAreBilledOnlyFromGPT56AndAt125xInput` pins.
+
+**The long-context tier.** Above 272,000 input tokens on a model that publishes the tier, the whole request is priced at 2x every input bucket and 1.5x output. Seven rows publish their long-context rates in full (sol, terra, luna, gpt-5.5, gpt-5.5-pro, gpt-5.4, gpt-5.4-pro) and those two multipliers reproduce all seven exactly, which is what `theLongContextTierMatchesThePublishedRows` pins. gpt-5.6-cyber is the one id where the tier comes from prose rather than a row: its own model page states the >272K rule while the pricing table leaves its long-context columns empty, and the rule is applied. **gpt-5.5-cyber has neither** — no long-context row and no model page left to read — so a turn of it over 272K is priced at its published short rates, and would be under-reported if OpenAI in fact bills it the tier. No other row carries a threshold at all, so no other model can pick up a surcharge nothing published for it.
+
+**What is not priced.** Four gaps, all visible rather than filled in:
+
+- A turn whose rollout never named a model is counted in tokens and priced at nothing, and the card says so ("1 Codex turn(s) name no model and are not priced") rather than showing a confident $0.
+- A model id the table does not hold contributes nothing and is named under "Unpriced: …". `gpt-5.4-cyber` is the live example — OpenAI publishes it with a dash in every column, so there is no rate to apply — and it is the fixture `anUnpricedModelCostsNothingAndIsNamed` uses.
+- Only the standard tier is priced. A turn that ran under Batch, Flex, Priority or Fast mode is priced at the standard rate, because the rollout does not say which tier it used; Fast mode is roughly twice standard (`gpt-5.3-codex` is $3.50 / $28.00 there), so such a turn is under-reported rather than over.
+- A write to the prompt cache on a row that publishes no write rate costs nothing here, which is what the caching guide says of every family before GPT-5.6.
 
 **What this figure is not.** It is the API-equivalent value of the work the sessions did, at list price. A ChatGPT Plus, Pro or Business plan includes Codex usage in the subscription, so on those plans nothing here is a bill and the figure is a measure of pace and of what the plan is worth. On an API key it is an estimate at list price; contracted rates, Batch and Flex discounts and any credit are not modelled.
 

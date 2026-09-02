@@ -61,13 +61,70 @@ import Testing
         #expect(abs(priced(jsonl).cost - 0.0469) < 1e-9)
     }
 
-    /// A cache write is carried through the parse and billed at nothing: OpenAI charges to read the prompt cache,
-    /// never to write it.
-    @Test func aCacheWriteIsCarriedAndCostsNothing() {
+    /// A cache write is carried through the parse and costs nothing on a row that publishes no write rate, which
+    /// is every row before GPT-5.6.
+    @Test func aCacheWriteIsCarriedAndCostsNothingBeforeGPT56() {
         let jsonl = [turnContext(model: "gpt-5.3-codex"), record("resp_a", input: 1000, cached: 0, output: 0, write: 50_000)].joined(separator: "\n")
         let result = priced(jsonl)
         #expect(result.entries.first?.tokens.cacheWrite5m == 50_000)
         #expect(abs(result.cost - 0.00175) < 1e-9)
+    }
+
+    /// From GPT-5.6 the same write is billed, at the rate that row publishes.
+    @Test func aCacheWriteIsBilledFromGPT56() {
+        let jsonl = [turnContext(model: "gpt-5.6-luna"), record("resp_a", input: 1000, cached: 0, output: 0, write: 50_000)].joined(separator: "\n")
+        // 1,000 x $0.20 + 50,000 x $0.25, per million.
+        #expect(abs(priced(jsonl).cost - 0.0127) < 1e-9)
+    }
+
+    /// Every published cache-write rate is 1.25x that row's uncached input rate, and no earlier row charges for a
+    /// write at all. A new row that breaks either half is a rate this build would apply without a source.
+    @Test func cacheWritesAreBilledOnlyFromGPT56AndAt125xInput() {
+        for (id, rates) in OpenAIPricing.table {
+            if id.hasPrefix("gpt-5.6") {
+                #expect(abs(rates.cacheWrite - rates.input * 1.25) < 1e-9, "\(id)")
+            } else {
+                #expect(rates.cacheWrite == 0, "\(id)")
+            }
+        }
+    }
+
+    /// The long-context tier is 2x on every input bucket and 1.5x on output. These are the published long-context
+    /// rows; the multipliers the code applies have to reproduce each of them exactly.
+    @Test func theLongContextTierMatchesThePublishedRows() {
+        let published: [(id: String, input: Double, cached: Double, write: Double, output: Double)] = [
+            ("gpt-5.6-sol", 8, 0.8, 10, 30),
+            ("gpt-5.6-terra", 4, 0.4, 5, 18),
+            ("gpt-5.6-luna", 0.4, 0.04, 0.5, 1.8),
+            ("gpt-5.5", 10, 1, 0, 45),
+            ("gpt-5.5-pro", 60, 60, 0, 270),
+            ("gpt-5.4", 5, 0.5, 0, 22.5),
+            ("gpt-5.4-pro", 60, 60, 0, 270),
+        ]
+        for row in published {
+            let rates = try! #require(OpenAIPricing.rates(for: row.id))
+            #expect(rates.longContextThreshold == 272_000, "\(row.id)")
+            #expect(abs(rates.input * OpenAIRates.longInputMultiplier - row.input) < 1e-9, "\(row.id)")
+            #expect(abs(rates.cachedInput * OpenAIRates.longInputMultiplier - row.cached) < 1e-9, "\(row.id)")
+            #expect(abs(rates.cacheWrite * OpenAIRates.longInputMultiplier - row.write) < 1e-9, "\(row.id)")
+            #expect(abs(rates.output * OpenAIRates.longOutputMultiplier - row.output) < 1e-9, "\(row.id)")
+        }
+        // gpt-5.6-cyber is the one id whose tier comes from its model page's rule rather than a long-context row
+        // of its own, and no other row carries the tier at all, so none can pick up a surcharge nothing published
+        // for it — gpt-5.5-cyber, whose page is gone and whose row leaves the long columns empty, least of all.
+        let tiered = OpenAIPricing.table.filter { $0.value.longContextThreshold != nil }.keys.sorted()
+        #expect(tiered == (published.map(\.id) + ["gpt-5.6-cyber"]).sorted())
+        #expect(OpenAIPricing.rates(for: "gpt-5.5-cyber")?.longContextThreshold == nil)
+    }
+
+    /// A turn over the threshold is priced at the published long-context rates, and one at the threshold is not.
+    @Test func aTurnOverTheThresholdIsPricedAtTheLongContextRates() {
+        let long = [turnContext(model: "gpt-5.5"), record("resp_a", input: 300_000, cached: 100_000, output: 10_000)].joined(separator: "\n")
+        // 200,000 x $10.00 + 100,000 x $1.00 + 10,000 x $45.00, per million.
+        #expect(abs(priced(long).cost - 2.55) < 1e-9)
+        let short = [turnContext(model: "gpt-5.5"), record("resp_a", input: 272_000, cached: 72_000, output: 10_000)].joined(separator: "\n")
+        // 200,000 x $5.00 + 72,000 x $0.50 + 10,000 x $30.00, per million.
+        #expect(abs(priced(short).cost - 1.336) < 1e-9)
     }
 
     /// Each Codex variant carries its own published row; a provider prefix and case are the only things normalised.
@@ -81,7 +138,7 @@ import Testing
 
     /// Ids resolve by exact row, with only a trailing date snapshot stripped. Nothing is matched by prefix: a
     /// family member absent from the table must price as unknown rather than collapse onto a sibling's row.
-    @Test func idsResolveExactlyAndDatedSnapshotsShareTheirRow() {
+    @Test func unlistedIdsAreNamedRatherThanCollapsed() {
         #expect(OpenAIPricing.rates(for: "gpt-5-mini-2025-08-07")?.input == 0.25)
         #expect(OpenAIPricing.rates(for: "gpt-5-2025-08-07")?.input == 1.25)
         #expect(OpenAIPricing.rates(for: "gpt-5.2-pro")?.output == 168)
@@ -89,17 +146,39 @@ import Testing
         #expect(OpenAIPricing.rates(for: "o3")?.cachedInput == 0.5)
         // A model with no published cached rate never prices a cached token below its input rate.
         #expect(OpenAIPricing.rates(for: "gpt-5-pro")?.cachedInput == 15)
-        // The bug this replaced: an unlisted sibling used to collapse onto the first row sharing its prefix.
+        // The bug this replaced: an unlisted sibling used to collapse onto the first row sharing its prefix. The
+        // ids that mattered were the ones inside a family the table does hold, which is what these are.
         #expect(OpenAIPricing.rates(for: "gpt-5-turbo") == nil)
         #expect(OpenAIPricing.rates(for: "gpt-5.9") == nil)
+        #expect(OpenAIPricing.rates(for: "gpt-5.6-nova") == nil)
+        #expect(OpenAIPricing.rates(for: "gpt-5.5-cyber-preview") == nil)
+        #expect(OpenAIPricing.rates(for: "gpt-5.4-mini-high") == nil)
+        // Published with a dash in every column, so there is no rate to apply to it.
         #expect(OpenAIPricing.rates(for: "gpt-5.4-cyber") == nil)
+        // Order cannot shadow: every id in the table resolves to its own row, whatever order the rows were written.
+        for (id, rates) in OpenAIPricing.table { #expect(OpenAIPricing.rates(for: id) == rates, "\(id)") }
     }
 
-    @Test func anUnknownModelCostsNothingAndIsNamed() {
-        let jsonl = [turnContext(model: "gpt-9-quasar"), record("resp_a", input: 1_000_000, cached: 0, output: 100_000)].joined(separator: "\n")
+    /// The fingerprint keys the day-record cache, so an edited rate has to change it even on a day the snapshot
+    /// date does not move.
+    @Test func theFingerprintFollowsTheRowsAndNotOnlyTheDate() {
+        #expect(OpenAIPricing.fingerprint.hasPrefix(OpenAIPricing.snapshotDate))
+        let one = ["a": OpenAIRates(input: 1, output: 2)]
+        #expect(OpenAIPricing.digest(of: one) == OpenAIPricing.digest(of: ["a": OpenAIRates(input: 1, output: 2)]))
+        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: ["a": OpenAIRates(input: 1.1, output: 2)]))
+        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: ["a": OpenAIRates(input: 1, output: 2, cacheWrite: 1)]))
+        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: ["a": OpenAIRates(input: 1, output: 2, longContext: 10)]))
+        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: ["b": OpenAIRates(input: 1, output: 2)]))
+    }
+
+    /// The id here is a real model inside a family the table holds, published with no price at all: the case that
+    /// matters, because an id outside every family would take the one path that returned nil even under the old
+    /// prefix lookup.
+    @Test func anUnpricedModelCostsNothingAndIsNamed() {
+        let jsonl = [turnContext(model: "gpt-5.4-cyber"), record("resp_a", input: 1_000_000, cached: 0, output: 100_000)].joined(separator: "\n")
         let result = priced(jsonl)
         #expect(result.cost == 0)
-        #expect(result.unpriced == ["gpt-9-quasar"])
+        #expect(result.unpriced == ["gpt-5.4-cyber"])
     }
 
     /// A rollout an older Codex wrote carries `token_count` events instead; `last_token_usage` is the turn that

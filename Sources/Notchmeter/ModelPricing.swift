@@ -72,7 +72,8 @@ enum ModelPricing {
     /// Web search: $10 per 1,000 requests, never multiplied by residency.
     static let webSearchRequest = 0.01
 
-    /// Longest prefixes first so `claude-opus-4-1` never matches `claude-opus-4`.
+    /// The longest matching prefix wins, so `claude-opus-4-8` takes its own row rather than `claude-opus-4`'s and
+    /// a row may be added anywhere without shadowing one already here. The order below is presentation only.
     static let table: [(prefix: String, rates: ModelRates)] = [
         ("claude-fable-5-1", fable51), ("claude-mythos-5-1", fable51),
         ("claude-fable-5", fable5), ("claude-mythos-5", fable5),
@@ -87,7 +88,7 @@ enum ModelPricing {
         ("claude-3-haiku", haiku3),
     ]
 
-    /// Models with a fast-mode rate, longest prefixes first.
+    /// Models with a fast-mode rate, matched the same way.
     static let fastTable: [(prefix: String, rates: ModelRates)] = [
         ("claude-opus-5", opusFast), ("claude-opus-4-8", opusFast),
     ]
@@ -112,8 +113,8 @@ enum ModelPricing {
         if !overrides.isEmpty, let hit = overrides.keys.filter({ name.hasPrefix($0) }).max(by: { $0.count < $1.count }) {
             return overrides[hit]
         }
-        if speed == "fast", let fast = fastTable.first(where: { name.hasPrefix($0.prefix) }) { return fast.rates }
-        if let hit = table.first(where: { name.hasPrefix($0.prefix) }) { return hit.rates }
+        if speed == "fast", let fast = longestMatch(of: name, in: fastTable) { return fast }
+        if let hit = longestMatch(of: name, in: table) { return hit }
         if name.contains("fable") || name.contains("mythos") { return fable51 }
         if name.contains("opus") { return speed == "fast" ? opusFast : opus5 }
         if name.contains("sonnet") { return sonnet5 }
@@ -133,6 +134,12 @@ enum ModelPricing {
     }
 
     /// Bedrock/Vertex ids (`anthropic.claude-…`, `claude-…@20250101`) and dated suffixes all collapse to the plain id.
+    /// The row whose prefix is the longest one this id starts with; nil when none does. Order-independent, so a
+    /// row inserted above its own variants cannot shadow them.
+    static func longestMatch(of name: String, in table: [(prefix: String, rates: ModelRates)]) -> ModelRates? {
+        table.filter { name.hasPrefix($0.prefix) }.max { $0.prefix.count < $1.prefix.count }?.rates
+    }
+
     static func normalize(_ model: String) -> String {
         var name = model.lowercased()
         if let at = name.firstIndex(of: "@") { name = String(name[..<at]) }
