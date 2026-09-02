@@ -541,7 +541,7 @@ struct NotchExpandedView: View {
                 // on the first frame; the panel draws the background itself.
                 .scrollContentBackground(.hidden)
                 .scrollBounceBehavior(.basedOnSize)
-                .scrollIndicators(overflows ? .automatic : .never)
+                .scrollIndicators(.never)
                 .scrollDisabled(!overflows)
                 .frame(maxHeight: cap)
                 .onPreferenceChange(PanelContentHeight.self) { contentHeight = $0 }
