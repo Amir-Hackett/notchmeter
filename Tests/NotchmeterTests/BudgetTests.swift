@@ -16,9 +16,15 @@ import Testing
     /// 2026-09-16 12:00 UTC: halfway through September.
     let now = DateParsing.iso8601("2026-09-16T00:00:00Z")!
 
-    func cost(month: Double, week: Double? = nil) -> CostSummary {
+    func cost(month: Double, week: Double? = nil, providers: [ProviderCost] = []) -> CostSummary {
         CostSummary(today: 0, yesterday: 0, last30Days: 0, daily: [], lastHour: 0, typicalHourly: 0, burnMultiple: nil, unpricedModels: [], scannedAt: now,
-                    ranges: [.month: RangeTotals(cost: month)], week: week.map { WeekCost(start: now.addingTimeInterval(-3 * 86400), cost: $0, perPercent: nil) })
+                    ranges: [.month: RangeTotals(cost: month), .week: RangeTotals(cost: week ?? 0)],
+                    week: week.map { WeekCost(start: now.addingTimeInterval(-3 * 86400), cost: $0, perPercent: nil) }, providers: providers)
+    }
+
+    func provider(_ tool: ToolID, month: Double, week: Double = 0) -> ProviderCost {
+        ProviderCost(tool: tool, source: tool == .cursor ? .billingExport : .localTranscripts,
+                     ranges: [.month: RangeTotals(cost: month), .week: RangeTotals(cost: week)], daily: [], scannedAt: now)
     }
 
     @Test func theMonthIsAPeriodWithAnElapsedShare() {
@@ -46,6 +52,20 @@ import Testing
         // Three of seven days in at $30 projects to $70.
         #expect(Advisor.budget(context).map(\.text) == ["At this rate the week costs $70 against a $50 budget."])
         #expect(Advisor.budget(Advisor.Context(readings: [], cost: nil, now: now)).isEmpty)
+    }
+
+    /// The budget is one number over every tool, so it is measured against the total; with more than one tool
+    /// spending, the line names whichever is most of it.
+    @Test func theBudgetIsTheTotalAndNamesTheToolThatIsMostOfIt() {
+        var context = Advisor.Context(readings: [], cost: cost(month: 240, providers: [provider(.claude, month: 90), provider(.cursor, month: 150)]),
+                                      now: now, calendar: utc)
+        context.monthlyBudgetUSD = 200
+        #expect(Advisor.budget(context).map(\.text) == ["The month's $240 is past the $200 budget. Cursor is $150 of it."])
+        #expect(Advisor.budget(context).first?.tool == .cursor)
+        // One tool spending needs no share: the total is already that tool's.
+        context.cost = cost(month: 240, providers: [provider(.claude, month: 240)])
+        #expect(Advisor.budget(context).map(\.text) == ["The month's $240 is past the $200 budget."])
+        #expect(Advisor.budget(context).first?.tool == nil)
     }
 
     @Test func theSchedulerTreatsTheBudgetAsAWindowWithTheMonthAsItsPeriod() throws {

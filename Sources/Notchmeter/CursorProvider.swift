@@ -262,7 +262,10 @@ actor CursorProvider: UsageProvider {
             var record = days[day] ?? CostHistory.Record(cost: 0, tokens: TokenBreakdown(), byModel: [:], byProject: [:])
             record.cost += event.costUSD
             record.tokens += event.tokens
-            if let model = event.model { record.byModel[model, default: 0] += event.costUSD }
+            if let model = event.model {
+                record.byModel[model, default: 0] += event.costUSD
+                record.byModelTokens[model, default: 0] += event.tokens.total
+            }
             days[day] = record
         }
         return days

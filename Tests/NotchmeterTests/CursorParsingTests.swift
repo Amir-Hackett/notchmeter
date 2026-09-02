@@ -159,10 +159,25 @@ import Testing
         defer { try? FileManager.default.removeItem(at: dir) }
         let history = CostHistory(url: dir.appendingPathComponent("daily.jsonl"), tool: .cursor)
         history.record(days, existing: [:], calendar: utc)
-        let series = ClaudeCostScanner.series(from: history.load(calendar: utc), days: 30, now: Date(timeIntervalSince1970: 1_756_728_000), calendar: utc)
-        #expect(series.count == 30)
-        #expect(abs((series.last?.cost ?? 0) - 0.17) < 1e-9)
+        // The export becomes Cursor's own first-class ProviderCost: ranges, a 30-day series and the per-model split.
+        let now = Date(timeIntervalSince1970: 1_756_728_000)
+        let reader = CursorCostReader(history: history)
+        let cost = try #require(reader.read(now: now, daysBack: 30, weekStart: utc.startOfDay(for: now), calendar: utc,
+                                            state: ProviderReadState(readAt: now.addingTimeInterval(-60))))
+        #expect(cost.tool == .cursor)
+        #expect(cost.source == .billingExport)
+        #expect(cost.source.isEstimate == false)
+        #expect(cost.daily.count == 30)
+        #expect(abs((cost.daily.last?.cost ?? 0) - 0.17) < 1e-9)
+        #expect(abs(cost.totals(.today).cost - 0.17) < 1e-9)
+        #expect(cost.totals(.last30Days).models.map(\.name) == ["claude-4-sonnet", "gpt-5"])
+        // Cursor's export is day-resolution, so it reports no hour of its own.
+        #expect(cost.lastHour == nil)
+        #expect(cost.burnMultiple == nil)
+        #expect(cost.scannedAt == now.addingTimeInterval(-60))
         #expect(CostHistory(url: dir.appendingPathComponent("daily.jsonl"), tool: .claude).load(calendar: utc).isEmpty)
+        #expect(CursorCostReader(history: CostHistory(url: dir.appendingPathComponent("nothing.jsonl"), tool: .cursor))
+            .read(now: now, daysBack: 30, weekStart: now, calendar: utc, state: ProviderReadState()) == nil)
     }
 }
 

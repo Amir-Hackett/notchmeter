@@ -3,6 +3,7 @@
 
 /* 2차 보완: 세션, 예산, 혼잡 시간, 출처 태그, 명령줄 도구, MCP, 키체인 정책, 디스플레이, 진단 */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ %2$@은(는) %3$ld%%입니다.";
+" %1$@ is %2$@ of it." = " 그중 %1$@이(가) %2$@.";
 " percent" = " 퍼센트";
 "$/MTok" = "$/백만 토큰";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ %2$@이(가) 소진되었습니다. %3$@.%4$@";
@@ -15,6 +16,7 @@
 "%1$@ (and %2$ld more)" = "%1$@ (외 %2$ld개)";
 "%1$@ (HTTP %2$ld)" = "%1$@ (HTTP %2$ld)";
 "%1$@ at %2$@" = "%1$@ %2$@";
+"%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@이(가) 이번 1시간에 %2$@ 사용 — 30일 평균의 %3$@.";
 "%1$@ covered by the allowance · %2$ld requests this month" = "할당량으로 %1$@ 충당 · 이번 달 %2$ld회 요청";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ 크레딧이 %2$@ 후 만료됩니다 — Codex에서 받으세요";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@의 %3$@이(가) %2$ld%% 남았습니다.";
@@ -24,8 +26,6 @@
 "%1$@ is waiting in %2$@." = "%1$@이(가) %2$@에서 기다리고 있습니다.";
 "%1$@ of %2$@" = "%1$@ / %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "오늘 세션 1%%당 %1$@, 30일 중앙값 %2$@";
-"%1$@ since %2$@" = "%2$@부터 %1$@";
-"%1$@ since %2$@ · %3$@ per 1%% of weekly" = "%2$@부터 %1$@ · 주간 한도 1%%당 %3$@";
 "%1$@ · %2$ld%% cache reads" = "%1$@ · 캐시 읽기 %2$ld%%";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "%1$@의 사용량 엔드포인트가 HTTP %2$ld을(를) 반환합니다. 상태 페이지를 확인하세요.";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%2$@ 크레딧 %1$ld개 — Codex에서 받으세요";
@@ -57,6 +57,7 @@
 "%@M tokens" = "%@M 토큰";
 "%@x" = "%@배";
 "%ld agents" = "에이전트 %ld개";
+"%ld Codex turn(s) name no model and are not priced" = "Codex 턴 %ld개에 모델이 기록되지 않아 계산할 수 없음";
 "%ld days" = "%ld일";
 "%ld extra this month" = "이번 달 추가 %ld회";
 "%ld min" = "%ld분";
@@ -136,6 +137,7 @@
 "Bars" = "막대";
 "Beside the notch" = "노치 옆";
 "Beta updates" = "베타 업데이트";
+"billing export" = "청구 내보내기";
 "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "둘 다 Claude Code 훅이 필요하며 터미널이나 편집기가 맨 앞이거나 조용한 시간에는 울리지 않습니다. 잠깐 보기는 패널을 세션 줄과 함께 몇 초 열었다가 포인터가 들어오지 않으면 다시 닫습니다. 동작 줄이기에서는 애니메이션 없이 열리고 조금 더 머뭅니다. \"대기 중\" 알림은 응답하면 철회됩니다. 서명되지 않은 빌드에서는 어떤 알림도 집중 모드나 방해금지를 뚫지 못하고, 서명된 릴리스에서는 시간 민감 알림(소진 임박, 대기 중)이 뚫습니다.";
 "Both sides" = "양쪽";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "양쪽은 노치를 중심으로 보입니다. 메뉴가 많은 앱은 노치 왼쪽 가장자리를 넘을 수 있으며, 노치 오른쪽은 항상 이를 피합니다.";
@@ -150,6 +152,8 @@
 "Check for updates automatically" = "업데이트 자동 확인";
 "Check for Updates…" = "업데이트 확인…";
 "Choose file…" = "파일 선택…";
+"Claude %1$@ since %2$@" = "Claude %2$@부터 %1$@";
+"Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %2$@부터 %1$@ · 주간 한도 1%%당 %3$@";
 "Claude Code finished" = "Claude Code 완료";
 "Claude Code finished a %1$@ turn in %2$@." = "Claude Code가 %2$@에서 %1$@ 걸린 턴을 마쳤습니다.";
 "Claude Code has not signed in" = "Claude Code가 로그인되어 있지 않습니다";
@@ -158,12 +162,12 @@
 "Claude Code is waiting" = "Claude Code 대기 중";
 "Claude Code is waiting in %@." = "Claude Code가 %@에서 기다리고 있습니다.";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code는 토큰을 갱신할 때마다 키체인 항목을 다시 만들어 \"항상 허용\"을 잊습니다. 타이머 읽기는 대화상자를 띄우지 않습니다. Claude Code가 쓰기에 쓴 Apple의 security 도구로 항목을 읽고, 다음 자격 증명 파일, 다음 상태 표시줄을 읽으며, 그렇지 않으면 마지막 읽기를 \"확인 필요\"로 표시해 둡니다. Claude 링 클릭, 새로 고침, 어시스턴트 토글만 물을 수 있고, 그것도 \"새로 고침 시에만\"일 때만입니다.";
-"Claude Code sessions at API list prices" = "API 정가 기준 Claude Code 세션";
 "Claude Code status line" = "Claude Code 상태 표시줄";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code 로그인이 만료되었습니다. 터미널에서 claude를 한 번 실행해 갱신하세요 — Notchmeter는 토큰을 직접 갱신하지 않습니다.";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Claude Code 로그인에 확인이 필요합니다. Claude 링을 클릭하거나 새로 고침해 키체인 읽기를 허용하세요";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Claude Code 로그인이 거부되었습니다. Claude Code를 한 번 실행해 갱신하세요";
 "Claude reported no usage windows" = "Claude가 사용량 창을 보고하지 않았습니다";
+"Claude since %1$@: %2$@" = "Claude %1$@ 이후: %2$@";
 "Clear" = "지우기";
 "Click to show %@" = "클릭하면 %@ 표시";
 "Close" = "닫기";
@@ -196,7 +200,6 @@
 "Credits" = "크레딧";
 "Currency code" = "통화 코드";
 "current" = "현재";
-"Cursor %1$@ today · %2$@ in 30 days" = "Cursor 오늘 %1$@ · 30일 %2$@";
 "Cursor models" = "Cursor 모델";
 "Cursor session token could not be decoded" = "Cursor 세션 토큰을 해독할 수 없습니다";
 "Cursor session token has no user id" = "Cursor 세션 토큰에 사용자 ID가 없습니다";
@@ -225,6 +228,7 @@
 "Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on." = "비우면 네트워크 설정의 프록시를 따릅니다. `http://host:port` 또는 `socks5://host:port`는 이 앱의 공급자 요청만 다음 요청부터 그곳으로 보냅니다.";
 "Every number shows its work." = "모든 숫자에는 근거가 있습니다.";
 "Every setting returns to its default and %@ relaunches. This cannot be undone." = "모든 설정이 기본값으로 돌아가고 %@이(가) 다시 실행됩니다. 되돌릴 수 없습니다.";
+"Every tool together burned %1$@ this hour — %2$@ your 30-day average." = "모든 도구가 이번 1시간에 %1$@ 사용 — 30일 평균의 %2$@.";
 "Exact time" = "정확한 시각";
 "Export history…" = "기록 내보내기…";
 "Extra" = "추가";
@@ -295,6 +299,9 @@
 "likely a %@ window" = "아마 %@ 창";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "~/.local/bin(또는 /usr/local/bin)에 이 앱으로의 `notchmeter` 링크를 만듭니다. 터미널이나 Claude Code 스킬의 `notchmeter`는 공급자마다 다시 묻는 대신 실행 중인 앱의 캐시된 보고서를 읽습니다. `notchmeter --force`는 새로 읽습니다.";
 "Local API on 127.0.0.1:%ld" = "로컬 API (127.0.0.1:%ld)";
+"Local files at published list rates; an export is the vendor's own figure" = "로컬 파일은 공개 정가로 계산, 내보내기는 공급업체가 제시한 금액";
+"local sessions" = "로컬 세션";
+"local transcripts" = "로컬 기록";
 "low power mode" = "저전력 모드";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "Claude Code 로그인을 읽으려면 macOS의 허가가 필요합니다. 물어볼 때 '항상 허용'을 선택하세요";
 "Main display (the one with the menu bar)" = "주 디스플레이(메뉴 막대가 있는 쪽)";
@@ -391,7 +398,8 @@
 "Premium requests" = "프리미엄 요청";
 "Press keys…" = "키를 누르세요…";
 "Preview" = "미리 듣기";
-"Pricing local transcripts" = "로컬 기록 계산 중";
+"Priced from local files at published list rates" = "공개 정가로 로컬 파일 계산";
+"Pricing local files" = "로컬 파일 계산 중";
 "Privacy" = "개인 정보";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "모든 설정을 기본값으로 되돌리고, 캐시된 읽기 값과 보낸 알림 기록을 지운 뒤 다시 실행합니다. 기록, 비용 캐시, 소모 로그는 유지됩니다.";
 "Quiet hours" = "방해 금지 시간";
@@ -464,7 +472,6 @@
 "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage" = "사용량을 읽으려면 편집기에서 GitHub Copilot에 로그인하세요 (또는 `gh auth login` 실행)";
 "Signed in" = "로그인됨";
 "Signed in · %@" = "로그인됨 · %@";
-"Since %1$@: %2$@" = "%1$@ 이후: %2$@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "2026년 3월부터 Anthropic은 평일 태평양 시간 5:00~11:00에 더 엄격한 5시간 세션 한도를 적용합니다(보도이며 공식 문서 아님; docs/accuracy.md). 그동안 조언은 비혼잡 시간이 언제 시작하는지 말하고, 소모 로그는 혼잡·비혼잡 속도를 따로 두며, 푸터에 \"혼잡 시간\"이 표시됩니다. 어시스턴트에서 체크한 어시스턴트에 적용됩니다.";
 "snapshot" = "스냅샷";
 "Sound" = "소리";
@@ -493,7 +500,6 @@
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "세션 측정이 평소보다 약 %1$@ 무겁습니다: 1%%당 %2$@ 대 %3$@.";
 "This" = "이";
 "This GitHub account has no Copilot subscription" = "이 GitHub 계정에는 Copilot 구독이 없습니다";
-"This hour burned %1$@ — %2$@ your 30-day average." = "이번 1시간에 %1$@ 사용 — 30일 평균의 %2$@.";
 "This session block %1$@ · %2$@/min" = "이 세션 블록 %1$@ · 분당 %2$@";
 "This session block %@" = "이 세션 블록 %@";
 "Time format" = "시간 형식";

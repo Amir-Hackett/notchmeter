@@ -105,7 +105,7 @@ Right-click (or Control-click) the rings, or use the **Options** button in the p
 | Time format | Auto · 12-hour · 24-hour |
 | Show costs in | USD, or a currency code with a rate you type; nothing is fetched |
 | Monthly budget, Weekly budget | in that currency; the Cost card's ring fills against the month with the meters' pace tick, the Advice strip projects the month against it ("At this rate the month costs $310 against a $200 budget"), and the on-track, behind and run-out notifications treat it as a window whose period is the month or the week |
-| Cost card | Cost · Tokens · $/MTok as the figure each range leads with; a Cursor mode once its usage events are read; *Export history…* writes the daily-totals file as CSV or JSON |
+| Cost card | Cost · Tokens · $/MTok as the figure each range leads with; one row per tool that can report spend, each with the source it came from; *Export history…* writes the daily-totals file as CSV or JSON |
 | Peak hours | Anthropic's weekday 05:00–11:00 Pacific window (editable), applied per assistant: inside it the session projection assumes the peak rate, the advice names the next off-peak start for a long job, and the run-out interval keeps peak and off-peak rates apart |
 | Hide usage while the screen is shared or recorded | the rings keep their shape but lose their digits and the panel hides the Cost card while Zoom, Meet, QuickTime or Screen Sharing capture the screen |
 | Local API | `GET http://127.0.0.1:6737/v1/limits`, the same JSON as `--probe --json`, and `POST /v1/hook` for another machine's Claude Code hook events over an SSH tunnel; loopback only, the Host header must be the loopback address, and a request carrying an Origin header is refused unless the origin is allow-listed here; off by default |
@@ -139,7 +139,7 @@ The rules are pure functions in [`Advisor.swift`](Sources/Notchmeter/Advisor.swi
 | Switch models | a per-model window (Fable, Sonnet, Opus…; Gemini Pro, Gemini Flash…; GPT-5.3-Codex-Spark) is 85 % used and another model, or the overall window, has 40 % left | *Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.* |
 | Wait | a window is out or behind pace, resets within the hour, and no other tool has room | *Claude session resets in 40m; wait rather than switch.* |
 | Reset credit | a Codex reset credit expires within a day while a Codex window is behind pace (opt-in read) | *A Codex reset credit expires in 5h. Claim it in Codex.* |
-| Burn | the last hour cost at least three times your 30-day average active hour (see the Cost card) | *This hour burned $8.40 — 6x your 30-day average.* |
+| Burn | a tool's last hour cost at least three times its 30-day average active hour (see the Cost card) | *Claude Code burned $8.40 this hour — 6x its 30-day average.* |
 | Room elsewhere | a tool's main window is on track or behind and another tool has half of its own left | *Codex has 78% of its weekly left.* |
 
 A tool's *main window* is its longest tool-wide one: the weekly for Claude and Codex, the billing cycle for Cursor, the month for Copilot; Antigravity publishes only per-model windows, so it has none. A per-model window is named by its cadence ("Fable weekly", "Gemini Pro daily", or "Gemini Pro quota" while the vendor declares no window length). Times follow the Reset times and Time format settings.
@@ -239,7 +239,7 @@ sudo powermetrics --samplers tasks --show-process-energy -i 60000 -n 5 | grep -E
 - *Antigravity: Sign in to Gemini CLI* — the meter uses the Google login Gemini CLI caches in `~/.gemini/oauth_creds.json`; run `gemini` once and choose Login with Google. An API-key or Vertex AI setup has no quota to read.
 - *Antigravity: login has expired / was refused* — run Gemini CLI or Antigravity once; it signs back in and the notch picks it up.
 - *Antigravity: Google stopped serving Gemini CLI quota to personal accounts* — since June 2026 the endpoint answers only Code Assist Standard and Enterprise accounts; nothing on this side can change that.
-- *Cost card says "Pricing local transcripts"* — the first scan of a large `~/.claude/projects` takes a few seconds; later scans only read files that changed.
+- *Cost card says "Pricing local files"* — the first scan of a large `~/.claude/projects` takes a few seconds; later scans only read files that changed.
 - *Footer says "Next update in 12m · no agent activity"* — nothing of the tool's has changed on disk for 30 minutes, so the meter polls a quarter as often; start a session (or install the hook) and it returns to the base cadence within a minute. "Paused while the screen is locked" clears on unlock.
 - *The hook badge never appears* — Settings › Claude Code hook shows whether the entry is installed and whether it points at the running copy ("Installed but points at an old path" has a Repair button); then see the checks at the end of [docs/hooks.md](docs/hooks.md).
 - *Copilot: Sign in to GitHub Copilot* — the meter needs the token Copilot's editor plugin or `gh auth login` saves; a Copilot subscription without either on this Mac has nothing to read.

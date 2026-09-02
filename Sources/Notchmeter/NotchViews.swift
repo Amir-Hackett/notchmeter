@@ -557,7 +557,7 @@ struct NotchExpandedView: View {
         let tools = store.visibleTools
         let advice = store.advice
         return VStack(alignment: .leading, spacing: prefs.density.cardSpacing) {
-            if prefs.showSpend, tools.contains(.claude), !store.hidesFigures {
+            if prefs.showSpend, !store.hidesFigures, tools.contains(where: \.reportsCost) {
                 SpendCard(store: store)
             }
             if !advice.isEmpty {
@@ -574,7 +574,7 @@ struct NotchExpandedView: View {
             }
             ForEach(tools, id: \.self) { tool in
                 ToolCard(tool: tool, status: store.status(tool), store: store, prefs: prefs, actions: actions,
-                         trend: tool == .claude && prefs.showSpend && !store.hidesFigures ? store.cost?.daily : tool == .cursor && prefs.showSpend && !store.hidesFigures ? store.cost?.cursorDaily : nil)
+                         trend: prefs.showSpend && !store.hidesFigures ? store.cost?.provider(tool)?.daily : nil)
             }
             FooterView(store: store, actions: actions)
         }
@@ -699,11 +699,13 @@ struct SpendCard: View {
         return L("cache writes %1$ld%% 1-hour · %2$ld%% 5-minute", Int((share * 100).rounded()), Int(((1 - share) * 100).rounded()))
     }
 
+    /// The Claude weekly window, which is where the week's boundary comes from: its own spend, and what one per
+    /// cent of the window has cost. Not a total — the ring above it is.
     private var weekLine: String? {
         guard range == .week, let week = store.cost?.week else { return nil }
         let since = ResetText.dayPhrase(week.start, now: Date(), calendar: .current)
-        guard let perPercent = week.perPercent else { return L("%1$@ since %2$@", Money.dollars(week.cost), since) }
-        return L("%1$@ since %2$@ · %3$@ per 1%% of weekly", Money.dollars(week.cost), since, Money.dollars(perPercent))
+        guard let perPercent = week.perPercent else { return L("Claude %1$@ since %2$@", Money.dollars(week.cost), since) }
+        return L("Claude %1$@ since %2$@ · %3$@ per 1%% of weekly", Money.dollars(week.cost), since, Money.dollars(perPercent))
     }
 
     private var budgetLine: String? {
@@ -720,7 +722,7 @@ struct SpendCard: View {
 
     private var sinceLine: String? {
         guard range == .ninetyDays, let cost = store.cost, let first = cost.firstUse else { return nil }
-        return L("Since %1$@: %2$@", ResetText.dayPhrase(first, now: Date(), calendar: .current), Money.dollars(cost.sinceFirstUse))
+        return L("Claude since %1$@: %2$@", ResetText.dayPhrase(first, now: Date(), calendar: .current), Money.dollars(cost.sinceFirstUse))
     }
 
     private var projectsLine: String? {
@@ -729,11 +731,30 @@ struct SpendCard: View {
         return L("Top: %@", top)
     }
 
-    private var cursorLine: String? {
-        guard let cost = store.cost, !cost.cursorDaily.isEmpty else { return nil }
-        let today = cost.cursorDaily.last?.cost ?? 0
-        let month = cost.cursorDaily.reduce(0) { $0 + $1.cost }
-        return L("Cursor %1$@ today · %2$@ in 30 days", Money.dollars(today), Money.dollars(month, cents: false))
+    /// One row per tool that can report spend, in tool order. A tool that cannot is absent rather than zero.
+    private var providers: [ProviderCost] { store.cost?.providers ?? [] }
+
+    /// What the figures are: this Mac's arithmetic over published rates, the vendor's own export, or both.
+    private var sourceLine: String {
+        providers.contains { !$0.source.isEstimate }
+            ? L("Local files at published list rates; an export is the vendor's own figure")
+            : L("Priced from local files at published list rates")
+    }
+
+    /// A tool whose figures are stale or partial says so under its row.
+    private var problemLines: [String] {
+        providers.compactMap { provider in provider.problem.map { "\(provider.tool.displayName): \($0)" } }
+    }
+
+    /// The ring wears the colour of whichever tool is most of the range's spend.
+    private var ringColor: Color {
+        (providers.max { $0.totals(range.costRange).cost < $1.totals(range.costRange).cost }?.tool ?? .claude).color
+    }
+
+    /// The provider rows as one spoken phrase.
+    private var providerSpoken: String {
+        guard !providers.isEmpty else { return L("no cost yet") }
+        return providers.map { "\($0.tool.displayName) \(Money.dollars($0.totals(range.costRange).cost))" }.joined(separator: ", ")
     }
 
     var body: some View {
@@ -746,7 +767,7 @@ struct SpendCard: View {
                 if store.costScanning {
                     HStack(spacing: 5) {
                         ProgressView().controlSize(.mini)
-                        Text(L("Pricing local transcripts")).font(.caption2).foregroundStyle(.secondary)
+                        Text(L("Pricing local files")).font(.caption2).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -761,7 +782,7 @@ struct SpendCard: View {
                     if let budget {
                         Circle()
                             .trim(from: 0, to: CGFloat(max(0.012, budget.fill)))
-                            .stroke(budget.fill >= 1 ? Palette.danger : budget.fill > budget.tick + 0.1 ? Palette.warn : ToolID.claude.color, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
+                            .stroke(budget.fill >= 1 ? Palette.danger : budget.fill > budget.tick + 0.1 ? Palette.warn : ringColor, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
                             .rotationEffect(.degrees(-90))
                         Rectangle()
                             .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 1 : 0.8))
@@ -772,7 +793,7 @@ struct SpendCard: View {
                     } else {
                         Circle()
                             .trim(from: 0.012, to: 0.988)
-                            .stroke(ToolID.claude.color, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
+                            .stroke(ringColor, style: StrokeStyle(lineWidth: 13, lineCap: .butt))
                             .rotationEffect(.degrees(-90))
                     }
                     VStack(spacing: 1) {
@@ -796,11 +817,20 @@ struct SpendCard: View {
                 }
                 .accessibilityAction(named: L("Show %@", mode.next.title)) { store.prefs.costCardMode = mode.next }
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Circle().fill(ToolID.claude.color).frame(width: 7, height: 7)
-                        Text(verbatim: ToolID.claude.displayName).font(.callout)
-                        Spacer()
-                        Text(amount.map { Money.dollars($0) } ?? "—").font(.callout).monospacedDigit()
+                    if providers.isEmpty {
+                        Text(L("no cost yet")).font(.callout).foregroundStyle(.secondary)
+                    }
+                    ForEach(providers) { provider in
+                        HStack(spacing: 8) {
+                            Circle().fill(provider.tool.color).frame(width: 7, height: 7)
+                            Text(verbatim: provider.tool.displayName).font(.callout)
+                            Text(provider.source.label).font(.caption2).foregroundStyle(.secondary)
+                            Spacer()
+                            Text(Money.dollars(provider.totals(range.costRange).cost)).font(.callout).monospacedDigit()
+                        }
+                    }
+                    ForEach(problemLines, id: \.self) { line in
+                        Text(line).modifier(Caption()).lineLimit(2)
                     }
                     if let budgetLine {
                         Text(budgetLine).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
@@ -829,23 +859,19 @@ struct SpendCard: View {
                         if let projectsLine {
                             Text(projectsLine).modifier(Caption()).monospacedDigit().lineLimit(2)
                         }
-                        if let cursorLine {
-                            Text(cursorLine).modifier(Caption()).monospacedDigit()
-                        }
                     }
                     if let cost = store.cost, !cost.unpricedModels.isEmpty {
                         Text(L("Unpriced: %@", cost.unpricedModels.sorted().joined(separator: ", ")))
                             .modifier(Caption()).lineLimit(2)
                     }
-                    Text(L("Claude Code sessions at API list prices"))
-                        .modifier(Caption())
+                    Text(sourceLine).modifier(Caption()).lineLimit(2)
                 }
             }
             .padding(.top, 2)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L("Cost, %@", range.title))
-            .accessibilityValue(Spoken.line("\(headline) \(unit)", amount.map { "\(ToolID.claude.displayName) \(Money.dollars($0))" } ?? L("no cost yet"), budgetLine, burnLine, weekLine,
-                                            blockLine, tokensLine, cacheWritesLine, projectsLine, cursorLine, L("Claude Code sessions at API list prices")))
+            .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, budgetLine, burnLine, weekLine,
+                                            blockLine, tokensLine, cacheWritesLine, projectsLine, problemLines.first, sourceLine))
             if let totals, !totals.models.isEmpty, totals.cost > 0 {
                 ModelShares(shares: totals.models, total: totals.cost, byModel: totals.byModel, tokensByModel: nil, mode: mode, rangeTokens: totals.tokens.total)
             }

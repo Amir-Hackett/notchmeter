@@ -112,7 +112,7 @@ enum Advisor {
             + modelRouting(context)
             + waitForReset(context)
             + resetCredits(context)
-            + [sessionBurn(context.cost)].compactMap { $0 }
+            + burn(context)
             + [metering(context)].compactMap { $0 }
             + [cacheShift(context.cost)].compactMap { $0 }
             + serverTrouble(context)
@@ -186,32 +186,45 @@ enum Advisor {
         }
     }
 
-    /// The month (or the week since the weekly window started) projected against the budget.
+    /// The month (or the week since the weekly window started) projected against the budget. The budget is one
+    /// number over every tool, so the spend it is measured against is the total; where more than one tool is
+    /// spending, the line names whichever is most of it, because that is where a cut would come from.
     static func budget(_ context: Context) -> [Advice] {
         guard let cost = context.cost else { return [] }
         var lines: [Advice] = []
         if let budget = context.monthlyBudgetUSD, budget > 0 {
             let spent = cost.totals(.month).cost
             let elapsed = BudgetPeriod.month(now: context.now, calendar: context.calendar).elapsedFraction(now: context.now)
-            lines.append(contentsOf: budgetLines(id: "month", spent: spent, budget: budget, elapsed: elapsed, period: L("month")))
+            lines.append(contentsOf: budgetLines(id: "month", spent: spent, budget: budget, elapsed: elapsed, period: L("month"),
+                                                 leader: leader(cost, range: .month)))
         }
         if let budget = context.weeklyBudgetUSD, budget > 0, let week = cost.week {
             let elapsed = min(1, max(0, context.now.timeIntervalSince(week.start) / Period.week))
-            lines.append(contentsOf: budgetLines(id: "week", spent: week.cost, budget: budget, elapsed: elapsed, period: L("week")))
+            lines.append(contentsOf: budgetLines(id: "week", spent: cost.totals(.week).cost, budget: budget, elapsed: elapsed, period: L("week"),
+                                                 leader: leader(cost, range: .week)))
         }
         return lines
     }
 
-    private static func budgetLines(id: String, spent: Double, budget: Double, elapsed: Double, period: String) -> [Advice] {
+    /// The tool that is most of a range's spend, when more than one tool is spending at all.
+    static func leader(_ cost: CostSummary, range: CostRange) -> (tool: ToolID, cost: Double)? {
+        let spending = cost.providers.map { (tool: $0.tool, cost: $0.totals(range).cost) }.filter { $0.cost > 0 }
+        guard spending.count > 1, let top = spending.max(by: { $0.cost < $1.cost }) else { return nil }
+        return top
+    }
+
+    private static func budgetLines(id: String, spent: Double, budget: Double, elapsed: Double, period: String,
+                                    leader: (tool: ToolID, cost: Double)?) -> [Advice] {
+        let share = leader.map { L(" %1$@ is %2$@ of it.", $0.tool.displayName, Money.dollars($0.cost, cents: false)) } ?? ""
         if spent >= budget {
-            return [Advice(id: "budget/\(id)/over", tool: .claude, priority: .danger, symbol: "dollarsign.circle.fill",
-                           text: L("The %1$@'s %2$@ is past the %3$@ budget.", period, Money.dollars(spent, cents: false), Money.dollars(budget, cents: false)))]
+            return [Advice(id: "budget/\(id)/over", tool: leader?.tool, priority: .danger, symbol: "dollarsign.circle.fill",
+                           text: L("The %1$@'s %2$@ is past the %3$@ budget.", period, Money.dollars(spent, cents: false), Money.dollars(budget, cents: false)) + share)]
         }
         guard elapsed >= 0.1 else { return [] }
         let projected = spent / elapsed
         guard projected > budget else { return [] }
-        return [Advice(id: "budget/\(id)", tool: .claude, priority: .warn, symbol: "dollarsign.circle",
-                       text: L("At this rate the %1$@ costs %2$@ against a %3$@ budget.", period, Money.dollars(projected, cents: false), Money.dollars(budget, cents: false)))]
+        return [Advice(id: "budget/\(id)", tool: leader?.tool, priority: .warn, symbol: "dollarsign.circle",
+                       text: L("At this rate the %1$@ costs %2$@ against a %3$@ budget.", period, Money.dollars(projected, cents: false), Money.dollars(budget, cents: false)) + share)]
     }
 
     /// A tool whose main window is on track or behind, while another tool still has most of its own left.
@@ -281,10 +294,24 @@ enum Advisor {
         }
     }
 
-    static func sessionBurn(_ cost: CostSummary?) -> Advice? {
-        guard let cost, let burn = cost.burnMultiple, burn >= burnThreshold else { return nil }
-        return Advice(id: "burn", tool: .claude, priority: .warn, symbol: "flame.fill",
-                      text: L("This hour burned %1$@ — %2$@ your 30-day average.", Money.dollars(cost.lastHour), Burn.multiple(burn)))
+    /// An hour that cost several times a normal one, named per tool. Only a source whose entries carry a time of
+    /// day can say (Claude Code's transcripts, Codex's rollouts); a day-resolution export reports no burn at all.
+    /// With no single tool over the line but every tool together over it, the total is said instead.
+    static func burn(_ context: Context) -> [Advice] {
+        guard let cost = context.cost else { return [] }
+        let hot = cost.providers
+            .filter { ($0.burnMultiple ?? 0) >= burnThreshold }
+            .sorted { context.rank($0.tool) < context.rank($1.tool) }
+        if !hot.isEmpty {
+            return hot.map { provider in
+                Advice(id: "burn/\(provider.tool.rawValue)", tool: provider.tool, priority: .warn, symbol: "flame.fill",
+                       text: L("%1$@ burned %2$@ this hour — %3$@ its 30-day average.", provider.tool.productName,
+                               Money.dollars(provider.lastHour ?? 0), Burn.multiple(provider.burnMultiple ?? 0)))
+            }
+        }
+        guard cost.providers.count > 1, let burn = cost.burnMultiple, burn >= burnThreshold else { return [] }
+        return [Advice(id: "burn", tool: nil, priority: .warn, symbol: "flame.fill",
+                       text: L("Every tool together burned %1$@ this hour — %2$@ your 30-day average.", Money.dollars(cost.lastHour), Burn.multiple(burn)))]
     }
 
     /// The session window metering about twice as heavily as the 30-day norm: the number behind "did they change something".

@@ -7,6 +7,11 @@ import Testing
 @Suite struct DemoFixtureReadings {
     @Test func costSeriesAddsUpToTheHeadlineFigures() {
         let cost = DemoFixtures.cost(now: Date())
+        // Two tools that can report spend, side by side; the headline figures are their total.
+        #expect(cost.providers.map(\.tool) == [.claude, .cursor])
+        #expect(cost.providers.map(\.source) == [.localTranscripts, .billingExport])
+        #expect(abs(cost.today - cost.providers.reduce(0) { $0 + $1.totals(.today).cost }) < 1e-9)
+        #expect(cost.provider(.cursor)?.burnMultiple == nil)
         #expect(cost.daily.count == 30)
         #expect(abs(cost.daily.reduce(0) { $0 + $1.cost } - cost.last30Days) < 0.01)
         #expect(cost.daily.last?.cost == cost.today)
@@ -29,7 +34,7 @@ import Testing
         #expect(store.visibleTools == [.claude, .codex, .cursor])
         #expect(store.readyReadings.count == 3)
         #expect(store.nextUpdate != nil)
-        #expect(store.advice.contains { $0.id == "burn" })
+        #expect(store.advice.contains { $0.id == "burn/claude" })
         #expect(prefs.resetDisplay == .countdown)
     }
 }

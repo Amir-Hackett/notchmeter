@@ -3,6 +3,7 @@
 
 /* 第 2 ラウンドの補完: セッション、予算、ピーク時間、出所タグ、コマンドラインツール、MCP、キーチェーン方針、ディスプレイ、診断 */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ の%2$@は %3$ld%% です。";
+" %1$@ is %2$@ of it." = " うち %1$@ が %2$@。";
 " percent" = " パーセント";
 "$/MTok" = "$/百万トークン";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ の%2$@を使い切りました。%3$@。%4$@";
@@ -15,6 +16,7 @@
 "%1$@ (and %2$ld more)" = "%1$@（他 %2$ld 件）";
 "%1$@ (HTTP %2$ld)" = "%1$@（HTTP %2$ld）";
 "%1$@ at %2$@" = "%1$@ %2$@";
+"%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ はこの 1 時間で %2$@ を消費 — 30 日平均の %3$@。";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ を割当で充当 · 今月 %2$ld リクエスト";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ クレジットは %2$@ 後に失効します — Codex で受け取ってください";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ の%3$@は %2$ld%% 残っています。";
@@ -24,8 +26,6 @@
 "%1$@ is waiting in %2$@." = "%1$@ が %2$@ で待っています。";
 "%1$@ of %2$@" = "%1$@ / %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "本日はセッション 1%% あたり %1$@、30 日中央値 %2$@";
-"%1$@ since %2$@" = "%2$@から %1$@";
-"%1$@ since %2$@ · %3$@ per 1%% of weekly" = "%2$@から %1$@ · 週間枠 1%% あたり %3$@";
 "%1$@ · %2$ld%% cache reads" = "%1$@ · キャッシュ読み取り %2$ld%%";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "%1$@ の使用量エンドポイントが HTTP %2$ld を返しています。ステータスページを確認してください。";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%2$@ クレジット %1$ld 件 — Codex で受け取ってください";
@@ -57,6 +57,7 @@
 "%@M tokens" = "%@M トークン";
 "%@x" = "%@ 倍";
 "%ld agents" = "%ld エージェント";
+"%ld Codex turn(s) name no model and are not priced" = "%ld 件の Codex ターンはモデルが記録されておらず計算できません";
 "%ld days" = "%ld 日間";
 "%ld extra this month" = "今月の追加分 %ld";
 "%ld min" = "%ld 分";
@@ -136,6 +137,7 @@
 "Bars" = "バー";
 "Beside the notch" = "ノッチの横";
 "Beta updates" = "ベータ版アップデート";
+"billing export" = "請求データ";
 "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらも Claude Code フックが必要で、ターミナルやエディタが最前面のときと静寂時間中は鳴りません。「ちら見」はパネルをセッション行とともに数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
 "Both sides" = "両側";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "両側はノッチを中心に見えます。メニューの多いアプリはノッチの左端を越えることがあり、ノッチの右側なら必ず避けられます。";
@@ -150,6 +152,8 @@
 "Check for updates automatically" = "アップデートを自動的に確認";
 "Check for Updates…" = "アップデートを確認…";
 "Choose file…" = "ファイルを選択…";
+"Claude %1$@ since %2$@" = "Claude %2$@から %1$@";
+"Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %2$@から %1$@ · 週間枠 1%% あたり %3$@";
 "Claude Code finished" = "Claude Code が完了";
 "Claude Code finished a %1$@ turn in %2$@." = "Claude Code が %2$@ で %1$@ のターンを完了しました。";
 "Claude Code has not signed in" = "Claude Code はサインインしていません";
@@ -158,12 +162,12 @@
 "Claude Code is waiting" = "Claude Code が待機中";
 "Claude Code is waiting in %@." = "Claude Code が %@ で待っています。";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code はトークン更新のたびにキーチェーン項目を作り直すため、「常に許可」が忘れられます。タイマー読み取りはダイアログを出しません。Claude Code が書き込みに使う Apple の security ツールで項目を読み、次に認証情報ファイル、次にステータスラインを読み、どれもなければ最後の読み取りを「あなたの許可が必要」として保持します。Claude リングのクリック、更新、アシスタントのスイッチだけが尋ねることがあり、それも「更新時のみ」の場合だけです。";
-"Claude Code sessions at API list prices" = "Claude Code セッションを API 定価で計算";
 "Claude Code status line" = "Claude Code ステータスライン";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code のログインが期限切れです。ターミナルで claude を一度実行して更新してください — Notchmeter がトークンを更新することはありません。";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Claude Code のログインにはあなたの許可が必要です。Claude リングをクリックするか更新してキーチェーンの読み取りを許可してください";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Claude Code のログインが拒否されました。Claude Code を一度実行して更新してください";
 "Claude reported no usage windows" = "Claude は利用ウィンドウを報告しませんでした";
+"Claude since %1$@: %2$@" = "Claude %1$@以降: %2$@";
 "Clear" = "消去";
 "Click to show %@" = "クリックで%@を表示";
 "Close" = "閉じる";
@@ -196,7 +200,6 @@
 "Credits" = "クレジット";
 "Currency code" = "通貨コード";
 "current" = "現在の";
-"Cursor %1$@ today · %2$@ in 30 days" = "Cursor 本日 %1$@ · 30 日間 %2$@";
 "Cursor models" = "Cursor モデル";
 "Cursor session token could not be decoded" = "Cursor のセッショントークンをデコードできません";
 "Cursor session token has no user id" = "Cursor のセッショントークンにユーザー ID がありません";
@@ -225,6 +228,7 @@
 "Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on." = "空欄ならネットワーク設定のプロキシに従います。`http://host:port` または `socks5://host:port` を指定すると、このアプリのベンダーへのリクエストだけが次のリクエストからそこを経由します。";
 "Every number shows its work." = "すべての数字に根拠があります。";
 "Every setting returns to its default and %@ relaunches. This cannot be undone." = "すべての設定が初期値に戻り、%@ が再起動します。取り消せません。";
+"Every tool together burned %1$@ this hour — %2$@ your 30-day average." = "全ツール合計でこの 1 時間に %1$@ を消費 — 30 日平均の %2$@。";
 "Exact time" = "正確な時刻";
 "Export history…" = "履歴を書き出す…";
 "Extra" = "追加";
@@ -295,6 +299,9 @@
 "likely a %@ window" = "おそらく %@ ウィンドウ";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "~/.local/bin（または /usr/local/bin）にこのアプリへの `notchmeter` リンクを作ります。ターミナルや Claude Code スキルの `notchmeter` は各ベンダーに問い合わせ直さず、実行中のアプリのキャッシュ済みレポートを読みます。`notchmeter --force` は読み直します。";
 "Local API on 127.0.0.1:%ld" = "ローカル API（127.0.0.1:%ld）";
+"Local files at published list rates; an export is the vendor's own figure" = "ローカルファイルは公開定価で計算、エクスポートはベンダー自身の金額";
+"local sessions" = "ローカルのセッション";
+"local transcripts" = "ローカルの記録";
 "low power mode" = "低電力モード";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "Claude Code のログインを読むには macOS の許可が必要です。確認時に「常に許可」を選んでください";
 "Main display (the one with the menu bar)" = "メインディスプレイ（メニューバーのある方）";
@@ -391,7 +398,8 @@
 "Premium requests" = "プレミアムリクエスト";
 "Press keys…" = "キーを押してください…";
 "Preview" = "試聴";
-"Pricing local transcripts" = "ローカルの記録を計算中";
+"Priced from local files at published list rates" = "ローカルファイルを公開定価で計算";
+"Pricing local files" = "ローカルファイルを計算中";
 "Privacy" = "プライバシー";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "すべての設定を初期値に戻し、キャッシュ済みの読み取りと送信済み通知の記録を消去して再起動します。記録、コストキャッシュ、消費ログは保持されます。";
 "Quiet hours" = "おやすみ時間";
@@ -464,7 +472,6 @@
 "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage" = "利用状況を読むにはエディタで GitHub Copilot にサインインしてください（または `gh auth login` を実行）";
 "Signed in" = "サインイン済み";
 "Signed in · %@" = "サインイン済み · %@";
-"Since %1$@: %2$@" = "%1$@以降: %2$@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "2026 年 3 月以降、Anthropic は平日の太平洋時間 5:00〜11:00 に 5 時間セッションの上限を厳しくしています（報道であり公式文書ではありません。docs/accuracy.md 参照）。その間はアドバイスがオフピークの開始時刻を示し、ドレインログはピークとオフピークのレートを分け、フッターに「ピーク時間」と出ます。「アシスタント」でチェックしたアシスタントに適用されます。";
 "snapshot" = "スナップショット";
 "Sound" = "サウンド";
@@ -493,7 +500,6 @@
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "セッションの計測が平常より約 %1$@ 重くなっています: 1%% あたり %2$@（平常 %3$@）。";
 "This" = "この";
 "This GitHub account has no Copilot subscription" = "この GitHub アカウントには Copilot のサブスクリプションがありません";
-"This hour burned %1$@ — %2$@ your 30-day average." = "この 1 時間で %1$@ を消費 — 30 日平均の %2$@。";
 "This session block %1$@ · %2$@/min" = "このセッション枠 %1$@ · 毎分 %2$@";
 "This session block %@" = "このセッション枠 %@";
 "Time format" = "時刻形式";

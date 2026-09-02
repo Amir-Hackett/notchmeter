@@ -117,7 +117,7 @@ final class UsageStore {
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
-    @ObservationIgnored private var costScanner: ClaudeCostScanner
+    @ObservationIgnored private var costEngine: CostEngine
     @ObservationIgnored private var activity: AgentActivity
     @ObservationIgnored private let drainLog: DrainLog?
     @ObservationIgnored private var drainSamples: [DrainLog.Key: [DrainSample]] = [:]
@@ -170,7 +170,7 @@ final class UsageStore {
         self.alertMemory = AlertMemory.load(from: defaults)
         self.providers = providers.reduce(into: [:]) { $0[$1.tool] = $1 }
         let roots = ClaudeCostScanner.defaultRoots(extra: prefs.extraTranscriptRoots)
-        self.costScanner = ClaudeCostScanner(roots: roots)
+        self.costEngine = CostEngine(claude: ClaudeCostScanner(roots: roots))
         self.activity = AgentActivity(claudeRoots: roots)
         if let data = defaults.data(forKey: ExtraUsageMemory.defaultsKey) {
             extraUsageMemory = try? JSONDecoder().decode(ExtraUsageMemory.self, from: data)
@@ -325,7 +325,7 @@ final class UsageStore {
     /// Everything the app knows, for `--probe --json`, the local API and the oracle.
     func report(now: Date = Date(), history: Bool = false) -> UsageReport {
         UsageReport(tools: statuses, order: prefs.toolOrder, cost: prefs.showSpend ? cost : nil, advice: advice, drains: drains, runOuts: runOuts,
-                    sessions: sessions.all, history: history ? costScanner.history?.load() : nil, now: now)
+                    sessions: sessions.all, history: history ? costEngine.claude.history?.load() : nil, now: now)
     }
 
     func start() {
@@ -376,7 +376,7 @@ final class UsageStore {
     /// The transcript roots changed in Settings: the scanner and the activity check follow, and the cost is rescanned.
     func reloadRoots() {
         let roots = ClaudeCostScanner.defaultRoots(extra: prefs.extraTranscriptRoots)
-        costScanner = ClaudeCostScanner(roots: roots)
+        costEngine = CostEngine(claude: ClaudeCostScanner(roots: roots))
         activity = AgentActivity(claudeRoots: roots)
         lastCostScan = nil
         Task { await refreshCost() }
@@ -392,18 +392,23 @@ final class UsageStore {
         Task { await refreshCost() }
     }
 
-    /// Prices Claude Code's local transcripts. Incremental after the first pass, so it is cheap to call often. The
-    /// live Claude reading's resets align the "this week" range and the current 5-hour block.
+    /// Prices what every tool that can report spend has written down: Claude Code's transcripts, Codex's session
+    /// rollouts, and the Cursor usage export the Cursor provider folds into the daily history. Each scanner runs
+    /// against its own source, so a tool with nothing to say leaves the others alone. Incremental after the first
+    /// pass, so it is cheap to call often. The live Claude reading's resets align the week and the 5-hour block.
     func refreshCost() async {
-        guard prefs.showSpend, isShown(.claude) else { return }
+        let tools = Set(ToolID.allCases.filter { $0.reportsCost && isShown($0) })
+        guard prefs.showSpend, !tools.isEmpty else { return }
         if cost == nil { costScanning = true }
         lastCostScan = Date()
         let claude = status(.claude).reading
         let weekly = claude?.windows.first { $0.id == "seven_day" }
         let session = claude?.windows.first { $0.id == "five_hour" }
-        let scanner = costScanner
-        let summary = await scanner.scan(weeklyResetsAt: weekly?.resetsAt, weeklyUsed: weekly?.usedFraction, sessionResetsAt: session?.resetsAt,
-                                         sessionUsed: session?.usedFraction)
+        let reads = tools.reduce(into: [ToolID: ProviderReadState]()) { reads, tool in
+            reads[tool] = ProviderReadState(readAt: status(tool).reading?.fetchedAt, problem: status(tool).problem)
+        }
+        let summary = await costEngine.scan(tools: tools, reads: reads, weeklyResetsAt: weekly?.resetsAt, weeklyUsed: weekly?.usedFraction,
+                                            sessionResetsAt: session?.resetsAt, sessionUsed: session?.usedFraction)
         cost = summary
         costScanning = false
         evaluateAlerts()

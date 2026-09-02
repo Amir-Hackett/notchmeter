@@ -147,7 +147,14 @@ import Testing
         #expect(((windows[0]["drainLastHour"] as? [String: Any])?["from"] as? NSNumber)?.doubleValue == 0.12)
         #expect(tools[1]["status"] as? String == "notInstalled")
         let costObject = try #require(object["cost"] as? [String: Any])
-        #expect((costObject["today"] as? NSNumber)?.doubleValue == 118.31)
+        // The headline figures are the total across the tools that can report spend; each tool is under "providers".
+        let providers = try #require(costObject["providers"] as? [[String: Any]])
+        #expect(providers.map { $0["tool"] as? String } == ["claude", "cursor"])
+        #expect(providers.map { $0["source"] as? String } == ["localTranscripts", "billingExport"])
+        #expect((providers[0]["today"] as? NSNumber)?.doubleValue == 118.31)
+        #expect((costObject["today"] as? NSNumber)?.doubleValue
+            == providers.reduce(0.0) { $0 + (($1["today"] as? NSNumber)?.doubleValue ?? 0) })
+        #expect(providers[1]["burnMultiple"] == nil)
         #expect((costObject["ranges"] as? [String: Any])?.keys.sorted() == ["last30Days", "last90Days", "month", "today", "week", "yesterday"])
         let text = String(decoding: report.json, as: UTF8.self)
         #expect(!text.contains("token\":"))

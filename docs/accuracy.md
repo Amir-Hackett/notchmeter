@@ -2,13 +2,35 @@
 
 Every number Notchmeter shows is either a figure the vendor returned or an estimate built from a rule written down on this page. For each estimate this page states which files are read, which token buckets, which per-model prices and multipliers are applied, how duplicate lines are recognised, and exactly where the result is known to diverge from what the vendor bills. A golden-transcript test suite in the repository pins every rule, so a change in the numbers surfaces as a failing test rather than a surprise. Notchmeter does not show a number it cannot show its work for.
 
-The rules below are those of Claude Code's own cost figure wherever Anthropic documents one. Primary sources, all read on 2026-09-01:
+The Cost card carries every tool whose spend can be honestly derived, side by side; *Which tools report spend* below is the per-tool table, and the sections after it give each tool's rules in full. The Claude Code rules are those of Claude Code's own cost figure wherever Anthropic documents one. Primary sources, all read on 2026-09-01:
 
 - [A] [Track cost and usage](https://code.claude.com/docs/en/agent-sdk/cost-tracking), Claude Agent SDK documentation.
 - [B] [Manage costs effectively](https://code.claude.com/docs/en/costs), Claude Code documentation.
 - [C] [Pricing](https://platform.claude.com/docs/en/about-claude/pricing), Claude Platform documentation.
 
-The code is `Sources/Notchmeter/ClaudeCostScanner.swift` (reading, dedupe, digests, ranges, the daily history) and `Sources/Notchmeter/ModelPricing.swift` (prices, multipliers, overrides). The tests are `Tests/NotchmeterTests/CostGoldenTests.swift`, `Tests/NotchmeterTests/CostBreakdownTests.swift` and the `CostScanning` suite in `Tests/NotchmeterTests/ProviderParsingTests.swift`.
+The code is `Sources/Notchmeter/CostEngine.swift` (which tool is scanned, and the summary they add up to), `Sources/Notchmeter/ProviderCost.swift` (one tool's ranges, series, shares and source), `Sources/Notchmeter/ClaudeCostScanner.swift` (Claude Code: reading, dedupe, digests, ranges, the daily history), `Sources/Notchmeter/ModelPricing.swift` (Anthropic prices, multipliers, overrides), `Sources/Notchmeter/CodexCostScanner.swift` and `Sources/Notchmeter/OpenAIPricing.swift` (Codex), and `Sources/Notchmeter/CursorProvider.swift` (Cursor's export). The tests are `Tests/NotchmeterTests/CostGoldenTests.swift`, `Tests/NotchmeterTests/CostBreakdownTests.swift`, `Tests/NotchmeterTests/CodexCostTests.swift`, `Tests/NotchmeterTests/CostEngineTests.swift` and the `CostScanning` and `CursorRound*` suites in `Tests/NotchmeterTests/ProviderParsingTests.swift` and `Tests/NotchmeterTests/CursorParsingTests.swift`.
+
+## Which tools report spend
+
+The Cost card shows one row per tool whose spend can be derived from something that tool publishes: the tool, the source the figure came from, and that range's total. Each row carries its own ranges (today, yesterday, week, month, 30 and 90 days), its own daily series, its own per-model shares, its own freshness stamp and its own error. The ring and the figure above the rows are the rows added up.
+
+A tool whose spend cannot be derived from a real source has **no row at all**. Not $0 — a zero says "this cost you nothing", which is a claim, and it would be a false one. Nothing on this card is ever inferred from a subscription price, a seat count or a request count.
+
+| Tool | Source | What it prices | What it does not | On the Cost card |
+|---|---|---|---|---|
+| **Claude Code** | `localTranscripts` — this Mac's transcripts, priced here at Anthropic's published rates | every request a transcript records: five token buckets, per model, per project, ×1.1 US residency, web search | contracted rates, cloud regional premiums, usage-credit rates, other Macs, claude.ai chat | dollars, an hour and a burn multiple |
+| **Codex** | `localSessions` — this Mac's session rollouts, priced here at OpenAI's published rates | every turn a rollout records: fresh input, cached input, whole output, per model, per folder | what a ChatGPT plan already includes, a turn naming no model, a model with no published rate | dollars, an hour and a burn multiple |
+| **Cursor** | `billingExport` — Cursor's own usage-events export (opt-in) | nothing: every dollar is the one **Cursor itself** put on that event | anything Cursor left unpriced, and anything older than the 30 days the export returns | dollars, day resolution, no hour |
+| **GitHub Copilot** | none | nothing | — | **no cost** |
+| **Antigravity** | none | nothing | — | **no cost** |
+
+**Why GitHub Copilot shows no cost.** A Copilot seat is a flat subscription — one monthly price whichever way the month goes — and nothing GitHub publishes prices a request. The endpoint the editor plugin reads returns a quota (`quota_snapshots.premium_interactions`: `entitlement`, `remaining`, `overage_count`), which is a count of requests, not money. Multiplying that count by the published overage rate would invent a bill for requests that were inside the allowance and cost nothing extra, so it is not done; the counts are shown as counts on the Copilot card and nowhere else. Organisation billing is the one place GitHub does return dollars (`usageItems[].netAmount` from `/orgs/{org}/settings/billing/usage/summary`, opt-in, org admins only). That figure is real and is shown, as GitHub's own, on the Copilot card — but it stays off the Cost card, because it is the whole organisation's month rather than this seat's, and it arrives as one month total with no per-day and no per-model detail, so it cannot honestly become a row beside the others.
+
+**Why Antigravity shows no cost.** Antigravity meters quota, not money. The Code Assist endpoint returns per-model windows and the fraction of each that is used; it returns no price, and no token count that a published rate could be applied to. Gemini's API rates would not help either, because an Antigravity seat is not billed at API rates. There is nothing to derive a dollar figure from, so none is shown.
+
+**Independence.** Each tool's scanner reads its own source, and the scanners run concurrently (`CostEngine.scan`). A Cursor export that is stale, refused or never fetched cannot delay or empty the Claude Code scan; a Mac with no Codex sessions simply has no Codex row; a tool switched off under Assistants is never scanned at all. Each row's timestamp is when *that* source was read, which is not when the app last drew the card, and a row whose read failed keeps its last figures and says what went wrong underneath. Pinned by `CostEngineTests`.
+
+The sections from *What is read* to *The cache tier shift* are Claude Code's rules. Codex, Cursor, Copilot and Antigravity have their own sections further down.
 
 ## What is read
 
@@ -129,11 +151,13 @@ Token counts themselves are never estimated: every count comes from the API's ow
 
 ## Burn rate
 
-The Cost card's "Last hour $8.40 · 6x your 30-day average" line, and the Advice strip's "This hour burned $8.40 — 6x your 30-day average." from three times up, are built from the same entries:
+The Cost card's "Last hour $8.40 · 6x your 30-day average" line, and the Advice strip's "Claude Code burned $8.40 this hour — 6x its 30-day average." from three times up, are built from the same entries:
 
 - **Last hour** is the priced sum of entries whose timestamp is within the past 60 minutes.
 - **Typical hourly** is the mean priced cost of an active hour across the 30-day window: the window's total divided by its number of active hours, an active hour being any clock hour (UTC-aligned) with at least one entry. Hours you were not using Claude Code do not pull the average down. It was a median until 2026-09-02; agent work is bursty, most active hours cost cents and a few cost tens of dollars, so the median sat near zero and an ordinary hour read as "83x your usual". The mean is the figure the multiple is named after, and a burst is now measured against the whole month.
 - **Burn multiple** is last hour ÷ typical hourly, shown with one decimal below ten ("2.3x") and none from ten up ("18x"). It is not shown until five active hours exist and the average is above zero, so a fresh install or an all-unpriced history never shows "∞x".
+
+Each tool computes all three from its own entries and is named in its own line, so a hot hour says which tool was hot. Only a source whose entries carry a time of day can answer at all: Claude Code's transcripts and Codex's rollouts do, and Cursor's export is day-resolution, so Cursor reports no hour and never appears in a burn line. Where no single tool is over the line but every tool together is, one line is said for the total instead ("Every tool together burned $12.60 this hour — 3.4x your 30-day average"), and only when more than one tool is spending.
 
 ## Peak hours
 
@@ -153,11 +177,81 @@ Per [A], a subscription gets the 1-hour cache TTL inside the plan's included usa
 
 ## The budget
 
+A budget is one number over every tool, so the spend it is measured against is the total across the rows, not Claude Code's alone. Where more than one tool is spending, the advice names whichever is most of it — "At this rate the month costs $310 against a $200 budget. Claude Code is $240 of it." — because that is where a cut would come from.
+
 A monthly or weekly budget (Settings › Cost, in the currency shown) is treated as one more window: the month's spend over the budget is the used fraction, the calendar month (or the week from its start) is the period, the same pace tick applies, and the on-track, behind and run-out notifications fire for it with the month as their once-per-period memory. Its `source` is `localEstimate`, because both sides of the fraction are this Mac's arithmetic. The extra-usage notice ("Extra usage rose $4.20 in 1h while your plan has 87% left") reads the vendor's own extra-usage figure from the usage endpoint and says it once a month, louder while the plan still has room.
+
+## Codex sessions
+
+Codex writes one JSONL rollout per session under `$CODEX_HOME/sessions` (`~/.codex/sessions`, in dated folders). Every line is a `RolloutLine`: a `timestamp`, a `type` and a `payload`. Four types are read and the rest of the file — the conversation itself — is never parsed. The shapes below were read from the codex-rs source on 2026-09-02, at [`codex-rs/protocol/src/protocol.rs`](https://raw.githubusercontent.com/openai/codex/main/codex-rs/protocol/src/protocol.rs), [`codex-rs/history/src/rollout_payload.rs`](https://raw.githubusercontent.com/openai/codex/main/codex-rs/history/src/rollout_payload.rs) and [`codex-rs/history/src/lib.rs`](https://raw.githubusercontent.com/openai/codex/main/codex-rs/history/src/lib.rs):
+
+| Line `type` | What is taken | Rust type |
+|---|---|---|
+| `turn_context` | `payload.model` (the model the turn ran on) and `payload.cwd` reduced to its last path component (the project) | `TurnContextItem` |
+| `session_meta` | `payload.cwd`, as the project until a `turn_context` names one | `SessionMetaLine` |
+| `token_usage_record` | `payload.usage` (the turn's own usage) and `payload.response_id` | `TokenUsageRecord` |
+| `event_msg` with `payload.type == "token_count"` | `payload.info.last_token_usage` | `TokenCountEvent` → `TokenUsageInfo` |
+
+A `TokenUsage` carries `input_tokens`, `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens`, `reasoning_output_tokens` and `total_tokens`. Two of those relationships decide the arithmetic, and both are the source's own:
+
+- **`input_tokens` includes the cached tokens.** codex-rs computes `non_cached_input()` as `input_tokens - cached_input()`. So the billed fresh input is `input_tokens − cached_input_tokens`, and the cached part is priced at the cached rate. Counting `input_tokens` whole would charge the cached tokens twice.
+- **`reasoning_output_tokens` is inside `output_tokens`.** codex-rs prints `output={output_tokens} (reasoning {reasoning_output_tokens})` and its `blended_total()` is `non_cached_input + output_tokens`, with reasoning never added on top. So output is taken whole and reasoning is not added again.
+- **`cache_write_input_tokens` is carried and priced at nothing.** OpenAI charges to read the prompt cache, not to write it.
+
+`token_usage_record` is the per-response record and is what a current build writes. Where a file has any, the `token_count` events in the same file are ignored, because they describe the same turns; a file that has only events (an older build) is priced from each event's `last_token_usage`, which is the turn that just finished, so the events sum to the session rather than to a running total counted repeatedly. Resuming a thread replays the turns it inherited under the same `response_id`, so one entry per response id is kept and the first wins.
+
+**The rates.** OpenAI list prices per million tokens, read on **2026-09-02** from [developers.openai.com/api/docs/pricing](https://developers.openai.com/api/docs/pricing) (to which platform.openai.com/docs/pricing now redirects). The snapshot date is `OpenAIPricing.snapshotDate`, and it is part of the cache key, so day records priced under older rates are never reused.
+
+| Model | Input | Cached input | Output |
+|---|---|---|---|
+| gpt-5.6-sol | $4.00 | $0.40 | $20.00 |
+| gpt-5.6-terra | $2.00 | $0.20 | $12.00 |
+| gpt-5.6-luna | $0.20 | $0.02 | $1.20 |
+| gpt-5.5 | $5.00 | $0.50 | $30.00 |
+| gpt-5.5-pro | $30.00 | — | $180.00 |
+| gpt-5.4 | $2.50 | $0.25 | $15.00 |
+| gpt-5.4-mini | $0.75 | $0.075 | $4.50 |
+| gpt-5.4-nano | $0.20 | $0.02 | $1.25 |
+| gpt-5.4-pro | $30.00 | — | $180.00 |
+| gpt-5.3-codex | $1.75 | $0.175 | $14.00 |
+| gpt-5.2 | $1.75 | $0.175 | $14.00 |
+| gpt-5.2-pro | $21.00 | — | $168.00 |
+| gpt-5.1 | $1.25 | $0.125 | $10.00 |
+| gpt-5 | $1.25 | $0.125 | $10.00 |
+| gpt-5-mini | $0.25 | $0.025 | $2.00 |
+| gpt-5-nano | $0.05 | $0.005 | $0.40 |
+| gpt-5-pro | $15.00 | — | $120.00 |
+| gpt-4.1 | $2.00 | $0.50 | $8.00 |
+| gpt-4.1-mini | $0.40 | $0.10 | $1.60 |
+| gpt-4.1-nano | $0.10 | $0.025 | $0.40 |
+| o3 | $2.00 | $0.50 | $8.00 |
+| o3-pro | $20.00 | — | $80.00 |
+| o3-mini | $1.10 | $0.55 | $4.40 |
+| o4-mini | $1.10 | $0.275 | $4.40 |
+
+A model id is matched by its longest prefix, so `gpt-5-mini-2025-08-07` never takes `gpt-5`'s row and `gpt-5.3-codex` never takes `gpt-5.3`'s; a `provider/model` id is reduced to the part after the slash. Where the page prices no cached rate (the `pro` tiers, which do not serve the prompt cache) the input rate is used for cached tokens too, so a cached count that should never arrive cannot come out cheaper than it was. `gpt-5.3-codex` is the only `-codex` id the page prices; an older Codex variant falls back to the numbered model it is built on (`gpt-5.1-codex` and `gpt-5.1-codex-mini` → `gpt-5.1`), which is a stated rule rather than a measurement, and the fallback only ever applies rates OpenAI published for that number.
+
+**What is not priced.** A turn whose rollout never named a model is counted in tokens and priced at nothing, and the card says so ("1 Codex turn(s) name no model and are not priced") rather than showing a confident $0. A model the table cannot reach contributes nothing and is named under "Unpriced: …". Both are visible, neither is guessed at.
+
+**What this figure is not.** It is the API-equivalent value of the work the sessions did, at list price. A ChatGPT Plus, Pro or Business plan includes Codex usage in the subscription, so on those plans nothing here is a bill and the figure is a measure of pace and of what the plan is worth. On an API key it is an estimate at list price; contracted rates, Batch and Flex discounts and any credit are not modelled.
+
+**With no sessions.** This Mac has no Codex sessions at all, so the whole path is exercised by unit tests over synthetic rollouts written in the shape above (`CodexCostTests`), and a Mac with no `sessions` folder produces no Codex row — not $0. The first live run against real rollouts is a user's.
+
+Day totals are appended to the same daily-history file Claude Code uses, under the `codex` tool key, so a day survives Codex deleting its rollouts. As there, a day is taken from the history when the history's total is larger than what the rollouts now price to.
 
 ## Cursor's usage events
 
-With *Also read Cursor's usage events* on (off by default), a second read of cursor.com on the same session cookie (`POST /api/dashboard/get-filtered-usage-events`, the request the dashboard's usage page makes) returns the last 30 days of usage events with the cost Cursor itself assigns to each; those are folded into the daily-history file as a Cursor series and shown as Today, 30 days and the trend on the Cost card's Cursor mode. Nothing is priced here: the figures are Cursor's own, in Cursor's cents, and a model or request Cursor left unpriced stays unpriced. The endpoint is undocumented, its shape was taken from the dashboard's own traffic and pinned in `CursorParsingTests`, and this Mac's free plan returns no events, so the first live run with a paid plan is a user's.
+With *Also read Cursor's usage events* on (off by default), a second read of cursor.com on the same session cookie (`POST /api/dashboard/get-filtered-usage-events`, the request the dashboard's usage page makes) returns the last 30 days of usage events with the cost Cursor itself assigns to each. **Nothing is priced here.** Every dollar on the Cursor row is the one Cursor put on that event, which is why the row's source reads "billing export" rather than an estimate, and why a request or a model Cursor left unpriced stays unpriced instead of being valued at somebody else's rates.
+
+Events are folded by local day into the daily-history file under the `cursor` tool key — cost, tokens, and cost and tokens per model where the event names one — and read back as a full row on the Cost card: today, yesterday, the week, the month, 30 and 90 days, the daily trend under the Cursor card, and the per-model shares in the range's breakdown.
+
+Two limits are worth stating. The export is **day resolution**: an event carries a day, not an hour that can be trusted for a last-hour figure, so Cursor reports no hour and takes no part in the burn line. And the export reaches back **30 days**; the 90-day range and anything older is whatever the daily-history file has accumulated since Notchmeter was installed, and is short until it has been running that long.
+
+The fetch happens on the Cursor provider's own polling loop, and the Cost card reads only the file it writes, so a slow, refused or expired Cursor read never delays a cost scan: the row keeps its last figures, its timestamp stays at the last successful read, and the failure is printed under the row. The endpoint is undocumented, its shape was taken from the dashboard's own traffic and pinned in `CursorParsingTests`, and this Mac's free plan returns no events, so the first live run with a paid plan is a user's.
+
+## GitHub Copilot and Antigravity: no cost at all
+
+Both are absent from the Cost card, and the reasons are in *Which tools report spend* above: Copilot is a flat seat whose API publishes a request quota rather than a price, and its one real dollar figure is an org-wide monthly total with no per-day or per-model detail, shown on the Copilot card as GitHub's own; Antigravity publishes quota fractions and no money or token count at all. Neither has a number that could be turned into a daily series without inventing it, so neither has a row. `CostEngineTests` pins that `ToolID.reportsCost` is true for exactly Claude Code, Codex and Cursor, so a future tool cannot quietly acquire a made-up figure.
 
 ## The golden tests
 
@@ -174,7 +268,9 @@ With *Also read Cursor's usage events* on (off by default), a second read of cur
 | Sonnet 5 line 53 days old | outside the window | $0 |
 | All of the above in one transcript | sum, last hour, unpriced set | $0.70275 total, $0.67525 in the last hour |
 
-The same file unit-tests the residency multiplier, the dedupe choice, the average active hour (including the bursty month a median gets wrong) and the burn multiple's five-hour and non-zero guards, and the `CostScanning` suite in `ProviderParsingTests.swift` covers cache-tier parsing, model-id normalisation and day bucketing. Run them with `scripts/test.sh`.
+The same file unit-tests the residency multiplier, the dedupe choice, the average active hour (including the bursty month a median gets wrong) and the burn multiple's five-hour and non-zero guards, and the `CostScanning` suite in `ProviderParsingTests.swift` covers cache-tier parsing, model-id normalisation and day bucketing. These totals are pinned and do not move: adding the other tools to the Cost card changed none of them.
+
+`CodexCostTests` does the same for Codex over synthetic rollouts — $0.0329 for a 10,000-input/8,000-cached/2,000-output `gpt-5.3-codex` turn, $0.011375 for the `gpt-5.1-codex` fallback, a replayed `response_id` counted once, an event-only rollout, a cache write priced at nothing, an unknown model at $0 and named, and a turn with no model at $0 with a reason. `CostEngineTests` pins that the top figures are the rows added up, that a tool with nothing to say leaves the others alone, and that a failed vendor read keeps its own timestamp and error without touching another tool's scan. Run them with `scripts/test.sh`.
 
 ## Reproducing a number
 
@@ -184,7 +280,7 @@ From the terminal, without the app running and without a Keychain prompt:
 swift run Notchmeter --probe --no-prompt
 ```
 
-The last lines are the cost summary: `cost: today $… yesterday $… 30d $… last hour $… (Nx the 30-day average $… per active hour) unpriced=[…]`. To check a single transcript by hand, list its priced lines and apply the rules above:
+The last lines are the cost summary, the totals first and then one clause per tool that reported spend: `cost: today $… yesterday $… 30d $… last hour $… (Nx the 30-day average $… per active hour) … claude today $… 30d $… (localTranscripts) codex today $… 30d $… (localSessions) unpriced=[…]`. A tool with no clause reported nothing, which is not the same as reporting zero. To check a single transcript by hand, list its priced lines and apply the rules above:
 
 ```bash
 jq -c 'select(.message.usage) | [.timestamp, .message.id, .requestId, .message.model, .message.usage]' \
