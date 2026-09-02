@@ -87,6 +87,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pointerMonitor: Any?
     private var pointerSettle: Task<Void, Never>?
     private let awake = AwakeKeeper()
+    private lazy var autoSideProbe = CompactStripProbe(store: store)
+    /// Auto's watcher: idle unless the readouts are set to Auto, and never a timer (MenuBarExtent).
+    private lazy var autoSide = AutoSideWatcher(prefs: prefs) { [weak self] in
+        guard let self, let screen = self.presenter?.screen ?? NSScreen.main ?? NSScreen.screens.first else { return (.zero, 0) }
+        return (NotchController.notchRect(on: screen), self.autoSideProbe.splitLeadingWidth)
+    }
 
     private var smokeRestoreEdge: PanelEdge?
     private var smokeRestoreStyle: CompactStyle?
@@ -170,6 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.togglePanel = { [weak self] in self?.pointerPresenter?.toggle(cause: .hotkey) }
         actions.copyPanelImage = { [weak self] in self?.copyPanelImage() }
         actions.installCommandLineTool = { [weak self] in self?.installCommandLineTool() }
+        actions.chooseCompactSide = { [weak self] side in self?.autoSide.sideChosen(side) }
         requests.rootsChanged = { [weak self] in self?.store.reloadRoots() }
         requests.menuBarChanged = { [weak self] in self?.applyMenuBarItem() }
         requests.hotkeysChanged = { [weak self] in self?.registerHotkeys() }
@@ -180,6 +187,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         requests.installCommandLineTool = { [weak self] in self?.installCommandLineTool() }
         requests.updater = { [weak self] in self?.updater }
         buildPresenters()
+        autoSide.refresh()
         applyMenuBarItem()
         applyPrivacy()
         applyLocalAPI()
@@ -652,6 +660,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("menu bar item: \(menuBarItem == nil ? "off" : "on") style=\(prefs.menuBarStyle.rawValue); local API: \(localAPI?.isRunning == true ? "on" : "off"); privacy probe: \(ScreenCapture.probeName) captured=\(ScreenCapture.isCaptured()); proxy: \(prefs.proxyURL.isEmpty ? "system" : prefs.proxyURL)")
         Probe.emit("hooks: \(HookSettings.status().text); status line: \(HookSettings.statuslineStatus().text); auto-repair: \(prefs.autoRepairHooks) (never under --smoke); command line tool: \(CommandLineTool.installedLink().map { "\($0.link.path) → \($0.destination)" } ?? "not installed")")
         Probe.emit("main menu: \(MainMenu.describe())")
+        Probe.emit("readouts: \(autoSide.description)")
         Probe.emit("copy (\(Localization.current)): \(L("Session")) · \(L("Weekly")) · \(L("%@ Settings", AppInfo.name)) · "
                    + "\(L("Resets in %@", ResetText.duration(4 * 3600 + 17 * 60))) · \(L("Open at login"))")
         let settingsPassed = await smokeSettings()

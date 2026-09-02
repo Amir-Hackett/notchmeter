@@ -116,6 +116,7 @@
 "a session" = "a session";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held.";
 "about " = "about ";
+"Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility.";
 "Add" = "Add";
 "Add folder…" = "Add folder…";
 "Add the Notchmeter hook to settings.json?" = "Add the Notchmeter hook to settings.json?";
@@ -151,6 +152,7 @@
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@";
 "auto" = "auto";
 "Auto" = "Auto";
+"Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app.";
 "backup at %@" = "backup at %@";
 "Bars" = "Bars";
 "Beside the notch" = "Beside the notch";
@@ -378,6 +380,7 @@
 "Open %@" = "Open %@";
 "Open %@'s status page" = "Open %@'s status page";
 "Open %@'s usage page" = "Open %@'s usage page";
+"Open Accessibility settings…" = "Open Accessibility settings…";
 "Open at login" = "Open at login";
 "Open on click" = "Open on click";
 "Open on hover" = "Open on hover";

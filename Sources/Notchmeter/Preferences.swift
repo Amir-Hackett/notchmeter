@@ -235,14 +235,29 @@ enum ToolOrder {
 /// Which side of the physical notch the readouts sit on. macOS puts the frontmost app's menu titles immediately
 /// left of the notch, so the right side is normally the free one; `split` is the old behaviour.
 enum CompactSide: String, CaseIterable, Codable {
-    case trailing, leading, split
+    case trailing, leading, split, auto
 
     var title: String {
         switch self {
         case .trailing: L("Right of the notch")
         case .leading: L("Left of the notch")
         case .split: L("Both sides")
+        case .auto: L("Auto")
         }
+    }
+
+    /// How much clear room Auto asks for between the last menu title and the first readout.
+    static let autoClearance: CGFloat = 8
+
+    /// Auto's whole rule, kept pure so it can be tested without a menu bar. The leading readouts want the strip
+    /// from `notch.minX - leadingWidth` leftwards; menu titles that end before that leave room for both sides,
+    /// menu titles that reach into it push everything right of the notch. A nil `menuEndX` is "nothing measured"
+    /// — Accessibility not granted, or revoked — and keeps whatever fixed side was chosen before Auto. Never
+    /// answers `.auto`.
+    static func resolve(menuEndX: CGFloat?, leadingWidth: CGFloat, notch: CGRect, fallback: CompactSide) -> CompactSide {
+        guard let menuEndX else { return fallback == .auto ? .split : fallback }
+        guard leadingWidth > 0 else { return .split }
+        return menuEndX <= notch.minX - leadingWidth - autoClearance ? .split : .trailing
     }
 }
 
@@ -302,7 +317,21 @@ final class Preferences {
     }
 
     var compactSide: CompactSide {
-        didSet { defaults.set(compactSide.rawValue, forKey: Keys.compactSide); report(Keys.compactSide, compactSide.rawValue, changed: compactSide != oldValue) }
+        didSet {
+            if oldValue != .auto { compactSideFallback = oldValue }
+            defaults.set(compactSide.rawValue, forKey: Keys.compactSide)
+            report(Keys.compactSide, compactSide.rawValue, changed: compactSide != oldValue)
+        }
+    }
+    /// The fixed side Auto falls back to while it has measured nothing: whichever side was chosen before Auto.
+    var compactSideFallback: CompactSide {
+        didSet { defaults.set(compactSideFallback.rawValue, forKey: Keys.compactSideFallback) }
+    }
+    /// What Auto has made of the frontmost app (AutoSideWatcher); nil until it has looked.
+    var autoCompactSide: CompactSide?
+    /// The side the readouts are actually drawn on. Never `.auto`.
+    var resolvedCompactSide: CompactSide {
+        compactSide == .auto ? (autoCompactSide ?? compactSideFallback) : compactSide
     }
 
     var showSpend: Bool {
@@ -583,6 +612,7 @@ final class Preferences {
         static let showSpend = "showSpend"
         static let showDetails = "showDetails"
         static let compactSide = "compactSide"
+        static let compactSideFallback = "compactSideFallback"
         static let usageDisplay = "usageDisplay"
         static let resetDisplay = "resetDisplay"
         static let timeFormat = "timeFormat"
@@ -663,6 +693,8 @@ final class Preferences {
         showSpend = defaults.object(forKey: Keys.showSpend) as? Bool ?? true
         showDetails = defaults.object(forKey: Keys.showDetails) as? Bool ?? false
         compactSide = CompactSide(rawValue: defaults.string(forKey: Keys.compactSide) ?? "") ?? .split
+        let storedFallback = CompactSide(rawValue: defaults.string(forKey: Keys.compactSideFallback) ?? "") ?? .split
+        compactSideFallback = storedFallback == .auto ? .split : storedFallback
         usageDisplay = UsageDisplay(rawValue: defaults.string(forKey: Keys.usageDisplay) ?? "") ?? .used
         resetDisplay = ResetDisplay(rawValue: defaults.string(forKey: Keys.resetDisplay) ?? "") ?? .exact
         timeFormat = TimeFormatPreference(rawValue: defaults.string(forKey: Keys.timeFormat) ?? "") ?? .auto

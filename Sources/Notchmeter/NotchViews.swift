@@ -423,13 +423,16 @@ struct NotchCompactView: View {
 
     let store: UsageStore
     let side: Side
+    /// The layout to draw, when it is not the one in force: the Auto measurement asks for the leading width
+    /// `.split` would need, which must not depend on the side Auto has settled on.
+    var layout: CompactSide?
 
     private var tools: [ToolID] {
         let visible = store.compactTools
-        switch store.prefs.compactSide {
+        switch layout ?? store.prefs.resolvedCompactSide {
         case .trailing: return side == .leading ? [] : visible
         case .leading: return side == .leading ? visible : []
-        case .split:
+        case .split, .auto:
             // Half either side, so the strip reads as centred on the notch rather than hanging off one edge.
             let left = Int((Double(visible.count) / 2).rounded())
             return side == .leading ? Array(visible.prefix(left)) : Array(visible.dropFirst(left))
@@ -1472,5 +1475,26 @@ struct FooterView: View {
         let line = L("Next update in %@", ResetText.duration(seconds))
         let withNote = store.scheduleNote.map { "\(line) · \($0)" } ?? line
         return store.footerNote.map { "\(withNote) · \($0)" } ?? withNote
+    }
+}
+
+
+/// What the leading readouts would need under `.split`, for `CompactSide.auto`. One hosting view for the life of
+/// the app, re-laid out per measurement, as NotchController does for its hover regions. Measuring `.split` rather
+/// than the layout in force keeps the rule from feeding on its own answer.
+@MainActor
+final class CompactStripProbe {
+    private let store: UsageStore
+    private let probe: NSHostingView<NotchCompactView>
+
+    init(store: UsageStore) {
+        self.store = store
+        probe = NSHostingView(rootView: NotchCompactView(store: store, side: .leading, layout: .split))
+    }
+
+    var splitLeadingWidth: CGFloat {
+        probe.rootView = NotchCompactView(store: store, side: .leading, layout: .split)
+        probe.layoutSubtreeIfNeeded()
+        return probe.fittingSize.width
     }
 }

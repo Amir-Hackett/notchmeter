@@ -100,6 +100,7 @@
 "a session" = "세션";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "훅이 보고한 세션이 턴 진행 중일 때만 잠자기 방지를 유지하고 Stop에서 해제합니다. 전원 연결 시 휴대폰이나 SSH로 시작한 세션이 덮개를 닫아도 계속 실행됩니다. 유지 중에는 푸터에 \"깨어 있음 유지 · 세션 2개\"가 표시됩니다.";
 "about " = "약 ";
+"Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "손쉬운 사용이 꺼져 있어 자동은 선택하기 전의 쪽에 머뭅니다. Notchmeter는 맨 앞 앱 메뉴 막대의 위치와 크기만 읽고 그 밖의 것은 읽지 않으며, 앱의 다른 부분은 손쉬운 사용을 요구하지 않습니다.";
 "Add" = "추가";
 "Add folder…" = "폴더 추가…";
 "Add the Notchmeter hook to settings.json?" = "Notchmeter 훅을 settings.json에 추가할까요?";
@@ -135,6 +136,7 @@
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "이 속도라면 %3$@에 %1$@ %2$@ 한도에 도달하며, 초기화까지 %4$@ 남습니다.%5$@";
 "auto" = "자동";
 "Auto" = "자동";
+"Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "자동은 맨 앞 앱의 메뉴 제목이 어디까지 뻗는지 측정합니다. 왼쪽 표시에 닿지 않으면 양쪽에, 닿을 것 같으면 노치 오른쪽에 모읍니다. 앱이 앞으로 나올 때 측정하고 앱마다 기억합니다.";
 "backup at %@" = "백업: %@";
 "Bars" = "막대";
 "Beside the notch" = "노치 옆";
@@ -362,6 +364,7 @@
 "Open %@" = "%@ 열기";
 "Open %@'s status page" = "%@ 상태 페이지 열기";
 "Open %@'s usage page" = "%@ 사용량 페이지 열기";
+"Open Accessibility settings…" = "손쉬운 사용 설정 열기…";
 "Open at login" = "로그인 시 열기";
 "Open on click" = "클릭하면 열기";
 "Open on hover" = "마우스를 올리면 열기";
