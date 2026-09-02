@@ -187,3 +187,32 @@ private extension Data {
         Data(String(decoding: self, as: UTF8.self).replacingOccurrences(of: "\"limitType\":\"team\"", with: "\"limitType\":\"user\"").utf8)
     }
 }
+
+/// A seat on a team keeps its usage events under that team's id. Sending 0 for a team account is refused with
+/// "Team ID is required", which arrives looking exactly like a month with no spend.
+@Suite struct CursorTeamId {
+    @Test func readsTheFirstRealTeam() {
+        let json = #"{"teams":[{"id":1234,"name":"Acme","role":"member"},{"id":9,"name":"Other"}]}"#
+        #expect(CursorProvider.parseTeamId(Data(json.utf8)) == 1234)
+    }
+
+    @Test func anIndividualAccountHasNone() {
+        #expect(CursorProvider.parseTeamId(Data("{}".utf8)) == nil)
+        #expect(CursorProvider.parseTeamId(Data(#"{"teams":[]}"#.utf8)) == nil)
+        #expect(CursorProvider.parseTeamId(Data(#"{"teams":[{"id":0}]}"#.utf8)) == nil)
+        #expect(CursorProvider.parseTeamId(Data("not json".utf8)) == nil)
+    }
+
+    @Test func theTeamGoesIntoTheRequest() throws {
+        let start = Date(timeIntervalSince1970: 1_756_000_000)
+        let end = Date(timeIntervalSince1970: 1_758_000_000)
+        let body = CursorProvider.usageEventsRequestBody(start: start, end: end, teamId: 1234)
+        let object = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        #expect(object["teamId"] as? Int == 1234)
+        #expect(object["startDate"] as? String == "1756000000000")
+        // Individual accounts keep the documented 0.
+        let solo = CursorProvider.usageEventsRequestBody(start: start, end: end)
+        let soloObject = try #require(try JSONSerialization.jsonObject(with: solo) as? [String: Any])
+        #expect(soloObject["teamId"] as? Int == 0)
+    }
+}
