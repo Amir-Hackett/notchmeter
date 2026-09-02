@@ -747,6 +747,12 @@ final class Preferences {
         codexResetCredits = defaults.bool(forKey: Keys.codexCredits)
         // On by default: the events come from the same account over the same session cookie the usage summary
         // already uses, so hiding a tool's own spend behind a switch cost more than it protected.
+        // A build that defaulted this off wrote false into every existing install, so the new default alone
+        // would never reach them; turn it on once, and leave a later deliberate switch-off alone.
+        if defaults.object(forKey: "cursorUsageEventsDefaulted") == nil {
+            defaults.set(true, forKey: "cursorUsageEventsDefaulted")
+            defaults.set(true, forKey: Keys.cursorEvents)
+        }
         cursorUsageEvents = defaults.object(forKey: Keys.cursorEvents) as? Bool ?? true
         copilotOrgBilling = defaults.bool(forKey: Keys.copilotOrg)
         keychainPrompts = KeychainPromptPolicy(rawValue: defaults.string(forKey: Keys.keychainPrompts) ?? "") ?? .refreshOnly

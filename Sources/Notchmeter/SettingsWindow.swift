@@ -879,14 +879,18 @@ private struct WindowChoices: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(L("Rings show")).font(.caption)
+                // Every window, not only the shown ones: hiding them all left both pickers with nothing to
+                // list, so they rendered as two empty boxes with no way back.
+                let choices = reading.windows
                 Picker(L("Outer ring"), selection: Binding(get: { ring.first?.id ?? "" }, set: { set(outer: $0, inner: ring.dropFirst().first?.id) })) {
-                    ForEach(prefs.shownWindows(of: reading)) { window in Text(window.label).tag(window.id) }
+                    ForEach(choices) { window in Text(window.label).tag(window.id) }
                 }
-                .labelsHidden().controlSize(.small)
+                .labelsHidden().controlSize(.small).disabled(choices.isEmpty)
                 Picker(L("Inner ring"), selection: Binding(get: { ring.dropFirst().first?.id ?? "" }, set: { set(outer: ring.first?.id, inner: $0) })) {
-                    ForEach(prefs.shownWindows(of: reading)) { window in Text(window.label).tag(window.id) }
+                    Text(L("None")).tag("")
+                    ForEach(choices) { window in Text(window.label).tag(window.id) }
                 }
-                .labelsHidden().controlSize(.small)
+                .labelsHidden().controlSize(.small).disabled(choices.isEmpty)
             }
             HStack(spacing: 8) {
                 Text(L("Hide")).font(.caption)
