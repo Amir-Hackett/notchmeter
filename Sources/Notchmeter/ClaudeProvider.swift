@@ -11,7 +11,7 @@ struct ClaudeCredentials: Equatable {
 /// It never refreshes or writes the token; Claude Code does that itself whenever it runs.
 actor ClaudeProvider: UsageProvider {
     nonisolated let tool: ToolID = .claude
-    nonisolated let refreshInterval: TimeInterval = 90
+    nonisolated let refreshInterval: TimeInterval = 180
 
     static let keychainService = "Claude Code-credentials"
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!

@@ -148,7 +148,7 @@ final class UsageStore {
             statuses[tool] = .notInstalled
             return
         }
-        if !force, let last = lastFetch[tool], Date().timeIntervalSince(last) < 15 { return }
+        if !force, let last = lastFetch[tool], Date().timeIntervalSince(last) < 60 { return }
         guard !inflight.contains(tool) else { return }
         inflight.insert(tool)
         defer { inflight.remove(tool) }
@@ -167,15 +167,20 @@ final class UsageStore {
             if case .nothingYet(let message) = error {
                 statuses[tool] = .idle(message)
                 backoff[tool] = 0
+            } else if case .rateLimited(let retry) = error {
+                // Transient: keep the last good numbers on screen and try again later.
+                let wait = max(60, retry ?? 0)
+                backoff[tool] = wait
+                if let cached {
+                    statuses[tool] = .ready(cached)
+                } else {
+                    statuses[tool] = .failed("Rate limited, retrying in \(Int(wait))s", cached: nil)
+                }
             } else if error.needsAttention {
                 statuses[tool] = .needsAttention(error.message, cached: cached)
                 backoff[tool] = 60
             } else {
-                if case .rateLimited(let retry) = error, let retry {
-                    backoff[tool] = retry
-                } else {
-                    backoff[tool] = min(600, max(30, (backoff[tool] ?? 15) * 2))
-                }
+                backoff[tool] = min(600, max(30, (backoff[tool] ?? 15) * 2))
                 statuses[tool] = .failed(error.message, cached: cached)
             }
         } catch {
