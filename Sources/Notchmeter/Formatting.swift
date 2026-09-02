@@ -50,6 +50,11 @@ enum Pace {
         return eta
     }
 
+    static func status(for window: LimitWindow, now: Date = Date()) -> Status? {
+        guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
+        return evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)?.status
+    }
+
     /// The quiet note beside a meter: "~67% left at reset", or the run-out warning when behind.
     static func note(for window: LimitWindow, now: Date = Date()) -> (text: String, status: Status)? {
         guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration,
@@ -166,5 +171,64 @@ enum Burn {
         if value >= 10 { return "\(Int(value.rounded()))x" }
         let text = String(format: "%.1f", value)
         return (text.hasSuffix(".0") ? String(text.dropLast(2)) : text) + "x"
+    }
+}
+
+/// VoiceOver copy: the on-screen abbreviations read as words, so "~58% left" is spoken "about 58 percent left"
+/// and "4d 17h" as "4 days 17 hours".
+enum Spoken {
+    private static let units: [Character: String] = ["d": "day", "h": "hour", "m": "minute", "s": "second", "x": "time"]
+
+    static func phrase(_ text: String) -> String {
+        text.replacingOccurrences(of: "~", with: "about ")
+            .replacingOccurrences(of: "%", with: " percent")
+            .replacingOccurrences(of: " · ", with: ", ")
+            .split(separator: " ")
+            .map { expand(String($0)) }
+            .joined(separator: " ")
+    }
+
+    /// Parts joined as one sentence; empty and missing parts are dropped.
+    static func line(_ parts: String?...) -> String {
+        parts.compactMap { $0 }.filter { !$0.isEmpty }.map(phrase).joined(separator: ", ")
+    }
+
+    /// One tool for the compact rings: "Session 19 percent used, close to pace; Weekly 5 percent used".
+    static func status(_ status: ToolStatus, awaitingInput: Bool, now: Date = Date()) -> String {
+        var parts: [String] = []
+        if awaitingInput { parts.append("waiting for your input") }
+        if let problem = status.problem { parts.append(phrase(problem)) }
+        if let reading = status.reading {
+            for window in reading.windows {
+                guard let used = window.usedFraction else { continue }
+                var part = "\(window.label) \(Int((used * 100).rounded())) percent used"
+                switch Pace.status(for: window, now: now) {
+                case .behind: part += ", behind pace"
+                case .onTrack: part += ", close to pace"
+                case .ahead, nil: break
+                }
+                parts.append(part)
+            }
+        } else {
+            switch status {
+            case .waiting: parts.append("waiting for the first reading")
+            case .idle(let message): parts.append(phrase(message))
+            case .off: parts.append("off")
+            case .notInstalled: parts.append("not installed")
+            case .ready, .needsAttention, .failed: break
+            }
+        }
+        return parts.joined(separator: "; ")
+    }
+
+    private static func expand(_ token: String) -> String {
+        var core = Substring(token)
+        var suffix = ""
+        if let last = core.last, ",.;".contains(last) {
+            suffix = String(last)
+            core = core.dropLast()
+        }
+        guard let unit = core.last, let name = units[unit], let value = Double(core.dropLast()) else { return token }
+        return "\(core.dropLast()) \(name)\(value == 1 ? "" : "s")\(suffix)"
     }
 }

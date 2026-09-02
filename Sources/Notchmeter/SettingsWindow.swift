@@ -28,7 +28,7 @@ struct SettingsView: View {
                     }
                 ))
                 if let loginError {
-                    Text(loginError).font(.caption).foregroundStyle(.red)
+                    Text(loginError).font(.caption).foregroundStyle(Palette.danger)
                 }
             }
             Section("Panel") {

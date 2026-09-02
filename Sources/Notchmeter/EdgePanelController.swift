@@ -120,7 +120,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         }
         origin.y = min(max(origin.y, area.minY), area.maxY - size.height)
         let frame = NSRect(origin: origin, size: size)
-        panel.setFrame(frame, display: true, animate: animated)
+        panel.setFrame(frame, display: true, animate: animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
     }
 }
 
@@ -157,13 +157,31 @@ struct EdgePanelRoot: View {
             if expanded {
                 NotchExpandedView(store: store, prefs: prefs, actions: actions)
                     .padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(.black))
-                    .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(.white.opacity(0.12), lineWidth: 0.5))
+                    .modifier(PanelSurface(shape: RoundedRectangle(cornerRadius: 22, style: .continuous)))
             } else {
                 EdgeCompactView(store: store, edge: edge)
+                    .modifier(PanelSurface(shape: Capsule()))
             }
         }
         .padding(4)
         .fixedSize()
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+/// The pill and panel background: Liquid Glass from macOS 26, black before it. The top layout never gets this,
+/// because it has to merge with the hardware notch.
+struct PanelSurface<S: Shape>: ViewModifier {
+    let shape: S
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.glassEffect(.regular, in: shape)
+        } else {
+            content
+                .background(shape.fill(.black))
+                .overlay(shape.stroke(.white.opacity(0.12), lineWidth: 0.5))
+        }
     }
 }

@@ -100,6 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Probe.emit("\(tool.displayName): \(Probe.describe(store.status(tool)))")
         }
         Probe.emit("polling: \(store.scheduleDescription())")
+        Probe.emit("presence: \(store.presence); reduce motion: \(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)")
         if let cost = store.cost {
             Probe.emit(Probe.describe(cost))
         } else {

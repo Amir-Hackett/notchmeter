@@ -107,6 +107,12 @@ final class UsageStore {
         awaitingInput.contains(tool)
     }
 
+    /// How loud the compact rings are, from every visible reading; the rule is in Presence.swift.
+    var presence: PresenceLevel {
+        Presence.level(windows: visibleTools.flatMap { status($0).reading?.windows ?? [] },
+                       awaitingInput: visibleTools.contains(where: isAwaitingInput))
+    }
+
     /// When the next scheduled provider read happens, for the footer.
     var nextUpdate: Date? {
         visibleTools.compactMap { nextRefresh[$0] }.min()
