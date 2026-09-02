@@ -4,11 +4,61 @@ import SwiftUI
 struct SettingsView: View {
     let store: UsageStore
     let prefs: Preferences
-    let applyVisibility: () -> Void
+    let actions: NotchActions
     @State private var loginError: String?
 
     var body: some View {
         Form {
+            Section("General") {
+                Toggle("Show total spend", isOn: Binding(
+                    get: { prefs.showSpend },
+                    set: { prefs.showSpend = $0; if $0 { store.refreshAll() } }
+                ))
+                Toggle("Open at login", isOn: Binding(
+                    get: { prefs.launchAtLogin },
+                    set: { enabled in
+                        do {
+                            try prefs.setLaunchAtLogin(enabled)
+                            loginError = nil
+                        } catch {
+                            loginError = error.localizedDescription
+                        }
+                    }
+                ))
+                if let loginError {
+                    Text(loginError).font(.caption).foregroundStyle(.red)
+                }
+            }
+            Section("Panel") {
+                Picker("Position", selection: Binding(
+                    get: { prefs.edge },
+                    set: { prefs.edge = $0; actions.applyLayout() }
+                )) {
+                    ForEach(PanelEdge.allCases, id: \.self) { edge in
+                        Text(edge.title).tag(edge)
+                    }
+                }
+                Text(prefs.edge.detail).font(.caption).foregroundStyle(.secondary)
+                Picker("Show", selection: Binding(
+                    get: { prefs.visibility },
+                    set: { prefs.visibility = $0; actions.applyLayout() }
+                )) {
+                    ForEach(NotchVisibility.allCases, id: \.self) { visibility in
+                        Text(visibility.title).tag(visibility)
+                    }
+                }
+            }
+            Section("Usage display") {
+                Picker("Show usage as", selection: Binding(get: { prefs.usageDisplay }, set: { prefs.usageDisplay = $0 })) {
+                    ForEach(UsageDisplay.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                Picker("Reset times", selection: Binding(get: { prefs.resetDisplay }, set: { prefs.resetDisplay = $0 })) {
+                    ForEach(ResetDisplay.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                Picker("Time format", selection: Binding(get: { prefs.timeFormat }, set: { prefs.timeFormat = $0 })) {
+                    ForEach(TimeFormatPreference.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+            }
             Section("Assistants") {
                 ForEach(ToolID.allCases, id: \.self) { tool in
                     Toggle(isOn: Binding(
@@ -24,30 +74,6 @@ struct SettingsView: View {
                     }
                     .disabled(!store.isInstalled(tool))
                 }
-            }
-            Section("Notch") {
-                Picker("Show", selection: Binding(
-                    get: { prefs.visibility },
-                    set: { prefs.visibility = $0; applyVisibility() }
-                )) {
-                    ForEach(NotchVisibility.allCases, id: \.self) { visibility in
-                        Text(visibility.title).tag(visibility)
-                    }
-                }
-                Toggle("Open at login", isOn: Binding(
-                    get: { prefs.launchAtLogin },
-                    set: { enabled in
-                        do {
-                            try prefs.setLaunchAtLogin(enabled)
-                            loginError = nil
-                        } catch {
-                            loginError = error.localizedDescription
-                        }
-                    }
-                ))
-                if let loginError {
-                    Text(loginError).font(.caption).foregroundStyle(.red)
-                }
                 Button("Refresh now") { store.refreshAll() }
             }
             Section {
@@ -60,7 +86,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 440, minHeight: 480)
+        .frame(minWidth: 460, minHeight: 640)
     }
 
     private func subtitle(for tool: ToolID) -> String {
@@ -78,14 +104,14 @@ struct SettingsView: View {
 
 @MainActor
 final class SettingsWindowController: NSWindowController {
-    init(store: UsageStore, prefs: Preferences, applyVisibility: @escaping () -> Void) {
-        let host = NSHostingController(rootView: SettingsView(store: store, prefs: prefs, applyVisibility: applyVisibility))
+    init(store: UsageStore, prefs: Preferences, actions: NotchActions) {
+        let host = NSHostingController(rootView: SettingsView(store: store, prefs: prefs, actions: actions))
         let window = NSWindow(contentViewController: host)
         window.title = "\(AppInfo.name) Settings"
         window.styleMask = [.titled, .closable, .resizable]
         // A grouped Form has no intrinsic height, so the window must be sized explicitly.
-        window.setContentSize(NSSize(width: 440, height: 480))
-        window.minSize = NSSize(width: 440, height: 360)
+        window.setContentSize(NSSize(width: 460, height: 640))
+        window.minSize = NSSize(width: 460, height: 420)
         window.isReleasedWhenClosed = false
         super.init(window: window)
     }

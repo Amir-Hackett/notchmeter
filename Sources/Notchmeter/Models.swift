@@ -27,13 +27,51 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     let usedFraction: Double?
     let resetsAt: Date?
     let note: String?
+    /// Length of the rolling window, when known; drives the pace tick and the "left at reset" projection.
+    let periodDuration: TimeInterval?
 
-    init(id: String, label: String, usedFraction: Double?, resetsAt: Date?, note: String? = nil) {
+    init(id: String, label: String, usedFraction: Double?, resetsAt: Date?, note: String? = nil, periodDuration: TimeInterval? = nil) {
         self.id = id
         self.label = label
         self.usedFraction = usedFraction
         self.resetsAt = resetsAt
         self.note = note
+        self.periodDuration = periodDuration
+    }
+}
+
+enum Period {
+    static let fiveHours: TimeInterval = 5 * 3600
+    static let week: TimeInterval = 7 * 86400
+}
+
+enum JSON {
+    static func number(_ value: Any?) -> Double? {
+        switch value {
+        case let d as Double: d
+        case let i as Int: Double(i)
+        case let n as NSNumber: n.doubleValue
+        default: nil
+        }
+    }
+
+    static func fraction(_ percent: Double) -> Double {
+        min(max(percent / 100, 0), 1)
+    }
+}
+
+enum JWT {
+    static func claims(_ token: String) -> [String: Any]? {
+        let parts = token.split(separator: ".")
+        guard parts.count >= 2 else { return nil }
+        var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while payload.count % 4 != 0 { payload.append("=") }
+        guard let data = Data(base64Encoded: payload) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    }
+
+    static func expiry(_ token: String) -> Date? {
+        (claims(token)?["exp"]).flatMap(JSON.number).map { Date(timeIntervalSince1970: $0) }
     }
 }
 
@@ -140,6 +178,16 @@ enum DateParsing {
 enum Naming {
     static func plan(_ raw: String) -> String {
         raw.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+
+    /// "Max 5x": the subscription plus the usage multiplier Anthropic encodes in the rate-limit tier.
+    static func plan(subscriptionType: String?, rateLimitTier: String?) -> String? {
+        guard let raw = subscriptionType?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return nil }
+        let base = plan(raw)
+        if let tier = rateLimitTier, let match = tier.range(of: #"\d+x"#, options: .regularExpression) {
+            return "\(base) \(tier[match])"
+        }
+        return base
     }
 
     static func prettify(_ key: String) -> String {
