@@ -43,7 +43,7 @@ enum DemoFixtures {
     }
 
     /// $6,600 over 30 days with quiet weekends, a heavy $548.76 yesterday and $118.31 so far today. The last hour
-    /// ran at 3.2x the usual active hour, which is what puts a line in the Advice strip.
+    /// ran at 3.2x the 30-day average active hour, which is what puts a line in the Advice strip.
     static func cost(now: Date) -> CostSummary {
         let today = 118.31
         let yesterday = 548.76

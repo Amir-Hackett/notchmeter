@@ -17,6 +17,11 @@ enum NotchmeterMain {
         if arguments.contains("--no-prompt") || arguments.contains("--smoke") || arguments.contains("--render-assets") {
             Keychain.setPromptsAllowed(false)
         }
+        // --e2e-oracle <path> (or NOTCHMETER_ORACLE): a JSON line per state change for a tester (docs/testing.md).
+        // Started before anything that reports, so the launch preferences are the first lines.
+        if let path = Oracle.path() {
+            Oracle.shared.start(path: path)
+        }
         if arguments.contains("--probe") {
             Probe.run()
             return
@@ -40,10 +45,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var store: UsageStore!
     private var presenter: (any PanelPresenting)?
     private var settings: SettingsWindowController?
+    private var settingsObserver: NSObjectProtocol?
+    private var snapshotObserver: NSObjectProtocol?
     private var updater: Updater?
     private let updaterGate = Updater.gate()
 
     private var smokeRestoreEdge: PanelEdge?
+    private var smokeRestoreStyle: CompactStyle?
+    private var smokeRestoreVisibility: NotchVisibility?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let arguments = CommandLine.arguments
@@ -55,6 +64,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
            let edge = PanelEdge(rawValue: arguments[index + 1]) {
             smokeRestoreEdge = prefs.edge
             prefs.edge = edge
+        }
+        if arguments.contains("--smoke"), let index = arguments.firstIndex(of: "--compact-style"), index + 1 < arguments.count,
+           let style = CompactStyle(rawValue: arguments[index + 1]) {
+            smokeRestoreStyle = prefs.compactStyle
+            prefs.compactStyle = style
+        }
+        if arguments.contains("--smoke"), let index = arguments.firstIndex(of: "--visibility"), index + 1 < arguments.count,
+           let visibility = NotchVisibility(rawValue: arguments[index + 1]) {
+            smokeRestoreVisibility = prefs.visibility
+            prefs.visibility = visibility
         }
         store = UsageStore(prefs: prefs)
         store.deliverAlerts = { [weak self] alerts in
@@ -68,6 +87,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.showOptions = { [weak self] in self?.presenter?.showOptions() }
         actions.applyLayout = { [weak self] in self?.applyLayout() }
         buildPresenter()
+        Oracle.shared.emit("launched", ["version": AppInfo.version, "edge": prefs.edge.rawValue, "visibility": prefs.visibility.rawValue,
+                                        "compactStyle": prefs.compactStyle.rawValue, "toolOrder": prefs.toolOrder.map(\.rawValue)])
+        if Oracle.shared.isActive {
+            snapshotObserver = DistributedNotificationCenter.default().addObserver(forName: Oracle.snapshotNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.emitSnapshot() }
+            }
+        }
         // A self check reports the gate and never starts Sparkle, so a signed build's --smoke neither reaches the feed
         // nor shows an update.
         if arguments.contains("--smoke") {
@@ -78,12 +104,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // MARK: - Settings
+
+    /// Collapses the panel first and holds it closed for as long as the window is up: the panel window spans the
+    /// screen's height at a level above every other window, so Settings would otherwise open behind it.
     func showSettings() {
         if settings == nil {
-            settings = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: notifier)
+            let controller = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: notifier)
+            settings = controller
+            if let window = controller.window {
+                settingsObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                    Task { @MainActor in self?.settingsDidClose() }
+                }
+            }
         }
-        settings?.present()
+        presenter?.holdCompact(true)
+        settings?.present(on: .panelScreen)
+        Oracle.shared.emit("settings", settingsFields(action: "shown"))
     }
+
+    private func settingsDidClose() {
+        presenter?.holdCompact(false)
+        Oracle.shared.emit("settings", settingsFields(action: "hidden"))
+    }
+
+    var isSettingsVisible: Bool {
+        settings?.window?.isVisible ?? false
+    }
+
+    private func settingsFields(action: String) -> [String: Any] {
+        var fields: [String: Any] = ["action": action, "panelState": presenter?.hover.state.rawValue as Any,
+                                     "frontmostBundleId": NSWorkspace.shared.frontmostApplication?.bundleIdentifier as Any]
+        if let settings, let window = settings.window {
+            fields["frame"] = window.frame
+            fields["level"] = window.level.rawValue
+            fields["nonActivating"] = settings.isNonActivating
+        }
+        return fields
+    }
+
+    // MARK: - Layout
 
     /// Re-applies the visibility preference, or swaps the whole presenter when the edge changed.
     func applyLayout() {
@@ -104,12 +164,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ? NotchController(store: store, prefs: prefs, actions: actions)
             : EdgePanelController(edge: prefs.edge, store: store, prefs: prefs, actions: actions)
         presenter = built
-        built.show()
+        if isSettingsVisible {
+            built.holdCompact(true)
+        } else {
+            built.show()
+        }
     }
+
+    // MARK: - Oracle
+
+    /// Everything a tester could otherwise only see, in one line, on the distributed notification
+    /// com.amirhackett.notchmeter.oracle.snapshot.
+    private func emitSnapshot() {
+        var fields: [String: Any] = [
+            "edge": prefs.edge.rawValue, "visibility": prefs.visibility.rawValue, "compactStyle": prefs.compactStyle.rawValue,
+            "usageDisplay": prefs.usageDisplay.rawValue, "toolOrder": prefs.toolOrder.map(\.rawValue),
+            "enabledTools": prefs.enabledTools.map(\.rawValue).sorted(), "showSpend": prefs.showSpend,
+            "visibleTools": store.visibleTools.map(\.rawValue), "presence": String(describing: store.presence),
+            "awaitingInput": store.awaitingInput.map(\.rawValue).sorted(),
+            "readings": ToolID.allCases.map { Oracle.fields($0, store.status($0)) },
+            "advice": store.advice.map(\.text),
+            "settingsVisible": isSettingsVisible,
+        ]
+        if let presenter {
+            fields["panelState"] = presenter.hover.state.rawValue
+            fields["panelVisible"] = presenter.isVisible
+            fields["regions"] = ["compact": presenter.hover.regions.compact, "expanded": presenter.hover.regions.expanded]
+        }
+        if let window = settings?.window, window.isVisible {
+            fields["settingsFrame"] = window.frame
+        }
+        Oracle.shared.emit("snapshot", fields)
+    }
+
+    // MARK: - Smoke
 
     /// `--smoke`: run for a few seconds, report what is on screen and what each provider returned, then exit.
     /// `--hover-sim` adds a scripted pointer path through the live hover machine and fails the run if it loops;
-    /// `--hover-log` prints each decision the real mouse produces meanwhile. The copy line names the language the
+    /// `--hover-log` prints each decision the real mouse produces meanwhile; `--edge`, `--compact-style` and
+    /// `--visibility` pick the layout for the run and are restored on exit. The copy line names the language the
     /// panel is in and shows five of its strings, so `--lang zh-Hans` can be seen to take.
     private func smokeTest() async {
         let started = Date()
@@ -131,9 +224,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Probe.emit("hover regions: compact=\(regions.compact) expanded=\(regions.expanded)")
         }
         let sizingPassed = presenter.map(reportSizing) ?? false
+        reportCompactStyles()
         for tool in ToolID.allCases {
             Probe.emit("\(tool.displayName): \(Probe.describe(store.status(tool)))")
         }
+        Probe.emit("tool order: \(prefs.toolOrder.map(\.rawValue).joined(separator: ", ")); visible: \(store.visibleTools.map(\.rawValue).joined(separator: ", "))")
         Probe.emit("polling: \(store.scheduleDescription())")
         Probe.emit("presence: \(store.presence); reduce motion: \(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)")
         if let cost = store.cost {
@@ -146,11 +241,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("updater: \(updaterGate.summary); never started under --smoke")
         Probe.emit("copy (\(Localization.current)): \(L("Session")) · \(L("Weekly")) · \(L("%@ Settings", AppInfo.name)) · "
                    + "\(L("Resets in %@", ResetText.duration(4 * 3600 + 17 * 60))) · \(L("Open at login"))")
-        let settingsProbe = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: notifier)
-        settingsProbe.window?.layoutIfNeeded()
-        Probe.emit("settings window: \(settingsProbe.window?.frame.size ?? .zero)")
+        let settingsPassed = await smokeSettings()
+        if Oracle.shared.isActive {
+            DistributedNotificationCenter.default().postNotificationName(Oracle.snapshotNotification, object: nil, userInfo: nil, deliverImmediately: true)
+            try? await Task.sleep(for: .seconds(1))
+            Probe.emit("oracle: \(Oracle.shared.count) lines written")
+        }
         if let smokeRestoreEdge { prefs.edge = smokeRestoreEdge }
-        exit(presenter?.isVisible == true && hoverPassed && sizingPassed ? 0 : 1)
+        if let smokeRestoreStyle { prefs.compactStyle = smokeRestoreStyle }
+        if let smokeRestoreVisibility { prefs.visibility = smokeRestoreVisibility }
+        exit(presenter?.isVisible == true && hoverPassed && sizingPassed && settingsPassed ? 0 : 1)
     }
 
     /// The open panel must fit where it is drawn: inside DynamicNotchKit's fixed window for the top layout, inside
@@ -171,6 +271,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             passed = passed && clickThrough
             Probe.emit("panel window: opaque=\(window.isOpaque) click-through below the panel=\(clickThrough)")
         }
+        return passed
+    }
+
+    /// The compact shape the hover machine uses, measured for each style; the run's own style is restored after.
+    private func reportCompactStyles() {
+        guard let presenter else { return }
+        let current = prefs.compactStyle
+        for style in CompactStyle.allCases {
+            prefs.compactStyle = style
+            presenter.remeasure()
+            let compact = presenter.hover.regions.compact
+            Probe.emit("compact style \(style.rawValue): compact region \(Int(compact.width.rounded())) × \(Int(compact.height.rounded())) pt at (\(Int(compact.minX)), \(Int(compact.minY)))")
+        }
+        prefs.compactStyle = current
+        presenter.remeasure()
+    }
+
+    /// Opens Settings the way the menu does and checks what the user reported: a floating, non-activating panel
+    /// in front of a collapsed notch panel, clear of it, with someone else's app still frontmost; closing it puts
+    /// the panel back the way the visibility preference wants it.
+    private func smokeSettings() async -> Bool {
+        showSettings()
+        try? await Task.sleep(for: .seconds(1))
+        guard let settings, let window = settings.window, let presenter else {
+            Probe.emit("settings window: not created")
+            return false
+        }
+        let ours = Bundle.main.bundleIdentifier ?? "com.amirhackett.notchmeter"
+        let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "none"
+        let state = presenter.hover.state
+        let shape = state == .expanded ? presenter.hover.regions.expanded : presenter.hover.regions.compact
+        let intersects = window.frame.intersects(shape)
+        Probe.emit("settings window: level=\(window.level.rawValue) (floating=\(window.level == .floating)) frame=\(window.frame) "
+                   + "nonActivating=\(settings.isNonActivating) visible=\(window.isVisible) key=\(window.isKeyWindow) "
+                   + "(key window: \(NSApp.keyWindow.map { $0.title.isEmpty ? "the panel" : $0.title } ?? "none"))")
+        Probe.emit("settings: frontmost=\(frontmost) panel=\(state.rawValue) intersects=\(intersects)")
+        var passed = window.level == .floating && settings.isNonActivating && window.isVisible && frontmost != ours
+            && state == .compact && !intersects
+        settings.close()
+        try? await Task.sleep(for: .seconds(1))
+        let wanted: HoverIntent.State = prefs.visibility == .always ? .expanded : .compact
+        let restored = presenter.hover.state == wanted && !(settings.window?.isVisible ?? false)
+        Probe.emit("settings closed: panel=\(presenter.hover.state.rawValue) visibility=\(prefs.visibility.rawValue) → \(restored ? "restored" : "NOT restored")")
+        passed = passed && restored
         return passed
     }
 }
@@ -233,7 +377,7 @@ enum Probe {
         var line = "cost: today \(Money.dollars(cost.today)) yesterday \(Money.dollars(cost.yesterday)) 30d \(Money.dollars(cost.last30Days))"
         line += " last hour \(Money.dollars(cost.lastHour))"
         if let burn = cost.burnMultiple {
-            line += " (\(Burn.multiple(burn)) the usual \(Money.dollars(cost.typicalHourly)) per active hour)"
+            line += " (\(Burn.multiple(burn)) the 30-day average \(Money.dollars(cost.typicalHourly)) per active hour)"
         }
         return line + " unpriced=\(cost.unpricedModels.sorted())"
     }

@@ -51,6 +51,9 @@ struct SettingsView: View {
                         Text(visibility.title).tag(visibility)
                     }
                 }
+                Picker(prefs.edge.compactStyleTitle, selection: Binding(get: { prefs.compactStyle }, set: { prefs.compactStyle = $0 })) {
+                    ForEach(CompactStyle.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
             }
             Section(L("Usage display")) {
                 Picker(L("Show usage as"), selection: Binding(get: { prefs.usageDisplay }, set: { prefs.usageDisplay = $0 })) {
@@ -80,22 +83,35 @@ struct SettingsView: View {
                     }
                 }
             }
-            Section(L("Assistants")) {
-                ForEach(ToolID.allCases, id: \.self) { tool in
-                    Toggle(isOn: Binding(
-                        get: { prefs.enabledTools.contains(tool) },
-                        set: { store.setEnabled(tool, $0) }
-                    )) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(tool.displayName)
-                            Text(subtitle(for: tool))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+            Section {
+                let order = prefs.toolOrder
+                ForEach(Array(order.enumerated()), id: \.element) { index, tool in
+                    HStack(spacing: 10) {
+                        Toggle(isOn: Binding(
+                            get: { store.isShown(tool) },
+                            set: { store.setEnabled(tool, $0) }
+                        )) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(tool.displayName)
+                                Text(subtitle(for: tool))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        .disabled(!store.isInstalled(tool))
+                        ReorderButtons(
+                            up: index > 0 ? { prefs.move(tool, by: -1) } : nil,
+                            down: index < order.count - 1 ? { prefs.move(tool, by: 1) } : nil
+                        )
                     }
-                    .disabled(!store.isInstalled(tool))
                 }
                 Button(L("Refresh now")) { store.refreshAll() }
+            } header: {
+                Text(L("Assistants"))
+            } footer: {
+                Text(L("The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section(L("Claude Code hook")) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -157,6 +173,29 @@ struct SettingsView: View {
     }
 }
 
+/// Up and down arrows for one row of the Assistants list. Buttons rather than drag-to-reorder: a grouped Form on
+/// macOS gives a dragged row no handle and no reliable drop, and arrows are what VoiceOver, the keyboard and an
+/// automated tester can drive the same way every time. Nil disables the arrow at that end of the list.
+struct ReorderButtons: View {
+    let up: (() -> Void)?
+    let down: (() -> Void)?
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Button { up?() } label: { Image(systemName: "chevron.up") }
+                .disabled(up == nil)
+                .help(L("Move up"))
+                .accessibilityLabel(L("Move up"))
+            Button { down?() } label: { Image(systemName: "chevron.down") }
+                .disabled(down == nil)
+                .help(L("Move down"))
+                .accessibilityLabel(L("Move down"))
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+    }
+}
+
 struct HookSnippetView: View {
     let snippet: String
     @Environment(\.dismiss) private var dismiss
@@ -191,18 +230,35 @@ struct HookSnippetView: View {
     }
 }
 
+/// Settings as a floating panel that never activates the app. Notchmeter is a menu-bar-style accessory, so the
+/// app the user was working in stays frontmost while they change a setting, and a tester can drive Settings with
+/// Finder in front. The panel becomes key on its own, which is what makes its toggles, pickers and buttons work.
+final class SettingsPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+}
+
 @MainActor
 final class SettingsWindowController: NSWindowController {
+    /// A grouped Form has no intrinsic height, so the window is sized explicitly.
+    nonisolated static let contentSize = NSSize(width: 460, height: 640)
+    /// The window's top sits this far below the screen's top safe area: under the notch and the menu bar, with
+    /// the collapsed panel's rings clear above it.
+    nonisolated static let topClearance: CGFloat = 60
+
     init(store: UsageStore, prefs: Preferences, actions: NotchActions, notifier: Notifier) {
         let host = NSHostingController(rootView: SettingsView(store: store, prefs: prefs, actions: actions, notifier: notifier))
-        let window = NSWindow(contentViewController: host)
-        window.title = L("%@ Settings", AppInfo.name)
-        window.styleMask = [.titled, .closable, .resizable]
-        // A grouped Form has no intrinsic height, so the window must be sized explicitly.
-        window.setContentSize(NSSize(width: 460, height: 640))
-        window.minSize = NSSize(width: 460, height: 420)
-        window.isReleasedWhenClosed = false
-        super.init(window: window)
+        let panel = SettingsPanel(contentRect: NSRect(origin: .zero, size: Self.contentSize),
+                                  styleMask: [.titled, .closable, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel.title = L("%@ Settings", AppInfo.name)
+        panel.contentViewController = host
+        panel.setContentSize(Self.contentSize)
+        panel.minSize = NSSize(width: 460, height: 420)
+        panel.level = .floating
+        panel.isFloatingPanel = true
+        panel.hidesOnDeactivate = false
+        panel.becomesKeyOnlyIfNeeded = false
+        panel.isReleasedWhenClosed = false
+        super.init(window: panel)
     }
 
     @available(*, unavailable)
@@ -210,10 +266,25 @@ final class SettingsWindowController: NSWindowController {
         fatalError("not supported")
     }
 
-    func present() {
-        NSApp.activate(ignoringOtherApps: true)
-        window?.center()
+    /// Centred under the notch, ordered front and made key without activating the app. The panel controller has
+    /// collapsed the panel before this is called and holds it closed until the window closes (AppDelegate), so the
+    /// two never share the screen with the panel open.
+    func present(on screen: NSScreen) {
+        guard let window else { return }
+        window.setFrame(Self.frame(for: window.frame.size, screen: screen.frame, safeAreaTop: screen.safeAreaInsets.top,
+                                   visible: screen.visibleFrame), display: false)
         showWindow(nil)
-        window?.makeKeyAndOrderFront(nil)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    var isNonActivating: Bool {
+        window?.styleMask.contains(.nonactivatingPanel) ?? false
+    }
+
+    /// Horizontally centred; the top `topClearance` below the safe area, never below the usable area's bottom.
+    nonisolated static func frame(for size: NSSize, screen: NSRect, safeAreaTop: CGFloat, visible: NSRect) -> NSRect {
+        let top = screen.maxY - safeAreaTop - topClearance
+        let origin = NSPoint(x: (screen.midX - size.width / 2).rounded(), y: max(visible.minY, top - size.height))
+        return NSRect(origin: origin, size: size)
     }
 }

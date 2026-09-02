@@ -35,9 +35,11 @@ struct CostSummary: Equatable, Sendable {
     let daily: [DailySpend]
     /// Everything priced in the last 60 minutes.
     let lastHour: Double
-    /// Median cost of an active hour (a clock hour with at least one entry) across the window.
+    /// Mean cost of an active hour across the window: the window's total over its active hours, an active hour
+    /// being a clock hour with at least one entry. A median would sit near zero for bursty agent work and call
+    /// every real hour a multiple of it.
     let typicalHourly: Double
-    /// lastHour / typicalHourly; nil until five active hours exist and the median is above zero.
+    /// lastHour / typicalHourly; nil until five active hours exist and the mean is above zero.
     let burnMultiple: Double?
     let unpricedModels: Set<String>
     let scannedAt: Date
@@ -250,7 +252,7 @@ actor ClaudeCostScanner {
             daily.append(DailySpend(day: day, cost: costByDay[day] ?? 0, tokens: tokensByDay[day] ?? 0))
         }
         let yesterday = calendar.date(byAdding: .day, value: -1, to: today).flatMap { costByDay[$0] } ?? 0
-        let typicalHourly = median(Array(costByHour.values))
+        let typicalHourly = costByHour.isEmpty ? 0 : costByHour.values.reduce(0, +) / Double(costByHour.count)
         return CostSummary(
             today: costByDay[today] ?? 0,
             yesterday: yesterday,
@@ -262,12 +264,5 @@ actor ClaudeCostScanner {
             unpricedModels: unpriced,
             scannedAt: now
         )
-    }
-
-    static func median(_ values: [Double]) -> Double {
-        guard !values.isEmpty else { return 0 }
-        let sorted = values.sorted()
-        let middle = sorted.count / 2
-        return sorted.count % 2 == 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
     }
 }

@@ -11,7 +11,7 @@ import Foundation
 /// outside, a Spaces switch or the screen lock. Never close in Always mode; never repeat the current state.
 struct HoverIntent: Equatable {
     enum Mode: Equatable { case onHover, always }
-    enum State: Equatable { case compact, expanded }
+    enum State: String, Equatable { case compact, expanded }
     enum Output: Equatable { case expand, collapse, none }
 
     static let expandDwell: TimeInterval = 0.25

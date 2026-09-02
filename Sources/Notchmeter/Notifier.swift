@@ -86,6 +86,7 @@ final class Notifier {
                 log.error("\(identifier, privacy: .public) not delivered: \(error.localizedDescription, privacy: .public)")
             } else {
                 log.info("notified \(identifier, privacy: .public)")
+                Oracle.shared.emit("notification", ["action": "sent", "title": title])
             }
         }
     }

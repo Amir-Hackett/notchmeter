@@ -15,6 +15,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
     private let probe: NSHostingView<EdgePanelRoot>
     private let contentProbe: NSHostingView<NotchExpandedView>
     private var expanded = false
+    private var held = false
+    private var reporter = PanelReporter()
     private var rightClickMonitor: Any?
     private var screenObserver: NSObjectProtocol?
     private var transitionSerial = 0
@@ -43,8 +45,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
         panel.contentView = host
 
         hover.watch(panel)
-        hover.perform = { [weak self] output in self?.act(output) }
-        hover.isPaused = { [weak self] in self?.menu.isOpen ?? false }
+        hover.perform = { [weak self] output, cause in self?.act(output, cause: cause) }
+        hover.isPaused = { [weak self] in self.map { $0.menu.isOpen || $0.held } ?? false }
         rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
             let handled = MainActor.assumeIsolated {
                 guard let self, event.window === self.panel else { return false }
@@ -70,11 +72,22 @@ final class EdgePanelController: NSObject, PanelPresenting {
 
     func show() {
         hover.mode = prefs.visibility.hoverMode
-        if hover.mode == .always { expanded = true }
-        layout(animated: false)
+        let wasExpanded = expanded
+        expanded = !held && (hover.mode == .always || expanded)
+        layout(animated: panel.isVisible && wasExpanded != expanded)
         hover.adopt(expanded ? .expanded : .compact)
+        reporter.report(expanded ? .expanded : .compact, cause: expanded ? .always : held ? .settings : .menu)
         hover.start()
         panel.orderFrontRegardless()
+    }
+
+    func holdCompact(_ held: Bool) {
+        self.held = held
+        show()
+    }
+
+    func remeasure() {
+        layout(animated: false)
     }
 
     func hide() async {
@@ -91,7 +104,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         menu.popUp(in: panel)
     }
 
-    private func act(_ output: HoverIntent.Output) {
+    private func act(_ output: HoverIntent.Output, cause: PanelCause) {
         switch output {
         case .expand:
             expanded = true
@@ -101,6 +114,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         case .none:
             return
         }
+        reporter.report(expanded ? .expanded : .compact, cause: cause)
         transitionSerial += 1
         let serial = transitionSerial
         let duration = layout(animated: true)
@@ -155,11 +169,13 @@ final class EdgePanelController: NSObject, PanelPresenting {
         hover.regions = expanded ? HoverRegions(compact: other, expanded: current) : HoverRegions(compact: current, expanded: other)
     }
 
-    /// Re-measures whenever something that shapes the panel changes; the tracking is one-shot, so it re-arms itself.
+    /// Re-fits the window whenever something that shapes the pill or the panel changes (the window is the visible
+    /// shape here, so it must follow its content); the tracking is one-shot, so it re-arms itself.
     private func observeContent() {
         withObservationTracking {
-            _ = (store.statuses, store.awaitingInput, store.cost, prefs.enabledTools, prefs.showSpend)
-            refreshRegions()
+            _ = (store.statuses, store.awaitingInput, store.cost, prefs.enabledTools, prefs.showSpend, prefs.toolOrder,
+                 prefs.compactStyle, prefs.usageDisplay)
+            layout(animated: false)
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeContent() }
         }

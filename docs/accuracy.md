@@ -105,11 +105,11 @@ Token counts themselves are never estimated: every count comes from the API's ow
 
 ## Burn rate
 
-The Cost card's "Last hour $8.40 · 6x your usual" line is built from the same entries:
+The Cost card's "Last hour $8.40 · 6x your 30-day average" line, and the Advice strip's "This hour burned $8.40 — 6x your 30-day average." from three times up, are built from the same entries:
 
 - **Last hour** is the priced sum of entries whose timestamp is within the past 60 minutes.
-- **Typical hourly** is the median priced cost of an active hour across the 30-day window, an active hour being any clock hour (UTC-aligned) with at least one entry. Hours you were not using Claude Code do not pull the median down.
-- **Burn multiple** is last hour ÷ typical hourly. It is not shown until five active hours exist and the median is above zero, so a fresh install or an all-unpriced history never shows "∞x".
+- **Typical hourly** is the mean priced cost of an active hour across the 30-day window: the window's total divided by its number of active hours, an active hour being any clock hour (UTC-aligned) with at least one entry. Hours you were not using Claude Code do not pull the average down. It was a median until 2026-09-02; agent work is bursty, most active hours cost cents and a few cost tens of dollars, so the median sat near zero and an ordinary hour read as "83x your usual". The mean is the figure the multiple is named after, and a burst is now measured against the whole month.
+- **Burn multiple** is last hour ÷ typical hourly, shown with one decimal below ten ("2.3x") and none from ten up ("18x"). It is not shown until five active hours exist and the average is above zero, so a fresh install or an all-unpriced history never shows "∞x".
 
 ## The golden tests
 
@@ -126,7 +126,7 @@ The Cost card's "Last hour $8.40 · 6x your usual" line is built from the same e
 | Sonnet 5 line 53 days old | outside the window | $0 |
 | All of the above in one transcript | sum, last hour, unpriced set | $0.70275 total, $0.67525 in the last hour |
 
-The same file unit-tests the residency multiplier, the dedupe choice, the median and the burn multiple's five-hour and non-zero guards, and the `CostScanning` suite in `ProviderParsingTests.swift` covers cache-tier parsing, model-id normalisation and day bucketing. Run them with `scripts/test.sh`.
+The same file unit-tests the residency multiplier, the dedupe choice, the average active hour (including the bursty month a median gets wrong) and the burn multiple's five-hour and non-zero guards, and the `CostScanning` suite in `ProviderParsingTests.swift` covers cache-tier parsing, model-id normalisation and day bucketing. Run them with `scripts/test.sh`.
 
 ## Reproducing a number
 
@@ -136,7 +136,7 @@ From the terminal, without the app running and without a Keychain prompt:
 swift run Notchmeter --probe --no-prompt
 ```
 
-The last lines are the cost summary: `cost: today $… yesterday $… 30d $… last hour $… (Nx the usual $… per active hour) unpriced=[…]`. To check a single transcript by hand, list its priced lines and apply the rules above:
+The last lines are the cost summary: `cost: today $… yesterday $… 30d $… last hour $… (Nx the 30-day average $… per active hour) unpriced=[…]`. To check a single transcript by hand, list its priced lines and apply the rules above:
 
 ```bash
 jq -c 'select(.message.usage) | [.timestamp, .message.id, .requestId, .message.model, .message.usage]' \

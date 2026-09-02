@@ -1,5 +1,12 @@
 import AppKit
 
+/// Why the panel changed state, for the oracle (Oracle.swift): the pointer rested on the rings or left the panel,
+/// a click outside, a Spaces switch, the screen lock, the Always open preference, the Settings window holding it
+/// closed, the Options menu switching to Open on hover, or the state it launched in.
+enum PanelCause: String {
+    case dwell, exit, clickOutside, space, lock, always, settings, menu, launch
+}
+
 /// Feeds a HoverIntent from the real pointer and hands its decisions to a panel controller. Pointer facts come
 /// from global and local mouse monitors (mouse events need no Accessibility permission), one re-sample at the
 /// machine's next deadline so a pointer that stops moving still counts as dwelling, and a 250 ms tick that runs
@@ -7,8 +14,13 @@ import AppKit
 @MainActor
 final class HoverDriver {
     /// The visible shapes, set by the controller from its own geometry; never a window frame.
-    var regions = HoverRegions.none
-    var perform: (HoverIntent.Output) -> Void = { _ in }
+    var regions = HoverRegions.none {
+        didSet {
+            guard regions != oldValue else { return }
+            Oracle.shared.emit("regions", ["compact": regions.compact, "expanded": regions.expanded])
+        }
+    }
+    var perform: (HoverIntent.Output, PanelCause) -> Void = { _, _ in }
     /// True while a menu owns the pointer; samples are skipped so an open Options menu cannot close the panel.
     var isPaused: () -> Bool = { false }
     /// Where the pointer is; `--smoke --hover-sim` substitutes a scripted path.
@@ -64,11 +76,11 @@ final class HoverDriver {
         }
         let workspace = NSWorkspace.shared.notificationCenter
         observers.append((workspace, workspace.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.interrupted() }
+            Task { @MainActor in self?.interrupted(.space) }
         }))
         let distributed = DistributedNotificationCenter.default()
         observers.append((distributed, distributed.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.interrupted() }
+            Task { @MainActor in self?.interrupted(.lock) }
         }))
         reschedule()
     }
@@ -102,11 +114,11 @@ final class HoverDriver {
 
     func clicked(at point: CGPoint) {
         guard regions.isOutsidePanel(point) else { return }
-        act(intent.clickOutside(at: now))
+        act(intent.clickOutside(at: now), cause: .clickOutside)
     }
 
-    func interrupted() {
-        act(intent.spaceChangedOrLocked(at: now))
+    func interrupted(_ cause: PanelCause) {
+        act(intent.spaceChangedOrLocked(at: now), cause: cause)
     }
 
     private var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
@@ -122,16 +134,17 @@ final class HoverDriver {
     private func sample() {
         guard !isPaused() else { return }
         let hit = regions.hit(pointerLocation())
-        act(intent.pointer(inCompact: hit.inCompact, inExpanded: hit.inExpanded, at: now))
+        let output = intent.pointer(inCompact: hit.inCompact, inExpanded: hit.inExpanded, at: now)
+        act(output, cause: output == .expand ? .dwell : .exit)
     }
 
-    private func act(_ output: HoverIntent.Output) {
+    private func act(_ output: HoverIntent.Output, cause: PanelCause) {
         switch output {
         case .expand: log?("expand")
         case .collapse: log?("collapse")
         case .none: break
         }
-        if output != .none { perform(output) }
+        if output != .none { perform(output, cause) }
         reschedule()
     }
 

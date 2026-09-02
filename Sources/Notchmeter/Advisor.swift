@@ -28,13 +28,19 @@ struct Advice: Identifiable, Equatable, Sendable {
 /// combined list is sorted by priority, capped at three, and empty when there is nothing worth saying.
 enum Advisor {
     struct Context {
-        /// Live readings of the visible tools, in ToolID order; a stale reading kept beside an error is not one.
+        /// Live readings of the visible tools, in the user's tool order; a stale reading kept beside an error is not one.
         var readings: [UsageReading]
         var awaitingInput: Set<ToolID> = []
         var cost: CostSummary? = nil
         var timeFormat: TimeFormatPreference = .auto
+        /// Preferences.toolOrder: lists waiting tools in this order and breaks a tie for the tool with the most room.
+        var toolOrder: [ToolID] = ToolID.allCases
         var now: Date = Date()
         var calendar: Calendar = .current
+
+        func rank(_ tool: ToolID) -> Int {
+            toolOrder.firstIndex(of: tool) ?? toolOrder.count
+        }
     }
 
     static let limit = 3
@@ -65,7 +71,7 @@ enum Advisor {
 
     /// A tool waiting for the user outranks everything: the meters cannot move until they answer.
     static func waiting(_ context: Context) -> [Advice] {
-        ToolID.allCases.filter(context.awaitingInput.contains).map { tool in
+        ToolID.allCases.filter(context.awaitingInput.contains).sorted { context.rank($0) < context.rank($1) }.map { tool in
             let name = tool == .claude ? "Claude Code" : tool.displayName
             return Advice(id: "waiting/\(tool.rawValue)", tool: tool, priority: .attention, symbol: "hand.raised.fill",
                           text: L("%@ is waiting for your input.", name))
@@ -123,7 +129,7 @@ enum Advisor {
     static func sessionBurn(_ cost: CostSummary?) -> Advice? {
         guard let cost, let burn = cost.burnMultiple, burn >= burnThreshold else { return nil }
         return Advice(id: "burn", tool: .claude, priority: .warn, symbol: "flame.fill",
-                      text: L("This hour burned %1$@ — %2$@ your 30-day usual.", Money.dollars(cost.lastHour), Burn.multiple(burn)))
+                      text: L("This hour burned %1$@ — %2$@ your 30-day average.", Money.dollars(cost.lastHour), Burn.multiple(burn)))
     }
 
     // MARK: - Notification copy
@@ -173,13 +179,14 @@ enum Advisor {
             .max { ($0.periodDuration ?? 0) < ($1.periodDuration ?? 0) }
     }
 
-    /// The other tool with the most of its main window left, when that is at least the routing headroom.
+    /// The other tool with the most of its main window left, when that is at least the routing headroom; on a tie,
+    /// the one the user placed first.
     static func headroom(besides tool: ToolID, in context: Context) -> (tool: ToolID, window: LimitWindow, left: Double)? {
         context.readings
             .filter { $0.tool != tool }
             .compactMap { reading in mainWindow(of: reading).map { (tool: reading.tool, window: $0, left: left(of: $0)) } }
             .filter { $0.left >= routingHeadroom }
-            .max { $0.left < $1.left }
+            .max { ($0.left, -Double(context.rank($0.tool))) < ($1.left, -Double(context.rank($1.tool))) }
     }
 
     static func headroomSuffix(besides tool: ToolID, in context: Context) -> String {
