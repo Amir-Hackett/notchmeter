@@ -127,6 +127,7 @@
 "After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke." = "移动到“应用程序”或更新后，指向本应用旧路径的条目会在启动时（照常备份后）改写为正在运行的副本，页脚提示一次。从 build 文件夹运行或 --smoke 时绝不改写。";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "每轮结束后，Claude Code 会把上下文窗口占用、官方会话与每周限额（Pro 和 Max）、网关的支出上限、模型及其推理强度、分支与拉取请求以及本次会话费用交给状态栏。安装后 Claude 环上显示上下文弧线，卡片显示“上下文”一行，会话运行期间不再请求接口。已配置的状态栏会在其后继续运行。";
 "All displays" = "所有显示器";
+"All models" = "所有模型";
 "Allowed origin, e.g. http://localhost:3000" = "允许的来源，例如 http://localhost:3000";
 "Almost out (under an hour left), and out" = "即将用尽（不足一小时）以及已用尽";
 "Already present for %@" = "%@ 已存在";
@@ -200,6 +201,7 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "无法读取 Codex 的 auth.json。请运行 `codex login` 重新登录";
 "Codex's login has expired. Run Codex once so it signs back in" = "Codex 的登录已过期。请运行一次 Codex 以重新登录";
 "Codex's login was refused. Run Codex once so it signs back in" = "Codex 的登录被拒绝。请运行一次 Codex 以重新登录";
+"Combined from the windows below" = "由下方各窗口合并得出";
 "Comfortable" = "宽松";
 "Compact" = "紧凑";
 "Completions" = "补全";
@@ -523,6 +525,7 @@
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "面板跟随指针：移到指针停留半秒的显示器上。";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "当 30 分钟内没有助手活动且所有窗口都很安静时，圆环会缩成一个圆点；钩子事件、文件活动、节奏变化或把指针停在上面都会让它们恢复。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "会话计量约为你常态的 %1$@：每 1%% 消耗 %2$@，常态为 %3$@。";
+"Third ring" = "第三环";
 "This" = "当前";
 "This GitHub account has no Copilot subscription" = "此 GitHub 账户没有 Copilot 订阅";
 "This session block %1$@ · %2$@/min" = "本会话时段 %1$@ · 每分钟 %2$@";

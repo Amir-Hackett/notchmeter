@@ -109,6 +109,34 @@ import Testing
         #expect(both.burnMultiple == 3)
         #expect(CostSelection(providers: [cursor]).burnMultiple == nil)
     }
+
+    /// Dragging an assistant above another in Settings moves it everywhere the card lists assistants: the donut's
+    /// segments, the legend rows and the weights they are both built from all read `Preferences.toolOrder`, so
+    /// none of them can disagree with the order the user set.
+    @MainActor @Test func reorderingTheToolsReordersTheCardsProviders() {
+        let suite = "NotchmeterTests.CostCardOrder"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let prefs = Preferences(defaults: defaults)
+        let carried = prefs.costCardTools
+
+        let asShipped = CostSelection(all: three, order: prefs.toolOrder, carried: carried)
+        #expect(prefs.toolOrder == [.claude, .codex, .cursor, .antigravity, .copilot])
+        #expect(asShipped.providers.map(\.tool) == [.claude, .codex, .cursor])
+        #expect(CostDonut.arcs(asShipped.weights(range: .today, mode: .cost)).map(\.tool) == [.claude, .codex, .cursor])
+
+        // The user drags Cursor above Claude, as they would in Settings.
+        prefs.move(.cursor, by: -1)
+        prefs.move(.cursor, by: -1)
+        #expect(prefs.toolOrder == [.cursor, .claude, .codex, .antigravity, .copilot])
+        let reordered = CostSelection(all: three, order: prefs.toolOrder, carried: carried)
+        #expect(reordered.providers.map(\.tool) == [.cursor, .claude, .codex])
+        #expect(reordered.weights(range: .today, mode: .cost).map(\.tool) == [.cursor, .claude, .codex])
+        #expect(CostDonut.arcs(reordered.weights(range: .today, mode: .cost)).map(\.tool) == [.cursor, .claude, .codex])
+        // The order says nothing about the arithmetic: the same assistants still add up to the same total.
+        #expect(abs(reordered.totals(.today).cost - asShipped.totals(.today).cost) < 1e-9)
+    }
 }
 
 /// The Cost card's own preference: which assistants it carries, and what a stored value can and cannot say.

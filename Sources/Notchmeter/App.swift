@@ -638,6 +638,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("hover: mode=\(String(describing: presenter?.hover.mode)) delay=\(prefs.hoverDelay)s gestures=\(presenter?.hover.gestures ?? false)")
         let sizingPassed = presenter.map(reportSizing) ?? false
         reportCompactStyles()
+        reportRings()
         reportIdle()
         let glancePassed = await reportGlance()
         let keyPassed = await reportClickKey()
@@ -731,6 +732,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         prefs.compactStyle = current
         prefs.showResetCountdown = countdown
+        presenter.remeasure()
+    }
+
+    /// Two rings against three. The hover region follows the compact view's fitting size, so a third window has to
+    /// widen the strip rather than being drawn outside the area the pointer finds. Measured in the style that
+    /// carries digits, which is where a third window costs width; every preference touched here is put back.
+    private func reportRings() {
+        guard let presenter else { return }
+        let style = prefs.compactStyle
+        let chosen = prefs.ringWindows
+        let revealed = prefs.revealedWindows
+        let hidden = prefs.hiddenWindows
+        prefs.compactStyle = .ringsAndNumbers
+        presenter.remeasure()
+        let two = presenter.hover.regions.compact
+        var applied: [String] = []
+        for tool in store.visibleTools {
+            guard let reading = store.status(tool).reading else { continue }
+            for window in reading.windows where prefs.isHidden(window, of: tool) { prefs.setHidden(false, window: window, of: tool) }
+            let ids = prefs.panelWindows(of: reading).prefix(RingSelection.maximum).map(\.id)
+            guard ids.count == RingSelection.maximum else { continue }
+            prefs.ringWindows[tool] = ids
+            applied.append("\(tool.rawValue) \(ids.joined(separator: "+"))")
+        }
+        presenter.remeasure()
+        let three = presenter.hover.regions.compact
+        Probe.emit("three rings: \(applied.isEmpty ? "no tool published three windows to draw" : applied.joined(separator: ", "))"
+                   + "; compact region \(Int(two.width.rounded())) → \(Int(three.width.rounded())) pt wide")
+        prefs.compactStyle = style
+        prefs.ringWindows = chosen
+        prefs.revealedWindows = revealed
+        prefs.hiddenWindows = hidden
         presenter.remeasure()
     }
 

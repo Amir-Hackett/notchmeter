@@ -111,6 +111,7 @@
 "After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke." = "응용 프로그램으로 옮기거나 업데이트한 뒤, 이 앱의 옛 경로를 가리키는 항목은 실행 시 평소 백업 후 실행 중인 복사본으로 다시 쓰이고 푸터에 한 번 표시됩니다. build 폴더나 --smoke에서는 절대 쓰지 않습니다.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Claude Code는 매 턴 후 컨텍스트 창 사용률, 공식 세션·주간 한도(Pro와 Max), 게이트웨이 지출 한도, 모델과 노력 수준, 브랜치와 풀 리퀘스트, 세션 비용을 상태 표시줄에 넘깁니다. 설치하면 Claude 링에 컨텍스트 호가, 카드에 컨텍스트 줄이 표시되고 세션 중에는 엔드포인트를 묻지 않습니다. 이미 설정된 상태 표시줄은 그 뒤에 계속 실행됩니다.";
 "All displays" = "모든 디스플레이";
+"All models" = "전체 모델";
 "Allowed origin, e.g. http://localhost:3000" = "허용할 출처, 예: http://localhost:3000";
 "Almost out (under an hour left), and out" = "거의 소진(1시간 미만 남음) 및 소진됨";
 "Already present for %@" = "%@에 이미 있음";
@@ -184,6 +185,7 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "Codex의 auth.json을 읽을 수 없습니다. `codex login`으로 다시 로그인하세요";
 "Codex's login has expired. Run Codex once so it signs back in" = "Codex 로그인이 만료되었습니다. Codex를 한 번 실행해 다시 로그인하세요";
 "Codex's login was refused. Run Codex once so it signs back in" = "Codex 로그인이 거부되었습니다. Codex를 한 번 실행해 다시 로그인하세요";
+"Combined from the windows below" = "아래 창들을 합산한 값";
 "Comfortable" = "여유";
 "Compact" = "간결";
 "Completions" = "자동 완성";
@@ -507,6 +509,7 @@
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "패널이 포인터를 따라갑니다. 포인터가 반 초 머문 디스플레이로 옮겨 갑니다.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "30분 동안 어떤 어시스턴트도 활동하지 않고 모든 창이 조용하면 링이 점으로 줄어듭니다. 훅 이벤트, 파일 활동, 페이스 변화, 링 위에 포인터를 올리면 다시 나타납니다.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "세션 측정이 평소보다 약 %1$@ 무겁습니다: 1%%당 %2$@ 대 %3$@.";
+"Third ring" = "세 번째 링";
 "This" = "이";
 "This GitHub account has no Copilot subscription" = "이 GitHub 계정에는 Copilot 구독이 없습니다";
 "This session block %1$@ · %2$@/min" = "이 세션 블록 %1$@ · 분당 %2$@";

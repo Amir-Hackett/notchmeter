@@ -838,7 +838,20 @@ final class Preferences {
         reading.windows.filter { !isHidden($0, of: reading.tool) }
     }
 
-    /// The two windows the rings show: the chosen ids when they exist in the reading, else the first two shown.
+    /// The derived "All models" window, when the windows on show have two or more model-scoped figures to combine
+    /// (CombinedWindow). Built from the shown windows only, so it never describes windows the card is hiding.
+    func combinedWindow(of reading: UsageReading) -> LimitWindow? {
+        CombinedWindow.of(windows: shownWindows(of: reading))
+    }
+
+    /// What the panel's window list draws: the shown windows, with the derived combined window at the top when
+    /// one exists, so its caption reads onto the windows it was combined from.
+    func panelWindows(of reading: UsageReading) -> [LimitWindow] {
+        guard let combined = combinedWindow(of: reading) else { return shownWindows(of: reading) }
+        return [combined] + shownWindows(of: reading)
+    }
+
+    /// The windows the rings show: the chosen ids when they exist in the reading, else the first two shown.
     func ringWindows(of reading: UsageReading) -> [LimitWindow] {
         RingSelection.windows(of: reading, chosen: ringWindows[reading.tool] ?? [], hidden: Set(reading.windows.filter { isHidden($0, of: reading.tool) }.map(\.id)))
     }
@@ -904,22 +917,29 @@ enum QuietHours {
     }
 }
 
-/// The windows the compact rings draw: chosen ids first, in the chosen order, filled up to two from the reading's
-/// own order, hidden windows never.
+/// The windows the compact rings draw: chosen ids first, in the chosen order, filled up to `fallback` from the
+/// reading's own order, hidden windows never. The derived combined window is selectable but never fills a ring on
+/// its own, so an install that chose nothing keeps the two rings it has always had.
 enum RingSelection {
+    /// The most rings a readout draws, outermost first.
+    static let maximum = 3
+    /// How many the rings fall back to when nothing was chosen.
+    static let fallback = 2
+
     static func windows(of reading: UsageReading, chosen: [String], hidden: Set<String>) -> [LimitWindow] {
         let shown = reading.windows.filter { !hidden.contains($0.id) }
+        let selectable = shown + [CombinedWindow.of(windows: shown)].compactMap { $0 }
         var result: [LimitWindow] = []
         for id in chosen {
-            if let window = shown.first(where: { $0.id == id }), !result.contains(where: { $0.id == id }) { result.append(window) }
+            if let window = selectable.first(where: { $0.id == id }), !result.contains(where: { $0.id == id }) { result.append(window) }
         }
         // Windows that publish a figure come first when nothing was chosen: a plan whose headline window has no
         // limit (Cursor Free's "Included usage") would otherwise fill the rings with a tool that shows nothing.
         let byData = shown.filter { $0.usedFraction != nil } + shown.filter { $0.usedFraction == nil }
-        for window in byData where result.count < 2 && !result.contains(where: { $0.id == window.id }) {
+        for window in byData where result.count < fallback && !result.contains(where: { $0.id == window.id }) {
             result.append(window)
         }
-        return Array(result.prefix(2))
+        return Array(result.prefix(maximum))
     }
 }
 

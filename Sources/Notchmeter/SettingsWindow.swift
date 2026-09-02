@@ -867,7 +867,8 @@ enum MenuBarPolicy {
     }
 }
 
-/// Which two windows the rings show, and which windows the card leaves out, per tool.
+/// Which windows the rings show, and which windows the card leaves out, per tool. Up to three rings
+/// (RingSelection.maximum); the third is empty until it is chosen, so the default stays at two.
 private struct WindowChoices: View {
     let tool: ToolID
     let reading: UsageReading
@@ -879,14 +880,20 @@ private struct WindowChoices: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(L("Rings show")).font(.caption)
-                // Every window, not only the shown ones: hiding them all left both pickers with nothing to
-                // list, so they rendered as two empty boxes with no way back.
-                let choices = reading.windows
-                Picker(L("Outer ring"), selection: Binding(get: { ring.first?.id ?? "" }, set: { set(outer: $0, inner: ring.dropFirst().first?.id) })) {
+                // Every window, not only the shown ones: hiding them all left the pickers with nothing to
+                // list, so they rendered as empty boxes with no way back. The derived "All models" window joins
+                // them when the card is showing the model windows it combines.
+                let choices = reading.windows + [prefs.combinedWindow(of: reading)].compactMap { $0 }
+                Picker(L("Outer ring"), selection: Binding(get: { ring.first?.id ?? "" }, set: { set(at: 0, $0, ring: ring) })) {
                     ForEach(choices) { window in Text(window.label).tag(window.id) }
                 }
                 .labelsHidden().controlSize(.small).disabled(choices.isEmpty)
-                Picker(L("Inner ring"), selection: Binding(get: { ring.dropFirst().first?.id ?? "" }, set: { set(outer: ring.first?.id, inner: $0) })) {
+                Picker(L("Inner ring"), selection: Binding(get: { id(of: ring, at: 1) }, set: { set(at: 1, $0, ring: ring) })) {
+                    Text(L("None")).tag("")
+                    ForEach(choices) { window in Text(window.label).tag(window.id) }
+                }
+                .labelsHidden().controlSize(.small).disabled(choices.isEmpty)
+                Picker(L("Third ring"), selection: Binding(get: { id(of: ring, at: 2) }, set: { set(at: 2, $0, ring: ring) })) {
                     Text(L("None")).tag("")
                     ForEach(choices) { window in Text(window.label).tag(window.id) }
                 }
@@ -904,8 +911,16 @@ private struct WindowChoices: View {
         .padding(.leading, 20)
     }
 
-    private func set(outer: String?, inner: String?) {
-        prefs.ringWindows[tool] = [outer, inner].compactMap { $0 }.filter { !$0.isEmpty }
+    private func id(of ring: [LimitWindow], at index: Int) -> String {
+        ring.indices.contains(index) ? ring[index].id : ""
+    }
+
+    /// Emptying a ring closes the gap: the rings are drawn outermost first, so a chosen third with no second
+    /// would otherwise be stored as a second anyway.
+    private func set(at index: Int, _ id: String, ring: [LimitWindow]) {
+        var ids = (0..<RingSelection.maximum).map { self.id(of: ring, at: $0) }
+        ids[index] = id
+        prefs.ringWindows[tool] = ids.filter { !$0.isEmpty }
     }
 }
 

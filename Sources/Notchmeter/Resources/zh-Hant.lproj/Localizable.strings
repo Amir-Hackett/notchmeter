@@ -111,6 +111,7 @@
 "After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke." = "移至「應用程式」或更新後，指向本應用程式舊路徑的項目會在啟動時（照常備份後）改寫為正在執行的副本，頁尾提示一次。從 build 資料夾執行或 --smoke 時絕不改寫。";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "每輪結束後，Claude Code 會把上下文視窗佔用、官方工作階段與每週限額（Pro 和 Max）、閘道的支出上限、模型及其推理強度、分支與拉取請求以及本次工作階段費用交給狀態列。安裝後 Claude 環上顯示上下文弧線，卡片顯示「上下文」一行，工作階段執行期間不再請求介面。已設定的狀態列會在其後繼續執行。";
 "All displays" = "所有顯示器";
+"All models" = "所有模型";
 "Allowed origin, e.g. http://localhost:3000" = "允許的來源，例如 http://localhost:3000";
 "Almost out (under an hour left), and out" = "即將用盡（不足一小時）以及已用盡";
 "Already present for %@" = "%@ 已存在";
@@ -184,6 +185,7 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "無法讀取 Codex 的 auth.json。請執行 `codex login` 重新登入";
 "Codex's login has expired. Run Codex once so it signs back in" = "Codex 的登入已過期。請執行一次 Codex 以重新登入";
 "Codex's login was refused. Run Codex once so it signs back in" = "Codex 的登入被拒絕。請執行一次 Codex 以重新登入";
+"Combined from the windows below" = "由下方各視窗合併得出";
 "Comfortable" = "寬鬆";
 "Compact" = "緊湊";
 "Completions" = "自動完成";
@@ -507,6 +509,7 @@
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "面板跟隨指標：移到指標停留半秒的顯示器上。";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "當 30 分鐘內沒有助理活動且所有視窗都很安靜時，圓環會縮成一個圓點；掛鉤事件、檔案活動、進度變化或把游標停在上面都會讓它們恢復。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "工作階段計量約為你常態的 %1$@：每 1%% 消耗 %2$@，常態為 %3$@。";
+"Third ring" = "第三環";
 "This" = "目前";
 "This GitHub account has no Copilot subscription" = "此 GitHub 帳號沒有 Copilot 訂閱";
 "This session block %1$@ · %2$@/min" = "本工作階段時段 %1$@ · 每分鐘 %2$@";
