@@ -73,6 +73,14 @@ import Testing
             #expect(store.adviceContext(now: now).toolOrder == [.claude, .cursor, .codex, .antigravity, .copilot])
             prefs.move(.claude, by: 1)
             #expect(store.visibleTools == [.cursor, .claude, .codex])
+            // The Cost card reads the same preference, so its donut, its legend and its detail block move with it;
+            // an assistant that reported no spend is not in the selection to lead it (CostAbsence names it instead).
+            let selection = CostSelection(all: store.cost?.providers ?? [], order: prefs.toolOrder, carried: prefs.costCardTools)
+            #expect(selection.providers.map(\.tool) == [.cursor, .claude])
+            #expect(CostDonut.arcs(selection.weights(range: .today, mode: .cost)).map(\.tool) == [.cursor, .claude])
+            prefs.move(.claude, by: -1)
+            #expect(CostSelection(all: store.cost?.providers ?? [], order: prefs.toolOrder, carried: prefs.costCardTools)
+                .providers.map(\.tool) == [.claude, .cursor])
         }
     }
 }

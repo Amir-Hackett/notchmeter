@@ -41,15 +41,15 @@ struct ReadingCache {
 }
 
 extension ProviderRegistry {
-    /// The providers with their opt-in second reads wired to the preferences (read through UserDefaults, which is
-    /// thread-safe, because the closures run on the provider actors).
+    /// Every provider, each reading its own opt-in switch (ProviderOptIn) from these defaults at fetch time. This
+    /// is the only registry: a second, argument-free overload of it once shadowed this one and built providers
+    /// with their second reads hard-wired off, which is how Cursor's usage export never ran in the app.
     static func all(defaults: UserDefaults = .standard) -> [any UsageProvider] {
-        nonisolated(unsafe) let defaults = defaults
-        return [ClaudeProvider(),
-         CodexProvider(readResetCredits: { defaults.bool(forKey: "codexResetCredits") }),
-         CursorProvider(readUsageEvents: { defaults.bool(forKey: "cursorUsageEvents") }),
+        [ClaudeProvider(),
+         CodexProvider(defaults: defaults),
+         CursorProvider(defaults: defaults),
          AntigravityProvider(),
-         CopilotProvider(readOrgBilling: { defaults.bool(forKey: "copilotOrgBilling") })]
+         CopilotProvider(defaults: defaults)]
     }
 }
 
@@ -106,6 +106,8 @@ final class UsageStore {
     private(set) var serverTrouble: [ToolID: Int] = [:]
     /// Whether the awake assertion is held right now (AwakeKeeper mirrors it).
     private(set) var keepingAwake = false
+    /// What Cursor's usage export last answered, so the Cost card can say why Cursor has no figure of its own.
+    private(set) var cursorExport: CursorExportRead?
     let prefs: Preferences
 
     @ObservationIgnored private let providers: [ToolID: any UsageProvider]
@@ -175,6 +177,7 @@ final class UsageStore {
         if let data = defaults.data(forKey: ExtraUsageMemory.defaultsKey) {
             extraUsageMemory = try? JSONDecoder().decode(ExtraUsageMemory.self, from: data)
         }
+        cursorExport = CursorExportRead.load(from: defaults)
         let cached = cache.load()
         for tool in ToolID.allCases {
             statuses[tool] = initialStatus(for: tool, cached: cached[tool])
@@ -410,6 +413,7 @@ final class UsageStore {
         let summary = await costEngine.scan(tools: tools, reads: reads, weeklyResetsAt: weekly?.resetsAt, weeklyUsed: weekly?.usedFraction,
                                             sessionResetsAt: session?.resetsAt, sessionUsed: session?.usedFraction)
         cost = summary
+        cursorExport = CursorExportRead.load(from: defaults)
         costScanning = false
         evaluateAlerts()
         writeReportIfDue()

@@ -755,7 +755,7 @@ struct SpendCard: View {
         guard store.cost != nil else { return [] }
         let carried = store.visibleTools.filter { store.prefs.costCardTools.contains($0) }
         return CostAbsence.gaps(carried: carried, reporting: Set(providers.map(\.tool)),
-                                cursorUsageEvents: store.prefs.cursorUsageEvents,
+                                cursorUsageEvents: store.prefs.cursorUsageEvents, cursorExport: store.cursorExport,
                                 problems: carried.reduce(into: [:]) { $0[$1] = store.status($1).problem },
                                 nothingLocal: Set(carried.filter { store.status($0).hasNothingYet }))
     }

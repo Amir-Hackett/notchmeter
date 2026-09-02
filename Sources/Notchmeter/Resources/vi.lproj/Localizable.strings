@@ -69,6 +69,7 @@
 "%ld min" = "%ld phút";
 "%ld sessions" = "%ld phiên";
 "%ld tokens" = "%ld token";
+"%ld usage events in the last 30 days, none of them billed" = "%ld sự kiện sử dụng trong 30 ngày qua, không có khoản nào bị tính phí";
 "%ld%% left" = "Còn %ld%%";
 "%ld%% used" = "Đã dùng %ld%%";
 "%ld-day" = "%ld ngày";
@@ -221,6 +222,7 @@
 "Cursor's state database could not be opened" = "Không mở được cơ sở dữ liệu trạng thái của Cursor";
 "Cursor's state database has no ItemTable" = "Cơ sở dữ liệu trạng thái của Cursor không có ItemTable";
 "Cursor, Codex and Claude Desktop can ask for the limits through the Model Context Protocol: `%@ --mcp` speaks JSON-RPC over stdio with one tool, get_limits." = "Cursor, Codex và Claude Desktop có thể hỏi giới hạn qua Model Context Protocol: `%@ --mcp` nói JSON-RPC qua stdio với một công cụ, get_limits.";
+"cursor.com refused its usage export (HTTP %ld)" = "cursor.com đã từ chối yêu cầu xuất dữ liệu sử dụng (HTTP %ld)";
 "Cut" = "Cắt";
 "Cutting it close (on track)" = "Sát nút (đúng nhịp)";
 "daily" = "hằng ngày";
@@ -290,6 +292,7 @@
 "Installed · pointing at %@" = "Đã cài · trỏ tới %@";
 "Installed." = "Đã cài.";
 "Installed; your previous status line (%@) runs after it." = "Đã cài; dòng trạng thái trước của bạn (%@) chạy sau nó.";
+"its usage export could not be fetched" = "không lấy được dữ liệu sử dụng đã xuất";
 "just now" = "vừa xong";
 "Keep the Mac awake while Claude Code is working" = "Giữ máy Mac thức khi Claude Code đang làm việc";
 "Keeping awake" = "Giữ máy thức";
@@ -344,6 +347,7 @@
 "Not installed on this Mac" = "Chưa cài trên máy Mac này";
 "Not now" = "Để sau";
 "Not started" = "Chưa bắt đầu";
+"nothing used in the last 30 days" = "không có mức sử dụng nào trong 30 ngày qua";
 "Nothing used · %@ window" = "Chưa dùng · cửa sổ %@";
 "Notifications" = "Thông báo";
 "Notifications are off for %@ in System Settings › Notifications." = "Thông báo của %@ đang tắt trong Cài đặt hệ thống › Thông báo.";

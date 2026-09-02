@@ -69,6 +69,7 @@
 "%ld min" = "%ld분";
 "%ld sessions" = "세션 %ld개";
 "%ld tokens" = "%ld 토큰";
+"%ld usage events in the last 30 days, none of them billed" = "최근 30일 동안 사용 이벤트 %ld건, 모두 청구되지 않았습니다";
 "%ld%% left" = "%ld%% 남음";
 "%ld%% used" = "%ld%% 사용";
 "%ld-day" = "%ld일";
@@ -221,6 +222,7 @@
 "Cursor's state database could not be opened" = "Cursor 상태 데이터베이스를 열 수 없습니다";
 "Cursor's state database has no ItemTable" = "Cursor 상태 데이터베이스에 ItemTable이 없습니다";
 "Cursor, Codex and Claude Desktop can ask for the limits through the Model Context Protocol: `%@ --mcp` speaks JSON-RPC over stdio with one tool, get_limits." = "Cursor, Codex, Claude Desktop은 Model Context Protocol로 한도를 물을 수 있습니다. `%@ --mcp`는 stdio 위 JSON-RPC로 get_limits 도구 하나를 제공합니다.";
+"cursor.com refused its usage export (HTTP %ld)" = "cursor.com이 사용량 내보내기를 거부했습니다 (HTTP %ld)";
 "Cut" = "오려두기";
 "Cutting it close (on track)" = "아슬아슬함 (페이스 내)";
 "daily" = "일간";
@@ -290,6 +292,7 @@
 "Installed · pointing at %@" = "설치됨 · %@ 참조";
 "Installed." = "설치되었습니다.";
 "Installed; your previous status line (%@) runs after it." = "설치되었습니다. 이전 상태 표시줄(%@)은 그 다음에 실행됩니다.";
+"its usage export could not be fetched" = "사용량 내보내기를 가져오지 못했습니다";
 "just now" = "방금";
 "Keep the Mac awake while Claude Code is working" = "Claude Code가 작업 중일 때 Mac 깨어 있게 유지";
 "Keeping awake" = "깨어 있음 유지";
@@ -344,6 +347,7 @@
 "Not installed on this Mac" = "이 Mac에 설치되지 않음";
 "Not now" = "나중에";
 "Not started" = "시작 안 됨";
+"nothing used in the last 30 days" = "최근 30일 동안 사용 내역이 없습니다";
 "Nothing used · %@ window" = "사용 없음 · %@ 창";
 "Notifications" = "알림";
 "Notifications are off for %@ in System Settings › Notifications." = "시스템 설정 › 알림에서 %@의 알림이 꺼져 있습니다.";

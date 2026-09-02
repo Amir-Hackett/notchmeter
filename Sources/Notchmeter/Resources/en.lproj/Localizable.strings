@@ -85,6 +85,7 @@
 "%ld min" = "%ld min";
 "%ld sessions" = "%ld sessions";
 "%ld tokens" = "%ld tokens";
+"%ld usage events in the last 30 days, none of them billed" = "%ld usage events in the last 30 days, none of them billed";
 "%ld%% left" = "%ld%% left";
 "%ld%% used" = "%ld%% used";
 "%ld-day" = "%ld-day";
@@ -237,6 +238,7 @@
 "Cursor's state database could not be opened" = "Cursor's state database could not be opened";
 "Cursor's state database has no ItemTable" = "Cursor's state database has no ItemTable";
 "Cursor, Codex and Claude Desktop can ask for the limits through the Model Context Protocol: `%@ --mcp` speaks JSON-RPC over stdio with one tool, get_limits." = "Cursor, Codex and Claude Desktop can ask for the limits through the Model Context Protocol: `%@ --mcp` speaks JSON-RPC over stdio with one tool, get_limits.";
+"cursor.com refused its usage export (HTTP %ld)" = "cursor.com refused its usage export (HTTP %ld)";
 "Cut" = "Cut";
 "Cutting it close (on track)" = "Cutting it close (on track)";
 "daily" = "daily";
@@ -306,6 +308,7 @@
 "Installed · pointing at %@" = "Installed · pointing at %@";
 "Installed." = "Installed.";
 "Installed; your previous status line (%@) runs after it." = "Installed; your previous status line (%@) runs after it.";
+"its usage export could not be fetched" = "its usage export could not be fetched";
 "just now" = "just now";
 "Keep the Mac awake while Claude Code is working" = "Keep the Mac awake while Claude Code is working";
 "Keeping awake" = "Keeping awake";
@@ -360,6 +363,7 @@
 "Not installed on this Mac" = "Not installed on this Mac";
 "Not now" = "Not now";
 "Not started" = "Not started";
+"nothing used in the last 30 days" = "nothing used in the last 30 days";
 "Nothing used · %@ window" = "Nothing used · %@ window";
 "Notifications" = "Notifications";
 "Notifications are off for %@ in System Settings › Notifications." = "Notifications are off for %@ in System Settings › Notifications.";

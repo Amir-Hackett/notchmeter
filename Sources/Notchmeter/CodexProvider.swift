@@ -32,11 +32,11 @@ actor CodexProvider: UsageProvider {
     private let session: URLSession?
     private let readResetCredits: @Sendable () -> Bool
 
-    init(session: URLSession? = nil, root: URL = CodexProvider.defaultHome(),
-         readResetCredits: @escaping @Sendable () -> Bool = { false }) {
+    init(session: URLSession? = nil, root: URL = CodexProvider.defaultHome(), defaults: UserDefaults = .standard,
+         readResetCredits: (@Sendable () -> Bool)? = nil) {
         self.session = session
         self.root = root
-        self.readResetCredits = readResetCredits
+        self.readResetCredits = readResetCredits ?? ProviderOptIn.codexResetCredits.reader(defaults)
     }
 
     /// `$CODEX_HOME` when set; else `~/.config/codex` when it exists; else `~/.codex`.

@@ -34,11 +34,11 @@ actor CopilotProvider: UsageProvider {
     init(session: URLSession? = nil,
          configRoot: URL = Paths.home.appendingPathComponent(".config/github-copilot"),
          ghHosts: URL = Paths.home.appendingPathComponent(".config/gh/hosts.yml"),
-         readOrgBilling: @escaping @Sendable () -> Bool = { false }) {
+         defaults: UserDefaults = .standard, readOrgBilling: (@Sendable () -> Bool)? = nil) {
         self.session = session
         self.configRoot = configRoot
         self.ghHosts = ghHosts
-        self.readOrgBilling = readOrgBilling
+        self.readOrgBilling = readOrgBilling ?? ProviderOptIn.copilotOrgBilling.reader(defaults)
     }
 
     nonisolated func isInstalled() -> Bool {

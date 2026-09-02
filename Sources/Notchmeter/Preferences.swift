@@ -261,6 +261,32 @@ enum CompactSide: String, CaseIterable, Codable {
     }
 }
 
+/// A second read a provider makes only because the user asked for it.
+///
+/// The switch is read from UserDefaults at the moment the provider fetches, never handed to it when it is built:
+/// a provider constructed anywhere in the app follows the setting, and a construction that forgets to wire one up
+/// cannot silently disable the read. Cursor's usage export was off for every install for exactly that reason.
+enum ProviderOptIn: String, CaseIterable, Sendable {
+    case codexResetCredits, cursorUsageEvents, copilotOrgBilling
+
+    /// The defaults key, which is the case's own name; Preferences.Keys reads it from here.
+    var key: String { rawValue }
+
+    /// Cursor's export comes from the account the usage summary already reads, so it is on unless switched off;
+    /// the other two reach endpoints of their own and stay off until asked for.
+    var whenUnset: Bool { self == .cursorUsageEvents }
+
+    func value(_ defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: key) as? Bool ?? whenUnset
+    }
+
+    /// The live read a provider actor holds. UserDefaults is thread-safe and nothing is captured but the key.
+    func reader(_ defaults: UserDefaults = .standard) -> @Sendable () -> Bool {
+        nonisolated(unsafe) let defaults = defaults
+        return { self.value(defaults) }
+    }
+}
+
 @MainActor
 @Observable
 final class Preferences {
@@ -658,9 +684,9 @@ final class Preferences {
         static let extraRoots = "extraTranscriptRoots"
         static let localAPI = "localAPIEnabled"
         static let localAPIOrigins = "localAPIOrigins"
-        static let codexCredits = "codexResetCredits"
-        static let cursorEvents = "cursorUsageEvents"
-        static let copilotOrg = "copilotOrgBilling"
+        static let codexCredits = ProviderOptIn.codexResetCredits.key
+        static let cursorEvents = ProviderOptIn.cursorUsageEvents.key
+        static let copilotOrg = ProviderOptIn.copilotOrgBilling.key
         static let keychainPrompts = "keychainPrompts"
         static let keepAwake = "keepAwake"
         static let keepAwakeBattery = "keepAwakeOnBattery"
@@ -744,7 +770,7 @@ final class Preferences {
         extraTranscriptRoots = defaults.stringArray(forKey: Keys.extraRoots) ?? []
         localAPIEnabled = defaults.bool(forKey: Keys.localAPI)
         localAPIOrigins = defaults.stringArray(forKey: Keys.localAPIOrigins) ?? []
-        codexResetCredits = defaults.bool(forKey: Keys.codexCredits)
+        codexResetCredits = ProviderOptIn.codexResetCredits.value(defaults)
         // On by default: the events come from the same account over the same session cookie the usage summary
         // already uses, so hiding a tool's own spend behind a switch cost more than it protected.
         // A build that defaulted this off wrote false into every existing install, so the new default alone
@@ -753,8 +779,8 @@ final class Preferences {
             defaults.set(true, forKey: "cursorUsageEventsDefaulted")
             defaults.set(true, forKey: Keys.cursorEvents)
         }
-        cursorUsageEvents = defaults.object(forKey: Keys.cursorEvents) as? Bool ?? true
-        copilotOrgBilling = defaults.bool(forKey: Keys.copilotOrg)
+        cursorUsageEvents = ProviderOptIn.cursorUsageEvents.value(defaults)
+        copilotOrgBilling = ProviderOptIn.copilotOrgBilling.value(defaults)
         keychainPrompts = KeychainPromptPolicy(rawValue: defaults.string(forKey: Keys.keychainPrompts) ?? "") ?? .refreshOnly
         keepAwake = defaults.bool(forKey: Keys.keepAwake)
         keepAwakeOnBattery = defaults.bool(forKey: Keys.keepAwakeBattery)
