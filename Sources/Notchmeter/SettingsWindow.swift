@@ -1136,9 +1136,7 @@ final class SettingsWindowController: NSWindowController {
     /// visible from the first frame rather than for the tail of that animation.
     func present(on screen: NSScreen, below readouts: CGRect? = nil, above panelLevel: NSWindow.Level? = nil) {
         guard let window else { return }
-        if let panelLevel {
-            window.level = NSWindow.Level(rawValue: max(NSWindow.Level.floating.rawValue, panelLevel.rawValue + 1))
-        }
+        if let panelLevel { window.level = Self.level(above: panelLevel) }
         window.setFrame(Self.frame(for: window.frame.size, screen: screen.frame, safeAreaTop: screen.safeAreaInsets.top,
                                    visible: screen.visibleFrame, readouts: readouts), display: false)
         showWindow(nil)
@@ -1147,6 +1145,12 @@ final class SettingsWindowController: NSWindowController {
 
     var isNonActivating: Bool {
         window?.styleMask.contains(.nonactivatingPanel) ?? false
+    }
+
+    /// One level above the panel, and never below `.floating` so the window still sits over ordinary app
+    /// windows when the panel is at a lower level than that. `--smoke` asserts the same relation.
+    nonisolated static func level(above panelLevel: NSWindow.Level) -> NSWindow.Level {
+        NSWindow.Level(rawValue: max(NSWindow.Level.floating.rawValue, panelLevel.rawValue + 1))
     }
 
     /// Horizontally centred, and clear of the readouts: they draw above every other window, so a fixed
