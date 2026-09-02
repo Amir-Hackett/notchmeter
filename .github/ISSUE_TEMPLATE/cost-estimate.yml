@@ -1,0 +1,54 @@
+name: Cost estimate disagrees with a bill or with Claude Code
+description: The Cost card, --probe or docs/accuracy.md prices a transcript line differently from what you expected.
+title: "[cost] "
+labels: ["accuracy"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The best report is a golden-transcript fixture: one anonymised transcript line and the dollar figure it should price to, which becomes a test in `Tests/NotchmeterTests/CostGoldenTests.swift`. **Never paste a token, an API key, a session id you care about, or any prompt or response text.** The `usage` object, the model id and the timestamp are all the rules need.
+  - type: input
+    id: model
+    attributes:
+      label: Model id
+      description: Exactly as `message.model` has it, e.g. `claude-opus-4-8-20260215`.
+    validations:
+      required: true
+  - type: textarea
+    id: usage
+    attributes:
+      label: The line's usage object (anonymised)
+      description: The `message.usage` JSON of one line, plus `speed` and `inference_geo` if present. Replace ids with `…`.
+      render: json
+      placeholder: '{"input_tokens": 1000, "output_tokens": 100, "cache_read_input_tokens": 40000, "cache_creation": {"ephemeral_5m_input_tokens": 3000, "ephemeral_1h_input_tokens": 2000}, "inference_geo": "global", "speed": "standard"}'
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: Expected cost for that line
+      description: In USD, and where the figure comes from (a bill, Claude Code's /usage, a hand calculation from the pricing page).
+    validations:
+      required: true
+  - type: input
+    id: shown
+    attributes:
+      label: What Notchmeter shows
+      description: The Cost card figure or the `--probe --no-prompt` cost line for the same range.
+    validations:
+      required: true
+  - type: checkboxes
+    id: divergences
+    attributes:
+      label: Known divergences ruled out
+      description: docs/accuracy.md lists what the estimate does not model. Tick the ones you checked.
+      options:
+        - label: Not an interrupted response (output_tokens placeholder)
+        - label: Not a contracted rate, a regional cloud premium or a usage-credit rate
+        - label: Not a price change after the snapshot date in docs/accuracy.md
+        - label: Not another machine or claude.ai
+  - type: input
+    id: version
+    attributes:
+      label: Notchmeter version and macOS version
+      description: Settings › Version, and `sw_vers -productVersion`.

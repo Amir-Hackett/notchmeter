@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Burn-rate projection for a bounded window (ported from OpenUsage's Pace): given how much is spent and
 /// how far through the window we are, project usage at the current rate to the reset.
@@ -96,18 +97,31 @@ enum CompactLabel {
     static let noLimit = "–"
     static let separator = "·"
 
-    static func segments(for reading: UsageReading?, display: UsageDisplay, now: Date = Date()) -> [Segment] {
-        let windows = reading.map { Array($0.windows.prefix(2)) } ?? []
+    static func segments(for reading: UsageReading?, display: UsageDisplay, countdown: Bool = false, now: Date = Date()) -> [Segment] {
+        segments(for: reading.map { Array($0.windows.prefix(2)) } ?? [], display: display, countdown: countdown, now: now)
+    }
+
+    /// `windows` are the ones the rings draw (Preferences.ringWindows). With `countdown`, the first window's figure
+    /// carries its reset as a compact duration ("90% 32m"), left out when the reset is unknown or has passed.
+    static func segments(for windows: [LimitWindow], display: UsageDisplay, countdown: Bool = false, now: Date = Date()) -> [Segment] {
         guard !windows.isEmpty else { return [Segment(text: noLimit, pace: nil)] }
-        return windows.map { window in
+        return windows.enumerated().map { index, window in
             guard let used = window.usedFraction else { return Segment(text: noLimit, pace: nil) }
             let shown = display == .used ? used : 1 - used
-            return Segment(text: "\(Int((shown * 100).rounded()))%", pace: Pace.status(for: window, now: now))
+            var text = "\(Int((shown * 100).rounded()))%"
+            if countdown, index == 0, let resetsAt = window.resetsAt, resetsAt > now {
+                text += " " + ResetText.compactDuration(resetsAt.timeIntervalSince(now))
+            }
+            return Segment(text: text, pace: Pace.status(for: window, now: now))
         }
     }
 
-    static func text(for reading: UsageReading?, display: UsageDisplay, now: Date = Date()) -> String {
-        segments(for: reading, display: display, now: now).map(\.text).joined(separator: " \(separator) ")
+    static func text(for reading: UsageReading?, display: UsageDisplay, countdown: Bool = false, now: Date = Date()) -> String {
+        segments(for: reading, display: display, countdown: countdown, now: now).map(\.text).joined(separator: " \(separator) ")
+    }
+
+    static func text(for windows: [LimitWindow], display: UsageDisplay, countdown: Bool = false, now: Date = Date()) -> String {
+        segments(for: windows, display: display, countdown: countdown, now: now).map(\.text).joined(separator: " \(separator) ")
     }
 }
 
@@ -176,6 +190,14 @@ enum ResetText {
         return L("%lds", total)
     }
 
+    /// One unit only, for the rings: "6d", "4h", "32m"; anything under a minute is "1m".
+    static func compactDuration(_ seconds: TimeInterval) -> String {
+        let total = Int(seconds.rounded())
+        if total >= 86400 { return L("%ldd", total / 86400) }
+        if total >= 3600 { return L("%ldh", total / 3600) }
+        return L("%ldm", max(1, total / 60))
+    }
+
     static func dayPhrase(_ date: Date, now: Date, calendar: Calendar) -> String {
         if calendar.isDate(date, inSameDayAs: now) { return L("today") }
         if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(date, inSameDayAs: tomorrow) { return L("tomorrow") }
@@ -213,10 +235,58 @@ enum StaleReading {
     }
 }
 
+/// Every amount on screen goes through here. Amounts are computed in US dollars; "Show costs in" converts them
+/// with the user's own rate and the locale's symbol for the code (docs/accuracy.md: the rate is never fetched).
 enum Money {
+    private struct Currency {
+        var code = "USD"
+        var rate = 1.0
+        var symbol = "$"
+    }
+
+    private static let current = OSAllocatedUnfairLock(initialState: Currency())
+
+    static func configure(code: String, rate: Double) {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let code = trimmed.count == 3 ? trimmed : "USD"
+        let rate = code == "USD" ? 1 : (rate.isFinite && rate > 0 ? rate : 1)
+        current.withLock { $0 = Currency(code: code, rate: rate, symbol: symbol(for: code)) }
+    }
+
+    static var code: String { current.withLock { $0.code } }
+    static var rate: Double { current.withLock { $0.rate } }
+
+    /// The locale's symbol for the code ("€", "£", "¥", "CHF"); the code itself when the locale has none.
+    static func symbol(for code: String, locale: Locale = .current) -> String {
+        if code == "USD" { return "$" }
+        let formatter = NumberFormatter()
+        formatter.locale = locale
+        formatter.numberStyle = .currency
+        formatter.currencyCode = code
+        let symbol = formatter.currencySymbol ?? code
+        return symbol.isEmpty || symbol == "¤" ? code : symbol
+    }
+
     static func dollars(_ value: Double, cents: Bool = true) -> String {
-        if !cents || value >= 1000 { return "$\(Int(value.rounded()))" }
-        return String(format: "$%.2f", value)
+        let currency = current.withLock { $0 }
+        return format(value, cents: cents, rate: currency.rate, symbol: currency.symbol)
+    }
+
+    /// The amount in the chosen currency: two decimals under a thousand, whole units from there.
+    static func format(_ value: Double, cents: Bool = true, rate: Double, symbol: String) -> String {
+        let amount = value * rate
+        if !cents || amount >= 1000 { return "\(symbol)\(Int(amount.rounded()))" }
+        return symbol + String(format: "%.2f", amount)
+    }
+
+    /// "4.2M tokens", "310K tokens", "812 tokens".
+    static func tokens(_ count: Int) -> String {
+        if count >= 1_000_000 {
+            let millions = Double(count) / 1_000_000
+            return L("%@M tokens", millions >= 10 ? String(Int(millions.rounded())) : String(format: "%.1f", millions))
+        }
+        if count >= 1000 { return L("%ldK tokens", Int((Double(count) / 1000).rounded())) }
+        return L("%ld tokens", count)
     }
 }
 
@@ -273,6 +343,7 @@ enum Spoken {
             case .idle(let message): parts.append(phrase(message))
             case .off: parts.append(L("off"))
             case .notInstalled: parts.append(L("not installed"))
+            case .offline: parts.append(L("Offline, retrying"))
             case .ready, .needsAttention, .failed: break
             }
         }

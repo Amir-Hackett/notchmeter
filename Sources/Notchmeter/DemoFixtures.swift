@@ -15,7 +15,7 @@ enum DemoFixtures {
         let prefs = Preferences(defaults: defaults)
         let readings = readings(now: now)
         let store = UsageStore(prefs: prefs, providers: readings.map { FixtureProvider(reading: $0) },
-                               cache: ReadingCache(defaults: defaults), defaults: defaults)
+                               cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
         store.seed(readings: readings, cost: cost(now: now), nextUpdate: now.addingTimeInterval(2 * 60 + 40), now: now)
         return (store, prefs)
     }

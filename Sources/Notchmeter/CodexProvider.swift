@@ -2,13 +2,15 @@ import Foundation
 
 /// Asks the same backend endpoint Codex itself uses for its rate-limit windows, with the login Codex keeps in
 /// `~/.codex/auth.json`. Falls back to the snapshots Codex writes into session rollouts when the network is out.
-/// The token is never refreshed or written; Codex does that whenever it runs.
+/// The token is never refreshed or written; Codex does that whenever it runs. The reset-credits endpoint is a
+/// second request on the same login and runs only when the user opts in.
 actor CodexProvider: UsageProvider {
     nonisolated let tool: ToolID = .codex
-    nonisolated let refreshInterval: TimeInterval = 120
+    nonisolated let refreshInterval: TimeInterval = 300
     nonisolated let root: URL
 
     static let usageURL = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
+    static let resetCreditsURL = URL(string: "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits")!
 
     struct Auth: Equatable {
         let accessToken: String
@@ -16,11 +18,21 @@ actor CodexProvider: UsageProvider {
         let expiresAt: Date?
     }
 
-    private let session: URLSession
+    /// A credit that resets a window when claimed in Codex; Notchmeter shows it and never claims it.
+    struct ResetCredit: Equatable, Sendable {
+        let count: Int
+        let expiresAt: Date?
+        let kind: String?
+    }
 
-    init(session: URLSession = .shared, root: URL = Paths.home.appendingPathComponent(".codex")) {
+    private let session: URLSession
+    private let readResetCredits: @Sendable () -> Bool
+
+    init(session: URLSession = NetworkSession.shared, root: URL = Paths.home.appendingPathComponent(".codex"),
+         readResetCredits: @escaping @Sendable () -> Bool = { false }) {
         self.session = session
         self.root = root
+        self.readResetCredits = readResetCredits
     }
 
     nonisolated func isInstalled() -> Bool {
@@ -37,29 +49,24 @@ actor CodexProvider: UsageProvider {
             throw ProviderError.tokenExpired(L("Codex's login has expired. Run Codex once so it signs back in"))
         }
 
-        var request = URLRequest(url: Self.usageURL)
-        request.timeoutInterval = 20
-        request.setValue("Bearer \(auth.accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
-        if let accountID = auth.accountID {
-            request.setValue(accountID, forHTTPHeaderField: "ChatGPT-Account-Id")
-        }
-
         let body: Data
         let status: Int
         do {
-            let (received, response) = try await session.data(for: request)
-            body = received
-            status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            (body, status) = try await get(Self.usageURL, auth: auth)
         } catch {
             if let local = try? localReading() { return local }
+            if let offline = ProviderError.offline(from: error) { throw offline }
             throw ProviderError.unavailable(L("Codex usage is unreachable: %@", error.localizedDescription))
         }
 
         switch status {
         case 200:
-            return try Self.parseBackend(body)
+            var reading = try Self.parseBackend(body)
+            if readResetCredits(), let (credits, creditStatus) = try? await get(Self.resetCreditsURL, auth: auth), creditStatus == 200,
+               let window = Self.resetCreditWindow(Self.parseResetCredits(credits)) {
+                reading = UsageReading(tool: .codex, windows: reading.windows + [window], plan: reading.plan, fetchedAt: reading.fetchedAt, observedAt: nil)
+            }
+            return reading
         case 401, 403:
             if let local = try? localReading() { return local }
             throw ProviderError.tokenExpired(L("Codex's login was refused. Run Codex once so it signs back in"))
@@ -69,6 +76,19 @@ actor CodexProvider: UsageProvider {
             if let local = try? localReading() { return local }
             throw ProviderError.http(status, L("Codex usage endpoint answered"))
         }
+    }
+
+    private func get(_ url: URL, auth: Auth) async throws -> (Data, Int) {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 20
+        request.setValue("Bearer \(auth.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
+        if let accountID = auth.accountID {
+            request.setValue(accountID, forHTTPHeaderField: "ChatGPT-Account-Id")
+        }
+        let (received, response) = try await session.data(for: request)
+        return (received, (response as? HTTPURLResponse)?.statusCode ?? 0)
     }
 
     // MARK: - Backend
@@ -94,36 +114,23 @@ actor CodexProvider: UsageProvider {
 
     /// `rate_limit.primary_window` is normally the 5-hour window and `secondary_window` the weekly one, but
     /// they are classified by their declared length so a sole weekly limit in the primary slot still reads right.
+    /// `additional_rate_limits` carries a paired pair per extra model (GPT-5.3-Codex-Spark), which become
+    /// per-model windows so the switch-models advice applies to Codex too.
     static func parseBackend(_ data: Data, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ProviderError.parse(L("Codex usage response unreadable"))
         }
-        let rateLimit = root["rate_limit"] as? [String: Any]
-        var session: LimitWindow?
-        var longer: [LimitWindow] = []
-        for (slot, fallbackIsWeekly) in [("primary_window", false), ("secondary_window", true)] {
-            guard let window = rateLimit?[slot] as? [String: Any], let used = JSON.number(window["used_percent"]) else { continue }
-            let seconds = JSON.number(window["limit_window_seconds"])
-            let kind = windowKind(seconds: seconds, fallbackIsWeekly: fallbackIsWeekly)
-            let parsed = LimitWindow(
-                id: kind.id,
-                label: kind.label,
-                usedFraction: JSON.fraction(used),
-                resetsAt: JSON.number(window["reset_at"]).map { Date(timeIntervalSince1970: $0) },
-                periodDuration: seconds ?? (kind.id == "session" ? Period.fiveHours : Period.week)
-            )
-            if kind.id == "session" {
-                session = session ?? parsed
-            } else if !longer.contains(where: { $0.id == kind.id }) {
-                longer.append(parsed)
-            }
+        var windows = parseRateLimit(root["rate_limit"] as? [String: Any], model: nil)
+        if !windows.contains(where: { $0.id == "session" }) {
+            windows.insert(LimitWindow(id: "session", label: L("Session"), usedFraction: nil, resetsAt: nil, note: L("No data")), at: 0)
         }
-        var windows: [LimitWindow] = []
-        windows.append(session ?? LimitWindow(id: "session", label: L("Session"), usedFraction: nil, resetsAt: nil, note: L("No data")))
-        if longer.isEmpty {
+        if windows.count == 1 {
             windows.append(LimitWindow(id: "weekly", label: L("Weekly"), usedFraction: nil, resetsAt: nil, note: L("No data")))
-        } else {
-            windows.append(contentsOf: longer)
+        }
+        for case let extra as [String: Any] in (root["additional_rate_limits"] as? [Any]) ?? [] {
+            let name = additionalModelName(extra)
+            let limit = (extra["rate_limit"] as? [String: Any]) ?? extra
+            windows.append(contentsOf: parseRateLimit(limit, model: name))
         }
         if let credits = root["credits"] as? [String: Any], (credits["has_credits"] as? Bool) == true, (credits["unlimited"] as? Bool) != true,
            let balance = JSON.number(credits["balance"]) {
@@ -131,6 +138,42 @@ actor CodexProvider: UsageProvider {
         }
         let plan = (root["plan_type"] as? String).map(Naming.plan)
         return UsageReading(tool: .codex, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
+    }
+
+    /// Both slots of one rate_limit object; a model name scopes the ids and labels ("Spark Session").
+    static func parseRateLimit(_ rateLimit: [String: Any]?, model: String?) -> [LimitWindow] {
+        var session: LimitWindow?
+        var longer: [LimitWindow] = []
+        for (slot, fallbackIsWeekly) in [("primary_window", false), ("secondary_window", true)] {
+            guard let window = rateLimit?[slot] as? [String: Any], let used = JSON.number(window["used_percent"]) else { continue }
+            let seconds = JSON.number(window["limit_window_seconds"])
+            let kind = windowKind(seconds: seconds, fallbackIsWeekly: fallbackIsWeekly)
+            let slug = model.map { $0.lowercased().replacingOccurrences(of: " ", with: "_") + "_" } ?? ""
+            let parsed = LimitWindow(
+                id: slug + kind.id,
+                label: model.map { "\($0) \(kind.label)" } ?? kind.label,
+                usedFraction: JSON.fraction(used),
+                resetsAt: JSON.number(window["reset_at"]).map { Date(timeIntervalSince1970: $0) },
+                periodDuration: seconds ?? (kind.id == "session" ? Period.fiveHours : Period.week),
+                model: model
+            )
+            if kind.id == "session" {
+                session = session ?? parsed
+            } else if !longer.contains(where: { $0.id == parsed.id }) {
+                longer.append(parsed)
+            }
+        }
+        return [session].compactMap { $0 } + longer
+    }
+
+    /// The model an additional limit is for: a display name when given, else its slug made readable.
+    static func additionalModelName(_ entry: [String: Any]) -> String {
+        for key in ["display_name", "model_display_name", "name", "limit_name", "model_slug", "model"] {
+            if let value = entry[key] as? String, !value.isEmpty {
+                return value.contains(" ") ? value : ModelNames.display(value)
+            }
+        }
+        return "Extra"
     }
 
     /// Labels a window by its declared length: 5-hour sessions, weekly and monthly limits, or "N-day".
@@ -142,6 +185,39 @@ actor CodexProvider: UsageProvider {
         if (25...35).contains(days) { return ("monthly", L("Monthly")) }
         let rounded = Int(days.rounded())
         return ("window_\(rounded)d", L("%ld-day", rounded))
+    }
+
+    // MARK: - Reset credits
+
+    /// `{"credits":[{"count":1,"expires_at":…,"type":"full_reset"}]}` in the shape OpenUsage's research recorded;
+    /// `reset_credits`, `quantity`/`remaining`, `expiration`/`expiry` and ISO or epoch dates are accepted as well.
+    static func parseResetCredits(_ data: Data) -> [ResetCredit] {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
+        let list = (root["credits"] ?? root["reset_credits"] ?? root["items"]) as? [Any] ?? []
+        return list.compactMap { item in
+            guard let object = item as? [String: Any] else { return nil }
+            let count = Int(JSON.number(object["count"] ?? object["quantity"] ?? object["remaining"]) ?? 1)
+            let expiry = object["expires_at"] ?? object["expiration"] ?? object["expiry"]
+            let expiresAt = (expiry as? String).flatMap(DateParsing.iso8601) ?? JSON.number(expiry).map { Date(timeIntervalSince1970: $0 > 1e12 ? $0 / 1000 : $0) }
+            let kind = (object["type"] ?? object["credit_type"] ?? object["kind"]) as? String
+            return count > 0 ? ResetCredit(count: count, expiresAt: expiresAt, kind: kind) : nil
+        }
+    }
+
+    /// One informational window for the soonest-expiring credit: "Full reset credit expires in 3d — claim it in Codex".
+    static func resetCreditWindow(_ credits: [ResetCredit], now: Date = Date()) -> LimitWindow? {
+        let live = credits.filter { $0.expiresAt.map { $0 > now } ?? true }
+        guard !live.isEmpty else { return nil }
+        let soonest = live.min { ($0.expiresAt ?? .distantFuture) < ($1.expiresAt ?? .distantFuture) }!
+        let total = live.reduce(0) { $0 + $1.count }
+        let name = soonest.kind.map { Naming.prettify($0) } ?? L("Reset")
+        let note: String
+        if let expiresAt = soonest.expiresAt {
+            note = L("%1$@ credit expires in %2$@ — claim it in Codex", name, ResetText.duration(expiresAt.timeIntervalSince(now)))
+        } else {
+            note = L("%1$ld %2$@ credit(s) — claim them in Codex", total, name)
+        }
+        return LimitWindow(id: "reset_credits", label: L("Reset credits"), usedFraction: nil, resetsAt: soonest.expiresAt, note: note)
     }
 
     // MARK: - Local rollouts (fallback)

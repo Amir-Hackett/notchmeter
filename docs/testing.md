@@ -8,7 +8,7 @@ Three layers, cheapest first: the unit tests pin every rule, `--smoke` checks th
 scripts/test.sh
 ```
 
-Swift Testing through Command Line Tools alone (the script passes the framework paths). The suites are named after what they pin: the golden transcripts and the burn rate (`CostGoldenTests.swift`), the advice rules (`AdvisorTests.swift`), the hover state machine (`HoverIntentTests.swift`), the pace-crossing notifications, the presence rule, the compact labels, the tool order, the localisation tables, the oracle encoder, the Settings placement, and the parsers for every provider.
+Swift Testing through Command Line Tools alone (the script passes the framework paths). The suites are named after what they pin: the golden transcripts and the burn rate (`CostGoldenTests.swift`), the web-search fee, fast mode, projects, the week/month/90-day ranges, the daily history, the digests and pricing overrides (`CostBreakdownTests.swift`), the advice rules (`AdvisorTests.swift`, `ResetAlertTests.swift`), the hover state machine with click, swipe, Escape and the shortcut (`HoverIntentTests.swift`), the pace-crossing, reset and reminder notifications, the per-session state machine (`SessionTrackerTests.swift`), the drain log (`DrainLogTests.swift`), the status-line payload and installer (`StatuslineTests.swift`), the presence rule, the compact labels, the tool order, the localisation tables for six languages, the oracle encoder, the display choice, the edge placement, the machine-readable report and its exit codes (`PlatformTests.swift`), the Settings placement, and the parsers for every provider, Copilot and the Codex extras included (`CopilotParsingTests.swift`).
 
 ## The self check
 
@@ -19,11 +19,13 @@ build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke
 
 Runs the real app for 8 to 90 seconds, never prompts for the Keychain, never starts Sparkle, and exits 0 only when everything it checks holds. It prints:
 
-- the panel's window frame and whether it is visible; the compact and expanded hover regions;
+- the bundle path and whether it is App-Translocated; every screen (frame, visible frame, notch, main, primary); menu bar and Dock auto-hide, Low Power Mode and the accessibility display flags; the display choice and which presenter each chosen screen got;
+- the panel's window frame and whether it is visible, the window's level and full-screen behaviour; the compact and expanded hover regions; the hover mode, delay and gestures;
 - `panel sizing`: the open panel's content height against the window and the screen cap, and, for the top layout, that a click below the panel still reaches the window under it;
-- `compact style rings|ringsAndNumbers|numbers`: the compact hover region measured for each style, so a wider readout is seen to widen the region the hover machine uses;
-- each provider's reading (labels and percentages, never a token), the tool order, the polling schedule, the presence level, the cost summary, the advice, the notification and updater state, and five lines of copy in the run's language;
-- `settings window` and `settings`: the Settings window's level (3 is `.floating`), frame, whether it is non-activating and key, the frontmost application's bundle id after presenting it (it must not be Notchmeter's own), the panel's state (it must be compact) and whether the two frames intersect (they must not); then `settings closed`, the panel's state after the window closes, which must match the visibility preference again.
+- `compact style rings|ringsAndNumbers|numbers`: the compact hover region measured for each style, and again with the reset countdown on, so a wider readout is seen to widen the region the hover machine uses;
+- with `--idle-sim`, the Hide when idle rule with the clock 31 minutes ahead and the pure rule's answers;
+- each provider's reading (labels and percentages, never a token), the tool order, the polling schedule, the presence level and session count, the cost summary (ranges, block, projects, models), the advice, the notification and updater state, the menu bar item, the local API, the screen-capture probe in use, the hook and status-line install state, the main menu's key equivalents, and five lines of copy in the run's language;
+- `settings window` and `settings`: the Settings window's level (3 is `.floating`), frame, whether it is non-activating and key, the frontmost application's bundle id after presenting it (it must not be Notchmeter's own), the panel's state (it must be compact) and whether the two frames intersect (they must not); `hook sheet`, the hook-install alert driven as a sheet against a scratch file (settings.json is never touched); then `settings closed`, the panel's state after the window closes, which must match the visibility preference again.
 
 Flags:
 
@@ -31,7 +33,9 @@ Flags:
 |---|---|
 | `--edge left` / `right` / `bottom` | run in that layout; the previous choice is restored on exit |
 | `--compact-style rings` / `ringsAndNumbers` / `numbers` | run with that readout; restored on exit (every style is still measured) |
-| `--visibility onHover` / `always` | run with that visibility; restored on exit (with `always`, the Settings step checks that the panel closes for the window and reopens after it) |
+| `--visibility onHover` / `onClick` / `always` / `hideWhenIdle` | run with that visibility; restored on exit (with `always`, the Settings step checks that the panel closes for the window and reopens after it) |
+| `--display builtIn` / `main` / `pointer` / `all` / `named:<name>` | run with that display choice; restored on exit; the `display:` line lists the screens chosen |
+| `--idle-sim` | runs the Hide when idle clock 31 minutes ahead and prints the presence before and after |
 | `--hover-sim` | a scripted pointer path through the live hover machine; fails the run if the panel loops |
 | `--hover-log` | prints each decision the real mouse produces meanwhile |
 | `--lang zh-Hans` | pins the copy to one shipped language |
@@ -52,7 +56,7 @@ Every line carries `"t"` (ISO 8601 with milliseconds, UTC) and `"event"`; keys a
 |---|---|---|
 | `launched` | the panel has been built | `version`, `edge`, `visibility`, `compactStyle`, `toolOrder` |
 | `regions` | the compact or expanded hover region changed (launch, a reading, a style or order change, a screen change) | `compact`, `expanded` |
-| `panel` | the panel opened or closed | `state` (`compact` / `expanded`), `cause` (`dwell`, `exit`, `clickOutside`, `space`, `lock`, `always`, `settings`, `menu`, `launch`) |
+| `panel` | the panel opened or closed | `state` (`compact` / `expanded`), `cause` (`dwell`, `exit`, `clickOutside`, `click`, `swipe`, `hotkey`, `escape`, `space`, `lock`, `always`, `settings`, `menu`, `notification`, `launch`) |
 | `menu` | the Options menu opened or closed | `action` (`shown` / `dismissed`), `items` (titles, when shown) |
 | `settings` | Settings was presented or closed | `action` (`shown` / `hidden`), `frame`, `level`, `nonActivating`, `frontmostBundleId`, `panelState` |
 | `layout` | the edge preference changed | `edge` |
@@ -60,10 +64,15 @@ Every line carries `"t"` (ISO 8601 with milliseconds, UTC) and `"event"`; keys a
 | `compactStyle` | the readout style changed | `compactStyle` |
 | `pref` | any other preference changed | `key`, `value` |
 | `reading` | a tool's status changed (and once per tool at launch) | `tool`, `status` (`notInstalled`, `off`, `waiting`, `idle`, `needsAttention`, `ready`, `failed`), and with a reading `plan`, `stale`, `windows` (`id`, `label`, `used` 0…1 or null, `resetsAt`, `pace`) |
-| `notification` | a pace alert was decided on, then delivered | `action` (`scheduled` / `sent`), `title`, `stage` when scheduled |
-| `hook` | a Claude Code hook event arrived | `name`, `needsInput` |
+| `notification` | a pace alert was decided on, delivered, or clicked | `action` (`scheduled` / `sent` / `clicked`), `title`, `stage` when scheduled, `level` when sent, `tool` and `identifier` when clicked |
+| `hook` | a Claude Code hook event arrived | `name`, `needsInput`, `session`, `project` |
 | `advice` | the advice strip's lines changed | `titles` |
-| `snapshot` | the distributed notification `com.amirhackett.notchmeter.oracle.snapshot` was received | every preference, `visibleTools`, `presence`, `awaitingInput`, `readings`, `advice`, `panelState`, `panelVisible`, `regions`, `settingsVisible`, `settingsFrame` |
+| `screens` | launch, and every `NSApplication.didChangeScreenParametersNotification` (a display plugged in or out, the lid, mirroring) | `screens`: per screen `name`, `frame`, `visibleFrame`, `safeAreaTop`, `notch`, `isMain`, `isPrimary` |
+| `statusline` | a Claude Code status-line payload arrived | `context` (0…1 or null), `windows` (ids), `session`, `model` |
+| `privacy` | the screen-capture probe changed its answer | `captured` |
+| `hotkey` | a global shortcut fired | `id` |
+| `clipboard` | a card or the panel was copied as an image | `kind`, `width`, `height` |
+| `snapshot` | the distributed notification `com.amirhackett.notchmeter.oracle.snapshot` was received | every preference, `visibleTools`, `presence`, `sessions`, `awaitingInput`, `readings`, `advice`, `panelState`, `panelVisible`, `panelScreen`, `regions`, `screens`, `captured`, `settingsVisible`, `settingsFrame` |
 
 Ask for a snapshot from a shell:
 
@@ -81,6 +90,53 @@ A typical tester's loop: launch with `--e2e-oracle`, wait for `launched` and the
 
 ```bash
 build/Notchmeter.app/Contents/MacOS/Notchmeter --probe --no-prompt
+build/Notchmeter.app/Contents/MacOS/Notchmeter --probe --no-prompt --json
 ```
 
-Prints every provider's parsed reading, the cost summary and the advice, and exits; `--no-prompt` keeps the Keychain dialog closed, so a locked item reports as needing attention instead.
+The first prints every provider's parsed reading, the cost summary (ranges, block, projects, models), the last hour's drain per window and the advice, and exits; `--no-prompt` keeps the Keychain dialog closed, so a locked item reports as needing attention instead. The second prints one JSON object, pretty-printed with sorted keys, schema `notchmeter.limits.v1` (`UsageReport.swift`; decoded by `PlatformTests`), and no token anywhere:
+
+```json
+{
+  "schema": "notchmeter.limits.v1",
+  "generatedAt": "2026-09-02T04:20:00.000Z",
+  "exitCode": 10,
+  "tools": [{ "tool": "claude", "name": "Claude", "status": "ready", "plan": "Max 5x", "fetchedAt": "…", "stale": false,
+              "windows": [{ "id": "five_hour", "label": "Session", "usedFraction": 0.61, "resetsAt": "…", "periodDuration": 18000,
+                            "pace": "behind", "projectedFraction": 3.05, "model": null, "note": null,
+                            "drainLastHour": { "from": 0.12, "to": 0.61, "perHour": 0.49 } }] }],
+  "cost": { "currency": "USD", "today": 118.31, "yesterday": 548.76, "last30Days": 6600, "last90Days": 6600, "month": 1234.5, "lastHour": 31.2,
+            "typicalHourly": 9.75, "burnMultiple": 3.2, "unpricedModels": [], "firstUse": "…", "sinceFirstUse": 6600,
+            "week": { "start": "…", "cost": 42.73, "perPercentOfWeekly": 1.58 }, "block": { "start": "…", "end": "…", "cost": 3.2, "tokens": 120000, "tokensPerMinute": 1200 },
+            "ranges": { "today": { "cost": 118.31, "tokens": 7400000, "cacheReadShare": 0.71, "byModel": [{ "name": "claude-fable-5-1", "cost": 118.31 }], "byProject": [{ "name": "notchmeter", "cost": 118.31 }] }, "…": {} } },
+  "advice": [{ "id": "burn", "priority": "warn", "tool": "claude", "text": "This hour burned $31.20 — 3.2x your 30-day average." }],
+  "sessions": [{ "id": "…", "project": "notchmeter", "state": "working", "stateSeconds": 130 }]
+}
+```
+
+Both forms exit with a Claude-Code-Usage-Monitor-style code: `0` fine, `10` near a limit (any window at 80 % or behind pace), `11` a limit hit (any window at 100 %), `20` no session (readings, but nothing used), `30` no data (no reading at all). The same object is what the optional local API serves at `http://127.0.0.1:6737/v1/limits` (and `/v1/limits/<tool>`), from the running app's cached readings, and what the Claude Code skill in `skills/notchmeter/SKILL.md` reads.
+
+## Platform matrix
+
+None of the states below can be unit-tested; each is a manual check with the expected behaviour and the self-report that confirms it without a screenshot. `--smoke` prints every screen, the chrome and the accessibility flags; the oracle emits `screens` on every display change.
+
+| State | Expected | Check |
+|---|---|---|
+| Display plugged in or out, lid opened or closed | the presenters rebuild on the chosen display; the hover region is re-armed; nothing is left on a screen that went away | oracle `screens`, then `regions`; `--smoke --display main` lists the chosen screen |
+| Clamshell / external-only / mirrored (no notch reported) | the top layout is a pill under the menu bar, the menu bar icon is on by default, Settings and Quit are reachable | `--smoke` on such a screen passes; `display:` line names `EdgePanelController` |
+| Full-screen app's Space | rings and panel visible when *Show over full-screen apps* is on, gone when off, in both layouts | `window: fullScreenAuxiliary=` line |
+| Stage Manager | the rings stay beside the notch (the window is stationary and joins every Space) | as above |
+| Menu bar auto-hide | the stand-in notch height on a notchless screen follows the bar's current height; nothing is cached | `chrome:` line, `notchRect` |
+| Dock auto-hide | the bottom bar sits above the reveal strip and does not summon the Dock | `chrome:` line; `EdgePanelController.placement` test |
+| Screen lock | polling paused, panel collapsed | footer "Paused while the screen is locked"; oracle `panel cause=lock` |
+| System sleep / wake | polling paused; on wake, a delayed read after the network is back; no fault mark | footer, then readings without `failed` |
+| Display sleep (no lock) | polling paused, panel collapsed | footer "Paused while the display sleeps" |
+| Low Power Mode | half the cadence, footer note | `polling:` line, footer "low power mode" |
+| Offline | cached readings stay without a problem mark; footer "Offline, retrying" | reading `status: offline` in the oracle |
+| Increase Contrast | brighter tracks and card fills, secondary captions, no quiet dim | `--render-assets` produces `expanded-contrast.png` |
+| Reduce Transparency | solid black surfaces, no glass | `accessibility` line |
+| Reduce Motion (system) or Reduce animations (app) | every transition instant, no pulse | `reduce motion:` line |
+| Screen shared or recorded, privacy on | rings keep their shape without digits; Cost card hidden; menu bar pin blank | oracle `privacy captured=true` |
+| App-Translocated launch | the move-to-Applications offer; login item disabled with a note | `bundle … translocated=true` line |
+| Login item requires approval | "Approve in System Settings" button in Settings | Settings › General |
+
+**VoiceOver walk-through (manual).** With VoiceOver on: VO-M-M reaches the menu bar item (turn it on in Settings); its menu carries Open panel, Refresh now, Settings… and Quit. The global shortcut opens the panel and makes its window key, so VO-arrows and Tab walk the Cost card, the Advice strip, each meter (label, value and pace are spoken as words: "Session 19 percent used, close to pace"), the drain line, the footer's refresh button and the Options button. Each meter has two custom actions, *Flip used and left* and *Flip countdown and exact time*. Settings is a standard grouped form.

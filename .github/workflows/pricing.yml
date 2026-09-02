@@ -1,0 +1,20 @@
+name: Pricing snapshot
+
+# Once a week, fetch Anthropic's pricing page and diff its per-model rates against the committed snapshot next to
+# ModelPricing.swift, so a price change fails a job instead of drifting silently. Needs network in CI, which is the
+# honest caveat (docs/accuracy.md, "Snapshot and freshness").
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare the pricing page with the snapshot
+        run: scripts/pricing-check.sh

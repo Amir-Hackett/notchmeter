@@ -9,6 +9,8 @@ final class NotchActions {
     var openSettings: () -> Void = {}
     var showOptions: () -> Void = {}
     var applyLayout: () -> Void = {}
+    var togglePanel: () -> Void = {}
+    var copyPanelImage: () -> Void = {}
     /// Nil while the updater is inactive (see Updater); the Options menu offers "Check for Updates…" only when set.
     var checkForUpdates: (() -> Void)?
 }
@@ -17,6 +19,7 @@ final class NotchActions {
 @MainActor
 protocol PanelPresenting: AnyObject {
     var edge: PanelEdge { get }
+    var screen: NSScreen { get }
     var isVisible: Bool { get }
     var window: NSWindow? { get }
     /// What the open panel's content measures right now, before any window or chrome around it.
@@ -30,6 +33,18 @@ protocol PanelPresenting: AnyObject {
     func holdCompact(_ held: Bool)
     /// Measures the visible shapes again now (`--smoke` reads the compact width per style).
     func remeasure()
+    /// The Show over full-screen apps setting, applied to the window.
+    func applyWindowBehaviour()
+    /// Opens the panel for a notification's Open button or the shortcut; the machine adopts the state.
+    func toggle(cause: PanelCause)
+    func expandNow(cause: PanelCause)
+}
+
+extension PanelPresenting {
+    /// The window collection behaviour for the setting: joined to every Space, and to a full-screen app's when asked.
+    static func collectionBehavior(showOverFullScreen: Bool) -> NSWindow.CollectionBehavior {
+        showOverFullScreen ? [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary] : [.canJoinAllSpaces, .stationary]
+    }
 }
 
 /// Reports each change of the panel's state to the oracle (Oracle.swift); the first report is the launch state.
@@ -43,23 +58,18 @@ struct PanelReporter {
     }
 }
 
-extension NSScreen {
-    /// Where the panel lives: the display with the notch when there is one, else the main screen.
-    static var panelScreen: NSScreen {
-        screens.first { $0.safeAreaInsets.top > 0 } ?? main ?? screens[0]
-    }
-}
-
-/// The right-click / Options menu shared by every panel style.
+/// The right-click / Options menu shared by every panel style and the menu bar item.
 @MainActor
 final class OptionsMenu: NSObject, NSMenuDelegate {
     private let prefs: Preferences
     private let actions: NotchActions
+    private let includesOpenPanel: Bool
     private(set) var isOpen = false
 
-    init(prefs: Preferences, actions: NotchActions) {
+    init(prefs: Preferences, actions: NotchActions, includesOpenPanel: Bool = false) {
         self.prefs = prefs
         self.actions = actions
+        self.includesOpenPanel = includesOpenPanel
     }
 
     func popUp(in window: NSWindow?, event: NSEvent? = nil) {
@@ -81,9 +91,12 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         Oracle.shared.emit("menu", ["action": "dismissed"])
     }
 
-    private func build() -> NSMenu {
+    func build() -> NSMenu {
         let menu = NSMenu()
         menu.delegate = self
+        if includesOpenPanel {
+            menu.addItem(item(L("Open panel"), #selector(togglePanel)))
+        }
         menu.addItem(item(L("Refresh now"), #selector(refreshNow)))
         menu.addItem(.separator())
         for visibility in NotchVisibility.allCases {
@@ -112,16 +125,23 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         }
         compact.submenu = styles
         menu.addItem(compact)
+        menu.addItem(item(L("Copy panel as image"), #selector(copyImage)))
         menu.addItem(.separator())
         let login = item(L("Open at login"), #selector(toggleLaunchAtLogin))
         login.state = prefs.launchAtLogin ? .on : .off
         menu.addItem(login)
-        menu.addItem(item(L("Settings…"), #selector(showSettings)))
+        let settings = item(L("Settings…"), #selector(showSettings))
+        settings.keyEquivalent = ","
+        settings.keyEquivalentModifierMask = .command
+        menu.addItem(settings)
         if actions.checkForUpdates != nil {
             menu.addItem(item(L("Check for Updates…"), #selector(checkForUpdates)))
         }
         menu.addItem(.separator())
-        menu.addItem(item(L("Quit %@", AppInfo.name), #selector(quit)))
+        let quit = item(L("Quit %@", AppInfo.name), #selector(quit))
+        quit.keyEquivalent = "q"
+        quit.keyEquivalentModifierMask = .command
+        menu.addItem(quit)
         return menu
     }
 
@@ -132,6 +152,8 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func refreshNow() { actions.refresh() }
+    @objc private func togglePanel() { actions.togglePanel() }
+    @objc private func copyImage() { actions.copyPanelImage() }
 
     @objc private func setVisibility(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let visibility = NotchVisibility(rawValue: raw) else { return }
@@ -158,25 +180,31 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
 
 extension NotchVisibility {
     var hoverMode: HoverIntent.Mode {
-        self == .always ? .always : .onHover
+        switch self {
+        case .always: .always
+        case .onClick: .onClick
+        case .onHover, .hideWhenIdle: .onHover
+        }
     }
 }
 
-/// Top layout: compact rings beside the physical notch, the full panel below it on hover.
+/// Top layout on a screen with a notch: compact rings beside it, the full panel below it on hover. A notchless
+/// screen gets an EdgePanelController pill under the menu bar instead (AppDelegate.buildPresenters).
 @MainActor
 final class NotchController: NSObject, PanelPresenting {
     let edge: PanelEdge = .top
+    let screen: NSScreen
     let hover: HoverDriver
     private let store: UsageStore
     private let prefs: Preferences
     private let actions: NotchActions
     private let menu: OptionsMenu
     private let notch: DynamicNotch<NotchExpandedView, NotchCompactView, NotchCompactView>
-    private let floating: Bool
     private let leadingProbe: NSHostingView<NotchCompactView>
     private let trailingProbe: NSHostingView<NotchCompactView>
     private let expandedProbe: NSHostingView<NotchExpandedView>
-    private var rightClickMonitor: Any?
+    private var clickMonitor: Any?
+    private var keyMonitor: Any?
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     private var transitionSerial = 0
     private var held = false
@@ -190,15 +218,14 @@ final class NotchController: NSObject, PanelPresenting {
     /// How far past the rings the compact shape counts as hoverable.
     static let compactMargin: CGFloat = 8
 
-    init(store: UsageStore, prefs: Preferences, actions: NotchActions) {
+    init(screen: NSScreen, store: UsageStore, prefs: Preferences, actions: NotchActions) {
+        self.screen = screen
         self.store = store
         self.prefs = prefs
         self.actions = actions
         self.menu = OptionsMenu(prefs: prefs, actions: actions)
-        let hasNotch = NSScreen.screens.contains { $0.safeAreaInsets.top > 0 }
-        floating = !hasNotch
-        notch = DynamicNotch(hoverBehavior: [.increaseShadow], style: hasNotch ? .notch : .floating) {
-            NotchExpandedView(store: store, prefs: prefs, actions: actions)
+        notch = DynamicNotch(hoverBehavior: [.increaseShadow], style: .notch) {
+            NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen)
         } compactLeading: {
             NotchCompactView(store: store, side: .leading)
         } compactTrailing: {
@@ -206,25 +233,41 @@ final class NotchController: NSObject, PanelPresenting {
         }
         leadingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .leading))
         trailingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .trailing))
-        expandedProbe = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions))
-        hover = HoverDriver(mode: prefs.visibility.hoverMode)
+        expandedProbe = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen))
+        hover = HoverDriver(mode: prefs.visibility.hoverMode, dwell: prefs.hoverDelay)
         super.init()
+        applyWindowBehaviour()
         configureTransition(closing: false)
         hover.perform = { [weak self] output, cause in self?.act(output, cause: cause) }
         hover.isPaused = { [weak self] in self.map { $0.menu.isOpen || $0.held } ?? false }
+        hover.pointerEnteredCompact = { [weak self] in self?.store.wakeFromIdle() }
         let workspace = NSWorkspace.shared.notificationCenter
         observers.append((workspace, workspace.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.configureTransition(closing: false) }
+            Task { @MainActor in
+                self?.configureTransition(closing: false)
+                self?.applyWindowBehaviour()
+            }
         }))
         observers.append((.default, NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.refreshRegions() }
         }))
         // Local monitors run on the main thread. assumeIsolated must return something Sendable, which NSEvent is not,
-        // so the closure reports whether it handled the event and the event is passed on outside it.
-        rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
+        // so the closure reports whether it handled the event and the event is passed on outside it. A control-click
+        // is the secondary click for one-button mice and many accessibility setups, so it opens the menu too.
+        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown, .leftMouseDown]) { [weak self] event in
+            let secondary = event.type == .rightMouseDown || event.modifierFlags.contains(.control)
             let handled = MainActor.assumeIsolated {
-                guard let self, let window = self.notch.windowController?.window, event.window === window else { return false }
+                guard secondary, let self, let window = self.notch.windowController?.window, event.window === window else { return false }
                 self.menu.popUp(in: window, event: event)
+                return true
+            }
+            return handled ? nil : event
+        }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let escape = event.keyCode == 53
+            let handled = MainActor.assumeIsolated {
+                guard escape, let self, let window = self.notch.windowController?.window, event.window === window, self.hover.state == .expanded else { return false }
+                self.hover.escape()
                 return true
             }
             return handled ? nil : event
@@ -234,11 +277,14 @@ final class NotchController: NSObject, PanelPresenting {
 
     var window: NSWindow? { notch.windowController?.window }
     var isVisible: Bool { window?.isVisible ?? false }
-    var expandedContentSize: CGSize { fittingSize(expandedProbe, NotchExpandedView(store: store, prefs: prefs, actions: actions)) }
+    var expandedContentSize: CGSize { fittingSize(expandedProbe, NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen)) }
 
     func show() {
         hover.mode = prefs.visibility.hoverMode
+        hover.dwell = prefs.hoverDelay
+        hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced
         hover.start()
+        applyWindowBehaviour()
         let open = !held && (hover.mode == .always || hover.state == .expanded)
         Task {
             if open {
@@ -264,10 +310,26 @@ final class NotchController: NSObject, PanelPresenting {
         refreshRegions()
     }
 
+    func applyWindowBehaviour() {
+        notch.collectionBehavior = Self.collectionBehavior(showOverFullScreen: prefs.showOverFullScreenApps)
+        notch.expandedGlass = !AccessibilityDisplay.shared.reduceTransparency
+    }
+
+    func toggle(cause: PanelCause) {
+        hover.toggle(cause: cause)
+    }
+
+    func expandNow(cause: PanelCause) {
+        guard hover.state != .expanded else { return }
+        hover.toggle(cause: cause)
+    }
+
     func hide() async {
         hover.stop()
-        if let rightClickMonitor { NSEvent.removeMonitor(rightClickMonitor) }
-        rightClickMonitor = nil
+        if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
+        clickMonitor = nil
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        keyMonitor = nil
         for (center, token) in observers { center.removeObserver(token) }
         observers = []
         transitionSerial += 1
@@ -298,7 +360,8 @@ final class NotchController: NSObject, PanelPresenting {
         hover.adopt(.expanded)
         reporter.report(.expanded, cause: cause)
         let serial = beginTransition()
-        await notch.expand(on: .panelScreen)
+        await notch.expand(on: screen)
+        if cause == .hotkey || cause == .notification { window?.makeKey() }
         endTransition(serial)
     }
 
@@ -307,7 +370,7 @@ final class NotchController: NSObject, PanelPresenting {
         hover.adopt(.compact)
         reporter.report(.compact, cause: cause)
         let serial = beginTransition()
-        await notch.compact(on: .panelScreen)
+        await notch.compact(on: screen)
         endTransition(serial)
     }
 
@@ -325,9 +388,9 @@ final class NotchController: NSObject, PanelPresenting {
     }
 
     /// The open keeps DynamicNotchKit's spring; the close is a 0.25 s smooth shrink so the panel never sits as a
-    /// black slab with its content already faded. Reduce Motion makes every transition instant.
+    /// black slab with its content already faded. Reduce Motion (or the app's own toggle) makes every transition instant.
     private func configureTransition(closing: Bool) {
-        let instant = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let instant = AccessibilityDisplay.shared.motionReduced
         let shrink: Animation = .smooth(duration: 0.25)
         notch.transitionConfiguration = DynamicNotchTransitionConfiguration(
             openingAnimation: instant ? .linear(duration: 0) : nil,
@@ -339,14 +402,15 @@ final class NotchController: NSObject, PanelPresenting {
 
     // MARK: - Geometry
 
-    /// The physical notch in screen coordinates; on a notchless screen, DynamicNotchKit's stand-in at the top centre.
+    /// The physical notch in screen coordinates; on a notchless screen, a stand-in at the top centre as tall as the
+    /// menu bar is right now (never cached: with the bar set to hide, its height comes and goes).
     static func notchRect(on screen: NSScreen) -> CGRect {
         let frame = screen.frame
         if screen.safeAreaInsets.top > 0, let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
             let height = screen.safeAreaInsets.top
             return CGRect(x: left.maxX, y: frame.maxY - height, width: right.minX - left.maxX, height: height)
         }
-        let height = frame.maxY - screen.visibleFrame.maxY
+        let height = max(screen.menuBarHeightNow, 24)
         return CGRect(x: frame.midX - floatingNotchWidth / 2, y: frame.maxY - height, width: floatingNotchWidth, height: height)
     }
 
@@ -374,11 +438,11 @@ final class NotchController: NSObject, PanelPresenting {
 
     private func refreshRegions() {
         hover.regions = Self.regions(
-            notch: Self.notchRect(on: .panelScreen),
+            notch: Self.notchRect(on: screen),
             leadingWidth: fittingSize(leadingProbe, NotchCompactView(store: store, side: .leading)).width,
             trailingWidth: fittingSize(trailingProbe, NotchCompactView(store: store, side: .trailing)).width,
             expanded: expandedContentSize,
-            floating: floating
+            floating: false
         )
     }
 
@@ -391,9 +455,13 @@ final class NotchController: NSObject, PanelPresenting {
     /// Re-measures whenever something that shapes the panel changes; the tracking is one-shot, so it re-arms itself.
     private func observeContent() {
         withObservationTracking {
-            _ = (store.statuses, store.awaitingInput, store.cost, prefs.enabledTools, prefs.showSpend, prefs.toolOrder,
-                 prefs.compactStyle, prefs.usageDisplay)
+            _ = (store.statuses, store.sessions, store.cost, store.statusline, store.screenCaptured, prefs.enabledTools, prefs.showSpend, prefs.toolOrder,
+                 prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
+                 prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps)
             refreshRegions()
+            hover.dwell = prefs.hoverDelay
+            hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced
+            applyWindowBehaviour()
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeContent() }
         }

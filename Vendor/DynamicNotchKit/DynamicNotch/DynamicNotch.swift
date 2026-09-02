@@ -6,7 +6,10 @@
 //
 //  Notchmeter: the panel window is the full screen height rather than half of it, so expanded content
 //  taller than half the screen is no longer clipped above the top edge. NotchContentView anchors the
-//  content to the top of the window; the extra height below is transparent and click-through.
+//  content to the top of the window; the extra height below is transparent and click-through. The
+//  screen-parameter observer is gone (it re-created the window on the primary screen, which is not the
+//  notch screen); the app re-derives the screen itself. `collectionBehavior` and `expandedGlass` are the
+//  app's full-screen and Liquid Glass settings.
 
 import SwiftUI
 
@@ -74,6 +77,14 @@ public final class DynamicNotch<Expanded, CompactLeading, CompactTrailing>: Obse
     /// Configuration for customizing transition animations and behavior.
     public var transitionConfiguration = DynamicNotchTransitionConfiguration()
 
+    /// Applied to the panel whenever it is created; the app sets it before showing.
+    public var collectionBehavior: NSWindow.CollectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary] {
+        didSet { windowController?.window?.collectionBehavior = collectionBehavior }
+    }
+
+    /// On macOS 26, draws the expanded panel below the notch in Liquid Glass; the compact strip stays black.
+    @Published public var expandedGlass: Bool = false
+
     /// Content
     let expandedContent: Expanded
     let compactLeadingContent: CompactLeading
@@ -109,8 +120,6 @@ public final class DynamicNotch<Expanded, CompactLeading, CompactTrailing>: Obse
         self.expandedContent = expanded()
         self.compactLeadingContent = compactLeading()
         self.compactTrailingContent = compactTrailing()
-
-        observeScreenParameters()
     }
 
     /// Creates a new DynamicNotch with custom content and style. Does not support the compact appearance.
@@ -142,18 +151,6 @@ public final class DynamicNotch<Expanded, CompactLeading, CompactTrailing>: Obse
 
     /// Resolves the effective conversion animation (custom override or style default).
     var effectiveConversionAnimation: Animation { transitionConfiguration.conversionAnimation ?? style.conversionAnimation }
-
-    /// Observes screen parameters changes and re-initializes the window if necessary.
-    private func observeScreenParameters() {
-        Task {
-            let sequence = NotificationCenter.default.notifications(named: NSApplication.didChangeScreenParametersNotification)
-            for await _ in sequence.map(\.name) {
-                if let screen = NSScreen.screens.first {
-                    initializeWindow(screen: screen)
-                }
-            }
-        }
-    }
 
     /// Updates the hover state of the DynamicNotch, and processes necessary hover behavior.
     /// - Parameter hovering: a boolean indicating whether the mouse is hovering over the notch.
@@ -367,6 +364,7 @@ private extension DynamicNotch {
             defer: true
         )
         panel.contentView = view
+        panel.collectionBehavior = collectionBehavior
 
         let size = NSSize(
             width: screen.frame.width / 2,

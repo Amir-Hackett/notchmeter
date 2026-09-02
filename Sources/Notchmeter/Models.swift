@@ -1,7 +1,7 @@
 import Foundation
 
 enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
-    case claude, codex, cursor, antigravity
+    case claude, codex, cursor, antigravity, copilot
 
     var displayName: String {
         switch self {
@@ -9,6 +9,7 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
         case .codex: "Codex"
         case .cursor: "Cursor"
         case .antigravity: "Antigravity"
+        case .copilot: "Copilot"
         }
     }
 
@@ -18,7 +19,13 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
         case .codex: "chevron.left.forwardslash.chevron.right"
         case .cursor: "cursorarrow"
         case .antigravity: "sparkles.rectangle.stack"
+        case .copilot: "airplane"
         }
+    }
+
+    /// The name the tool's own product carries where it differs from the short one on the rings.
+    var productName: String {
+        self == .claude ? "Claude Code" : self == .copilot ? "GitHub Copilot" : displayName
     }
 }
 
@@ -49,6 +56,7 @@ enum Period {
     static let fiveHours: TimeInterval = 5 * 3600
     static let day: TimeInterval = 86400
     static let week: TimeInterval = 7 * 86400
+    static let month: TimeInterval = 30 * 86400
 }
 
 enum JSON {
@@ -88,6 +96,23 @@ struct UsageReading: Codable, Equatable, Sendable {
     let fetchedAt: Date
     /// When the tool itself produced the numbers. Codex writes snapshots to disk, so this can trail fetchedAt.
     let observedAt: Date?
+
+    /// The same reading with some of its windows swapped for newer ones (the Claude Code status line replaces the
+    /// session and weekly figures while a session runs; everything else is kept).
+    func replacing(windows replacements: [LimitWindow], fetchedAt: Date) -> UsageReading {
+        var merged = windows
+        var insertAt = 0
+        for window in replacements {
+            if let index = merged.firstIndex(where: { $0.id == window.id }) {
+                merged[index] = window
+                insertAt = index + 1
+            } else {
+                merged.insert(window, at: insertAt)
+                insertAt += 1
+            }
+        }
+        return UsageReading(tool: tool, windows: merged, plan: plan, fetchedAt: fetchedAt, observedAt: observedAt)
+    }
 }
 
 enum ProviderError: Error, Equatable {
@@ -100,10 +125,12 @@ enum ProviderError: Error, Equatable {
     case unavailable(String)
     /// Set up and signed in, but the tool has not produced any usage to show yet.
     case nothingYet(String)
+    /// The network is down or the host unreachable: the last reading stays, without a problem mark, until it is back.
+    case offline(String)
 
     var message: String {
         switch self {
-        case .notSignedIn(let m), .tokenExpired(let m), .accessDenied(let m), .parse(let m), .unavailable(let m), .nothingYet(let m):
+        case .notSignedIn(let m), .tokenExpired(let m), .accessDenied(let m), .parse(let m), .unavailable(let m), .nothingYet(let m), .offline(let m):
             m
         case .rateLimited(let retry):
             retry.map { L("Rate limited, retrying in %lds", Int($0)) } ?? L("Rate limited, backing off")
@@ -119,6 +146,19 @@ enum ProviderError: Error, Equatable {
         default: false
         }
     }
+
+    /// A transport failure that means "no network", never "the vendor said no": URLError's offline family, plus the
+    /// wrapper an actor throws around one.
+    static func offline(from error: Error) -> ProviderError? {
+        guard let urlError = error as? URLError else { return nil }
+        switch urlError.code {
+        case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed, .timedOut,
+             .internationalRoamingOff, .dataNotAllowed:
+            return .offline(L("Offline, retrying"))
+        default:
+            return nil
+        }
+    }
 }
 
 enum ToolStatus: Equatable {
@@ -129,11 +169,13 @@ enum ToolStatus: Equatable {
     case needsAttention(String, cached: UsageReading?)
     case ready(UsageReading)
     case failed(String, cached: UsageReading?)
+    /// No network: the cached reading stays on screen without a problem mark; the footer says "Offline, retrying".
+    case offline(cached: UsageReading?)
 
     var reading: UsageReading? {
         switch self {
         case .ready(let r): r
-        case .needsAttention(_, let c), .failed(_, let c): c
+        case .needsAttention(_, let c), .failed(_, let c), .offline(let c): c
         case .notInstalled, .off, .waiting, .idle: nil
         }
     }
@@ -148,9 +190,14 @@ enum ToolStatus: Equatable {
     /// The reading still on screen after the tool stopped answering; its numbers may be out of date.
     var staleReading: UsageReading? {
         switch self {
-        case .needsAttention(_, let c), .failed(_, let c): c
+        case .needsAttention(_, let c), .failed(_, let c), .offline(let c): c
         default: nil
         }
+    }
+
+    var isOffline: Bool {
+        if case .offline = self { return true }
+        return false
     }
 }
 
@@ -163,12 +210,33 @@ protocol UsageProvider: Sendable {
 
 enum ProviderRegistry {
     static func all() -> [any UsageProvider] {
-        [ClaudeProvider(), CodexProvider(), CursorProvider(), AntigravityProvider()]
+        [ClaudeProvider(), CodexProvider(), CursorProvider(), AntigravityProvider(), CopilotProvider()]
     }
 }
 
 enum Paths {
     static var home: URL { FileManager.default.homeDirectoryForCurrentUser }
+    /// Notchmeter's own folder under Application Support: the drain log, pricing overrides, the daily history.
+    static var applicationSupport: URL {
+        (FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? home.appendingPathComponent("Library/Application Support"))
+            .appendingPathComponent(AppInfo.name)
+    }
+    static var caches: URL {
+        (FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first ?? home.appendingPathComponent("Library/Caches"))
+            .appendingPathComponent(AppInfo.name)
+    }
+}
+
+/// The shared session every provider uses: it waits for connectivity rather than failing at once after a wake, and
+/// gives up on a request after a minute so a stalled network cannot hold a loop.
+enum NetworkSession {
+    static let shared: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.waitsForConnectivity = true
+        configuration.timeoutIntervalForRequest = 20
+        configuration.timeoutIntervalForResource = 60
+        return URLSession(configuration: configuration)
+    }()
 }
 
 enum AppInfo {

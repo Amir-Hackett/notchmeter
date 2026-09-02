@@ -7,23 +7,30 @@ enum PowerSource {
         guard let type = IOPSGetProvidingPowerSourceType(info)?.takeRetainedValue() as String? else { return false }
         return type == kIOPSBatteryPowerValue
     }
+
+    static func lowPowerMode() -> Bool {
+        ProcessInfo.processInfo.isLowPowerModeEnabled
+    }
 }
 
 /// When each tool last touched its files, sampled with a few directory listings rather than a scan: Claude Code's
-/// three most recently changed project folders, Codex's rollouts for today and yesterday, the modification time of
-/// Cursor's state database, and Gemini CLI's login file and per-project folders.
+/// three most recently changed project folders (in every transcript root, Cowork's and the user's extra ones
+/// included), Codex's rollouts for today and yesterday, the modification time of Cursor's state database, Gemini
+/// CLI's login file and per-project folders, and Copilot's config folder.
 struct AgentActivity: Sendable {
     var claudeRoots: [URL] = ClaudeCostScanner.defaultRoots()
     var codexSessions: URL = Paths.home.appendingPathComponent(".codex/sessions")
     var cursorState: URL = Paths.home.appendingPathComponent("Library/Application Support/Cursor/User/globalStorage/state.vscdb")
     var geminiRoot: URL = Paths.home.appendingPathComponent(".gemini")
+    var copilotRoot: URL = Paths.home.appendingPathComponent(".config/github-copilot")
 
     func sample(now: Date = Date()) -> [ToolID: Date] {
         var result: [ToolID: Date] = [:]
-        result[.claude] = claudeRoots.compactMap { Self.newestClaude(projects: $0.appendingPathComponent("projects")) }.max()
+        result[.claude] = claudeRoots.compactMap { Self.newestClaude(projects: ClaudeCostScanner.transcriptFolder(of: $0)) }.max()
         result[.codex] = Self.newestCodex(sessions: codexSessions, now: now)
         result[.cursor] = Self.newestCursor(database: cursorState)
         result[.antigravity] = Self.newestGemini(root: geminiRoot)
+        result[.copilot] = Self.newestCopilot(root: copilotRoot)
         return result
     }
 
@@ -37,6 +44,12 @@ struct AgentActivity: Sendable {
             candidates.append(contentsOf: entries.map(modified))
         }
         return candidates.compactMap { $0 }.max()
+    }
+
+    /// Copilot's plugin rewrites its token files on refresh; that is the only trace it leaves on disk.
+    static func newestCopilot(root: URL) -> Date? {
+        guard let entries = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) else { return nil }
+        return entries.compactMap(modified).max()
     }
 
     /// The newest entry inside the `folders` most recently changed project folders. A folder's own date moves

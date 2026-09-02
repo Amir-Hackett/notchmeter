@@ -223,6 +223,61 @@ import Testing
     }
 }
 
+@Suite struct ClickSwipeAndShortcutRules {
+    let dwell = HoverIntent.expandDwell
+    let settle = HoverIntent.settleTimeout
+
+    @Test func openOnClickIgnoresThePointerAndTogglesOnAClick() {
+        var intent = HoverIntent(mode: .onClick)
+        #expect(intent.pointer(inCompact: true, inExpanded: true, at: 0) == .none)
+        #expect(intent.pointer(inCompact: true, inExpanded: true, at: 5) == .none)
+        #expect(intent.nextDeadline == nil)
+        #expect(intent.clickInside(at: 6) == .expand)
+        #expect(intent.state == .expanded)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: 10) == .none)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: 20) == .none)
+        #expect(intent.clickOutside(at: 21) == .collapse)
+        #expect(intent.clickInside(at: 22) == .expand)
+        #expect(intent.clickInside(at: 23) == .collapse)
+        var hover = HoverIntent(mode: .onHover)
+        #expect(hover.clickInside(at: 0) == .none)
+    }
+
+    @Test func theHoverDelayIsConfigurableAndClamped() {
+        var slow = HoverIntent(mode: .onHover, expandDwell: 0.8)
+        #expect(slow.pointer(inCompact: true, inExpanded: true, at: 0) == .none)
+        #expect(slow.pointer(inCompact: true, inExpanded: true, at: 0.5) == .none)
+        #expect(slow.nextDeadline == 0.8)
+        #expect(slow.pointer(inCompact: true, inExpanded: true, at: 0.8) == .expand)
+        #expect(HoverIntent(mode: .onHover, expandDwell: 5).expandDwell == 1)
+        #expect(HoverIntent(mode: .onHover, expandDwell: 0).expandDwell == 0.1)
+    }
+
+    @Test func swipesOpenAndCloseEscapeClosesTheShortcutToggles() {
+        var intent = HoverIntent(mode: .onHover)
+        #expect(intent.swipe(.up, inCompact: true, inExpanded: true, at: 0) == .none)
+        #expect(intent.swipe(.down, inCompact: false, inExpanded: false, at: 0) == .none)
+        #expect(intent.swipe(.down, inCompact: true, inExpanded: true, at: 0) == .expand)
+        #expect(intent.swipe(.down, inCompact: true, inExpanded: true, at: 1) == .none)
+        #expect(intent.swipe(.up, inCompact: false, inExpanded: true, at: 2) == .collapse)
+        #expect(intent.escape(at: 3) == .none)
+        #expect(intent.toggle(at: 4) == .expand)
+        #expect(intent.escape(at: 5) == .collapse)
+        #expect(intent.toggle(at: 6) == .expand)
+        #expect(intent.toggle(at: 7) == .collapse)
+        var always = HoverIntent(mode: .always, state: .expanded)
+        #expect(always.swipe(.up, inCompact: false, inExpanded: true, at: 0) == .none)
+        #expect(always.escape(at: 1) == .none)
+        #expect(always.toggle(at: 2) == .collapse)
+        #expect(always.toggle(at: 3) == .expand)
+    }
+
+    @Test func controlClicksAndScrollsAreReducedApart() {
+        #expect(PointerEvent(kind: .controlClick) != PointerEvent(kind: .click))
+        #expect(PointerEvent(kind: .moved) == PointerEvent(kind: .moved))
+    }
+}
+
 @Suite struct HoverRegionRules {
     let regions = HoverRegions(compact: CGRect(x: 600, y: 950, width: 300, height: 32),
                                expanded: CGRect(x: 550, y: 500, width: 400, height: 482))

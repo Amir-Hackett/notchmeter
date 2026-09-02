@@ -42,10 +42,117 @@ enum AssetRenderer {
             try write(edgePill(store: store), png: directory.appendingPathComponent("edge-left.png"))
             try write(settings(store: store, prefs: prefs, actions: actions), png: directory.appendingPathComponent("settings.png"))
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
+            // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
+            AccessibilityDisplay.shared.force(contrast: true)
+            defer { AccessibilityDisplay.shared.force(contrast: nil) }
+            let contrast = try Stage(store: store, prefs: prefs, actions: actions)
+            try write(contrast.image(.expanded, canvas: contrast.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-contrast.png"))
             return true
         } catch {
             Probe.emit("render-assets: \(error)")
             return false
+        }
+    }
+
+    /// `--render-gallery <dir>`: Product Hunt's eight 1270×760 composites and the 240×240 thumbnail, each frame
+    /// centred on a #1c1c1e canvas with its caption drawn into the image (the gallery strips captions on mobile).
+    @MainActor
+    static func gallery(into directory: URL, now: Date = Date()) -> Bool {
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let (store, prefs) = DemoFixtures.store(now: now)
+            let actions = NotchActions()
+            let stage = try Stage(store: store, prefs: prefs, actions: actions)
+            let canvas = CGSize(width: 1270, height: 760)
+            let panel = try stage.image(.expanded, canvas: stage.panelCanvas, pixelScale: 1)
+            let compact = try stage.image(.compact, canvas: CGSize(width: 1200, height: 80), pixelScale: 1)
+            let pill = try edgePill(store: store)
+            let settingsImage = try settings(store: store, prefs: prefs, actions: actions)
+            let frames: [(name: String, image: CGImage?, caption: String, lines: [String])] = [
+                ("01-hover", panel, L("Hover the rings. The panel opens."), []),
+                ("02-compact", compact, L("Your menu bar ran out of room three apps ago. This one doesn't take any."), []),
+                ("03-advice", panel, L("Tells you what to do, not just how much."), [
+                    "Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.",
+                    "At this rate you hit the Claude weekly cap Thursday at 2:00 PM.",
+                    "Codex has 78% of its weekly left.",
+                ]),
+                ("04-pace", panel, L("Pace tick, projection, reset time. Notifications at pace crossings."), []),
+                ("05-accuracy", nil, L("Every number shows its work."), [
+                    "Five token buckets: input, output, 5-minute and 1-hour cache writes, cache reads.",
+                    "1.1× on inference_geo \"us\". Web search at $10 per 1,000. Fast mode at its own rate.",
+                    "The output_tokens placeholder: the last line of a streamed response is the real count (35% more on this Mac).",
+                    "Golden-transcript tests pin every rule. docs/accuracy.md",
+                ]),
+                ("06-energy", nil, L("0.02% of one core when idle. Nothing while the screen is locked."), [
+                    "60 s, no cost scan: 0.01 CPU-seconds / 61 s = 0.02% of one core",
+                    "180 s with one cached cost scan: 0.86 CPU-seconds / 182 s = 0.47%",
+                    "37 to 69 MB resident. ps and top on an M5 Pro; powermetrics next.",
+                ]),
+                ("07-edges", pill, L("Left, right or bottom edge on any Mac."), []),
+                ("08-settings", settingsImage, L("Position, hover or always open, hook install with a backup."), []),
+            ]
+            for frame in frames {
+                let image = try composite(frame.image, caption: frame.caption, lines: frame.lines, canvas: canvas, mirrorPill: frame.name == "07-edges")
+                try write(image, png: directory.appendingPathComponent("\(frame.name).png"))
+            }
+            let icon = URL(fileURLWithPath: "build/AppIcon.icns")
+            if let source = NSImage(contentsOf: icon), let cg = source.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                let thumbnail = try bitmap(CGSize(width: 240, height: 240), pixelScale: 1) { ctx in
+                    draw(cg, in: CGRect(x: 0, y: 0, width: 240, height: 240), alpha: 1, into: ctx)
+                }
+                try write(thumbnail, png: directory.deletingLastPathComponent().appendingPathComponent("thumbnail.png"))
+            } else {
+                Probe.emit("render-gallery: build/AppIcon.icns not found; run scripts/build.sh first for the thumbnail")
+            }
+            return true
+        } catch {
+            Probe.emit("render-gallery: \(error)")
+            return false
+        }
+    }
+
+    /// One gallery frame: the image scaled to fit above the caption, text lines beside or below it.
+    static func composite(_ image: CGImage?, caption: String, lines: [String], canvas: CGSize, mirrorPill: Bool) throws -> CGImage {
+        try bitmap(canvas, pixelScale: 1) { ctx in
+            ctx.setFillColor(CGColor(srgbRed: 0x1c / 255, green: 0x1c / 255, blue: 0x1e / 255, alpha: 1))
+            ctx.fill(CGRect(origin: .zero, size: canvas))
+            let captionHeight: CGFloat = 96
+            let margin: CGFloat = 48
+            var textTop: CGFloat = margin
+            if let image {
+                let width = CGFloat(image.width), height = CGFloat(image.height)
+                let available = CGSize(width: lines.isEmpty ? canvas.width - 2 * margin : canvas.width * 0.5, height: canvas.height - captionHeight - 2 * margin)
+                let scale = min(available.width / width, available.height / height, 1)
+                let size = CGSize(width: width * scale, height: height * scale)
+                let x = lines.isEmpty ? (canvas.width - size.width) / 2 : margin
+                let rect = CGRect(x: x, y: margin + (available.height - size.height) / 2, width: size.width, height: size.height)
+                draw(image, in: rect, alpha: 1, into: ctx)
+                if mirrorPill {
+                    ctx.saveGState()
+                    ctx.translateBy(x: canvas.width, y: 0)
+                    ctx.scaleBy(x: -1, y: 1)
+                    draw(image, in: CGRect(x: x, y: rect.minY, width: size.width, height: size.height), alpha: 1, into: ctx)
+                    ctx.restoreGState()
+                }
+                textTop = rect.minY + 40
+            }
+            let graphics = NSGraphicsContext(cgContext: ctx, flipped: true)
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = graphics
+            let body: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 24, weight: .regular), .foregroundColor: NSColor(white: 0.85, alpha: 1)]
+            let x = image == nil || lines.isEmpty ? margin : canvas.width * 0.5 + margin / 2
+            var y = image == nil ? margin + 40 : textTop
+            for line in lines {
+                (line as NSString).draw(in: CGRect(x: x, y: y, width: canvas.width - x - margin, height: 80), withAttributes: body)
+                y += 76
+            }
+            let title: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 34, weight: .semibold), .foregroundColor: NSColor.white]
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            var centred = title
+            centred[.paragraphStyle] = paragraph
+            (caption as NSString).draw(in: CGRect(x: margin, y: canvas.height - captionHeight + 8, width: canvas.width - 2 * margin, height: captionHeight), withAttributes: centred)
+            NSGraphicsContext.restoreGraphicsState()
         }
     }
 
@@ -78,7 +185,7 @@ enum AssetRenderer {
     /// The Settings window, title bar included, in the dark appearance the notch panel always has.
     @MainActor
     static func settings(store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
-        let controller = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: Notifier(available: false))
+        let controller = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: Notifier(available: false), requests: SettingsRequests())
         guard let window = controller.window, let frame = window.contentView?.superview else { throw Failure.snapshot("the Settings window") }
         window.appearance = NSAppearance(named: .darkAqua)
         // The window opens at 640 pt and scrolls; the picture shows the whole form.

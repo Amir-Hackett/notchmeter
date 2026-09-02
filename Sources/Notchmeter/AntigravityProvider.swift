@@ -52,7 +52,7 @@ actor AntigravityProvider: UsageProvider {
 
     private let session: URLSession
 
-    init(session: URLSession = .shared,
+    init(session: URLSession = NetworkSession.shared,
          geminiHome: URL = Paths.home.appendingPathComponent(".gemini"),
          applicationBundle: URL = URL(fileURLWithPath: "/Applications/Antigravity.app"),
          antigravityHome: URL = Paths.home.appendingPathComponent(".antigravity")) {
@@ -122,8 +122,13 @@ actor AntigravityProvider: UsageProvider {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
-        let (data, response) = try await session.data(for: request)
-        return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+        do {
+            let (data, response) = try await session.data(for: request)
+            return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+        } catch {
+            if let offline = ProviderError.offline(from: error) { throw offline }
+            throw error
+        }
     }
 
     // MARK: - Parsing

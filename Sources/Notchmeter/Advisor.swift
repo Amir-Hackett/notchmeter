@@ -8,7 +8,7 @@ struct Advice: Identifiable, Equatable, Sendable {
         case attention
         /// A window runs out before its reset.
         case danger
-        /// A concrete move is available now: switch models, or notice an unusual burn.
+        /// A concrete move is available now: switch models, wait for a reset, notice an unusual burn.
         case warn
         /// Headroom elsewhere.
         case info
@@ -31,10 +31,14 @@ enum Advisor {
         /// Live readings of the visible tools, in the user's tool order; a stale reading kept beside an error is not one.
         var readings: [UsageReading]
         var awaitingInput: Set<ToolID> = []
+        /// The Claude Code sessions waiting on the user, newest first, when the hook reports them.
+        var waitingSessions: [AgentSession] = []
         var cost: CostSummary? = nil
         var timeFormat: TimeFormatPreference = .auto
         /// Preferences.toolOrder: lists waiting tools in this order and breaks a tie for the tool with the most room.
         var toolOrder: [ToolID] = ToolID.allCases
+        /// Measured drain per window ("tool/window" → fraction per hour) from the drain log; used before the even-burn projection.
+        var drainRates: [String: Double] = [:]
         var now: Date = Date()
         var calendar: Calendar = .current
 
@@ -52,6 +56,10 @@ enum Advisor {
     static let modelHeadroom = 0.4
     /// The last hour costing this many times the usual active hour is worth a line.
     static let burnThreshold = 3.0
+    /// A window that is out or behind and resets within this is worth waiting for rather than switching away from.
+    static let waitHorizon: TimeInterval = 3600
+    /// A Codex reset credit expiring within this while a window is behind is worth a line.
+    static let creditHorizon: TimeInterval = 24 * 3600
 
     static func advise(_ context: Context) -> [Advice] {
         let runOuts = runOut(context)
@@ -59,6 +67,8 @@ enum Advisor {
         let all = waiting(context)
             + runOuts
             + modelRouting(context)
+            + waitForReset(context)
+            + resetCredits(context)
             + [sessionBurn(context.cost)].compactMap { $0 }
             + crossProvider(context).filter { $0.tool.map { !alreadyRouted.contains($0) } ?? true }
         return Array(all.enumerated()
@@ -69,10 +79,15 @@ enum Advisor {
 
     // MARK: - Rules
 
-    /// A tool waiting for the user outranks everything: the meters cannot move until they answer.
+    /// A tool waiting for the user outranks everything: the meters cannot move until they answer. With the hook's
+    /// session ids the line names the project: "Claude Code is waiting in notchmeter (and 1 more)."
     static func waiting(_ context: Context) -> [Advice] {
         ToolID.allCases.filter(context.awaitingInput.contains).sorted { context.rank($0) < context.rank($1) }.map { tool in
-            let name = tool == .claude ? "Claude Code" : tool.displayName
+            let name = tool.productName
+            if tool == .claude, let phrase = SessionTracker.waitingPhrase(context.waitingSessions) {
+                return Advice(id: "waiting/\(tool.rawValue)", tool: tool, priority: .attention, symbol: "hand.raised.fill",
+                              text: L("%1$@ is waiting in %2$@.", name, phrase))
+            }
             return Advice(id: "waiting/\(tool.rawValue)", tool: tool, priority: .attention, symbol: "hand.raised.fill",
                           text: L("%@ is waiting for your input.", name))
         }
@@ -83,7 +98,8 @@ enum Advisor {
         var found: [(eta: TimeInterval, advice: Advice)] = []
         for reading in context.readings {
             for window in reading.windows {
-                guard let eta = secondsToRunOut(window, now: context.now), let text = runOutText(tool: reading.tool, window: window, context: context) else { continue }
+                guard let eta = secondsToRunOut(window, tool: reading.tool, context: context),
+                      let text = runOutText(tool: reading.tool, window: window, context: context) else { continue }
                 found.append((eta, Advice(id: "run-out/\(reading.tool.rawValue)/\(window.id)", tool: reading.tool, priority: .danger,
                                           symbol: "exclamationmark.triangle.fill", text: text)))
             }
@@ -111,7 +127,7 @@ enum Advisor {
                   let used = hot.usedFraction
             else { return nil }
             let alternative: (name: String, used: Double)?
-            if let other = scoped.filter({ $0.id != hot.id && left(of: $0) >= modelHeadroom }).max(by: { left(of: $0) < left(of: $1) }),
+            if let other = scoped.filter({ $0.model != hot.model && left(of: $0) >= modelHeadroom }).max(by: { left(of: $0) < left(of: $1) }),
                let otherModel = other.model, let otherUsed = other.usedFraction {
                 alternative = (otherModel, otherUsed)
             } else if let main = mainWindow(of: reading), let mainUsed = main.usedFraction, 1 - mainUsed >= modelHeadroom {
@@ -123,6 +139,36 @@ enum Advisor {
             return Advice(id: "model/\(reading.tool.rawValue)/\(hot.id)", tool: reading.tool, priority: .warn, symbol: "arrow.left.arrow.right",
                           text: L("%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools.",
                                   name(hot), percent(used), alternative.name, percent(alternative.used)))
+        }
+    }
+
+    /// A window that is out or behind pace, resetting within the hour, while no other tool has room: waiting beats
+    /// switching. Said once per tool for the soonest reset.
+    static func waitForReset(_ context: Context) -> [Advice] {
+        context.readings.compactMap { reading in
+            guard headroom(besides: reading.tool, in: context) == nil else { return nil }
+            let soon = reading.windows.filter { window in
+                guard let used = window.usedFraction, let resetsAt = window.resetsAt, resetsAt > context.now,
+                      resetsAt.timeIntervalSince(context.now) <= waitHorizon else { return false }
+                return used >= 1 || Pace.status(for: window, now: context.now) == .behind
+            }
+            guard let window = soon.min(by: { ($0.resetsAt ?? .distantFuture) < ($1.resetsAt ?? .distantFuture) }), let resetsAt = window.resetsAt else { return nil }
+            return Advice(id: "wait/\(reading.tool.rawValue)/\(window.id)", tool: reading.tool, priority: .warn, symbol: "clock.arrow.circlepath",
+                          text: L("%1$@ %2$@ resets in %3$@; wait rather than switch.", reading.tool.displayName, name(window),
+                                  ResetText.duration(resetsAt.timeIntervalSince(context.now))))
+        }
+    }
+
+    /// A Codex reset credit that expires within a day while a Codex window is behind pace: claim it in Codex.
+    static func resetCredits(_ context: Context) -> [Advice] {
+        context.readings.compactMap { reading in
+            guard let credit = reading.windows.first(where: { $0.id == "reset_credits" }), let expiresAt = credit.resetsAt,
+                  expiresAt > context.now, expiresAt.timeIntervalSince(context.now) <= creditHorizon,
+                  reading.windows.contains(where: { Pace.status(for: $0, now: context.now) == .behind || ($0.usedFraction ?? 0) >= 1 })
+            else { return nil }
+            return Advice(id: "credit/\(reading.tool.rawValue)", tool: reading.tool, priority: .warn, symbol: "gift.fill",
+                          text: L("A %1$@ reset credit expires in %2$@. Claim it in %1$@.", reading.tool.displayName,
+                                  ResetText.duration(expiresAt.timeIntervalSince(context.now))))
         }
     }
 
@@ -155,6 +201,18 @@ enum Advisor {
                 }
             } ?? 1
             return L("%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@", alert.tool.displayName, name(window), percent(max(0, 1 - projected)), suffix)
+        case .reminder:
+            let remaining = window.resetsAt.map { ResetText.duration($0.timeIntervalSince(context.now)) } ?? ""
+            return L("%1$@ %2$@ resets in %3$@.", alert.tool.displayName, name(window), remaining)
+        case .reset:
+            let next = window.resetsAt.flatMap { resetsAt in
+                window.periodDuration.map { period in
+                    ResetText.line(resetsAt: resetsAt.addingTimeInterval(period), hasLimit: true, display: .exact, timeFormat: context.timeFormat,
+                                   now: context.now, calendar: context.calendar)
+                }
+            }
+            if let next { return L("%1$@ %2$@ reset — 100%% until it %3$@.", alert.tool.displayName, name(window), next.prefix(1).lowercased() + next.dropFirst()) }
+            return L("%1$@ %2$@ reset — 100%% available.", alert.tool.displayName, name(window))
         }
     }
 
@@ -162,7 +220,7 @@ enum Advisor {
 
     /// "At this rate you hit the Claude weekly cap tomorrow at 2:00 PM, 3d 4h before reset. Codex weekly is at 22%."
     static func runOutText(tool: ToolID, window: LimitWindow, context: Context) -> String? {
-        guard let resetsAt = window.resetsAt, let eta = secondsToRunOut(window, now: context.now) else { return nil }
+        guard let resetsAt = window.resetsAt, let eta = secondsToRunOut(window, tool: tool, context: context) else { return nil }
         let runsOutAt = context.now.addingTimeInterval(eta)
         let when = L("%1$@ at %2$@", ResetText.dayPhrase(runsOutAt, now: context.now, calendar: context.calendar),
                      ResetText.time(runsOutAt, format: context.timeFormat, calendar: context.calendar))
@@ -219,8 +277,13 @@ enum Advisor {
         1 - (window.usedFraction ?? 1)
     }
 
-    private static func secondsToRunOut(_ window: LimitWindow, now: Date) -> TimeInterval? {
+    /// The measured drain when the log has one for the window, else the even-burn projection.
+    private static func secondsToRunOut(_ window: LimitWindow, tool: ToolID, context: Context) -> TimeInterval? {
         guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
-        return Pace.secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
+        guard Pace.status(for: window, now: context.now) == .behind else { return nil }
+        if let measured = Pace.secondsToRunOut(usedFraction: used, rate: context.drainRates["\(tool.rawValue)/\(window.id)"], resetsAt: resetsAt, now: context.now) {
+            return measured
+        }
+        return Pace.secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: context.now)
     }
 }

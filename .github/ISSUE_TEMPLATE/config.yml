@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Accuracy rules
+    url: https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md
+    about: Every rule behind the cost estimate and where it is known to diverge, before filing a cost report.

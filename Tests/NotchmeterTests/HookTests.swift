@@ -4,8 +4,8 @@ import Testing
 
 @Suite struct HookMessages {
     @Test func readsOnlyTheEventAndWhetherClaudeWaits() throws {
-        let stop = try #require(Hook.message(from: Data(#"{"hook_event_name":"Stop","session_id":"s","transcript_path":"/x","cwd":"/y"}"#.utf8)))
-        #expect(stop == Hook.Message(event: "Stop", needsInput: false))
+        let stop = try #require(Hook.message(from: Data(#"{"hook_event_name":"Stop","session_id":"s","transcript_path":"/x","cwd":"/Users/me/y"}"#.utf8)))
+        #expect(stop == Hook.Message(event: "Stop", needsInput: false, sessionID: "s", project: "y"))
         let permission = try #require(Hook.message(from: Data(#"{"hook_event_name":"PermissionRequest","tool_name":"Bash"}"#.utf8)))
         #expect(permission.needsInput)
         let prompt = try #require(Hook.message(from: Data(#"{"hook_event_name":"Notification","notification_type":"permission_prompt","message":"x"}"#.utf8)))
@@ -17,12 +17,25 @@ import Testing
         #expect(Hook.message(from: Data(#"{"session_id":"s"}"#.utf8)) == nil)
     }
 
-    @Test func userInfoCarriesOnlyTwoKeys() throws {
+    @Test func userInfoCarriesTheEventTheFlagTheSessionAndTheFolderName() throws {
         let message = Hook.Message(event: "Notification", needsInput: true)
         #expect(Set(message.userInfo.keys) == ["hook_event_name", "needsInput"])
         #expect(Hook.Message(userInfo: message.userInfo) == message)
+        let full = Hook.Message(event: "PermissionRequest", needsInput: true, sessionID: "abc", project: "notchmeter", notificationType: nil)
+        #expect(Set(full.userInfo.keys) == ["hook_event_name", "needsInput", "session_id", "project"])
+        #expect(Hook.Message(userInfo: full.userInfo) == full)
         #expect(Hook.Message(userInfo: nil) == nil)
         #expect(Hook.Message(userInfo: ["needsInput": true]) == nil)
+    }
+
+    @Test func elicitationURLDialogWaitsAndCompletionsClear() {
+        #expect(Hook.needsInput(event: "Notification", notificationType: "elicitation_url_dialog"))
+        #expect(Hook.needsInput(event: "Notification", notificationType: "agent_needs_input"))
+        #expect(!Hook.needsInput(event: "Notification", notificationType: "agent_completed"))
+        #expect(Hook.Message(event: "Notification", needsInput: false, notificationType: "agent_completed").clearsWaiting)
+        #expect(Hook.Message(event: "Notification", needsInput: false, notificationType: "elicitation_complete").clearsWaiting)
+        #expect(!Hook.Message(event: "Notification", needsInput: false, notificationType: "auth_success").clearsWaiting)
+        #expect(Hook.Message(event: "Stop", needsInput: false).clearsWaiting)
     }
 
     @Test func clearingEventsCoverStopAndTheNextPrompt() {
