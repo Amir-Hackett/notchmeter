@@ -26,9 +26,15 @@ import Testing
         Advisor.Context(readings: readings, awaitingInput: awaiting, cost: cost, timeFormat: .twentyFourHour, now: now, calendar: utc)
     }
 
+    func provider(_ tool: ToolID, burn: Double?, lastHour: Double = 8.4, month: Double = 0, week: Double = 0) -> ProviderCost {
+        ProviderCost(tool: tool, source: tool == .cursor ? .billingExport : .localTranscripts,
+                     ranges: [.month: RangeTotals(cost: month), .week: RangeTotals(cost: week)], daily: [],
+                     lastHour: lastHour, typicalHourly: 1.4, burnMultiple: burn, scannedAt: now)
+    }
+
     func cost(burn: Double?, lastHour: Double = 8.4) -> CostSummary {
         CostSummary(today: 20, yesterday: 5, last30Days: 100, daily: [], lastHour: lastHour, typicalHourly: 1.4, burnMultiple: burn,
-                    unpricedModels: [], scannedAt: now)
+                    unpricedModels: [], scannedAt: now, providers: [provider(.claude, burn: burn, lastHour: lastHour)])
     }
 
     var claudeAhead: UsageReading {
@@ -192,13 +198,30 @@ import Testing
 
     // MARK: Session burn
 
-    @Test func burnFromThreeTimesTheUsual() {
-        #expect(Advisor.sessionBurn(cost(burn: 6))?.text == "This hour burned $8.40 — 6x your 30-day average.")
-        #expect(Advisor.sessionBurn(cost(burn: 3))?.priority == .warn)
-        #expect(Advisor.sessionBurn(cost(burn: 2.9)) == nil)
-        #expect(Advisor.sessionBurn(cost(burn: nil)) == nil)
-        #expect(Advisor.sessionBurn(nil) == nil)
-        #expect(Advisor.advise(context([claudeAhead], cost: cost(burn: 4.5, lastHour: 3))).map(\.text) == ["This hour burned $3.00 — 4.5x your 30-day average."])
+    @Test func burnFromThreeTimesTheUsualIsNamedPerTool() {
+        #expect(Advisor.burn(context([], cost: cost(burn: 6))).map(\.text) == ["Claude Code burned $8.40 this hour — 6x its 30-day average."])
+        #expect(Advisor.burn(context([], cost: cost(burn: 3))).first?.priority == .warn)
+        #expect(Advisor.burn(context([], cost: cost(burn: 2.9))).isEmpty)
+        #expect(Advisor.burn(context([], cost: cost(burn: nil))).isEmpty)
+        #expect(Advisor.burn(context([])).isEmpty)
+        #expect(Advisor.advise(context([claudeAhead], cost: cost(burn: 4.5, lastHour: 3))).map(\.text) == ["Claude Code burned $3.00 this hour — 4.5x its 30-day average."])
+    }
+
+    /// Every tool that is burning gets its own line; a tool whose export cannot say (Cursor is day-resolution)
+    /// never does, and two tools that are each under the line but together over it are said once as a total.
+    @Test func burnIsSaidPerToolAndForTheTotal() {
+        let both = CostSummary(today: 30, yesterday: 5, last30Days: 100, daily: [], lastHour: 12, typicalHourly: 2.8, burnMultiple: 4.3,
+                               unpricedModels: [], scannedAt: now,
+                               providers: [provider(.claude, burn: 5, lastHour: 7), provider(.codex, burn: 3.5, lastHour: 5)])
+        #expect(Advisor.burn(context([], cost: both)).map(\.text) == [
+            "Claude Code burned $7.00 this hour — 5x its 30-day average.",
+            "Codex burned $5.00 this hour — 3.5x its 30-day average.",
+        ])
+        let together = CostSummary(today: 30, yesterday: 5, last30Days: 100, daily: [], lastHour: 12, typicalHourly: 3, burnMultiple: 4,
+                                   unpricedModels: [], scannedAt: now,
+                                   providers: [provider(.claude, burn: 2, lastHour: 7), provider(.cursor, burn: nil, lastHour: 5)])
+        #expect(Advisor.burn(context([], cost: together)).map(\.text) == ["Every tool together burned $12.00 this hour — 4x your 30-day average."])
+        #expect(Advisor.burn(context([], cost: together)).first?.tool == nil)
     }
 
     // MARK: Tool order
@@ -247,7 +270,7 @@ import Testing
 
         let calmer = Advisor.advise(context([claude, cursor], awaiting: [.claude], cost: cost(burn: 6)))
         #expect(calmer.map(\.priority) == [.attention, .danger, .warn])
-        #expect(calmer[2].text.hasPrefix("This hour burned"))
+        #expect(calmer[2].text.hasPrefix("Claude Code burned"))
     }
 
     @Test func spokenCopyReadsTheDashAndTheUnits() {

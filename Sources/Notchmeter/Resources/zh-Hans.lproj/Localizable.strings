@@ -19,6 +19,7 @@
 
 /* 第二轮补全：会话、预算、高峰时段、来源标签、命令行工具、MCP、钥匙串策略、显示器、诊断 */
 " %1$@ %2$@ is at %3$ld%%." = "%1$@ 的%2$@额度已用 %3$ld%%。";
+" %1$@ is %2$@ of it." = " 其中 %1$@ 占 %2$@。";
 " percent" = "%";
 "$/MTok" = "$/百万 token";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ 的%2$@额度已用尽。%3$@。%4$@";
@@ -31,6 +32,7 @@
 "%1$@ (and %2$ld more)" = "%1$@（还有 %2$ld 个）";
 "%1$@ (HTTP %2$ld)" = "%1$@（HTTP %2$ld）";
 "%1$@ at %2$@" = "%1$@ %2$@";
+"%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ 这一小时花费 %2$@ — 是其 30 天平均水平的 %3$@。";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ 由配额抵扣 · 本月 %2$ld 次请求";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ 额度将在 %2$@ 后过期 — 请在 Codex 中领取";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ 的%3$@额度还剩 %2$ld%%。";
@@ -40,8 +42,6 @@
 "%1$@ is waiting in %2$@." = "%1$@ 正在 %2$@ 中等待你。";
 "%1$@ of %2$@" = "%1$@ / %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "今日每 1%% 会话额度 %1$@，30 天中位数 %2$@";
-"%1$@ since %2$@" = "自%2$@起 %1$@";
-"%1$@ since %2$@ · %3$@ per 1%% of weekly" = "自%2$@起 %1$@ · 每周额度每 1%% 折合 %3$@";
 "%1$@ · %2$ld%% cache reads" = "%1$@ · 缓存读取占 %2$ld%%";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "%1$@ 的用量接口返回 HTTP %2$ld；请查看其状态页。";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%1$ld 个%2$@额度 — 请在 Codex 中领取";
@@ -73,6 +73,7 @@
 "%@M tokens" = "%@M 令牌";
 "%@x" = "%@ 倍";
 "%ld agents" = "%ld 个代理";
+"%ld Codex turn(s) name no model and are not priced" = "%ld 次 Codex 回合未记录模型，无法计价";
 "%ld days" = "%ld 天";
 "%ld extra this month" = "本月额外 %ld 次";
 "%ld min" = "%ld 分钟";
@@ -152,6 +153,7 @@
 "Bars" = "条形";
 "Beside the notch" = "刘海旁边";
 "Beta updates" = "测试版更新";
+"billing export" = "账单导出";
 "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "两者都需要 Claude Code 钩子，且在终端或编辑器位于最前、以及免打扰时段内保持安静。“一瞥”会将面板连同会话行打开几秒后再收起，除非指针移入；开启“减弱动态效果”时无动画打开并停留稍久。你回复后“等待中”通知会被撤回。未签名构建中任何通知都无法突破专注模式或勿扰模式；签名版本中的时效性通知（即将用尽、等待你）可以。";
 "Both sides" = "两侧";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "两侧显示时以刘海为中心。菜单较多的应用可能超出刘海左缘；选择刘海右侧则始终避开。";
@@ -166,6 +168,8 @@
 "Check for updates automatically" = "自动检查更新";
 "Check for Updates…" = "检查更新…";
 "Choose file…" = "选择文件…";
+"Claude %1$@ since %2$@" = "Claude 自%2$@起 %1$@";
+"Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude 自%2$@起 %1$@ · 每周额度每 1%% 折合 %3$@";
 "Claude Code finished" = "Claude Code 已完成";
 "Claude Code finished a %1$@ turn in %2$@." = "Claude Code 在 %2$@ 中完成了一轮耗时 %1$@ 的工作。";
 "Claude Code has not signed in" = "Claude Code 尚未登录";
@@ -174,12 +178,12 @@
 "Claude Code is waiting" = "Claude Code 正在等待";
 "Claude Code is waiting in %@." = "Claude Code 正在 %@ 中等待你。";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code 每次刷新令牌都会重建钥匙串项，从而忘记你给的“始终允许”。定时读取绝不弹出对话框：它先通过 Apple 的 security 工具（Claude Code 正是用它写入该项）读取，再读凭据文件，再读状态栏，否则保留上次读数并标记“需要你的确认”。只有点击 Claude 环、刷新或助手开关才可能询问，且仅在“仅刷新时”下。";
-"Claude Code sessions at API list prices" = "Claude Code 会话按 API 标价计算";
 "Claude Code status line" = "Claude Code 状态行";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code 的登录已过期。请在终端运行一次 claude 以刷新 — Notchmeter 从不自行刷新令牌。";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Claude Code 的登录需要你的确认：点击 Claude 环或刷新以允许读取钥匙串";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Claude Code 的登录被拒绝。请运行一次 Claude Code 以刷新";
 "Claude reported no usage windows" = "Claude 未报告任何用量窗口";
+"Claude since %1$@: %2$@" = "Claude 自%1$@起：%2$@";
 "Clear" = "清除";
 "Click to show %@" = "点按以显示%@";
 "Close" = "关闭";
@@ -212,7 +216,6 @@
 "Credits" = "余额";
 "Currency code" = "货币代码";
 "current" = "当前";
-"Cursor %1$@ today · %2$@ in 30 days" = "Cursor 今日 %1$@ · 30 天 %2$@";
 "Cursor models" = "Cursor 模型";
 "Cursor session token could not be decoded" = "无法解码 Cursor 会话令牌";
 "Cursor session token has no user id" = "Cursor 会话令牌中没有用户 ID";
@@ -241,6 +244,7 @@
 "Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on." = "留空则遵循“网络”设置中的代理；`http://host:port` 或 `socks5://host:port` 仅将本应用对厂商的请求经其路由，自下一个请求起生效。";
 "Every number shows its work." = "每个数字都可追溯。";
 "Every setting returns to its default and %@ relaunches. This cannot be undone." = "所有设置将恢复默认，%@ 会重新启动。此操作无法撤销。";
+"Every tool together burned %1$@ this hour — %2$@ your 30-day average." = "所有工具这一小时共花费 %1$@ — 是 30 天平均水平的 %2$@。";
 "Exact time" = "具体时间";
 "Export history…" = "导出历史…";
 "Extra" = "额外";
@@ -311,6 +315,9 @@
 "likely a %@ window" = "可能是 %@ 窗口";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "在 ~/.local/bin（或 /usr/local/bin）创建指向本应用的 `notchmeter` 链接，终端或 Claude Code 技能中的 `notchmeter` 便读取运行中应用的缓存报告，而不再逐个询问厂商；`notchmeter --force` 重新读取。";
 "Local API on 127.0.0.1:%ld" = "本地 API（127.0.0.1:%ld）";
+"Local files at published list rates; an export is the vendor's own figure" = "本地文件按公布标价计算；导出数据为厂商自己的金额";
+"local sessions" = "本地会话";
+"local transcripts" = "本地记录";
 "low power mode" = "低电量模式";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "macOS 需要你的许可才能读取 Claude Code 的登录信息。询问时请选择“始终允许”";
 "Main display (the one with the menu bar)" = "主显示器（带菜单栏的那台）";
@@ -407,7 +414,8 @@
 "Premium requests" = "高级请求";
 "Press keys…" = "请按下按键…";
 "Preview" = "试听";
-"Pricing local transcripts" = "正在为本地记录计价";
+"Priced from local files at published list rates" = "按公布的标价对本地文件计价";
+"Pricing local files" = "正在为本地文件计价";
 "Privacy" = "隐私";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "把所有设置恢复默认，清除缓存的读数和已发送通知的记录，然后重新启动。记录文件、花费缓存和消耗日志会保留。";
 "Quiet hours" = "免打扰时段";
@@ -480,7 +488,6 @@
 "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage" = "在编辑器中登录 GitHub Copilot（或运行 `gh auth login`）以读取你的用量";
 "Signed in" = "已登录";
 "Signed in · %@" = "已登录 · %@";
-"Since %1$@: %2$@" = "自%1$@起：%2$@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "自 2026 年 3 月起，Anthropic 在工作日太平洋时间 5:00 至 11:00 施行更严格的 5 小时会话限额（媒体报道，非官方文档；见 docs/accuracy.md）。其间建议会说明非高峰何时开始，消耗日志分别记录高峰与非高峰速率，页脚显示“高峰时段”。适用于“助手”中勾选的助手。";
 "snapshot" = "快照";
 "Sound" = "声音";
@@ -509,7 +516,6 @@
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "会话计量约为你常态的 %1$@：每 1%% 消耗 %2$@，常态为 %3$@。";
 "This" = "当前";
 "This GitHub account has no Copilot subscription" = "此 GitHub 账户没有 Copilot 订阅";
-"This hour burned %1$@ — %2$@ your 30-day average." = "这一小时花费 %1$@ — 是 30 天平均水平的 %2$@。";
 "This session block %1$@ · %2$@/min" = "本会话时段 %1$@ · 每分钟 %2$@";
 "This session block %@" = "本会话时段 %@";
 "Time format" = "时间格式";

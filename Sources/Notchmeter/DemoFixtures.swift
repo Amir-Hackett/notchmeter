@@ -42,8 +42,9 @@ enum DemoFixtures {
         ]
     }
 
-    /// $6,600 over 30 days with quiet weekends, a heavy $548.76 yesterday and $118.31 so far today. The last hour
-    /// ran at 3.2x the 30-day average active hour, which is what puts a line in the Advice strip.
+    /// $6,600 over 30 days of Claude Code with quiet weekends, a heavy $548.76 yesterday and $118.31 so far
+    /// today, beside a Cursor export at a ninth of it. The last hour ran at 3.2x the 30-day average active hour,
+    /// which is what puts a line in the Advice strip.
     static func cost(now: Date) -> CostSummary {
         let today = 118.31
         let yesterday = 548.76
@@ -57,14 +58,36 @@ enum DemoFixtures {
             310, 380, 290, 520, 315, 70, 25,
         ]
         let perWeight = (last30Days - yesterday - today) / weights.reduce(0, +)
-        var daily: [DailySpend] = []
+        let models = ["claude-opus-5": 0.6, "claude-sonnet-5": 0.33, "claude-haiku-4-5": 0.07]
+        let projects = ["notchmeter": 0.63, "scout": 0.27, "Other": 0.1]
+        var days: [Date: CostHistory.Record] = [:]
         for offset in 0..<30 {
-            let day = calendar.date(byAdding: .day, value: offset - 29, to: start) ?? start
+            guard let day = calendar.date(byAdding: .day, value: offset - 29, to: start) else { continue }
             let cost = offset == 29 ? today : offset == 28 ? yesterday : weights[offset] * perWeight
-            daily.append(DailySpend(day: day, cost: cost, tokens: Int(cost * 62_000)))
+            let tokens = Int(cost * 62_000)
+            days[day] = CostHistory.Record(
+                cost: cost,
+                tokens: TokenBreakdown(input: tokens / 60, cacheWrite5m: tokens / 40, cacheWrite1h: tokens / 20,
+                                       cacheRead: tokens - tokens / 60 - tokens / 40 - tokens / 20 - tokens / 100, output: tokens / 100),
+                byModel: models.mapValues { $0 * cost }, byProject: projects.mapValues { $0 * cost },
+                byModelTokens: models.mapValues { Int($0 * Double(tokens)) }, byProjectTokens: projects.mapValues { Int($0 * Double(tokens)) })
         }
-        return CostSummary(today: today, yesterday: yesterday, last30Days: last30Days, daily: daily, lastHour: 31.20,
-                           typicalHourly: 9.75, burnMultiple: 3.2, unpricedModels: [], scannedAt: now)
+        // Cursor's own export, day-resolution, so it reports no hour of its own.
+        let cursorDays = days.mapValues { record in
+            CostHistory.Record(cost: record.cost * 0.11, tokens: TokenBreakdown(input: record.tokens.total / 6, output: record.tokens.total / 60),
+                               byModel: ["claude-4.5-sonnet": record.cost * 0.08, "gpt-5.3-codex": record.cost * 0.03], byProject: [:])
+        }
+        let weekStart = CostEngine.weekStart(weeklyResetsAt: nil, now: now, calendar: calendar)
+        let claude = ProviderCost.build(tool: .claude, source: .localTranscripts, days: days, now: now, weekStart: weekStart,
+                                        calendar: calendar, hourly: HourlyBurn(lastHour: 31.20, typicalHourly: 9.75, activeHours: 380),
+                                        scannedAt: now)
+        let cursor = ProviderCost.build(tool: .cursor, source: .billingExport, days: cursorDays, now: now, weekStart: weekStart,
+                                        calendar: calendar, scannedAt: now.addingTimeInterval(-240))
+        let base = CostSummary(today: 0, yesterday: 0, last30Days: 0, daily: [], lastHour: 0, typicalHourly: 0, burnMultiple: nil,
+                               unpricedModels: [], scannedAt: now,
+                               week: WeekCost(start: weekStart, cost: 903, perPercent: 12.4),
+                               firstUse: calendar.date(byAdding: .day, value: -212, to: start), sinceFirstUse: 41_300)
+        return base.adding([claude, cursor].compactMap { $0 })
     }
 }
 

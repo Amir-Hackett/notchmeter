@@ -3,6 +3,7 @@
 
 /* 第二輪補全：工作階段、預算、尖峰時段、來源標籤、命令列工具、MCP、鑰匙圈政策、顯示器、診斷 */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ 的%2$@為 %3$ld%%。";
+" %1$@ is %2$@ of it." = " 其中 %1$@ 佔 %2$@。";
 " percent" = " 百分比";
 "$/MTok" = "$/百萬 token";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ 的%2$@已用完。%3$@。%4$@";
@@ -15,6 +16,7 @@
 "%1$@ (and %2$ld more)" = "%1$@（還有 %2$ld 個）";
 "%1$@ (HTTP %2$ld)" = "%1$@（HTTP %2$ld）";
 "%1$@ at %2$@" = "%1$@ %2$@";
+"%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ 這一小時花了 %2$@ — 為其 30 天平均的 %3$@。";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ 由配額抵扣 · 本月 %2$ld 次請求";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ 額度將在 %2$@ 後到期 — 請在 Codex 中領取";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ 的%3$@還剩 %2$ld%%。";
@@ -24,8 +26,6 @@
 "%1$@ is waiting in %2$@." = "%1$@ 正在 %2$@ 中等待你。";
 "%1$@ of %2$@" = "%1$@ / %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "今日每 1%% 工作階段額度 %1$@，30 天中位數 %2$@";
-"%1$@ since %2$@" = "自%2$@起 %1$@";
-"%1$@ since %2$@ · %3$@ per 1%% of weekly" = "自%2$@起 %1$@ · 每週額度每 1%% 折合 %3$@";
 "%1$@ · %2$ld%% cache reads" = "%1$@ · 快取讀取佔 %2$ld%%";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "%1$@ 的用量介面回傳 HTTP %2$ld；請查看其狀態頁。";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%1$ld 個%2$@額度 — 請在 Codex 中領取";
@@ -57,6 +57,7 @@
 "%@M tokens" = "%@M 個 token";
 "%@x" = "%@ 倍";
 "%ld agents" = "%ld 個代理";
+"%ld Codex turn(s) name no model and are not priced" = "%ld 次 Codex 回合未記錄模型，無法計價";
 "%ld days" = "%ld 天";
 "%ld extra this month" = "本月額外 %ld 次";
 "%ld min" = "%ld 分鐘";
@@ -136,6 +137,7 @@
 "Bars" = "長條";
 "Beside the notch" = "瀏海旁";
 "Beta updates" = "測試版更新";
+"billing export" = "帳單匯出";
 "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "兩者都需要 Claude Code hook，且在終端機或編輯器位於最前、以及安靜時段內保持安靜。「一瞥」會將面板連同工作階段行開啟幾秒後再收起，除非指標移入；開啟「減少動態效果」時無動畫開啟並停留稍久。你回覆後「等待中」通知會被撤回。未簽署的組建中任何通知都無法突破專注模式或勿擾模式；簽署版本中的時效性通知（即將用盡、等待你）可以。";
 "Both sides" = "兩側";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "兩側顯示時以瀏海為中心。選單較多的應用程式可能超出瀏海左緣；選擇瀏海右側則始終避開。";
@@ -150,6 +152,8 @@
 "Check for updates automatically" = "自動檢查更新";
 "Check for Updates…" = "檢查更新…";
 "Choose file…" = "選擇檔案…";
+"Claude %1$@ since %2$@" = "Claude 自%2$@起 %1$@";
+"Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude 自%2$@起 %1$@ · 每週額度每 1%% 折合 %3$@";
 "Claude Code finished" = "Claude Code 已完成";
 "Claude Code finished a %1$@ turn in %2$@." = "Claude Code 在 %2$@ 中完成了一輪歷時 %1$@ 的工作。";
 "Claude Code has not signed in" = "Claude Code 尚未登入";
@@ -158,12 +162,12 @@
 "Claude Code is waiting" = "Claude Code 正在等待";
 "Claude Code is waiting in %@." = "Claude Code 正在 %@ 中等待你。";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code 每次更新權杖都會重建鑰匙圈項目，從而忘記你給的「永遠允許」。定時讀取絕不彈出對話框：它先透過 Apple 的 security 工具（Claude Code 正是用它寫入該項目）讀取，再讀憑證檔案，再讀狀態列，否則保留上次讀數並標記「需要你的確認」。只有點擊 Claude 環、重新整理或助理開關才可能詢問，且僅在「僅重新整理時」下。";
-"Claude Code sessions at API list prices" = "Claude Code 工作階段按 API 定價計算";
 "Claude Code status line" = "Claude Code 狀態列";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code 的登入已過期。請在終端機執行一次 claude 以重新整理 — Notchmeter 從不自行更新權杖。";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Claude Code 的登入需要你的確認：點擊 Claude 環或重新整理以允許讀取鑰匙圈";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Claude Code 的登入被拒絕。請執行一次 Claude Code 以重新整理";
 "Claude reported no usage windows" = "Claude 未回報任何用量視窗";
+"Claude since %1$@: %2$@" = "Claude 自%1$@起：%2$@";
 "Clear" = "清除";
 "Click to show %@" = "點一下以顯示%@";
 "Close" = "關閉";
@@ -196,7 +200,6 @@
 "Credits" = "額度餘額";
 "Currency code" = "貨幣代碼";
 "current" = "目前";
-"Cursor %1$@ today · %2$@ in 30 days" = "Cursor 今日 %1$@ · 30 天 %2$@";
 "Cursor models" = "Cursor 模型";
 "Cursor session token could not be decoded" = "無法解碼 Cursor 的工作階段權杖";
 "Cursor session token has no user id" = "Cursor 的工作階段權杖沒有使用者 ID";
@@ -225,6 +228,7 @@
 "Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on." = "留空則遵循「網路」設定中的代理；`http://host:port` 或 `socks5://host:port` 僅將本應用程式對廠商的請求經其路由，自下一個請求起生效。";
 "Every number shows its work." = "每個數字都有依據。";
 "Every setting returns to its default and %@ relaunches. This cannot be undone." = "所有設定將回復預設值，%@ 會重新啟動。此動作無法復原。";
+"Every tool together burned %1$@ this hour — %2$@ your 30-day average." = "所有工具這一小時共花了 %1$@ — 為你 30 天平均的 %2$@。";
 "Exact time" = "確切時間";
 "Export history…" = "匯出歷史…";
 "Extra" = "額外";
@@ -295,6 +299,9 @@
 "likely a %@ window" = "可能是 %@ 視窗";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "在 ~/.local/bin（或 /usr/local/bin）建立指向本應用程式的 `notchmeter` 連結，終端機或 Claude Code 技能中的 `notchmeter` 便讀取執行中應用程式的快取報告，而不再逐個詢問廠商；`notchmeter --force` 重新讀取。";
 "Local API on 127.0.0.1:%ld" = "本機 API（127.0.0.1:%ld）";
+"Local files at published list rates; an export is the vendor's own figure" = "本機檔案依公布定價計算；匯出資料為廠商自己的金額";
+"local sessions" = "本機工作階段";
+"local transcripts" = "本機記錄";
 "low power mode" = "低耗電模式";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "macOS 需要你的許可才能讀取 Claude Code 的登入資訊。詢問時請選擇「永遠允許」";
 "Main display (the one with the menu bar)" = "主要顯示器（帶選單列的那台）";
@@ -391,7 +398,8 @@
 "Premium requests" = "進階請求";
 "Press keys…" = "請按下按鍵…";
 "Preview" = "試聽";
-"Pricing local transcripts" = "正在計算本機記錄";
+"Priced from local files at published list rates" = "依公布的定價計算本機檔案";
+"Pricing local files" = "正在計算本機檔案";
 "Privacy" = "隱私權";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "將所有設定回復預設值，清除快取的讀數與已送出通知的記錄，然後重新啟動。記錄檔、花費快取與消耗記錄會保留。";
 "Quiet hours" = "勿擾時段";
@@ -464,7 +472,6 @@
 "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage" = "在編輯器中登入 GitHub Copilot（或執行 `gh auth login`）以讀取你的用量";
 "Signed in" = "已登入";
 "Signed in · %@" = "已登入 · %@";
-"Since %1$@: %2$@" = "自%1$@起：%2$@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "自 2026 年 3 月起，Anthropic 在平日太平洋時間 5:00 至 11:00 施行更嚴格的 5 小時工作階段限額（媒體報導，非官方文件；見 docs/accuracy.md）。其間建議會說明非尖峰何時開始，消耗記錄分別記錄尖峰與非尖峰速率，頁尾顯示「尖峰時段」。適用於「助理」中勾選的助理。";
 "snapshot" = "快照";
 "Sound" = "聲音";
@@ -493,7 +500,6 @@
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "工作階段計量約為你常態的 %1$@：每 1%% 消耗 %2$@，常態為 %3$@。";
 "This" = "目前";
 "This GitHub account has no Copilot subscription" = "此 GitHub 帳號沒有 Copilot 訂閱";
-"This hour burned %1$@ — %2$@ your 30-day average." = "這一小時花了 %1$@ — 為你 30 天平均的 %2$@。";
 "This session block %1$@ · %2$@/min" = "本工作階段時段 %1$@ · 每分鐘 %2$@";
 "This session block %@" = "本工作階段時段 %@";
 "Time format" = "時間格式";

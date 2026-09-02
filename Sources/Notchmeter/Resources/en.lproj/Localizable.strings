@@ -19,6 +19,7 @@
 
 /* Round-2 gap fixes: sessions, budget, peak hours, provenance, the command line tool, MCP, Keychain policy, displays, diagnostics */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ %2$@ is at %3$ld%%.";
+" %1$@ is %2$@ of it." = " %1$@ is %2$@ of it.";
 " percent" = " percent";
 "$/MTok" = "$/MTok";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ %2$@ has run out. %3$@.%4$@";
@@ -31,6 +32,7 @@
 "%1$@ (and %2$ld more)" = "%1$@ (and %2$ld more)";
 "%1$@ (HTTP %2$ld)" = "%1$@ (HTTP %2$ld)";
 "%1$@ at %2$@" = "%1$@ at %2$@";
+"%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ burned %2$@ this hour — %3$@ its 30-day average.";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ covered by the allowance · %2$ld requests this month";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ credit expires in %2$@ — claim it in Codex";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ has %2$ld%% of its %3$@ left.";
@@ -40,8 +42,6 @@
 "%1$@ is waiting in %2$@." = "%1$@ is waiting in %2$@.";
 "%1$@ of %2$@" = "%1$@ of %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "%1$@ per 1%% of session today vs %2$@ 30-day median";
-"%1$@ since %2$@" = "%1$@ since %2$@";
-"%1$@ since %2$@ · %3$@ per 1%% of weekly" = "%1$@ since %2$@ · %3$@ per 1%% of weekly";
 "%1$@ · %2$ld%% cache reads" = "%1$@ · %2$ld%% cache reads";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page.";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%1$ld %2$@ credit(s) — claim them in Codex";
@@ -73,6 +73,7 @@
 "%@M tokens" = "%@M tokens";
 "%@x" = "%@x";
 "%ld agents" = "%ld agents";
+"%ld Codex turn(s) name no model and are not priced" = "%ld Codex turn(s) name no model and are not priced";
 "%ld days" = "%ld days";
 "%ld extra this month" = "%ld extra this month";
 "%ld min" = "%ld min";
@@ -152,6 +153,7 @@
 "Bars" = "Bars";
 "Beside the notch" = "Beside the notch";
 "Beta updates" = "Beta updates";
+"billing export" = "billing export";
 "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release.";
 "Both sides" = "Both sides";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them.";
@@ -166,6 +168,8 @@
 "Check for updates automatically" = "Check for updates automatically";
 "Check for Updates…" = "Check for Updates…";
 "Choose file…" = "Choose file…";
+"Claude %1$@ since %2$@" = "Claude %1$@ since %2$@";
+"Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly";
 "Claude Code finished" = "Claude Code finished";
 "Claude Code finished a %1$@ turn in %2$@." = "Claude Code finished a %1$@ turn in %2$@.";
 "Claude Code has not signed in" = "Claude Code has not signed in";
@@ -174,12 +178,12 @@
 "Claude Code is waiting" = "Claude Code is waiting";
 "Claude Code is waiting in %@." = "Claude Code is waiting in %@.";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only.";
-"Claude Code sessions at API list prices" = "Claude Code sessions at API list prices";
 "Claude Code status line" = "Claude Code status line";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself.";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Claude Code's login was refused. Run Claude Code once to refresh it";
 "Claude reported no usage windows" = "Claude reported no usage windows";
+"Claude since %1$@: %2$@" = "Claude since %1$@: %2$@";
 "Clear" = "Clear";
 "Click to show %@" = "Click to show %@";
 "Close" = "Close";
@@ -212,7 +216,6 @@
 "Credits" = "Credits";
 "Currency code" = "Currency code";
 "current" = "current";
-"Cursor %1$@ today · %2$@ in 30 days" = "Cursor %1$@ today · %2$@ in 30 days";
 "Cursor models" = "Cursor models";
 "Cursor session token could not be decoded" = "Cursor session token could not be decoded";
 "Cursor session token has no user id" = "Cursor session token has no user id";
@@ -241,6 +244,7 @@
 "Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on." = "Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on.";
 "Every number shows its work." = "Every number shows its work.";
 "Every setting returns to its default and %@ relaunches. This cannot be undone." = "Every setting returns to its default and %@ relaunches. This cannot be undone.";
+"Every tool together burned %1$@ this hour — %2$@ your 30-day average." = "Every tool together burned %1$@ this hour — %2$@ your 30-day average.";
 "Exact time" = "Exact time";
 "Export history…" = "Export history…";
 "Extra" = "Extra";
@@ -311,6 +315,9 @@
 "likely a %@ window" = "likely a %@ window";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh.";
 "Local API on 127.0.0.1:%ld" = "Local API on 127.0.0.1:%ld";
+"Local files at published list rates; an export is the vendor's own figure" = "Local files at published list rates; an export is the vendor's own figure";
+"local sessions" = "local sessions";
+"local transcripts" = "local transcripts";
 "low power mode" = "low power mode";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks";
 "Main display (the one with the menu bar)" = "Main display (the one with the menu bar)";
@@ -407,7 +414,8 @@
 "Premium requests" = "Premium requests";
 "Press keys…" = "Press keys…";
 "Preview" = "Preview";
-"Pricing local transcripts" = "Pricing local transcripts";
+"Priced from local files at published list rates" = "Priced from local files at published list rates";
+"Pricing local files" = "Pricing local files";
 "Privacy" = "Privacy";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept.";
 "Quiet hours" = "Quiet hours";
@@ -480,7 +488,6 @@
 "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage" = "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage";
 "Signed in" = "Signed in";
 "Signed in · %@" = "Signed in · %@";
-"Since %1$@: %2$@" = "Since %1$@: %2$@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants.";
 "snapshot" = "snapshot";
 "Sound" = "Sound";
@@ -509,7 +516,6 @@
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@.";
 "This" = "This";
 "This GitHub account has no Copilot subscription" = "This GitHub account has no Copilot subscription";
-"This hour burned %1$@ — %2$@ your 30-day average." = "This hour burned %1$@ — %2$@ your 30-day average.";
 "This session block %1$@ · %2$@/min" = "This session block %1$@ · %2$@/min";
 "This session block %@" = "This session block %@";
 "Time format" = "Time format";

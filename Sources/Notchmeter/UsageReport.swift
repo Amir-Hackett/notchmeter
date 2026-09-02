@@ -190,8 +190,21 @@ struct UsageReport {
             object["metering"] = ["tokensPerPercentOfSession": Int(metering.tokensPerPercent.rounded()), "median30Days": metering.median.map { Int($0.rounded()) } as Any,
                                   "heavierBy": metering.multiple.map(Oracle.fraction) as Any]
         }
-        if !cost.cursorDaily.isEmpty {
-            object["cursor"] = ["today": Self.money(cost.cursorDaily.last?.cost ?? 0), "last30Days": Self.money(cost.cursorDaily.reduce(0) { $0 + $1.cost })]
+        if !cost.providers.isEmpty {
+            object["providers"] = cost.providers.map { provider -> [String: Any] in
+                var entry: [String: Any] = [
+                    "tool": provider.tool.rawValue, "source": provider.source.rawValue, "scannedAt": Oracle.timestamp(provider.scannedAt),
+                    "today": Self.money(provider.totals(.today).cost), "yesterday": Self.money(provider.totals(.yesterday).cost),
+                    "week": Self.money(provider.totals(.week).cost), "month": Self.money(provider.totals(.month).cost),
+                    "last30Days": Self.money(provider.totals(.last30Days).cost), "last90Days": Self.money(provider.totals(.last90Days).cost),
+                    "byModel": shares(provider.totals(.last30Days).models), "unpricedModels": provider.unpricedModels.sorted(),
+                ]
+                if let lastHour = provider.lastHour { entry["lastHour"] = Self.money(lastHour) }
+                if let typical = provider.typicalHourly { entry["typicalHourly"] = Self.money(typical) }
+                if let burn = provider.burnMultiple { entry["burnMultiple"] = Oracle.fraction(burn) }
+                if let problem = provider.problem { entry["problem"] = problem }
+                return entry
+            }
         }
         return object
     }

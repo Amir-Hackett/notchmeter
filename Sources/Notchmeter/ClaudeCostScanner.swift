@@ -117,15 +117,18 @@ struct WeekCost: Equatable, Sendable {
     let perPercent: Double?
 }
 
+/// Every tool's spend side by side. The figures at the top are the total across the providers below them: with
+/// Claude Code the only tool that can report spend they are Claude Code's, and with three of them reporting they
+/// are all three added up. `providers` is where a single tool's own ranges, series, models and source live.
 struct CostSummary: Equatable, Sendable {
     let today: Double
     let yesterday: Double
     let last30Days: Double
     /// One entry per calendar day for the last 30 days, oldest first.
     let daily: [DailySpend]
-    /// Ninety days, from the durable daily history where transcripts are gone.
+    /// Ninety days, from the durable daily history where the tools' own files are gone.
     let daily90: [DailySpend]
-    /// Everything priced in the last 60 minutes.
+    /// Everything priced in the last 60 minutes, from the sources whose entries carry a time of day.
     let lastHour: Double
     /// Mean cost of an active hour across the window: the window's total over its active hours, an active hour
     /// being a clock hour with at least one entry. A median would sit near zero for bursty agent work and call
@@ -136,19 +139,22 @@ struct CostSummary: Equatable, Sendable {
     let unpricedModels: Set<String>
     let scannedAt: Date
     let ranges: [CostRange: RangeTotals]
+    /// The live Claude weekly window's own spend and what one per cent of it cost; Claude's window, not a total.
     let week: WeekCost?
     let block: BlockCost?
+    /// The first day Claude Code's history holds spend for, and everything it has cost since.
     let firstUse: Date?
     let sinceFirstUse: Double
     /// Tokens per one per cent of the session window today, against the 30-day median (MeteringRatio).
     let sessionMetering: MeteringRatio?
-    /// Cursor's per-day spend from its usage-events export (opt-in), the last 30 days, oldest first; empty without it.
-    let cursorDaily: [DailySpend]
+    /// One entry per tool that can report spend from a source it publishes, in tool order. A tool that cannot is
+    /// simply absent: no zero, no invented figure (docs/accuracy.md).
+    let providers: [ProviderCost]
 
     init(today: Double, yesterday: Double, last30Days: Double, daily: [DailySpend], daily90: [DailySpend] = [], lastHour: Double,
          typicalHourly: Double, burnMultiple: Double?, unpricedModels: Set<String>, scannedAt: Date,
          ranges: [CostRange: RangeTotals] = [:], week: WeekCost? = nil, block: BlockCost? = nil, firstUse: Date? = nil, sinceFirstUse: Double = 0,
-         sessionMetering: MeteringRatio? = nil, cursorDaily: [DailySpend] = []) {
+         sessionMetering: MeteringRatio? = nil, providers: [ProviderCost] = []) {
         self.today = today
         self.yesterday = yesterday
         self.last30Days = last30Days
@@ -165,18 +171,77 @@ struct CostSummary: Equatable, Sendable {
         self.firstUse = firstUse
         self.sinceFirstUse = sinceFirstUse
         self.sessionMetering = sessionMetering
-        self.cursorDaily = cursorDaily
+        self.providers = providers
     }
 
     /// The same summary with the figures the store adds after the scan.
-    func with(sessionMetering: MeteringRatio?? = nil, cursorDaily: [DailySpend]? = nil) -> CostSummary {
+    func with(sessionMetering: MeteringRatio?? = nil, providers: [ProviderCost]? = nil, scannedAt: Date? = nil) -> CostSummary {
         CostSummary(today: today, yesterday: yesterday, last30Days: last30Days, daily: daily, daily90: daily90, lastHour: lastHour, typicalHourly: typicalHourly,
-                    burnMultiple: burnMultiple, unpricedModels: unpricedModels, scannedAt: scannedAt, ranges: ranges, week: week, block: block, firstUse: firstUse,
-                    sinceFirstUse: sinceFirstUse, sessionMetering: sessionMetering ?? self.sessionMetering, cursorDaily: cursorDaily ?? self.cursorDaily)
+                    burnMultiple: burnMultiple, unpricedModels: unpricedModels, scannedAt: scannedAt ?? self.scannedAt, ranges: ranges, week: week, block: block,
+                    firstUse: firstUse, sinceFirstUse: sinceFirstUse, sessionMetering: sessionMetering ?? self.sessionMetering,
+                    providers: providers ?? self.providers)
     }
 
     func totals(_ range: CostRange) -> RangeTotals {
         ranges[range] ?? RangeTotals()
+    }
+
+    func provider(_ tool: ToolID) -> ProviderCost? {
+        providers.first { $0.tool == tool }
+    }
+
+    /// The same summary with other tools' spend folded in: every top figure becomes the total across the
+    /// providers, and each provider keeps its own ranges, series, source and freshness. The Claude-window
+    /// figures (the week, the block, the metering, since first use) stay Claude's, because that is what they are.
+    func adding(_ others: [ProviderCost]) -> CostSummary {
+        guard !others.isEmpty else { return self }
+        let all = (providers + others).sorted { rank($0.tool) < rank($1.tool) }
+        var ranges: [CostRange: RangeTotals] = [:]
+        for provider in all {
+            for (range, totals) in provider.ranges {
+                var merged = ranges[range] ?? RangeTotals()
+                merged.add(totals)
+                ranges[range] = merged
+            }
+        }
+        let daily = Self.sum(all.map(\.daily))
+        let lastHour = all.compactMap(\.lastHour).reduce(0, +)
+        let typicalHourly = all.compactMap(\.typicalHourly).reduce(0, +)
+        let burnable = all.contains { $0.burnMultiple != nil }
+        return CostSummary(
+            today: ranges[.today]?.cost ?? 0,
+            yesterday: ranges[.yesterday]?.cost ?? 0,
+            last30Days: daily.reduce(0) { $0 + $1.cost },
+            daily: daily,
+            daily90: Self.sum(all.map(\.daily90)),
+            lastHour: lastHour,
+            typicalHourly: typicalHourly,
+            burnMultiple: burnable && typicalHourly > 0 ? lastHour / typicalHourly : nil,
+            unpricedModels: all.reduce(into: Set<String>()) { $0.formUnion($1.unpricedModels) },
+            scannedAt: scannedAt,
+            ranges: ranges,
+            week: week, block: block, firstUse: firstUse, sinceFirstUse: sinceFirstUse, sessionMetering: sessionMetering,
+            providers: all)
+    }
+
+    private func rank(_ tool: ToolID) -> Int {
+        ToolID.allCases.firstIndex(of: tool) ?? ToolID.allCases.count
+    }
+
+    /// Several tools' day series added day by day; the days come from the same grid, so they line up.
+    static func sum(_ series: [[DailySpend]]) -> [DailySpend] {
+        guard series.count > 1 else { return series.first ?? [] }
+        var totals: [Date: (cost: Double, tokens: Int, top: String?)] = [:]
+        for list in series {
+            for day in list {
+                var entry = totals[day.day] ?? (0, 0, nil)
+                entry.cost += day.cost
+                entry.tokens += day.tokens
+                if entry.top == nil { entry.top = day.topModel }
+                totals[day.day] = entry
+            }
+        }
+        return totals.keys.sorted().map { DailySpend(day: $0, cost: totals[$0]!.cost, tokens: totals[$0]!.tokens, topModel: totals[$0]!.top) }
     }
 
     static let empty = CostSummary(today: 0, yesterday: 0, last30Days: 0, daily: [], lastHour: 0, typicalHourly: 0,
@@ -340,10 +405,9 @@ actor ClaudeCostScanner {
     }
 
     func scan(now: Date = Date(), daysBack: Int = 30, weeklyResetsAt: Date? = nil, weeklyUsed: Double? = nil, sessionResetsAt: Date? = nil,
-              sessionUsed: Double? = nil, cursorHistory: CostHistory? = CostHistory(tool: .cursor)) -> CostSummary {
+              sessionUsed: Double? = nil, calendar: Calendar = .current) -> CostSummary {
         loadCacheIfNeeded()
         let files = Self.transcriptFiles(under: roots)
-        let calendar = Calendar.current
         let cutoff = calendar.date(byAdding: .day, value: -(daysBack - 1), to: calendar.startOfDay(for: now)) ?? .distantPast
         let pricing = ModelPricing.fingerprint
         let fineSince = min(now.addingTimeInterval(-3600), sessionResetsAt.map { $0.addingTimeInterval(-Self.fineHorizon) } ?? now)
@@ -381,7 +445,7 @@ actor ClaudeCostScanner {
             saveCache()
             cacheSavedAt = now
         }
-        let stored = history?.load() ?? [:]
+        let stored = history?.load(calendar: calendar) ?? [:]
         var summary = Self.summarize(digests: digests, fine: fine, now: now, daysBack: daysBack, weeklyResetsAt: weeklyResetsAt,
                                      weeklyUsed: weeklyUsed, sessionResetsAt: sessionResetsAt, history: stored, calendar: calendar)
         var records = Self.dayRecords(digests: digests, now: now, daysBack: daysBack, calendar: calendar)
@@ -391,9 +455,8 @@ actor ClaudeCostScanner {
             record.sessionTokensPerPercent = metering.tokensPerPercent
             records[today] = record
         }
-        let cursor = cursorHistory.map { Self.series(from: $0.load(calendar: calendar), days: daysBack, now: now, calendar: calendar) } ?? []
-        summary = summary.with(sessionMetering: .some(metering), cursorDaily: cursor)
-        history?.record(records, existing: stored)
+        summary = summary.with(sessionMetering: .some(metering))
+        history?.record(records, existing: stored, calendar: calendar)
         return summary
     }
 
@@ -402,17 +465,6 @@ actor ClaudeCostScanner {
         guard let blockTokens, let sessionUsed, let ratio = MeteringRatio.tokensPerPercent(blockTokens: blockTokens, usedFraction: sessionUsed) else { return nil }
         let past = history.filter { $0.key < today }.compactMap { $0.value.sessionTokensPerPercent }
         return MeteringRatio(tokensPerPercent: ratio, median: MeteringRatio.median(past))
-    }
-
-    /// A per-day series over the last `days`, oldest first, from a history's records.
-    static func series(from records: [Date: CostHistory.Record], days: Int, now: Date, calendar: Calendar) -> [DailySpend] {
-        let today = calendar.startOfDay(for: now)
-        guard let first = calendar.date(byAdding: .day, value: -(days - 1), to: today), !records.isEmpty else { return [] }
-        return (0..<days).compactMap { offset in
-            guard let day = calendar.date(byAdding: .day, value: offset, to: first) else { return nil }
-            let record = records[day]
-            return DailySpend(day: day, cost: record?.cost ?? 0, tokens: record?.tokens.total ?? 0, topModel: record?.topModel)
-        }
     }
 
     /// Every transcript under each root, path-sorted so the scan order is deterministic, with the project name its
@@ -452,8 +504,7 @@ actor ClaudeCostScanner {
     }
 
     static func projectName(fromPath path: String) -> String? {
-        let name = URL(fileURLWithPath: path).lastPathComponent
-        return name.isEmpty || name == "/" ? nil : name
+        ProjectName.ofPath(path)
     }
 
     static func parseFile(_ data: Data, project: String? = nil) -> [UsageEntry] {
@@ -596,36 +647,12 @@ actor ClaudeCostScanner {
             }
         }
 
-        func series(from first: Date, count: Int) -> [DailySpend] {
-            (0..<count).compactMap { offset in
-                guard let day = calendar.date(byAdding: .day, value: offset, to: first) else { return nil }
-                let record = days[day]
-                return DailySpend(day: day, cost: record?.cost ?? 0, tokens: record?.tokens.total ?? 0, topModel: record?.topModel)
-            }
-        }
-        let daily = series(from: windowStart, count: daysBack)
-        let daily90 = series(from: start90, count: 90)
+        let daily = RangeTotals.series(days: days, from: windowStart, count: daysBack, calendar: calendar)
+        let daily90 = RangeTotals.series(days: days, from: start90, count: 90, calendar: calendar)
 
-        var ranges: [CostRange: RangeTotals] = [:]
-        func total(days chosen: [Date]) -> RangeTotals {
-            var totals = RangeTotals()
-            for day in chosen {
-                guard let record = days[day] else { continue }
-                totals.add(RangeTotals(cost: record.cost, tokens: record.tokens, byModel: record.byModel, byProject: record.byProject,
-                                       byModelTokens: record.byModelTokens, byProjectTokens: record.byProjectTokens))
-            }
-            return totals
-        }
-        let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
-        ranges[.today] = total(days: [today])
-        ranges[.yesterday] = total(days: [yesterday])
-        ranges[.last30Days] = total(days: daily.map(\.day))
-        ranges[.last90Days] = total(days: daily90.map(\.day))
-        let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? today
-        ranges[.month] = total(days: days.keys.filter { $0 >= monthStart && $0 <= today })
-
-        let weekStart = weeklyResetsAt.map { $0.addingTimeInterval(-Period.week) }
-            ?? calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? today
+        let weekStart = CostEngine.weekStart(weeklyResetsAt: weeklyResetsAt, now: now, calendar: calendar)
+        var ranges = RangeTotals.ranges(days: days, daily: daily, daily90: daily90, weekStart: weekStart, now: now, calendar: calendar)
+        // The week the transcripts themselves say, to the quarter hour, rather than the day-aligned approximation.
         var weekTotals = RangeTotals()
         for digest in digests {
             for (index, bucket) in digest.buckets where FileDigest.start(of: index) >= weekStart {
@@ -661,24 +688,28 @@ actor ClaudeCostScanner {
                               tokensPerMinute: minutes.flatMap { blockTokens.total > 0 ? Double(blockTokens.total) / $0 : nil })
         }
 
-        let typicalHourly = costByHour.isEmpty ? 0 : costByHour.values.reduce(0, +) / Double(costByHour.count)
+        let burn = HourlyBurn(lastHour: lastHour, costByHour: costByHour)
         let firstUse = days.filter { $0.value.cost > 0 }.keys.min()
+        let claude = ProviderCost(tool: .claude, source: .localTranscripts, ranges: ranges, daily: daily, daily90: daily90,
+                                  lastHour: burn.lastHour, typicalHourly: burn.typicalHourly, burnMultiple: burn.multiple,
+                                  unpricedModels: unpriced, scannedAt: now)
         return CostSummary(
             today: ranges[.today]?.cost ?? 0,
             yesterday: ranges[.yesterday]?.cost ?? 0,
             last30Days: daily.reduce(0) { $0 + $1.cost },
             daily: daily,
             daily90: daily90,
-            lastHour: lastHour,
-            typicalHourly: typicalHourly,
-            burnMultiple: costByHour.count >= 5 && typicalHourly > 0 ? lastHour / typicalHourly : nil,
+            lastHour: burn.lastHour,
+            typicalHourly: burn.typicalHourly,
+            burnMultiple: burn.multiple,
             unpricedModels: unpriced,
             scannedAt: now,
             ranges: ranges,
             week: week,
             block: block,
             firstUse: firstUse,
-            sinceFirstUse: days.values.reduce(0) { $0 + $1.cost }
+            sinceFirstUse: days.values.reduce(0) { $0 + $1.cost },
+            providers: claude.hasFigures ? [claude] : []
         )
     }
 }
@@ -713,8 +744,19 @@ struct CostHistory: Sendable {
         var topModel: String? {
             byModel.filter { $0.value > 0 }.max { ($0.value, $1.key) < ($1.value, $0.key) }?.key
         }
+
+        mutating func add(_ other: Record) {
+            cost += other.cost
+            tokens += other.tokens
+            byModel.merge(other.byModel, uniquingKeysWith: +)
+            byProject.merge(other.byProject, uniquingKeysWith: +)
+            byModelTokens.merge(other.byModelTokens, uniquingKeysWith: +)
+            byProjectTokens.merge(other.byProjectTokens, uniquingKeysWith: +)
+            sessionTokensPerPercent = sessionTokensPerPercent ?? other.sessionTokensPerPercent
+        }
     }
 
+    /// The token maps are written only where they are non-empty, so a line an older build wrote still reads.
     private struct Line: Codable {
         let day: String
         let tool: String
@@ -722,7 +764,21 @@ struct CostHistory: Sendable {
         let tokens: TokenBreakdown
         let byModel: [String: Double]
         let byProject: [String: Double]
+        var byModelTokens: [String: Int]?
+        var byProjectTokens: [String: Int]?
         var sessionTokensPerPercent: Double?
+
+        init(day: String, tool: String, record: Record) {
+            self.day = day
+            self.tool = tool
+            self.cost = record.cost
+            self.tokens = record.tokens
+            self.byModel = record.byModel
+            self.byProject = record.byProject
+            self.byModelTokens = record.byModelTokens.isEmpty ? nil : record.byModelTokens
+            self.byProjectTokens = record.byProjectTokens.isEmpty ? nil : record.byProjectTokens
+            self.sessionTokensPerPercent = record.sessionTokensPerPercent
+        }
     }
 
     let url: URL
@@ -762,6 +818,7 @@ struct CostHistory: Sendable {
         for line in data.split(separator: 0x0A) where !line.isEmpty {
             guard let parsed = try? decoder.decode(Line.self, from: line), parsed.tool == tool.rawValue, let day = day(parsed.day, calendar: calendar) else { continue }
             result[day] = Record(cost: parsed.cost, tokens: parsed.tokens, byModel: parsed.byModel, byProject: parsed.byProject,
+                                 byModelTokens: parsed.byModelTokens ?? [:], byProjectTokens: parsed.byProjectTokens ?? [:],
                                  sessionTokensPerPercent: parsed.sessionTokensPerPercent ?? result[day]?.sessionTokensPerPercent)
         }
         return result
@@ -780,9 +837,7 @@ struct CostHistory: Sendable {
             if let known = existing[day], known.cost > record.cost { record = known }
             if record.sessionTokensPerPercent == nil { record.sessionTokensPerPercent = existing[day]?.sessionTokensPerPercent }
             merged[day] = record
-            let line = Line(day: Self.key(day, calendar: calendar), tool: tool.rawValue, cost: record.cost, tokens: record.tokens,
-                            byModel: record.byModel, byProject: record.byProject, sessionTokensPerPercent: record.sessionTokensPerPercent)
-            guard let data = try? encoder.encode(line) else { continue }
+            guard let data = try? encoder.encode(Line(day: Self.key(day, calendar: calendar), tool: tool.rawValue, record: record)) else { continue }
             appended.append(data)
             appended.append(0x0A)
         }
@@ -793,9 +848,7 @@ struct CostHistory: Sendable {
         if lines + days.count > Self.compactAbove {
             var whole = Data()
             for (day, record) in merged.sorted(by: { $0.key < $1.key }) {
-                let line = Line(day: Self.key(day, calendar: calendar), tool: tool.rawValue, cost: record.cost, tokens: record.tokens,
-                                byModel: record.byModel, byProject: record.byProject, sessionTokensPerPercent: record.sessionTokensPerPercent)
-                if let data = try? encoder.encode(line) {
+                if let data = try? encoder.encode(Line(day: Self.key(day, calendar: calendar), tool: tool.rawValue, record: record)) {
                     whole.append(data)
                     whole.append(0x0A)
                 }

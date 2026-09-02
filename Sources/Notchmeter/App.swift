@@ -1091,7 +1091,10 @@ enum Probe {
         if !projects.isEmpty { line += " projects today [\(projects.joined(separator: ", "))]" }
         let models = cost.totals(.today).models.prefix(3).map { "\($0.name) \(Money.dollars($0.cost))" }
         if !models.isEmpty { line += " models today [\(models.joined(separator: ", "))]" }
-        if let cursor = cost.cursorDaily.last { line += " cursor today \(Money.dollars(cursor.cost))" }
+        for provider in cost.providers {
+            line += " \(provider.tool.rawValue) today \(Money.dollars(provider.totals(.today).cost)) 30d \(Money.dollars(provider.totals(.last30Days).cost))"
+            line += " (\(provider.source.rawValue))" + (provider.problem.map { " [\($0)]" } ?? "")
+        }
         return line + " unpriced=\(cost.unpricedModels.sorted())"
     }
 

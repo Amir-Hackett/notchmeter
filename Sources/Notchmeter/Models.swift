@@ -28,6 +28,17 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
     var productName: String {
         self == .claude ? "Claude Code" : self == .copilot ? "GitHub Copilot" : displayName
     }
+
+    /// Whether this tool's spend can be derived from something it publishes: Claude Code's transcripts, Codex's
+    /// session rollouts, Cursor's priced usage-events export. GitHub Copilot bills a flat seat with no per-request
+    /// price and Antigravity meters quota rather than money, so neither can produce a dollar figure and neither
+    /// appears on the Cost card at all (docs/accuracy.md).
+    var reportsCost: Bool {
+        switch self {
+        case .claude, .codex, .cursor: true
+        case .antigravity, .copilot: false
+        }
+    }
 }
 
 /// Where a window's figure came from, so a script or the skill can tell an endpoint read from a rollout snapshot.
