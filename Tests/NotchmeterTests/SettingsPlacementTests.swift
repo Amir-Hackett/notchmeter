@@ -26,4 +26,26 @@ import Testing
                                                    visible: NSRect(x: 0, y: 80, width: 1280, height: 615))
         #expect(frame.minY == 80)
     }
+
+    /// The readouts draw above every window, so the settings window dodges the strip that shares its column:
+    /// under one along the top, over one resting on the Dock, and not at all when they do not overlap.
+    @Test func windowDodgesTheReadoutStripWhicheverEdgeItIsOn() {
+        let size = NSSize(width: 460, height: 672)
+        let screen = NSRect(x: 0, y: 0, width: 1512, height: 982)
+        let visible = NSRect(x: 0, y: 90, width: 1512, height: 862)
+
+        let topStrip = NSRect(x: 645, y: 906, width: 222, height: 40)
+        let underTop = SettingsWindowController.frame(for: size, screen: screen, safeAreaTop: 0, visible: visible, readouts: topStrip)
+        #expect(underTop.maxY == topStrip.minY - SettingsWindowController.readoutClearance)
+        #expect(!underTop.intersects(topStrip))
+
+        let dockStrip = NSRect(x: 645, y: 96, width: 222, height: 40)
+        let overDock = SettingsWindowController.frame(for: size, screen: screen, safeAreaTop: 0, visible: visible, readouts: dockStrip)
+        #expect(overDock.minY >= dockStrip.maxY + SettingsWindowController.readoutClearance)
+        #expect(!overDock.intersects(dockStrip))
+
+        let sideStrip = NSRect(x: 6, y: 418, width: 82, height: 202)
+        let ignored = SettingsWindowController.frame(for: size, screen: screen, safeAreaTop: 0, visible: visible, readouts: sideStrip)
+        #expect(ignored.maxY == 982 - SettingsWindowController.topClearance)
+    }
 }
