@@ -127,6 +127,7 @@
 "After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke." = "After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it.";
 "All displays" = "All displays";
+"All models" = "All models";
 "Allowed origin, e.g. http://localhost:3000" = "Allowed origin, e.g. http://localhost:3000";
 "Almost out (under an hour left), and out" = "Almost out (under an hour left), and out";
 "already present for %@" = "already present for %@";
@@ -200,6 +201,7 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "Codex's auth.json could not be read. Run `codex login` to sign in again";
 "Codex's login has expired. Run Codex once so it signs back in" = "Codex's login has expired. Run Codex once so it signs back in";
 "Codex's login was refused. Run Codex once so it signs back in" = "Codex's login was refused. Run Codex once so it signs back in";
+"Combined from the windows below" = "Combined from the windows below";
 "Comfortable" = "Comfortable";
 "Compact" = "Compact";
 "Completions" = "Completions";
@@ -523,6 +525,7 @@
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "The panel follows the pointer: it moves to the display the pointer has rested on for half a second.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@.";
+"Third ring" = "Third ring";
 "This" = "This";
 "This GitHub account has no Copilot subscription" = "This GitHub account has no Copilot subscription";
 "This session block %1$@ · %2$@/min" = "This session block %1$@ · %2$@/min";

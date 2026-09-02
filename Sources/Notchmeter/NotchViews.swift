@@ -205,10 +205,11 @@ private struct ContextArc: View {
     }
 }
 
-/// One tool's rings: the main window outside, the second inside (Preferences.ringWindows), a "!" for a problem,
-/// a white dot (with a count past one) while sessions wait for the user, and a context arc while the Claude Code
-/// status line reports one. The presence level sets the size (Presence.swift): 14 pt when quiet, 18 pt otherwise,
-/// and a 4 pt dot when hidden.
+/// One tool's rings: the main window outside, the others nested inside it (Preferences.ringWindows, up to
+/// RingSelection.maximum), a "!" for a problem, a white dot (with a count past one) while sessions wait for the
+/// user, and a context arc while the Claude Code status line reports one. The presence level sets the size
+/// (Presence.swift): 14 pt when quiet, 18 pt otherwise, and a 4 pt dot when hidden. Two rings keep the diameters
+/// they have always had; a third re-spaces the nest so the innermost still reads as a ring rather than a dot.
 struct CompactRings: View {
     let tool: ToolID
     let status: ToolStatus
@@ -217,19 +218,29 @@ struct CompactRings: View {
     var contextUsed: Double? = nil
     var presence: PresenceLevel = .legible
 
+    /// Diameter and stroke for each nested ring, outermost first.
+    static func nest(count: Int, quiet: Bool) -> [(diameter: CGFloat, lineWidth: CGFloat)] {
+        let outer: CGFloat = quiet ? 14 : 18
+        if count > 2 {
+            return [(outer, quiet ? 2 : 2.5), (quiet ? 9.5 : 12.5, quiet ? 1.5 : 2), (quiet ? 5 : 7, quiet ? 1.25 : 1.5)]
+        }
+        return [(outer, quiet ? 2 : 2.5), (quiet ? 8 : 10, quiet ? 1.5 : 2)]
+    }
+
     var body: some View {
         let quiet = presence == .quiet
+        let nest = Self.nest(count: windows.count, quiet: quiet)
         ZStack {
             if presence == .hidden {
                 Circle().fill(tool.color.opacity(0.8)).frame(width: 4, height: 4)
             } else {
-                RingView(fraction: windows.first?.usedFraction, color: tool.color, lineWidth: quiet ? 2 : 2.5,
+                RingView(fraction: windows.first?.usedFraction, color: tool.color, lineWidth: nest[0].lineWidth,
                          pace: windows.first.flatMap { Pace.status(for: $0) })
-                    .frame(width: quiet ? 14 : 18, height: quiet ? 14 : 18)
-                if windows.count > 1 {
-                    RingView(fraction: windows[1].usedFraction, color: tool.color.opacity(0.8), lineWidth: quiet ? 1.5 : 2,
-                             pace: Pace.status(for: windows[1]))
-                        .frame(width: quiet ? 8 : 10, height: quiet ? 8 : 10)
+                    .frame(width: nest[0].diameter, height: nest[0].diameter)
+                ForEach(Array(zip(windows, nest).dropFirst().enumerated()), id: \.offset) { _, pair in
+                    RingView(fraction: pair.0.usedFraction, color: tool.color.opacity(0.8), lineWidth: pair.1.lineWidth,
+                             pace: Pace.status(for: pair.0))
+                        .frame(width: pair.1.diameter, height: pair.1.diameter)
                 }
                 if let contextUsed {
                     ContextArc(fraction: contextUsed, diameter: quiet ? 18 : 22)
@@ -1055,7 +1066,7 @@ struct ToolCard: View {
                     SessionLine(store: store)
                 }
                 if let reading = status.reading {
-                    ForEach(prefs.shownWindows(of: reading)) { window in
+                    ForEach(prefs.panelWindows(of: reading)) { window in
                         MeterRow(toolName: tool.displayName, window: window, color: tool.color, prefs: prefs,
                                  stale: status.staleReading != nil, hideFigures: store.hidesFigures,
                                  drain: store.drain(for: tool, window: window), runOut: store.runOut(for: tool, window: window),

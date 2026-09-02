@@ -111,6 +111,7 @@
 "After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke." = "アプリケーションフォルダへの移動やアップデート後、このアプリの古いパスを指すエントリは起動時に（通常のバックアップ後）実行中のコピーへ書き換えられ、フッターに一度だけ表示されます。build フォルダからの起動や --smoke では書き換えません。";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Claude Code は各ターンの後にコンテキストウィンドウの使用率、公式のセッション/週次上限（Pro と Max）、ゲートウェイの支出上限、モデルと努力レベル、ブランチとプルリクエスト、セッションのコストをステータスラインに渡します。導入すると Claude のリングにコンテキストの弧、カードに「コンテキスト」行が出て、セッション中はエンドポイントに問い合わせません。既存のステータスラインはその後に実行されます。";
 "All displays" = "すべてのディスプレイ";
+"All models" = "全モデル";
 "Allowed origin, e.g. http://localhost:3000" = "許可するオリジン（例: http://localhost:3000）";
 "Almost out (under an hour left), and out" = "まもなく尽きる（残り 1 時間未満）、および尽きた";
 "Already present for %@" = "%@ には既に存在します";
@@ -184,6 +185,7 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "Codex の auth.json を読み取れません。`codex login` で再度サインインしてください";
 "Codex's login has expired. Run Codex once so it signs back in" = "Codex のログインが期限切れです。Codex を一度実行して再サインインしてください";
 "Codex's login was refused. Run Codex once so it signs back in" = "Codex のログインが拒否されました。Codex を一度実行して再サインインしてください";
+"Combined from the windows below" = "下のウィンドウを合算した値";
 "Comfortable" = "ゆったり";
 "Compact" = "コンパクト";
 "Completions" = "補完";
@@ -507,6 +509,7 @@
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "パネルはポインタに追従します。ポインタが半秒とどまったディスプレイへ移動します。";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "30 分間どのアシスタントも活動せず、すべてのウィンドウが静かなときリングはドットに縮みます。フックイベント、ファイルの活動、ペースの変化、リングにポインタを置くと元に戻ります。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "セッションの計測が平常より約 %1$@ 重くなっています: 1%% あたり %2$@（平常 %3$@）。";
+"Third ring" = "3 番目のリング";
 "This" = "この";
 "This GitHub account has no Copilot subscription" = "この GitHub アカウントには Copilot のサブスクリプションがありません";
 "This session block %1$@ · %2$@/min" = "このセッション枠 %1$@ · 毎分 %2$@";

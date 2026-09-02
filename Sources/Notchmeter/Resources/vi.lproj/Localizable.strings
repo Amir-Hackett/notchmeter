@@ -111,6 +111,7 @@
 "After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke." = "Sau khi chuyển vào Applications hoặc cập nhật, mục trỏ tới đường dẫn cũ của ứng dụng được viết lại thành bản đang chạy khi khởi động, sau bản sao lưu thường lệ, và chân trang báo một lần. Không bao giờ từ thư mục build, không bao giờ với --smoke.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Sau mỗi lượt, Claude Code chuyển cho thanh trạng thái mức đầy cửa sổ ngữ cảnh, giới hạn phiên và tuần chính thức (Pro và Max), giới hạn chi tiêu của cổng, mô hình và mức nỗ lực, nhánh và pull request, cùng chi phí phiên. Cài xong, vòng Claude hiện cung ngữ cảnh, thẻ hiện dòng Ngữ cảnh, và không hỏi điểm cuối khi phiên đang chạy. Thanh trạng thái đã cấu hình vẫn chạy sau nó.";
 "All displays" = "Tất cả màn hình";
+"All models" = "Tất cả mô hình";
 "Allowed origin, e.g. http://localhost:3000" = "Nguồn được phép, ví dụ http://localhost:3000";
 "Almost out (under an hour left), and out" = "Sắp hết (còn dưới một giờ), và đã hết";
 "Already present for %@" = "Đã có cho %@";
@@ -184,6 +185,7 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "Không đọc được auth.json của Codex. Chạy `codex login` để đăng nhập lại";
 "Codex's login has expired. Run Codex once so it signs back in" = "Đăng nhập Codex đã hết hạn. Hãy chạy Codex một lần để đăng nhập lại";
 "Codex's login was refused. Run Codex once so it signs back in" = "Đăng nhập Codex bị từ chối. Hãy chạy Codex một lần để đăng nhập lại";
+"Combined from the windows below" = "Tổng hợp từ các cửa sổ bên dưới";
 "Comfortable" = "Thoáng";
 "Compact" = "Gọn";
 "Completions" = "Hoàn thành mã";
@@ -507,6 +509,7 @@
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "Bảng theo con trỏ: chuyển tới màn hình con trỏ đã đậu nửa giây.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Các vòng thu lại thành một chấm khi không trợ lý nào hoạt động trong 30 phút và mọi cửa sổ đều yên; một sự kiện hook, hoạt động tệp, thay đổi nhịp hoặc đặt con trỏ lên chúng sẽ đưa chúng trở lại.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "Phiên đang được đo nặng hơn chuẩn của bạn khoảng %1$@: %2$@ mỗi 1%% so với %3$@.";
+"Third ring" = "Vòng thứ ba";
 "This" = "Gói này";
 "This GitHub account has no Copilot subscription" = "Tài khoản GitHub này không có đăng ký Copilot";
 "This session block %1$@ · %2$@/min" = "Khối phiên này %1$@ · %2$@/phút";

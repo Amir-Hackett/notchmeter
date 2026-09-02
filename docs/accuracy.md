@@ -120,6 +120,17 @@ A line may carry a `costUSD` (at the top level or inside `usage`); older Claude 
 
 A line whose model is `<synthetic>` is a message Claude Code fabricated locally (an interrupted-turn notice, for instance); it contributes $0 and is not reported. A line whose model matches neither a prefix nor a family also contributes $0, and the model id is listed on the Cost card as "Unpriced: …" and in `--probe` output as `unpriced=[…]`, so a silent zero never hides a new model.
 
+## The combined "All models" window
+
+A plan that splits its allowance by model — Cursor Enterprise's "Cursor models" and "Other models", Anthropic's per-model weekly caps — can also show one derived window called **All models** (`CombinedWindow.swift`). It is the only window in the app that no vendor published, so it is tagged *inferred* on the card and captioned "Combined from the windows below", and it obeys rules that stop it claiming precision the source does not have:
+
+- Only windows that publish a used fraction are combined. A window with no limit contributes nothing; it is never read as zero.
+- Fewer than two model-scoped windows report and there is no combined window at all, so nothing synthetic appears where there is nothing to combine.
+- Where the vendor already publishes the total those windows are shares of, **that figure is adopted exactly and never recomputed**. Cursor's "Included usage" *is* the plan total; adding "Cursor models" and "Other models" back together would round differently from Cursor's own arithmetic and disagree with the dashboard. A window counts as the total only when it is not scoped to a model, covers the same period and reset as every model window it would cover, and does not read below any of them — one that reads lower is not their parent, whatever else it is.
+- With no such total, the figure is the **highest** of the model windows, never their mean. An average of a maxed-out model and an untouched one would show headroom that does not exist.
+- The reset is the **soonest** among the windows covered, so the countdown never runs past the first cap to bite.
+- No money is added up. The combined window carries no dollar figure: a share of a total and a dollar amount are not the same arithmetic, and summing shares across models would double-count the total's own dollars.
+
 ## Subscription and API billing
 
 Claude Code's own figure is an API-price estimate and Anthropic says so. [B]: *"The Session block in `/usage` shows API token usage and is intended for API users. Claude Max and Pro subscribers have usage included in their subscription, so the session cost figure isn't relevant for billing purposes."* And: *"Claude Code computes the dollar figure locally from token counts at list price, unless a `modelPricing` table is in effect."*
