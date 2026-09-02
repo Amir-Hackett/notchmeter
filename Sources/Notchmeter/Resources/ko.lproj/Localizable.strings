@@ -25,10 +25,12 @@
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@은(는) %2$ld%%, %3$@은(는) %4$ld%%입니다. 도구가 아니라 모델을 바꾸세요.";
 "%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@." = "먼저 %1$@을(를) settings.json.bak-<날짜>로 복사합니다. 기존 훅은 유지되고 Notchmeter 항목이 %2$@ 아래에 추가됩니다.";
 "%1$@ is waiting in %2$@." = "%1$@이(가) %2$@에서 기다리고 있습니다.";
+"%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ 최근 1시간 %2$@ · 30일 평균의 %3$@";
 "%1$@ of %2$@" = "%1$@ / %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "오늘 세션 1%%당 %1$@, 30일 중앙값 %2$@";
 "%1$@ today · %2$@ over 30 days · %3$@" = "오늘 %1$@ · 30일 %2$@ · %3$@";
-"%1$@ · %2$ld%% cache reads" = "%1$@ · 캐시 읽기 %2$ld%%";
+"%1$@ used %2$@" = "%1$@ %2$@ 사용";
+"%1$@ used %2$@ · %3$ld%% cache reads" = "%1$@ %2$@ 사용 · 캐시 읽기 %3$ld%%";
 "%1$@'s usage endpoint is answering HTTP %2$ld; check its status page." = "%1$@의 사용량 엔드포인트가 HTTP %2$ld을(를) 반환합니다. 상태 페이지를 확인하세요.";
 "%1$ld %2$@ credit(s) — claim them in Codex" = "%2$@ 크레딧 %1$ld개 — Codex에서 받으세요";
 "%1$ld of %2$ld left" = "%1$ld / %2$ld 남음";
@@ -37,6 +39,7 @@
 "%1$ldd %2$ldh" = "%1$ld일 %2$ld시간";
 "%1$ldh %2$ldm" = "%1$ld시간 %2$ld분";
 "%@ advice" = "%@ 조언";
+"%@ as the vendor's own usage export priced it" = "%@ 은(는) 공급업체 자체 사용량 내보내기가 매긴 금액";
 "%@ billed this month" = "이번 달 %@ 청구됨";
 "%@ hit its rate limit; wait for the reset." = "%@이(가) 속도 제한에 도달했습니다. 초기화를 기다리세요.";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "먼저 %@을(를) settings.json.bak-<날짜>로 복사합니다. 기존 상태 표시줄은 Notchmeter 다음에 같은 JSON으로 계속 실행됩니다.";
@@ -47,6 +50,7 @@
 "%@ org spend" = "%@ 조직 지출";
 "%@ per 1%% of session today" = "오늘 세션 1%%당 %@";
 "%@ plan has nothing for Cursor to meter yet" = "%@ 플랜에는 아직 Cursor가 측정할 항목이 없습니다";
+"%@ priced here from local files at published list rates" = "%@ 은(는) 로컬 파일에서 공표 정가로 여기서 산출";
 "%@ remaining" = "%@ 남음";
 "%@ s" = "%@초";
 "%@ Settings" = "%@ 설정";
@@ -296,7 +300,6 @@
 "Language" = "언어";
 "Last 24h" = "최근 24시간";
 "Last checked %@" = "마지막 확인: %@";
-"Last hour %1$@ · %2$@ your 30-day average" = "최근 1시간 %1$@ · 30일 평균의 %2$@";
 "Last reading %@ · may be out of date" = "마지막 읽기 %@ · 오래된 값일 수 있음";
 "Left" = "남음";
 "Left edge" = "왼쪽 가장자리";
@@ -307,7 +310,6 @@
 "likely a %@ window" = "아마 %@ 창";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "~/.local/bin(또는 /usr/local/bin)에 이 앱으로의 `notchmeter` 링크를 만듭니다. 터미널이나 Claude Code 스킬의 `notchmeter`는 공급자마다 다시 묻는 대신 실행 중인 앱의 캐시된 보고서를 읽습니다. `notchmeter --force`는 새로 읽습니다.";
 "Local API on 127.0.0.1:%ld" = "로컬 API (127.0.0.1:%ld)";
-"Local files at published list rates; an export is the vendor's own figure" = "로컬 파일은 공개 정가로 계산, 내보내기는 공급업체가 제시한 금액";
 "local sessions" = "로컬 세션";
 "local transcripts" = "로컬 기록";
 "low power mode" = "저전력 모드";
@@ -332,6 +334,8 @@
 "no cost yet" = "아직 비용 없음";
 "No data" = "데이터 없음";
 "No limit published" = "공개된 한도 없음";
+"no sessions on this Mac yet" = "이 Mac에 아직 세션이 없습니다";
+"no spend read yet" = "아직 지출을 읽지 못했습니다";
 "None" = "없음";
 "Not available: %@ is running unbundled." = "사용할 수 없음: %@이(가) 번들 없이 실행 중입니다.";
 "Not checked yet" = "아직 확인 안 함";
@@ -407,7 +411,6 @@
 "Premium requests" = "프리미엄 요청";
 "Press keys…" = "키를 누르세요…";
 "Preview" = "미리 듣기";
-"Priced from local files at published list rates" = "공개 정가로 로컬 파일 계산";
 "Pricing local files" = "로컬 파일 계산 중";
 "Privacy" = "개인 정보";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "모든 설정을 기본값으로 되돌리고, 캐시된 읽기 값과 보낸 알림 기록을 지운 뒤 다시 실행합니다. 기록, 비용 캐시, 소모 로그는 유지됩니다.";
@@ -572,3 +575,4 @@
 "Your menu bar ran out of room three apps ago. This one doesn't take any." = "메뉴 막대는 앱 세 개 전에 이미 꽉 찼습니다. 이 앱은 자리를 차지하지 않습니다.";
 "~%ld%% left at reset" = "초기화 시 약 %ld%% 남음";
 "~%ld%% over at reset" = "초기화 시 약 %ld%% 초과";
+"“%@” is off in Settings" = "설정의 “%@”이(가) 꺼져 있습니다";

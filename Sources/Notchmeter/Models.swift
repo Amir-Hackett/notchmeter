@@ -401,6 +401,13 @@ enum ToolStatus: Equatable {
         }
     }
 
+    /// Set up with nothing to show yet rather than something wrong: the tool has written nothing on this Mac for
+    /// the app to read (ProviderError.isCalm). Not a fault, and the Cost card says so in those words.
+    var hasNothingYet: Bool {
+        if case .idle = self { return true }
+        return false
+    }
+
     /// The reading still on screen after the tool stopped answering; its numbers may be out of date.
     var staleReading: UsageReading? {
         switch self {

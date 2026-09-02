@@ -712,53 +712,19 @@ struct SpendCard: View {
     /// The donut's line, drawn inside its frame so the ring lines up with the card's text margin.
     static let ringWidth: CGFloat = 13
 
-    private var burnLine: String? {
-        let selection = selection
-        guard let burn = selection.burnMultiple else { return nil }
-        return L("Last hour %1$@ · %2$@ your 30-day average", Money.dollars(selection.lastHour), Burn.multiple(burn))
+    /// The detail block describes the assistant at the top of the card's order, not the blend: one tool's own
+    /// last hour, tokens, cache tiers and folders, with any line its source cannot answer simply absent.
+    private var detail: CostDetail? {
+        selection.providers.first.map { CostDetail(provider: $0, range: range.costRange, claude: store.cost) }
     }
 
-    private var tokensLine: String? {
-        guard let totals, totals.tokens.total > 0 else { return nil }
-        guard let share = totals.tokens.cacheReadShare else { return Money.tokens(totals.tokens.total) }
-        return L("%1$@ · %2$ld%% cache reads", Money.tokens(totals.tokens.total), Int((share * 100).rounded()))
-    }
+    private var burnLine: String? { detail?.burn }
 
-    private var cacheWritesLine: String? {
-        guard let totals, let share = CacheTTL.oneHourShare(totals.tokens) else { return nil }
-        return L("cache writes %1$ld%% 1-hour · %2$ld%% 5-minute", Int((share * 100).rounded()), Int(((1 - share) * 100).rounded()))
-    }
-
-    /// The Claude weekly window, which is where the week's boundary comes from: its own spend, and what one per
-    /// cent of the window has cost. Not a total — the donut above it is. Absent while the card is not carrying
-    /// Claude, whose window it describes.
-    private var weekLine: String? {
-        guard range == .week, selection.provider(.claude) != nil, let week = store.cost?.week else { return nil }
-        let since = ResetText.dayPhrase(week.start, now: Date(), calendar: .current)
-        guard let perPercent = week.perPercent else { return L("Claude %1$@ since %2$@", Money.dollars(week.cost), since) }
-        return L("Claude %1$@ since %2$@ · %3$@ per 1%% of weekly", Money.dollars(week.cost), since, Money.dollars(perPercent))
-    }
-
+    /// The month against the budget stays a total: the budget is set against every carried assistant at once, and
+    /// one of them has no share of it to print.
     private var budgetLine: String? {
         guard let budget else { return nil }
         return L("Month %1$@ of a %2$@ budget", Money.dollars(selection.totals(.month).cost, cents: false), Money.dollars(budget.budget, cents: false))
-    }
-
-    private var blockLine: String? {
-        guard selection.provider(.claude) != nil, let block = store.cost?.block, block.cost > 0 || block.tokens.total > 0 else { return nil }
-        guard let rate = block.tokensPerMinute else { return L("This session block %@", Money.dollars(block.cost)) }
-        return L("This session block %1$@ · %2$@/min", Money.dollars(block.cost), Money.tokens(Int(rate.rounded())).replacingOccurrences(of: " tokens", with: ""))
-    }
-
-    private var sinceLine: String? {
-        guard range == .ninetyDays, selection.provider(.claude) != nil, let cost = store.cost, let first = cost.firstUse else { return nil }
-        return L("Claude since %1$@: %2$@", ResetText.dayPhrase(first, now: Date(), calendar: .current), Money.dollars(cost.sinceFirstUse))
-    }
-
-    private var projectsLine: String? {
-        guard let totals, !totals.projects.isEmpty else { return nil }
-        let top = totals.projects.prefix(2).map { "\($0.name == CostShare.other ? L("Other") : $0.name) \(Money.dollars($0.cost, cents: $0.cost < 10))" }.joined(separator: " · ")
-        return L("Top: %@", top)
     }
 
     /// One row per assistant the card carries, in the user's order. One that cannot report spend, or that the
@@ -768,23 +734,30 @@ struct SpendCard: View {
     /// The lines the card keeps behind Show details, so the donut, the legend and the burn line hold the height
     /// budget on their own however many assistants report.
     private var detailLines: [String] {
-        [budgetLine, weekLine, sinceLine, blockLine].compactMap { $0 }
+        [budgetLine].compactMap { $0 } + (detail?.detailLines ?? [])
     }
 
-    private var detailCaptions: [String] {
-        [tokensLine, cacheWritesLine, projectsLine].compactMap { $0 }
-    }
+    private var detailCaptions: [String] { detail?.detailCaptions ?? [] }
 
-    /// What the figures are: this Mac's arithmetic over published rates, the vendor's own export, or both.
-    private var sourceLine: String {
-        providers.contains { !$0.source.isEstimate }
-            ? L("Local files at published list rates; an export is the vendor's own figure")
-            : L("Priced from local files at published list rates")
-    }
+    /// What kind of number the block above it is, for the assistant the block describes; nil with no assistant
+    /// reporting, where there is no figure to have a provenance.
+    private var sourceLine: String? { detail?.source }
 
     /// A tool whose figures are stale or partial says so under its row.
     private var problemLines: [String] {
         providers.compactMap { provider in provider.problem.map { "\(provider.tool.displayName): \($0)" } }
+    }
+
+    /// The assistants the card carries that reported nothing, each with the reason the app knows for it. Leaving
+    /// one out in silence reads as "it costs nothing", which is not what a missing read means.
+    private var gaps: [CostGap] {
+        // Before the first scan every tool is missing, and that is the scan running rather than anything to say.
+        guard store.cost != nil else { return [] }
+        let carried = store.visibleTools.filter { store.prefs.costCardTools.contains($0) }
+        return CostAbsence.gaps(carried: carried, reporting: Set(providers.map(\.tool)),
+                                cursorUsageEvents: store.prefs.cursorUsageEvents,
+                                problems: carried.reduce(into: [:]) { $0[$1] = store.status($1).problem },
+                                nothingLocal: Set(carried.filter { store.status($0).hasNothingYet }))
     }
 
     /// The donut's arcs: one per assistant that spent in the range, sized by its share of it. Against a monthly
@@ -901,6 +874,9 @@ struct SpendCard: View {
                     ForEach(problemLines, id: \.self) { line in
                         Text(line).modifier(Caption()).lineLimit(2)
                     }
+                    ForEach(gaps) { gap in
+                        Text(gap.text).modifier(Caption()).lineLimit(2)
+                    }
                     if let burnLine {
                         // A non-breaking hyphen keeps "30-day" whole when the line wraps.
                         Text(burnLine.replacingOccurrences(of: "-", with: "\u{2011}"))
@@ -918,13 +894,15 @@ struct SpendCard: View {
                         Text(L("Unpriced: %@", selection.unpricedModels.sorted().joined(separator: ", ")))
                             .modifier(Caption()).lineLimit(2)
                     }
-                    Text(sourceLine).modifier(Caption()).lineLimit(2)
+                    if let sourceLine {
+                        Text(sourceLine).modifier(Caption()).lineLimit(2)
+                    }
                 }
             }
             .padding(.top, 2)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L("Cost, %@", range.title))
-            .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, burnLine, problemLines.first,
+            .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, burnLine, problemLines.first, gaps.first?.text,
                                             store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine))
             if store.prefs.showDetails, let totals, !totals.models.isEmpty, totals.cost > 0 {
                 ModelShares(shares: totals.models, total: totals.cost, byModel: totals.byModel, tokensByModel: nil, mode: mode, rangeTokens: totals.tokens.total)
