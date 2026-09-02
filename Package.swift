@@ -21,7 +21,7 @@ let package = Package(
             name: "Notchmeter",
             dependencies: ["DynamicNotchKit", "NotchmeterShims"],
             path: "Sources/Notchmeter",
-            linkerSettings: [.linkedLibrary("sqlite3")]
+            linkerSettings: [.linkedLibrary("sqlite3"), .linkedFramework("IOKit")]
         ),
         .testTarget(
             name: "NotchmeterTests",

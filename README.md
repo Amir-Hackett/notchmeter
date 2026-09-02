@@ -10,6 +10,8 @@ Usage meters for AI coding tools, living in the MacBook notch — or on any scre
 
 Every meter shows a pace tick (where an even burn would be right now), a projection ("~67% left at reset" or "Runs out in 2h"), and the reset time as a countdown or an exact time.
 
+With the optional [Claude Code hook](docs/hooks.md), the notch refreshes the moment a turn ends and shows a small dot on the Claude ring while Claude Code waits for your permission or your answer.
+
 Notchmeter never signs in anywhere and never stores a token. Each reading is borrowed from the tool that owns the account; switch accounts in that tool and the notch follows.
 
 ## Build and install
@@ -29,6 +31,7 @@ scripts/test.sh           # unit tests for the parsers, pace math and cost engin
 swift run Notchmeter --probe            # print what each provider reads, from the terminal
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke               # on-screen self check (no Keychain prompt)
 build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --edge left   # same, trying another layout
+build/Notchmeter.app/Contents/MacOS/Notchmeter --hook                # Claude Code hook command, see docs/hooks.md
 ```
 
 ## First launch
@@ -49,6 +52,7 @@ Right-click the panel (or use the **Options** button in its footer) for the menu
 | Time format | Auto · 12-hour · 24-hour |
 | Open at login | on / off |
 | Assistants | switch each tool on or off |
+| Claude Code hook | show the `settings.json` snippet with a Copy button, or merge it in after a backup ([docs/hooks.md](docs/hooks.md)) |
 
 The top layout merges with the physical notch (compact rings beside it, the panel below). The edge layouts are Codenotch-style pills that open into the same panel; they keep clear of the Dock.
 
@@ -75,6 +79,8 @@ Notchmeter is a read-only instrument. In plain terms:
 - Codex's saved login: the access token, account id and expiry in `~/.codex/auth.json`.
 - Cursor's saved login: the `cursorAuth/accessToken` row of `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`. The database is copied to a private temporary file for the read and deleted straight after, so the editor's live database is never opened.
 - Local transcripts, for the cost card and the offline fallback: the `usage` lines of `~/.claude/projects/**/*.jsonl` (also `$CLAUDE_CONFIG_DIR` and `~/.config/claude`; only files touched in the last 30 days) and the newest `rate_limits` lines in `~/.codex/sessions/**/*.jsonl`.
+- Modification times only, for the polling schedule: of files under the most recently changed `~/.claude/projects` folders, of `~/.codex/sessions/<today>` and `<yesterday>`, and of Cursor's `state.vscdb`. Contents are not read for this.
+- If you install the [Claude Code hook](docs/hooks.md), Claude Code hands `Notchmeter --hook` each event's JSON; the command keeps only the event name and whether Claude is waiting for you, and passes those two values to the running app.
 
 **Where it sends things.** Each token goes to exactly one place: the usage endpoint of the vendor that issued it, over HTTPS, in the same read-only status request the vendor's own app or dashboard makes: `api.anthropic.com/api/oauth/usage`, `chatgpt.com/backend-api/wham/usage`, `cursor.com/api/usage-summary`. Every request identifies itself with a `User-Agent: Notchmeter/<version>` header; nothing is disguised. Nothing is sent anywhere else. There is no telemetry, no analytics, no crash reporting and no server of ours.
 
@@ -82,9 +88,36 @@ Notchmeter is a read-only instrument. In plain terms:
 
 **What it never does.** It never signs in, never refreshes a token, never opens a login page, and never makes an inference request, so it consumes no model capacity and cannot change the usage it reports. Each reading is borrowed from a tool you are already signed in to; sign out of that tool and the reading goes with it.
 
-**How often.** Claude every 3 minutes, Codex every 2 minutes, Cursor every 5 minutes. The local cost scan runs every minute and only re-reads files that changed. Hovering the panel refreshes a tool at most once a minute, waking from sleep refreshes at once, and a rate-limit answer backs off for at least a minute; other failures back off from 30 seconds up to 10 minutes.
+**How often.** The base cadence is Claude every 3 minutes, Codex every 2 minutes, Cursor every 5 minutes, and the local cost scan every minute (it only re-reads files that changed). The schedule adapts, by the rules in [`PollingPolicy.swift`](Sources/Notchmeter/PollingPolicy.swift): nothing at all while the screen is locked or the Mac is asleep; half as often on battery; a quarter as often once a tool's files on disk have not changed for 30 minutes, which is checked once a minute with a few directory listings (Claude Code's three most recently changed project folders, Codex's rollouts for today and yesterday, the modification time of Cursor's state database); never more than 15 minutes apart while awake, and never faster than the base cadence. Unlocking or waking reads everything at once, a Claude Code hook event refreshes Claude at most once every 30 seconds, hovering the panel refreshes a tool at most once a minute, a rate-limit answer backs off for at least a minute, and other failures back off from 30 seconds up to 10 minutes. The panel footer always shows the real next read and why it is later than usual ("no agent activity", "on battery").
 
-**Terms.** Each vendor's terms are written for its own apps and restrict automated access to its services in broad language, and reading an app's saved login from outside that app is a grey area under all three. Notchmeter stays on the narrowest path there is: a login the vendor's own tool put on this Mac, used for one status read that tool itself makes, never stored, never passed on, never used for inference. Whether to run it under your account is your decision. If a vendor withdraws its usage endpoint, the meter reports the error and waits; it does not look for another way in.
+**Terms.** Each vendor's terms are written for its own apps and restrict automated access to its services in broad language, and reading an app's saved login from outside that app is a grey area under all three. Notchmeter stays on the narrowest path there is: a login the vendor's own tool put on this Mac, used for one status read that tool itself makes, never stored, never passed on, never used for inference. Whether to run it under your account is your decision. If a vendor withdraws its usage endpoint, the meter reports the error and waits; it does not look for another way in. In particular it never probes Anthropic's inference endpoint for the rate-limit headers other meters read, because that is an inference call; the reasoning is in [docs/accuracy.md](docs/accuracy.md#why-there-is-no-header-fallback).
+
+## Energy
+
+Measured on 2026-09-01 on an Apple M5 Pro running macOS 26.6.2 on battery power: `build/Notchmeter.app` launched as `Notchmeter --no-prompt`, the panel compact and untouched, a Claude Code session active in the background (6,856 transcripts under `~/.claude/projects`, about 140,000 usage lines), no Keychain access so the Claude read failed fast and backed off, Codex not installed, Cursor signed in on a free plan. The first 45 seconds after launch (the initial reads and the first cost scan) were left out.
+
+| Window | Method | Result |
+|---|---|---|
+| 60 s with no cost scan inside it | `ps -o cputime=` before and after, divided by wall time | 0.01 CPU-seconds / 61 s = **0.02 %** of one core |
+| 180 s including one cached cost scan | same | 0.86 CPU-seconds / 182 s = **0.47 %** of one core |
+| the same 180 s in 30 s samples | `top -l 7 -s 30 -stats pid,cpu,mem -pid <pid>` | 0.0, 0.3, 1.9, 0.0, 0.0, 0.5, 0.0 % of one core; 37 to 69 MB resident |
+
+Between scans the app is idle: the minute tick (power source and a few directory listings) and the pill's drawing do not register at `ps`'s 10 ms resolution. The one recurring cost is the cost scan, about half a CPU-second per scan at this transcript volume, spent stat-ing every transcript and re-summing the cached entries. Its cadence follows the polling policy: every minute on mains power while a Claude session is active (so expect roughly 1 % of one core in that state), every two minutes on battery, every four minutes once no agent has been active for 30 minutes, and never while the screen is locked or the Mac is asleep. The same measurement before this version read 1.62 % over 60 s, because the 17 MB transcript cache was rewritten on every scan while a session was appending to a transcript; it is now written at most once every ten minutes. Summing the cached entries incrementally instead of per scan is the next reduction and is not done yet.
+
+To reproduce (a second copy of the app appears beside the notch while it runs):
+
+```bash
+build/Notchmeter.app/Contents/MacOS/Notchmeter --no-prompt & PID=$!
+sleep 45; ps -o cputime= -p $PID
+top -l 7 -s 30 -stats pid,cpu,mem -pid $PID | grep "^ *$PID"     # 180 s of samples
+ps -o cputime= -p $PID; kill $PID
+```
+
+The authoritative number is Energy Impact from `powermetrics`, which on Apple silicon accounts for idle wake-ups as well as CPU time. It needs `sudo` and was **not** run for the figures above; to get it:
+
+```bash
+sudo powermetrics --samplers tasks --show-process-energy -i 60000 -n 5 | grep -E '^Name|Notchmeter'
+```
 
 ## Troubleshooting
 
@@ -98,6 +131,8 @@ Notchmeter is a read-only instrument. In plain terms:
 - *Codex: Session — No data* — the plan publishes no 5-hour window (free plans get a monthly one).
 - *Cursor: plan has nothing to meter* — free plans publish no included-usage limit; the ring appears once a paid plan does.
 - *Cost card says "Pricing local transcripts"* — the first scan of a large `~/.claude/projects` takes a few seconds; later scans only read files that changed.
+- *Footer says "Next update in 12m · no agent activity"* — nothing of the tool's has changed on disk for 30 minutes, so the meter polls a quarter as often; start a session (or install the hook) and it returns to the base cadence within a minute. "Paused while the screen is locked" clears on unlock.
+- *The hook badge never appears* — see the checks at the end of [docs/hooks.md](docs/hooks.md).
 
 ## Credits
 

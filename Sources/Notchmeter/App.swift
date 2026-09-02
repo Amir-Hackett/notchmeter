@@ -5,6 +5,10 @@ enum NotchmeterMain {
     @MainActor
     static func main() {
         let arguments = CommandLine.arguments
+        // --hook: Claude Code's hook command; must return within 50 ms, so nothing else is set up first.
+        if arguments.contains("--hook") {
+            Hook.runCommand()
+        }
         // --no-prompt: never raise the Keychain dialog; a locked item reports "needs attention" instead.
         if arguments.contains("--no-prompt") || arguments.contains("--smoke") {
             Keychain.setPromptsAllowed(false)
@@ -95,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for tool in ToolID.allCases {
             Probe.emit("\(tool.displayName): \(Probe.describe(store.status(tool)))")
         }
+        Probe.emit("polling: \(store.scheduleDescription())")
         if let cost = store.cost {
             Probe.emit(Probe.describe(cost))
         } else {

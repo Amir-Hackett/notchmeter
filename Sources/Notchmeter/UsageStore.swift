@@ -48,17 +48,36 @@ final class UsageStore {
     private(set) var nextRefresh: [ToolID: Date] = [:]
     private(set) var cost: CostSummary?
     private(set) var costScanning = false
+    /// Why every read is on hold, for the footer; nil while polling.
+    private(set) var pauseReason: PauseReason?
+    private(set) var onBattery = false
+    /// When each tool's files last changed, or a Claude Code hook last fired.
+    private(set) var lastActivity: [ToolID: Date] = [:]
+    /// Tools waiting on the user: a permission prompt or a question in Claude Code, reported by its hook.
+    private(set) var awaitingInput: Set<ToolID> = []
     let prefs: Preferences
 
     @ObservationIgnored private let providers: [ToolID: any UsageProvider]
     @ObservationIgnored private var loops: [ToolID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var sleepers: [ToolID: Task<Void, Error>] = [:]
     @ObservationIgnored private var inflight: Set<ToolID> = []
     @ObservationIgnored private var backoff: [ToolID: TimeInterval] = [:]
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
-    @ObservationIgnored private var wakeObserver: NSObjectProtocol?
+    @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private let costScanner = ClaudeCostScanner()
-    @ObservationIgnored private var costLoop: Task<Void, Never>?
+    @ObservationIgnored private let activity = AgentActivity()
+    @ObservationIgnored private var tick: Task<Void, Never>?
+    @ObservationIgnored private var lastCostScan: Date?
+    @ObservationIgnored private var screenLocked = false
+    @ObservationIgnored private var asleep = false
+    @ObservationIgnored private var lastHook: Date?
+    @ObservationIgnored private var lastHookRefresh: Date?
+    @ObservationIgnored private var awaitingInputExpiry: Task<Void, Never>?
+
+    static let costInterval: TimeInterval = 60
+    static let hookRefreshSpacing: TimeInterval = 30
+    static let awaitingInputTimeout: TimeInterval = 600
 
     init(prefs: Preferences, providers: [any UsageProvider] = ProviderRegistry.all(), cache: ReadingCache = ReadingCache()) {
         self.prefs = prefs
@@ -84,21 +103,31 @@ final class UsageStore {
         statuses[tool] ?? .waiting
     }
 
+    func isAwaitingInput(_ tool: ToolID) -> Bool {
+        awaitingInput.contains(tool)
+    }
+
     /// When the next scheduled provider read happens, for the footer.
     var nextUpdate: Date? {
         visibleTools.compactMap { nextRefresh[$0] }.min()
     }
 
+    /// Why the next read is later than the provider's own cadence, for the footer.
+    var scheduleNote: String? {
+        guard let tool = visibleTools.min(by: { (nextRefresh[$0] ?? .distantFuture) < (nextRefresh[$1] ?? .distantFuture) }) else { return nil }
+        var notes: [String] = []
+        if PollingPolicy.isIdle(pollingInputs(for: tool)) { notes.append("no agent activity") }
+        if onBattery { notes.append("on battery") }
+        return notes.isEmpty ? nil : notes.joined(separator: ", ")
+    }
+
     func start() {
+        onBattery = PowerSource.onBattery()
         for tool in ToolID.allCases where isShown(tool) {
             startLoop(tool)
         }
-        startCostLoop()
-        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.refreshAll() }
-        }
+        startTick()
+        observeEnvironment()
     }
 
     func setEnabled(_ tool: ToolID, _ enabled: Bool) {
@@ -108,8 +137,7 @@ final class UsageStore {
             startLoop(tool)
         } else {
             prefs.enabledTools.remove(tool)
-            loops[tool]?.cancel()
-            loops[tool] = nil
+            stopLoop(tool)
             statuses[tool] = .off
             cache.remove(tool)
         }
@@ -126,19 +154,10 @@ final class UsageStore {
     func refreshCost() async {
         guard prefs.showSpend, isShown(.claude) else { return }
         if cost == nil { costScanning = true }
+        lastCostScan = Date()
         let summary = await costScanner.scan()
         cost = summary
         costScanning = false
-    }
-
-    private func startCostLoop() {
-        costLoop?.cancel()
-        costLoop = Task { [weak self] in
-            while !Task.isCancelled {
-                await self?.refreshCost()
-                try? await Task.sleep(for: .seconds(60))
-            }
-        }
     }
 
     /// Unforced refreshes are throttled so hovering the notch cannot hammer the APIs.
@@ -190,16 +209,213 @@ final class UsageStore {
         }
     }
 
+    // MARK: - Scheduling
+
+    func pollingInputs(for tool: ToolID, base: TimeInterval? = nil, now: Date = Date()) -> PollingInputs {
+        PollingInputs(
+            baseInterval: base ?? providers[tool]?.refreshInterval ?? 60,
+            screenLocked: screenLocked,
+            asleep: asleep,
+            onBattery: onBattery,
+            minutesSinceLastAgentActivity: lastActivity[tool].map { now.timeIntervalSince($0) / 60 },
+            hookNudge: tool == .claude && (lastHook.map { now.timeIntervalSince($0) < PollingPolicy.idleAfter } ?? false)
+        )
+    }
+
+    /// One line for `--smoke`: the environment and each tool's cadence.
+    func scheduleDescription() -> String {
+        var parts = ["battery=\(onBattery)", "locked=\(screenLocked)", "asleep=\(asleep)"]
+        for tool in visibleTools {
+            let seen = lastActivity[tool].map { RelativeTime.ago($0) } ?? "never"
+            let cadence: String = switch PollingPolicy.decide(pollingInputs(for: tool)) {
+            case .paused(let reason): reason.footerText.lowercased()
+            case .after(let seconds): "every \(ResetText.duration(seconds))"
+            }
+            parts.append("\(tool.displayName.lowercased()) active \(seen) → \(cadence)")
+        }
+        return parts.joined(separator: "; ")
+    }
+
     private func startLoop(_ tool: ToolID) {
-        loops[tool]?.cancel()
+        stopLoop(tool)
         loops[tool] = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.refresh(tool, force: true)
-                let delay = (self.providers[tool]?.refreshInterval ?? 60) + (self.backoff[tool] ?? 0)
-                self.nextRefresh[tool] = Date().addingTimeInterval(delay)
-                try? await Task.sleep(for: .seconds(delay))
+                await self.waitUntilDue(tool)
             }
+        }
+    }
+
+    private func stopLoop(_ tool: ToolID) {
+        loops[tool]?.cancel()
+        loops[tool] = nil
+        sleepers[tool]?.cancel()
+        nextRefresh[tool] = nil
+    }
+
+    /// Sleeps until the policy says the tool's next read is due, waking early whenever the inputs change.
+    private func waitUntilDue(_ tool: ToolID) async {
+        while !Task.isCancelled {
+            switch PollingPolicy.decide(pollingInputs(for: tool)) {
+            case .paused:
+                nextRefresh[tool] = nil
+                await sleep(tool, for: nil)
+            case .after(let interval):
+                let due = (lastFetch[tool] ?? Date()).addingTimeInterval(interval + (backoff[tool] ?? 0))
+                nextRefresh[tool] = due
+                let remaining = due.timeIntervalSinceNow
+                if remaining <= 0 { return }
+                if await sleep(tool, for: remaining) { return }
+            }
+        }
+    }
+
+    /// True when the whole interval passed, false when `reschedule` cut it short. nil sleeps until rescheduled.
+    @discardableResult
+    private func sleep(_ tool: ToolID, for seconds: TimeInterval?) async -> Bool {
+        let sleeper = Task<Void, Error> {
+            if let seconds {
+                try await Task.sleep(for: .seconds(seconds))
+            } else {
+                while true { try await Task.sleep(for: .seconds(3600)) }
+            }
+        }
+        sleepers[tool] = sleeper
+        defer { if sleepers[tool] == sleeper { sleepers[tool] = nil } }
+        do {
+            try await sleeper.value
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private func reschedule() {
+        for sleeper in sleepers.values { sleeper.cancel() }
+    }
+
+    private func restartLoops() {
+        for tool in ToolID.allCases where isShown(tool) {
+            startLoop(tool)
+        }
+    }
+
+    // MARK: - Environment
+
+    /// Once a minute: power source, each tool's newest file, and the cost scan when its own cadence says so.
+    private func startTick() {
+        tick?.cancel()
+        tick = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                await self.sampleEnvironment()
+                await self.refreshCostIfDue()
+                try? await Task.sleep(for: .seconds(60))
+            }
+        }
+    }
+
+    private func sampleEnvironment() async {
+        let activity = self.activity
+        var sampled = await Task.detached(priority: .utility) { activity.sample() }.value
+        if let lastHook, sampled[.claude].map({ lastHook > $0 }) ?? true { sampled[.claude] = lastHook }
+        let battery = PowerSource.onBattery()
+        let before = visibleTools.map { PollingPolicy.decide(pollingInputs(for: $0)) }
+        if sampled != lastActivity { lastActivity = sampled }
+        if battery != onBattery { onBattery = battery }
+        let after = visibleTools.map { PollingPolicy.decide(pollingInputs(for: $0)) }
+        if before != after { reschedule() }
+    }
+
+    private func refreshCostIfDue(now: Date = Date()) async {
+        guard case .after(let interval) = PollingPolicy.decide(pollingInputs(for: .claude, base: Self.costInterval, now: now)) else { return }
+        if let lastCostScan, now.timeIntervalSince(lastCostScan) < interval { return }
+        await refreshCost()
+    }
+
+    private func observeEnvironment() {
+        let workspace = NSWorkspace.shared.notificationCenter
+        let distributed = DistributedNotificationCenter.default()
+        observers.append(workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.setAsleep(true) }
+        })
+        observers.append(workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.setAsleep(false) }
+        })
+        observers.append(distributed.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.setScreenLocked(true) }
+        })
+        observers.append(distributed.addObserver(forName: Notification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.setScreenLocked(false) }
+        })
+        observers.append(distributed.addObserver(forName: Hook.notificationName, object: nil, queue: .main) { [weak self] note in
+            guard let message = Hook.Message(userInfo: note.userInfo) else { return }
+            Task { @MainActor in self?.hookReceived(message) }
+        })
+    }
+
+    private func setAsleep(_ value: Bool) {
+        guard asleep != value else { return }
+        asleep = value
+        environmentChanged()
+    }
+
+    private func setScreenLocked(_ value: Bool) {
+        guard screenLocked != value else { return }
+        screenLocked = value
+        environmentChanged()
+    }
+
+    /// Pausing parks every loop and the minute tick; resuming reads everything at once.
+    private func environmentChanged() {
+        if case .paused(let reason) = PollingPolicy.decide(pollingInputs(for: .claude)) {
+            pauseReason = reason
+            tick?.cancel()
+            reschedule()
+        } else {
+            pauseReason = nil
+            restartLoops()
+            startTick()
+        }
+    }
+
+    // MARK: - Claude Code hook
+
+    /// Every event is activity; a refresh follows at most once every 30 s, and a waiting Claude shows a badge
+    /// until its Stop, the next prompt, or ten minutes.
+    func hookReceived(_ message: Hook.Message, now: Date = Date()) {
+        log.info("hook \(message.event, privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)")
+        lastHook = now
+        lastActivity[.claude] = now
+        if message.needsInput {
+            setAwaitingInput(true)
+        } else if Hook.clearingEvents.contains(message.event) {
+            setAwaitingInput(false)
+        }
+        guard isShown(.claude) else { return }
+        if lastHookRefresh.map({ now.timeIntervalSince($0) >= Self.hookRefreshSpacing }) ?? true {
+            lastHookRefresh = now
+            Task {
+                await refresh(.claude, force: true)
+                reschedule()
+            }
+        } else {
+            reschedule()
+        }
+    }
+
+    private func setAwaitingInput(_ waiting: Bool) {
+        awaitingInputExpiry?.cancel()
+        if waiting {
+            awaitingInput.insert(.claude)
+            awaitingInputExpiry = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(Self.awaitingInputTimeout))
+                guard !Task.isCancelled else { return }
+                self?.awaitingInput.remove(.claude)
+            }
+        } else {
+            awaitingInput.remove(.claude)
         }
     }
 

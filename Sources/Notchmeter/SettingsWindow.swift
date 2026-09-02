@@ -6,6 +6,8 @@ struct SettingsView: View {
     let prefs: Preferences
     let actions: NotchActions
     @State private var loginError: String?
+    @State private var showHookSnippet = false
+    @State private var hookMessage: String?
 
     var body: some View {
         Form {
@@ -76,6 +78,20 @@ struct SettingsView: View {
                 }
                 Button("Refresh now") { store.refreshAll() }
             }
+            Section("Claude Code hook") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on only the event name; the meter refreshes at once and a badge shows while Claude waits for your input.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack {
+                        Button("Show snippet…") { showHookSnippet = true }
+                        Button("Add to settings.json…") { installHook() }
+                    }
+                    if let hookMessage {
+                        Text(hookMessage).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
             Section {
                 Text("\(AppInfo.name) never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.")
                     .font(.caption)
@@ -87,6 +103,9 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(minWidth: 460, minHeight: 640)
+        .sheet(isPresented: $showHookSnippet) {
+            HookSnippetView(snippet: HookSettings.snippet())
+        }
     }
 
     private func subtitle(for tool: ToolID) -> String {
@@ -99,6 +118,55 @@ struct SettingsView: View {
         case .needsAttention(let message, _), .failed(let message, _): return message
         case .notInstalled: return "Not installed on this Mac"
         }
+    }
+
+    /// Asks first; the file is backed up beside itself before anything is merged in.
+    private func installHook() {
+        let url = HookSettings.settingsURL
+        let alert = NSAlert()
+        alert.messageText = "Add the Notchmeter hook to settings.json?"
+        alert.informativeText = "\(url.path) is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under \(HookSettings.events.joined(separator: ", "))."
+        alert.addButton(withTitle: "Add")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        do {
+            hookMessage = try HookSettings.install(at: url).summary
+        } catch {
+            hookMessage = error.localizedDescription
+        }
+    }
+}
+
+struct HookSnippetView: View {
+    let snippet: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Claude Code hook").font(.headline)
+            Text("Merge this into \(HookSettings.settingsURL.path), or use Add to settings.json… to have it merged for you. Each entry runs \(AppInfo.name) --hook, which posts the event name to the running app and exits.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ScrollView {
+                Text(snippet)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(height: 280)
+            .padding(8)
+            .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary))
+            HStack {
+                Button("Copy") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(snippet, forType: .string)
+                }
+                Spacer()
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(16)
+        .frame(width: 560)
     }
 }
 
