@@ -221,7 +221,8 @@ actor CodexCostScanner {
 
     /// codex-rs `TokenUsage`: `input_tokens` counts the cached tokens too, and `reasoning_output_tokens` is part of
     /// `output_tokens`, so the billed input is input minus cached and the output is taken whole.
-    /// `cache_write_input_tokens` is carried but not billed: OpenAI charges nothing to write the prompt cache.
+    /// `cache_write_input_tokens` is carried into the cache-write bucket, which is billed only for the model
+    /// families whose row publishes a write rate (GPT-5.6 and later) and costs nothing on every earlier row.
     static func tokens(_ value: Any?) -> TokenBreakdown? {
         guard let usage = value as? [String: Any] else { return nil }
         let input = Int(JSON.number(usage["input_tokens"]) ?? 0)
