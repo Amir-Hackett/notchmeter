@@ -12,9 +12,12 @@ enum HookSettings {
 
         var summary: String {
             var parts: [String] = []
-            if !added.isEmpty { parts.append("Added \(added.joined(separator: ", "))") }
-            if !present.isEmpty { parts.append(added.isEmpty ? "Already present for \(present.joined(separator: ", "))" : "already present for \(present.joined(separator: ", "))") }
-            if let backup { parts.append("backup at \(backup.lastPathComponent)") }
+            if !added.isEmpty { parts.append(L("Added %@", added.joined(separator: ", "))) }
+            if !present.isEmpty {
+                let list = present.joined(separator: ", ")
+                parts.append(added.isEmpty ? L("Already present for %@", list) : L("already present for %@", list))
+            }
+            if let backup { parts.append(L("backup at %@", backup.lastPathComponent)) }
             return parts.joined(separator: "; ") + "."
         }
     }
@@ -24,7 +27,7 @@ enum HookSettings {
 
         var errorDescription: String? {
             switch self {
-            case .notAnObject(let url): "\(url.path) is not a JSON object, so it was left untouched"
+            case .notAnObject(let url): L("%@ is not a JSON object, so it was left untouched", url.path)
             }
         }
     }

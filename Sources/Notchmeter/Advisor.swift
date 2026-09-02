@@ -68,7 +68,7 @@ enum Advisor {
         ToolID.allCases.filter(context.awaitingInput.contains).map { tool in
             let name = tool == .claude ? "Claude Code" : tool.displayName
             return Advice(id: "waiting/\(tool.rawValue)", tool: tool, priority: .attention, symbol: "hand.raised.fill",
-                          text: "\(name) is waiting for your input.")
+                          text: L("%@ is waiting for your input.", name))
         }
     }
 
@@ -92,7 +92,7 @@ enum Advisor {
                   let other = headroom(besides: reading.tool, in: context)
             else { return nil }
             return Advice(id: "route/\(reading.tool.rawValue)/\(other.tool.rawValue)", tool: reading.tool, priority: .info, symbol: "arrow.triangle.branch",
-                          text: "\(other.tool.displayName) has \(percent(other.left))% of its \(name(other.window)) left.")
+                          text: L("%1$@ has %2$ld%% of its %3$@ left.", other.tool.displayName, percent(other.left), name(other.window)))
         }
     }
 
@@ -109,20 +109,21 @@ enum Advisor {
                let otherModel = other.model, let otherUsed = other.usedFraction {
                 alternative = (otherModel, otherUsed)
             } else if let main = mainWindow(of: reading), let mainUsed = main.usedFraction, 1 - mainUsed >= modelHeadroom {
-                alternative = ("Overall \(name(main))", mainUsed)
+                alternative = (L("Overall %@", name(main)), mainUsed)
             } else {
                 alternative = nil
             }
             guard let alternative else { return nil }
             return Advice(id: "model/\(reading.tool.rawValue)/\(hot.id)", tool: reading.tool, priority: .warn, symbol: "arrow.left.arrow.right",
-                          text: "\(name(hot)) is \(percent(used))%. \(alternative.name) is \(percent(alternative.used))%. Switch models, not tools.")
+                          text: L("%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools.",
+                                  name(hot), percent(used), alternative.name, percent(alternative.used)))
         }
     }
 
     static func sessionBurn(_ cost: CostSummary?) -> Advice? {
         guard let cost, let burn = cost.burnMultiple, burn >= burnThreshold else { return nil }
         return Advice(id: "burn", tool: .claude, priority: .warn, symbol: "flame.fill",
-                      text: "This hour burned \(Money.dollars(cost.lastHour)) — \(Burn.multiple(burn)) your 30-day usual.")
+                      text: L("This hour burned %1$@ — %2$@ your 30-day usual.", Money.dollars(cost.lastHour), Burn.multiple(burn)))
     }
 
     // MARK: - Notification copy
@@ -140,14 +141,14 @@ enum Advisor {
             if let text = runOutText(tool: alert.tool, window: window, context: context) { return text }
             let reset = ResetText.line(resetsAt: window.resetsAt, hasLimit: true, display: .exact, timeFormat: context.timeFormat,
                                        now: context.now, calendar: context.calendar)
-            return "\(alert.tool.displayName) \(name(window)) has run out. \(reset).\(suffix)"
+            return L("%1$@ %2$@ has run out. %3$@.%4$@", alert.tool.displayName, name(window), reset, suffix)
         case .onTrack:
             let projected = window.usedFraction.flatMap { used in
                 window.resetsAt.flatMap { resetsAt in
                     window.periodDuration.flatMap { Pace.evaluate(usedFraction: used, resetsAt: resetsAt, period: $0, now: context.now)?.projectedFraction }
                 }
             } ?? 1
-            return "\(alert.tool.displayName) \(name(window)) is close to pace: ~\(percent(max(0, 1 - projected)))% left at reset.\(suffix)"
+            return L("%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@", alert.tool.displayName, name(window), percent(max(0, 1 - projected)), suffix)
         }
     }
 
@@ -157,9 +158,11 @@ enum Advisor {
     static func runOutText(tool: ToolID, window: LimitWindow, context: Context) -> String? {
         guard let resetsAt = window.resetsAt, let eta = secondsToRunOut(window, now: context.now) else { return nil }
         let runsOutAt = context.now.addingTimeInterval(eta)
-        let when = "\(ResetText.dayPhrase(runsOutAt, now: context.now, calendar: context.calendar)) at \(ResetText.time(runsOutAt, format: context.timeFormat, calendar: context.calendar))"
+        let when = L("%1$@ at %2$@", ResetText.dayPhrase(runsOutAt, now: context.now, calendar: context.calendar),
+                     ResetText.time(runsOutAt, format: context.timeFormat, calendar: context.calendar))
         let margin = ResetText.duration(resetsAt.timeIntervalSince(runsOutAt))
-        return "At this rate you hit the \(tool.displayName) \(name(window)) cap \(when), \(margin) before reset.\(headroomSuffix(besides: tool, in: context))"
+        return L("At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@",
+                 tool.displayName, name(window), when, margin, headroomSuffix(besides: tool, in: context))
     }
 
     /// The window a routing decision spends: the longest tool-wide window with a limit (weekly for Claude and
@@ -181,7 +184,7 @@ enum Advisor {
 
     static func headroomSuffix(besides tool: ToolID, in context: Context) -> String {
         guard let other = headroom(besides: tool, in: context), let used = other.window.usedFraction else { return "" }
-        return " \(other.tool.displayName) \(name(other.window)) is at \(percent(used))%."
+        return L(" %1$@ %2$@ is at %3$ld%%.", other.tool.displayName, name(other.window), percent(used))
     }
 
     /// "weekly", "session", "included usage"; a per-model window carries its cadence: "Fable weekly", "Gemini Pro
@@ -193,11 +196,11 @@ enum Advisor {
 
     static func cadence(_ period: TimeInterval?) -> String {
         switch period {
-        case nil: "quota"
-        case Period.week?: "weekly"
-        case Period.day?: "daily"
-        case Period.fiveHours?: "session"
-        case let period?: "\(ResetText.windowName(period: period)) window"
+        case nil: L("quota")
+        case Period.week?: L("weekly")
+        case Period.day?: L("daily")
+        case Period.fiveHours?: L("session")
+        case let period?: L("%@ window", ResetText.windowName(period: period))
         }
     }
 

@@ -48,25 +48,25 @@ final class Notifier {
 
     /// A sample alert in the user's own time format; returns the line Settings shows beneath the button.
     func sendTest(timeFormat: TimeFormatPreference) async -> String {
-        guard let center else { return "Not available: \(AppInfo.name) is running unbundled." }
+        guard let center else { return L("Not available: %@ is running unbundled.", AppInfo.name) }
         authorizationRequested = true
         _ = try? await center.requestAuthorization(options: [.alert, .sound])
         let settings = await center.notificationSettings()
         switch settings.authorizationStatus {
         case .denied:
-            return "Notifications are off for \(AppInfo.name) in System Settings › Notifications."
+            return L("Notifications are off for %@ in System Settings › Notifications.", AppInfo.name)
         case .notDetermined:
-            return "Waiting for permission."
+            return L("Waiting for permission.")
         default:
-            deliver(identifier: "test", thread: "test", title: "\(AppInfo.name) test", body: Self.sampleBody(timeFormat: timeFormat))
-            return "Sent."
+            deliver(identifier: "test", thread: "test", title: L("%@ test", AppInfo.name), body: Self.sampleBody(timeFormat: timeFormat))
+            return L("Sent.")
         }
     }
 
     /// The run-out line for a Claude weekly window at 60 % with three of seven days gone, beside a Codex week at 22 %.
     nonisolated static func sampleBody(timeFormat: TimeFormatPreference, now: Date = Date()) -> String {
-        let claude = LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.6, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)
-        let codex = LimitWindow(id: "weekly", label: "Weekly", usedFraction: 0.22, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)
+        let claude = LimitWindow(id: "seven_day", label: L("Weekly"), usedFraction: 0.6, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)
+        let codex = LimitWindow(id: "weekly", label: L("Weekly"), usedFraction: 0.22, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)
         let context = Advisor.Context(readings: [
             UsageReading(tool: .claude, windows: [claude], plan: nil, fetchedAt: now, observedAt: nil),
             UsageReading(tool: .codex, windows: [codex], plan: nil, fetchedAt: now, observedAt: nil),

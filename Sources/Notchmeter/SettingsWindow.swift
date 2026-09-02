@@ -13,12 +13,12 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("General") {
-                Toggle("Show total spend", isOn: Binding(
+            Section(L("General")) {
+                Toggle(L("Show total spend"), isOn: Binding(
                     get: { prefs.showSpend },
                     set: { prefs.showSpend = $0; if $0 { store.refreshAll() } }
                 ))
-                Toggle("Open at login", isOn: Binding(
+                Toggle(L("Open at login"), isOn: Binding(
                     get: { prefs.launchAtLogin },
                     set: { enabled in
                         do {
@@ -33,8 +33,8 @@ struct SettingsView: View {
                     Text(loginError).font(.caption).foregroundStyle(Palette.danger)
                 }
             }
-            Section("Panel") {
-                Picker("Position", selection: Binding(
+            Section(L("Panel")) {
+                Picker(L("Position"), selection: Binding(
                     get: { prefs.edge },
                     set: { prefs.edge = $0; actions.applyLayout() }
                 )) {
@@ -43,7 +43,7 @@ struct SettingsView: View {
                     }
                 }
                 Text(prefs.edge.detail).font(.caption).foregroundStyle(.secondary)
-                Picker("Show", selection: Binding(
+                Picker(L("Show"), selection: Binding(
                     get: { prefs.visibility },
                     set: { prefs.visibility = $0; actions.applyLayout() }
                 )) {
@@ -52,27 +52,27 @@ struct SettingsView: View {
                     }
                 }
             }
-            Section("Usage display") {
-                Picker("Show usage as", selection: Binding(get: { prefs.usageDisplay }, set: { prefs.usageDisplay = $0 })) {
+            Section(L("Usage display")) {
+                Picker(L("Show usage as"), selection: Binding(get: { prefs.usageDisplay }, set: { prefs.usageDisplay = $0 })) {
                     ForEach(UsageDisplay.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
-                Picker("Reset times", selection: Binding(get: { prefs.resetDisplay }, set: { prefs.resetDisplay = $0 })) {
+                Picker(L("Reset times"), selection: Binding(get: { prefs.resetDisplay }, set: { prefs.resetDisplay = $0 })) {
                     ForEach(ResetDisplay.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
-                Picker("Time format", selection: Binding(get: { prefs.timeFormat }, set: { prefs.timeFormat = $0 })) {
+                Picker(L("Time format"), selection: Binding(get: { prefs.timeFormat }, set: { prefs.timeFormat = $0 })) {
                     ForEach(TimeFormatPreference.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
             }
-            Section("Notifications") {
-                Toggle("Notify when a window is on pace to run out", isOn: Binding(
+            Section(L("Notifications")) {
+                Toggle(L("Notify when a window is on pace to run out"), isOn: Binding(
                     get: { prefs.notificationsEnabled },
                     set: { prefs.notificationsEnabled = $0; if $0 { notifier.requestAuthorization() } }
                 ))
-                Text("Once per window and reset period: when its pace first reaches on track or behind, and again when it comes within an hour of running out. Each one says what to do about it.")
+                Text(L("Once per window and reset period: when its pace first reaches on track or behind, and again when it comes within an hour of running out. Each one says what to do about it."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 HStack {
-                    Button("Test notification") {
+                    Button(L("Test notification")) {
                         Task { notificationMessage = await notifier.sendTest(timeFormat: prefs.timeFormat) }
                     }
                     if let notificationMessage {
@@ -80,7 +80,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            Section("Assistants") {
+            Section(L("Assistants")) {
                 ForEach(ToolID.allCases, id: \.self) { tool in
                     Toggle(isOn: Binding(
                         get: { prefs.enabledTools.contains(tool) },
@@ -95,16 +95,16 @@ struct SettingsView: View {
                     }
                     .disabled(!store.isInstalled(tool))
                 }
-                Button("Refresh now") { store.refreshAll() }
+                Button(L("Refresh now")) { store.refreshAll() }
             }
-            Section("Claude Code hook") {
+            Section(L("Claude Code hook")) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on only the event name; the meter refreshes at once and a badge shows while Claude waits for your input.")
+                    Text(L("Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on only the event name; the meter refreshes at once and a badge shows while Claude waits for your input."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     HStack {
-                        Button("Show snippet…") { showHookSnippet = true }
-                        Button("Add to settings.json…") { installHook() }
+                        Button(L("Show snippet…")) { showHookSnippet = true }
+                        Button(L("Add to settings.json…")) { installHook() }
                     }
                     if let hookMessage {
                         Text(hookMessage).font(.caption).foregroundStyle(.secondary)
@@ -112,10 +112,10 @@ struct SettingsView: View {
                 }
             }
             Section {
-                Text("\(AppInfo.name) never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.")
+                Text(L("%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.", AppInfo.name))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Version \(AppInfo.version)")
+                Text(L("Version %@", AppInfo.version))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -128,14 +128,14 @@ struct SettingsView: View {
     }
 
     private func subtitle(for tool: ToolID) -> String {
-        guard store.isInstalled(tool) else { return "Not installed on this Mac" }
+        guard store.isInstalled(tool) else { return L("Not installed on this Mac") }
         switch store.status(tool) {
-        case .off: return "Off"
-        case .waiting: return "Waiting for the first reading"
+        case .off: return L("Off")
+        case .waiting: return L("Waiting for the first reading")
         case .idle(let message): return message
-        case .ready(let reading): return "Signed in" + (reading.plan.map { " · \($0)" } ?? "")
+        case .ready(let reading): return reading.plan.map { L("Signed in · %@", $0) } ?? L("Signed in")
         case .needsAttention(let message, _), .failed(let message, _): return message
-        case .notInstalled: return "Not installed on this Mac"
+        case .notInstalled: return L("Not installed on this Mac")
         }
     }
 
@@ -143,10 +143,11 @@ struct SettingsView: View {
     private func installHook() {
         let url = HookSettings.settingsURL
         let alert = NSAlert()
-        alert.messageText = "Add the Notchmeter hook to settings.json?"
-        alert.informativeText = "\(url.path) is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under \(HookSettings.events.joined(separator: ", "))."
-        alert.addButton(withTitle: "Add")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = L("Add the Notchmeter hook to settings.json?")
+        alert.informativeText = L("%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@.",
+                                  url.path, HookSettings.events.joined(separator: ", "))
+        alert.addButton(withTitle: L("Add"))
+        alert.addButton(withTitle: L("Cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         do {
             hookMessage = try HookSettings.install(at: url).summary
@@ -162,8 +163,9 @@ struct HookSnippetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Claude Code hook").font(.headline)
-            Text("Merge this into \(HookSettings.settingsURL.path), or use Add to settings.json… to have it merged for you. Each entry runs \(AppInfo.name) --hook, which posts the event name to the running app and exits.")
+            Text(L("Claude Code hook")).font(.headline)
+            Text(L("Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits.",
+                   HookSettings.settingsURL.path, AppInfo.name))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             ScrollView {
@@ -176,12 +178,12 @@ struct HookSnippetView: View {
             .padding(8)
             .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary))
             HStack {
-                Button("Copy") {
+                Button(L("Copy")) {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(snippet, forType: .string)
                 }
                 Spacer()
-                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+                Button(L("Done")) { dismiss() }.keyboardShortcut(.defaultAction)
             }
         }
         .padding(16)
@@ -194,7 +196,7 @@ final class SettingsWindowController: NSWindowController {
     init(store: UsageStore, prefs: Preferences, actions: NotchActions, notifier: Notifier) {
         let host = NSHostingController(rootView: SettingsView(store: store, prefs: prefs, actions: actions, notifier: notifier))
         let window = NSWindow(contentViewController: host)
-        window.title = "\(AppInfo.name) Settings"
+        window.title = L("%@ Settings", AppInfo.name)
         window.styleMask = [.titled, .closable, .resizable]
         // A grouped Form has no intrinsic height, so the window must be sized explicitly.
         window.setContentSize(NSSize(width: 460, height: 640))

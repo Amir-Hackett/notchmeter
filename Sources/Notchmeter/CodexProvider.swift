@@ -29,12 +29,12 @@ actor CodexProvider: UsageProvider {
 
     func fetch() async throws -> UsageReading {
         guard let data = try? Data(contentsOf: root.appendingPathComponent("auth.json")) else {
-            throw ProviderError.notSignedIn("Sign in to Codex (run `codex login`) to read your usage")
+            throw ProviderError.notSignedIn(L("Sign in to Codex (run `codex login`) to read your usage"))
         }
         let auth = try Self.parseAuth(data)
         if let expiresAt = auth.expiresAt, expiresAt.timeIntervalSinceNow < 30 {
             if let local = try? localReading() { return local }
-            throw ProviderError.tokenExpired("Codex's login has expired. Run Codex once so it signs back in")
+            throw ProviderError.tokenExpired(L("Codex's login has expired. Run Codex once so it signs back in"))
         }
 
         var request = URLRequest(url: Self.usageURL)
@@ -54,7 +54,7 @@ actor CodexProvider: UsageProvider {
             status = (response as? HTTPURLResponse)?.statusCode ?? 0
         } catch {
             if let local = try? localReading() { return local }
-            throw ProviderError.unavailable("Codex usage is unreachable: \(error.localizedDescription)")
+            throw ProviderError.unavailable(L("Codex usage is unreachable: %@", error.localizedDescription))
         }
 
         switch status {
@@ -62,12 +62,12 @@ actor CodexProvider: UsageProvider {
             return try Self.parseBackend(body)
         case 401, 403:
             if let local = try? localReading() { return local }
-            throw ProviderError.tokenExpired("Codex's login was refused. Run Codex once so it signs back in")
+            throw ProviderError.tokenExpired(L("Codex's login was refused. Run Codex once so it signs back in"))
         case 429:
             throw ProviderError.rateLimited(retryAfter: nil)
         default:
             if let local = try? localReading() { return local }
-            throw ProviderError.http(status, "Codex usage endpoint answered")
+            throw ProviderError.http(status, L("Codex usage endpoint answered"))
         }
     }
 
@@ -75,11 +75,11 @@ actor CodexProvider: UsageProvider {
 
     static func parseAuth(_ data: Data) throws -> Auth {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ProviderError.notSignedIn("Codex's auth.json could not be read. Run `codex login` to sign in again")
+            throw ProviderError.notSignedIn(L("Codex's auth.json could not be read. Run `codex login` to sign in again"))
         }
         let tokens = root["tokens"] as? [String: Any]
         guard let token = tokens?["access_token"] as? String, !token.isEmpty else {
-            throw ProviderError.notSignedIn("Codex is set up with an API key only; its usage limits need a ChatGPT login (`codex login`)")
+            throw ProviderError.notSignedIn(L("Codex is set up with an API key only; its usage limits need a ChatGPT login (`codex login`)"))
         }
         var accountID = tokens?["account_id"] as? String
         if accountID == nil, let idToken = tokens?["id_token"] as? String, let claims = JWT.claims(idToken) {
@@ -96,7 +96,7 @@ actor CodexProvider: UsageProvider {
     /// they are classified by their declared length so a sole weekly limit in the primary slot still reads right.
     static func parseBackend(_ data: Data, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ProviderError.parse("Codex usage response unreadable")
+            throw ProviderError.parse(L("Codex usage response unreadable"))
         }
         let rateLimit = root["rate_limit"] as? [String: Any]
         var session: LimitWindow?
@@ -119,15 +119,15 @@ actor CodexProvider: UsageProvider {
             }
         }
         var windows: [LimitWindow] = []
-        windows.append(session ?? LimitWindow(id: "session", label: "Session", usedFraction: nil, resetsAt: nil, note: "No data"))
+        windows.append(session ?? LimitWindow(id: "session", label: L("Session"), usedFraction: nil, resetsAt: nil, note: L("No data")))
         if longer.isEmpty {
-            windows.append(LimitWindow(id: "weekly", label: "Weekly", usedFraction: nil, resetsAt: nil, note: "No data"))
+            windows.append(LimitWindow(id: "weekly", label: L("Weekly"), usedFraction: nil, resetsAt: nil, note: L("No data")))
         } else {
             windows.append(contentsOf: longer)
         }
         if let credits = root["credits"] as? [String: Any], (credits["has_credits"] as? Bool) == true, (credits["unlimited"] as? Bool) != true,
            let balance = JSON.number(credits["balance"]) {
-            windows.append(LimitWindow(id: "credits", label: "Credits", usedFraction: nil, resetsAt: nil, note: "\(Money.dollars(balance)) remaining"))
+            windows.append(LimitWindow(id: "credits", label: L("Credits"), usedFraction: nil, resetsAt: nil, note: L("%@ remaining", Money.dollars(balance))))
         }
         let plan = (root["plan_type"] as? String).map(Naming.plan)
         return UsageReading(tool: .codex, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
@@ -135,13 +135,13 @@ actor CodexProvider: UsageProvider {
 
     /// Labels a window by its declared length: 5-hour sessions, weekly and monthly limits, or "N-day".
     static func windowKind(seconds: Double?, fallbackIsWeekly: Bool) -> (id: String, label: String) {
-        guard let seconds else { return fallbackIsWeekly ? ("weekly", "Weekly") : ("session", "Session") }
-        if seconds <= 6 * 3600 { return ("session", "Session") }
+        guard let seconds else { return fallbackIsWeekly ? ("weekly", L("Weekly")) : ("session", L("Session")) }
+        if seconds <= 6 * 3600 { return ("session", L("Session")) }
         let days = seconds / 86400
-        if (5...9).contains(days) { return ("weekly", "Weekly") }
-        if (25...35).contains(days) { return ("monthly", "Monthly") }
+        if (5...9).contains(days) { return ("weekly", L("Weekly")) }
+        if (25...35).contains(days) { return ("monthly", L("Monthly")) }
         let rounded = Int(days.rounded())
-        return ("window_\(rounded)d", "\(rounded)-day")
+        return ("window_\(rounded)d", L("%ld-day", rounded))
     }
 
     // MARK: - Local rollouts (fallback)
@@ -149,14 +149,14 @@ actor CodexProvider: UsageProvider {
     private func localReading() throws -> UsageReading {
         let rollouts = Self.recentRollouts(in: root.appendingPathComponent("sessions"), limit: 8)
         guard !rollouts.isEmpty else {
-            throw ProviderError.nothingYet("No Codex sessions on this Mac yet. Run Codex once and its limits appear here")
+            throw ProviderError.nothingYet(L("No Codex sessions on this Mac yet. Run Codex once and its limits appear here"))
         }
         var newest: (observedAt: Date, limits: [String: Any])?
         for url in rollouts {
             guard let found = Self.latestRateLimits(in: url) else { continue }
             if newest == nil || found.observedAt > newest!.observedAt { newest = found }
         }
-        guard let newest else { throw ProviderError.nothingYet("Codex has not recorded a usage snapshot yet") }
+        guard let newest else { throw ProviderError.nothingYet(L("Codex has not recorded a usage snapshot yet")) }
         return try Self.reading(from: newest.limits, observedAt: newest.observedAt, now: Date())
     }
 
@@ -210,7 +210,7 @@ actor CodexProvider: UsageProvider {
 
     static func reading(from limits: [String: Any], observedAt: Date, now: Date) throws -> UsageReading {
         var windows: [LimitWindow] = []
-        for (key, fallbackLabel) in [("primary", "Session"), ("secondary", "Weekly")] {
+        for (key, fallbackLabel) in [("primary", L("Session")), ("secondary", L("Weekly"))] {
             guard let window = limits[key] as? [String: Any], let usedPercent = JSON.number(window["used_percent"]) else { continue }
             var resetsAt: Date?
             if let epoch = JSON.number(window["resets_at"]) {
@@ -223,7 +223,7 @@ actor CodexProvider: UsageProvider {
             var note: String?
             if let resetsAt, resetsAt < now {
                 fraction = 0
-                note = "Reset since Codex last reported"
+                note = L("Reset since Codex last reported")
             }
             windows.append(LimitWindow(
                 id: key == "primary" ? "session" : "weekly",
@@ -234,18 +234,18 @@ actor CodexProvider: UsageProvider {
                 periodDuration: minutes.map { TimeInterval($0 * 60) }
             ))
         }
-        guard !windows.isEmpty else { throw ProviderError.unavailable("Codex reported no usage windows") }
+        guard !windows.isEmpty else { throw ProviderError.unavailable(L("Codex reported no usage windows")) }
         let plan = (limits["plan_type"] as? String).map(Naming.plan)
         return UsageReading(tool: .codex, windows: windows, plan: plan, fetchedAt: now, observedAt: observedAt)
     }
 
     static func label(forMinutes minutes: Int) -> String {
         switch minutes {
-        case 300: "Session"
-        case 10080: "Weekly"
-        case ..<60: "\(minutes)-minute"
-        case 60..<1440: minutes % 60 == 0 ? "\(minutes / 60)-hour" : "\(minutes)-minute"
-        default: "\(minutes / 1440)-day"
+        case 300: L("Session")
+        case 10080: L("Weekly")
+        case ..<60: L("%ld-minute", minutes)
+        case 60..<1440: minutes % 60 == 0 ? L("%ld-hour", minutes / 60) : L("%ld-minute", minutes)
+        default: L("%ld-day", minutes / 1440)
         }
     }
 }

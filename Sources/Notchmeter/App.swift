@@ -9,6 +9,10 @@ enum NotchmeterMain {
         if arguments.contains("--hook") {
             Hook.runCommand()
         }
+        // --lang zh-Hans: pin the copy to one shipped language, whatever System Settings says; nothing is read before it.
+        if let index = arguments.firstIndex(of: "--lang"), index + 1 < arguments.count {
+            Localization.use(language: arguments[index + 1])
+        }
         // --no-prompt: never raise the Keychain dialog; a locked item reports "needs attention" instead.
         if arguments.contains("--no-prompt") || arguments.contains("--smoke") || arguments.contains("--render-assets") {
             Keychain.setPromptsAllowed(false)
@@ -105,7 +109,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// `--smoke`: run for a few seconds, report what is on screen and what each provider returned, then exit.
     /// `--hover-sim` adds a scripted pointer path through the live hover machine and fails the run if it loops;
-    /// `--hover-log` prints each decision the real mouse produces meanwhile.
+    /// `--hover-log` prints each decision the real mouse produces meanwhile. The copy line names the language the
+    /// panel is in and shows five of its strings, so `--lang zh-Hans` can be seen to take.
     private func smokeTest() async {
         let started = Date()
         if CommandLine.arguments.contains("--hover-log") {
@@ -139,6 +144,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit(Probe.describe(store.advice))
         Probe.emit("notifications: \(prefs.notificationsEnabled ? "on" : "off") in settings, \(notifier.isAvailable ? "available" : "no-op in this run")")
         Probe.emit("updater: \(updaterGate.summary); never started under --smoke")
+        Probe.emit("copy (\(Localization.current)): \(L("Session")) · \(L("Weekly")) · \(L("%@ Settings", AppInfo.name)) · "
+                   + "\(L("Resets in %@", ResetText.duration(4 * 3600 + 17 * 60))) · \(L("Open at login"))")
         let settingsProbe = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: notifier)
         settingsProbe.window?.layoutIfNeeded()
         Probe.emit("settings window: \(settingsProbe.window?.frame.size ?? .zero)")

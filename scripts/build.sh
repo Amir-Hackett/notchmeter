@@ -33,6 +33,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Framewor
 cp "$BIN" "$APP/Contents/MacOS/Notchmeter"
 cp scripts/Info.plist "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
+# The Localizable.strings tables live in the resource bundle SwiftPM builds; Localization.swift looks for it in
+# Contents/Resources, since SwiftPM's own accessor only knows the directory beside the executable and the build path.
+cp -R "$BIN_DIR/Notchmeter_Notchmeter.bundle" "$APP/Contents/Resources/"
 
 # The executable links @rpath/Sparkle.framework; the bundle carries the framework SwiftPM placed beside the binary and
 # points the executable at Contents/Frameworks.

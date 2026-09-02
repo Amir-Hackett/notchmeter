@@ -7,8 +7,8 @@ enum NotchVisibility: String, CaseIterable, Codable {
 
     var title: String {
         switch self {
-        case .onHover: "Open on hover"
-        case .always: "Always open"
+        case .onHover: L("Open on hover")
+        case .always: L("Always open")
         }
     }
 }
@@ -19,19 +19,19 @@ enum PanelEdge: String, CaseIterable, Codable {
 
     var title: String {
         switch self {
-        case .top: "Top, in the notch"
-        case .left: "Left edge"
-        case .right: "Right edge"
-        case .bottom: "Bottom, above the Dock"
+        case .top: L("Top, in the notch")
+        case .left: L("Left edge")
+        case .right: L("Right edge")
+        case .bottom: L("Bottom, above the Dock")
         }
     }
 
     var detail: String {
         switch self {
-        case .top: "Readings sit beside the notch and open below it."
-        case .left: "A pill down the left-hand edge, clear of a Dock on that side."
-        case .right: "A pill down the right-hand edge, clear of a Dock on that side."
-        case .bottom: "A bar resting on top of the Dock."
+        case .top: L("Readings sit beside the notch and open below it.")
+        case .left: L("A pill down the left-hand edge, clear of a Dock on that side.")
+        case .right: L("A pill down the right-hand edge, clear of a Dock on that side.")
+        case .bottom: L("A bar resting on top of the Dock.")
         }
     }
 }
@@ -97,8 +97,8 @@ final class Preferences {
     func usageLine(for window: LimitWindow) -> String? {
         guard let used = window.usedFraction else { return nil }
         switch usageDisplay {
-        case .used: return "\(Int((used * 100).rounded()))% used"
-        case .left: return "\(Int(((1 - used) * 100).rounded()))% left"
+        case .used: return L("%ld%% used", Int((used * 100).rounded()))
+        case .left: return L("%ld%% left", Int(((1 - used) * 100).rounded()))
         }
     }
 }

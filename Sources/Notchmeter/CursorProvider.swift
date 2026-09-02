@@ -28,11 +28,11 @@ actor CursorProvider: UsageProvider {
         guard let token = try Self.stateValue(forKey: "cursorAuth/accessToken", database: stateDatabase),
               !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
-            throw ProviderError.notSignedIn("Sign in to Cursor in the editor to read your usage")
+            throw ProviderError.notSignedIn(L("Sign in to Cursor in the editor to read your usage"))
         }
         let claims = try Self.jwtClaims(token)
         if let expiry = claims["exp"] as? Double, Date(timeIntervalSince1970: expiry).timeIntervalSinceNow < 30 {
-            throw ProviderError.tokenExpired("Cursor's login has expired. Open Cursor once so it signs back in")
+            throw ProviderError.tokenExpired(L("Cursor's login has expired. Open Cursor once so it signs back in"))
         }
         let userID = try Self.userID(fromClaims: claims)
         let cookie = "WorkosCursorSessionToken=\(userID)%3A%3A\(token)"
@@ -42,17 +42,17 @@ actor CursorProvider: UsageProvider {
         case 200:
             return try Self.parseSummary(data)
         case 401, 403:
-            throw ProviderError.notSignedIn("Cursor's login was refused. Sign in to Cursor in the editor again")
+            throw ProviderError.notSignedIn(L("Cursor's login was refused. Sign in to Cursor in the editor again"))
         case 404:
             var components = URLComponents(url: Self.legacyUsageURL, resolvingAgainstBaseURL: false)!
             components.queryItems = [URLQueryItem(name: "user", value: userID)]
             let (legacy, legacyStatus) = try await get(components.url!, cookie: cookie)
-            guard legacyStatus == 200 else { throw ProviderError.http(legacyStatus, "Cursor usage endpoint answered") }
+            guard legacyStatus == 200 else { throw ProviderError.http(legacyStatus, L("Cursor usage endpoint answered")) }
             return try Self.parseLegacyUsage(legacy)
         case 429:
             throw ProviderError.rateLimited(retryAfter: nil)
         default:
-            throw ProviderError.http(status, "Cursor usage endpoint answered")
+            throw ProviderError.http(status, L("Cursor usage endpoint answered"))
         }
     }
 
@@ -70,7 +70,7 @@ actor CursorProvider: UsageProvider {
 
     static func parseSummary(_ data: Data, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ProviderError.parse("Cursor usage summary unreadable")
+            throw ProviderError.parse(L("Cursor usage summary unreadable"))
         }
         let membership = root["membershipType"] as? String
         let planName = membership.map(Naming.plan)
@@ -90,28 +90,28 @@ actor CursorProvider: UsageProvider {
         let planPercent = number(plan?["totalPercentUsed"])
         if unlimited {
             windows.append(LimitWindow(
-                id: "included", label: "Included usage", usedFraction: nil, resetsAt: cycleEnd,
-                note: "Unlimited on the \(planName ?? "current") plan"
+                id: "included", label: L("Included usage"), usedFraction: nil, resetsAt: cycleEnd,
+                note: L("Unlimited on the %@ plan", planName ?? L("current"))
             ))
         } else if planEnabled, let planLimit, planLimit > 0 {
             let fraction = planPercent.map { $0 / 100 } ?? (planUsed.map { $0 / planLimit } ?? 0)
             windows.append(LimitWindow(
-                id: "included", label: "Included usage", usedFraction: min(max(fraction, 0), 1), resetsAt: cycleEnd,
-                note: planUsed.map { "\(dollars($0)) of \(dollars(planLimit))" },
+                id: "included", label: L("Included usage"), usedFraction: min(max(fraction, 0), 1), resetsAt: cycleEnd,
+                note: planUsed.map { L("%1$@ of %2$@", dollars($0), dollars(planLimit)) },
                 periodDuration: cycle
             ))
         } else {
             windows.append(LimitWindow(
-                id: "included", label: "Included usage", usedFraction: nil, resetsAt: cycleEnd,
-                note: "\(planName ?? "This") plan has nothing for Cursor to meter yet"
+                id: "included", label: L("Included usage"), usedFraction: nil, resetsAt: cycleEnd,
+                note: L("%@ plan has nothing for Cursor to meter yet", planName ?? L("This"))
             ))
         }
 
         if let onDemand, (onDemand["enabled"] as? Bool) == true, let limit = number(onDemand["limit"]), limit > 0 {
             let used = number(onDemand["used"]) ?? 0
             windows.append(LimitWindow(
-                id: "on_demand", label: "On-demand", usedFraction: min(max(used / limit, 0), 1), resetsAt: cycleEnd,
-                note: "\(dollars(used)) of \(dollars(limit))",
+                id: "on_demand", label: L("On-demand"), usedFraction: min(max(used / limit, 0), 1), resetsAt: cycleEnd,
+                note: L("%1$@ of %2$@", dollars(used), dollars(limit)),
                 periodDuration: cycle
             ))
         }
@@ -124,7 +124,7 @@ actor CursorProvider: UsageProvider {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let premium = root["gpt-4"] as? [String: Any]
         else {
-            throw ProviderError.parse("Cursor usage response unreadable")
+            throw ProviderError.parse(L("Cursor usage response unreadable"))
         }
         let used = number(premium["numRequests"]) ?? 0
         let limit = number(premium["maxRequestUsage"])
@@ -132,10 +132,10 @@ actor CursorProvider: UsageProvider {
         let resets = start.flatMap { Calendar.current.date(byAdding: .month, value: 1, to: $0) }
         let window = LimitWindow(
             id: "requests",
-            label: "Fast requests",
+            label: L("Fast requests"),
             usedFraction: limit.flatMap { $0 > 0 ? min(max(used / $0, 0), 1) : nil },
             resetsAt: resets,
-            note: limit.map { "\(Int(used)) of \(Int($0)) requests" }
+            note: limit.map { L("%1$ld of %2$ld requests", Int(used), Int($0)) }
         )
         return UsageReading(tool: .cursor, windows: [window], plan: nil, fetchedAt: now, observedAt: nil)
     }
@@ -151,7 +151,7 @@ actor CursorProvider: UsageProvider {
     // MARK: - Session token
 
     static func jwtClaims(_ token: String) throws -> [String: Any] {
-        guard let claims = JWT.claims(token) else { throw ProviderError.parse("Cursor session token could not be decoded") }
+        guard let claims = JWT.claims(token) else { throw ProviderError.parse(L("Cursor session token could not be decoded")) }
         return claims
     }
 
@@ -159,7 +159,7 @@ actor CursorProvider: UsageProvider {
         guard let subject = claims["sub"] as? String,
               let id = subject.split(separator: "|", omittingEmptySubsequences: true).last.map(String.init),
               !id.isEmpty
-        else { throw ProviderError.parse("Cursor session token has no user id") }
+        else { throw ProviderError.parse(L("Cursor session token has no user id")) }
         return id
     }
 
@@ -184,13 +184,13 @@ actor CursorProvider: UsageProvider {
 
         var db: OpaquePointer?
         guard sqlite3_open_v2(copy.path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let db else {
-            throw ProviderError.unavailable("Cursor's state database could not be opened")
+            throw ProviderError.unavailable(L("Cursor's state database could not be opened"))
         }
         defer { sqlite3_close(db) }
 
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, "SELECT value FROM ItemTable WHERE key = ?1 LIMIT 1", -1, &statement, nil) == SQLITE_OK, let statement else {
-            throw ProviderError.unavailable("Cursor's state database has no ItemTable")
+            throw ProviderError.unavailable(L("Cursor's state database has no ItemTable"))
         }
         defer { sqlite3_finalize(statement) }
         let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)

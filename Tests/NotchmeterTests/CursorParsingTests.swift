@@ -4,6 +4,8 @@ import Testing
 @testable import Notchmeter
 
 @Suite struct CursorParsing {
+    init() { Localization.use(language: "en") }
+
     @Test func decodesJWTAndUserID() throws {
         let payload = #"{"sub":"auth0|user_01ABC","exp":1900000000,"email":"a@b.c"}"#
         let encoded = Data(payload.utf8).base64EncodedString()

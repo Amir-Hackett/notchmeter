@@ -3,6 +3,8 @@ import Testing
 @testable import Notchmeter
 
 @Suite struct UnusedWindowCopy {
+    init() { Localization.use(language: "en") }
+
     @Test func namesThePeriodInsteadOfASlidingReset() {
         #expect(ResetText.unusedLine(period: 30 * 86400) == "Nothing used · 30-day window")
         #expect(ResetText.unusedLine(period: Period.week) == "Nothing used · 7-day window")

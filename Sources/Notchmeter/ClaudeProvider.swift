@@ -31,7 +31,7 @@ actor ClaudeProvider: UsageProvider {
         let credentials = try loadCredentials()
         if let expiresAt = credentials.expiresAt, expiresAt.timeIntervalSinceNow < 30 {
             cached = nil
-            throw ProviderError.tokenExpired("Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself.")
+            throw ProviderError.tokenExpired(L("Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself."))
         }
 
         var request = URLRequest(url: Self.usageURL)
@@ -56,12 +56,12 @@ actor ClaudeProvider: UsageProvider {
             }
         case 401, 403:
             cached = nil
-            throw ProviderError.notSignedIn("Claude Code's login was refused. Run Claude Code once to refresh it")
+            throw ProviderError.notSignedIn(L("Claude Code's login was refused. Run Claude Code once to refresh it"))
         case 429:
             let retry = http?.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
             throw ProviderError.rateLimited(retryAfter: retry)
         case let code:
-            guard !headerWindows.isEmpty else { throw ProviderError.http(code, "usage endpoint answered") }
+            guard !headerWindows.isEmpty else { throw ProviderError.http(code, L("usage endpoint answered")) }
             return UsageReading(tool: .claude, windows: headerWindows, plan: plan, fetchedAt: now, observedAt: nil)
         }
     }
@@ -77,8 +77,8 @@ actor ClaudeProvider: UsageProvider {
 
     static func rateLimitWindows(header: (String) -> String?) -> [LimitWindow] {
         let specs: [(prefix: String, id: String, label: String, period: TimeInterval)] = [
-            ("anthropic-ratelimit-unified-5h", "five_hour", "Session", Period.fiveHours),
-            ("anthropic-ratelimit-unified-7d", "seven_day", "Weekly", Period.week),
+            ("anthropic-ratelimit-unified-5h", "five_hour", L("Session"), Period.fiveHours),
+            ("anthropic-ratelimit-unified-7d", "seven_day", L("Weekly"), Period.week),
         ]
         return specs.compactMap { spec in
             guard let utilization = header("\(spec.prefix)-utilization").flatMap(number) else { return nil }
@@ -87,7 +87,7 @@ actor ClaudeProvider: UsageProvider {
                 label: spec.label,
                 usedFraction: min(max(utilization, 0), 1),
                 resetsAt: header("\(spec.prefix)-reset").flatMap(number).map { Date(timeIntervalSince1970: $0) },
-                note: "From rate-limit headers",
+                note: L("From rate-limit headers"),
                 periodDuration: spec.period
             )
         }
@@ -105,16 +105,16 @@ actor ClaudeProvider: UsageProvider {
         } catch KeychainError.notFound {
             let fallback = Paths.home.appendingPathComponent(".claude/.credentials.json")
             guard let fileData = try? Data(contentsOf: fallback) else {
-                throw ProviderError.notSignedIn("Sign in to Claude Code to read your usage")
+                throw ProviderError.notSignedIn(L("Sign in to Claude Code to read your usage"))
             }
             data = fileData
         } catch KeychainError.denied(let status) {
             if status == errSecUserCanceled {
-                throw ProviderError.accessDenied("The Keychain request was dismissed. Switch Claude off and on in Settings to ask again")
+                throw ProviderError.accessDenied(L("The Keychain request was dismissed. Switch Claude off and on in Settings to ask again"))
             }
-            throw ProviderError.accessDenied("macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks")
+            throw ProviderError.accessDenied(L("macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks"))
         } catch KeychainError.other(let status) {
-            throw ProviderError.unavailable("Keychain read failed: \(Keychain.describe(status))")
+            throw ProviderError.unavailable(L("Keychain read failed: %@", Keychain.describe(status)))
         }
         let parsed = try Self.parseCredentials(data)
         cached = parsed
@@ -126,7 +126,7 @@ actor ClaudeProvider: UsageProvider {
               let oauth = root["claudeAiOauth"] as? [String: Any],
               let token = oauth["accessToken"] as? String, !token.isEmpty
         else {
-            throw ProviderError.notSignedIn("Claude Code has not signed in")
+            throw ProviderError.notSignedIn(L("Claude Code has not signed in"))
         }
         let expiresAt = JSON.number(oauth["expiresAt"]).map { Date(timeIntervalSince1970: $0 / 1000) }
         return ClaudeCredentials(
@@ -141,13 +141,13 @@ actor ClaudeProvider: UsageProvider {
     /// (each named by its model, e.g. "Fable"), then the legacy per-model keys if they still carry data.
     static func parseUsage(_ data: Data, plan: String?, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ProviderError.parse("usage response unreadable")
+            throw ProviderError.parse(L("usage response unreadable"))
         }
         var windows: [LimitWindow] = []
-        if let session = window(root["five_hour"], id: "five_hour", label: "Session", period: Period.fiveHours) {
+        if let session = window(root["five_hour"], id: "five_hour", label: L("Session"), period: Period.fiveHours) {
             windows.append(session)
         }
-        if let weekly = window(root["seven_day"], id: "seven_day", label: "Weekly", period: Period.week) {
+        if let weekly = window(root["seven_day"], id: "seven_day", label: L("Weekly"), period: Period.week) {
             windows.append(weekly)
         }
         windows.append(contentsOf: scopedWeeklyLimits(root["limits"]))
@@ -160,11 +160,11 @@ actor ClaudeProvider: UsageProvider {
             let usedCents = JSON.number(extra["used_credits"]) ?? 0
             let limitCents = JSON.number(extra["monthly_limit"])
             let fraction = limitCents.flatMap { $0 > 0 ? JSON.fraction(usedCents / $0 * 100) : nil }
-            let note = limitCents.map { "\(Money.dollars(usedCents / 100)) of \(Money.dollars($0 / 100, cents: false))" }
-                ?? "\(Money.dollars(usedCents / 100)) spent"
-            windows.append(LimitWindow(id: "extra_usage", label: "Extra usage", usedFraction: fraction, resetsAt: nil, note: note))
+            let note = limitCents.map { L("%1$@ of %2$@", Money.dollars(usedCents / 100), Money.dollars($0 / 100, cents: false)) }
+                ?? L("%@ spent", Money.dollars(usedCents / 100))
+            windows.append(LimitWindow(id: "extra_usage", label: L("Extra usage"), usedFraction: fraction, resetsAt: nil, note: note))
         }
-        guard !windows.isEmpty else { throw ProviderError.parse("Claude reported no usage windows") }
+        guard !windows.isEmpty else { throw ProviderError.parse(L("Claude reported no usage windows")) }
         return UsageReading(tool: .claude, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
     }
 

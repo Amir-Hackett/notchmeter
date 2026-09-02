@@ -106,9 +106,9 @@ enum ProviderError: Error, Equatable {
         case .notSignedIn(let m), .tokenExpired(let m), .accessDenied(let m), .parse(let m), .unavailable(let m), .nothingYet(let m):
             m
         case .rateLimited(let retry):
-            retry.map { "Rate limited, retrying in \(Int($0))s" } ?? "Rate limited, backing off"
+            retry.map { L("Rate limited, retrying in %lds", Int($0)) } ?? L("Rate limited, backing off")
         case .http(let code, let m):
-            "\(m) (HTTP \(code))"
+            L("%1$@ (HTTP %2$ld)", m, code)
         }
     }
 
@@ -212,12 +212,13 @@ enum Naming {
 enum RelativeTime {
     static func ago(_ date: Date, now: Date = Date()) -> String {
         let s = max(0, now.timeIntervalSince(date))
-        if s < 60 { return "just now" }
-        if s < 3600 { return "\(Int(s / 60))m ago" }
-        if s < 86400 { return "\(Int(s / 3600))h ago" }
-        return "\(Int(s / 86400))d ago"
+        if s < 60 { return L("just now") }
+        if s < 3600 { return L("%ldm ago", Int(s / 60)) }
+        if s < 86400 { return L("%ldh ago", Int(s / 3600)) }
+        return L("%ldd ago", Int(s / 86400))
     }
 
+    /// Probe output only, so it stays English.
     static func resets(_ date: Date?, hasLimit: Bool, now: Date = Date()) -> String {
         guard hasLimit else { return "no limit published" }
         guard let date else { return "" }

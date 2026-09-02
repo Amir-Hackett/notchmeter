@@ -27,17 +27,17 @@ enum DemoFixtures {
         let weekReset = now.addingTimeInterval(4 * 86400 + 17 * 3600)
         return [
             UsageReading(tool: .claude, windows: [
-                LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.14, resetsAt: sessionReset, periodDuration: Period.fiveHours),
-                LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.04, resetsAt: weekReset, periodDuration: Period.week),
+                LimitWindow(id: "five_hour", label: L("Session"), usedFraction: 0.14, resetsAt: sessionReset, periodDuration: Period.fiveHours),
+                LimitWindow(id: "seven_day", label: L("Weekly"), usedFraction: 0.04, resetsAt: weekReset, periodDuration: Period.week),
                 LimitWindow(id: "scoped_fable", label: "Fable", usedFraction: 0.06, resetsAt: weekReset, periodDuration: Period.week, model: "Fable"),
             ], plan: "Max 5x", fetchedAt: now, observedAt: nil),
             UsageReading(tool: .codex, windows: [
-                LimitWindow(id: "session", label: "Session", usedFraction: nil, resetsAt: nil, note: "No data"),
-                LimitWindow(id: "monthly", label: "Monthly", usedFraction: 0, resetsAt: now.addingTimeInterval(18 * 86400 + 6 * 3600), periodDuration: 30 * Period.day),
+                LimitWindow(id: "session", label: L("Session"), usedFraction: nil, resetsAt: nil, note: L("No data")),
+                LimitWindow(id: "monthly", label: L("Monthly"), usedFraction: 0, resetsAt: now.addingTimeInterval(18 * 86400 + 6 * 3600), periodDuration: 30 * Period.day),
             ], plan: "Free", fetchedAt: now, observedAt: nil),
             UsageReading(tool: .cursor, windows: [
-                LimitWindow(id: "included", label: "Included usage", usedFraction: nil, resetsAt: now.addingTimeInterval(12 * 86400),
-                            note: "Free plan has nothing for Cursor to meter yet"),
+                LimitWindow(id: "included", label: L("Included usage"), usedFraction: nil, resetsAt: now.addingTimeInterval(12 * 86400),
+                            note: L("%@ plan has nothing for Cursor to meter yet", "Free")),
             ], plan: "Free", fetchedAt: now, observedAt: nil),
         ]
     }
