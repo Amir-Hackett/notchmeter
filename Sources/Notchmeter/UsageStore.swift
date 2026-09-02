@@ -43,7 +43,15 @@ struct ReadingCache {
 @MainActor
 @Observable
 final class UsageStore {
-    private(set) var statuses: [ToolID: ToolStatus] = [:]
+    /// Every change is reported to the oracle once the store has started; start() reports the launch state itself.
+    private(set) var statuses: [ToolID: ToolStatus] = [:] {
+        didSet {
+            guard started else { return }
+            for tool in ToolID.allCases where statuses[tool] != oldValue[tool] {
+                Oracle.shared.emit("reading", Oracle.fields(tool, status(tool)))
+            }
+        }
+    }
     private(set) var lastUpdated: Date?
     private(set) var nextRefresh: [ToolID: Date] = [:]
     private(set) var cost: CostSummary?
@@ -76,6 +84,8 @@ final class UsageStore {
     @ObservationIgnored private var awaitingInputExpiry: Task<Void, Never>?
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var alertMemory: AlertMemory
+    @ObservationIgnored private var reportedAdvice: [String]?
+    @ObservationIgnored private var started = false
     /// Receives each batch of pace alerts the scheduler decides on; wired to the Notifier by the app delegate.
     @ObservationIgnored var deliverAlerts: ([PaceAlert]) -> Void = { _ in }
 
@@ -96,7 +106,8 @@ final class UsageStore {
         }
     }
 
-    var visibleTools: [ToolID] { ToolID.allCases.filter(isShown) }
+    /// The tools on screen, in the user's order (Preferences.toolOrder).
+    var visibleTools: [ToolID] { prefs.toolOrder.filter(isShown) }
 
     func isInstalled(_ tool: ToolID) -> Bool {
         providers[tool]?.isInstalled() ?? false
@@ -130,7 +141,7 @@ final class UsageStore {
 
     func adviceContext(now: Date = Date()) -> Advisor.Context {
         Advisor.Context(readings: readyReadings, awaitingInput: awaitingInput.filter(isShown), cost: prefs.showSpend ? cost : nil,
-                        timeFormat: prefs.timeFormat, now: now)
+                        timeFormat: prefs.timeFormat, toolOrder: prefs.toolOrder, now: now)
     }
 
     /// What to do next, from Advisor.swift; empty when there is nothing to say.
@@ -154,11 +165,30 @@ final class UsageStore {
 
     func start() {
         onBattery = PowerSource.onBattery()
+        for tool in ToolID.allCases {
+            Oracle.shared.emit("reading", Oracle.fields(tool, status(tool)))
+        }
+        started = true
+        observeAdvice()
         for tool in ToolID.allCases where isShown(tool) {
             startLoop(tool)
         }
         startTick()
         observeEnvironment()
+    }
+
+    /// Reports the advice strip to the oracle whenever its lines change; the tracking is one-shot, so it re-arms.
+    private func observeAdvice() {
+        guard Oracle.shared.isActive else { return }
+        withObservationTracking {
+            let lines = advice.map(\.text)
+            if lines != reportedAdvice {
+                reportedAdvice = lines
+                Oracle.shared.emit("advice", ["titles": lines])
+            }
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeAdvice() }
+        }
     }
 
     func setEnabled(_ tool: ToolID, _ enabled: Bool) {
@@ -267,6 +297,7 @@ final class UsageStore {
         guard !plan.alerts.isEmpty else { return }
         for alert in plan.alerts {
             log.info("pace alert \(alert.identifier, privacy: .public)")
+            Oracle.shared.emit("notification", ["action": "scheduled", "title": Advisor.alertTitle(alert), "stage": alert.stage.rawValue])
         }
         deliverAlerts(plan.alerts)
     }
@@ -448,6 +479,7 @@ final class UsageStore {
     /// until its Stop, the next prompt, or ten minutes.
     func hookReceived(_ message: Hook.Message, now: Date = Date()) {
         log.info("hook \(message.event, privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)")
+        Oracle.shared.emit("hook", ["name": message.event, "needsInput": message.needsInput])
         lastHook = now
         lastActivity[.claude] = now
         if message.needsInput {

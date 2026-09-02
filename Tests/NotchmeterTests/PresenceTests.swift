@@ -54,7 +54,7 @@ import Testing
         #expect(Spoken.phrase("Resets in 4d 17h") == "Resets in 4 days 17 hours")
         #expect(Spoken.phrase("Runs out in 1h 1m") == "Runs out in 1 hour 1 minute")
         #expect(Spoken.phrase("Next update in 45s · on battery") == "Next update in 45 seconds, on battery")
-        #expect(Spoken.phrase("Last hour $8.40 · 6x your usual") == "Last hour $8.40, 6 times your usual")
+        #expect(Spoken.phrase("Last hour $8.40 · 6x your 30-day average") == "Last hour $8.40, 6 times your 30-day average")
         #expect(Spoken.phrase("Resets today at 10:49 PM") == "Resets today at 10:49 PM")
     }
 

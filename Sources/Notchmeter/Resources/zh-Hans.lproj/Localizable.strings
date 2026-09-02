@@ -111,7 +111,7 @@
 "Yesterday" = "昨天";
 "30 Days" = "30 天";
 "dollars" = "美元";
-"Last hour %1$@ · %2$@ your usual" = "最近一小时 %1$@ · 平时的 %2$@";
+"Last hour %1$@ · %2$@ your 30-day average" = "最近一小时 %1$@ · 30 天平均的 %2$@";
 "Unpriced: %@" = "未计价：%@";
 "Claude Code sessions at API list prices" = "Claude Code 会话按 API 标价计算";
 "Cost, %@" = "成本，%@";
@@ -144,7 +144,7 @@
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ 的%3$@额度还剩 %2$ld%%。";
 "Overall %@" = "总体%@";
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ 已用 %2$ld%%，%3$@ 已用 %4$ld%%。换模型，不必换工具。";
-"This hour burned %1$@ — %2$@ your 30-day usual." = "这一小时花费 %1$@ — 是 30 天平均水平的 %2$@。";
+"This hour burned %1$@ — %2$@ your 30-day average." = "这一小时花费 %1$@ — 是 30 天平均水平的 %2$@。";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ 的%2$@额度已用尽。%3$@。%4$@";
 "%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@" = "%1$@ 的%2$@额度接近进度：重置时约剩余 %3$ld%%。%4$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "按当前速度，%1$@ 的%2$@额度将于%3$@达到上限，距离重置还有 %4$@。%5$@";
@@ -164,6 +164,11 @@
 "Quit %@" = "退出 %@";
 "Open on hover" = "悬停时展开";
 "Always open" = "始终展开";
+"Beside the notch" = "刘海旁边";
+"In the pill" = "胶囊内";
+"Rings" = "圆环";
+"Rings + numbers" = "圆环 + 数字";
+"Numbers" = "数字";
 "Top, in the notch" = "顶部，刘海处";
 "Left edge" = "左边缘";
 "Right edge" = "右边缘";
@@ -199,6 +204,9 @@
 "%@ test" = "%@ 测试";
 "Assistants" = "助手";
 "Not installed on this Mac" = "未安装在这台 Mac 上";
+"Move up" = "上移";
+"Move down" = "下移";
+"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order." = "第一个助手位于刘海左侧，其余依次排在右侧；面板中的卡片和边缘胶囊按同样的顺序排列。";
 "Off" = "已关闭";
 "Signed in" = "已登录";
 "Signed in · %@" = "已登录 · %@";

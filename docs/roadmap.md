@@ -26,7 +26,7 @@ The plan's premise, that "best in the world" is reachable on craft, correctness 
 | Advice strip: run-out with a named alternative tool, switch-models, burn multiple, room elsewhere, "Claude Code is waiting for you" | shipped | `Advisor.swift`, `AdvisorTests.swift`; README "Advice and notifications" |
 | Notifications at pace crossings, not percentage crossings; one per state per period; nothing in the first tenth of a window | shipped | `NotificationScheduler.swift`, `Notifier.swift` |
 | Cross-provider routing ("Codex has 78% of its weekly left") | shipped | `Advisor.swift` |
-| Burn rate against the user's own median active hour | shipped | `ClaudeCostScanner.swift`; accuracy doc "Burn rate" |
+| Burn rate against the user's own 30-day average active hour | shipped | `ClaudeCostScanner.swift`; accuracy doc "Burn rate" |
 | "Waiting for you" badge from the Claude Code hook | shipped | `Hook.swift`, `docs/hooks.md` |
 | Advice that names a time to come back ("reset in 40 min, wait rather than switch") | pending | small rule in `Advisor.swift` |
 | A skill so Claude Code itself can read the windows and the advice before long work (`Notchmeter --probe --no-prompt`) | pending | `skills/notchmeter/SKILL.md`; also the door into the Composio list ([launch/awesome-lists.md](launch/awesome-lists.md)) |

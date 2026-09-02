@@ -125,15 +125,14 @@ private struct PaceCap: View {
     }
 }
 
-/// One tool's rings. The presence level sets how loud they are (Presence.swift): 14 pt at 70 % when quiet,
-/// 18 pt when legible, 18 pt with a 1.5 s opacity pulse when urgent; no pulse under Reduce Motion.
+/// One tool's rings: the main window outside, the second inside, a "!" for a problem and a white dot while the
+/// tool waits for the user. The presence level sets the size (Presence.swift): 14 pt when quiet, 18 pt otherwise.
 struct CompactRings: View {
     let tool: ToolID
     let status: ToolStatus
     var awaitingInput = false
     var presence: PresenceLevel = .legible
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var pulsing = false
 
     var body: some View {
         let windows = status.reading?.windows ?? []
@@ -148,20 +147,102 @@ struct CompactRings: View {
                     .frame(width: quiet ? 8 : 10, height: quiet ? 8 : 10)
             }
             if status.problem != nil {
-                Image(systemName: "exclamationmark")
-                    .font(.system(size: 7, weight: .bold))
-                    .foregroundStyle(Palette.warn)
+                ProblemMark()
             }
             if awaitingInput {
-                Circle()
-                    .fill(.white)
-                    .frame(width: 5, height: 5)
-                    .overlay(Circle().stroke(.black, lineWidth: 1))
-                    .offset(x: 7, y: -7)
+                WaitingDot().offset(x: 7, y: -7)
             }
         }
         .frame(width: 18, height: 18)
-        .opacity((status.reading == nil && status.problem == nil ? 0.5 : 1) * (quiet ? 0.7 : 1))
+        .opacity(status.reading == nil && status.problem == nil ? 0.5 : 1)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.4), value: presence)
+    }
+}
+
+/// The digits beside a ring, or in its place (CompactStyle): 11 pt semibold rounded, monospaced, in the tool's
+/// colour until a window is on track or behind, when that window's figure takes the status colour. With no ring
+/// to carry them, the problem mark and the waiting dot sit beside the digits.
+struct CompactNumbers: View {
+    let tool: ToolID
+    let status: ToolStatus
+    let display: UsageDisplay
+    var badges = false
+    var awaitingInput = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let segments = CompactLabel.segments(for: status.reading, display: display)
+        HStack(spacing: 3) {
+            if badges, status.problem != nil {
+                ProblemMark()
+            }
+            ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
+                if index > 0 {
+                    Text(verbatim: CompactLabel.separator).foregroundStyle(.secondary)
+                }
+                Text(verbatim: segment.text)
+                    .foregroundStyle(color(for: segment))
+                    .contentTransition(reduceMotion ? .identity : .numericText())
+            }
+            if badges, awaitingInput {
+                WaitingDot()
+            }
+        }
+        .font(.system(size: 11, weight: .semibold, design: .rounded))
+        .monospacedDigit()
+        .opacity(status.reading == nil && status.problem == nil ? 0.5 : 1)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.4), value: segments)
+    }
+
+    private func color(for segment: CompactLabel.Segment) -> Color {
+        switch segment.pace {
+        case .onTrack: Palette.warn
+        case .behind: Palette.danger
+        case .ahead, nil: tool.color
+        }
+    }
+}
+
+private struct ProblemMark: View {
+    var body: some View {
+        Image(systemName: "exclamationmark")
+            .font(.system(size: 7, weight: .bold))
+            .foregroundStyle(Palette.warn)
+    }
+}
+
+private struct WaitingDot: View {
+    var body: some View {
+        Circle()
+            .fill(.white)
+            .frame(width: 5, height: 5)
+            .overlay(Circle().stroke(.black, lineWidth: 1))
+    }
+}
+
+/// One tool while the panel is closed, in the style the user chose. The presence level sets how loud it is
+/// (Presence.swift): 70 % opacity when quiet, full when legible, a 1.5 s opacity pulse when urgent; no pulse
+/// under Reduce Motion. VoiceOver reads the tool and every window's figure and pace, whatever is drawn.
+struct CompactReadout: View {
+    let tool: ToolID
+    let status: ToolStatus
+    let style: CompactStyle
+    let display: UsageDisplay
+    var awaitingInput = false
+    var presence: PresenceLevel = .legible
+    var axis: Axis = .horizontal
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulsing = false
+
+    var body: some View {
+        Group {
+            if axis == .vertical {
+                VStack(spacing: 3) { parts }
+            } else {
+                HStack(spacing: 5) { parts }
+            }
+        }
+        .opacity(presence == .quiet ? 0.7 : 1)
         .animation(reduceMotion ? nil : .snappy(duration: 0.4), value: presence)
         .opacity(pulsing ? 0.4 : 1)
         .animation(pulsing ? .easeInOut(duration: 1.5).repeatForever(autoreverses: true) : .easeInOut(duration: 0.3), value: pulsing)
@@ -172,12 +253,23 @@ struct CompactRings: View {
         .accessibilityValue(Spoken.status(status, awaitingInput: awaitingInput))
     }
 
+    @ViewBuilder private var parts: some View {
+        if style.showsRings {
+            CompactRings(tool: tool, status: status, awaitingInput: awaitingInput, presence: presence)
+        }
+        if style.showsNumbers {
+            CompactNumbers(tool: tool, status: status, display: display, badges: !style.showsRings, awaitingInput: awaitingInput)
+        }
+    }
+
     private func updatePulse() {
         pulsing = presence == .urgent && !reduceMotion
     }
 }
 
-/// Rings beside the physical notch.
+/// The readouts beside the physical notch: the first visible tool on its left, the rest on its right
+/// (Preferences.toolOrder). NotchController measures this view to place the hover region, so its width follows
+/// the style.
 struct NotchCompactView: View {
     enum Side { case leading, trailing }
 
@@ -185,22 +277,25 @@ struct NotchCompactView: View {
     let side: Side
 
     private var tools: [ToolID] {
-        let mine: [ToolID] = side == .leading ? [.claude] : [.codex, .cursor, .antigravity]
-        return mine.filter(store.isShown)
+        let visible = store.visibleTools
+        return side == .leading ? Array(visible.prefix(1)) : Array(visible.dropFirst())
     }
 
     var body: some View {
         let presence = store.presence
-        HStack(spacing: 7) {
+        let prefs = store.prefs
+        HStack(spacing: prefs.compactStyle.showsNumbers ? 9 : 7) {
             ForEach(tools, id: \.self) { tool in
-                CompactRings(tool: tool, status: store.status(tool), awaitingInput: store.isAwaitingInput(tool), presence: presence)
+                CompactReadout(tool: tool, status: store.status(tool), style: prefs.compactStyle, display: prefs.usageDisplay,
+                               awaitingInput: store.isAwaitingInput(tool), presence: presence)
             }
         }
         .padding(.horizontal, tools.isEmpty ? 0 : 6)
     }
 }
 
-/// The rings inside the pill that sits on a screen edge (Codenotch-style layouts); EdgePanelRoot draws the pill.
+/// The readouts inside the pill that sits on a screen edge (Codenotch-style layouts); EdgePanelRoot draws the
+/// pill. A side pill stacks each tool's digits under its ring; the bottom bar runs them side by side.
 struct EdgeCompactView: View {
     let store: UsageStore
     let edge: PanelEdge
@@ -208,14 +303,16 @@ struct EdgeCompactView: View {
     var body: some View {
         let tools = store.visibleTools
         let presence = store.presence
-        let rings = ForEach(tools, id: \.self) { tool in
-            CompactRings(tool: tool, status: store.status(tool), awaitingInput: store.isAwaitingInput(tool), presence: presence)
+        let prefs = store.prefs
+        let readouts = ForEach(tools, id: \.self) { tool in
+            CompactReadout(tool: tool, status: store.status(tool), style: prefs.compactStyle, display: prefs.usageDisplay,
+                           awaitingInput: store.isAwaitingInput(tool), presence: presence, axis: edge == .bottom ? .horizontal : .vertical)
         }
         Group {
             if edge == .bottom {
-                HStack(spacing: 10) { rings }.padding(.horizontal, 12).padding(.vertical, 7)
+                HStack(spacing: 10) { readouts }.padding(.horizontal, 12).padding(.vertical, 7)
             } else {
-                VStack(spacing: 10) { rings }.padding(.vertical, 12).padding(.horizontal, 7)
+                VStack(spacing: 10) { readouts }.padding(.vertical, 12).padding(.horizontal, 7)
             }
         }
         .accessibilityElement(children: .combine)
@@ -316,7 +413,7 @@ struct SpendCard: View {
 
     private var burnLine: String? {
         guard let cost = store.cost, let burn = cost.burnMultiple else { return nil }
-        return L("Last hour %1$@ · %2$@ your usual", Money.dollars(cost.lastHour), Burn.multiple(burn))
+        return L("Last hour %1$@ · %2$@ your 30-day average", Money.dollars(cost.lastHour), Burn.multiple(burn))
     }
 
     var body: some View {
@@ -359,7 +456,8 @@ struct SpendCard: View {
                         Text(amount.map { Money.dollars($0) } ?? "—").font(.callout).monospacedDigit()
                     }
                     if let burnLine {
-                        Text(burnLine)
+                        // A non-breaking hyphen keeps "30-day" whole when the line wraps.
+                        Text(burnLine.replacingOccurrences(of: "-", with: "\u{2011}"))
                             .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                     }
                     if let cost = store.cost, !cost.unpricedModels.isEmpty {

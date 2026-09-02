@@ -25,6 +25,22 @@ protocol PanelPresenting: AnyObject {
     func show()
     func hide() async
     func showOptions()
+    /// Keeps the panel closed while the app's own Settings window is up, whatever the visibility preference, so
+    /// the full-height panel can never sit over it; releasing re-applies the preference.
+    func holdCompact(_ held: Bool)
+    /// Measures the visible shapes again now (`--smoke` reads the compact width per style).
+    func remeasure()
+}
+
+/// Reports each change of the panel's state to the oracle (Oracle.swift); the first report is the launch state.
+struct PanelReporter {
+    private var reported: HoverIntent.State?
+
+    mutating func report(_ state: HoverIntent.State, cause: PanelCause) {
+        guard reported != state else { return }
+        Oracle.shared.emit("panel", ["state": state.rawValue, "cause": (reported == nil ? PanelCause.launch : cause).rawValue])
+        reported = state
+    }
 }
 
 extension NSScreen {
@@ -55,8 +71,15 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         }
     }
 
-    func menuWillOpen(_ menu: NSMenu) { isOpen = true }
-    func menuDidClose(_ menu: NSMenu) { isOpen = false }
+    func menuWillOpen(_ menu: NSMenu) {
+        isOpen = true
+        Oracle.shared.emit("menu", ["action": "shown", "items": menu.items.map(\.title).filter { !$0.isEmpty }])
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        isOpen = false
+        Oracle.shared.emit("menu", ["action": "dismissed"])
+    }
 
     private func build() -> NSMenu {
         let menu = NSMenu()
@@ -79,6 +102,16 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         }
         position.submenu = submenu
         menu.addItem(position)
+        let compact = NSMenuItem(title: prefs.edge.compactStyleTitle, action: nil, keyEquivalent: "")
+        let styles = NSMenu()
+        for style in CompactStyle.allCases {
+            let entry = item(style.title, #selector(setCompactStyle(_:)))
+            entry.representedObject = style.rawValue
+            entry.state = prefs.compactStyle == style ? .on : .off
+            styles.addItem(entry)
+        }
+        compact.submenu = styles
+        menu.addItem(compact)
         menu.addItem(.separator())
         let login = item(L("Open at login"), #selector(toggleLaunchAtLogin))
         login.state = prefs.launchAtLogin ? .on : .off
@@ -112,6 +145,11 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         actions.applyLayout()
     }
 
+    @objc private func setCompactStyle(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let style = CompactStyle(rawValue: raw) else { return }
+        prefs.compactStyle = style
+    }
+
     @objc private func toggleLaunchAtLogin() { try? prefs.setLaunchAtLogin(!prefs.launchAtLogin) }
     @objc private func showSettings() { actions.openSettings() }
     @objc private func checkForUpdates() { actions.checkForUpdates?() }
@@ -141,6 +179,8 @@ final class NotchController: NSObject, PanelPresenting {
     private var rightClickMonitor: Any?
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     private var transitionSerial = 0
+    private var held = false
+    private var reporter = PanelReporter()
 
     /// DynamicNotchKit's insets around the expanded content: 15 pt at the sides and bottom, the notch on top.
     static let panelInset: CGFloat = 15
@@ -170,8 +210,8 @@ final class NotchController: NSObject, PanelPresenting {
         hover = HoverDriver(mode: prefs.visibility.hoverMode)
         super.init()
         configureTransition(closing: false)
-        hover.perform = { [weak self] output in self?.act(output) }
-        hover.isPaused = { [weak self] in self?.menu.isOpen ?? false }
+        hover.perform = { [weak self] output, cause in self?.act(output, cause: cause) }
+        hover.isPaused = { [weak self] in self.map { $0.menu.isOpen || $0.held } ?? false }
         let workspace = NSWorkspace.shared.notificationCenter
         observers.append((workspace, workspace.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.configureTransition(closing: false) }
@@ -199,13 +239,29 @@ final class NotchController: NSObject, PanelPresenting {
     func show() {
         hover.mode = prefs.visibility.hoverMode
         hover.start()
+        let open = !held && (hover.mode == .always || hover.state == .expanded)
         Task {
-            if self.hover.mode == .always || self.hover.state == .expanded {
-                await self.expand()
+            if open {
+                await self.expand(cause: .always)
             } else {
-                await self.compact()
+                await self.compact(cause: self.held ? .settings : .menu)
             }
         }
+    }
+
+    /// The machine adopts the closed state at once, so whoever presents a window over the panel sees it closed
+    /// before the morph has run.
+    func holdCompact(_ held: Bool) {
+        self.held = held
+        if held {
+            hover.adopt(.compact)
+            reporter.report(.compact, cause: .settings)
+        }
+        show()
+    }
+
+    func remeasure() {
+        refreshRegions()
     }
 
     func hide() async {
@@ -224,30 +280,32 @@ final class NotchController: NSObject, PanelPresenting {
 
     // MARK: - Transitions
 
-    private func act(_ output: HoverIntent.Output) {
+    private func act(_ output: HoverIntent.Output, cause: PanelCause) {
         switch output {
         case .expand:
             store.refreshAll(force: false)
-            Task { await self.expand() }
+            Task { await self.expand(cause: cause) }
         case .collapse:
-            Task { await self.compact() }
+            Task { await self.compact(cause: cause) }
         case .none:
             break
         }
     }
 
-    private func expand() async {
+    private func expand(cause: PanelCause) async {
         refreshRegions()
         configureTransition(closing: false)
         hover.adopt(.expanded)
+        reporter.report(.expanded, cause: cause)
         let serial = beginTransition()
         await notch.expand(on: .panelScreen)
         endTransition(serial)
     }
 
-    private func compact() async {
+    private func compact(cause: PanelCause) async {
         configureTransition(closing: true)
         hover.adopt(.compact)
+        reporter.report(.compact, cause: cause)
         let serial = beginTransition()
         await notch.compact(on: .panelScreen)
         endTransition(serial)
@@ -333,7 +391,8 @@ final class NotchController: NSObject, PanelPresenting {
     /// Re-measures whenever something that shapes the panel changes; the tracking is one-shot, so it re-arms itself.
     private func observeContent() {
         withObservationTracking {
-            _ = (store.statuses, store.awaitingInput, store.cost, prefs.enabledTools, prefs.showSpend)
+            _ = (store.statuses, store.awaitingInput, store.cost, prefs.enabledTools, prefs.showSpend, prefs.toolOrder,
+                 prefs.compactStyle, prefs.usageDisplay)
             refreshRegions()
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeContent() }

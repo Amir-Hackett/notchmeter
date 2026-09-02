@@ -118,13 +118,6 @@ import Testing
         let kept = ClaudeCostScanner.dedupe([entry("a", output: 3), entry("a", output: 3), entry("a", output: 1090), entry("b", output: 7), entry(nil, output: 1), entry(nil, output: 1)])
         #expect(kept.map(\.tokens.output) == [1090, 7, 1, 1])
     }
-
-    @Test func medianOfOddAndEvenCounts() {
-        #expect(ClaudeCostScanner.median([]) == 0)
-        #expect(ClaudeCostScanner.median([4]) == 4)
-        #expect(ClaudeCostScanner.median([12, 1, 3]) == 3)
-        #expect(ClaudeCostScanner.median([1, 12, 2, 3]) == 2.5)
-    }
 }
 
 @Suite struct BurnRate {
@@ -134,36 +127,53 @@ import Testing
         UsageEntry(timestamp: DateParsing.iso8601(stamp)!, model: nil, tokens: TokenBreakdown(), costUSD: cost, dedupeKey: nil)
     }
 
-    @Test func lastHourAgainstTheMedianActiveHour() throws {
-        let entries = [
-            entry("2026-09-01T10:15:00Z", 1), entry("2026-09-01T11:15:00Z", 2), entry("2026-09-01T12:15:00Z", 3),
-            entry("2026-09-01T13:15:00Z", 4), entry("2026-09-01T14:45:00Z", 5), entry("2026-09-01T14:50:00Z", 7),
-        ]
-        let summary = ClaudeCostScanner.summarize(entries, now: now, daysBack: 30)
-        // Five active hours costing 1, 2, 3, 4 and 12; the last hour holds the 12.
-        #expect(summary.lastHour == 12)
-        #expect(summary.typicalHourly == 3)
-        #expect(summary.burnMultiple == 4)
-
-        // A sixth active hour makes the median the mean of the middle pair.
-        let straddling = entries + [entry("2026-09-01T15:10:00Z", 1)]
-        let more = ClaudeCostScanner.summarize(straddling, now: now, daysBack: 30)
-        #expect(more.lastHour == 13)
-        #expect(more.typicalHourly == 2.5)
-        #expect(abs(try #require(more.burnMultiple) - 5.2) < 1e-9)
+    func summarize(_ entries: [UsageEntry]) -> CostSummary {
+        ClaudeCostScanner.summarize(entries, now: now, daysBack: 30)
     }
 
-    @Test func needsFiveActiveHoursAndANonZeroMedian() {
+    @Test func lastHourAgainstTheAverageActiveHour() throws {
+        let entries = [
+            entry("2026-09-01T10:15:00Z", 1), entry("2026-09-01T11:15:00Z", 2), entry("2026-09-01T12:15:00Z", 3),
+            entry("2026-09-01T13:15:00Z", 4), entry("2026-09-01T14:45:00Z", 4), entry("2026-09-01T14:50:00Z", 6),
+        ]
+        let summary = summarize(entries)
+        // Five active hours costing 1, 2, 3, 4 and 10: $20 over five hours; the last hour holds the 10.
+        #expect(summary.lastHour == 10)
+        #expect(summary.typicalHourly == 4)
+        #expect(summary.burnMultiple == 2.5)
+
+        // A sixth active hour at 15:10 costing 4: $24 over six hours, and the last hour now holds 14.
+        let straddling = entries + [entry("2026-09-01T15:10:00Z", 4)]
+        let more = summarize(straddling)
+        #expect(more.lastHour == 14)
+        #expect(more.typicalHourly == 4)
+        #expect(abs(try #require(more.burnMultiple) - 3.5) < 1e-9)
+    }
+
+    /// The bursty case a median gets wrong: twenty cheap hours and one big one is an ordinary agent month, and
+    /// the big hour is measured against the average of all of them, not against the cheap ones.
+    @Test func aBurstIsMeasuredAgainstTheAverageNotTheMedian() throws {
+        var entries = (0..<20).map { entry(String(format: "2026-08-%02dT10:15:00Z", 10 + $0), 0.5) }
+        entries.append(entry("2026-09-01T14:50:00Z", 50.95))
+        let summary = summarize(entries)
+        let average = 60.95 / 21
+        #expect(abs(summary.typicalHourly - average) < 1e-9)
+        #expect(abs(try #require(summary.burnMultiple) - 50.95 / average) < 1e-9)
+        #expect(Burn.multiple(try #require(summary.burnMultiple)) == "18x")
+    }
+
+    @Test func needsFiveActiveHoursAndANonZeroAverage() {
         let four = [
             entry("2026-09-01T11:15:00Z", 2), entry("2026-09-01T12:15:00Z", 3),
             entry("2026-09-01T13:15:00Z", 4), entry("2026-09-01T14:45:00Z", 12),
         ]
-        let summary = ClaudeCostScanner.summarize(four, now: now, daysBack: 30)
+        let summary = summarize(four)
         #expect(summary.lastHour == 12)
+        #expect(summary.typicalHourly == 5.25)
         #expect(summary.burnMultiple == nil)
 
         let free = (10...14).map { entry("2026-09-01T\($0):15:00Z", 0) }
-        let zero = ClaudeCostScanner.summarize(free, now: now, daysBack: 30)
+        let zero = summarize(free)
         #expect(zero.typicalHourly == 0)
         #expect(zero.burnMultiple == nil)
         #expect(CostSummary.empty.burnMultiple == nil)
@@ -172,6 +182,7 @@ import Testing
     @Test func formatsMultiples() {
         #expect(Burn.multiple(6) == "6x")
         #expect(Burn.multiple(1.5) == "1.5x")
+        #expect(Burn.multiple(2.34) == "2.3x")
         #expect(Burn.multiple(0.34) == "0.3x")
         #expect(Burn.multiple(12.4) == "12x")
         #expect(Burn.multiple(9.97) == "10x")

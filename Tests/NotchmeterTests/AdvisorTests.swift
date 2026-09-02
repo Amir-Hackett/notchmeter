@@ -193,12 +193,34 @@ import Testing
     // MARK: Session burn
 
     @Test func burnFromThreeTimesTheUsual() {
-        #expect(Advisor.sessionBurn(cost(burn: 6))?.text == "This hour burned $8.40 — 6x your 30-day usual.")
+        #expect(Advisor.sessionBurn(cost(burn: 6))?.text == "This hour burned $8.40 — 6x your 30-day average.")
         #expect(Advisor.sessionBurn(cost(burn: 3))?.priority == .warn)
         #expect(Advisor.sessionBurn(cost(burn: 2.9)) == nil)
         #expect(Advisor.sessionBurn(cost(burn: nil)) == nil)
         #expect(Advisor.sessionBurn(nil) == nil)
-        #expect(Advisor.advise(context([claudeAhead], cost: cost(burn: 4.5, lastHour: 3))).map(\.text) == ["This hour burned $3.00 — 4.5x your 30-day usual."])
+        #expect(Advisor.advise(context([claudeAhead], cost: cost(burn: 4.5, lastHour: 3))).map(\.text) == ["This hour burned $3.00 — 4.5x your 30-day average."])
+    }
+
+    // MARK: Tool order
+
+    @Test func tiesForTheMostRoomAndWaitingToolsFollowTheUserOrder() throws {
+        // Codex and Cursor both have 78 % of their main window left.
+        let codex = reading(.codex, [window("weekly", label: "Weekly", used: 0.22, elapsed: 3 * 86400)])
+        let cursor = reading(.cursor, [window("included", label: "Included usage", used: 0.22, elapsed: 10 * 86400, period: 30 * 86400)])
+        var context = self.context([claudeAhead, codex, cursor], awaiting: [.claude, .codex])
+        #expect(try #require(Advisor.headroom(besides: .claude, in: context)).tool == .codex)
+        #expect(Advisor.headroomSuffix(besides: .claude, in: context) == " Codex weekly is at 22%.")
+        #expect(Advisor.waiting(context).map(\.tool) == [.claude, .codex])
+
+        context.toolOrder = [.cursor, .codex, .claude, .antigravity]
+        #expect(try #require(Advisor.headroom(besides: .claude, in: context)).tool == .cursor)
+        #expect(Advisor.headroomSuffix(besides: .claude, in: context) == " Cursor included usage is at 22%.")
+        #expect(Advisor.waiting(context).map(\.tool) == [.codex, .claude])
+
+        // More room still wins over order.
+        let roomier = reading(.codex, [window("weekly", label: "Weekly", used: 0.1, elapsed: 3 * 86400)])
+        context.readings = [claudeAhead, roomier, cursor]
+        #expect(try #require(Advisor.headroom(besides: .claude, in: context)).tool == .codex)
     }
 
     // MARK: Waiting, ordering, cap
@@ -229,7 +251,7 @@ import Testing
     }
 
     @Test func spokenCopyReadsTheDashAndTheUnits() {
-        #expect(Spoken.phrase("This hour burned $8.40 — 6x your 30-day usual.") == "This hour burned $8.40, 6 times your 30-day usual.")
+        #expect(Spoken.phrase("This hour burned $8.40 — 6x your 30-day average.") == "This hour burned $8.40, 6 times your 30-day average.")
         #expect(Spoken.phrase("At this rate you hit the Claude weekly cap Sep 3 at 12:00, 2d before reset.") == "At this rate you hit the Claude weekly cap Sep 3 at 12:00, 2 days before reset.")
     }
 }

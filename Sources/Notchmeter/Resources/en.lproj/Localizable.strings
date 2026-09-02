@@ -111,7 +111,7 @@
 "Yesterday" = "Yesterday";
 "30 Days" = "30 Days";
 "dollars" = "dollars";
-"Last hour %1$@ · %2$@ your usual" = "Last hour %1$@ · %2$@ your usual";
+"Last hour %1$@ · %2$@ your 30-day average" = "Last hour %1$@ · %2$@ your 30-day average";
 "Unpriced: %@" = "Unpriced: %@";
 "Claude Code sessions at API list prices" = "Claude Code sessions at API list prices";
 "Cost, %@" = "Cost, %@";
@@ -144,7 +144,7 @@
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ has %2$ld%% of its %3$@ left.";
 "Overall %@" = "Overall %@";
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools.";
-"This hour burned %1$@ — %2$@ your 30-day usual." = "This hour burned %1$@ — %2$@ your 30-day usual.";
+"This hour burned %1$@ — %2$@ your 30-day average." = "This hour burned %1$@ — %2$@ your 30-day average.";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ %2$@ has run out. %3$@.%4$@";
 "%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@" = "%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@";
@@ -164,6 +164,11 @@
 "Quit %@" = "Quit %@";
 "Open on hover" = "Open on hover";
 "Always open" = "Always open";
+"Beside the notch" = "Beside the notch";
+"In the pill" = "In the pill";
+"Rings" = "Rings";
+"Rings + numbers" = "Rings + numbers";
+"Numbers" = "Numbers";
 "Top, in the notch" = "Top, in the notch";
 "Left edge" = "Left edge";
 "Right edge" = "Right edge";
@@ -199,6 +204,9 @@
 "%@ test" = "%@ test";
 "Assistants" = "Assistants";
 "Not installed on this Mac" = "Not installed on this Mac";
+"Move up" = "Move up";
+"Move down" = "Move down";
+"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order." = "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order.";
 "Off" = "Off";
 "Signed in" = "Signed in";
 "Signed in · %@" = "Signed in · %@";

@@ -64,22 +64,23 @@ macOS asks once whether Notchmeter may read Claude Code's saved login from the K
 
 ## Layout and settings
 
-Right-click the panel (or use the **Options** button in its footer) for the menu; **Settings…** opens the full window.
+Right-click the panel (or use the **Options** button in its footer) for the menu; **Settings…** opens the full window. Settings is a floating window that never takes focus away from the app you are working in, and the panel stays closed while it is open, so the two never overlap.
 
 | Setting | Choices |
 |---|---|
 | Position | Top, in the notch · Left edge · Right edge · Bottom, above the Dock |
 | Show | Open on hover · Always open |
+| Beside the notch (In the pill, on an edge) | Rings · Rings + numbers · Numbers, the percentages of each tool's two main windows ("14% · 4%") |
 | Show total spend | on / off (the Cost card and the trend) |
 | Show usage as | Used · Left |
 | Reset times | Countdown ("Resets in 3h 40m") · Exact time ("Resets today at 10:50 PM") |
 | Time format | Auto · 12-hour · 24-hour |
 | Open at login | on / off |
 | Notify when a window is on pace to run out | on / off, with a **Test notification** button |
-| Assistants | switch each tool on or off |
+| Assistants | switch each tool on or off; the arrows set their order, which the panel's cards, the rings beside the notch (the first tool on its left, the rest on its right) and the edge pills all follow |
 | Claude Code hook | show the `settings.json` snippet with a Copy button, or merge it in after a backup ([docs/hooks.md](docs/hooks.md)) |
 
-The top layout merges with the physical notch (compact rings beside it, the panel below). The edge layouts are Codenotch-style pills that open into the same panel; they keep clear of the Dock. The panel is never taller than the screen's usable height: past that (four tools, the cost card and advice on a small display) it scrolls, and it shows no scroller while it fits.
+The top layout merges with the physical notch (compact readouts beside it, the panel below). The edge layouts are Codenotch-style pills that open into the same panel; they keep clear of the Dock. The panel is never taller than the screen's usable height: past that (four tools, the cost card and advice on a small display) it scrolls, and it shows no scroller while it fits.
 
 **Hover.** The panel opens once the pointer has rested on the rings for 250 ms, so passing the top of the screen does nothing, and closes 400 ms after the pointer has left the panel (with 8 pt of grace), at once on a click outside it, a Spaces switch or the screen lock, and never while set to Always open. The decision is a pure state machine ([`HoverIntent.swift`](Sources/Notchmeter/HoverIntent.swift)) fed with the pointer's position against the two visible shapes, measured from the notch and the content rather than from the window, and it ignores the pointer for up to 350 ms after each transition, so the panel's own open and close animation can never re-trigger it. `--smoke --hover-sim` drives that path with a scripted pointer and prints every decision.
 
@@ -96,7 +97,7 @@ The rules are pure functions in [`Advisor.swift`](Sources/Notchmeter/Advisor.swi
 | Needs you | Claude Code's [hook](docs/hooks.md) reports a permission prompt or a question | *Claude Code is waiting for your input.* |
 | Run-out | any window is behind pace and has a run-out time; if another tool still has half of its main window, it is named | *At this rate you hit the Claude weekly cap Thursday at 2:00 PM, 3d 4h before reset. Codex weekly is at 22%.* |
 | Switch models | a per-model window (Fable, Sonnet, Opus…; Gemini Pro, Gemini Flash…) is 85 % used and another model, or the overall window, has 40 % left | *Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.* |
-| Burn | the last hour cost at least three times your usual active hour (see the Cost card) | *This hour burned $8.40 — 6x your 30-day usual.* |
+| Burn | the last hour cost at least three times your 30-day average active hour (see the Cost card) | *This hour burned $8.40 — 6x your 30-day average.* |
 | Room elsewhere | a tool's main window is on track or behind and another tool has half of its own left | *Codex has 78% of its weekly left.* |
 
 A tool's *main window* is its longest tool-wide one: the weekly for Claude and Codex, the billing cycle for Cursor; Antigravity publishes only per-model windows, so it has none. A per-model window is named by its cadence ("Fable weekly", "Gemini Pro daily", or "Gemini Pro quota" while the vendor declares no window length). Times follow the Reset times and Time format settings.
@@ -113,7 +114,7 @@ A tool's *main window* is its longest tool-wide one: the weekly for Claude and C
 | Cursor | `cursorAuth/accessToken` in `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb` | `GET https://cursor.com/api/usage-summary` (falls back to `/api/usage` on request-metered plans) |
 | Antigravity | `~/.gemini/oauth_creds.json`, the Google login Gemini CLI caches (token read, never refreshed or written) | `POST https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist` for the project and tier, then `POST https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota` for the per-model buckets: the two reads Gemini CLI itself makes at every start |
 
-Cost is an estimate at Anthropic's published API rates for the models in your transcripts (`Sources/Notchmeter/ModelPricing.swift`); a subscription does not bill this way, it is the API-equivalent value of the work. Once there are five active hours to compare against, the card also shows the last hour against your usual active hour ("Last hour $8.40 · 6x your usual"). Only transcripts touched in the last 30 days are read, and parsed results are cached in `~/Library/Caches/Notchmeter/` so relaunches are instant. How the estimate is built, every multiplier it applies, and where it is known to diverge from a bill, is written down in [docs/accuracy.md](docs/accuracy.md), and a golden-transcript test suite pins the numbers.
+Cost is an estimate at Anthropic's published API rates for the models in your transcripts (`Sources/Notchmeter/ModelPricing.swift`); a subscription does not bill this way, it is the API-equivalent value of the work. Once there are five active hours to compare against, the card also shows the last hour against your average active hour over the last 30 days ("Last hour $8.40 · 6x your 30-day average"). Only transcripts touched in the last 30 days are read, and parsed results are cached in `~/Library/Caches/Notchmeter/` so relaunches are instant. How the estimate is built, every multiplier it applies, and where it is known to diverge from a bill, is written down in [docs/accuracy.md](docs/accuracy.md), and a golden-transcript test suite pins the numbers.
 
 Antigravity and Gemini CLI meter against the same Google backend, and the login Gemini CLI caches is the only one on disk: the Antigravity app and its `agy` CLI keep theirs in the Keychain and publish quota only through a local server inside the running app, which Notchmeter does not attach to. So the Antigravity meter needs one Google sign-in through Gemini CLI (`gemini`, then *Login with Google*); an API-key or Vertex AI setup has no quota to read. The buckets are grouped the way Gemini CLI's own `/stats` groups them, every Gemini model of a tier sharing one pool, and Google declares no window length for them (its docs call them per-day request limits), so these meters carry no pace tick or projection until it does. Since June 2026 Google serves this endpoint only to Code Assist Standard and Enterprise accounts; a personal account gets a sentence saying so, not an HTTP code. Adding a tool means one `UsageProvider` actor in `Sources/Notchmeter` and one line in `ProviderRegistry`.
 
@@ -190,6 +191,7 @@ sudo powermetrics --samplers tasks --show-process-energy -i 60000 -n 5 | grep -E
 
 - [docs/accuracy.md](docs/accuracy.md): every rule behind the cost estimate, the primary sources, where it is known to differ from a bill, and why there is no rate-limit-header probe.
 - [docs/hooks.md](docs/hooks.md): the optional Claude Code hook, what it sends, and how to install and remove it.
+- [docs/testing.md](docs/testing.md): the unit tests, the `--smoke` self check and its flags, and the `--e2e-oracle` event log an automated tester can read.
 - [docs/release.md](docs/release.md): the signed, notarised, Sparkle-updated release pipeline and its one-time setup.
 - [docs/roadmap.md](docs/roadmap.md): what is shipped against the plan, what is pending or blocked, the fleet roll-up design sketch, monetisation, the domain check and the open questions.
 - [docs/anthropic-inquiry.md](docs/anthropic-inquiry.md): a draft letter asking Anthropic whether the read-only usage request is acceptable.

@@ -55,9 +55,10 @@ enum Pace {
         return evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)?.status
     }
 
-    /// The quiet note beside a meter: "~67% left at reset", or the run-out warning when behind.
+    /// The quiet note beside a meter: "~67% left at reset", or the run-out warning when behind. An untouched window
+    /// gets none: "~100% left at reset" says nothing, and the meter's tick already shows where the window stands.
     static func note(for window: LimitWindow, now: Date = Date()) -> (text: String, status: Status)? {
-        guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration,
+        guard let used = window.usedFraction, used > 0, let resetsAt = window.resetsAt, let period = window.periodDuration,
               let result = evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
         else { return nil }
         switch result.status {
@@ -81,6 +82,32 @@ enum UsageDisplay: String, CaseIterable, Codable {
         case .used: L("Used")
         case .left: L("Left")
         }
+    }
+}
+
+/// The digits beside a ring (CompactStyle): the main window's percentage and, after a thin dot, the second
+/// window's, in the Used or Left sense the user chose; "–" for a window without a limit, or no reading at all.
+enum CompactLabel {
+    struct Segment: Equatable {
+        let text: String
+        let pace: Pace.Status?
+    }
+
+    static let noLimit = "–"
+    static let separator = "·"
+
+    static func segments(for reading: UsageReading?, display: UsageDisplay, now: Date = Date()) -> [Segment] {
+        let windows = reading.map { Array($0.windows.prefix(2)) } ?? []
+        guard !windows.isEmpty else { return [Segment(text: noLimit, pace: nil)] }
+        return windows.map { window in
+            guard let used = window.usedFraction else { return Segment(text: noLimit, pace: nil) }
+            let shown = display == .used ? used : 1 - used
+            return Segment(text: "\(Int((shown * 100).rounded()))%", pace: Pace.status(for: window, now: now))
+        }
+    }
+
+    static func text(for reading: UsageReading?, display: UsageDisplay, now: Date = Date()) -> String {
+        segments(for: reading, display: display, now: now).map(\.text).joined(separator: " \(separator) ")
     }
 }
 
