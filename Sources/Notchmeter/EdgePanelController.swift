@@ -97,8 +97,11 @@ final class EdgePanelController: NSObject, PanelPresenting {
     var window: NSWindow? { panel }
     var isExpanded: Bool { expanded }
 
-    var expandedContentSize: CGSize {
-        contentProbe.rootView = NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen)
+    var expandedContentSize: CGSize { measuredContentSize(unclamped: false) }
+    var expandedIntrinsicContentSize: CGSize { measuredContentSize(unclamped: true) }
+
+    private func measuredContentSize(unclamped: Bool) -> CGSize {
+        contentProbe.rootView = NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, unclamped: unclamped)
         contentProbe.layoutSubtreeIfNeeded()
         return contentProbe.fittingSize
     }

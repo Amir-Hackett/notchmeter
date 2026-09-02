@@ -5,10 +5,11 @@ import Testing
 
 /// The open panel never outgrows the screen: content is capped at the usable height and scrolls past it.
 @Suite struct ExpandedPanelHeight {
-    @Test func capKeepsTheNotchAndAMarginClear() {
-        #expect(NotchExpandedView.maxHeight(visibleHeight: 859, notchHeight: 32) == 803)
-        #expect(NotchExpandedView.maxHeight(visibleHeight: 1055, notchHeight: 25) == 1006)
-        #expect(NotchExpandedView.maxHeight(visibleHeight: 40, notchHeight: 32) == 0)
+    /// `visibleFrame` already excludes the menu bar the notch sits in, so only the margin above the Dock comes off.
+    @Test func capLeavesAMarginAboveTheDock() {
+        #expect(NotchExpandedView.maxHeight(visibleHeight: 859, notchHeight: 32) == 835)
+        #expect(NotchExpandedView.maxHeight(visibleHeight: 1055, notchHeight: 25) == 1031)
+        #expect(NotchExpandedView.maxHeight(visibleHeight: 10, notchHeight: 32) == 0)
     }
 
     @MainActor @Test func contentIsItsOwnHeightUntilTheCapAndTheCapPastIt() {

@@ -232,6 +232,20 @@ enum ToolOrder {
     }
 }
 
+/// Which side of the physical notch the readouts sit on. macOS puts the frontmost app's menu titles immediately
+/// left of the notch, so the right side is normally the free one; `split` is the old behaviour.
+enum CompactSide: String, CaseIterable, Codable {
+    case trailing, leading, split
+
+    var title: String {
+        switch self {
+        case .trailing: L("Right of the notch")
+        case .leading: L("Left of the notch")
+        case .split: L("Both sides")
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class Preferences {
@@ -281,6 +295,16 @@ final class Preferences {
     var showResetCountdown: Bool {
         didSet { defaults.set(showResetCountdown, forKey: Keys.resetCountdown); report(Keys.resetCountdown, showResetCountdown, changed: showResetCountdown != oldValue) }
     }
+    /// Secondary figures (session block, tokens, cache writes, top projects, Cursor spend, the sparklines).
+    /// Off by default so the panel fits the screen without scrolling.
+    var showDetails: Bool {
+        didSet { defaults.set(showDetails, forKey: Keys.showDetails); report(Keys.showDetails, showDetails, changed: showDetails != oldValue) }
+    }
+
+    var compactSide: CompactSide {
+        didSet { defaults.set(compactSide.rawValue, forKey: Keys.compactSide); report(Keys.compactSide, compactSide.rawValue, changed: compactSide != oldValue) }
+    }
+
     var showSpend: Bool {
         didSet { defaults.set(showSpend, forKey: Keys.showSpend); report(Keys.showSpend, showSpend, changed: showSpend != oldValue) }
     }
@@ -547,6 +571,8 @@ final class Preferences {
         static let compactStyle = "compactStyle"
         static let resetCountdown = "showResetCountdown"
         static let showSpend = "showSpend"
+        static let showDetails = "showDetails"
+        static let compactSide = "compactSide"
         static let usageDisplay = "usageDisplay"
         static let resetDisplay = "resetDisplay"
         static let timeFormat = "timeFormat"
@@ -624,6 +650,8 @@ final class Preferences {
         compactStyle = CompactStyle(rawValue: defaults.string(forKey: Keys.compactStyle) ?? "") ?? .rings
         showResetCountdown = defaults.bool(forKey: Keys.resetCountdown)
         showSpend = defaults.object(forKey: Keys.showSpend) as? Bool ?? true
+        showDetails = defaults.object(forKey: Keys.showDetails) as? Bool ?? false
+        compactSide = CompactSide(rawValue: defaults.string(forKey: Keys.compactSide) ?? "") ?? .trailing
         usageDisplay = UsageDisplay(rawValue: defaults.string(forKey: Keys.usageDisplay) ?? "") ?? .used
         resetDisplay = ResetDisplay(rawValue: defaults.string(forKey: Keys.resetDisplay) ?? "") ?? .exact
         timeFormat = TimeFormatPreference(rawValue: defaults.string(forKey: Keys.timeFormat) ?? "") ?? .auto
