@@ -84,6 +84,11 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         let menu = build()
         if let event, let view = window?.contentView {
             NSMenu.popUpContextMenu(menu, with: event, for: view)
+        } else if let window, let view = window.contentView {
+            // Anchor to the panel's own view. An unanchored popUp opens at the ordinary menu window level,
+            // which is below the panel's screen-saver level, so the Options button opened the menu behind it.
+            let inWindow = window.convertPoint(fromScreen: NSEvent.mouseLocation)
+            menu.popUp(positioning: nil, at: view.convert(inWindow, from: nil), in: view)
         } else {
             menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
         }
