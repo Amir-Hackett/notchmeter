@@ -28,12 +28,12 @@ import Testing
         withSuite("moves") { defaults in
             let prefs = Preferences(defaults: defaults)
             prefs.move(.cursor, by: -1)
-            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .antigravity])
+            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .antigravity, .copilot])
             prefs.move(.claude, by: -1)
-            prefs.move(.antigravity, by: 1)
-            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .antigravity])
+            prefs.move(.copilot, by: 1)
+            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .antigravity, .copilot])
             prefs.move(.claude, by: 1)
-            #expect(prefs.toolOrder == [.cursor, .claude, .codex, .antigravity])
+            #expect(prefs.toolOrder == [.cursor, .claude, .codex, .antigravity, .copilot])
         }
     }
 
@@ -43,18 +43,18 @@ import Testing
             prefs.move(.antigravity, by: -1)
             prefs.compactStyle = .numbers
             let reloaded = Preferences(defaults: defaults)
-            #expect(reloaded.toolOrder == [.claude, .codex, .antigravity, .cursor])
+            #expect(reloaded.toolOrder == [.claude, .codex, .antigravity, .cursor, .copilot])
             #expect(reloaded.compactStyle == .numbers)
         }
     }
 
     @Test func aStoredOrderGainsNewToolsAtTheEndAndLosesStrangers() {
         #expect(ToolOrder.normalize(nil) == ToolID.allCases)
-        #expect(ToolOrder.normalize(["cursor", "claude"]) == [.cursor, .claude, .codex, .antigravity])
-        #expect(ToolOrder.normalize(["codex", "gemini", "codex"]) == [.codex, .claude, .cursor, .antigravity])
+        #expect(ToolOrder.normalize(["cursor", "claude"]) == [.cursor, .claude, .codex, .antigravity, .copilot])
+        #expect(ToolOrder.normalize(["codex", "gemini", "codex"]) == [.codex, .claude, .cursor, .antigravity, .copilot])
         withSuite("stale") { defaults in
             defaults.set(["antigravity", "claude"], forKey: "toolOrder")
-            #expect(Preferences(defaults: defaults).toolOrder == [.antigravity, .claude, .codex, .cursor])
+            #expect(Preferences(defaults: defaults).toolOrder == [.antigravity, .claude, .codex, .cursor, .copilot])
         }
     }
 
@@ -64,13 +64,13 @@ import Testing
             let now = Date()
             let readings = DemoFixtures.readings(now: now)
             let store = UsageStore(prefs: prefs, providers: readings.map { FixtureProvider(reading: $0) },
-                                   cache: ReadingCache(defaults: defaults), defaults: defaults)
+                                   cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
             store.seed(readings: readings, cost: DemoFixtures.cost(now: now), nextUpdate: now.addingTimeInterval(60), now: now)
             #expect(store.visibleTools == [.claude, .codex, .cursor])
             prefs.move(.cursor, by: -1)
             #expect(store.visibleTools == [.claude, .cursor, .codex])
             #expect(store.readyReadings.map(\.tool) == [.claude, .cursor, .codex])
-            #expect(store.adviceContext(now: now).toolOrder == [.claude, .cursor, .codex, .antigravity])
+            #expect(store.adviceContext(now: now).toolOrder == [.claude, .cursor, .codex, .antigravity, .copilot])
             prefs.move(.claude, by: 1)
             #expect(store.visibleTools == [.cursor, .claude, .codex])
         }

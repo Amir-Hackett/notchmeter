@@ -14,7 +14,7 @@ import Testing
     @MainActor @Test func contentIsItsOwnHeightUntilTheCapAndTheCapPastIt() {
         let defaults = UserDefaults(suiteName: "NotchmeterTests.PanelSizing")!
         let prefs = Preferences(defaults: defaults)
-        let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults)
+        let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
         let actions = NotchActions()
         let natural = fittingHeight(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000))
         #expect(natural > 60)

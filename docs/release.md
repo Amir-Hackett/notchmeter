@@ -29,6 +29,10 @@ ad-hoc signature lacks), no notarisation, and a throwaway appcast key stamped in
 be. It leaves a mountable `dist/Notchmeter.dmg` and a signed `dist/appcast.xml` that verifies against that throwaway
 key, so the pipeline is proved on a Mac with no Apple Developer account; it produces nothing you can ship.
 
+## Testing a build before the Developer ID exists
+
+Everything `scripts/build.sh`, the CI artifact and `--dry-run` produce is ad-hoc signed, and Gatekeeper refuses it on any Mac but the one that built it. On macOS 15 (Sequoia) and later, right-click › Open no longer bypasses that. The two routes that work: launch it once and let it be refused, then System Settings › Privacy & Security › *Open Anyway*; or clear the quarantine attribute first, `xattr -d com.apple.quarantine /Applications/Notchmeter.app` (`brew install --cask --no-quarantine` does the same for the tap). A quarantined copy launched from Downloads or the DMG runs App-Translocated, from a random read-only path; the app detects that and offers to move itself to /Applications, and `--smoke` prints the bundle path and whether it is translocated. The README carries the same two paragraphs for users. The notarised release removes all of this and is blocked on step 1 below.
+
 ## One-time setup
 
 ### 1. Apple Developer Program

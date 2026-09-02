@@ -5,14 +5,18 @@ import Foundation
 /// AppKit, so the rules are unit-tested and a shape that morphs under a stationary cursor cannot flip them.
 /// Counts in whole milliseconds so the thresholds are exact.
 ///
-/// Open only once the pointer has rested in the compact region for `expandDwell`. After any transition ignore
-/// the pointer until the morph settles or `settleTimeout` passes, whichever is first. Close only once the pointer
-/// has been outside the expanded region (widened by `expandedMargin`) for `collapseDwell`, or at once on a click
-/// outside, a Spaces switch or the screen lock. Never close in Always mode; never repeat the current state.
+/// Open only once the pointer has rested in the compact region for `expandDwell` (the Hover delay setting). After
+/// any transition ignore the pointer until the morph settles or `settleTimeout` passes, whichever is first. Close
+/// only once the pointer has been outside the expanded region (widened by `expandedMargin`) for `collapseDwell`,
+/// or at once on a click outside, a Spaces switch, the screen lock or Escape. In Open on click mode the pointer
+/// never opens or closes anything: a click on the rings toggles, a click outside closes. A swipe down over the
+/// rings opens and a swipe up over the panel closes. Never close in Always mode by pointer; a hotkey toggle
+/// still can. Never repeat the current state.
 struct HoverIntent: Equatable {
-    enum Mode: Equatable { case onHover, always }
+    enum Mode: Equatable { case onHover, onClick, always }
     enum State: String, Equatable { case compact, expanded }
     enum Output: Equatable { case expand, collapse, none }
+    enum Swipe: Equatable { case down, up }
 
     static let expandDwell: TimeInterval = 0.25
     static let collapseDwell: TimeInterval = 0.4
@@ -20,20 +24,23 @@ struct HoverIntent: Equatable {
     static let expandedMargin: CGFloat = 8
 
     var mode: Mode
+    /// The rest before an open, 0.1 to 1 s.
+    var expandDwell: TimeInterval
     private(set) var state: State
     private var settlingUntil: Int?
     private var insideCompactSince: Int?
     private var outsideExpandedSince: Int?
 
-    init(mode: Mode, state: State = .compact) {
+    init(mode: Mode, state: State = .compact, expandDwell: TimeInterval = HoverIntent.expandDwell) {
         self.mode = mode
         self.state = state
+        self.expandDwell = min(1, max(0.1, expandDwell))
     }
 
     /// When re-sampling an unchanged pointer would decide something; nil while nothing is pending.
     var nextDeadline: TimeInterval? {
         switch state {
-        case .compact: insideCompactSince.map { Self.seconds($0 + Self.milliseconds(Self.expandDwell)) }
+        case .compact: insideCompactSince.map { Self.seconds($0 + Self.milliseconds(expandDwell)) }
         case .expanded: outsideExpandedSince.map { Self.seconds($0 + Self.milliseconds(Self.collapseDwell)) }
         }
     }
@@ -46,7 +53,7 @@ struct HoverIntent: Equatable {
         }
         switch state {
         case .compact:
-            guard inCompact else {
+            guard mode != .onClick, inCompact else {
                 insideCompactSince = nil
                 return .none
             }
@@ -54,7 +61,7 @@ struct HoverIntent: Equatable {
                 insideCompactSince = now
                 return .none
             }
-            guard now - since >= Self.milliseconds(Self.expandDwell) else { return .none }
+            guard now - since >= Self.milliseconds(expandDwell) else { return .none }
             return begin(.expanded, at: now)
         case .expanded:
             guard mode == .onHover, !inExpanded else {
@@ -74,8 +81,35 @@ struct HoverIntent: Equatable {
         collapseNow(at: time)
     }
 
+    /// A click on the rings: toggles in Open on click mode, nothing otherwise.
+    mutating func clickInside(at time: TimeInterval) -> Output {
+        guard mode == .onClick else { return .none }
+        return begin(state == .compact ? .expanded : .compact, at: Self.milliseconds(time))
+    }
+
     mutating func spaceChangedOrLocked(at time: TimeInterval) -> Output {
         collapseNow(at: time)
+    }
+
+    mutating func escape(at time: TimeInterval) -> Output {
+        collapseNow(at: time)
+    }
+
+    /// A swipe down over the rings opens; a swipe up over the open panel closes (not in Always mode).
+    mutating func swipe(_ swipe: Swipe, inCompact: Bool, inExpanded: Bool, at time: TimeInterval) -> Output {
+        switch (swipe, state) {
+        case (.down, .compact) where inCompact:
+            return begin(.expanded, at: Self.milliseconds(time))
+        case (.up, .expanded) where inExpanded && mode != .always:
+            return begin(.compact, at: Self.milliseconds(time))
+        default:
+            return .none
+        }
+    }
+
+    /// The global shortcut: opens a closed panel, closes an open one, whatever the mode.
+    mutating func toggle(at time: TimeInterval) -> Output {
+        begin(state == .compact ? .expanded : .compact, at: Self.milliseconds(time))
     }
 
     /// The morph finished; pointer facts count again from here.
@@ -90,7 +124,7 @@ struct HoverIntent: Equatable {
     }
 
     private mutating func collapseNow(at time: TimeInterval) -> Output {
-        guard state == .expanded, mode == .onHover else { return .none }
+        guard state == .expanded, mode != .always else { return .none }
         return begin(.compact, at: Self.milliseconds(time))
     }
 

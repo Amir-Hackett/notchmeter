@@ -56,9 +56,16 @@ struct NotchView<Expanded, CompactLeading, CompactTrailing>: View where Expanded
     var body: some View {
         notchContent()
             .background {
-                Rectangle()
-                    .foregroundStyle(.black)
-                    .padding(-50) // The opening/closing animation can overshoot, so this makes sure that it's still black
+                ZStack(alignment: .top) {
+                    Rectangle()
+                        .foregroundStyle(.black)
+                        .padding(-50) // The opening/closing animation can overshoot, so this makes sure that it's still black
+                    // Notchmeter: Liquid Glass under the expanded content only; the strip beside the notch stays black.
+                    if dynamicNotch.expandedGlass, dynamicNotch.state == .expanded {
+                        GlassBackdrop()
+                            .padding(.top, dynamicNotch.notchSize.height)
+                    }
+                }
             }
             .mask {
                 NotchShape(
@@ -150,5 +157,18 @@ struct NotchView<Expanded, CompactLeading, CompactTrailing>: View where Expanded
         .safeAreaInset(edge: .leading, spacing: 0) { Color.clear.frame(width: safeAreaInset) }
         .safeAreaInset(edge: .trailing, spacing: 0) { Color.clear.frame(width: safeAreaInset) }
         .frame(minWidth: dynamicNotch.notchSize.width)
+    }
+}
+
+/// The glass material on macOS 26; nothing older than that.
+struct GlassBackdrop: View {
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            Rectangle()
+                .fill(.clear)
+                .glassEffect(.regular, in: .rect)
+        } else {
+            EmptyView()
+        }
     }
 }

@@ -13,7 +13,7 @@ actor CursorProvider: UsageProvider {
 
     private let session: URLSession
 
-    init(session: URLSession = .shared,
+    init(session: URLSession = NetworkSession.shared,
          stateDatabase: URL = Paths.home.appendingPathComponent("Library/Application Support/Cursor/User/globalStorage/state.vscdb")) {
         self.session = session
         self.stateDatabase = stateDatabase
@@ -62,8 +62,13 @@ actor CursorProvider: UsageProvider {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(cookie, forHTTPHeaderField: "Cookie")
         request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
-        let (data, response) = try await session.data(for: request)
-        return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+        do {
+            let (data, response) = try await session.data(for: request)
+            return (data, (response as? HTTPURLResponse)?.statusCode ?? 0)
+        } catch {
+            if let offline = ProviderError.offline(from: error) { throw offline }
+            throw error
+        }
     }
 
     // MARK: - Parsing
@@ -145,7 +150,7 @@ actor CursorProvider: UsageProvider {
     /// Cursor reports plan amounts in cents.
     private static func dollars(_ cents: Double) -> String {
         let value = cents / 100
-        return value == value.rounded() ? "$\(Int(value))" : String(format: "$%.2f", value)
+        return Money.dollars(value, cents: value != value.rounded())
     }
 
     // MARK: - Session token

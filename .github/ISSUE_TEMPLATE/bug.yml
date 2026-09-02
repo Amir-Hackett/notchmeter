@@ -1,0 +1,35 @@
+name: Bug
+description: Something on screen, in a reading or in a notification is wrong.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: smoke
+    attributes:
+      label: --smoke output
+      description: Run `/Applications/Notchmeter.app/Contents/MacOS/Notchmeter --smoke` (add `--edge left` etc. to match your layout) and paste the output. It prints readings as labels and percentages only, never a token.
+      render: text
+  - type: textarea
+    id: log
+    attributes:
+      label: Unified log
+      description: "`/usr/bin/log show --last 10m --info --predicate 'subsystem == \"com.amirhackett.notchmeter\"' --style compact` around the time it happened."
+      render: text
+  - type: input
+    id: setup
+    attributes:
+      label: Mac, macOS, displays
+      description: e.g. 14-inch M5 Pro, macOS 26.6, one external display as main.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I have checked that nothing pasted above contains a token, an account id or transcript text.
+          required: true

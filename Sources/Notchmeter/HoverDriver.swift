@@ -1,16 +1,24 @@
 import AppKit
 
 /// Why the panel changed state, for the oracle (Oracle.swift): the pointer rested on the rings or left the panel,
-/// a click outside, a Spaces switch, the screen lock, the Always open preference, the Settings window holding it
-/// closed, the Options menu switching to Open on hover, or the state it launched in.
+/// a click outside or on the rings, a swipe, the global shortcut, Escape, a Spaces switch, the screen lock, the
+/// Always open preference, the Settings window holding it closed, the Options menu switching to Open on hover,
+/// a notification's Open button, or the state it launched in.
 enum PanelCause: String {
-    case dwell, exit, clickOutside, space, lock, always, settings, menu, launch
+    case dwell, exit, clickOutside, click, swipe, hotkey, escape, space, lock, always, settings, menu, notification, launch
+}
+
+/// What a mouse monitor saw, reduced to what the machine needs.
+struct PointerEvent: Equatable {
+    enum Kind: Equatable { case moved, click, controlClick, scroll(deltaY: CGFloat, fingersDown: Bool, phase: NSEvent.Phase) }
+    let kind: Kind
 }
 
 /// Feeds a HoverIntent from the real pointer and hands its decisions to a panel controller. Pointer facts come
 /// from global and local mouse monitors (mouse events need no Accessibility permission), one re-sample at the
 /// machine's next deadline so a pointer that stops moving still counts as dwelling, and a 250 ms tick that runs
-/// only while the panel is open. A Spaces switch or the screen lock collapses through the same machine.
+/// only while the panel is open. A Spaces switch or the screen lock collapses through the same machine. Two-finger
+/// swipes arrive as scroll events; a control-click is a secondary click and never counts as a click.
 @MainActor
 final class HoverDriver {
     /// The visible shapes, set by the controller from its own geometry; never a window frame.
@@ -25,8 +33,16 @@ final class HoverDriver {
     var isPaused: () -> Bool = { false }
     /// Where the pointer is; `--smoke --hover-sim` substitutes a scripted path.
     var pointerLocation: () -> CGPoint = { NSEvent.mouseLocation }
+    /// The pointer came to rest on the rings; Hide when idle brings them back for it.
+    var pointerEnteredCompact: () -> Void = {}
     /// One line per decision, for the transition log.
     var log: ((String) -> Void)?
+    /// Swipes open and close (Preferences.gesturesEnabled, off under Reduce Motion).
+    var gestures = true
+    /// A haptic tick on each transition, with the gestures.
+    var haptics = true
+    /// Points of two-finger travel that count as a swipe.
+    static let swipeThreshold: CGFloat = 24
 
     static let tickInterval: TimeInterval = 0.25
 
@@ -36,15 +52,26 @@ final class HoverDriver {
     private var tick: Task<Void, Never>?
     private var deadline: (at: TimeInterval, task: Task<Void, Never>)?
     private weak var trackedView: NSView?
+    private var wasInCompact = false
+    private var swipeTravel: CGFloat = 0
+    private var swipeFired = false
 
-    init(mode: HoverIntent.Mode) {
-        intent = HoverIntent(mode: mode)
+    init(mode: HoverIntent.Mode, dwell: TimeInterval = HoverIntent.expandDwell) {
+        intent = HoverIntent(mode: mode, expandDwell: dwell)
     }
 
     var mode: HoverIntent.Mode {
         get { intent.mode }
         set {
             intent.mode = newValue
+            reschedule()
+        }
+    }
+
+    var dwell: TimeInterval {
+        get { intent.expandDwell }
+        set {
+            intent.expandDwell = min(1, max(0.1, newValue))
             reschedule()
         }
     }
@@ -62,21 +89,28 @@ final class HoverDriver {
 
     func start() {
         guard monitors.isEmpty else { return }
+        let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDown, .scrollWheel]
         // Local monitors run on the main thread; the event itself stays outside the isolated closure.
-        monitors.append(NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown]) { [weak self] event in
-            let type = event.type
-            MainActor.assumeIsolated { self?.handle(type) }
+        monitors.append(NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
+            let reduced = Self.reduce(event)
+            MainActor.assumeIsolated { self?.handle(reduced) }
             return event
         } as Any)
-        if let global = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown], handler: { [weak self] event in
-            let type = event.type
-            MainActor.assumeIsolated { self?.handle(type) }
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] event in
+            let reduced = Self.reduce(event)
+            MainActor.assumeIsolated { self?.handle(reduced) }
         }) {
             monitors.append(global)
         }
         let workspace = NSWorkspace.shared.notificationCenter
         observers.append((workspace, workspace.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.interrupted(.space) }
+        }))
+        observers.append((workspace, workspace.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.interrupted(.lock) }
+        }))
+        observers.append((workspace, workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.interrupted(.lock) }
         }))
         let distributed = DistributedNotificationCenter.default()
         observers.append((distributed, distributed.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
@@ -113,20 +147,68 @@ final class HoverDriver {
     }
 
     func clicked(at point: CGPoint) {
+        if regions.compact.contains(point) {
+            act(intent.clickInside(at: now), cause: .click)
+            return
+        }
         guard regions.isOutsidePanel(point) else { return }
         act(intent.clickOutside(at: now), cause: .clickOutside)
+    }
+
+    func swiped(_ swipe: HoverIntent.Swipe, at point: CGPoint) {
+        guard gestures else { return }
+        let hit = regions.hit(point)
+        act(intent.swipe(swipe, inCompact: hit.inCompact, inExpanded: hit.inExpanded, at: now), cause: .swipe)
     }
 
     func interrupted(_ cause: PanelCause) {
         act(intent.spaceChangedOrLocked(at: now), cause: cause)
     }
 
+    func escape() {
+        act(intent.escape(at: now), cause: .escape)
+    }
+
+    func toggle(cause: PanelCause = .hotkey) {
+        act(intent.toggle(at: now), cause: cause)
+    }
+
     private var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
 
-    private func handle(_ type: NSEvent.EventType) {
-        if type == .leftMouseDown {
+    nonisolated static func reduce(_ event: NSEvent) -> PointerEvent {
+        switch event.type {
+        case .leftMouseDown:
+            return PointerEvent(kind: event.modifierFlags.contains(.control) ? .controlClick : .click)
+        case .scrollWheel:
+            let fingersDown = (event.scrollingDeltaY > 0) == event.isDirectionInvertedFromDevice
+            return PointerEvent(kind: .scroll(deltaY: event.scrollingDeltaY, fingersDown: fingersDown, phase: event.phase))
+        default:
+            return PointerEvent(kind: .moved)
+        }
+    }
+
+    private func handle(_ event: PointerEvent) {
+        switch event.kind {
+        case .click:
             clicked(at: pointerLocation())
-        } else {
+        case .controlClick:
+            break
+        case .scroll(let deltaY, let fingersDown, let phase):
+            guard gestures else { return }
+            if phase == .began || phase == .mayBegin {
+                swipeTravel = 0
+                swipeFired = false
+            }
+            swipeTravel += abs(deltaY)
+            if !swipeFired, swipeTravel >= Self.swipeThreshold {
+                swipeFired = true
+                swiped(fingersDown ? .down : .up, at: pointerLocation())
+            }
+            if phase == .ended || phase == .cancelled {
+                swipeTravel = 0
+                swipeFired = false
+            }
+        case .moved:
             sample()
         }
     }
@@ -134,6 +216,8 @@ final class HoverDriver {
     private func sample() {
         guard !isPaused() else { return }
         let hit = regions.hit(pointerLocation())
+        if hit.inCompact, !wasInCompact { pointerEnteredCompact() }
+        wasInCompact = hit.inCompact
         let output = intent.pointer(inCompact: hit.inCompact, inExpanded: hit.inExpanded, at: now)
         act(output, cause: output == .expand ? .dwell : .exit)
     }
@@ -144,7 +228,10 @@ final class HoverDriver {
         case .collapse: log?("collapse")
         case .none: break
         }
-        if output != .none { perform(output, cause) }
+        if output != .none {
+            if haptics, gestures { NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now) }
+            perform(output, cause)
+        }
         reschedule()
     }
 

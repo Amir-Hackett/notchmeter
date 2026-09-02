@@ -11,7 +11,7 @@ struct ClaudeCredentials: Equatable {
 /// It never refreshes or writes the token; Claude Code does that itself whenever it runs.
 actor ClaudeProvider: UsageProvider {
     nonisolated let tool: ToolID = .claude
-    nonisolated let refreshInterval: TimeInterval = 180
+    nonisolated let refreshInterval: TimeInterval = 300
 
     static let keychainService = "Claude Code-credentials"
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
@@ -19,7 +19,7 @@ actor ClaudeProvider: UsageProvider {
     private let session: URLSession
     private var cached: ClaudeCredentials?
 
-    init(session: URLSession = .shared) {
+    init(session: URLSession = NetworkSession.shared) {
         self.session = session
     }
 
@@ -41,7 +41,14 @@ actor ClaudeProvider: UsageProvider {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await session.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            if let offline = ProviderError.offline(from: error) { throw offline }
+            throw error
+        }
         let http = response as? HTTPURLResponse
         let plan = Naming.plan(subscriptionType: credentials.subscriptionType, rateLimitTier: credentials.rateLimitTier)
         let now = Date()

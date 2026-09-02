@@ -3,6 +3,8 @@ import Testing
 @testable import Notchmeter
 
 @Suite struct PollingRules {
+    init() { Localization.use(language: "en") }
+
     let base: TimeInterval = 180
 
     func inputs(locked: Bool = false, asleep: Bool = false, battery: Bool = false, minutes: Double? = 5, hook: Bool = false, base: TimeInterval? = nil) -> PollingInputs {
@@ -38,6 +40,23 @@ import Testing
         #expect(PollingPolicy.decide(inputs(minutes: nil, hook: true, base: 120)) == .after(120))
         #expect(PollingPolicy.isIdle(inputs(minutes: 31)))
         #expect(!PollingPolicy.isIdle(inputs(minutes: 31, hook: true)))
+    }
+
+    @Test func displaySleepPausesAndLowPowerModeHalvesTheCadence() {
+        var sleeping = inputs()
+        sleeping.screensAsleep = true
+        #expect(PollingPolicy.decide(sleeping) == .paused(.screensAsleep))
+        #expect(PauseReason.screensAsleep.footerText == "Paused while the display sleeps")
+        var lowPower = inputs()
+        lowPower.lowPowerMode = true
+        #expect(PollingPolicy.decide(lowPower) == .after(360))
+        lowPower.onBattery = true
+        #expect(PollingPolicy.decide(lowPower) == .after(360))
+        var statusline = inputs()
+        statusline.secondsSinceStatusline = 10
+        #expect(PollingPolicy.decide(statusline) == .paused(.statusline))
+        statusline.screenLocked = true
+        #expect(PollingPolicy.decide(statusline) == .paused(.screenLocked))
     }
 
     @Test func neverBelowTheProviderInterval() {

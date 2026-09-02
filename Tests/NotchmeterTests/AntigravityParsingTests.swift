@@ -282,7 +282,7 @@ import Testing
 
 /// Which ProviderError a fetch ends in, by case; nil when it succeeds or fails some other way.
 enum ProviderFailure: Equatable {
-    case notSignedIn, tokenExpired, accessDenied, rateLimited, http, parse, unavailable, nothingYet
+    case notSignedIn, tokenExpired, accessDenied, rateLimited, http, parse, unavailable, nothingYet, offline
 }
 
 func failure(of provider: AntigravityProvider) async -> ProviderFailure? {
@@ -299,6 +299,7 @@ func failure(of provider: AntigravityProvider) async -> ProviderFailure? {
         case .parse: return .parse
         case .unavailable: return .unavailable
         case .nothingYet: return .nothingYet
+        case .offline: return .offline
         }
     } catch {
         return nil

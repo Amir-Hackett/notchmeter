@@ -94,4 +94,21 @@ import Testing
     @Test func aMissingKeyReadsAsItself() {
         #expect(L("not a key in any table") == "not a key in any table")
     }
+
+    /// Six languages ship, all left-to-right. The compact strip beside the notch is pinned to left-to-right in code
+    /// (NotchCompactView, EdgeCompactView) because it refers to the physical notch, so a right-to-left language
+    /// (Arabic, Hebrew) can be added without the strip mirroring away from its hover geometry; the rest of the
+    /// panel is free to mirror.
+    @Test func everyShippedLanguageSpeaksForItself() throws {
+        #expect(Localization.languages == ["en", "zh-Hans", "zh-Hant", "ja", "ko", "vi"])
+        #expect(try table("zh-Hant")["Session"] == "工作階段")
+        #expect(try table("ja")["Session"] == "セッション")
+        #expect(try table("ko")["Session"] == "세션")
+        #expect(try table("vi")["Session"] == "Phiên")
+        for language in Localization.languages {
+            let plist = try String(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+                .appendingPathComponent("scripts/Info.plist"), encoding: .utf8)
+            #expect(plist.contains("<string>\(language)</string>"), "CFBundleLocalizations lacks \(language)")
+        }
+    }
 }

@@ -127,6 +127,7 @@ final class Oracle: @unchecked Sendable {
         case .needsAttention: "needsAttention"
         case .ready: "ready"
         case .failed: "failed"
+        case .offline: "offline"
         }
     }
 }

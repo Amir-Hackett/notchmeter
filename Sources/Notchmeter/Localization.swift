@@ -7,7 +7,7 @@ import os
 enum Localization {
     /// The languages shipped, as .lproj names. CFBundleLocalizations in scripts/Info.plist lists the same ones,
     /// because a resource bundle takes the language macOS chose for the app, and it chooses from that list.
-    static let languages = ["en", "zh-Hans"]
+    static let languages = ["en", "zh-Hans", "zh-Hant", "ja", "ko", "vi"]
     static let bundleName = "Notchmeter_Notchmeter.bundle"
 
     /// The resource bundle SwiftPM builds. Its own accessor looks beside the executable and at the build path, which

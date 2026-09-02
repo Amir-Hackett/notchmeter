@@ -8,13 +8,19 @@ The rules below are those of Claude Code's own cost figure wherever Anthropic do
 - [B] [Manage costs effectively](https://code.claude.com/docs/en/costs), Claude Code documentation.
 - [C] [Pricing](https://platform.claude.com/docs/en/about-claude/pricing), Claude Platform documentation.
 
-The code is `Sources/Notchmeter/ClaudeCostScanner.swift` (reading, dedupe, summing) and `Sources/Notchmeter/ModelPricing.swift` (prices and multipliers). The tests are `Tests/NotchmeterTests/CostGoldenTests.swift` and the `CostScanning` suite in `Tests/NotchmeterTests/ProviderParsingTests.swift`.
+The code is `Sources/Notchmeter/ClaudeCostScanner.swift` (reading, dedupe, digests, ranges, the daily history) and `Sources/Notchmeter/ModelPricing.swift` (prices, multipliers, overrides). The tests are `Tests/NotchmeterTests/CostGoldenTests.swift`, `Tests/NotchmeterTests/CostBreakdownTests.swift` and the `CostScanning` suite in `Tests/NotchmeterTests/ProviderParsingTests.swift`.
 
 ## What is read
 
-Claude Code keeps one JSONL transcript per session under `projects/` in its config directory. Notchmeter looks in `$CLAUDE_CONFIG_DIR`, `~/.config/claude` and `~/.claude`, and reads every `*.jsonl` under each `projects/` it finds, including the `subagents/*.jsonl` files written beside a session. Subagent requests are real API requests and are priced like any other; the `isSidechain` flag is not consulted.
+Claude Code keeps one JSONL transcript per session under `projects/` in its config directory. Notchmeter looks in `$CLAUDE_CONFIG_DIR`, `~/.config/claude` and `~/.claude`, and reads every `*.jsonl` under each `projects/` it finds, including the `subagents/*.jsonl` files written beside a session. Subagent requests are real API requests and are priced like any other; the `isSidechain` flag is not consulted. Two more kinds of root are read the same way: Claude Desktop's Cowork sessions in `~/Library/Application Support/Claude/local-agent-mode-sessions` (the same line format, in per-session folders; their project is reported as "Cowork"), and any folder the user adds under Settings › *Also read transcripts from* (a `projects` folder, or a flat folder of session folders, such as another Mac's logs synced in). The same roots feed the activity check that sets the polling cadence.
 
-Only files whose modification time falls inside the 30-day window are opened. Within a file, a line is an entry when it contains `"usage":{` and parses with a `timestamp`, a `message.usage.input_tokens` and a `message.usage.output_tokens`; everything else (user turns, tool results, summaries, progress lines) is skipped. Per-file results are cached in `~/Library/Caches/Notchmeter/claude-usage-cache-v2.json`, keyed by path, size and modification time; the `-v2` suffix is bumped whenever a parsing rule changes so entries parsed under an older rule are never reused. The cache is written after the first full parse and then at most once every ten minutes, because rewriting a cache of this size on every scan while a session is appending to its transcript was the app's largest CPU cost (README, "Energy"); files parsed since the last write are parsed again on the next launch, which costs a few milliseconds. The cache holds timestamps, model ids, token counts, message and request ids and the `inference_geo` value, never any prompt or response text.
+Only files whose modification time falls inside the 30-day window are opened. Within a file, a line is an entry when it contains `"usage":{` and parses with a `timestamp`, a `message.usage.input_tokens` and a `message.usage.output_tokens`; everything else (user turns, tool results, summaries, progress lines) is skipped. Each entry also keeps the line's `cwd` reduced to its last path component (else the project folder's name decoded from Claude Code's `-Users-me-Developer-notchmeter` encoding, whose last segment is the folder name; a folder with a hyphen in its name comes out as its last piece, which the line's `cwd` corrects), its `sessionId`, `usage.server_tool_use.web_search_requests` and `usage.speed`.
+
+Per-file results are cached in `~/Library/Caches/Notchmeter/claude-usage-cache-v3.json`, keyed by path, size, modification time and the pricing fingerprint (the snapshot date plus any override); the version suffix is bumped whenever a parsing rule changes so entries parsed under an older rule are never reused. Beside its entries, each cached file carries a **digest**: its priced cost, five token counts, per-model cost and per-project cost in quarter-hour buckets. A scan folds every unchanged file from its digest and reads entries only from files touched inside the current 5-hour block, which is what the last-hour and block figures need at minute precision; everything longer (today, yesterday, month, 30 and 90 days) is built from the digests, and quarter hours keep every local day boundary exact because every time zone offset is a multiple of fifteen minutes. Deduplication (below) happens within a file before its digest is built; a streamed response never spans two files. The cache is written after the first full parse and then at most once every ten minutes, because rewriting a cache of this size on every scan while a session is appending to its transcript was the app's largest CPU cost (README, "Energy"); files parsed since the last write are parsed again on the next launch, which costs a few milliseconds. The cache holds timestamps, model ids, token counts, message and request ids, session ids, project folder names and the `inference_geo` and `speed` values, never any prompt or response text.
+
+### The daily history
+
+Claude Code deletes transcripts after its `cleanupPeriodDays`, and Notchmeter reads 30 days, so without more the 30-day figure would shrink as files go and nothing older than 30 days would ever be known. After each scan the app appends one JSON line per changed day to `~/Library/Caches/Notchmeter/daily-history-v1.jsonl` (day, tool, cost, the five token counts, per-model and per-project cost; never a path or a token). On read the newest line per day wins, and a day is taken from the history when the history's total is larger than what the transcripts now price to, because a deleted transcript can only lower the live figure, never the real one. The 90-day range, "Since <first day>" and the 90-day daily series come from this file merged with the live 30 days. The file is compacted to one line per day once it passes a few thousand lines.
 
 ## The token buckets
 
@@ -50,6 +56,12 @@ Dollars per million tokens, as coded in `ModelPricing.swift` from the table in [
 
 Sonnet 5 is priced at $2/$10 because, per [C], *"The $2/$10 per million input/output token pricing for Claude Sonnet 5, announced at launch as introductory pricing through August 31, 2026, is now the standard price."*
 
+**Fast mode.** A line whose `usage.speed` is `"fast"` on Opus 5 or Opus 4.8 is priced at $10/$50 per million, twice the standard rate, with the cache multipliers applied to the doubled input rate; every other model ignores the marker. The field is present on current transcripts (`"speed":"standard"` on the lines on this Mac).
+
+**Overrides.** Two tables replace the built-in one, by normalised model prefix, longest prefix first: Claude Code's own `modelPricing` in `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`), so the estimate matches the figure Claude Code shows when a contracted table is in effect, and then Notchmeter's own `~/Library/Application Support/Notchmeter/pricing-overrides.json`, which wins on a clash. Both take `{"<model id>": {"input": 5, "output": 25, "cacheRead": 0.5, "cacheWrite": 6.25, "cacheWrite1h": 10}}` in dollars per million (snake_case and `_tokens` spellings are accepted; a missing cache rate derives from the input rate with the standard multipliers). An override changes the pricing fingerprint, so every cached digest is re-priced on the next scan. Pinned by `CostBreakdownTests`.
+
+**Snapshot and freshness.** `Sources/Notchmeter/Resources/pricing-snapshot.json` is the same table as a document, dated; a unit test checks it against `ModelPricing.table` and `ModelPricing.snapshotDate`, and `.github/workflows/pricing.yml` fetches the pricing page weekly and diffs the per-model rows against the snapshot, so a price change fails a scheduled job rather than going unnoticed. The honest caveat: that job needs network access in CI and a page whose layout it can parse; when the page changes shape the job fails on a parse error, which is still a signal.
+
 A model id is normalised before lookup: lower-cased, a Bedrock or Vertex prefix (`anthropic.`, `us.`, `eu.`) and a `@date` suffix are stripped, and the longest matching prefix wins, so `claude-opus-4-1-20250805` never matches `claude-opus-4`. An id that matches no prefix but names a known family (`fable`, `mythos`, `opus`, `sonnet`, `haiku`) is priced at that family's newest rate. That fallback is a guess made so a freshly released model prices roughly right until the table is updated; it is listed here so it is not mistaken for a fact.
 
 ## One entry per response
@@ -71,6 +83,10 @@ What remains undercounted: a response that never finished (Claude Code interrupt
 Anthropic bills US-only inference at a premium, and Claude Code models it. [C]: *"For Claude 4.6 and later models, specifying US-only inference through the `inference_geo` parameter incurs a 1.1x multiplier on all token pricing categories, including input tokens, output tokens, cache writes, and cache reads. Global routing (the default) uses standard pricing."* [A]: *"One billing rule the SDK does model is data residency pricing. When a response's `usage` reports `inference_geo: "us"`, the SDK multiplies the list price of that response's tokens by 1.1. Per-request fees such as web search aren't multiplied."* [B]: *"For a response from the Claude API billed at the 1.1× data residency rate, Claude Code multiplies the list price of that response's tokens by 1.1 in the session cost figure. … Before v2.1.239, Claude Code didn't apply the 1.1× to those responses, so the session cost figure was lower than the bill."*
 
 Rule: when `message.usage.inference_geo` is exactly `"us"`, the line's five buckets are priced at list and the sum is multiplied by 1.1. Any other value (`"global"`, `"not_available"`, a missing field, or anything unrecognised) is priced at list. On a Claude subscription the field is written as `"not_available"`. Per [C], *"Earlier models do not support the `inference_geo` parameter and always use standard pricing"*, so a line for a model older than 4.6 never carries `"us"` and is never multiplied.
+
+## Web search
+
+Web search is a per-request fee, not a token rate. [C]: *"Web search is available on the Claude API for $10 per 1,000 searches, plus standard token costs for search-generated content."* Rule: `usage.server_tool_use.web_search_requests` × $0.01 is added to the line's token cost, after the residency multiplier, which per [A] never applies to per-request fees. Web fetches carry no fee. Pinned by `CostBreakdownTests.webSearchesArePricedPerRequestAndNeverMultiplied`.
 
 ## Lines with their own costUSD
 
@@ -95,13 +111,21 @@ What the Cost card means on each kind of account:
 Things a bill can contain that this estimate does not, in the order they are likely to matter:
 
 1. **Interrupted responses** are output-undercounted, as described above.
-2. **Web search** is a per-request fee. [C]: *"Web search is available on the Claude API for $10 per 1,000 searches, plus standard token costs for search-generated content."* The count is present as `usage.server_tool_use.web_search_requests` and is not priced.
-3. **Fast mode** (`speed: "fast"`) bills Opus 5 and Opus 4.8 at $10/$50 per million instead of $5/$25 per [C]; lines are priced at the standard rate regardless of `speed`.
-4. **Contracted rates**, **regional cloud premiums** and **usage-credit rates** as above.
-5. **Price changes.** The table is a snapshot of [C] on 2026-09-01. Prices move; the golden tests will not notice a price change, only a change in how the code applies them.
-6. **Other machines and claude.ai.** Only transcripts on this Mac are read.
+2. **Contracted rates** (unless Claude Code's `modelPricing` or an override supplies them), **regional cloud premiums** and **usage-credit rates** as above.
+3. **Price changes.** The table is a snapshot of [C] on 2026-09-01. Prices move; the golden tests will not notice a price change, only a change in how the code applies them. The weekly pricing workflow is what notices.
+4. **Other machines and claude.ai.** Only transcripts on this Mac, plus the folders you add and Cowork's, are read; claude.ai chat is never priced.
+5. **Currency.** Every figure is computed in US dollars; *Show costs in* converts with a rate the user types and a symbol from the locale. The rate is never fetched, so a converted figure is only as current as the rate.
+
+Modelled since 2026-09-02, and so no longer divergences: the web-search fee and fast mode (above).
 
 Token counts themselves are never estimated: every count comes from the API's own `usage` object as Claude Code recorded it, so tokenizer differences between models do not enter.
+
+## Ranges, projects and the block
+
+- **Today, Yesterday, 30 days, 90 days, Month** are calendar-day ranges in the local time zone, built from the digests and the daily history. Month is the calendar month to date.
+- **Week** starts where the live Claude weekly window started (`seven_day.resets_at` minus seven days, from the last reading; the calendar week when there is none), built from the quarter-hour digests so the boundary is exact. "$1.58 per 1% of weekly" is the week's cost divided by the weekly window's used percentage from the same reading.
+- **The block** is the current 5-hour window, aligned to `five_hour.resets_at` so the Cost card and the Session meter describe the same period, priced from entries; "tokens per minute" is the block's tokens over the minutes since its first entry.
+- **By model** ranks the range's models by cost, the fifth and beyond folded into Other; **by project** does the same by folder name. The sparkline's tooltip names each day's top model.
 
 ## Burn rate
 
