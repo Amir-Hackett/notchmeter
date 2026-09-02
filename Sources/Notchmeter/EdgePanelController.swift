@@ -351,8 +351,8 @@ struct EdgePanelRoot: View {
 }
 
 /// The pill and panel background: Liquid Glass from macOS 26, solid black before it and under Reduce Transparency.
-/// The notch layout's expanded panel takes the glass through DynamicNotchKit; its compact strip stays black to
-/// merge with the hardware notch.
+/// The edge layouts only. The notch layout is drawn on an opaque black backdrop, over which glass renders pale
+/// grey, so it keeps the black and leaves `expandedGlass` off (`NotchController.applyWindowBehaviour`).
 struct PanelSurface<S: Shape>: ViewModifier {
     let shape: S
 

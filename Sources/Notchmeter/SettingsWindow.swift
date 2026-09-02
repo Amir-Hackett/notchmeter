@@ -1131,8 +1131,14 @@ final class SettingsWindowController: NSWindowController {
     /// Centred under the notch (or the top of the chosen screen), ordered front and made key without activating
     /// the app. The panel controller has collapsed the panel before this is called and holds it closed until the
     /// window closes (AppDelegate), so the two never share the screen with the panel open.
-    func present(on screen: NSScreen, below readouts: CGRect? = nil) {
+    /// `above` is the panel's window level. The panel sits at screen-saver level so it can draw over the menu
+    /// bar, and it collapses out of the way asynchronously; ordering this window above it keeps the settings
+    /// visible from the first frame rather than for the tail of that animation.
+    func present(on screen: NSScreen, below readouts: CGRect? = nil, above panelLevel: NSWindow.Level? = nil) {
         guard let window else { return }
+        if let panelLevel {
+            window.level = NSWindow.Level(rawValue: max(NSWindow.Level.floating.rawValue, panelLevel.rawValue + 1))
+        }
         window.setFrame(Self.frame(for: window.frame.size, screen: screen.frame, safeAreaTop: screen.safeAreaInsets.top,
                                    visible: screen.visibleFrame, readouts: readouts), display: false)
         showWindow(nil)

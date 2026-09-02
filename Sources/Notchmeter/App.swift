@@ -292,7 +292,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         for presenter in presenters { presenter.holdCompact(true) }
         prefs.refreshLaunchAtLogin()
-        settings?.present(on: .pointerScreen, below: presenter?.hover.regions.compact)
+        settings?.present(on: .pointerScreen, below: presenter?.hover.regions.compact, above: presenter?.window?.level)
         Oracle.shared.emit("settings", settingsFields(action: "shown"))
     }
 
@@ -590,8 +590,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// `--hover-log` prints each decision the real mouse produces meanwhile; `--edge`, `--compact-style`,
     /// `--visibility` and `--display` pick the layout for the run and are restored on exit; `--idle-sim` runs the
     /// Hide when idle clock 31 minutes ahead; `--glance-sim` opens a glance and checks it settles. Two simulated
-    /// screen changes are fired back to back on every run and the presenter count checked after. The copy line
-    /// names the language the panel is in and shows five of its strings, so `--lang zh-Hans` can be seen to take.
+    /// screen changes are fired back to back on every run and the presenter count checked after; the Options menu
+    /// is built and walked without a pointer. The copy line names the language the panel is in and shows five of
+    /// its strings, so `--lang zh-Hans` can be seen to take.
     private func smokeTest() async {
         let started = Date()
         if CommandLine.arguments.contains("--hover-log") {
@@ -626,6 +627,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reportIdle()
         let glancePassed = await reportGlance()
         let keyPassed = await reportClickKey()
+        let menuPassed = reportMenu()
         let rebuildPassed = await reportRebuild()
         for tool in ToolID.allCases {
             Probe.emit("\(tool.displayName): \(Probe.describe(store.status(tool)))")
@@ -656,7 +658,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let smokeRestoreStyle { prefs.compactStyle = smokeRestoreStyle }
         if let smokeRestoreVisibility { prefs.visibility = smokeRestoreVisibility }
         if let smokeRestoreDisplay { prefs.display = smokeRestoreDisplay }
-        exit(presenter?.isVisible == true && hoverPassed && sizingPassed && settingsPassed && glancePassed && keyPassed && rebuildPassed ? 0 : 1)
+        exit(presenter?.isVisible == true && hoverPassed && sizingPassed && settingsPassed && glancePassed && keyPassed && menuPassed && rebuildPassed ? 0 : 1)
     }
 
     /// The open panel must fit where it is drawn: inside DynamicNotchKit's fixed window for the top layout, inside
@@ -763,6 +765,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let released = !(presenter.window?.isKeyWindow ?? false)
         Probe.emit("click key: opened=\(opened) key window after click=\(key) Escape closes=\(closed) key released=\(released)")
         return opened && key && closed && released
+    }
+
+    /// The Options menu a secondary click puts up, built and walked without a pointer: every command carries a
+    /// target that implements its selector, the three settings groups carry one item per case with exactly one
+    /// tick on the current one, and Settings… and Quit keep the key equivalents the menu-driven routes rely on.
+    /// It cannot show the menu or dismiss it — NSMenu owns that — so it checks everything up to the point where
+    /// AppKit takes over.
+    private func reportMenu() -> Bool {
+        // NSMenuItem.target is weak, as is NSMenu.delegate: the menu is only as alive as whoever holds the
+        // OptionsMenu. The controllers hold theirs in a stored property; this one has to be held here.
+        let options = OptionsMenu(prefs: prefs, actions: actions)
+        defer { withExtendedLifetime(options) {} }
+        let items = options.build().items.filter { !$0.isSeparatorItem }
+        Probe.emit("menu: \(items.map { $0.submenu == nil ? $0.title : "\($0.title) ▸" }.joined(separator: " · "))")
+        let dead = items.filter { $0.submenu == nil }.filter { item in
+            guard let action = item.action, let target = item.target as? NSObject else { return true }
+            return !target.responds(to: action)
+        }
+        let untitled = items.filter { $0.title.isEmpty }
+        let deadNames = dead.isEmpty ? "" : ": " + dead.map(\.title).joined(separator: ", ")
+        Probe.emit("menu wiring: \(items.count) items, \(untitled.count) untitled, "
+                   + "\(dead.count) without a target that answers their selector\(deadNames)")
+
+        func submenu(_ expected: [String]) -> [NSMenuItem] {
+            items.compactMap(\.submenu).first { $0.items.compactMap { $0.representedObject as? String } == expected }?.items ?? []
+        }
+        func check(_ label: String, _ group: [NSMenuItem], _ expected: [String], current: String) -> Bool {
+            let found = group.compactMap { $0.representedObject as? String }
+            let ticked = group.filter { $0.state == .on }.compactMap { $0.representedObject as? String }
+            let passed = found == expected && ticked == [current]
+            Probe.emit("menu \(label): \(found.joined(separator: ", ")) ticked=\(ticked.joined(separator: ", ")) setting=\(current) → \(passed ? "OK" : "MISMATCH")")
+            return passed
+        }
+        let visibilities = NotchVisibility.allCases.map(\.rawValue)
+        let visibility = check("visibility", items.filter { ($0.representedObject as? String).map(visibilities.contains) == true },
+                               visibilities, current: prefs.visibility.rawValue)
+        let position = check("position", submenu(PanelEdge.allCases.map(\.rawValue)), PanelEdge.allCases.map(\.rawValue), current: prefs.edge.rawValue)
+        let style = check("compact style", submenu(CompactStyle.allCases.map(\.rawValue)), CompactStyle.allCases.map(\.rawValue), current: prefs.compactStyle.rawValue)
+
+        func shortcut(_ key: String) -> NSMenuItem? {
+            items.first { $0.keyEquivalent == key && $0.keyEquivalentModifierMask == .command }
+        }
+        let settings = shortcut(",")
+        let quit = shortcut("q")
+        Probe.emit("menu shortcuts: ⌘, = \(settings?.title ?? "none"); ⌘Q = \(quit?.title ?? "none")")
+        return dead.isEmpty && untitled.isEmpty && visibility && position && style && settings != nil && quit != nil
     }
 
     /// Two screen-change notifications back to back must leave exactly one presenter per chosen screen and no
