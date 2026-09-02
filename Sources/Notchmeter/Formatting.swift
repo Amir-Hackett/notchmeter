@@ -123,6 +123,20 @@ enum ResetText {
         }
     }
 
+    /// An unused window has no reset worth showing: Codex reports now + period for one, so the time would slide
+    /// with the clock. Name the period instead.
+    static func unusedLine(period: TimeInterval) -> String {
+        "Nothing used · \(windowName(period: period)) window"
+    }
+
+    /// "5-hour", "7-day", "30-day", "90-minute".
+    static func windowName(period: TimeInterval) -> String {
+        let minutes = max(1, Int((period / 60).rounded()))
+        if minutes % 1440 == 0 { return "\(minutes / 1440)-day" }
+        if minutes % 60 == 0 { return "\(minutes / 60)-hour" }
+        return "\(minutes)-minute"
+    }
+
     static func duration(_ seconds: TimeInterval) -> String {
         let total = Int(seconds.rounded())
         let days = total / 86400

@@ -418,6 +418,7 @@ struct MeterRow: View {
             ? (window.note ?? prefs.resetLine(for: window))
             : (window.resetsAt == nil ? (window.note ?? "") : prefs.resetLine(for: window))
         let detail = window.usedFraction != nil && window.resetsAt != nil ? window.note : nil
+        let unused = window.usedFraction == 0 ? window.periodDuration.map(ResetText.unusedLine) : nil
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline) {
                 Text(window.label).font(.system(size: 13, weight: .semibold))
@@ -439,9 +440,13 @@ struct MeterRow: View {
                     color: pace?.status.meterColor ?? color
                 )
                 HStack {
-                    Text(usage ?? "").monospacedDigit()
-                    Spacer()
-                    Text(reset).monospacedDigit()
+                    if let unused {
+                        Text(unused).monospacedDigit()
+                    } else {
+                        Text(usage ?? "").monospacedDigit()
+                        Spacer()
+                        Text(reset).monospacedDigit()
+                    }
                 }
                 .font(.caption).foregroundStyle(.secondary)
                 if let detail {
@@ -459,7 +464,7 @@ struct MeterRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(toolName) \(window.label)")
-        .accessibilityValue(Spoken.line(usage, reset, detail, pace?.text))
+        .accessibilityValue(Spoken.line(unused ?? usage, unused == nil ? reset : nil, detail, pace?.text))
     }
 }
 

@@ -87,15 +87,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// `--smoke`: run for a few seconds, report what is on screen and what each provider returned, then exit.
+    /// `--hover-sim` adds a scripted pointer path through the live hover machine and fails the run if it loops;
+    /// `--hover-log` prints each decision the real mouse produces meanwhile.
     private func smokeTest() async {
         let started = Date()
+        if CommandLine.arguments.contains("--hover-log") {
+            presenter?.hover.log = { line in Probe.emit("hover \(String(format: "%6.3f", Date().timeIntervalSince(started))) \(line)") }
+        }
         try? await Task.sleep(for: .seconds(8))
+        var hoverPassed = true
+        if CommandLine.arguments.contains("--hover-sim"), let presenter {
+            hoverPassed = await HoverSimulation(hover: presenter.hover).run()
+        }
         while store.cost == nil, Date().timeIntervalSince(started) < 90 {
             try? await Task.sleep(for: .seconds(2))
         }
         Probe.emit("smoke ran \(Int(Date().timeIntervalSince(started)))s")
         let frame = presenter?.windowFrame.map { "\($0)" } ?? "none"
         Probe.emit("panel (\(prefs.edge.rawValue)): visible=\(presenter?.isVisible ?? false) frame=\(frame)")
+        if let regions = presenter?.hover.regions {
+            Probe.emit("hover regions: compact=\(regions.compact) expanded=\(regions.expanded)")
+        }
         for tool in ToolID.allCases {
             Probe.emit("\(tool.displayName): \(Probe.describe(store.status(tool)))")
         }
@@ -110,7 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsProbe.window?.layoutIfNeeded()
         Probe.emit("settings window: \(settingsProbe.window?.frame.size ?? .zero)")
         if let smokeRestoreEdge { prefs.edge = smokeRestoreEdge }
-        exit(presenter?.isVisible == true ? 0 : 1)
+        exit(presenter?.isVisible == true && hoverPassed ? 0 : 1)
     }
 }
 
