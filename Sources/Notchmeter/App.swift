@@ -46,6 +46,10 @@ enum NotchmeterMain {
             }
             RunLoop.main.run()
         }
+        if arguments.contains("--menu-bar") {
+            MenuBarExtent.printInventory()
+            return
+        }
         if arguments.contains("--probe") {
             Probe.run(json: arguments.contains("--json"), history: arguments.contains("--history"))
             return

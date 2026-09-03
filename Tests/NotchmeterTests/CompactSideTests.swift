@@ -19,10 +19,9 @@ import Testing
         return CGFloat(tools) * (style.showsNumbers ? 60 : 30) + 12
     }
 
-    func fit(menus: CGFloat?, statusItems: CGFloat?, tools: Int = 4, style: CompactStyle = .numbers,
-             fallback: CompactSide = .trailing) -> CompactFit {
+    func fit(menus: CGFloat?, statusItems: CGFloat?, tools: Int = 4, style: CompactStyle = .numbers) -> CompactFit {
         CompactFit.resolve(notch: Self.notch, menusEndX: menus, statusItemsStartX: statusItems, tools: tools,
-                           style: style, fallback: fallback, width: Self.width)
+                           style: style, width: Self.width)
     }
 
     @Test func bothEndsClearKeepsBothSidesOfTheNotch() {
@@ -71,14 +70,19 @@ import Testing
         #expect(fit.side != .split)
     }
 
-    @Test func nothingMeasuredKeepsTheSideChosenBeforeWithEveryTool() {
-        for fallback in [CompactSide.trailing, .leading, .split] {
-            let fit = fit(menus: nil, statusItems: nil, fallback: fallback)
-            #expect(fit == CompactFit.whole(side: fallback, style: .numbers))
-            #expect(fit.dropped == 0)
-        }
-        // A fallback that is itself Auto cannot be answered with Auto.
-        #expect(fit(menus: nil, statusItems: nil, fallback: .auto).side == .split)
+    @Test func nothingMeasuredSitsCentredWithEveryTool() {
+        // Auto's resting arrangement, which is also where it goes back to whenever the ends let go.
+        #expect(fit(menus: nil, statusItems: nil) == CompactFit.whole(side: .split, style: .numbers))
+    }
+
+    /// The order the user asked for in so many words: centred while there is room, then over to the side that
+    /// still has room, and only once both ends have closed in does anything get given up.
+    @Test func theStripMovesAsideBeforeItGivesAnythingUp() {
+        // Menus creeping right, status items where they were: centred, then trailing, both with every tool.
+        #expect(fit(menus: 200, statusItems: 1400).side == .split)
+        #expect(fit(menus: 700, statusItems: 1400) == CompactFit(side: .trailing, style: .numbers, toolCount: 4, dropped: 0))
+        // Now the right closes in too, and only then does the strip start shedding.
+        #expect(fit(menus: 700, statusItems: 1000).style == .rings)
     }
 
     @Test func oneEndUnmeasuredOnlyConstrainsTheOther() {
@@ -94,14 +98,12 @@ import Testing
         for menus in edges {
             for statusItems in edges {
                 for style in CompactStyle.allCases {
-                    for fallback in CompactSide.allCases {
-                        let fit = fit(menus: menus, statusItems: statusItems, style: style, fallback: fallback)
-                        #expect(fit.side != .auto)
-                        #expect(fit.toolCount >= 1)
-                        #expect(fit.dropped >= 0)
-                        // Numbers are given up before tools are, never the other way round.
-                        #expect(fit.dropped == 0 || fit.style == .rings)
-                    }
+                    let fit = fit(menus: menus, statusItems: statusItems, style: style)
+                    #expect(fit.side != .auto)
+                    #expect(fit.toolCount >= 1)
+                    #expect(fit.dropped >= 0)
+                    // Numbers are given up before tools are, never the other way round.
+                    #expect(fit.dropped == 0 || fit.style == .rings)
                 }
             }
         }
@@ -109,10 +111,10 @@ import Testing
 
     @Test func noReadoutsMeansNothingToFit() {
         let fit = fit(menus: 1400, statusItems: 200, tools: 0)
-        #expect(fit == CompactFit.whole(side: .trailing, style: .numbers))
+        #expect(fit == CompactFit.whole(side: .split, style: .numbers))
     }
 
-    @MainActor @Test func autoIsNotTheDefaultAndRemembersTheSideChosenBeforeIt() {
+    @MainActor @Test func autoIsNotTheDefaultAndRestsInTheMiddle() {
         let suite = "NotchmeterTests.CompactSide.auto"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
@@ -121,9 +123,10 @@ import Testing
         #expect(prefs.compactSide == .split)
         #expect(prefs.resolvedCompactSide == .split)
         prefs.compactSide = .leading
-        prefs.compactSide = .auto
-        #expect(prefs.compactSideFallback == .leading)
         #expect(prefs.resolvedCompactSide == .leading)
+        // Auto with nothing measured yet sits in the middle rather than inheriting the side chosen before it.
+        prefs.compactSide = .auto
+        #expect(prefs.resolvedCompactSide == .split)
         // A fixed side keeps every tool, whatever Auto last measured.
         #expect(prefs.compactFit.dropped == 0)
         prefs.autoCompactFit = CompactFit(side: .trailing, style: .rings, toolCount: 2, dropped: 2)
@@ -132,10 +135,11 @@ import Testing
         prefs.compactSide = .trailing
         #expect(prefs.compactFit == CompactFit.whole(side: .trailing, style: prefs.compactStyle))
         prefs.compactSide = .auto
-        // The fallback outlives a relaunch, so Auto degrades to the same side next time.
+        // A relaunch has measured nothing yet, so Auto opens centred and with every tool rather than wherever the
+        // squeeze last pushed it.
         let reopened = Preferences(defaults: defaults)
         #expect(reopened.compactSide == .auto)
-        #expect(reopened.resolvedCompactSide == .trailing)
+        #expect(reopened.resolvedCompactSide == .split)
         #expect(reopened.compactFit.dropped == 0)
     }
 }

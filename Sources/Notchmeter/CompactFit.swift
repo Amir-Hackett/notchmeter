@@ -28,7 +28,7 @@ struct CompactFit: Equatable {
     /// `menusEndX` is how far right the frontmost app's menu titles reach and `statusItemsStartX` how far left the
     /// leftmost menu bar extra reaches (MenuBarExtent); either is nil when it could not be measured, which leaves
     /// that side unconstrained rather than guessed at. Both nil is "nothing measured" — Accessibility not granted,
-    /// or revoked — and keeps the fixed side chosen before Auto with every tool intact.
+    /// or revoked — and leaves the strip centred on the notch with every tool intact.
     ///
     /// `width` sizes the strip: the room a run of the first *n* tools needs at a style, padding included. It is
     /// asked for the halves under `.split` and the whole run under a single side, and it is asked only for the
@@ -39,10 +39,8 @@ struct CompactFit: Equatable {
     /// order, so the tools the user put first are the ones that survive. Never answers `.auto`, and never returns
     /// a fit that overlaps — when nothing fits, it answers with the smallest strip there is.
     static func resolve(notch: CGRect, menusEndX: CGFloat?, statusItemsStartX: CGFloat?, tools: Int,
-                        style: CompactStyle, fallback: CompactSide,
-                        width: (CompactStyle, Int) -> CGFloat) -> CompactFit {
-        let fixed: CompactSide = fallback == .auto ? .split : fallback
-        guard tools > 0, menusEndX != nil || statusItemsStartX != nil else { return .whole(side: fixed, style: style) }
+                        style: CompactStyle, width: (CompactStyle, Int) -> CGFloat) -> CompactFit {
+        guard tools > 0, menusEndX != nil || statusItemsStartX != nil else { return .whole(side: .split, style: style) }
 
         let leadingRoom = menusEndX.map { notch.minX - clearance - $0 } ?? .greatestFiniteMagnitude
         let trailingRoom = statusItemsStartX.map { $0 - clearance - notch.maxX } ?? .greatestFiniteMagnitude

@@ -16,8 +16,8 @@ menu-heavy app (Chrome, Xcode) would run into them.
   already seen measures nothing, and there is no timer.
 - **When it asks.** Only when you pick Auto, once per pick. Nothing is asked at launch, and nothing is measured
   while a fixed side is chosen.
-- **Without it.** Auto degrades silently to the side you had chosen before it, whether the permission was never
-  granted or is revoked later. Settings says so and offers a button to
+- **Without it.** Auto stays centred on the notch with every readout — where it sits whenever the menu bar leaves
+  room — whether the permission was never granted or is revoked later. Settings says so and offers a button to
   System Settings › Privacy & Security › Accessibility.
 
 No other part of Notchmeter uses the Accessibility API. It never asks for Screen Recording, the microphone, the
