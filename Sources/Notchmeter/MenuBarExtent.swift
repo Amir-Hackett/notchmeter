@@ -106,6 +106,18 @@ final class AutoSideWatcher {
         refresh()
     }
 
+    /// Auto already chosen but not trusted — the grant was never given, or a rebuild replaced the binary it was
+    /// given to. Ask again, once, on the launch that finds it that way: the standing choice is the user's own, so
+    /// silently falling back to a fixed side forever is the wrong reading of "never prompt uninvited".
+    func askAgainIfAutoIsStranded() {
+        guard prefs.compactSide == .auto, !MenuBarExtent.isTrusted, !Self.askedThisLaunch else { return }
+        Self.askedThisLaunch = true
+        MenuBarExtent.requestTrust()
+        refresh()
+    }
+
+    private static var askedThisLaunch = false
+
     /// What Auto has settled on and why, for `--smoke`.
     var description: String {
         let resolved = prefs.resolvedCompactSide.rawValue
