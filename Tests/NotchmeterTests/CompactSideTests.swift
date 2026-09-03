@@ -70,29 +70,33 @@ import Testing
         #expect(fit.side != .split)
     }
 
-    /// The strip is one shape held centred on the notch, so an odd run's extra readout decides which way the black
-    /// overhangs. It should overhang into the end that is free, not into the one that is already crowded.
-    @Test func anOddRunsExtraReadoutGoesToTheSideWithMoreRoom() {
-        // Three tools, and the right of the notch has the room: one goes left, two right.
-        #expect(CompactFit.splitLeadingCount(of: 3, leadingRoom: 131, trailingRoom: 151) == 1)
-        // Mirror it and the extra goes back to the left.
-        #expect(CompactFit.splitLeadingCount(of: 3, leadingRoom: 151, trailingRoom: 131) == 2)
-        // An even run halves cleanly whichever end is roomier.
-        #expect(CompactFit.splitLeadingCount(of: 4, leadingRoom: 10, trailingRoom: 900) == 2)
-        #expect(CompactFit.splitLeadingCount(of: 1, leadingRoom: 10, trailingRoom: 900) == 0)
-
-        // Nothing measured, and a tie, rest to the right: the left end is the one that grows without warning, so
-        // three readouts sit one left and two right until Auto has a measurement that moves them.
+    /// An odd run cannot be halved, so one end carries the extra readout. It rests on the right — the left is
+    /// where menu titles grow — and moves only when the right will not hold two, never because the left merely
+    /// measured a little wider.
+    @Test func anOddRunRestsWithItsExtraReadoutOnTheRight() {
+        // The resting shape, with no menu bar to consult: one left, two right, at every odd size.
         #expect(CompactFit.splitLeadingCount(of: 3) == 1)
         #expect(CompactFit.splitLeadingCount(of: 1) == 0)
-        #expect(CompactFit.splitLeadingCount(of: 3, leadingRoom: 140, trailingRoom: 140) == 1)
-        // A measurement either way still decides it, which is what keeps this from being a fixed preference.
-        #expect(CompactFit.splitLeadingCount(of: 3, leadingRoom: 141, trailingRoom: 140) == 2)
+        #expect(CompactFit.splitLeadingCount(of: 5) == 2)
+        // An even run halves cleanly and has no extra to place.
+        #expect(CompactFit.splitLeadingCount(of: 4) == 2)
 
-        // And the resolved fit carries the answer, so the view splits the run the same way rather than guessing.
-        let split = fit(menus: 520, statusItems: 1150, tools: 3, style: .rings)
-        #expect(split.side == .split)
-        #expect(split.splitLeading == 1)
+        // Both ends roomy: the resting shape stands, and the resolved fit carries it so the view does not guess.
+        let roomy = fit(menus: 200, statusItems: 1400, tools: 3, style: .rings)
+        #expect(roomy.side == .split)
+        #expect(roomy.splitLeading == 1)
+
+        // The left measuring wider is not on its own a reason to move anything. Menus to 400 leave 248 pt left;
+        // status items at 1050 leave 186 pt right, which still holds two rings (72 pt), so nothing moves.
+        let widerLeft = fit(menus: 400, statusItems: 1050, tools: 3, style: .rings)
+        #expect(widerLeft.side == .split)
+        #expect(widerLeft.splitLeading == 1, "a roomier left is not a reason to move a readout that already fits")
+
+        // Crowd the right until two rings no longer fit there (60 pt for 72 pt of readout) and it mirrors.
+        let crowdedRight = fit(menus: 400, statusItems: 924, tools: 3, style: .rings)
+        #expect(crowdedRight.side == .split)
+        #expect(crowdedRight.splitLeading == 2, "the extra moves left only once the right cannot hold it")
+
         // A single side has no split to record.
         #expect(fit(menus: 900, statusItems: nil).splitLeading == nil)
     }
