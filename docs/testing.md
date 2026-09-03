@@ -161,6 +161,18 @@ other, so with it on the app is its own right-hand boundary and costs Auto rough
 number is a floor, not an exact edge: an item whose owner publishes no frame is invisible here, so the real
 leftmost item can sit further left than what is printed. `CompactFit.clearance` is the margin that covers it.
 
+Because the icon is one of those extras, it has to exist before Auto takes its first reading — and it did not.
+The launch measured the bar and created the status item two lines later, so Auto held a right-hand edge some
+46 pt roomier than the real one, 1096 rather than 1050 on this machine. Creating an `NSStatusItem` posts none of
+the workspace notifications that drop the cached reading, so that roomy figure stood until the first app switch,
+and the strip opened in one arrangement and settled into another the first time the user clicked another app.
+The launch now adds the icon first, and `applyMenuBarItem` tells the watcher whenever the setting is toggled.
+Its pass looks again at 120, 300 and 700 ms, because macOS does not place a new item the instant it is created —
+and, unlike the menu-title pass below, it will not settle on two readings merely because they agree. The reading
+to be rid of here is a real and perfectly stable measurement of a bar the icon has not landed in yet, so two of
+them agree happily; the pass discards every look whose inventory does not yet show this app's own icon, and only
+then asks whether the answer has stopped moving.
+
 An activation is measured twice, and only the settled reading is kept. `didActivateApplicationNotification`
 arrives before the incoming app has drawn its menu titles, so the first look can answer with the outgoing app's
 geometry, or with nothing; remembering that under the incoming app's name left the strip narrowed for an app whose
@@ -170,7 +182,10 @@ never answers leaves no entry, so it is measured again next time rather than tre
 `AutoSettleTests` drives the whole pass with scripted readings and a millisecond schedule.
 
 The `readouts:` line in `--smoke` shows what was made of it all — the side, the style, how many tools survived,
-both edges and both gaps — and it needs `open` for the same reason.
+both edges, both gaps, and what each half of the strip asks of the gap it is drawn into — and it needs `open` for
+the same reason. The last pair is the one to read when the strip looks smaller than the bar seems to warrant: a
+half is measured as the readouts it will actually draw, so the two figures are not halves of one width, and the
+half that ends the strip carries the "+2" while the other does not.
 
 ## One app at a time
 
