@@ -19,6 +19,8 @@ menu-heavy app (Chrome, Xcode) would run into them.
 - **Without it.** Auto stays centred on the notch with every readout — where it sits whenever the menu bar leaves
   room — whether the permission was never granted or is revoked later. Settings says so and offers a button to
   System Settings › Privacy & Security › Accessibility.
+- **Seeing what it read.** `--menu-bar` prints every menu bar extra and which of them Auto counts
+  ([docs/testing.md](testing.md#seeing-what-auto-measured)). It reads nothing the feature does not already read.
 
 No other part of Notchmeter uses the Accessibility API. It never asks for Screen Recording, the microphone, the
 camera, Full Disk Access, Contacts, Calendars, Location or Automation; the screen-share check is a yes/no from the
