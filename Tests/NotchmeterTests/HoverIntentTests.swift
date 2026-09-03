@@ -389,3 +389,28 @@ import Testing
         #expect(swiped.escape(at: 1) == .collapse)
     }
 }
+
+/// A click a point or two under the strip used to land nowhere — not on the readouts, not outside the panel —
+/// so the first click did nothing and the second one worked.
+@Suite struct ClicksHaveSlop {
+    private let regions = HoverRegions(compact: CGRect(x: 600, y: 950, width: 300, height: 32),
+                                       expanded: CGRect(x: 550, y: 100, width: 410, height: 850))
+
+    @Test func justUnderTheStripStillCounts() {
+        #expect(regions.isClickOnCompact(CGPoint(x: 750, y: 947)))
+        #expect(regions.isClickOnCompact(CGPoint(x: 750, y: 960)))
+        #expect(regions.isClickOnCompact(CGPoint(x: 596, y: 960)))
+    }
+
+    @Test func wellAwayDoesNot() {
+        #expect(!regions.isClickOnCompact(CGPoint(x: 750, y: 900)))
+        #expect(!regions.isClickOnCompact(CGPoint(x: 300, y: 960)))
+        #expect(!HoverRegions.none.isClickOnCompact(CGPoint(x: 750, y: 960)))
+    }
+
+    @Test func hoveringKeepsTheExactShape() {
+        // The slop is for aiming a click, not for opening on a near miss.
+        #expect(!regions.hit(CGPoint(x: 750, y: 947)).inCompact)
+        #expect(regions.hit(CGPoint(x: 750, y: 960)).inCompact)
+    }
+}

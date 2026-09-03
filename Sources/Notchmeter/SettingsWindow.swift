@@ -308,12 +308,16 @@ struct SettingsView: View {
             HStack {
                 Text(L("Show costs in"))
                 Spacer()
-                TextField(L("Currency code"), text: $currencyText)
-                    .frame(width: 60)
+                // Short placeholders: a field this narrow breaks a descriptive one mid-word ("Cur/ren-/cy/cod/e").
+                // The full wording stays as the accessibility label, where the width does not apply.
+                TextField(verbatim: "USD", text: $currencyText)
+                    .frame(width: 64)
+                    .accessibilityLabel(L("Currency code"))
                     .onSubmit { applyCurrency() }
                 Text(L("at")).foregroundStyle(.secondary)
-                TextField(L("Rate per dollar"), text: $rateText)
-                    .frame(width: 80)
+                TextField(verbatim: "1.00", text: $rateText)
+                    .frame(width: 72)
+                    .accessibilityLabel(L("Rate per dollar"))
                     .onSubmit { applyCurrency() }
                 Button(L("Apply")) { applyCurrency() }
             }

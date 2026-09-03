@@ -198,4 +198,13 @@ struct HoverRegions: Equatable {
     func isOutsidePanel(_ point: CGPoint) -> Bool {
         !expanded.contains(point)
     }
+
+    /// Aiming for the strip is aiming for a band the height of the notch, and a click a point or two under it
+    /// used to land nowhere at all: not on the readouts, not outside the panel, so nothing happened and the
+    /// second click was the one that worked. Clicks get a few points of slop; hovering keeps the exact shape.
+    static let clickSlop: CGFloat = 6
+
+    func isClickOnCompact(_ point: CGPoint) -> Bool {
+        !compact.isNull && compact.insetBy(dx: -Self.clickSlop, dy: -Self.clickSlop).contains(point)
+    }
 }
