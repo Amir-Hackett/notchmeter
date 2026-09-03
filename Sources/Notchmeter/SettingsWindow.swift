@@ -215,7 +215,12 @@ struct SettingsView: View {
 
     private var panelSection: some View {
         Section(L("Panel")) {
-            Picker(L("Appearance"), selection: Binding(get: { prefs.appearance }, set: { prefs.appearance = $0; actions.applyLayout() })) {
+            // Applied to this window at once, not only when it is next opened: the choice is made while looking at it.
+            Picker(L("Appearance"), selection: Binding(get: { prefs.appearance }, set: {
+                prefs.appearance = $0
+                hostWindow()?.appearance = $0.nsAppearance
+                actions.applyLayout()
+            })) {
                 ForEach(AppearanceChoice.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             Text(L("The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself."))
