@@ -34,6 +34,9 @@ protocol PanelPresenting: AnyObject {
     /// reads this: measuring the capped view can never exceed the cap, so it would always report a fit.
     var expandedIntrinsicContentSize: CGSize { get }
     var hover: HoverDriver { get }
+    /// The open panel's scroll view, read from the window it is drawn in. Only the layouts under the notch or the
+    /// menu bar carry a shape the first card has to stay clear of.
+    var scroll: PanelScrollReader { get }
     func show()
     func hide() async
     func showOptions()
@@ -56,6 +59,9 @@ extension PanelPresenting {
     static func collectionBehavior(showOverFullScreen: Bool) -> NSWindow.CollectionBehavior {
         showOverFullScreen ? [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary] : [.canJoinAllSpaces, .stationary]
     }
+
+    /// Where the panel is scrolled to; nil while it is closed, since the expanded content is only in the window then.
+    var scrollPosition: PanelScroll? { scroll.read() }
 }
 
 /// Reports each change of the panel's state to the oracle (Oracle.swift); the first report is the launch state.
@@ -328,6 +334,10 @@ final class NotchController: NSObject, PanelPresenting {
 
     var window: NSWindow? { notch.windowController?.window }
     var isVisible: Bool { window?.isVisible ?? false }
+    var scroll: PanelScrollReader {
+        PanelScrollReader(window: window, notch: Self.notchRect(on: screen),
+                          titleInset: NotchExpandedView.titleInset(density: prefs.density))
+    }
     var expandedContentSize: CGSize { fittingSize(expandedProbe, NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen)) }
     var expandedIntrinsicContentSize: CGSize { fittingSize(expandedProbe, NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, unclamped: true)) }
 

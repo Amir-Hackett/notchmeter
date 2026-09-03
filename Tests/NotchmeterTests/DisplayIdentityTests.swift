@@ -48,6 +48,7 @@ import Testing
             var expandedContentSize: CGSize { .zero }
             var expandedIntrinsicContentSize: CGSize { .zero }
             let hover = HoverDriver(mode: .onHover)
+            var scroll: PanelScrollReader { PanelScrollReader(window: nil, notch: nil, titleInset: 0) }
             init(screen: NSScreen) { self.screen = screen }
             func show() {}
             func hide() async {}
