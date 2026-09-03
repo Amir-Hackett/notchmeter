@@ -35,13 +35,13 @@ import Testing
         #expect(reading.windows[1].note == "$3 of $50")
     }
 
-    /// The summary can publish two answers for the same window and they can disagree. An Enterprise account read
-    /// `totalPercentUsed` 55 while `used` and `limit` were both $20 — the whole allowance gone — and the two split
-    /// windows beside it said 47 % and 100 %. Taking whichever read further along was tried and reverted: 47 + 100
-    /// is 147, so the splits are not shares of one total and this window is not their parent, and reading it as
-    /// spent hid headroom the user still had. The vendor's own headline figure wins, because it is the one
-    /// cursor.com shows and the one a user reconciles against. The dollars are still printed underneath, unaltered.
-    @Test func theVendorsHeadlinePercentWinsOverItsOwnDollars() throws {
+    /// The summary publishes two answers for the same window and on Enterprise they disagree: `totalPercentUsed`
+    /// 55 against a `used`/`limit` pair of $20 and $20, the whole allowance gone. The account's own billing export
+    /// settled it — Cursor bills a request as On-Demand only once the included allowance is spent, and that account
+    /// had 47 On-Demand events worth $116 in the very cycle the 55 % was reported for. A bar at 55 % claimed half an
+    /// allowance remained while every third-party request was already being charged for. The window is as spent as
+    /// its furthest-along figure says; the dollars stay printed underneath, so the disagreement stays visible.
+    @Test func aWindowIsAsSpentAsItsFurthestFigureSays() throws {
         let json = """
         {"billingCycleStart":"2026-08-26T13:01:00.000Z","billingCycleEnd":"2026-09-26T13:01:00.000Z",
          "membershipType":"enterprise","limitType":"user","isUnlimited":false,
@@ -50,14 +50,15 @@ import Testing
         """
         let reading = try CursorProvider.parseSummary(Data(json.utf8))
         let included = try #require(reading.windows.first { $0.id == "included" })
-        #expect(included.usedFraction == 0.55)
-        // The disagreement is left visible rather than folded into the bar or smoothed away.
+        #expect(included.usedFraction == 1)
         #expect(included.note == "$20 of $20")
-        // Reading below its own shares, this window is not their parent, so "All models" falls back to the highest.
+        // Reading as far along as the shares it would have to contain, it can now be adopted as their total.
         let combined = try #require(CombinedWindow.of(reading: reading))
         #expect(combined.usedFraction == 1)
         #expect(combined.source == .localEstimate)
-        // Without a percent the dollars still answer, and a figure past its limit is held at the top of the bar.
+        // Neither field is trusted over the other; the further-along one wins, whichever it happens to be.
+        #expect(CursorProvider.share(percent: 55, used: 1100, limit: 2000) == 0.55)
+        #expect(CursorProvider.share(percent: 25, used: 1000, limit: 2000) == 0.5)
         #expect(CursorProvider.share(percent: nil, used: 500, limit: 2000) == 0.25)
         #expect(CursorProvider.share(percent: 140, used: nil, limit: 2000) == 1)
         #expect(CursorProvider.share(percent: nil, used: nil, limit: 0) == 0)

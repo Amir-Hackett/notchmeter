@@ -332,23 +332,30 @@ actor CursorProvider: UsageProvider {
         return days
     }
 
-    /// How much of a window is spent, 0...1: `totalPercentUsed` where Cursor publishes it, else the `used`/`limit`
-    /// pair.
+    /// How much of a window is spent, 0...1: whichever of Cursor's two answers reads further along.
     ///
-    /// Cursor answers the same question twice and the two can disagree. An Enterprise summary read
-    /// `totalPercentUsed` 55 while `used` and `limit` were both $20 — the whole allowance gone — with the model
-    /// splits beside it at 47 % and 100 %. Taking whichever read further along was tried and is wrong: 47 + 100 is
-    /// 147, so those splits are not shares of one total and "Included usage" is not their parent, and the account's
-    /// own analytics export showed every request that day billed as subscription-included, which an exhausted
-    /// allowance would not do. Reading the window as spent hid headroom the user still had.
+    /// Cursor answers the same question twice for its plan and pooled windows — `totalPercentUsed`, and the
+    /// `used`/`limit` pair the note under the bar is written from — and on Enterprise they disagree. One account
+    /// read `totalPercentUsed` 55 while `used` and `limit` were both $20, the whole allowance gone.
     ///
-    /// So the vendor's own headline figure wins. It is the number cursor.com shows, which is the number a user
-    /// reconciles against, and a meter that disagrees with the dashboard is worse than one that repeats its
-    /// mistakes. Where the dollars tell a different story they are still printed underneath, unaltered, rather than
-    /// being folded into the bar: the divergence is documented in docs/accuracy.md and left visible on the card.
+    /// The account's own billing export settles which is telling the truth, and it is the dollars. Cursor bills a
+    /// request as `On-Demand` only once the included allowance is gone, and that account had 47 On-Demand events
+    /// worth $116 in the billing cycle the 55 % was reported for (and $2,306 in the cycle before it). Included was
+    /// spent. A bar reading 55 % said there was half an allowance left while every third-party request was already
+    /// costing real money, which is the one thing this window must never get wrong.
+    ///
+    /// So the window is as spent as its furthest-along figure says. Neither field can be shown to be the wrong one
+    /// from inside a single reading, but the failures are not symmetric: under-reporting a spent window hides a
+    /// meter that is actively charging, while over-reporting one only warns early.
+    ///
+    /// What `totalPercentUsed` is a percentage *of* remains unknown, and the model splits beside it do not resolve
+    /// it — `autoPercentUsed` 47 and `apiPercentUsed` 100 sum to 147, so they are not shares of one total and this
+    /// window is not their parent, whatever the caption they carry says. Both open questions are written down in
+    /// docs/accuracy.md rather than guessed at, and the dollars stay printed under the bar unaltered, so a
+    /// disagreement stays visible on the card.
     static func share(percent: Double?, used: Double?, limit: Double) -> Double {
-        let fraction = percent.map { $0 / 100 } ?? (limit > 0 ? used.map { $0 / limit } : nil) ?? 0
-        return min(max(fraction, 0), 1)
+        let candidates = [percent.map { $0 / 100 }, limit > 0 ? used.map { $0 / limit } : nil].compactMap { $0 }
+        return min(max(candidates.max() ?? 0, 0), 1)
     }
 
     private static func number(_ value: Any?) -> Double? { JSON.number(value) }
