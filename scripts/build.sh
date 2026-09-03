@@ -51,7 +51,25 @@ if [ ! -f build/AppIcon.icns ]; then
 fi
 [ -f build/AppIcon.icns ] && cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
-codesign --force --sign - "$APP"
+# Sign with the local identity when it is usable, else ad hoc. macOS ties the Accessibility and Keychain grants
+# to the signing identity, so an ad-hoc build loses both on every install; a stable identity keeps them. The
+# attempt is time-boxed because an identity whose key still asks permission would otherwise hang the build
+# forever waiting on a dialog — see scripts/signing-identity.sh.
+IDENTITY="Notchmeter Local"
+if security find-certificate -c "$IDENTITY" >/dev/null 2>&1 \
+   && perl -e 'alarm 20; exec @ARGV' codesign --force --sign "$IDENTITY" --options runtime --timestamp=none "$APP" >/dev/null 2>&1; then
+    echo "signed with $IDENTITY"
+else
+    # A timed-out codesign leaves a .cstemp behind, and the next signature refuses to write over it.
+    find "$APP" -name '*.cstemp' -delete 2>/dev/null || true
+    codesign --force --sign - "$APP"
+    if security find-certificate -c "$IDENTITY" >/dev/null 2>&1; then
+        echo "signed ad hoc: $IDENTITY exists but its key still asks permission."
+        echo "  Run once, then rebuild:  scripts/signing-identity.sh --authorise"
+    else
+        echo "signed ad hoc (no $IDENTITY identity; see scripts/signing-identity.sh)"
+    fi
+fi
 echo "built $APP"
 
 case "${1:-}" in
