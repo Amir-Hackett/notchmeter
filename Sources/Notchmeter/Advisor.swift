@@ -182,7 +182,7 @@ enum Advisor {
                               text: L("%@ hit its rate limit; wait for the reset.", reading.tool.productName))
             }
             return Advice(id: "limit/\(reading.tool.rawValue)/\(window.id)", tool: reading.tool, priority: .warn, symbol: "clock.arrow.circlepath",
-                          text: L("%1$@ hit its limit; %2$@ resets in %3$@.", reading.tool.productName, name(window), ResetText.duration(resetsAt.timeIntervalSince(context.now))))
+                          text: L("%1$@ hit its limit; %2$@ resets in %3$@.", reading.tool.productName, name(window, of: reading.tool), ResetText.duration(resetsAt.timeIntervalSince(context.now))))
         }
     }
 
@@ -275,7 +275,7 @@ enum Advisor {
             }
             guard let window = soon.min(by: { ($0.resetsAt ?? .distantFuture) < ($1.resetsAt ?? .distantFuture) }), let resetsAt = window.resetsAt else { return nil }
             return Advice(id: "wait/\(reading.tool.rawValue)/\(window.id)", tool: reading.tool, priority: .warn, symbol: "clock.arrow.circlepath",
-                          text: L("%1$@ %2$@ resets in %3$@; wait rather than switch.", reading.tool.displayName, name(window),
+                          text: L("%1$@ %2$@ resets in %3$@; wait rather than switch.", reading.tool.displayName, name(window, of: reading.tool),
                                   ResetText.duration(resetsAt.timeIntervalSince(context.now))),
                           url: context.serverTrouble[reading.tool] != nil ? ProviderLinks.status(reading.tool) : nil)
         }
@@ -367,17 +367,17 @@ enum Advisor {
             if let text = runOutText(tool: alert.tool, window: window, context: context) { return text }
             let reset = ResetText.line(resetsAt: window.resetsAt, hasLimit: true, display: .exact, timeFormat: context.timeFormat,
                                        now: context.now, calendar: context.calendar)
-            return L("%1$@ %2$@ has run out. %3$@.%4$@", alert.tool.displayName, name(window), reset, suffix)
+            return L("%1$@ %2$@ has run out. %3$@.%4$@", alert.tool.displayName, name(window, of: alert.tool), reset, suffix)
         case .onTrack:
             let projected = window.usedFraction.flatMap { used in
                 window.resetsAt.flatMap { resetsAt in
                     window.periodDuration.flatMap { Pace.evaluate(usedFraction: used, resetsAt: resetsAt, period: $0, now: context.now)?.projectedFraction }
                 }
             } ?? 1
-            return L("%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@", alert.tool.displayName, name(window), percent(max(0, 1 - projected)), suffix)
+            return L("%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@", alert.tool.displayName, name(window, of: alert.tool), percent(max(0, 1 - projected)), suffix)
         case .reminder:
             let remaining = window.resetsAt.map { ResetText.duration($0.timeIntervalSince(context.now)) } ?? ""
-            return L("%1$@ %2$@ resets in %3$@.", alert.tool.displayName, name(window), remaining)
+            return L("%1$@ %2$@ resets in %3$@.", alert.tool.displayName, name(window, of: alert.tool), remaining)
         case .reset:
             let next = window.resetsAt.flatMap { resetsAt in
                 window.periodDuration.map { period in
@@ -385,8 +385,8 @@ enum Advisor {
                                    now: context.now, calendar: context.calendar)
                 }
             }
-            if let next { return L("%1$@ %2$@ reset — 100%% until it %3$@.", alert.tool.displayName, name(window), next.prefix(1).lowercased() + next.dropFirst()) }
-            return L("%1$@ %2$@ reset — 100%% available.", alert.tool.displayName, name(window))
+            if let next { return L("%1$@ %2$@ reset — 100%% until it %3$@.", alert.tool.displayName, name(window, of: alert.tool), next.prefix(1).lowercased() + next.dropFirst()) }
+            return L("%1$@ %2$@ reset — 100%% available.", alert.tool.displayName, name(window, of: alert.tool))
         }
     }
 
@@ -402,13 +402,13 @@ enum Advisor {
             let from = ResetText.time(context.now.addingTimeInterval(interval.earliest), format: context.timeFormat, calendar: context.calendar)
             let to = ResetText.time(context.now.addingTimeInterval(interval.latest), format: context.timeFormat, calendar: context.calendar)
             let day = ResetText.dayPhrase(context.now.addingTimeInterval(interval.earliest), now: context.now, calendar: context.calendar)
-            return L("At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@", tool.displayName, name(window), day, from, to, suffix)
+            return L("At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@", tool.displayName, name(window, of: tool), day, from, to, suffix)
         }
         let when = L("%1$@ at %2$@", ResetText.dayPhrase(runsOutAt, now: context.now, calendar: context.calendar),
                      ResetText.time(runsOutAt, format: context.timeFormat, calendar: context.calendar))
         let margin = ResetText.duration(resetsAt.timeIntervalSince(runsOutAt))
         return L("At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@",
-                 tool.displayName, name(window), when, margin, suffix)
+                 tool.displayName, name(window, of: tool), when, margin, suffix)
     }
 
     /// The window a routing decision spends: the longest tool-wide window with a limit (weekly for Claude and
@@ -431,7 +431,7 @@ enum Advisor {
 
     static func headroomSuffix(besides tool: ToolID, in context: Context) -> String {
         guard let other = headroom(besides: tool, in: context), let used = other.window.usedFraction else { return "" }
-        return L(" %1$@ %2$@ is at %3$ld%%.", other.tool.displayName, name(other.window), percent(used))
+        return L(" %1$@ %2$@ is at %3$ld%%.", other.tool.displayName, name(other.window, of: other.tool), percent(used))
     }
 
     /// "weekly", "session", "included usage"; a per-model window carries its cadence: "Fable weekly", "Gemini Pro
@@ -439,6 +439,17 @@ enum Advisor {
     static func name(_ window: LimitWindow) -> String {
         guard let model = window.model else { return window.name.inSentence }
         return "\(model) \(cadence(window.periodDuration))"
+    }
+
+    /// The window's name for a sentence that already names the tool. A per-model window is named after the label
+    /// the vendor gave the model, and some vendors put their own name inside it — Cursor splits its plan into
+    /// "Cursor models" and "Other models" — so the sentence would say it twice: "the Cursor Cursor models 31-day
+    /// window cap". The tool's name is dropped from the front of the window's when it is already there.
+    static func name(_ window: LimitWindow, of tool: ToolID) -> String {
+        let full = name(window)
+        let prefix = tool.displayName + " "
+        guard full.hasPrefix(prefix), full.count > prefix.count else { return full }
+        return String(full.dropFirst(prefix.count))
     }
 
     static func cadence(_ period: TimeInterval?) -> String {

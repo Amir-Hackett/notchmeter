@@ -106,6 +106,7 @@
 "A pill down the right-hand edge, clear of a Dock on that side." = "Một viên thuốc dọc cạnh phải, tránh Dock ở phía đó.";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "Một lần đọc thứ hai từ chatgpt.com với cùng đăng nhập, hiện tín dụng có thể đặt lại một cửa sổ và thời điểm hết hạn. Việc nhận vẫn diễn ra trong Codex.";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "Đọc cursor.com thêm một lần với cùng cookie phiên: 30 ngày sự kiện dùng gần nhất, tính giá theo chi phí xuất ra, gộp vào tệp tổng ngày dưới dạng chuỗi Cursor (Hôm nay, 30 ngày và xu hướng).";
+"Metered apart from the included total" = "Được đo riêng với tổng đã bao gồm";
 "a session" = "một phiên";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "Giữ khẳng định chống ngủ chỉ khi phiên do hook báo đang giữa lượt, thả ra khi Stop, nên phiên khởi động từ điện thoại hay qua SSH vẫn chạy khi gập máy có cắm điện. Chân trang hiện \"Giữ máy thức · 2 phiên\" khi đang giữ.";
 "about " = "khoảng ";
@@ -478,7 +479,6 @@
 "Set the Notchmeter status line in settings.json?" = "Đặt dòng trạng thái Notchmeter trong settings.json?";
 "Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar." = "Đặt mục này làm statusLine trong %1$@, hoặc dùng Cài dòng trạng thái… để được ghi tự động. Claude Code chạy %2$@ --statusline sau mỗi lượt; nó chuyển mức đầy ngữ cảnh, giới hạn tốc độ và chi phí phiên đến ứng dụng, và in một dòng cho thanh riêng của Claude Code.";
 "Settings…" = "Cài đặt…";
-"Share of the plan's included usage" = "Phần trong hạn mức dùng của gói";
 "Show" = "Hiện";
 "Show %@" = "Hiển thị %@";
 "Show costs in" = "Hiện chi phí bằng";

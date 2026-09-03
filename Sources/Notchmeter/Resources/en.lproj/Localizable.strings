@@ -122,6 +122,7 @@
 "A pill down the right-hand edge, clear of a Dock on that side." = "A pill down the right-hand edge, clear of a Dock on that side.";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex.";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend).";
+"Metered apart from the included total" = "Metered apart from the included total";
 "a session" = "a session";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held.";
 "about " = "about ";
@@ -494,7 +495,6 @@
 "Set the Notchmeter status line in settings.json?" = "Set the Notchmeter status line in settings.json?";
 "Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar." = "Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar.";
 "Settings…" = "Settings…";
-"Share of the plan's included usage" = "Share of the plan's included usage";
 "Show" = "Show";
 "Show %@" = "Show %@";
 "Show costs in" = "Show costs in";

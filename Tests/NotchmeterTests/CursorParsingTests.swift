@@ -52,7 +52,16 @@ import Testing
         let included = try #require(reading.windows.first { $0.id == "included" })
         #expect(included.usedFraction == 1)
         #expect(included.note == "$20 of $20")
-        // Reading as far along as the shares it would have to contain, it can now be adopted as their total.
+        // The two model figures are 47 % and 100 % of one cycle, so they are not two shares of one allowance and
+        // the caption must not call them that. What they are shares of, Cursor does not say and nor does this.
+        let auto = try #require(reading.windows.first { $0.id == "cursor_models" })
+        let api = try #require(reading.windows.first { $0.id == "other_models" })
+        #expect(auto.usedFraction == 0.47)
+        #expect(api.usedFraction == 1)
+        #expect((auto.usedFraction ?? 0) + (api.usedFraction ?? 0) > 1)
+        #expect(auto.note == "Metered apart from the included total")
+        #expect(api.note == auto.note)
+        // Reading as far along as the model windows it covers, it can now be adopted as their total.
         let combined = try #require(CombinedWindow.of(reading: reading))
         #expect(combined.usedFraction == 1)
         #expect(combined.source == .localEstimate)
