@@ -310,6 +310,13 @@ final class Preferences {
             report("toolOrder", toolOrder.map(\.rawValue), changed: toolOrder != oldValue, event: "order")
         }
     }
+    /// Which assistants have their options open in Settings; empty, so every one starts collapsed.
+    var settingsExpandedTools: Set<ToolID> {
+        didSet {
+            defaults.set(settingsExpandedTools.map(\.rawValue).sorted(), forKey: Keys.settingsExpanded)
+            report(Keys.settingsExpanded, settingsExpandedTools.map(\.rawValue).sorted(), changed: settingsExpandedTools != oldValue)
+        }
+    }
     var visibility: NotchVisibility {
         didSet { defaults.set(visibility.rawValue, forKey: Keys.visibility); report(Keys.visibility, visibility.rawValue, changed: visibility != oldValue) }
     }
@@ -632,6 +639,7 @@ final class Preferences {
     private enum Keys {
         static let enabledTools = "enabledTools"
         static let toolOrder = "toolOrder"
+        static let settingsExpanded = "settingsExpandedTools"
         static let visibility = "notchVisibility"
         static let hoverDelay = "hoverDelay"
         static let edge = "panelEdge"
@@ -713,6 +721,7 @@ final class Preferences {
             enabledTools = Set(ToolID.allCases)
         }
         toolOrder = ToolOrder.normalize(defaults.array(forKey: Keys.toolOrder) as? [String])
+        settingsExpandedTools = Set((defaults.array(forKey: Keys.settingsExpanded) as? [String] ?? []).compactMap(ToolID.init(rawValue:)))
         visibility = NotchVisibility(rawValue: defaults.string(forKey: Keys.visibility) ?? "") ?? .onHover
         hoverDelay = defaults.object(forKey: Keys.hoverDelay) as? Double ?? HoverIntent.expandDwell
         edge = PanelEdge(rawValue: defaults.string(forKey: Keys.edge) ?? "") ?? .top

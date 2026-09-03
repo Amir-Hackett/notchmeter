@@ -152,7 +152,6 @@
 "As of %@" = "As of %@";
 "Ask for Keychain access" = "Ask for Keychain access";
 "Assistants" = "Assistants";
-"at" = "at";
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "At this rate the %1$@ costs %2$@ against a %3$@ budget.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@";
@@ -471,7 +470,6 @@
 "Right of the notch" = "Right of the notch";
 "Rings" = "Rings";
 "Rings + numbers" = "Rings + numbers";
-"Rings show" = "Rings show";
 "Route requests through" = "Route requests through";
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash.";
 "Runs out %1$@–%2$@" = "Runs out %1$@–%2$@";

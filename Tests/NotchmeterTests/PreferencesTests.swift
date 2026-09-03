@@ -118,6 +118,7 @@ import Testing
         withSuite("policy") { defaults in
             let prefs = Preferences(defaults: defaults)
             #expect(prefs.keychainPrompts == .refreshOnly)
+            #expect(prefs.settingsExpandedTools.isEmpty, "assistants start collapsed")
             prefs.keychainPrompts = .never
             prefs.monthlyBudgetUSD = 200
             prefs.weeklyBudgetUSD = 0
@@ -126,6 +127,7 @@ import Testing
             prefs.menuBarStyle = .bars
             prefs.menuBarPinnedTools = [.codex]
             prefs.peakHoursTools = [.claude, .codex]
+            prefs.settingsExpandedTools = [.cursor]
             prefs.peakHours.startMinute = 6 * 60
             prefs.costCardMode = .perMillionTokens
             prefs.soundWaiting = "system:Glass"
@@ -138,6 +140,7 @@ import Testing
             #expect(reloaded.menuBarStyle == .bars)
             #expect(reloaded.menuBarPinnedTools == [.codex])
             #expect(reloaded.peakHoursTools == [.claude, .codex])
+            #expect(reloaded.settingsExpandedTools == [.cursor])
             #expect(reloaded.peakHours.startMinute == 6 * 60)
             #expect(reloaded.peakHours(for: .cursor) == nil)
             #expect(reloaded.peakHours(for: .claude)?.startMinute == 6 * 60)
