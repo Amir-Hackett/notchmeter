@@ -144,6 +144,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "이 속도면 이번 %1$@ 비용은 %2$@이며 예산은 %3$@입니다.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "이 속도면 %3$@ %4$@과 %5$@ 사이에 %1$@ %2$@ 한도에 도달합니다.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "이 속도라면 %3$@에 %1$@ %2$@ 한도에 도달하며, 초기화까지 %4$@ 남습니다.%5$@";
+"another user is logged in" = "다른 사용자가 로그인 중";
 "auto" = "자동";
 "Auto" = "자동";
 "Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "자동은 맨 앞 앱의 메뉴 제목이 어디까지 뻗는지 측정합니다. 왼쪽 표시에 닿지 않으면 양쪽에, 닿을 것 같으면 노치 오른쪽에 모읍니다. 앱이 앞으로 나올 때 측정하고 앱마다 기억합니다.";
@@ -405,7 +406,6 @@
 "Paste" = "붙여넣기";
 "Paste this into the MCP configuration of Cursor, Codex or Claude Desktop. The server speaks JSON-RPC over stdio and offers one tool, get_limits, which answers with the same object as --probe --json, from the running app's cache when it has one." = "이것을 Cursor, Codex, Claude Desktop의 MCP 설정에 붙여 넣으세요. 서버는 stdio 위 JSON-RPC로 get_limits 도구 하나를 제공하며 --probe --json과 같은 객체를, 실행 중인 앱에 캐시가 있으면 그것으로 답합니다.";
 "Paused until wake" = "깨어날 때까지 일시 정지";
-"Paused while another user is logged in" = "다른 사용자가 로그인한 동안 일시 중지";
 "Paused while the display sleeps" = "디스플레이 잠자기 중 일시 정지";
 "Paused while the screen is locked" = "화면 잠금 중 일시 정지";
 "peak %1$@ on %2$@" = "최고 %1$@(%2$@)";

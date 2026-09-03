@@ -67,19 +67,48 @@ import Testing
 }
 
 
-/// A switched-out user session pauses like sleep; an exhausted main window backs the tool off to the ceiling.
+/// A switched-out user session slows to the ceiling rather than stopping; an exhausted main window does the same.
 @Suite struct PollingRoundTwo {
     init() { Localization.use(language: "en") }
 
     let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
 
-    @Test func anotherUsersSessionPausesEverything() {
+    /// The reading has to survive the switch. The other user's session goes on spending the same account's
+    /// limits, so stopping here would lose the drain rows and the run-out warning for the whole time away.
+    @Test func anotherUsersSessionSlowsToTheCeilingRatherThanStopping() {
         var inputs = PollingInputs(baseInterval: 300, minutesSinceLastAgentActivity: 1)
         inputs.sessionInactive = true
-        #expect(PollingPolicy.decide(inputs) == .paused(.sessionInactive))
-        #expect(PauseReason.sessionInactive.footerText == "Paused while another user is logged in")
+        #expect(PollingPolicy.decide(inputs) == .after(PollingPolicy.ceiling))
+        inputs.sessionInactive = false
+        #expect(PollingPolicy.decide(inputs) == .after(300))
+    }
+
+    /// Being switched out never makes a tool read faster than its provider allows.
+    @Test func aSlowProviderStaysSlowerThanTheCeiling() {
+        var inputs = PollingInputs(baseInterval: 3600, minutesSinceLastAgentActivity: 1)
+        inputs.sessionInactive = true
+        #expect(PollingPolicy.decide(inputs) == .after(3600))
+    }
+
+    /// A sleeping or locked Mac still stops outright: there the work has stopped too.
+    @Test func sleepStillWinsOverASwitchedOutSession() {
+        var inputs = PollingInputs(baseInterval: 300, minutesSinceLastAgentActivity: 1)
+        inputs.sessionInactive = true
         inputs.asleep = true
         #expect(PollingPolicy.decide(inputs) == .paused(.asleep))
+        inputs.asleep = false
+        inputs.screenLocked = true
+        #expect(PollingPolicy.decide(inputs) == .paused(.screenLocked))
+    }
+
+    /// Launched behind another user's session, the app is told by nobody: no switch notification ever fires for
+    /// the session it started in, so the flag is seeded from the window server instead.
+    @Test func aSessionBehindAnotherIsRecognisedAtLaunch() {
+        #expect(LoginSession.isOnConsole(["kCGSSessionOnConsoleKey": true]))
+        #expect(!LoginSession.isOnConsole(["kCGSSessionOnConsoleKey": false]))
+        #expect(!LoginSession.isOnConsole(["kCGSSessionOnConsoleKey": NSNumber(value: false)]))
+        #expect(LoginSession.isOnConsole([:]))
+        #expect(LoginSession.isOnConsole(nil))
     }
 
     @Test func anExhaustedWindowIdlesUntilItsResetAndTheFooterSaysWhen() {

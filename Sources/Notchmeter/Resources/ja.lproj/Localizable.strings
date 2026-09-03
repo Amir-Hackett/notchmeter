@@ -145,6 +145,7 @@
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "このペースでは %1$@ の%2$@上限に%3$@ %4$@〜%5$@ に達します。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "このペースでは %1$@ の%2$@上限に %3$@ に達し、リセットまで %4$@ 残ります。%5$@";
 "Auto" = "自動";
+"another user is logged in" = "別のユーザーがログイン中";
 "auto" = "自動";
 "Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "自動は最前面のアプリのメニュー項目がどこまで伸びているかを測ります。左側の表示に届かないうちは両側に、ぶつかるときはノッチの右側にまとめます。アプリが前面に出たときに測り、アプリごとに覚えます。";
 "backup at %@" = "バックアップ: %@";
@@ -405,7 +406,6 @@
 "Paste" = "ペースト";
 "Paste this into the MCP configuration of Cursor, Codex or Claude Desktop. The server speaks JSON-RPC over stdio and offers one tool, get_limits, which answers with the same object as --probe --json, from the running app's cache when it has one." = "これを Cursor、Codex、Claude Desktop の MCP 設定に貼り付けます。サーバーは stdio 上の JSON-RPC で get_limits という 1 つのツールを提供し、--probe --json と同じオブジェクトを、実行中のアプリにキャッシュがあればそこから返します。";
 "Paused until wake" = "スリープ解除まで一時停止";
-"Paused while another user is logged in" = "別のユーザーがログイン中のため一時停止";
 "Paused while the display sleeps" = "ディスプレイのスリープ中は一時停止";
 "Paused while the screen is locked" = "画面ロック中は一時停止";
 "peak %1$@ on %2$@" = "ピーク %1$@（%2$@）";

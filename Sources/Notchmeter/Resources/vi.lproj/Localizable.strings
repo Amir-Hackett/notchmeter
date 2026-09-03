@@ -145,6 +145,7 @@
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "Với tốc độ này bạn chạm trần %2$@ của %1$@ vào %3$@ trong khoảng %4$@ đến %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "Với tốc độ này bạn sẽ chạm trần %2$@ của %1$@ vào %3$@, còn %4$@ trước khi đặt lại.%5$@";
 "Auto" = "Tự động";
+"another user is logged in" = "người dùng khác đang đăng nhập";
 "auto" = "tự động";
 "Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "Tự động đo các tiêu đề menu của ứng dụng đang ở trước vươn tới đâu: dùng cả hai bên khi chúng kết thúc trước các chỉ số bên trái, dồn sang phải tai thỏ khi chúng sẽ chạm vào. Nó đo khi một ứng dụng lên trước và nhớ từng ứng dụng.";
 "backup at %@" = "sao lưu tại %@";
@@ -405,7 +406,6 @@
 "Paste" = "Dán";
 "Paste this into the MCP configuration of Cursor, Codex or Claude Desktop. The server speaks JSON-RPC over stdio and offers one tool, get_limits, which answers with the same object as --probe --json, from the running app's cache when it has one." = "Dán vào cấu hình MCP của Cursor, Codex hoặc Claude Desktop. Máy chủ nói JSON-RPC qua stdio và có một công cụ, get_limits, trả về cùng đối tượng như --probe --json, từ cache của ứng dụng đang chạy khi có.";
 "Paused until wake" = "Tạm dừng đến khi thức";
-"Paused while another user is logged in" = "Tạm dừng khi người dùng khác đang đăng nhập";
 "Paused while the display sleeps" = "Tạm dừng khi màn hình ngủ";
 "Paused while the screen is locked" = "Tạm dừng khi màn hình bị khóa";
 "peak %1$@ on %2$@" = "đỉnh %1$@ vào %2$@";
