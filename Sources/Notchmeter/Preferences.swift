@@ -112,9 +112,13 @@ enum Density: String, CaseIterable, Codable {
     }
 
     var cardPadding: CGFloat { self == .compact ? 9 : 12 }
-    var meterSpacing: CGFloat { self == .compact ? 8 : 12 }
-    var costRing: CGFloat { self == .compact ? 72 : 92 }
+    /// The panel's vertical rhythm, from the widest gap to the narrowest: between one card and the next, between
+    /// the rows inside a card, and between the lines inside a row. Three gaps and no others, so a row and a whole
+    /// card are never separated by the same distance.
     var cardSpacing: CGFloat { self == .compact ? 7 : 10 }
+    var rowSpacing: CGFloat { self == .compact ? 8 : 12 }
+    var lineSpacing: CGFloat { self == .compact ? 4 : 5 }
+    var costRing: CGFloat { self == .compact ? 72 : 92 }
 }
 
 enum PanelWidth: String, CaseIterable, Codable {
