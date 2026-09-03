@@ -273,12 +273,25 @@ enum Money {
         return format(value, cents: cents, rate: currency.rate, symbol: currency.symbol)
     }
 
-    /// The amount in the chosen currency: two decimals under a thousand, whole units from there.
+    /// The amount in the chosen currency: two decimals under a thousand, whole units from there, and grouped
+    /// past a thousand so a four-figure total reads as one number rather than a run of digits.
     static func format(_ value: Double, cents: Bool = true, rate: Double, symbol: String) -> String {
         let amount = value * rate
-        if !cents || amount >= 1000 { return "\(symbol)\(Int(amount.rounded()))" }
+        if !cents || amount >= 1000 { return symbol + grouped(Int(amount.rounded())) }
         return symbol + String(format: "%.2f", amount)
     }
+
+    /// Thousands separated in the reader's own locale, so it is "7,845" here and "7 845" or "7.845" elsewhere.
+    static func grouped(_ value: Int) -> String {
+        groupingFormatter.string(from: NSNumber(value: value)) ?? String(value)
+    }
+
+    private static let groupingFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        return formatter
+    }()
 
     /// "4.2M tokens", "310K tokens", "812 tokens".
     static func tokens(_ count: Int) -> String {

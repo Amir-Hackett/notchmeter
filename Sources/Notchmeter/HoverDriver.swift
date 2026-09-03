@@ -150,7 +150,7 @@ final class HoverDriver {
     }
 
     func clicked(at point: CGPoint) {
-        if regions.compact.contains(point) {
+        if regions.isClickOnCompact(point) {
             act(intent.clickInside(at: now), cause: .click)
             return
         }

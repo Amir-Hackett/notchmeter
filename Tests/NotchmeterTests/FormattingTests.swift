@@ -68,3 +68,22 @@ import Testing
         #expect(prefs.resetLine(for: used, now: now) == "")
     }
 }
+
+/// A four-figure total read as one long run of digits; the reader's own locale groups it.
+@Suite struct MoneyGrouping {
+    @Test func groupsPastAThousand() {
+        #expect(Money.format(7845, rate: 1, symbol: "$") == "$" + Money.grouped(7845))
+        #expect(Money.grouped(7845).contains("7") && Money.grouped(7845).count >= 5)
+        #expect(Money.format(7845.4, rate: 1, symbol: "$") == "$" + Money.grouped(7845))
+    }
+
+    @Test func keepsCentsBelowAThousand() {
+        #expect(Money.format(44.49, rate: 1, symbol: "$") == "$44.49")
+        #expect(Money.format(999.99, rate: 1, symbol: "$") == "$999.99")
+    }
+
+    @Test func wholeUnitsWhenCentsAreOff() {
+        #expect(Money.format(20, cents: false, rate: 1, symbol: "$") == "$20")
+        #expect(Money.format(12345, cents: false, rate: 1, symbol: "$") == "$" + Money.grouped(12345))
+    }
+}

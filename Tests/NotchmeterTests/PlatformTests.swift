@@ -95,7 +95,8 @@ import Testing
         Localization.use(language: "en")
         #expect(Money.format(8.4, rate: 1, symbol: "$") == "$8.40")
         #expect(Money.format(10, rate: 0.9, symbol: "€") == "€9.00")
-        #expect(Money.format(2000, rate: 0.9, symbol: "€") == "€1800")
+        // Grouped past a thousand, in the reader's own locale.
+        #expect(Money.format(2000, rate: 0.9, symbol: "€") == "€" + Money.grouped(1800))
         #expect(Money.format(1.5, cents: false, rate: 1, symbol: "$") == "$2")
         #expect(Money.symbol(for: "USD") == "$")
         #expect(!Money.symbol(for: "EUR").isEmpty)
