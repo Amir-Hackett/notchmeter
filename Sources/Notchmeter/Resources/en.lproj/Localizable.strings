@@ -18,6 +18,8 @@
 /* Sessions, status line, notifications, privacy, displays, shortcuts, cost breakdown, Copilot, gallery captions (round 1 gap fixes) */
 
 /* Round-2 gap fixes: sessions, budget, peak hours, provenance, the command line tool, MCP, Keychain policy, displays, diagnostics */
+
+/* The tools the strip could not fit, after the last readout (NotchViews) */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ %2$@ is at %3$ld%%.";
 " %1$@ is %2$@ of it." = " %1$@ is %2$@ of it.";
 " percent" = " percent";
@@ -83,6 +85,7 @@
 "%ld days" = "%ld days";
 "%ld extra this month" = "%ld extra this month";
 "%ld min" = "%ld min";
+"%ld more" = "%ld more";
 "%ld sessions" = "%ld sessions";
 "%ld tokens" = "%ld tokens";
 "%ld usage events in the last 30 days, none of them billed" = "%ld usage events in the last 30 days, none of them billed";
@@ -99,6 +102,7 @@
 "%ldm" = "%ldm";
 "%ldm ago" = "%ldm ago";
 "%lds" = "%lds";
+"+%ld" = "+%ld";
 ", behind pace" = ", behind pace";
 ", close to pace" = ", close to pace";
 "0.02% of one core when idle. Nothing while the screen is locked." = "0.02% of one core when idle. Nothing while the screen is locked.";
@@ -206,6 +210,8 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "Codex's auth.json could not be read. Run `codex login` to sign in again";
 "Codex's login has expired. Run Codex once so it signs back in" = "Codex's login has expired. Run Codex once so it signs back in";
 "Codex's login was refused. Run Codex once so it signs back in" = "Codex's login was refused. Run Codex once so it signs back in";
+"Coloured because a window is behind its pace." = "Coloured because a window is behind its pace.";
+"Coloured because a window is close to its pace." = "Coloured because a window is close to its pace.";
 "Combined from the windows below" = "Combined from the windows below";
 "Comfortable" = "Comfortable";
 "Compact" = "Compact";
@@ -553,6 +559,7 @@
 "Top: %@" = "Top: %@";
 "transcripts" = "transcripts";
 "Turn finished" = "Turn finished";
+"Turn on Pin figures beside the icon to use this." = "Turn on Pin figures beside the icon to use this.";
 "Undo" = "Undo";
 "Unlimited on the %@ plan" = "Unlimited on the %@ plan";
 "Unpriced: %@" = "Unpriced: %@";
@@ -599,7 +606,3 @@
 "~%ld%% left at reset" = "~%ld%% left at reset";
 "~%ld%% over at reset" = "~%ld%% over at reset";
 "“%@” is off in Settings" = "“%@” is off in Settings";
-
-/* The tools the strip could not fit, after the last readout (NotchViews) */
-"+%ld" = "+%ld";
-"%ld more" = "%ld more";

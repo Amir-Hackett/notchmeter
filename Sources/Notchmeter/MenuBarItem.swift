@@ -76,6 +76,7 @@ final class MenuBarItem {
             button.image = MenuBarBars.image(windows: Array(readings.flatMap(\.windows).prefix(4)))
         }
         button.setAccessibilityValue(Self.label(readings: readings, countdown: prefs.showResetCountdown))
+        button.toolTip = Self.tooltip(readings: readings, prefs: prefs)
     }
 
     private func observe() {
@@ -88,6 +89,31 @@ final class MenuBarItem {
                 self?.observe()
             }
         }
+    }
+}
+
+extension MenuBarItem {
+    /// What hovering the icon says: every shown window in the reader's own settings — used or left, countdown or
+    /// exact time — and, when a bar has taken colour, the reason it did, since the tint carries meaning the icon
+    /// alone cannot explain.
+    static func tooltip(readings: [(windows: [LimitWindow], display: UsageDisplay)], prefs: Preferences,
+                        now: Date = Date()) -> String {
+        var lines: [String] = []
+        let windows = readings.flatMap(\.windows)
+        for window in windows {
+            let figure = prefs.usageLine(for: window) ?? "—"
+            let reset = prefs.resetLine(for: window, now: now)
+            lines.append(reset.isEmpty ? "\(window.label): \(figure)" : "\(window.label): \(figure) · \(reset)")
+        }
+        switch windows.map({ Pace.status(for: $0, now: now) }) {
+        case let paces where paces.contains(.behind):
+            lines.append(L("Coloured because a window is behind its pace."))
+        case let paces where paces.contains(.onTrack):
+            lines.append(L("Coloured because a window is close to its pace."))
+        default:
+            break
+        }
+        return lines.isEmpty ? AppInfo.name : lines.joined(separator: "\n")
     }
 }
 

@@ -18,6 +18,8 @@
 /* 会话、状态行、通知、隐私、显示器、快捷键、花费明细、Copilot、画廊说明（第一轮补遗） */
 
 /* 第二轮补全：会话、预算、高峰时段、来源标签、命令行工具、MCP、钥匙串策略、显示器、诊断 */
+
+/* 条形图放不下的工具，显示在最后一个读数之后（NotchViews） */
 " %1$@ %2$@ is at %3$ld%%." = "%1$@ 的%2$@额度已用 %3$ld%%。";
 " %1$@ is %2$@ of it." = " 其中 %1$@ 占 %2$@。";
 " percent" = "%";
@@ -83,6 +85,7 @@
 "%ld days" = "%ld 天";
 "%ld extra this month" = "本月额外 %ld 次";
 "%ld min" = "%ld 分钟";
+"%ld more" = "还有 %ld 个";
 "%ld sessions" = "%ld 个会话";
 "%ld tokens" = "%ld 个令牌";
 "%ld usage events in the last 30 days, none of them billed" = "最近 30 天有 %ld 条用量记录，均未计费";
@@ -99,6 +102,7 @@
 "%ldm" = "%ld 分钟";
 "%ldm ago" = "%ld 分钟前";
 "%lds" = "%ld 秒";
+"+%ld" = "+%ld";
 ", behind pace" = "，落后于进度";
 ", close to pace" = "，接近进度";
 "0.02% of one core when idle. Nothing while the screen is locked." = "空闲时仅占一个核心的 0.02%。锁屏时完全静默。";
@@ -206,6 +210,8 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "无法读取 Codex 的 auth.json。请运行 `codex login` 重新登录";
 "Codex's login has expired. Run Codex once so it signs back in" = "Codex 的登录已过期。请运行一次 Codex 以重新登录";
 "Codex's login was refused. Run Codex once so it signs back in" = "Codex 的登录被拒绝。请运行一次 Codex 以重新登录";
+"Coloured because a window is behind its pace." = "显示颜色是因为有窗口已落后于用量节奏。";
+"Coloured because a window is close to its pace." = "显示颜色是因为有窗口已接近用量节奏。";
 "Combined from the windows below" = "由下方各窗口合并得出";
 "Comfortable" = "宽松";
 "Compact" = "紧凑";
@@ -553,6 +559,7 @@
 "Top: %@" = "最高：%@";
 "transcripts" = "转录文件";
 "Turn finished" = "一轮结束";
+"Turn on Pin figures beside the icon to use this." = "开启“在图标旁固定数值”后即可使用。";
 "Undo" = "撤销";
 "Unlimited on the %@ plan" = "%@ 套餐不限量";
 "Unpriced: %@" = "未计价：%@";
@@ -599,7 +606,3 @@
 "~%ld%% left at reset" = "重置时约剩余 %ld%%";
 "~%ld%% over at reset" = "重置时约超出 %ld%%";
 "“%@” is off in Settings" = "设置中的「%@」已关闭";
-
-/* 条形图放不下的工具，显示在最后一个读数之后（NotchViews） */
-"+%ld" = "+%ld";
-"%ld more" = "还有 %ld 个";

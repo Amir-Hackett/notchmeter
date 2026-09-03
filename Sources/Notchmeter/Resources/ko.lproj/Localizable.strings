@@ -2,6 +2,8 @@
 
 
 /* 2차 보완: 세션, 예산, 혼잡 시간, 출처 태그, 명령줄 도구, MCP, 키체인 정책, 디스플레이, 진단 */
+
+/* 표시하지 못한 도구, 마지막 판독 뒤에（NotchViews） */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ %2$@은(는) %3$ld%%입니다.";
 " %1$@ is %2$@ of it." = " 그중 %1$@이(가) %2$@.";
 " percent" = " 퍼센트";
@@ -67,6 +69,7 @@
 "%ld days" = "%ld일";
 "%ld extra this month" = "이번 달 추가 %ld회";
 "%ld min" = "%ld분";
+"%ld more" = "%ld개 더";
 "%ld sessions" = "세션 %ld개";
 "%ld tokens" = "%ld 토큰";
 "%ld usage events in the last 30 days, none of them billed" = "최근 30일 동안 사용 이벤트 %ld건, 모두 청구되지 않았습니다";
@@ -83,6 +86,7 @@
 "%ldm" = "%ld분";
 "%ldm ago" = "%ld분 전";
 "%lds" = "%ld초";
+"+%ld" = "+%ld";
 ", behind pace" = ", 페이스보다 느림";
 ", close to pace" = ", 페이스에 근접";
 "0.02% of one core when idle. Nothing while the screen is locked." = "유휴 시 코어 하나의 0.02%. 화면 잠금 중에는 아무것도 하지 않습니다.";
@@ -190,6 +194,8 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "Codex의 auth.json을 읽을 수 없습니다. `codex login`으로 다시 로그인하세요";
 "Codex's login has expired. Run Codex once so it signs back in" = "Codex 로그인이 만료되었습니다. Codex를 한 번 실행해 다시 로그인하세요";
 "Codex's login was refused. Run Codex once so it signs back in" = "Codex 로그인이 거부되었습니다. Codex를 한 번 실행해 다시 로그인하세요";
+"Coloured because a window is behind its pace." = "창 하나가 사용 속도보다 뒤처져 색이 표시됩니다.";
+"Coloured because a window is close to its pace." = "창 하나가 사용 속도에 근접해 색이 표시됩니다.";
 "Combined from the windows below" = "아래 창들을 합산한 값";
 "Comfortable" = "여유";
 "Compact" = "간결";
@@ -537,6 +543,7 @@
 "Top: %@" = "상위: %@";
 "transcripts" = "기록 파일";
 "Turn finished" = "턴 완료";
+"Turn on Pin figures beside the icon to use this." = "‘아이콘 옆에 수치 고정’을 켜면 사용할 수 있습니다.";
 "Undo" = "실행 취소";
 "Unlimited on the %@ plan" = "%@ 플랜에서는 무제한";
 "Unpriced: %@" = "미산정: %@";
@@ -583,7 +590,3 @@
 "~%ld%% left at reset" = "초기화 시 약 %ld%% 남음";
 "~%ld%% over at reset" = "초기화 시 약 %ld%% 초과";
 "“%@” is off in Settings" = "설정의 “%@”이(가) 꺼져 있습니다";
-
-/* 표시하지 못한 도구, 마지막 판독 뒤에（NotchViews） */
-"+%ld" = "+%ld";
-"%ld more" = "%ld개 더";
