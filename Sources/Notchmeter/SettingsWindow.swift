@@ -215,6 +215,11 @@ struct SettingsView: View {
 
     private var panelSection: some View {
         Section(L("Panel")) {
+            Picker(L("Appearance"), selection: Binding(get: { prefs.appearance }, set: { prefs.appearance = $0; actions.applyLayout() })) {
+                ForEach(AppearanceChoice.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            Text(L("The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself."))
+                .font(.caption).foregroundStyle(.secondary)
             Picker(L("Readouts"), selection: Binding(
                 get: { prefs.compactSide },
                 set: { actions.chooseCompactSide($0); accessibilityTrusted = MenuBarExtent.isTrusted }
@@ -1143,7 +1148,10 @@ final class SettingsWindowController: NSWindowController {
     /// Gap between the readouts' lower edge and the window below them.
     nonisolated static let readoutClearance: CGFloat = 12
 
+    private let prefs: Preferences
+
     init(store: UsageStore, prefs: Preferences, actions: NotchActions, notifier: Notifier, requests: SettingsRequests) {
+        self.prefs = prefs
         let panel = SettingsPanel(contentRect: NSRect(origin: .zero, size: Self.contentSize),
                                   styleMask: [.titled, .closable, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
         let host = NSHostingController(rootView: SettingsView(store: store, prefs: prefs, actions: actions, notifier: notifier, requests: requests,
@@ -1173,6 +1181,7 @@ final class SettingsWindowController: NSWindowController {
     /// visible from the first frame rather than for the tail of that animation.
     func present(on screen: NSScreen, below readouts: CGRect? = nil, above panelLevel: NSWindow.Level? = nil) {
         guard let window else { return }
+        window.appearance = prefs.appearance.nsAppearance
         if let panelLevel { window.level = Self.level(above: panelLevel) }
         window.setFrame(Self.frame(for: window.frame.size, screen: screen.frame, safeAreaTop: screen.safeAreaInsets.top,
                                    visible: screen.visibleFrame, readouts: readouts), display: false)

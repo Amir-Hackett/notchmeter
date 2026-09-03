@@ -147,6 +147,7 @@
 "Antigravity reported no quota buckets" = "Antigravity reported no quota buckets";
 "Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in";
 "Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in";
+"Appearance" = "Appearance";
 "Apply" = "Apply";
 "Approve in System Settings" = "Approve in System Settings";
 "As of %@" = "As of %@";
@@ -241,6 +242,7 @@
 "Cut" = "Cut";
 "Cutting it close (on track)" = "Cutting it close (on track)";
 "daily" = "daily";
+"Dark" = "Dark";
 "Debug logging" = "Debug logging";
 "Default" = "Default";
 "Density" = "Density";
@@ -325,6 +327,7 @@
 "Left, right or bottom edge on any Mac." = "Left, right or bottom edge on any Mac.";
 "Let Claude Code talk to the notch?" = "Let Claude Code talk to the notch?";
 "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input.";
+"Light" = "Light";
 "likely a %@ window" = "likely a %@ window";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh.";
 "Local API on 127.0.0.1:%ld" = "Local API on 127.0.0.1:%ld";
@@ -333,6 +336,7 @@
 "low power mode" = "low power mode";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks";
 "Main display (the one with the menu bar)" = "Main display (the one with the menu bar)";
+"Match system" = "Match system";
 "MCP server" = "MCP server";
 "Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits." = "Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits.";
 "month" = "month";
@@ -527,6 +531,7 @@
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token.";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "The login item points at a copy of the app that has moved. Turn it off and on again.";
+"The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself." = "The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "The panel follows the pointer: it moves to the display the pointer has rested on for half a second.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@.";

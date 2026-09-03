@@ -83,9 +83,15 @@ import Testing
         return "eyJhbGciOiJIUzI1NiJ9.\(encoded).signature"
     }
 
+    /// Anchored to midday, not to the moment the suite runs: events an hour or two "ago" have to stay on the
+    /// same day as `now`, and just after midnight they did not, so the totals moved with the clock.
+    static var midday: Date {
+        Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date()) ?? Date()
+    }
+
     static func events(_ items: [(offset: TimeInterval, cents: Double, model: String)]) -> Data {
         let list = items.map { item -> [String: Any] in
-            ["timestamp": String(Int(Date().addingTimeInterval(item.offset).timeIntervalSince1970 * 1000)),
+            ["timestamp": String(Int(midday.addingTimeInterval(item.offset).timeIntervalSince1970 * 1000)),
              "model": item.model, "tokenUsage": ["inputTokens": 1000, "outputTokens": 100, "totalCents": item.cents]]
         }
         return try! JSONSerialization.data(withJSONObject: ["usageEventsDisplay": list])
@@ -146,7 +152,7 @@ import Testing
             #expect(exchange.ask(CursorProvider.usageEventsURL)?.origin == CursorProvider.origin)
             #expect(exchange.ask(CursorProvider.summaryURL)?.origin == nil)
 
-            let now = Date()
+            let now = Self.midday
             let calendar = Calendar.current
             let today = calendar.startOfDay(for: now)
             let cursor = try #require(CursorCostReader(history: history)

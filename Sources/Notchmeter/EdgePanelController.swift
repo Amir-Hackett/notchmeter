@@ -351,7 +351,8 @@ struct EdgePanelRoot: View {
         }
         .padding(4)
         .fixedSize()
-        .environment(\.colorScheme, .dark)
+        // The edge pills are their own shape on the desktop, so they can be light; the notch layout cannot.
+        .environment(\.colorScheme, prefs.appearance.colorScheme ?? .dark)
     }
 }
 

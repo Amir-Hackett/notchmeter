@@ -131,6 +131,7 @@
 "Antigravity reported no quota buckets" = "Antigravity không báo cáo nhóm hạn mức nào";
 "Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in" = "Đăng nhập Antigravity đã hết hạn. Chạy Gemini CLI hoặc Antigravity một lần để đăng nhập lại";
 "Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in" = "Đăng nhập Antigravity bị từ chối. Chạy Gemini CLI hoặc Antigravity một lần để đăng nhập lại";
+"Appearance" = "Giao diện";
 "Apply" = "Áp dụng";
 "Approve in System Settings" = "Phê duyệt trong Cài đặt hệ thống";
 "As of %@" = "Tính đến %@";
@@ -225,6 +226,7 @@
 "Cut" = "Cắt";
 "Cutting it close (on track)" = "Sát nút (đúng nhịp)";
 "daily" = "hằng ngày";
+"Dark" = "Tối";
 "Debug logging" = "Ghi nhật ký gỡ lỗi";
 "Default" = "Mặc định";
 "Density" = "Mật độ";
@@ -309,6 +311,7 @@
 "Left, right or bottom edge on any Mac." = "Cạnh trái, phải hoặc dưới trên bất kỳ máy Mac nào.";
 "Let Claude Code talk to the notch?" = "Cho Claude Code báo cho tai thỏ?";
 "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "Cho Claude Code báo cho notch khi bắt đầu, dừng hoặc chờ bạn. Hook chuyển tên sự kiện, id phiên, tên thư mục, nhánh git, chế độ quyền, khởi động và dừng của tác tử con, và dừng do giới hạn tốc độ; đồng hồ làm mới ngay, thẻ đếm phiên và tác tử, và huy hiệu hiện khi Claude chờ bạn nhập.";
+"Light" = "Sáng";
 "likely a %@ window" = "có lẽ là cửa sổ %@";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "Liên kết `notchmeter` trong ~/.local/bin (hoặc /usr/local/bin) tới ứng dụng này, để `notchmeter` trong terminal hay kỹ năng Claude Code đọc báo cáo đã cache của ứng dụng đang chạy thay vì hỏi lại từng nhà cung cấp; `notchmeter --force` đọc mới.";
 "Local API on 127.0.0.1:%ld" = "API cục bộ tại 127.0.0.1:%ld";
@@ -317,6 +320,7 @@
 "low power mode" = "chế độ tiết kiệm pin";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "macOS cần bạn cho phép đọc đăng nhập của Claude Code. Chọn Luôn cho phép khi được hỏi";
 "Main display (the one with the menu bar)" = "Màn hình chính (màn hình có thanh menu)";
+"Match system" = "Theo hệ thống";
 "MCP server" = "Máy chủ MCP";
 "Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits." = "Gộp nội dung này vào %1$@, hoặc dùng Thêm vào settings.json… để được gộp tự động. Mỗi mục chạy %2$@ --hook, gửi tên sự kiện đến ứng dụng đang chạy rồi thoát.";
 "Month" = "Tháng";
@@ -511,6 +515,7 @@
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "Yêu cầu Keychain đã bị đóng. Tắt rồi bật lại Claude trong Cài đặt để hỏi lại";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "10 phút cuối của nhật ký hợp nhất ứng dụng, trạng thái từng trợ lý, trạng thái hook và thanh trạng thái, bố cục và phiên bản macOS, đã xóa thư mục nhà, để báo lỗi. Không bao giờ có token.";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "Mục đăng nhập trỏ tới bản sao ứng dụng đã bị di chuyển. Tắt rồi bật lại.";
+"The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself." = "Dù bạn chọn gì, bảng cạnh notch vẫn tối: nó phải màu đen để trông liền một khối với chính notch.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "Bảng theo con trỏ: chuyển tới màn hình con trỏ đã đậu nửa giây.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Các vòng thu lại thành một chấm khi không trợ lý nào hoạt động trong 30 phút và mọi cửa sổ đều yên; một sự kiện hook, hoạt động tệp, thay đổi nhịp hoặc đặt con trỏ lên chúng sẽ đưa chúng trở lại.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "Phiên đang được đo nặng hơn chuẩn của bạn khoảng %1$@: %2$@ mỗi 1%% so với %3$@.";

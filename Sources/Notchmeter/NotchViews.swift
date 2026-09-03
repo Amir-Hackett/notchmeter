@@ -563,15 +563,13 @@ struct NotchExpandedView: View {
                             Color.clear.preference(key: PanelContentHeight.self, value: proxy.size.height)
                         })
                 }
-                // Every opening starts at the Cost card rather than where the last look left it. This is the
-                // scroll anchor rather than a scrollTo: the panel hangs beneath the notch on a safe-area
-                // inset, and forcing the offset to zero drove the first card up underneath the hardware.
-                .defaultScrollAnchor(.top)
                 // The scroll view paints its own light backing, which would show through the notch's black
                 // on the first frame; the panel draws the background itself.
                 .scrollContentBackground(.hidden)
                 .scrollBounceBehavior(.basedOnSize)
                 .scrollIndicators(.never)
+                // Nothing pins the offset: the scroll view is destroyed when the panel closes and rebuilt on the
+                // next open, so it already starts at the Cost card. An anchor here would fight a real scroll.
                 .scrollDisabled(!overflows)
                 .frame(maxHeight: cap)
                 .onPreferenceChange(PanelContentHeight.self) { contentHeight = $0 }

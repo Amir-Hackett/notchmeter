@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Observation
 import ServiceManagement
 
@@ -238,6 +239,38 @@ enum ToolOrder {
 
 /// Which side of the physical notch the readouts sit on. macOS puts the frontmost app's menu titles immediately
 /// left of the notch, so the right side is normally the free one; `split` is the old behaviour.
+/// What the Settings window and the edge pills follow. The notch layout is never light: the panel has to be
+/// black to read as one shape with the physical notch, so a light one would hang off the hardware as a bright
+/// rectangle. Appearance therefore reaches everything it honestly can, and says so.
+enum AppearanceChoice: String, CaseIterable, Codable {
+    case system, light, dark
+
+    var title: String {
+        switch self {
+        case .system: L("Match system")
+        case .light: L("Light")
+        case .dark: L("Dark")
+        }
+    }
+
+    /// nil follows the system; the panel reads this too, except in the notch layout.
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
 enum CompactSide: String, CaseIterable, Codable {
     case trailing, leading, split, auto
 
@@ -351,6 +384,10 @@ final class Preferences {
     /// Off by default so the panel fits the screen without scrolling.
     var showDetails: Bool {
         didSet { defaults.set(showDetails, forKey: Keys.showDetails); report(Keys.showDetails, showDetails, changed: showDetails != oldValue) }
+    }
+
+    var appearance: AppearanceChoice {
+        didSet { defaults.set(appearance.rawValue, forKey: Keys.appearance); report(Keys.appearance, appearance.rawValue, changed: appearance != oldValue) }
     }
 
     var compactSide: CompactSide {
@@ -650,6 +687,7 @@ final class Preferences {
         static let showSpend = "showSpend"
         static let showDetails = "showDetails"
         static let compactSide = "compactSide"
+        static let appearance = "appearance"
         static let compactSideFallback = "compactSideFallback"
         static let usageDisplay = "usageDisplay"
         static let resetDisplay = "resetDisplay"
@@ -732,6 +770,7 @@ final class Preferences {
         showSpend = defaults.object(forKey: Keys.showSpend) as? Bool ?? true
         showDetails = defaults.object(forKey: Keys.showDetails) as? Bool ?? false
         compactSide = CompactSide(rawValue: defaults.string(forKey: Keys.compactSide) ?? "") ?? .split
+        appearance = AppearanceChoice(rawValue: defaults.string(forKey: Keys.appearance) ?? "") ?? .system
         let storedFallback = CompactSide(rawValue: defaults.string(forKey: Keys.compactSideFallback) ?? "") ?? .split
         compactSideFallback = storedFallback == .auto ? .split : storedFallback
         usageDisplay = UsageDisplay(rawValue: defaults.string(forKey: Keys.usageDisplay) ?? "") ?? .used
