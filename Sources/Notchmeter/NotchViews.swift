@@ -469,7 +469,8 @@ struct NotchCompactView: View {
         case .leading: return side == .leading ? (kept, dropped) : ([], 0)
         case .split, .auto:
             // Half either side, so the strip reads as centred on the notch rather than hanging off one edge.
-            let left = CompactFit.splitLeadingCount(of: kept.count)
+            // Auto has already decided which side an odd run's extra readout goes to, from the room each end has.
+            let left = min(max(fit.splitLeading ?? CompactFit.splitLeadingCount(of: kept.count), 0), kept.count)
             let leading = Array(kept.prefix(left)), trailing = Array(kept.dropFirst(left))
             if side == .leading { return (leading, trailing.isEmpty ? dropped : 0) }
             return (trailing, trailing.isEmpty ? 0 : dropped)

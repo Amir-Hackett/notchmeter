@@ -28,7 +28,7 @@ import Testing
         // Menus stop at 200 and the status items start at 1400: 448 pt free left, 536 pt right, against 2 tools
         // (132 pt) a side at numbers.
         let fit = fit(menus: 200, statusItems: 1400)
-        #expect(fit == CompactFit(side: .split, style: .numbers, toolCount: 4, dropped: 0))
+        #expect(fit == CompactFit(side: .split, style: .numbers, toolCount: 4, dropped: 0, splitLeading: 2))
     }
 
     @Test func menusReachingPastTheNotchLeaveOnlyTheTrailingSide() {
@@ -51,14 +51,14 @@ import Testing
         // 100 pt free each side. Four tools want 132 pt a side at numbers and 252 pt whole, neither of which fits;
         // at rings a side wants 72 pt, so split survives with the digits given up.
         let fit = fit(menus: 548, statusItems: 964)
-        #expect(fit == CompactFit(side: .split, style: .rings, toolCount: 4, dropped: 0))
+        #expect(fit == CompactFit(side: .split, style: .rings, toolCount: 4, dropped: 0, splitLeading: 2))
     }
 
     @Test func neitherSideFittingAtRingsDropsTheToolsPutLast() {
         // 50 pt free left, 60 pt right: at rings not even two tools fit on one side, so the two the user put last
         // go, and the "+2" says so.
         let fit = fit(menus: 598, statusItems: 924)
-        #expect(fit == CompactFit(side: .split, style: .rings, toolCount: 2, dropped: 2))
+        #expect(fit == CompactFit(side: .split, style: .rings, toolCount: 2, dropped: 2, splitLeading: 1))
     }
 
     @Test func withNoRoomAtAllItShowsTheSmallestStripThereIs() {
@@ -68,6 +68,27 @@ import Testing
         #expect(fit.toolCount == 1)
         #expect(fit.dropped == 3)
         #expect(fit.side != .split)
+    }
+
+    /// The strip is one shape held centred on the notch, so an odd run's extra readout decides which way the black
+    /// overhangs. It should overhang into the end that is free, not into the one that is already crowded.
+    @Test func anOddRunsExtraReadoutGoesToTheSideWithMoreRoom() {
+        // Three tools, and the right of the notch has the room: one goes left, two right.
+        #expect(CompactFit.splitLeadingCount(of: 3, leadingRoom: 131, trailingRoom: 151) == 1)
+        // Mirror it and the extra goes back to the left.
+        #expect(CompactFit.splitLeadingCount(of: 3, leadingRoom: 151, trailingRoom: 131) == 2)
+        // An even run halves cleanly whichever end is roomier, and nothing measured keeps the old rule.
+        #expect(CompactFit.splitLeadingCount(of: 4, leadingRoom: 10, trailingRoom: 900) == 2)
+        #expect(CompactFit.splitLeadingCount(of: 3) == 2)
+        #expect(CompactFit.splitLeadingCount(of: 1) == 1)
+        #expect(CompactFit.splitLeadingCount(of: 1, leadingRoom: 10, trailingRoom: 900) == 0)
+
+        // And the resolved fit carries the answer, so the view splits the run the same way rather than guessing.
+        let split = fit(menus: 520, statusItems: 1150, tools: 3, style: .rings)
+        #expect(split.side == .split)
+        #expect(split.splitLeading == 1)
+        // A single side has no split to record.
+        #expect(fit(menus: 900, statusItems: nil).splitLeading == nil)
     }
 
     @Test func nothingMeasuredSitsCentredWithEveryTool() {
