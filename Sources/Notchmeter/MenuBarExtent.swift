@@ -183,7 +183,10 @@ final class AutoSideWatcher {
 
     /// When the settle pass looks again. Spaced out rather than repeated at one interval, so an app whose bar
     /// draws at once costs two reads and a slow one is still caught without polling.
-    static let settleDelays: [Duration] = [.milliseconds(120), .milliseconds(300), .milliseconds(700)]
+    /// `nonisolated` so the initialiser below can name it as a default argument: a default argument is evaluated
+    /// at the call site, which is not on the main actor, and reaching a main-actor property from there is an error
+    /// in the Swift 6 language mode. The value is a constant of Sendable parts, so it needs no isolation.
+    nonisolated static let settleDelays: [Duration] = [.milliseconds(120), .milliseconds(300), .milliseconds(700)]
 
     init(prefs: Preferences, metrics: @escaping () -> CompactMetrics,
          measure: @escaping (pid_t) -> CGFloat? = { MenuBarExtent.menuEndX(pid: $0) },

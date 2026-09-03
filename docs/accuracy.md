@@ -137,9 +137,15 @@ A plan that splits its allowance by model — Cursor Enterprise's "Cursor models
 
 ## When a vendor publishes two figures for one window
 
-Cursor's usage summary answers the same question twice for its plan and team-pooled windows: `totalPercentUsed`, and the `used`/`limit` pair the note under the bar is written from. On most plans they agree to the cent. On at least one Enterprise account they did not — the summary read `totalPercentUsed` 55 while `used` and `limit` were both $20, the whole allowance gone, with the two model splits beside it reading 47 % and 100 %. The bar took the percent, so a cap that was already spent drew as a little over half full, the run-out warning promised two more days of headroom that did not exist, and "All models" could find no parent total to adopt (the rule above: a window reading below its own shares is not their parent) and fell back to the highest share.
+Cursor's usage summary answers the same question twice for its plan and team-pooled windows: `totalPercentUsed`, and the `used`/`limit` pair the note under the bar is written from. On most plans they agree to the cent. On at least one Enterprise account they did not — the summary read `totalPercentUsed` 55 while `used` and `limit` were both $20, the whole allowance gone, with the two model splits beside it reading 47 % and 100 %.
 
-Which of the two is the wrong one cannot be established from this side — the field is undocumented and the scope it counts is not published — so neither is trusted over the other: **the window is as spent as its furthest-along figure says** (`CursorProvider.share`, pinned by `CursorParsing`). Under-reporting a spent window is the costlier way to be wrong, because the bar, the run-out warning and the combined window's search for a parent are all built on that one figure. The note keeps saying what the dollars say, so a disagreement stays visible on the card rather than being smoothed away.
+**The vendor's own headline figure drives the bar** (`CursorProvider.share`, pinned by `CursorParsing`). Reading the window as spent instead — taking whichever of the two was further along — was tried and reverted, for three reasons:
+
+- `autoPercentUsed` 47 and `apiPercentUsed` 100 sum to 147, so those two are not shares of one total and "Included usage" is not their parent. The caption they carry, *"Share of the plan's included usage"*, is the vendor's shape as this app currently models it and is very likely wrong for Enterprise; it is listed below as a known divergence rather than guessed at.
+- The same account's analytics export showed every request that day billed as subscription-included and none as usage-based, which an exhausted allowance would not do.
+- Reading it as spent pinned the bar at 100 % for the rest of the billing cycle while the Cursor-models window was at 47 % and still climbing, hiding headroom the user actually had. Over-reporting a spent window is not the safe direction it looks like: it is the same failure as under-reporting one, pointed the other way.
+
+The deciding principle is that `totalPercentUsed` is the number cursor.com itself shows, and a meter that disagrees with the vendor's own dashboard is worse than one that repeats the vendor's mistakes — the user cannot reconcile it against anything. The dollars are still printed under the bar exactly as the summary gave them, so where the two disagree the disagreement stays visible on the card instead of being folded into one figure.
 
 ## When a reset is not a fixed instant
 

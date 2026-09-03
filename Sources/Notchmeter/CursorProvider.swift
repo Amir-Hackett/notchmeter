@@ -332,16 +332,23 @@ actor CursorProvider: UsageProvider {
         return days
     }
 
-    /// How much of a window is spent, 0...1. Cursor publishes two answers for the same window — `totalPercentUsed`,
-    /// and the `used`/`limit` pair the note under the bar is written from — and on some plans they disagree: an
-    /// Enterprise summary reading 55 % over a note of "$20 of $20" is what brought this here. Neither can be shown
-    /// to be the wrong one from this side, so the bar takes whichever is further along. Under-reporting a window
-    /// that is already spent is the costlier way to be wrong: the run-out warning, the combined window's search for
-    /// a parent total, and the bar itself are all built on this one figure, and a cap already hit would read as
-    /// half a cap left.
+    /// How much of a window is spent, 0...1: `totalPercentUsed` where Cursor publishes it, else the `used`/`limit`
+    /// pair.
+    ///
+    /// Cursor answers the same question twice and the two can disagree. An Enterprise summary read
+    /// `totalPercentUsed` 55 while `used` and `limit` were both $20 — the whole allowance gone — with the model
+    /// splits beside it at 47 % and 100 %. Taking whichever read further along was tried and is wrong: 47 + 100 is
+    /// 147, so those splits are not shares of one total and "Included usage" is not their parent, and the account's
+    /// own analytics export showed every request that day billed as subscription-included, which an exhausted
+    /// allowance would not do. Reading the window as spent hid headroom the user still had.
+    ///
+    /// So the vendor's own headline figure wins. It is the number cursor.com shows, which is the number a user
+    /// reconciles against, and a meter that disagrees with the dashboard is worse than one that repeats its
+    /// mistakes. Where the dollars tell a different story they are still printed underneath, unaltered, rather than
+    /// being folded into the bar: the divergence is documented in docs/accuracy.md and left visible on the card.
     static func share(percent: Double?, used: Double?, limit: Double) -> Double {
-        let candidates = [percent.map { $0 / 100 }, limit > 0 ? used.map { $0 / limit } : nil].compactMap { $0 }
-        return min(max(candidates.max() ?? 0, 0), 1)
+        let fraction = percent.map { $0 / 100 } ?? (limit > 0 ? used.map { $0 / limit } : nil) ?? 0
+        return min(max(fraction, 0), 1)
     }
 
     private static func number(_ value: Any?) -> Double? { JSON.number(value) }
