@@ -577,6 +577,29 @@ enum AppInfo {
     static var userAgent: String { "\(name)/\(version)" }
 }
 
+/// Whether two reported resets are the same period.
+///
+/// A reset is not always a fixed instant on the wire. Claude's windows arrive with a moment that moves a little on
+/// every read — three windows of one reading were seen a millisecond apart, and one window's reset wandered inside
+/// a two-second band while its figure did not move at all — which is what a moment recomputed from a remaining
+/// duration looks like rather than one quoted from a calendar. Compared exactly, the same period then reads as a
+/// new one on every single read.
+///
+/// Nothing downstream wants that. `NotificationScheduler` already drew this line at ten minutes for a Codex
+/// snapshot whose reset is measured from when it was written; the same line is drawn here for everyone, because no
+/// real reset is ever that close to the one before it: the shortest window the app meters is five hours.
+enum ResetPeriod {
+    static var tolerance: TimeInterval { NotificationScheduler.samePeriodTolerance }
+
+    static func same(_ one: Date?, _ other: Date?) -> Bool {
+        switch (one, other) {
+        case (nil, nil): true
+        case let (first?, second?): abs(first.timeIntervalSince(second)) < tolerance
+        default: false
+        }
+    }
+}
+
 enum DateParsing {
     static func iso8601(_ string: String) -> Date? {
         let formatter = ISO8601DateFormatter()

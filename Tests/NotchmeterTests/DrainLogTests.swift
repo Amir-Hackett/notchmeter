@@ -104,4 +104,39 @@ import Testing
         store.recordDrain(reading(1), now: now.addingTimeInterval(60))
         #expect(log.load(now: now)[key]?.map(\.used) == [0.55, 1])
     }
+
+    /// A reset that is not a fixed instant. Claude's windows arrive carrying a moment that moves on every read —
+    /// three windows of one reading were seen a millisecond apart, and one window's reset wandered inside a
+    /// two-second band while its figure did not move at all. Compared exactly, every read looked like a new period:
+    /// the log wrote a row each time however still the figure was, and `RunOutInterval` discarded every consecutive
+    /// pair as spanning a reset, so no run-out estimate could ever form for that tool.
+    @Test func aResetReportedAMomentApartIsStillTheSamePeriod() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-drain-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let log = DrainLog(url: dir.appendingPathComponent("drain.jsonl"))
+        let reset = now.addingTimeInterval(4 * 3600)
+        func reading(driftingBy drift: TimeInterval) -> UsageReading {
+            UsageReading(tool: .claude, windows: [
+                LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.68,
+                            resetsAt: reset.addingTimeInterval(drift), periodDuration: Period.week),
+            ], plan: nil, fetchedAt: now, observedAt: nil)
+        }
+        let key = DrainLog.Key(tool: .claude, window: "seven_day")
+        log.append(reading(driftingBy: 0), previous: [:], now: now)
+        var loaded = log.load(now: now)
+        #expect(loaded[key]?.count == 1)
+        // The same figure a minute later, its reset phrased half a second along: nothing happened, nothing is written.
+        log.append(reading(driftingBy: 0.53), previous: loaded, now: now.addingTimeInterval(60))
+        loaded = log.load(now: now)
+        #expect(loaded[key]?.count == 1)
+        // And two rows whose resets drifted apart still measure a rate, rather than reading as a reset between them.
+        let drifted = [DrainSample(t: now.addingTimeInterval(-3600), used: 0.60, resetsAt: reset),
+                       DrainSample(t: now, used: 0.68, resetsAt: reset.addingTimeInterval(-0.87))]
+        #expect(RunOutInterval.hourlyRates(drifted, since: now.addingTimeInterval(-7200)).count == 1)
+        // A real reset is never this close to the one before it: the shortest window the app meters is five hours.
+        #expect(ResetPeriod.same(reset, reset.addingTimeInterval(599)))
+        #expect(!ResetPeriod.same(reset, reset.addingTimeInterval(601)))
+        #expect(ResetPeriod.same(nil, nil))
+        #expect(!ResetPeriod.same(reset, nil))
+    }
 }

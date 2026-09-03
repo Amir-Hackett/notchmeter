@@ -24,7 +24,7 @@ struct RunOutInterval: Equatable, Sendable {
     static func hourlyRates(_ samples: [DrainSample], since: Date) -> [(t: Date, perHour: Double)] {
         var rates: [(Date, Double)] = []
         for (previous, sample) in zip(samples, samples.dropFirst()) where sample.t >= since {
-            guard sample.resetsAt == previous.resetsAt, sample.used >= previous.used else { continue }
+            guard ResetPeriod.same(sample.resetsAt, previous.resetsAt), sample.used >= previous.used else { continue }
             let hours = sample.t.timeIntervalSince(previous.t) / 3600
             guard hours >= 5.0 / 60 else { continue }
             let rate = (sample.used - previous.used) / hours
