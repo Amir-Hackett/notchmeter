@@ -189,7 +189,7 @@ enum AssetRenderer {
         guard let window = controller.window, let frame = window.contentView?.superview else { throw Failure.snapshot("the Settings window") }
         window.appearance = NSAppearance(named: .darkAqua)
         // The window opens at 640 pt and scrolls; the picture shows the whole form.
-        window.setContentSize(NSSize(width: 460, height: 1330))
+        window.setContentSize(NSSize(width: 460, height: 9000))
         window.contentView?.layoutSubtreeIfNeeded()
         windows.append(window)
         return try bitmap(of: frame, size: frame.bounds.size, what: "the Settings window")
