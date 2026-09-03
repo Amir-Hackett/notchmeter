@@ -280,6 +280,9 @@ import Testing
         #expect(SpendCard.headline(mode: .tokens, amount: 2, totals: totals) == "2.0M")
         #expect(SpendCard.headline(mode: .cost, amount: 2.4, totals: totals) == "$2")
         #expect(SpendCard.headline(mode: .cost, amount: nil, totals: nil) == "—")
+        // A day of small spend used to draw "$0" in the ring above a legend of rows that were not zero.
+        #expect(SpendCard.headline(mode: .cost, amount: 0.28, totals: totals) == "$0.28")
+        #expect(SpendCard.headline(mode: .cost, amount: 0, totals: totals) == "$0")
         #expect(CostCardMode.cost.next == .tokens)
         #expect(CostCardMode.perMillionTokens.next == .cost)
         #expect(SpendCard.unit(mode: .perMillionTokens) == "per MTok")

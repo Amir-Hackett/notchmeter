@@ -614,12 +614,17 @@ final class UsageStore {
         }
     }
 
-    private func recordDrain(_ reading: UsageReading, now: Date) {
+    /// Internal rather than private so `DrainLogRules` can pin the statement order below, which is the whole bug.
+    func recordDrain(_ reading: UsageReading, now: Date) {
+        // The log skips a window whose figure has not moved since its last row, so it must be handed the samples as
+        // they stood *before* this reading. Handing it the mutated dictionary made every window its own predecessor
+        // — nothing ever moved, nothing was ever written, and the file was never created.
+        let previous = drainSamples
         for window in reading.windows {
             guard let used = window.usedFraction else { continue }
             drainSamples[DrainLog.Key(tool: reading.tool, window: window.id), default: []].append(DrainSample(t: now, used: used, resetsAt: window.resetsAt))
         }
-        drainLog?.append(reading, previous: drainSamples, now: now)
+        drainLog?.append(reading, previous: previous, now: now)
         recomputeDrains(now: now)
     }
 

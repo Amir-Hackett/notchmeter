@@ -86,4 +86,16 @@ import Testing
         #expect(Money.format(20, cents: false, rate: 1, symbol: "$") == "$20")
         #expect(Money.format(12345, cents: false, rate: 1, symbol: "$") == "$" + Money.grouped(12345))
     }
+
+    /// The ring's figure drops its cents so a total fits, which turned a day of real spend into "$0" above a legend
+    /// of rows that were not zero. An amount that is spent but under one unit keeps its cents wherever it is shown;
+    /// nothing else about the figure changes, and a true zero is still "$0".
+    @Test func anAmountUnderOneUnitNeverRoundsAwayToNothing() {
+        #expect(Money.format(0.28, cents: false, rate: 1, symbol: "$") == "$0.28")
+        #expect(Money.format(0.996, cents: false, rate: 1, symbol: "$") == "$1.00")
+        #expect(Money.format(0, cents: false, rate: 1, symbol: "$") == "$0")
+        #expect(Money.format(1.5, cents: false, rate: 1, symbol: "$") == "$2")
+        // The threshold is the figure the reader sees, so it follows the converted amount rather than the dollars.
+        #expect(Money.format(1.2, cents: false, rate: 0.5, symbol: "€") == "€0.60")
+    }
 }

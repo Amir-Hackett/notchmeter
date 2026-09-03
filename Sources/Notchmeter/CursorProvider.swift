@@ -195,9 +195,9 @@ actor CursorProvider: UsageProvider {
                 note: L("Unlimited on the %@ plan", planName ?? L("current"))
             ))
         } else if planEnabled, let planLimit, planLimit > 0 {
-            let fraction = planPercent.map { $0 / 100 } ?? (planUsed.map { $0 / planLimit } ?? 0)
+            let fraction = share(percent: planPercent, used: planUsed, limit: planLimit)
             windows.append(LimitWindow(
-                id: "included", label: .key("Included usage"), usedFraction: min(max(fraction, 0), 1), resetsAt: cycleEnd,
+                id: "included", label: .key("Included usage"), usedFraction: fraction, resetsAt: cycleEnd,
                 note: planUsed.map { L("%1$@ of %2$@", dollars($0), dollars(planLimit)) },
                 periodDuration: cycle, amountUSD: planUsed.map { $0 / 100 }
             ))
@@ -210,9 +210,9 @@ actor CursorProvider: UsageProvider {
 
         if let pooled = team?["pooled"] as? [String: Any], let limit = number(pooled["limit"]), limit > 0 {
             let used = number(pooled["used"]) ?? 0
-            let fraction = number(pooled["totalPercentUsed"]).map { $0 / 100 } ?? used / limit
+            let fraction = share(percent: number(pooled["totalPercentUsed"]), used: used, limit: limit)
             let window = LimitWindow(
-                id: "team_pooled", label: .key("Team pooled"), usedFraction: min(max(fraction, 0), 1), resetsAt: cycleEnd,
+                id: "team_pooled", label: .key("Team pooled"), usedFraction: fraction, resetsAt: cycleEnd,
                 note: L("%1$@ of %2$@", dollars(used), dollars(limit)), periodDuration: cycle, amountUSD: used / 100
             )
             if teamScoped { windows.insert(window, at: 0) } else { windows.append(window) }
@@ -330,6 +330,18 @@ actor CursorProvider: UsageProvider {
             days[day] = record
         }
         return days
+    }
+
+    /// How much of a window is spent, 0...1. Cursor publishes two answers for the same window — `totalPercentUsed`,
+    /// and the `used`/`limit` pair the note under the bar is written from — and on some plans they disagree: an
+    /// Enterprise summary reading 55 % over a note of "$20 of $20" is what brought this here. Neither can be shown
+    /// to be the wrong one from this side, so the bar takes whichever is further along. Under-reporting a window
+    /// that is already spent is the costlier way to be wrong: the run-out warning, the combined window's search for
+    /// a parent total, and the bar itself are all built on this one figure, and a cap already hit would read as
+    /// half a cap left.
+    static func share(percent: Double?, used: Double?, limit: Double) -> Double {
+        let candidates = [percent.map { $0 / 100 }, limit > 0 ? used.map { $0 / limit } : nil].compactMap { $0 }
+        return min(max(candidates.max() ?? 0, 0), 1)
     }
 
     private static func number(_ value: Any?) -> Double? { JSON.number(value) }

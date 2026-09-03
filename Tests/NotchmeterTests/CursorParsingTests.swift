@@ -35,6 +35,35 @@ import Testing
         #expect(reading.windows[1].note == "$3 of $50")
     }
 
+    /// The summary can publish two answers for the same window and they can disagree. An Enterprise account read
+    /// `totalPercentUsed` 55 while `used` and `limit` both said $20 — the whole allowance gone — and the two split
+    /// windows beside it said 47 % and 100 %. The bar took the percent, so a cap that was already spent drew as
+    /// half full, the run-out warning promised two more days of headroom, and "All models" could find no parent
+    /// total to adopt because the one it had read lower than its own shares. The window is now as spent as its
+    /// furthest figure says.
+    @Test func aWindowIsAsSpentAsItsFurthestFigureSays() throws {
+        let json = """
+        {"billingCycleStart":"2026-08-26T13:01:00.000Z","billingCycleEnd":"2026-09-26T13:01:00.000Z",
+         "membershipType":"enterprise","limitType":"user","isUnlimited":false,
+         "individualUsage":{"plan":{"enabled":true,"used":2000,"limit":2000,"totalPercentUsed":55,
+                                    "autoPercentUsed":47,"apiPercentUsed":100}}}
+        """
+        let reading = try CursorProvider.parseSummary(Data(json.utf8))
+        let included = try #require(reading.windows.first { $0.id == "included" })
+        #expect(included.usedFraction == 1)
+        #expect(included.note == "$20 of $20")
+        // Cursor's own total now reads at least as far as the shares it is a total of, so the combined window adopts
+        // it instead of falling back to the highest share. It stays labelled as derived either way.
+        let combined = try #require(CombinedWindow.of(reading: reading))
+        #expect(combined.usedFraction == 1)
+        #expect(combined.source == .localEstimate)
+        // Neither figure is trusted over the other; the further-along one wins, whichever it is.
+        #expect(CursorProvider.share(percent: 55, used: 1100, limit: 2000) == 0.55)
+        #expect(CursorProvider.share(percent: 25, used: 1000, limit: 2000) == 0.5)
+        #expect(CursorProvider.share(percent: nil, used: 500, limit: 2000) == 0.25)
+        #expect(CursorProvider.share(percent: 140, used: nil, limit: 2000) == 1)
+    }
+
     @Test func unlimitedPlanPublishesNoLimit() throws {
         let json = """
         {"billingCycleEnd":"2026-09-24T05:12:03.105Z","membershipType":"ultra","isUnlimited":true,

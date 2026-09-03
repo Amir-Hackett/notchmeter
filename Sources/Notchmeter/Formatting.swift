@@ -274,10 +274,13 @@ enum Money {
     }
 
     /// The amount in the chosen currency: two decimals under a thousand, whole units from there, and grouped
-    /// past a thousand so a four-figure total reads as one number rather than a run of digits.
+    /// past a thousand so a four-figure total reads as one number rather than a run of digits. An amount that is
+    /// spent but under one unit keeps its cents even where they were asked to be dropped: "$0" over a legend of
+    /// non-zero rows reads as nothing spent, which is the one thing the figure must never say by accident.
     static func format(_ value: Double, cents: Bool = true, rate: Double, symbol: String) -> String {
         let amount = value * rate
-        if !cents || amount >= 1000 { return symbol + grouped(Int(amount.rounded())) }
+        let roundsToNothing = amount > 0 && amount < 1
+        if (!cents && !roundsToNothing) || amount >= 1000 { return symbol + grouped(Int(amount.rounded())) }
         return symbol + String(format: "%.2f", amount)
     }
 
