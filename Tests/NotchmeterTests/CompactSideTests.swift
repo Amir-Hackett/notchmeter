@@ -77,11 +77,17 @@ import Testing
         #expect(CompactFit.splitLeadingCount(of: 3, leadingRoom: 131, trailingRoom: 151) == 1)
         // Mirror it and the extra goes back to the left.
         #expect(CompactFit.splitLeadingCount(of: 3, leadingRoom: 151, trailingRoom: 131) == 2)
-        // An even run halves cleanly whichever end is roomier, and nothing measured keeps the old rule.
+        // An even run halves cleanly whichever end is roomier.
         #expect(CompactFit.splitLeadingCount(of: 4, leadingRoom: 10, trailingRoom: 900) == 2)
-        #expect(CompactFit.splitLeadingCount(of: 3) == 2)
-        #expect(CompactFit.splitLeadingCount(of: 1) == 1)
         #expect(CompactFit.splitLeadingCount(of: 1, leadingRoom: 10, trailingRoom: 900) == 0)
+
+        // Nothing measured, and a tie, rest to the right: the left end is the one that grows without warning, so
+        // three readouts sit one left and two right until Auto has a measurement that moves them.
+        #expect(CompactFit.splitLeadingCount(of: 3) == 1)
+        #expect(CompactFit.splitLeadingCount(of: 1) == 0)
+        #expect(CompactFit.splitLeadingCount(of: 3, leadingRoom: 140, trailingRoom: 140) == 1)
+        // A measurement either way still decides it, which is what keeps this from being a fixed preference.
+        #expect(CompactFit.splitLeadingCount(of: 3, leadingRoom: 141, trailingRoom: 140) == 2)
 
         // And the resolved fit carries the answer, so the view splits the run the same way rather than guessing.
         let split = fit(menus: 520, statusItems: 1150, tools: 3, style: .rings)
