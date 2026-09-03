@@ -3,29 +3,23 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'packaging/**'
   pull_request:
+  workflow_dispatch:
 
-permissions:
-  contents: read
-
+# macOS minutes bill at ten times the Linux rate, so a superseded push must not keep building.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: macos-15
+    runs-on: macos-15
     # macos-15 is the gate; macos-latest tracks whatever GitHub moves to next and is allowed to fail.
-    continue-on-error: ${{ matrix.experimental }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-15
-            experimental: false
-          - os: macos-latest
-            experimental: true
     steps:
       - uses: actions/checkout@v4
 
@@ -58,6 +52,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Notchmeter-${{ matrix.os }}
+          name: Notchmeter-macos-15
           path: build/Notchmeter.zip
           if-no-files-found: error
