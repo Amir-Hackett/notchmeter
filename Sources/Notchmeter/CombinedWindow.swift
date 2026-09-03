@@ -11,10 +11,11 @@ import Foundation
 ///   nothing, rather than being read as zero.
 /// - Fewer than two model-scoped windows report → nil. Nothing synthetic appears where there is nothing to
 ///   combine, and a lone model window is already on the card under its own name.
-/// - Where the vendor itself publishes the total those windows are shares of, that figure is adopted exactly as
-///   it stands and is never recomputed from the shares: Cursor's "Included usage" already IS the plan total, and
-///   adding the splits back together would round differently from the vendor's own arithmetic. A window counts as
-///   that total when it is not scoped to a model, covers the same period and reset as every model window it would
+/// - Where the vendor itself publishes a tool-wide total for the same period, that figure is adopted exactly as
+///   it stands and is never recomputed from the model windows: Cursor's "Included usage" already IS the plan
+///   total, and combining the model figures would round differently from the vendor's own arithmetic — or worse,
+///   they may not be shares of it at all (Cursor's two read 49 % and 100 % of one cycle). A window counts as that
+///   total when it is not scoped to a model, covers the same period and reset as every model window it would
 ///   cover, and does not read below any of them — one that reads lower is not their parent, whatever it is.
 /// - Otherwise the figure is the highest of the model windows. Never a mean: averaging a maxed-out model with an
 ///   untouched one would show headroom that does not exist.

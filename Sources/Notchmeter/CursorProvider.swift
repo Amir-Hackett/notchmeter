@@ -164,9 +164,15 @@ actor CursorProvider: UsageProvider {
     // MARK: - Parsing
 
     /// The dashboard's summary: the plan's included usage (the main window under `limitType` "user"), the team's
-    /// pooled usage (the main window under "team"), on-demand spend, and the split of the plan's usage between
-    /// Cursor's own models and other models, which the switch-models advice can act on and which stay off the
-    /// card until revealed in Settings.
+    /// pooled usage (the main window under "team"), on-demand spend, and Cursor's own two model percentages,
+    /// which the switch-models advice can act on and which stay off the card until revealed in Settings.
+    ///
+    /// `autoPercentUsed` and `apiPercentUsed` are not two shares of the included allowance, whatever they look
+    /// like. An Enterprise account reported 49 % and 100 % of the same cycle, which cannot be two parts of one
+    /// pool, and its usage-events export for those days shows Cursor's own models still billed as Included while
+    /// a third-party model had already gone On-Demand. Separate meters, then, and the caption says so rather than
+    /// calling them shares of a total they demonstrably do not add up to. What each is a percentage *of* Cursor
+    /// does not publish, so nothing here claims to know.
     static func parseSummary(_ data: Data, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ProviderError.parse(L("Cursor usage summary unreadable"))
@@ -225,7 +231,7 @@ actor CursorProvider: UsageProvider {
         for (key, id, label) in splits {
             guard let percent = number(plan?[key]) else { continue }
             windows.append(LimitWindow(id: id, label: label, usedFraction: JSON.fraction(percent), resetsAt: cycleEnd,
-                                       note: L("Share of the plan's included usage"), periodDuration: cycle, model: label.text, hiddenByDefault: true))
+                                       note: L("Metered apart from the included total"), periodDuration: cycle, model: label.text, hiddenByDefault: true))
         }
 
         if let onDemand, (onDemand["enabled"] as? Bool) == true, let limit = number(onDemand["limit"]), limit > 0 {

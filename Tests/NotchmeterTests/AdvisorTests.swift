@@ -179,6 +179,28 @@ import Testing
         #expect(Advisor.cadence(30 * 86400) == "30-day window")
     }
 
+    /// Cursor labels half its plan "Cursor models", so a sentence that opens with the tool's name used to say it
+    /// twice: "At this rate you hit the Cursor Cursor models 31-day window cap".
+    @Test func aSentenceThatNamesTheToolDoesNotAlsoNameItInTheWindow() {
+        let own = window("cursor_models", label: "Cursor models", used: 0.49, elapsed: 86400, period: 31 * 86400, model: "Cursor models")
+        let other = window("other_models", label: "Other models", used: 1, elapsed: 86400, period: 31 * 86400, model: "Other models")
+        #expect(Advisor.name(own) == "Cursor models 31-day window")
+        #expect(Advisor.name(own, of: .cursor) == "models 31-day window")
+        // Only the tool's own name is dropped, and only from the front.
+        #expect(Advisor.name(other, of: .cursor) == "Other models 31-day window")
+        #expect(Advisor.name(own, of: .claude) == "Cursor models 31-day window")
+        // A model labelled with the bare tool name leaves the cadence behind, which is what the sentence wants:
+        // "Cursor weekly resets in 3h", not "Cursor Cursor weekly resets in 3h".
+        let bare = window("cursor", label: "Cursor", used: 0.5, elapsed: 86400, period: Period.week, model: "Cursor")
+        #expect(Advisor.name(bare, of: .cursor) == "weekly")
+
+        // And the whole sentence, which is where the repetition was actually visible.
+        let cursor = reading(.cursor, [own, other])
+        let texts = Advisor.advise(context([cursor])).map(\.text)
+        #expect(texts.contains { $0.hasPrefix("At this rate you hit the Cursor models 31-day window cap") })
+        #expect(!texts.contains { $0.contains("Cursor Cursor") })
+    }
+
     @Test func routesBetweenGeminiModelsLikeAnyOtherTool() {
         // Google declares no window length, so the fractions alone drive the model advice.
         let antigravity = reading(.antigravity, [

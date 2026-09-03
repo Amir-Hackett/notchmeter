@@ -106,6 +106,7 @@
 "A pill down the right-hand edge, clear of a Dock on that side." = "오른쪽 가장자리의 알약. 같은 쪽 Dock을 피합니다.";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "같은 로그인으로 chatgpt.com을 한 번 더 읽어 창을 초기화할 수 있는 크레딧과 만료 시각을 표시합니다. 받는 것은 Codex에서 합니다.";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "같은 세션 쿠키로 cursor.com을 한 번 더 읽습니다. 최근 30일의 사용 이벤트를 내보낸 비용으로 계산해 일별 합계 파일에 Cursor 계열(오늘, 30일, 추세)로 넣습니다.";
+"Metered apart from the included total" = "포함 총량과 별도로 측정";
 "a session" = "세션";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "훅이 보고한 세션이 턴 진행 중일 때만 잠자기 방지를 유지하고 Stop에서 해제합니다. 전원 연결 시 휴대폰이나 SSH로 시작한 세션이 덮개를 닫아도 계속 실행됩니다. 유지 중에는 푸터에 \"깨어 있음 유지 · 세션 2개\"가 표시됩니다.";
 "about " = "약 ";
@@ -478,7 +479,6 @@
 "Set the Notchmeter status line in settings.json?" = "settings.json에 Notchmeter 상태 표시줄을 설정할까요?";
 "Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar." = "이것을 %1$@의 statusLine으로 설정하거나 '상태 표시줄 설치…'로 자동 작성하세요. Claude Code는 매 턴 후 %2$@ --statusline을 실행합니다. 컨텍스트 사용률, 속도 제한, 세션 비용을 앱에 전달하고 Claude Code 자체 막대에 한 줄을 출력합니다.";
 "Settings…" = "설정…";
-"Share of the plan's included usage" = "플랜 포함 사용량의 비율";
 "Show" = "표시";
 "Show %@" = "%@ 표시";
 "Show costs in" = "비용 표시 통화";

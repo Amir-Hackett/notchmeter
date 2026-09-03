@@ -106,6 +106,7 @@
 "A pill down the right-hand edge, clear of a Dock on that side." = "沿右側邊緣的膠囊，避開該側的 Dock。";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "以同一登入對 chatgpt.com 的第二次讀取，顯示可重設視窗的額度及其到期時間。領取仍需在 Codex 中進行。";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "使用同一工作階段 cookie 再讀取一次 cursor.com：最近 30 天的用量事件，按匯出的費用計價，折算進每日總計檔案作為 Cursor 序列（今日、30 天和趨勢）。";
+"Metered apart from the included total" = "與方案內總量分開計量";
 "a session" = "某個工作階段";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "僅當 hook 回報的工作階段處於一輪之中時持有防睡眠斷言，在其 Stop 時釋放，因此從手機或透過 SSH 啟動的工作階段在接電源合蓋時仍能繼續。持有期間頁尾顯示「保持喚醒 · 2 個工作階段」。";
 "about " = "約 ";
@@ -478,7 +479,6 @@
 "Set the Notchmeter status line in settings.json?" = "要在 settings.json 中設定 Notchmeter 狀態列嗎？";
 "Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar." = "將此設為 %1$@ 中的 statusLine，或使用「安裝狀態列…」自動寫入。Claude Code 會在每一輪結束後執行 %2$@ --statusline；它把上下文佔用、速率限制與本工作階段花費轉送給 App，並為 Claude Code 自己的狀態列輸出一行。";
 "Settings…" = "設定…";
-"Share of the plan's included usage" = "佔方案內用量的份額";
 "Show" = "顯示";
 "Show %@" = "顯示 %@";
 "Show costs in" = "花費顯示為";
