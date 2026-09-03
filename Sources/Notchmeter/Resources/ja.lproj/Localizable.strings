@@ -583,3 +583,7 @@
 "~%ld%% left at reset" = "リセット時に約 %ld%% 残る見込み";
 "~%ld%% over at reset" = "リセット時に約 %ld%% 超過";
 "“%@” is off in Settings" = "設定の「%@」がオフです";
+
+/* 表示しきれなかったツール、最後の読み取りの後ろに（NotchViews） */
+"+%ld" = "+%ld";
+"%ld more" = "他 %ld 件";

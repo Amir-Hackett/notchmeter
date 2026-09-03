@@ -416,18 +416,33 @@ struct CompactReadout: View {
 }
 
 private extension UsageStore {
-    func readout(_ tool: ToolID, presence: PresenceLevel, axis: Axis = .horizontal) -> CompactReadout {
+    func readout(_ tool: ToolID, presence: PresenceLevel, axis: Axis = .horizontal, style: CompactStyle) -> CompactReadout {
         let status = status(tool)
         let apiKeyCost = tool == .claude && claudeOnAPIKey ? Money.dollars(cost?.totals(.month).cost ?? 0, cents: false) : nil
-        return CompactReadout(tool: tool, status: status, style: prefs.compactStyle, display: prefs.usageDisplay,
+        return CompactReadout(tool: tool, status: status, style: style, display: prefs.usageDisplay,
                               windows: status.reading.map(prefs.ringWindows) ?? [], waiting: tool == .claude ? waitingCount : 0,
                               contextUsed: tool == .claude ? contextUsed : nil, countdown: prefs.showResetCountdown, hideFigures: hidesFigures,
                               presence: presence, axis: axis, apiKeyCost: apiKeyCost)
     }
 
     /// The tools with a compact readout: Claude on an API key has nothing to draw unless the digits are shown.
-    var compactTools: [ToolID] {
-        visibleTools.filter { !($0 == .claude && claudeOnAPIKey && !prefs.compactStyle.showsNumbers) }
+    func compactTools(style: CompactStyle) -> [ToolID] {
+        visibleTools.filter { !($0 == .claude && claudeOnAPIKey && !style.showsNumbers) }
+    }
+}
+
+/// The tools the fit could not keep, drawn after the last readout as a quiet "+2".
+private struct CompactOverflow: View {
+    let count: Int
+    let presence: PresenceLevel
+
+    var body: some View {
+        Text(L("+%ld", count))
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+            .opacity(presence == .quiet && !AccessibilityDisplay.shared.contrast ? 0.7 : 1)
+            .accessibilityLabel(L("%ld more", count))
     }
 }
 
@@ -439,30 +454,41 @@ struct NotchCompactView: View {
 
     let store: UsageStore
     let side: Side
-    /// The layout to draw, when it is not the one in force: the Auto measurement asks for the leading width
-    /// `.split` would need, which must not depend on the side Auto has settled on.
-    var layout: CompactSide?
+    /// The fit to draw, when it is not the one in force: Auto sizes candidate fits by drawing them, which must not
+    /// depend on the fit Auto has settled on.
+    var fit: CompactFit?
 
-    private var tools: [ToolID] {
-        let visible = store.compactTools
-        switch layout ?? store.prefs.resolvedCompactSide {
-        case .trailing: return side == .leading ? [] : visible
-        case .leading: return side == .leading ? visible : []
+    /// The tools this side draws, and how many the fit left out when this side is the one that ends the strip.
+    private var content: (tools: [ToolID], overflow: Int) {
+        let fit = fit ?? store.prefs.compactFit
+        let visible = store.compactTools(style: fit.style)
+        let kept = fit.toolCount >= visible.count ? visible : Array(visible.prefix(max(fit.toolCount, 0)))
+        let dropped = visible.count - kept.count
+        switch fit.side {
+        case .trailing: return side == .leading ? ([], 0) : (kept, dropped)
+        case .leading: return side == .leading ? (kept, dropped) : ([], 0)
         case .split, .auto:
             // Half either side, so the strip reads as centred on the notch rather than hanging off one edge.
-            let left = Int((Double(visible.count) / 2).rounded())
-            return side == .leading ? Array(visible.prefix(left)) : Array(visible.dropFirst(left))
+            let left = CompactFit.splitLeadingCount(of: kept.count)
+            let leading = Array(kept.prefix(left)), trailing = Array(kept.dropFirst(left))
+            if side == .leading { return (leading, trailing.isEmpty ? dropped : 0) }
+            return (trailing, trailing.isEmpty ? 0 : dropped)
         }
     }
 
     var body: some View {
         let presence = store.presence
-        HStack(spacing: store.prefs.compactStyle.showsNumbers ? 9 : 7) {
+        let style = (fit ?? store.prefs.compactFit).style
+        let (tools, overflow) = content
+        HStack(spacing: style.showsNumbers ? 9 : 7) {
             ForEach(tools, id: \.self) { tool in
-                store.readout(tool, presence: presence)
+                store.readout(tool, presence: presence, style: style)
+            }
+            if overflow > 0 {
+                CompactOverflow(count: overflow, presence: presence)
             }
         }
-        .padding(.horizontal, tools.isEmpty ? 0 : 6)
+        .padding(.horizontal, tools.isEmpty && overflow == 0 ? 0 : 6)
         .environment(\.layoutDirection, .leftToRight)
     }
 }
@@ -474,11 +500,12 @@ struct EdgeCompactView: View {
     let edge: PanelEdge
 
     var body: some View {
-        let tools = store.compactTools
+        let style = store.prefs.compactStyle
+        let tools = store.compactTools(style: style)
         let presence = store.presence
         let horizontal = edge == .bottom || edge == .top
         let readouts = ForEach(tools, id: \.self) { tool in
-            store.readout(tool, presence: presence, axis: horizontal ? .horizontal : .vertical)
+            store.readout(tool, presence: presence, axis: horizontal ? .horizontal : .vertical, style: style)
         }
         Group {
             if horizontal {
@@ -1511,9 +1538,9 @@ struct FooterView: View {
 }
 
 
-/// What the leading readouts would need under `.split`, for `CompactSide.auto`. One hosting view for the life of
-/// the app, re-laid out per measurement, as NotchController does for its hover regions. Measuring `.split` rather
-/// than the layout in force keeps the rule from feeding on its own answer.
+/// What a run of readouts would need beside the notch, for `CompactSide.auto`. One hosting view for the life of
+/// the app, re-laid out per measurement, as NotchController does for its hover regions. Sizing candidate fits
+/// rather than the one in force keeps the rule from feeding on its own answer.
 @MainActor
 final class CompactStripProbe {
     private let store: UsageStore
@@ -1521,12 +1548,22 @@ final class CompactStripProbe {
 
     init(store: UsageStore) {
         self.store = store
-        probe = NSHostingView(rootView: NotchCompactView(store: store, side: .leading, layout: .split))
+        probe = NSHostingView(rootView: Self.strip(store, style: .rings, tools: 0))
     }
 
-    var splitLeadingWidth: CGFloat {
-        probe.rootView = NotchCompactView(store: store, side: .leading, layout: .split)
+    /// The room the first `tools` readouts take at a style, padding and the dropped-tool "+2" included.
+    func width(style: CompactStyle, tools: Int) -> CGFloat {
+        probe.rootView = Self.strip(store, style: style, tools: tools)
         probe.layoutSubtreeIfNeeded()
         return probe.fittingSize.width
+    }
+
+    /// How many readouts there would be with nothing dropped.
+    var toolCount: Int { store.compactTools(style: store.prefs.compactStyle).count }
+
+    /// The whole run on one side, so the width measured is the run's own and not half of it.
+    private static func strip(_ store: UsageStore, style: CompactStyle, tools: Int) -> NotchCompactView {
+        NotchCompactView(store: store, side: .leading,
+                         fit: CompactFit(side: .leading, style: style, toolCount: tools, dropped: 0))
     }
 }

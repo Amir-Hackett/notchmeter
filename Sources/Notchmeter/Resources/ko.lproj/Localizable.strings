@@ -583,3 +583,7 @@
 "~%ld%% left at reset" = "초기화 시 약 %ld%% 남음";
 "~%ld%% over at reset" = "초기화 시 약 %ld%% 초과";
 "“%@” is off in Settings" = "설정의 “%@”이(가) 꺼져 있습니다";
+
+/* 표시하지 못한 도구, 마지막 판독 뒤에（NotchViews） */
+"+%ld" = "+%ld";
+"%ld more" = "%ld개 더";

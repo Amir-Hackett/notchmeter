@@ -599,3 +599,7 @@
 "~%ld%% left at reset" = "~%ld%% left at reset";
 "~%ld%% over at reset" = "~%ld%% over at reset";
 "“%@” is off in Settings" = "“%@” is off in Settings";
+
+/* The tools the strip could not fit, after the last readout (NotchViews) */
+"+%ld" = "+%ld";
+"%ld more" = "%ld more";

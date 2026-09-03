@@ -90,8 +90,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var autoSideProbe = CompactStripProbe(store: store)
     /// Auto's watcher: idle unless the readouts are set to Auto, and never a timer (MenuBarExtent).
     private lazy var autoSide = AutoSideWatcher(prefs: prefs) { [weak self] in
-        guard let self, let screen = self.presenter?.screen ?? NSScreen.main ?? NSScreen.screens.first else { return (.zero, 0) }
-        return (NotchController.notchRect(on: screen), self.autoSideProbe.splitLeadingWidth)
+        guard let self, let screen = self.presenter?.screen ?? NSScreen.main ?? NSScreen.screens.first else {
+            return CompactMetrics(notch: .zero, tools: 0) { _, _ in 0 }
+        }
+        return CompactMetrics(notch: NotchController.notchRect(on: screen), tools: self.autoSideProbe.toolCount) {
+            self.autoSideProbe.width(style: $0, tools: $1)
+        }
     }
 
     private var smokeRestoreEdge: PanelEdge?

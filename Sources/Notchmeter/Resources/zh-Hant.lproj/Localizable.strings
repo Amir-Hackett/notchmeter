@@ -583,3 +583,7 @@
 "~%ld%% left at reset" = "重設時約剩 %ld%%";
 "~%ld%% over at reset" = "重設時約超出 %ld%%";
 "“%@” is off in Settings" = "設定中的「%@」已關閉";
+
+/* 列狀顯示放不下的工具，接在最後一個讀數之後（NotchViews） */
+"+%ld" = "+%ld";
+"%ld more" = "還有 %ld 個";
