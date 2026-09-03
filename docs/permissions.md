@@ -23,3 +23,32 @@ menu-heavy app (Chrome, Xcode) would run into them.
 No other part of Notchmeter uses the Accessibility API. It never asks for Screen Recording, the microphone, the
 camera, Full Disk Access, Contacts, Calendars, Location or Automation; the screen-share check is a yes/no from the
 window server that needs no permission.
+
+## Why the grants keep disappearing
+
+macOS ties an Accessibility grant — and the Keychain grant for Claude Code's login — to the identity a binary is
+signed with. An ad-hoc signature (`codesign --sign -`) has no identity: its code hash changes with every build, so
+every reinstall looks like a different application and both grants are dropped. That is why Auto could be chosen,
+approved, and still report `accessibility not granted` after the next install.
+
+`scripts/signing-identity.sh` creates a local self-signed certificate, "Notchmeter Local", in the login keychain.
+Signing with it gives the app a stable identity, so the grants survive a rebuild.
+
+It takes two steps, because the second one needs the login password and cannot be done unattended:
+
+```
+scripts/signing-identity.sh              # creates the certificate
+scripts/signing-identity.sh --authorise  # lets codesign use its key without a dialog
+```
+
+Until the second has run, `scripts/build.sh` signs ad hoc and says so. It never waits on the dialog: the attempt
+is time-boxed, and a timed-out signature is cleaned up before the fallback.
+
+Remove the identity with:
+
+```
+security delete-identity -c "Notchmeter Local" ~/Library/Keychains/login.keychain-db
+```
+
+This is a local convenience, not a substitute for a Developer ID. A build handed to anyone else still needs one,
+for notarisation and to clear Gatekeeper.
