@@ -155,19 +155,45 @@ struct CompactMetrics {
 /// Keeps `Preferences.autoCompactFit` in step with the menu bar while Auto is chosen. It re-fits when an app comes
 /// forward, when the style or the tool order changes, and when the screens change; the left edge is cached per
 /// bundle id, so returning to an app already seen costs nothing, and the right edge is cached until an app
-/// launches, quits or comes forward, since that is when status items appear and disappear. There is no timer and
-/// nothing is measured while a fixed side is chosen.
+/// launches, quits or comes forward, since that is when status items appear and disappear. Nothing is measured
+/// while a fixed side is chosen.
+///
+/// An activation is measured twice. `didActivateApplicationNotification` arrives before the incoming app's menu
+/// titles have been laid out, so asking straight away can answer with the outgoing app's geometry, or with
+/// nothing; measuring once and caching it under the incoming app's name leaves the strip narrowed for an app whose
+/// menus are short, and nothing re-measures until some other app happens to activate — which is what "it does not
+/// go back until I click something else" is. So the first reading is used but not kept, and a settle pass takes
+/// readings until two agree and caches that one.
 @MainActor
 final class AutoSideWatcher {
     private let prefs: Preferences
     private let metrics: () -> CompactMetrics
+    /// How the left edge is read; the tests hand it a script instead of a menu bar. The Accessibility check lives
+    /// here rather than in the rules above it: `MenuBarExtent.menuEndX` already answers nil when it is not trusted.
+    private let measure: (pid_t) -> CGFloat?
+    /// Whose menus to measure; the tests name the app themselves rather than whatever is in front of the runner.
+    private let frontmost: () -> NSRunningApplication?
+    /// When the settle pass looks again; the tests shorten it.
+    private let settleDelays: [Duration]
+    /// Settled readings only: a first reading taken while the bar was still catching up is used once and dropped.
     private var menuCache: [String: CGFloat] = [:]
     private var statusItemsCache: CGFloat??
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
+    private var settling: Task<Void, Never>?
 
-    init(prefs: Preferences, metrics: @escaping () -> CompactMetrics) {
+    /// When the settle pass looks again. Spaced out rather than repeated at one interval, so an app whose bar
+    /// draws at once costs two reads and a slow one is still caught without polling.
+    static let settleDelays: [Duration] = [.milliseconds(120), .milliseconds(300), .milliseconds(700)]
+
+    init(prefs: Preferences, metrics: @escaping () -> CompactMetrics,
+         measure: @escaping (pid_t) -> CGFloat? = { MenuBarExtent.menuEndX(pid: $0) },
+         frontmost: @escaping () -> NSRunningApplication? = { NSWorkspace.shared.frontmostApplication },
+         settleDelays: [Duration] = AutoSideWatcher.settleDelays) {
         self.prefs = prefs
         self.metrics = metrics
+        self.measure = measure
+        self.frontmost = frontmost
+        self.settleDelays = settleDelays
         let workspace = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.didActivateApplicationNotification, NSWorkspace.didLaunchApplicationNotification,
                      NSWorkspace.didTerminateApplicationNotification] {
@@ -175,6 +201,7 @@ final class AutoSideWatcher {
                 Task { @MainActor in
                     self?.statusItemsCache = nil
                     self?.refresh()
+                    self?.settle()
                 }
             }))
         }
@@ -193,7 +220,44 @@ final class AutoSideWatcher {
 
     /// Re-fits against the app already in front: called when the side preference changes, since no app has activated.
     func refresh() {
-        update(for: NSWorkspace.shared.frontmostApplication)
+        update(for: frontmost())
+    }
+
+    /// Looks again while the menu bar finishes drawing, and keeps the answer that stops changing. Runs only for
+    /// Auto, gives up the moment another app takes over, and replaces any pass still in flight.
+    func settle() {
+        settling?.cancel()
+        guard prefs.compactSide == .auto, let app = frontmost(), let key = Self.key(for: app) else { return }
+        settling = Task { [weak self] in
+            guard let delays = self?.settleDelays else { return }
+            var previous: CGFloat?
+            for delay in delays {
+                try? await Task.sleep(for: delay)
+                guard !Task.isCancelled, let self else { return }
+                guard self.frontmost()?.processIdentifier == app.processIdentifier else { return }
+                let measured = self.measure(app.processIdentifier)
+                // Two readings the same means the bar has stopped moving; an app that never answers keeps no entry,
+                // so the next activation measures it again rather than trusting a blank.
+                if let measured, measured == previous {
+                    if self.menuCache[key] != measured {
+                        self.menuCache[key] = measured
+                        self.refresh()
+                    }
+                    return
+                }
+                previous = measured
+            }
+            guard let self, let settled = previous, self.menuCache[key] != settled else { return }
+            self.menuCache[key] = settled
+            self.refresh()
+        }
+    }
+
+    /// For the tests: the pass in flight, so they can await it instead of sleeping longer than it does.
+    var settlePass: Task<Void, Never>? { settling }
+
+    static func key(for app: NSRunningApplication) -> String? {
+        app.bundleIdentifier ?? (app.processIdentifier > 0 ? "pid:\(app.processIdentifier)" : nil)
     }
 
     /// The user picking a side. Picking Auto is the one thing that asks for Accessibility, and it asks once per
@@ -203,6 +267,7 @@ final class AutoSideWatcher {
         guard side == .auto else { return }
         MenuBarExtent.requestTrust()
         refresh()
+        settle()
     }
 
     /// Auto already chosen but not trusted — the grant was never given, or a rebuild replaced the binary it was
@@ -213,6 +278,7 @@ final class AutoSideWatcher {
         Self.askedThisLaunch = true
         MenuBarExtent.requestTrust()
         refresh()
+        settle()
     }
 
     private static var askedThisLaunch = false
@@ -258,13 +324,12 @@ final class AutoSideWatcher {
         if prefs.autoCompactFit != fit { prefs.autoCompactFit = fit }
     }
 
+    /// The cached, settled reading when there is one; otherwise a fresh look, used for this fit but not kept —
+    /// the bar may still be catching up, and `settle()` is what decides which reading is worth remembering.
     private func menuEndX(for app: NSRunningApplication?) -> CGFloat? {
-        guard MenuBarExtent.isTrusted, let app else { return nil }
-        let key = app.bundleIdentifier ?? "pid:\(app.processIdentifier)"
+        guard let app, let key = Self.key(for: app) else { return nil }
         if let cached = menuCache[key] { return cached }
-        guard let measured = MenuBarExtent.menuEndX(pid: app.processIdentifier) else { return nil }
-        menuCache[key] = measured
-        return measured
+        return measure(app.processIdentifier)
     }
 
     private func statusItemsStartX() -> CGFloat? {

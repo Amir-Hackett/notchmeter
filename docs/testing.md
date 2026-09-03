@@ -161,6 +161,14 @@ other, so with it on the app is its own right-hand boundary and costs Auto rough
 number is a floor, not an exact edge: an item whose owner publishes no frame is invisible here, so the real
 leftmost item can sit further left than what is printed. `CompactFit.clearance` is the margin that covers it.
 
+An activation is measured twice, and only the settled reading is kept. `didActivateApplicationNotification`
+arrives before the incoming app has drawn its menu titles, so the first look can answer with the outgoing app's
+geometry, or with nothing; remembering that under the incoming app's name left the strip narrowed for an app whose
+menus are short, with nothing to put it right until some other app happened to activate. The settle pass looks
+again at 120, 300 and 700 ms, stops as soon as two readings agree, and re-fits if the answer changed. An app that
+never answers leaves no entry, so it is measured again next time rather than treated as having no menus.
+`AutoSettleTests` drives the whole pass with scripted readings and a millisecond schedule.
+
 The `readouts:` line in `--smoke` shows what was made of it all — the side, the style, how many tools survived,
 both edges and both gaps — and it needs `open` for the same reason.
 
