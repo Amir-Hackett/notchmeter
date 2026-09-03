@@ -124,6 +124,45 @@ The first prints every provider's parsed reading, the cost summary (ranges, bloc
 
 Every window carries a `source`: `vendorEndpoint`, `statusline`, `rateLimitHeaders`, `localSnapshot` (the newest figure the tool itself wrote to disk) or `localEstimate` (the budget window); `--history` adds the daily cost history. Both forms exit with a Claude-Code-Usage-Monitor-style code: `0` fine, `10` near a limit (any window at 80 % or behind pace), `11` a limit hit (any window at 100 %), `20` no session (readings, but nothing used), `30` no data (no reading at all). The same object is what the optional local API serves at `http://127.0.0.1:6737/v1/limits` (and `/v1/limits/<tool>`), from the running app's cached readings; what the running app writes every 30 seconds to `~/Library/Application Support/Notchmeter/report-v1.json` with its pid, for the `notchmeter` command-line tool (`notchmeter [tool] [--json] [--force]`, which reads that file while it is fresh and the pid is alive, then the local API, then probes) and the status line's today and block figures; what `Notchmeter --mcp` serves as the `get_limits` tool over stdio; and what the Claude Code skill in `skills/notchmeter/SKILL.md` reads.
 
+## Seeing what Auto measured
+
+`CompactSide.auto` decides where the readouts sit from two numbers nobody can see: how far right the frontmost
+app's menu titles reach, and how far left the status items reach. When it puts the strip somewhere surprising,
+that is almost always one of those two numbers being wrong rather than the fitting rule misbehaving. `--menu-bar`
+prints the second one's whole working — every menu bar extra any running app vends, in the order they sit across
+the bar, and whether Auto counts it:
+
+```bash
+open -n -a Notchmeter --stdout /tmp/menubar.txt --args --menu-bar
+```
+
+Run it through `open`, not straight from the shell. A binary started by a shell is attributed to the terminal for
+Accessibility, so it reports "not granted" and prints nothing while the app itself is trusted; `open` hands the
+launch to Launch Services and the app answers for itself.
+
+```
+unplaced x 0–0, y 982, 0 × 0      com.apple.controlcenter   ← and four more like it
+unplaced x 7–31, y 981, 24 × 24   com.google.Chrome
+drawn    x 1050–1090, y 4         com.amirhackett.notchmeter
+drawn    x 1096–1153, y 8         app.mac4breakfast
+…
+15 extra(s), 9 drawn; status items start at 1050
+```
+
+An app may vend extras it is not showing — a Control Center module switched off, an item pushed into the overflow
+a notch creates — and macOS reports those with no size, or at the screen's origin or its foot, rather than leaving
+them out. `unplaced` is one of those. They are excluded because a single one of them reads as a status item at
+x = 0, which makes the right-hand gap come out negative and pins the strip to the left of the notch for good; that
+was a real bug, fixed in `802cf41`, and this flag is what found it.
+
+Two things the output makes plain that are easy to miss. Notchmeter's own menu bar icon is a drawn extra like any
+other, so with it on the app is its own right-hand boundary and costs Auto roughly its own width of room. And the
+number is a floor, not an exact edge: an item whose owner publishes no frame is invisible here, so the real
+leftmost item can sit further left than what is printed. `CompactFit.clearance` is the margin that covers it.
+
+The `readouts:` line in `--smoke` shows what was made of it all — the side, the style, how many tools survived,
+both edges and both gaps — and it needs `open` for the same reason.
+
 ## Platform matrix
 
 None of the states below can be unit-tested; each is a manual check with the expected behaviour and the self-report that confirms it without a screenshot. `--smoke` prints every screen, the chrome and the accessibility flags; the oracle emits `screens` on every display change.
