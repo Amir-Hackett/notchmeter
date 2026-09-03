@@ -80,11 +80,17 @@ struct CompactFit: Equatable {
     /// An odd run cannot be halved, and the extra readout goes to whichever side has more room. The strip is one
     /// shape held centred on the notch, so the heavier side is the side the black overhangs; sending that overhang
     /// into the end that is already free reads as deliberate, while sending it into the crowded end leaves a gap
-    /// of empty black beside the menus and the roomy end sitting unused. With nothing measured this is the old
-    /// rule — the extra goes left — so a fixed side is unaffected.
+    /// of empty black beside the menus and the roomy end sitting unused.
+    ///
+    /// With nothing measured the extra goes right, and a tie goes the same way. That covers a centred layout,
+    /// which has no measurement to be had, and Auto before Accessibility answers. The two ends are not alike: the
+    /// left is where the frontmost app's menu titles grow, and they change length on every app switch, while the
+    /// right holds status items that mostly sit still. So the end to stay clear of while nothing is known is the
+    /// left, and three readouts rest as one left and two right until a measurement says otherwise — at which
+    /// point Auto moves them, which is the whole point of Auto.
     static func splitLeadingCount(of count: Int, leadingRoom: CGFloat = .greatestFiniteMagnitude,
                                   trailingRoom: CGFloat = .greatestFiniteMagnitude) -> Int {
         let half = count / 2
-        return count.isMultiple(of: 2) || leadingRoom >= trailingRoom ? count - half : half
+        return count.isMultiple(of: 2) || leadingRoom > trailingRoom ? count - half : half
     }
 }
