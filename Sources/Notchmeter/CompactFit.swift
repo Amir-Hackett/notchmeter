@@ -13,10 +13,12 @@ struct CompactFit: Equatable {
     /// How many tools are drawn. `.max` when the fit was never narrowed, so every visible tool is kept.
     var toolCount: Int
     var dropped: Int
+    /// How many of the kept run go left of the notch under `.split`; nil outside Auto, and for a single side.
+    var splitLeading: Int?
 
     /// Every tool at the chosen style: a fixed side, or Auto with nothing measured.
     static func whole(side: CompactSide, style: CompactStyle) -> CompactFit {
-        CompactFit(side: side, style: style, toolCount: .max, dropped: 0)
+        CompactFit(side: side, style: style, toolCount: .max, dropped: 0, splitLeading: nil)
     }
 
     /// How much clear room the strip asks for between the nearest menu bar item and its first readout. It is a
@@ -52,9 +54,13 @@ struct CompactFit: Equatable {
             case .leading: width(style, count) <= leadingRoom
             case .trailing: width(style, count) <= trailingRoom
             case .split, .auto:
-                width(style, splitLeadingCount(of: count)) <= leadingRoom
-                    && width(style, count - splitLeadingCount(of: count)) <= trailingRoom
+                width(style, leadingCount(count)) <= leadingRoom
+                    && width(style, count - leadingCount(count)) <= trailingRoom
             }
+        }
+
+        func leadingCount(_ count: Int) -> Int {
+            splitLeadingCount(of: count, leadingRoom: leadingRoom, trailingRoom: trailingRoom)
         }
 
         let smallest: CompactStyle = .rings
@@ -62,14 +68,23 @@ struct CompactFit: Equatable {
         ladder += stride(from: tools - 1, through: 1, by: -1).map { (smallest, $0) }
         for (candidate, count) in ladder {
             for side in sides where fits(side, candidate, count) {
-                return CompactFit(side: side, style: candidate, toolCount: count, dropped: tools - count)
+                return CompactFit(side: side, style: candidate, toolCount: count, dropped: tools - count,
+                                  splitLeading: side == .split ? leadingCount(count) : nil)
             }
         }
-        return CompactFit(side: roomier, style: smallest, toolCount: 1, dropped: tools - 1)
+        return CompactFit(side: roomier, style: smallest, toolCount: 1, dropped: tools - 1, splitLeading: nil)
     }
 
     /// How many of a run go left of the notch under `.split`; NotchCompactView splits it the same way.
-    static func splitLeadingCount(of count: Int) -> Int {
-        Int((Double(count) / 2).rounded())
+    ///
+    /// An odd run cannot be halved, and the extra readout goes to whichever side has more room. The strip is one
+    /// shape held centred on the notch, so the heavier side is the side the black overhangs; sending that overhang
+    /// into the end that is already free reads as deliberate, while sending it into the crowded end leaves a gap
+    /// of empty black beside the menus and the roomy end sitting unused. With nothing measured this is the old
+    /// rule — the extra goes left — so a fixed side is unaffected.
+    static func splitLeadingCount(of count: Int, leadingRoom: CGFloat = .greatestFiniteMagnitude,
+                                  trailingRoom: CGFloat = .greatestFiniteMagnitude) -> Int {
+        let half = count / 2
+        return count.isMultiple(of: 2) || leadingRoom >= trailingRoom ? count - half : half
     }
 }

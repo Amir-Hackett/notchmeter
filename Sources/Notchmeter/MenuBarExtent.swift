@@ -221,6 +221,7 @@ final class AutoSideWatcher {
     var description: String {
         let fit = prefs.compactFit
         let drawn = "\(fit.side.rawValue) at \(fit.style.rawValue)" + (fit.dropped > 0 ? ", \(fit.dropped) tool(s) dropped" : ", every tool")
+            + (fit.splitLeading.map { ", \($0) left of the notch" } ?? "")
         guard prefs.compactSide == .auto else { return "\(prefs.compactSide.rawValue) (fixed) → \(drawn); \(MenuBarExtent.permissionState)" }
         let geometry = metrics()
         let menus = menuEndX(for: NSWorkspace.shared.frontmostApplication)
