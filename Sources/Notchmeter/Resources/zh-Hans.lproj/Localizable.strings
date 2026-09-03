@@ -599,3 +599,7 @@
 "~%ld%% left at reset" = "重置时约剩余 %ld%%";
 "~%ld%% over at reset" = "重置时约超出 %ld%%";
 "“%@” is off in Settings" = "设置中的「%@」已关闭";
+
+/* 条形图放不下的工具，显示在最后一个读数之后（NotchViews） */
+"+%ld" = "+%ld";
+"%ld more" = "还有 %ld 个";

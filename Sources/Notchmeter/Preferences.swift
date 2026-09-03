@@ -283,19 +283,8 @@ enum CompactSide: String, CaseIterable, Codable {
         }
     }
 
-    /// How much clear room Auto asks for between the last menu title and the first readout.
-    static let autoClearance: CGFloat = 8
-
-    /// Auto's whole rule, kept pure so it can be tested without a menu bar. The leading readouts want the strip
-    /// from `notch.minX - leadingWidth` leftwards; menu titles that end before that leave room for both sides,
-    /// menu titles that reach into it push everything right of the notch. A nil `menuEndX` is "nothing measured"
-    /// — Accessibility not granted, or revoked — and keeps whatever fixed side was chosen before Auto. Never
-    /// answers `.auto`.
-    static func resolve(menuEndX: CGFloat?, leadingWidth: CGFloat, notch: CGRect, fallback: CompactSide) -> CompactSide {
-        guard let menuEndX else { return fallback == .auto ? .split : fallback }
-        guard leadingWidth > 0 else { return .split }
-        return menuEndX <= notch.minX - leadingWidth - autoClearance ? .split : .trailing
-    }
+    /// Auto's rule lives in CompactFit, which answers with a whole fit — side, style and how many tools — rather
+    /// than a side alone, because the menu bar squeezes from both ends.
 }
 
 /// A second read a provider makes only because the user asked for it.
@@ -401,12 +390,16 @@ final class Preferences {
     var compactSideFallback: CompactSide {
         didSet { defaults.set(compactSideFallback.rawValue, forKey: Keys.compactSideFallback) }
     }
-    /// What Auto has made of the frontmost app (AutoSideWatcher); nil until it has looked.
-    var autoCompactSide: CompactSide?
-    /// The side the readouts are actually drawn on. Never `.auto`.
-    var resolvedCompactSide: CompactSide {
-        compactSide == .auto ? (autoCompactSide ?? compactSideFallback) : compactSide
+    /// What Auto has made of the menu bar (AutoSideWatcher); nil until it has looked.
+    var autoCompactFit: CompactFit?
+    /// The fit the readouts are actually drawn at. A fixed side keeps every tool at the chosen style; Auto uses
+    /// what it last measured, and falls back to the fixed side until it has measured anything.
+    var compactFit: CompactFit {
+        guard compactSide == .auto else { return .whole(side: compactSide, style: compactStyle) }
+        return autoCompactFit ?? .whole(side: compactSideFallback, style: compactStyle)
     }
+    /// The side the readouts are actually drawn on. Never `.auto`.
+    var resolvedCompactSide: CompactSide { compactFit.side }
 
     var showSpend: Bool {
         didSet { defaults.set(showSpend, forKey: Keys.showSpend); report(Keys.showSpend, showSpend, changed: showSpend != oldValue) }

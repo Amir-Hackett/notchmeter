@@ -583,3 +583,7 @@
 "~%ld%% left at reset" = "~%ld%% còn lại khi đặt lại";
 "~%ld%% over at reset" = "~%ld%% vượt mức khi đặt lại";
 "“%@” is off in Settings" = "“%@” đang tắt trong Cài đặt";
+
+/* Các công cụ không vừa, đặt sau chỉ số cuối cùng (NotchViews) */
+"+%ld" = "+%ld";
+"%ld more" = "thêm %ld";
