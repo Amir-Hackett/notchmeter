@@ -510,6 +510,13 @@ struct NotchExpandedView: View {
     @State private var contentHeight: CGFloat = 0
 
     static let screenMargin: CGFloat = 24
+    /// The room the content keeps above its first card.
+    static let contentTopPadding: CGFloat = 8
+
+    /// The room between the top of the scrolled content and the first card's title: this padding and the card's
+    /// own. A reading of where the panel opens counts from the title, which is what has to clear the notch
+    /// (PanelScroll).
+    static func titleInset(density: Density) -> CGFloat { contentTopPadding + density.cardPadding }
 
     /// Room for the content: the screen's usable height less a margin above the Dock. `visibleFrame` already
     /// excludes the menu bar the notch sits in, so the notch height is not subtracted a second time.
@@ -596,7 +603,7 @@ struct NotchExpandedView: View {
             FooterView(store: store, actions: actions)
         }
         .padding(.horizontal, 14)
-        .padding(.top, 8)
+        .padding(.top, Self.contentTopPadding)
         .padding(.bottom, 10)
         .frame(width: prefs.panelWidth.points, alignment: .leading)
     }

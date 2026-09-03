@@ -99,6 +99,11 @@ final class EdgePanelController: NSObject, PanelPresenting {
     var window: NSWindow? { panel }
     var isExpanded: Bool { expanded }
 
+    var scroll: PanelScrollReader {
+        PanelScrollReader(window: panel, notch: edge == .top ? NotchController.notchRect(on: screen) : nil,
+                          titleInset: NotchExpandedView.titleInset(density: prefs.density))
+    }
+
     var expandedContentSize: CGSize { measuredContentSize(unclamped: false) }
     var expandedIntrinsicContentSize: CGSize { measuredContentSize(unclamped: true) }
 

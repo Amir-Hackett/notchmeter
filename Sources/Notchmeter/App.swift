@@ -593,6 +593,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fields["panelVisible"] = presenter.isVisible
             fields["regions"] = ["compact": presenter.hover.regions.compact, "expanded": presenter.hover.regions.expanded]
             fields["panelScreen"] = presenter.screen.localizedName
+            fields["panelScroll"] = presenter.scrollPosition?.fields as Any
         }
         if let window = settings?.window, window.isVisible {
             fields["settingsFrame"] = window.frame
@@ -659,6 +660,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Probe.emit("cost: still scanning")
         }
         let costCardPassed = reportCostCard()
+        let scrollPassed = await reportScroll()
         Probe.emit(Probe.describe(store.advice))
         Probe.emit("notifications: \(prefs.notificationsEnabled ? "on" : "off") in settings, \(notifier.isAvailable ? "available" : "no-op in this run"); session attention: \(prefs.sessionAttention.rawValue); keychain prompts: \(prefs.keychainPrompts.rawValue)")
         Probe.emit("updater: \(updaterGate.summary); never started under --smoke")
@@ -682,7 +684,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let checks: [(String, Bool)] = [("panel visible", presenter?.isVisible == true), ("hover", hoverPassed),
                                         ("sizing", sizingPassed), ("settings", settingsPassed), ("glance", glancePassed),
                                         ("click-to-key", keyPassed), ("menu", menuPassed), ("rebuild", rebuildPassed),
-                                        ("cost card", costCardPassed)]
+                                        ("cost card", costCardPassed), ("panel scroll", scrollPassed)]
         let failed = checks.filter { !$0.1 }.map(\.0)
         Probe.emit("self check: \(checks.count - failed.count)/\(checks.count) passed"
                    + (failed.isEmpty ? "" : "; failed: \(failed.joined(separator: ", "))"))
@@ -846,6 +848,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                    + "; panel order \(store.visibleTools.map(\.rawValue).joined(separator: ", ")) → follows=\(follows)"
                    + (gaps.isEmpty ? "" : "; nothing to show: \(gaps.map(\.text).joined(separator: " · "))"))
         return follows
+    }
+
+    /// Where a reopened panel is scrolled to, which nothing on the screen spells out. The panel is a readout and
+    /// not a document, so every opening starts at the Cost card with its title clear of the notch rather than
+    /// where the last look left it (NotchExpandedView's scroll anchor). The panel is opened, scrolled down,
+    /// closed and opened again, and its position read from the live scroll view at each step. Where an opening
+    /// lands is SwiftUI's to decide, so the verdicts compare readings rather than assume a number: the scroll has
+    /// to move the panel off where it opened, the reopen has to put it back there, and the first card's title has
+    /// to sit below the notch's bottom edge.
+    private func reportScroll() async -> Bool {
+        guard let presenter else { return false }
+        let wasExpanded = presenter.hover.state == .expanded
+        presenter.expandNow(cause: .hotkey)
+        try? await Task.sleep(for: .seconds(1.2))
+        guard let opened = presenter.scrollPosition else {
+            Probe.emit("panel scroll: the open panel's window has no scroll view to read: \(presenter.scroll.hierarchy)")
+            return false
+        }
+        var away: Bool?
+        if opened.overflows {
+            presenter.scroll.scrollDown(by: 200)
+            // Read after a beat rather than at once: a position SwiftUI puts back on its next layout pass is no
+            // scroll at all, and then the reopen has nothing to undo and its verdict is worth nothing.
+            try? await Task.sleep(for: .seconds(0.4))
+            away = presenter.scrollPosition.map { !$0.isAt(opened) }
+        }
+        presenter.toggle(cause: .hotkey)
+        try? await Task.sleep(for: .seconds(1))
+        let closed = presenter.scrollPosition
+        presenter.expandNow(cause: .hotkey)
+        try? await Task.sleep(for: .seconds(1.2))
+        let reopened = presenter.scrollPosition
+        let back = reopened?.isAt(opened) ?? false
+        let clear = reopened?.clearsNotch ?? true
+        Probe.emit("panel scroll: opened \(opened.text)"
+                   + "; scrolled off it=\(away.map(String.init(describing:)) ?? "nothing to scroll")"
+                   + "; while closed=\(closed.map(\.text) ?? "no scroll view in the window")"
+                   + "; reopened \(reopened?.text ?? "no scroll view") → back where it opened=\(back)")
+        if !wasExpanded { presenter.toggle(cause: .hotkey) }
+        return back && clear && (away ?? true)
     }
 
     /// The Options menu a secondary click puts up, built and walked without a pointer: every command carries a
