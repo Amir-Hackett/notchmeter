@@ -76,4 +76,32 @@ import Testing
         #expect(!text.contains("token"))
         #expect(text.split(separator: "\n").count == 3)
     }
+
+    /// The wiring rather than the file format. The log skips a window that has not moved since its last row, so the
+    /// store must hand it the samples as they stood *before* the reading being recorded. Handing over the dictionary
+    /// it had just written to made every window its own predecessor: every row was skipped as unchanged, the file
+    /// was never created, and the seven days of history behind the run-out estimate, the card's sparkline and
+    /// `--probe` were empty on every Mac the app ran on.
+    @MainActor @Test func theStoreLogsTheFirstReadingAndEveryMoveAfterIt() throws {
+        let suite = "NotchmeterTests.Drain.wiring"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-drain-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let log = DrainLog(url: dir.appendingPathComponent("drain.jsonl"))
+        let store = UsageStore(prefs: Preferences(defaults: defaults), providers: [], cache: ReadingCache(defaults: defaults),
+                               defaults: defaults, drainLog: log, reportFile: nil)
+        let reset = now.addingTimeInterval(3600)
+        func reading(_ used: Double) -> UsageReading {
+            UsageReading(tool: .cursor, windows: [
+                LimitWindow(id: "included", label: "Included usage", usedFraction: used, resetsAt: reset, periodDuration: Period.week),
+            ], plan: nil, fetchedAt: now, observedAt: nil)
+        }
+        let key = DrainLog.Key(tool: .cursor, window: "included")
+        store.recordDrain(reading(0.55), now: now)
+        #expect(log.load(now: now)[key]?.map(\.used) == [0.55])
+        store.recordDrain(reading(1), now: now.addingTimeInterval(60))
+        #expect(log.load(now: now)[key]?.map(\.used) == [0.55, 1])
+    }
 }

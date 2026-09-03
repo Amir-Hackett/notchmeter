@@ -135,6 +135,12 @@ A plan that splits its allowance by model — Cursor Enterprise's "Cursor models
 - The reset is the **soonest** among the windows covered, so the countdown never runs past the first cap to bite.
 - No money is added up. The combined window carries no dollar figure: a share of a total and a dollar amount are not the same arithmetic, and summing shares across models would double-count the total's own dollars.
 
+## When a vendor publishes two figures for one window
+
+Cursor's usage summary answers the same question twice for its plan and team-pooled windows: `totalPercentUsed`, and the `used`/`limit` pair the note under the bar is written from. On most plans they agree to the cent. On at least one Enterprise account they did not — the summary read `totalPercentUsed` 55 while `used` and `limit` were both $20, the whole allowance gone, with the two model splits beside it reading 47 % and 100 %. The bar took the percent, so a cap that was already spent drew as a little over half full, the run-out warning promised two more days of headroom that did not exist, and "All models" could find no parent total to adopt (the rule above: a window reading below its own shares is not their parent) and fell back to the highest share.
+
+Which of the two is the wrong one cannot be established from this side — the field is undocumented and the scope it counts is not published — so neither is trusted over the other: **the window is as spent as its furthest-along figure says** (`CursorProvider.share`, pinned by `CursorParsing`). Under-reporting a spent window is the costlier way to be wrong, because the bar, the run-out warning and the combined window's search for a parent are all built on that one figure. The note keeps saying what the dollars say, so a disagreement stays visible on the card rather than being smoothed away.
+
 ## Subscription and API billing
 
 Claude Code's own figure is an API-price estimate and Anthropic says so. [B]: *"The Session block in `/usage` shows API token usage and is intended for API users. Claude Max and Pro subscribers have usage included in their subscription, so the session cost figure isn't relevant for billing purposes."* And: *"Claude Code computes the dollar figure locally from token counts at list price, unless a `modelPricing` table is in effect."*
