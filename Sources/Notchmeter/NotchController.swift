@@ -558,7 +558,7 @@ final class NotchController: NSObject, PanelPresenting {
             _ = (store.statuses, store.sessions, store.cost, store.statusline, store.screenCaptured, store.footerNote, prefs.enabledTools, prefs.showSpend, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
-                 prefs.monthlyBudgetUSD, prefs.compactSide, prefs.compactSideFallback, prefs.autoCompactFit)
+                 prefs.monthlyBudgetUSD, prefs.compactSide, prefs.autoCompactFit)
             refreshRegions()
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced

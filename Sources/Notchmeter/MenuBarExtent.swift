@@ -48,18 +48,68 @@ enum MenuBarExtent {
     /// frames (and the system's own, when it does not vend them) are invisible to this, so the real leftmost item
     /// can sit further left than what comes back; `CompactFit.clearance` is the margin that covers the difference.
     static func statusItemsStartX() -> CGFloat? {
-        guard isTrusted else { return nil }
-        var leftmost: CGFloat?
+        inventory().compactMap { $0.drawn ? $0.frame.minX : nil }.min()
+    }
+
+    /// One entry per menu bar extra any running app vends, with the judgement `statusItemsStartX` makes of it.
+    /// `--menu-bar` prints this: Auto's whole behaviour rests on a number nobody can see, and when it is wrong the
+    /// only way to find out which item spoiled it is to look at all of them.
+    struct StatusItem {
+        var app: String
+        var frame: CGRect
+        var drawn: Bool
+    }
+
+    static func inventory() -> [StatusItem] {
+        guard isTrusted else { return [] }
+        var found: [StatusItem] = []
         for app in NSWorkspace.shared.runningApplications where app.activationPolicy != .prohibited {
             let element = AXUIElementCreateApplication(app.processIdentifier)
             guard let extras = self.element(element, kAXExtrasMenuBarAttribute),
                   let items = elements(extras, kAXChildrenAttribute)
             else { continue }
-            for minX in items.compactMap({ frame(of: $0)?.minX }) {
-                leftmost = min(leftmost ?? minX, minX)
+            let name = app.bundleIdentifier ?? app.localizedName ?? "pid:\(app.processIdentifier)"
+            for frame in items.compactMap({ frame(of: $0) }) {
+                found.append(StatusItem(app: name, frame: frame, drawn: isDrawn(frame)))
             }
         }
-        return leftmost
+        return found.sorted { $0.frame.minX < $1.frame.minX }
+    }
+
+    /// Whether an extra is one the menu bar actually draws. An app may vend items it is not showing — a module
+    /// switched off, one pushed into the overflow the notch creates — and macOS reports those at the screen's
+    /// origin or with no size at all rather than omitting them. Left in, a single such item reads as a status
+    /// item at x=0, which makes the whole right-hand gap look negative and pins the readouts to the left.
+    private static func isDrawn(_ frame: CGRect) -> Bool {
+        guard frame.width > 0, frame.height > 0 else { return false }
+        guard let primary = NSScreen.screens.first else { return false }
+        return NSScreen.screens.contains { screen in
+            // The Accessibility origin is the top-left of the primary screen, so this screen's menu bar begins at
+            // its own distance below that top; horizontal coordinates need no conversion, and only they are used.
+            let top = primary.frame.maxY - screen.frame.maxY
+            let bar = max(screen.frame.maxY - screen.visibleFrame.maxY, 24)
+            return frame.minY >= top - 1 && frame.minY <= top + bar
+                && frame.minX > screen.frame.minX && frame.maxX <= screen.frame.maxX + 1
+        }
+    }
+
+    /// `--menu-bar`: every extra, in the order they sit across the bar, and which of them Auto counts. Run it
+    /// through `open` — a binary started straight from a shell inherits the terminal's Accessibility answer, not
+    /// the app's, and reports "not granted" while the app itself is trusted.
+    static func printInventory() {
+        guard isTrusted else {
+            print(permissionState + " — run this through `open -n -a Notchmeter --stdout <file> --args --menu-bar`")
+            return
+        }
+        let items = inventory()
+        for item in items {
+            let box = String(format: "x %.0f–%.0f, y %.0f, %.0f × %.0f", item.frame.minX, item.frame.maxX,
+                             item.frame.minY, item.frame.width, item.frame.height)
+            print("\(item.drawn ? "drawn  " : "unplaced") \(box)  \(item.app)")
+        }
+        let counted = items.filter(\.drawn).count
+        print("\(items.count) extra(s), \(counted) drawn; status items start at "
+            + (statusItemsStartX().map { String(format: "%.0f", $0) } ?? "not measured"))
     }
 
     private static func copy(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
@@ -180,7 +230,7 @@ final class AutoSideWatcher {
         let leading = menus.map { geometry.notch.minX - CompactFit.clearance - $0 }
         let trailing = statusItems.map { $0 - CompactFit.clearance - geometry.notch.maxX }
         return "auto → \(drawn); menus end at \(edge(menus)), status items start at \(edge(statusItems)); "
-            + "gap leading \(room(leading)), trailing \(room(trailing)); fallback \(prefs.compactSideFallback.rawValue); "
+            + "gap leading \(room(leading)), trailing \(room(trailing)); "
             + "measured \(menuCache.count) app(s); \(MenuBarExtent.permissionState)"
     }
 
@@ -188,7 +238,7 @@ final class AutoSideWatcher {
     /// and the side preference itself. The fit it writes is not tracked here, so answering cannot re-trigger this.
     private func observe() {
         withObservationTracking {
-            _ = (prefs.compactStyle, prefs.toolOrder, prefs.enabledTools, prefs.compactSide, prefs.compactSideFallback)
+            _ = (prefs.compactStyle, prefs.toolOrder, prefs.enabledTools, prefs.compactSide)
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.observe()
@@ -202,8 +252,7 @@ final class AutoSideWatcher {
         let geometry = metrics()
         let fit = CompactFit.resolve(notch: geometry.notch, menusEndX: menuEndX(for: app),
                                      statusItemsStartX: statusItemsStartX(), tools: geometry.tools,
-                                     style: prefs.compactStyle, fallback: prefs.compactSideFallback,
-                                     width: geometry.width)
+                                     style: prefs.compactStyle, width: geometry.width)
         // Only on a change: the drawn fit is observed, and observing it is what asks for these measurements.
         if prefs.autoCompactFit != fit { prefs.autoCompactFit = fit }
     }

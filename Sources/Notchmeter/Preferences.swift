@@ -381,22 +381,18 @@ final class Preferences {
 
     var compactSide: CompactSide {
         didSet {
-            if oldValue != .auto { compactSideFallback = oldValue }
             defaults.set(compactSide.rawValue, forKey: Keys.compactSide)
             report(Keys.compactSide, compactSide.rawValue, changed: compactSide != oldValue)
         }
     }
-    /// The fixed side Auto falls back to while it has measured nothing: whichever side was chosen before Auto.
-    var compactSideFallback: CompactSide {
-        didSet { defaults.set(compactSideFallback.rawValue, forKey: Keys.compactSideFallback) }
-    }
     /// What Auto has made of the menu bar (AutoSideWatcher); nil until it has looked.
     var autoCompactFit: CompactFit?
     /// The fit the readouts are actually drawn at. A fixed side keeps every tool at the chosen style; Auto uses
-    /// what it last measured, and falls back to the fixed side until it has measured anything.
+    /// what it last measured, and until it has measured anything it sits centred on the notch — the arrangement
+    /// it returns to whenever there is room, so the strip starts where it spends most of its life.
     var compactFit: CompactFit {
         guard compactSide == .auto else { return .whole(side: compactSide, style: compactStyle) }
-        return autoCompactFit ?? .whole(side: compactSideFallback, style: compactStyle)
+        return autoCompactFit ?? .whole(side: .split, style: compactStyle)
     }
     /// The side the readouts are actually drawn on. Never `.auto`.
     var resolvedCompactSide: CompactSide { compactFit.side }
@@ -681,7 +677,6 @@ final class Preferences {
         static let showDetails = "showDetails"
         static let compactSide = "compactSide"
         static let appearance = "appearance"
-        static let compactSideFallback = "compactSideFallback"
         static let usageDisplay = "usageDisplay"
         static let resetDisplay = "resetDisplay"
         static let timeFormat = "timeFormat"
@@ -764,8 +759,6 @@ final class Preferences {
         showDetails = defaults.object(forKey: Keys.showDetails) as? Bool ?? false
         compactSide = CompactSide(rawValue: defaults.string(forKey: Keys.compactSide) ?? "") ?? .split
         appearance = AppearanceChoice(rawValue: defaults.string(forKey: Keys.appearance) ?? "") ?? .system
-        let storedFallback = CompactSide(rawValue: defaults.string(forKey: Keys.compactSideFallback) ?? "") ?? .split
-        compactSideFallback = storedFallback == .auto ? .split : storedFallback
         usageDisplay = UsageDisplay(rawValue: defaults.string(forKey: Keys.usageDisplay) ?? "") ?? .used
         resetDisplay = ResetDisplay(rawValue: defaults.string(forKey: Keys.resetDisplay) ?? "") ?? .exact
         timeFormat = TimeFormatPreference(rawValue: defaults.string(forKey: Keys.timeFormat) ?? "") ?? .auto
