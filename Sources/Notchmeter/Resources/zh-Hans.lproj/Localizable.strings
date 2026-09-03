@@ -147,6 +147,7 @@
 "Antigravity reported no quota buckets" = "Antigravity 未报告任何配额桶";
 "Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity 的登录已过期。请运行一次 Gemini CLI 或 Antigravity 以重新登录";
 "Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity 的登录被拒绝。请运行一次 Gemini CLI 或 Antigravity 以重新登录";
+"Appearance" = "外观";
 "Apply" = "应用";
 "Approve in System Settings" = "在系统设置中批准";
 "As of %@" = "截至 %@";
@@ -241,6 +242,7 @@
 "Cut" = "剪切";
 "Cutting it close (on track)" = "接近节奏（勉强够用）";
 "daily" = "每日";
+"Dark" = "深色";
 "Debug logging" = "调试日志";
 "Default" = "默认";
 "Density" = "密度";
@@ -325,6 +327,7 @@
 "Left, right or bottom edge on any Mac." = "任何 Mac 都可放在左、右或底部边缘。";
 "Let Claude Code talk to the notch?" = "让 Claude Code 与刘海通信？";
 "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "让 Claude Code 在开始、停止或等待你时告知刘海。钩子传递事件名、会话 ID、文件夹名、其 git 分支、权限模式、子代理的启停以及因速率限制而停止；仪表立即刷新，卡片统计会话与代理数，Claude 等待你输入时显示标记。";
+"Light" = "浅色";
 "likely a %@ window" = "可能是 %@ 窗口";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "在 ~/.local/bin（或 /usr/local/bin）创建指向本应用的 `notchmeter` 链接，终端或 Claude Code 技能中的 `notchmeter` 便读取运行中应用的缓存报告，而不再逐个询问厂商；`notchmeter --force` 重新读取。";
 "Local API on 127.0.0.1:%ld" = "本地 API（127.0.0.1:%ld）";
@@ -333,6 +336,7 @@
 "low power mode" = "低电量模式";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "macOS 需要你的许可才能读取 Claude Code 的登录信息。询问时请选择“始终允许”";
 "Main display (the one with the menu bar)" = "主显示器（带菜单栏的那台）";
+"Match system" = "跟随系统";
 "MCP server" = "MCP 服务器";
 "Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits." = "将其合并到 %1$@，或使用“添加到 settings.json…”自动合并。每个条目运行 %2$@ --hook，它会把事件名称发送给正在运行的应用后退出。";
 "month" = "月";
@@ -527,6 +531,7 @@
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "钥匙串请求已被取消。在设置中关闭再打开 Claude 可重新询问";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "本应用统一日志的最近 10 分钟、各助手状态、钩子和状态栏状态、布局和 macOS 版本，去除个人文件夹路径，用于错误报告。绝不包含令牌。";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "登录项指向的应用副本已被移动。请关闭后再重新打开。";
+"The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself." = "无论如何选择，刘海旁的面板始终保持深色：它必须是黑色，才能与刘海本身看起来浑然一体。";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "面板跟随指针：移到指针停留半秒的显示器上。";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "当 30 分钟内没有助手活动且所有窗口都很安静时，圆环会缩成一个圆点；钩子事件、文件活动、节奏变化或把指针停在上面都会让它们恢复。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "会话计量约为你常态的 %1$@：每 1%% 消耗 %2$@，常态为 %3$@。";

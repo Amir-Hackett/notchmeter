@@ -131,6 +131,7 @@
 "Antigravity reported no quota buckets" = "Antigravity가 할당량 버킷을 보고하지 않았습니다";
 "Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity 로그인이 만료되었습니다. Gemini CLI 또는 Antigravity를 한 번 실행해 다시 로그인하세요";
 "Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity 로그인이 거부되었습니다. Gemini CLI 또는 Antigravity를 한 번 실행해 다시 로그인하세요";
+"Appearance" = "모양";
 "Apply" = "적용";
 "Approve in System Settings" = "시스템 설정에서 승인";
 "As of %@" = "%@ 기준";
@@ -225,6 +226,7 @@
 "Cut" = "오려두기";
 "Cutting it close (on track)" = "아슬아슬함 (페이스 내)";
 "daily" = "일간";
+"Dark" = "어둡게";
 "Debug logging" = "디버그 로깅";
 "Default" = "기본";
 "Density" = "밀도";
@@ -309,6 +311,7 @@
 "Left, right or bottom edge on any Mac." = "어떤 Mac에서든 왼쪽, 오른쪽 또는 하단 가장자리.";
 "Let Claude Code talk to the notch?" = "Claude Code가 노치에 알리도록 할까요?";
 "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "Claude Code가 시작, 중지, 대기할 때 노치에 알리게 합니다. 훅은 이벤트 이름, 세션 ID, 폴더 이름, git 브랜치, 권한 모드, 하위 에이전트 시작과 중지, 속도 제한으로 인한 중지를 전달합니다. 미터가 즉시 새로 고쳐지고, 카드가 세션과 에이전트를 세며, Claude가 입력을 기다리는 동안 배지가 표시됩니다.";
+"Light" = "밝게";
 "likely a %@ window" = "아마 %@ 창";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "~/.local/bin(또는 /usr/local/bin)에 이 앱으로의 `notchmeter` 링크를 만듭니다. 터미널이나 Claude Code 스킬의 `notchmeter`는 공급자마다 다시 묻는 대신 실행 중인 앱의 캐시된 보고서를 읽습니다. `notchmeter --force`는 새로 읽습니다.";
 "Local API on 127.0.0.1:%ld" = "로컬 API (127.0.0.1:%ld)";
@@ -317,6 +320,7 @@
 "low power mode" = "저전력 모드";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "Claude Code 로그인을 읽으려면 macOS의 허가가 필요합니다. 물어볼 때 '항상 허용'을 선택하세요";
 "Main display (the one with the menu bar)" = "주 디스플레이(메뉴 막대가 있는 쪽)";
+"Match system" = "시스템에 맞춤";
 "MCP server" = "MCP 서버";
 "Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits." = "이것을 %1$@에 병합하거나 'settings.json에 추가…'로 자동 병합하세요. 각 항목은 %2$@ --hook을 실행해 실행 중인 앱에 이벤트 이름을 보내고 종료합니다.";
 "month" = "달";
@@ -511,6 +515,7 @@
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "키체인 요청이 닫혔습니다. 설정에서 Claude를 껐다 켜면 다시 묻습니다";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "이 앱의 통합 로그 최근 10분, 각 어시스턴트 상태, 훅과 상태 표시줄 상태, 레이아웃과 macOS 버전을 홈 폴더 경로를 지운 채 버그 보고용으로 모읍니다. 토큰은 절대 포함하지 않습니다.";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "로그인 항목이 이동된 앱 복사본을 가리킵니다. 껐다가 다시 켜세요.";
+"The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself." = "무엇을 선택하든 노치 옆 패널은 어둡게 유지됩니다. 노치와 하나의 형태로 보이려면 검은색이어야 합니다.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "패널이 포인터를 따라갑니다. 포인터가 반 초 머문 디스플레이로 옮겨 갑니다.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "30분 동안 어떤 어시스턴트도 활동하지 않고 모든 창이 조용하면 링이 점으로 줄어듭니다. 훅 이벤트, 파일 활동, 페이스 변화, 링 위에 포인터를 올리면 다시 나타납니다.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "세션 측정이 평소보다 약 %1$@ 무겁습니다: 1%%당 %2$@ 대 %3$@.";

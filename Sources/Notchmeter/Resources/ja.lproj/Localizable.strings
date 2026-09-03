@@ -131,6 +131,7 @@
 "Antigravity reported no quota buckets" = "Antigravity はクォータバケットを報告しませんでした";
 "Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity のログインが期限切れです。Gemini CLI または Antigravity を一度実行して再サインインしてください";
 "Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity のログインが拒否されました。Gemini CLI または Antigravity を一度実行して再サインインしてください";
+"Appearance" = "外観";
 "Apply" = "適用";
 "Approve in System Settings" = "システム設定で承認";
 "As of %@" = "%@時点";
@@ -225,6 +226,7 @@
 "Cut" = "カット";
 "Cutting it close (on track)" = "ぎりぎり（ペース内）";
 "daily" = "日間";
+"Dark" = "ダーク";
 "Debug logging" = "デバッグログ";
 "Default" = "デフォルト";
 "Density" = "密度";
@@ -309,6 +311,7 @@
 "Left, right or bottom edge on any Mac." = "どの Mac でも左、右、下の端に置けます。";
 "Let Claude Code talk to the notch?" = "Claude Code からノッチに知らせますか？";
 "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "開始・停止・入力待ちを Claude Code からノッチに知らせます。フックはイベント名、セッション ID、フォルダ名、その git ブランチ、権限モード、サブエージェントの開始と停止、レート制限による停止を渡します。メーターはすぐ更新され、カードはセッションとエージェントを数え、Claude が入力を待つ間はバッジが出ます。";
+"Light" = "ライト";
 "likely a %@ window" = "おそらく %@ ウィンドウ";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "~/.local/bin（または /usr/local/bin）にこのアプリへの `notchmeter` リンクを作ります。ターミナルや Claude Code スキルの `notchmeter` は各ベンダーに問い合わせ直さず、実行中のアプリのキャッシュ済みレポートを読みます。`notchmeter --force` は読み直します。";
 "Local API on 127.0.0.1:%ld" = "ローカル API（127.0.0.1:%ld）";
@@ -317,6 +320,7 @@
 "low power mode" = "低電力モード";
 "macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "Claude Code のログインを読むには macOS の許可が必要です。確認時に「常に許可」を選んでください";
 "Main display (the one with the menu bar)" = "メインディスプレイ（メニューバーのある方）";
+"Match system" = "システムに合わせる";
 "MCP server" = "MCP サーバー";
 "Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits." = "これを %1$@ にマージするか、「settings.json に追加…」で自動的にマージしてください。各項目は %2$@ --hook を実行し、イベント名を起動中のアプリに送って終了します。";
 "month" = "月";
@@ -511,6 +515,7 @@
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "キーチェーンの要求が閉じられました。設定で Claude をオフにしてから再度オンにすると再度確認します";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "このアプリの統合ログの直近 10 分、各アシスタントの状態、フックとステータスラインの状態、レイアウトと macOS のバージョンを、ホームフォルダのパスを除いて、バグ報告用にまとめます。トークンは含みません。";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "ログイン項目は移動済みのアプリを指しています。一度オフにしてから再度オンにしてください。";
+"The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself." = "どれを選んでもノッチ横のパネルはダークのままです。ノッチと一つの形に見えるには黒である必要があります。";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "パネルはポインタに追従します。ポインタが半秒とどまったディスプレイへ移動します。";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "30 分間どのアシスタントも活動せず、すべてのウィンドウが静かなときリングはドットに縮みます。フックイベント、ファイルの活動、ペースの変化、リングにポインタを置くと元に戻ります。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "セッションの計測が平常より約 %1$@ 重くなっています: 1%% あたり %2$@（平常 %3$@）。";
