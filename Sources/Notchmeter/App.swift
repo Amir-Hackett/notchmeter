@@ -576,6 +576,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "usageDisplay": prefs.usageDisplay.rawValue, "toolOrder": prefs.toolOrder.map(\.rawValue),
             "enabledTools": prefs.enabledTools.map(\.rawValue).sorted(), "showSpend": prefs.showSpend, "display": prefs.display.rawValue,
             "visibleTools": store.visibleTools.map(\.rawValue), "presence": String(describing: store.presence),
+            "costCard": ["carried": store.costSelection.providers.map(\.tool.rawValue),
+                         "leads": store.costSelection.providers.first?.tool.rawValue as Any,
+                         "gaps": store.costGaps.map { ["tool": $0.tool.rawValue, "reason": $0.text] }],
             "awaitingInput": store.awaitingInput.map(\.rawValue).sorted(), "sessions": store.sessions.count,
             "readings": ToolID.allCases.map { Oracle.fields($0, store.status($0)) },
             "advice": store.advice.map(\.text),
@@ -655,6 +658,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             Probe.emit("cost: still scanning")
         }
+        let costCardPassed = reportCostCard()
         Probe.emit(Probe.describe(store.advice))
         Probe.emit("notifications: \(prefs.notificationsEnabled ? "on" : "off") in settings, \(notifier.isAvailable ? "available" : "no-op in this run"); session attention: \(prefs.sessionAttention.rawValue); keychain prompts: \(prefs.keychainPrompts.rawValue)")
         Probe.emit("updater: \(updaterGate.summary); never started under --smoke")
@@ -677,7 +681,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let smokeRestoreDetails { prefs.showDetails = smokeRestoreDetails }
         let checks: [(String, Bool)] = [("panel visible", presenter?.isVisible == true), ("hover", hoverPassed),
                                         ("sizing", sizingPassed), ("settings", settingsPassed), ("glance", glancePassed),
-                                        ("click-to-key", keyPassed), ("menu", menuPassed), ("rebuild", rebuildPassed)]
+                                        ("click-to-key", keyPassed), ("menu", menuPassed), ("rebuild", rebuildPassed),
+                                        ("cost card", costCardPassed)]
         let failed = checks.filter { !$0.1 }.map(\.0)
         Probe.emit("self check: \(checks.count - failed.count)/\(checks.count) passed"
                    + (failed.isEmpty ? "" : "; failed: \(failed.joined(separator: ", "))"))
@@ -820,6 +825,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let released = !(presenter.window?.isKeyWindow ?? false)
         Probe.emit("click key: opened=\(opened) key window after click=\(key) Escape closes=\(closed) key released=\(released)")
         return opened && key && closed && released
+    }
+
+    /// The Cost card's own order, which a tester cannot see: which assistants it carries, which one leads it (the
+    /// detail block under the legend is that one's), and which carried assistants had nothing to show and why.
+    /// The verdict is that the card follows the same order as the cards below it — reordering an assistant under
+    /// Settings has to move it on the Cost card too, or the card and the panel disagree about who is first.
+    private func reportCostCard() -> Bool {
+        let carried = store.costSelection.providers.map(\.tool)
+        let leads = carried.first
+        let gaps = store.costGaps
+        var remaining = store.visibleTools[...]
+        let follows = carried.allSatisfy { tool in
+            guard let index = remaining.firstIndex(of: tool) else { return false }
+            remaining = remaining[remaining.index(after: index)...]
+            return true
+        }
+        Probe.emit("cost card: leads \(leads?.rawValue ?? "nobody") · carries \(carried.map(\.rawValue).joined(separator: ", "))"
+                   + " of \(prefs.costCardTools.map(\.rawValue).sorted().joined(separator: ", "))"
+                   + "; panel order \(store.visibleTools.map(\.rawValue).joined(separator: ", ")) → follows=\(follows)"
+                   + (gaps.isEmpty ? "" : "; nothing to show: \(gaps.map(\.text).joined(separator: " · "))"))
+        return follows
     }
 
     /// The Options menu a secondary click puts up, built and walked without a pointer: every command carries a

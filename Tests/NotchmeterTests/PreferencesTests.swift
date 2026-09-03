@@ -75,12 +75,15 @@ import Testing
             #expect(store.visibleTools == [.cursor, .claude, .codex])
             // The Cost card reads the same preference, so its donut, its legend and its detail block move with it;
             // an assistant that reported no spend is not in the selection to lead it (CostAbsence names it instead).
-            let selection = CostSelection(all: store.cost?.providers ?? [], order: prefs.toolOrder, carried: prefs.costCardTools)
+            let selection = store.costSelection
+            #expect(selection == CostSelection(all: store.cost?.providers ?? [], order: prefs.toolOrder, carried: prefs.costCardTools))
             #expect(selection.providers.map(\.tool) == [.cursor, .claude])
             #expect(CostDonut.arcs(selection.weights(range: .today, mode: .cost)).map(\.tool) == [.cursor, .claude])
+            // Codex is carried and shown but reported no spend, so it is named under the legend rather than
+            // drawn as a zero slice — and its reason is the one the app already knows.
+            #expect(store.costGaps.map(\.tool) == [.codex])
             prefs.move(.claude, by: -1)
-            #expect(CostSelection(all: store.cost?.providers ?? [], order: prefs.toolOrder, carried: prefs.costCardTools)
-                .providers.map(\.tool) == [.claude, .cursor])
+            #expect(store.costSelection.providers.map(\.tool) == [.claude, .cursor])
         }
     }
 }

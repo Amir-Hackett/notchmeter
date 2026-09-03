@@ -187,6 +187,24 @@ final class UsageStore {
     /// The tools on screen, in the user's order (Preferences.toolOrder).
     var visibleTools: [ToolID] { prefs.toolOrder.filter(isShown) }
 
+    /// The assistants the Cost card carries, in the user's order, less any the card is set to leave out. The card
+    /// draws this, the self check prints it and the oracle reports it, so a tester who cannot see the card reads
+    /// the same order the card does.
+    var costSelection: CostSelection {
+        CostSelection(all: cost?.providers ?? [], order: prefs.toolOrder, carried: prefs.costCardTools)
+    }
+
+    /// The carried assistants that reported nothing, each with the reason the app already knows. Empty before the
+    /// first scan, where every tool is missing because the scan is still running.
+    var costGaps: [CostGap] {
+        guard cost != nil else { return [] }
+        let carried = visibleTools.filter { prefs.costCardTools.contains($0) }
+        return CostAbsence.gaps(carried: carried, reporting: Set(costSelection.providers.map(\.tool)),
+                                cursorUsageEvents: prefs.cursorUsageEvents, cursorExport: cursorExport,
+                                problems: carried.reduce(into: [:]) { $0[$1] = status($1).problem },
+                                nothingLocal: Set(carried.filter { status($0).hasNothingYet }))
+    }
+
     func isInstalled(_ tool: ToolID) -> Bool {
         providers[tool]?.isInstalled() ?? false
     }
