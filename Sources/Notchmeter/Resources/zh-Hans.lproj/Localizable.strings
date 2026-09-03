@@ -161,6 +161,7 @@
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "按此速度，你将在%3$@ %4$@ 至 %5$@ 之间触及 %1$@ %2$@上限。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "按当前速度，%1$@ 的%2$@额度将于%3$@达到上限，距离重置还有 %4$@。%5$@";
 "Auto" = "自动";
+"another user is logged in" = "另一用户已登录";
 "auto" = "自动";
 "Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "“自动”会测量最前面应用的菜单标题延伸到哪里：菜单在左侧读数之前结束时用两侧，会碰到左侧读数时移到刘海右侧。它在应用切换到前台时测量，并记住每个应用。";
 "backup at %@" = "备份于 %@";
@@ -421,7 +422,6 @@
 "Paste" = "粘贴";
 "Paste this into the MCP configuration of Cursor, Codex or Claude Desktop. The server speaks JSON-RPC over stdio and offers one tool, get_limits, which answers with the same object as --probe --json, from the running app's cache when it has one." = "将其粘贴到 Cursor、Codex 或 Claude Desktop 的 MCP 配置中。服务器在 stdio 上以 JSON-RPC 通信，提供一个工具 get_limits，返回与 --probe --json 相同的对象，运行中的应用有缓存时取自缓存。";
 "Paused until wake" = "唤醒后继续";
-"Paused while another user is logged in" = "另一用户登录期间暂停";
 "Paused while the display sleeps" = "显示器睡眠期间已暂停";
 "Paused while the screen is locked" = "屏幕锁定期间暂停";
 "peak %1$@ on %2$@" = "峰值 %1$@（%2$@）";

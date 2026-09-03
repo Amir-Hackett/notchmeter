@@ -160,6 +160,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "At this rate the %1$@ costs %2$@ against a %3$@ budget.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@";
+"another user is logged in" = "another user is logged in";
 "auto" = "auto";
 "Auto" = "Auto";
 "Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app.";
@@ -421,7 +422,6 @@
 "Paste" = "Paste";
 "Paste this into the MCP configuration of Cursor, Codex or Claude Desktop. The server speaks JSON-RPC over stdio and offers one tool, get_limits, which answers with the same object as --probe --json, from the running app's cache when it has one." = "Paste this into the MCP configuration of Cursor, Codex or Claude Desktop. The server speaks JSON-RPC over stdio and offers one tool, get_limits, which answers with the same object as --probe --json, from the running app's cache when it has one.";
 "Paused until wake" = "Paused until wake";
-"Paused while another user is logged in" = "Paused while another user is logged in";
 "Paused while the display sleeps" = "Paused while the display sleeps";
 "Paused while the screen is locked" = "Paused while the screen is locked";
 "peak %1$@ on %2$@" = "peak %1$@ on %2$@";

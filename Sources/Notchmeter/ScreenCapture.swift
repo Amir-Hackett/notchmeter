@@ -24,6 +24,18 @@ enum ScreenCapture {
     }
 }
 
+/// Whether this login session is the one in front of the screen. `NSWorkspace` announces every later fast-user
+/// switch, but it announces nothing about the session the app was launched into, and both accounts' login items
+/// fire on the way up: without asking, an app started behind another user's session reads its own state as the
+/// active one until the first switch happens. The window server's `kCGSSessionOnConsoleKey` answers it directly.
+/// A missing dictionary means no window server to be behind, so the answer is yes.
+enum LoginSession {
+    static func isOnConsole(_ session: [String: Any]? = CGSessionCopyCurrentDictionary() as? [String: Any]) -> Bool {
+        guard let session, let value = session["kCGSSessionOnConsoleKey"] else { return true }
+        return (value as? Bool) ?? ((value as? NSNumber)?.boolValue ?? true)
+    }
+}
+
 @MainActor
 @Observable
 final class ScreenCaptureMonitor {

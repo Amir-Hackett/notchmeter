@@ -335,6 +335,7 @@ final class UsageStore {
         var notes: [String] = []
         let inputs = pollingInputs(for: tool)
         if let until = inputs.exhaustedUntil, PollingPolicy.isExhausted(inputs) { notes.append(L("Resets in %@", ResetText.duration(until.timeIntervalSinceNow))) }
+        if inputs.sessionInactive { notes.append(L("another user is logged in")) }
         if PollingPolicy.isIdle(inputs) { notes.append(L("no agent activity")) }
         if onBattery { notes.append(L("on battery")) }
         if lowPowerMode { notes.append(L("low power mode")) }
@@ -352,6 +353,7 @@ final class UsageStore {
     func start() {
         onBattery = PowerSource.onBattery()
         lowPowerMode = PowerSource.lowPowerMode()
+        sessionInactive = !LoginSession.isOnConsole()
         for tool in ToolID.allCases {
             Oracle.shared.emit("reading", Oracle.fields(tool, status(tool)))
         }
@@ -936,8 +938,10 @@ final class UsageStore {
         environmentChanged()
     }
 
-    /// Fast user switching: the session behind another user's is paused like sleep; the app may also have been
-    /// launched into an inactive session, which `--smoke` cannot simulate, so the flag is set directly here too.
+    /// Fast user switching: the session behind another user's reads at the ceiling rather than pausing, because
+    /// its agents keep running and its limits are the account's rather than the Mac's. The app may also have been
+    /// launched straight into an inactive session, which sends no notification at all; `start()` seeds the flag
+    /// from the window server for that, and `--smoke` sets it here directly, which it cannot otherwise simulate.
     func setSessionInactive(_ value: Bool) {
         guard sessionInactive != value else { return }
         sessionInactive = value
