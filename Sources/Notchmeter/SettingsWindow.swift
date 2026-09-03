@@ -162,11 +162,16 @@ struct SettingsView: View {
             .help(L("Off by default so the menu bar keeps its room; the Options menu is then a right-click on the rings. On, it puts Quit and Settings one click (and VoiceOver's VO-M-M) away, which a Mac without a notch needs."))
             if prefs.showMenuBarItem ?? MenuBarPolicy.defaultShown() {
                 Toggle(L("Pin figures beside the icon"), isOn: Binding(get: { prefs.menuBarPin }, set: { prefs.menuBarPin = $0 }))
-                if prefs.menuBarPin {
-                    Picker(L("Icon style"), selection: Binding(get: { prefs.menuBarStyle }, set: { prefs.menuBarStyle = $0 })) {
-                        ForEach(MenuBarStyle.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }
-                    .help(L("Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace."))
+                // Offered as soon as the icon is: hiding how it looks behind a second switch meant nothing said
+                // the choice existed. It only takes effect once figures are pinned, which the row says.
+                Picker(L("Icon style"), selection: Binding(get: { prefs.menuBarStyle }, set: { prefs.menuBarStyle = $0 })) {
+                    ForEach(MenuBarStyle.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .disabled(!prefs.menuBarPin)
+                .help(L("Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace."))
+                if !prefs.menuBarPin {
+                    Text(L("Turn on Pin figures beside the icon to use this."))
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
             HStack {

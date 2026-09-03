@@ -2,6 +2,8 @@
 
 
 /* 第二輪補全：工作階段、預算、尖峰時段、來源標籤、命令列工具、MCP、鑰匙圈政策、顯示器、診斷 */
+
+/* 列狀顯示放不下的工具，接在最後一個讀數之後（NotchViews） */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ 的%2$@為 %3$ld%%。";
 " %1$@ is %2$@ of it." = " 其中 %1$@ 佔 %2$@。";
 " percent" = " 百分比";
@@ -67,6 +69,7 @@
 "%ld days" = "%ld 天";
 "%ld extra this month" = "本月額外 %ld 次";
 "%ld min" = "%ld 分鐘";
+"%ld more" = "還有 %ld 個";
 "%ld sessions" = "%ld 個工作階段";
 "%ld tokens" = "%ld 個 token";
 "%ld usage events in the last 30 days, none of them billed" = "最近 30 天有 %ld 筆用量記錄，均未計費";
@@ -83,6 +86,7 @@
 "%ldm" = "%ld 分";
 "%ldm ago" = "%ld 分鐘前";
 "%lds" = "%ld 秒";
+"+%ld" = "+%ld";
 ", behind pace" = "，落後進度";
 ", close to pace" = "，接近進度";
 "0.02% of one core when idle. Nothing while the screen is locked." = "閒置時僅佔一個核心的 0.02%。螢幕鎖定時完全靜默。";
@@ -190,6 +194,8 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "無法讀取 Codex 的 auth.json。請執行 `codex login` 重新登入";
 "Codex's login has expired. Run Codex once so it signs back in" = "Codex 的登入已過期。請執行一次 Codex 以重新登入";
 "Codex's login was refused. Run Codex once so it signs back in" = "Codex 的登入被拒絕。請執行一次 Codex 以重新登入";
+"Coloured because a window is behind its pace." = "顯示顏色是因為有視窗已落後於用量節奏。";
+"Coloured because a window is close to its pace." = "顯示顏色是因為有視窗已接近用量節奏。";
 "Combined from the windows below" = "由下方各視窗合併得出";
 "Comfortable" = "寬鬆";
 "Compact" = "緊湊";
@@ -537,6 +543,7 @@
 "Top: %@" = "最高：%@";
 "transcripts" = "轉錄檔";
 "Turn finished" = "一輪結束";
+"Turn on Pin figures beside the icon to use this." = "開啟「在圖示旁釘選數值」後即可使用。";
 "Undo" = "還原";
 "Unlimited on the %@ plan" = "%@ 方案不限量";
 "Unpriced: %@" = "未計價：%@";
@@ -583,7 +590,3 @@
 "~%ld%% left at reset" = "重設時約剩 %ld%%";
 "~%ld%% over at reset" = "重設時約超出 %ld%%";
 "“%@” is off in Settings" = "設定中的「%@」已關閉";
-
-/* 列狀顯示放不下的工具，接在最後一個讀數之後（NotchViews） */
-"+%ld" = "+%ld";
-"%ld more" = "還有 %ld 個";

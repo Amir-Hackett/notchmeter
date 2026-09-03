@@ -2,6 +2,8 @@
 
 
 /* 第 2 ラウンドの補完: セッション、予算、ピーク時間、出所タグ、コマンドラインツール、MCP、キーチェーン方針、ディスプレイ、診断 */
+
+/* 表示しきれなかったツール、最後の読み取りの後ろに（NotchViews） */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ の%2$@は %3$ld%% です。";
 " %1$@ is %2$@ of it." = " うち %1$@ が %2$@。";
 " percent" = " パーセント";
@@ -67,6 +69,7 @@
 "%ld days" = "%ld 日間";
 "%ld extra this month" = "今月の追加分 %ld";
 "%ld min" = "%ld 分";
+"%ld more" = "他 %ld 件";
 "%ld sessions" = "%ld セッション";
 "%ld tokens" = "%ld トークン";
 "%ld usage events in the last 30 days, none of them billed" = "過去 30 日間に %ld 件の使用イベント、いずれも課金なし";
@@ -83,6 +86,7 @@
 "%ldm" = "%ld分";
 "%ldm ago" = "%ld 分前";
 "%lds" = "%ld秒";
+"+%ld" = "+%ld";
 ", behind pace" = "、ペースより遅れ";
 ", close to pace" = "、ペースに近い";
 "0.02% of one core when idle. Nothing while the screen is locked." = "アイドル時は 1 コアの 0.02%。画面ロック中は何もしません。";
@@ -190,6 +194,8 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "Codex の auth.json を読み取れません。`codex login` で再度サインインしてください";
 "Codex's login has expired. Run Codex once so it signs back in" = "Codex のログインが期限切れです。Codex を一度実行して再サインインしてください";
 "Codex's login was refused. Run Codex once so it signs back in" = "Codex のログインが拒否されました。Codex を一度実行して再サインインしてください";
+"Coloured because a window is behind its pace." = "いずれかのウィンドウがペースに遅れているため色が付いています。";
+"Coloured because a window is close to its pace." = "いずれかのウィンドウがペースに近づいているため色が付いています。";
 "Combined from the windows below" = "下のウィンドウを合算した値";
 "Comfortable" = "ゆったり";
 "Compact" = "コンパクト";
@@ -537,6 +543,7 @@
 "Top: %@" = "上位: %@";
 "transcripts" = "トランスクリプト";
 "Turn finished" = "ターン完了";
+"Turn on Pin figures beside the icon to use this." = "「アイコンの横に数値をピン留め」をオンにすると使えます。";
 "Undo" = "取り消す";
 "Unlimited on the %@ plan" = "%@ プランでは無制限";
 "Unpriced: %@" = "未計算: %@";
@@ -583,7 +590,3 @@
 "~%ld%% left at reset" = "リセット時に約 %ld%% 残る見込み";
 "~%ld%% over at reset" = "リセット時に約 %ld%% 超過";
 "“%@” is off in Settings" = "設定の「%@」がオフです";
-
-/* 表示しきれなかったツール、最後の読み取りの後ろに（NotchViews） */
-"+%ld" = "+%ld";
-"%ld more" = "他 %ld 件";

@@ -2,6 +2,8 @@
 
 
 /* Bổ sung vòng 2: phiên, ngân sách, giờ cao điểm, nhãn nguồn, công cụ dòng lệnh, MCP, chính sách Keychain, màn hình, chẩn đoán */
+
+/* Các công cụ không vừa, đặt sau chỉ số cuối cùng (NotchViews) */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ %2$@ đang ở %3$ld%%.";
 " %1$@ is %2$@ of it." = " Trong đó %1$@ là %2$@.";
 " percent" = " phần trăm";
@@ -67,6 +69,7 @@
 "%ld days" = "%ld ngày";
 "%ld extra this month" = "%ld lần thêm trong tháng này";
 "%ld min" = "%ld phút";
+"%ld more" = "thêm %ld";
 "%ld sessions" = "%ld phiên";
 "%ld tokens" = "%ld token";
 "%ld usage events in the last 30 days, none of them billed" = "%ld sự kiện sử dụng trong 30 ngày qua, không có khoản nào bị tính phí";
@@ -83,6 +86,7 @@
 "%ldm" = "%ld phút";
 "%ldm ago" = "%ld phút trước";
 "%lds" = "%ld giây";
+"+%ld" = "+%ld";
 ", behind pace" = ", chậm hơn nhịp";
 ", close to pace" = ", sát nhịp";
 "0.02% of one core when idle. Nothing while the screen is locked." = "0,02% của một lõi khi rảnh. Không làm gì khi màn hình bị khóa.";
@@ -190,6 +194,8 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "Không đọc được auth.json của Codex. Chạy `codex login` để đăng nhập lại";
 "Codex's login has expired. Run Codex once so it signs back in" = "Đăng nhập Codex đã hết hạn. Hãy chạy Codex một lần để đăng nhập lại";
 "Codex's login was refused. Run Codex once so it signs back in" = "Đăng nhập Codex bị từ chối. Hãy chạy Codex một lần để đăng nhập lại";
+"Coloured because a window is behind its pace." = "Có màu vì một cửa sổ đang chậm hơn nhịp sử dụng.";
+"Coloured because a window is close to its pace." = "Có màu vì một cửa sổ đang tiến sát nhịp sử dụng.";
 "Combined from the windows below" = "Tổng hợp từ các cửa sổ bên dưới";
 "Comfortable" = "Thoáng";
 "Compact" = "Gọn";
@@ -537,6 +543,7 @@
 "Top: %@" = "Cao nhất: %@";
 "transcripts" = "bản ghi";
 "Turn finished" = "Lượt xong";
+"Turn on Pin figures beside the icon to use this." = "Bật Ghim số liệu cạnh biểu tượng để dùng mục này.";
 "Undo" = "Hoàn tác";
 "Unlimited on the %@ plan" = "Không giới hạn với gói %@";
 "Unpriced: %@" = "Chưa định giá: %@";
@@ -583,7 +590,3 @@
 "~%ld%% left at reset" = "~%ld%% còn lại khi đặt lại";
 "~%ld%% over at reset" = "~%ld%% vượt mức khi đặt lại";
 "“%@” is off in Settings" = "“%@” đang tắt trong Cài đặt";
-
-/* Các công cụ không vừa, đặt sau chỉ số cuối cùng (NotchViews) */
-"+%ld" = "+%ld";
-"%ld more" = "thêm %ld";
