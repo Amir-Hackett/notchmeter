@@ -48,7 +48,25 @@ enum MenuBarExtent {
     /// frames (and the system's own, when it does not vend them) are invisible to this, so the real leftmost item
     /// can sit further left than what comes back; `CompactFit.clearance` is the margin that covers the difference.
     static func statusItemsStartX() -> CGFloat? {
-        inventory().compactMap { $0.drawn ? $0.frame.minX : nil }.min()
+        statusItemsReading().startX
+    }
+
+    /// What one look at the right-hand end of the bar found.
+    ///
+    /// `showsOwnIcon` is there because Notchmeter's own menu bar icon is a drawn extra like any other and, when it
+    /// is on, is usually the leftmost of them — so it alone sets `startX`, and a reading taken before AppKit has
+    /// placed it describes a bar this app is not in. `AutoSideWatcher.statusItemsChanged(showingOwnIcon:)` uses it
+    /// to tell that reading apart from a settled one, which two readings agreeing cannot do.
+    struct StatusItemsReading: Equatable, Sendable {
+        var startX: CGFloat?
+        var showsOwnIcon: Bool
+    }
+
+    static func statusItemsReading() -> StatusItemsReading {
+        let drawn = inventory().filter(\.drawn)
+        let own = Bundle.main.bundleIdentifier
+        return StatusItemsReading(startX: drawn.map(\.frame.minX).min(),
+                                  showsOwnIcon: own.map { id in drawn.contains { $0.app == id } } ?? false)
     }
 
     /// One entry per menu bar extra any running app vends, with the judgement `statusItemsStartX` makes of it.
@@ -148,8 +166,8 @@ struct CompactMetrics {
     var notch: CGRect
     /// How many tools the strip would draw if nothing were dropped.
     var tools: Int
-    /// The room a run of the first *n* tools takes at a style, padding included (CompactStripProbe).
-    var width: (CompactStyle, Int) -> CGFloat
+    /// The room one side of the notch takes for a run of readouts, drawn as that side will draw it.
+    var width: (CompactFit.Run) -> CGFloat
 }
 
 /// Keeps `Preferences.autoCompactFit` in step with the menu bar while Auto is chosen. It re-fits when an app comes
@@ -171,6 +189,8 @@ final class AutoSideWatcher {
     /// How the left edge is read; the tests hand it a script instead of a menu bar. The Accessibility check lives
     /// here rather than in the rules above it: `MenuBarExtent.menuEndX` already answers nil when it is not trusted.
     private let measure: (pid_t) -> CGFloat?
+    /// How the right edge is read; the tests hand it a script, as they do for the left.
+    private let measureStatusItems: () -> MenuBarExtent.StatusItemsReading
     /// Whose menus to measure; the tests name the app themselves rather than whatever is in front of the runner.
     private let frontmost: () -> NSRunningApplication?
     /// When the settle pass looks again; the tests shorten it.
@@ -180,6 +200,7 @@ final class AutoSideWatcher {
     private var statusItemsCache: CGFloat??
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     private var settling: Task<Void, Never>?
+    private var placing: Task<Void, Never>?
 
     /// When the settle pass looks again. Spaced out rather than repeated at one interval, so an app whose bar
     /// draws at once costs two reads and a slow one is still caught without polling.
@@ -190,11 +211,13 @@ final class AutoSideWatcher {
 
     init(prefs: Preferences, metrics: @escaping () -> CompactMetrics,
          measure: @escaping (pid_t) -> CGFloat? = { MenuBarExtent.menuEndX(pid: $0) },
+         measureStatusItems: @escaping () -> MenuBarExtent.StatusItemsReading = { MenuBarExtent.statusItemsReading() },
          frontmost: @escaping () -> NSRunningApplication? = { NSWorkspace.shared.frontmostApplication },
          settleDelays: [Duration] = AutoSideWatcher.settleDelays) {
         self.prefs = prefs
         self.metrics = metrics
         self.measure = measure
+        self.measureStatusItems = measureStatusItems
         self.frontmost = frontmost
         self.settleDelays = settleDelays
         let workspace = NSWorkspace.shared.notificationCenter
@@ -259,6 +282,57 @@ final class AutoSideWatcher {
     /// For the tests: the pass in flight, so they can await it instead of sleeping longer than it does.
     var settlePass: Task<Void, Never>? { settling }
 
+    /// The menu bar has gained or lost this app's own icon, which no app launching, quitting or coming forward
+    /// will announce. `showingOwnIcon` is what the bar should now hold, and the pass will not settle on a reading
+    /// that disagrees with it.
+    ///
+    /// The menu-title pass above can settle on the first two readings that agree, because there the reading to be
+    /// rid of is the *outgoing* app's geometry and it differs from the incoming app's. Here it does not: the
+    /// reading to be rid of is a real, stable measurement of a bar that has not finished placing the icon — 46 pt
+    /// roomier on the author's Mac, and stable for as long as AppKit takes to lay the item out. Two of those
+    /// agree with each other perfectly happily, and settling on them is the very fault this pass exists to
+    /// prevent: the app would open with the readouts arranged for a bar it is not in, and rearrange them at the
+    /// first app switch, which is the bug this whole change is about. So a reading counts only once the bar it
+    /// describes is the bar the app is in. If none of the three looks ever agrees with what was asked for, the
+    /// last of them is kept anyway — a late reading is no worse than the one already cached, and refusing to
+    /// answer would leave the roomier launch figure standing, which is the outcome being avoided.
+    func statusItemsChanged(showingOwnIcon: Bool) {
+        placing?.cancel()
+        statusItemsCache = nil
+        refresh()
+        guard prefs.compactSide == .auto else { return }
+        placing = Task { [weak self] in
+            guard let delays = self?.settleDelays else { return }
+            var previous: MenuBarExtent.StatusItemsReading?
+            var last: MenuBarExtent.StatusItemsReading?
+            for delay in delays {
+                try? await Task.sleep(for: delay)
+                guard !Task.isCancelled, let self else { return }
+                let reading = self.measureStatusItems()
+                last = reading
+                guard reading.showsOwnIcon == showingOwnIcon else { continue }
+                // Two readings the same means the bar has stopped moving.
+                if previous == reading {
+                    self.keepStatusItems(reading.startX)
+                    return
+                }
+                previous = reading
+            }
+            guard let self, let settled = previous ?? last else { return }
+            self.keepStatusItems(settled.startX)
+        }
+    }
+
+    /// Keeps a settled right-hand reading, and re-fits only when it moved the answer.
+    private func keepStatusItems(_ startX: CGFloat?) {
+        guard statusItemsCache != .some(startX) else { return }
+        statusItemsCache = .some(startX)
+        refresh()
+    }
+
+    /// For the tests: the right-hand pass in flight, as `settlePass` is for the menu titles.
+    var placingPass: Task<Void, Never>? { placing }
+
     static func key(for app: NSRunningApplication) -> String? {
         app.bundleIdentifier ?? (app.processIdentifier > 0 ? "pid:\(app.processIdentifier)" : nil)
     }
@@ -299,8 +373,11 @@ final class AutoSideWatcher {
         let room = { (value: CGFloat?) in value.map { String(format: "%.0f pt", $0) } ?? "unconstrained" }
         let leading = menus.map { geometry.notch.minX - CompactFit.clearance - $0 }
         let trailing = statusItems.map { $0 - CompactFit.clearance - geometry.notch.maxX }
+        let halves = fit.halves(visible: geometry.tools)
+        let asks = { (run: CompactFit.Run) in run.isEmpty ? "nothing" : String(format: "%.0f pt", geometry.width(run)) }
         return "auto → \(drawn); menus end at \(edge(menus)), status items start at \(edge(statusItems)); "
             + "gap leading \(room(leading)), trailing \(room(trailing)); "
+            + "wants \(asks(halves.leading)) left, \(asks(halves.trailing)) right; "
             + "measured \(menuCache.count) app(s); \(MenuBarExtent.permissionState)"
     }
 
@@ -337,7 +414,7 @@ final class AutoSideWatcher {
 
     private func statusItemsStartX() -> CGFloat? {
         if let cached = statusItemsCache { return cached }
-        let measured = MenuBarExtent.statusItemsStartX()
+        let measured = measureStatusItems().startX
         statusItemsCache = .some(measured)
         return measured
     }

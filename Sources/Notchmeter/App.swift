@@ -103,10 +103,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Auto's watcher: idle unless the readouts are set to Auto, and never a timer (MenuBarExtent).
     private lazy var autoSide = AutoSideWatcher(prefs: prefs) { [weak self] in
         guard let self, let screen = self.presenter?.screen ?? NSScreen.main ?? NSScreen.screens.first else {
-            return CompactMetrics(notch: .zero, tools: 0) { _, _ in 0 }
+            return CompactMetrics(notch: .zero, tools: 0) { _ in 0 }
         }
         return CompactMetrics(notch: NotchController.notchRect(on: screen), tools: self.autoSideProbe.toolCount) {
-            self.autoSideProbe.width(style: $0, tools: $1)
+            self.autoSideProbe.width($0)
         }
     }
 
@@ -203,9 +203,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         requests.installCommandLineTool = { [weak self] in self?.installCommandLineTool() }
         requests.updater = { [weak self] in self?.updater }
         buildPresenters()
+        // The app's own menu bar icon is one of the status items Auto measures against, so it exists before the
+        // first fit is taken.
+        applyMenuBarItem()
         autoSide.refresh()
         if !CommandLine.arguments.contains("--smoke") { autoSide.askAgainIfAutoIsStranded() }
-        applyMenuBarItem()
         applyPrivacy()
         applyLocalAPI()
         applyPointerFollowing()
@@ -491,6 +493,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func applyMenuBarItem() {
         let shown = prefs.showMenuBarItem ?? MenuBarPolicy.defaultShown(edge: prefs.edge)
+        let had = menuBarItem != nil
         if shown, menuBarItem == nil {
             menuBarItem = MenuBarItem(store: store, prefs: prefs, actions: actions)
         } else if !shown, let item = menuBarItem {
@@ -498,6 +501,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menuBarItem = nil
         }
         menuBarItem?.update(captured: store.hidesFigures)
+        // Adding or removing the icon moves the right-hand end Auto measures against by about its own width.
+        guard had != (menuBarItem != nil) else { return }
+        autoSide.statusItemsChanged(showingOwnIcon: menuBarItem != nil)
     }
 
     private func applyPrivacy() {

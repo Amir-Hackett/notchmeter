@@ -14,9 +14,9 @@ import Testing
 
     /// A stand-in for the real strip: 30 pt a tool with rings, 60 pt with numbers, plus 12 pt of padding once
     /// there is anything at all. Close enough in shape to the drawn one that the ladder is exercised the same way.
-    static func width(_ style: CompactStyle, _ tools: Int) -> CGFloat {
-        guard tools > 0 else { return 0 }
-        return CGFloat(tools) * (style.showsNumbers ? 60 : 30) + 12
+    static func width(_ run: CompactFit.Run) -> CGFloat {
+        guard !run.isEmpty else { return 0 }
+        return CGFloat(run.readouts.count) * (run.style.showsNumbers ? 60 : 30) + (run.overflow > 0 ? 14 : 0) + 12
     }
 
     func fit(menus: CGFloat?, statusItems: CGFloat?, tools: Int = 4, style: CompactStyle = .numbers) -> CompactFit {
@@ -92,10 +92,11 @@ import Testing
         #expect(widerLeft.side == .split)
         #expect(widerLeft.splitLeading == 1, "a roomier left is not a reason to move a readout that already fits")
 
-        // Crowd the right until two rings no longer fit there (60 pt for 72 pt of readout) and it mirrors.
+        // Crowd the right until two rings no longer fit there — 60 pt of room against 72 pt of readouts.
         let crowdedRight = fit(menus: 400, statusItems: 924, tools: 3, style: .rings)
-        #expect(crowdedRight.side == .split)
-        #expect(crowdedRight.splitLeading == 2, "the extra moves left only once the right cannot hold it")
+        #expect(crowdedRight.side == .leading, "an end that cannot hold its half moves the strip, not a readout across the notch")
+        #expect(crowdedRight.splitLeading == nil, "a strip on one side of the notch has no split to record")
+        #expect(crowdedRight.dropped == 0, "moving aside comes before giving anything up")
 
         // A single side has no split to record.
         #expect(fit(menus: 900, statusItems: nil).splitLeading == nil)
@@ -172,5 +173,53 @@ import Testing
         #expect(reopened.compactSide == .auto)
         #expect(reopened.resolvedCompactSide == .split)
         #expect(reopened.compactFit.dropped == 0)
+    }
+
+    @Test func aSplitIsAlwaysTheRestingOne() {
+        let edges: [CGFloat?] = [nil, 0, 200, 400, 548, 598, 628, 700, 900, 924, 1050, 1096, 1400]
+        for menus in edges {
+            for statusItems in edges {
+                for tools in 1 ... 5 {
+                    for style in CompactStyle.allCases {
+                        let fit = fit(menus: menus, statusItems: statusItems, tools: tools, style: style)
+                        guard let leading = fit.splitLeading else { continue }
+                        #expect(fit.side == .split, "only a strip drawn both sides of the notch records how it was divided")
+                        #expect(leading == CompactFit.splitLeadingCount(of: fit.toolCount),
+                                "a measured gap decides how much of the strip is drawn, never which side a readout is drawn on")
+                    }
+                }
+            }
+        }
+    }
+
+    @Test func eachHalfOfASplitIsSizedAsTheHalfItWillBeDrawnAs() {
+        let widths: [CGFloat] = [60, 30, 30]
+        func width(_ run: CompactFit.Run) -> CGFloat {
+            guard !run.isEmpty else { return 0 }
+            return widths[run.readouts].reduce(0, +) + (run.overflow > 0 ? 14 : 0) + 12
+        }
+        var asked: [CompactFit.Run] = []
+        let fit = CompactFit.resolve(notch: Self.notch, menusEndX: 568, statusItemsStartX: 964, tools: 3,
+                                     style: .rings) { asked.append($0); return width($0) }
+        #expect(fit == CompactFit(side: .split, style: .rings, toolCount: 3, dropped: 0, splitLeading: 1))
+        #expect(asked.contains(CompactFit.Run(style: .rings, readouts: 0 ..< 1, overflow: 0)),
+                "the half left of the notch draws the first readout and no count of what was left out")
+        #expect(asked.contains(CompactFit.Run(style: .rings, readouts: 1 ..< 3, overflow: 0)),
+                "the half right of the notch draws the last two readouts, which are not the first two")
+    }
+
+    @Test func onlyTheRunThatEndsTheStripCountsWhatWasLeftOut() {
+        let split = CompactFit(side: .split, style: .rings, toolCount: 2, dropped: 2, splitLeading: 1).halves(visible: 4)
+        #expect(split.leading == CompactFit.Run(style: .rings, readouts: 0 ..< 1, overflow: 0))
+        #expect(split.trailing == CompactFit.Run(style: .rings, readouts: 1 ..< 2, overflow: 2))
+        let left = CompactFit(side: .leading, style: .rings, toolCount: 2, dropped: 1).halves(visible: 3)
+        #expect(left.leading == CompactFit.Run(style: .rings, readouts: 0 ..< 2, overflow: 1))
+        #expect(left.trailing.isEmpty)
+        let right = CompactFit(side: .trailing, style: .rings, toolCount: 2, dropped: 1).halves(visible: 3)
+        #expect(right.trailing.overflow == 1)
+        #expect(right.leading.isEmpty)
+        let one = CompactFit(side: .split, style: .rings, toolCount: 1, dropped: 0, splitLeading: nil).halves(visible: 1)
+        #expect(one.leading.isEmpty)
+        #expect(one.trailing == CompactFit.Run(style: .rings, readouts: 0 ..< 1, overflow: 0))
     }
 }

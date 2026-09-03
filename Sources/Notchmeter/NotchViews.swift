@@ -454,42 +454,32 @@ struct NotchCompactView: View {
 
     let store: UsageStore
     let side: Side
-    /// The fit to draw, when it is not the one in force: Auto sizes candidate fits by drawing them, which must not
-    /// depend on the fit Auto has settled on.
-    var fit: CompactFit?
+    /// The run to draw, when it is not the one the fit in force asks of this side.
+    var run: CompactFit.Run?
 
-    /// The tools this side draws, and how many the fit left out when this side is the one that ends the strip.
-    private var content: (tools: [ToolID], overflow: Int) {
-        let fit = fit ?? store.prefs.compactFit
-        let visible = store.compactTools(style: fit.style)
-        let kept = fit.toolCount >= visible.count ? visible : Array(visible.prefix(max(fit.toolCount, 0)))
-        let dropped = visible.count - kept.count
-        switch fit.side {
-        case .trailing: return side == .leading ? ([], 0) : (kept, dropped)
-        case .leading: return side == .leading ? (kept, dropped) : ([], 0)
-        case .split, .auto:
-            // Half either side, so the strip reads as centred on the notch rather than hanging off one edge.
-            // Auto has already decided which side an odd run's extra readout goes to, from the room each end has.
-            let left = min(max(fit.splitLeading ?? CompactFit.splitLeadingCount(of: kept.count), 0), kept.count)
-            let leading = Array(kept.prefix(left)), trailing = Array(kept.dropFirst(left))
-            if side == .leading { return (leading, trailing.isEmpty ? dropped : 0) }
-            return (trailing, trailing.isEmpty ? 0 : dropped)
-        }
+    /// What this side of the notch draws: the run it was handed, or this side's half of the fit in force.
+    private var drawn: CompactFit.Run {
+        if let run { return run }
+        let fit = store.prefs.compactFit
+        let halves = fit.halves(visible: store.compactTools(style: fit.style).count)
+        return side == .leading ? halves.leading : halves.trailing
     }
 
     var body: some View {
         let presence = store.presence
-        let style = (fit ?? store.prefs.compactFit).style
-        let (tools, overflow) = content
-        HStack(spacing: style.showsNumbers ? 9 : 7) {
+        let run = drawn
+        let visible = store.compactTools(style: run.style)
+        // Clamped because the store can lose a tool between the fit being resolved and this being drawn.
+        let tools = Array(visible[run.readouts.clamped(to: 0 ..< visible.count)])
+        HStack(spacing: run.style.showsNumbers ? 9 : 7) {
             ForEach(tools, id: \.self) { tool in
-                store.readout(tool, presence: presence, style: style)
+                store.readout(tool, presence: presence, style: run.style)
             }
-            if overflow > 0 {
-                CompactOverflow(count: overflow, presence: presence)
+            if run.overflow > 0 {
+                CompactOverflow(count: run.overflow, presence: presence)
             }
         }
-        .padding(.horizontal, tools.isEmpty && overflow == 0 ? 0 : 6)
+        .padding(.horizontal, tools.isEmpty && run.overflow == 0 ? 0 : 6)
         .environment(\.layoutDirection, .leftToRight)
     }
 }
@@ -1549,22 +1539,17 @@ final class CompactStripProbe {
 
     init(store: UsageStore) {
         self.store = store
-        probe = NSHostingView(rootView: Self.strip(store, style: .rings, tools: 0))
+        probe = NSHostingView(rootView: NotchCompactView(store: store, side: .leading,
+                                                        run: CompactFit.Run(style: .rings, readouts: 0 ..< 0, overflow: 0)))
     }
 
-    /// The room the first `tools` readouts take at a style, padding and the dropped-tool "+2" included.
-    func width(style: CompactStyle, tools: Int) -> CGFloat {
-        probe.rootView = Self.strip(store, style: style, tools: tools)
+    /// The room one side of the notch takes for a run of readouts, drawn exactly as that side will draw it.
+    func width(_ run: CompactFit.Run) -> CGFloat {
+        probe.rootView = NotchCompactView(store: store, side: .leading, run: run)
         probe.layoutSubtreeIfNeeded()
         return probe.fittingSize.width
     }
 
     /// How many readouts there would be with nothing dropped.
     var toolCount: Int { store.compactTools(style: store.prefs.compactStyle).count }
-
-    /// The whole run on one side, so the width measured is the run's own and not half of it.
-    private static func strip(_ store: UsageStore, style: CompactStyle, tools: Int) -> NotchCompactView {
-        NotchCompactView(store: store, side: .leading,
-                         fit: CompactFit(side: .leading, style: style, toolCount: tools, dropped: 0))
-    }
 }

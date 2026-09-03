@@ -10,25 +10,40 @@ import Testing
 @MainActor @Suite struct AutoSettles {
     static let notch = CGRect(x: 658, y: 950, width: 195, height: 32)
 
-    static func width(_ style: CompactStyle, _ tools: Int) -> CGFloat {
-        tools > 0 ? CGFloat(tools) * (style.showsNumbers ? 60 : 30) + 12 : 0
+    static func width(_ run: CompactFit.Run) -> CGFloat {
+        guard !run.isEmpty else { return 0 }
+        return CGFloat(run.readouts.count) * (run.style.showsNumbers ? 60 : 30) + (run.overflow > 0 ? 14 : 0) + 12
     }
 
-    func watcher(readings: [CGFloat?]) -> (AutoSideWatcher, Preferences, () -> Int) {
+    /// A right-hand reading, written the way the tests read best: how far left the items reach, and whether this
+    /// app's own icon was among the ones counted. `nonisolated` so it can stand as a default argument, which is
+    /// evaluated at the call site rather than on the main actor.
+    nonisolated static func right(_ startX: CGFloat?, ownIcon: Bool = false) -> MenuBarExtent.StatusItemsReading {
+        MenuBarExtent.StatusItemsReading(startX: startX, showsOwnIcon: ownIcon)
+    }
+
+    func watcher(readings: [CGFloat?], looks: Int = 3,
+                 statusItems: [MenuBarExtent.StatusItemsReading] = [AutoSettles.right(nil)]) -> (AutoSideWatcher, Preferences, () -> Int) {
         let suite = "NotchmeterTests.AutoSettles.\(readings.count).\(readings.compactMap { $0 }.map(String.init).joined(separator: "-"))"
+            + ".\(statusItems.map { "\($0.startX.map(String.init) ?? "-")\($0.showsOwnIcon ? "o" : "")" }.joined(separator: "-"))"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
         let prefs = Preferences(defaults: defaults)
         prefs.compactSide = .auto
         nonisolated(unsafe) var taken = 0
+        nonisolated(unsafe) var takenRight = 0
         let watcher = AutoSideWatcher(prefs: prefs,
                                       metrics: { CompactMetrics(notch: Self.notch, tools: 3, width: Self.width) },
                                       measure: { _ in
                                           defer { taken += 1 }
                                           return taken < readings.count ? readings[taken] : readings.last ?? nil
                                       },
+                                      measureStatusItems: {
+                                          defer { takenRight += 1 }
+                                          return takenRight < statusItems.count ? statusItems[takenRight] : statusItems[statusItems.count - 1]
+                                      },
                                       frontmost: { .current },
-                                      settleDelays: [.milliseconds(1), .milliseconds(1), .milliseconds(1)])
+                                      settleDelays: Array(repeating: .milliseconds(1), count: looks))
         return (watcher, prefs, { taken })
     }
 
@@ -69,5 +84,38 @@ import Testing
         let afterSettling = taken()
         watcher.refresh()
         #expect(taken() > afterSettling, "with nothing cached the next fit has to look again")
+    }
+
+    /// Notchmeter's own menu bar icon is a drawn extra like any other, and it is created after the first fit is
+    /// taken. Nothing macOS announces says it arrived — creating an `NSStatusItem` is not an app launching,
+    /// quitting or coming forward — so without a pass of its own the roomier reading stands until the user
+    /// happens to switch apps, which is exactly "it opens one way and goes back the other way after I use the
+    /// web".
+    ///
+    /// The script here is the case two agreeing readings cannot tell apart. The pass looks four times: the bar
+    /// reads 1000 twice while the icon is still being placed, and 954 twice once it is there. A pass that settled
+    /// on the first pair that agreed would keep 1000 and leave the strip arranged for a bar the app is not in.
+    /// This one discards every reading taken before its own icon shows up, so only the two 954s can settle it —
+    /// take the `showsOwnIcon` guard out and the last three expectations fail, which is what makes this a test of
+    /// the pass rather than of the cache invalidation nobody doubted.
+    @Test func theOwnIconAppearingIsMeasuredWithoutWaitingForAnAppSwitch() async throws {
+        let bare = Self.right(1000), placed = Self.right(954, ownIcon: true)
+        let (watcher, prefs, _) = watcher(readings: [400], looks: 4,
+                                          statusItems: [bare, bare, bare, bare, placed, placed])
+        prefs.compactStyle = .numbers
+        watcher.refresh()
+        // Items at 1000 leave 1000 - 8 - 853 = 139 pt right of the notch, and the resting split asks 132 for its
+        // two readouts, so before the icon is placed both sides of the notch have room.
+        #expect(prefs.autoCompactFit?.side == .split, "before the icon is placed both sides of the notch have room")
+        #expect(prefs.autoCompactFit?.splitLeading == 1)
+
+        watcher.statusItemsChanged(showingOwnIcon: true)
+        await watcher.placingPass?.value
+        // At 954 the right-hand gap is 93 pt, which no longer holds the 132 the resting split asks of it, so the
+        // strip moves whole to the left rather than sending a readout across the notch.
+        let settled = try #require(prefs.autoCompactFit)
+        #expect(settled.side == .leading, "the strip fits the bar it is actually in, own icon and all")
+        #expect(settled.splitLeading == nil)
+        #expect(settled.dropped == 0, "nothing is given up while a whole side still holds the run")
     }
 }
