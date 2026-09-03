@@ -136,7 +136,6 @@
 "As of %@" = "截至 %@";
 "Ask for Keychain access" = "要求鑰匙圈存取";
 "Assistants" = "助理";
-"at" = "以";
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "按此速度，本%1$@將花費 %2$@，預算為 %3$@。";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "按此速度，你將在%3$@ %4$@ 至 %5$@ 之間觸及 %1$@ %2$@上限。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "照此速度，你將在 %3$@ 觸及 %1$@ 的%2$@上限，距離重設還有 %4$@。%5$@";
@@ -455,7 +454,6 @@
 "Right of the notch" = "瀏海右側";
 "Rings" = "圓環";
 "Rings + numbers" = "圓環 + 數字";
-"Rings show" = "圓環顯示";
 "Route requests through" = "要求經由";
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "從目前位置執行時，「登入時開啟」與更新都無法運作。App 會被拷貝到 /Applications 並從那裡重新啟動，目前這份副本會移到垃圾桶。";
 "Runs out %1$@–%2$@" = "%1$@–%2$@ 用盡";

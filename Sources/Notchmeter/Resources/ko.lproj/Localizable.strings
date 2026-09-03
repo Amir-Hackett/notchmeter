@@ -136,7 +136,6 @@
 "As of %@" = "%@ 기준";
 "Ask for Keychain access" = "키체인 접근 요청";
 "Assistants" = "어시스턴트";
-"at" = "환율";
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "이 속도면 이번 %1$@ 비용은 %2$@이며 예산은 %3$@입니다.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "이 속도면 %3$@ %4$@과 %5$@ 사이에 %1$@ %2$@ 한도에 도달합니다.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "이 속도라면 %3$@에 %1$@ %2$@ 한도에 도달하며, 초기화까지 %4$@ 남습니다.%5$@";
@@ -455,7 +454,6 @@
 "Right of the notch" = "노치 오른쪽";
 "Rings" = "링";
 "Rings + numbers" = "링 + 숫자";
-"Rings show" = "링 표시";
 "Route requests through" = "요청 경유";
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "여기서 실행하면 '로그인 시 열기'와 업데이트가 동작하지 않습니다. 앱을 /Applications로 복사해 거기서 다시 실행하고, 이 복사본은 휴지통으로 이동합니다.";
 "Runs out %1$@–%2$@" = "%1$@–%2$@ 소진";

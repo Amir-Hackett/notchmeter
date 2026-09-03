@@ -136,7 +136,6 @@
 "As of %@" = "%@時点";
 "Ask for Keychain access" = "キーチェーンアクセスの確認";
 "Assistants" = "アシスタント";
-"at" = "レート";
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "このペースでは%1$@の費用は %2$@ となり、予算は %3$@ です。";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "このペースでは %1$@ の%2$@上限に%3$@ %4$@〜%5$@ に達します。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "このペースでは %1$@ の%2$@上限に %3$@ に達し、リセットまで %4$@ 残ります。%5$@";
@@ -455,7 +454,6 @@
 "Right of the notch" = "ノッチの右側";
 "Rings" = "リング";
 "Rings + numbers" = "リング + 数値";
-"Rings show" = "リングの表示";
 "Route requests through" = "リクエストの経路";
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "この場所から実行すると「ログイン時に開く」とアップデートが機能しません。アプリを /Applications にコピーしてそこから再起動し、このコピーはゴミ箱に移動します。";
 "Runs out %1$@–%2$@" = "%1$@〜%2$@に枯渇";

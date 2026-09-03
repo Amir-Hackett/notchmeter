@@ -66,12 +66,10 @@ struct SettingsView: View {
             updatesSection
             advancedSection
             Section {
-                Text(L("%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.", AppInfo.name))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Text(L("Version %@", AppInfo.version))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+                    .help(L("%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.", AppInfo.name))
             }
         }
         .formStyle(.grouped)
@@ -129,7 +127,7 @@ struct SettingsView: View {
             .disabled(Translocation.shouldOffer(bundlePath: Bundle.main.bundlePath))
             if Translocation.shouldOffer(bundlePath: Bundle.main.bundlePath) {
                 HStack {
-                    Text(L("Move %@ to the Applications folder first; a login item cannot point here.", AppInfo.name)).font(.caption).foregroundStyle(.secondary)
+                    paragraph(L("Move %@ to the Applications folder first; a login item cannot point here.", AppInfo.name))
                     Spacer()
                     Button(L("Move to Applications")) { Translocation.offerMove() }
                 }
@@ -153,7 +151,7 @@ struct SettingsView: View {
                 }
             }
             HStack {
-                Text(L("Takes effect at relaunch.")).font(.caption).foregroundStyle(.secondary)
+                paragraph(L("Takes effect at relaunch."))
                 Spacer()
                 Button(L("Relaunch")) { relaunch() }.controlSize(.small)
             }
@@ -161,35 +159,59 @@ struct SettingsView: View {
                 get: { prefs.showMenuBarItem ?? MenuBarPolicy.defaultShown() },
                 set: { prefs.showMenuBarItem = $0; requests.menuBarChanged() }
             ))
-            Text(L("Off by default so the menu bar keeps its room; the Options menu is then a right-click on the rings. On, it puts Quit and Settings one click (and VoiceOver's VO-M-M) away, which a Mac without a notch needs."))
-                .font(.caption).foregroundStyle(.secondary)
+            .help(L("Off by default so the menu bar keeps its room; the Options menu is then a right-click on the rings. On, it puts Quit and Settings one click (and VoiceOver's VO-M-M) away, which a Mac without a notch needs."))
             if prefs.showMenuBarItem ?? MenuBarPolicy.defaultShown() {
                 Toggle(L("Pin figures beside the icon"), isOn: Binding(get: { prefs.menuBarPin }, set: { prefs.menuBarPin = $0 }))
                 if prefs.menuBarPin {
                     Picker(L("Icon style"), selection: Binding(get: { prefs.menuBarStyle }, set: { prefs.menuBarStyle = $0 })) {
                         ForEach(MenuBarStyle.allCases, id: \.self) { Text($0.title).tag($0) }
                     }
-                    Text(L("Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace."))
-                        .font(.caption).foregroundStyle(.secondary)
+                    .help(L("Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace."))
                 }
             }
             HStack {
                 Button(L("Install command line tool…")) { requests.installCommandLineTool() }
+                    .help(L("Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh."))
                 if let installed = CommandLineTool.installedLink() {
                     Text(installed.link.path.replacingOccurrences(of: Paths.home.path, with: "~")).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                 }
             }
-            Text(L("Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh."))
-                .font(.caption).foregroundStyle(.secondary)
             if let message = requests.commandLineToolMessage {
                 Text(message).font(.caption).foregroundStyle(.secondary)
             }
         }
     }
 
-    /// Placeholders, not labels: these fields are too narrow for a descriptive string, which breaks mid-word.
+    /// Placeholders, not labels: `.labelsHidden()` keeps the string inside the field, so the row's own label
+    /// carries the wording and nothing has to fit in the field's width.
     private static let currencyPlaceholder = "USD"
     private static let ratePlaceholder = "1.00"
+    /// Wide enough for a grouped amount with a decimal ("1,250.00") at the window's minimum width.
+    private static let fieldWidth: CGFloat = 96
+
+    /// Help text, the lightest of the form's four levels and never more than two lines of it: what does not fit
+    /// is in the tooltip, which carries the whole thing in every language.
+    private func paragraph(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .lineLimit(2)
+            .help(text)
+    }
+
+    /// A short entry field: the row's own label names it, so the field's label is hidden and its placeholder
+    /// stands in the empty field. Without the bezel an empty field is invisible beside its label.
+    private func field(_ text: Binding<String>, prompt: String, label: String, width: CGFloat = fieldWidth) -> some View {
+        TextField(text: text, prompt: Text(prompt)) { Text(label) }
+            .labelsHidden()
+            .textFieldStyle(.roundedBorder)
+            .frame(width: width)
+    }
+
+    /// One explanation for both budget rows.
+    private static var budgetHelp: String {
+        L("In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period.")
+    }
 
     private var panelSection: some View {
         Section(L("Panel")) {
@@ -201,26 +223,20 @@ struct SettingsView: View {
                     Text(side.title).tag(side)
                 }
             }
-            Text(L("Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them."))
-                .font(.caption).foregroundStyle(.secondary)
-            if prefs.compactSide == .auto {
-                Text(L("Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app."))
-                    .font(.caption).foregroundStyle(.secondary)
-                if !accessibilityTrusted {
-                    Text(L("Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility."))
-                        .font(.caption).foregroundStyle(.secondary)
-                    Button(L("Open Accessibility settings…")) {
-                        MenuBarExtent.openSettings()
-                        accessibilityTrusted = MenuBarExtent.isTrusted
-                    }
+            .help(L("Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app."))
+            paragraph(L("Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them."))
+            if prefs.compactSide == .auto, !accessibilityTrusted {
+                Button(L("Open Accessibility settings…")) {
+                    MenuBarExtent.openSettings()
+                    accessibilityTrusted = MenuBarExtent.isTrusted
                 }
+                .help(L("Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility."))
             }
             Toggle(L("Show details"), isOn: Binding(
                 get: { prefs.showDetails },
                 set: { prefs.showDetails = $0 }
             ))
-            Text(L("The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll."))
-                .font(.caption).foregroundStyle(.secondary)
+            .help(L("The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll."))
             Picker(L("Position"), selection: Binding(
                 get: { prefs.edge },
                 set: { prefs.edge = $0; actions.applyLayout() }
@@ -229,7 +245,7 @@ struct SettingsView: View {
                     Text(edge.title).tag(edge)
                 }
             }
-            Text(prefs.edge.detail).font(.caption).foregroundStyle(.secondary)
+            paragraph(prefs.edge.detail)
             Picker(L("Display"), selection: Binding(
                 get: { prefs.display },
                 set: { prefs.display = $0; actions.applyLayout() }
@@ -244,10 +260,9 @@ struct SettingsView: View {
                     Text(titles[index]).tag(DisplayChoice.named(keys[index]))
                 }
             }
-            Text(prefs.display == .pointer
-                 ? L("The panel follows the pointer: it moves to the display the pointer has rested on for half a second.")
-                 : L("A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it."))
-                .font(.caption).foregroundStyle(.secondary)
+            paragraph(prefs.display == .pointer
+                      ? L("The panel follows the pointer: it moves to the display the pointer has rested on for half a second.")
+                      : L("A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it."))
             Picker(L("Show"), selection: Binding(
                 get: { prefs.visibility },
                 set: { prefs.visibility = $0; actions.applyLayout() }
@@ -256,6 +271,7 @@ struct SettingsView: View {
                     Text(visibility.title).tag(visibility)
                 }
             }
+            .help(L("The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back."))
             if prefs.visibility == .onHover || prefs.visibility == .hideWhenIdle {
                 Stepper(value: Binding(get: { prefs.hoverDelay }, set: { prefs.hoverDelay = $0 }), in: 0.1...1.0, step: 0.05) {
                     HStack {
@@ -264,10 +280,6 @@ struct SettingsView: View {
                         Text(L("%@ s", String(format: "%.2f", prefs.hoverDelay))).foregroundStyle(.secondary).monospacedDigit()
                     }
                 }
-            }
-            if prefs.visibility == .hideWhenIdle {
-                Text(L("The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back."))
-                    .font(.caption).foregroundStyle(.secondary)
             }
             Picker(prefs.edge.compactStyleTitle, selection: Binding(get: { prefs.compactStyle }, set: { prefs.compactStyle = $0 })) {
                 ForEach(CompactStyle.allCases, id: \.self) { Text($0.title).tag($0) }
@@ -282,19 +294,19 @@ struct SettingsView: View {
                 ForEach(PanelWidth.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             Toggle(L("Show over full-screen apps"), isOn: Binding(get: { prefs.showOverFullScreenApps }, set: { prefs.showOverFullScreenApps = $0; actions.applyLayout() }))
-            Text(L("Off, the rings and the panel stay off a full-screen app's Space and the hover machine idles there, so a pointer parked at the top of that Space opens nothing."))
-                .font(.caption).foregroundStyle(.secondary)
+                .help(L("Off, the rings and the panel stay off a full-screen app's Space and the hover machine idles there, so a pointer parked at the top of that Space opens nothing."))
             Toggle(L("Gestures: swipe down to open, swipe up to close"), isOn: Binding(get: { prefs.gesturesEnabled }, set: { prefs.gesturesEnabled = $0 }))
             Toggle(L("Reduce animations"), isOn: Binding(get: { prefs.reduceAnimations }, set: { prefs.reduceAnimations = $0 }))
         }
     }
 
     private var shortcutsSection: some View {
-        Section(L("Keyboard shortcuts")) {
+        Section {
             HotkeyRow(title: L("Toggle the panel"), hotkey: Binding(get: { prefs.togglePanelHotkey }, set: { prefs.togglePanelHotkey = $0; requests.hotkeysChanged() }))
             HotkeyRow(title: L("Open Settings"), hotkey: Binding(get: { prefs.openSettingsHotkey }, set: { prefs.openSettingsHotkey = $0; requests.hotkeysChanged() }))
-            Text(L("Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard."))
-                .font(.caption).foregroundStyle(.secondary)
+        } header: {
+            Text(L("Keyboard shortcuts"))
+                .help(L("Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard."))
         }
     }
 
@@ -309,40 +321,31 @@ struct SettingsView: View {
             Picker(L("Time format"), selection: Binding(get: { prefs.timeFormat }, set: { prefs.timeFormat = $0 })) {
                 ForEach(TimeFormatPreference.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            HStack {
-                Text(L("Show costs in"))
-                Spacer()
-                // Short placeholders: a field this narrow breaks a descriptive one mid-word ("Cur/ren-/cy/cod/e").
-                // The full wording stays as the accessibility label, where the width does not apply.
-                TextField(Self.currencyPlaceholder, text: $currencyText)
-                    .frame(width: 64)
-                    .accessibilityLabel(L("Currency code"))
+            LabeledContent(L("Show costs in")) {
+                field($currencyText, prompt: Self.currencyPlaceholder, label: L("Currency code"))
                     .onSubmit { applyCurrency() }
-                Text(L("at")).foregroundStyle(.secondary)
-                TextField(Self.ratePlaceholder, text: $rateText)
-                    .frame(width: 72)
-                    .accessibilityLabel(L("Rate per dollar"))
+            }
+            LabeledContent(L("Rate per dollar")) {
+                field($rateText, prompt: Self.ratePlaceholder, label: L("Rate per dollar"))
                     .onSubmit { applyCurrency() }
                 Button(L("Apply")) { applyCurrency() }
             }
-            Text(L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours."))
-                .font(.caption).foregroundStyle(.secondary)
-            HStack {
-                Text(L("Monthly budget"))
-                Spacer()
-                TextField(Money.code, text: $monthlyBudgetText).frame(width: 90).onSubmit { applyBudgets() }
-                Text(L("Weekly")).foregroundStyle(.secondary)
-                TextField(Money.code, text: $weeklyBudgetText).frame(width: 90).onSubmit { applyBudgets() }
+            paragraph(L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours."))
+            LabeledContent(L("Monthly budget")) {
+                field($monthlyBudgetText, prompt: Money.code, label: L("Monthly budget"))
+                    .onSubmit { applyBudgets() }
+            }
+            .help(Self.budgetHelp)
+            LabeledContent(L("Weekly budget")) {
+                field($weeklyBudgetText, prompt: Money.code, label: L("Weekly budget"))
+                    .onSubmit { applyBudgets() }
                 Button(L("Apply")) { applyBudgets() }
             }
-            Text(L("In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period."))
-                .font(.caption).foregroundStyle(.secondary)
+            .help(Self.budgetHelp)
             Picker(L("Cost card shows"), selection: Binding(get: { prefs.costCardMode }, set: { prefs.costCardMode = $0 })) {
                 ForEach(CostCardMode.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            HStack(spacing: 10) {
-                Text(L("In the Cost card"))
-                Spacer()
+            LabeledContent(L("In the Cost card")) {
                 ForEach(ToolID.allCases.filter(\.reportsCost), id: \.self) { tool in
                     Toggle(isOn: Binding(
                         get: { prefs.costCardTools.contains(tool) },
@@ -353,24 +356,20 @@ struct SettingsView: View {
                     .toggleStyle(.checkbox).controlSize(.small)
                 }
             }
-            Text(L("Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card."))
-                .font(.caption).foregroundStyle(.secondary)
+            .help(L("Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card."))
         }
     }
 
     private var privacySection: some View {
         Section(L("Privacy")) {
             Toggle(L("Hide usage while the screen is shared or recorded"), isOn: Binding(get: { prefs.hideFromScreenShare }, set: { prefs.hideFromScreenShare = $0; requests.privacyChanged() }))
-            Text(L("While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds."))
-                .font(.caption).foregroundStyle(.secondary)
+                .help(L("While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds."))
             Picker(L("Ask for Keychain access"), selection: Binding(get: { prefs.keychainPrompts }, set: { prefs.keychainPrompts = $0 })) {
                 ForEach(KeychainPromptPolicy.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            Text(L("Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only."))
-                .font(.caption).foregroundStyle(.secondary)
+            .help(L("Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only."))
             Toggle(L("Local API on 127.0.0.1:%ld", Int(LocalAPI.port)), isOn: Binding(get: { prefs.localAPIEnabled }, set: { prefs.localAPIEnabled = $0; requests.localAPIChanged() }))
-            Text(L("GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's Claude Code hook events over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address."))
-                .font(.caption).foregroundStyle(.secondary)
+                .help(L("GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's Claude Code hook events over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address."))
             if prefs.localAPIEnabled {
                 ForEach(prefs.localAPIOrigins, id: \.self) { origin in
                     HStack {
@@ -380,7 +379,11 @@ struct SettingsView: View {
                     }
                 }
                 HStack {
-                    TextField(L("Allowed origin, e.g. http://localhost:3000"), text: $originText)
+                    TextField(text: $originText, prompt: Text(L("Allowed origin, e.g. http://localhost:3000"))) {
+                        Text(L("Allowed origin, e.g. http://localhost:3000"))
+                    }
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
                     Button(L("Add")) {
                         let trimmed = originText.trimmingCharacters(in: .whitespaces)
                         if !trimmed.isEmpty, !prefs.localAPIOrigins.contains(trimmed) { prefs.localAPIOrigins.append(trimmed) }
@@ -398,9 +401,7 @@ struct SettingsView: View {
                 get: { prefs.notificationsEnabled },
                 set: { prefs.notificationsEnabled = $0; if $0 { notifier.requestAuthorization() } }
             ))
-            Text(L("Once per window and reset period: when its pace first reaches on track or behind, again when it comes within an hour of running out, and once more when it is out. Each one says what to do about it. macOS asks for permission when this is turned on or the first alert is due, never at launch."))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            .help(L("Once per window and reset period: when its pace first reaches on track or behind, again when it comes within an hour of running out, and once more when it is out. Each one says what to do about it. macOS asks for permission when this is turned on or the first alert is due, never at launch."))
             if prefs.notificationsEnabled {
                 Toggle(L("Cutting it close (on track)"), isOn: Binding(get: { prefs.notifyOnTrack }, set: { prefs.notifyOnTrack = $0 }))
                 Toggle(L("Will run out (behind pace)"), isOn: Binding(get: { prefs.notifyBehind }, set: { prefs.notifyBehind = $0 }))
@@ -409,14 +410,11 @@ struct SettingsView: View {
                 Picker(L("Remind me before a reset"), selection: Binding(get: { prefs.resetReminder }, set: { prefs.resetReminder = $0 })) {
                     ForEach(ResetReminder.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
-                Text(L("Reset and reminder notices cover windows that were at least 80% used or behind pace when last read; a window's pace notices are withdrawn from Notification Center when it resets."))
-                    .font(.caption).foregroundStyle(.secondary)
+                .help(L("Reset and reminder notices cover windows that were at least 80% used or behind pace when last read; a window's pace notices are withdrawn from Notification Center when it resets."))
                 Toggle(L("When you start paying (extra usage rises)"), isOn: Binding(get: { prefs.notifyExtraUsage }, set: { prefs.notifyExtraUsage = $0 }))
-                Text(L("Once a month when Claude's extra-usage credits first rise, and within the hour whenever they rise while the plan windows still have room: the sign that work is being billed instead of drawn from the plan. Every rise is written to the drain log with the plan windows beside it."))
-                    .font(.caption).foregroundStyle(.secondary)
+                    .help(L("Once a month when Claude's extra-usage credits first rise, and within the hour whenever they rise while the plan windows still have room: the sign that work is being billed instead of drawn from the plan. Every rise is written to the drain log with the plan windows beside it."))
                 Toggle(L("When the cache tier or the metering shifts"), isOn: Binding(get: { prefs.notifyCacheShift }, set: { prefs.notifyCacheShift = $0 }))
-                Text(L("Once a day when today's cache writes moved to the 5-minute tier against the 30-day norm, or the session meters about twice as heavily as usual."))
-                    .font(.caption).foregroundStyle(.secondary)
+                    .help(L("Once a day when today's cache writes moved to the 5-minute tier against the 30-day norm, or the session meters about twice as heavily as usual."))
             }
             Toggle(L("Notify when Claude Code waits for you"), isOn: Binding(get: { prefs.notifyWaiting }, set: { prefs.notifyWaiting = $0; if $0 { notifier.requestAuthorization() } }))
             Toggle(L("Notify when a turn finishes"), isOn: Binding(get: { prefs.notifyFinished }, set: { prefs.notifyFinished = $0; if $0 { notifier.requestAuthorization() } }))
@@ -432,15 +430,13 @@ struct SettingsView: View {
             Picker(L("When Claude Code waits for you or a turn finishes"), selection: Binding(get: { prefs.sessionAttention }, set: { prefs.sessionAttention = $0 })) {
                 ForEach(SessionAttention.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            Text(L("Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release."))
-                .font(.caption).foregroundStyle(.secondary)
+            .help(L("Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release."))
             Toggle(L("Sound"), isOn: Binding(get: { prefs.notificationSound }, set: { prefs.notificationSound = $0 }))
             if prefs.notificationSound {
                 SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))
                 SoundPicker(title: L("Waiting for you"), choice: Binding(get: { prefs.soundWaiting }, set: { prefs.soundWaiting = $0 }))
                 SoundPicker(title: L("Turn finished"), choice: Binding(get: { prefs.soundFinished }, set: { prefs.soundFinished = $0 }))
-                Text(L("A chosen file is copied into ~/Library/Sounds, where Notification Center can play it."))
-                    .font(.caption).foregroundStyle(.secondary)
+                paragraph(L("A chosen file is copied into ~/Library/Sounds, where Notification Center can play it."))
             }
             Toggle(L("Quiet hours"), isOn: Binding(get: { prefs.quietHoursEnabled }, set: { prefs.quietHoursEnabled = $0 }))
             if prefs.quietHoursEnabled {
@@ -464,89 +460,89 @@ struct SettingsView: View {
         Section {
             let order = prefs.toolOrder
             ForEach(Array(order.enumerated()), id: \.element) { index, tool in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 10) {
-                        Toggle(isOn: Binding(
-                            get: { store.isShown(tool) },
-                            set: { store.setEnabled(tool, $0) }
-                        )) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(tool.displayName)
-                                Text(subtitle(for: tool))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .disabled(!store.isInstalled(tool))
-                        ReorderButtons(
-                            up: index > 0 ? { prefs.move(tool, by: -1) } : nil,
-                            down: index < order.count - 1 ? { prefs.move(tool, by: 1) } : nil
-                        )
+                if store.isShown(tool) {
+                    DisclosureGroup(isExpanded: expansion(of: tool)) {
+                        assistantOptions(tool)
+                    } label: {
+                        assistantRow(tool, at: index, of: order.count)
                     }
-                    if store.isShown(tool), let reading = store.status(tool).reading, reading.windows.count > 1 {
-                        WindowChoices(tool: tool, reading: reading, prefs: prefs)
-                    }
-                    if store.isShown(tool) {
-                        HStack(spacing: 8) {
-                            Toggle(L("Pin to menu bar"), isOn: Binding(
-                                get: { prefs.menuBarPinnedTools.contains(tool) },
-                                set: { if $0 { prefs.menuBarPinnedTools.insert(tool) } else { prefs.menuBarPinnedTools.remove(tool) } }
-                            ))
-                            .toggleStyle(.checkbox).controlSize(.small).font(.caption)
-                            Toggle(L("Peak hours"), isOn: Binding(
-                                get: { prefs.peakHoursTools.contains(tool) },
-                                set: { if $0 { prefs.peakHoursTools.insert(tool) } else { prefs.peakHoursTools.remove(tool) } }
-                            ))
-                            .toggleStyle(.checkbox).controlSize(.small).font(.caption)
-                        }
-                        .padding(.leading, 20)
-                    }
-                    if tool == .claude, store.isShown(tool) {
-                        Toggle(L("Keep the Mac awake while Claude Code is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
-                            .font(.caption)
-                        if prefs.keepAwake {
-                            Toggle(L("Also on battery"), isOn: Binding(get: { prefs.keepAwakeOnBattery }, set: { prefs.keepAwakeOnBattery = $0; requests.awakeChanged() }))
-                                .font(.caption)
-                        }
-                        Text(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held."))
-                            .font(.caption2).foregroundStyle(.secondary)
-                    }
-                    if tool == .codex, store.isShown(tool) {
-                        Toggle(L("Also read Codex reset credits"), isOn: Binding(get: { prefs.codexResetCredits }, set: { prefs.codexResetCredits = $0; store.refreshAll() }))
-                            .font(.caption)
-                        Text(L("A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex."))
-                            .font(.caption2).foregroundStyle(.secondary)
-                    }
-                    if tool == .cursor, store.isShown(tool) {
-                        Toggle(L("Also read Cursor's usage events"), isOn: Binding(get: { prefs.cursorUsageEvents }, set: { prefs.cursorUsageEvents = $0; store.refreshAll() }))
-                            .font(.caption)
-                        Text(L("A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)."))
-                            .font(.caption2).foregroundStyle(.secondary)
-                    }
-                    if tool == .copilot, store.isShown(tool) {
-                        Toggle(L("Also read organisation billing"), isOn: Binding(get: { prefs.copilotOrgBilling }, set: { prefs.copilotOrgBilling = $0; store.refreshAll() }))
-                            .font(.caption)
-                        Text(L("One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month."))
-                            .font(.caption2).foregroundStyle(.secondary)
-                    }
+                } else {
+                    assistantRow(tool, at: index, of: order.count)
                 }
             }
             Button(L("Refresh now")) { store.refreshAll(interactive: true) }
         } header: {
             Text(L("Assistants"))
-        } footer: {
-            Text(L("The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections."))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .help(L("The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections."))
         }
     }
 
+    /// What an assistant shows collapsed: its name, its status line, its switch and the two reorder arrows.
+    private func assistantRow(_ tool: ToolID, at index: Int, of count: Int) -> some View {
+        HStack(spacing: 10) {
+            Toggle(isOn: Binding(
+                get: { store.isShown(tool) },
+                set: { store.setEnabled(tool, $0) }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(tool.displayName)
+                    Text(subtitle(for: tool))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .disabled(!store.isInstalled(tool))
+            ReorderButtons(
+                up: index > 0 ? { prefs.move(tool, by: -1) } : nil,
+                down: index < count - 1 ? { prefs.move(tool, by: 1) } : nil
+            )
+        }
+    }
+
+    /// Everything the collapsed row leaves out: the rings, the hidden windows, the two per-assistant switches and
+    /// whatever second read that assistant alone offers.
+    @ViewBuilder private func assistantOptions(_ tool: ToolID) -> some View {
+        if let reading = store.status(tool).reading, reading.windows.count > 1 {
+            WindowChoices(tool: tool, reading: reading, prefs: prefs)
+        }
+        Toggle(L("Pin to menu bar"), isOn: Binding(
+            get: { prefs.menuBarPinnedTools.contains(tool) },
+            set: { if $0 { prefs.menuBarPinnedTools.insert(tool) } else { prefs.menuBarPinnedTools.remove(tool) } }
+        ))
+        Toggle(L("Peak hours"), isOn: Binding(
+            get: { prefs.peakHoursTools.contains(tool) },
+            set: { if $0 { prefs.peakHoursTools.insert(tool) } else { prefs.peakHoursTools.remove(tool) } }
+        ))
+        switch tool {
+        case .claude:
+            Toggle(L("Keep the Mac awake while Claude Code is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
+                .help(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held."))
+            if prefs.keepAwake {
+                Toggle(L("Also on battery"), isOn: Binding(get: { prefs.keepAwakeOnBattery }, set: { prefs.keepAwakeOnBattery = $0; requests.awakeChanged() }))
+            }
+        case .codex:
+            Toggle(L("Also read Codex reset credits"), isOn: Binding(get: { prefs.codexResetCredits }, set: { prefs.codexResetCredits = $0; store.refreshAll() }))
+                .help(L("A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex."))
+        case .cursor:
+            Toggle(L("Also read Cursor's usage events"), isOn: Binding(get: { prefs.cursorUsageEvents }, set: { prefs.cursorUsageEvents = $0; store.refreshAll() }))
+                .help(L("A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)."))
+        case .copilot:
+            Toggle(L("Also read organisation billing"), isOn: Binding(get: { prefs.copilotOrgBilling }, set: { prefs.copilotOrgBilling = $0; store.refreshAll() }))
+                .help(L("One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month."))
+        case .antigravity:
+            EmptyView()
+        }
+    }
+
+    /// Which assistants are open, remembered across launches so a window reopens the way it was left.
+    private func expansion(of tool: ToolID) -> Binding<Bool> {
+        Binding(get: { prefs.settingsExpandedTools.contains(tool) },
+                set: { if $0 { prefs.settingsExpandedTools.insert(tool) } else { prefs.settingsExpandedTools.remove(tool) } })
+    }
+
     private var hookSection: some View {
-        Section(L("Claude Code hook")) {
+        Section {
             VStack(alignment: .leading, spacing: 8) {
-                Text(L("Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Text(hookStatus.text).font(.caption).foregroundStyle(hookStatusColor(hookStatus))
                 HStack {
                     Button(L("Show snippet…")) { showHookSnippet = true }
@@ -561,12 +557,11 @@ struct SettingsView: View {
                 }
                 Toggle(L("Repair a hook that points at an old copy at launch"), isOn: Binding(get: { prefs.autoRepairHooks }, set: { prefs.autoRepairHooks = $0 }))
                     .font(.caption)
-                Text(L("After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke."))
-                    .font(.caption2).foregroundStyle(.secondary)
+                    .help(L("After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke."))
                 Divider()
-                Text(L("Claude Code status line")).font(.subheadline.weight(.semibold))
-                Text(L("After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it."))
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(L("Claude Code status line"))
+                    .font(.subheadline.weight(.semibold))
+                    .help(L("After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it."))
                 Text(statuslineStatus.text).font(.caption).foregroundStyle(hookStatusColor(statuslineStatus))
                 HStack {
                     Button(L("Show snippet…")) { showStatuslineSnippet = true }
@@ -577,6 +572,9 @@ struct SettingsView: View {
                     Text(statuslineMessage).font(.caption).foregroundStyle(.secondary)
                 }
             }
+        } header: {
+            Text(L("Claude Code hook"))
+                .help(L("Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input."))
         }
     }
 
@@ -584,13 +582,13 @@ struct SettingsView: View {
         Section(L("Other tools")) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(L("MCP server")).font(.subheadline.weight(.semibold))
-                Text(L("Cursor, Codex and Claude Desktop can ask for the limits through the Model Context Protocol: `%@ --mcp` speaks JSON-RPC over stdio with one tool, get_limits.", AppInfo.name))
-                    .font(.caption).foregroundStyle(.secondary)
+                // Documentation with no control of its own to hang a tooltip on: the first two lines stay on the
+                // page and the tooltip carries the rest.
+                paragraph(L("Cursor, Codex and Claude Desktop can ask for the limits through the Model Context Protocol: `%@ --mcp` speaks JSON-RPC over stdio with one tool, get_limits.", AppInfo.name))
                 Button(L("Show snippet…")) { showMCPSnippet = true }
                 Divider()
                 Text(L("Remote Claude Code over SSH")).font(.subheadline.weight(.semibold))
-                Text(L("With the local API on, a hook on another machine reaches this notch through `ssh -R %1$ld:127.0.0.1:%1$ld host`: its command is `curl -s -X POST http://127.0.0.1:%1$ld/v1/hook -d @-` with a `host` label; the recipe is in docs/hooks.md.", Int(LocalAPI.port)))
-                    .font(.caption).foregroundStyle(.secondary)
+                paragraph(L("With the local API on, a hook on another machine reaches this notch through `ssh -R %1$ld:127.0.0.1:%1$ld host`: its command is `curl -s -X POST http://127.0.0.1:%1$ld/v1/hook -d @-` with a `host` label; the recipe is in docs/hooks.md.", Int(LocalAPI.port)))
             }
         }
     }
@@ -611,9 +609,7 @@ struct SettingsView: View {
             Button(L("Add folder…")) { addRoot() }
         } header: {
             Text(L("Also read transcripts from"))
-        } footer: {
-            Text(L("Synced Claude Code logs from another Mac, or any folder of transcripts: a projects folder or a flat folder of session folders both work. Claude Desktop's Cowork sessions are read automatically when present. The rate-limit meters are account-wide already; this only widens the cost card."))
-                .font(.caption).foregroundStyle(.secondary)
+                .help(L("Synced Claude Code logs from another Mac, or any folder of transcripts: a projects folder or a flat folder of session folders both work. Claude Desktop's Cowork sessions are read automatically when present. The rate-limit meters are account-wide already; this only widens the cost card."))
         }
     }
 
@@ -635,40 +631,34 @@ struct SettingsView: View {
     private var advancedSection: some View {
         Section(L("Advanced")) {
             PeakHoursEditor(prefs: prefs)
-            HStack {
-                Text(L("Route requests through"))
-                Spacer()
-                TextField(L("System (default)"), text: $proxyText).frame(width: 220).onSubmit { applyProxy() }
+            LabeledContent(L("Route requests through")) {
+                field($proxyText, prompt: L("System (default)"), label: L("Route requests through"), width: 1.5 * Self.fieldWidth)
+                    .onSubmit { applyProxy() }
                 Button(L("Apply")) { applyProxy() }
             }
-            Text(L("Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on."))
-                .font(.caption).foregroundStyle(.secondary)
+            .help(L("Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on."))
             Toggle(L("Debug logging"), isOn: Binding(get: { prefs.debugLogging }, set: { prefs.debugLogging = $0 }))
-            Text(L("Writes each vendor request's outcome (status code and size, never a token or a body) to the unified log at info level, where Copy diagnostics and `log show --info` pick it up."))
-                .font(.caption).foregroundStyle(.secondary)
+                .help(L("Writes each vendor request's outcome (status code and size, never a token or a body) to the unified log at info level, where Copy diagnostics and `log show --info` pick it up."))
             HStack {
                 Button(L("Copy diagnostics")) {
                     let text = requests.diagnostics()
                     Diagnostics.copy(text)
                     diagnosticsMessage = L("Copied %ld lines.", text.split(separator: "\n").count)
                 }
+                .help(L("The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token."))
                 if let diagnosticsMessage {
                     Text(diagnosticsMessage).font(.caption).foregroundStyle(.secondary)
                 }
             }
-            Text(L("The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token."))
-                .font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button(L("Export history…")) { exportHistory() }
+                    .help(L("The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost."))
                 if let exportMessage {
                     Text(exportMessage).font(.caption).foregroundStyle(.secondary)
                 }
             }
-            Text(L("The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost."))
-                .font(.caption).foregroundStyle(.secondary)
             Button(L("Reset All Settings…")) { resetAll() }
-            Text(L("Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept."))
-                .font(.caption).foregroundStyle(.secondary)
+                .help(L("Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept."))
         }
     }
 
@@ -883,40 +873,31 @@ private struct WindowChoices: View {
     let prefs: Preferences
 
     var body: some View {
-        let chosen = prefs.ringWindows[tool] ?? []
         let ring = prefs.ringWindows(of: reading)
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(L("Rings show")).font(.caption)
-                // Every window, not only the shown ones: hiding them all left the pickers with nothing to
-                // list, so they rendered as empty boxes with no way back. The derived "All models" window joins
-                // them when the card is showing the model windows it combines.
-                let choices = reading.windows + [prefs.combinedWindow(of: reading)].compactMap { $0 }
-                Picker(L("Outer ring"), selection: Binding(get: { ring.first?.id ?? "" }, set: { set(at: 0, $0, ring: ring) })) {
-                    ForEach(choices) { window in Text(window.label).tag(window.id) }
-                }
-                .labelsHidden().controlSize(.small).disabled(choices.isEmpty)
-                Picker(L("Inner ring"), selection: Binding(get: { id(of: ring, at: 1) }, set: { set(at: 1, $0, ring: ring) })) {
-                    Text(L("None")).tag("")
-                    ForEach(choices) { window in Text(window.label).tag(window.id) }
-                }
-                .labelsHidden().controlSize(.small).disabled(choices.isEmpty)
-                Picker(L("Third ring"), selection: Binding(get: { id(of: ring, at: 2) }, set: { set(at: 2, $0, ring: ring) })) {
-                    Text(L("None")).tag("")
-                    ForEach(choices) { window in Text(window.label).tag(window.id) }
-                }
-                .labelsHidden().controlSize(.small).disabled(choices.isEmpty)
-            }
-            HStack(spacing: 8) {
-                Text(L("Hide")).font(.caption)
-                ForEach(reading.windows) { window in
-                    Toggle(window.label, isOn: Binding(get: { prefs.isHidden(window, of: tool) }, set: { prefs.setHidden($0, window: window, of: tool) }))
-                        .toggleStyle(.checkbox).controlSize(.small).font(.caption)
-                }
-            }
-            let _ = chosen
+        // Every window, not only the shown ones: hiding them all left the pickers with nothing to list, so they
+        // rendered as empty boxes with no way back. The derived "All models" window joins them when the card is
+        // showing the model windows it combines.
+        let choices = reading.windows + [prefs.combinedWindow(of: reading)].compactMap { $0 }
+        Picker(L("Outer ring"), selection: Binding(get: { ring.first?.id ?? "" }, set: { set(at: 0, $0, ring: ring) })) {
+            ForEach(choices) { window in Text(window.label).tag(window.id) }
         }
-        .padding(.leading, 20)
+        .disabled(choices.isEmpty)
+        Picker(L("Inner ring"), selection: Binding(get: { id(of: ring, at: 1) }, set: { set(at: 1, $0, ring: ring) })) {
+            Text(L("None")).tag("")
+            ForEach(choices) { window in Text(window.label).tag(window.id) }
+        }
+        .disabled(choices.isEmpty)
+        Picker(L("Third ring"), selection: Binding(get: { id(of: ring, at: 2) }, set: { set(at: 2, $0, ring: ring) })) {
+            Text(L("None")).tag("")
+            ForEach(choices) { window in Text(window.label).tag(window.id) }
+        }
+        .disabled(choices.isEmpty)
+        LabeledContent(L("Hide")) {
+            ForEach(reading.windows) { window in
+                Toggle(window.label, isOn: Binding(get: { prefs.isHidden(window, of: tool) }, set: { prefs.setHidden($0, window: window, of: tool) }))
+                    .toggleStyle(.checkbox).controlSize(.small)
+            }
+        }
     }
 
     private func id(of ring: [LimitWindow], at index: Int) -> String {
@@ -976,17 +957,17 @@ private struct PeakHoursEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Toggle(L("Peak hours (Anthropic's tighter session limits)"), isOn: Binding(get: { prefs.peakHours.enabled }, set: { prefs.peakHours.enabled = $0 }))
+                .help(L("Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants."))
             if prefs.peakHours.enabled {
+                // Four controls in one row clipped the times to "5:0…" at the window's minimum width.
                 HStack {
                     QuietHourPicker(title: L("From"), minutes: Binding(get: { prefs.peakHours.startMinute }, set: { prefs.peakHours.startMinute = $0 }))
                     QuietHourPicker(title: L("To"), minutes: Binding(get: { prefs.peakHours.endMinute }, set: { prefs.peakHours.endMinute = $0 }))
                     Text(prefs.peakHours.timeZone.abbreviation() ?? prefs.peakHours.timeZoneID).font(.caption).foregroundStyle(.secondary)
-                    Toggle(L("Weekdays only"), isOn: Binding(get: { prefs.peakHours.weekdaysOnly }, set: { prefs.peakHours.weekdaysOnly = $0 }))
-                        .toggleStyle(.checkbox).controlSize(.small).font(.caption)
                 }
+                Toggle(L("Weekdays only"), isOn: Binding(get: { prefs.peakHours.weekdaysOnly }, set: { prefs.peakHours.weekdaysOnly = $0 }))
+                    .toggleStyle(.checkbox).controlSize(.small)
             }
-            Text(L("Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants."))
-                .font(.caption).foregroundStyle(.secondary)
         }
     }
 }

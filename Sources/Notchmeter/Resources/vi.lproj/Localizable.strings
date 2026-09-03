@@ -136,7 +136,6 @@
 "As of %@" = "Tính đến %@";
 "Ask for Keychain access" = "Hỏi quyền truy cập Keychain";
 "Assistants" = "Trợ lý";
-"at" = "với tỷ giá";
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "Với tốc độ này, %1$@ tốn %2$@ so với ngân sách %3$@.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "Với tốc độ này bạn chạm trần %2$@ của %1$@ vào %3$@ trong khoảng %4$@ đến %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "Với tốc độ này bạn sẽ chạm trần %2$@ của %1$@ vào %3$@, còn %4$@ trước khi đặt lại.%5$@";
@@ -455,7 +454,6 @@
 "Right of the notch" = "Bên phải notch";
 "Rings" = "Vòng";
 "Rings + numbers" = "Vòng + số";
-"Rings show" = "Vòng hiển thị";
 "Route requests through" = "Dẫn yêu cầu qua";
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "Chạy từ đây, Mở khi đăng nhập và cập nhật sẽ không hoạt động. Ứng dụng được sao chép vào /Applications, khởi chạy lại từ đó, và bản này được chuyển vào Thùng rác.";
 "Runs out %1$@–%2$@" = "Hết vào %1$@–%2$@";

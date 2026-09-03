@@ -152,7 +152,6 @@
 "As of %@" = "截至 %@";
 "Ask for Keychain access" = "请求钥匙串访问";
 "Assistants" = "助手";
-"at" = "按";
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "按此速度，本%1$@将花费 %2$@，预算为 %3$@。";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "按此速度，你将在%3$@ %4$@ 至 %5$@ 之间触及 %1$@ %2$@上限。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "按当前速度，%1$@ 的%2$@额度将于%3$@达到上限，距离重置还有 %4$@。%5$@";
@@ -471,7 +470,6 @@
 "Right of the notch" = "刘海右侧";
 "Rings" = "圆环";
 "Rings + numbers" = "圆环 + 数字";
-"Rings show" = "圆环显示";
 "Route requests through" = "请求经由";
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "从当前位置运行时，“登录时打开”和更新都无法工作。应用会被复制到 /Applications 并从那里重新启动，当前副本会移到废纸篓。";
 "Runs out %1$@–%2$@" = "%1$@–%2$@ 用尽";
