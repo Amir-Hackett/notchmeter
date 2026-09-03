@@ -53,14 +53,25 @@ struct CompactFit: Equatable {
             switch side {
             case .leading: width(style, count) <= leadingRoom
             case .trailing: width(style, count) <= trailingRoom
-            case .split, .auto:
-                width(style, leadingCount(count)) <= leadingRoom
-                    && width(style, count - leadingCount(count)) <= trailingRoom
+            case .split, .auto: leadingCount(style, count) != nil
             }
         }
 
-        func leadingCount(_ count: Int) -> Int {
-            splitLeadingCount(of: count, leadingRoom: leadingRoom, trailingRoom: trailingRoom)
+        /// How many go left under `.split`, or nil when neither arrangement fits between the ends.
+        ///
+        /// The resting split is tried first and its mirror only if the resting one will not fit, so the strip
+        /// holds one shape until an end genuinely stops it. Comparing the two gaps instead and handing the extra
+        /// readout to whichever measured larger is what made the arrangement restless: a difference of a few
+        /// points — one status item appearing, one app's menus being a word shorter — flipped a readout across
+        /// the notch while both halves still fitted perfectly well where they were.
+        func leadingCount(_ style: CompactStyle, _ count: Int) -> Int? {
+            func holds(_ leading: Int) -> Bool {
+                width(style, leading) <= leadingRoom && width(style, count - leading) <= trailingRoom
+            }
+            let resting = splitLeadingCount(of: count)
+            if holds(resting) { return resting }
+            let mirrored = count - resting
+            return mirrored != resting && holds(mirrored) ? mirrored : nil
         }
 
         let smallest: CompactStyle = .rings
@@ -69,28 +80,19 @@ struct CompactFit: Equatable {
         for (candidate, count) in ladder {
             for side in sides where fits(side, candidate, count) {
                 return CompactFit(side: side, style: candidate, toolCount: count, dropped: tools - count,
-                                  splitLeading: side == .split ? leadingCount(count) : nil)
+                                  splitLeading: side == .split ? leadingCount(candidate, count) : nil)
             }
         }
         return CompactFit(side: roomier, style: smallest, toolCount: 1, dropped: tools - 1, splitLeading: nil)
     }
 
-    /// How many of a run go left of the notch under `.split`; NotchCompactView splits it the same way.
+    /// How many of a run go left of the notch when both ends allow it: half, and an odd run's extra readout to
+    /// the right. NotchCompactView splits it the same way, so a centred layout — which has no menu bar
+    /// measurement to work from at all — rests in the same shape Auto rests in.
     ///
-    /// An odd run cannot be halved, and the extra readout goes to whichever side has more room. The strip is one
-    /// shape held centred on the notch, so the heavier side is the side the black overhangs; sending that overhang
-    /// into the end that is already free reads as deliberate, while sending it into the crowded end leaves a gap
-    /// of empty black beside the menus and the roomy end sitting unused.
-    ///
-    /// With nothing measured the extra goes right, and a tie goes the same way. That covers a centred layout,
-    /// which has no measurement to be had, and Auto before Accessibility answers. The two ends are not alike: the
-    /// left is where the frontmost app's menu titles grow, and they change length on every app switch, while the
-    /// right holds status items that mostly sit still. So the end to stay clear of while nothing is known is the
-    /// left, and three readouts rest as one left and two right until a measurement says otherwise — at which
-    /// point Auto moves them, which is the whole point of Auto.
-    static func splitLeadingCount(of count: Int, leadingRoom: CGFloat = .greatestFiniteMagnitude,
-                                  trailingRoom: CGFloat = .greatestFiniteMagnitude) -> Int {
-        let half = count / 2
-        return count.isMultiple(of: 2) || leadingRoom > trailingRoom ? count - half : half
-    }
+    /// The extra goes right because the two ends are not alike. The left is where the frontmost app's menu titles
+    /// grow, and they change length on every app switch; the right holds status items, which the user arranges
+    /// and which then sit still. Keeping the lighter half on the moving end is what lets one arrangement stand
+    /// for most of the day. `CompactFit.resolve` mirrors it when the right will not hold its half, and only then.
+    static func splitLeadingCount(of count: Int) -> Int { count / 2 }
 }
