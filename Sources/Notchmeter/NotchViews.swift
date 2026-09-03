@@ -664,9 +664,7 @@ struct SpendCard: View {
 
     /// The assistants this card carries, in the user's order. Every figure on the card is theirs added up, so
     /// leaving one out under Settings takes it out of the total as well as out of the donut.
-    private var selection: CostSelection {
-        CostSelection(all: store.cost?.providers ?? [], order: store.prefs.toolOrder, carried: store.prefs.costCardTools)
-    }
+    private var selection: CostSelection { store.costSelection }
 
     private var totals: RangeTotals? {
         let selection = selection
@@ -750,15 +748,7 @@ struct SpendCard: View {
 
     /// The assistants the card carries that reported nothing, each with the reason the app knows for it. Leaving
     /// one out in silence reads as "it costs nothing", which is not what a missing read means.
-    private var gaps: [CostGap] {
-        // Before the first scan every tool is missing, and that is the scan running rather than anything to say.
-        guard store.cost != nil else { return [] }
-        let carried = store.visibleTools.filter { store.prefs.costCardTools.contains($0) }
-        return CostAbsence.gaps(carried: carried, reporting: Set(providers.map(\.tool)),
-                                cursorUsageEvents: store.prefs.cursorUsageEvents, cursorExport: store.cursorExport,
-                                problems: carried.reduce(into: [:]) { $0[$1] = store.status($1).problem },
-                                nothingLocal: Set(carried.filter { store.status($0).hasNothingYet }))
-    }
+    private var gaps: [CostGap] { store.costGaps }
 
     /// The donut's arcs: one per assistant that spent in the range, sized by its share of it. Against a monthly
     /// budget the arc is the month against that budget, so it is split by who spent the month rather than the
