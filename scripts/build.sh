@@ -56,12 +56,32 @@ fi
 # attempt is time-boxed because an identity whose key still asks permission would otherwise hang the build
 # forever waiting on a dialog — see scripts/signing-identity.sh.
 IDENTITY="Notchmeter Local"
-if security find-certificate -c "$IDENTITY" >/dev/null 2>&1 \
-   && perl -e 'alarm 20; exec @ARGV' codesign --force --sign "$IDENTITY" --options runtime --timestamp=none "$APP" >/dev/null 2>&1; then
+
+# No hardened runtime here, deliberately: it turns on Library Validation, which requires the executable and every
+# framework it loads to carry the same Team ID. A self-signed identity has no Team ID at all, so Sparkle is refused
+# at load and the app aborts with "Library not loaded". scripts/release.sh signs with a Developer ID, which does
+# have one, and keeps the hardened runtime that notarisation requires.
+#
+# Nested code is signed before the bundle that carries it, innermost first. A real identity makes this matter in a
+# way ad-hoc signing did not: sign only the outer bundle and the framework keeps its old signature, dyld sees the
+# mismatch and refuses to load it, and the app aborts at launch with "Library not loaded".
+sign_bundle() {
+    local target="$1"
+    find "$target" -name '*.cstemp' -delete 2>/dev/null || true
+    while IFS= read -r nested; do
+        perl -e 'alarm 20; exec @ARGV' codesign --force --sign "$IDENTITY" --timestamp=none "$nested" >/dev/null 2>&1 || return 1
+    done < <(find "$target/Contents/Frameworks" -type d \( -name '*.framework' -o -name '*.xpc' -o -name '*.app' \) -depth 2>/dev/null)
+    perl -e 'alarm 20; exec @ARGV' codesign --force --sign "$IDENTITY" --timestamp=none "$target" >/dev/null 2>&1
+}
+
+if security find-certificate -c "$IDENTITY" >/dev/null 2>&1 && sign_bundle "$APP"; then
     echo "signed with $IDENTITY"
 else
     # A timed-out codesign leaves a .cstemp behind, and the next signature refuses to write over it.
     find "$APP" -name '*.cstemp' -delete 2>/dev/null || true
+    while IFS= read -r nested; do
+        codesign --force --sign - "$nested" >/dev/null 2>&1 || true
+    done < <(find "$APP/Contents/Frameworks" -type d \( -name '*.framework' -o -name '*.xpc' -o -name '*.app' \) -depth 2>/dev/null)
     codesign --force --sign - "$APP"
     if security find-certificate -c "$IDENTITY" >/dev/null 2>&1; then
         echo "signed ad hoc: $IDENTITY exists but its key still asks permission."
