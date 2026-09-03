@@ -121,8 +121,13 @@ private extension Advice.Priority {
 
 /// Captions are tertiary on black by default and secondary under Increase Contrast.
 private struct Caption: ViewModifier {
+    @MainActor
+    static var style: AnyShapeStyle {
+        AccessibilityDisplay.shared.contrast ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary)
+    }
+
     func body(content: Content) -> some View {
-        content.font(.caption2).foregroundStyle(AccessibilityDisplay.shared.contrast ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+        content.font(.caption2).foregroundStyle(Self.style)
     }
 }
 
@@ -717,6 +722,11 @@ struct SpendCard: View {
     /// The donut's line, drawn inside its frame so the ring lines up with the card's text margin.
     static let ringWidth: CGFloat = 13
 
+    /// The legend's two right-hand columns. Fixed so every row's percentage and every row's amount end on the
+    /// same two edges however wide the figures are; the source label beside the name gives way first.
+    static let shareColumn: CGFloat = 26
+    static let figureColumn: CGFloat = 58
+
     /// The detail block describes the assistant at the top of the card's order, not the blend: one tool's own
     /// last hour, tokens, cache tiers and folders, with any line its source cannot answer simply absent.
     private var detail: CostDetail? {
@@ -779,6 +789,27 @@ struct SpendCard: View {
         return selection.share(of: provider.tool, range: range.costRange, mode: mode)
     }
 
+    /// Everything the card says in prose, in reading order: what is missing, what it burned, the detail behind
+    /// it and where the figures came from. `quiet` marks the lines the caption style keeps a step back.
+    @MainActor
+    private var noteLines: [(text: String, quiet: Bool)] {
+        var lines: [(text: String, quiet: Bool)] = problemLines.map { (text: $0, quiet: true) }
+        lines += gaps.map { (text: $0.text, quiet: true) }
+        if let burnLine {
+            // A non-breaking hyphen keeps "30-day" whole when the line wraps.
+            lines.append((text: burnLine.replacingOccurrences(of: "-", with: "\u{2011}"), quiet: false))
+        }
+        if store.prefs.showDetails {
+            lines += detailLines.map { (text: $0, quiet: false) }
+            lines += detailCaptions.map { (text: $0, quiet: true) }
+        }
+        if !selection.unpricedModels.isEmpty {
+            lines.append((text: L("Unpriced: %@", selection.unpricedModels.sorted().joined(separator: ", ")), quiet: true))
+        }
+        if let sourceLine { lines.append((text: sourceLine, quiet: true)) }
+        return lines
+    }
+
     /// The legend as one spoken phrase.
     private var providerSpoken: String {
         guard !providers.isEmpty else { return L("no cost yet") }
@@ -792,7 +823,7 @@ struct SpendCard: View {
     var body: some View {
         let headline = Self.headline(mode: mode, amount: amount, totals: totals)
         let unit = Self.unit(mode: mode)
-        VStack(alignment: .leading, spacing: density.cardSpacing) {
+        VStack(alignment: .leading, spacing: density.rowSpacing) {
             HStack {
                 Text(L("Cost")).font(.headline)
                 Spacer()
@@ -803,100 +834,98 @@ struct SpendCard: View {
                     }
                 }
             }
+            // Six segments at the regular control size want more width than the card has, and a segmented picker
+            // paints its whole bezel however little it is offered: the card grew to fit it and hung past the
+            // panel's right margin. The small control size fits the titles inside the card's own text column.
             Picker(L("Range"), selection: $range) {
                 ForEach(Range.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
+            .controlSize(.small)
             .labelsHidden()
-            // Top-aligned, not centred: the legend column grows with the detail lines, and centring sank the ring
-            // below the first legend row whenever it did.
-            HStack(alignment: .top, spacing: 16) {
-                ZStack {
-                    // strokeBorder and an inset arc, never stroke: a stroked path is centred on the circle, so
-                    // half the 13 pt line falls outside the frame and the ring hangs past the card's text margin.
-                    Circle().strokeBorder(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.25 : 0.1), lineWidth: Self.ringWidth)
-                    ForEach(arcs) { arc in
-                        Circle()
-                            .inset(by: Self.ringWidth / 2)
-                            .trim(from: arc.start, to: arc.end)
-                            .stroke(arcColor(arc), style: StrokeStyle(lineWidth: Self.ringWidth, lineCap: .butt))
-                            .rotationEffect(.degrees(-90))
+            // Centred against the ring: the column beside it is the legend alone, which is shorter than the ring
+            // on every plan anyone has, and top-aligning it left the card's right half empty under two rows.
+            VStack(alignment: .leading, spacing: density.rowSpacing) {
+                HStack(alignment: .center, spacing: 16) {
+                    ZStack {
+                        // strokeBorder and an inset arc, never stroke: a stroked path is centred on the circle, so
+                        // half the 13 pt line falls outside the frame and the ring hangs past the card's text margin.
+                        Circle().strokeBorder(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.25 : 0.1), lineWidth: Self.ringWidth)
+                        ForEach(arcs) { arc in
+                            Circle()
+                                .inset(by: Self.ringWidth / 2)
+                                .trim(from: arc.start, to: arc.end)
+                                .stroke(arcColor(arc), style: StrokeStyle(lineWidth: Self.ringWidth, lineCap: .butt))
+                                .rotationEffect(.degrees(-90))
+                        }
+                        if let budget {
+                            Rectangle()
+                                .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 1 : 0.8))
+                                .frame(width: 2, height: 15)
+                                .offset(y: -(density.costRing - Self.ringWidth) / 2)
+                                .rotationEffect(.degrees(360 * budget.tick))
+                                .accessibilityHidden(true)
+                        }
+                        VStack(spacing: 1) {
+                            Text(headline)
+                                .font(.system(.title2, design: .rounded).bold())
+                                .monospacedDigit()
+                                .minimumScaleFactor(0.6)
+                                .lineLimit(1)
+                            Text(unit).font(.caption2).foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 10)
                     }
-                    if let budget {
-                        Rectangle()
-                            .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 1 : 0.8))
-                            .frame(width: 2, height: 15)
-                            .offset(y: -(density.costRing - Self.ringWidth) / 2)
-                            .rotationEffect(.degrees(360 * budget.tick))
-                            .accessibilityHidden(true)
+                    .frame(width: density.costRing, height: density.costRing)
+                    .contentShape(Circle())
+                    .onTapGesture { store.prefs.costCardMode = mode.next }
+                    .help(L("Click to show %@", mode.next.title))
+                    .contextMenu {
+                        ForEach(CostCardMode.allCases, id: \.self) { choice in
+                            Button(choice.title) { store.prefs.costCardMode = choice }
+                        }
                     }
-                    VStack(spacing: 1) {
-                        Text(headline)
-                            .font(.system(.title2, design: .rounded).bold())
-                            .monospacedDigit()
-                            .minimumScaleFactor(0.6)
-                            .lineLimit(1)
-                        Text(unit).font(.caption2).foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 10)
-                }
-                .frame(width: density.costRing, height: density.costRing)
-                .contentShape(Circle())
-                .onTapGesture { store.prefs.costCardMode = mode.next }
-                .help(L("Click to show %@", mode.next.title))
-                .contextMenu {
-                    ForEach(CostCardMode.allCases, id: \.self) { choice in
-                        Button(choice.title) { store.prefs.costCardMode = choice }
-                    }
-                }
-                .accessibilityAction(named: L("Show %@", mode.next.title)) { store.prefs.costCardMode = mode.next }
-                VStack(alignment: .leading, spacing: 6) {
-                    if providers.isEmpty {
-                        Text(L("no cost yet")).font(.callout).foregroundStyle(.secondary)
-                    }
-                    ForEach(providers) { provider in
-                        let totals = provider.totals(range.costRange)
-                        HStack(spacing: 6) {
-                            Circle().fill(provider.tool.color).frame(width: 7, height: 7)
-                            Text(verbatim: provider.tool.displayName).font(.callout).lineLimit(1)
-                            Text(provider.source.shortLabel).font(.caption2).foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1)
-                            Spacer(minLength: 4)
-                            if let share = share(provider) {
-                                Text(verbatim: "\(Int((share * 100).rounded()))%")
-                                    .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                    .accessibilityAction(named: L("Show %@", mode.next.title)) { store.prefs.costCardMode = mode.next }
+                    VStack(alignment: .leading, spacing: density.lineSpacing) {
+                        if providers.isEmpty {
+                            Text(L("no cost yet")).font(.callout).foregroundStyle(.secondary)
+                        }
+                        ForEach(providers) { provider in
+                            let totals = provider.totals(range.costRange)
+                            HStack(spacing: 6) {
+                                Circle().fill(provider.tool.color).frame(width: 7, height: 7)
+                                Text(verbatim: provider.tool.displayName).font(.callout).lineLimit(1)
+                                Text(provider.source.shortLabel).font(.caption2).foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1)
+                                Spacer(minLength: 4)
+                                // Both figures keep a column of their own, so a shorter amount on one row does not
+                                // drag that row's percentage in from the one above it.
+                                if let share = share(provider) {
+                                    Text(verbatim: "\(Int((share * 100).rounded()))%")
+                                        .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                                        .frame(width: Self.shareColumn, alignment: .trailing)
+                                }
+                                Text(Self.rowFigure(mode: mode, totals: totals)).font(.callout).monospacedDigit()
+                                    .lineLimit(1).minimumScaleFactor(0.7)
+                                    .frame(width: Self.figureColumn, alignment: .trailing)
                             }
-                            Text(Self.rowFigure(mode: mode, totals: totals)).font(.callout).monospacedDigit()
                         }
                     }
-                    ForEach(problemLines, id: \.self) { line in
-                        Text(line).modifier(Caption()).lineLimit(2)
-                    }
-                    ForEach(gaps) { gap in
-                        Text(gap.text).modifier(Caption()).lineLimit(2)
-                    }
-                    if let burnLine {
-                        // A non-breaking hyphen keeps "30-day" whole when the line wraps.
-                        Text(burnLine.replacingOccurrences(of: "-", with: "\u{2011}"))
-                            .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
-                    }
-                    if store.prefs.showDetails {
-                        ForEach(detailLines, id: \.self) { line in
-                            Text(line).font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                }
+                // The notes are prose, not legend rows: at the card's own text margin they line up with the title
+                // and the model rows and have the full width to wrap in, rather than the column beside the ring.
+                if !noteLines.isEmpty {
+                    VStack(alignment: .leading, spacing: density.lineSpacing) {
+                        ForEach(noteLines, id: \.text) { note in
+                            Text(note.text)
+                                .font(.caption2)
+                                .foregroundStyle(note.quiet ? Caption.style : AnyShapeStyle(.secondary))
+                                .monospacedDigit()
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        ForEach(detailCaptions, id: \.self) { line in
-                            Text(line).modifier(Caption()).monospacedDigit().lineLimit(2)
-                        }
-                    }
-                    if !selection.unpricedModels.isEmpty {
-                        Text(L("Unpriced: %@", selection.unpricedModels.sorted().joined(separator: ", ")))
-                            .modifier(Caption()).lineLimit(2)
-                    }
-                    if let sourceLine {
-                        Text(sourceLine).modifier(Caption()).lineLimit(2)
                     }
                 }
             }
-            .padding(.top, 2)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L("Cost, %@", range.title))
             .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, burnLine, problemLines.first, gaps.first?.text,
@@ -922,6 +951,7 @@ private struct ModelShares: View {
     let tokensByModel: [String: Int]?
     let mode: CostCardMode
     let rangeTokens: Int
+    @Environment(\.density) private var density
 
     private func figure(_ share: CostShare) -> String {
         switch mode {
@@ -937,7 +967,7 @@ private struct ModelShares: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: density.lineSpacing) {
             ForEach(shares) { share in
                 HStack(spacing: 6) {
                     Text(share.name == CostShare.other ? L("Other") : ModelNames.display(share.name))
@@ -959,15 +989,18 @@ private struct ModelShares: View {
 struct AdviceStrip: View {
     let advice: [Advice]
     var open: (URL) -> Void = { _ in }
+    @Environment(\.density) private var density
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: density.lineSpacing) {
             ForEach(advice) { item in
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    // Leading, not centred: the symbol is the bullet and starts on the card's text margin
+                    // whatever glyph it is.
                     Image(systemName: item.symbol)
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(item.priority.color)
-                        .frame(width: 13)
+                        .frame(width: 13, alignment: .leading)
                     Text(item.text)
                         .font(.caption)
                         .monospacedDigit()
@@ -1019,8 +1052,10 @@ struct ToolCard: View {
         return L("%1$@ today · %2$@ over 30 days · %3$@", Money.dollars(today), Money.dollars(month, cents: false), spend.source.label)
     }
 
+    /// The title sits inside the card rather than above it, so the icon and the link button end on the same two
+    /// margins as the window labels and the meters below them.
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: density.rowSpacing) {
             HStack(spacing: 6) {
                 Image(systemName: tool.symbolName).foregroundStyle(tool.color).font(.subheadline.weight(.semibold))
                 Text(tool.displayName).font(.headline)
@@ -1043,78 +1078,75 @@ struct ToolCard: View {
                         .accessibilityLabel(problem)
                 }
             }
-            .padding(.leading, 2)
-            VStack(alignment: .leading, spacing: density.meterSpacing) {
-                if tool == .claude {
-                    SessionLine(store: store)
+            if tool == .claude {
+                SessionLine(store: store)
+            }
+            if let reading = status.reading {
+                ForEach(prefs.panelWindows(of: reading)) { window in
+                    MeterRow(toolName: tool.displayName, window: window, color: tool.color, prefs: prefs,
+                             stale: status.staleReading != nil, hideFigures: store.hidesFigures,
+                             drain: store.drain(for: tool, window: window), runOut: store.runOut(for: tool, window: window),
+                             metering: tool == .claude && window.id == "five_hour" && prefs.showSpend ? store.cost?.sessionMetering : nil)
                 }
-                if let reading = status.reading {
-                    ForEach(prefs.panelWindows(of: reading)) { window in
-                        MeterRow(toolName: tool.displayName, window: window, color: tool.color, prefs: prefs,
-                                 stale: status.staleReading != nil, hideFigures: store.hidesFigures,
-                                 drain: store.drain(for: tool, window: window), runOut: store.runOut(for: tool, window: window),
-                                 metering: tool == .claude && window.id == "five_hour" && prefs.showSpend ? store.cost?.sessionMetering : nil)
-                    }
-                    .opacity(status.problem == nil ? 1 : 0.55)
-                    if let observed = reading.observedAt, Date().timeIntervalSince(observed) > 600 {
-                        Text(L("As of %@", RelativeTime.ago(observed))).modifier(Caption()).monospacedDigit()
-                    }
-                }
-                switch status {
-                case .waiting:
-                    HStack(spacing: 6) {
-                        ProgressView().controlSize(.mini)
-                        Text(L("Waiting for the first reading"))
-                    }
-                    .font(.caption).foregroundStyle(.secondary)
-                case .idle(let message):
-                    Text(message).font(.caption).foregroundStyle(.secondary)
-                case .needsAttention(let message, _):
-                    Label(message, systemImage: "person.crop.circle.badge.exclamationmark")
-                        .font(.caption).foregroundStyle(Palette.warn)
-                case .failed(let message, _):
-                    Label(message, systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                case .offline:
-                    Label(L("Offline, retrying"), systemImage: "wifi.slash")
-                        .font(.caption).foregroundStyle(.secondary)
-                default:
-                    EmptyView()
-                }
-                if let stale = status.staleReading {
-                    Text(StaleReading.line(fetchedAt: stale.fetchedAt, timeFormat: prefs.timeFormat))
-                        .modifier(Caption()).monospacedDigit()
-                }
-                if let spendLine {
-                    Text(spendLine)
-                        .modifier(Caption()).monospacedDigit().lineLimit(2)
-                        .accessibilityLabel(L("Spend"))
-                        .accessibilityValue(Spoken.phrase(spendLine))
-                }
-                if prefs.showDetails, let reading = status.reading, let main = prefs.shownWindows(of: reading).first(where: { $0.usedFraction != nil }),
-                   let series = store.drainSeries(for: tool, window: main), series.contains(where: { $0 != nil }) {
-                    HStack {
-                        Text(L("Last 24h")).font(.subheadline.weight(.semibold))
-                        Spacer()
-                        DrainSparkline(points: series, color: tool.color).frame(width: 160, height: 22)
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(L("Last 24h"))
-                    .accessibilityValue(Spoken.phrase(L("%1$@ %2$ld percent used", main.label, Int(((series.last { $0 != nil } ?? 0) ?? 0) * 100))))
-                }
-                if prefs.showDetails, let trend = spend?.daily, trend.contains(where: { $0.cost > 0 }) {
-                    HStack {
-                        Text(L("Usage Trend")).font(.subheadline.weight(.semibold))
-                        Spacer()
-                        Sparkline(series: trend, color: tool.color).frame(width: 160, height: 22)
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(L("Usage Trend"))
-                    .accessibilityValue(Spoken.phrase(Sparkline.summary(trend)))
+                .opacity(status.problem == nil ? 1 : 0.55)
+                if let observed = reading.observedAt, Date().timeIntervalSince(observed) > 600 {
+                    Text(L("As of %@", RelativeTime.ago(observed))).modifier(Caption()).monospacedDigit()
                 }
             }
-            .modifier(CardBackground())
+            switch status {
+            case .waiting:
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.mini)
+                    Text(L("Waiting for the first reading"))
+                }
+                .font(.caption).foregroundStyle(.secondary)
+            case .idle(let message):
+                Text(message).font(.caption).foregroundStyle(.secondary)
+            case .needsAttention(let message, _):
+                Label(message, systemImage: "person.crop.circle.badge.exclamationmark")
+                    .font(.caption).foregroundStyle(Palette.warn)
+            case .failed(let message, _):
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+            case .offline:
+                Label(L("Offline, retrying"), systemImage: "wifi.slash")
+                    .font(.caption).foregroundStyle(.secondary)
+            default:
+                EmptyView()
+            }
+            if let stale = status.staleReading {
+                Text(StaleReading.line(fetchedAt: stale.fetchedAt, timeFormat: prefs.timeFormat))
+                    .modifier(Caption()).monospacedDigit()
+            }
+            if let spendLine {
+                Text(spendLine)
+                    .modifier(Caption()).monospacedDigit().lineLimit(2)
+                    .accessibilityLabel(L("Spend"))
+                    .accessibilityValue(Spoken.phrase(spendLine))
+            }
+            if prefs.showDetails, let reading = status.reading, let main = prefs.shownWindows(of: reading).first(where: { $0.usedFraction != nil }),
+               let series = store.drainSeries(for: tool, window: main), series.contains(where: { $0 != nil }) {
+                HStack {
+                    Text(L("Last 24h")).font(.subheadline.weight(.semibold))
+                    Spacer()
+                    DrainSparkline(points: series, color: tool.color).frame(width: 160, height: 22)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(L("Last 24h"))
+                .accessibilityValue(Spoken.phrase(L("%1$@ %2$ld percent used", main.label, Int(((series.last { $0 != nil } ?? 0) ?? 0) * 100))))
+            }
+            if prefs.showDetails, let trend = spend?.daily, trend.contains(where: { $0.cost > 0 }) {
+                HStack {
+                    Text(L("Usage Trend")).font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Sparkline(series: trend, color: tool.color).frame(width: 160, height: 22)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(L("Usage Trend"))
+                .accessibilityValue(Spoken.phrase(Sparkline.summary(trend)))
+            }
         }
+        .modifier(CardBackground())
         .contextMenu {
             Button(L("Refresh")) { Keychain.setInteractive(tool == .claude); Task { await store.refresh(tool, force: true) } }
             Button(L("Copy as image")) {
@@ -1132,13 +1164,14 @@ struct ToolCard: View {
 /// "2 sessions · working 2m 10s" and, while the status line reports, "Context 62% · Opus · $1.23 this session".
 private struct SessionLine: View {
     let store: UsageStore
+    @Environment(\.density) private var density
 
     var body: some View {
         let sessions = store.sessions
         let statusline = store.statusline
         if sessions.count > 0 || store.contextUsed != nil {
             TimelineView(.periodic(from: .now, by: sessions.working.isEmpty && sessions.waiting.isEmpty ? 60 : 1)) { context in
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: density.lineSpacing) {
                     if sessions.count > 0 {
                         Text(Self.sessionsText(sessions, now: context.date))
                             .font(.caption).foregroundStyle(.secondary).monospacedDigit()
@@ -1219,6 +1252,7 @@ struct MeterRow: View {
     var drain: Drain? = nil
     var runOut: RunOutInterval? = nil
     var metering: MeteringRatio? = nil
+    @Environment(\.density) private var density
 
     /// The pace note, with the run-out interval's range in place of the point when the log has a wide one.
     static func paceNote(window: LimitWindow, runOut: RunOutInterval?, format: TimeFormatPreference, now: Date = Date()) -> (text: String, status: Pace.Status)? {
@@ -1242,7 +1276,7 @@ struct MeterRow: View {
             guard let median = ratio.median else { return L("%@ per 1%% of session today", today) }
             return L("%1$@ per 1%% of session today vs %2$@ 30-day median", today, Money.tokens(Int(median.rounded())))
         }
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: density.lineSpacing) {
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text(window.label).font(.subheadline.weight(.semibold))
                 if let tag = window.source.tag {
@@ -1423,6 +1457,7 @@ struct DrainSparkline: View {
 struct FooterView: View {
     let store: UsageStore
     let actions: NotchActions
+    @Environment(\.density) private var density
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 10)) { context in
@@ -1457,8 +1492,9 @@ struct FooterView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
-            .padding(.horizontal, 4)
-            .padding(.top, 2)
+            // The footer carries no card of its own, so it takes the cards' inner padding: the version line and
+            // the Options button end on the same two margins as everything above them.
+            .padding(.horizontal, density.cardPadding)
         }
     }
 
