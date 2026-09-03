@@ -790,21 +790,31 @@ struct CostHistory: Sendable {
         self.tool = tool
     }
 
-    private static let dayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
+    /// The proleptic Gregorian reading of `calendar`'s wall clock: keys are the file's format, not the user's,
+    /// so a non-Gregorian `Calendar.current` must still name the day "2026-09-02".
+    private static func gregorian(_ calendar: Calendar) -> Calendar {
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = calendar.timeZone
+        return gregorian
+    }
 
+    /// Both directions derive the day from a `Calendar` made on the spot rather than from a shared `DateFormatter`
+    /// whose time zone every call would restamp: these run on the scanners' queues, the report and the store at
+    /// once, and one call's time zone landing inside another's read collapsed two adjacent days onto one key.
     static func key(_ day: Date, calendar: Calendar = .current) -> String {
-        dayFormatter.timeZone = calendar.timeZone
-        return dayFormatter.string(from: day)
+        let parts = gregorian(calendar).dateComponents([.year, .month, .day], from: day)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
     static func day(_ key: String, calendar: Calendar = .current) -> Date? {
-        dayFormatter.timeZone = calendar.timeZone
-        return dayFormatter.date(from: key).map { calendar.startOfDay(for: $0) }
+        let fields = key.split(separator: "-", omittingEmptySubsequences: false)
+        guard fields.count == 3, fields.allSatisfy({ !$0.isEmpty && $0.allSatisfy { $0.isASCII && $0.isNumber } }),
+              let year = Int(fields[0]), let month = Int(fields[1]), let dayOfMonth = Int(fields[2]) else { return nil }
+        let reference = gregorian(calendar)
+        guard let date = reference.date(from: DateComponents(year: year, month: month, day: dayOfMonth)) else { return nil }
+        let round = reference.dateComponents([.year, .month, .day], from: date)
+        guard round.year == year, round.month == month, round.day == dayOfMonth else { return nil }
+        return calendar.startOfDay(for: date)
     }
 
     func load(calendar: Calendar = .current) -> [Date: Record] {
