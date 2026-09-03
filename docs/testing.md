@@ -138,7 +138,8 @@ open -n -a Notchmeter --stdout /tmp/menubar.txt --args --menu-bar
 
 Run it through `open`, not straight from the shell. A binary started by a shell is attributed to the terminal for
 Accessibility, so it reports "not granted" and prints nothing while the app itself is trusted; `open` hands the
-launch to Launch Services and the app answers for itself.
+launch to Launch Services and the app answers for itself. `-n` is safe here: `--menu-bar`, `--smoke`, `--probe` and
+the renderers are exempt from the single-instance guard below, since none of them reaches `NSApplication.run`.
 
 ```
 unplaced x 0–0, y 982, 0 × 0      com.apple.controlcenter   ← and four more like it
@@ -162,6 +163,33 @@ leftmost item can sit further left than what is printed. `CompactFit.clearance` 
 
 The `readouts:` line in `--smoke` shows what was made of it all — the side, the style, how many tools survived,
 both edges and both gaps — and it needs `open` for the same reason.
+
+## One app at a time
+
+A second copy of a menu bar app is not a harmless duplicate. Both copies put an icon in the bar, both watch the
+mouse, and both draw a panel beside the same notch; the two panels open and collapse over each other, and what
+that looks like is a stray black rectangle at the top of the screen that nothing will close. It is a hard thing to
+recognise as "there are two of these running" — the second copy may not even have a menu bar icon to give it away.
+
+`SingleInstance.swift` takes an exclusive `flock` on `~/Library/Application Support/Notchmeter/instance.lock` and
+holds it open for the life of the process. A copy that finds the lock taken posts
+`com.amirhackett.notchmeter.reopen` — so the running copy glances its panel and a double-click still does
+something — and exits before it builds a window or a status item. The lock is held by the process, not written
+into the file, so a crashed copy leaves nothing stale behind and there is no timeout to get wrong.
+
+Anything inconclusive lets the launch through: the folder cannot be created, the file cannot be opened, the
+filesystem does not carry `flock`. The guard exists to stop a duplicate, and refusing to start the only copy the
+user has over a disk problem would be much the worse failure.
+
+To check it by hand, with the app running:
+
+```bash
+/Applications/Notchmeter.app/Contents/MacOS/Notchmeter ; echo "exit=$?"
+```
+
+It should return at once with `exit=0`, and `pgrep -x Notchmeter` should still name one process. `open -n` is the
+same test through Launch Services. `SingleInstanceTests` pins the exclusion itself on a lock file of its own, so
+it says nothing about whichever copy happens to be running while the tests do.
 
 ## Platform matrix
 
