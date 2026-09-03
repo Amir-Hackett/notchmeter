@@ -188,6 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         requests.updater = { [weak self] in self?.updater }
         buildPresenters()
         autoSide.refresh()
+        if !CommandLine.arguments.contains("--smoke") { autoSide.askAgainIfAutoIsStranded() }
         applyMenuBarItem()
         applyPrivacy()
         applyLocalAPI()
