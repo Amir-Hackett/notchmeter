@@ -187,6 +187,10 @@ struct SettingsView: View {
         }
     }
 
+    /// Placeholders, not labels: these fields are too narrow for a descriptive string, which breaks mid-word.
+    private static let currencyPlaceholder = "USD"
+    private static let ratePlaceholder = "1.00"
+
     private var panelSection: some View {
         Section(L("Panel")) {
             Picker(L("Readouts"), selection: Binding(
@@ -310,12 +314,12 @@ struct SettingsView: View {
                 Spacer()
                 // Short placeholders: a field this narrow breaks a descriptive one mid-word ("Cur/ren-/cy/cod/e").
                 // The full wording stays as the accessibility label, where the width does not apply.
-                TextField(verbatim: "USD", text: $currencyText)
+                TextField(Self.currencyPlaceholder, text: $currencyText)
                     .frame(width: 64)
                     .accessibilityLabel(L("Currency code"))
                     .onSubmit { applyCurrency() }
                 Text(L("at")).foregroundStyle(.secondary)
-                TextField(verbatim: "1.00", text: $rateText)
+                TextField(Self.ratePlaceholder, text: $rateText)
                     .frame(width: 72)
                     .accessibilityLabel(L("Rate per dollar"))
                     .onSubmit { applyCurrency() }
