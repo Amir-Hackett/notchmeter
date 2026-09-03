@@ -518,7 +518,7 @@ final class UsageStore {
             let key = AlertMemory.key(reading.tool, window)
             if let watch = WatchedReset.watch(reading.tool, window, now: now) {
                 watchedResets[key] = watch
-            } else if let existing = watchedResets[key], existing.window.resetsAt != window.resetsAt {
+            } else if let existing = watchedResets[key], !ResetPeriod.same(existing.window.resetsAt, window.resetsAt) {
                 watchedResets[key] = nil
             }
         }

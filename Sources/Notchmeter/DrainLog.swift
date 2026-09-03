@@ -78,7 +78,7 @@ struct DrainLog: Sendable {
         for window in reading.windows {
             guard let used = window.usedFraction else { continue }
             if let last = previous[Key(tool: reading.tool, window: window.id)]?.last,
-               abs(last.used - used) < 0.0005, last.resetsAt == window.resetsAt, now.timeIntervalSince(last.t) < 300 { continue }
+               abs(last.used - used) < 0.0005, ResetPeriod.same(last.resetsAt, window.resetsAt), now.timeIntervalSince(last.t) < 300 { continue }
             let line = Line(t: now, tool: reading.tool.rawValue, window: window.id, used: used, resetsAt: window.resetsAt)
             guard let encoded = try? Self.encoder.encode(line) else { continue }
             data.append(encoded)
@@ -181,7 +181,7 @@ struct DrainLog: Sendable {
         if let before = samples.last(where: { $0.t < start }) { window.insert(before, at: 0) }
         guard window.count >= 2 else { return nil }
         var from = window[0]
-        for (previous, sample) in zip(window, window.dropFirst()) where sample.used + 0.0005 < previous.used || (sample.resetsAt != previous.resetsAt && sample.used < previous.used) {
+        for (previous, sample) in zip(window, window.dropFirst()) where sample.used + 0.0005 < previous.used || (!ResetPeriod.same(sample.resetsAt, previous.resetsAt) && sample.used < previous.used) {
             from = sample
         }
         guard last.t > from.t else { return nil }

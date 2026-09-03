@@ -141,6 +141,12 @@ Cursor's usage summary answers the same question twice for its plan and team-poo
 
 Which of the two is the wrong one cannot be established from this side — the field is undocumented and the scope it counts is not published — so neither is trusted over the other: **the window is as spent as its furthest-along figure says** (`CursorProvider.share`, pinned by `CursorParsing`). Under-reporting a spent window is the costlier way to be wrong, because the bar, the run-out warning and the combined window's search for a parent are all built on that one figure. The note keeps saying what the dollars say, so a disagreement stays visible on the card rather than being smoothed away.
 
+## When a reset is not a fixed instant
+
+A window's reset is treated as a period, not a timestamp. Claude's windows arrive carrying a moment that moves on every read: three windows of one reading were observed a millisecond apart, and one window's reset wandered inside a two-second band across twenty minutes while its figure never moved — the signature of a moment recomputed from a remaining duration rather than quoted from a calendar. Compared exactly, the same period reads as a new one on every read.
+
+So every comparison of two resets goes through `ResetPeriod.same`, which draws the line at ten minutes — the tolerance `NotificationScheduler` already used for a Codex snapshot whose reset is measured from when it was written. No real reset is ever that close to the one before it, because the shortest window the app meters is five hours. Exact comparison had four consequences, all silent: the drain log wrote a row for every window on every read however still the figure was (a few KB a day became a few hundred), `RunOutInterval` discarded every consecutive pair of rows as spanning a reset so no run-out estimate could form, `CombinedWindow` could not recognise a tool-wide window as the parent of its own model windows, and a watched reset was dropped and re-watched on each read. Pinned by `DrainLogRules`.
+
 ## Subscription and API billing
 
 Claude Code's own figure is an API-price estimate and Anthropic says so. [B]: *"The Session block in `/usage` shows API token usage and is intended for API users. Claude Max and Pro subscribers have usage included in their subscription, so the session cost figure isn't relevant for billing purposes."* And: *"Claude Code computes the dollar figure locally from token counts at list price, unless a `modelPricing` table is in effect."*

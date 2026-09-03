@@ -37,7 +37,7 @@ enum CombinedWindow {
         let total = reporting.first { candidate in
             candidate.model == nil
                 && (candidate.usedFraction ?? 0) >= highest
-                && models.allSatisfy { candidate.resetsAt == $0.resetsAt && candidate.periodDuration == $0.periodDuration }
+                && models.allSatisfy { ResetPeriod.same(candidate.resetsAt, $0.resetsAt) && candidate.periodDuration == $0.periodDuration }
         }
         let covered = total.map { [$0] + models } ?? models
         return LimitWindow(
