@@ -54,6 +54,13 @@ enum NotchmeterMain {
             Probe.run(json: arguments.contains("--json"), history: arguments.contains("--history"))
             return
         }
+        // One app at a time: a second copy would put a second icon in the bar and a second panel over the same
+        // notch, which reads as a stray rectangle nothing will close rather than as two apps (SingleInstance.swift).
+        guard SingleInstance.claim(arguments: arguments) else {
+            log.notice("another copy is already running; asking it to show itself and exiting")
+            SingleInstance.askRunningCopyToShowItself()
+            return
+        }
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
         let delegate = AppDelegate()
@@ -76,6 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settings: SettingsWindowController?
     private var settingsObserver: NSObjectProtocol?
     private var snapshotObserver: NSObjectProtocol?
+    private var reopenObserver: NSObjectProtocol?
     private var screenObserver: NSObjectProtocol?
     private(set) var updater: Updater?
     let updaterGate = Updater.gate()
@@ -210,6 +218,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                         "compactStyle": prefs.compactStyle.rawValue, "toolOrder": prefs.toolOrder.map(\.rawValue),
                                         "display": prefs.display.rawValue, "bundle": Bundle.main.bundlePath])
         Oracle.shared.emit("screens", ["screens": NSScreen.descriptions])
+        // A second copy that found the lock taken asks this one to show itself before it goes, so double-clicking
+        // the app still opens the panel instead of appearing to do nothing.
+        reopenObserver = DistributedNotificationCenter.default().addObserver(forName: SingleInstance.reopenNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.pointerPresenter?.glance() }
+        }
         if Oracle.shared.isActive {
             snapshotObserver = DistributedNotificationCenter.default().addObserver(forName: Oracle.snapshotNotification, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.emitSnapshot() }

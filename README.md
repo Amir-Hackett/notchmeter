@@ -101,6 +101,7 @@ Right-click (or Control-click) the rings, or use the **Options** button in the p
 | Readouts (which side of the notch) | Both sides · Left · Right · Auto. Auto sits centred while the menu bar leaves room, moves whole to the side that still has room as the frontmost app's menus grow, and only once both ends have closed in does it drop to plain rings and then shed the assistants you put last, with a quiet "+2" saying how many. It needs Accessibility; without it the strip stays centred |
 | Appearance | Match system · Light · Dark, for the Settings window and the edge pills. The panel beside the notch stays dark whatever is chosen: it has to be black to read as one shape with the notch itself |
 | Density, Panel width | Comfortable · Compact; Standard (380 pt) · Wide (460 pt) |
+| One at a time | A second copy launched by any route notices the first, asks it to show its panel, and exits before it builds a window or a menu bar icon — two copies would draw two panels over the same notch, which looks like a stray black rectangle rather than like two apps |
 | Show over full-screen apps | on / off, applied to the notch window and the edge pills alike |
 | Gestures | swipe down over the rings opens, swipe up over the panel closes, with a haptic tick; off under Reduce Motion |
 | Keyboard shortcuts | a global shortcut to toggle the panel and one to open Settings, recorded in Settings |
