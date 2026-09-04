@@ -373,24 +373,41 @@ struct CompactNumbers: View {
     var badges = false
     var signal: ToolSignal? = nil
     var presence: PresenceLevel = .legible
+    /// One figure a line, for the side edges. A notch is a shallow shape — the hardware one is 185 across and 38
+    /// deep — and the depth of a side notch is set by nothing but the width of the widest thing in it. Laid out
+    /// the way the top strip lays them out, "100% · 50%" made the shape 76 points deep against a 181 point run:
+    /// a ratio of 0.42 where the notch it imitates is 0.17, which is what made it read as a slab bolted to the
+    /// edge rather than a piece taken out of the screen. Stacked, and a point and a half smaller because two
+    /// lines have to fit where one did, the same two figures take about 26 points across instead of 62 and the
+    /// shape comes back to a notch's proportions without losing a number.
+    var stacked = false
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: countdown ? 60 : 3600)) { context in
             let segments = CompactLabel.segments(for: windows, display: display, countdown: countdown, now: context.date)
-            HStack(spacing: 3) {
-                if badges, status.problem != nil {
-                    ProblemMark()
+            let figures = ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
+                if index > 0, !stacked {
+                    Text(verbatim: CompactLabel.separator).foregroundStyle(.secondary)
                 }
-                ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
-                    if index > 0 {
-                        Text(verbatim: CompactLabel.separator).foregroundStyle(.secondary)
+                Text(verbatim: segment.text)
+                    .foregroundStyle(color(for: segment))
+                    .contentTransition(AccessibilityDisplay.shared.motionReduced ? .identity : .numericText())
+            }
+            Group {
+                if stacked {
+                    // No separator between them: the line break is the separator, and a dot on its own line reads
+                    // as a bullet rather than as the join it is.
+                    VStack(alignment: .center, spacing: 0) { figures }
+                } else {
+                    HStack(spacing: 3) {
+                        if badges, status.problem != nil {
+                            ProblemMark()
+                        }
+                        figures
                     }
-                    Text(verbatim: segment.text)
-                        .foregroundStyle(color(for: segment))
-                        .contentTransition(AccessibilityDisplay.shared.motionReduced ? .identity : .numericText())
                 }
             }
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .font(.system(size: stacked ? 9.5 : 11, weight: .semibold, design: .rounded))
             .monospacedDigit()
             .opacity(presence.readoutOpacity)
             .overlay(alignment: .topTrailing) {
@@ -566,7 +583,7 @@ struct CompactReadout: View {
         let reduceMotion = AccessibilityDisplay.shared.motionReduced
         Group {
             if axis == .vertical {
-                VStack(spacing: 3) { parts }
+                VStack(spacing: 2) { parts }
             } else {
                 HStack(spacing: 5) { parts }
             }
@@ -610,7 +627,7 @@ struct CompactReadout: View {
             }
             if showNumbers {
                 CompactNumbers(tool: tool, status: status, windows: windows, display: display, countdown: countdown,
-                               badges: !style.showsRings, signal: signal, presence: presence)
+                               badges: !style.showsRings, signal: signal, presence: presence, stacked: axis == .vertical)
             }
         }
     }
@@ -721,7 +738,7 @@ struct EdgeCompactView: View {
             if horizontal {
                 HStack(spacing: 10) { readouts }.padding(.horizontal, 12).padding(.vertical, 7)
             } else {
-                VStack(spacing: 10) { readouts }.padding(.vertical, 12).padding(.horizontal, 7)
+                VStack(spacing: 6) { readouts }.padding(.vertical, 8).padding(.horizontal, 6)
             }
         }
         .environment(\.layoutDirection, .leftToRight)

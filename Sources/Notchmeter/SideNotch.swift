@@ -15,9 +15,17 @@ import SwiftUI
 /// inward, which is the trick the hardware notch plays and the only reason this layout exists.
 ///
 /// Both radii are fractions of how deep the shape is rather than fixed numbers, so the same shape at the top
-/// notch's own depth draws the top notch's own radii. Fixed radii would give the 82 pt-deep side notch this app
-/// measures the same 6 pt flare a 38 pt-deep hardware notch has, which reads as a nick in a rounded rectangle
-/// rather than as the same cut, and the two layouts would stop looking like one object.
+/// notch's own depth draws the top notch's own radii, and a shallower one draws proportionally shallower fillets
+/// instead of the same 6 pt flare at every size — which at the depths a side pill actually reaches would read as
+/// a nick in a rounded rectangle rather than as the same cut, and the two layouts would stop looking like one
+/// object.
+///
+/// Depth is the whole argument for this shape and it is worth writing down what it costs. The side pill first
+/// shipped laying each tool's two figures on one line, the way the strip beside the top notch lays them out, and
+/// that made it 72 pt deep against a 189 pt run: a ratio of 0.38 where the hardware notch is 38 over 185, or
+/// 0.21. It read as a slab bolted to the edge. Stacking the figures (`CompactNumbers.stacked`) took it to 35 by
+/// 203 — 0.17, shallower than the notch it imitates — and the run came back with a tighter cap here and less
+/// padding in `EdgeCompactView`.
 struct SideNotchShape: Shape {
     /// Which screen edge the straight face lies against. Only `.left` and `.right` draw this shape.
     let edge: PanelEdge
@@ -27,8 +35,12 @@ struct SideNotchShape: Shape {
     nonisolated static let flareRatio: CGFloat = 6 / SideNotchShape.referenceDepth
     nonisolated static let noseRatio: CGFloat = 14 / SideNotchShape.referenceDepth
     /// Past these the ratios stop flattering the shape: a panel-deep version would flare sixty points and read as
-    /// a leaf. The flare's cap is also what `EdgeNotch` pads by, so the cap is what makes that padding provable.
-    nonisolated static let flareCap: CGFloat = 16
+    /// a leaf. The flare's cap is also what `EdgeNotch` pads by, so the cap is what makes that padding provable —
+    /// and that second job is why it is 10 and not the 16 it started at. The padding is spent twice, once at each
+    /// end of the run, on a shape whose whole point is to be shallow: at the deepest a side pill actually gets
+    /// (54 pt, rings and numbers with the reset countdown on) the flare is 8.5, so a cap of 10 clips nothing a
+    /// user can reach and hands twelve points of run back to a shape that was reading too tall.
+    nonisolated static let flareCap: CGFloat = 10
     nonisolated static let noseCap: CGFloat = 36
 
     /// The radii for a shape of this depth and run, capped and then held inside the run. Exposed rather than
