@@ -66,7 +66,7 @@ import Testing
         ], plan: nil, fetchedAt: now, observedAt: nil)
         #expect(RingSelection.windows(of: reading, chosen: [], hidden: []).map(\.id) == ["five_hour", "seven_day"])
         #expect(RingSelection.windows(of: reading, chosen: ["scoped_fable", "extra_usage"], hidden: []).map(\.id) == ["scoped_fable", "extra_usage"])
-        #expect(RingSelection.windows(of: reading, chosen: ["scoped_fable"], hidden: []).map(\.id) == ["scoped_fable", "five_hour"])
+        #expect(RingSelection.windows(of: reading, chosen: ["scoped_fable"], hidden: []).map(\.id) == ["scoped_fable"], "one chosen ring is one ring")
         #expect(RingSelection.windows(of: reading, chosen: ["gone", "seven_day"], hidden: []).map(\.id) == ["seven_day", "five_hour"])
         #expect(RingSelection.windows(of: reading, chosen: ["five_hour"], hidden: ["five_hour", "seven_day"]).map(\.id) == ["scoped_fable", "extra_usage"])
         #expect(RingSelection.windows(of: reading, chosen: ["seven_day", "seven_day"], hidden: []).map(\.id) == ["seven_day", "five_hour"])

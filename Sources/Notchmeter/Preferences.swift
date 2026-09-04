@@ -144,7 +144,7 @@ enum PanelWidth: String, CaseIterable, Codable {
     var points: CGFloat { self == .wide ? 460 : 380 }
 }
 
-/// What the notch does when Claude Code waits for the user or a long turn ends: nothing beyond the dot and the
+/// What the notch does when an assistant waits for the user or a turn ends: nothing beyond the dot and the
 /// notification, a glance (the panel opens for a few seconds and settles), or the panel opening.
 enum SessionAttention: String, CaseIterable, Codable {
     case nothing, glance, openPanel
@@ -309,7 +309,24 @@ enum CompactSide: String, CaseIterable, Codable {
     }
 
     /// Auto's rule lives in CompactFit, which answers with a whole fit — side, style and how many tools — rather
-    /// than a side alone, because the menu bar squeezes from both ends.
+    /// than a side alone, because the menu bar squeezes from both ends; what it sheds first is `compactKeep`.
+}
+
+/// What Readouts › Auto gives up first once neither end of the menu bar has room for the strip (CompactFit.steps):
+/// the figures, a level at a time, before any assistant is left out; or the assistants the user put last, before
+/// any figure is thinned. Tools is the default because it is what the strip has always done, and because an
+/// assistant that is left out takes its state with it — a waiting mark, a limit reached — which nothing else in
+/// the strip carries, while a thinned figure is still a figure. A fixed side never gives anything up, so this
+/// reaches nothing but Auto.
+enum CompactKeep: String, CaseIterable, Codable {
+    case tools, numbers
+
+    var title: String {
+        switch self {
+        case .tools: L("Keep the tools")
+        case .numbers: L("Keep the numbers")
+        }
+    }
 }
 
 /// A second read a provider makes only because the user asked for it.
@@ -370,7 +387,10 @@ final class Preferences {
     /// How long the pointer rests on the rings before the panel opens, 0.1 to 1 s.
     var hoverDelay: TimeInterval {
         didSet {
-            hoverDelay = min(1, max(0.1, (hoverDelay * 20).rounded() / 20))
+            // Same shape as finishedAfterMinutes below: the rounding writes back only when it changes the value,
+            // because under @Observable the write re-enters this observer, and an unconditional one never returns.
+            let settled = min(1, max(0.1, (hoverDelay * 20).rounded() / 20))
+            if settled != hoverDelay { hoverDelay = settled; return }
             defaults.set(hoverDelay, forKey: Keys.hoverDelay)
             report(Keys.hoverDelay, hoverDelay, changed: hoverDelay != oldValue)
         }
@@ -408,6 +428,13 @@ final class Preferences {
         didSet {
             defaults.set(compactSide.rawValue, forKey: Keys.compactSide)
             report(Keys.compactSide, compactSide.rawValue, changed: compactSide != oldValue)
+        }
+    }
+    /// What Auto sheds first when crowded (CompactKeep). AutoSideWatcher observes it and re-fits on a change.
+    var compactKeep: CompactKeep {
+        didSet {
+            defaults.set(compactKeep.rawValue, forKey: Keys.compactKeep)
+            report(Keys.compactKeep, compactKeep.rawValue, changed: compactKeep != oldValue)
         }
     }
     /// What Auto has made of the menu bar (AutoSideWatcher); nil until it has looked.
@@ -553,7 +580,12 @@ final class Preferences {
     /// A turn that ran at least this long is worth a notification when it finishes.
     var finishedAfterMinutes: Int {
         didSet {
-            finishedAfterMinutes = min(60, max(1, finishedAfterMinutes))
+            // Written back only when the clamp changes it. This class is @Observable, so the assignment goes
+            // through the generated setter and lands in this observer again; an unconditional write re-entered it
+            // without end, and the stack overflowed on the first press of the stepper in Settings. The in-range
+            // re-entry persists and reports the value, and this outer pass has nothing left to do.
+            let clamped = min(60, max(1, finishedAfterMinutes))
+            if clamped != finishedAfterMinutes { finishedAfterMinutes = clamped; return }
             defaults.set(finishedAfterMinutes, forKey: Keys.finishedAfter)
             report(Keys.finishedAfter, finishedAfterMinutes, changed: finishedAfterMinutes != oldValue)
         }
@@ -566,7 +598,7 @@ final class Preferences {
     var notifyCacheShift: Bool {
         didSet { defaults.set(notifyCacheShift, forKey: Keys.notifyCacheShift); report(Keys.notifyCacheShift, notifyCacheShift, changed: notifyCacheShift != oldValue) }
     }
-    /// What the notch itself does when Claude Code waits or a long turn finishes.
+    /// What the notch itself does when an assistant waits or a long turn finishes.
     var sessionAttention: SessionAttention {
         didSet { defaults.set(sessionAttention.rawValue, forKey: Keys.sessionAttention); report(Keys.sessionAttention, sessionAttention.rawValue, changed: sessionAttention != oldValue) }
     }
@@ -645,7 +677,8 @@ final class Preferences {
             Keychain.setPolicy(keychainPrompts)
         }
     }
-    /// A power assertion while a Claude Code session is working; mains power only unless the override is on.
+    /// A power assertion while an assistant session (Claude Code's or Cursor's, per its hook) is working; mains power only
+    /// unless the override is on.
     var keepAwake: Bool {
         didSet { defaults.set(keepAwake, forKey: Keys.keepAwake); report(Keys.keepAwake, keepAwake, changed: keepAwake != oldValue) }
     }
@@ -711,6 +744,7 @@ final class Preferences {
         static let showSpend = "showSpend"
         static let showDetails = "showDetails"
         static let compactSide = "compactSide"
+        static let compactKeep = "compactKeep"
         static let appearance = "appearance"
         static let usageDisplay = "usageDisplay"
         static let resetDisplay = "resetDisplay"
@@ -794,6 +828,7 @@ final class Preferences {
         showSpend = defaults.object(forKey: Keys.showSpend) as? Bool ?? true
         showDetails = defaults.object(forKey: Keys.showDetails) as? Bool ?? false
         compactSide = CompactSide(rawValue: defaults.string(forKey: Keys.compactSide) ?? "") ?? .split
+        compactKeep = CompactKeep(rawValue: defaults.string(forKey: Keys.compactKeep) ?? "") ?? .tools
         appearance = AppearanceChoice(rawValue: defaults.string(forKey: Keys.appearance) ?? "") ?? .system
         usageDisplay = UsageDisplay(rawValue: defaults.string(forKey: Keys.usageDisplay) ?? "") ?? .used
         resetDisplay = ResetDisplay(rawValue: defaults.string(forKey: Keys.resetDisplay) ?? "") ?? .exact
@@ -1036,8 +1071,15 @@ enum RingSelection {
         }
         // Windows that publish a figure come first when nothing was chosen: a plan whose headline window has no
         // limit (Cursor Free's "Included usage") would otherwise fill the rings with a tool that shows nothing.
+        //
+        // How many to fill to is the number the user chose, not the fallback: a single chosen ring is a choice
+        // ("just the session"), and topping it up to two made one ring impossible to have — Settings stored the
+        // one id, this put a second window back, and the Inner ring picker snapped from None to that window. The
+        // fallback applies only when nothing chosen survives (nothing chosen, or every chosen id gone or hidden),
+        // and a choice whose ids are partly gone or repeated is still filled to the count that was asked for.
+        let target = result.isEmpty ? fallback : chosen.count
         let byData = shown.filter { $0.usedFraction != nil } + shown.filter { $0.usedFraction == nil }
-        for window in byData where result.count < fallback && !result.contains(where: { $0.id == window.id }) {
+        for window in byData where result.count < target && !result.contains(where: { $0.id == window.id }) {
             result.append(window)
         }
         return Array(result.prefix(maximum))

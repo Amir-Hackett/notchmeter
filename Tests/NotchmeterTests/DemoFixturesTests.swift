@@ -109,8 +109,9 @@ import Testing
         #expect(finish.map { now.timeIntervalSince($0.at) < ToolSignal.heldFor / 2 } == true)
     }
 
-    /// Only Claude Code's hook reports these events, so a fixture that lit another assistant's ring would be a
-    /// picture of something no user can see.
+    /// The fixtures show Claude Code's sessions by choice: Cursor's hook lights the same tick (never the hand, since
+    /// Cursor has no event for a wait), but the pictures keep the one assistant whose hook shows every state, so a
+    /// fixture lighting another ring would change the README for nothing it adds.
     @Test func noAssistantButClaudeCarriesASessionInEitherMoment() {
         for moment in [DemoFixtures.Moment.waiting, .justFinished] {
             let sessions = DemoFixtures.sessions(now: now, moment: moment)

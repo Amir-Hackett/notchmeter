@@ -574,6 +574,16 @@ enum AppInfo {
     static var version: String {
         (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "dev"
     }
+    /// The build stamp scripts/build.sh writes into CFBundleVersion (commit, "-dirty", minute built); nil for a
+    /// release, whose bundle version is a plain number and says nothing the version does not.
+    static var build: String? {
+        guard let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String, build.contains("-") else { return nil }
+        return build
+    }
+    /// "0.1.0" on a release, "0.1.0 · 3d95143-dirty-20260904.1830" on a developer build. What the panel footer and
+    /// Copy diagnostics show, so that a copy relaunched after an install can be told from the one it replaced —
+    /// the user agent stays the bare version, because a vendor's log has no use for a commit hash.
+    static var versionWithBuild: String { build.map { "\(version) · \($0)" } ?? version }
     static var userAgent: String { "\(name)/\(version)" }
 }
 

@@ -8,8 +8,10 @@ import Testing
 
     let t0 = DateParsing.iso8601("2026-09-01T12:00:00Z")!
 
-    func message(_ event: String, session: String = "a", project: String? = "notchmeter", type: String? = nil) -> Hook.Message {
-        Hook.Message(event: event, needsInput: Hook.needsInput(event: event, notificationType: type), sessionID: session, project: project, notificationType: type)
+    func message(_ event: String, session: String = "a", project: String? = "notchmeter", type: String? = nil, failure: String? = nil,
+                 tool: ToolID = .claude) -> Hook.Message {
+        Hook.Message(event: event, needsInput: Hook.needsInput(event: event, notificationType: type), sessionID: session, project: project,
+                     notificationType: type, failure: failure, tool: tool)
     }
 
     @Test func aTurnGoesWorkingThenIdleAndReportsItsLength() {
@@ -90,6 +92,103 @@ import Testing
         #expect(!Presence.hides(level: .legible, idleFor: PollingPolicy.idleAfter, wokeAgo: nil))
         #expect(!Presence.hides(level: .urgent, idleFor: nil, wokeAgo: nil))
     }
+
+    /// The dictionary key carries the tool for every tool but Claude, whose ids stay what every log line,
+    /// notification identifier and `--json` report has always shown.
+    @Test func claudeKeysAreWhatTheyHaveAlwaysBeen() {
+        #expect(SessionTracker.key(tool: .claude, session: "a", host: nil) == "a")
+        #expect(SessionTracker.key(tool: .claude, session: "a", host: "devbox") == "a@devbox")
+        #expect(SessionTracker.key(tool: .claude, session: nil, host: nil) == SessionTracker.unknownSession)
+        #expect(SessionTracker.key(tool: .cursor, session: "a", host: "devbox") == "cursor:a@devbox")
+        #expect(SessionTracker.key(tool: .cursor, session: nil, host: nil) == "cursor:unknown")
+        #expect(SessionTracker.key(tool: .cursor, session: "a", host: nil) == "cursor:a")
+    }
+
+    @Test func aCursorAndAClaudeSessionWithTheSameIdDoNotCollide() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit"), now: t0)
+        tracker.apply(message("UserPromptSubmit", tool: .cursor), now: t0.addingTimeInterval(1))
+        #expect(tracker.count == 2, "the same id from two tools is two conversations, never one entry the first writer's tool sticks to")
+        #expect(tracker.all.map(\.id).sorted() == ["a", "cursor:a"])
+        #expect(tracker.isWorking(.claude))
+        #expect(tracker.isWorking(.cursor))
+        let outcome = tracker.apply(message("Stop"), now: t0.addingTimeInterval(30))
+        #expect(outcome.finished?.session.id == "a")
+        #expect(outcome.finished?.session.tool == .claude)
+        #expect(!tracker.isWorking(.claude))
+        #expect(tracker.isWorking(.cursor), "Claude Code's Stop ends Claude Code's turn and nobody else's")
+    }
+
+    @Test func aCompletedCursorStopFinishesTheTurn() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit", tool: .cursor), now: t0)
+        let outcome = tracker.apply(message("Stop", tool: .cursor), now: t0.addingTimeInterval(30))
+        #expect(outcome.finished?.turn == 30)
+        #expect(outcome.finished?.session.tool == .cursor)
+        #expect(tracker.finish(of: .cursor, now: t0.addingTimeInterval(31)) != nil)
+        #expect(tracker.finish(of: .claude, now: t0.addingTimeInterval(31)) == nil, "the tick lights the ring of the tool that finished")
+        #expect(tracker.all.first?.state == .idle)
+    }
+
+    @Test func anAbortedCursorStopEndsWithoutAFinishOrALimit() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit", tool: .cursor), now: t0)
+        let outcome = tracker.apply(message("StopFailure", failure: "aborted", tool: .cursor), now: t0.addingTimeInterval(30))
+        #expect(outcome.finished == nil, "a turn the user aborted has not finished, and the ring must not congratulate it")
+        #expect(outcome.limitHit == nil, "aborted is not rate_limit; Cursor has no limit event, so no limit is ever planned")
+        #expect(tracker.all.first?.state == .idle)
+        #expect(tracker.finish(of: .cursor, now: t0.addingTimeInterval(31)) == nil)
+        #expect(!tracker.limitHit(now: t0.addingTimeInterval(31)))
+        #expect(tracker.limitHitTools(now: t0.addingTimeInterval(31)).isEmpty)
+    }
+
+    @Test func sessionEndRemovesOnlyTheCursorSession() {
+        var tracker = SessionTracker()
+        tracker.apply(message("SessionStart"), now: t0)
+        tracker.apply(message("SessionStart", tool: .cursor), now: t0)
+        #expect(tracker.count == 2)
+        tracker.apply(message("SessionEnd", tool: .cursor), now: t0.addingTimeInterval(1))
+        #expect(tracker.count == 1)
+        #expect(tracker.all.first?.id == "a")
+        #expect(tracker.all.first?.tool == .claude)
+    }
+
+    @Test func onlyKeepsOneToolsSessionsAndThatAHookWasSeen() {
+        var tracker = SessionTracker()
+        #expect(tracker.only(.cursor).knownCount == nil, "a card must not say zero sessions before any hook has spoken")
+        tracker.apply(message("UserPromptSubmit"), now: t0)
+        tracker.apply(message("UserPromptSubmit", session: "b", tool: .cursor), now: t0)
+        tracker.apply(message("UserPromptSubmit", session: "c", tool: .cursor), now: t0)
+        let cursor = tracker.only(.cursor)
+        #expect(cursor.count == 2)
+        #expect(cursor.all.allSatisfy { $0.tool == .cursor })
+        #expect(cursor.knownCount == 2)
+        let claude = tracker.only(.claude)
+        #expect(claude.all.map(\.id) == ["a"])
+        #expect(claude.knownCount == 1)
+        let codex = tracker.only(.codex)
+        #expect(codex.count == 0)
+        #expect(codex.knownCount == 0, "hookSeen survives the filter, so a tool with no sessions reads as zero rather than unknown")
+        #expect(tracker.count == 3, "only() is a copy; the tracker itself is untouched")
+    }
+
+    /// The calm rule quietens a ring whose hook says nothing is running. That is one tool's hook speaking about
+    /// one tool: Cursor's hook reporting no conversation is not proof that Claude Code is idle.
+    @Test func knownCountOfAToolIsNilUntilItsOwnHookSpeaks() {
+        var tracker = SessionTracker()
+        #expect(tracker.knownCount(of: .claude) == nil)
+        tracker.apply(message("SessionStart", session: "c", tool: .cursor), now: t0)
+        tracker.apply(message("SessionEnd", session: "c", tool: .cursor), now: t0.addingTimeInterval(1))
+        #expect(tracker.knownCount == 0, "every hook together: one has spoken and no session is open")
+        #expect(tracker.knownCount(of: .cursor) == 0)
+        #expect(tracker.knownCount(of: .claude) == nil, "Claude Code's hook has not spoken, so its count is unknown, not zero")
+        tracker.apply(message("SessionStart"), now: t0.addingTimeInterval(2))
+        tracker.apply(message("UserPromptSubmit", session: "d", tool: .cursor), now: t0.addingTimeInterval(2))
+        #expect(tracker.knownCount(of: .claude) == 1)
+        #expect(tracker.knownCount(of: .cursor) == 1)
+        #expect(tracker.knownCount == 2)
+        #expect(tracker.only(.claude).knownCount(of: .cursor) == 0, "the filter drops the sessions, not the fact that Cursor's hook has reported")
+    }
 }
 
 
@@ -124,6 +223,26 @@ import Testing
         tracker.apply(message("Stop"), now: t0.addingTimeInterval(800))
         #expect(tracker.agentCount == 0)
         #expect(SessionTracker.waitingPhrase([]) == nil)
+    }
+
+    /// Claude Code reports a permission prompt and never its answer, so the only thing that says the answer came
+    /// is the session doing something a held session cannot. Starting an agent is that; an agent stopping is not,
+    /// because a background agent can finish while the main loop is still held at the prompt.
+    @Test func startingAnAgentProvesAnAnsweredPromptButAnAgentStoppingDoesNot() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit"), now: t0)
+        tracker.apply(message("PermissionRequest"), now: t0.addingTimeInterval(5))
+        #expect(tracker.waiting(of: .claude).count == 1)
+        tracker.apply(message("SubagentStop"), now: t0.addingTimeInterval(6))
+        #expect(tracker.waiting(of: .claude).count == 1, "a background agent finishing says nothing about the prompt")
+        let resumed = tracker.apply(message("SubagentStart", agent: "a1"), now: t0.addingTimeInterval(7))
+        #expect(tracker.waiting(of: .claude).isEmpty)
+        #expect(tracker.working.count == 1)
+        #expect(tracker.agentCount == 1)
+        #expect(resumed.stoppedWaiting == ["a"], "the waiting notice is withdrawn like any other resume")
+        let again = tracker.apply(message("SubagentStart", agent: "a2"), now: t0.addingTimeInterval(8))
+        #expect(again.stoppedWaiting.isEmpty)
+        #expect(tracker.all.first?.stateDuration(now: t0.addingTimeInterval(17)) == 10, "the working clock starts at the resume")
     }
 
     @Test func aStopOnARateLimitMarksTheSessionAndAQuotaResumeClearsIt() {

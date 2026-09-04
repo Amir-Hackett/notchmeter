@@ -102,21 +102,34 @@ final class Notifier {
         }
     }
 
-    /// "Claude Code is waiting in notchmeter" or "Claude Code finished a 12m turn in notchmeter", unless a terminal
-    /// is frontmost or it is a quiet hour. Returns whether it was sent.
+    /// The title and body for a session event, named after the session's tool: "Cursor finished" / "Cursor finished
+    /// a 12m turn in notchmeter." Pure, so the copy is pinned. The waiting body is the same key Advisor's waiting
+    /// line uses, so the banner and the advice read alike.
+    nonisolated static func copy(for event: SessionEvent, session: AgentSession) -> (title: String, body: String) {
+        let name = session.tool.productName
+        let project = session.displayName ?? L("a session")
+        return switch event {
+        case .waiting:
+            (L("%@ is waiting", name), L("%1$@ is waiting in %2$@.", name, project))
+        case .finished(let turn):
+            (L("%@ finished", name), L("%1$@ finished a %2$@ turn in %3$@.", name, ResetText.duration(turn), project))
+        }
+    }
+
+    /// "Claude Code is waiting in notchmeter" or "Cursor finished a 12m turn in notchmeter", unless a terminal is
+    /// frontmost or it is a quiet hour; the banner is threaded under the session's tool, so each assistant's notices
+    /// stack together. Returns whether it was sent.
     @discardableResult
     func notify(_ event: SessionEvent, session: AgentSession, frontmost: String? = NSWorkspace.shared.frontmostApplication?.bundleIdentifier) -> Bool {
         guard center != nil, !Self.shouldSuppress(frontmost: frontmost, quiet: quiet()) else { return false }
         requestProvisionalAuthorization()
-        let project = session.displayName ?? L("a session")
-        let (identifier, title, body, level, choice): (String, String, String, UNNotificationInterruptionLevel, String) = switch event {
-        case .waiting:
-            (Self.identifier(session: session.id, kind: "waiting"), L("Claude Code is waiting"), L("Claude Code is waiting in %@.", project), Self.level(for: event), sound(.waiting))
-        case .finished(let turn):
-            (Self.identifier(session: session.id, kind: "finished"), L("Claude Code finished"),
-             L("Claude Code finished a %1$@ turn in %2$@.", ResetText.duration(turn), project), Self.level(for: event), sound(.finished))
+        let (title, body) = Self.copy(for: event, session: session)
+        let (identifier, choice): (String, String) = switch event {
+        case .waiting: (Self.identifier(session: session.id, kind: "waiting"), sound(.waiting))
+        case .finished: (Self.identifier(session: session.id, kind: "finished"), sound(.finished))
         }
-        deliver(identifier: identifier, thread: ToolID.claude.rawValue, tool: .claude, title: title, body: body, level: level, sound: NotificationSound.unSound(for: choice))
+        deliver(identifier: identifier, thread: session.tool.rawValue, tool: session.tool, title: title, body: body, level: Self.level(for: event),
+                sound: NotificationSound.unSound(for: choice))
         return true
     }
 

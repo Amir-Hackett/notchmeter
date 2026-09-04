@@ -87,7 +87,8 @@ enum UsageDisplay: String, CaseIterable, Codable {
 }
 
 /// The digits beside a ring (CompactStyle): the main window's percentage and, after a thin dot, the second
-/// window's, in the Used or Left sense the user chose; "–" for a window without a limit, or no reading at all.
+/// window's — or, at Auto's outer-figure rung, the main window's alone — in the Used or Left sense the user
+/// chose; "–" for a window without a limit, or no reading at all.
 enum CompactLabel {
     struct Segment: Equatable {
         let text: String
@@ -102,14 +103,19 @@ enum CompactLabel {
     }
 
     /// `windows` are the ones the rings draw (Preferences.ringWindows). With `countdown`, the first window's figure
-    /// carries its reset as a compact duration ("90% 32m"), left out when the reset is unknown or has passed.
-    static func segments(for windows: [LimitWindow], display: UsageDisplay, countdown: Bool = false, now: Date = Date()) -> [Segment] {
-        guard !windows.isEmpty else { return [Segment(text: noLimit, pace: nil)] }
-        return windows.enumerated().map { index, window in
+    /// carries its reset as a compact duration ("90% 32m"), left out when the reset is unknown or has passed. With
+    /// `figures == .outer` only the first window's figure is answered, and without the countdown: that is the
+    /// outer ring's window, the one the rings are for, and "90% 32m" is most of the width "90% · 4%" was, so a
+    /// rung that kept it would rarely fit where the full one did not.
+    static func segments(for windows: [LimitWindow], display: UsageDisplay, figures: CompactFit.Figures = .all,
+                         countdown: Bool = false, now: Date = Date()) -> [Segment] {
+        let shown = figures == .outer ? Array(windows.prefix(1)) : windows
+        guard !shown.isEmpty else { return [Segment(text: noLimit, pace: nil)] }
+        return shown.enumerated().map { index, window in
             guard let used = window.usedFraction else { return Segment(text: noLimit, pace: nil) }
-            let shown = display == .used ? used : 1 - used
-            var text = "\(Int((shown * 100).rounded()))%"
-            if countdown, index == 0, let resetsAt = window.resetsAt, resetsAt > now {
+            let value = display == .used ? used : 1 - used
+            var text = "\(Int((value * 100).rounded()))%"
+            if countdown, figures == .all, index == 0, let resetsAt = window.resetsAt, resetsAt > now {
                 text += " " + ResetText.compactDuration(resetsAt.timeIntervalSince(now))
             }
             return Segment(text: text, pace: Pace.status(for: window, now: now))
@@ -120,8 +126,9 @@ enum CompactLabel {
         segments(for: reading, display: display, countdown: countdown, now: now).map(\.text).joined(separator: " \(separator) ")
     }
 
-    static func text(for windows: [LimitWindow], display: UsageDisplay, countdown: Bool = false, now: Date = Date()) -> String {
-        segments(for: windows, display: display, countdown: countdown, now: now).map(\.text).joined(separator: " \(separator) ")
+    static func text(for windows: [LimitWindow], display: UsageDisplay, figures: CompactFit.Figures = .all,
+                     countdown: Bool = false, now: Date = Date()) -> String {
+        segments(for: windows, display: display, figures: figures, countdown: countdown, now: now).map(\.text).joined(separator: " \(separator) ")
     }
 }
 

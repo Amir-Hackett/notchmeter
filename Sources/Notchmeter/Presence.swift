@@ -2,10 +2,11 @@ import Foundation
 
 /// How loud the compact rings are. The calm rule: quiet while every limited window is under `Presence.quietBelow`
 /// and none is on track or behind; urgent once any window is behind pace or has run out, or Claude Code is waiting
-/// for the user; legible in between (from 80 % the ring's own tint turns orange as well). With the hook installed
-/// and no Claude Code session running, a window on pace stays quiet however full it is: nothing is being spent.
-/// `hidden` is the Hide when idle visibility's fourth level (UsageStore decides it): a 4 pt dot in place of the rings.
-enum PresenceLevel: Equatable {
+/// for the user; legible in between (from 80 % the ring's own tint turns orange as well). With a tool's hook
+/// installed and none of that tool's sessions running, its window on pace stays quiet however full it is: nothing
+/// is being spent. `hidden` is the Hide when idle visibility's fourth level (UsageStore decides it): a 4 pt dot in
+/// place of the rings. The cases are in order of loudness, so the strip's level is the loudest of its tools'.
+enum PresenceLevel: Equatable, Comparable {
     /// A dot in place of the rings.
     case hidden
     /// Rings shrink and dim.
@@ -19,7 +20,11 @@ enum PresenceLevel: Equatable {
 enum Presence {
     static let quietBelow = 0.4
 
-    /// `sessions` is how many Claude Code sessions the hook reports; nil while no hook has ever reported one.
+    /// `sessions` is how many sessions the hook of the tool these windows belong to reports; nil while that tool's
+    /// hook has never reported one. It is one tool's count, not every hook's put together: Cursor's hook reporting
+    /// no conversation is not proof that Claude Code is idle, and a Claude ring quietened on it would be quiet
+    /// while a window was being spent. UsageStore asks this once per visible tool and keeps the loudest answer
+    /// (`SessionTracker.knownCount(of:)`).
     ///
     /// A finished turn is deliberately not an input here. It lifted quiet rings to full size for a while, to make
     /// the tick beside them easier to read, and the cost was that this rule stopped being about how much is left

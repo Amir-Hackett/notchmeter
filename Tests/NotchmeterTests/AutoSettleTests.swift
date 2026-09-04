@@ -23,7 +23,8 @@ private final class StubFrontmostApp: NSRunningApplication {
 
     static func width(_ run: CompactFit.Run) -> CGFloat {
         guard !run.isEmpty else { return 0 }
-        return CGFloat(run.readouts.count) * (run.style.showsNumbers ? 60 : 30) + (run.overflow > 0 ? 14 : 0) + 12
+        let each: CGFloat = !run.style.showsNumbers ? 30 : run.figures == .outer ? 45 : 60
+        return CGFloat(run.readouts.count) * each + (run.overflow > 0 ? 14 : 0) + 12
     }
 
     /// A right-hand reading, written the way the tests read best: how far left the items reach, and whether this

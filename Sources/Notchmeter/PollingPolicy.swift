@@ -13,7 +13,7 @@ struct PollingInputs: Equatable {
     var lowPowerMode = false
     /// Minutes since the tool's files on disk last changed; nil when nothing of the tool's has ever been seen.
     var minutesSinceLastAgentActivity: Double?
-    /// A Claude Code hook fired recently: proof of activity the file check can lag behind.
+    /// This tool's hook (Claude Code's or Cursor's) fired recently: proof of activity the file check can lag behind.
     var hookNudge = false
     /// A Claude Code status line reported the same windows this recently; the endpoint read is skipped while it is fresh.
     var secondsSinceStatusline: TimeInterval?

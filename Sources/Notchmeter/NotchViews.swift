@@ -369,6 +369,9 @@ struct CompactNumbers: View {
     let status: ToolStatus
     var windows: [LimitWindow] = []
     let display: UsageDisplay
+    /// At Auto's outer-figure rung (CompactFit.Figures) the row is one figure, the outer ring's, with no dot after
+    /// it and no countdown.
+    var figures: CompactFit.Figures = .all
     var countdown = false
     var badges = false
     var signal: ToolSignal? = nil
@@ -384,7 +387,7 @@ struct CompactNumbers: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: countdown ? 60 : 3600)) { context in
-            let segments = CompactLabel.segments(for: windows, display: display, countdown: countdown, now: context.date)
+            let segments = CompactLabel.segments(for: windows, display: display, figures: figures, countdown: countdown, now: context.date)
             let figures = ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
                 if index > 0, !stacked {
                     Text(verbatim: CompactLabel.separator).foregroundStyle(.secondary)
@@ -548,7 +551,8 @@ private struct WaitingDot: View {
 /// then steady, because a SwiftUI animation that never ends re-renders the readout every frame (measured at 5–9 % of
 /// a core while a ring pulsed); no pulse under Reduce Motion. While the screen is shared and the privacy setting is
 /// on, the digits are withheld.
-/// VoiceOver reads the tool and every window's figure and pace, whatever is drawn.
+/// VoiceOver reads the tool and every window's figure and pace, whatever is drawn — including at Auto's
+/// outer-figure rung, where the screen shows one of them.
 ///
 /// The quiet dimming is applied by each part rather than here, over the rings and over the digits but never over
 /// the mark beside them. A parent's `.opacity` composites everything under it, so a mark drawn inside this view's
@@ -560,6 +564,9 @@ struct CompactReadout: View {
     let tool: ToolID
     let status: ToolStatus
     let style: CompactStyle
+    /// How much of each readout's digits the fit in force keeps (CompactFit.Figures); only a style with numbers
+    /// beside a ring has any to thin.
+    var figures: CompactFit.Figures = .all
     let display: UsageDisplay
     var windows: [LimitWindow] = []
     /// What the assistant is asking of the user (ToolSignal): the rings' colour, the mark and what VoiceOver reads
@@ -602,8 +609,8 @@ struct CompactReadout: View {
         let showNumbers = style.showsNumbers && !hideFigures && presence != .hidden
         if let apiKeyCost {
             if showNumbers {
-                // Claude Code on an API key draws no ring, which left the one assistant whose hook reports these
-                // events as the only one with nowhere to report them. The mark goes on the corner of the figure,
+                // Claude Code on an API key draws no ring, which left the assistant whose hook reports the most of
+                // these events as the one with nowhere to report them. The mark goes on the corner of the figure,
                 // where CompactRings puts it on the corner of the nest, rather than in a slot beside it: a slot
                 // took 12 pt of strip width that came and went with the ninety-second hold, and the fit is
                 // measured from what is drawn. It reaches the two styles that draw digits and no further: at plain
@@ -626,7 +633,7 @@ struct CompactReadout: View {
                              contextUsed: contextUsed, presence: presence)
             }
             if showNumbers {
-                CompactNumbers(tool: tool, status: status, windows: windows, display: display, countdown: countdown,
+                CompactNumbers(tool: tool, status: status, windows: windows, display: display, figures: figures, countdown: countdown,
                                badges: !style.showsRings, signal: signal, presence: presence, stacked: axis == .vertical)
             }
         }
@@ -652,10 +659,11 @@ private extension UsageStore {
     /// The context arc keeps its own ternary: that figure comes from Claude Code's status line rather than from a
     /// hook, which is a different fact with a different reason to be Claude-only, and collapsing the two would hide
     /// that.
-    func readout(_ tool: ToolID, presence: PresenceLevel, axis: Axis = .horizontal, style: CompactStyle) -> CompactReadout {
+    func readout(_ tool: ToolID, presence: PresenceLevel, axis: Axis = .horizontal, style: CompactStyle,
+                 figures: CompactFit.Figures = .all) -> CompactReadout {
         let status = status(tool)
         let apiKeyCost = tool == .claude && claudeOnAPIKey ? Money.dollars(cost?.totals(.month).cost ?? 0, cents: false) : nil
-        return CompactReadout(tool: tool, status: status, style: style, display: prefs.usageDisplay,
+        return CompactReadout(tool: tool, status: status, style: style, figures: figures, display: prefs.usageDisplay,
                               windows: status.reading.map(prefs.ringWindows) ?? [], signal: signal(tool), signalColours: prefs.signalRings,
                               contextUsed: tool == .claude ? contextUsed : nil, countdown: prefs.showResetCountdown, hideFigures: hidesFigures,
                               presence: presence, axis: axis, apiKeyCost: apiKeyCost)
@@ -709,7 +717,7 @@ struct NotchCompactView: View {
         let tools = Array(visible[run.readouts.clamped(to: 0 ..< visible.count)])
         HStack(spacing: run.style.showsNumbers ? 9 : 7) {
             ForEach(tools, id: \.self) { tool in
-                store.readout(tool, presence: presence, style: run.style)
+                store.readout(tool, presence: presence, style: run.style, figures: run.figures)
             }
             if run.overflow > 0 {
                 CompactOverflow(count: run.overflow, presence: presence)
@@ -1338,9 +1346,7 @@ struct ToolCard: View {
                         .accessibilityLabel(problem)
                 }
             }
-            if tool == .claude {
-                SessionLine(store: store)
-            }
+            SessionLine(store: store, tool: tool)
             if let reading = status.reading {
                 ForEach(prefs.panelWindows(of: reading)) { window in
                     MeterRow(toolName: tool.displayName, window: window, color: tool.color, prefs: prefs,
@@ -1422,14 +1428,18 @@ struct ToolCard: View {
 }
 
 /// "2 sessions · working 2m 10s" and, while the status line reports, "Context 62% · Opus · $1.23 this session".
+/// Every card gets one, showing only its own tool's sessions; the status line's context and cost are Claude Code's
+/// alone, so they are consulted on its card and on no other. A card with nothing to say draws nothing.
 private struct SessionLine: View {
     let store: UsageStore
+    let tool: ToolID
     @Environment(\.density) private var density
 
     var body: some View {
-        let sessions = store.sessions
-        let statusline = store.statusline
-        if sessions.count > 0 || store.contextUsed != nil {
+        let sessions = store.sessions.only(tool)
+        let statusline = tool == .claude ? store.statusline : nil
+        let contextUsed = tool == .claude ? store.contextUsed : nil
+        if sessions.count > 0 || contextUsed != nil {
             TimelineView(.periodic(from: .now, by: sessions.working.isEmpty && sessions.waiting.isEmpty ? 60 : 1)) { context in
                 VStack(alignment: .leading, spacing: density.lineSpacing) {
                     if sessions.count > 0 {
@@ -1454,7 +1464,7 @@ private struct SessionLine: View {
                             }
                         }
                     }
-                    if let contextUsed = store.contextUsed {
+                    if let contextUsed {
                         Text(Self.contextText(contextUsed, statusline: statusline, hideFigures: store.hidesFigures))
                             .font(.caption).foregroundStyle(contextUsed >= 0.9 ? Palette.warn : .secondary).monospacedDigit()
                     }
@@ -1724,7 +1734,7 @@ struct FooterView: View {
             let next = nextUpdate(now: context.date)
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(verbatim: "\(AppInfo.name) \(AppInfo.version)").monospacedDigit()
+                    Text(verbatim: "\(AppInfo.name) \(AppInfo.versionWithBuild)").monospacedDigit()
                     Button {
                         actions.refresh()
                     } label: {
@@ -1737,7 +1747,7 @@ struct FooterView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(AppInfo.name) \(AppInfo.version)")
+                .accessibilityLabel("\(AppInfo.name) \(AppInfo.versionWithBuild)")
                 .accessibilityValue(Spoken.phrase(next))
                 .accessibilityAction(named: L("Refresh now")) { actions.refresh() }
                 Spacer()

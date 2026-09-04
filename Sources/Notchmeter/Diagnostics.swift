@@ -2,14 +2,14 @@ import AppKit
 import OSLog
 
 /// "Copy diagnostics": the last ten minutes of the app's own subsystem from the unified log, each tool's status
-/// and problem, the hook and status-line state, the layout and the machine, scrubbed of the home directory and
+/// and problem, each hook's and the status line's state, the layout and the machine, scrubbed of the home directory and
 /// put on the clipboard for a bug report. Never a token: the providers never log one, and readings appear as
 /// labels and fractions.
 enum Diagnostics {
     static let subsystem = "com.amirhackett.notchmeter"
 
     struct Facts {
-        var version = AppInfo.version
+        var version = AppInfo.versionWithBuild
         var macOS = ProcessInfo.processInfo.operatingSystemVersionString
         var edge = ""
         var display = ""

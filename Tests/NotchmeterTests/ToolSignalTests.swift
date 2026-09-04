@@ -121,8 +121,8 @@ import Testing
                     "A tool with no hook installed has nothing to report and must therefore report nothing.")
         }
         tracker.apply(message("PermissionRequest", session: "c", tool: .codex), now: t0.addingTimeInterval(3))
-        #expect(tracker.waiting(of: .codex).map(\.id) == ["c"],
-                "The moment a second hook reports, the same lamps light for it with no further change above the tracker.")
+        #expect(tracker.waiting(of: .codex).map(\.id) == ["codex:c"],
+                "The moment a second hook reports, the same lamps light for it with no further change above the tracker; its id carries the tool's name so it can never share Claude's entry.")
     }
 
     @Test func aToolThatNamesItselfSurvivesTheNotificationPayloadAndTheRemotePost() throws {
@@ -243,6 +243,54 @@ import Testing
                 "A finish is news beside the rings, not a change to them: the calm rule answers how much is left and how fast, and never what time it is.")
     }
 
+    /// The calm rule quietens a ring at 40 % or more only when its own hook says nothing is running. Before
+    /// Cursor's hook existed, "a hook has reported" and "Claude Code's hook has reported" were one fact; now they
+    /// are two, and a Claude ring with no hook of its own must stay legible however much Cursor's hook has to say.
+    @Test func aCursorHookAloneNeverQuietensTheClaudeRing() {
+        let suite = "notchmeter.tests.cursorPresence"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let prefs = Preferences(defaults: defaults)
+        let now = Date()
+        // 50 % four days into a week: ahead of pace, so the ring is quiet with no session and legible without a hook.
+        let reading = UsageReading(tool: .claude, windows: [
+            LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.5, resetsAt: now.addingTimeInterval(3 * 86400), periodDuration: Period.week),
+        ], plan: nil, fetchedAt: now, observedAt: nil)
+        // A provider that reports installed, or Claude is not a visible tool and the rule is never asked at all.
+        let store = UsageStore(prefs: prefs, providers: [FixtureProvider(reading: reading)], cache: ReadingCache(defaults: defaults),
+                               defaults: defaults, drainLog: nil, reportFile: nil)
+        store.seed(readings: [reading], cost: .empty, nextUpdate: now.addingTimeInterval(60), now: now)
+        #expect(store.presence == .legible, "no hook has spoken, so the window is taken to be in use")
+        store.hookReceived(Hook.Message(event: "SessionStart", needsInput: false, sessionID: "c1", tool: .cursor), now: now)
+        store.hookReceived(Hook.Message(event: "SessionEnd", needsInput: false, sessionID: "c1", tool: .cursor), now: now)
+        #expect(store.presence == .legible, "Cursor's hook reporting no conversation says nothing about Claude Code's sessions")
+        store.hookReceived(Hook.Message(event: "SessionStart", needsInput: false, sessionID: "a"), now: now)
+        store.hookReceived(Hook.Message(event: "SessionEnd", needsInput: false, sessionID: "a"), now: now)
+        #expect(store.presence == .quiet, "Claude Code's own hook says no session is open, and nothing is being spent")
+    }
+
+    /// The store keys nothing on Claude between the hook and the ring: a Cursor turn lights Cursor's mark, bumps
+    /// Cursor's activity clock, and says nothing about Claude. No Cursor provider is installed here, and none is
+    /// needed: `signal` reads the sessions and nothing else. The store is not seeded because `seed` stamps
+    /// `lastActivity` for every reading's tool, which would hide the point about Claude's staying empty.
+    @Test func aCursorFinishLightsOnlyTheCursorRing() {
+        let suite = "notchmeter.tests.cursorSignal"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let prefs = Preferences(defaults: defaults)
+        let now = Date()
+        let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
+        store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "c1", tool: .cursor), now: now.addingTimeInterval(-120))
+        store.hookReceived(Hook.Message(event: "Stop", needsInput: false, sessionID: "c1", tool: .cursor), now: now.addingTimeInterval(-5))
+        #expect(store.signal(.cursor) == .finished(turn: 115))
+        #expect(store.signal(.claude) == nil, "a Cursor finish is not Claude's news")
+        #expect(store.lastActivity[.cursor] != nil, "the hook is the freshest sign of Cursor activity the store has")
+        #expect(store.lastActivity[.claude] == nil, "the activity clock is the sending tool's, no longer Claude's by default")
+        #expect(store.sessions.all.map(\.id) == ["cursor:c1"])
+    }
+
     /// The compact fit rests on `CompactStripProbe` measuring what is actually drawn (commit 1baef40), so a mark
     /// that changed a readout's footprint would make the strip's fit depend on what time it is: the ninety-second
     /// hold would expire between one measurement and the next and hand the fit two different answers for the same
@@ -264,6 +312,16 @@ import Testing
             for state in [ToolSignal.waiting(count: 3), .finished(turn: 600)] {
                 #expect(Self.fittingSize(Self.readout(style: style, reading: reading, signal: state)) == plain,
                         "A state may recolour a readout and mark it, and it may not move it: the strip's fit is measured from what is drawn (\(style.rawValue)).")
+            }
+            if style.showsRings, style.showsNumbers {
+                // Auto's outer-figure rung is measured from this same view with one figure, so a signal may not
+                // widen it there either, or the rung would fit at one moment and overlap the next.
+                let outer = Self.fittingSize(Self.readout(style: style, reading: reading, signal: nil, figures: .outer))
+                #expect(outer.width > 0 && outer.width < plain.width, "one figure beside the ring is narrower than two")
+                for state in [ToolSignal.waiting(count: 3), .finished(turn: 600)] {
+                    #expect(Self.fittingSize(Self.readout(style: style, reading: reading, signal: state, figures: .outer)) == outer,
+                            "the outer-figure rung is what the fit is measured from, and a signal may not move it (\(style.rawValue)).")
+                }
             }
             guard style.showsNumbers else { continue }
             let cost = Self.fittingSize(Self.apiKeyReadout(style: style, signal: nil))
@@ -504,8 +562,9 @@ import Testing
         return nil
     }
 
-    @MainActor static func readout(style: CompactStyle, reading: UsageReading, signal: ToolSignal?) -> CompactReadout {
-        CompactReadout(tool: .claude, status: .ready(reading), style: style, display: .used, windows: reading.windows, signal: signal)
+    @MainActor static func readout(style: CompactStyle, reading: UsageReading, signal: ToolSignal?,
+                                   figures: CompactFit.Figures = .all) -> CompactReadout {
+        CompactReadout(tool: .claude, status: .ready(reading), style: style, figures: figures, display: .used, windows: reading.windows, signal: signal)
     }
 
     @MainActor static func apiKeyReadout(style: CompactStyle, signal: ToolSignal?) -> CompactReadout {

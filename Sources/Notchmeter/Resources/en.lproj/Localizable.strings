@@ -20,6 +20,8 @@
 /* Round-2 gap fixes: sessions, budget, peak hours, provenance, the command line tool, MCP, Keychain policy, displays, diagnostics */
 
 /* The tools the strip could not fit, after the last readout (NotchViews) */
+
+/* Assistant hooks and the Hooks section (HookSettings, HookVendor, SettingsWindow, Notifier) */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ %2$@ is at %3$ld%%.";
 " %1$@ is %2$@ of it." = " %1$@ is %2$@ of it.";
 " percent" = " percent";
@@ -38,11 +40,12 @@
 "%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ burned %2$@ this hour — %3$@ its 30-day average.";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ covered by the allowance · %2$ld requests this month";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ credit expires in %2$@ — claim it in Codex";
+"%1$@ finished a %2$@ turn in %3$@." = "%1$@ finished a %2$@ turn in %3$@.";
 "%1$@ finished a %2$@ turn." = "%1$@ finished a %2$@ turn.";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ has %2$ld%% of its %3$@ left.";
 "%1$@ hit its limit; %2$@ resets in %3$@." = "%1$@ hit its limit; %2$@ resets in %3$@.";
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools.";
-"%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@." = "%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@.";
+"%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@." = "%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@.";
 "%1$@ is waiting in %2$@." = "%1$@ is waiting in %2$@.";
 "%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ last hour %2$@ · %3$@ its 30-day average";
 "%1$@ of %2$@" = "%1$@ of %2$@";
@@ -60,9 +63,12 @@
 "%@ advice" = "%@ advice";
 "%@ as the vendor's own usage export priced it" = "%@ as the vendor's own usage export priced it";
 "%@ billed this month" = "%@ billed this month";
+"%@ finished" = "%@ finished";
 "%@ hit its rate limit; wait for the reset." = "%@ hit its rate limit; wait for the reset.";
+"%@ hook" = "%@ hook";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON.";
 "%@ is not a JSON object, so it was left untouched" = "%@ is not a JSON object, so it was left untouched";
+"%@ is waiting" = "%@ is waiting";
 "%@ is waiting for your input." = "%@ is waiting for your input.";
 "%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet." = "%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.";
 "%@ org credits" = "%@ org credits";
@@ -123,9 +129,27 @@
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side.";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex.";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend).";
+"Add the Notchmeter hook to %@?" = "Add the Notchmeter hook to %@?";
+"Add to %@…" = "Add to %@…";
+"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops.";
+"Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with.";
+"Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with.";
 "Colour the rings when an assistant waits or finishes" = "Colour the rings when an assistant waits or finishes";
+"Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file.";
+"Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved.";
+"Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI reads settings.json when it starts: the hook works from the next session.";
+"Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring." = "Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring.";
+"GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it." = "GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it.";
+"Hooks" = "Hooks";
+"Installed, but an entry is out of date: Repair updates it" = "Installed, but an entry is out of date: Repair updates it";
 "Just finished" = "Just finished";
 "just finished a turn" = "just finished a turn";
+"Keep the Mac awake while an assistant is working" = "Keep the Mac awake while an assistant is working";
+"Keep the numbers" = "Keep the numbers";
+"Keep the tools" = "Keep the tools";
+"Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits.";
+"Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit.";
+"Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits.";
 "Metered apart from the included total" = "Metered apart from the included total";
 "a session" = "a session";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held.";
@@ -133,12 +157,10 @@
 "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility.";
 "Add" = "Add";
 "Add folder…" = "Add folder…";
-"Add the Notchmeter hook to settings.json?" = "Add the Notchmeter hook to settings.json?";
-"Add to settings.json…" = "Add to settings.json…";
 "Added %@" = "Added %@";
 "Advanced" = "Advanced";
 "Advice" = "Advice";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke." = "After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke.";
+"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it.";
 "All displays" = "All displays";
 "All models" = "All models";
@@ -174,7 +196,7 @@
 "Beside the notch" = "Beside the notch";
 "Beta updates" = "Beta updates";
 "billing export" = "billing export";
-"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release.";
+"Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release.";
 "Both sides" = "Both sides";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them.";
 "Bottom, above the Dock" = "Bottom, above the Dock";
@@ -190,13 +212,8 @@
 "Choose file…" = "Choose file…";
 "Claude %1$@ since %2$@" = "Claude %1$@ since %2$@";
 "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly";
-"Claude Code finished" = "Claude Code finished";
-"Claude Code finished a %1$@ turn in %2$@." = "Claude Code finished a %1$@ turn in %2$@.";
 "Claude Code has not signed in" = "Claude Code has not signed in";
-"Claude Code hook" = "Claude Code hook";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter";
-"Claude Code is waiting" = "Claude Code is waiting";
-"Claude Code is waiting in %@." = "Claude Code is waiting in %@.";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only.";
 "Claude Code status line" = "Claude Code status line";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself.";
@@ -286,7 +303,7 @@
 "Gemini CLI has not signed in with Google. Run `gemini` and choose Login with Google" = "Gemini CLI has not signed in with Google. Run `gemini` and choose Login with Google";
 "General" = "General";
 "Gestures: swipe down to open, swipe up to close" = "Gestures: swipe down to open, swipe up to close";
-"GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's Claude Code hook events over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address." = "GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's Claude Code hook events over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address.";
+"GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's hook events, any assistant's, over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address." = "GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's hook events, any assistant's, over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address.";
 "GitHub Copilot reported no quota" = "GitHub Copilot reported no quota";
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`";
 "GitHub Copilot's usage response unreadable" = "GitHub Copilot's usage response unreadable";
@@ -324,7 +341,6 @@
 "Installed; your previous status line (%@) runs after it." = "Installed; your previous status line (%@) runs after it.";
 "its usage export could not be fetched" = "its usage export could not be fetched";
 "just now" = "just now";
-"Keep the Mac awake while Claude Code is working" = "Keep the Mac awake while Claude Code is working";
 "Keeping awake" = "Keeping awake";
 "Keeping awake · %ld sessions" = "Keeping awake · %ld sessions";
 "Keeping awake · 1 session" = "Keeping awake · 1 session";
@@ -339,7 +355,6 @@
 "Left of the notch" = "Left of the notch";
 "A notch cut into the left or the right edge of any Mac." = "A notch cut into the left or the right edge of any Mac.";
 "Let Claude Code talk to the notch?" = "Let Claude Code talk to the notch?";
-"Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input.";
 "Light" = "Light";
 "likely a %@ window" = "likely a %@ window";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh.";
@@ -351,7 +366,6 @@
 "Main display (the one with the menu bar)" = "Main display (the one with the menu bar)";
 "Match system" = "Match system";
 "MCP server" = "MCP server";
-"Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits." = "Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits.";
 "month" = "month";
 "Month" = "Month";
 "Month %1$@ of a %2$@ budget" = "Month %1$@ of a %2$@ budget";
@@ -385,7 +399,7 @@
 "Notifications are off for %@ in System Settings › Notifications." = "Notifications are off for %@ in System Settings › Notifications.";
 "Notify when a turn finishes" = "Notify when a turn finishes";
 "Notify when a window is on pace to run out" = "Notify when a window is on pace to run out";
-"Notify when Claude Code waits for you" = "Notify when Claude Code waits for you";
+"Notify when an assistant waits for you" = "Notify when an assistant waits for you";
 "Numbers" = "Numbers";
 "Off" = "Off";
 "off" = "off";
@@ -544,7 +558,7 @@
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "The login item points at a copy of the app that has moved. Turn it off and on again.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "The panel follows the pointer: it moves to the display the pointer has rested on for half a second.";
 "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass.";
-"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today." = "The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today.";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@.";
 "Third ring" = "Third ring";
@@ -592,8 +606,9 @@
 "Weekly" = "Weekly";
 "weekly" = "weekly";
 "Weekly budget" = "Weekly budget";
+"When crowded" = "When crowded";
 "When a window resets" = "When a window resets";
-"When Claude Code waits for you or a turn finishes" = "When Claude Code waits for you or a turn finishes";
+"When an assistant waits for you, or a turn finishes" = "When an assistant waits for you, or a turn finishes";
 "When the cache tier or the metering shifts" = "When the cache tier or the metering shifts";
 "When you start paying (extra usage rises)" = "When you start paying (extra usage rises)";
 "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace.";

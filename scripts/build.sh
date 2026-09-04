@@ -32,6 +32,15 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN" "$APP/Contents/MacOS/Notchmeter"
 cp scripts/Info.plist "$APP/Contents/Info.plist"
+# Stamp the build so a running copy can say which one it is (panel footer, Copy diagnostics, --probe): the commit,
+# "-dirty" when the tree had uncommitted changes, and the minute it was built. Every developer build otherwise
+# carries CFBundleVersion 1, and "I relaunched it and nothing changed" cannot be told from "it is the old build".
+# The release script sets its own number afterwards and overrides this.
+if BUILD_STAMP="$(git rev-parse --short HEAD 2>/dev/null)"; then
+  git diff --quiet HEAD 2>/dev/null || BUILD_STAMP="$BUILD_STAMP-dirty"
+  BUILD_STAMP="$BUILD_STAMP-$(date +%Y%m%d.%H%M)"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_STAMP" "$APP/Contents/Info.plist"
+fi
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 # The Localizable.strings tables live in the resource bundle SwiftPM builds; Localization.swift looks for it in
 # Contents/Resources, since SwiftPM's own accessor only knows the directory beside the executable and the build path.

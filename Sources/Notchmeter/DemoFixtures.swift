@@ -11,10 +11,10 @@ enum DemoFixtures {
     /// single frame can honestly show both. They are two moments of the same afternoon instead, and the renderer
     /// draws the pair side by side (`AssetRenderer.signalRings`).
     ///
-    /// Both states are Claude Code's, and that is not an oversight. Claude Code's hook is the only one that
-    /// reports these events today (`ToolSignal`), so a fixture that lit Codex's or Cursor's ring would be a
-    /// picture of something no user can currently see — which is the exact failure the stale `edge-left.png`
-    /// already cost this repository once.
+    /// Both states are Claude Code's, and that is a choice. Cursor's hook lights the same finished tick, but it has
+    /// no event for a wait (`ToolSignal`), so the pair is shown on the one ring that can honestly carry both; a
+    /// fixture that lit Codex's ring would be a picture of something no user can currently see — which is the
+    /// exact failure the stale `edge-left.png` already cost this repository once.
     enum Moment {
         /// A permission prompt is open: the ring takes the colour and the white dot.
         case waiting

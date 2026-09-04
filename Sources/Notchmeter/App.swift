@@ -8,9 +8,10 @@ enum NotchmeterMain {
     @MainActor
     static func main() {
         let arguments = CommandLine.arguments
-        // --hook: Claude Code's hook command; must return within 50 ms, so nothing else is set up first.
+        // --hook [--tool codex|cursor|antigravity|copilot] [--event <name>]: an assistant's hook command; must
+        // return within 50 ms, so nothing else is set up first.
         if arguments.contains("--hook") {
-            Hook.runCommand()
+            Hook.runCommand(arguments: arguments)
         }
         // --statusline: Claude Code's status-line command; forwards the payload and prints one line.
         if arguments.contains("--statusline") {
@@ -264,21 +265,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Hooks
 
-    /// A hook or status line that names an old copy of this app is rewritten at launch, after the usual backup,
-    /// when the entry is provably Notchmeter's own; never from a build/ copy (the developer's own, which must not
-    /// capture the user's installed one) and never under --smoke.
+    /// A hook (any assistant's user-level file, HookVendor) or status line that names an old copy of this app,
+    /// or misses an event or the current flags, is rewritten at launch, after the usual backup, when the entry is
+    /// provably Notchmeter's own; never from a build/ copy (the developer's own, which must not capture the user's
+    /// installed one) and never under --smoke. One footer note covers however many files were touched.
     private func autoRepairHooks() {
         guard prefs.autoRepairHooks, HookRepair.mayRepair(executable: HookSettings.executablePath) else { return }
         var notes: [String] = []
-        if case .stale = HookSettings.status() {
+        for vendor in HookVendor.allCases where HookSettings.status(vendor: vendor).needsRepair {
             do {
-                let repaired = try HookSettings.repairInstall()
+                let repaired = try HookSettings.repairInstall(vendor: vendor)
                 if repaired.backup != nil {
-                    notes.append(L("Hook repaired"))
-                    log.notice("hook repaired to this executable; backup \(repaired.backup?.lastPathComponent ?? "", privacy: .public)")
+                    if !notes.contains(L("Hook repaired")) { notes.append(L("Hook repaired")) }
+                    log.notice("\(vendor.rawValue, privacy: .public) hook repaired to this executable; backup \(repaired.backup?.lastPathComponent ?? "", privacy: .public)")
                 }
             } catch {
-                log.error("hook repair failed: \(error.localizedDescription, privacy: .public)")
+                log.error("\(vendor.rawValue, privacy: .public) hook repair failed: \(error.localizedDescription, privacy: .public)")
             }
         }
         if case .stale = HookSettings.statuslineStatus() {
@@ -587,7 +589,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         facts.visibility = prefs.visibility.rawValue
         facts.screens = NSScreen.descriptions.map { "\($0["name"] ?? "") frame=\($0["frame"] ?? "") notch=\($0["notch"] ?? "") main=\($0["isMain"] ?? "")" }
         facts.tools = ToolID.allCases.map { ($0.displayName, Probe.describe(store.status($0)).replacingOccurrences(of: "\n", with: " ")) }
-        facts.hook = HookSettings.status().text
+        facts.hook = HookVendor.allCases.map { "\($0.rawValue): \(HookSettings.status(vendor: $0).text)" }.joined(separator: "; ")
         facts.statusline = HookSettings.statuslineStatus().text
         facts.localAPI = localAPI?.isRunning == true
         facts.debugLogging = prefs.debugLogging
@@ -697,7 +699,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("notifications: \(prefs.notificationsEnabled ? "on" : "off") in settings, \(notifier.isAvailable ? "available" : "no-op in this run"); session attention: \(prefs.sessionAttention.rawValue); keychain prompts: \(prefs.keychainPrompts.rawValue)")
         Probe.emit("updater: \(updaterGate.summary); never started under --smoke")
         Probe.emit("menu bar item: \(menuBarItem == nil ? "off" : "on") style=\(prefs.menuBarStyle.rawValue); local API: \(localAPI?.isRunning == true ? "on" : "off"); privacy probe: \(ScreenCapture.probeName) captured=\(ScreenCapture.isCaptured()); proxy: \(prefs.proxyURL.isEmpty ? "system" : prefs.proxyURL)")
-        Probe.emit("hooks: \(HookSettings.status().text); status line: \(HookSettings.statuslineStatus().text); auto-repair: \(prefs.autoRepairHooks) (never under --smoke); command line tool: \(CommandLineTool.installedLink().map { "\($0.link.path) → \($0.destination)" } ?? "not installed")")
+        Probe.emit("hooks: " + HookVendor.allCases.map { "\($0.rawValue): \(HookSettings.status(vendor: $0).text)" }.joined(separator: "; ") + "; status line: \(HookSettings.statuslineStatus().text); auto-repair: \(prefs.autoRepairHooks) (never under --smoke); command line tool: \(CommandLineTool.installedLink().map { "\($0.link.path) → \($0.destination)" } ?? "not installed")")
         Probe.emit("main menu: \(MainMenu.describe())")
         Probe.emit("readouts: \(autoSide.description)")
         Probe.emit("copy (\(Localization.current)): \(L("Session")) · \(L("Weekly")) · \(L("%@ Settings", AppInfo.name)) · "

@@ -397,11 +397,12 @@ enum AssetRenderer {
     static func settings(store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
         let requests = SettingsRequests()
         // The Mac this is rendered on is not the Mac in the picture. `/Applications/Notchmeter.app` is where the
-        // DMG puts it and what `HookSettings.Status.shorten` prints for it, so the two rows read as a machine
-        // with both integrations in place, which is what the fixture sessions and the status-line arc elsewhere
-        // in these pictures already assume.
+        // DMG puts it and what `HookSettings.Status.shorten` prints for it, so the hook rows and the status-line
+        // row read as a machine with every integration in place, which is what the fixture sessions and the
+        // status-line arc elsewhere in these pictures already assume.
         let installed = "/Applications/\(AppInfo.name).app/Contents/MacOS/\(AppInfo.name)"
-        requests.renderedHookStatus = (hook: .installed(path: installed), statusline: .installed(path: installed))
+        requests.renderedHookStatus = (hook: Dictionary(uniqueKeysWithValues: HookVendor.allCases.map { ($0, HookSettings.Status.installed(path: installed)) }),
+                                       statusline: .installed(path: installed))
         let controller = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: Notifier(available: false), requests: requests)
         guard let window = controller.window, let frame = window.contentView?.superview else { throw Failure.snapshot("the Settings window") }
         window.appearance = NSAppearance(named: .darkAqua)

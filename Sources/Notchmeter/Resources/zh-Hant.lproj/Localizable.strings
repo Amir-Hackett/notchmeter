@@ -4,6 +4,8 @@
 /* 第二輪補全：工作階段、預算、尖峰時段、來源標籤、命令列工具、MCP、鑰匙圈政策、顯示器、診斷 */
 
 /* 列狀顯示放不下的工具，接在最後一個讀數之後（NotchViews） */
+
+/* 助手掛鉤與「掛鉤」區段（HookSettings、HookVendor、SettingsWindow、Notifier） */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ 的%2$@為 %3$ld%%。";
 " %1$@ is %2$@ of it." = " 其中 %1$@ 佔 %2$@。";
 " percent" = " 百分比";
@@ -22,11 +24,12 @@
 "%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ 這一小時花了 %2$@ — 為其 30 天平均的 %3$@。";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ 由配額抵扣 · 本月 %2$ld 次請求";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ 額度將在 %2$@ 後到期 — 請在 Codex 中領取";
+"%1$@ finished a %2$@ turn in %3$@." = "%1$@ 在 %3$@ 中完成了一輪歷時 %2$@ 的工作。";
 "%1$@ finished a %2$@ turn." = "%1$@ 完成了一輪 %2$@ 的工作。";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ 的%3$@還剩 %2$ld%%。";
 "%1$@ hit its limit; %2$@ resets in %3$@." = "%1$@ 已觸及限額；%2$@ 將在 %3$@後重設。";
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ 已達 %2$ld%%，%3$@ 為 %4$ld%%。換模型，不必換工具。";
-"%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@." = "會先將 %1$@ 複製為 settings.json.bak-<日期>。既有的掛鉤會保留；Notchmeter 的項目會附加在 %2$@ 之下。";
+"%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@." = "會先將 %1$@ 複製為 %2$@.bak-<日期>。既有的掛鉤會保留；Notchmeter 的項目會附加在 %3$@ 之下。";
 "%1$@ is waiting in %2$@." = "%1$@ 正在 %2$@ 中等待你。";
 "%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ 過去一小時 %2$@ · 為其 30 天平均的 %3$@";
 "%1$@ of %2$@" = "%1$@ / %2$@";
@@ -44,9 +47,12 @@
 "%@ advice" = "%@ 建議";
 "%@ as the vendor's own usage export priced it" = "%@ 取自廠商自己的用量匯出，由廠商計價";
 "%@ billed this month" = "本月已計費 %@";
+"%@ finished" = "%@ 已完成";
 "%@ hit its rate limit; wait for the reset." = "%@ 已觸及速率限制；請等待重設。";
+"%@ hook" = "%@ 掛鉤";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "會先將 %@ 複製為 settings.json.bak-<日期>。既有的狀態列會在 Notchmeter 之後繼續執行，並收到相同的 JSON。";
 "%@ is not a JSON object, so it was left untouched" = "%@ 不是 JSON 物件，因此未做更動";
+"%@ is waiting" = "%@ 正在等待";
 "%@ is waiting for your input." = "%@ 正在等待你的輸入。";
 "%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet." = "%@ 從不登入。它從這台 Mac 上已登入的工具讀取用量，不保留任何權杖。macOS 會針對每個工具詢問一次是否允許讀取其儲存的登入資訊；選擇「永遠允許」之後便不再詢問。";
 "%@ org credits" = "%@ 組織額度";
@@ -107,9 +113,27 @@
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "在右側邊緣切出的瀏海，面板在它旁邊開啟。該側有 Dock 時會讓開。";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "以同一登入對 chatgpt.com 的第二次讀取，顯示可重設視窗的額度及其到期時間。領取仍需在 Codex 中進行。";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "使用同一工作階段 cookie 再讀取一次 cursor.com：最近 30 天的用量事件，按匯出的費用計價，折算進每日總計檔案作為 Cursor 序列（今日、30 天和趨勢）。";
+"Add the Notchmeter hook to %@?" = "將 Notchmeter 掛鉤加入 %@？";
+"Add to %@…" = "加入 %@…";
+"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code 回報工作階段的開始與結束、提示的送出、等待你的輸入、停止與停止失敗，以及子代理的啟動與停止。";
+"Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex 回報工作階段的開始與結束、提示的送出、停止、被中斷的一輪、子代理的啟動與停止，以及它即將請求你核准的時刻。那個核准提示是它唯一的等待：Codex 圓環為此顯示等待的手形，並在下一次提示、停止或子代理時，或十分鐘後放開。Codex 沒有提問或速率限制的事件，因此觸及限制要等到下一次輪詢。Codex 會略過新增或變更的掛鉤，直到你在 Codex 內開啟 /hooks 並信任它；執行中的工作階段保留它啟動時的掛鉤。";
+"Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex 會略過尚未向它顯示的掛鉤：在 Codex 中開啟 /hooks 並信任新項目。已在執行的工作階段保留它們啟動時的掛鉤。";
 "Colour the rings when an assistant waits or finishes" = "助手等待或完成時為圓環著色";
+"Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI 在啟動時讀取掛鉤：重新啟動它，然後 /env 會列出該檔案。";
+"Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor 回報對話的開始或結束、你送出提示、一輪停止以及子代理的啟動或停止。它沒有等待你核准或速率限制的事件，因此 Cursor 圓環只顯示完成的勾號，絕不會顯示等待的手形，而被中止或出錯的一輪結束時不會有勾號。Cursor 會在 hooks.json 儲存後立即重新載入。";
+"Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI 在啟動時讀取 settings.json：掛鉤從下一個工作階段開始生效。";
+"Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring." = "Gemini CLI 回報工作階段的開始與結束、提示的送出、每一輪的結束，以及它停下來請求你允許某個工具的時刻。那個通知是它唯一的等待：Antigravity 圓環為此顯示等待的手形，並在一輪結束、送出下一次提示或工作階段結束時，或十分鐘後放開。它沒有子代理、速率限制或取消的一輪的事件，因此被取消的一輪會一直顯示為工作中，直到下一次提示或工作階段結束。Gemini CLI 在啟動時讀取 settings.json；含有註解的檔案會被原樣保留，請改為貼上片段。Antigravity IDE 自己的掛鉤不回報這些，因此這一列屬於 Gemini CLI，點亮的是同一個圓環。";
+"GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it." = "GitHub Copilot 回報工作階段的開始與結束、提示的送出、停止、子代理的啟動與停止，以及它請求你的許可或向你提問時發出的通知。那兩種通知是它的等待：Copilot 圓環為此顯示等待的手形，並在下一次提示或停止時，或十分鐘後放開。它沒有速率限制或失敗的一輪的事件，其內建的通用代理也不回報子代理。該檔案是 Notchmeter 自己放在 ~/.copilot/hooks 下的，因此移除掛鉤就是刪除它；Copilot 在啟動時讀取它，/env 會列出它。Copilot 的雲端編碼代理永遠看不到它。";
+"Hooks" = "掛鉤";
+"Installed, but an entry is out of date: Repair updates it" = "已安裝，但有一個項目已過時：「修復」會更新它";
 "Just finished" = "剛剛完成";
 "just finished a turn" = "剛剛完成一輪工作";
+"Keep the Mac awake while an assistant is working" = "助理工作時保持 Mac 喚醒";
+"Keep the numbers" = "保留數字";
+"Keep the tools" = "保留工具";
+"Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "「保留工具」會先捨去數字——數字旁有圓環時先捨去主要數字以外的數字，再捨去主要數字——直到每個讀數只剩圓環，然後才省去你排在最後的助理。「保留數字」會先省去這些助理，只有在單一讀數也放不下時才縮減剩下的讀數。";
+"Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "讓 Claude Code、Codex、Cursor、Gemini CLI 和 GitHub Copilot 在工作階段開始或結束、送出提示、一輪停止以及子代理執行時告知瀏海：儀表立即重新整理，卡片統計工作階段與代理數。Claude Code、Codex、Gemini CLI 和 Copilot 還會回報它們停下來向你提問的時刻；Cursor 沒有這種事件，因此它的圓環只顯示完成的勾號，絕不會顯示等待的手形。Claude Code 和 Codex 會回報其權限模式；只有 Claude Code 會回報因速率限制而停止。";
+"Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "將此內容合併到 %1$@，或使用「加入 %2$@…」自動合併。每個項目會執行 %3$@ %4$@，將事件名稱送給執行中的 App 後結束。";
 "Metered apart from the included total" = "與方案內總量分開計量";
 "a session" = "某個工作階段";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "僅當 hook 回報的工作階段處於一輪之中時持有防睡眠斷言，在其 Stop 時釋放，因此從手機或透過 SSH 啟動的工作階段在接電源合蓋時仍能繼續。持有期間頁尾顯示「保持喚醒 · 2 個工作階段」。";
@@ -117,12 +141,10 @@
 "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "輔助使用未開啟，因此「自動」會維持在選擇它之前的那一側。Notchmeter 只讀取最前方 App 選單列的位置和大小，不讀取其他任何內容；App 的其他部分都不需要輔助使用權限。";
 "Add" = "加入";
 "Add folder…" = "加入檔案夾…";
-"Add the Notchmeter hook to settings.json?" = "要將 Notchmeter 掛鉤加入 settings.json 嗎？";
-"Add to settings.json…" = "加入 settings.json…";
 "Added %@" = "已加入 %@";
 "Advanced" = "進階";
 "Advice" = "建議";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke." = "移至「應用程式」或更新後，指向本應用程式舊路徑的項目會在啟動時（照常備份後）改寫為正在執行的副本，頁尾提示一次。從 build 資料夾執行或 --smoke 時絕不改寫。";
+"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "移至「應用程式」或更新後，指向本應用程式舊路徑的項目會在啟動時（照常備份後）改寫為正在執行的副本，頁尾提示一次。從 build 資料夾執行或 --smoke 時絕不改寫。適用於每個助手的掛鉤檔案。";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "每輪結束後，Claude Code 會把上下文視窗佔用、官方工作階段與每週限額（Pro 和 Max）、閘道的支出上限、模型及其推理強度、分支與拉取請求以及本次工作階段費用交給狀態列。安裝後 Claude 環上顯示上下文弧線，卡片顯示「上下文」一行，工作階段執行期間不再請求介面。已設定的狀態列會在其後繼續執行。";
 "All displays" = "所有顯示器";
 "All models" = "所有模型";
@@ -158,7 +180,7 @@
 "Beside the notch" = "瀏海旁";
 "Beta updates" = "測試版更新";
 "billing export" = "帳單匯出";
-"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "兩者都需要 Claude Code hook，且在終端機或編輯器位於最前、以及安靜時段內保持安靜。這裡選擇面板的行為；圓環的行為由上面的開關決定，兩者可以分別關閉。「一瞥」會將面板連同工作階段行開啟幾秒後再收起，除非指標移入；開啟「減少動態效果」時無動畫開啟並停留稍久。你回覆後「等待中」通知會被撤回。未簽署的組建中任何通知都無法突破專注模式或勿擾模式；簽署版本中的時效性通知（即將用盡、等待你）可以。";
+"Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "兩者都需要該助手的掛鉤，且在終端機或編輯器位於最前、以及安靜時段內保持安靜。這裡選擇面板的行為；圓環的行為由上面的開關決定，兩者可以分別關閉。「一瞥」會將面板連同工作階段行開啟幾秒後再收起，除非指標移入；開啟「減少動態效果」時無動畫開啟並停留稍久。你回覆後「等待中」通知會被撤回。未簽署的組建中任何通知都無法突破專注模式或勿擾模式；簽署版本中的時效性通知（即將用盡、等待你）可以。";
 "Both sides" = "兩側";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "兩側顯示時以瀏海為中心。選單較多的應用程式可能超出瀏海左緣；選擇瀏海右側則始終避開。";
 "Bottom, above the Dock" = "底部，Dock 上方";
@@ -174,13 +196,8 @@
 "Choose file…" = "選擇檔案…";
 "Claude %1$@ since %2$@" = "Claude 自%2$@起 %1$@";
 "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude 自%2$@起 %1$@ · 每週額度每 1%% 折合 %3$@";
-"Claude Code finished" = "Claude Code 已完成";
-"Claude Code finished a %1$@ turn in %2$@." = "Claude Code 在 %2$@ 中完成了一輪歷時 %1$@ 的工作。";
 "Claude Code has not signed in" = "Claude Code 尚未登入";
-"Claude Code hook" = "Claude Code 掛鉤";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code 使用 API 金鑰：沒有方案視窗可計量；費用卡片就是計量器";
-"Claude Code is waiting" = "Claude Code 正在等待";
-"Claude Code is waiting in %@." = "Claude Code 正在 %@ 中等待你。";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code 每次更新權杖都會重建鑰匙圈項目，從而忘記你給的「永遠允許」。定時讀取絕不彈出對話框：它先透過 Apple 的 security 工具（Claude Code 正是用它寫入該項目）讀取，再讀憑證檔案，再讀狀態列，否則保留上次讀數並標記「需要你的確認」。只有點擊 Claude 環、重新整理或助理開關才可能詢問，且僅在「僅重新整理時」下。";
 "Claude Code status line" = "Claude Code 狀態列";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code 的登入已過期。請在終端機執行一次 claude 以重新整理 — Notchmeter 從不自行更新權杖。";
@@ -270,7 +287,7 @@
 "Gemini CLI has not signed in with Google. Run `gemini` and choose Login with Google" = "Gemini CLI 尚未以 Google 登入。請執行 `gemini` 並選擇 Login with Google";
 "General" = "一般";
 "Gestures: swipe down to open, swipe up to close" = "手勢：向下滑開啟，向上滑關閉";
-"GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's Claude Code hook events over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address." = "GET /v1/limits 從快取讀數回傳與 --probe --json 相同的 JSON，供本機的狀態列腳本、小工具和命令列工具使用；POST /v1/hook 透過 SSH 通道接收遠端機器的 Claude Code hook 事件。僅回送、無驗證；來自網頁的請求（帶 Origin 標頭）除非其來源列在下方否則會被拒絕，且 Host 標頭必須是回送位址。";
+"GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's hook events, any assistant's, over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address." = "GET /v1/limits 從快取讀數回傳與 --probe --json 相同的 JSON，供本機的狀態列腳本、小工具和命令列工具使用；POST /v1/hook 透過 SSH 通道接收遠端機器的 hook 事件，任何助手的都可以。僅回送、無驗證；來自網頁的請求（帶 Origin 標頭）除非其來源列在下方否則會被拒絕，且 Host 標頭必須是回送位址。";
 "GitHub Copilot reported no quota" = "GitHub Copilot 未回報任何配額";
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "GitHub Copilot 的登入被拒絕（%@ 中的權杖）。請在編輯器中重新登入或執行 `gh auth login`";
 "GitHub Copilot's usage response unreadable" = "無法解析 GitHub Copilot 用量回應";
@@ -308,7 +325,6 @@
 "Installed; your previous status line (%@) runs after it." = "已安裝；你原本的狀態列（%@）會在其後繼續執行。";
 "its usage export could not be fetched" = "無法取得其用量匯出";
 "just now" = "剛剛";
-"Keep the Mac awake while Claude Code is working" = "Claude Code 工作時保持 Mac 喚醒";
 "Keeping awake" = "保持喚醒";
 "Keeping awake · %ld sessions" = "保持喚醒 · %ld 個工作階段";
 "Keeping awake · 1 session" = "保持喚醒 · 1 個工作階段";
@@ -323,7 +339,6 @@
 "Left of the notch" = "瀏海左側";
 "A notch cut into the left or the right edge of any Mac." = "在任何 Mac 的左側或右側邊緣切出的瀏海。";
 "Let Claude Code talk to the notch?" = "讓 Claude Code 與瀏海溝通？";
-"Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "讓 Claude Code 在開始、停止或等待你時告知瀏海。hook 傳遞事件名稱、工作階段 ID、資料夾名稱、其 git 分支、權限模式、子代理的啟停以及因速率限制而停止；儀表立即重新整理，卡片統計工作階段與代理數，Claude 等待你輸入時顯示標記。";
 "Light" = "淺色";
 "likely a %@ window" = "可能是 %@ 視窗";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "在 ~/.local/bin（或 /usr/local/bin）建立指向本應用程式的 `notchmeter` 連結，終端機或 Claude Code 技能中的 `notchmeter` 便讀取執行中應用程式的快取報告，而不再逐個詢問廠商；`notchmeter --force` 重新讀取。";
@@ -335,7 +350,6 @@
 "Main display (the one with the menu bar)" = "主要顯示器（帶選單列的那台）";
 "Match system" = "跟隨系統";
 "MCP server" = "MCP 伺服器";
-"Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits." = "將此內容合併到 %1$@，或使用「加入 settings.json…」自動合併。每個項目會執行 %2$@ --hook，將事件名稱送給執行中的 App 後結束。";
 "month" = "月";
 "Month" = "本月";
 "Month %1$@ of a %2$@ budget" = "本月 %1$@，預算 %2$@";
@@ -369,7 +383,7 @@
 "Notifications are off for %@ in System Settings › Notifications." = "在系統設定 › 通知中，%@ 的通知已關閉。";
 "Notify when a turn finishes" = "一輪工作完成時通知";
 "Notify when a window is on pace to run out" = "視窗依進度將會用完時通知";
-"Notify when Claude Code waits for you" = "Claude Code 等待你時通知";
+"Notify when an assistant waits for you" = "助手等待你時通知";
 "Numbers" = "數字";
 "Off" = "關閉";
 "off" = "關閉";
@@ -528,7 +542,7 @@
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "登入項目指向的 App 副本已被移動。請關閉後再重新開啟。";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "面板跟隨指標：移到指標停留半秒的顯示器上。";
 "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "無論如何選擇，面板的內容始終是黑底白字，螢幕側邊的瀏海形狀也一樣：兩者都必須看起來是螢幕的一部分，而不是疊在上面的東西。已知限制：在 macOS 26 上，邊緣面板背後的玻璃確實會跟隨該選擇，因此選淺色會讓白字落在淺色玻璃上。";
-"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today." = "當助手在等待你的許可、或剛剛結束一輪工作時，圓環會變成表示需要你而不是快用完了的藍色，旁邊的標記說明是哪一種。節奏仍然保留弧線末端的端點，所以快用盡的視窗依舊會這麼說。目前只有 Claude Code 的鉤子會回報這些事件。";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "當助手在等待你的許可、或剛剛結束一輪工作時，圓環會變成表示需要你而不是快用完了的藍色，旁邊的標記說明是哪一種。節奏仍然保留弧線末端的端點，所以快用盡的視窗依舊會這麼說。每個掛鉤都會回報一輪的完成；Claude Code、Codex、Gemini CLI 和 Copilot 的掛鉤會回報等待，Cursor 的不會。";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "當 30 分鐘內沒有助理活動且所有視窗都很安靜時，圓環會縮成一個圓點；掛鉤事件、檔案活動、進度變化或把游標停在上面都會讓它們恢復。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "工作階段計量約為你常態的 %1$@：每 1%% 消耗 %2$@，常態為 %3$@。";
 "Third ring" = "第三環";
@@ -576,8 +590,9 @@
 "weekly" = "每週";
 "Weekly" = "每週";
 "Weekly budget" = "每週預算";
+"When crowded" = "空間不足時";
 "When a window resets" = "視窗重設時";
-"When Claude Code waits for you or a turn finishes" = "當 Claude Code 等待你或一輪結束時";
+"When an assistant waits for you, or a turn finishes" = "當助手等待你，或一輪結束時";
 "When the cache tier or the metering shifts" = "快取檔位或計量發生變化時";
 "When you start paying (extra usage rises)" = "當你開始付費時（額外用量上漲）";
 "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "固定哪些助理在下方按助理選擇；未選擇時固定第一個可見助理。「長條」把每個固定視窗畫成小條，按進度著色。";
