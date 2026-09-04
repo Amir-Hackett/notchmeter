@@ -81,7 +81,7 @@ Every line carries `"t"` (ISO 8601 with milliseconds, UTC) and `"event"`; keys a
 | `awake` | the keep-awake assertion was taken or released | `holding` |
 | `open` | the app opened a vendor page in the browser (a card's Usage or Status link, an advice line's link) | `host` |
 | `hookRepair` | the hook or status-line entry pointing at an old copy was rewritten at launch | `repaired` (the entries touched) |
-| `snapshot` | the distributed notification `com.amirhackett.notchmeter.oracle.snapshot` was received | every preference, `visibleTools`, `costCard` (`carried`, `leads`, `gaps`), `presence`, `sessions`, `awaitingInput`, `readings`, `advice`, `panelState`, `panelVisible`, `panelScreen`, `panelScroll` (`offset`, `insetTop`, `contentHeight`, `visibleHeight`, `scrollable`, `contentTopOnScreen`, `titleTopOnScreen`, `notchBottom`, `clearsNotch`; null while the panel is closed, and the notch fields null on the layouts with nothing over them), `regions`, `screens`, `captured`, `settingsVisible`, `settingsFrame` |
+| `snapshot` | the distributed notification `com.amirhackett.notchmeter.oracle.snapshot` was received | every preference, `visibleTools`, `costCard` (`carried`, `leads`, `gaps`), `presence`, `sessions`, `awaitingInput`, `signals` (each tool asking something of you, `<tool>:<state>`), `readings`, `advice`, `panelState`, `panelVisible`, `panelScreen`, `panelScroll` (`offset`, `insetTop`, `contentHeight`, `visibleHeight`, `scrollable`, `contentTopOnScreen`, `titleTopOnScreen`, `notchBottom`, `clearsNotch`; null while the panel is closed, and the notch fields null on the layouts with nothing over them), `regions`, `screens`, `captured`, `settingsVisible`, `settingsFrame` |
 
 Ask for a snapshot from a shell:
 
@@ -118,7 +118,7 @@ The first prints every provider's parsed reading, the cost summary (ranges, bloc
             "week": { "start": "…", "cost": 42.73, "perPercentOfWeekly": 1.58 }, "block": { "start": "…", "end": "…", "cost": 3.2, "tokens": 120000, "tokensPerMinute": 1200 },
             "ranges": { "today": { "cost": 118.31, "tokens": 7400000, "cacheReadShare": 0.71, "byModel": [{ "name": "claude-fable-5-1", "cost": 118.31 }], "byProject": [{ "name": "notchmeter", "cost": 118.31 }] }, "…": {} } },
   "advice": [{ "id": "burn", "priority": "warn", "tool": "claude", "text": "This hour burned $31.20 — 3.2x your 30-day average." }],
-  "sessions": [{ "id": "…", "project": "notchmeter", "state": "working", "stateSeconds": 130 }]
+  "sessions": [{ "id": "…", "tool": "claude", "project": "notchmeter", "state": "working", "stateSeconds": 130 }]
 }
 ```
 
@@ -233,7 +233,7 @@ None of the states below can be unit-tested; each is a manual check with the exp
 | Display sleep (no lock) | polling paused, panel collapsed | footer "Paused while the display sleeps" |
 | Low Power Mode | half the cadence, footer note | `polling:` line, footer "low power mode" |
 | Offline | cached readings stay without a problem mark; footer "Offline, retrying" | reading `status: offline` in the oracle |
-| Increase Contrast | brighter tracks and card fills, secondary captions, no quiet dim | `--render-assets` produces `expanded-contrast.png` |
+| Increase Contrast | brighter tracks and card fills, secondary captions, no quiet dim | `--render-assets` produces `expanded-contrast.png`; read it against `expanded.png`, which is the same panel a second earlier. Every countdown in the pair agrees, because `DemoFixtures.readings` places each reset in the middle of the unit its countdown prints rather than on the boundary of it |
 | Reduce Transparency | solid black surfaces, no glass | `accessibility` line |
 | Reduce Motion (system) or Reduce animations (app) | every transition instant, no pulse | `reduce motion:` line |
 | Screen shared or recorded, privacy on | rings keep their shape without digits; Cost card hidden; menu bar pin blank | oracle `privacy captured=true` |

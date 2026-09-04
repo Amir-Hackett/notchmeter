@@ -22,6 +22,7 @@
 "%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ đã tiêu %2$@ trong giờ này — gấp %3$@ trung bình 30 ngày của nó.";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ được hạn mức chi trả · %2$ld yêu cầu tháng này";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "Tín dụng %1$@ hết hạn sau %2$@ — hãy nhận trong Codex";
+"%1$@ finished a %2$@ turn." = "%1$@ đã hoàn thành một lượt %2$@.";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ còn %2$ld%% của %3$@.";
 "%1$@ hit its limit; %2$@ resets in %3$@." = "%1$@ đã chạm giới hạn; %2$@ đặt lại sau %3$@.";
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ ở mức %2$ld%%. %3$@ ở mức %4$ld%%. Đổi mô hình, không cần đổi công cụ.";
@@ -102,10 +103,13 @@
 "A bar resting on top of the Dock." = "Một thanh nằm phía trên Dock.";
 "A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "Tệp đã chọn được sao chép vào ~/Library/Sounds để Trung tâm thông báo phát.";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "Màn hình được chọn theo tên được ghi nhớ bằng định danh phần cứng, nên hai màn hình cùng mẫu vẫn phân biệt được và đổi tên không làm mất.";
-"A pill down the left-hand edge, clear of a Dock on that side and of Stage Manager's strip." = "Viên nang dọc cạnh trái, tránh Dock ở phía đó và dải của Stage Manager.";
-"A pill down the right-hand edge, clear of a Dock on that side." = "Một viên thuốc dọc cạnh phải, tránh Dock ở phía đó.";
+"A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "Một notch khoét vào cạnh trái, bảng mở ra ngay bên cạnh. Nó nhường chỗ cho Dock hoặc dải Stage Manager ở phía đó.";
+"A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "Một notch khoét vào cạnh phải, bảng mở ra ngay bên cạnh. Nó nhường chỗ cho Dock ở phía đó.";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "Một lần đọc thứ hai từ chatgpt.com với cùng đăng nhập, hiện tín dụng có thể đặt lại một cửa sổ và thời điểm hết hạn. Việc nhận vẫn diễn ra trong Codex.";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "Đọc cursor.com thêm một lần với cùng cookie phiên: 30 ngày sự kiện dùng gần nhất, tính giá theo chi phí xuất ra, gộp vào tệp tổng ngày dưới dạng chuỗi Cursor (Hôm nay, 30 ngày và xu hướng).";
+"Colour the rings when an assistant waits or finishes" = "Đổi màu vòng khi một trợ lý chờ hoặc hoàn thành";
+"Just finished" = "Vừa hoàn thành";
+"just finished a turn" = "vừa hoàn thành một lượt";
 "Metered apart from the included total" = "Được đo riêng với tổng đã bao gồm";
 "a session" = "một phiên";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "Giữ khẳng định chống ngủ chỉ khi phiên do hook báo đang giữa lượt, thả ra khi Stop, nên phiên khởi động từ điện thoại hay qua SSH vẫn chạy khi gập máy có cắm điện. Chân trang hiện \"Giữ máy thức · 2 phiên\" khi đang giữ.";
@@ -154,7 +158,7 @@
 "Beside the notch" = "Cạnh tai thỏ";
 "Beta updates" = "Cập nhật beta";
 "billing export" = "bản xuất hóa đơn";
-"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Cả hai cần hook Claude Code và im lặng khi terminal hay trình soạn thảo ở trước nhất và trong giờ yên tĩnh. Liếc mở bảng vài giây với dòng phiên rồi thu lại trừ khi con trỏ vào; với Giảm chuyển động nó mở không hoạt ảnh và ở lâu hơn chút. Thông báo \"đang chờ\" bị rút khi bạn trả lời. Bản chưa ký không thông báo nào xuyên qua Focus hay Không làm phiền; các thông báo nhạy thời gian (sắp hết, chờ bạn) xuyên qua trong bản phát hành đã ký.";
+"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Cả hai cần hook Claude Code và im lặng khi terminal hay trình soạn thảo ở trước nhất và trong giờ yên tĩnh. Mục này chọn điều bảng làm; nút bật ở trên chọn điều các vòng làm, và có thể tắt cái này mà không tắt cái kia. Liếc mở bảng vài giây với dòng phiên rồi thu lại trừ khi con trỏ vào; với Giảm chuyển động nó mở không hoạt ảnh và ở lâu hơn chút. Thông báo \"đang chờ\" bị rút khi bạn trả lời. Bản chưa ký không thông báo nào xuyên qua Focus hay Không làm phiền; các thông báo nhạy thời gian (sắp hết, chờ bạn) xuyên qua trong bản phát hành đã ký.";
 "Both sides" = "Cả hai bên";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "Cả hai bên trông như căn giữa notch. Ứng dụng nhiều trình đơn có thể vượt qua mép trái notch; bên phải notch luôn tránh được.";
 "Bottom, above the Dock" = "Dưới cùng, phía trên Dock";
@@ -288,6 +292,7 @@
 "In the Cost card" = "Trong thẻ chi phí";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "Theo tiền tệ ở trên; để trống nếu không có. Vòng của thẻ Chi phí đầy theo ngân sách tháng với cùng vạch nhịp như các đồng hồ, dải Lời khuyên dự phóng tháng so với nó, và thông báo đúng nhịp, chậm nhịp, sắp hết áp dụng cho nó với tháng là chu kỳ.";
 "In the pill" = "Trong viên thuốc";
+"In the side notch" = "Trong notch bên";
 "Included usage" = "Mức dùng trong gói";
 "inferred" = "suy ra";
 "Inner ring" = "Vòng trong";
@@ -316,7 +321,7 @@
 "Left" = "Còn lại";
 "Left edge" = "Cạnh trái";
 "Left of the notch" = "Bên trái notch";
-"Left, right or bottom edge on any Mac." = "Cạnh trái, phải hoặc dưới trên bất kỳ máy Mac nào.";
+"A notch cut into the left or the right edge of any Mac." = "Một khuyết khoét vào cạnh trái hoặc cạnh phải trên bất kỳ máy Mac nào.";
 "Let Claude Code talk to the notch?" = "Cho Claude Code báo cho tai thỏ?";
 "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "Cho Claude Code báo cho notch khi bắt đầu, dừng hoặc chờ bạn. Hook chuyển tên sự kiện, id phiên, tên thư mục, nhánh git, chế độ quyền, khởi động và dừng của tác tử con, và dừng do giới hạn tốc độ; đồng hồ làm mới ngay, thẻ đếm phiên và tác tử, và huy hiệu hiện khi Claude chờ bạn nhập.";
 "Light" = "Sáng";
@@ -521,8 +526,9 @@
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "Yêu cầu Keychain đã bị đóng. Tắt rồi bật lại Claude trong Cài đặt để hỏi lại";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "10 phút cuối của nhật ký hợp nhất ứng dụng, trạng thái từng trợ lý, trạng thái hook và thanh trạng thái, bố cục và phiên bản macOS, đã xóa thư mục nhà, để báo lỗi. Không bao giờ có token.";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "Mục đăng nhập trỏ tới bản sao ứng dụng đã bị di chuyển. Tắt rồi bật lại.";
-"The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself." = "Dù bạn chọn gì, bảng cạnh notch vẫn tối: nó phải màu đen để trông liền một khối với chính notch.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "Bảng theo con trỏ: chuyển tới màn hình con trỏ đã đậu nửa giây.";
+"The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "Dù bạn chọn gì, nội dung bảng vẫn là chữ trắng trên nền đen, và hình notch ở cạnh bên màn hình cũng vậy: cả hai phải trông như một phần của màn hình chứ không phải thứ đặt lên trên nó. Hạn chế đã biết: trên macOS 26, lớp kính phía sau bảng ở cạnh màn hình có theo lựa chọn này, nên chọn Sáng sẽ đặt chữ trắng đó trên nền kính sáng.";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today." = "Vòng chuyển sang màu xanh lam, màu có nghĩa là cần bạn chứ không phải sắp cạn, khi một trợ lý chờ bạn cấp quyền hoặc vừa kết thúc một lượt, và dấu bên cạnh cho biết đó là trường hợp nào. Nhịp độ vẫn giữ nắp ở đầu cung, nên một khung sắp hết vẫn nói được điều đó. Hiện chỉ có hook của Claude Code báo những sự kiện này.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Các vòng thu lại thành một chấm khi không trợ lý nào hoạt động trong 30 phút và mọi cửa sổ đều yên; một sự kiện hook, hoạt động tệp, thay đổi nhịp hoặc đặt con trỏ lên chúng sẽ đưa chúng trở lại.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "Phiên đang được đo nặng hơn chuẩn của bạn khoảng %1$@: %2$@ mỗi 1%% so với %3$@.";
 "Third ring" = "Vòng thứ ba";
@@ -559,6 +565,7 @@
 "waiting for the first reading" = "đang chờ lần đọc đầu tiên";
 "Waiting for the first reading" = "Đang chờ lần đọc đầu tiên";
 "Waiting for you" = "Đang chờ bạn";
+"Waiting for your answer" = "Đang chờ bạn trả lời";
 "Waiting for your approval in System Settings › General › Login Items." = "Đang chờ bạn phê duyệt trong Cài đặt hệ thống › Chung › Mục đăng nhập.";
 "waiting for your input" = "đang chờ bạn nhập";
 "waiting in %@" = "đang chờ trong %@";

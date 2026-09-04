@@ -20,6 +20,23 @@ enum Presence {
     static let quietBelow = 0.4
 
     /// `sessions` is how many Claude Code sessions the hook reports; nil while no hook has ever reported one.
+    ///
+    /// A finished turn is deliberately not an input here. It lifted quiet rings to full size for a while, to make
+    /// the tick beside them easier to read, and the cost was that this rule stopped being about how much is left
+    /// and how fast: a level that answers a ninety-second clock as well as a set of limits says two things down one
+    /// channel, and the nest churns between its 14 pt and 18 pt diameters after every long turn on a readout whose
+    /// whole job is to be read at a glance.
+    ///
+    /// It also put that clock into `presence`, which is read by the view `CompactStripProbe` renders to measure the
+    /// strip, so the compact fit's inputs became a function of the time of day. Measured, it did not move the
+    /// answer: `CompactRings` pins itself to a hard 18 pt box, so the quiet nest shrinks inside a fixed frame, and
+    /// quiet against legible against urgent measures to the same point at one, two and three rings, in all three
+    /// compact styles, on both axes and on the API-key readout. That is a fit resting on a frame rather than on
+    /// this rule, which is a thing to know rather than a thing to build on.
+    ///
+    /// The mark answers the need on its own terms instead (CompactRings): it keeps its full size and its full
+    /// opacity while the rings around it go quiet, which is what makes a tick on a 14 pt ring readable without
+    /// anything else moving.
     static func level(windows: [LimitWindow], awaitingInput: Bool, sessions: Int? = nil, now: Date = Date()) -> PresenceLevel {
         if awaitingInput { return .urgent }
         var quiet = true

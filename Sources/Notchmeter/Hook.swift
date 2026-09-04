@@ -3,8 +3,9 @@ import Foundation
 /// The `--hook` half of the Claude Code integration: a hook command that turns one Claude Code event into one
 /// distributed notification carrying the event name, whether Claude is waiting on the user, the session id, the
 /// last path component of the working directory, the git branch checked out there, the permission mode, the
-/// subagent id and a stop failure's kind, nothing else. The running app listens in UsageStore; a remote host's
-/// hook posts the same fields to the local API instead (docs/hooks.md).
+/// subagent id, a stop failure's kind and — only when it is not Claude Code — which assistant sent it, nothing
+/// else. The running app listens in UsageStore; a remote host's hook posts the same fields to the local API
+/// instead (docs/hooks.md).
 enum Hook {
     static let notificationName = Notification.Name("com.amirhackett.notchmeter.hook")
     static let eventKey = "hook_event_name"
@@ -17,6 +18,9 @@ enum Hook {
     static let agentKey = "agent_id"
     static let failureKey = "failure"
     static let hostKey = "host"
+    /// Which assistant sent the event. Claude Code's hook does not send it and does not need to — the fallback is
+    /// Claude — but a Codex or Cursor installer will, and this is the field that lets the app tell them apart.
+    static let toolKey = "tool"
 
     struct Message: Equatable, Sendable {
         let event: String
@@ -35,9 +39,12 @@ enum Hook {
         let failure: String?
         /// A label for the machine a remote hook posted from; nil for this Mac.
         let host: String?
+        /// Which assistant the event came from. Claude Code's hook sends nothing here and is read as Claude, which
+        /// is why adding this field changes nothing about the events the app receives today.
+        let tool: ToolID
 
         init(event: String, needsInput: Bool, sessionID: String? = nil, project: String? = nil, notificationType: String? = nil, branch: String? = nil,
-             permissionMode: String? = nil, agentID: String? = nil, failure: String? = nil, host: String? = nil) {
+             permissionMode: String? = nil, agentID: String? = nil, failure: String? = nil, host: String? = nil, tool: ToolID = .claude) {
             self.event = event
             self.needsInput = needsInput
             self.sessionID = sessionID
@@ -48,6 +55,7 @@ enum Hook {
             self.agentID = agentID
             self.failure = failure
             self.host = host
+            self.tool = tool
         }
 
         init?(userInfo: [AnyHashable: Any]?) {
@@ -62,6 +70,7 @@ enum Hook {
             agentID = userInfo?[Hook.agentKey] as? String
             failure = userInfo?[Hook.failureKey] as? String
             host = userInfo?[Hook.hostKey] as? String
+            tool = (userInfo?[Hook.toolKey] as? String).flatMap(ToolID.init(rawValue:)) ?? .claude
         }
 
         var userInfo: [String: Any] {
@@ -74,6 +83,9 @@ enum Hook {
             if let agentID { info[Hook.agentKey] = agentID }
             if let failure { info[Hook.failureKey] = failure }
             if let host { info[Hook.hostKey] = host }
+            // Claude Code's own hook sends no tool and is read back as Claude, so the key is written only when it
+            // would say something: the payload stays exactly what it has always been for the one hook that ships.
+            if tool != .claude { info[Hook.toolKey] = tool.rawValue }
             return info
         }
 
@@ -123,7 +135,9 @@ enum Hook {
     }
 
     /// Only the event name, the notification type, the session id, the basename of `cwd`, the permission mode, the
-    /// agent id and a stop failure's kind are read from the payload; the branch is read from `cwd`'s `.git`.
+    /// agent id, a stop failure's kind and the sending tool are read from the payload; the branch is read from
+    /// `cwd`'s `.git`. Claude Code names no tool, so its events read as Claude's, which is what they have always
+    /// been.
     static func message(from payload: Data, branch: (String) -> String? = gitBranch(cwd:)) -> Message? {
         guard let object = try? JSONSerialization.jsonObject(with: payload) as? [String: Any],
               let event = object[eventKey] as? String, !event.isEmpty
@@ -138,7 +152,8 @@ enum Hook {
                        branch: cwd.flatMap(branch),
                        permissionMode: (object["permission_mode"] as? String).flatMap { $0.isEmpty ? nil : $0 },
                        agentID: (object["agent_id"] as? String).flatMap { $0.isEmpty ? nil : $0 },
-                       failure: event == "StopFailure" ? failure : nil)
+                       failure: event == "StopFailure" ? failure : nil,
+                       tool: (object[toolKey] as? String).flatMap(ToolID.init(rawValue:)) ?? .claude)
     }
 
     static func needsInput(event: String, notificationType: String?) -> Bool {

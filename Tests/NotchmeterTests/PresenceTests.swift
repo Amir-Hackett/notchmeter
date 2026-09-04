@@ -68,9 +68,11 @@ import Testing
             LimitWindow(id: "weekly", label: "Weekly", usedFraction: 0.05, resetsAt: now.addingTimeInterval(6 * 86400), periodDuration: Period.week),
             LimitWindow(id: "extra", label: "Extra usage", usedFraction: nil, resetsAt: nil),
         ], plan: nil, fetchedAt: now, observedAt: nil)
-        #expect(Spoken.status(.ready(reading), awaitingInput: false, now: now) == "Session 19 percent used, close to pace; Weekly 5 percent used")
-        #expect(Spoken.status(.ready(reading), awaitingInput: true, now: now).hasPrefix("waiting for your input; Session"))
-        #expect(Spoken.status(.needsAttention("Needs your permission", cached: nil), awaitingInput: false, now: now) == "Needs your permission")
-        #expect(Spoken.status(.waiting, awaitingInput: false, now: now) == "waiting for the first reading")
+        #expect(Spoken.status(.ready(reading), now: now) == "Session 19 percent used, close to pace; Weekly 5 percent used")
+        #expect(Spoken.status(.ready(reading), signal: .waiting(count: 1), now: now).hasPrefix("waiting for your input; Session"))
+        #expect(Spoken.status(.ready(reading), signal: .finished(turn: 600), now: now).hasPrefix("just finished a turn; Session"),
+                "What the assistant is asking of the listener leads the sentence, because it is the only part of it they can act on.")
+        #expect(Spoken.status(.needsAttention("Needs your permission", cached: nil), now: now) == "Needs your permission")
+        #expect(Spoken.status(.waiting, now: now) == "waiting for the first reading")
     }
 }

@@ -168,7 +168,7 @@ final class LocalAPI {
         let host = (object["host"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         return Hook.Message(event: base.event, needsInput: base.needsInput, sessionID: base.sessionID, project: base.project,
                             notificationType: base.notificationType, branch: base.branch, permissionMode: base.permissionMode,
-                            agentID: base.agentID, failure: base.failure, host: host)
+                            agentID: base.agentID, failure: base.failure, host: host, tool: base.tool)
     }
 
     nonisolated static func response(status: Int, body: Data) -> Data {

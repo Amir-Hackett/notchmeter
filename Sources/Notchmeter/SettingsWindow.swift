@@ -12,6 +12,15 @@ final class SettingsRequests {
     var hookOffer = false
     /// `--smoke`: drive the hook-install sheet against this file instead of settings.json, then close it.
     var hookSheetDryRun: URL?
+    /// `--render-assets`: what the two Claude Code rows report, in place of this Mac's own settings.json.
+    ///
+    /// The Settings picture is committed to the repository, and the rest of it is fixture from end to end. These
+    /// two rows were not: they read `~/.claude/settings.json` at layout, so the picture reported whatever state
+    /// the rendering machine happened to be in — on the machine this was found on, an orange "Installed but
+    /// points at an old path", which is neither a fixture nor a thing to show a reader of the README. It carries
+    /// the finished `Status` rather than a file to read one out of, so nothing here can redirect the Add and
+    /// Repair buttons at a file of the renderer's choosing; those keep reading and writing `settings.json` alone.
+    var renderedHookStatus: (hook: HookSettings.Status, statusline: HookSettings.Status)?
     /// The outcome of the last "Install command line tool…" press.
     var commandLineToolMessage: String?
     var rootsChanged: () -> Void = {}
@@ -228,7 +237,7 @@ struct SettingsView: View {
             })) {
                 ForEach(AppearanceChoice.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            Text(L("The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself."))
+            Text(L("The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass."))
                 .font(.caption).foregroundStyle(.secondary)
             Picker(L("Readouts"), selection: Binding(
                 get: { prefs.compactSide },
@@ -442,10 +451,12 @@ struct SettingsView: View {
                     }
                 }
             }
+            Toggle(L("Colour the rings when an assistant waits or finishes"), isOn: Binding(get: { prefs.signalRings }, set: { prefs.signalRings = $0 }))
+                .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today."))
             Picker(L("When Claude Code waits for you or a turn finishes"), selection: Binding(get: { prefs.sessionAttention }, set: { prefs.sessionAttention = $0 })) {
                 ForEach(SessionAttention.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            .help(L("Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release."))
+            .help(L("Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release."))
             Toggle(L("Sound"), isOn: Binding(get: { prefs.notificationSound }, set: { prefs.notificationSound = $0 }))
             if prefs.notificationSound {
                 SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))
@@ -688,8 +699,8 @@ struct SettingsView: View {
     }
 
     private func refreshHookStatus() {
-        hookStatus = HookSettings.status()
-        statuslineStatus = HookSettings.statuslineStatus()
+        hookStatus = requests.renderedHookStatus?.hook ?? HookSettings.status()
+        statuslineStatus = requests.renderedHookStatus?.statusline ?? HookSettings.statuslineStatus()
     }
 
     private func subtitle(for tool: ToolID) -> String {
