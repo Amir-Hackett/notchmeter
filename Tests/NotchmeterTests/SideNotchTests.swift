@@ -33,13 +33,15 @@ import Testing
         #expect(radii.nose == 14)
     }
 
-    /// The notch the app actually draws. A fixed 6 pt flare on a shape more than twice as deep as the hardware
-    /// notch would read as a nick in a rounded rectangle rather than as the same cut.
+    /// The notch the app actually draws. A fixed 6 pt flare on a shape deeper than the hardware notch would read
+    /// as a nick in a rounded rectangle rather than as the same cut.
     @Test func theShippedDepthScalesBothRadiiWithIt() {
-        // The measured pill is 82 pt deep (docs/qa/e2e-report.md): 82 × 6/38 = 12.947…, 82 × 14/38 = 30.210…
-        let radii = SideNotchShape.radii(depth: 82, run: 234)
-        #expect(abs(radii.flare - 82 * 6 / 38) < 0.001)
-        #expect(abs(radii.nose - 82 * 14 / 38) < 0.001)
+        // The side pill measures 35 pt deep at rings and numbers and 54 with the reset countdown on, which is the
+        // deepest a user can make it: 54 × 6/38 = 8.526…, 54 × 14/38 = 19.894…, and the flare is still under its
+        // cap, which is what lets EdgeNotch pad by the cap without ever clipping a ring.
+        let radii = SideNotchShape.radii(depth: 54, run: 234)
+        #expect(abs(radii.flare - 54 * 6 / 38) < 0.001)
+        #expect(abs(radii.nose - 54 * 14 / 38) < 0.001)
         #expect(radii.flare < SideNotchShape.flareCap,
                 "the padding EdgeNotch adds is the cap, so a flare at or past it would start clipping the rings")
     }
@@ -47,7 +49,7 @@ import Testing
     /// The no-room fallback never draws this shape, but a wide density or a future readout could still deepen it,
     /// and the ratios alone would flare a panel-deep shape sixty points and turn a notch into a leaf.
     @Test func theRadiiAreCappedSoADeepShapeIsStillANotch() {
-        // 200 × 6/38 = 31.6 and 200 × 14/38 = 73.7, both far past the caps of 16 and 36.
+        // 200 × 6/38 = 31.6 and 200 × 14/38 = 73.7, both far past the caps of 10 and 36.
         let radii = SideNotchShape.radii(depth: 200, run: 800)
         #expect(radii.flare == SideNotchShape.flareCap)
         #expect(radii.nose == SideNotchShape.noseCap)
@@ -97,8 +99,11 @@ import Testing
 }
 
 /// Where the notch and the panel go once a side is flush and the panel opens beside it. The arithmetic is worked
-/// against the sizes a real run measured on a 1512 × 982 display (docs/qa/e2e-report.md): an 82 × 202 pt pill
-/// and a 388 × 855 pt panel.
+/// against a 388 × 855 pt panel on a 1512 × 982 display (docs/qa/e2e-report.md) and an 82 × 202 pt pill, which is
+/// deliberately deeper than the one that ships: the shape measures 35 × 188 at rings and numbers since the figures
+/// were stacked, and 54 at its widest with the reset countdown on. A stand-in half again as deep as the widest
+/// real one keeps the placement under more pressure than a user can put it under, which is what these tests are
+/// for — the no-room fallback fires on width, and a pill that cannot fill the margin would never reach it.
 @Suite struct EdgeArrangementTests {
     private let notch = NSSize(width: 82, height: 202)
     private let panel = NSSize(width: 388, height: 855)
