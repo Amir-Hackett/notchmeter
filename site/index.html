@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notchmeter — AI coding usage, in the notch</title>
+<meta name="description" content="Usage meters for Claude Code, Codex, Cursor, Antigravity and Copilot, living in the MacBook notch. Pace, projections and what to do next. Free, open source, and it never signs in anywhere.">
+<link rel="icon" href="img/icon.png">
+<link rel="stylesheet" href="style.css">
+<meta property="og:title" content="Notchmeter — AI coding usage, in the notch">
+<meta property="og:description" content="Every other meter tells you how much. Notchmeter tells you what to do about it.">
+<meta property="og:image" content="img/expanded.png">
+<meta property="og:type" content="website">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="img/icon.png" alt="">Notchmeter</a>
+    <nav class="links">
+      <a href="#assistants" class="hide-sm">Assistants</a>
+      <a href="#advice" class="hide-sm">Advice</a>
+      <a href="#privacy" class="hide-sm">Privacy</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<section class="hero plain">
+  <div class="wrap">
+    <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
+    <h1>Your menu bar ran out of room three apps ago.<br>This one doesn't take any.</h1>
+    <p class="lede">Usage meters for AI coding tools, living in the MacBook notch — or on any screen edge you prefer. Small rings sit beside the notch all the time; hover and it opens into the full readout.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter">View the source</a>
+    </div>
+    <p class="cta-note">macOS 14 or later · Apple silicon or Intel · no account, ever</p>
+
+    <figure class="shot">
+      <img src="img/demo.gif" alt="The rings beside the notch open into the usage panel when the pointer rests on them, showing cost, pace and advice, then close again.">
+    </figure>
+    <figcaption>Hover the rings beside the notch and the panel opens: cost, pace, projections and what to do next.</figcaption>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="pillars">
+      <div class="pillar">
+        <div class="big">Five assistants</div>
+        <p>Claude Code, Codex, Cursor, Antigravity and Copilot, on one strip.</p>
+      </div>
+      <div class="pillar">
+        <div class="big">Never signs in</div>
+        <p>No account, no token stored, nothing leaves your Mac.</p>
+      </div>
+      <div class="pillar">
+        <div class="big">0.02% of one core</div>
+        <p>Measured while idle. Nothing at all while the screen is locked.</p>
+      </div>
+      <div class="pillar">
+        <div class="big">Free forever</div>
+        <p>MIT licensed. Build it yourself if you'd rather.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Every other meter tells you how much</h2>
+    <p class="section-lede">Notchmeter also tells you what to do about it. The rules are pure functions, run over every visible tool's live reading, and each one is worded as an instruction rather than a percentage.</p>
+
+    <div class="advice-list" id="advice">
+      <div class="advice">
+        <div class="tag">Needs you</div>
+        <div class="say"><em>Claude Code is waiting in notchmeter (and 1 more).</em></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Run-out</div>
+        <div class="say"><em>At this rate you hit the Claude weekly cap Thursday at 2:00 PM, 3d 4h before reset. Codex weekly is at 22%.</em></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Switch models</div>
+        <div class="say"><em>Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.</em></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Wait</div>
+        <div class="say"><em>Claude session resets in 40m; wait rather than switch.</em></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Burn</div>
+        <div class="say"><em>Claude Code burned $8.40 this hour — 6x its 30-day average.</em></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Room elsewhere</div>
+        <div class="say"><em>Codex has 78% of its weekly left.</em></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>The whole picture, on hover</h2>
+        <p>Every meter shows a pace tick — where an even burn would be right now — a projection (“~67% left at reset”, or “Runs out in 2h”), and the reset time as a countdown or an exact time.</p>
+        <p>The Cost card adds what your local Claude Code sessions would have cost at API list prices: today, yesterday and the last 30 days, with a 30-day trend, split by model and by project.</p>
+      </div>
+      <figure class="shot">
+        <img src="img/expanded.png" alt="The open panel: the Cost card, the Advice strip, the Claude card with a session waiting, a pace meter per window with its projection, and the footer.">
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="assistants">
+  <div class="wrap">
+    <h2>Read from the tool that owns the account</h2>
+    <p class="section-lede">Each reading is borrowed from the assistant itself, on the login that assistant already keeps on your Mac. Switch accounts in the tool and the notch follows.</p>
+
+    <div class="tools">
+      <div class="tool">
+        <h3><span class="ring" style="color:#d97757"></span>Claude Code</h3>
+        <p>The 5-hour session window, the weekly window, and the per-model weekly limits Anthropic publishes — plus what your local sessions would have cost at API list prices.</p>
+      </div>
+      <div class="tool">
+        <h3><span class="ring" style="color:#5CD49E"></span>Codex</h3>
+        <p>The session, weekly or monthly rate-limit windows from the same backend Codex itself asks, with the snapshots Codex writes into session rollouts as a fallback when offline.</p>
+      </div>
+      <div class="tool">
+        <h3><span class="ring" style="color:#a68cfa"></span>Cursor</h3>
+        <p>Included plan usage and on-demand spend for the current billing cycle, read the way cursor.com's own dashboard reads it.</p>
+      </div>
+      <div class="tool">
+        <h3><span class="ring" style="color:#56B4E9"></span>Antigravity / Gemini CLI</h3>
+        <p>The per-model quota Google meters — Gemini Pro, Flash, Flash Lite, and any Claude or GPT model the plan covers — from the same Code Assist endpoint Gemini CLI's <code>/stats</code> reads.</p>
+      </div>
+      <div class="tool">
+        <h3><span class="ring" style="color:#F0E442"></span>GitHub Copilot</h3>
+        <p>The premium-request allowance for the month, and the chat and completion quotas when a plan meters them, from the endpoint Copilot's own editor plugin asks.</p>
+      </div>
+      <div class="tool">
+        <h3><span class="ring" style="color:#0072B2"></span>Your own sessions</h3>
+        <p>With the optional Claude Code hook, the notch refreshes the moment a turn ends, counts the sessions you have running, and says which project is waiting on you.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="split">
+      <figure class="shot">
+        <img src="img/signal-rings.png" alt="The rings a moment apart: above, Claude Code waiting for an answer, the rings blue with a white dot; below, a turn just finished, the same blue with a tick.">
+      </figure>
+      <div>
+        <h2>It says when an assistant wants you</h2>
+        <p>When Claude Code stops for a permission prompt or a question, the rings take the blue that means <em>needs you, not running out</em>, and a white dot says which readout it is — with a count when more than one session is waiting. A turn ending gets the same blue and a tick, for ninety seconds.</p>
+        <p>Colour is never the only carrier. The dot and the tick stay if you turn the colour off, the cap on a ring's end keeps saying a window is nearly gone, and every readout has a VoiceOver label.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>Notch, or any edge you like</h2>
+        <p>No notch, or you'd rather it lived elsewhere? The left and right edges cut the same notch shape into the side of the screen and open the panel beside it, with the readings still on the glass. There's a bar above the Dock too, and a pill under the menu bar on a notchless Mac.</p>
+        <p>Beside the notch, the strip fits itself to the room the menu bar actually leaves: it moves aside as the frontmost app's menus grow, and only once both ends have closed in does it drop to plain rings.</p>
+      </div>
+      <figure class="shot">
+        <img src="img/edge-right-panel.png" alt="The notch cut into the right-hand edge of the screen, the readouts inside the opaque shape, and the panel open beside it across a strip of desktop.">
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap">
+    <h2>The privacy model is the product</h2>
+    <p class="section-lede">Notchmeter never signs in anywhere and never stores a token. It reads the login the vendor's own tool already put on this Mac, makes the one status read that tool itself makes, and passes it on to nobody.</p>
+
+    <div class="gap-grid">
+      <div class="gap-card">
+        <div class="who">What it does</div>
+        <ul>
+          <li>One status read per tool, on that tool's own saved login</li>
+          <li>Reads your local Claude Code transcripts for the cost figures</li>
+          <li>Keeps everything on the Mac it runs on</li>
+          <li>Asks for Accessibility only if you choose the Auto layout</li>
+        </ul>
+      </div>
+      <div class="gap-card dim">
+        <div class="who">What it never does</div>
+        <ul>
+          <li>No account, no sign-in, no cloud, no analytics</li>
+          <li>Never stores or forwards a token</li>
+          <li>Never sends a prompt, a transcript or a project path anywhere</li>
+          <li>Never probes an inference endpoint for rate-limit headers</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap centered">
+    <h2>Small enough to forget it's there</h2>
+    <p class="section-lede">Measured on an M5 Pro running macOS 26, with a heavy Claude Code job in the background.</p>
+    <div class="facts">
+      <div class="fact">
+        <div class="n">0.02%</div>
+        <p>of one core over 60 seconds with the panel closed and no cost scan due.</p>
+      </div>
+      <div class="fact">
+        <div class="n">37–69 MB</div>
+        <p>resident, with three-and-a-half thousand transcripts on disk.</p>
+      </div>
+      <div class="fact">
+        <div class="n">Nothing</div>
+        <p>while the screen is locked, the displays are asleep, or the Mac is.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap centered">
+    <h2>Install it</h2>
+    <p class="section-lede">macOS 14 Sonoma or later, Apple silicon or Intel. Signed, notarised, and it updates itself.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Download the DMG</a>
+      <a class="btn btn-ghost" href="pricing.html">See Teams</a>
+    </div>
+    <div style="max-width:520px;margin:26px auto 0;text-align:left">
+      <div class="code"><span class="p"># or with Homebrew</span>
+brew tap Amir-Hackett/tap
+brew install --cask notchmeter</div>
+    </div>
+    <p class="cta-note">Free forever, MIT licensed. Managing a team's AI spend? <a href="pricing.html">Notchmeter Teams</a> is in development.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h4>Notchmeter</h4>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#assistants">Assistants</a></li>
+          <li><a href="#advice">Advice</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · Nothing leaves your Mac · Pay nothing</span>
+      <span>macOS 14+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
