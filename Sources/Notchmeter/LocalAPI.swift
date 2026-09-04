@@ -160,8 +160,10 @@ final class LocalAPI {
         }
     }
 
-    /// The hook payload a remote machine posts: Claude Code's own event JSON (as `--hook` reads it) plus `host`; the
-    /// branch is taken from the payload since the checkout is not on this Mac.
+    /// The hook payload a remote machine posts: Claude Code's or Cursor's own event JSON (as `--hook` reads it) plus
+    /// `host`; the branch is taken from the payload since the checkout is not on this Mac. `Hook.message(from:)`
+    /// tags a Cursor payload by its shape, or by a `"tool": "cursor"` key, so the session is keyed
+    /// `cursor:<conversation_id>@<host>` and lights the Cursor ring.
     nonisolated static func hookMessage(from body: Data) -> Hook.Message? {
         guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else { return nil }
         guard let base = Hook.message(from: body, branch: { _ in (object["branch"] as? String).flatMap { $0.isEmpty ? nil : $0 } }) else { return nil }

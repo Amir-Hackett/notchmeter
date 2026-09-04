@@ -12,15 +12,16 @@ final class SettingsRequests {
     var hookOffer = false
     /// `--smoke`: drive the hook-install sheet against this file instead of settings.json, then close it.
     var hookSheetDryRun: URL?
-    /// `--render-assets`: what the two Claude Code rows report, in place of this Mac's own settings.json.
+    /// `--render-assets`: what the hook rows and the status-line row report, in place of this Mac's own files.
     ///
     /// The Settings picture is committed to the repository, and the rest of it is fixture from end to end. These
-    /// two rows were not: they read `~/.claude/settings.json` at layout, so the picture reported whatever state
-    /// the rendering machine happened to be in — on the machine this was found on, an orange "Installed but
-    /// points at an old path", which is neither a fixture nor a thing to show a reader of the README. It carries
-    /// the finished `Status` rather than a file to read one out of, so nothing here can redirect the Add and
-    /// Repair buttons at a file of the renderer's choosing; those keep reading and writing `settings.json` alone.
-    var renderedHookStatus: (hook: HookSettings.Status, statusline: HookSettings.Status)?
+    /// rows were not: they read `~/.claude/settings.json` (and now every other assistant's hooks file) at layout, so the
+    /// picture reported whatever state the rendering machine happened to be in — on the machine this was found
+    /// on, an orange "Installed but points at an old path", which is neither a fixture nor a thing to show a
+    /// reader of the README. It carries the finished `Status` rather than a file to read one out of, so nothing
+    /// here can redirect the Add and Repair buttons at a file of the renderer's choosing; those keep reading and
+    /// writing each vendor's own file alone.
+    var renderedHookStatus: (hook: [HookVendor: HookSettings.Status], statusline: HookSettings.Status)?
     /// The outcome of the last "Install command line tool…" press.
     var commandLineToolMessage: String?
     var rootsChanged: () -> Void = {}
@@ -42,15 +43,15 @@ struct SettingsView: View {
     let requests: SettingsRequests
     let hostWindow: () -> NSWindow?
     @State private var loginError: String?
-    @State private var showHookSnippet = false
+    @State private var showHookSnippet: HookVendor?
     @State private var showStatuslineSnippet = false
     @State private var showMCPSnippet = false
-    @State private var hookMessage: String?
+    @State private var hookMessage: [HookVendor: String] = [:]
     @State private var statuslineMessage: String?
     @State private var notificationMessage: String?
     @State private var diagnosticsMessage: String?
     @State private var exportMessage: String?
-    @State private var hookStatus = HookSettings.status()
+    @State private var hookStatus: [HookVendor: HookSettings.Status] = [:]
     @State private var statuslineStatus = HookSettings.statuslineStatus()
     @State private var currencyText = ""
     @State private var rateText = ""
@@ -83,9 +84,13 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(minWidth: 460, minHeight: 640)
-        .sheet(isPresented: $showHookSnippet) {
-            HookSnippetView(title: L("Claude Code hook"), explanation: L("Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits.", HookSettings.settingsURL.path, AppInfo.name),
-                            snippet: HookSettings.snippet())
+        .sheet(item: $showHookSnippet) { vendor in
+            HookSnippetView(title: L("%@ hook", vendor.displayName),
+                            explanation: L("Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits.", vendor.fileURL.path, vendor.fileName, AppInfo.name,
+                                             // The per-event flag with a placeholder, so Copilot's explanation names the `--event <name>`
+                                             // every entry below it carries; every other vendor's flag comes back unchanged.
+                                             vendor.flag(for: "<name>")),
+                            snippet: HookSettings.snippet(vendor: vendor))
         }
         .sheet(isPresented: $showStatuslineSnippet) {
             HookSnippetView(title: L("Claude Code status line"), explanation: L("Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar.", HookSettings.settingsURL.path, AppInfo.name),
@@ -249,6 +254,16 @@ struct SettingsView: View {
             }
             .help(L("Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app."))
             paragraph(L("Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them."))
+            // Only under Auto: a fixed side never gives anything up, so there is nothing for this to order. A direct
+            // binding with no action, because AutoSideWatcher observes the preference and re-fits on its own. The
+            // copy is worded to hold at every style the picker is shown beside: Numbers has no main-figure rung
+            // (CompactFit.steps), and Rings has no figure to give up before the assistants go.
+            if prefs.compactSide == .auto {
+                Picker(L("When crowded"), selection: Binding(get: { prefs.compactKeep }, set: { prefs.compactKeep = $0 })) {
+                    ForEach(CompactKeep.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                paragraph(L("Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits."))
+            }
             if prefs.compactSide == .auto, !accessibilityTrusted {
                 Button(L("Open Accessibility settings…")) {
                     MenuBarExtent.openSettings()
@@ -393,7 +408,7 @@ struct SettingsView: View {
             }
             .help(L("Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only."))
             Toggle(L("Local API on 127.0.0.1:%ld", Int(LocalAPI.port)), isOn: Binding(get: { prefs.localAPIEnabled }, set: { prefs.localAPIEnabled = $0; requests.localAPIChanged() }))
-                .help(L("GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's Claude Code hook events over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address."))
+                .help(L("GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's hook events, any assistant's, over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address."))
             if prefs.localAPIEnabled {
                 ForEach(prefs.localAPIOrigins, id: \.self) { origin in
                     HStack {
@@ -440,7 +455,7 @@ struct SettingsView: View {
                 Toggle(L("When the cache tier or the metering shifts"), isOn: Binding(get: { prefs.notifyCacheShift }, set: { prefs.notifyCacheShift = $0 }))
                     .help(L("Once a day when today's cache writes moved to the 5-minute tier against the 30-day norm, or the session meters about twice as heavily as usual."))
             }
-            Toggle(L("Notify when Claude Code waits for you"), isOn: Binding(get: { prefs.notifyWaiting }, set: { prefs.notifyWaiting = $0; if $0 { notifier.requestAuthorization() } }))
+            Toggle(L("Notify when an assistant waits for you"), isOn: Binding(get: { prefs.notifyWaiting }, set: { prefs.notifyWaiting = $0; if $0 { notifier.requestAuthorization() } }))
             Toggle(L("Notify when a turn finishes"), isOn: Binding(get: { prefs.notifyFinished }, set: { prefs.notifyFinished = $0; if $0 { notifier.requestAuthorization() } }))
             if prefs.notifyFinished {
                 Stepper(value: Binding(get: { prefs.finishedAfterMinutes }, set: { prefs.finishedAfterMinutes = $0 }), in: 1...60) {
@@ -452,11 +467,11 @@ struct SettingsView: View {
                 }
             }
             Toggle(L("Colour the rings when an assistant waits or finishes"), isOn: Binding(get: { prefs.signalRings }, set: { prefs.signalRings = $0 }))
-                .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today."))
-            Picker(L("When Claude Code waits for you or a turn finishes"), selection: Binding(get: { prefs.sessionAttention }, set: { prefs.sessionAttention = $0 })) {
+                .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not."))
+            Picker(L("When an assistant waits for you, or a turn finishes"), selection: Binding(get: { prefs.sessionAttention }, set: { prefs.sessionAttention = $0 })) {
                 ForEach(SessionAttention.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            .help(L("Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release."))
+            .help(L("Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release."))
             Toggle(L("Sound"), isOn: Binding(get: { prefs.notificationSound }, set: { prefs.notificationSound = $0 }))
             if prefs.notificationSound {
                 SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))
@@ -541,7 +556,7 @@ struct SettingsView: View {
         ))
         switch tool {
         case .claude:
-            Toggle(L("Keep the Mac awake while Claude Code is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
+            Toggle(L("Keep the Mac awake while an assistant is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
                 .help(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held."))
             if prefs.keepAwake {
                 Toggle(L("Also on battery"), isOn: Binding(get: { prefs.keepAwakeOnBattery }, set: { prefs.keepAwakeOnBattery = $0; requests.awakeChanged() }))
@@ -569,21 +584,15 @@ struct SettingsView: View {
     private var hookSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 8) {
-                Text(hookStatus.text).font(.caption).foregroundStyle(hookStatusColor(hookStatus))
-                HStack {
-                    Button(L("Show snippet…")) { showHookSnippet = true }
-                    switch hookStatus {
-                    case .notInstalled: Button(L("Add to settings.json…")) { installHook() }
-                    case .stale: Button(L("Repair")) { repairHook() }
-                    case .installed: EmptyView()
-                    }
-                }
-                if let hookMessage {
-                    Text(hookMessage).font(.caption).foregroundStyle(.secondary)
+                // One row per assistant, in the rings' order; every row is always shown, so a Mac without one of
+                // them still says "Not installed" rather than hiding the option.
+                ForEach(HookVendor.allCases) { vendor in
+                    hookRow(vendor)
+                    Divider()
                 }
                 Toggle(L("Repair a hook that points at an old copy at launch"), isOn: Binding(get: { prefs.autoRepairHooks }, set: { prefs.autoRepairHooks = $0 }))
                     .font(.caption)
-                    .help(L("After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke."))
+                    .help(L("After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file."))
                 Divider()
                 Text(L("Claude Code status line"))
                     .font(.subheadline.weight(.semibold))
@@ -599,9 +608,73 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Text(L("Claude Code hook"))
-                .help(L("Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input."))
+            Text(L("Hooks"))
+                .help(L("Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit."))
         }
+    }
+
+    /// One vendor's row: its name, where its file stands, the snippet, and Add or Repair as the status calls for.
+    @ViewBuilder
+    private func hookRow(_ vendor: HookVendor) -> some View {
+        let status = hookStatus[vendor] ?? .notInstalled
+        Text(L("%@ hook", vendor.displayName))
+            .font(.subheadline.weight(.semibold))
+            .help(hookRowHelp(vendor))
+        Text(status.text).font(.caption).foregroundStyle(hookStatusColor(status))
+        HStack {
+            Button(L("Show snippet…")) { showHookSnippet = vendor }
+            switch status {
+            case .notInstalled: Button(L("Add to %@…", vendor.fileName)) { installHook(vendor: vendor) }
+            case .stale, .partial: Button(L("Repair")) { repairHook(vendor: vendor) }
+            case .installed: EmptyView()
+            }
+        }
+        if let message = hookMessage[vendor] {
+            Text(message).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Literal keys per vendor rather than a string on HookVendor: LocalizationTests only sees a quoted literal
+    /// passed straight to `L`, so a key that lived on the vendor would be reported as shipped but unused.
+    private func hookRowHelp(_ vendor: HookVendor) -> String {
+        switch vendor {
+        case .claude:
+            L("Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops.")
+        case .codex:
+            L("Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with.")
+        case .cursor:
+            L("Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved.")
+        case .antigravity:
+            L("Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring.")
+        case .copilot:
+            L("GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it.")
+        }
+    }
+
+    /// What Add and Repair say after they have written something: the step the vendor still needs before the new
+    /// entry runs, because `.installed` can only see the file. Codex trusts a hook by its hash in `/hooks`, so a
+    /// fresh entry — and a repaired one, whose command changed — is skipped until the user has been shown it; Gemini
+    /// CLI and Copilot read their files when they start, so a session already open never fires the entry. Claude
+    /// Code's note would say the same as Gemini's and the Claude row has always gone without one; Cursor reloads
+    /// its file as it is saved (`HookVendor.reloadsLive`), so there is nothing to tell. Literal keys, as above.
+    private func hookInstallNote(_ vendor: HookVendor) -> String? {
+        switch vendor {
+        case .codex:
+            L("Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with.")
+        case .antigravity:
+            L("Gemini CLI reads settings.json when it starts: the hook works from the next session.")
+        case .copilot:
+            L("Copilot CLI reads its hooks when it starts: restart it, then /env lists the file.")
+        case .claude, .cursor:
+            nil
+        }
+    }
+
+    /// The row's message after Add or Repair: the installer's summary, and the vendor's activation note when the
+    /// file was actually written (`Installed.added` is empty when every event was already there and current).
+    private func hookOutcome(_ installed: HookSettings.Installed, vendor: HookVendor) -> String {
+        guard !installed.added.isEmpty, let note = hookInstallNote(vendor) else { return installed.summary }
+        return installed.summary + " " + note
     }
 
     private var integrationsSection: some View {
@@ -693,13 +766,15 @@ struct SettingsView: View {
     private func hookStatusColor(_ status: HookSettings.Status) -> Color {
         switch status {
         case .installed: .secondary
-        case .stale: Palette.warn
+        case .stale, .partial: Palette.warn
         case .notInstalled: .secondary
         }
     }
 
     private func refreshHookStatus() {
-        hookStatus = requests.renderedHookStatus?.hook ?? HookSettings.status()
+        for vendor in HookVendor.allCases {
+            hookStatus[vendor] = requests.renderedHookStatus?.hook[vendor] ?? HookSettings.status(vendor: vendor)
+        }
         statuslineStatus = requests.renderedHookStatus?.statusline ?? HookSettings.statuslineStatus()
     }
 
@@ -795,22 +870,24 @@ struct SettingsView: View {
         }
     }
 
-    /// Asks first, as a sheet on the Settings window so Return and Escape reach it; the file is backed up beside
-    /// itself before anything is merged in. A dry run (from `--smoke`) writes to the given file and closes itself.
-    private func installHook(at url: URL = HookSettings.settingsURL, dryRun: Bool = false) {
+    /// Asks first, as a sheet on the Settings window so Return and Escape reach it; the vendor's file is backed up
+    /// beside itself before anything is merged in. A dry run (from `--smoke`) writes to the given file and closes
+    /// itself.
+    private func installHook(vendor: HookVendor = .claude, at url: URL? = nil, dryRun: Bool = false) {
+        let url = url ?? vendor.fileURL
         let alert = NSAlert()
-        alert.messageText = L("Add the Notchmeter hook to settings.json?")
-        alert.informativeText = L("%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@.",
-                                  url.path, HookSettings.events.joined(separator: ", "))
+        alert.messageText = L("Add the Notchmeter hook to %@?", vendor.fileName)
+        alert.informativeText = L("%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@.",
+                                  url.path, vendor.fileName, vendor.events.joined(separator: ", "))
         alert.addButton(withTitle: L("Add"))
         alert.addButton(withTitle: L("Cancel"))
         let finish: (NSApplication.ModalResponse) -> Void = { response in
             defer { if dryRun { requests.hookSheetDryRun = nil } }
             guard response == .alertFirstButtonReturn else { return }
             do {
-                hookMessage = try HookSettings.install(at: url).summary
+                hookMessage[vendor] = try hookOutcome(HookSettings.install(vendor: vendor, at: url), vendor: vendor)
             } catch {
-                hookMessage = error.localizedDescription
+                hookMessage[vendor] = error.localizedDescription
             }
             if !dryRun { refreshHookStatus() }
         }
@@ -830,11 +907,11 @@ struct SettingsView: View {
         }
     }
 
-    private func repairHook() {
+    private func repairHook(vendor: HookVendor) {
         do {
-            hookMessage = try HookSettings.repairInstall().summary
+            hookMessage[vendor] = try hookOutcome(HookSettings.repairInstall(vendor: vendor), vendor: vendor)
         } catch {
-            hookMessage = error.localizedDescription
+            hookMessage[vendor] = error.localizedDescription
         }
         refreshHookStatus()
     }
@@ -1081,7 +1158,7 @@ struct HookOfferView: View {
             HStack {
                 Spacer()
                 Button(L("Not now")) { later() }.keyboardShortcut(.cancelAction)
-                Button(L("Add to settings.json…")) { install() }.keyboardShortcut(.defaultAction)
+                Button(L("Add to %@…", "settings.json")) { install() }.keyboardShortcut(.defaultAction)
             }
         }
         .padding(16)
@@ -1175,10 +1252,14 @@ final class SettingsWindowController: NSWindowController {
         self.prefs = prefs
         let panel = SettingsPanel(contentRect: NSRect(origin: .zero, size: Self.contentSize),
                                   styleMask: [.titled, .closable, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
-        let host = NSHostingController(rootView: SettingsView(store: store, prefs: prefs, actions: actions, notifier: notifier, requests: requests,
-                                                               hostWindow: { [weak panel] in panel }))
+        // A hosting view that takes first mouse (FirstMouseHostingView), so a click on a control lands on it when
+        // the non-activating panel is not key, rather than being spent on making it key. The window keeps sizing
+        // the view: a grouped Form has no height of its own to offer, and the panel's frame is set below.
+        let host = FirstMouseHostingView(rootView: SettingsView(store: store, prefs: prefs, actions: actions, notifier: notifier, requests: requests,
+                                                                hostWindow: { [weak panel] in panel }))
+        host.sizingOptions = []
         panel.title = L("%@ Settings", AppInfo.name)
-        panel.contentViewController = host
+        panel.contentView = host
         panel.setContentSize(Self.contentSize)
         panel.minSize = NSSize(width: 460, height: 420)
         panel.level = .floating

@@ -5,9 +5,10 @@ import Foundation
 /// has just ended — and the instruction is the same either way: go and look. So both take one colour on the rings,
 /// and the mark beside them says which, which is also what keeps the distinction off colour alone.
 ///
-/// Nothing here is Claude-specific. Claude Code's hook is the only one that reports these events today; the others
-/// are on the roadmap (docs/roadmap.md), and the day one lands its sessions carry its own `ToolID` and light these
-/// same lamps with no change above `SessionTracker`. Nothing here is inferred from a file's modification time
+/// Nothing here is Claude-specific. Claude Code's hook reports both events; Cursor's reports a finished turn and
+/// never a wait, because Cursor documents no event for one, and a ring asserts only what a documented signal
+/// proves. The others are on the roadmap (docs/roadmap.md), and the day one lands its sessions carry its own
+/// `ToolID` and light these same lamps with no change above `SessionTracker`. Nothing here is inferred from a file's modification time
 /// either: `AgentActivity` knows when a transcript last changed, which is not the same fact as an agent holding a
 /// permission prompt open, and a ring that claimed it was would be asserting a guess in the one moment a reader
 /// most needs it to be right.

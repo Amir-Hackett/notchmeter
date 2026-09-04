@@ -148,7 +148,7 @@
       </div>
       <div class="tool">
         <h3><span class="ring" style="color:#0072B2"></span>Your own sessions</h3>
-        <p>With the optional Claude Code hook, the notch refreshes the moment a turn ends, counts the sessions you have running, and says which project is waiting on you.</p>
+        <p>With the optional hook, the notch refreshes the moment a turn ends and counts the sessions you have running, on every ring: Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot CLI each have one. Claude Code, Codex, Gemini CLI and Copilot also say when they stop to ask you something, and which project is waiting; Cursor has no event for a wait, so its ring never claims one.</p>
       </div>
     </div>
   </div>
@@ -162,7 +162,7 @@
       </figure>
       <div>
         <h2>It says when an assistant wants you</h2>
-        <p>When Claude Code stops for a permission prompt or a question, the rings take the blue that means <em>needs you, not running out</em>, and a white dot says which readout it is — with a count when more than one session is waiting. A turn ending gets the same blue and a tick, for ninety seconds.</p>
+        <p>When Claude Code stops for a permission prompt or a question, the rings take the blue that means <em>needs you, not running out</em>, and a white dot says which readout it is — with a count when more than one session is waiting. A turn ending gets the same blue and a tick, for ninety seconds, on every ring with a hook. Claude Code, Codex, Gemini CLI and Copilot report a wait, because each documents an event that means the agent is asking you. Cursor's cannot show one: Cursor has no hook event for a wait, so its ring shows the tick and never the dot, rather than guessing.</p>
         <p>Colour is never the only carrier. The dot and the tick stay if you turn the colour off, the cap on a ring's end keeps saying a window is nearly gone, and every readout has a VoiceOver label.</p>
       </div>
     </div>

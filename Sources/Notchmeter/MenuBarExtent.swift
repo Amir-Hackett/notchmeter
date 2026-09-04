@@ -363,7 +363,9 @@ final class AutoSideWatcher {
     /// What Auto measured and what it made of it, for `--smoke`.
     var description: String {
         let fit = prefs.compactFit
-        let drawn = "\(fit.side.rawValue) at \(fit.style.rawValue)" + (fit.dropped > 0 ? ", \(fit.dropped) tool(s) dropped" : ", every tool")
+        let drawn = "\(fit.side.rawValue) at \(fit.style.rawValue)"
+            + (fit.figures == .outer ? " with the outer figure only" : "")
+            + (fit.dropped > 0 ? ", \(fit.dropped) tool(s) dropped" : ", every tool")
             + (fit.splitLeading.map { ", \($0) left of the notch" } ?? "")
         guard prefs.compactSide == .auto else { return "\(prefs.compactSide.rawValue) (fixed) → \(drawn); \(MenuBarExtent.permissionState)" }
         let geometry = metrics()
@@ -375,17 +377,18 @@ final class AutoSideWatcher {
         let trailing = statusItems.map { $0 - CompactFit.clearance - geometry.notch.maxX }
         let halves = fit.halves(visible: geometry.tools)
         let asks = { (run: CompactFit.Run) in run.isEmpty ? "nothing" : String(format: "%.0f pt", geometry.width(run)) }
-        return "auto → \(drawn); menus end at \(edge(menus)), status items start at \(edge(statusItems)); "
+        return "auto, keeping the \(prefs.compactKeep.rawValue) → \(drawn); menus end at \(edge(menus)), status items start at \(edge(statusItems)); "
             + "gap leading \(room(leading)), trailing \(room(trailing)); "
             + "wants \(asks(halves.leading)) left, \(asks(halves.trailing)) right; "
             + "measured \(menuCache.count) app(s); \(MenuBarExtent.permissionState)"
     }
 
-    /// Re-fits when what the strip would draw changes under it: the style, which tools there are and in what order,
-    /// and the side preference itself. The fit it writes is not tracked here, so answering cannot re-trigger this.
+    /// Re-fits when what the strip would draw changes under it: the style, what is kept first when crowded, which
+    /// tools there are and in what order, and the side preference itself. The fit it writes is not tracked here,
+    /// so answering cannot re-trigger this.
     private func observe() {
         withObservationTracking {
-            _ = (prefs.compactStyle, prefs.toolOrder, prefs.enabledTools, prefs.compactSide)
+            _ = (prefs.compactStyle, prefs.compactKeep, prefs.toolOrder, prefs.enabledTools, prefs.compactSide)
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.observe()
@@ -399,7 +402,7 @@ final class AutoSideWatcher {
         let geometry = metrics()
         let fit = CompactFit.resolve(notch: geometry.notch, menusEndX: menuEndX(for: app),
                                      statusItemsStartX: statusItemsStartX(), tools: geometry.tools,
-                                     style: prefs.compactStyle, width: geometry.width)
+                                     style: prefs.compactStyle, keep: prefs.compactKeep, width: geometry.width)
         // Only on a change: the drawn fit is observed, and observing it is what asks for these measurements.
         if prefs.autoCompactFit != fit { prefs.autoCompactFit = fit }
     }

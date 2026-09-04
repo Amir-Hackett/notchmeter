@@ -52,6 +52,80 @@ import Testing
         _ = Hook.readStandardInput(within: 0.02)
         #expect(Date().timeIntervalSince(started) < 1)
     }
+
+    @Test func theToolFlagIsReadFromTheCommandLine() {
+        #expect(Hook.tool(in: ["Notchmeter", "--hook", "--tool", "cursor"]) == .cursor)
+        #expect(Hook.tool(in: ["--hook", "--tool"]) == nil, "a flag with no value is ignored, not an error")
+        #expect(Hook.tool(in: ["--tool", "bogus"]) == nil, "a name that is not a ToolID is ignored, so the event still posts as Claude's")
+        #expect(Hook.tool(in: ["Notchmeter", "--hook"]) == nil)
+        #expect(Hook.tool(in: ["Notchmeter", "--hook", "--tool", "codex"]) == .codex)
+        #expect(Hook.tool(in: ["Notchmeter", "--hook", "--tool", "antigravity"]) == .antigravity, "Gemini CLI's entries carry the ring's name")
+        #expect(Hook.tool(in: ["Notchmeter", "--hook", "--tool", "copilot", "--event", "agentStop"]) == .copilot)
+    }
+
+    /// `--event` is Copilot's alone: its camelCase payload names no event, so the entry says which one it was
+    /// registered under. Absent or dangling reads as nothing, the way `--tool` does.
+    @Test func theEventFlagIsReadFromTheCommandLine() {
+        #expect(Hook.event(in: ["Notchmeter", "--hook", "--tool", "copilot", "--event", "agentStop"]) == "agentStop")
+        #expect(Hook.event(in: ["Notchmeter", "--hook", "--tool", "copilot"]) == nil, "absent")
+        #expect(Hook.event(in: ["Notchmeter", "--hook", "--event"]) == nil, "dangling: a flag with no value is ignored, not an error")
+        #expect(Hook.event(in: ["Notchmeter", "--hook", "--event", ""]) == nil, "an empty name is no name")
+        #expect(Hook.event(in: ["Notchmeter", "--hook"]) == nil)
+    }
+
+    /// Claude Code's payload is what it has always been, byte for byte: no flag, no tool key, the same userInfo.
+    @Test func aClaudePayloadStillReadsAsClaudeWithTheSameUserInfo() throws {
+        let stop = try #require(Hook.message(from: Data(#"{"hook_event_name":"Stop","session_id":"s","transcript_path":"/x","cwd":"/Users/me/y"}"#.utf8)))
+        #expect(stop.tool == .claude)
+        #expect(Set(stop.userInfo.keys) == ["hook_event_name", "needsInput", "session_id", "project"])
+        let permission = try #require(Hook.message(from: Data(#"{"hook_event_name":"PermissionRequest","tool_name":"Bash"}"#.utf8)))
+        #expect(permission.tool == .claude)
+        #expect(Set(permission.userInfo.keys) == ["hook_event_name", "needsInput"])
+        #expect(permission.userInfo[Hook.toolKey] == nil, "the one hook that ships says nothing here, and its absence already says Claude")
+    }
+
+    @Test func theFlagOutranksTheShape() throws {
+        let claudeStop = Data(#"{"hook_event_name":"Stop","session_id":"s","cwd":"/Users/me/y"}"#.utf8)
+        let asCursor = try #require(Hook.message(from: claudeStop, tool: .cursor))
+        #expect(asCursor.tool == .cursor)
+        #expect(asCursor.event == "StopFailure",
+                "Cursor's parser owns a payload the flag hands it: a Stop with no status is not a completed stop, so it is no finish")
+        #expect(asCursor.failure == nil)
+        #expect(asCursor.sessionID == "s", "session_id is Cursor's fallback id when there is no conversation_id")
+        let cursorStop = Data(#"{"hook_event_name":"stop","conversation_id":"c","status":"completed"}"#.utf8)
+        let asClaude = try #require(Hook.message(from: cursorStop, tool: .claude))
+        #expect(asClaude.tool == .claude)
+        #expect(asClaude.event == "stop", "Claude Code's parser passes an unknown name through verbatim, and the tracker ignores it")
+        #expect(!asClaude.needsInput)
+        #expect(!asClaude.clearsWaiting)
+
+        // Codex: a Claude-shaped payload, which nothing recognises by shape; the flag is what makes it Codex's.
+        let asCodex = try #require(Hook.message(from: claudeStop, tool: .codex))
+        #expect(asCodex.tool == .codex)
+        #expect(asCodex.event == "Stop", "Codex's Stop has no status field and is always a finish")
+        #expect(asCodex.failure == nil)
+        #expect(asCodex.sessionID == "s")
+        let claudePrompt = Data(#"{"hook_event_name":"Notification","notification_type":"permission_prompt","session_id":"s"}"#.utf8)
+        // Gemini CLI: Claude's notification vocabulary under Gemini's flag is not Gemini's documented wait.
+        let asGemini = try #require(Hook.message(from: claudePrompt, tool: .antigravity, environment: [:]))
+        #expect(asGemini.tool == .antigravity)
+        #expect(!asGemini.needsInput, "only Gemini's ToolPermission lights the hand; Claude Code's permission_prompt is not its word")
+        #expect(asGemini.notificationType == nil, "a type that is not a documented wait is not carried, so it can never end one either")
+        let geminiPrompt = Data(#"{"hook_event_name":"Notification","notification_type":"ToolPermission","session_id":"s"}"#.utf8)
+        let geminiAsClaude = try #require(Hook.message(from: geminiPrompt, tool: .claude))
+        #expect(geminiAsClaude.tool == .claude)
+        #expect(!geminiAsClaude.needsInput, "Claude Code's parser does not know Gemini's word for a wait")
+        // Copilot: the flag hands a Claude-shaped Stop to Copilot's parser, which reads the PascalCase alias.
+        let asCopilot = try #require(Hook.message(from: claudeStop, tool: .copilot))
+        #expect(asCopilot.tool == .copilot)
+        #expect(asCopilot.event == "Stop")
+        #expect(asCopilot.sessionID == "s", "session_id is Copilot's fallback id when there is no camelCase sessionId")
+        let copilotStop = Data(#"{"sessionId":"c","cwd":"/Users/me/y","stopReason":"end_turn"}"#.utf8)
+        let copilotAsClaude = try #require(Hook.message(from: copilotStop, tool: .claude, event: "agentStop"))
+        #expect(copilotAsClaude.tool == .claude)
+        #expect(copilotAsClaude.event == "agentStop", "Claude Code's parser passes an unknown name through verbatim")
+        #expect(copilotAsClaude.sessionID == nil, "Claude Code's parser reads session_id, never Copilot's camelCase key")
+    }
 }
 
 @Suite struct HookInstallation {
@@ -68,6 +142,24 @@ import Testing
         #expect(handler["async"] as? Bool == true)
         #expect(handler["timeout"] as? Int == 5)
         #expect(HookSettings.command(executable: "/it's/here") == "'/it'\\''s/here' --hook")
+
+        // Every vendor's snippet parses, covers exactly its events, and every handler carries that event's flag.
+        for vendor in HookVendor.allCases {
+            let rendered = HookSettings.snippet(vendor: vendor, executable: "/Users/me/My Apps/Notchmeter.app/Contents/MacOS/Notchmeter")
+            let object = try #require(try JSONSerialization.jsonObject(with: Data(rendered.utf8)) as? [String: Any], "\(vendor.rawValue)")
+            let events = try #require(object["hooks"] as? [String: Any], "\(vendor.rawValue)")
+            #expect(Set(events.keys) == Set(vendor.events), "\(vendor.rawValue)")
+            for (key, value) in vendor.shape.requiredRootKeys {
+                #expect((object[key] as? Int) == (value as? Int), "\(vendor.rawValue): \(key)")
+            }
+            for event in vendor.events {
+                let elements = try #require(events[event] as? [[String: Any]], "\(vendor.rawValue) \(event)")
+                let handlers = elements.flatMap(vendor.shape.handlers(in:))
+                #expect(handlers.count == 1, "\(vendor.rawValue) \(event)")
+                let command = try #require(handlers.first?["command"] as? String, "\(vendor.rawValue) \(event)")
+                #expect(command == "'/Users/me/My Apps/Notchmeter.app/Contents/MacOS/Notchmeter' \(vendor.flag(for: event))", "\(vendor.rawValue) \(event)")
+            }
+        }
     }
 
     @Test func mergeKeepsExistingHooksAndIsIdempotent() throws {
@@ -139,6 +231,19 @@ import Testing
             try HookSettings.install(at: url, executable: executable, now: now)
         }
         #expect(try String(contentsOf: url, encoding: .utf8) == "[1,2]")
+    }
+
+    /// The launch repair rewrites whatever `status` calls `.partial`, so an entry written by hand at the right path
+    /// (an unquoted path, a redirect or a `|| true` after the flag) must read `.installed`: it did before Cursor's
+    /// round, and a settings.json rewritten at every launch would be a new thing Claude Code's users saw.
+    @Test func aHandWrittenEntryAtTheRightPathIsInstalledAndNotRepairedAtLaunch() {
+        for command in ["\(executable) --hook", "'\(executable)' --hook 2>/dev/null", "'\(executable)' --hook || true"] {
+            var hooks: [String: Any] = [:]
+            for event in HookSettings.events { hooks[event] = [["hooks": [["type": "command", "command": command]]]] }
+            let status = HookSettings.status(settings: ["hooks": hooks], executable: executable)
+            #expect(status == .installed(path: executable), "\(command): the path and the flag are what count")
+            #expect(!status.needsRepair, "\(command): nothing for the launch repair to rewrite")
+        }
     }
 }
 
@@ -258,7 +363,9 @@ import Testing
         hooks["SubagentStop"] = nil
         hooks["StopFailure"] = nil
         older["hooks"] = hooks
-        #expect(HookSettings.status(settings: older, executable: executable) == .stale(path: executable))
+        #expect(HookSettings.status(settings: older, executable: executable) == .partial(path: executable),
+                "the path is this executable; what is missing is an event, and the row must not claim an old path")
+        #expect(HookSettings.status(settings: older, executable: executable).needsRepair)
         let repaired = HookSettings.repair(older, executable: executable)
         #expect(Set(repaired.added) == ["SubagentStart", "SubagentStop", "StopFailure"])
         #expect(repaired.repaired.isEmpty)

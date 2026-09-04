@@ -2,7 +2,8 @@ import Foundation
 import Testing
 @testable import Notchmeter
 
-/// The digits beside a ring: the main window, a thin dot, the second window; "–" wherever there is no limit.
+/// The digits beside a ring: the main window, a thin dot, the second window; one figure alone at Auto's outer
+/// rung; "–" wherever there is no limit.
 @Suite struct CompactLabels {
     let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
 
@@ -40,5 +41,23 @@ import Testing
         #expect(segments.map(\.pace) == [.ahead, .behind])
         let left = CompactLabel.segments(for: reading([session("session", used: 0.19)]), display: .left, now: now)
         #expect(left == [CompactLabel.Segment(text: "81%", pace: .onTrack)])
+    }
+
+    /// Auto's outer-figure rung: the first window's figure alone — no dot, no second figure, and no countdown,
+    /// which is most of the width the second figure was.
+    @Test func theOuterFigureStandsAlone() {
+        let windows = [session("session", used: 0.14), session("weekly", used: 0.04), session("fable", used: 0.5)]
+        #expect(CompactLabel.text(for: windows, display: .used, figures: .outer, countdown: true, now: now) == "14%")
+        #expect(CompactLabel.text(for: windows, display: .left, figures: .outer, now: now) == "86%")
+        #expect(CompactLabel.segments(for: windows, display: .used, figures: .outer, now: now) == [CompactLabel.Segment(text: "14%", pace: .ahead)])
+        // The countdown's home at `.all` is unchanged, and three windows draw three figures.
+        #expect(CompactLabel.text(for: windows, display: .used, countdown: true, now: now) == "14% 4h · 4% · 50%")
+        // An outer window without a limit still answers the dash, as does no window at all.
+        #expect(CompactLabel.text(for: [], display: .used, figures: .outer, now: now) == "–")
+        let codex = [LimitWindow(id: "session", label: "Session", usedFraction: nil, resetsAt: nil, note: "No data"),
+                     LimitWindow(id: "monthly", label: "Monthly", usedFraction: 0, resetsAt: now.addingTimeInterval(10 * 86400), periodDuration: 30 * Period.day)]
+        #expect(CompactLabel.text(for: codex, display: .used, figures: .outer, now: now) == "–")
+        // The outer figure is whichever window is first, not always the session: the rings' order decides.
+        #expect(CompactLabel.text(for: Array(windows.dropFirst()), display: .used, figures: .outer, now: now) == "4%")
     }
 }

@@ -51,7 +51,8 @@ enum Advisor {
         /// Live readings of the visible tools, in the user's tool order; a stale reading kept beside an error is not one.
         var readings: [UsageReading]
         var awaitingInput: Set<ToolID> = []
-        /// The Claude Code sessions waiting on the user, newest first, when the hook reports them.
+        /// The sessions waiting on the user, newest first, of every tool whose hook reports them; each carries its
+        /// tool, and the waiting line filters by it.
         var waitingSessions: [AgentSession] = []
         var cost: CostSummary? = nil
         var timeFormat: TimeFormatPreference = .auto
@@ -126,12 +127,13 @@ enum Advisor {
 
     // MARK: - Rules
 
-    /// A tool waiting for the user outranks everything: the meters cannot move until they answer. With the hook's
-    /// session ids the line names the project: "Claude Code is waiting in notchmeter (and 1 more)."
+    /// A tool waiting for the user outranks everything: the meters cannot move until they answer. With a hook's
+    /// session ids the line names the project: "Claude Code is waiting in notchmeter (and 1 more)." The phrase is
+    /// built from that tool's own waiting sessions, so one assistant's projects never appear under another's name.
     static func waiting(_ context: Context) -> [Advice] {
         ToolID.allCases.filter(context.awaitingInput.contains).sorted { context.rank($0) < context.rank($1) }.map { tool in
             let name = tool.productName
-            if tool == .claude, let phrase = SessionTracker.waitingPhrase(context.waitingSessions) {
+            if let phrase = SessionTracker.waitingPhrase(context.waitingSessions.filter { $0.tool == tool }) {
                 return Advice(id: "waiting/\(tool.rawValue)", tool: tool, priority: .attention, symbol: "hand.raised.fill",
                               text: L("%1$@ is waiting in %2$@.", name, phrase))
             }

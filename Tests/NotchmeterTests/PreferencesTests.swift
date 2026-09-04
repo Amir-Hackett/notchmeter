@@ -2,6 +2,49 @@ import Foundation
 import Testing
 @testable import Notchmeter
 
+/// The two settings that clamp what they are given. They are stored properties of an `@Observable` class, whose
+/// setter is what the macro generates, so a clamp that assigns the property from inside its own `didSet` re-enters
+/// that setter — and re-enters `didSet`, without end. That is a stack overflow the moment the stepper is pressed,
+/// which is how it was found; these pin that a write in range, out of range and already-rounded each settle.
+@MainActor @Suite struct ClampedSettings {
+    func withSuite(_ name: String, _ body: (UserDefaults) throws -> Void) rethrows {
+        let suite = "NotchmeterTests.Clamped.\(name)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        try body(defaults)
+    }
+
+    @Test func theFinishedTurnThresholdSettlesInsideOneToSixtyMinutes() {
+        withSuite("finished") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            #expect(prefs.finishedAfterMinutes == 2)
+            prefs.finishedAfterMinutes = 1
+            #expect(prefs.finishedAfterMinutes == 1)
+            #expect(defaults.integer(forKey: "finishedAfterMinutes") == 1)
+            prefs.finishedAfterMinutes = 0
+            #expect(prefs.finishedAfterMinutes == 1)
+            prefs.finishedAfterMinutes = 90
+            #expect(prefs.finishedAfterMinutes == 60)
+            #expect(defaults.integer(forKey: "finishedAfterMinutes") == 60)
+        }
+    }
+
+    @Test func theHoverDelaySettlesOnATwentiethOfASecond() {
+        withSuite("hover") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            prefs.hoverDelay = 0.33
+            #expect(prefs.hoverDelay == 0.35)
+            prefs.hoverDelay = 0.35
+            #expect(prefs.hoverDelay == 0.35)
+            prefs.hoverDelay = 5
+            #expect(prefs.hoverDelay == 1)
+            prefs.hoverDelay = 0
+            #expect(prefs.hoverDelay == 0.1)
+        }
+    }
+}
+
 /// The assistants' order and the compact style persist, and an order stored before a tool existed still shows it.
 /// Each test's defaults suite is emptied before and after, so nothing is left under ~/Library/Preferences.
 @MainActor @Suite struct ToolOrderAndCompactStyle {
@@ -18,6 +61,7 @@ import Testing
             let prefs = Preferences(defaults: defaults)
             #expect(prefs.toolOrder == ToolID.allCases)
             #expect(prefs.compactStyle == .rings)
+            #expect(prefs.compactKeep == .tools, "Auto sheds the figures before the tools unless told otherwise")
         }
         #expect(CompactStyle.rings.showsRings && !CompactStyle.rings.showsNumbers)
         #expect(CompactStyle.ringsAndNumbers.showsRings && CompactStyle.ringsAndNumbers.showsNumbers)
@@ -42,9 +86,11 @@ import Testing
             let prefs = Preferences(defaults: defaults)
             prefs.move(.antigravity, by: -1)
             prefs.compactStyle = .numbers
+            prefs.compactKeep = .numbers
             let reloaded = Preferences(defaults: defaults)
             #expect(reloaded.toolOrder == [.claude, .codex, .antigravity, .cursor, .copilot])
             #expect(reloaded.compactStyle == .numbers)
+            #expect(reloaded.compactKeep == .numbers)
         }
     }
 
@@ -173,10 +219,13 @@ import Testing
         #expect(rings.map(\.id) == ["cursorModels", "other"])
     }
 
-    @Test func anExplicitChoiceStillWins() {
+    /// A single chosen ring stays a single ring: it is the user's choice, and filling it to two put a window back
+    /// that the Inner ring picker had just been set to None for.
+    @Test func anExplicitChoiceStillWinsAndIsNotToppedUp() {
         let reading = UsageReading(tool: .cursor, windows: [window("included", nil), window("cursorModels", 0)],
                                    plan: "Free", fetchedAt: Date(), observedAt: nil)
-        #expect(RingSelection.windows(of: reading, chosen: ["included"], hidden: []).map(\.id) == ["included", "cursorModels"])
+        #expect(RingSelection.windows(of: reading, chosen: ["included"], hidden: []).map(\.id) == ["included"])
+        #expect(RingSelection.windows(of: reading, chosen: ["included", "cursorModels"], hidden: []).map(\.id) == ["included", "cursorModels"])
     }
 
     @Test func allWithoutFiguresKeepsTheReadingOrder() {

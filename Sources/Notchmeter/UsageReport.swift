@@ -58,20 +58,21 @@ struct UsageReport {
         self.raw = raw
     }
 
-    /// The same report narrowed to one tool (the cost and the sessions go with Claude).
+    /// The same report narrowed to one tool: its sessions come with it (each carries its tool), while the cost and
+    /// the history are Claude's alone.
     func limited(to tool: ToolID) -> UsageReport {
         if var raw {
             raw["tools"] = (raw["tools"] as? [[String: Any]])?.filter { $0["tool"] as? String == tool.rawValue } ?? []
             raw["advice"] = (raw["advice"] as? [[String: Any]])?.filter { $0["tool"] as? String == tool.rawValue } ?? []
+            raw["sessions"] = (raw["sessions"] as? [[String: Any]])?.filter { $0["tool"] as? String == tool.rawValue } ?? []
             if tool != .claude {
                 raw["cost"] = nil
-                raw["sessions"] = []
                 raw["history"] = nil
             }
             return UsageReport(raw: raw)
         }
         return UsageReport(tools: tools.filter { $0.key == tool }, order: [tool], cost: tool == .claude ? cost : nil,
-                           advice: advice.filter { $0.tool == tool }, drains: drains, runOuts: runOuts, sessions: tool == .claude ? sessions : [],
+                           advice: advice.filter { $0.tool == tool }, drains: drains, runOuts: runOuts, sessions: sessions.filter { $0.tool == tool },
                            history: tool == .claude ? history : nil, now: now)
     }
 

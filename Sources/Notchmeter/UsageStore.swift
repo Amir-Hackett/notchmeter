@@ -83,9 +83,9 @@ final class UsageStore {
     private(set) var pauseReason: PauseReason?
     private(set) var onBattery = false
     private(set) var lowPowerMode = false
-    /// When each tool's files last changed, or a Claude Code hook last fired.
+    /// When each tool's files last changed, or its hook last fired (every assistant's).
     private(set) var lastActivity: [ToolID: Date] = [:]
-    /// The Claude Code sessions the hook reports, and which are waiting on the user.
+    /// The sessions the hooks report, each under its tool, and which are waiting on the user.
     private(set) var sessions = SessionTracker()
     /// The newest status-line payload from Claude Code, while a session runs.
     private(set) var statusline: Statusline.Message?
@@ -132,8 +132,10 @@ final class UsageStore {
     @ObservationIgnored private var asleep = false
     @ObservationIgnored private var screensAsleep = false
     @ObservationIgnored private var sessionInactive = false
-    @ObservationIgnored private var lastHook: Date?
-    @ObservationIgnored private var lastHookRefresh: Date?
+    /// When each tool's hook last fired (the status line counts as Claude's), and when a hook last forced that
+    /// tool's refresh; per tool, so a Cursor event nudges Cursor's cadence and never Claude's.
+    @ObservationIgnored private var lastHook: [ToolID: Date] = [:]
+    @ObservationIgnored private var lastHookRefresh: [ToolID: Date] = [:]
     @ObservationIgnored private var wokeAt: Date?
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var alertMemory: AlertMemory
@@ -148,7 +150,8 @@ final class UsageStore {
     @ObservationIgnored var deliverAlerts: ([PaceAlert]) -> Void = { _ in }
     /// Advice lines worth a banner of their own (extra usage, a cache-tier shift, heavy metering).
     @ObservationIgnored var deliverAdvice: ([Advice]) -> Void = { _ in }
-    /// A Claude Code session began waiting, or finished a turn; wired to the Notifier by the app delegate.
+    /// A session (any assistant's) began waiting, or finished a turn; wired to the Notifier by the app
+    /// delegate, which names the session's tool.
     @ObservationIgnored var deliverSessionEvent: (Notifier.SessionEvent, AgentSession) -> Void = { _, _ in }
     /// Notices whose state has passed, to withdraw from Notification Center.
     @ObservationIgnored var removeNotifications: ([String]) -> Void = { _ in }
@@ -225,9 +228,10 @@ final class UsageStore {
         return false
     }
 
-    /// Tools waiting on the user: a permission prompt or a question, reported by that tool's hook. Only Claude
-    /// Code's hook ships, so in practice this is Claude's alone; it is read off the sessions rather than named
-    /// here, so a second hook lights the same lamps without a change in this file.
+    /// Tools waiting on the user: a permission prompt or a question, reported by that tool's hook. Claude Code,
+    /// Codex, Gemini CLI and Copilot document a wait; Cursor does not, so its ring is never in this set. The set is
+    /// read off the sessions rather than named here, so a hook that gains a wait lights the same lamps without a
+    /// change in this file.
     var awaitingInput: Set<ToolID> {
         Set(sessions.waiting.map(\.tool))
     }
@@ -263,16 +267,20 @@ final class UsageStore {
         return statusline.contextUsed
     }
 
-    /// How loud the compact rings are, from every visible reading; the rule is in Presence.swift. Hide when idle
-    /// turns quiet into hidden once no agent has been active for half an hour.
+    /// How loud the compact rings are, from every visible reading; the rule is in Presence.swift. It is asked per
+    /// tool and the loudest answer kept, because the rule's session count is proof about one tool only: Cursor's
+    /// hook saying "no conversation open" must not quieten a Claude ring whose own hook has never spoken. Hide
+    /// when idle turns quiet into hidden once no agent has been active for half an hour.
     var presence: PresenceLevel {
-        let level = Presence.level(windows: visibleTools.flatMap { status($0).reading.map(prefs.shownWindows) ?? [] },
-                                   awaitingInput: visibleTools.contains(where: isAwaitingInput),
-                                   sessions: sessions.knownCount)
+        let level = visibleTools.map { tool in
+            Presence.level(windows: status(tool).reading.map(prefs.shownWindows) ?? [],
+                           awaitingInput: isAwaitingInput(tool),
+                           sessions: sessions.knownCount(of: tool))
+        }.max() ?? .quiet
         guard prefs.visibility == .hideWhenIdle else { return level }
         let now = Date()
         let idleFor = simulatedIdle ?? visibleTools.compactMap { lastActivity[$0] }.max().map { now.timeIntervalSince($0) }
-        let nudge = lastHook.map { now.timeIntervalSince($0) < PollingPolicy.idleAfter } ?? false
+        let nudge = visibleTools.compactMap { lastHook[$0] }.max().map { now.timeIntervalSince($0) < PollingPolicy.idleAfter } ?? false
         return Presence.hides(level: level, idleFor: nudge ? 0 : idleFor, wokeAgo: wokeAt.map { now.timeIntervalSince($0) }) ? .hidden : level
     }
 
@@ -355,7 +363,7 @@ final class UsageStore {
         context.weeklyBudgetUSD = prefs.showSpend ? prefs.weeklyBudgetUSD : nil
         context.extraUsageRise = extraUsageRiseAt.map { now.timeIntervalSince($0) < Self.extraUsageRiseShownFor } == true ? extraUsageRise : nil
         context.peakHours = visibleTools.reduce(into: [:]) { $0[$1] = prefs.peakHours(for: $1) }
-        context.limitHitTools = sessions.limitHit(now: now) && isShown(.claude) ? [.claude] : []
+        context.limitHitTools = sessions.limitHitTools(now: now).filter(isShown)
         context.serverTrouble = serverTrouble.filter { isShown($0.key) }
         context.metering = prefs.showSpend ? cost?.sessionMetering : nil
         return context
@@ -782,7 +790,7 @@ final class UsageStore {
             onBattery: onBattery,
             lowPowerMode: lowPowerMode,
             minutesSinceLastAgentActivity: simulatedIdle.map { $0 / 60 } ?? lastActivity[tool].map { now.timeIntervalSince($0) / 60 },
-            hookNudge: tool == .claude && simulatedIdle == nil && (lastHook.map { now.timeIntervalSince($0) < PollingPolicy.idleAfter } ?? false),
+            hookNudge: simulatedIdle == nil && (lastHook[tool].map { now.timeIntervalSince($0) < PollingPolicy.idleAfter } ?? false),
             secondsSinceStatusline: tool == .claude && base == nil ? statusline.flatMap { $0.windows.isEmpty ? nil : now.timeIntervalSince($0.receivedAt) } : nil,
             sessionInactive: sessionInactive,
             exhaustedUntil: main.flatMap { ($0.usedFraction ?? 0) >= 1 ? $0.resetsAt : nil },
@@ -909,7 +917,7 @@ final class UsageStore {
     private func sampleEnvironment() async {
         let activity = self.activity
         var sampled = await Task.detached(priority: .utility) { activity.sample() }.value
-        if let lastHook, sampled[.claude].map({ lastHook > $0 }) ?? true { sampled[.claude] = lastHook }
+        for (tool, at) in lastHook where sampled[tool].map({ at > $0 }) ?? true { sampled[tool] = at }
         let battery = PowerSource.onBattery()
         let lowPower = PowerSource.lowPowerMode()
         let before = visibleTools.map { PollingPolicy.decide(pollingInputs(for: $0)) }
@@ -1064,16 +1072,21 @@ final class UsageStore {
         awakeChanged(hold)
     }
 
-    // MARK: - Claude Code hook and status line
+    // MARK: - The hooks (every assistant's) and Claude Code's status line
 
-    /// Every event is activity; a refresh follows at most once every 30 s, and the session tracker keeps who is
-    /// working, idle or waiting for the user. A remote host's event arrives here through the local API.
+    /// Every event is activity for the tool that sent it; that tool's meter refreshes at most once every 30 s, and
+    /// the session tracker keeps who is working, idle or waiting for the user. A remote host's event arrives here
+    /// through the local API. The log line and the oracle name the tool only when it is not Claude Code, so
+    /// Claude's output reads exactly as it always has.
     func hookReceived(_ message: Hook.Message, now: Date = Date()) {
-        log.info("hook \(message.event, privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
-        Oracle.shared.emit("hook", ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any,
-                                    "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any])
-        lastHook = now
-        lastActivity[.claude] = now
+        let tool = message.tool
+        log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
+        var facts: [String: Any] = ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any,
+                                    "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any]
+        if tool != .claude { facts["tool"] = tool.rawValue }
+        Oracle.shared.emit("hook", facts)
+        lastHook[tool] = now
+        lastActivity[tool] = now
         wokeAt = now
         let outcome = sessions.apply(message, now: now)
         applyAwake()
@@ -1087,17 +1100,17 @@ final class UsageStore {
         if let finished = outcome.finished, prefs.notifyFinished, finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
         }
-        guard isShown(.claude) else { return }
+        guard isShown(tool) else { return }
         if outcome.limitHit != nil, prefs.notificationsEnabled {
-            let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: .claude, reading: status(.claude).reading, now: now, options: alertOptions)
+            let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: tool, reading: status(tool).reading, now: now, options: alertOptions)
             remember(plan.memory)
             send(plan.alerts)
         }
         let urgent = outcome.limitHit != nil || outcome.quotaResumed
-        if urgent || (lastHookRefresh.map({ now.timeIntervalSince($0) >= Self.hookRefreshSpacing }) ?? true) {
-            lastHookRefresh = now
+        if urgent || (lastHookRefresh[tool].map({ now.timeIntervalSince($0) >= Self.hookRefreshSpacing }) ?? true) {
+            lastHookRefresh[tool] = now
             Task {
-                await refresh(.claude, force: true)
+                await refresh(tool, force: true)
                 reschedule()
             }
         } else {
@@ -1111,7 +1124,7 @@ final class UsageStore {
         Oracle.shared.emit("statusline", ["context": message.contextUsed.map(Oracle.fraction) as Any, "windows": message.windows.map(\.id),
                                           "session": message.sessionID as Any, "model": message.model as Any, "branch": message.branch as Any])
         statusline = message
-        lastHook = now
+        lastHook[.claude] = now
         lastActivity[.claude] = now
         sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL, now: now)
         guard isShown(.claude) else { return }

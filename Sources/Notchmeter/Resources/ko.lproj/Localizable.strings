@@ -4,6 +4,8 @@
 /* 2차 보완: 세션, 예산, 혼잡 시간, 출처 태그, 명령줄 도구, MCP, 키체인 정책, 디스플레이, 진단 */
 
 /* 표시하지 못한 도구, 마지막 판독 뒤에（NotchViews） */
+
+/* 어시스턴트 훅과 훅 섹션(HookSettings, HookVendor, SettingsWindow, Notifier) */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ %2$@은(는) %3$ld%%입니다.";
 " %1$@ is %2$@ of it." = " 그중 %1$@이(가) %2$@.";
 " percent" = " 퍼센트";
@@ -22,11 +24,12 @@
 "%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@이(가) 이번 1시간에 %2$@ 사용 — 30일 평균의 %3$@.";
 "%1$@ covered by the allowance · %2$ld requests this month" = "할당량으로 %1$@ 충당 · 이번 달 %2$ld회 요청";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ 크레딧이 %2$@ 후 만료됩니다 — Codex에서 받으세요";
+"%1$@ finished a %2$@ turn in %3$@." = "%1$@이(가) %3$@에서 %2$@ 걸린 턴을 마쳤습니다.";
 "%1$@ finished a %2$@ turn." = "%1$@이(가) %2$@ 턴을 마쳤습니다.";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@의 %3$@이(가) %2$ld%% 남았습니다.";
 "%1$@ hit its limit; %2$@ resets in %3$@." = "%1$@이(가) 한도에 도달했습니다. %2$@은(는) %3$@ 후 초기화됩니다.";
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@은(는) %2$ld%%, %3$@은(는) %4$ld%%입니다. 도구가 아니라 모델을 바꾸세요.";
-"%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@." = "먼저 %1$@을(를) settings.json.bak-<날짜>로 복사합니다. 기존 훅은 유지되고 Notchmeter 항목이 %2$@ 아래에 추가됩니다.";
+"%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@." = "먼저 %1$@을(를) %2$@.bak-<날짜>로 복사합니다. 기존 훅은 유지되고 Notchmeter 항목이 %3$@ 아래에 추가됩니다.";
 "%1$@ is waiting in %2$@." = "%1$@이(가) %2$@에서 기다리고 있습니다.";
 "%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ 최근 1시간 %2$@ · 30일 평균의 %3$@";
 "%1$@ of %2$@" = "%1$@ / %2$@";
@@ -44,9 +47,12 @@
 "%@ advice" = "%@ 조언";
 "%@ as the vendor's own usage export priced it" = "%@ 은(는) 공급업체 자체 사용량 내보내기가 매긴 금액";
 "%@ billed this month" = "이번 달 %@ 청구됨";
+"%@ finished" = "%@ 완료";
 "%@ hit its rate limit; wait for the reset." = "%@이(가) 속도 제한에 도달했습니다. 초기화를 기다리세요.";
+"%@ hook" = "%@ 훅";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "먼저 %@을(를) settings.json.bak-<날짜>로 복사합니다. 기존 상태 표시줄은 Notchmeter 다음에 같은 JSON으로 계속 실행됩니다.";
 "%@ is not a JSON object, so it was left untouched" = "%@은(는) JSON 객체가 아니므로 변경하지 않았습니다";
+"%@ is waiting" = "%@ 대기 중";
 "%@ is waiting for your input." = "%@이(가) 입력을 기다리고 있습니다.";
 "%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet." = "%@은(는) 로그인하지 않습니다. 이 Mac에 이미 로그인된 도구에서 사용량을 읽고 토큰을 보관하지 않습니다. macOS는 도구마다 한 번, 저장된 로그인을 읽을 권한을 묻습니다. '항상 허용'을 선택하면 더 묻지 않습니다.";
 "%@ org credits" = "%@ 조직 크레딧";
@@ -107,9 +113,27 @@
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "오른쪽 가장자리에 파낸 노치. 패널은 그 옆에 열립니다. 같은 쪽에 Dock이 있으면 자리를 내줍니다.";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "같은 로그인으로 chatgpt.com을 한 번 더 읽어 창을 초기화할 수 있는 크레딧과 만료 시각을 표시합니다. 받는 것은 Codex에서 합니다.";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "같은 세션 쿠키로 cursor.com을 한 번 더 읽습니다. 최근 30일의 사용 이벤트를 내보낸 비용으로 계산해 일별 합계 파일에 Cursor 계열(오늘, 30일, 추세)로 넣습니다.";
+"Add the Notchmeter hook to %@?" = "Notchmeter 훅을 %@에 추가할까요?";
+"Add to %@…" = "%@에 추가…";
+"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code는 세션 시작과 종료, 프롬프트 전송, 입력 대기, 중지와 중지 실패, 하위 에이전트 시작과 중지를 보고합니다.";
+"Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex는 세션 시작과 종료, 프롬프트 전송, 중지, 중단된 턴, 하위 에이전트 시작과 중지, 그리고 승인을 요청하려는 순간을 보고합니다. 그 승인 프롬프트가 유일한 대기입니다: Codex 링은 그때 대기 손 모양을 보이고 다음 프롬프트, 중지 또는 하위 에이전트에서, 아니면 10분 뒤에 놓습니다. Codex에는 질문이나 속도 제한 이벤트가 없어 제한 도달은 다음 폴링까지 기다립니다. Codex는 새로 추가되거나 바뀐 훅을 Codex 안에서 /hooks를 열어 신뢰하기 전까지 건너뛰며, 실행 중인 세션은 시작할 때의 훅을 유지합니다.";
+"Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex는 아직 보여 주지 않은 훅을 건너뜁니다: Codex에서 /hooks를 열고 새 항목을 신뢰하세요. 이미 실행 중인 세션은 시작할 때의 훅을 유지합니다.";
 "Colour the rings when an assistant waits or finishes" = "어시스턴트가 기다리거나 끝났을 때 링에 색 입히기";
+"Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI는 시작할 때 훅을 읽습니다: 다시 시작하면 /env가 그 파일을 나열합니다.";
+"Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor는 대화가 시작되거나 끝날 때, 프롬프트를 보낼 때, 턴이 멈출 때, 하위 에이전트가 시작되거나 멈출 때를 보고합니다. 승인 대기나 속도 제한 이벤트는 없으므로 Cursor 링은 완료 체크만 보이고 대기 손 모양은 절대 보이지 않으며, 중단되거나 오류로 끝난 턴은 체크 없이 끝납니다. Cursor는 hooks.json을 저장하는 즉시 다시 읽습니다.";
+"Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI는 시작할 때 settings.json을 읽습니다: 훅은 다음 세션부터 동작합니다.";
+"Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring." = "Gemini CLI는 세션 시작과 종료, 프롬프트 전송, 각 턴의 끝, 그리고 도구 권한을 물으려 멈춘 순간을 보고합니다. 그 알림이 유일한 대기입니다: Antigravity 링은 그때 대기 손 모양을 보이고 턴이 끝나거나 다음 프롬프트를 보내거나 세션이 끝날 때, 아니면 10분 뒤에 놓습니다. 하위 에이전트, 속도 제한, 취소된 턴 이벤트는 없어 취소된 턴은 다음 프롬프트나 세션 종료까지 작업 중으로 표시됩니다. Gemini CLI는 시작할 때 settings.json을 읽습니다. 주석이 든 파일은 그대로 두므로 대신 스니펫을 붙여 넣으세요. Antigravity IDE 자체 훅은 이 중 어느 것도 보고하지 않으므로 이 행은 Gemini CLI의 것이며 같은 링을 밝힙니다.";
+"GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it." = "GitHub Copilot은 세션 시작과 종료, 프롬프트 전송, 중지, 하위 에이전트 시작과 중지, 그리고 권한이나 질문을 물을 때 올리는 알림을 보고합니다. 그 두 알림이 대기입니다: Copilot 링은 그때 대기 손 모양을 보이고 다음 프롬프트나 중지에서, 아니면 10분 뒤에 놓습니다. 속도 제한이나 실패한 턴 이벤트는 없고, 내장 범용 에이전트는 하위 에이전트를 보고하지 않습니다. 파일은 ~/.copilot/hooks 아래 Notchmeter 자체의 것이므로 훅을 제거하는 것은 그 파일을 삭제하는 것입니다. Copilot은 시작할 때 그것을 읽고 /env가 나열합니다. Copilot의 클라우드 코딩 에이전트는 이를 결코 보지 않습니다.";
+"Hooks" = "훅";
+"Installed, but an entry is out of date: Repair updates it" = "설치되었지만 오래된 항목이 있습니다: 복구가 업데이트합니다";
 "Just finished" = "방금 끝남";
 "just finished a turn" = "방금 턴을 마쳤습니다";
+"Keep the Mac awake while an assistant is working" = "어시스턴트가 작업 중일 때 Mac 깨어 있게 유지";
+"Keep the numbers" = "숫자 유지";
+"Keep the tools" = "도구 유지";
+"Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "「도구 유지」는 숫자를 먼저 줄입니다. 링 옆에 숫자가 있으면 주요 수치 외의 숫자를 먼저, 다음에 주요 수치까지 빼서 각 표시가 링만 남은 뒤에야 마지막에 둔 어시스턴트를 뺍니다. 「숫자 유지」는 그 어시스턴트를 먼저 빼고, 표시가 하나도 들어가지 않을 때에만 남은 것을 줄입니다.";
+"Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "세션이 시작되거나 끝날 때, 프롬프트를 보낼 때, 턴이 멈출 때, 하위 에이전트가 실행될 때 Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot이 노치에 알리게 합니다. 미터가 즉시 새로 고쳐지고 카드가 세션과 에이전트를 셉니다. Claude Code, Codex, Gemini CLI, Copilot은 무언가를 물으려 멈춘 때도 보고하지만 Cursor에는 그런 이벤트가 없어 그 링은 완료 체크만 보이고 대기 손 모양은 절대 보이지 않습니다. 권한 모드는 Claude Code와 Codex가 보고하고, 속도 제한으로 인한 중지는 Claude Code만 보고합니다.";
+"Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "이것을 %1$@에 병합하거나 '%2$@에 추가…'로 자동 병합하세요. 각 항목은 %3$@ %4$@을(를) 실행해 실행 중인 앱에 이벤트 이름을 보내고 종료합니다.";
 "Metered apart from the included total" = "포함 총량과 별도로 측정";
 "a session" = "세션";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "훅이 보고한 세션이 턴 진행 중일 때만 잠자기 방지를 유지하고 Stop에서 해제합니다. 전원 연결 시 휴대폰이나 SSH로 시작한 세션이 덮개를 닫아도 계속 실행됩니다. 유지 중에는 푸터에 \"깨어 있음 유지 · 세션 2개\"가 표시됩니다.";
@@ -117,12 +141,10 @@
 "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "손쉬운 사용이 꺼져 있어 자동은 선택하기 전의 쪽에 머뭅니다. Notchmeter는 맨 앞 앱 메뉴 막대의 위치와 크기만 읽고 그 밖의 것은 읽지 않으며, 앱의 다른 부분은 손쉬운 사용을 요구하지 않습니다.";
 "Add" = "추가";
 "Add folder…" = "폴더 추가…";
-"Add the Notchmeter hook to settings.json?" = "Notchmeter 훅을 settings.json에 추가할까요?";
-"Add to settings.json…" = "settings.json에 추가…";
 "Added %@" = "%@ 추가됨";
 "Advanced" = "고급";
 "Advice" = "조언";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke." = "응용 프로그램으로 옮기거나 업데이트한 뒤, 이 앱의 옛 경로를 가리키는 항목은 실행 시 평소 백업 후 실행 중인 복사본으로 다시 쓰이고 푸터에 한 번 표시됩니다. build 폴더나 --smoke에서는 절대 쓰지 않습니다.";
+"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "응용 프로그램으로 옮기거나 업데이트한 뒤, 이 앱의 옛 경로를 가리키는 항목은 실행 시 평소 백업 후 실행 중인 복사본으로 다시 쓰이고 푸터에 한 번 표시됩니다. build 폴더나 --smoke에서는 절대 쓰지 않습니다. 모든 어시스턴트의 훅 파일에 적용됩니다.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Claude Code는 매 턴 후 컨텍스트 창 사용률, 공식 세션·주간 한도(Pro와 Max), 게이트웨이 지출 한도, 모델과 노력 수준, 브랜치와 풀 리퀘스트, 세션 비용을 상태 표시줄에 넘깁니다. 설치하면 Claude 링에 컨텍스트 호가, 카드에 컨텍스트 줄이 표시되고 세션 중에는 엔드포인트를 묻지 않습니다. 이미 설정된 상태 표시줄은 그 뒤에 계속 실행됩니다.";
 "All displays" = "모든 디스플레이";
 "All models" = "전체 모델";
@@ -158,7 +180,7 @@
 "Beside the notch" = "노치 옆";
 "Beta updates" = "베타 업데이트";
 "billing export" = "청구 내보내기";
-"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "둘 다 Claude Code 훅이 필요하며 터미널이나 편집기가 맨 앞이거나 조용한 시간에는 울리지 않습니다. 이 설정은 패널이 무엇을 할지 정하고, 링이 무엇을 할지는 위의 토글이 정하며, 둘 중 하나만 꺼 둘 수도 있습니다. 잠깐 보기는 패널을 세션 줄과 함께 몇 초 열었다가 포인터가 들어오지 않으면 다시 닫습니다. 동작 줄이기에서는 애니메이션 없이 열리고 조금 더 머뭅니다. \"대기 중\" 알림은 응답하면 철회됩니다. 서명되지 않은 빌드에서는 어떤 알림도 집중 모드나 방해금지를 뚫지 못하고, 서명된 릴리스에서는 시간 민감 알림(소진 임박, 대기 중)이 뚫습니다.";
+"Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "둘 다 해당 어시스턴트의 훅이 필요하며 터미널이나 편집기가 맨 앞이거나 조용한 시간에는 울리지 않습니다. 이 설정은 패널이 무엇을 할지 정하고, 링이 무엇을 할지는 위의 토글이 정하며, 둘 중 하나만 꺼 둘 수도 있습니다. 잠깐 보기는 패널을 세션 줄과 함께 몇 초 열었다가 포인터가 들어오지 않으면 다시 닫습니다. 동작 줄이기에서는 애니메이션 없이 열리고 조금 더 머뭅니다. \"대기 중\" 알림은 응답하면 철회됩니다. 서명되지 않은 빌드에서는 어떤 알림도 집중 모드나 방해금지를 뚫지 못하고, 서명된 릴리스에서는 시간 민감 알림(소진 임박, 대기 중)이 뚫습니다.";
 "Both sides" = "양쪽";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "양쪽은 노치를 중심으로 보입니다. 메뉴가 많은 앱은 노치 왼쪽 가장자리를 넘을 수 있으며, 노치 오른쪽은 항상 이를 피합니다.";
 "Bottom, above the Dock" = "하단, Dock 위";
@@ -174,13 +196,8 @@
 "Choose file…" = "파일 선택…";
 "Claude %1$@ since %2$@" = "Claude %2$@부터 %1$@";
 "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %2$@부터 %1$@ · 주간 한도 1%%당 %3$@";
-"Claude Code finished" = "Claude Code 완료";
-"Claude Code finished a %1$@ turn in %2$@." = "Claude Code가 %2$@에서 %1$@ 걸린 턴을 마쳤습니다.";
 "Claude Code has not signed in" = "Claude Code가 로그인되어 있지 않습니다";
-"Claude Code hook" = "Claude Code 훅";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code가 API 키로 동작합니다. 측정할 플랜 창이 없으며 비용 카드가 측정기입니다";
-"Claude Code is waiting" = "Claude Code 대기 중";
-"Claude Code is waiting in %@." = "Claude Code가 %@에서 기다리고 있습니다.";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code는 토큰을 갱신할 때마다 키체인 항목을 다시 만들어 \"항상 허용\"을 잊습니다. 타이머 읽기는 대화상자를 띄우지 않습니다. Claude Code가 쓰기에 쓴 Apple의 security 도구로 항목을 읽고, 다음 자격 증명 파일, 다음 상태 표시줄을 읽으며, 그렇지 않으면 마지막 읽기를 \"확인 필요\"로 표시해 둡니다. Claude 링 클릭, 새로 고침, 어시스턴트 토글만 물을 수 있고, 그것도 \"새로 고침 시에만\"일 때만입니다.";
 "Claude Code status line" = "Claude Code 상태 표시줄";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code 로그인이 만료되었습니다. 터미널에서 claude를 한 번 실행해 갱신하세요 — Notchmeter는 토큰을 직접 갱신하지 않습니다.";
@@ -270,7 +287,7 @@
 "Gemini CLI has not signed in with Google. Run `gemini` and choose Login with Google" = "Gemini CLI가 Google에 로그인되어 있지 않습니다. `gemini`를 실행하고 Login with Google을 선택하세요";
 "General" = "일반";
 "Gestures: swipe down to open, swipe up to close" = "제스처: 아래로 쓸어 열기, 위로 쓸어 닫기";
-"GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's Claude Code hook events over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address." = "GET /v1/limits는 캐시된 읽기에서 --probe --json과 같은 JSON을 이 Mac의 상태 표시줄 스크립트, 위젯, 명령줄 도구에 답합니다. POST /v1/hook은 SSH 터널로 원격 머신의 Claude Code 훅 이벤트를 받습니다. 루프백 전용, 인증 없음. 웹 페이지의 요청(Origin 헤더 포함)은 아래에 나열된 출처가 아니면 거부되며 Host 헤더는 루프백 주소여야 합니다.";
+"GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's hook events, any assistant's, over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address." = "GET /v1/limits는 캐시된 읽기에서 --probe --json과 같은 JSON을 이 Mac의 상태 표시줄 스크립트, 위젯, 명령줄 도구에 답합니다. POST /v1/hook은 SSH 터널로 원격 머신의 훅 이벤트를 어느 어시스턴트의 것이든 받습니다. 루프백 전용, 인증 없음. 웹 페이지의 요청(Origin 헤더 포함)은 아래에 나열된 출처가 아니면 거부되며 Host 헤더는 루프백 주소여야 합니다.";
 "GitHub Copilot reported no quota" = "GitHub Copilot이 할당량을 보고하지 않았습니다";
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "GitHub Copilot 로그인이 거부되었습니다(%@의 토큰). 편집기에서 다시 로그인하거나 `gh auth login`을 실행하세요";
 "GitHub Copilot's usage response unreadable" = "GitHub Copilot 사용량 응답을 읽을 수 없습니다";
@@ -308,7 +325,6 @@
 "Installed; your previous status line (%@) runs after it." = "설치되었습니다. 이전 상태 표시줄(%@)은 그 다음에 실행됩니다.";
 "its usage export could not be fetched" = "사용량 내보내기를 가져오지 못했습니다";
 "just now" = "방금";
-"Keep the Mac awake while Claude Code is working" = "Claude Code가 작업 중일 때 Mac 깨어 있게 유지";
 "Keeping awake" = "깨어 있음 유지";
 "Keeping awake · %ld sessions" = "깨어 있음 유지 · 세션 %ld개";
 "Keeping awake · 1 session" = "깨어 있음 유지 · 세션 1개";
@@ -323,7 +339,6 @@
 "Left of the notch" = "노치 왼쪽";
 "A notch cut into the left or the right edge of any Mac." = "어떤 Mac에서든 왼쪽 또는 오른쪽 가장자리에 파낸 노치.";
 "Let Claude Code talk to the notch?" = "Claude Code가 노치에 알리도록 할까요?";
-"Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "Claude Code가 시작, 중지, 대기할 때 노치에 알리게 합니다. 훅은 이벤트 이름, 세션 ID, 폴더 이름, git 브랜치, 권한 모드, 하위 에이전트 시작과 중지, 속도 제한으로 인한 중지를 전달합니다. 미터가 즉시 새로 고쳐지고, 카드가 세션과 에이전트를 세며, Claude가 입력을 기다리는 동안 배지가 표시됩니다.";
 "Light" = "밝게";
 "likely a %@ window" = "아마 %@ 창";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "~/.local/bin(또는 /usr/local/bin)에 이 앱으로의 `notchmeter` 링크를 만듭니다. 터미널이나 Claude Code 스킬의 `notchmeter`는 공급자마다 다시 묻는 대신 실행 중인 앱의 캐시된 보고서를 읽습니다. `notchmeter --force`는 새로 읽습니다.";
@@ -335,7 +350,6 @@
 "Main display (the one with the menu bar)" = "주 디스플레이(메뉴 막대가 있는 쪽)";
 "Match system" = "시스템에 맞춤";
 "MCP server" = "MCP 서버";
-"Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits." = "이것을 %1$@에 병합하거나 'settings.json에 추가…'로 자동 병합하세요. 각 항목은 %2$@ --hook을 실행해 실행 중인 앱에 이벤트 이름을 보내고 종료합니다.";
 "month" = "달";
 "Month" = "이번 달";
 "Month %1$@ of a %2$@ budget" = "이번 달 %1$@ / 예산 %2$@";
@@ -369,7 +383,7 @@
 "Notifications are off for %@ in System Settings › Notifications." = "시스템 설정 › 알림에서 %@의 알림이 꺼져 있습니다.";
 "Notify when a turn finishes" = "턴이 끝나면 알림";
 "Notify when a window is on pace to run out" = "창이 소진될 페이스일 때 알림";
-"Notify when Claude Code waits for you" = "Claude Code가 입력을 기다릴 때 알림";
+"Notify when an assistant waits for you" = "어시스턴트가 입력을 기다릴 때 알림";
 "Numbers" = "숫자";
 "off" = "꺼짐";
 "Off" = "꺼짐";
@@ -528,7 +542,7 @@
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "로그인 항목이 이동된 앱 복사본을 가리킵니다. 껐다가 다시 켜세요.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "패널이 포인터를 따라갑니다. 포인터가 반 초 머문 디스플레이로 옮겨 갑니다.";
 "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "무엇을 선택하든 패널의 내용은 검은 바탕에 흰 글씨로 유지되며, 화면 옆면에 그리는 노치 모양도 마찬가지입니다. 둘 다 화면 위에 얹힌 것이 아니라 화면의 일부로 보여야 하기 때문입니다. 알려진 제한: macOS 26에서는 가장자리에 열리는 패널 뒤의 유리가 선택을 따르므로, 라이트를 고르면 밝은 유리 위에 흰 글씨가 놓입니다.";
-"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today." = "어시스턴트가 승인을 기다리거나 방금 턴을 마쳤을 때 링은 소진이 아니라 당신이 필요하다는 뜻의 파란색이 되고, 옆의 표시가 둘 중 어느 쪽인지 알려 줍니다. 페이스는 호 끝의 캡을 그대로 유지하므로 거의 다 쓴 창은 여전히 그렇게 말합니다. 지금은 Claude Code의 훅만 이 사건들을 보고합니다.";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "어시스턴트가 승인을 기다리거나 방금 턴을 마쳤을 때 링은 소진이 아니라 당신이 필요하다는 뜻의 파란색이 되고, 옆의 표시가 둘 중 어느 쪽인지 알려 줍니다. 페이스는 호 끝의 캡을 그대로 유지하므로 거의 다 쓴 창은 여전히 그렇게 말합니다. 모든 훅은 턴이 끝난 것을 보고하고, 대기는 Claude Code, Codex, Gemini CLI, Copilot의 훅은 보고하지만 Cursor의 훅은 보고하지 않습니다.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "30분 동안 어떤 어시스턴트도 활동하지 않고 모든 창이 조용하면 링이 점으로 줄어듭니다. 훅 이벤트, 파일 활동, 페이스 변화, 링 위에 포인터를 올리면 다시 나타납니다.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "세션 측정이 평소보다 약 %1$@ 무겁습니다: 1%%당 %2$@ 대 %3$@.";
 "Third ring" = "세 번째 링";
@@ -576,8 +590,9 @@
 "weekly" = "주간";
 "Weekly" = "주간";
 "Weekly budget" = "주 예산";
+"When crowded" = "공간이 부족할 때";
 "When a window resets" = "창이 초기화될 때";
-"When Claude Code waits for you or a turn finishes" = "Claude Code가 대기하거나 턴이 끝날 때";
+"When an assistant waits for you, or a turn finishes" = "어시스턴트가 대기하거나 턴이 끝날 때";
 "When the cache tier or the metering shifts" = "캐시 계층이나 측정이 바뀔 때";
 "When you start paying (extra usage rises)" = "결제가 시작될 때(추가 사용 증가)";
 "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "어떤 어시스턴트를 고정할지는 아래에서 어시스턴트별로 고릅니다. 고르지 않으면 첫 번째 표시되는 어시스턴트입니다. 막대는 고정된 각 창을 작은 막대로 그리고 속도에 따라 색을 입힙니다.";

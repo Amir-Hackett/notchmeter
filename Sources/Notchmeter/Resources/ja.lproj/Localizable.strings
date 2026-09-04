@@ -4,6 +4,8 @@
 /* 第 2 ラウンドの補完: セッション、予算、ピーク時間、出所タグ、コマンドラインツール、MCP、キーチェーン方針、ディスプレイ、診断 */
 
 /* 表示しきれなかったツール、最後の読み取りの後ろに（NotchViews） */
+
+/* アシスタントのフックと「フック」セクション（HookSettings、HookVendor、SettingsWindow、Notifier） */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ の%2$@は %3$ld%% です。";
 " %1$@ is %2$@ of it." = " うち %1$@ が %2$@。";
 " percent" = " パーセント";
@@ -22,11 +24,12 @@
 "%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ はこの 1 時間で %2$@ を消費 — 30 日平均の %3$@。";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ を割当で充当 · 今月 %2$ld リクエスト";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ クレジットは %2$@ 後に失効します — Codex で受け取ってください";
+"%1$@ finished a %2$@ turn in %3$@." = "%1$@ が %3$@ で %2$@ のターンを完了しました。";
 "%1$@ finished a %2$@ turn." = "%1$@ が %2$@ のターンを完了しました。";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ の%3$@は %2$ld%% 残っています。";
 "%1$@ hit its limit; %2$@ resets in %3$@." = "%1$@ が上限に達しました。%2$@ は %3$@後にリセットされます。";
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ は %2$ld%%、%3$@ は %4$ld%%。ツールではなくモデルを切り替えましょう。";
-"%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@." = "まず %1$@ を settings.json.bak-<日付> にコピーします。既存のフックは保持され、Notchmeter の項目が %2$@ の下に追加されます。";
+"%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@." = "まず %1$@ を %2$@.bak-<日付> にコピーします。既存のフックは保持され、Notchmeter の項目が %3$@ の下に追加されます。";
 "%1$@ is waiting in %2$@." = "%1$@ が %2$@ で待っています。";
 "%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ 直近 1 時間 %2$@ · 30 日平均の %3$@";
 "%1$@ of %2$@" = "%1$@ / %2$@";
@@ -44,9 +47,12 @@
 "%@ advice" = "%@ のアドバイス";
 "%@ as the vendor's own usage export priced it" = "%@ はベンダー自身の使用量エクスポートが付けた価格";
 "%@ billed this month" = "今月 %@ を請求";
+"%@ finished" = "%@ が完了";
 "%@ hit its rate limit; wait for the reset." = "%@ がレート制限に達しました。リセットをお待ちください。";
+"%@ hook" = "%@ フック";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "まず %@ を settings.json.bak-<日付> にコピーします。既存のステータスラインは Notchmeter の後に同じ JSON で引き続き実行されます。";
 "%@ is not a JSON object, so it was left untouched" = "%@ は JSON オブジェクトではないため変更しませんでした";
+"%@ is waiting" = "%@ が待機中";
 "%@ is waiting for your input." = "%@ が入力を待っています。";
 "%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet." = "%@ はサインインしません。この Mac で既にサインイン済みのツールから利用状況を読み、トークンは保持しません。macOS はツールごとに一度、保存されたログインの読み取り許可を確認します。「常に許可」を選ぶと以後は表示されません。";
 "%@ org credits" = "%@ 組織クレジット";
@@ -107,9 +113,27 @@
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "右端に切り込まれたノッチ。パネルはその横に開きます。同じ側に Dock があるときは譲ります。";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "同じログインで chatgpt.com をもう一度読み、ウィンドウをリセットできるクレジットとその期限を表示します。受け取りは Codex 側で行います。";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "同じセッション Cookie で cursor.com をもう一度読みます。直近 30 日の使用イベントをエクスポートされたコストで価格付けし、日次合計ファイルに Cursor の系列（本日、30 日、トレンド）として加えます。";
+"Add the Notchmeter hook to %@?" = "Notchmeter のフックを %@ に追加しますか？";
+"Add to %@…" = "%@ に追加…";
+"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code はセッションの開始と終了、プロンプトの送信、入力待ち、停止と停止の失敗、サブエージェントの開始と停止を報告します。";
+"Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex はセッションの開始と終了、プロンプトの送信、停止、中断されたターン、サブエージェントの開始と停止、そして承認を求めようとする瞬間を報告します。その承認プロンプトが唯一の待機です。Codex のリングはそのとき待機の手を示し、次のプロンプト、停止、サブエージェント、または 10 分後に下ろします。Codex には質問やレート制限のイベントがないため、制限到達は次のポーリングまで待ちます。Codex は新規または変更されたフックを、Codex 内で /hooks を開いて信頼するまで無視し、実行中のセッションは開始時のフックを使い続けます。";
+"Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex はまだ提示されていないフックを無視します。Codex で /hooks を開き、新しい項目を信頼してください。実行中のセッションは開始時のフックを使い続けます。";
 "Colour the rings when an assistant waits or finishes" = "アシスタントが待機中または完了したときにリングに色を付ける";
+"Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI は起動時にフックを読み込みます。再起動すると /env にそのファイルが並びます。";
+"Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor は会話の開始と終了、プロンプトの送信、ターンの停止、サブエージェントの開始と停止を報告します。承認待ちやレート制限のイベントはないため、Cursor のリングは完了のチェックを示し、待機の手は決して示しません。中断またはエラーで終わったターンにはチェックが付きません。Cursor は hooks.json を保存するとすぐ再読み込みします。";
+"Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI は起動時に settings.json を読み込みます。フックは次のセッションから働きます。";
+"Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring." = "Gemini CLI はセッションの開始と終了、プロンプトの送信、各ターンの終了、そしてツールの許可を求めて止まった瞬間を報告します。その通知が唯一の待機です。Antigravity のリングはそのとき待機の手を示し、ターンの終了、次のプロンプトの送信、セッションの終了、または 10 分後に下ろします。サブエージェント、レート制限、取り消されたターンのイベントはないため、取り消されたターンは次のプロンプトかセッションの終了まで作業中として表示されます。Gemini CLI は起動時に settings.json を読み込みます。コメントを含むファイルには手を触れないので、代わりにスニペットを貼り付けてください。Antigravity IDE 自身のフックはこれらを何も報告しないため、この行は Gemini CLI のものであり、同じリングを灯します。";
+"GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it." = "GitHub Copilot はセッションの開始と終了、プロンプトの送信、停止、サブエージェントの開始と停止、そして許可や質問を求めるときに出す通知を報告します。その 2 つの通知が待機です。Copilot のリングはそのとき待機の手を示し、次のプロンプトか停止、または 10 分後に下ろします。レート制限や失敗したターンのイベントはなく、内蔵の汎用エージェントはサブエージェントを報告しません。ファイルは ~/.copilot/hooks 配下の Notchmeter 自身のものなので、フックの削除はファイルの削除です。Copilot は起動時にそれを読み込み、/env に並べます。Copilot のクラウドコーディングエージェントはこれを決して見ません。";
+"Hooks" = "フック";
+"Installed, but an entry is out of date: Repair updates it" = "インストール済みですが、古い項目があります。「修復」で更新します";
 "Just finished" = "完了しました";
 "just finished a turn" = "ターンが完了しました";
+"Keep the Mac awake while an assistant is working" = "アシスタントの作業中は Mac をスリープさせない";
+"Keep the numbers" = "数値を残す";
+"Keep the tools" = "ツールを残す";
+"Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "「ツールを残す」はまず数値を省きます。リングの横に数値がある場合は主要な数値以外を先に、次に主要な数値も省き、各表示がリングだけになってから、最後に並べたアシスタントを省きます。「数値を残す」はそのアシスタントを先に省き、表示が一つも収まらなくなって初めて残りを細くします。";
+"Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "セッションの開始と終了、プロンプトの送信、ターンの停止、サブエージェントの実行を Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot からノッチに知らせます。メーターはすぐ更新され、カードはセッションとエージェントを数えます。Claude Code、Codex、Gemini CLI、Copilot はさらに、あなたに何かを尋ねるために止まったことも報告します。Cursor にはそのイベントがないため、そのリングは完了のチェックを示し、待機の手は決して示しません。権限モードを報告するのは Claude Code と Codex で、レート制限による停止を報告するのは Claude Code だけです。";
+"Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "これを %1$@ にマージするか、「%2$@ に追加…」で自動的にマージしてください。各項目は %3$@ %4$@ を実行し、イベント名を起動中のアプリに送って終了します。";
 "Metered apart from the included total" = "含まれる合計とは別に計測";
 "a session" = "セッション";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "フックが報告するセッションがターン中の間だけスリープ抑止を保持し、Stop で解放します。電源接続中なら、スマートフォンや SSH から始めたセッションが蓋を閉じても動き続けます。保持中はフッターに「スリープ抑止中 · 2 セッション」と出ます。";
@@ -117,12 +141,10 @@
 "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "アクセシビリティがオフのため、自動は選ぶ前の側のままになります。Notchmeter は最前面のアプリのメニューバーの位置と大きさだけを読み、ほかは何も読みません。アプリの他の部分がアクセシビリティを求めることはありません。";
 "Add" = "追加";
 "Add folder…" = "フォルダを追加…";
-"Add the Notchmeter hook to settings.json?" = "Notchmeter のフックを settings.json に追加しますか？";
-"Add to settings.json…" = "settings.json に追加…";
 "Added %@" = "%@ を追加しました";
 "Advanced" = "詳細";
 "Advice" = "アドバイス";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke." = "アプリケーションフォルダへの移動やアップデート後、このアプリの古いパスを指すエントリは起動時に（通常のバックアップ後）実行中のコピーへ書き換えられ、フッターに一度だけ表示されます。build フォルダからの起動や --smoke では書き換えません。";
+"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "アプリケーションフォルダへの移動やアップデート後、このアプリの古いパスを指すエントリは起動時に（通常のバックアップ後）実行中のコピーへ書き換えられ、フッターに一度だけ表示されます。build フォルダからの起動や --smoke では書き換えません。どのアシスタントのフックファイルにも適用されます。";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Claude Code は各ターンの後にコンテキストウィンドウの使用率、公式のセッション/週次上限（Pro と Max）、ゲートウェイの支出上限、モデルと努力レベル、ブランチとプルリクエスト、セッションのコストをステータスラインに渡します。導入すると Claude のリングにコンテキストの弧、カードに「コンテキスト」行が出て、セッション中はエンドポイントに問い合わせません。既存のステータスラインはその後に実行されます。";
 "All displays" = "すべてのディスプレイ";
 "All models" = "全モデル";
@@ -158,7 +180,7 @@
 "Beside the notch" = "ノッチの横";
 "Beta updates" = "ベータ版アップデート";
 "billing export" = "請求データ";
-"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらも Claude Code フックが必要で、ターミナルやエディタが最前面のときと静寂時間中は鳴りません。ここではパネルの動作を選びます。リングの動作は上のトグルが決め、どちらか一方だけをオフにできます。「ちら見」はパネルをセッション行とともに数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
+"Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらもそのアシスタントのフックが必要で、ターミナルやエディタが最前面のときと静寂時間中は鳴りません。ここではパネルの動作を選びます。リングの動作は上のトグルが決め、どちらか一方だけをオフにできます。「ちら見」はパネルをセッション行とともに数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
 "Both sides" = "両側";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "両側はノッチを中心に見えます。メニューの多いアプリはノッチの左端を越えることがあり、ノッチの右側なら必ず避けられます。";
 "Bottom, above the Dock" = "下、Dock の上";
@@ -174,13 +196,8 @@
 "Choose file…" = "ファイルを選択…";
 "Claude %1$@ since %2$@" = "Claude %2$@から %1$@";
 "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %2$@から %1$@ · 週間枠 1%% あたり %3$@";
-"Claude Code finished" = "Claude Code が完了";
-"Claude Code finished a %1$@ turn in %2$@." = "Claude Code が %2$@ で %1$@ のターンを完了しました。";
 "Claude Code has not signed in" = "Claude Code はサインインしていません";
-"Claude Code hook" = "Claude Code フック";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code は API キーで動作しています。計測するプランのウィンドウはなく、コストカードが計測器です";
-"Claude Code is waiting" = "Claude Code が待機中";
-"Claude Code is waiting in %@." = "Claude Code が %@ で待っています。";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code はトークン更新のたびにキーチェーン項目を作り直すため、「常に許可」が忘れられます。タイマー読み取りはダイアログを出しません。Claude Code が書き込みに使う Apple の security ツールで項目を読み、次に認証情報ファイル、次にステータスラインを読み、どれもなければ最後の読み取りを「あなたの許可が必要」として保持します。Claude リングのクリック、更新、アシスタントのスイッチだけが尋ねることがあり、それも「更新時のみ」の場合だけです。";
 "Claude Code status line" = "Claude Code ステータスライン";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code のログインが期限切れです。ターミナルで claude を一度実行して更新してください — Notchmeter がトークンを更新することはありません。";
@@ -270,7 +287,7 @@
 "Gemini CLI has not signed in with Google. Run `gemini` and choose Login with Google" = "Gemini CLI は Google にサインインしていません。`gemini` を実行して Login with Google を選んでください";
 "General" = "一般";
 "Gestures: swipe down to open, swipe up to close" = "ジェスチャ: 下スワイプで開く、上スワイプで閉じる";
-"GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's Claude Code hook events over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address." = "GET /v1/limits はキャッシュ済みの読み取りから --probe --json と同じ JSON を返し、この Mac のステータスラインスクリプト、ウィジェット、コマンドラインツールが使います。POST /v1/hook は SSH トンネル経由でリモートマシンの Claude Code フックイベントを受け取ります。ループバックのみ、認証なし。Web ページからのリクエスト（Origin ヘッダー付き）は下に列挙したオリジン以外は拒否され、Host ヘッダーはループバックアドレスでなければなりません。";
+"GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's hook events, any assistant's, over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address." = "GET /v1/limits はキャッシュ済みの読み取りから --probe --json と同じ JSON を返し、この Mac のステータスラインスクリプト、ウィジェット、コマンドラインツールが使います。POST /v1/hook は SSH トンネル経由でリモートマシンのフックイベントを、どのアシスタントのものでも受け取ります。ループバックのみ、認証なし。Web ページからのリクエスト（Origin ヘッダー付き）は下に列挙したオリジン以外は拒否され、Host ヘッダーはループバックアドレスでなければなりません。";
 "GitHub Copilot reported no quota" = "GitHub Copilot はクォータを報告しませんでした";
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "GitHub Copilot のログインが拒否されました（%@ のトークン）。エディタでサインインし直すか `gh auth login` を実行してください";
 "GitHub Copilot's usage response unreadable" = "GitHub Copilot の利用状況の応答を読み取れません";
@@ -308,7 +325,6 @@
 "Installed; your previous status line (%@) runs after it." = "インストールしました。以前のステータスライン（%@）はその後に実行されます。";
 "its usage export could not be fetched" = "使用状況のエクスポートを取得できませんでした";
 "just now" = "たった今";
-"Keep the Mac awake while Claude Code is working" = "Claude Code の作業中は Mac をスリープさせない";
 "Keeping awake" = "スリープ抑止中";
 "Keeping awake · %ld sessions" = "スリープ抑止中 · %ld セッション";
 "Keeping awake · 1 session" = "スリープ抑止中 · 1 セッション";
@@ -323,7 +339,6 @@
 "Left of the notch" = "ノッチの左側";
 "A notch cut into the left or the right edge of any Mac." = "どの Mac でも左または右の端に切り込んだノッチ。";
 "Let Claude Code talk to the notch?" = "Claude Code からノッチに知らせますか？";
-"Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "開始・停止・入力待ちを Claude Code からノッチに知らせます。フックはイベント名、セッション ID、フォルダ名、その git ブランチ、権限モード、サブエージェントの開始と停止、レート制限による停止を渡します。メーターはすぐ更新され、カードはセッションとエージェントを数え、Claude が入力を待つ間はバッジが出ます。";
 "Light" = "ライト";
 "likely a %@ window" = "おそらく %@ ウィンドウ";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "~/.local/bin（または /usr/local/bin）にこのアプリへの `notchmeter` リンクを作ります。ターミナルや Claude Code スキルの `notchmeter` は各ベンダーに問い合わせ直さず、実行中のアプリのキャッシュ済みレポートを読みます。`notchmeter --force` は読み直します。";
@@ -335,7 +350,6 @@
 "Main display (the one with the menu bar)" = "メインディスプレイ（メニューバーのある方）";
 "Match system" = "システムに合わせる";
 "MCP server" = "MCP サーバー";
-"Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits." = "これを %1$@ にマージするか、「settings.json に追加…」で自動的にマージしてください。各項目は %2$@ --hook を実行し、イベント名を起動中のアプリに送って終了します。";
 "month" = "月";
 "Month" = "今月";
 "Month %1$@ of a %2$@ budget" = "今月 %1$@ / 予算 %2$@";
@@ -369,7 +383,7 @@
 "Notifications are off for %@ in System Settings › Notifications." = "システム設定 › 通知で %@ の通知がオフになっています。";
 "Notify when a turn finishes" = "ターンが完了したときに通知";
 "Notify when a window is on pace to run out" = "ウィンドウを使い切るペースのときに通知";
-"Notify when Claude Code waits for you" = "Claude Code が入力を待つときに通知";
+"Notify when an assistant waits for you" = "アシスタントが入力を待つときに通知";
 "Numbers" = "数値";
 "off" = "オフ";
 "Off" = "オフ";
@@ -528,7 +542,7 @@
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "ログイン項目は移動済みのアプリを指しています。一度オフにしてから再度オンにしてください。";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "パネルはポインタに追従します。ポインタが半秒とどまったディスプレイへ移動します。";
 "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "どれを選んでもパネルの中身は黒地に白のままで、画面の左右の端に描くノッチの形も同じです。どちらも画面に載せたものではなく画面の一部として見える必要があるためです。既知の制限: macOS 26 では端に開くパネルの背後のガラスは選択に従うため、ライトを選ぶと明るいガラスの上に白い文字が乗ります。";
-"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today." = "アシスタントが許可を待っているとき、またはターンを終えた直後、リングは「使い切りではなく、あなたを必要としている」を意味する青になり、隣のマークがどちらかを示します。ペースは弧の先端のキャップを保つので、ほぼ使い切った枠はそのまま伝わります。現在これらを報告するのは Claude Code のフックだけです。";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "アシスタントが許可を待っているとき、またはターンを終えた直後、リングは「使い切りではなく、あなたを必要としている」を意味する青になり、隣のマークがどちらかを示します。ペースは弧の先端のキャップを保つので、ほぼ使い切った枠はそのまま伝わります。どのフックもターンの完了を報告します。待機を報告するのは Claude Code、Codex、Gemini CLI、Copilot のフックで、Cursor のフックは報告しません。";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "30 分間どのアシスタントも活動せず、すべてのウィンドウが静かなときリングはドットに縮みます。フックイベント、ファイルの活動、ペースの変化、リングにポインタを置くと元に戻ります。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "セッションの計測が平常より約 %1$@ 重くなっています: 1%% あたり %2$@（平常 %3$@）。";
 "Third ring" = "3 番目のリング";
@@ -576,8 +590,9 @@
 "Weekly" = "週間";
 "weekly" = "週間";
 "Weekly budget" = "週次予算";
+"When crowded" = "余白が足りないとき";
 "When a window resets" = "ウィンドウがリセットされたとき";
-"When Claude Code waits for you or a turn finishes" = "Claude Code が待機したときやターンが終わったとき";
+"When an assistant waits for you, or a turn finishes" = "アシスタントが待機したとき、またはターンが終わったとき";
 "When the cache tier or the metering shifts" = "キャッシュ層や計測が変わったとき";
 "When you start paying (extra usage rises)" = "支払いが始まったとき（追加使用の増加）";
 "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "どのアシスタントを固定するかは下でアシスタントごとに選びます。未選択なら最初に表示されるものです。「バー」は固定した各ウィンドウをミニバーで描き、ペースで色付けします。";

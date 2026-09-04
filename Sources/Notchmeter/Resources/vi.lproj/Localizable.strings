@@ -4,6 +4,8 @@
 /* Bổ sung vòng 2: phiên, ngân sách, giờ cao điểm, nhãn nguồn, công cụ dòng lệnh, MCP, chính sách Keychain, màn hình, chẩn đoán */
 
 /* Các công cụ không vừa, đặt sau chỉ số cuối cùng (NotchViews) */
+
+/* Hook của trợ lý và mục Hook (HookSettings, HookVendor, SettingsWindow, Notifier) */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ %2$@ đang ở %3$ld%%.";
 " %1$@ is %2$@ of it." = " Trong đó %1$@ là %2$@.";
 " percent" = " phần trăm";
@@ -22,11 +24,12 @@
 "%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ đã tiêu %2$@ trong giờ này — gấp %3$@ trung bình 30 ngày của nó.";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ được hạn mức chi trả · %2$ld yêu cầu tháng này";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "Tín dụng %1$@ hết hạn sau %2$@ — hãy nhận trong Codex";
+"%1$@ finished a %2$@ turn in %3$@." = "%1$@ đã hoàn thành lượt kéo dài %2$@ trong %3$@.";
 "%1$@ finished a %2$@ turn." = "%1$@ đã hoàn thành một lượt %2$@.";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ còn %2$ld%% của %3$@.";
 "%1$@ hit its limit; %2$@ resets in %3$@." = "%1$@ đã chạm giới hạn; %2$@ đặt lại sau %3$@.";
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ ở mức %2$ld%%. %3$@ ở mức %4$ld%%. Đổi mô hình, không cần đổi công cụ.";
-"%1$@ is copied to settings.json.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %2$@." = "%1$@ được sao chép thành settings.json.bak-<ngày> trước. Các hook đã có được giữ nguyên; mục của Notchmeter được thêm dưới %2$@.";
+"%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@." = "%1$@ được sao chép thành %2$@.bak-<ngày> trước. Các hook đã có được giữ nguyên; mục của Notchmeter được thêm dưới %3$@.";
 "%1$@ is waiting in %2$@." = "%1$@ đang chờ trong %2$@.";
 "%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ giờ vừa qua %2$@ · gấp %3$@ trung bình 30 ngày của nó";
 "%1$@ of %2$@" = "%1$@ / %2$@";
@@ -44,9 +47,12 @@
 "%@ advice" = "Lời khuyên của %@";
 "%@ as the vendor's own usage export priced it" = "%@ theo giá trong bản xuất mức dùng của chính nhà cung cấp";
 "%@ billed this month" = "Đã tính phí %@ tháng này";
+"%@ finished" = "%@ đã xong";
 "%@ hit its rate limit; wait for the reset." = "%@ đã chạm giới hạn tốc độ; hãy đợi đặt lại.";
+"%@ hook" = "Hook %@";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "%@ được sao chép thành settings.json.bak-<ngày> trước. Dòng trạng thái đã có tiếp tục chạy sau dòng của Notchmeter, với cùng JSON.";
 "%@ is not a JSON object, so it was left untouched" = "%@ không phải đối tượng JSON nên được giữ nguyên";
+"%@ is waiting" = "%@ đang chờ";
 "%@ is waiting for your input." = "%@ đang chờ bạn nhập.";
 "%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet." = "%@ không bao giờ đăng nhập. Nó đọc mức dùng từ các công cụ đã đăng nhập trên máy Mac này và không giữ token nào. macOS hỏi một lần cho mỗi công cụ để cho phép đọc đăng nhập đã lưu; chọn Luôn cho phép để không bị hỏi lại.";
 "%@ org credits" = "Tín dụng tổ chức %@";
@@ -107,9 +113,27 @@
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "Một notch khoét vào cạnh phải, bảng mở ra ngay bên cạnh. Nó nhường chỗ cho Dock ở phía đó.";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "Một lần đọc thứ hai từ chatgpt.com với cùng đăng nhập, hiện tín dụng có thể đặt lại một cửa sổ và thời điểm hết hạn. Việc nhận vẫn diễn ra trong Codex.";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "Đọc cursor.com thêm một lần với cùng cookie phiên: 30 ngày sự kiện dùng gần nhất, tính giá theo chi phí xuất ra, gộp vào tệp tổng ngày dưới dạng chuỗi Cursor (Hôm nay, 30 ngày và xu hướng).";
+"Add the Notchmeter hook to %@?" = "Thêm hook Notchmeter vào %@?";
+"Add to %@…" = "Thêm vào %@…";
+"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code báo phiên bắt đầu và kết thúc, prompt được gửi, chờ bạn nhập, dừng và dừng lỗi, và tác tử con bắt đầu và dừng.";
+"Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex báo phiên bắt đầu và kết thúc, prompt được gửi, dừng, lượt bị ngắt, tác tử con bắt đầu và dừng, và thời điểm nó sắp hỏi bạn phê duyệt. Lời hỏi phê duyệt đó là lần chờ duy nhất của nó: vòng Codex hiện bàn tay chờ cho việc đó và buông ra ở prompt, lần dừng hay tác tử con kế tiếp, hoặc sau mười phút. Codex không có sự kiện cho câu hỏi hay giới hạn tốc độ, nên chạm giới hạn phải chờ lần thăm dò kế tiếp. Codex bỏ qua hook mới hoặc đã đổi cho tới khi bạn mở /hooks trong Codex và tin cậy nó, và phiên đang chạy giữ các hook nó đã khởi động cùng.";
+"Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex bỏ qua hook chưa được cho nó xem: mở /hooks trong Codex và tin cậy mục mới. Các phiên đang chạy giữ các hook chúng đã khởi động cùng.";
 "Colour the rings when an assistant waits or finishes" = "Đổi màu vòng khi một trợ lý chờ hoặc hoàn thành";
+"Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI đọc hook khi khởi động: khởi động lại nó, rồi /env liệt kê tệp.";
+"Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor báo khi một cuộc trò chuyện bắt đầu hoặc kết thúc, khi bạn gửi prompt, khi một lượt dừng và khi một tác tử con bắt đầu hoặc dừng. Nó không có sự kiện cho việc chờ bạn phê duyệt hay cho giới hạn tốc độ, nên vòng Cursor hiện dấu tick đã xong và không bao giờ hiện bàn tay chờ, và một lượt bị hủy hay lỗi kết thúc mà không có dấu tick. Cursor tải lại hooks.json ngay khi nó được lưu.";
+"Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI đọc settings.json khi khởi động: hook có hiệu lực từ phiên kế tiếp.";
+"Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring." = "Gemini CLI báo phiên bắt đầu và kết thúc, prompt được gửi, kết thúc của mỗi lượt, và thời điểm nó dừng lại để hỏi bạn cấp quyền cho một công cụ. Thông báo đó là lần chờ duy nhất của nó: vòng Antigravity hiện bàn tay chờ cho việc đó và buông ra khi lượt kết thúc, prompt kế tiếp được gửi hay phiên kết thúc, hoặc sau mười phút. Nó không có sự kiện cho tác tử con, giới hạn tốc độ hay lượt bị hủy, nên một lượt bị hủy hiện là đang làm việc cho đến prompt kế tiếp hoặc khi phiên kết thúc. Gemini CLI đọc settings.json khi khởi động; tệp có chú thích bên trong được giữ nguyên, nên hãy dán đoạn mã thay vào đó. Hook riêng của Antigravity IDE không báo điều nào trong số này, nên hàng này là của Gemini CLI và sáng cùng một vòng.";
+"GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it." = "GitHub Copilot báo phiên bắt đầu và kết thúc, prompt được gửi, dừng, tác tử con bắt đầu và dừng, và các thông báo nó đưa ra khi hỏi bạn cấp quyền hay một câu hỏi. Hai thông báo đó là lần chờ của nó: vòng Copilot hiện bàn tay chờ cho chúng và buông ra ở prompt hay lần dừng kế tiếp, hoặc sau mười phút. Nó không có sự kiện cho giới hạn tốc độ hay lượt thất bại, và tác tử đa dụng có sẵn của nó không báo tác tử con. Tệp là của riêng Notchmeter dưới ~/.copilot/hooks, nên gỡ hook là xóa nó; Copilot đọc nó khi khởi động, và /env liệt kê nó. Tác tử lập trình trên đám mây của Copilot không bao giờ thấy nó.";
+"Hooks" = "Hook";
+"Installed, but an entry is out of date: Repair updates it" = "Đã cài, nhưng một mục đã cũ: Sửa sẽ cập nhật nó";
 "Just finished" = "Vừa hoàn thành";
 "just finished a turn" = "vừa hoàn thành một lượt";
+"Keep the Mac awake while an assistant is working" = "Giữ máy Mac thức khi một trợ lý đang làm việc";
+"Keep the numbers" = "Giữ số";
+"Keep the tools" = "Giữ công cụ";
+"Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "Giữ công cụ bỏ các số trước — khi có vòng bên cạnh thì bỏ các số ngoài số chính trước, rồi bỏ cả số chính — và chỉ bỏ bớt các trợ lý bạn xếp cuối khi mỗi số liệu chỉ còn vòng. Giữ số bỏ bớt các trợ lý đó trước, và chỉ thu gọn phần còn lại khi một số liệu đơn lẻ cũng không còn vừa.";
+"Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "Cho Claude Code, Codex, Cursor, Gemini CLI và GitHub Copilot báo cho notch khi một phiên bắt đầu hoặc kết thúc, một prompt được gửi, một lượt dừng và một tác tử con chạy: đồng hồ làm mới ngay và thẻ đếm phiên và tác tử. Claude Code, Codex, Gemini CLI và Copilot còn báo khi chúng dừng lại để hỏi bạn điều gì; Cursor không có sự kiện cho việc đó, nên vòng của nó hiện dấu tick đã xong và không bao giờ hiện bàn tay chờ. Claude Code và Codex báo chế độ quyền của chúng; chỉ Claude Code báo dừng do giới hạn tốc độ.";
+"Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "Gộp nội dung này vào %1$@, hoặc dùng Thêm vào %2$@… để được gộp tự động. Mỗi mục chạy %3$@ %4$@, gửi tên sự kiện đến ứng dụng đang chạy rồi thoát.";
 "Metered apart from the included total" = "Được đo riêng với tổng đã bao gồm";
 "a session" = "một phiên";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "Giữ khẳng định chống ngủ chỉ khi phiên do hook báo đang giữa lượt, thả ra khi Stop, nên phiên khởi động từ điện thoại hay qua SSH vẫn chạy khi gập máy có cắm điện. Chân trang hiện \"Giữ máy thức · 2 phiên\" khi đang giữ.";
@@ -117,12 +141,10 @@
 "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "Trợ năng đang tắt nên Tự động giữ nguyên bên đã chọn trước đó. Notchmeter chỉ đọc vị trí và kích thước thanh menu của ứng dụng đang ở trước, không đọc gì khác; không phần nào khác của ứng dụng cần Trợ năng.";
 "Add" = "Thêm";
 "Add folder…" = "Thêm thư mục…";
-"Add the Notchmeter hook to settings.json?" = "Thêm hook Notchmeter vào settings.json?";
-"Add to settings.json…" = "Thêm vào settings.json…";
 "Added %@" = "Đã thêm %@";
 "Advanced" = "Nâng cao";
 "Advice" = "Lời khuyên";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke." = "Sau khi chuyển vào Applications hoặc cập nhật, mục trỏ tới đường dẫn cũ của ứng dụng được viết lại thành bản đang chạy khi khởi động, sau bản sao lưu thường lệ, và chân trang báo một lần. Không bao giờ từ thư mục build, không bao giờ với --smoke.";
+"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "Sau khi chuyển vào Applications hoặc cập nhật, mục trỏ tới đường dẫn cũ của ứng dụng được viết lại thành bản đang chạy khi khởi động, sau bản sao lưu thường lệ, và chân trang báo một lần. Không bao giờ từ thư mục build, không bao giờ với --smoke. Áp dụng cho tệp hook của mọi trợ lý.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Sau mỗi lượt, Claude Code chuyển cho thanh trạng thái mức đầy cửa sổ ngữ cảnh, giới hạn phiên và tuần chính thức (Pro và Max), giới hạn chi tiêu của cổng, mô hình và mức nỗ lực, nhánh và pull request, cùng chi phí phiên. Cài xong, vòng Claude hiện cung ngữ cảnh, thẻ hiện dòng Ngữ cảnh, và không hỏi điểm cuối khi phiên đang chạy. Thanh trạng thái đã cấu hình vẫn chạy sau nó.";
 "All displays" = "Tất cả màn hình";
 "All models" = "Tất cả mô hình";
@@ -158,7 +180,7 @@
 "Beside the notch" = "Cạnh tai thỏ";
 "Beta updates" = "Cập nhật beta";
 "billing export" = "bản xuất hóa đơn";
-"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Cả hai cần hook Claude Code và im lặng khi terminal hay trình soạn thảo ở trước nhất và trong giờ yên tĩnh. Mục này chọn điều bảng làm; nút bật ở trên chọn điều các vòng làm, và có thể tắt cái này mà không tắt cái kia. Liếc mở bảng vài giây với dòng phiên rồi thu lại trừ khi con trỏ vào; với Giảm chuyển động nó mở không hoạt ảnh và ở lâu hơn chút. Thông báo \"đang chờ\" bị rút khi bạn trả lời. Bản chưa ký không thông báo nào xuyên qua Focus hay Không làm phiền; các thông báo nhạy thời gian (sắp hết, chờ bạn) xuyên qua trong bản phát hành đã ký.";
+"Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Cả hai cần hook của trợ lý và im lặng khi terminal hay trình soạn thảo ở trước nhất và trong giờ yên tĩnh. Mục này chọn điều bảng làm; nút bật ở trên chọn điều các vòng làm, và có thể tắt cái này mà không tắt cái kia. Liếc mở bảng vài giây với dòng phiên rồi thu lại trừ khi con trỏ vào; với Giảm chuyển động nó mở không hoạt ảnh và ở lâu hơn chút. Thông báo \"đang chờ\" bị rút khi bạn trả lời. Bản chưa ký không thông báo nào xuyên qua Focus hay Không làm phiền; các thông báo nhạy thời gian (sắp hết, chờ bạn) xuyên qua trong bản phát hành đã ký.";
 "Both sides" = "Cả hai bên";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "Cả hai bên trông như căn giữa notch. Ứng dụng nhiều trình đơn có thể vượt qua mép trái notch; bên phải notch luôn tránh được.";
 "Bottom, above the Dock" = "Dưới cùng, phía trên Dock";
@@ -174,13 +196,8 @@
 "Choose file…" = "Chọn tệp…";
 "Claude %1$@ since %2$@" = "Claude %1$@ kể từ %2$@";
 "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %1$@ kể từ %2$@ · %3$@ cho mỗi 1%% hạn mức tuần";
-"Claude Code finished" = "Claude Code đã xong";
-"Claude Code finished a %1$@ turn in %2$@." = "Claude Code đã hoàn thành lượt kéo dài %1$@ trong %2$@.";
 "Claude Code has not signed in" = "Claude Code chưa đăng nhập";
-"Claude Code hook" = "Hook Claude Code";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code dùng khóa API: không có cửa sổ gói để đo; thẻ Chi phí chính là thước đo";
-"Claude Code is waiting" = "Claude Code đang chờ";
-"Claude Code is waiting in %@." = "Claude Code đang chờ trong %@.";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code tạo lại mục Keychain mỗi lần làm mới token, quên mất \"Luôn cho phép\" bạn đã cho. Đọc theo hẹn giờ không bao giờ hiện hộp thoại: nó đọc mục qua công cụ security của Apple mà Claude Code dùng để ghi, rồi tệp thông tin đăng nhập, rồi thanh trạng thái, nếu không thì giữ lần đọc cuối với nhãn \"cần bạn đồng ý\". Chỉ nhấp vòng Claude, Làm mới hoặc công tắc Trợ lý mới có thể hỏi, và chỉ khi ở \"Chỉ khi làm mới\".";
 "Claude Code status line" = "Dòng trạng thái Claude Code";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Đăng nhập Claude Code đã hết hạn. Hãy chạy claude trong terminal một lần để làm mới — Notchmeter không bao giờ tự làm mới token.";
@@ -270,7 +287,7 @@
 "Gemini CLI has not signed in with Google. Run `gemini` and choose Login with Google" = "Gemini CLI chưa đăng nhập bằng Google. Chạy `gemini` và chọn Login with Google";
 "General" = "Chung";
 "Gestures: swipe down to open, swipe up to close" = "Cử chỉ: vuốt xuống để mở, vuốt lên để đóng";
-"GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's Claude Code hook events over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address." = "GET /v1/limits trả lời bằng JSON như --probe --json từ số đọc đã cache, cho script thanh trạng thái, tiện ích và công cụ dòng lệnh trên Mac này; POST /v1/hook nhận sự kiện hook Claude Code của máy từ xa qua đường hầm SSH. Chỉ loopback, không xác thực; yêu cầu từ trang web (mang tiêu đề Origin) bị từ chối trừ khi nguồn được liệt kê bên dưới, và tiêu đề Host phải là địa chỉ loopback.";
+"GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's hook events, any assistant's, over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address." = "GET /v1/limits trả lời bằng JSON như --probe --json từ số đọc đã cache, cho script thanh trạng thái, tiện ích và công cụ dòng lệnh trên Mac này; POST /v1/hook nhận sự kiện hook của máy từ xa, của bất kỳ trợ lý nào, qua đường hầm SSH. Chỉ loopback, không xác thực; yêu cầu từ trang web (mang tiêu đề Origin) bị từ chối trừ khi nguồn được liệt kê bên dưới, và tiêu đề Host phải là địa chỉ loopback.";
 "GitHub Copilot reported no quota" = "GitHub Copilot không báo cáo hạn mức nào";
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "Đăng nhập GitHub Copilot bị từ chối (token trong %@). Đăng nhập lại trong trình soạn thảo hoặc chạy `gh auth login`";
 "GitHub Copilot's usage response unreadable" = "không đọc được phản hồi mức dùng của GitHub Copilot";
@@ -308,7 +325,6 @@
 "Installed; your previous status line (%@) runs after it." = "Đã cài; dòng trạng thái trước của bạn (%@) chạy sau nó.";
 "its usage export could not be fetched" = "không lấy được dữ liệu sử dụng đã xuất";
 "just now" = "vừa xong";
-"Keep the Mac awake while Claude Code is working" = "Giữ máy Mac thức khi Claude Code đang làm việc";
 "Keeping awake" = "Giữ máy thức";
 "Keeping awake · %ld sessions" = "Giữ máy thức · %ld phiên";
 "Keeping awake · 1 session" = "Giữ máy thức · 1 phiên";
@@ -323,7 +339,6 @@
 "Left of the notch" = "Bên trái notch";
 "A notch cut into the left or the right edge of any Mac." = "Một khuyết khoét vào cạnh trái hoặc cạnh phải trên bất kỳ máy Mac nào.";
 "Let Claude Code talk to the notch?" = "Cho Claude Code báo cho tai thỏ?";
-"Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "Cho Claude Code báo cho notch khi bắt đầu, dừng hoặc chờ bạn. Hook chuyển tên sự kiện, id phiên, tên thư mục, nhánh git, chế độ quyền, khởi động và dừng của tác tử con, và dừng do giới hạn tốc độ; đồng hồ làm mới ngay, thẻ đếm phiên và tác tử, và huy hiệu hiện khi Claude chờ bạn nhập.";
 "Light" = "Sáng";
 "likely a %@ window" = "có lẽ là cửa sổ %@";
 "Links `notchmeter` in ~/.local/bin (or /usr/local/bin) to this app, so `notchmeter` in a terminal or a Claude Code skill reads the running app's cached report instead of asking every vendor again; `notchmeter --force` reads afresh." = "Liên kết `notchmeter` trong ~/.local/bin (hoặc /usr/local/bin) tới ứng dụng này, để `notchmeter` trong terminal hay kỹ năng Claude Code đọc báo cáo đã cache của ứng dụng đang chạy thay vì hỏi lại từng nhà cung cấp; `notchmeter --force` đọc mới.";
@@ -335,7 +350,6 @@
 "Main display (the one with the menu bar)" = "Màn hình chính (màn hình có thanh menu)";
 "Match system" = "Theo hệ thống";
 "MCP server" = "Máy chủ MCP";
-"Merge this into %1$@, or use Add to settings.json… to have it merged for you. Each entry runs %2$@ --hook, which posts the event name to the running app and exits." = "Gộp nội dung này vào %1$@, hoặc dùng Thêm vào settings.json… để được gộp tự động. Mỗi mục chạy %2$@ --hook, gửi tên sự kiện đến ứng dụng đang chạy rồi thoát.";
 "Month" = "Tháng";
 "month" = "tháng";
 "Month %1$@ of a %2$@ budget" = "Tháng này %1$@ trên ngân sách %2$@";
@@ -369,7 +383,7 @@
 "Notifications are off for %@ in System Settings › Notifications." = "Thông báo của %@ đang tắt trong Cài đặt hệ thống › Thông báo.";
 "Notify when a turn finishes" = "Thông báo khi một lượt kết thúc";
 "Notify when a window is on pace to run out" = "Thông báo khi một cửa sổ sắp hết theo nhịp";
-"Notify when Claude Code waits for you" = "Thông báo khi Claude Code chờ bạn";
+"Notify when an assistant waits for you" = "Thông báo khi một trợ lý chờ bạn";
 "Numbers" = "Số";
 "Off" = "Tắt";
 "off" = "tắt";
@@ -528,7 +542,7 @@
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "Mục đăng nhập trỏ tới bản sao ứng dụng đã bị di chuyển. Tắt rồi bật lại.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "Bảng theo con trỏ: chuyển tới màn hình con trỏ đã đậu nửa giây.";
 "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "Dù bạn chọn gì, nội dung bảng vẫn là chữ trắng trên nền đen, và hình notch ở cạnh bên màn hình cũng vậy: cả hai phải trông như một phần của màn hình chứ không phải thứ đặt lên trên nó. Hạn chế đã biết: trên macOS 26, lớp kính phía sau bảng ở cạnh màn hình có theo lựa chọn này, nên chọn Sáng sẽ đặt chữ trắng đó trên nền kính sáng.";
-"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today." = "Vòng chuyển sang màu xanh lam, màu có nghĩa là cần bạn chứ không phải sắp cạn, khi một trợ lý chờ bạn cấp quyền hoặc vừa kết thúc một lượt, và dấu bên cạnh cho biết đó là trường hợp nào. Nhịp độ vẫn giữ nắp ở đầu cung, nên một khung sắp hết vẫn nói được điều đó. Hiện chỉ có hook của Claude Code báo những sự kiện này.";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "Vòng chuyển sang màu xanh lam, màu có nghĩa là cần bạn chứ không phải sắp cạn, khi một trợ lý chờ bạn cấp quyền hoặc vừa kết thúc một lượt, và dấu bên cạnh cho biết đó là trường hợp nào. Nhịp độ vẫn giữ nắp ở đầu cung, nên một khung sắp hết vẫn nói được điều đó. Mọi hook đều báo một lượt đã xong; hook của Claude Code, Codex, Gemini CLI và Copilot báo chờ, hook của Cursor thì không.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Các vòng thu lại thành một chấm khi không trợ lý nào hoạt động trong 30 phút và mọi cửa sổ đều yên; một sự kiện hook, hoạt động tệp, thay đổi nhịp hoặc đặt con trỏ lên chúng sẽ đưa chúng trở lại.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "Phiên đang được đo nặng hơn chuẩn của bạn khoảng %1$@: %2$@ mỗi 1%% so với %3$@.";
 "Third ring" = "Vòng thứ ba";
@@ -576,8 +590,9 @@
 "Weekly" = "Hằng tuần";
 "weekly" = "hằng tuần";
 "Weekly budget" = "Ngân sách tuần";
+"When crowded" = "Khi chật chỗ";
 "When a window resets" = "Khi một cửa sổ đặt lại";
-"When Claude Code waits for you or a turn finishes" = "Khi Claude Code chờ bạn hoặc một lượt xong";
+"When an assistant waits for you, or a turn finishes" = "Khi một trợ lý chờ bạn, hoặc một lượt xong";
 "When the cache tier or the metering shifts" = "Khi mức cache hoặc cách đo thay đổi";
 "When you start paying (extra usage rises)" = "Khi bạn bắt đầu trả tiền (dùng thêm tăng)";
 "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "Trợ lý nào được ghim chọn theo từng trợ lý bên dưới; không chọn thì là trợ lý hiển thị đầu tiên. Thanh vẽ mỗi cửa sổ được ghim thành thanh nhỏ, tô màu theo nhịp.";

@@ -1,7 +1,7 @@
 import Foundation
 
-/// One Claude Code session the hook has reported: which project it runs in and whether it is mid-turn, idle
-/// between turns, or waiting for the user; plus what the hook and status line know about where it runs.
+/// One assistant session a hook has reported: which project it runs in and whether it is mid-turn, idle between
+/// turns, or waiting for the user; plus what the hook and status line know about where it runs.
 struct AgentSession: Equatable, Sendable, Identifiable {
     enum State: Equatable, Sendable {
         case idle
@@ -10,9 +10,10 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     }
 
     let id: String
-    /// Which assistant this session belongs to. Only Claude Code's hook reports events today, so in practice every
-    /// session is Claude's; the field exists so a second hook lights the same lamps without a change anywhere above
-    /// this file, and so no view has to ask "is this Claude?" in order to know what a session means.
+    /// Which assistant this session belongs to. Claude Code's and Cursor's hooks both report, and each one's
+    /// sessions light its own ring; the field is the typed home of that fact, so no view has to ask "is this
+    /// Claude?" in order to know what a session means, and a third hook lights the same lamps without a change
+    /// anywhere above this file.
     let tool: ToolID
     var project: String?
     var state: State
@@ -92,11 +93,12 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     }
 }
 
-/// The per-session state machine fed by the hook: SessionStart adds a session, UserPromptSubmit starts a turn,
+/// The per-session state machine fed by the hooks: SessionStart adds a session, UserPromptSubmit starts a turn,
 /// a permission prompt or a question makes it wait, agent_completed or an answered elicitation resumes it, Stop
 /// (or a StopFailure) ends the turn, SessionEnd removes it; SubagentStart and SubagentStop count the agents under
-/// it. A wait expires after ten minutes, as does an agent nothing has been heard from; a session nothing has been
-/// heard from for four hours is dropped. Pure, so it is pinned by tests.
+/// it. The names are Claude Code's; Cursor's parser puts its events onto them before they arrive here, so there is
+/// one grammar. A wait expires after ten minutes, as does an agent nothing has been heard from; a session nothing
+/// has been heard from for four hours is dropped. Pure, so it is pinned by tests.
 struct SessionTracker: Equatable, Sendable {
     struct Outcome: Equatable, Sendable {
         /// A turn ended: the session and how long the turn ran.
@@ -125,8 +127,12 @@ struct SessionTracker: Equatable, Sendable {
     static let unknownSession = "unknown"
 
     private(set) var sessions: [String: AgentSession] = [:]
+    /// The tools whose hook has ever reported. Kept per tool because a hook is proof about its own tool only: a
+    /// Cursor event says nothing about how many Claude Code sessions there are, and a Claude ring told "zero
+    /// sessions" on Cursor's word would go quiet on a window that is being spent.
+    private(set) var hooksSeen: Set<ToolID> = []
     /// True once any hook event has arrived: the count is then a fact, not an absence of the hook.
-    private(set) var hookSeen = false
+    var hookSeen: Bool { !hooksSeen.isEmpty }
 
     var all: [AgentSession] { sessions.values.sorted { $0.lastEvent > $1.lastEvent } }
     var waiting: [AgentSession] { all.filter(\.isWaiting) }
@@ -135,23 +141,57 @@ struct SessionTracker: Equatable, Sendable {
     var count: Int { sessions.count }
     /// Subagents running under every session.
     var agentCount: Int { sessions.values.reduce(0) { $0 + $1.agents.count } }
-    /// nil until the hook has reported anything.
+    /// nil until any hook has reported anything.
     var knownCount: Int? { hookSeen ? sessions.count : nil }
+
+    /// One tool's session count, and nil until that tool's own hook has reported: the input to the calm rule
+    /// (Presence.level), which must not read another tool's silence as this tool's idleness.
+    func knownCount(of tool: ToolID) -> Int? {
+        hooksSeen.contains(tool) ? sessions.values.filter { $0.tool == tool }.count : nil
+    }
 
     /// A session hit its limit within the last hour, or is held for a quota reset.
     func limitHit(now: Date) -> Bool {
         sessions.values.contains { $0.quotaWait || $0.limitHitAt.map { now.timeIntervalSince($0) < 3600 } ?? false }
     }
 
-    /// One tool's sessions waiting on the user, in no order, for the mark beside its ring. The dictionary stays
-    /// keyed by session id, as it always has, because the notification identifiers are built from that id; when a
-    /// second hook lands the key wants the tool's name in front of it, and that is one change here and none above.
+    /// A session hit its limit within the last hour, or is held for a quota reset, per tool: the same rule as
+    /// `limitHit(now:)`, answered as the set of tools it is true of, so the advice line names the assistant whose
+    /// session actually stopped rather than the one that happens to come first.
+    func limitHitTools(now: Date) -> Set<ToolID> {
+        Set(sessions.values.filter { $0.quotaWait || $0.limitHitAt.map { now.timeIntervalSince($0) < 3600 } ?? false }.map(\.tool))
+    }
+
+    /// One tool's sessions waiting on the user, in no order, for the mark beside its ring. The dictionary is keyed
+    /// by `key(tool:session:host:)`: the bare session id for Claude Code, as it always was, because the
+    /// notification identifiers are built from that id; the tool's name in front of it for every other hook.
     /// These three read `sessions.values` rather than `all` because the drawing side asks them once per tool per
     /// pass, and sorting every session five times over to answer a count is work this file's own history says not
     /// to do. So this one does not sort either: its caller asks it for `.count`, and a sort it would throw away is
     /// the same work under another name.
     func waiting(of tool: ToolID) -> [AgentSession] {
         sessions.values.filter { $0.tool == tool && $0.isWaiting }
+    }
+
+    /// A copy holding only one tool's sessions, for the sessions line on that tool's card, which must not count a
+    /// Cursor conversation on the Claude Code card or the other way round. `hooksSeen` is kept as it is: whether a
+    /// hook has ever reported is a fact about the app, not about the tool asked for; `knownCount(of:)` is the
+    /// per-tool question.
+    func only(_ tool: ToolID) -> SessionTracker {
+        var copy = self
+        copy.sessions = sessions.filter { $0.value.tool == tool }
+        return copy
+    }
+
+    /// The dictionary key. Claude Code's sessions keep the bare id (and `id@host`) they have always had, so nothing
+    /// that logs, notifies or reports them changes; any other tool's id carries the tool's name in front
+    /// ("cursor:conv-1", "codex:<uuid>", "antigravity:<uuid>", "copilot:<id>", "cursor:conv-1@devbox", "cursor:unknown"),
+    /// so another assistant's session and a Claude session can never share an entry. The tool's typed home is still AgentSession.tool; the prefix is only a collision guard.
+    /// The separator is a colon rather than a slash because `Notifier.identifier` is `session/<id>/<kind>`, and a
+    /// slash inside the id would muddy it.
+    static func key(tool: ToolID, session: String?, host: String?) -> String {
+        let id = session.map { session in host.map { host in "\(session)@\(host)" } ?? session } ?? unknownSession
+        return tool == .claude ? id : "\(tool.rawValue):\(id)"
     }
 
     /// Whether any of one tool's sessions is mid-turn, which is what releases a finished ring early: something is
@@ -187,9 +227,9 @@ struct SessionTracker: Equatable, Sendable {
 
     @discardableResult
     mutating func apply(_ message: Hook.Message, now: Date) -> Outcome {
-        hookSeen = true
+        hooksSeen.insert(message.tool)
         expire(now: now)
-        let id = message.sessionID.map { session in message.host.map { host in "\(session)@\(host)" } ?? session } ?? Self.unknownSession
+        let id = Self.key(tool: message.tool, session: message.sessionID, host: message.host)
         var outcome = Outcome()
         if message.event == "SessionEnd" {
             if sessions[id]?.isWaiting == true { outcome.stoppedWaiting.append(id) }
@@ -228,6 +268,13 @@ struct SessionTracker: Equatable, Sendable {
             }
         case "SubagentStart":
             session.agents[message.agentID ?? "agent-\(session.agents.count + 1)"] = now
+            // A session that has just started an agent is running its own loop, so it is not waiting on the user.
+            // This is the only proof of an answered permission prompt the hook ever sends: Claude Code reports
+            // the prompt and never the answer, so without it an approved prompt — or one auto mode settled by
+            // itself — kept the hand up for the ten-minute timeout, through a turn that was plainly working.
+            // A SubagentStop is deliberately not the same proof: a background agent can finish while the main
+            // loop is genuinely held at a prompt.
+            if session.isWaiting { session.state = .working(since: now) }
         case "SubagentStop":
             if let agentID = message.agentID, session.agents[agentID] != nil {
                 session.agents[agentID] = nil
@@ -253,7 +300,8 @@ struct SessionTracker: Equatable, Sendable {
         return outcome
     }
 
-    /// A status-line update is proof the session is alive; its project, branch and pull request are taken.
+    /// A status-line update is proof the session is alive; its project, branch and pull request are taken. Only
+    /// Claude Code has a status line, and its key is the bare id, so no `key(tool:session:host:)` is needed here.
     mutating func statusline(sessionID: String?, project: String?, branch: String? = nil, prURL: String? = nil, now: Date) {
         guard let sessionID else { return }
         expire(now: now)
