@@ -28,6 +28,20 @@ private extension Color {
     }
 }
 
+extension ToolSignal {
+    /// Both states take `Palette.calm`. It is already this app's documented hue for "needs you, not running out",
+    /// and already the colour of the Advice line that says Claude Code is waiting in some project, so the ring
+    /// beside the notch and the strip inside the panel now say the same thing in the same colour rather than
+    /// inventing a second vocabulary. Against orange and vermillion it is the blue-yellow axis, the one both
+    /// deuteranopia and protanopia keep, so a waiting ring can never be read as a window running out.
+    ///
+    /// One hue for two states, not two, because the two states ask the same thing of the reader and because a
+    /// third safe hue does not exist here: Wong's remaining green and yellow are Codex's and Copilot's identity
+    /// colours on the same strip, its brighter sky blue is Antigravity's, and reddish purple collapses towards
+    /// blue for a protanope. The shape carries the difference instead (SignalMark).
+    var colour: Color { Palette.calm }
+}
+
 /// The accessibility display settings the custom drawing honours: Increase Contrast raises the low-opacity
 /// tracks and fills and floors captions at secondary; Reduce Transparency swaps glass for solid black; Reduce
 /// Motion (the system's, or the app's own toggle) stills every animation. Re-read on the system's notification.
@@ -149,36 +163,75 @@ struct RingView: View {
     var lineWidth: CGFloat = 3
     /// Drawn as a cap on the arc's end: hollow when on track, filled when behind. Shape, not colour, carries it.
     var pace: Pace.Status? = nil
+    /// What the tool's agent is asking of the user (ToolSignal). While one holds it takes the whole ring, track and
+    /// arc alike, and the fullness tint it displaced moves onto the cap.
+    var signal: ToolSignal? = nil
 
     var body: some View {
         let contrast = AccessibilityDisplay.shared.contrast
+        let ground = signal?.colour ?? color
+        let cap = Self.cap(fraction: fraction, pace: pace, signal: signal)
         ZStack {
             Circle()
-                .stroke(color.opacity(contrast ? 0.45 : 0.22), lineWidth: lineWidth)
+                .stroke(ground.opacity(Self.trackOpacity(signal: signal, contrast: contrast)), lineWidth: lineWidth)
             if let fraction {
                 let shown = max(0.015, min(1, fraction))
                 Circle()
                     .trim(from: 0, to: CGFloat(shown))
-                    .stroke(tint(fraction), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .stroke(Self.arcColour(fraction: fraction, tool: color, signal: signal), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                if let pace, pace != .ahead {
+                if let cap {
                     GeometryReader { geometry in
                         let radius = min(geometry.size.width, geometry.size.height) / 2 - lineWidth / 2
                         let angle = -Double.pi / 2 + 2 * .pi * shown
-                        PaceCap(filled: pace == .behind, color: pace == .behind ? Palette.danger : Palette.warn, diameter: lineWidth * 2.2)
+                        PaceCap(filled: cap.filled, color: cap.color, diameter: lineWidth * 2.2)
                             .position(x: geometry.size.width / 2 + radius * cos(angle), y: geometry.size.height / 2 + radius * sin(angle))
                     }
                 }
             } else {
                 Circle()
-                    .stroke(color.opacity(contrast ? 0.8 : 0.55), style: StrokeStyle(lineWidth: lineWidth, dash: [2, 3]))
+                    .stroke(ground.opacity(contrast ? 0.8 : 0.55), style: StrokeStyle(lineWidth: lineWidth, dash: [2, 3]))
             }
         }
         .animation(AccessibilityDisplay.shared.motionReduced ? nil : .snappy(duration: 0.4), value: fraction)
+        .animation(AccessibilityDisplay.shared.motionReduced ? nil : .snappy(duration: 0.4), value: signal)
     }
 
-    private func tint(_ fraction: Double) -> Color {
-        fraction >= 0.95 ? Palette.danger : fraction >= 0.8 ? Palette.warn : color
+    /// A tool at 4 % has fifteen thousandths of a circle of arc, so a signal that recoloured the arc alone would be
+    /// invisible on exactly the ring that most needs seeing. The track is what carries a recolour at low fill, so it
+    /// lifts while a signal holds: 0.22 to 0.38, and 0.45 to 0.6 under Increase Contrast, which keeps the same step
+    /// between the two settings that the ordinary track has.
+    static func trackOpacity(signal: ToolSignal?, contrast: Bool) -> Double {
+        if signal != nil { return contrast ? 0.6 : 0.38 }
+        return contrast ? 0.45 : 0.22
+    }
+
+    /// The colour the arc takes. A signal outranks fullness, which outranks the tool's own colour, because a
+    /// permission prompt is the only one of the three the reader can act on this second: the meter cannot move at
+    /// all until they answer it. That is the order `Presence.level` and `Advisor.waiting` already put these two
+    /// facts in, and nothing is lost by it — the displaced fullness tint moves to the cap.
+    static func arcColour(fraction: Double, tool: Color, signal: ToolSignal?) -> Color {
+        if let signal { return signal.colour }
+        return fullness(fraction) ?? tool
+    }
+
+    /// The tint a nearly-full window earns on its own account, or nil while it still has room.
+    static func fullness(_ fraction: Double) -> Color? {
+        fraction >= 0.95 ? Palette.danger : fraction >= 0.8 ? Palette.warn : nil
+    }
+
+    /// What rides the arc's end. Pace has first claim, as it always has, with the shape it has always had. Failing
+    /// that, a signal holding the arc hands the fullness tint it displaced to the cap, so recolouring the ring never
+    /// costs the reader the fact that the window is nearly gone. That fallback covers a narrow gap rather than a
+    /// broad one: past 95 % the pace can never be ahead, since the projection is at least the fraction already
+    /// spent, so a cap is drawn anyway. What it does cover is a session at 85 % with the reset almost here, where
+    /// the pace is ahead and draws nothing, and any window with no reset at all to read a pace from.
+    static func cap(fraction: Double?, pace: Pace.Status?, signal: ToolSignal?) -> (filled: Bool, color: Color)? {
+        if let pace, pace != .ahead {
+            return (pace == .behind, pace == .behind ? Palette.danger : Palette.warn)
+        }
+        guard signal != nil, let fraction, let displaced = fullness(fraction) else { return nil }
+        return (fraction >= 0.95, displaced)
     }
 }
 
@@ -211,15 +264,40 @@ private struct ContextArc: View {
 }
 
 /// One tool's rings: the main window outside, the others nested inside it (Preferences.ringWindows, up to
-/// RingSelection.maximum), a "!" for a problem, a white dot (with a count past one) while sessions wait for the
-/// user, and a context arc while the Claude Code status line reports one. The presence level sets the size
-/// (Presence.swift): 14 pt when quiet, 18 pt otherwise, and a 4 pt dot when hidden. Two rings keep the diameters
-/// they have always had; a third re-spaces the nest so the innermost still reads as a ring rather than a dot.
+/// RingSelection.maximum), a "!" for a problem, a mark while the assistant is asking something of the user, and a
+/// context arc while the Claude Code status line reports one. The presence level sets the size (Presence.swift):
+/// 14 pt when quiet, 18 pt otherwise, and a 4 pt dot when hidden. Two rings keep the diameters they have always
+/// had; a third re-spaces the nest so the innermost still reads as a ring rather than a dot.
+///
+/// A signal takes every ring in the nest, not the outer one alone, so the nest reads as one thing rather than an
+/// outer ring that has changed and inner ones that have not; the inner rings' identity colour is redundant while it
+/// holds, since the reader already knows which tool this is from where it sits in the strip.
+///
+/// The mark is drawn outside the quiet dimming rather than inside it, which is why it is a sibling of the dimmed
+/// stack rather than a member of it. A 5 pt mark on a 14 pt ring at 70 % opacity is not something anyone reads in
+/// passing, and the answer to that was briefly to lift the presence level while a finish held. That was reverted
+/// (Presence.swift): the calm rule would have been answering a ninety-second clock as well as a set of limits, the
+/// nest would have churned between 14 and 18 points after every long turn, and the clock would have been an input
+/// to the view CompactStripProbe renders to measure the strip. The measured footprint never moved between the
+/// quiet size and the loud one, at any ring count and in any style — but by two mechanisms, not one. Where this
+/// view is drawn (the rings and ringsAndNumbers styles) it is the hard 18 pt frame at the foot of it, which the
+/// 14 pt quiet nest and the 18 pt loud one both sit inside; in the numbers style this view is not drawn at all,
+/// and what holds the digits still is that presence reaches nothing there but their opacity. So what the lift
+/// really bought was a fit resting on those two rather than on the calm rule. The rings go quiet on the calm rule
+/// alone and the mark stays loud on its own terms: full opacity at either ring size, and a disc sized by the state
+/// it reports rather than by the ring under it — 5 pt for a single wait, 9 pt for a counted one or a finished turn.
+/// `SignalMark.cornerOffset` is what keeps each of those sizes inside the 18 pt box.
 struct CompactRings: View {
+    /// The hard box every ring nest and every mark is drawn inside, so that neither the calm rule nor the
+    /// ninety-second signal hold can move the strip's measured width.
+    static let side: CGFloat = 18
+
     let tool: ToolID
     let status: ToolStatus
     var windows: [LimitWindow] = []
-    var waiting = 0
+    var signal: ToolSignal? = nil
+    /// Whether the rings take the state colour, or only the mark carries it (Preferences.signalRings).
+    var signalColours = true
     var contextUsed: Double? = nil
     var presence: PresenceLevel = .legible
 
@@ -235,30 +313,39 @@ struct CompactRings: View {
     var body: some View {
         let quiet = presence == .quiet
         let nest = Self.nest(count: windows.count, quiet: quiet)
+        let painted = signalColours ? signal : nil
         ZStack {
-            if presence == .hidden {
-                Circle().fill(tool.color.opacity(0.8)).frame(width: 4, height: 4)
-            } else {
-                RingView(fraction: windows.first?.usedFraction, color: tool.color, lineWidth: nest[0].lineWidth,
-                         pace: windows.first.flatMap { Pace.status(for: $0) })
-                    .frame(width: nest[0].diameter, height: nest[0].diameter)
-                ForEach(Array(zip(windows, nest).dropFirst().enumerated()), id: \.offset) { _, pair in
-                    RingView(fraction: pair.0.usedFraction, color: tool.color.opacity(0.8), lineWidth: pair.1.lineWidth,
-                             pace: Pace.status(for: pair.0))
-                        .frame(width: pair.1.diameter, height: pair.1.diameter)
-                }
-                if let contextUsed {
-                    ContextArc(fraction: contextUsed, diameter: quiet ? 18 : 22)
-                }
-                if status.problem != nil {
-                    ProblemMark()
-                }
-                if waiting > 0 {
-                    WaitingDot(count: waiting).offset(x: 7, y: -7)
+            ZStack {
+                if presence == .hidden {
+                    // A 4 pt dot has no room for a mark, so colour would be the only channel left to it. The branch
+                    // is unreachable while a signal holds — a wait makes the presence urgent, which `Presence.hides`
+                    // never collapses, and every hook event sets the wake that keeps the rings up for five minutes,
+                    // which outlasts the ninety-second hold — so the dot keeps the tool's own colour and the rule
+                    // that hue never carries a meaning alone is never put to the test here.
+                    Circle().fill(tool.color.opacity(0.8)).frame(width: 4, height: 4)
+                } else {
+                    RingView(fraction: windows.first?.usedFraction, color: tool.color, lineWidth: nest[0].lineWidth,
+                             pace: windows.first.flatMap { Pace.status(for: $0) }, signal: painted)
+                        .frame(width: nest[0].diameter, height: nest[0].diameter)
+                    ForEach(Array(zip(windows, nest).dropFirst().enumerated()), id: \.offset) { _, pair in
+                        RingView(fraction: pair.0.usedFraction, color: tool.color.opacity(0.8), lineWidth: pair.1.lineWidth,
+                                 pace: Pace.status(for: pair.0), signal: painted)
+                            .frame(width: pair.1.diameter, height: pair.1.diameter)
+                    }
+                    if let contextUsed {
+                        ContextArc(fraction: contextUsed, diameter: quiet ? 18 : 22)
+                    }
+                    if status.problem != nil {
+                        ProblemMark()
+                    }
                 }
             }
+            .opacity(presence.readoutOpacity)
+            if presence != .hidden, let signal {
+                SignalMark(signal: signal).offset(SignalMark.cornerOffset(of: signal, in: Self.side))
+            }
         }
-        .frame(width: 18, height: 18)
+        .frame(width: Self.side, height: Self.side)
         .opacity(status.reading == nil && status.problem == nil ? 0.5 : 1)
         .animation(AccessibilityDisplay.shared.motionReduced ? nil : .snappy(duration: 0.4), value: presence)
     }
@@ -266,8 +353,17 @@ struct CompactRings: View {
 
 /// The digits beside a ring, or in its place (CompactStyle): 11 pt semibold rounded, monospaced, in the tool's
 /// colour until a window is on track or behind, when that window's figure takes the status colour. With no ring
-/// to carry them, the problem mark and the waiting dot sit beside the digits. The size is fixed: the digits must
+/// to carry them, the problem mark and the signal mark sit beside the digits. The size is fixed: the digits must
 /// fit beside the notch whatever the text size setting.
+///
+/// A signal never takes the digits. Someone who chose figures over rings chose the figures' own meaning, and a
+/// number that turned blue for a permission prompt would read as a claim about that number rather than about the
+/// session; the mark on the corner of them carries the state instead, as it has for a wait since the hook shipped.
+///
+/// The mark is an overlay on the corner of the digits rather than another item in the row, because an item in the
+/// row costs width: the digits measured 53 pt plain and 65 pt with a tick, and `CompactStripProbe` measures this
+/// view to fit the strip, so the fit would have depended on what time it was. Drawn on the corner it costs nothing,
+/// and it is applied after the quiet dimming so it stays legible at 70 % digits, for the reason CompactRings gives.
 struct CompactNumbers: View {
     let tool: ToolID
     let status: ToolStatus
@@ -275,7 +371,8 @@ struct CompactNumbers: View {
     let display: UsageDisplay
     var countdown = false
     var badges = false
-    var waiting = 0
+    var signal: ToolSignal? = nil
+    var presence: PresenceLevel = .legible
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: countdown ? 60 : 3600)) { context in
@@ -292,12 +389,15 @@ struct CompactNumbers: View {
                         .foregroundStyle(color(for: segment))
                         .contentTransition(AccessibilityDisplay.shared.motionReduced ? .identity : .numericText())
                 }
-                if badges, waiting > 0 {
-                    WaitingDot(count: waiting)
-                }
             }
             .font(.system(size: 11, weight: .semibold, design: .rounded))
             .monospacedDigit()
+            .opacity(presence.readoutOpacity)
+            .overlay(alignment: .topTrailing) {
+                if badges, let signal {
+                    SignalMark(signal: signal).offset(x: 4, y: -4)
+                }
+            }
             .opacity(status.reading == nil && status.problem == nil ? 0.5 : 1)
             .animation(AccessibilityDisplay.shared.motionReduced ? nil : .snappy(duration: 0.4), value: segments)
         }
@@ -312,6 +412,17 @@ struct CompactNumbers: View {
     }
 }
 
+extension PresenceLevel {
+    /// How far a readout dims at this level. The quiet level drops to 70 %, which with the smaller rings is the
+    /// whole of what quiet means; Increase Contrast keeps it at full, because a reader who asked for contrast did
+    /// not ask for a calm readout they cannot see. It is a level's own property rather than a line repeated in
+    /// four view bodies so that the one subtree that must not take it — the signal mark — is a visible exception
+    /// rather than an omission someone puts back by tidying.
+    @MainActor var readoutOpacity: Double {
+        self == .quiet && !AccessibilityDisplay.shared.contrast ? 0.7 : 1
+    }
+}
+
 private struct ProblemMark: View {
     var body: some View {
         Image(systemName: "exclamationmark")
@@ -320,14 +431,91 @@ private struct ProblemMark: View {
     }
 }
 
+/// The mark beside the rings, and beside the digits where there is no ring. Both marks are a white disc with a 1 pt
+/// black stroke, which is what keeps them legible over a tool colour, over Liquid Glass and over the black notch
+/// alike; the shape inside is what tells the two states apart, so nothing here rests on the ring's hue and the
+/// distinction survives the colouring being turned off.
+private struct SignalMark: View {
+    /// The black ring both marks carry. `Circle().stroke` is centred on the path, so a 1 pt stroke adds half a
+    /// point outside the disc on every side and a mark covers its disc plus one whole point.
+    static let strokeWidth: CGFloat = 1
+
+    let signal: ToolSignal
+
+    /// What this mark actually covers, the stroke included. It is not one number: a single waiting session draws
+    /// a 5 pt disc and everything else — a counted wait, a finished turn — draws a 9 pt one.
+    static func drawnDiameter(of signal: ToolSignal) -> CGFloat {
+        let disc: CGFloat
+        switch signal {
+        case .waiting(let count): disc = WaitingDot.diameter(count: count)
+        case .finished: disc = FinishedTick.diameter
+        }
+        return disc + strokeWidth
+    }
+
+    /// Where to put the mark's centre so that, drawn on the top-right corner of a square frame `side` points
+    /// across, none of it falls outside that frame.
+    ///
+    /// This was a pair of literals — seven points out and seven up — carried over from when the only mark on the
+    /// strip was the 5 pt disc a single waiting session draws, and it was never right for any mark. Seven out of a
+    /// centre at (9, 9) puts a mark's centre at (16, 2). Counted the way the property above counts, disc plus the
+    /// whole point its stroke adds, that leaves the 5 pt disc one point over the top edge and one over the right,
+    /// and a 9 pt one — a finished turn, or a two-session wait — three points over each.
+    ///
+    /// The 18 pt frame does not itself do the cutting: a SwiftUI `.frame` measures and does not clip, and there is
+    /// no clip anywhere in this file. What the frame does is tell every container upstream that the readout is
+    /// 18 pt wide, so a mark hanging past that edge is at the mercy of whatever the strip is drawn inside. That is
+    /// how the tick came to render 16 px across and only 12 tall — the full width of an unclipped disc, cut flat
+    /// along the top by the notch bar it overflowed. An inset worked from the mark's own drawn diameter is right
+    /// at every size and cannot go stale the next time a mark changes size, which is how one pair of numbers came
+    /// to be wrong for every mark it covered.
+    static func cornerOffset(of signal: ToolSignal, in side: CGFloat) -> CGSize {
+        let inset = (side - drawnDiameter(of: signal)) / 2
+        return CGSize(width: inset, height: -inset)
+    }
+
+    var body: some View {
+        switch signal {
+        case .waiting(let count): WaitingDot(count: count)
+        case .finished: FinishedTick()
+        }
+    }
+}
+
+/// The same 9 pt disc the waiting count uses, with a tick where the digit would be. At this size a tick is the only
+/// shape anyone reads as "done" without being told, and borrowing the counted dot's chassis means it takes no more
+/// room than a two-session wait already does — which is what keeps a state change out of the compact strip's width
+/// wherever a mark was drawn before it.
+private struct FinishedTick: View {
+    static let diameter: CGFloat = 9
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(.white)
+                .frame(width: Self.diameter, height: Self.diameter)
+                .overlay(Circle().stroke(.black, lineWidth: 1))
+            Image(systemName: "checkmark")
+                .font(.system(size: 5.5, weight: .heavy))
+                .foregroundStyle(.black)
+        }
+    }
+}
+
+/// The white disc a waiting session has always drawn, with the count in it past one. Untouched by the state
+/// colours: it is the app's only non-colour carrier of a wait, and white on a black stroke is the one treatment
+/// that survives any base colour underneath it.
 private struct WaitingDot: View {
+    /// A bare wait is a 5 pt dot; a counted one grows to 9 so a digit fits inside it.
+    static func diameter(count: Int) -> CGFloat { count > 1 ? 9 : 5 }
+
     var count = 1
 
     var body: some View {
         ZStack {
             Circle()
                 .fill(.white)
-                .frame(width: count > 1 ? 9 : 5, height: count > 1 ? 9 : 5)
+                .frame(width: Self.diameter(count: count), height: Self.diameter(count: count))
                 .overlay(Circle().stroke(.black, lineWidth: 1))
             if count > 1 {
                 Text(verbatim: "\(min(count, 9))")
@@ -344,13 +532,24 @@ private struct WaitingDot: View {
 /// a core while a ring pulsed); no pulse under Reduce Motion. While the screen is shared and the privacy setting is
 /// on, the digits are withheld.
 /// VoiceOver reads the tool and every window's figure and pace, whatever is drawn.
+///
+/// The quiet dimming is applied by each part rather than here, over the rings and over the digits but never over
+/// the mark beside them. A parent's `.opacity` composites everything under it, so a mark drawn inside this view's
+/// dimming could not be exempted from it, and a mark at 70 % on a 14 pt ring is not something anyone reads in
+/// passing. Lifting the whole readout instead was tried and reverted: presence is what the calm rule says about
+/// limits, and a state that lifted it put a ninety-second clock into that rule and into the view the compact fit
+/// is measured from, to buy a legibility the exempted mark already gives for nothing (CompactRings).
 struct CompactReadout: View {
     let tool: ToolID
     let status: ToolStatus
     let style: CompactStyle
     let display: UsageDisplay
     var windows: [LimitWindow] = []
-    var waiting = 0
+    /// What the assistant is asking of the user (ToolSignal): the rings' colour, the mark and what VoiceOver reads
+    /// first all come from this one value, so none of the three can disagree with another.
+    var signal: ToolSignal? = nil
+    /// Whether the rings take the colour, or only the mark carries it (Preferences.signalRings).
+    var signalColours = true
     var contextUsed: Double? = nil
     var countdown = false
     var hideFigures = false
@@ -372,7 +571,6 @@ struct CompactReadout: View {
                 HStack(spacing: 5) { parts }
             }
         }
-        .opacity(presence == .quiet && !AccessibilityDisplay.shared.contrast ? 0.7 : 1)
         .animation(reduceMotion ? nil : .snappy(duration: 0.4), value: presence)
         .opacity(pulsing ? 0.4 : 1)
         .animation(pulsing ? .easeInOut(duration: Self.pulseDuration).repeatCount(Self.pulseCycles * 2 - 1, autoreverses: true) : .easeInOut(duration: 0.3), value: pulsing)
@@ -380,24 +578,39 @@ struct CompactReadout: View {
         .onChange(of: reduceMotion) { updatePulse() }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(tool.displayName)
-        .accessibilityValue(Spoken.status(status, awaitingInput: waiting > 0))
+        .accessibilityValue(Spoken.status(status, signal: signal))
     }
 
     @ViewBuilder private var parts: some View {
         let showNumbers = style.showsNumbers && !hideFigures && presence != .hidden
         if let apiKeyCost {
             if showNumbers {
+                // Claude Code on an API key draws no ring, which left the one assistant whose hook reports these
+                // events as the only one with nowhere to report them. The mark goes on the corner of the figure,
+                // where CompactRings puts it on the corner of the nest, rather than in a slot beside it: a slot
+                // took 12 pt of strip width that came and went with the ninety-second hold, and the fit is
+                // measured from what is drawn. It reaches the two styles that draw digits and no further: at plain
+                // rings `compactTools(style:)` leaves this readout out of the strip altogether, and while the
+                // screen is shared there are no digits to sit beside.
                 Text(verbatim: apiKeyCost)
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(tool.color)
+                    .opacity(presence.readoutOpacity)
+                    .overlay(alignment: .topTrailing) {
+                        if let signal {
+                            SignalMark(signal: signal).offset(x: 4, y: -4)
+                        }
+                    }
             }
         } else {
             if style.showsRings || hideFigures || presence == .hidden {
-                CompactRings(tool: tool, status: status, windows: windows, waiting: waiting, contextUsed: contextUsed, presence: presence)
+                CompactRings(tool: tool, status: status, windows: windows, signal: signal, signalColours: signalColours,
+                             contextUsed: contextUsed, presence: presence)
             }
             if showNumbers {
-                CompactNumbers(tool: tool, status: status, windows: windows, display: display, countdown: countdown, badges: !style.showsRings, waiting: waiting)
+                CompactNumbers(tool: tool, status: status, windows: windows, display: display, countdown: countdown,
+                               badges: !style.showsRings, signal: signal, presence: presence)
             }
         }
     }
@@ -416,11 +629,17 @@ struct CompactReadout: View {
 }
 
 private extension UsageStore {
+    /// One readout for the notch strip and for an edge pill both; they share this call site, so a fix here is a fix
+    /// in both places at once. The waiting count used to be handed over as `tool == .claude ? waitingCount : 0`; it
+    /// is now `signal(tool)`, which answers for every assistant with no tool named anywhere above `SessionTracker`.
+    /// The context arc keeps its own ternary: that figure comes from Claude Code's status line rather than from a
+    /// hook, which is a different fact with a different reason to be Claude-only, and collapsing the two would hide
+    /// that.
     func readout(_ tool: ToolID, presence: PresenceLevel, axis: Axis = .horizontal, style: CompactStyle) -> CompactReadout {
         let status = status(tool)
         let apiKeyCost = tool == .claude && claudeOnAPIKey ? Money.dollars(cost?.totals(.month).cost ?? 0, cents: false) : nil
         return CompactReadout(tool: tool, status: status, style: style, display: prefs.usageDisplay,
-                              windows: status.reading.map(prefs.ringWindows) ?? [], waiting: tool == .claude ? waitingCount : 0,
+                              windows: status.reading.map(prefs.ringWindows) ?? [], signal: signal(tool), signalColours: prefs.signalRings,
                               contextUsed: tool == .claude ? contextUsed : nil, countdown: prefs.showResetCountdown, hideFigures: hidesFigures,
                               presence: presence, axis: axis, apiKeyCost: apiKeyCost)
     }
@@ -441,7 +660,7 @@ private struct CompactOverflow: View {
             .font(.system(size: 10, weight: .semibold, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(.secondary)
-            .opacity(presence == .quiet && !AccessibilityDisplay.shared.contrast ? 0.7 : 1)
+            .opacity(presence.readoutOpacity)
             .accessibilityLabel(L("%ld more", count))
     }
 }
@@ -508,7 +727,7 @@ struct EdgeCompactView: View {
         .environment(\.layoutDirection, .leftToRight)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(AppInfo.name)
-        .accessibilityValue(tools.map { "\($0.displayName): \(Spoken.status(store.status($0), awaitingInput: store.isAwaitingInput($0)))" }.joined(separator: ". "))
+        .accessibilityValue(tools.map { "\($0.displayName): \(Spoken.status(store.status($0), signal: store.signal($0)))" }.joined(separator: ". "))
     }
 }
 
@@ -1077,6 +1296,14 @@ struct ToolCard: View {
                 Text(tool.displayName).font(.headline)
                 if let plan = status.reading?.plan {
                     Text(plan).font(.subheadline).foregroundStyle(.secondary)
+                }
+                // The rings recolour because they have no room for anything else. A card has room for words, so it
+                // says which state it is in rather than leaving the reader to learn a hue.
+                if let signal = store.signal(tool) {
+                    Label(signal.cardText, systemImage: signal.symbolName)
+                        .font(.caption)
+                        .foregroundStyle(Palette.calm)
+                        .accessibilityLabel(signal.cardText)
                 }
                 Spacer()
                 Button {

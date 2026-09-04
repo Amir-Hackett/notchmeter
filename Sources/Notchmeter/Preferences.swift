@@ -16,7 +16,8 @@ enum NotchVisibility: String, CaseIterable, Codable {
     }
 }
 
-/// Where the panel lives. Top merges with the physical notch; the others are Codenotch-style edge pills.
+/// Where the panel lives. Top merges with the physical notch; the sides are a notch of the same shape cut into
+/// that edge of the screen, with the panel opening beside them; the bottom is a Codenotch-style bar.
 enum PanelEdge: String, CaseIterable, Codable {
     case top, left, right, bottom
 
@@ -32,15 +33,23 @@ enum PanelEdge: String, CaseIterable, Codable {
     var detail: String {
         switch self {
         case .top: L("Readings sit beside the notch and open below it.")
-        case .left: L("A pill down the left-hand edge, clear of a Dock on that side and of Stage Manager's strip.")
-        case .right: L("A pill down the right-hand edge, clear of a Dock on that side.")
+        case .left: L("A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side.")
+        case .right: L("A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side.")
         case .bottom: L("A bar resting on top of the Dock.")
         }
     }
 
-    /// The Settings and Options label for the compact readout: rings beside the notch, or inside an edge pill.
+    /// The Settings and Options label for the compact readout, which has to name the shape the reader can
+    /// actually see: rings beside the hardware notch, inside the notch cut into a side edge, or inside the bar on
+    /// the bottom. "In the side notch" rather than "In the notch", which at a glance is the top layout's own
+    /// label. The bottom keeps its wording: the user asked about the sides, and leaving it alone retires no key
+    /// from six localisation tables.
     var compactStyleTitle: String {
-        self == .top ? L("Beside the notch") : L("In the pill")
+        switch self {
+        case .top: L("Beside the notch")
+        case .left, .right: L("In the side notch")
+        case .bottom: L("In the pill")
+        }
     }
 }
 
@@ -237,11 +246,23 @@ enum ToolOrder {
     }
 }
 
-/// Which side of the physical notch the readouts sit on. macOS puts the frontmost app's menu titles immediately
-/// left of the notch, so the right side is normally the free one; `split` is the old behaviour.
-/// What the Settings window and the edge pills follow. The notch layout is never light: the panel has to be
-/// black to read as one shape with the physical notch, so a light one would hang off the hardware as a bright
-/// rectangle. Appearance therefore reaches everything it honestly can, and says so.
+/// What the Settings window follows, and with it the shape the readouts sit in wherever that shape is a capsule
+/// floating on the desktop rather than a notch flush against the glass: the bottom bar, the top bar on a Mac with
+/// no hardware notch, and a side edge a pinned Dock or Stage Manager's strip already holds. `EdgePanelRoot` sets
+/// the root scheme from it; the notch layout is `NotchController`'s and reads it nowhere at all.
+///
+/// The open panel's contents do not follow it, in any layout: `NotchExpandedView` ends in an unconditional
+/// `.foregroundStyle(.white)` and `.colorScheme(.dark)`. The notch layout's panel has to be black to read as one
+/// shape with the physical notch, and the edge card is the same view rather than a second one, so both are white
+/// on dark whatever is chosen. A notch cut into a side edge forces dark inside its own shape for the sister
+/// reason — it is claiming to be screen the Mac does not have, and screen the Mac does not have is dark.
+///
+/// That leaves one combination this setting reaches only halfway, and it is known rather than ruled out: from
+/// macOS 26 the edge card's surface is `glassEffect` applied outside the content's forced-dark environment, so the
+/// surface alone reads the ambient scheme. Light therefore puts that white text over light glass in every edge
+/// layout; only the notch layout, which draws no card, is out of its reach. It is the behaviour that shipped, and
+/// `docs/roadmap.md` reserves the judgement about the edge card's glass for a person sitting at a macOS 26
+/// screen — so this is written down rather than argued away.
 enum AppearanceChoice: String, CaseIterable, Codable {
     case system, light, dark
 
@@ -253,7 +274,9 @@ enum AppearanceChoice: String, CaseIterable, Codable {
         }
     }
 
-    /// nil follows the system; the panel reads this too, except in the notch layout.
+    /// nil follows the system. The panel's contents never read it — they are white on dark in every layout — and
+    /// nor does a flush side notch. On macOS 26 the glass surface under the edge card does, which is the
+    /// white-text-on-light-glass case this type's doc names.
     var colorScheme: ColorScheme? {
         switch self {
         case .system: nil
@@ -271,6 +294,8 @@ enum AppearanceChoice: String, CaseIterable, Codable {
     }
 }
 
+/// Which side of the physical notch the readouts sit on. macOS puts the frontmost app's menu titles immediately
+/// left of the notch, so the right side is normally the free one; `split` is the old behaviour.
 enum CompactSide: String, CaseIterable, Codable {
     case trailing, leading, split, auto
 
@@ -545,6 +570,16 @@ final class Preferences {
     var sessionAttention: SessionAttention {
         didSet { defaults.set(sessionAttention.rawValue, forKey: Keys.sessionAttention); report(Keys.sessionAttention, sessionAttention.rawValue, changed: sessionAttention != oldValue) }
     }
+    /// Whether the compact rings take the state colour while an assistant waits or has just finished (ToolSignal).
+    /// On by default: the strip has no other channel for something the user has to act on, and a ring in a tool's
+    /// own colour cannot say that its agent has stopped. Off, the rings keep their identity colour and every mark
+    /// stays where it was — the waiting dot the hook has always drawn and the tick beside it — so the setting
+    /// withdraws the colour and not the fact, which is what `SessionAttention.nothing` already means by off.
+    /// Deliberately not tied to the two notification settings above: those decide whether a banner interrupts the
+    /// reader, and a banner and a colour beside the notch are not the same imposition.
+    var signalRings: Bool {
+        didSet { defaults.set(signalRings, forKey: Keys.signalRings); report(Keys.signalRings, signalRings, changed: signalRings != oldValue) }
+    }
     var notificationSound: Bool {
         didSet { defaults.set(notificationSound, forKey: Keys.notificationSound); report(Keys.notificationSound, notificationSound, changed: notificationSound != oldValue) }
     }
@@ -710,6 +745,7 @@ final class Preferences {
         static let notifyExtraUsage = "notifyExtraUsage"
         static let notifyCacheShift = "notifyCacheShift"
         static let sessionAttention = "sessionAttention"
+        static let signalRings = "signalRings"
         static let notificationSound = "notificationSound"
         static let soundPace = "soundPace"
         static let soundWaiting = "soundWaiting"
@@ -796,6 +832,7 @@ final class Preferences {
         notifyExtraUsage = defaults.object(forKey: Keys.notifyExtraUsage) as? Bool ?? true
         notifyCacheShift = defaults.bool(forKey: Keys.notifyCacheShift)
         sessionAttention = SessionAttention(rawValue: defaults.string(forKey: Keys.sessionAttention) ?? "") ?? .nothing
+        signalRings = defaults.object(forKey: Keys.signalRings) as? Bool ?? true
         notificationSound = defaults.object(forKey: Keys.notificationSound) as? Bool ?? true
         soundPace = defaults.string(forKey: Keys.soundPace) ?? NotificationSound.defaultChoice
         soundWaiting = defaults.string(forKey: Keys.soundWaiting) ?? NotificationSound.defaultChoice

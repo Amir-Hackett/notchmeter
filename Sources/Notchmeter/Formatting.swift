@@ -339,9 +339,9 @@ enum Spoken {
     }
 
     /// One tool for the compact rings: "Session 19 percent used, close to pace; Weekly 5 percent used".
-    static func status(_ status: ToolStatus, awaitingInput: Bool, now: Date = Date()) -> String {
+    static func status(_ status: ToolStatus, signal: ToolSignal? = nil, now: Date = Date()) -> String {
         var parts: [String] = []
-        if awaitingInput { parts.append(L("waiting for your input")) }
+        if let signal { parts.append(signal.spokenText) }
         if let problem = status.problem { parts.append(phrase(problem)) }
         if let reading = status.reading {
             for window in reading.windows {

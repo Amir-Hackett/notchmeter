@@ -7,6 +7,17 @@ import Testing
 /// incoming app has drawn its menu titles, so the first reading can be the outgoing app's geometry or nothing at
 /// all — and caching that under the incoming app's name is what left the strip narrowed for an app whose menus are
 /// short, with nothing to put it right until some other app happened to activate.
+/// The app the watcher believes is in front. `NSRunningApplication.current` is not usable here: for the first
+/// moments of a test process it answers `bundleIdentifier` nil and `processIdentifier` −1, so
+/// `AutoSideWatcher.key(for:)` refuses to name it, `menuEndX(for:)` returns nil without ever calling the scripted
+/// reading, and the watcher takes its "nothing measured" path. The suite then passed or failed on how long the
+/// tests before it had happened to take — it failed almost every run under `--filter` and about one full run in
+/// four. Naming the app outright makes the schedule the only thing these tests measure.
+private final class StubFrontmostApp: NSRunningApplication {
+    override var bundleIdentifier: String? { "NotchmeterTests.frontmost" }
+    override var processIdentifier: pid_t { 4242 }
+}
+
 @MainActor @Suite struct AutoSettles {
     static let notch = CGRect(x: 658, y: 950, width: 195, height: 32)
 
@@ -42,7 +53,7 @@ import Testing
                                           defer { takenRight += 1 }
                                           return takenRight < statusItems.count ? statusItems[takenRight] : statusItems[statusItems.count - 1]
                                       },
-                                      frontmost: { .current },
+                                      frontmost: { StubFrontmostApp() },
                                       settleDelays: Array(repeating: .milliseconds(1), count: looks))
         return (watcher, prefs, { taken })
     }

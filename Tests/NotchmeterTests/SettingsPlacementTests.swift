@@ -44,7 +44,9 @@ import Testing
         #expect(overDock.minY >= dockStrip.maxY + SettingsWindowController.readoutClearance)
         #expect(!overDock.intersects(dockStrip))
 
-        let sideStrip = NSRect(x: 6, y: 418, width: 82, height: 202)
+        // The side notch, flush against the glass and grown a point past it for the pointer: the settings
+        // window is centred and never shares its column, whichever side it is on.
+        let sideStrip = NSRect(x: -1, y: 402, width: 83, height: 234)
         let ignored = SettingsWindowController.frame(for: size, screen: screen, safeAreaTop: 0, visible: visible, readouts: sideStrip)
         #expect(ignored.maxY == 982 - SettingsWindowController.topClearance)
     }

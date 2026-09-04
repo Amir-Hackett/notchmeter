@@ -125,6 +125,8 @@ final class UsageStore {
     @ObservationIgnored private var drainSamples: [DrainLog.Key: [DrainSample]] = [:]
     @ObservationIgnored private var tick: Task<Void, Never>?
     @ObservationIgnored private var resetTimer: Task<Void, Never>?
+    /// Releases a waiting or finished ring the moment its own clock runs out (armSignalRelease).
+    @ObservationIgnored private var signalRelease: Task<Void, Never>?
     @ObservationIgnored private var lastCostScan: Date?
     @ObservationIgnored private var screenLocked = false
     @ObservationIgnored private var asleep = false
@@ -223,17 +225,37 @@ final class UsageStore {
         return false
     }
 
-    /// Tools waiting on the user: a permission prompt or a question in Claude Code, reported by its hook.
+    /// Tools waiting on the user: a permission prompt or a question, reported by that tool's hook. Only Claude
+    /// Code's hook ships, so in practice this is Claude's alone; it is read off the sessions rather than named
+    /// here, so a second hook lights the same lamps without a change in this file.
     var awaitingInput: Set<ToolID> {
-        sessions.waiting.isEmpty ? [] : [.claude]
+        Set(sessions.waiting.map(\.tool))
     }
 
     func isAwaitingInput(_ tool: ToolID) -> Bool {
         awaitingInput.contains(tool)
     }
 
-    /// How many Claude Code sessions are waiting, for the dot beside the ring.
-    var waitingCount: Int { sessions.waiting.count }
+    /// When the user last attended to the rings, from `wakeFromIdle`. Not `wokeAt`: every hook event sets that one
+    /// too, so it cannot tell the user's attention from the agent's own noise.
+    private(set) var attendedAt: Date?
+
+    /// What one tool is asking of the user right now (ToolSignal). The rings, the mark beside them, the card's
+    /// label, the menu bar item and VoiceOver all read this one answer, so none of them can contradict another.
+    /// It answers whatever `Preferences.signalRings` says: that setting decides whether the rings take the colour,
+    /// not whether the fact is told, and every mark stays either way.
+    func signal(_ tool: ToolID, now: Date = Date()) -> ToolSignal? {
+        ToolSignal.resolve(waiting: sessions.waiting(of: tool).count, finish: sessions.finish(of: tool, now: now),
+                           working: sessions.isWorking(tool), attended: attendedAt, now: now)
+    }
+
+    /// The strongest signal across a run of tools, for the menu bar pin, which has one glyph to say it in and
+    /// several tools to say it about. A wait outranks a finish for the same reason it does on a ring: only the
+    /// wait is blocking.
+    func strongestSignal(among tools: [ToolID]? = nil, now: Date = Date()) -> (tool: ToolID, signal: ToolSignal)? {
+        let found = (tools ?? visibleTools).compactMap { tool in signal(tool, now: now).map { (tool: tool, signal: $0) } }
+        return found.first(where: { $0.signal.isWaiting }) ?? found.first
+    }
 
     /// The context window's fill from the status line, while its report is fresh.
     var contextUsed: Double? {
@@ -245,7 +267,8 @@ final class UsageStore {
     /// turns quiet into hidden once no agent has been active for half an hour.
     var presence: PresenceLevel {
         let level = Presence.level(windows: visibleTools.flatMap { status($0).reading.map(prefs.shownWindows) ?? [] },
-                                   awaitingInput: visibleTools.contains(where: isAwaitingInput), sessions: sessions.knownCount)
+                                   awaitingInput: visibleTools.contains(where: isAwaitingInput),
+                                   sessions: sessions.knownCount)
         guard prefs.visibility == .hideWhenIdle else { return level }
         let now = Date()
         let idleFor = simulatedIdle ?? visibleTools.compactMap { lastActivity[$0] }.max().map { now.timeIntervalSince($0) }
@@ -253,8 +276,27 @@ final class UsageStore {
         return Presence.hides(level: level, idleFor: nudge ? 0 : idleFor, wokeAgo: wokeAt.map { now.timeIntervalSince($0) }) ? .hidden : level
     }
 
-    /// The pointer rested on the rings, or something else that should bring hidden rings back at once.
+    /// Whether any visible tool has just finished a turn. `wakeFromIdle` guards its publication with this: a look
+    /// releases a finish, so attendance is worth recording while one is lit and worth nothing otherwise, and this
+    /// is the cheapest question that tells the two apart. It deliberately does not reach `presence`: a finish that
+    /// changed how loud the rings are would change how wide they are, and the strip is fitted from that width
+    /// (Presence.level says what that cost).
+    private var showsFinish: Bool {
+        visibleTools.contains { tool in
+            if case .finished = signal(tool) { return true }
+            return false
+        }
+    }
+
+    /// The pointer rested on the rings, or something else that should bring hidden rings back at once. The
+    /// attendance is recorded whatever the visibility setting says, because a finished ring releases on being
+    /// looked at and most users never turn Hide when idle on — but only while a finish is actually lit, because
+    /// `attendedAt` is observed and this runs on every pointer entry into the strip: publishing it unconditionally
+    /// would re-measure the notch, re-fit the edge pill and rebuild the menu bar item's menu on every hover, which
+    /// is the one moment that geometry must not move. Once the look has released the finish the guard is false
+    /// again, so a turn costs at most one publication however long the pointer plays over the rings.
     func wakeFromIdle() {
+        if showsFinish { attendedAt = Date() }
         guard prefs.visibility == .hideWhenIdle else { return }
         wokeAt = Date()
     }
@@ -579,14 +621,21 @@ final class UsageStore {
         return base.replacing(windows: statusline.windows, fetchedAt: statusline.receivedAt)
     }
 
-    /// `--render-assets` (DemoFixtures): readings and a cost summary in place of provider reads. The loops never
-    /// start, so nothing is fetched, cached or written.
-    func seed(readings: [UsageReading], cost: CostSummary, nextUpdate: Date, now: Date = Date()) {
+    /// `--render-assets` (DemoFixtures): readings, a cost summary and a set of hook sessions in place of provider
+    /// reads and of a hook that has actually run. The loops never start, so nothing is fetched, cached or written.
+    ///
+    /// The sessions go in whole rather than through `hookReceived`, which is the one route a live event takes.
+    /// That route refreshes a provider, delivers notifications and arms a release timer, none of which a picture
+    /// wants and the first of which would reach the network from a command whose whole promise is that it does
+    /// not. `DemoFixtures` builds the tracker by feeding `SessionTracker.apply` the same messages a hook would
+    /// send, so the state in the pictures is still the state machine's own answer rather than a hand-set field.
+    func seed(readings: [UsageReading], cost: CostSummary, nextUpdate: Date, sessions: SessionTracker = SessionTracker(), now: Date = Date()) {
         for reading in readings {
             statuses[reading.tool] = .ready(reading)
             nextRefresh[reading.tool] = nextUpdate
             lastActivity[reading.tool] = now
         }
+        self.sessions = sessions
         self.cost = cost
         lastUpdated = now
     }
@@ -979,6 +1028,32 @@ final class UsageStore {
         }
     }
 
+    // MARK: - Signals
+
+    /// A waiting or finished colour must leave the rings when it stops being true, whether or not another hook
+    /// event ever arrives. The state is already a pure function of the clock, so this timer is not what makes the
+    /// answer right; it is what makes the screen ask again at the moment the answer changes, since `Date()` is not
+    /// something the observation machinery can watch. Neither existing clock is fine enough — the environment tick
+    /// is a minute and the reset sweep thirty seconds — and a ring holding a ninety-second state for two minutes
+    /// would be telling the reader something that stopped being true while they were looking at it. One task for
+    /// the whole app, armed for the earliest state still running and re-armed after it fires so several retire in
+    /// turn; nothing is armed when nothing is on. The handle is dropped before the re-arm so the task cannot
+    /// cancel itself on the way out.
+    private func armSignalRelease(now: Date = Date()) {
+        signalRelease?.cancel()
+        guard let due = sessions.nextRelease(now: now) else { return }
+        let interval = max(0.25, due.timeIntervalSince(now))
+        signalRelease = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(interval))
+            guard !Task.isCancelled, let self else { return }
+            signalRelease = nil
+            var expired = sessions
+            expired.expire(now: Date())
+            if expired != sessions { sessions = expired }
+            armSignalRelease()
+        }
+    }
+
     // MARK: - Keep awake
 
     /// The rule in AwakeKeeper.swift over the working sessions and the power source; the app holds the assertion.
@@ -1002,6 +1077,7 @@ final class UsageStore {
         wokeAt = now
         let outcome = sessions.apply(message, now: now)
         applyAwake()
+        armSignalRelease(now: now)
         if let waiting = outcome.startedWaiting, prefs.notifyWaiting {
             deliverSessionEvent(.waiting, waiting)
         }

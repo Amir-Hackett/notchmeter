@@ -100,7 +100,7 @@ struct UsageReport {
             },
             "advice": advice.map { ["id": $0.id, "priority": String(describing: $0.priority), "tool": $0.tool?.rawValue as Any, "text": $0.text, "url": $0.url?.absoluteString as Any] },
             "sessions": sessions.map { session -> [String: Any] in
-                ["id": session.id, "project": session.project as Any, "state": Self.stateName(session.state),
+                ["id": session.id, "tool": session.tool.rawValue, "project": session.project as Any, "state": Self.stateName(session.state),
                  "stateSeconds": session.stateDuration(now: now).map { Int($0) } as Any, "agents": session.agents.count,
                  "branch": session.branch as Any, "pr": session.prURL as Any, "permissionMode": session.permissionMode as Any, "host": session.host as Any]
             },

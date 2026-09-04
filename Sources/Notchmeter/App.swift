@@ -608,6 +608,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                          "leads": store.costSelection.providers.first?.tool.rawValue as Any,
                          "gaps": store.costGaps.map { ["tool": $0.tool.rawValue, "reason": $0.text] }],
             "awaitingInput": store.awaitingInput.map(\.rawValue).sorted(), "sessions": store.sessions.count,
+            "signals": ToolID.allCases.compactMap { tool in store.signal(tool).map { "\(tool.rawValue):\(String(describing: $0))" } },
             "readings": ToolID.allCases.map { Oracle.fields($0, store.status($0)) },
             "advice": store.advice.map(\.text),
             "settingsVisible": isSettingsVisible,
@@ -668,7 +669,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Probe.emit("hover regions: compact=\(regions.compact) expanded=\(regions.expanded)")
         }
         Probe.emit("hover: mode=\(String(describing: presenter?.hover.mode)) delay=\(prefs.hoverDelay)s gestures=\(presenter?.hover.gestures ?? false)")
-        let sizingPassed = presenter.map(reportSizing) ?? false
+        var sizingPassed = false
+        if let presenter { sizingPassed = await reportSizing(presenter) }
         reportCompactStyles()
         reportRings()
         reportIdle()
@@ -682,6 +684,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("tool order: \(prefs.toolOrder.map(\.rawValue).joined(separator: ", ")); visible: \(store.visibleTools.map(\.rawValue).joined(separator: ", "))")
         Probe.emit("polling: \(store.scheduleDescription())")
         Probe.emit("presence: \(store.presence); sessions: \(store.sessions.count) (\(store.sessions.agentCount) agents); reduce motion: \(AccessibilityDisplay.shared.motionReduced); keep awake: \(prefs.keepAwake) holding=\(store.keepingAwake)")
+        let signals = ToolID.allCases.compactMap { tool in store.signal(tool).map { "\(tool.rawValue) \($0)" } }
+        Probe.emit("signals: \(signals.isEmpty ? "none" : signals.joined(separator: ", ")); ring colouring: \(prefs.signalRings ? "on" : "off"); finished held \(Int(ToolSignal.heldFor))s over \(Int(ToolSignal.finishedAfter))s")
         if let cost = store.cost {
             Probe.emit(Probe.describe(cost))
         } else {
@@ -720,11 +724,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// The open panel must fit where it is drawn: inside DynamicNotchKit's fixed window for the top layout, inside
-    /// the screen's usable height for the edge pills, which size their window to the content. Content taller than
+    /// the screen's usable height for the edge layouts, which size their window to the content. Content taller than
     /// the cap scrolls instead of being clipped, so the natural height is printed but only the drawn one is a
-    /// verdict. The top window is mostly transparent, so a hit test below the panel also confirms that area still
-    /// reaches whatever is under it.
-    private func reportSizing(_ presenter: any PanelPresenting) -> Bool {
+    /// verdict. Both windows can now be transparent where nothing is drawn — the top one always was, and a side
+    /// notch with the panel open beside it leaves the desktop showing between them — so a hit test at a sampled
+    /// point confirms that a click landing where nothing is drawn still reaches whatever is under it.
+    private func reportSizing(_ presenter: any PanelPresenting) async -> Bool {
         let screen = presenter.screen
         let content = presenter.expandedContentSize
         let natural = presenter.expandedIntrinsicContentSize
@@ -737,13 +742,90 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("panel sizing: \(roomName)=\(room) drawn content height=\(content.height) natural height=\(natural.height) width=\(content.width) "
                    + "(density=\(prefs.density.rawValue), panel width=\(prefs.panelWidth.rawValue)) max content height=\(cap) → \(fit == .clipped ? "CLIPPED" : fit.rawValue)")
         if notchLayout, let window = presenter.window {
+            // The top layout's window is an invisible column the full height of the screen, and a click low in that
+            // column has to reach whatever is under it. The verdict is unconditional: it was briefly weakened to
+            // "drawn here, or clicks pass through", and since the sample is inside the published expanded region
+            // whenever the Dock is hidden, that let the one automated guard on the invisible column go quiet
+            // exactly on the machines it mattered most on. A swallowed click looks to a tester like a click on the
+            // wallpaper that did nothing, so nothing but a hit test can catch it.
             let below = NSPoint(x: window.frame.midX, y: window.frame.minY + 20)
             let hit = NSWindow.windowNumber(at: below, belowWindowWithWindowNumber: 0)
             let clickThrough = hit != window.windowNumber
             passed = passed && clickThrough
-            Probe.emit("panel window: opaque=\(window.isOpaque) click-through below the panel=\(clickThrough)")
+            Probe.emit("panel window: opaque=\(window.isOpaque) click-through 20 pt above the foot of the column=\(clickThrough)")
+        } else {
+            passed = await reportEdgeGap(presenter) && passed
         }
         return passed
+    }
+
+    /// The desktop showing between a side notch and the panel open beside it. The window is the union of the two
+    /// shapes, so that gap is inside the window and drawn by neither of them, and a click landing there has to
+    /// reach whatever is under it — a swallowed click looks exactly like a click on the wallpaper that did nothing,
+    /// which is why this cannot be left to a tester's eye.
+    ///
+    /// It opens the panel to sample it. The check shipped once with the panel shut, where the window is the notch
+    /// alone and the gap does not exist yet: the sample landed inside the notch's own hover region every time and
+    /// the assertion could not fail. A layout with no gap — the top and bottom edges, and a side edge on a screen
+    /// too narrow to hold both shapes, where the panel stands in the notch's place — says so and returns a pass,
+    /// because there is nothing there to click through.
+    ///
+    /// The panel is held open rather than opened and slept on. Under the shipping `onHover` visibility a pointer
+    /// resting anywhere else closes it about three-quarters of a second in — `HoverIntent` ignores the pointer for
+    /// `settleTimeout`, then `HoverDriver`'s 250 ms tick finds it outside and `collapseDwell` finishes the job —
+    /// comfortably inside the wait below. The sample then landed on a window that had shrunk back to the notch, the
+    /// check failed on the one clause that means "the panel never opened", and the line it printed said
+    /// `click-through=true`: a healthy build reported red and pointed the reader at a click-through fault that did
+    /// not exist. Always mode is what holds it: `HoverIntent.pointer` collapses only in `.onHover`, and
+    /// `HoverDriver` runs no tick outside it, so the arrangement sampled is the one the check is about.
+    ///
+    /// It says plainly when the panel did not open, and claims nothing about the gap in that case. It also does not
+    /// assert that the sample is undrawn: `gapPoint` returns a point strictly between the two rectangles, so
+    /// neither can contain it and that conjunct could never have been false. It read as a third guard and was none.
+    private func reportEdgeGap(_ presenter: any PanelPresenting) async -> Bool {
+        let wasExpanded = presenter.hover.state == .expanded
+        let mode = presenter.hover.mode
+        presenter.hover.mode = .always
+        presenter.expandNow(cause: .hotkey)
+        try? await Task.sleep(for: .seconds(1.2))
+        var passed = true
+        if presenter.hover.state != .expanded {
+            Probe.emit("panel gap: the panel did not open (\(presenter.hover.state)), so this run has nothing to say about the gap beside the notch")
+            passed = false
+        } else if let window = presenter.window, let sample = Self.gapPoint(edge: presenter.edge, regions: presenter.hover.regions) {
+            let hit = NSWindow.windowNumber(at: sample, belowWindowWithWindowNumber: 0)
+            let clickThrough = hit != window.windowNumber
+            let inWindow = window.frame.contains(sample)
+            passed = clickThrough && inWindow
+            Probe.emit("panel gap: sampled (\(Int(sample.x)), \(Int(sample.y))) inside the window=\(inWindow) click-through=\(clickThrough)")
+        } else {
+            Probe.emit("panel gap: none in this layout — the panel does not stand beside the notch, so the window has no desktop showing through it")
+        }
+        presenter.hover.mode = mode
+        // Conditional on where the panel actually is, not on where it was left: a toggle aimed at a panel that has
+        // already closed itself re-opens it over everything the rest of the run looks at.
+        if !wasExpanded, presenter.hover.state == .expanded {
+            presenter.toggle(cause: .hotkey)
+            try? await Task.sleep(for: .seconds(1))
+        }
+        return passed
+    }
+
+    /// The middle of the gap between the notch and the open panel, at the notch's own height, or nil where the two
+    /// do not stand apart. Read off the published hover regions rather than off the arrangement, because those are
+    /// the rectangles the pointer is actually tested against.
+    private static func gapPoint(edge: PanelEdge, regions: HoverRegions) -> NSPoint? {
+        let notch = regions.compact
+        let panel = regions.expanded
+        guard !notch.isNull, !notch.isEmpty, !panel.isNull, !panel.isEmpty else { return nil }
+        let span: (from: CGFloat, to: CGFloat)
+        switch edge {
+        case .left: span = (notch.maxX, panel.minX)
+        case .right: span = (panel.maxX, notch.minX)
+        case .top, .bottom: return nil
+        }
+        guard span.to - span.from > 1 else { return nil }
+        return NSPoint(x: (span.from + span.to) / 2, y: notch.midY)
     }
 
     /// The compact shape the hover machine uses, measured for each style, and once more with the reset countdown

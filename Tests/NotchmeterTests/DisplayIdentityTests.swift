@@ -75,16 +75,19 @@ import Testing
         chrome.menuBarHides = true
         chrome.menuBarThickness = 24
         #expect(EdgePanelController.placement(for: size, edge: .top, area: area, chrome: chrome).maxY == 952)
+        // Every inset the function honoured it still honours; only the six points have gone from the sides, which
+        // are flush with whatever holds them. A Dock set to hide still holds four points of the left edge: 0 + 4.
         chrome = EdgePanelController.Chrome(dockHides: true, dockOrientation: "left")
-        #expect(EdgePanelController.placement(for: size, edge: .left, area: area, chrome: chrome).minX == 6 + SystemChrome.dockRevealStrip)
-        #expect(EdgePanelController.placement(for: size, edge: .right, area: area, chrome: chrome).maxX == 1506)
+        #expect(EdgePanelController.placement(for: size, edge: .left, area: area, chrome: chrome).minX == SystemChrome.dockRevealStrip)
+        #expect(EdgePanelController.placement(for: size, edge: .right, area: area, chrome: chrome).maxX == 1512)
         #expect(EdgePanelController.placement(for: size, edge: .bottom, area: area, chrome: chrome).minY == 6)
         chrome = EdgePanelController.Chrome(dockHides: true, dockOrientation: "right")
-        #expect(EdgePanelController.placement(for: size, edge: .right, area: area, chrome: chrome).maxX == 1506 - SystemChrome.dockRevealStrip)
+        // 1512 − 4 = 1508.
+        #expect(EdgePanelController.placement(for: size, edge: .right, area: area, chrome: chrome).maxX == 1512 - SystemChrome.dockRevealStrip)
         chrome = EdgePanelController.Chrome(stageManager: true)
-        #expect(EdgePanelController.placement(for: size, edge: .left, area: area, chrome: chrome).minX == 6 + SystemChrome.stageManagerStripWidth)
+        #expect(EdgePanelController.placement(for: size, edge: .left, area: area, chrome: chrome).minX == SystemChrome.stageManagerStripWidth)
         chrome.stageManagerStripHides = true
-        #expect(EdgePanelController.placement(for: size, edge: .left, area: area, chrome: chrome).minX == 6 + SystemChrome.dockRevealStrip)
+        #expect(EdgePanelController.placement(for: size, edge: .left, area: area, chrome: chrome).minX == SystemChrome.dockRevealStrip)
         #expect(["bottom", "left", "right"].contains(SystemChrome.dockOrientation))
     }
 

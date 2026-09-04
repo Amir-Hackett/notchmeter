@@ -22,6 +22,7 @@
 "%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ はこの 1 時間で %2$@ を消費 — 30 日平均の %3$@。";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ を割当で充当 · 今月 %2$ld リクエスト";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ クレジットは %2$@ 後に失効します — Codex で受け取ってください";
+"%1$@ finished a %2$@ turn." = "%1$@ が %2$@ のターンを完了しました。";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ の%3$@は %2$ld%% 残っています。";
 "%1$@ hit its limit; %2$@ resets in %3$@." = "%1$@ が上限に達しました。%2$@ は %3$@後にリセットされます。";
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ は %2$ld%%、%3$@ は %4$ld%%。ツールではなくモデルを切り替えましょう。";
@@ -102,10 +103,13 @@
 "A bar resting on top of the Dock." = "Dock の上に置かれるバー。";
 "A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "選択したファイルは ~/Library/Sounds にコピーされ、通知センターがそこから再生します。";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "名前で選んだディスプレイはハードウェア ID で記憶されるため、同じ機種の 2 台も区別でき、名前が変わっても失われません。";
-"A pill down the left-hand edge, clear of a Dock on that side and of Stage Manager's strip." = "左端に沿ったピル。同じ側の Dock とステージマネージャの帯を避けます。";
-"A pill down the right-hand edge, clear of a Dock on that side." = "右端のピル。同じ側の Dock を避けます。";
+"A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "左端に切り込まれたノッチ。パネルはその横に開きます。同じ側に Dock やステージマネージャの帯があるときは譲ります。";
+"A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "右端に切り込まれたノッチ。パネルはその横に開きます。同じ側に Dock があるときは譲ります。";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "同じログインで chatgpt.com をもう一度読み、ウィンドウをリセットできるクレジットとその期限を表示します。受け取りは Codex 側で行います。";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "同じセッション Cookie で cursor.com をもう一度読みます。直近 30 日の使用イベントをエクスポートされたコストで価格付けし、日次合計ファイルに Cursor の系列（本日、30 日、トレンド）として加えます。";
+"Colour the rings when an assistant waits or finishes" = "アシスタントが待機中または完了したときにリングに色を付ける";
+"Just finished" = "完了しました";
+"just finished a turn" = "ターンが完了しました";
 "Metered apart from the included total" = "含まれる合計とは別に計測";
 "a session" = "セッション";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "フックが報告するセッションがターン中の間だけスリープ抑止を保持し、Stop で解放します。電源接続中なら、スマートフォンや SSH から始めたセッションが蓋を閉じても動き続けます。保持中はフッターに「スリープ抑止中 · 2 セッション」と出ます。";
@@ -154,7 +158,7 @@
 "Beside the notch" = "ノッチの横";
 "Beta updates" = "ベータ版アップデート";
 "billing export" = "請求データ";
-"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらも Claude Code フックが必要で、ターミナルやエディタが最前面のときと静寂時間中は鳴りません。「ちら見」はパネルをセッション行とともに数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
+"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらも Claude Code フックが必要で、ターミナルやエディタが最前面のときと静寂時間中は鳴りません。ここではパネルの動作を選びます。リングの動作は上のトグルが決め、どちらか一方だけをオフにできます。「ちら見」はパネルをセッション行とともに数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
 "Both sides" = "両側";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "両側はノッチを中心に見えます。メニューの多いアプリはノッチの左端を越えることがあり、ノッチの右側なら必ず避けられます。";
 "Bottom, above the Dock" = "下、Dock の上";
@@ -288,6 +292,7 @@
 "In the Cost card" = "コストカードに表示";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "上の通貨で入力し、空欄なら予算なしです。コストカードのリングは月の予算に対して満たされ、メーターと同じペース目盛りが付きます。アドバイス欄は月を予算に対して予測し、「順調」「遅れ」「枯渇」の通知が月を期間として適用されます。";
 "In the pill" = "ピル内";
+"In the side notch" = "サイドノッチ内";
 "Included usage" = "プラン内利用";
 "inferred" = "推定";
 "Inner ring" = "内側のリング";
@@ -316,7 +321,7 @@
 "Left" = "残り";
 "Left edge" = "左端";
 "Left of the notch" = "ノッチの左側";
-"Left, right or bottom edge on any Mac." = "どの Mac でも左、右、下の端に置けます。";
+"A notch cut into the left or the right edge of any Mac." = "どの Mac でも左または右の端に切り込んだノッチ。";
 "Let Claude Code talk to the notch?" = "Claude Code からノッチに知らせますか？";
 "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "開始・停止・入力待ちを Claude Code からノッチに知らせます。フックはイベント名、セッション ID、フォルダ名、その git ブランチ、権限モード、サブエージェントの開始と停止、レート制限による停止を渡します。メーターはすぐ更新され、カードはセッションとエージェントを数え、Claude が入力を待つ間はバッジが出ます。";
 "Light" = "ライト";
@@ -521,8 +526,9 @@
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "キーチェーンの要求が閉じられました。設定で Claude をオフにしてから再度オンにすると再度確認します";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "このアプリの統合ログの直近 10 分、各アシスタントの状態、フックとステータスラインの状態、レイアウトと macOS のバージョンを、ホームフォルダのパスを除いて、バグ報告用にまとめます。トークンは含みません。";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "ログイン項目は移動済みのアプリを指しています。一度オフにしてから再度オンにしてください。";
-"The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself." = "どれを選んでもノッチ横のパネルはダークのままです。ノッチと一つの形に見えるには黒である必要があります。";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "パネルはポインタに追従します。ポインタが半秒とどまったディスプレイへ移動します。";
+"The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "どれを選んでもパネルの中身は黒地に白のままで、画面の左右の端に描くノッチの形も同じです。どちらも画面に載せたものではなく画面の一部として見える必要があるためです。既知の制限: macOS 26 では端に開くパネルの背後のガラスは選択に従うため、ライトを選ぶと明るいガラスの上に白い文字が乗ります。";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today." = "アシスタントが許可を待っているとき、またはターンを終えた直後、リングは「使い切りではなく、あなたを必要としている」を意味する青になり、隣のマークがどちらかを示します。ペースは弧の先端のキャップを保つので、ほぼ使い切った枠はそのまま伝わります。現在これらを報告するのは Claude Code のフックだけです。";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "30 分間どのアシスタントも活動せず、すべてのウィンドウが静かなときリングはドットに縮みます。フックイベント、ファイルの活動、ペースの変化、リングにポインタを置くと元に戻ります。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "セッションの計測が平常より約 %1$@ 重くなっています: 1%% あたり %2$@（平常 %3$@）。";
 "Third ring" = "3 番目のリング";
@@ -559,6 +565,7 @@
 "Waiting for the first reading" = "最初の読み取りを待機中";
 "waiting for the first reading" = "最初の読み取りを待機中";
 "Waiting for you" = "あなたを待機中";
+"Waiting for your answer" = "回答を待っています";
 "Waiting for your approval in System Settings › General › Login Items." = "システム設定 › 一般 › ログイン項目での承認を待っています。";
 "waiting for your input" = "入力を待っています";
 "waiting in %@" = "%@ で待機中";

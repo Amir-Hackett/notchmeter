@@ -32,8 +32,10 @@ import Testing
         #expect(EdgePanelController.placement(for: size, edge: .bottom, area: area, dockHides: false).minY == 6)
         #expect(EdgePanelController.placement(for: size, edge: .bottom, area: area, dockHides: true).minY == 6 + SystemChrome.dockRevealStrip)
         #expect(EdgePanelController.placement(for: size, edge: .top, area: area, dockHides: false).maxY == 944)
-        #expect(EdgePanelController.placement(for: size, edge: .left, area: area, dockHides: false).minX == 6)
-        #expect(EdgePanelController.placement(for: size, edge: .right, area: area, dockHides: false).maxX == 1506)
+        // The side edges take no margin at all now: the shape has to touch what holds that side to read as a
+        // notch cut into it, so the left one starts at the area's own minX and the right one ends at its maxX.
+        #expect(EdgePanelController.placement(for: size, edge: .left, area: area, dockHides: false).minX == 0)
+        #expect(EdgePanelController.placement(for: size, edge: .right, area: area, dockHides: false).maxX == 1512)
         #expect(EdgePanelController.placement(for: NSSize(width: 200, height: 2000), edge: .left, area: area, dockHides: false).maxY == 950)
     }
 

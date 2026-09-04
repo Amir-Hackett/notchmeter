@@ -38,6 +38,7 @@
 "%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ burned %2$@ this hour — %3$@ its 30-day average.";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ covered by the allowance · %2$ld requests this month";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ credit expires in %2$@ — claim it in Codex";
+"%1$@ finished a %2$@ turn." = "%1$@ finished a %2$@ turn.";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ has %2$ld%% of its %3$@ left.";
 "%1$@ hit its limit; %2$@ resets in %3$@." = "%1$@ hit its limit; %2$@ resets in %3$@.";
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools.";
@@ -118,10 +119,13 @@
 "A bar resting on top of the Dock." = "A bar resting on top of the Dock.";
 "A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "A chosen file is copied into ~/Library/Sounds, where Notification Center can play it.";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it.";
-"A pill down the left-hand edge, clear of a Dock on that side and of Stage Manager's strip." = "A pill down the left-hand edge, clear of a Dock on that side and of Stage Manager's strip.";
-"A pill down the right-hand edge, clear of a Dock on that side." = "A pill down the right-hand edge, clear of a Dock on that side.";
+"A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side.";
+"A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side.";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex.";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend).";
+"Colour the rings when an assistant waits or finishes" = "Colour the rings when an assistant waits or finishes";
+"Just finished" = "Just finished";
+"just finished a turn" = "just finished a turn";
 "Metered apart from the included total" = "Metered apart from the included total";
 "a session" = "a session";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held.";
@@ -170,7 +174,7 @@
 "Beside the notch" = "Beside the notch";
 "Beta updates" = "Beta updates";
 "billing export" = "billing export";
-"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release.";
+"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release.";
 "Both sides" = "Both sides";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them.";
 "Bottom, above the Dock" = "Bottom, above the Dock";
@@ -304,6 +308,7 @@
 "In the Cost card" = "In the Cost card";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period.";
 "In the pill" = "In the pill";
+"In the side notch" = "In the side notch";
 "Included usage" = "Included usage";
 "inferred" = "inferred";
 "Inner ring" = "Inner ring";
@@ -332,7 +337,7 @@
 "Left" = "Left";
 "Left edge" = "Left edge";
 "Left of the notch" = "Left of the notch";
-"Left, right or bottom edge on any Mac." = "Left, right or bottom edge on any Mac.";
+"A notch cut into the left or the right edge of any Mac." = "A notch cut into the left or the right edge of any Mac.";
 "Let Claude Code talk to the notch?" = "Let Claude Code talk to the notch?";
 "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input.";
 "Light" = "Light";
@@ -537,8 +542,9 @@
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token.";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "The login item points at a copy of the app that has moved. Turn it off and on again.";
-"The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself." = "The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "The panel follows the pointer: it moves to the display the pointer has rested on for half a second.";
+"The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass.";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today." = "The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@.";
 "Third ring" = "Third ring";
@@ -575,6 +581,7 @@
 "Waiting for the first reading" = "Waiting for the first reading";
 "waiting for the first reading" = "waiting for the first reading";
 "Waiting for you" = "Waiting for you";
+"Waiting for your answer" = "Waiting for your answer";
 "Waiting for your approval in System Settings › General › Login Items." = "Waiting for your approval in System Settings › General › Login Items.";
 "waiting for your input" = "waiting for your input";
 "waiting in %@" = "waiting in %@";

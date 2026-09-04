@@ -38,6 +38,7 @@
 "%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ 这一小时花费 %2$@ — 是其 30 天平均水平的 %3$@。";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ 由配额抵扣 · 本月 %2$ld 次请求";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@ 额度将在 %2$@ 后过期 — 请在 Codex 中领取";
+"%1$@ finished a %2$@ turn." = "%1$@ 完成了一轮 %2$@ 的工作。";
 "%1$@ has %2$ld%% of its %3$@ left." = "%1$@ 的%3$@额度还剩 %2$ld%%。";
 "%1$@ hit its limit; %2$@ resets in %3$@." = "%1$@ 已触及限额；%2$@ 将在 %3$@后重置。";
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ 已用 %2$ld%%，%3$@ 已用 %4$ld%%。换模型，不必换工具。";
@@ -118,10 +119,13 @@
 "A bar resting on top of the Dock." = "停靠在 Dock 上方的横条。";
 "A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "所选文件会复制到 ~/Library/Sounds，通知中心可从那里播放。";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "指定的显示器按硬件标识记忆，同型号的两台显示器可区分，重命名也不会丢失。";
-"A pill down the left-hand edge, clear of a Dock on that side and of Stage Manager's strip." = "沿左侧边缘的药丸，避开该侧的程序坞和台前调度的边栏。";
-"A pill down the right-hand edge, clear of a Dock on that side." = "右边缘的胶囊条，避开该侧的 Dock。";
+"A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "在左侧边缘切出的刘海，面板在它旁边打开。该侧有程序坞或台前调度边栏时会让开。";
+"A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "在右侧边缘切出的刘海，面板在它旁边打开。该侧有程序坞时会让开。";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "使用同一登录对 chatgpt.com 的第二次读取，显示可重置窗口的额度及其到期时间。领取仍需在 Codex 中进行。";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "使用同一会话 cookie 再读取一次 cursor.com：最近 30 天的用量事件，按导出的费用计价，折算进每日总计文件作为 Cursor 序列（今日、30 天和趋势）。";
+"Colour the rings when an assistant waits or finishes" = "助手等待或完成时为圆环着色";
+"Just finished" = "刚刚完成";
+"just finished a turn" = "刚刚完成一轮工作";
 "Metered apart from the included total" = "与套餐内总量分开计量";
 "a session" = "某个会话";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "仅当钩子报告的会话处于一轮之中时持有防休眠断言，在其 Stop 时释放，因此从手机或通过 SSH 启动的会话在接通电源合盖时仍能继续。持有期间页脚显示“保持唤醒 · 2 个会话”。";
@@ -170,7 +174,7 @@
 "Beside the notch" = "刘海旁边";
 "Beta updates" = "测试版更新";
 "billing export" = "账单导出";
-"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "两者都需要 Claude Code 钩子，且在终端或编辑器位于最前、以及免打扰时段内保持安静。“一瞥”会将面板连同会话行打开几秒后再收起，除非指针移入；开启“减弱动态效果”时无动画打开并停留稍久。你回复后“等待中”通知会被撤回。未签名构建中任何通知都无法突破专注模式或勿扰模式；签名版本中的时效性通知（即将用尽、等待你）可以。";
+"Both need the Claude Code hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "两者都需要 Claude Code 钩子，且在终端或编辑器位于最前、以及免打扰时段内保持安静。这里选择面板的行为；圆环的行为由上面的开关决定，两者可以分别关闭。“一瞥”会将面板连同会话行打开几秒后再收起，除非指针移入；开启“减弱动态效果”时无动画打开并停留稍久。你回复后“等待中”通知会被撤回。未签名构建中任何通知都无法突破专注模式或勿扰模式；签名版本中的时效性通知（即将用尽、等待你）可以。";
 "Both sides" = "两侧";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "两侧显示时以刘海为中心。菜单较多的应用可能超出刘海左缘；选择刘海右侧则始终避开。";
 "Bottom, above the Dock" = "底部，Dock 上方";
@@ -304,6 +308,7 @@
 "In the Cost card" = "费用卡片中显示";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "以上方的货币计；留空表示无预算。费用卡片的圆环按本月预算填充，并带有与仪表相同的进度刻度；建议条会据此预测本月；“接近”“落后”“即将用尽”通知以月为周期适用于它。";
 "In the pill" = "胶囊内";
+"In the side notch" = "侧边刘海内";
 "Included usage" = "套餐内用量";
 "inferred" = "推断";
 "Inner ring" = "内环";
@@ -332,7 +337,7 @@
 "Left" = "剩余";
 "Left edge" = "左边缘";
 "Left of the notch" = "刘海左侧";
-"Left, right or bottom edge on any Mac." = "任何 Mac 都可放在左、右或底部边缘。";
+"A notch cut into the left or the right edge of any Mac." = "在任何 Mac 的左侧或右侧边缘切出的刘海。";
 "Let Claude Code talk to the notch?" = "让 Claude Code 与刘海通信？";
 "Let Claude Code tell the notch when it starts, stops or waits for you. The hook passes on the event name, the session id, the folder's name, its git branch, the permission mode, subagent starts and stops, and a stop on a rate limit; the meter refreshes at once, the card counts sessions and agents, and a badge shows while Claude waits for your input." = "让 Claude Code 在开始、停止或等待你时告知刘海。钩子传递事件名、会话 ID、文件夹名、其 git 分支、权限模式、子代理的启停以及因速率限制而停止；仪表立即刷新，卡片统计会话与代理数，Claude 等待你输入时显示标记。";
 "Light" = "浅色";
@@ -537,8 +542,9 @@
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "钥匙串请求已被取消。在设置中关闭再打开 Claude 可重新询问";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "本应用统一日志的最近 10 分钟、各助手状态、钩子和状态栏状态、布局和 macOS 版本，去除个人文件夹路径，用于错误报告。绝不包含令牌。";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "登录项指向的应用副本已被移动。请关闭后再重新打开。";
-"The panel beside the notch stays dark whatever you choose: it has to be black to read as one shape with the notch itself." = "无论如何选择，刘海旁的面板始终保持深色：它必须是黑色，才能与刘海本身看起来浑然一体。";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "面板跟随指针：移到指针停留半秒的显示器上。";
+"The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "无论如何选择，面板的内容始终是黑底白字，屏幕侧边的刘海形状也一样：两者都必须看起来是屏幕的一部分，而不是叠在上面的东西。已知限制：在 macOS 26 上，边缘面板背后的玻璃确实会跟随该选择，因此选浅色会让白字落在浅色玻璃上。";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Only Claude Code's hook reports these events today." = "当助手在等待你的许可、或刚刚结束一轮工作时，圆环会变成表示需要你而不是快用完了的蓝色，旁边的标记说明是哪一种。节奏仍然保留弧线末端的端点，所以快用尽的窗口依旧会这么说。目前只有 Claude Code 的钩子会报告这些事件。";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "当 30 分钟内没有助手活动且所有窗口都很安静时，圆环会缩成一个圆点；钩子事件、文件活动、节奏变化或把指针停在上面都会让它们恢复。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "会话计量约为你常态的 %1$@：每 1%% 消耗 %2$@，常态为 %3$@。";
 "Third ring" = "第三环";
@@ -575,6 +581,7 @@
 "Waiting for the first reading" = "等待首次读数";
 "waiting for the first reading" = "等待首次读数";
 "Waiting for you" = "等待你";
+"Waiting for your answer" = "正在等待你的回应";
 "Waiting for your approval in System Settings › General › Login Items." = "等待你在“系统设置 › 通用 › 登录项”中批准。";
 "waiting for your input" = "正在等待你的输入";
 "waiting in %@" = "在 %@ 中等待";

@@ -21,7 +21,8 @@ final class NotchActions {
     var checkForUpdates: (() -> Void)?
 }
 
-/// One on-screen presentation of the readings: the notch itself or a Codenotch-style edge pill.
+/// One on-screen presentation of the readings: the hardware notch, a notch of the same shape cut into a side
+/// edge, or a Codenotch-style bar along the bottom.
 @MainActor
 protocol PanelPresenting: AnyObject {
     var edge: PanelEdge { get }
@@ -406,7 +407,7 @@ final class NotchController: NSObject, PanelPresenting {
         fullScreenWatch?.refresh()
         notch.collectionBehavior = Self.collectionBehavior(showOverFullScreen: prefs.showOverFullScreenApps)
         // The notch panel stays black so it reads as one shape with the hardware notch: a glass backdrop
-        // over black renders as pale grey and breaks that join. Glass belongs to the edge pills.
+        // over black renders as pale grey and breaks that join. Glass belongs to the edge layouts.
         notch.expandedGlass = false
     }
 
@@ -555,7 +556,8 @@ final class NotchController: NSObject, PanelPresenting {
     /// Re-measures whenever something that shapes the panel changes; the tracking is one-shot, so it re-arms itself.
     private func observeContent() {
         withObservationTracking {
-            _ = (store.statuses, store.sessions, store.cost, store.statusline, store.screenCaptured, store.footerNote, prefs.enabledTools, prefs.showSpend, prefs.toolOrder,
+            _ = (store.statuses, store.sessions, store.attendedAt, store.cost, store.statusline, store.screenCaptured, store.footerNote, prefs.enabledTools,
+                 prefs.showSpend, prefs.signalRings, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
                  prefs.monthlyBudgetUSD, prefs.compactSide, prefs.autoCompactFit)
