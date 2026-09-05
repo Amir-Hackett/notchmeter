@@ -323,7 +323,7 @@ Two other Copilot surfaces are worth knowing about. Copilot's cloud coding agent
 
 Claude Code's [status line](https://code.claude.com/docs/en/statusline) hands a command a JSON object after every turn (debounced 300 ms) with `context_window.used_percentage`, `rate_limits.five_hour`, `seven_day` and `spend_limit` (`used_percentage`, `resets_at`; Pro and Max plans, present once the first API response has arrived, any window possibly absent; the spend limit is extra usage against its cap and may pass 100 %), `cost.total_cost_usd`, `model.display_name`, `effort`, `session_id`, `cwd` and the git branch and pull request when Claude Code knows them. `Notchmeter --statusline` reads it, posts `com.amirhackett.notchmeter.statusline` with the context fill and size, the windows, the cost, the model and effort, the session id, the folder name, and the git branch and pull-request URL when Claude Code sends them, and then prints one line for Claude Code's own bar, coloured by pace where the bar allows ANSI:
 
-```
+```text
 Opus high · ctx 62% · 5h 45% ↻2h · 7d 13% ↻5d · $1.23 · today $12 · block $3.10 ↻2h
 ```
 

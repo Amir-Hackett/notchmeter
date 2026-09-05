@@ -21,7 +21,8 @@ python3 -m http.server -d site 8000
 It is deployed by Vercel from `main` with `site` as the root directory, so a merge to `main` is a deploy (the pull request gets a preview). It is plain static files, so anything else would host it too; two that need no configuration:
 
 - **GitHub Pages** — Settings › Pages › Deploy from a branch, folder `/site`.
-- **Vercel / Netlify** — point the project at this repository with `site` as the output directory and no build command.
+- **Vercel** — root directory `site`, output directory `.`, no build command; that is the live configuration.
+- **Netlify** — publish directory `site` (relative to the repository root), no build command.
 
 The site is at https://www.notchmeter.com; both pages carry that host in their canonical and share URLs.
 

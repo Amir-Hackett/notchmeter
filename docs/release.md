@@ -32,7 +32,7 @@ key, so the pipeline is proved on a Mac with no Apple Developer account; it prod
 
 ## Testing an unsigned build
 
-Everything `scripts/build.sh`, the CI artifact and `--dry-run` produce is ad-hoc signed, and Gatekeeper refuses it on any Mac but the one that built it. On macOS 15 (Sequoia) and later, right-click › Open no longer bypasses that. The two routes that work: launch it once and let it be refused, then System Settings › Privacy & Security › *Open Anyway*; or clear the quarantine attribute first, `xattr -d com.apple.quarantine /Applications/Notchmeter.app` (`brew install --cask --no-quarantine` does the same for the tap). A quarantined copy launched from Downloads or the DMG runs App-Translocated, from a random read-only path; the app detects that and offers to move itself to /Applications, and `--smoke` prints the bundle path and whether it is translocated. The README carries the same two paragraphs for users. The notarised release needs none of this.
+The CI artifact and a `--dry-run` DMG are ad-hoc signed; a `scripts/build.sh` build is ad-hoc signed too, or signed with the local self-signed identity from `scripts/signing-identity.sh`, which another Mac trusts no more. Gatekeeper refuses all of them on any Mac but the one that built it. On macOS 15 (Sequoia) and later, right-click › Open no longer bypasses that. The two routes that work: launch it once and let it be refused, then System Settings › Privacy & Security › *Open Anyway*; or clear the quarantine attribute first, `xattr -d com.apple.quarantine /Applications/Notchmeter.app` (`brew install --cask --no-quarantine` does the same for the tap). A quarantined copy launched from Downloads or the DMG runs App-Translocated, from a random read-only path; the app detects that and offers to move itself to /Applications, and `--smoke` prints the bundle path and whether it is translocated. The README carries the same two paragraphs for users. The notarised release needs none of this.
 
 ## One-time setup
 
@@ -141,12 +141,20 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
    embeds an HTML fragment as the update's release notes. Notarisation usually takes one to five minutes; the script
    waits and fails loudly with the `notarytool log` command if Apple rejects the build.
 
-   `scripts/release.sh --channel beta` writes `<sparkle:channel>beta</sparkle:channel>` into the new appcast item, so
-   only copies with *Beta updates* on (Settings › Updates; `Updater.swift`, `allowedChannels`) are offered it and
-   everyone else keeps the last stable item. Because the feed is the newest non-prerelease's `appcast.xml`, a beta is
-   published as a GitHub prerelease for its DMG, and the merged appcast (`PREVIOUS_APPCAST` plus the beta item) is
-   re-uploaded to the current stable release's assets so the feed carries both items.
-3. Publish, one way or the other and never both: two publishers on one tag is how a notarised DMG gets replaced.
+   **A beta** is the hand path only; the workflow ignores a tag with a hyphen in it. Set `CFBundleShortVersionString`
+   to the beta's version (`0.2.0-beta.1`) and build with `scripts/release.sh --channel beta`, which writes
+   `<sparkle:channel>beta</sparkle:channel>` into the new appcast item, so only copies with *Beta updates* on
+   (Settings › Updates; `Updater.swift`, `allowedChannels`) are offered it and everyone else keeps the last stable
+   item. Then publish the DMG as a prerelease, and put the merged appcast (`PREVIOUS_APPCAST` plus the beta item)
+   onto the current stable release, because the feed is the newest non-prerelease's `appcast.xml`:
+
+   ```bash
+   gh release create v0.2.0-beta.1 dist/Notchmeter.dmg --prerelease --target <commit> --title "Notchmeter 0.2.0 beta 1"
+   gh release upload v0.1.0 dist/appcast.xml --clobber   # the stable release releases/latest resolves to; the one deliberate --clobber
+   ```
+
+   The script prints these two commands, filled in, when `--channel` is set.
+3. Publish, one way or the other and never both. Two publishers on one tag used to be how a notarised DMG got replaced; the workflow now refuses (signed) or stands down (unsigned) when a `Notchmeter.dmg` is already on the release, and uploads without `--clobber`, so the second publisher fails rather than replaces. Still: pick one.
 
    - **Secrets set (step 5)**: `git tag v0.2.0 <commit> && git push origin v0.2.0`, naming the commit the script
      built from (it prints it). The workflow rebuilds from the tag, signs, notarises and creates the release with the

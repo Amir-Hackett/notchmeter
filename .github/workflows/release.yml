@@ -13,6 +13,9 @@ concurrency:
 jobs:
   release:
     name: ${{ github.ref_name }}
+    # Stable tags only. A beta (v0.2.0-beta.1) is published by hand, docs/release.md "Each release", because its
+    # appcast item has to be merged into the current stable release's feed, which this job does not do.
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: macos-15
     env:
       TAG: ${{ github.ref_name }}

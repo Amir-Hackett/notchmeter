@@ -179,12 +179,23 @@ if [ "$DRY_RUN" = 1 ]; then
   sha256 $SHA256
 To ship for real: docs/release.md, then DEVELOPER_ID_APP=... NOTARY_PROFILE=... scripts/release.sh
 CHECKLIST
+elif [ -n "$CHANNEL" ]; then
+  cat <<CHECKLIST
+  $DMG       universal, Developer ID, hardened runtime, notarised, stapled; channel $CHANNEL
+  $APPCAST   signed; verified against SUPublicEDKey; carries the $CHANNEL item and the previous feed
+  sha256 $SHA256
+Publish by hand (the workflow ignores a tag with a hyphen in it):
+  1. gh release create v$VERSION $DMG --prerelease --target $COMMIT --title "Notchmeter $VERSION"
+  2. gh release upload <stable-tag> $APPCAST --clobber   # the release releases/latest resolves to; the feed is its appcast
+  3. curl -fsSL $FEED_URL | grep -F '<sparkle:version>$BUILD_NUMBER</sparkle:version>'   # expect exactly this build
+CHECKLIST
 else
   cat <<CHECKLIST
   $DMG       universal, Developer ID, hardened runtime, notarised, stapled
   $APPCAST   signed; verified against SUPublicEDKey
   sha256 $SHA256
-Publish, one of these and never both (two publishers on one tag is how a notarised DMG gets replaced):
+Publish, one of these and never both (the workflow refuses, or stands down, when a DMG is already on the release,
+so a second publisher fails rather than replaces; still, pick one):
   a. Signing secrets set in GitHub (docs/release.md, step 5):
        git tag v$VERSION $COMMIT && git push origin v$VERSION
      release.yml rebuilds from the tag, signs, notarises and creates the release with its DMG and appcast.
