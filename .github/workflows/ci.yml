@@ -9,6 +9,9 @@ on:
       - '**/*.md'
       - 'docs/**'
       - 'packaging/**'
+      # The site is served by Vercel from its own build and shares nothing with the app; a picture or a line of
+      # its CSS was costing a full macOS build, which bills at ten times the Linux rate.
+      - 'site/**'
   workflow_dispatch:
 
 # Checkout, build, test and an artifact upload: nothing here writes to the repository.

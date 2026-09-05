@@ -6,6 +6,9 @@
 # Casks/notchmeter.rb in a repository named homebrew-tap under the same account, and users run
 #   brew tap Amir-Hackett/tap && brew install --cask notchmeter
 # scripts/release.sh prints the sha256 of each DMG; bump `version` and `sha256` together.
+# Homebrew refuses to load a cask from a third-party tap until it is trusted, so installing from the tap is
+# three commands rather than two: tap, `brew trust --cask Amir-Hackett/tap/notchmeter`, install. The README, the
+# site and docs/release.md all say so; change them together.
 # A --dry-run DMG is ad-hoc signed and Gatekeeper refuses it on other Macs; a tester installs one with
 # `brew install --cask --no-quarantine notchmeter` (docs/release.md, "Testing an unsigned build"). The published
 # release is notarised and needs neither.
@@ -24,7 +27,8 @@ cask "notchmeter" do
   end
 
   auto_updates true
-  depends_on macos: ">= :sonoma"
+  # A bare symbol is the minimum version; the ">= :sonoma" string form is deprecated and warns on every install.
+  depends_on macos: :sonoma
 
   app "Notchmeter.app"
   # The command-line tool is the same executable; Settings › General also links it into ~/.local/bin.

@@ -192,7 +192,9 @@ The gate the app applies before starting Sparkle is in `Sources/Notchmeter/Updat
 (<https://docs.brew.sh/Package-Acceptance-Policy>) wants a repository at least 30 days old with 30 forks, 30 watchers
 or 75 stars for a general submission, and 90 forks, 90 watchers or 225 stars for a self-submission by the owner. Until
 then, the tap works for everyone today: the cask is published from `Amir-Hackett/homebrew-tap` (a copy of `packaging/homebrew/notchmeter.rb`) at
-`Casks/notchmeter.rb`, and users run `brew tap Amir-Hackett/tap && brew install --cask notchmeter`. When the gate is
+`Casks/notchmeter.rb`, and users run `brew tap Amir-Hackett/tap && brew trust --cask Amir-Hackett/tap/notchmeter &&
+brew install --cask notchmeter`. The trust step is Homebrew's own: it refuses to load a cask from a tap outside
+homebrew/cask until told to, and an install that skips it fails with the command to run. When the gate is
 met, `brew bump-cask-pr` or a pull request to homebrew/cask with the same file.
 
 ## Troubleshooting
