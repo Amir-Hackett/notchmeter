@@ -363,6 +363,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func settingsDidClose() {
+        ColourWell.closePanel()
         hold(.settings, false)
         Oracle.shared.emit("settings", settingsFields(action: "hidden"))
     }

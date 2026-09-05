@@ -59,6 +59,7 @@ struct SettingsView: View {
     @State private var weeklyBudgetText = ""
     @State private var proxyText = ""
     @State private var accessibilityTrusted = MenuBarExtent.isTrusted
+    @State private var colourWell = ColourWell()
     @State private var originText = ""
     @State private var fullScreenExceptionText = ""
 
@@ -200,10 +201,21 @@ struct SettingsView: View {
                     .disabled(!prefs.menuBarPin)
                     .help(L("By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning."))
                     if prefs.menuBarTint == .custom {
-                        ColorPicker(L("Colour"), selection: Binding(
-                            get: { Color(nsColor: HexColour.colour(prefs.menuBarTintHex)) },
-                            set: { prefs.menuBarTintHex = HexColour.hex(NSColor($0)) }
-                        ), supportsOpacity: false)
+                        HStack {
+                            Text(L("Colour"))
+                            Spacer()
+                            Button {
+                                colourWell.open(colour: HexColour.colour(prefs.menuBarTintHex),
+                                                above: hostWindow()?.level ?? .floating) { prefs.menuBarTintHex = HexColour.hex($0) }
+                            } label: {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(Color(nsColor: HexColour.colour(prefs.menuBarTintHex)))
+                                    .frame(width: 44, height: 22)
+                                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.separator))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(L("Colour"))
+                        }
                         .disabled(!prefs.menuBarPin)
                     }
                 }
@@ -1298,6 +1310,41 @@ final class SettingsPanel: NSPanel {
 
     override func cancelOperation(_ sender: Any?) {
         close()
+    }
+}
+
+/// The system colour panel, opened by hand rather than through SwiftUI's `ColorPicker`. Two reasons, both about
+/// this window. It is a non-activating panel, so with the app inactive the first click on SwiftUI's well is spent
+/// making the window key and nothing opens at all — the second one works, which from the outside is a feature that
+/// does not exist. And the colour panel is an ordinary window, while this one is raised above a panel drawing at
+/// screen-saver level, so wherever it was last left it can open under both. So: activate, one level higher again,
+/// and the colour flows back into the preference as it is picked.
+@MainActor
+final class ColourWell: NSObject {
+    private var apply: (NSColor) -> Void = { _ in }
+
+    func open(colour: NSColor, above level: NSWindow.Level, apply: @escaping (NSColor) -> Void) {
+        self.apply = apply
+        let panel = NSColorPanel.shared
+        panel.showsAlpha = false
+        panel.color = colour
+        panel.level = NSWindow.Level(rawValue: level.rawValue + 1)
+        panel.hidesOnDeactivate = false
+        panel.setTarget(self)
+        panel.setAction(#selector(colourChanged))
+        NSApp.activate()
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    /// Closed with the window that opened it: it sits above everything, and a colour panel left standing over
+    /// every other app is not something the user asked for.
+    static func closePanel() {
+        guard NSColorPanel.sharedColorPanelExists, NSColorPanel.shared.isVisible else { return }
+        NSColorPanel.shared.close()
+    }
+
+    @objc private func colourChanged(_ sender: NSColorPanel) {
+        apply(sender.color)
     }
 }
 
