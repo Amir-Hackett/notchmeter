@@ -68,12 +68,23 @@ provisioning profile granting it, at `Contents/embedded.provisionprofile`. Nothi
 refused to launch the app on every Mac, with `amfid` logging `No matching profile found` (`AppleMobileFileIntegrityError`
 `-413`), and `codesign --verify`, notarisation and `spctl` all passed it, because none of them check this.
 
-To claim it again: enable *Time Sensitive Notifications* on the App ID
-(<https://developer.apple.com/account/resources/identifiers/list> → `com.amirhackett.notchmeter`, registering it as an
-explicit App ID if it is not there), create a **Developer ID** provisioning profile for that App ID, copy it into the
-bundle as `Contents/embedded.provisionprofile` before signing, and restore the `--entitlements` argument in
-`scripts/release.sh`. Then **launch the built app** before publishing. `release.sh` now refuses to build an app that
-claims a restricted entitlement without a profile beside it, so the mistake cannot repeat silently.
+**To claim it, in order.** The pipeline supports it; what is missing is the profile.
+
+1. <https://developer.apple.com/account/resources/identifiers/list> → `com.amirhackett.notchmeter` (register it as an
+   explicit App ID if only a wildcard exists) → tick *Time Sensitive Notifications* → Save.
+2. <https://developer.apple.com/account/resources/profiles/add> → under Distribution, **Developer ID** → that App ID →
+   your Developer ID Application certificate → download the `.provisionprofile`.
+3. `base64 -i ~/Downloads/Notchmeter.provisionprofile | gh secret set PROVISION_PROFILE_BASE64 --repo Amir-Hackett/notchmeter`
+4. Tag as usual. With that secret set, `release.yml` writes the profile to a file, `release.sh` copies it into the
+   bundle as `Contents/embedded.provisionprofile` and signs with `scripts/Notchmeter.entitlements`. Without it, the
+   app is signed with no entitlements and the notices arrive at the ordinary level. Locally, pass the path yourself:
+   `PROVISION_PROFILE=~/Downloads/Notchmeter.provisionprofile scripts/release.sh`.
+5. Install the DMG and open it before making the release latest. Step 5 is not optional; see below.
+
+**Two gates now stand where there were none.** `release.sh` fails the build if the signed app claims an entitlement
+under `com.apple.*` that no profile in the bundle grants, naming the key; and it then starts the signed app and fails
+if macOS kills it at exec, which is what a rejected entitlement looks like from outside. Neither existed for v0.2.0.
+Neither replaces opening the app: they catch this class of fault, not the next one.
 
 ### 3. Notarisation credentials
 
