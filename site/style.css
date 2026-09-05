@@ -258,7 +258,7 @@ h2 {
 
 /* ---------- pricing ---------- */
 
-.plans { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; align-items: start; }
+.plans { display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; gap: 20px; align-items: start; }
 
 .plan {
   border: 1px solid var(--line);

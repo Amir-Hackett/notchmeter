@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pricing — Notchmeter</title>
-<meta name="description" content="Notchmeter is free forever and MIT licensed. Notchmeter Teams rolls the same numbers up across a fleet for the person who owns the AI budget — without a prompt, a transcript or a token ever leaving a developer's Mac.">
+<meta name="description" content="Notchmeter is free forever and MIT licensed. Pay what you want, or nothing; the app is the same either way.">
 <link rel="icon" href="img/icon.png">
 <link rel="stylesheet" href="style.css">
 <meta property="og:title" content="Pricing — Notchmeter">
-<meta property="og:description" content="Free forever for one developer. Teams, for the person who owns the AI budget.">
+<meta property="og:description" content="Free forever. Pay what you want, or nothing; the app is the same either way.">
 <meta property="og:type" content="website">
 </head>
 <body>
@@ -31,8 +31,8 @@
 
 <section class="hero plain">
   <div class="wrap">
-    <h1>Free for you. Paid for the fleet.</h1>
-    <p class="lede">The meter on your own Mac is free and open source, and always will be. What costs money is the roll-up across a team — and only because a server has to run somewhere.</p>
+    <h1>Free. Pay what you want.</h1>
+    <p class="lede">The whole app is free and open source, and always will be. If it earns its place in your notch, you can put something towards it — any amount, once, and nothing changes in the app either way.</p>
   </div>
 </section>
 
@@ -40,7 +40,7 @@
   <div class="wrap">
     <div class="plans">
 
-      <div class="plan">
+      <div class="plan featured">
         <div class="head">
           <span class="name">Notchmeter</span>
         </div>
@@ -56,39 +56,11 @@
           <li><span class="tick">✓</span><span>Hooks for Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot, and the Claude Code status line</span></li>
           <li><span class="tick">✓</span><span>Command line tool, MCP server and local API</span></li>
           <li><span class="tick">✓</span><span>Six languages, full VoiceOver, colour-blind-safe throughout</span></li>
+          <li><span class="tick">✓</span><span>Signed, notarised, and it updates itself</span></li>
         </ul>
         <div class="foot">
-          <a class="btn btn-ghost" href="index.html#install">Download for macOS</a>
           <a class="btn btn-primary" href="https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800">Support Notchmeter — pay what you want</a>
-        </div>
-      </div>
-
-      <div class="plan featured">
-        <div class="head">
-          <span class="name">Notchmeter Teams</span>
-          <span class="badge">In development</span>
-        </div>
-        <div class="price">$6 <span>per seat / month</span></div>
-        <p class="price-note">$60 per seat billed yearly · free for 5 seats or fewer, self-hosted</p>
-        <p class="sell">One chart for everyone's AI spend, for whoever signs off on it. Same numbers, rolled up — and still nothing leaves a developer's Mac but a daily total.</p>
-        <ul>
-          <li><span class="tick">✓</span><span>Everything in Notchmeter, on every seat</span></li>
-          <li><span class="tick">✓</span><span>Spend by team and by day, <strong>across all five vendors at once</strong></span></li>
-          <li><span class="tick">✓</span><span>Who is on pace to hit a weekly cap, and when</span></li>
-          <li><span class="tick">✓</span><span>Model mix — Opus share is the lever, so it gets its own view</span></li>
-          <li><span class="tick">✓</span><span>Tool mix, and seats with no activity in 14 days</span></li>
-          <li><span class="tick">✓</span><span><strong>Opt-in per machine, off by default</strong>, with a "what was sent" list</span></li>
-          <li><span class="tick">✓</span><span>Self-host it: one binary and a SQLite file, or push to your own bucket</span></li>
-          <li><span class="tick">✓</span><span>No prompt, transcript, project path or token ever leaves the Mac</span></li>
-        </ul>
-        <div class="foot">
-          <!-- Point action= at your form endpoint (Formspree, Buttondown, Tally…) before this goes live.
-               Until then the button falls back to the mailto: link below it. -->
-          <form class="waitlist" action="#" method="post" onsubmit="return false">
-            <input type="email" name="email" placeholder="you@company.com" aria-label="Email address" required>
-            <button class="btn btn-primary" type="submit">Join the waitlist</button>
-          </form>
-          <p class="price-note" style="margin-top:10px">Or email <a href="mailto:hello@notchmeter.app?subject=Notchmeter%20Teams">hello@notchmeter.app</a>. No spam, one message when it's ready.</p>
+          <a class="btn btn-ghost" href="index.html#install">Download for macOS</a>
         </div>
       </div>
 
@@ -100,45 +72,15 @@
 
 <section>
   <div class="wrap">
-    <h2>Why the app itself is free</h2>
+    <h2>Why it's free</h2>
     <div class="gap-grid">
       <div class="gap-card">
         <h3>Because you can already read the source</h3>
         <p style="color:var(--text-dim);margin:0;font-size:15px;line-height:1.65">Notchmeter is MIT licensed and the whole repository is public. <code>scripts/build.sh install</code> builds it in twenty seconds. A licence check on top of that would be theatre, and it would tax the one thing an open tool needs, which is people trying it.</p>
       </div>
       <div class="gap-card">
-        <h3>Because the interesting problem is the fleet</h3>
-        <p style="color:var(--text-dim);margin:0;font-size:15px;line-height:1.65">One developer already knows roughly what they are spending. A director with thirty engineers on five vendors does not, and no vendor's own dashboard tells them, because each one only sees its own half. That is worth paying for. A ring is not.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <h2>What Teams sends, exactly</h2>
-    <p class="section-lede">The privacy model is the product. If the roll-up could see a prompt, it would be a monitoring tool, and no engineer would leave it switched on. So it cannot.</p>
-
-    <div class="gap-grid">
-      <div class="gap-card">
-        <div class="who">One document, per machine, per day</div>
-        <ul>
-          <li>The date</li>
-          <li>A random machine id, minted at opt-in and resettable</li>
-          <li>An optional label you type</li>
-          <li>Per tool: the peak used fraction of each window, and its reset time</li>
-          <li>The day's cost estimate, split by model and token bucket</li>
-        </ul>
-      </div>
-      <div class="gap-card dim">
-        <div class="who">Never, by construction</div>
-        <ul>
-          <li>No token, account id, email or hostname</li>
-          <li>No prompt, transcript or project path</li>
-          <li>No per-request rows, no timestamp finer than the day</li>
-          <li>No real-time view, no remote control, no blocking</li>
-          <li>A test asserts the outgoing document's keys against an allow-list</li>
-        </ul>
+        <h3>Because a meter should not have a login</h3>
+        <p style="color:var(--text-dim);margin:0;font-size:15px;line-height:1.65">The app never signs in anywhere and never sends anything anywhere, and a paid tier would need an account to check. So there is no tier. What support pays for is the boring part of shipping a Mac app — Apple's developer programme, notarisation, the domain — and the time to keep five vendors' readings accurate as they change.</p>
       </div>
     </div>
   </div>
@@ -150,31 +92,19 @@
     <div class="faq">
       <details open>
         <summary>Is the free version limited in any way?</summary>
-        <p class="a">No. There is no trial, no locked feature and no nag. Every assistant, every layout, every notification and the whole cost breakdown are in the free app, and the source is on GitHub under MIT.</p>
+        <p class="a">No. There is no trial, no locked feature and no nag. Every assistant, every layout, every notification and the whole cost breakdown are in the app, and the source is on GitHub under MIT.</p>
       </details>
       <details>
-        <summary>When can I actually buy Teams?</summary>
-        <p class="a">It isn't built yet. The design is written up in the repository's roadmap — the privacy model, the document shape and what the dashboard shows — and the waitlist is how it gets prioritised. If enough budget owners want it, it gets built; if they don't, Notchmeter stays an excellent personal tool, which is a fine outcome too. You will not be charged for anything before it exists.</p>
-      </details>
-      <details>
-        <summary>Why $6 a seat?</summary>
-        <p class="a">Because of what it sits next to. Claude Code alone runs roughly $150–250 per developer per month, so a roll-up across every vendor at $6 is between two and four per cent of the spend it governs — small enough to approve without a meeting, which is the only price a tool like this can be.</p>
-      </details>
-      <details>
-        <summary>Do I have to send you anything to use Teams?</summary>
-        <p class="a">No. The server is a single binary with a SQLite file that you run, or you can point the client at a bucket you own and run no server at all. A hosted version, if there ever is one, is the same binary run by us with the same document — nothing extra is collected because there is nowhere for it to come from.</p>
-      </details>
-      <details>
-        <summary>Will Teams see what my engineers are working on?</summary>
-        <p class="a">It cannot. It receives one aggregate a day per machine: usage fractions, reset times and a cost estimate. There is no prompt, no transcript, no repository name and no timestamp finer than the day, and each machine's sharing is opt-in and off until someone turns it on. The panel says so on screen while it is on, and Settings shows the last seven documents verbatim.</p>
+        <summary>What do I get for paying?</summary>
+        <p class="a">The same app. Paying is a way of saying it was worth it; it unlocks nothing and it is never asked for again. The link is a Stripe page where you choose the amount, and the only place the app mentions it is one line under the version number in Settings.</p>
       </details>
       <details>
         <summary>Does it work if I only use one assistant?</summary>
-        <p class="a">Yes — turn the others off in Settings and the strip shows what's left. The cross-vendor view is where Teams earns its keep, though: Anthropic and Cursor both have admin dashboards for their own numbers, so a roll-up is only worth paying for across vendors and on pace.</p>
+        <p class="a">Yes — turn the others off in Settings and the strip shows what's left, and the rings give the room back to the ones you keep.</p>
       </details>
       <details>
-        <summary>Can I support the project without a team?</summary>
-        <p class="a">GitHub Sponsors, on the repository. It is genuinely optional and the app will never ask you for it.</p>
+        <summary>Will there be a paid version later?</summary>
+        <p class="a">Not of this. The personal meter stays free and MIT; that is the point of it. If something for teams ever exists it will be a separate thing with its own page, and it will not change what this app does or costs.</p>
       </details>
     </div>
   </div>
@@ -182,8 +112,8 @@
 
 <section>
   <div class="wrap centered">
-    <h2>Start with the free one</h2>
-    <p class="section-lede">It takes a minute, needs no account, and tells you within a day whether you want the fleet view.</p>
+    <h2>Try it</h2>
+    <p class="section-lede">It takes a minute, needs no account, and stays out of the way.</p>
     <div class="cta-row">
       <a class="btn btn-primary" href="index.html#install">Download for macOS</a>
       <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter">Read the source</a>
