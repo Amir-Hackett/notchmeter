@@ -30,6 +30,19 @@ jobs:
           xcode-select -p
           swift --version
 
+      - name: Build (release)
+        # CI's gate, repeated here so the release path carries it on its own: a warning from anything
+        # under Sources/ fails the release before anything is signed, notarised or published. Vendor/ is
+        # exempt. ci.yml is disabled at the repository level for macOS runner cost, so a tag is the only
+        # place this check now runs.
+        run: |
+          set -o pipefail
+          swift build -c release 2>&1 | tee build.log
+          if grep -E '/Sources/[^:]+:[0-9]+:[0-9]+: warning:' build.log; then
+            echo "::error::compiler warnings originating under Sources/"
+            exit 1
+          fi
+
       - name: Test
         run: scripts/test.sh
 
