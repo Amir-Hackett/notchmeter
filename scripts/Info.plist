@@ -44,7 +44,7 @@
 	<key>SUFeedURL</key>
 	<string>https://github.com/Amir-Hackett/notchmeter/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>REPLACE_WITH_SPARKLE_PUBLIC_KEY</string>
+	<string>KGojrawupvYqey2oe8kMEiiiW4yVy/cqDoCGUoRcYhc=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
 </dict>
