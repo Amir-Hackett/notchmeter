@@ -15,15 +15,17 @@ enum FullScreen {
         var size: CGSize
     }
 
-    /// The display's shape, read at the moment of the check.
+    /// The display's shape and the system's own furniture on it, read at the moment of the check.
     struct Display: Equatable {
         var size: CGSize
         /// The camera housing's band; zero on a display without one.
         var safeAreaTop: CGFloat
-        /// Whether the menu bar is on screen. Its own window, the Window Server's at the main-menu level along
-        /// the top of this display, is in the on-screen window list on the desktop and leaves it in a
-        /// full-screen Space until the pointer brings the bar back. `visibleFrame` cannot tell: in a full-screen
-        /// Space it still reports the desktop's bar.
+        /// Whether the Dock has a window on screen. It has one on a desktop whether or not the Dock is set to
+        /// hide, and none in a full-screen Space, which is what separates a full-screen window from a zoomed
+        /// one when the app is the only one open.
+        var dockOnScreen: Bool
+        /// Whether the menu bar's own window is on screen. It is on screen in a full-screen Space too, which is
+        /// why the rule cannot read the bar; the diagnostics line still carries it.
         var menuBarShowing: Bool
     }
 
@@ -37,39 +39,47 @@ enum FullScreen {
 
     /// Whether these windows amount to a full-screen app on the display.
     ///
-    /// A full-screen window is one of two heights. The whole display: every full-screen window on a display
-    /// without a camera housing, and on one with a housing any app that ignores the safe area and draws into its
-    /// band, as games do. (An app that opts into `NSPrefersDisplaySafeAreaCompatibilityMode` gets the opposite:
-    /// macOS shrinks the display to the area below the housing, the inset reads zero, and the whole-display test
-    /// matches.) Or the display minus the band: on a notched display macOS lays a full-screen window out below
-    /// the housing by default and blacks out the band beside it, which is what a full-screen video looks like on
-    /// a MacBook. The band is the housing's inset or the menu bar's thickness, which are not quite the same number
-    /// (32 and 33 points on a 14-inch), so a few points of slack cover both. That second height is also exactly
-    /// what a zoomed window gets under the menu bar, because on a notched display the bar fills the band, so it
-    /// counts only while the bar is away. In a full-screen Space the bar is away until the pointer touches the
-    /// top edge; on the desktop it is present unless set to hide automatically, in which case a zoomed window
-    /// with the Dock out of the way is indistinguishable from a full-screen one and the readouts step aside for
-    /// it too, a known limit of reading window sizes. The width is the whole display, or the display shared
-    /// between windows of one of those heights, which is Split View.
+    /// Three things have to hold, and they were each read off a 14-inch running a full-screen video.
+    ///
+    /// A window has to cover the display. Either the whole of it, which is every full-screen window on a display
+    /// without a camera housing and any app on one that ignores the safe area and draws into the housing's band,
+    /// as games do. Or the display less that band, because macOS lays a full-screen window out below the housing
+    /// by default and blacks out the band beside it, which is what a full-screen video looks like on a MacBook.
+    /// The band is the housing's inset or the menu bar's thickness, and those are not the same number (32 and 33
+    /// points on a 14-inch), so a few points of slack cover both. Two windows sharing the width at one of those
+    /// heights are Split View and count together.
+    ///
+    /// Every app with a window on screen has to be part of that. A Space holds its own windows and nothing else,
+    /// so in a full-screen one the only windows are the full-screen app's, or the two apps sharing Split View. A
+    /// desktop keeps every unminimised window on screen even when one covers the rest, so a zoomed window has
+    /// company: eight apps, on the Mac this was read from.
+    ///
+    /// And the Dock must have no window on screen. That is what tells a full-screen window from a zoomed one on
+    /// a desktop where the covering app happens to be the only one open. The menu bar cannot do this job: its
+    /// window stays on screen inside a full-screen Space, which is why an earlier version of this rule left the
+    /// readouts over the video it was written to get out of the way of.
     static func isActive(_ candidates: [Candidate], on display: Display) -> Bool {
-        isActive(candidates, on: display, barAway: !display.menuBarShowing)
+        guard !display.dockOnScreen, let owners = covering(candidates, on: display) else { return false }
+        return Set(candidates.map(\.owner)).isSubset(of: owners)
     }
 
-    /// Whether these windows would amount to a full-screen app if the menu bar were away: a full-screen app with
-    /// its bar revealed by the pointer looks exactly like this, so while it holds the verdict is worth re-reading.
+    /// Whether a window covers the display at all, whatever else is on screen: while that holds the verdict is
+    /// worth re-reading, because entering or leaving a Space moves the rest of this one window at a time.
     static func isSuspect(_ candidates: [Candidate], on display: Display) -> Bool {
-        isActive(candidates, on: display, barAway: true)
+        covering(candidates, on: display) != nil
     }
 
-    private static func isActive(_ candidates: [Candidate], on display: Display, barAway: Bool) -> Bool {
+    /// The apps whose windows cover the display, or nil where none does.
+    private static func covering(_ candidates: [Candidate], on display: Display) -> Set<String>? {
         let tall = candidates.filter { candidate in
             let height = candidate.size.height
             if abs(height - display.size.height) < 1 { return true }
-            return display.safeAreaTop > 0 && barAway && height >= display.size.height - display.safeAreaTop - 4
+            return display.safeAreaTop > 0 && height >= display.size.height - display.safeAreaTop - 4
         }
-        if tall.contains(where: { abs($0.size.width - display.size.width) < 1 }) { return true }
+        if let whole = tall.first(where: { abs($0.size.width - display.size.width) < 1 }) { return [whole.owner] }
         // Split View: the divider between the two is the Window Server's, a few points wide.
-        return tall.count >= 2 && tall.map(\.size.width).reduce(0, +) >= display.size.width - 16
+        guard tall.count >= 2, tall.map(\.size.width).reduce(0, +) >= display.size.width - 16 else { return nil }
+        return Set(tall.map(\.owner))
     }
 
     /// Reads the on-screen window list once for everything the rule needs. Bounds, owner and layer come back
@@ -85,27 +95,29 @@ enum FullScreen {
         var candidates: [Candidate] = []
         var chrome: [String] = []
         var menuBarShowing = false
+        var dockOnScreen = false
         for info in infos {
             guard let layer = info[kCGWindowLayer as String] as? Int,
                   let owner = info[kCGWindowOwnerName as String] as? String,
                   let raw = info[kCGWindowBounds as String] as? NSDictionary,
                   let bounds = CGRect(dictionaryRepresentation: raw)
             else { continue }
+            let onThisDisplay = bounds.midX >= frame.minX && bounds.midX <= frame.maxX
             if layer == 0 {
                 if owner != ownName { candidates.append(Candidate(owner: owner, size: bounds.size)) }
                 continue
             }
-            // The system's windows along this display's top edge: the menu bar's is the Window Server's at the
-            // main-menu level, as wide as the display and at most a few dozen points tall.
-            let onThisDisplay = bounds.minX >= frame.minX - 1 && bounds.maxX <= frame.maxX + 1 && bounds.minY >= top - 1
-            guard onThisDisplay, bounds.minY < top + 60 else { continue }
+            if owner == "Dock", layer == Int(CGWindowLevelForKey(.dockWindow)), onThisDisplay { dockOnScreen = true }
+            // The system's windows along this display's top edge, the menu bar's among them.
+            guard onThisDisplay, bounds.minY >= top - 1, bounds.minY < top + 60 else { continue }
             chrome.append("\(owner) L\(layer) \(Int(bounds.width))×\(Int(bounds.height)) y=\(Int(bounds.minY - top))")
             if layer == Int(CGWindowLevelForKey(.mainMenuWindow)), owner == "Window Server",
                abs(bounds.width - frame.width) < 1, bounds.height > 0, bounds.height < 60 {
                 menuBarShowing = true
             }
         }
-        let display = Display(size: frame.size, safeAreaTop: screen.safeAreaInsets.top, menuBarShowing: menuBarShowing)
+        let display = Display(size: frame.size, safeAreaTop: screen.safeAreaInsets.top,
+                              dockOnScreen: dockOnScreen, menuBarShowing: menuBarShowing)
         return Scan(candidates: candidates, display: display, chrome: chrome)
     }
 
@@ -122,9 +134,8 @@ enum FullScreen {
 
     /// The same line over a reading already taken, so a log line and the verdict it explains come from one scan.
     ///
-    /// `apps` is every other application with a window on screen. A full-screen Space holds the one app's
-    /// windows and nothing else, where a desktop holds every unminimised window whether or not one covers the
-    /// rest, so the company a covering window keeps says which of the two it is.
+    /// `apps` is every application with a window on screen, which is what separates a full-screen Space from a
+    /// desktop; `dock` is the other half of that, and `menuBar` is there to show it saying nothing useful.
     static func describe(_ reading: Scan) -> String {
         let display = reading.display
         let big = reading.candidates.filter { $0.size.width >= display.size.width / 2 && $0.size.height >= display.size.height / 2 }
@@ -135,7 +146,8 @@ enum FullScreen {
         }
         let apps = counts.prefix(12).map { "\($0.0)×\($0.1)" }.joined(separator: ", ")
         return "active=\(isActive(reading.candidates, on: display)) display=\(Int(display.size.width))×\(Int(display.size.height)) "
-            + "safeAreaTop=\(Int(display.safeAreaTop)) menuBar=\(display.menuBarShowing ? "showing" : "away") "
+            + "safeAreaTop=\(Int(display.safeAreaTop)) dock=\(display.dockOnScreen ? "on screen" : "away") "
+            + "menuBar=\(display.menuBarShowing ? "showing" : "away") "
             + "suspect=\(isSuspect(reading.candidates, on: display)) apps=\(counts.count)[\(apps)] "
             + "windows=[\(windows)] top=[\(reading.chrome.joined(separator: ", "))]"
     }

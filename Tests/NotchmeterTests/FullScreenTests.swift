@@ -2,81 +2,95 @@ import AppKit
 import Testing
 @testable import Notchmeter
 
-/// The full-screen rule over window sizes: the whole display, the display below the camera housing while the
-/// menu bar is away, Split View, and the shapes that must not count, above all a zoomed window under the menu
-/// bar, which on a notched display is exactly the below-the-housing size.
+/// The full-screen rule, over readings taken from a 14-inch MacBook Pro running a full-screen video in Chrome
+/// and then the same Chrome window zoomed on the desktop. The two look alike by size alone: both are 1512×949
+/// on a 1512×982 display under a menu bar the window list reports as on screen either way. What tells them
+/// apart is the company the window keeps and whether the Dock has a window.
 @Suite struct FullScreenRule {
-    let notched = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 37, menuBarShowing: true)
-    let notchedBarAway = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 37, menuBarShowing: false)
-    // A 14-inch as `--smoke` reports it: the housing's inset and the menu bar differ by a point.
-    let fourteen = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32, menuBarShowing: true)
-    let fourteenBarAway = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32, menuBarShowing: false)
-    let plain = FullScreen.Display(size: CGSize(width: 2560, height: 1440), safeAreaTop: 0, menuBarShowing: true)
-    let plainBarAway = FullScreen.Display(size: CGSize(width: 2560, height: 1440), safeAreaTop: 0, menuBarShowing: false)
+    /// A full-screen Space on the 14-inch: no Dock window, and the menu bar's window on screen all the same.
+    let space = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32,
+                                   dockOnScreen: false, menuBarShowing: true)
+    /// The desktop on the same Mac.
+    let desktop = FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32,
+                                     dockOnScreen: true, menuBarShowing: true)
+    /// An external display, no camera housing.
+    let plainSpace = FullScreen.Display(size: CGSize(width: 2560, height: 1440), safeAreaTop: 0,
+                                        dockOnScreen: false, menuBarShowing: true)
+    let plainDesktop = FullScreen.Display(size: CGSize(width: 2560, height: 1440), safeAreaTop: 0,
+                                          dockOnScreen: true, menuBarShowing: true)
 
     func window(_ width: CGFloat, _ height: CGFloat, owner: String = "Safari") -> FullScreen.Candidate {
         FullScreen.Candidate(owner: owner, size: CGSize(width: width, height: height))
     }
 
-    @Test func theWholeDisplayCountsEverywhere() {
-        #expect(FullScreen.isActive([window(2560, 1440)], on: plain))
-        #expect(FullScreen.isActive([window(2560, 1440)], on: plainBarAway))
-        #expect(FullScreen.isActive([window(1512, 982)], on: notched))
-        #expect(FullScreen.isActive([window(1512, 982)], on: notchedBarAway))
+    /// The reading the bug was found on: three Chrome windows, one of them the video, and nothing else.
+    var theVideo: [FullScreen.Candidate] {
+        [window(1512, 949, owner: "Google Chrome"), window(560, 320, owner: "Google Chrome"),
+         window(1, 1, owner: "Google Chrome")]
     }
 
-    @Test func belowTheHousingCountsOnlyWhileTheMenuBarIsAway() {
-        // A full-screen video on a notched MacBook: macOS lays the window out below the housing and hides the bar.
-        #expect(FullScreen.isActive([window(1512, 945)], on: notchedBarAway))
-        // The same size under a visible menu bar is a zoomed window with the Dock hidden or on a side: the desktop.
-        #expect(!FullScreen.isActive([window(1512, 945)], on: notched))
-        // The window macOS lays out is the display less the menu bar's thickness, a point short of less the inset;
-        // both count with the bar away, and the zoomed Chrome window `--smoke` saw under the bar does not.
-        #expect(FullScreen.isActive([window(1512, 949, owner: "Google Chrome")], on: fourteenBarAway))
-        #expect(FullScreen.isActive([window(1512, 950)], on: fourteenBarAway))
-        #expect(!FullScreen.isActive([window(1512, 949, owner: "Google Chrome")], on: fourteen))
-        // A display without a housing has no such shape: one menu bar short is a zoomed window whatever the bar does.
-        #expect(!FullScreen.isActive([window(2560, 1416)], on: plain))
-        #expect(!FullScreen.isActive([window(2560, 1416)], on: plainBarAway))
+    /// The same Mac's desktop a moment later: the Chrome window smaller, and seven other apps still on screen.
+    var theDesktop: [FullScreen.Candidate] {
+        [window(1424, 822, owner: "Google Chrome"), window(990, 753, owner: "Claude"),
+         window(937, 650, owner: "Finder"), window(1125, 750, owner: "Notes"),
+         window(1175, 730, owner: "TV"), window(800, 500, owner: "iTerm2"),
+         window(600, 400, owner: "System Settings"), window(1, 1, owner: "MobileDeviceUpdater")]
     }
 
-    @Test func splitViewCountsAsFullScreen() {
-        #expect(FullScreen.isActive([window(754, 945, owner: "Safari"), window(754, 945, owner: "Notes")], on: notchedBarAway))
-        #expect(FullScreen.isActive([window(1280, 1440), window(1276, 1440)], on: plainBarAway))
-        // Two half-width windows on the desktop with the menu bar showing are not.
-        #expect(!FullScreen.isActive([window(754, 945), window(754, 945)], on: notched))
-        // One half-width full-height window alone (a tile beside the desktop) is not.
-        #expect(!FullScreen.isActive([window(754, 945)], on: notchedBarAway))
+    @Test func theVideoOnTheNotchedMacCounts() {
+        #expect(FullScreen.isActive(theVideo, on: space))
     }
 
-    @Test func anythingSmallerDoesNotCount() {
-        #expect(!FullScreen.isActive([window(1511, 982)], on: notchedBarAway))
-        #expect(!FullScreen.isActive([window(1512, 900)], on: notchedBarAway))
-        #expect(!FullScreen.isActive([window(1512, 945 - 70)], on: notchedBarAway))
-        // The slack is a few points, not a Dock's worth.
-        #expect(!FullScreen.isActive([window(1512, 982 - 32 - 5)], on: fourteenBarAway))
-        #expect(!FullScreen.isActive([], on: notchedBarAway))
+    @Test func theSameWindowOnTheDesktopDoesNot() {
+        // Zoomed to the same height with the Dock hidden, the window is indistinguishable by size; the Dock's
+        // own window is what says this is a desktop.
+        #expect(!FullScreen.isActive(theVideo, on: desktop))
+        #expect(!FullScreen.isActive(theDesktop, on: desktop))
+        // Even with no Dock window, a covering window that shares the screen with other apps is not full-screen.
+        #expect(!FullScreen.isActive(theDesktop + [window(1512, 949, owner: "Google Chrome")], on: space))
     }
 
-    @Test func aFullScreenWindowUnderARevealedBarIsSuspect() {
-        // The pointer at the top edge of a full-screen Space brings the bar in; the verdict flips, the suspicion
-        // does not, and the watch keeps polling on it.
-        #expect(FullScreen.isSuspect([window(1512, 949)], on: fourteen))
-        #expect(!FullScreen.isActive([window(1512, 949)], on: fourteen))
-        #expect(FullScreen.isSuspect([window(754, 945), window(754, 945)], on: notched))
-        // Nothing full-width at that height is nothing to watch, on any display.
-        #expect(!FullScreen.isSuspect([window(1512, 900)], on: fourteen))
-        #expect(!FullScreen.isSuspect([window(2560, 1416)], on: plain))
-        #expect(!FullScreen.isSuspect([], on: fourteen))
+    @Test func aWindowTheSizeOfTheWholeDisplayCounts() {
+        // A game that draws into the housing's band, and every full-screen window on a display without one.
+        #expect(FullScreen.isActive([window(1512, 982)], on: space))
+        #expect(FullScreen.isActive([window(2560, 1440)], on: plainSpace))
+        #expect(!FullScreen.isActive([window(2560, 1440)], on: plainDesktop))
     }
 
-    @Test func theLineNamesTheVerdictAndTheWindowsItWeighed() {
-        let scan = FullScreen.Scan(
-            candidates: [window(1512, 949, owner: "Google Chrome"), window(300, 200, owner: "Finder")],
-            display: fourteenBarAway,
-            chrome: ["Window Server L24 1512×33 y=0"])
-        #expect(FullScreen.describe(scan) == "active=true display=1512×982 safeAreaTop=32 menuBar=away "
-            + "suspect=true apps=2[Google Chrome×1, Finder×1] "
+    @Test func aDisplayWithoutAHousingHasNoBandToSubtract() {
+        // One menu bar short of the display is a zoomed window there, whatever else is on screen.
+        #expect(!FullScreen.isActive([window(2560, 1416)], on: plainSpace))
+    }
+
+    @Test func splitViewCountsAndOnlyForItsTwoApps() {
+        let pair = [window(754, 949, owner: "Safari"), window(754, 949, owner: "Notes")]
+        #expect(FullScreen.isActive(pair, on: space))
+        #expect(!FullScreen.isActive(pair, on: desktop))
+        #expect(!FullScreen.isActive(pair + [window(300, 200, owner: "Finder")], on: space))
+        // One half-width window alone is a tile beside the desktop, not a Space of its own.
+        #expect(!FullScreen.isActive([window(754, 949, owner: "Safari")], on: space))
+    }
+
+    @Test func anythingShorterDoesNotCount() {
+        #expect(!FullScreen.isActive([window(1512, 945 - 70)], on: space))
+        #expect(!FullScreen.isActive([window(1512, 982 - 32 - 5)], on: space))
+        #expect(!FullScreen.isActive([window(1511, 982)], on: space))
+        #expect(!FullScreen.isActive([], on: space))
+    }
+
+    @Test func aCoveringWindowIsWorthWatchingWhereverItIs() {
+        // Suspicion keeps the watch polling across a Space change, when the rest moves one window at a time.
+        #expect(FullScreen.isSuspect(theVideo, on: desktop))
+        #expect(FullScreen.isSuspect(theVideo, on: space))
+        #expect(!FullScreen.isSuspect(theDesktop, on: desktop))
+        #expect(!FullScreen.isSuspect([], on: space))
+    }
+
+    @Test func theLineNamesTheVerdictAndWhatItWasReadFrom() {
+        let reading = FullScreen.Scan(candidates: [window(1512, 949, owner: "Google Chrome")], display: space,
+                                      chrome: ["Window Server L24 1512×33 y=0"])
+        #expect(FullScreen.describe(reading) == "active=true display=1512×982 safeAreaTop=32 dock=away "
+            + "menuBar=showing suspect=true apps=1[Google Chrome×1] "
             + "windows=[Google Chrome 1512×949] top=[Window Server L24 1512×33 y=0]")
     }
 
@@ -85,6 +99,6 @@ import Testing
         let line = FullScreen.describe(on: NSScreen.panelScreen)
         #expect(line.hasPrefix("active="))
         #expect(line.contains("safeAreaTop="))
-        #expect(line.contains("menuBar=showing") || line.contains("menuBar=away"))
+        #expect(line.contains("dock=on screen") || line.contains("dock=away"))
     }
 }
