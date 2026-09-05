@@ -636,3 +636,12 @@
 "Always show over %@" = "Always show over %@";
 "App to stay over, e.g. zoom.us" = "App to stay over, e.g. zoom.us";
 "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time.";
+
+/* A stale Accessibility entry: the permission belongs to a copy of the app that was replaced (MenuBarExtent, App, SettingsWindow) */
+"%@'s Accessibility permission belongs to an older copy" = "%@'s Accessibility permission belongs to an older copy";
+"macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do.";
+"Clear and Restart" = "Clear and Restart";
+"Open Accessibility Settings" = "Open Accessibility Settings";
+"Not Now" = "Not Now";
+"Repair the Accessibility permission…" = "Repair the Accessibility permission…";
+"The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back.";

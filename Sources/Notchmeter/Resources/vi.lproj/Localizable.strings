@@ -620,3 +620,12 @@
 "Always show over %@" = "Luôn hiện trên %@";
 "App to stay over, e.g. zoom.us" = "Ứng dụng cần hiện đè lên, ví dụ zoom.us";
 "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "Các ứng dụng mà số liệu vẫn hiện đè lên, theo tên mà danh sách cửa sổ đưa ra: một cuộc họp bạn muốn có đồng hồ bên cạnh, trong khi cài đặt ở trên đang tắt vì phim. Nó không phân biệt được hai cách dùng của cùng một ứng dụng, một cuộc gọi và một bộ phim đều trong trình duyệt là ví dụ; phím tắt Hiện trên ứng dụng toàn màn hình này giải quyết trường hợp đó, chỉ cho ứng dụng đang trên màn hình và cho tới khi nó rời toàn màn hình. Menu Tùy chọn đưa ra cả hai cho bất kỳ ứng dụng nào đang toàn màn hình lúc đó.";
+
+/* Mục Trợ năng cũ: quyền thuộc về bản ứng dụng đã bị thay thế (MenuBarExtent, App, SettingsWindow) */
+"%@'s Accessibility permission belongs to an older copy" = "Quyền Trợ năng của %@ thuộc về một bản cũ hơn";
+"macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS gắn quyền này với đúng bản đã được cấp, và bản đang chạy đã thay thế bản đó. Trong Quyền riêng tư & Bảo mật › Trợ năng, công tắc vẫn hiện đang bật nhưng không còn hiệu lực, và chỉ xóa mục đó mới lấy lại được. %@ có thể xóa mục đó rồi khởi động lại; bạn sẽ được hỏi để bật lại một lần nữa, và Tự động vẫn giữ nguyên bên hiện tại cho đến khi đó.";
+"Clear and Restart" = "Xóa và khởi động lại";
+"Open Accessibility Settings" = "Mở cài đặt Trợ năng";
+"Not Now" = "Để sau";
+"Repair the Accessibility permission…" = "Sửa quyền Trợ năng…";
+"The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "Quyền này thuộc về một bản cũ hơn: macOS gắn nó với bản đã được cấp và vẫn để công tắc bật khi bản đó bị thay thế. Xóa mục đó rồi khởi động lại là cách quay về.";

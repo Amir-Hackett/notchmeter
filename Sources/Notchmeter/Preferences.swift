@@ -759,6 +759,15 @@ final class Preferences {
     var hookOfferShown: Bool {
         didSet { defaults.set(hookOfferShown, forKey: Keys.hookOffer); report(Keys.hookOffer, hookOfferShown, changed: hookOfferShown != oldValue) }
     }
+    /// The code signature Accessibility was last seen granted under (CodeSignature.runningIdentity). macOS ties the
+    /// grant to the copy it was given to and leaves the switch on when that copy is replaced, so this is the only
+    /// way to tell a permission that was never given from one the running copy has been quietly refused.
+    var accessibilityGrantedTo: String? {
+        didSet {
+            defaults.set(accessibilityGrantedTo, forKey: Keys.accessibilityGrant)
+            report(Keys.accessibilityGrant, accessibilityGrantedTo ?? "none", changed: accessibilityGrantedTo != oldValue)
+        }
+    }
     private(set) var launchAtLogin: Bool
     private(set) var launchAtLoginStatus: SMAppService.Status
 
@@ -840,6 +849,7 @@ final class Preferences {
         static let hotkeyToggle = "hotkeyTogglePanel"
         static let hotkeySettings = "hotkeyOpenSettings"
         static let hookOffer = "hookOfferShown"
+        static let accessibilityGrant = "accessibilityGrantedTo"
         static let launchAtLogin = "launchAtLogin"
     }
 
@@ -938,6 +948,7 @@ final class Preferences {
         openSettingsHotkey = Self.codable(defaults, Keys.hotkeySettings)
         showOverFullScreenHotkey = Self.codable(defaults, Keys.hotkeyFullScreen)
         hookOfferShown = defaults.bool(forKey: Keys.hookOffer)
+        accessibilityGrantedTo = defaults.string(forKey: Keys.accessibilityGrant)
         let status = SMAppService.mainApp.status
         launchAtLoginStatus = status
         launchAtLogin = status == .enabled

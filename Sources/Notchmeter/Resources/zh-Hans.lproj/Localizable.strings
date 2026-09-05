@@ -636,3 +636,12 @@
 "Always show over %@" = "始终在 %@ 之上显示";
 "App to stay over, e.g. zoom.us" = "要保持显示的应用，例如 zoom.us";
 "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "无论上面的设置如何，读数都会保持在这些应用之上，按窗口列表给出的名称列出：会议时你希望仪表在旁边，而上面的设置是为看影片而关闭的。它无法区分同一个应用的两种用途，浏览器中的通话和影片就是例子；「在此全屏应用之上显示」快捷键可以解决这种情况，只针对屏幕上的应用，并在它退出全屏时失效。选项菜单会为当时处于全屏的应用同时提供这两项。";
+
+/* 过期的辅助功能条目：权限属于已被替换的旧副本（MenuBarExtent、App、SettingsWindow） */
+"%@'s Accessibility permission belongs to an older copy" = "%@ 的辅助功能权限属于旧的副本";
+"macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS 会把权限绑定到获得授权的那一份副本，而当前运行的这一份已经替换了它。“隐私与安全性”›“辅助功能”里的开关看上去仍是打开的，但已经不再生效，只有清除该条目才能恢复。%@ 可以清除该条目并重新启动；届时会再请你打开一次开关，在此之前“自动”会保持在现在这一侧。";
+"Clear and Restart" = "清除并重启";
+"Open Accessibility Settings" = "打开辅助功能设置";
+"Not Now" = "以后再说";
+"Repair the Accessibility permission…" = "修复辅助功能权限…";
+"The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "该权限属于旧的副本：macOS 把它绑定到获得授权的那份副本，副本被替换后仍让开关保持打开。清除条目并重新启动才是回到正常的办法。";

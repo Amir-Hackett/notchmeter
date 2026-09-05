@@ -106,9 +106,31 @@ case "${1:-}" in
     open "$APP"
     ;;
   install)
+    # macOS ties Accessibility (and the Keychain grant) to the signature of the copy it was granted to, and leaves
+    # the switch in Privacy & Security on when that copy is replaced: the new one is refused while the pane looks
+    # correct, which is a trap worth minutes every time. Replacing a Developer ID build with this one — or an
+    # ad-hoc build with anything, since ad-hoc code is pinned to a hash every build changes — crosses that line, so
+    # the entry is cleared here and the app asks for it again on the next launch. Same signature, nothing to do.
+    BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist" 2>/dev/null || echo com.amirhackett.notchmeter)"
+    signature_of() {
+      local out authority
+      out="$(codesign -dv --verbose=4 "$1" 2>&1)" || return 1
+      authority="$(printf '%s\n' "$out" | awk -F= '/^Authority=/{print $2; exit}')"
+      if [ -n "$authority" ]; then
+        printf 'certificate:%s\n' "$authority"
+      else
+        printf 'cdhash:%s\n' "$(printf '%s\n' "$out" | awk -F= '/^CDHash=/{print $2; exit}')"
+      fi
+    }
+    OLD_SIGNATURE="$(signature_of /Applications/Notchmeter.app 2>/dev/null || true)"
+    NEW_SIGNATURE="$(signature_of "$APP" || true)"
     pkill -x Notchmeter 2>/dev/null || true
     rm -rf /Applications/Notchmeter.app
     cp -R "$APP" /Applications/
+    if [ -n "$OLD_SIGNATURE" ] && [ "$OLD_SIGNATURE" != "$NEW_SIGNATURE" ]; then
+      tccutil reset Accessibility "$BUNDLE_ID" >/dev/null 2>&1 \
+        && echo "cleared the stale Accessibility entry ($OLD_SIGNATURE → $NEW_SIGNATURE); grant it again when asked"
+    fi
     open /Applications/Notchmeter.app
     echo "installed /Applications/Notchmeter.app"
     ;;

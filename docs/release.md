@@ -262,5 +262,11 @@ met, `brew bump-cask-pr` or a pull request to homebrew/cask with the same file.
   behind `SUPublicEDKey`. `scripts/release.sh` checks this before it finishes; if it passed, the feed was edited by
   hand afterwards. Regenerate with the same key.
 - *Options menu has no "Check for Updates…"* — the gate is closed; `--smoke` prints why on its `updater:` line.
+- *A check looks like nothing happened, and the panel stops responding* — Sparkle's windows are ordinary ones and the
+  panel draws at screen-saver level, so every one of them opens underneath it; the alert Sparkle runs modally then
+  holds the app while it is invisible. The panel is held closed for as long as a session is on screen (`UpdateSession`
+  in `Updater.swift`, `PanelHolds` in `NotchController.swift`) and the Settings window steps down to the ordinary
+  level while it lasts (`standAside`). To see the state a report like that describes:
+  `CGWindowListCopyWindowInfo` lists the alert at layer 8 under the panel at layer 1000.
 - *A GitHub Actions release is marked prerelease and unsigned* — at least one secret from the table is missing; the
   job summary lists which.

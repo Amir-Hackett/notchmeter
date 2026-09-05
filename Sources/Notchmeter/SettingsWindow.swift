@@ -273,11 +273,21 @@ struct SettingsView: View {
                 paragraph(L("Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits."))
             }
             if prefs.compactSide == .auto, !accessibilityTrusted {
-                Button(L("Open Accessibility settings…")) {
-                    MenuBarExtent.openSettings()
-                    accessibilityTrusted = MenuBarExtent.isTrusted
+                // A stale entry is not the same problem and does not have the same answer: the pane the other
+                // button opens shows the switch already on, and turning it off and on is what has to happen.
+                if actions.accessibilityIsStale() {
+                    Button(L("Repair the Accessibility permission…")) {
+                        actions.fixAccessibility()
+                        accessibilityTrusted = MenuBarExtent.isTrusted
+                    }
+                    .help(L("The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back."))
+                } else {
+                    Button(L("Open Accessibility settings…")) {
+                        MenuBarExtent.openSettings()
+                        accessibilityTrusted = MenuBarExtent.isTrusted
+                    }
+                    .help(L("Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility."))
                 }
-                .help(L("Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility."))
             }
             Toggle(L("Show details"), isOn: Binding(
                 get: { prefs.showDetails },
@@ -1286,6 +1296,9 @@ final class SettingsWindowController: NSWindowController {
     nonisolated static let readoutClearance: CGFloat = 12
 
     private let prefs: Preferences
+    /// The panel's level as `present` last saw it, so the window can return to sitting above it.
+    private var panelLevel: NSWindow.Level?
+    private var aside = false
 
     init(store: UsageStore, prefs: Preferences, actions: NotchActions, notifier: Notifier, requests: SettingsRequests) {
         self.prefs = prefs
@@ -1323,11 +1336,23 @@ final class SettingsWindowController: NSWindowController {
     func present(on screen: NSScreen, below readouts: CGRect? = nil, above panelLevel: NSWindow.Level? = nil) {
         guard let window else { return }
         window.appearance = prefs.appearance.nsAppearance
-        if let panelLevel { window.level = Self.level(above: panelLevel) }
+        if let panelLevel {
+            self.panelLevel = panelLevel
+            if !aside { window.level = Self.level(above: panelLevel) }
+        }
         window.setFrame(Self.frame(for: window.frame.size, screen: screen.frame, safeAreaTop: screen.safeAreaInsets.top,
                                    visible: screen.visibleFrame, readouts: readouts), display: false)
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    /// Steps back to the ordinary window level while Sparkle has a window up, and returns to its own afterwards.
+    /// This window is raised above the panel (see `present`), which puts it over the update alert and the
+    /// "you're up to date" alert too — they are ordinary windows, and nothing in them can raise itself past it.
+    func standAside(_ aside: Bool) {
+        self.aside = aside
+        guard let window else { return }
+        window.level = aside ? .normal : (panelLevel.map(Self.level(above:)) ?? .floating)
     }
 
     var isNonActivating: Bool {

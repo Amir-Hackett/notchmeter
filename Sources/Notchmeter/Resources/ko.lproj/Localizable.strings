@@ -620,3 +620,12 @@
 "Always show over %@" = "%@ 위에는 항상 표시";
 "App to stay over, e.g. zoom.us" = "위에 계속 표시할 앱, 예: zoom.us";
 "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "위 설정과 상관없이 수치를 계속 위에 표시할 앱을, 윈도우 목록이 주는 이름으로 지정합니다. 영상 때문에 위 설정을 꺼 두었더라도 회의 중에는 미터를 옆에 두고 싶을 때 씁니다. 한 앱의 두 가지 용도는 구분하지 못합니다. 브라우저 안의 통화와 영상이 그 예입니다. 그런 경우에는 '이 전체 화면 앱 위에 표시' 단축키가 답이며, 화면에 있는 앱에만 적용되고 그 앱이 전체 화면을 벗어나면 풀립니다. 옵션 메뉴에는 그때 전체 화면인 앱에 대해 두 가지가 함께 나옵니다.";
+
+/* 오래된 손쉬운 사용 항목: 권한이 교체된 이전 사본에 속한 경우 (MenuBarExtent, App, SettingsWindow) */
+"%@'s Accessibility permission belongs to an older copy" = "%@의 손쉬운 사용 권한이 이전 사본의 것입니다";
+"macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS는 권한을 허용받은 사본 자체에 묶어 둡니다. 지금 실행 중인 사본은 그 사본을 대체한 것입니다. 개인정보 보호 및 보안 › 손쉬운 사용에는 스위치가 켜진 것으로 보이지만 더 이상 적용되지 않으며, 항목을 지워야만 되돌릴 수 있습니다. %@이(가) 항목을 지우고 다시 실행할 수 있습니다. 스위치를 한 번 더 켜 달라는 요청을 받게 되며, 그때까지 자동은 지금 쪽을 유지합니다.";
+"Clear and Restart" = "지우고 다시 실행";
+"Open Accessibility Settings" = "손쉬운 사용 설정 열기";
+"Not Now" = "나중에";
+"Repair the Accessibility permission…" = "손쉬운 사용 권한 복구…";
+"The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "권한이 이전 사본의 것입니다. macOS는 권한을 허용받은 사본에 묶어 두고, 그 사본이 교체되어도 스위치를 켜진 채로 둡니다. 항목을 지우고 다시 실행하는 것이 되돌아가는 길입니다.";

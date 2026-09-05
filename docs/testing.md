@@ -42,6 +42,7 @@ Flags:
 | `--glance-sim` | opens a real glance through the presenter and fails the run if it does not close again |
 | `--hover-sim` | a scripted pointer path through the live hover machine: a fast sweep that must not open, then a dwell that opens once, a 3 s rest that must not collapse, and a leave that collapses once. Fails the run if the panel loops. Needs *Open on hover*, so pair it with `--visibility onHover`; under the other two it says so and passes |
 | `--hover-log` | prints each decision the real mouse produces meanwhile |
+| `--stale-sim` | shows the "Accessibility permission belongs to an older copy" alert on a copy whose permission is in order, so the copy can be read and the panel seen to get out of its way. Runs on its own (not under `--smoke`), clears nothing whatever you answer, and prints the answer |
 | `--lang zh-Hans` | pins the copy to one shipped language |
 | `--e2e-oracle <path>` | writes the oracle file described below, and ends the run with a `snapshot` line |
 

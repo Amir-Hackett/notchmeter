@@ -41,21 +41,27 @@ final class Updater {
              signedWithCertificate: CodeSignature.runningCodeNamesCertificate())
     }
 
-    /// Nil unless the gate is open; nothing of Sparkle's is touched before then.
-    static func start(gate: Gate, beta: @escaping () -> Bool) -> Updater? {
+    /// Nil unless the gate is open; nothing of Sparkle's is touched before then. `session` is told when Sparkle
+    /// puts a window on screen and when the last of them has gone (UpdateSession).
+    static func start(gate: Gate, beta: @escaping () -> Bool, session: @escaping (Bool) -> Void = { _ in }) -> Updater? {
         log.notice("updater \(gate.summary, privacy: .public)")
-        return gate == .active ? Updater(beta: beta) : nil
+        return gate == .active ? Updater(beta: beta, session: session) : nil
     }
 
     private let controller: SPUStandardUpdaterController
     private let channels: ChannelDelegate
+    private let session: UpdateSession
 
-    private init(beta: @escaping () -> Bool) {
+    private init(beta: @escaping () -> Bool, session: @escaping (Bool) -> Void) {
         channels = ChannelDelegate(beta: beta)
-        controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: channels, userDriverDelegate: nil)
+        self.session = UpdateSession(hold: session)
+        controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: channels, userDriverDelegate: self.session)
     }
 
     func checkForUpdates() {
+        // The "Checking for updates…" window is up before Sparkle asks its user driver delegate anything, so the
+        // session opens here rather than waiting to be told about it.
+        session.begin()
         controller.checkForUpdates(nil)
     }
 
@@ -71,6 +77,51 @@ final class Updater {
 
     var lastCheck: Date? {
         controller.updater.lastUpdateCheckDate
+    }
+}
+
+/// What the app does around Sparkle's windows. The panel draws at screen-saver level and covers most of the screen
+/// while it is open, so every window Sparkle puts up — the "Checking for updates…" window, the update alert, the
+/// "you're up to date" alert — opens underneath it, and a check looks like nothing happened. `hold(true)` closes the
+/// panel and keeps it closed for as long as a session is on screen, the rule the Settings window already goes by;
+/// Sparkle ends every session, whether an alert was dismissed, a version skipped or an error shown, through
+/// `standardUserDriverWillFinishUpdateSession`.
+final class UpdateSession: NSObject, SPUStandardUserDriverDelegate {
+    private let hold: (Bool) -> Void
+    private var holding = false
+
+    init(hold: @escaping (Bool) -> Void) {
+        self.hold = hold
+    }
+
+    func begin() {
+        guard !holding else { return }
+        holding = true
+        hold(true)
+    }
+
+    func end() {
+        guard holding else { return }
+        holding = false
+        hold(false)
+    }
+
+    /// Sparkle asks before it pulls a background app in front of whatever the user is doing on a scheduled check.
+    /// Answering yes leaves the alert where Sparkle judges it belongs and brings
+    /// `standardUserDriverWillHandleShowingUpdate` with it, which is what gets the panel out of its way.
+    var supportsGentleScheduledUpdateReminders: Bool { true }
+
+    /// Sparkle's delegate calls all arrive on the main thread; it asserts as much before each one.
+    func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {
+        MainActor.assumeIsolated { begin() }
+    }
+
+    func standardUserDriverWillShowModalAlert() {
+        MainActor.assumeIsolated { begin() }
+    }
+
+    func standardUserDriverWillFinishUpdateSession() {
+        MainActor.assumeIsolated { end() }
     }
 }
 
@@ -98,6 +149,31 @@ enum CodeSignature {
         var staticCode: SecStaticCode?
         guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return false }
         return namesCertificate(staticCode)
+    }
+
+    /// What macOS ties a privacy grant to. Code signed with a certificate is pinned to the certificate, so every
+    /// rebuild signed with the same one keeps the grants it was given; ad-hoc signed code names no certificate and
+    /// is pinned to its code directory hash instead, which every build changes. Nil when the code cannot be read.
+    static func runningIdentity() -> String? {
+        var code: SecCode?
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code else { return nil }
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return nil }
+        return identity(staticCode)
+    }
+
+    private static func identity(_ staticCode: SecStaticCode) -> String? {
+        var information: CFDictionary?
+        let status = SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &information)
+        guard status == errSecSuccess, let info = information as? [String: Any] else { return nil }
+        if let certificates = info[kSecCodeInfoCertificates as String] as? [SecCertificate], let leaf = certificates.first {
+            var name: CFString?
+            if SecCertificateCopyCommonName(leaf, &name) == errSecSuccess, let name = name as String? {
+                return "certificate:\(name)"
+            }
+        }
+        guard let hash = info[kSecCodeInfoUnique as String] as? Data else { return nil }
+        return "cdhash:" + hash.map { String(format: "%02x", $0) }.joined()
     }
 
     static func namesCertificate(at url: URL) -> Bool {
