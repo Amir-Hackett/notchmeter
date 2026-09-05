@@ -284,7 +284,7 @@ h2 {
 .plan li .tick { color: var(--calm-lift); font-weight: 700; }
 .plan li strong { color: var(--text); font-weight: 550; }
 
-.plan .foot { margin-top: auto; }
+.plan .foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
 .plan .btn { width: 100%; }
 
 /* ---------- waitlist ---------- */
