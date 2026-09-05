@@ -144,6 +144,10 @@ h1 {
   box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.9);
 }
 .shot img { width: 100%; }
+/* The hero is the one shot narrower than the column it sits in: demo.gif is 900px wide against 1032px of
+   container, so a full-width rule scaled it up 15% and softened the only picture people see first. Every other
+   shot sits in a half-width column and is scaled down. */
+.hero .shot { max-width: 900px; }
 
 figure { margin: 0; }
 figcaption { font-size: 13.5px; color: var(--text-faint); text-align: center; margin-top: 14px; line-height: 1.5; }

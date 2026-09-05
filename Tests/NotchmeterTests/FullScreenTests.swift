@@ -94,13 +94,13 @@ import Testing
             + "windows=[Google Chrome 1512×949] top=[Window Server L24 1512×33 y=0]")
     }
 
-    @MainActor @Test func theRealDisplayReadsWithoutPermissionAndDescribesItself() {
-        // The scan itself needs no Screen Recording permission; on a test runner it may see nothing at all.
-        let line = FullScreen.describe(on: NSScreen.panelScreen)
-        #expect(line.hasPrefix("active="))
-        #expect(line.contains("safeAreaTop="))
-        #expect(line.contains("dock=on screen") || line.contains("dock=away"))
-    }
+    // Reading the real display is `--smoke`'s job, not this suite's. `FullScreen.scan(on:)` calls
+    // `CGWindowListCopyWindowInfo`, which needs a connection to the Window Server, and a test runner has no
+    // session to give it: on 2026-09-05 that aborted the whole test process inside CoreGraphics
+    // ("Assertion failed: (CGAtomicGet(&is_initialized)), function CGSConnectionByID"), and took the first
+    // real run of the release workflow down with it. It had passed six times before it did that, so it was a
+    // race rather than a certainty, which is worse: a release that publishes on a coin flip. The `full screen:`
+    // line is checked where the scan has something to read, on a Mac with a screen (docs/testing.md).
 }
 
 /// Who wins when a full-screen app is up: the preference, an exception for that app, and the shortcut, which is

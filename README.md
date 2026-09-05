@@ -43,7 +43,7 @@ The pictures are drawn by `Notchmeter --render-assets docs/media` from the real 
 
 
 - **Download** [`Notchmeter.dmg`](https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg) from the latest release and drag it to Applications. The DMG is Developer ID signed and notarised, and the app updates itself through Sparkle.
-- **Homebrew**, from the tap ([`packaging/homebrew/notchmeter.rb`](packaging/homebrew/notchmeter.rb)): `brew tap Amir-Hackett/tap && brew install --cask notchmeter`.
+- **Homebrew**, from the tap ([`packaging/homebrew/notchmeter.rb`](packaging/homebrew/notchmeter.rb)): `brew tap Amir-Hackett/tap && brew trust --cask Amir-Hackett/tap/notchmeter && brew install --cask notchmeter`. The middle step is Homebrew's, not this project's: it refuses to load a cask from a tap outside homebrew/cask until you say you trust it, and it prints that same command when you skip it.
 
 macOS 14 or later, Apple silicon or Intel.
 
