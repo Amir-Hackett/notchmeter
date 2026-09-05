@@ -6,13 +6,13 @@ Where Notchmeter stands against the plan it is built to, what is shipped, what i
 
 | | |
 |---|---|
-| Visibility | private, 0 stars, 0 forks, created 2026-09-02, no topics |
-| Version | 0.1.0 (`scripts/Info.plist`), no tag, no release |
+| Visibility | public since 2026-09-05, created 2026-09-02, 14 topics applied |
+| Version | 0.1.0 (`scripts/Info.plist`), tagged `v0.1.0`, released 2026-09-05: signed, notarised, stapled `Notchmeter.dmg` plus `appcast.xml`; Homebrew tap `Amir-Hackett/tap` works |
 | Code | 51 Swift files under `Sources/Notchmeter`, about 15,700 lines; `Vendor/DynamicNotchKit` (MIT) |
 | Tests | 310 tests in 76 suites, `scripts/test.sh`, 0.5 s |
 | Languages | en, zh-Hans, zh-Hant, ja, ko, vi (the last four drafted here, native review pending) |
-| CI | `.github/workflows/ci.yml` on macos-15 (gate) and macos-latest (allowed to fail): release build with a zero-warnings check on `Sources/`, tests, app assembly, artifact; `pricing.yml` weekly, diffing the pricing page against the committed snapshot |
-| Release pipeline | `scripts/release.sh` and `.github/workflows/release.yml`: universal binary, Developer ID, hardened runtime, notarisation, stapled DMG, EdDSA-signed Sparkle appcast, Homebrew cask file. Proven with `--dry-run`; **unsigned until the Developer ID, notary key and Sparkle key exist** |
+| CI | `.github/workflows/ci.yml` (release build with a zero-warnings check on `Sources/`, tests, app assembly, artifact) and `pricing.yml` are **disabled at the repository level** for macOS runner cost, and have been since 2026-09-02. Nothing runs on a push or a pull request; do not write "CI green" anywhere. The zero-warnings gate and `scripts/test.sh` now run on the release path instead, inside `release.yml`, so a tag cannot publish a build that fails either. `secrets.yml` is the one active workflow: it scans every push and pull request for leaked secrets |
+| Release pipeline | `scripts/release.sh` and `.github/workflows/release.yml`: universal binary, Developer ID, hardened runtime, notarisation, stapled DMG, EdDSA-signed Sparkle appcast, Homebrew cask file, gated on the zero-warnings release build and the tests. v0.1.0 shipped signed and notarised on 2026-09-05, but **by hand: `release.yml` is disabled at the repository level and has never run.** Until it is enabled in the Actions tab, pushing a `v*` tag publishes nothing |
 | Licence | MIT at the root |
 | Assets | `docs/media`: GIF, seven PNGs (an Increase Contrast variant, the notch on each side edge, and the two signal states side by side); the launch gallery (kept in the private internal repository): the eight Product Hunt frames — the hover as a GIF, seven stills — and the thumbnail, all drawn from fixture readings and fixture hook events by `--render-assets` and `--render-gallery` |
 | Skill | `skills/notchmeter/SKILL.md` over the `notchmeter` command-line tool (falling back to `--probe --no-prompt --json`); `--mcp` serves the same object as an MCP tool |
@@ -151,7 +151,7 @@ account. These are what it left, and why.
 
 The plan was written for 90 days. Most of the first 45 days' items landed in the first two, because they were code; what remains is accounts, decisions and other people.
 
-**Days 1–7, shippable at all.** MIT licence: done. Public repository: **pending, one click, the user's decision.** README GIF: done (`docs/media/demo.gif`, rendered from fixtures). CI running `scripts/test.sh`: done. Colour accessibility and `monospacedDigit`: done. Swift 6 `Sendable` warnings: resolved, zero warnings under `Sources/` is now a CI gate.
+**Days 1–7, shippable at all.** MIT licence: done. Public repository: done, 2026-09-05. README GIF: done (`docs/media/demo.gif`, rendered from fixtures). `scripts/test.sh` running in automation: done, on the release path only, since `ci.yml` is disabled for runner cost. Colour accessibility and `monospacedDigit`: done. Swift 6 `Sendable` warnings: resolved, and zero warnings under `Sources/` is a gate on every tag.
 
 **Days 8–21, trustworthy.** Developer ID, notarisation, Sparkle, appcast: pipeline done, **blocked on the Apple Developer Program enrolment (US$99/year), the Developer ID certificate, an App Store Connect API key and a Sparkle key**; [release.md](release.md) is the one-time setup, and the placeholder `SUPublicEDKey` in `scripts/Info.plist` keeps the updater off until then. Accuracy doc with the residency multiplier and the placeholder disclosure: done. Golden tests: done. Rate-limit-header fallback: parser done, probe refused by decision; the status line is the sanctioned local source instead. Adaptive polling and the energy figure: done; `powermetrics` needs sudo.
 
@@ -162,7 +162,7 @@ The plan was written for 90 days. Most of the first 45 days' items landed in the
 1. Public repository and topics ([launch/awesome-lists.md](launch/awesome-lists.md), "GitHub topics"). No gate.
 2. Signed release v0.1.0 (blocked as above). Gate for everything below: nobody installs an ad-hoc-signed binary; the README's Install section and its pre-release instructions are written and say so.
 3. Send the Anthropic inquiry (kept in the private internal repository) in the first week of this window, not later; its cadence lines now say five minutes and mention the status line.
-4. Show HN ([launch/show-hn.md](launch/show-hn.md)). Gate: signed DMG, CI green.
+4. Show HN ([launch/show-hn.md](launch/show-hn.md), kept in the private internal repository). Gate: the signed DMG on Releases. Not "CI green" — `ci.yml` is disabled; the tests run on the tag, and that is what to say if asked.
 5. Product Hunt the following week ([launch/product-hunt.md](launch/product-hunt.md)); the gallery and thumbnail are rendered. Goal 100 upvotes, top 15.
 6. Awesome lists: travisvn and jqueryscript at 10 stars; hesreallyhim on or after 2026-09-15; Composio as soon as the repository is public (the skill shipped).
 7. Homebrew: the tap (`Amir-Hackett/homebrew-tap`, cask file ready in `packaging/homebrew`) immediately after the signed release; homebrew/cask at 225 stars and 30 days.
