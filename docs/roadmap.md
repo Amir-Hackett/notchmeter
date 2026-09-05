@@ -2,12 +2,12 @@
 
 Where Notchmeter stands against the plan it is built to, what is shipped, what is pending, what is blocked on a decision or an account, and the questions still open. Repository facts below were read on 2026-09-05; the plan's competitive figures are from 2026-09-01.
 
-## Where the repository stands (2026-09-05, after the v0.2.1 release)
+## Where the repository stands (2026-09-05, after the v0.2.2 release)
 
 | | |
 |---|---|
 | Visibility | public since 2026-09-05, created 2026-09-02, 14 topics applied |
-| Version | 0.2.1, tagged `v0.2.1`, released 2026-09-05 by `release.yml` on its own: signed, notarised, stapled `Notchmeter.dmg` plus `appcast.xml`, and **installed from the DMG and launched** before it was made the latest release, which is the check every release before it skipped. 0.2.0 is marked prerelease and stays that way: it claimed a restricted entitlement with no profile to justify it and macOS refused to launch it, as 0.1.0 does. The feed carries 0.2.1 and 0.1.0; the Homebrew tap serves 0.2.1 |
+| Version | 0.2.2, tagged `v0.2.2` at `be3de33`, released 2026-09-05 by `release.yml`: signed, notarised, stapled `Notchmeter.dmg` plus `appcast.xml`, and **installed from the DMG and launched** — `--cli --help` exited 0, not 137 — with `spctl` accepting it as Notarized Developer ID and the stapled ticket validating. It is the first build to claim `com.apple.developer.usernotifications.time-sensitive` *and* carry the Developer ID provisioning profile that grants it, which is exactly what 0.2.0 was missing; the shipped app was confirmed to hold both, signed by team `N38C775YA8`. The two gates added in #16 were proved on a Mac before the tag: the static one fails both on the v0.2.0 shape (entitlement claimed, no profile embedded) and on a profile that does not grant the claimed key, and the exec one passes a clean build and fails a build AMFI SIGKILLs. Both also ran inside the release workflow on the real signed build. Caveat worth knowing: `release.yml` publishes a `v*` tag as a full release straight away, so GitHub had already made 0.2.2 `latest` before the launch gate ran — the gate passed, but it ran after the exposure, not before it. 0.2.0 is marked prerelease and stays that way: it claimed a restricted entitlement with no profile to justify it and macOS refused to launch it, as 0.1.0 does. The feed carries 0.2.2, 0.2.1 and 0.1.0; the Homebrew tap serves 0.2.2, verified by an actual `brew upgrade --cask notchmeter` |
 | Code | 72 Swift files under `Sources/Notchmeter`, about 21,100 lines; `Vendor/DynamicNotchKit` (MIT) |
 | Tests | about 570 tests in 112 suites by annotation count (`@Test`, `@Suite`), `scripts/test.sh`; run it on a Mac for the exact figure |
 | Languages | en, zh-Hans, zh-Hant, ja, ko, vi (the last four drafted here, native review pending) |
