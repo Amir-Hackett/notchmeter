@@ -632,3 +632,7 @@
 /* Settings › About: the optional support link (SettingsWindow) */
 "Support %@…" = "Support %@…";
 "An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay." = "An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay.";
+"Show over the full-screen app" = "Show over the full-screen app";
+"Always show over %@" = "Always show over %@";
+"App to stay over, e.g. zoom.us" = "App to stay over, e.g. zoom.us";
+"Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time.";

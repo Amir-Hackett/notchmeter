@@ -723,6 +723,29 @@ final class Preferences {
     var openSettingsHotkey: Hotkey? {
         didSet { storeCodable(openSettingsHotkey, forKey: Keys.hotkeySettings); report(Keys.hotkeySettings, openSettingsHotkey?.description as Any, changed: openSettingsHotkey != oldValue) }
     }
+    /// Flips the readouts over the full-screen app on screen right now, whichever way the preference points.
+    var showOverFullScreenHotkey: Hotkey? {
+        didSet { storeCodable(showOverFullScreenHotkey, forKey: Keys.hotkeyFullScreen); report(Keys.hotkeyFullScreen, showOverFullScreenHotkey?.description as Any, changed: showOverFullScreenHotkey != oldValue) }
+    }
+    /// Apps the readouts stay over in full screen whatever `showOverFullScreenApps` says, by the name the window
+    /// list gives them ("zoom.us"). For a meeting you want the meters beside, where a video is the case the
+    /// preference is off for. It cannot tell two uses of one app apart, a call and a film both in a browser
+    /// being the case in point; `showOverFullScreenNow` is the answer to that one.
+    var fullScreenExceptions: [String] {
+        didSet { defaults.set(fullScreenExceptions, forKey: Keys.fullScreenExceptions); report(Keys.fullScreenExceptions, fullScreenExceptions, changed: fullScreenExceptions != oldValue) }
+    }
+    /// The shortcut's and the menu item's answer for this full-screen app alone, either way round: not written
+    /// down, and dropped the moment that app leaves full screen, so it cannot outlive the meeting it was meant
+    /// for. Nil is the ordinary rules.
+    var showOverFullScreenNow: Bool?
+
+    /// Whether the readouts stay on screen over these full-screen apps: what the person just asked for, then the
+    /// preference, then whether one of the apps covering the screen is an exception.
+    func showsOverFullScreen(_ apps: [String]) -> Bool {
+        if let now = showOverFullScreenNow { return now }
+        if showOverFullScreenApps { return true }
+        return apps.contains { fullScreenExceptions.contains($0) }
+    }
     /// The one-time first-launch offer to install the Claude Code hook has been shown.
     var hookOfferShown: Bool {
         didSet { defaults.set(hookOfferShown, forKey: Keys.hookOffer); report(Keys.hookOffer, hookOfferShown, changed: hookOfferShown != oldValue) }
@@ -739,6 +762,8 @@ final class Preferences {
         static let edge = "panelEdge"
         static let display = "display"
         static let fullScreen = "showOverFullScreenApps"
+        static let fullScreenExceptions = "fullScreenExceptions"
+        static let hotkeyFullScreen = "hotkeyShowOverFullScreen"
         static let compactStyle = "compactStyle"
         static let resetCountdown = "showResetCountdown"
         static let showSpend = "showSpend"
@@ -823,6 +848,7 @@ final class Preferences {
         edge = PanelEdge(rawValue: defaults.string(forKey: Keys.edge) ?? "") ?? .top
         display = DisplayChoice(rawValue: defaults.string(forKey: Keys.display) ?? "") ?? .builtIn
         showOverFullScreenApps = defaults.object(forKey: Keys.fullScreen) as? Bool ?? false
+        fullScreenExceptions = defaults.stringArray(forKey: Keys.fullScreenExceptions) ?? []
         compactStyle = CompactStyle(rawValue: defaults.string(forKey: Keys.compactStyle) ?? "") ?? .rings
         showResetCountdown = defaults.bool(forKey: Keys.resetCountdown)
         showSpend = defaults.object(forKey: Keys.showSpend) as? Bool ?? true
@@ -901,6 +927,7 @@ final class Preferences {
         language = defaults.string(forKey: Keys.language).flatMap(Localization.canonical)
         togglePanelHotkey = Self.codable(defaults, Keys.hotkeyToggle)
         openSettingsHotkey = Self.codable(defaults, Keys.hotkeySettings)
+        showOverFullScreenHotkey = Self.codable(defaults, Keys.hotkeyFullScreen)
         hookOfferShown = defaults.bool(forKey: Keys.hookOffer)
         let status = SMAppService.mainApp.status
         launchAtLoginStatus = status

@@ -190,6 +190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.openSettings = { [weak self] in self?.showSettings() }
         actions.showOptions = { [weak self] in self?.pointerPresenter?.showOptions() }
         actions.applyLayout = { [weak self] in self?.applyLayout() }
+        actions.fullScreenApps = { [weak self] in self?.pointerPresenter?.fullScreenApps ?? [] }
         actions.togglePanel = { [weak self] in self?.pointerPresenter?.toggle(cause: .hotkey) }
         actions.copyPanelImage = { [weak self] in self?.copyPanelImage() }
         actions.installCommandLineTool = { [weak self] in self?.installCommandLineTool() }
@@ -553,6 +554,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let hotkey = prefs.openSettingsHotkey, let id = HotkeyCenter.shared.register(hotkey, action: { [weak self] in self?.showSettings() }) {
             hotkeyIDs.append(id)
         }
+        if let hotkey = prefs.showOverFullScreenHotkey,
+           let id = HotkeyCenter.shared.register(hotkey, action: { [weak self] in self?.toggleShowOverFullScreen() }) {
+            hotkeyIDs.append(id)
+        }
+    }
+
+    /// The shortcut: the readouts over the full-screen app on screen, or out of its way, for this app alone.
+    /// It is the answer for a browser, where the app's name cannot say whether this is a meeting or a film.
+    func toggleShowOverFullScreen() {
+        let covering = pointerPresenter?.fullScreenApps ?? []
+        prefs.showOverFullScreenNow = !prefs.showsOverFullScreen(covering)
+        applyLayout()
     }
 
     private func openFromNotification(_ tool: ToolID?) {
@@ -665,7 +678,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let frame = presenter?.window.map { "\($0.frame)" } ?? "none"
         Probe.emit("panel (\(prefs.edge.rawValue)): visible=\(presenter?.isVisible ?? false) frame=\(frame)")
         if let window = presenter?.window {
-            Probe.emit("window: level=\(window.level.rawValue) fullScreenAuxiliary=\(window.collectionBehavior.contains(.fullScreenAuxiliary)) onActiveSpace=\(window.isOnActiveSpace) (show over full-screen apps=\(prefs.showOverFullScreenApps))")
+            Probe.emit("window: level=\(window.level.rawValue) fullScreenAuxiliary=\(window.collectionBehavior.contains(.fullScreenAuxiliary)) onActiveSpace=\(window.isOnActiveSpace) (show over full-screen apps=\(prefs.showOverFullScreenApps) exceptions=\(prefs.fullScreenExceptions.sorted().joined(separator: ",")) now=\(prefs.showOverFullScreenNow.map { $0 ? "show" : "hide" } ?? "-"))")
         }
         if let regions = presenter?.hover.regions {
             Probe.emit("hover regions: compact=\(regions.compact) expanded=\(regions.expanded)")

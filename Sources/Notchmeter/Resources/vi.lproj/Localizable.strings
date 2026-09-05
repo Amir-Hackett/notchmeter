@@ -616,3 +616,7 @@
 /* Settings › About: the optional support link (SettingsWindow) */
 "Support %@…" = "Ủng hộ %@…";
 "An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay." = "Một trang ủng hộ tùy chọn, trả bao nhiêu tùy bạn. Không có tính năng nào trong ứng dụng bị giữ lại, và không có gì thay đổi sau khi bạn trả.";
+"Show over the full-screen app" = "Hiện trên ứng dụng toàn màn hình này";
+"Always show over %@" = "Luôn hiện trên %@";
+"App to stay over, e.g. zoom.us" = "Ứng dụng cần hiện đè lên, ví dụ zoom.us";
+"Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "Các ứng dụng mà số liệu vẫn hiện đè lên, theo tên mà danh sách cửa sổ đưa ra: một cuộc họp bạn muốn có đồng hồ bên cạnh, trong khi cài đặt ở trên đang tắt vì phim. Nó không phân biệt được hai cách dùng của cùng một ứng dụng, một cuộc gọi và một bộ phim đều trong trình duyệt là ví dụ; phím tắt Hiện trên ứng dụng toàn màn hình này giải quyết trường hợp đó, chỉ cho ứng dụng đang trên màn hình và cho tới khi nó rời toàn màn hình. Menu Tùy chọn đưa ra cả hai cho bất kỳ ứng dụng nào đang toàn màn hình lúc đó.";

@@ -89,7 +89,7 @@ import Testing
     @Test func theLineNamesTheVerdictAndWhatItWasReadFrom() {
         let reading = FullScreen.Scan(candidates: [window(1512, 949, owner: "Google Chrome")], display: space,
                                       chrome: ["Window Server L24 1512×33 y=0"])
-        #expect(FullScreen.describe(reading) == "active=true display=1512×982 safeAreaTop=32 dock=away "
+        #expect(FullScreen.describe(reading) == "active=true over=Google Chrome display=1512×982 safeAreaTop=32 dock=away "
             + "menuBar=showing suspect=true apps=1[Google Chrome×1] "
             + "windows=[Google Chrome 1512×949] top=[Window Server L24 1512×33 y=0]")
     }
@@ -100,5 +100,48 @@ import Testing
         #expect(line.hasPrefix("active="))
         #expect(line.contains("safeAreaTop="))
         #expect(line.contains("dock=on screen") || line.contains("dock=away"))
+    }
+}
+
+/// Who wins when a full-screen app is up: the preference, an exception for that app, and the shortcut, which is
+/// the only one of the three that can tell a call from a film when both are the same browser.
+@Suite struct FullScreenVisibility {
+    func preferences(_ name: String) -> (Preferences, UserDefaults, String) {
+        let suite = "NotchmeterTests.FullScreen\(name)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        return (Preferences(defaults: defaults), defaults, suite)
+    }
+
+    @MainActor @Test func offByDefaultAndOnForAnythingListed() {
+        let (prefs, defaults, suite) = preferences("Exceptions")
+        defer { defaults.removePersistentDomain(forName: suite) }
+        #expect(!prefs.showOverFullScreenApps)
+        #expect(!prefs.showsOverFullScreen(["Google Chrome"]))
+        prefs.fullScreenExceptions = ["zoom.us"]
+        #expect(prefs.showsOverFullScreen(["zoom.us"]))
+        #expect(!prefs.showsOverFullScreen(["Google Chrome"]))
+        // Split View: one of the two being an exception is enough, since it is on screen either way.
+        #expect(prefs.showsOverFullScreen(["Google Chrome", "zoom.us"]))
+        // The preference still covers everything when it is on.
+        prefs.showOverFullScreenApps = true
+        #expect(prefs.showsOverFullScreen(["Google Chrome"]))
+    }
+
+    @MainActor @Test func theShortcutWinsEitherWayAndIsNotWrittenDown() {
+        let (prefs, defaults, suite) = preferences("Shortcut")
+        defer { defaults.removePersistentDomain(forName: suite) }
+        prefs.showOverFullScreenNow = true
+        #expect(prefs.showsOverFullScreen(["Google Chrome"]))
+        // And back the other way, over both the preference and the list.
+        prefs.showOverFullScreenApps = true
+        prefs.fullScreenExceptions = ["zoom.us"]
+        prefs.showOverFullScreenNow = false
+        #expect(!prefs.showsOverFullScreen(["zoom.us"]))
+        // A new launch reads the list and the preference, never the shortcut's answer.
+        let reopened = Preferences(defaults: defaults)
+        #expect(reopened.fullScreenExceptions == ["zoom.us"])
+        #expect(reopened.showOverFullScreenApps)
+        #expect(reopened.showOverFullScreenNow == nil)
     }
 }

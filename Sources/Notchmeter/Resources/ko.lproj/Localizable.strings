@@ -616,3 +616,7 @@
 /* Settings › About: the optional support link (SettingsWindow) */
 "Support %@…" = "%@ 후원하기…";
 "An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay." = "원하는 금액으로 후원할 수 있는 선택 사항 페이지입니다. 앱의 어떤 기능도 제한되지 않으며, 후원 후에도 달라지는 것은 없습니다.";
+"Show over the full-screen app" = "이 전체 화면 앱 위에 표시";
+"Always show over %@" = "%@ 위에는 항상 표시";
+"App to stay over, e.g. zoom.us" = "위에 계속 표시할 앱, 예: zoom.us";
+"Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "위 설정과 상관없이 수치를 계속 위에 표시할 앱을, 윈도우 목록이 주는 이름으로 지정합니다. 영상 때문에 위 설정을 꺼 두었더라도 회의 중에는 미터를 옆에 두고 싶을 때 씁니다. 한 앱의 두 가지 용도는 구분하지 못합니다. 브라우저 안의 통화와 영상이 그 예입니다. 그런 경우에는 '이 전체 화면 앱 위에 표시' 단축키가 답이며, 화면에 있는 앱에만 적용되고 그 앱이 전체 화면을 벗어나면 풀립니다. 옵션 메뉴에는 그때 전체 화면인 앱에 대해 두 가지가 함께 나옵니다.";

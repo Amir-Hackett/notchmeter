@@ -37,7 +37,15 @@ enum FullScreen {
         var chrome: [String]
     }
 
-    /// Whether these windows amount to a full-screen app on the display.
+    /// Who is full-screen on the display, if anyone.
+    struct Verdict: Equatable {
+        /// The apps whose windows cover the display, in name order; empty where no app does. Named rather than
+        /// merely counted because the readouts may be told to stay over some of them.
+        var apps: [String] = []
+        var isActive: Bool { !apps.isEmpty }
+    }
+
+    /// Whether these windows amount to a full-screen app on the display, and which app it is.
     ///
     /// Three things have to hold, and they were each read off a 14-inch running a full-screen video.
     ///
@@ -58,9 +66,15 @@ enum FullScreen {
     /// a desktop where the covering app happens to be the only one open. The menu bar cannot do this job: its
     /// window stays on screen inside a full-screen Space, which is why an earlier version of this rule left the
     /// readouts over the video it was written to get out of the way of.
+    static func verdict(_ candidates: [Candidate], on display: Display) -> Verdict {
+        guard !display.dockOnScreen, let owners = covering(candidates, on: display),
+              Set(candidates.map(\.owner)).isSubset(of: owners)
+        else { return Verdict() }
+        return Verdict(apps: owners.sorted())
+    }
+
     static func isActive(_ candidates: [Candidate], on display: Display) -> Bool {
-        guard !display.dockOnScreen, let owners = covering(candidates, on: display) else { return false }
-        return Set(candidates.map(\.owner)).isSubset(of: owners)
+        verdict(candidates, on: display).isActive
     }
 
     /// Whether a window covers the display at all, whatever else is on screen: while that holds the verdict is
@@ -121,10 +135,10 @@ enum FullScreen {
         return Scan(candidates: candidates, display: display, chrome: chrome)
     }
 
-    /// Whether another app is full-screen on the display right now.
-    @MainActor static func isActive(on screen: NSScreen, ownName: String = AppInfo.name) -> Bool {
+    /// Whether another app is full-screen on the display right now, and which.
+    @MainActor static func verdict(on screen: NSScreen, ownName: String = AppInfo.name) -> Verdict {
         let reading = scan(on: screen, ownName: ownName)
-        return isActive(reading.candidates, on: reading.display)
+        return verdict(reading.candidates, on: reading.display)
     }
 
     /// One line for `--smoke` and the log: the display's shape, the verdict, and the windows that were weighed.
@@ -145,7 +159,8 @@ enum FullScreen {
             if let at = counts.firstIndex(where: { $0.0 == candidate.owner }) { counts[at].1 += 1 } else { counts.append((candidate.owner, 1)) }
         }
         let apps = counts.prefix(12).map { "\($0.0)×\($0.1)" }.joined(separator: ", ")
-        return "active=\(isActive(reading.candidates, on: display)) display=\(Int(display.size.width))×\(Int(display.size.height)) "
+        let now = verdict(reading.candidates, on: display)
+        return "active=\(now.isActive)\(now.isActive ? " over=\(now.apps.joined(separator: "+"))" : "") display=\(Int(display.size.width))×\(Int(display.size.height)) "
             + "safeAreaTop=\(Int(display.safeAreaTop)) dock=\(display.dockOnScreen ? "on screen" : "away") "
             + "menuBar=\(display.menuBarShowing ? "showing" : "away") "
             + "suspect=\(isSuspect(reading.candidates, on: display)) apps=\(counts.count)[\(apps)] "
@@ -161,11 +176,12 @@ final class FullScreenWatch {
     /// Space notifications are the signal; this only runs while a full-screen app is up, so a missed one
     /// cannot strand the panel off screen.
     private var poll: Timer?
-    private(set) var isActive = false
+    private(set) var verdict = FullScreen.Verdict()
+    var isActive: Bool { verdict.isActive }
     private let screen: () -> NSScreen
-    private let changed: (Bool) -> Void
+    private let changed: (FullScreen.Verdict) -> Void
 
-    init(screen: @escaping () -> NSScreen, changed: @escaping (Bool) -> Void) {
+    init(screen: @escaping () -> NSScreen, changed: @escaping (FullScreen.Verdict) -> Void) {
         self.screen = screen
         self.changed = changed
         let workspace = NSWorkspace.shared.notificationCenter
@@ -189,16 +205,17 @@ final class FullScreenWatch {
     /// "left", and without the poll the readouts would stay over the app once the bar had gone again.
     func refresh(settling: Bool = false) {
         let reading = FullScreen.scan(on: screen())
-        let active = FullScreen.isActive(reading.candidates, on: reading.display)
-        setPolling(active || FullScreen.isSuspect(reading.candidates, on: reading.display))
+        let now = FullScreen.verdict(reading.candidates, on: reading.display)
+        setPolling(now.isActive || FullScreen.isSuspect(reading.candidates, on: reading.display))
         // Every reading, not only the ones that change the verdict: `log stream --level debug` beside a
         // full-screen app is how a wrong answer on a particular Mac is read off, and the terminal keeps
         // streaming while the Space it is asking about is the one on screen.
         log.debug("full screen reading: \(FullScreen.describe(reading), privacy: .public)")
-        if active != isActive {
-            isActive = active
-            log.info("full screen \(active ? "entered" : "left", privacy: .public): \(FullScreen.describe(reading), privacy: .public)")
-            changed(active)
+        if now != verdict {
+            let entered = now.isActive
+            verdict = now
+            log.info("full screen \(entered ? "entered" : "left", privacy: .public): \(FullScreen.describe(reading), privacy: .public)")
+            changed(now)
         }
         guard settling else { return }
         for delay in [0.5, 2.0] {
