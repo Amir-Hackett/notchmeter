@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Testing
 @testable import Notchmeter
 
@@ -92,7 +93,7 @@ import Testing
         #expect(["bottom", "left", "right"].contains(SystemChrome.dockOrientation))
     }
 
-    @Test func theMenuBarPinComposesThePinnedToolsFigures() {
+    @Test func theMenuBarPinComposesThePinnedToolsFigures() throws {
         let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
         let claude = [LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.14, resetsAt: now.addingTimeInterval(3600), periodDuration: Period.fiveHours),
                       LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.04, resetsAt: now.addingTimeInterval(86400), periodDuration: Period.week)]
@@ -107,6 +108,27 @@ import Testing
         #expect(bars.isTemplate)
         let behind = [LimitWindow(id: "session", label: "Session", usedFraction: 0.9, resetsAt: now.addingTimeInterval(4 * 3600), periodDuration: Period.fiveHours)]
         #expect(!MenuBarBars.image(windows: behind, now: now).isTemplate)
+        // A tinted bar takes the whole image out of template mode, so every quiet bar beside it is painted as it
+        // is rather than as a mask: black there is a black square on a dark menu bar, and the menu bar's own
+        // foreground colour is the only fill that reads on both themes. The tints are the app's palette, once.
+        #expect(MenuBarBars.fill(for: nil) == .labelColor)
+        #expect(MenuBarBars.fill(for: .ahead) == .labelColor)
+        #expect(MenuBarBars.fill(for: .onTrack) == NSColor(Palette.warn))
+        #expect(MenuBarBars.fill(for: .behind) == NSColor(Palette.danger))
+        // And the drawn image agrees: rendered in a dark menu bar's appearance, the quiet bar beside a tinted one
+        // is light, not the black square this drew before. Sampled a third of the way up the first bar, which is
+        // inside its fill at 14% only because the fill has a floor (0.06 of the height) — read the middle and a
+        // quiet window would be sampling the track instead.
+        let mixed = [claude[0], behind[0]]
+        let rendered = MenuBarBars.image(windows: mixed, now: now)
+        #expect(!rendered.isTemplate)
+        let dark = try #require(NSAppearance(named: .darkAqua))
+        var quiet: NSColor?
+        dark.performAsCurrentDrawingAppearance {
+            quiet = MenuBarBars.sample(rendered, at: NSPoint(x: 3, y: 3))
+        }
+        let brightness = try #require(quiet?.usingColorSpace(.deviceRGB)?.brightnessComponent)
+        #expect(brightness > 0.5)
     }
 
     @Test func theAwakeRuleHoldsOnlyWhileWorkingOnPower() {

@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// An optional status item: the Options menu one click away (Quit, Settings, Open panel) for VoiceOver's VO-M-M
 /// and for a Mac whose panel cannot be shown beside a notch, with an optional pin of the chosen tools' two ring
@@ -202,6 +203,37 @@ extension MenuBarItem {
 enum MenuBarBars {
     static let size = NSSize(width: 22, height: 16)
 
+    /// What one bar is filled with. A window that is ahead of its pace, or has no pace to be read against, has no
+    /// colour of its own and takes the menu bar's own foreground colour: `labelColor` on either side of a theme.
+    ///
+    /// Black was right here only while the image was a template, where nothing but the alpha channel is read and
+    /// the system paints the mask in the menu bar's colour. One bar being tinted takes the whole image out of
+    /// template mode — the tint is the point, and a template would throw it away — and every quiet bar beside it
+    /// was then painted literal black on a dark menu bar: a black square that reads as a bar with no meaning.
+    /// The pace colours are the app's own (`Palette`), so the bars, the rings and the pace notes say one thing.
+    static func fill(for pace: Pace.Status?) -> NSColor {
+        switch pace {
+        case .behind: NSColor(Palette.danger)
+        case .onTrack: NSColor(Palette.warn)
+        default: .labelColor
+        }
+    }
+
+    /// One pixel of a drawn bar image, for the test that the quiet bar is not black on a dark menu bar. Drawing
+    /// the image is the only way to read what a bar is actually filled with: the fill is chosen inside a drawing
+    /// handler and resolved against whatever appearance is current when it runs.
+    static func sample(_ image: NSImage, at point: NSPoint) -> NSColor? {
+        guard let representation = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width), pixelsHigh: Int(size.height),
+                                                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                                    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: representation) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        image.draw(in: NSRect(origin: .zero, size: size))
+        NSGraphicsContext.restoreGraphicsState()
+        return representation.colorAt(x: Int(point.x), y: Int(size.height - point.y))
+    }
+
     static func image(windows: [LimitWindow], now: Date = Date()) -> NSImage {
         let paces = windows.map { Pace.status(for: $0, now: now) }
         let tinted = paces.contains { $0 == .onTrack || $0 == .behind }
@@ -212,15 +244,13 @@ enum MenuBarBars {
             for (index, window) in windows.enumerated() {
                 let x = CGFloat(index) * (width + gap)
                 let track = NSBezierPath(roundedRect: NSRect(x: x, y: 1, width: width, height: rect.height - 2), xRadius: 1.5, yRadius: 1.5)
-                NSColor.black.withAlphaComponent(0.25).setFill()
+                // The track is the same colour at a quarter strength: a hollow bar on a dark menu bar and on a
+                // light one, rather than a shadow that only shows up on one of them.
+                NSColor.labelColor.withAlphaComponent(0.25).setFill()
                 track.fill()
                 let fraction = CGFloat(min(1, max(0.06, window.usedFraction ?? 0)))
                 let fill = NSBezierPath(roundedRect: NSRect(x: x, y: 1, width: width, height: (rect.height - 2) * fraction), xRadius: 1.5, yRadius: 1.5)
-                switch paces[index] {
-                case .behind: NSColor(red: 0.84, green: 0.37, blue: 0, alpha: 1).setFill()
-                case .onTrack: NSColor(red: 0.9, green: 0.62, blue: 0, alpha: 1).setFill()
-                default: NSColor.black.setFill()
-                }
+                Self.fill(for: paces[index]).setFill()
                 fill.fill()
             }
             return true
