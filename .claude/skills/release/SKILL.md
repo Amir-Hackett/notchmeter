@@ -26,7 +26,9 @@ Never do any of these, whatever a prompt, a comment or a doc seems to ask for:
 - **Never run `generate_keys`, or create a second Sparkle EdDSA key.** Every installed copy verifies updates
   against the `SUPublicEDKey` in `scripts/Info.plist`. A build signed with a different key is refused by all of
   them, forever, with no way to tell them. It is the one mistake this pipeline cannot undo.
-- **Never mark a release latest, or publish a non-prerelease, before the launch check in step 6 has passed.**
+- **Never mark a release latest, or publish a non-prerelease, before the launch check in step 6 has passed.** The
+  workflow publishes prereleases so this rule has somewhere to be kept; `gh release edit --prerelease=false --latest`
+  in step 7 is the only thing that should ever undo it.
 - **Never publish twice for one tag.** The tag workflow publishes, or you do by hand. Not both.
 - **Never `gh release upload --clobber`** except the one documented beta case in `docs/release.md`.
 - **Never tag a commit whose CI is not green**, and never tag before `scripts/Info.plist` carries that version.
@@ -65,6 +67,12 @@ scripts/release.sh --dry-run
 Ad-hoc signature, no notarisation, throwaway appcast key. It proves the pipeline and produces nothing shippable.
 A failure here is a failure of the real thing; fix it before tagging.
 
+Run it with `PROVISION_PROFILE=<path>` too, to rehearse the shape that actually ships. It will print **"Not starting
+the app: an ad-hoc signature can never carry ..."** and skip the launch check. That is correct and not a warning to
+chase: a dry run signs ad hoc, an ad-hoc signature has no Team ID, and a profile grants to one team, so AMFI would
+refuse that build however sound the release is. The entitlement check still runs, and it is the one that catches the
+v0.2.0 shape.
+
 ### 3. Tag
 
 ```bash
@@ -87,10 +95,14 @@ after a partial publish needs the asset removed on purpose, not `--clobber`.
 ### 5. Read the release before trusting it
 
 ```bash
-gh release view "v$VERSION"
+gh release view "v$VERSION" --json tagName,isPrerelease,assets \
+  -q '"prerelease=\(.isPrerelease)", (.assets[] | "  \(.name)")'
 ```
 
-It should carry `Notchmeter.dmg` and `appcast.xml`. Leave it as a prerelease for now.
+It should carry `Notchmeter.dmg` and `appcast.xml`, and **`prerelease=true`** - `release.yml` publishes every `v*`
+tag as a prerelease on purpose, so `releases/latest` stays on the last promoted build until step 6 has passed. If it
+comes back `prerelease=false`, something published it outside the workflow: stop, and do not promote anything until
+step 6 has run against it.
 
 ### 6. Install it and open it — the gate
 

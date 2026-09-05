@@ -150,7 +150,18 @@ jobs:
             exit 0
           fi
           if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
-            gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "Notchmeter ${TAG#v}" --generate-notes
+            # Published as a prerelease, always, however green this run is. `releases/latest` is what installed
+            # copies update from through SUFeedURL and what `brew` installs, and nothing reaches it until a person
+            # or an agent has installed the DMG and opened the app. v0.2.0 passed codesign, notarisation, spctl,
+            # its checksum, its appcast signature and lipo, and could not launch on any Mac: not one of those runs
+            # the app, and this workflow still does not. Promotion is a separate, deliberate step afterwards:
+            #   gh release edit "$TAG" --prerelease=false --latest
+            # .claude/skills/release/SKILL.md, step 6 (install it and open it) then step 7 (promote).
+            gh release view "$TAG" > /dev/null 2>&1 \
+              || gh release create "$TAG" --title "Notchmeter ${TAG#v}" --generate-notes --prerelease
+            # Forced back to prerelease before the assets land, so there is never a window in which a
+            # non-prerelease release carries a build nobody has launched.
+            gh release edit "$TAG" --prerelease > /dev/null
             gh release upload "$TAG" dist/Notchmeter.dmg dist/appcast.xml
             echo "outcome=signed" >> "$GITHUB_OUTPUT"
           else
@@ -181,8 +192,19 @@ jobs:
           sha="$(shasum -a 256 dist/Notchmeter.dmg | cut -d ' ' -f 1)"
           if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
             {
-              echo "## Notchmeter ${TAG#v}: signed release"
+              echo "## Notchmeter ${TAG#v}: signed **prerelease**"
               echo "Universal Notchmeter.dmg (Developer ID, hardened runtime, notarised, stapled) and appcast.xml uploaded to the $TAG release."
+              echo
+              echo "It is a prerelease on purpose. \`releases/latest\` still points at the last promoted build, so no installed copy is offered this one yet."
+              echo
+              echo "Install the DMG and open it before promoting - that is the only check here that runs the app, and it is the one v0.2.0 needed:"
+              echo
+              echo '```'
+              echo "gh release download $TAG --pattern Notchmeter.dmg --dir /tmp/nm-verify --clobber"
+              echo "# install to /Applications, then:"
+              echo "/Applications/Notchmeter.app/Contents/MacOS/Notchmeter --cli --help; echo \"exit \$?\"   # 137 means do not promote"
+              echo "gh release edit $TAG --prerelease=false --latest"
+              echo '```'
               echo
               echo "DMG sha256 \`$sha\` for packaging/homebrew/notchmeter.rb."
             } >> "$GITHUB_STEP_SUMMARY"
