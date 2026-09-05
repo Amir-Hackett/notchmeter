@@ -616,3 +616,7 @@
 /* Settings › About: the optional support link (SettingsWindow) */
 "Support %@…" = "%@ を支援する…";
 "An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay." = "任意の金額で支援できるページです。アプリの機能に制限はなく、支払い後も何も変わりません。";
+"Show over the full-screen app" = "このフルスクリーンアプリの上に表示";
+"Always show over %@" = "%@ の上には常に表示";
+"App to stay over, e.g. zoom.us" = "上に表示し続けるアプリ（例：zoom.us）";
+"Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "上の設定にかかわらず読み取りを上に表示し続けるアプリを、ウインドウリストが返す名前で指定します。動画のために上の設定をオフにしていても、会議中はメーターを横に置いておきたい場合に使います。同じアプリの二つの使い方は区別できません。ブラウザ内の通話と動画がその例です。その場合は「このフルスクリーンアプリの上に表示」ショートカットが答えで、画面上のアプリだけに効き、そのアプリがフルスクリーンを離れると解除されます。オプションメニューには、そのときフルスクリーンのアプリについて両方が並びます。";

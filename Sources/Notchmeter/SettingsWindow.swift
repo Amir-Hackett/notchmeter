@@ -60,6 +60,7 @@ struct SettingsView: View {
     @State private var proxyText = ""
     @State private var accessibilityTrusted = MenuBarExtent.isTrusted
     @State private var originText = ""
+    @State private var fullScreenExceptionText = ""
 
     var body: some View {
         Form {
@@ -341,6 +342,36 @@ struct SettingsView: View {
             }
             Toggle(L("Show over full-screen apps"), isOn: Binding(get: { prefs.showOverFullScreenApps }, set: { prefs.showOverFullScreenApps = $0; actions.applyLayout() }))
                 .help(L("Off, the rings and the panel stay off a full-screen app's Space and the hover machine idles there, so a pointer parked at the top of that Space opens nothing."))
+            if !prefs.showOverFullScreenApps {
+                ForEach(prefs.fullScreenExceptions, id: \.self) { app in
+                    HStack {
+                        Text(app).font(.caption)
+                        Spacer()
+                        Button(L("Remove")) {
+                            prefs.fullScreenExceptions.removeAll { $0 == app }
+                            actions.applyLayout()
+                        }
+                        .controlSize(.small)
+                    }
+                }
+                HStack {
+                    TextField(text: $fullScreenExceptionText, prompt: Text(L("App to stay over, e.g. zoom.us"))) {
+                        Text(L("App to stay over, e.g. zoom.us"))
+                    }
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    Button(L("Add")) {
+                        let trimmed = fullScreenExceptionText.trimmingCharacters(in: .whitespaces)
+                        if !trimmed.isEmpty, !prefs.fullScreenExceptions.contains(trimmed) {
+                            prefs.fullScreenExceptions.append(trimmed)
+                            actions.applyLayout()
+                        }
+                        fullScreenExceptionText = ""
+                    }
+                    .controlSize(.small)
+                }
+                .help(L("Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time."))
+            }
             Toggle(L("Gestures: swipe down to open, swipe up to close"), isOn: Binding(get: { prefs.gesturesEnabled }, set: { prefs.gesturesEnabled = $0 }))
             Toggle(L("Reduce animations"), isOn: Binding(get: { prefs.reduceAnimations }, set: { prefs.reduceAnimations = $0 }))
         }
@@ -350,6 +381,7 @@ struct SettingsView: View {
         Section {
             HotkeyRow(title: L("Toggle the panel"), hotkey: Binding(get: { prefs.togglePanelHotkey }, set: { prefs.togglePanelHotkey = $0; requests.hotkeysChanged() }))
             HotkeyRow(title: L("Open Settings"), hotkey: Binding(get: { prefs.openSettingsHotkey }, set: { prefs.openSettingsHotkey = $0; requests.hotkeysChanged() }))
+            HotkeyRow(title: L("Show over the full-screen app"), hotkey: Binding(get: { prefs.showOverFullScreenHotkey }, set: { prefs.showOverFullScreenHotkey = $0; requests.hotkeysChanged() }))
         } header: {
             Text(L("Keyboard shortcuts"))
                 .help(L("Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard."))

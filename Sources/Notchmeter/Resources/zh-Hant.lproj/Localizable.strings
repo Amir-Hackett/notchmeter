@@ -616,3 +616,7 @@
 /* Settings › About: the optional support link (SettingsWindow) */
 "Support %@…" = "支持 %@…";
 "An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay." = "一個可自訂金額的自願支持頁面。應用程式內沒有任何功能被保留，付款後也不會有任何改變。";
+"Show over the full-screen app" = "在此全螢幕 App 之上顯示";
+"Always show over %@" = "一律在 %@ 之上顯示";
+"App to stay over, e.g. zoom.us" = "要保持顯示的 App，例如 zoom.us";
+"Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "無論上面的設定為何，讀數都會保持在這些 App 之上，依視窗列表給出的名稱列出：開會時你希望計量在旁邊，而上面的設定是為看影片而關閉的。它無法分辨同一個 App 的兩種用途，瀏覽器中的通話與影片就是例子；「在此全螢幕 App 之上顯示」快速鍵可解決這種情況，只針對螢幕上的 App，並在它離開全螢幕時失效。選項選單會為當時處於全螢幕的 App 同時提供這兩項。";

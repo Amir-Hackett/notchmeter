@@ -19,6 +19,8 @@ final class NotchActions {
     var open: (URL) -> Void = { NSWorkspace.shared.open($0) }
     /// Nil while the updater is inactive (see Updater); the Options menu offers "Check for Updates…" only when set.
     var checkForUpdates: (() -> Void)?
+    /// The apps full-screen on the display under the pointer, so the Options menu can offer to stay over them.
+    var fullScreenApps: () -> [String] = { [] }
 }
 
 /// One on-screen presentation of the readings: the hardware notch, a notch of the same shape cut into a side
@@ -35,6 +37,8 @@ protocol PanelPresenting: AnyObject {
     /// reads this: measuring the capped view can never exceed the cap, so it would always report a fit.
     var expandedIntrinsicContentSize: CGSize { get }
     var hover: HoverDriver { get }
+    /// The apps that are full-screen on this presenter's display; empty where none is.
+    var fullScreenApps: [String] { get }
     /// The open panel's scroll view, read from the window it is drawn in. Only the layouts under the notch or the
     /// menu bar carry a shape the first card has to stay clear of.
     var scroll: PanelScrollReader { get }
@@ -158,6 +162,20 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         }
         readouts.submenu = sides
         menu.addItem(readouts)
+        let covering = actions.fullScreenApps()
+        if !covering.isEmpty {
+            menu.addItem(.separator())
+            let now = item(L("Show over the full-screen app"), #selector(toggleShowOverFullScreenNow))
+            now.state = prefs.showsOverFullScreen(covering) ? .on : .off
+            menu.addItem(now)
+            for app in covering {
+                let always = item(L("Always show over %@", app), #selector(toggleFullScreenException(_:)))
+                always.representedObject = app
+                always.state = prefs.fullScreenExceptions.contains(app) ? .on : .off
+                menu.addItem(always)
+            }
+            menu.addItem(.separator())
+        }
         menu.addItem(item(L("Copy panel as image"), #selector(copyImage)))
         menu.addItem(item(L("Install command line tool…"), #selector(installCLI)))
         menu.addItem(.separator())
@@ -183,6 +201,28 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
         entry.target = self
         return entry
+    }
+
+    /// This full-screen app alone, either way round; the shortcut does the same thing without the menu, which
+    /// is what a person watching something full-screen actually has to hand.
+    @objc private func toggleShowOverFullScreenNow() {
+        let covering = actions.fullScreenApps()
+        guard !covering.isEmpty else { return }
+        prefs.showOverFullScreenNow = Preferences.FullScreenOverride(show: !prefs.showsOverFullScreen(covering), apps: covering)
+        actions.applyLayout()
+    }
+
+    @objc private func toggleFullScreenException(_ sender: NSMenuItem) {
+        guard let app = sender.representedObject as? String else { return }
+        if let at = prefs.fullScreenExceptions.firstIndex(of: app) {
+            prefs.fullScreenExceptions.remove(at: at)
+        } else {
+            prefs.fullScreenExceptions.append(app)
+        }
+        // The list now answers what the shortcut was answering for this app; leaving both on would hide the
+        // change the person just made.
+        prefs.showOverFullScreenNow = nil
+        actions.applyLayout()
     }
 
     @objc private func refreshNow() { actions.refresh() }
@@ -343,10 +383,13 @@ final class NotchController: NSObject, PanelPresenting {
     var expandedIntrinsicContentSize: CGSize { fittingSize(expandedProbe, NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, unclamped: true)) }
 
     func show() {
+        // Asked again with a full-screen app already up: the shortcut, an exception or the preference may have
+        // changed the answer since it went up, and no reading of the window list would ever report that.
+        if let watch = fullScreenWatch { apply(fullScreen: watch.verdict) }
         guard !suppressedForFullScreen else { return }
         if fullScreenWatch == nil {
-            fullScreenWatch = FullScreenWatch(screen: { [weak self] in self?.screen ?? .panelScreen }) { [weak self] active in
-                self?.fullScreenChanged(active)
+            fullScreenWatch = FullScreenWatch(screen: { [weak self] in self?.screen ?? .panelScreen }) { [weak self] verdict in
+                self?.fullScreenChanged(verdict)
             }
             if suppressedForFullScreen { return }
         }
@@ -380,32 +423,39 @@ final class NotchController: NSObject, PanelPresenting {
         refreshRegions()
     }
 
-    /// Ordered out while another app is full-screen, unless the preference says to stay: a window that joins
-    /// every space draws over full-screen apps whatever its collection behaviour.
-    private func fullScreenChanged(_ active: Bool) {
-        let hide = active && !prefs.showOverFullScreenApps
-        guard hide != suppressedForFullScreen else { return }
+    /// The apps the readouts are currently making way for, or would be; empty when none is full-screen.
+    var fullScreenApps: [String] { fullScreenWatch?.verdict.apps ?? [] }
+
+    private func fullScreenChanged(_ verdict: FullScreen.Verdict) {
+        // "Just this once" is about the apps that were on screen when it was asked for, so it goes when they do,
+        // whether that is back to the desktop or straight into another app's full screen.
+        if prefs.showOverFullScreenNow?.apps != verdict.apps { prefs.showOverFullScreenNow = nil }
+        if apply(fullScreen: verdict) { show() }
+    }
+
+    /// Ordered out while another app is full-screen, unless the preference, an exception for that app or the
+    /// shortcut says to stay: a window that joins every space draws over full-screen apps whatever its
+    /// collection behaviour. Returns whether the panel may now be shown again, which is the caller's to do:
+    /// `show()` asks this first, and showing from in here would run it twice.
+    @discardableResult private func apply(fullScreen verdict: FullScreen.Verdict) -> Bool {
+        let hide = verdict.isActive && !prefs.showsOverFullScreen(verdict.apps)
+        guard hide != suppressedForFullScreen else { return false }
         suppressedForFullScreen = hide
         reporter.report(.compact, cause: .fullScreen)
-        if hide {
-            hover.stop()
-            // Drive the notch to hidden rather than ordering its window out: it early-returns from a
-            // transition into the state it believes it is already in, so a window ordered out behind its
-            // back would never come back.
-            transitionSerial += 1
-            Task { await self.notch.hide() }
-        } else {
-            show()
-        }
+        guard hide else { return true }
+        hover.stop()
+        // Drive the notch to hidden rather than ordering its window out: it early-returns from a transition
+        // into the state it believes it is already in, so a window ordered out behind its back would never
+        // come back.
+        transitionSerial += 1
+        Task { await self.notch.hide() }
+        return false
     }
 
     func applyWindowBehaviour() {
-        if prefs.showOverFullScreenApps, suppressedForFullScreen {
-            suppressedForFullScreen = false
-            show()
-        }
-        fullScreenWatch?.refresh()
-        notch.collectionBehavior = Self.collectionBehavior(showOverFullScreen: prefs.showOverFullScreenApps)
+        // No scan of the window list here: this runs on every change to the readings, and `show()` above
+        // already re-asks the verdict, which is the only thing that can have changed the answer.
+        notch.collectionBehavior = Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen)
         // The notch panel stays black so it reads as one shape with the hardware notch: a glass backdrop
         // over black renders as pale grey and breaks that join. Glass belongs to the edge layouts.
         notch.expandedGlass = false

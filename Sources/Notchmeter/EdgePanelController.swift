@@ -121,24 +121,34 @@ final class EdgePanelController: NSObject, PanelPresenting {
         return contentProbe.fittingSize
     }
 
-    /// Ordered out while another app is full-screen, unless the preference says to stay. See NotchController.
-    private func fullScreenChanged(_ active: Bool) {
-        let hide = active && !prefs.showOverFullScreenApps
-        guard hide != suppressedForFullScreen else { return }
+    /// The apps the readouts are currently making way for, or would be; empty when none is full-screen.
+    var fullScreenApps: [String] { fullScreenWatch?.verdict.apps ?? [] }
+
+    private func fullScreenChanged(_ verdict: FullScreen.Verdict) {
+        if prefs.showOverFullScreenNow?.apps != verdict.apps { prefs.showOverFullScreenNow = nil }
+        if apply(fullScreen: verdict) { show() }
+    }
+
+    /// Ordered out while another app is full-screen, unless the preference, an exception for that app or the
+    /// shortcut says to stay. Returns whether the panel may now be shown again. See NotchController.
+    @discardableResult private func apply(fullScreen verdict: FullScreen.Verdict) -> Bool {
+        let hide = verdict.isActive && !prefs.showsOverFullScreen(verdict.apps)
+        guard hide != suppressedForFullScreen else { return false }
         suppressedForFullScreen = hide
-        if hide {
-            hover.stop()
-            panel.orderOut(nil)
-        } else {
-            show()
-        }
+        guard hide else { return true }
+        hover.stop()
+        panel.orderOut(nil)
+        return false
     }
 
     func show() {
+        // See NotchController.show(): the answer for an app already full-screen can change without the window
+        // list changing at all.
+        if let watch = fullScreenWatch { apply(fullScreen: watch.verdict) }
         guard !suppressedForFullScreen else { return }
         if fullScreenWatch == nil {
-            fullScreenWatch = FullScreenWatch(screen: { [weak self] in self?.screen ?? .panelScreen }) { [weak self] active in
-                self?.fullScreenChanged(active)
+            fullScreenWatch = FullScreenWatch(screen: { [weak self] in self?.screen ?? .panelScreen }) { [weak self] verdict in
+                self?.fullScreenChanged(verdict)
             }
             if suppressedForFullScreen { return }
         }
@@ -165,12 +175,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
     }
 
     func applyWindowBehaviour() {
-        if prefs.showOverFullScreenApps, suppressedForFullScreen {
-            suppressedForFullScreen = false
-            show()
-        }
-        fullScreenWatch?.refresh()
-        panel.collectionBehavior = Self.collectionBehavior(showOverFullScreen: prefs.showOverFullScreenApps)
+        // See NotchController: no window-list scan on a path the readings drive.
+        panel.collectionBehavior = Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen)
     }
 
     func toggle(cause: PanelCause) {
