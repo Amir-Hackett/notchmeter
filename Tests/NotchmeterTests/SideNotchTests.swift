@@ -99,7 +99,7 @@ import Testing
 }
 
 /// Where the notch and the panel go once a side is flush and the panel opens beside it. The arithmetic is worked
-/// against a 388 × 855 pt panel on a 1512 × 982 display (docs/qa/e2e-report.md) and an 82 × 202 pt pill, which is
+/// against a 388 × 855 pt panel on a 1512 × 982 display and an 82 × 202 pt pill, which is
 /// deliberately deeper than the one that ships: the shape measures 35 × 188 at rings and numbers since the figures
 /// were stacked, and 54 at its widest with the reset countdown on. A stand-in half again as deep as the widest
 /// real one keeps the placement under more pressure than a user can put it under, which is what these tests are
