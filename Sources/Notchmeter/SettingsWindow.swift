@@ -80,6 +80,13 @@ struct SettingsView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .help(L("%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.", AppInfo.name))
+                // The one ask the app makes, kept to the About footer where a happy user is already looking, in the
+                // same quiet type as the version line: the app is free and stays free, and a button any louder than
+                // this would make it read as if it were not.
+                Button(L("Support %@…", AppInfo.name)) { NSWorkspace.shared.open(AppInfo.supportURL) }
+                    .buttonStyle(.link)
+                    .font(.caption2)
+                    .help(L("An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay."))
             }
         }
         .formStyle(.grouped)

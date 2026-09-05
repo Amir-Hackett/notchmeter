@@ -612,3 +612,7 @@
 "~%ld%% left at reset" = "~%ld%% còn lại khi đặt lại";
 "~%ld%% over at reset" = "~%ld%% vượt mức khi đặt lại";
 "“%@” is off in Settings" = "“%@” đang tắt trong Cài đặt";
+
+/* Settings › About: the optional support link (SettingsWindow) */
+"Support %@…" = "Ủng hộ %@…";
+"An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay." = "Một trang ủng hộ tùy chọn, trả bao nhiêu tùy bạn. Không có tính năng nào trong ứng dụng bị giữ lại, và không có gì thay đổi sau khi bạn trả.";

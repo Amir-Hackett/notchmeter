@@ -612,3 +612,7 @@
 "~%ld%% left at reset" = "重設時約剩 %ld%%";
 "~%ld%% over at reset" = "重設時約超出 %ld%%";
 "“%@” is off in Settings" = "設定中的「%@」已關閉";
+
+/* Settings › About: the optional support link (SettingsWindow) */
+"Support %@…" = "支持 %@…";
+"An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay." = "一個可自訂金額的自願支持頁面。應用程式內沒有任何功能被保留，付款後也不會有任何改變。";

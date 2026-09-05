@@ -628,3 +628,7 @@
 "~%ld%% left at reset" = "~%ld%% left at reset";
 "~%ld%% over at reset" = "~%ld%% over at reset";
 "“%@” is off in Settings" = "“%@” is off in Settings";
+
+/* Settings › About: the optional support link (SettingsWindow) */
+"Support %@…" = "Support %@…";
+"An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay." = "An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay.";

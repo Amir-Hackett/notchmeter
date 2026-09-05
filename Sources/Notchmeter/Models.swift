@@ -585,6 +585,9 @@ enum AppInfo {
     /// the user agent stays the bare version, because a vendor's log has no use for a commit hash.
     static var versionWithBuild: String { build.map { "\(version) · \($0)" } ?? version }
     static var userAgent: String { "\(name)/\(version)" }
+    /// The optional pay-what-you-want page (Stripe Payment Link): Settings › About, the README and the site all
+    /// point at this one URL, so a change here is the whole change.
+    static let supportURL = URL(string: "https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800")!
 }
 
 /// Whether two reported resets are the same period.
