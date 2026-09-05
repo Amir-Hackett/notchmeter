@@ -11,6 +11,10 @@ on:
       - 'packaging/**'
   workflow_dispatch:
 
+# Checkout, build, test and an artifact upload: nothing here writes to the repository.
+permissions:
+  contents: read
+
 # A superseded push to the same pull request must not keep building.
 concurrency:
   group: ci-${{ github.ref }}

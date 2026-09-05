@@ -33,8 +33,9 @@ jobs:
       - name: Build (release)
         # CI's gate, repeated here so the release path carries it on its own: a warning from anything
         # under Sources/ fails the release before anything is signed, notarised or published. Vendor/ is
-        # exempt. ci.yml only builds pull requests, so a tag pushed from a branch that skipped one, or a
-        # workflow switched off to save minutes, still meets the same check here.
+        # exempt. ci.yml builds pull requests and manual runs, not the merge push and not the tag, so a tag
+        # pushed from a branch that skipped one, or a workflow switched off to save minutes, still meets the
+        # same check here.
         run: |
           set -o pipefail
           swift build -c release 2>&1 | tee build.log
