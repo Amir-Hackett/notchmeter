@@ -122,9 +122,14 @@ final class MenuBarItem {
             button.image = Self.icon(signal: signalled?.signal)
             button.title = " " + Self.label(readings: readings, countdown: prefs.showResetCountdown)
             button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize(for: .small), weight: .medium)
-        case .bars:
+        case .bars, .rings, .dots:
             button.title = ""
-            button.image = MenuBarBars.image(windows: Array(readings.flatMap(\.windows).prefix(4)))
+            let windows = Array(readings.flatMap(\.windows).prefix(4))
+            button.image = switch prefs.menuBarStyle {
+            case .rings: MenuBarGlyphs.rings(windows: windows)
+            case .dots: MenuBarGlyphs.dots(windows: windows)
+            default: MenuBarGlyphs.bars(windows: windows)
+            }
         }
         button.setAccessibilityValue([signalled?.signal.spokenText, Self.label(readings: readings, countdown: prefs.showResetCountdown)]
             .compactMap { $0 }.joined(separator: ", "))
@@ -200,8 +205,18 @@ extension MenuBarItem {
 /// Up to four mini bars in an 18 pt glyph: a template image (so it follows the menu bar's appearance) while every
 /// bar is on pace, and a colour-carrying one (orange for on track, vermillion for behind) when one is not, the
 /// same rule the rings use.
-enum MenuBarBars {
+/// The drawn icon styles: mini bars, rings of the same shape as the ones beside the notch, or dots that carry the
+/// pace and nothing else. Every one of them is drawn rather than composed from SF Symbols, because the figure each
+/// carries is a fraction and no symbol holds one.
+enum MenuBarGlyphs {
     static let size = NSSize(width: 22, height: 16)
+    static let height: CGFloat = 16
+
+    /// A ring or a dot per window, laid out along the bar; bars share one fixed width whatever the count.
+    static func size(count: Int, diameter: CGFloat, gap: CGFloat) -> NSSize {
+        let count = CGFloat(max(1, count))
+        return NSSize(width: count * diameter + (count - 1) * gap, height: height)
+    }
 
     /// What one bar is filled with. A window that is ahead of its pace, or has no pace to be read against, has no
     /// colour of its own and takes the menu bar's own foreground colour: `labelColor` on either side of a theme.
@@ -234,7 +249,7 @@ enum MenuBarBars {
         return representation.colorAt(x: Int(point.x), y: Int(size.height - point.y))
     }
 
-    static func image(windows: [LimitWindow], now: Date = Date()) -> NSImage {
+    static func bars(windows: [LimitWindow], now: Date = Date()) -> NSImage {
         let paces = windows.map { Pace.status(for: $0, now: now) }
         let tinted = paces.contains { $0 == .onTrack || $0 == .behind }
         let image = NSImage(size: size, flipped: false) { rect in
@@ -252,6 +267,63 @@ enum MenuBarBars {
                 let fill = NSBezierPath(roundedRect: NSRect(x: x, y: 1, width: width, height: (rect.height - 2) * fraction), xRadius: 1.5, yRadius: 1.5)
                 Self.fill(for: paces[index]).setFill()
                 fill.fill()
+            }
+            return true
+        }
+        image.isTemplate = !tinted
+        image.accessibilityDescription = AppInfo.name
+        return image
+    }
+
+    static let ringDiameter: CGFloat = 13
+    static let ringWidth: CGFloat = 2.5
+    static let dotDiameter: CGFloat = 8
+    static let glyphGap: CGFloat = 3
+
+    /// One ring per window, the shape the readouts beside the notch already use, at menu bar size. The sweep is
+    /// the fraction used, clockwise from the top, over a track of the same colour at a quarter strength.
+    static func rings(windows: [LimitWindow], now: Date = Date()) -> NSImage {
+        let paces = windows.map { Pace.status(for: $0, now: now) }
+        let tinted = paces.contains { $0 == .onTrack || $0 == .behind }
+        let size = size(count: windows.count, diameter: ringDiameter, gap: glyphGap)
+        let image = NSImage(size: size, flipped: false) { rect in
+            for (index, window) in windows.enumerated() {
+                let centre = NSPoint(x: CGFloat(index) * (ringDiameter + glyphGap) + ringDiameter / 2, y: rect.midY)
+                let radius = (ringDiameter - ringWidth) / 2
+                let track = NSBezierPath()
+                track.appendArc(withCenter: centre, radius: radius, startAngle: 0, endAngle: 360)
+                track.lineWidth = ringWidth
+                NSColor.labelColor.withAlphaComponent(0.25).setStroke()
+                track.stroke()
+                let fraction = CGFloat(min(1, max(0.02, window.usedFraction ?? 0)))
+                let sweep = NSBezierPath()
+                sweep.appendArc(withCenter: centre, radius: radius, startAngle: 90, endAngle: 90 - 360 * fraction, clockwise: true)
+                sweep.lineWidth = ringWidth
+                sweep.lineCapStyle = .round
+                fill(for: paces[index]).setStroke()
+                sweep.stroke()
+            }
+            return true
+        }
+        image.isTemplate = !tinted
+        image.accessibilityDescription = AppInfo.name
+        return image
+    }
+
+    /// One dot per window, carrying the pace and nothing else: the quietest of the three, for a menu bar where a
+    /// figure is one thing too many. It goes from the foreground colour to amber to vermillion and back, so the
+    /// only time it asks for anything is the time something is running out.
+    static func dots(windows: [LimitWindow], now: Date = Date()) -> NSImage {
+        let paces = windows.map { Pace.status(for: $0, now: now) }
+        let tinted = paces.contains { $0 == .onTrack || $0 == .behind }
+        let size = size(count: windows.count, diameter: dotDiameter, gap: glyphGap)
+        let image = NSImage(size: size, flipped: false) { rect in
+            for index in windows.indices {
+                let box = NSRect(x: CGFloat(index) * (dotDiameter + glyphGap), y: rect.midY - dotDiameter / 2,
+                                 width: dotDiameter, height: dotDiameter)
+                let quiet = paces[index] != .onTrack && paces[index] != .behind
+                fill(for: paces[index]).withAlphaComponent(quiet ? 0.45 : 1).setFill()
+                NSBezierPath(ovalIn: box).fill()
             }
             return true
         }

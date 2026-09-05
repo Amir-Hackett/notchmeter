@@ -645,3 +645,6 @@
 "Not Now" = "Not Now";
 "Repair the Accessibility permission…" = "Repair the Accessibility permission…";
 "The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back.";
+
+/* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
+"Dots" = "Dots";

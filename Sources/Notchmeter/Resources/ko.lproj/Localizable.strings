@@ -629,3 +629,6 @@
 "Not Now" = "나중에";
 "Repair the Accessibility permission…" = "손쉬운 사용 권한 복구…";
 "The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "권한이 이전 사본의 것입니다. macOS는 권한을 허용받은 사본에 묶어 두고, 그 사본이 교체되어도 스위치를 켜진 채로 둡니다. 항목을 지우고 다시 실행하는 것이 되돌아가는 길입니다.";
+
+/* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
+"Dots" = "점";

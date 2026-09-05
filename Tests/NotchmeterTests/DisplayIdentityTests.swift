@@ -60,7 +60,7 @@ import Testing
             func applyWindowBehaviour() {}
             func toggle(cause: PanelCause) {}
             func expandNow(cause: PanelCause) {}
-            func glance() {}
+            func glance(for duration: TimeInterval) {}
         }
         let screens = NSScreen.screens
         let presenters: [any PanelPresenting] = screens.map { Stub(screen: $0) }
@@ -103,32 +103,43 @@ import Testing
         #expect(MenuBarItem.pinnedTools(visible: [.claude, .codex, .cursor], chosen: [.cursor, .codex]) == [.codex, .cursor])
         #expect(MenuBarItem.pinnedTools(visible: [.claude, .codex], chosen: [.copilot]) == [.claude])
         #expect(MenuBarItem.pinnedTools(visible: [], chosen: []) == [])
-        let bars = MenuBarBars.image(windows: claude, now: now)
-        #expect(bars.size == MenuBarBars.size)
+        let bars = MenuBarGlyphs.bars(windows: claude, now: now)
+        #expect(bars.size == MenuBarGlyphs.size)
         #expect(bars.isTemplate)
         let behind = [LimitWindow(id: "session", label: "Session", usedFraction: 0.9, resetsAt: now.addingTimeInterval(4 * 3600), periodDuration: Period.fiveHours)]
-        #expect(!MenuBarBars.image(windows: behind, now: now).isTemplate)
+        #expect(!MenuBarGlyphs.bars(windows: behind, now: now).isTemplate)
         // A tinted bar takes the whole image out of template mode, so every quiet bar beside it is painted as it
         // is rather than as a mask: black there is a black square on a dark menu bar, and the menu bar's own
         // foreground colour is the only fill that reads on both themes. The tints are the app's palette, once.
-        #expect(MenuBarBars.fill(for: nil) == .labelColor)
-        #expect(MenuBarBars.fill(for: .ahead) == .labelColor)
-        #expect(MenuBarBars.fill(for: .onTrack) == NSColor(Palette.warn))
-        #expect(MenuBarBars.fill(for: .behind) == NSColor(Palette.danger))
+        #expect(MenuBarGlyphs.fill(for: nil) == .labelColor)
+        #expect(MenuBarGlyphs.fill(for: .ahead) == .labelColor)
+        #expect(MenuBarGlyphs.fill(for: .onTrack) == NSColor(Palette.warn))
+        #expect(MenuBarGlyphs.fill(for: .behind) == NSColor(Palette.danger))
         // And the drawn image agrees: rendered in a dark menu bar's appearance, the quiet bar beside a tinted one
         // is light, not the black square this drew before. Sampled a third of the way up the first bar, which is
         // inside its fill at 14% only because the fill has a floor (0.06 of the height) — read the middle and a
         // quiet window would be sampling the track instead.
         let mixed = [claude[0], behind[0]]
-        let rendered = MenuBarBars.image(windows: mixed, now: now)
+        let rendered = MenuBarGlyphs.bars(windows: mixed, now: now)
         #expect(!rendered.isTemplate)
         let dark = try #require(NSAppearance(named: .darkAqua))
         var quiet: NSColor?
         dark.performAsCurrentDrawingAppearance {
-            quiet = MenuBarBars.sample(rendered, at: NSPoint(x: 3, y: 3))
+            quiet = MenuBarGlyphs.sample(rendered, at: NSPoint(x: 3, y: 3))
         }
         let brightness = try #require(quiet?.usingColorSpace(.deviceRGB)?.brightnessComponent)
         #expect(brightness > 0.5)
+        // The other two icon styles carry the same figures: a ring or a dot per window, laid out along the bar,
+        // and the same rule about the tint taking the image out of template mode.
+        let rings = MenuBarGlyphs.rings(windows: claude, now: now)
+        #expect(rings.size == MenuBarGlyphs.size(count: 2, diameter: MenuBarGlyphs.ringDiameter, gap: MenuBarGlyphs.glyphGap))
+        #expect(rings.isTemplate)
+        #expect(!MenuBarGlyphs.rings(windows: behind, now: now).isTemplate)
+        let dots = MenuBarGlyphs.dots(windows: claude, now: now)
+        #expect(dots.size == MenuBarGlyphs.size(count: 2, diameter: MenuBarGlyphs.dotDiameter, gap: MenuBarGlyphs.glyphGap))
+        #expect(dots.isTemplate)
+        #expect(!MenuBarGlyphs.dots(windows: behind, now: now).isTemplate)
+        #expect(MenuBarStyle.allCases.map(\.rawValue) == ["text", "bars", "rings", "dots"])
     }
 
     @Test func theAwakeRuleHoldsOnlyWhileWorkingOnPower() {

@@ -629,3 +629,6 @@
 "Not Now" = "Để sau";
 "Repair the Accessibility permission…" = "Sửa quyền Trợ năng…";
 "The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "Quyền này thuộc về một bản cũ hơn: macOS gắn nó với bản đã được cấp và vẫn để công tắc bật khi bản đó bị thay thế. Xóa mục đó rồi khởi động lại là cách quay về.";
+
+/* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
+"Dots" = "Chấm";

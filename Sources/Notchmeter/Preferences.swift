@@ -160,12 +160,14 @@ enum SessionAttention: String, CaseIterable, Codable {
 
 /// The menu bar pin's shape: the figures as text, or up to four mini bars in one template glyph.
 enum MenuBarStyle: String, CaseIterable, Codable {
-    case text, bars
+    case text, bars, rings, dots
 
     var title: String {
         switch self {
         case .text: L("Text")
         case .bars: L("Bars")
+        case .rings: L("Rings")
+        case .dots: L("Dots")
         }
     }
 }

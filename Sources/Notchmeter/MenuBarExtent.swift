@@ -279,6 +279,7 @@ final class AutoSideWatcher {
 
     /// Re-fits against the app already in front: called when the side preference changes, since no app has activated.
     func refresh() {
+        rememberTrust()
         update(for: frontmost())
     }
 
@@ -412,7 +413,11 @@ final class AutoSideWatcher {
     }
 
     /// Records the signature the grant is held under while it holds, so a later launch can tell a replaced copy
-    /// from a permission that was never given. Clearing it is `forgetTrust`, after the entry has been reset.
+    /// from a permission that was never given. Called on every refresh as well as at launch: a permission granted
+    /// while the app is running would otherwise go unrecorded until the next one, and the launch after a rebuild
+    /// would then read a grant that had been given as one that never was. The identity is read once per process
+    /// (CodeSignature.runningIdentity), so a refresh that changes nothing costs a comparison.
+    /// Clearing it is `forgetTrust`, after the entry has been reset.
     func rememberTrust() {
         guard MenuBarExtent.isTrusted, let identity = CodeSignature.runningIdentity(),
               prefs.accessibilityGrantedTo != identity else { return }

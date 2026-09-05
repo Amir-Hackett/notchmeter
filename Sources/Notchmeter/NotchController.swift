@@ -59,11 +59,14 @@ protocol PanelPresenting: AnyObject {
     /// Opens the panel for a notification's Open button or the shortcut; the machine adopts the state.
     func toggle(cause: PanelCause)
     func expandNow(cause: PanelCause)
-    /// Opens a closed panel for a few seconds (SessionAttention.glance); the pointer coming in keeps it open.
-    func glance()
+    /// Opens a closed panel for a few seconds (SessionAttention.glance); the pointer coming in keeps it open,
+    /// and it settles by itself if nothing does — the only opening that needs no event to close it again.
+    func glance(for duration: TimeInterval)
 }
 
 extension PanelPresenting {
+    func glance() { glance(for: HoverIntent.glanceDuration) }
+
     /// The window collection behaviour for the setting: joined to every Space, and to a full-screen app's when asked.
     static func collectionBehavior(showOverFullScreen: Bool) -> NSWindow.CollectionBehavior {
         showOverFullScreen ? [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary] : [.canJoinAllSpaces, .stationary]
@@ -492,8 +495,8 @@ final class NotchController: NSObject, PanelPresenting {
         hover.toggle(cause: cause)
     }
 
-    func glance() {
-        hover.glance(for: AccessibilityDisplay.shared.motionReduced ? HoverIntent.glanceDuration + 2 : HoverIntent.glanceDuration)
+    func glance(for duration: TimeInterval) {
+        hover.glance(for: AccessibilityDisplay.shared.motionReduced ? duration + 2 : duration)
     }
 
     func hide() async {

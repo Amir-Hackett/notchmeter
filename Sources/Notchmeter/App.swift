@@ -387,9 +387,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: L("Clear and Restart"))
         alert.addButton(withTitle: L("Open Accessibility Settings"))
         alert.addButton(withTitle: L("Not Now"))
+        // Settings is raised above the panel (SettingsWindowController.present), so it would stand over this alert
+        // exactly as the panel would: the Repair button in Settings is one of the two places this is offered from.
         hold(.alert, true)
+        settings?.standAside(true)
         NSApp.activate()
         let response = alert.runModal()
+        settings?.standAside(false)
         hold(.alert, false)
         Oracle.shared.emit("accessibility", ["action": "staleEntry", "answer": response.rawValue, "simulated": simulated])
         if simulated {
@@ -658,11 +662,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applyLayout()
     }
 
+    /// A notification's click opens the panel the way a glance does, rather than for good. Nothing that follows
+    /// the click is bound to close it again: the panel is open because of something that happened elsewhere, the
+    /// pointer is wherever the notification was, and in the click-to-open modes only a click outside the panel
+    /// collapses it — so a click that lands in the column the panel occupies, which is the middle of the screen,
+    /// leaves it standing there. A glance closes on its own clock and needs no event at all; the pointer coming
+    /// into the panel still cancels it, so reading the thing you were told about keeps it open.
     private func openFromNotification(_ tool: ToolID?) {
         if tool == nil {
             showSettings()
         } else {
-            pointerPresenter?.expandNow(cause: .notification)
+            pointerPresenter?.glance(for: HoverIntent.notificationGlance)
         }
     }
 

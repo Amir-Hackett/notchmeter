@@ -629,3 +629,6 @@
 "Not Now" = "後で";
 "Repair the Accessibility permission…" = "アクセシビリティ許可を修復…";
 "The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "許可は以前のコピーのものです。macOS は許可を与えられたコピーに結び付け、そのコピーが置き換わってもスイッチは入ったままにします。項目を消して再起動するのが戻る道です。";
+
+/* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
+"Dots" = "ドット";

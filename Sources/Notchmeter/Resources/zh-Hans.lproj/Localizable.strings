@@ -645,3 +645,6 @@
 "Not Now" = "以后再说";
 "Repair the Accessibility permission…" = "修复辅助功能权限…";
 "The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "该权限属于旧的副本：macOS 把它绑定到获得授权的那份副本，副本被替换后仍让开关保持打开。清除条目并重新启动才是回到正常的办法。";
+
+/* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
+"Dots" = "圆点";

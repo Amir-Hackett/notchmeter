@@ -155,6 +155,16 @@ enum CodeSignature {
     /// rebuild signed with the same one keeps the grants it was given; ad-hoc signed code names no certificate and
     /// is pinned to its code directory hash instead, which every build changes. Nil when the code cannot be read.
     static func runningIdentity() -> String? {
+        // The running binary's signature cannot change under it, so this is read once and kept.
+        if let cached = cachedIdentity { return cached }
+        let identity = readRunningIdentity()
+        cachedIdentity = identity
+        return identity
+    }
+
+    private nonisolated(unsafe) static var cachedIdentity: String?
+
+    private static func readRunningIdentity() -> String? {
         var code: SecCode?
         guard SecCodeCopySelf([], &code) == errSecSuccess, let code else { return nil }
         var staticCode: SecStaticCode?
