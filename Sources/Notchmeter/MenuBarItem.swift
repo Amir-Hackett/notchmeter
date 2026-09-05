@@ -125,10 +125,12 @@ final class MenuBarItem {
         case .bars, .rings, .dots:
             button.title = ""
             let windows = Array(readings.flatMap(\.windows).prefix(4))
+            let tint = prefs.menuBarTint
+            let custom = HexColour.colour(prefs.menuBarTintHex)
             button.image = switch prefs.menuBarStyle {
-            case .rings: MenuBarGlyphs.rings(windows: windows)
-            case .dots: MenuBarGlyphs.dots(windows: windows)
-            default: MenuBarGlyphs.bars(windows: windows)
+            case .rings: MenuBarGlyphs.rings(windows: windows, tint: tint, custom: custom)
+            case .dots: MenuBarGlyphs.dots(windows: windows, tint: tint, custom: custom)
+            default: MenuBarGlyphs.bars(windows: windows, tint: tint, custom: custom)
             }
         }
         button.setAccessibilityValue([signalled?.signal.spokenText, Self.label(readings: readings, countdown: prefs.showResetCountdown)]
@@ -153,7 +155,7 @@ final class MenuBarItem {
             // is deliberately absent: it decides whether the rings beside the notch take the state colour, and this
             // item's glyph carries the state whatever it says, so tracking it bought a repaint and a rebuilt NSMenu
             // every time the toggle moved and changed nothing here.
-            _ = (store.statuses, store.sessions, store.attendedAt, prefs.menuBarPin, prefs.menuBarPinnedTools, prefs.menuBarStyle,
+            _ = (store.statuses, store.sessions, store.attendedAt, prefs.menuBarPin, prefs.menuBarPinnedTools, prefs.menuBarStyle, prefs.menuBarTint, prefs.menuBarTintHex,
                  prefs.usageDisplay, prefs.toolOrder,
                  prefs.ringWindows, prefs.showResetCountdown, prefs.hiddenWindows, prefs.revealedWindows)
         } onChange: { [weak self] in
@@ -226,11 +228,27 @@ enum MenuBarGlyphs {
     /// template mode — the tint is the point, and a template would throw it away — and every quiet bar beside it
     /// was then painted literal black on a dark menu bar: a black square that reads as a bar with no meaning.
     /// The pace colours are the app's own (`Palette`), so the bars, the rings and the pace notes say one thing.
-    static func fill(for pace: Pace.Status?) -> NSColor {
+    static func fill(for pace: Pace.Status?, tint: MenuBarTint = .pace, custom: NSColor = .labelColor) -> NSColor {
+        switch tint {
+        case .monochrome: return .labelColor
+        case .custom: return custom
+        case .pace: break
+        }
         switch pace {
-        case .behind: NSColor(Palette.danger)
-        case .onTrack: NSColor(Palette.warn)
-        default: .labelColor
+        case .behind: return NSColor(Palette.danger)
+        case .onTrack: return NSColor(Palette.warn)
+        default: return .labelColor
+        }
+    }
+
+    /// Whether the drawn image carries a colour of its own. A template is painted by macOS in the menu bar's
+    /// colour — inverted highlight and all — which is right for anything monochrome and throws away a tint, so an
+    /// image only stops being one when there is a tint in it to keep.
+    static func isTinted(_ paces: [Pace.Status?], tint: MenuBarTint) -> Bool {
+        switch tint {
+        case .monochrome: false
+        case .custom: true
+        case .pace: paces.contains { $0 == .onTrack || $0 == .behind }
         }
     }
 
@@ -249,9 +267,9 @@ enum MenuBarGlyphs {
         return representation.colorAt(x: Int(point.x), y: Int(size.height - point.y))
     }
 
-    static func bars(windows: [LimitWindow], now: Date = Date()) -> NSImage {
+    static func bars(windows: [LimitWindow], tint: MenuBarTint = .pace, custom: NSColor = .labelColor, now: Date = Date()) -> NSImage {
         let paces = windows.map { Pace.status(for: $0, now: now) }
-        let tinted = paces.contains { $0 == .onTrack || $0 == .behind }
+        let tinted = isTinted(paces, tint: tint)
         let image = NSImage(size: size, flipped: false) { rect in
             let count = max(1, windows.count)
             let gap: CGFloat = 2
@@ -265,7 +283,7 @@ enum MenuBarGlyphs {
                 track.fill()
                 let fraction = CGFloat(min(1, max(0.06, window.usedFraction ?? 0)))
                 let fill = NSBezierPath(roundedRect: NSRect(x: x, y: 1, width: width, height: (rect.height - 2) * fraction), xRadius: 1.5, yRadius: 1.5)
-                Self.fill(for: paces[index]).setFill()
+                Self.fill(for: paces[index], tint: tint, custom: custom).setFill()
                 fill.fill()
             }
             return true
@@ -282,9 +300,9 @@ enum MenuBarGlyphs {
 
     /// One ring per window, the shape the readouts beside the notch already use, at menu bar size. The sweep is
     /// the fraction used, clockwise from the top, over a track of the same colour at a quarter strength.
-    static func rings(windows: [LimitWindow], now: Date = Date()) -> NSImage {
+    static func rings(windows: [LimitWindow], tint: MenuBarTint = .pace, custom: NSColor = .labelColor, now: Date = Date()) -> NSImage {
         let paces = windows.map { Pace.status(for: $0, now: now) }
-        let tinted = paces.contains { $0 == .onTrack || $0 == .behind }
+        let tinted = isTinted(paces, tint: tint)
         let size = size(count: windows.count, diameter: ringDiameter, gap: glyphGap)
         let image = NSImage(size: size, flipped: false) { rect in
             for (index, window) in windows.enumerated() {
@@ -300,7 +318,7 @@ enum MenuBarGlyphs {
                 sweep.appendArc(withCenter: centre, radius: radius, startAngle: 90, endAngle: 90 - 360 * fraction, clockwise: true)
                 sweep.lineWidth = ringWidth
                 sweep.lineCapStyle = .round
-                fill(for: paces[index]).setStroke()
+                fill(for: paces[index], tint: tint, custom: custom).setStroke()
                 sweep.stroke()
             }
             return true
@@ -313,16 +331,16 @@ enum MenuBarGlyphs {
     /// One dot per window, carrying the pace and nothing else: the quietest of the three, for a menu bar where a
     /// figure is one thing too many. It goes from the foreground colour to amber to vermillion and back, so the
     /// only time it asks for anything is the time something is running out.
-    static func dots(windows: [LimitWindow], now: Date = Date()) -> NSImage {
+    static func dots(windows: [LimitWindow], tint: MenuBarTint = .pace, custom: NSColor = .labelColor, now: Date = Date()) -> NSImage {
         let paces = windows.map { Pace.status(for: $0, now: now) }
-        let tinted = paces.contains { $0 == .onTrack || $0 == .behind }
+        let tinted = isTinted(paces, tint: tint)
         let size = size(count: windows.count, diameter: dotDiameter, gap: glyphGap)
         let image = NSImage(size: size, flipped: false) { rect in
             for index in windows.indices {
                 let box = NSRect(x: CGFloat(index) * (dotDiameter + glyphGap), y: rect.midY - dotDiameter / 2,
                                  width: dotDiameter, height: dotDiameter)
-                let quiet = paces[index] != .onTrack && paces[index] != .behind
-                fill(for: paces[index]).withAlphaComponent(quiet ? 0.45 : 1).setFill()
+                let quiet = tint == .pace && paces[index] != .onTrack && paces[index] != .behind
+                fill(for: paces[index], tint: tint, custom: custom).withAlphaComponent(quiet ? 0.45 : 1).setFill()
                 NSBezierPath(ovalIn: box).fill()
             }
             return true

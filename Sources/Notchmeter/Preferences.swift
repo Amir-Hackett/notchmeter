@@ -159,6 +159,40 @@ enum SessionAttention: String, CaseIterable, Codable {
 }
 
 /// The menu bar pin's shape: the figures as text, or up to four mini bars in one template glyph.
+/// What colours the drawn menu bar icon. Pace is the app's own vocabulary — the same amber and vermillion the
+/// rings and the pace notes use — and it is the default because it is the only one that says anything on its own.
+/// Monochrome is for a menu bar that is otherwise all one colour, and it stays a template image, so macOS paints
+/// it the way it paints every other icon there, inverted highlight included. Custom is a colour of one's own; the
+/// fraction still reads, the warning no longer does.
+enum MenuBarTint: String, CaseIterable, Codable {
+    case pace, monochrome, custom
+
+    var title: String {
+        switch self {
+        case .pace: L("By pace")
+        case .monochrome: L("Monochrome")
+        case .custom: L("Custom colour")
+        }
+    }
+}
+
+/// A colour as it is kept in the preferences: six hex digits, no alpha. Anything unreadable is the label colour,
+/// which is what the icon draws in when nothing has been chosen.
+enum HexColour {
+    static func colour(_ hex: String) -> NSColor {
+        let digits = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")).uppercased()
+        guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return .labelColor }
+        return NSColor(srgbRed: CGFloat((value >> 16) & 0xFF) / 255, green: CGFloat((value >> 8) & 0xFF) / 255,
+                       blue: CGFloat(value & 0xFF) / 255, alpha: 1)
+    }
+
+    static func hex(_ colour: NSColor) -> String {
+        guard let rgb = colour.usingColorSpace(.sRGB) else { return "FFFFFF" }
+        let byte = { (component: CGFloat) in UInt32((max(0, min(1, component)) * 255).rounded()) }
+        return String(format: "%02X%02X%02X", byte(rgb.redComponent), byte(rgb.greenComponent), byte(rgb.blueComponent))
+    }
+}
+
 enum MenuBarStyle: String, CaseIterable, Codable {
     case text, bars, rings, dots
 
@@ -508,6 +542,14 @@ final class Preferences {
     var menuBarStyle: MenuBarStyle {
         didSet { defaults.set(menuBarStyle.rawValue, forKey: Keys.menuBarStyle); report(Keys.menuBarStyle, menuBarStyle.rawValue, changed: menuBarStyle != oldValue) }
     }
+    /// What colours the drawn icon: the pace, the menu bar's own colour, or one chosen below.
+    var menuBarTint: MenuBarTint {
+        didSet { defaults.set(menuBarTint.rawValue, forKey: Keys.menuBarTint); report(Keys.menuBarTint, menuBarTint.rawValue, changed: menuBarTint != oldValue) }
+    }
+    /// The colour `MenuBarTint.custom` draws in, six hex digits.
+    var menuBarTintHex: String {
+        didSet { defaults.set(menuBarTintHex, forKey: Keys.menuBarTintHex); report(Keys.menuBarTintHex, menuBarTintHex, changed: menuBarTintHex != oldValue) }
+    }
     /// While the screen is captured, the rings lose their digits and the panel its Cost card.
     var hideFromScreenShare: Bool {
         didSet { defaults.set(hideFromScreenShare, forKey: Keys.screenShare); report(Keys.screenShare, hideFromScreenShare, changed: hideFromScreenShare != oldValue) }
@@ -802,6 +844,8 @@ final class Preferences {
         static let menuBarPin = "menuBarPin"
         static let menuBarPinnedTools = "menuBarPinnedTools"
         static let menuBarStyle = "menuBarStyle"
+        static let menuBarTint = "menuBarTint"
+        static let menuBarTintHex = "menuBarTintHex"
         static let screenShare = "hideFromScreenShare"
         static let currencyCode = "currencyCode"
         static let currencyRate = "currencyRate"
@@ -888,6 +932,8 @@ final class Preferences {
         menuBarPin = defaults.bool(forKey: Keys.menuBarPin)
         menuBarPinnedTools = Set((defaults.array(forKey: Keys.menuBarPinnedTools) as? [String] ?? []).compactMap(ToolID.init(rawValue:)))
         menuBarStyle = MenuBarStyle(rawValue: defaults.string(forKey: Keys.menuBarStyle) ?? "") ?? .text
+        menuBarTint = MenuBarTint(rawValue: defaults.string(forKey: Keys.menuBarTint) ?? "") ?? .pace
+        menuBarTintHex = defaults.string(forKey: Keys.menuBarTintHex) ?? "0072B2"
         hideFromScreenShare = defaults.bool(forKey: Keys.screenShare)
         currencyCode = defaults.string(forKey: Keys.currencyCode) ?? "USD"
         currencyRate = defaults.object(forKey: Keys.currencyRate) as? Double ?? 1

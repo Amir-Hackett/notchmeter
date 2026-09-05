@@ -611,7 +611,6 @@
 "When an assistant waits for you, or a turn finishes" = "当助手等待你，或一轮结束时";
 "When the cache tier or the metering shifts" = "缓存档位或计量发生变化时";
 "When you start paying (extra usage rises)" = "当你开始付费时（额外用量上涨）";
-"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "固定哪些助手在下方按助手选择；未选择时固定第一个可见助手。“条形”把每个固定窗口画成小条，按进度着色。";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "卡片的圆环、图例和总额包含哪些助手，顺序与“助手”中设置的一致。无法报告成本的助手不会出现在这里；未勾选的助手仍会在自己的卡片上显示成本。";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "当 Zoom、Meet、QuickTime 或屏幕共享在捕获屏幕时，圆环保留形状但隐藏数字，面板隐藏花费卡片。每五秒检查一次。";
 "Wide" = "加宽";
@@ -648,3 +647,12 @@
 
 /* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
 "Dots" = "圆点";
+
+/* The drawn menu bar icon's colour: by pace, monochrome, or one of your own (Preferences, SettingsWindow) */
+"By pace" = "按用量节奏";
+"Monochrome" = "单色";
+"Custom colour" = "自定颜色";
+"Icon colour" = "图标颜色";
+"Colour" = "颜色";
+"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "固定哪些助手在下方逐个选择；一个都不选时使用第一个显示的助手。条形把每个固定的窗口画成小条，圆环沿用刘海旁的形状，圆点只表示用量节奏。";
+"By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "“按用量节奏”使用本应用自己的琥珀色与朱红色，因此图标会指出某个窗口接近节奏或已经落后。“单色”始终保持菜单栏本身的颜色，并保持为模板图像，由 macOS 像绘制其他图标一样绘制。自定颜色保留数值，但放弃警示。";

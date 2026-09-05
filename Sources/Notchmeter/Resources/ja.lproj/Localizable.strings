@@ -595,7 +595,6 @@
 "When an assistant waits for you, or a turn finishes" = "アシスタントが待機したとき、またはターンが終わったとき";
 "When the cache tier or the metering shifts" = "キャッシュ層や計測が変わったとき";
 "When you start paying (extra usage rises)" = "支払いが始まったとき（追加使用の増加）";
-"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "どのアシスタントを固定するかは下でアシスタントごとに選びます。未選択なら最初に表示されるものです。「バー」は固定した各ウィンドウをミニバーで描き、ペースで色付けします。";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "カードのドーナツ、凡例、合計に含めるアシスタント。並び順は「アシスタント」の設定に従います。コストを報告できないアシスタントはここに現れません。外したアシスタントも自身のカードにはコストを表示します。";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Zoom、Meet、QuickTime、画面共有が画面をキャプチャしている間、リングは形を保ったまま数値を隠し、パネルはコストカードを隠します。5 秒ごとに確認します。";
 "Wide" = "ワイド";
@@ -632,3 +631,12 @@
 
 /* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
 "Dots" = "ドット";
+
+/* The drawn menu bar icon's colour: by pace, monochrome, or one of your own (Preferences, SettingsWindow) */
+"By pace" = "ペースに応じて";
+"Monochrome" = "モノクロ";
+"Custom colour" = "任意の色";
+"Icon colour" = "アイコンの色";
+"Colour" = "色";
+"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "どのアシスタントをピン留めするかは下のアシスタントごとに選びます。何も選ばなければ、表示中の最初のものになります。バーはピン留めした各ウインドウをミニバーで、リングはノッチ横と同じ形で、ドットはペースだけを描きます。";
+"By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "「ペースに応じて」はこのアプリのアンバーとバーミリオンを使い、ウインドウがペースに近づいたとき、遅れているときをアイコンが伝えます。「モノクロ」は常にメニューバー自身の色のままで、macOS が他のアイコンと同じように描くテンプレート画像を保ちます。任意の色は数値は残しますが、警告は失われます。";

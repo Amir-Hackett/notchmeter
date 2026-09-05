@@ -190,7 +190,23 @@ struct SettingsView: View {
                     ForEach(MenuBarStyle.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .disabled(!prefs.menuBarPin)
-                .help(L("Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace."))
+                .help(L("Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone."))
+                // Only for the drawn styles: Text is drawn by the menu bar itself, in the colour it uses for
+                // everything else, and nothing here could change that without fighting it.
+                if prefs.menuBarStyle != .text {
+                    Picker(L("Icon colour"), selection: Binding(get: { prefs.menuBarTint }, set: { prefs.menuBarTint = $0 })) {
+                        ForEach(MenuBarTint.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .disabled(!prefs.menuBarPin)
+                    .help(L("By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning."))
+                    if prefs.menuBarTint == .custom {
+                        ColorPicker(L("Colour"), selection: Binding(
+                            get: { Color(nsColor: HexColour.colour(prefs.menuBarTintHex)) },
+                            set: { prefs.menuBarTintHex = HexColour.hex(NSColor($0)) }
+                        ), supportsOpacity: false)
+                        .disabled(!prefs.menuBarPin)
+                    }
+                }
                 if !prefs.menuBarPin {
                     Text(L("Turn on Pin figures beside the icon to use this."))
                         .font(.caption).foregroundStyle(.secondary)

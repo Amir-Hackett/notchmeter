@@ -595,7 +595,6 @@
 "When an assistant waits for you, or a turn finishes" = "Khi một trợ lý chờ bạn, hoặc một lượt xong";
 "When the cache tier or the metering shifts" = "Khi mức cache hoặc cách đo thay đổi";
 "When you start paying (extra usage rises)" = "Khi bạn bắt đầu trả tiền (dùng thêm tăng)";
-"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "Trợ lý nào được ghim chọn theo từng trợ lý bên dưới; không chọn thì là trợ lý hiển thị đầu tiên. Thanh vẽ mỗi cửa sổ được ghim thành thanh nhỏ, tô màu theo nhịp.";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "Những trợ lý mà vòng tròn, chú giải và tổng của thẻ bao gồm, theo thứ tự đặt ở mục Trợ lý. Trợ lý không thể báo chi phí không bao giờ có ở đây; trợ lý bị bỏ ra vẫn hiện chi tiêu trên thẻ của chính nó.";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Khi Zoom, Meet, QuickTime hoặc Chia sẻ màn hình đang ghi màn hình, các vòng giữ hình dạng nhưng ẩn số, và bảng ẩn thẻ Chi phí. Kiểm tra mỗi năm giây.";
 "Wide" = "Rộng";
@@ -632,3 +631,12 @@
 
 /* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
 "Dots" = "Chấm";
+
+/* The drawn menu bar icon's colour: by pace, monochrome, or one of your own (Preferences, SettingsWindow) */
+"By pace" = "Theo nhịp dùng";
+"Monochrome" = "Đơn sắc";
+"Custom colour" = "Màu tự chọn";
+"Icon colour" = "Màu biểu tượng";
+"Colour" = "Màu";
+"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "Chọn ghim trợ lý nào ở từng trợ lý bên dưới; nếu không chọn gì, trợ lý hiển thị đầu tiên sẽ được dùng. Thanh vẽ mỗi cửa sổ đã ghim thành một thanh nhỏ, Vòng vẽ theo hình bên cạnh notch, Chấm chỉ vẽ nhịp dùng.";
+"By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "Theo nhịp dùng dùng màu hổ phách và đỏ son của chính ứng dụng, nên biểu tượng cho biết khi một cửa sổ sắp chạm nhịp hoặc đã tụt lại. Đơn sắc luôn giữ màu của chính thanh trình đơn và vẫn là ảnh mẫu để macOS vẽ như mọi biểu tượng khác. Màu tự chọn giữ lại các con số nhưng bỏ đi lời cảnh báo.";

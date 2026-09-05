@@ -595,7 +595,6 @@
 "When an assistant waits for you, or a turn finishes" = "어시스턴트가 대기하거나 턴이 끝날 때";
 "When the cache tier or the metering shifts" = "캐시 계층이나 측정이 바뀔 때";
 "When you start paying (extra usage rises)" = "결제가 시작될 때(추가 사용 증가)";
-"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "어떤 어시스턴트를 고정할지는 아래에서 어시스턴트별로 고릅니다. 고르지 않으면 첫 번째 표시되는 어시스턴트입니다. 막대는 고정된 각 창을 작은 막대로 그리고 속도에 따라 색을 입힙니다.";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "카드의 도넛, 범례, 합계에 포함할 어시스턴트입니다. 순서는 어시스턴트 설정을 따릅니다. 비용을 알릴 수 없는 어시스턴트는 여기에 나오지 않으며, 제외한 어시스턴트도 자기 카드에는 비용을 표시합니다.";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Zoom, Meet, QuickTime 또는 화면 공유가 화면을 캡처하는 동안 링은 모양을 유지하되 숫자를 숨기고, 패널은 비용 카드를 숨깁니다. 5초마다 확인합니다.";
 "Wide" = "넓게";
@@ -632,3 +631,12 @@
 
 /* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
 "Dots" = "점";
+
+/* The drawn menu bar icon's colour: by pace, monochrome, or one of your own (Preferences, SettingsWindow) */
+"By pace" = "페이스에 따라";
+"Monochrome" = "단색";
+"Custom colour" = "직접 고른 색";
+"Icon colour" = "아이콘 색";
+"Colour" = "색";
+"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "어떤 어시스턴트를 고정할지는 아래에서 어시스턴트마다 고릅니다. 아무것도 고르지 않으면 표시 중인 첫 번째 것이 쓰입니다. 막대는 고정된 각 창을 작은 막대로, 링은 노치 옆과 같은 모양으로, 점은 페이스만 그립니다.";
+"By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "‘페이스에 따라’는 이 앱의 앰버와 버밀리언을 써서 창이 페이스에 가까워졌는지 뒤처졌는지를 아이콘이 알려 줍니다. ‘단색’은 무슨 일이 있어도 메뉴 막대 자체의 색을 유지하며, macOS가 다른 아이콘과 똑같이 그리는 템플릿 이미지로 남습니다. 직접 고른 색은 수치는 남기고 경고는 포기합니다.";

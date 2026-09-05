@@ -140,6 +140,24 @@ import Testing
         #expect(dots.isTemplate)
         #expect(!MenuBarGlyphs.dots(windows: behind, now: now).isTemplate)
         #expect(MenuBarStyle.allCases.map(\.rawValue) == ["text", "bars", "rings", "dots"])
+        // The icon's colour is a choice: the pace's own amber and vermillion, the menu bar's colour whatever
+        // happens, or one of your own. Monochrome stays a template, so macOS paints it like every other icon;
+        // a custom colour never can be one, since a template throws the colour away.
+        let chosen = NSColor(srgbRed: 0, green: 0.45, blue: 0.7, alpha: 1)
+        #expect(MenuBarGlyphs.fill(for: .behind, tint: .pace, custom: chosen) == NSColor(Palette.danger))
+        #expect(MenuBarGlyphs.fill(for: .behind, tint: .monochrome, custom: chosen) == .labelColor)
+        #expect(MenuBarGlyphs.fill(for: .ahead, tint: .monochrome, custom: chosen) == .labelColor)
+        #expect(MenuBarGlyphs.fill(for: .behind, tint: .custom, custom: chosen) == chosen)
+        #expect(MenuBarGlyphs.fill(for: .ahead, tint: .custom, custom: chosen) == chosen)
+        #expect(MenuBarGlyphs.isTinted([.behind], tint: .monochrome) == false)
+        #expect(MenuBarGlyphs.isTinted([.ahead], tint: .custom))
+        #expect(MenuBarGlyphs.isTinted([.ahead], tint: .pace) == false)
+        #expect(MenuBarGlyphs.bars(windows: behind, tint: .monochrome, now: now).isTemplate)
+        #expect(!MenuBarGlyphs.dots(windows: claude, tint: .custom, custom: chosen, now: now).isTemplate)
+        // A colour survives the round trip through the preferences, and nonsense reads as the label colour.
+        #expect(HexColour.hex(chosen) == "0073B3")
+        #expect(HexColour.hex(HexColour.colour("0072B2")) == "0072B2")
+        #expect(HexColour.colour("nope") == .labelColor)
     }
 
     @Test func theAwakeRuleHoldsOnlyWhileWorkingOnPower() {
