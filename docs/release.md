@@ -110,6 +110,8 @@ and the appcast is verified against it before anything is published.
 `.github/workflows/release.yml` runs on every `v*` tag. With these repository secrets it signs, notarises and
 publishes; without them it publishes an unsigned DMG as a prerelease, says so in the job summary, and refuses to touch
 a release that already exists. Optional only if every release is published by hand (path b in "Each release").
+Whether all seven exist is reported, by name and never by value, in the summary of the *release secrets present* job
+of `.github/workflows/secrets.yml` on every push, so it is known before a tag, not from one.
 
 | Secret | Value |
 |---|---|
