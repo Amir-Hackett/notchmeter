@@ -612,3 +612,7 @@
 "~%ld%% left at reset" = "초기화 시 약 %ld%% 남음";
 "~%ld%% over at reset" = "초기화 시 약 %ld%% 초과";
 "“%@” is off in Settings" = "설정의 “%@”이(가) 꺼져 있습니다";
+
+/* Settings › About: the optional support link (SettingsWindow) */
+"Support %@…" = "%@ 후원하기…";
+"An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay." = "원하는 금액으로 후원할 수 있는 선택 사항 페이지입니다. 앱의 어떤 기능도 제한되지 않으며, 후원 후에도 달라지는 것은 없습니다.";

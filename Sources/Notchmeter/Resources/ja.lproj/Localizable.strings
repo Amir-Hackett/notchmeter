@@ -612,3 +612,7 @@
 "~%ld%% left at reset" = "リセット時に約 %ld%% 残る見込み";
 "~%ld%% over at reset" = "リセット時に約 %ld%% 超過";
 "“%@” is off in Settings" = "設定の「%@」がオフです";
+
+/* Settings › About: the optional support link (SettingsWindow) */
+"Support %@…" = "%@ を支援する…";
+"An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay." = "任意の金額で支援できるページです。アプリの機能に制限はなく、支払い後も何も変わりません。";

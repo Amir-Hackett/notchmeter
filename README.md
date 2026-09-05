@@ -46,6 +46,8 @@ The pictures are drawn by `Notchmeter --render-assets docs/media` from the real 
 
 macOS 14 or later, Apple silicon or Intel.
 
+Notchmeter is free and stays free. If it earns its place in your notch, you can [support the project](https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800) — optional, any amount, and the same link sits under Settings › About.
+
 ### Testing a pre-release build
 
 An unsigned or ad-hoc-signed build (the CI artifact, a `--dry-run` DMG, anything before the Developer ID exists) is refused by Gatekeeper on any Mac but the one that built it. On macOS 15 and later, right-click › Open no longer bypasses that. Two routes: open it once, let it be refused, then allow it under System Settings › Privacy & Security › *Open Anyway*; or remove the quarantine attribute before the first launch:
