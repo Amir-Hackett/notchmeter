@@ -173,12 +173,17 @@ else
   $DMG       universal, Developer ID, hardened runtime, notarised, stapled
   $APPCAST   signed; verified against SUPublicEDKey
   sha256 $SHA256
-Publish:
-  1. git tag v$VERSION && git push origin v$VERSION
-  2. gh release create v$VERSION $DMG $APPCAST --title "Notchmeter $VERSION" --generate-notes
-     (a tag push runs .github/workflows/release.yml, which does 2 itself when the signing secrets are set)
-  3. curl -fsSL $FEED_URL | grep -c '<sparkle:version>$BUILD_NUMBER</sparkle:version>'   # expect 1
-  4. packaging/homebrew/notchmeter.rb: version "$VERSION", sha256 "$SHA256"
-  5. On a Mac that never saw this build: open the DMG, drag, launch; Options menu shows "Check for Updates…"
+Publish, one of these and never both (two publishers on one tag is how a notarised DMG gets replaced):
+  a. Signing secrets set in GitHub (docs/release.md, step 5):
+       git tag v$VERSION && git push origin v$VERSION
+     release.yml rebuilds from the tag, signs, notarises and creates the release with its DMG and appcast.
+     This build was the rehearsal; do not run gh release create as well.
+  b. No secrets in GitHub:
+       gh release create v$VERSION $DMG $APPCAST --title "Notchmeter $VERSION" --generate-notes
+     That creates the tag too. The workflow it fires finds a published release and refuses to touch it.
+Then:
+  1. curl -fsSL $FEED_URL | grep '<sparkle:version>'   # $BUILD_NUMBER, when this build was made from the commit you tagged
+  2. packaging/homebrew/notchmeter.rb: version "$VERSION", sha256 "$SHA256" (path a: the sha256 in the job summary)
+  3. On a Mac that never saw this build: open the DMG, drag, launch; Options menu shows "Check for Updates…"
 CHECKLIST
 fi

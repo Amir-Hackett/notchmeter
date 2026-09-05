@@ -83,32 +83,33 @@ and in CI.
 
 ### 4. Sparkle signing key
 
+The key exists. `scripts/Info.plist` carries its public half as `SUPublicEDKey`, the v0.1.0 appcast is signed with its
+private half, and every installed copy verifies updates against it. **Never generate a second one.** A build signed
+with a new key is refused by every copy already installed, there is no way to tell them the key changed, and the
+updater does not recover from it; that is the one mistake this pipeline cannot undo.
+
 Sparkle's tools come with the package; any `swift build` leaves them under `.build/artifacts/sparkle/Sparkle/bin/`.
+On the Mac that made the key, `generate_appcast` reads it from the login keychain and `scripts/release.sh` needs
+nothing. On any other Mac, hand the script the backed-up export instead of running `generate_keys`:
 
 ```bash
-.build/artifacts/sparkle/Sparkle/bin/generate_keys
+SPARKLE_KEY_PATH=~/sparkle-private-key.txt DEVELOPER_ID_APP="..." NOTARY_PROFILE=notchmeter scripts/release.sh
 ```
 
-That stores a private EdDSA key in your login keychain (once; running it again prints the same key) and prints an
-`SUPublicEDKey` block. Put the printed public key into `scripts/Info.plist` in place of
-`REPLACE_WITH_SPARKLE_PUBLIC_KEY` and commit it. Until that placeholder is replaced the app never starts the updater,
-`scripts/release.sh` refuses to build a real release, and `--smoke` reports `updater: inactive: SUPublicEDKey is not a
-32-byte EdDSA key`.
-
-Back the private key up outside the repository, for instance in a password manager:
-
-```bash
-.build/artifacts/sparkle/Sparkle/bin/generate_keys -x ~/sparkle-private-key.txt
-```
-
-It is the only key that can sign an update for every copy already installed. Lose it and existing users can never be
-updated in place again; leak it and anyone can push them a build. Never commit it; `dist/` and `build/` are ignored,
+The export was made on the original Mac with `generate_keys -x ~/sparkle-private-key.txt`, and the same command
+re-exports it from that keychain. Keep it outside the repository, for instance in a password manager. It is the only
+key that can sign an update for every copy already installed. Lose it and existing users can never be updated in place
+again; leak it and anyone can push them a build. Never commit it; `dist/` and `build/` are ignored, and
 `~/sparkle-private-key.txt` should not be near the repo at all.
 
-### 5. GitHub Actions secrets (optional)
+`scripts/release.sh`, `scripts/appcast-check.swift` and `--smoke` all check that `SUPublicEDKey` decodes to 32 bytes,
+and the appcast is verified against it before anything is published.
+
+### 5. GitHub Actions secrets
 
 `.github/workflows/release.yml` runs on every `v*` tag. With these repository secrets it signs, notarises and
-publishes; without them it publishes an unsigned DMG as a prerelease and says so in the job summary.
+publishes; without them it publishes an unsigned DMG as a prerelease, says so in the job summary, and refuses to touch
+a release that already exists. Optional only if every release is published by hand (path b in "Each release").
 
 | Secret | Value |
 |---|---|
@@ -124,7 +125,8 @@ publishes; without them it publishes an unsigned DMG as a prerelease and says so
 
 1. Bump `CFBundleShortVersionString` in `scripts/Info.plist` and commit. The release refuses to build if the tag and
    the plist disagree. `CFBundleVersion`, which Sparkle compares, is stamped from `git rev-list --count HEAD`, so it
-   only grows and is the same number locally and in CI for the same commit.
+   only grows and is the same number locally and in CI for the same commit. Build from the commit you tag: v0.1.0 was
+   built from a branch three commits past its tag, which is why it shipped as build 89 while the tag counts 86.
 2. Build:
 
    ```bash
@@ -141,14 +143,16 @@ publishes; without them it publishes an unsigned DMG as a prerelease and says so
    everyone else keeps the last stable item. Because the feed is the newest non-prerelease's `appcast.xml`, a beta is
    published as a GitHub prerelease for its DMG, and the merged appcast (`PREVIOUS_APPCAST` plus the beta item) is
    re-uploaded to the current stable release's assets so the feed carries both items.
-3. Publish. The script ends with the exact commands; in short:
+3. Publish, one way or the other and never both: two publishers on one tag is how a notarised DMG gets replaced.
 
-   ```bash
-   git tag v0.2.0 && git push origin v0.2.0
-   gh release create v0.2.0 dist/Notchmeter.dmg dist/appcast.xml --title "Notchmeter 0.2.0" --generate-notes
-   ```
+   - **Secrets set (step 5)**: `git tag v0.2.0 && git push origin v0.2.0`. The workflow rebuilds from the tag, signs,
+     notarises and creates the release with the DMG and the appcast (it fetches the previous appcast itself). The
+     local build was the rehearsal; do not `gh release create` as well.
+   - **No secrets**: `gh release create v0.2.0 dist/Notchmeter.dmg dist/appcast.xml --title "Notchmeter 0.2.0" --generate-notes`.
+     That creates the tag as well; the workflow it fires finds a published release and leaves it alone.
 
-   Or push the tag alone and let the workflow build and publish (it fetches the previous appcast itself).
+   The script ends with the same two paths. Either way the workflow never replaces a `Notchmeter.dmg` that is already
+   on a release: publishing again means a new tag, or deleting the asset first, on purpose.
 4. Confirm the feed moved: `curl -fsSL <feed> | grep sparkle:version`. Installed copies check once a day
    (`SUScheduledCheckInterval` 86400) and on *Options → Check for Updates…*.
 5. Update `packaging/homebrew/notchmeter.rb` with the version and the DMG's sha256 the script printed.

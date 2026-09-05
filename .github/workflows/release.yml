@@ -111,14 +111,29 @@ jobs:
         run: VERSION="${TAG#v}" scripts/release.sh --dry-run
 
       - name: Publish to the GitHub release
+        # One publisher per tag. A release that already carries a Notchmeter.dmg was published by someone, by hand or
+        # by an earlier run of this job, and installed copies may already have been offered it; this step never
+        # replaces that file. Publishing again is a new tag, or deleting the asset first, on purpose.
         run: |
+          if gh release view "$TAG" --json assets -q '.assets[].name' 2>/dev/null | grep -qx Notchmeter.dmg; then
+            echo "::error::$TAG already carries a Notchmeter.dmg; refusing to replace a published build. Bump the version and tag again, or delete the asset first if this re-run is deliberate."
+            exit 1
+          fi
           if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
             gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "Notchmeter ${TAG#v}" --generate-notes
             gh release upload "$TAG" dist/Notchmeter.dmg dist/appcast.xml --clobber
           else
             # A prerelease keeps releases/latest, and with it SUFeedURL, on the last signed build; no appcast is uploaded
-            # because an ad-hoc build can never be installed as an update.
-            gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "Notchmeter ${TAG#v} (unsigned)" --generate-notes --prerelease
+            # because an ad-hoc build can never be installed as an update. And an ad-hoc build never goes onto a release
+            # that is not a prerelease: that page is where people who trust Gatekeeper download from.
+            if gh release view "$TAG" > /dev/null 2>&1; then
+              if [ "$(gh release view "$TAG" --json isPrerelease -q .isPrerelease)" != "true" ]; then
+                echo "::error::$TAG is a published release; refusing to put an unsigned build on it. Set the signing secrets (docs/release.md, step 5) and re-run."
+                exit 1
+              fi
+            else
+              gh release create "$TAG" --title "Notchmeter ${TAG#v} (unsigned)" --generate-notes --prerelease
+            fi
             gh release upload "$TAG" dist/Notchmeter.dmg --clobber
           fi
 
