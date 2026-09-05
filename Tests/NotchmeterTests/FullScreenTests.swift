@@ -76,6 +76,7 @@ import Testing
             display: fourteenBarAway,
             chrome: ["Window Server L24 1512×33 y=0"])
         #expect(FullScreen.describe(scan) == "active=true display=1512×982 safeAreaTop=32 menuBar=away "
+            + "suspect=true apps=2[Google Chrome×1, Finder×1] "
             + "windows=[Google Chrome 1512×949] top=[Window Server L24 1512×33 y=0]")
     }
 

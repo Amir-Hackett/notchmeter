@@ -121,13 +121,23 @@ enum FullScreen {
     }
 
     /// The same line over a reading already taken, so a log line and the verdict it explains come from one scan.
+    ///
+    /// `apps` is every other application with a window on screen. A full-screen Space holds the one app's
+    /// windows and nothing else, where a desktop holds every unminimised window whether or not one covers the
+    /// rest, so the company a covering window keeps says which of the two it is.
     static func describe(_ reading: Scan) -> String {
         let display = reading.display
         let big = reading.candidates.filter { $0.size.width >= display.size.width / 2 && $0.size.height >= display.size.height / 2 }
-        let windows = big.prefix(6).map { "\($0.owner) \(Int($0.size.width))×\(Int($0.size.height))" }.joined(separator: ", ")
+        let windows = big.prefix(8).map { "\($0.owner) \(Int($0.size.width))×\(Int($0.size.height))" }.joined(separator: ", ")
+        var counts: [(String, Int)] = []
+        for candidate in reading.candidates {
+            if let at = counts.firstIndex(where: { $0.0 == candidate.owner }) { counts[at].1 += 1 } else { counts.append((candidate.owner, 1)) }
+        }
+        let apps = counts.prefix(12).map { "\($0.0)×\($0.1)" }.joined(separator: ", ")
         return "active=\(isActive(reading.candidates, on: display)) display=\(Int(display.size.width))×\(Int(display.size.height)) "
             + "safeAreaTop=\(Int(display.safeAreaTop)) menuBar=\(display.menuBarShowing ? "showing" : "away") "
-            + "windows=[\(windows)] top=[\(reading.chrome.prefix(6).joined(separator: ", "))]"
+            + "suspect=\(isSuspect(reading.candidates, on: display)) apps=\(counts.count)[\(apps)] "
+            + "windows=[\(windows)] top=[\(reading.chrome.joined(separator: ", "))]"
     }
 }
 
@@ -169,6 +179,10 @@ final class FullScreenWatch {
         let reading = FullScreen.scan(on: screen())
         let active = FullScreen.isActive(reading.candidates, on: reading.display)
         setPolling(active || FullScreen.isSuspect(reading.candidates, on: reading.display))
+        // Every reading, not only the ones that change the verdict: `log stream --level debug` beside a
+        // full-screen app is how a wrong answer on a particular Mac is read off, and the terminal keeps
+        // streaming while the Space it is asking about is the one on screen.
+        log.debug("full screen reading: \(FullScreen.describe(reading), privacy: .public)")
         if active != isActive {
             isActive = active
             log.info("full screen \(active ? "entered" : "left", privacy: .public): \(FullScreen.describe(reading), privacy: .public)")
