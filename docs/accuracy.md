@@ -26,7 +26,7 @@ A tool whose spend cannot be derived from a real source has **no row at all**, a
 |---|---|---|---|---|
 | **Claude Code** | `localTranscripts` — this Mac's transcripts, priced here at Anthropic's published rates | every request a transcript records: five token buckets, per model, per project, ×1.1 US residency, web search | contracted rates, cloud regional premiums, usage-credit rates, other Macs, claude.ai chat | dollars, an hour and a burn multiple |
 | **Codex** | `localSessions` — this Mac's session rollouts, priced here at OpenAI's published rates | every turn a rollout records: fresh input, cached input, whole output, per model, per folder | what a ChatGPT plan already includes, a turn naming no model, a model with no published rate | dollars, an hour and a burn multiple |
-| **Cursor** | `billingExport` — Cursor's own usage-events export (opt-in) | nothing: every dollar is the one **Cursor itself** put on that event | anything Cursor left unpriced, and anything older than the 30 days the export returns | dollars, day resolution, no hour |
+| **Cursor** | `billingExport` — Cursor's own usage-events export (on by default, can be switched off) | nothing: every dollar is the one **Cursor itself** put on that event | anything Cursor left unpriced, and anything older than the 30 days the export returns | dollars, day resolution, no hour |
 | **GitHub Copilot** | none | nothing | — | **no cost** |
 | **Antigravity** | none | nothing | — | **no cost** |
 
@@ -207,7 +207,7 @@ The even-burn projection and the last-hour drain both answer with one time. The 
 
 ## Session metering
 
-Anthropic meters the session window in something other than tokens, and the ratio moves: the same work costs a different share of the window on different days. Notchmeter measures the ratio it can see: the current 5-hour block's tokens (from the transcripts, aligned to `five_hour.resets_at`) divided by the session window's used percentage from the same reading, "1.1M tokens per 1% of session", recorded once a day in the daily-history file (`sessionTokensPerPercent`) and compared with the median of the last 30 days' values (at least four are needed). When today's figure is half the median or less, that is, the session is metering at least twice as heavily as usual, the Cost card says so and the Advice strip carries "The session is metering about 2.1x heavier than your norm"; the *When the cache tier or the metering shifts* notification fires for it once a day. A ratio under 1 % of the window used is not recorded, because the division is too noisy there.
+Anthropic meters the session window in something other than tokens, and the ratio moves: the same work costs a different share of the window on different days. Notchmeter measures the ratio it can see: the current 5-hour block's tokens (from the transcripts, aligned to `five_hour.resets_at`) divided by the session window's used percentage from the same reading, "1.1M tokens per 1% of session", recorded once a day in the daily-history file (`sessionTokensPerPercent`) and compared with the median of the last 30 days' values (at least five are needed). When today's figure is half the median or less, that is, the session is metering at least twice as heavily as usual, the Cost card says so and the Advice strip carries "The session is metering about 2.1x heavier than your norm"; the *When the cache tier or the metering shifts* notification fires for it once a day. A ratio under 2 % of the window used is not recorded, because the division is too noisy there.
 
 ## The cache tier shift
 
@@ -217,7 +217,7 @@ Per [A], a subscription gets the 1-hour cache TTL inside the plan's included usa
 
 A budget is one number over every tool, so the spend it is measured against is the total across the rows, not Claude Code's alone. Where more than one tool is spending, the advice names whichever is most of it — "At this rate the month costs $310 against a $200 budget. Claude Code is $240 of it." — because that is where a cut would come from.
 
-A monthly or weekly budget (Settings › Cost, in the currency shown) is treated as one more window: the month's spend over the budget is the used fraction, the calendar month (or the week from its start) is the period, the same pace tick applies, and the on-track, behind and run-out notifications fire for it with the month as their once-per-period memory. Its `source` is `localEstimate`, because both sides of the fraction are this Mac's arithmetic. The extra-usage notice ("Extra usage rose $4.20 in 1h while your plan has 87% left") reads the vendor's own extra-usage figure from the usage endpoint and says it once a month, louder while the plan still has room.
+A monthly or weekly budget (Settings › Usage display, in the currency shown) is treated as one more window: the month's spend over the budget is the used fraction, the calendar month (or the week from its start) is the period, the same pace tick applies, and the on-track, behind and run-out notifications fire for it with the month as their once-per-period memory. Its `source` is `localEstimate`, because both sides of the fraction are this Mac's arithmetic. The extra-usage notice ("Extra usage rose $4.20 in 1h while your plan has 87% left") reads the vendor's own extra-usage figure from the usage endpoint and says it once a month, louder while the plan still has room.
 
 ## Codex sessions
 
@@ -291,7 +291,7 @@ Day totals are appended to the same daily-history file Claude Code uses, under t
 
 ## Cursor's usage events
 
-With *Also read Cursor's usage events* on (off by default), a second read of cursor.com on the same session cookie (`POST /api/dashboard/get-filtered-usage-events`, the request the dashboard's usage page makes) returns the last 30 days of usage events with the cost Cursor itself assigns to each. **Nothing is priced here.** Every dollar on the Cursor row is the one Cursor put on that event, which is why the row's source reads "billing export" rather than an estimate, and why a request or a model Cursor left unpriced stays unpriced instead of being valued at somebody else's rates.
+With *Also read Cursor's usage events* on (on by default; it can be switched off in Settings), a second read of cursor.com on the same session cookie (`POST /api/dashboard/get-filtered-usage-events`, the request the dashboard's usage page makes) returns the last 30 days of usage events with the cost Cursor itself assigns to each. **Nothing is priced here.** Every dollar on the Cursor row is the one Cursor put on that event, which is why the row's source reads "billing export" rather than an estimate, and why a request or a model Cursor left unpriced stays unpriced instead of being valued at somebody else's rates.
 
 Events are folded by local day into the daily-history file under the `cursor` tool key — cost, tokens, and cost and tokens per model where the event names one — and read back as a full row on the Cost card: today, yesterday, the week, the month, 30 and 90 days, the daily trend under the Cursor card, and the per-model shares in the range's breakdown.
 

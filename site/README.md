@@ -5,7 +5,7 @@ The marketing site: two static pages, one stylesheet, no build step and no depen
 ```
 site/
   index.html     the landing page
-  pricing.html   Free forever / Teams
+  pricing.html   Free forever, pay what you want
   style.css      the whole design
   img/           copied from ../docs/media by scripts/site-assets.sh
 ```
@@ -18,12 +18,12 @@ python3 -m http.server -d site 8000
 
 ## Deploying
 
-It is plain static files, so anything will host it. Two that need no configuration:
+It is deployed by Vercel from `main` with `site` as the root directory, so a merge to `main` is a deploy (the pull request gets a preview). It is plain static files, so anything else would host it too; two that need no configuration:
 
 - **GitHub Pages** — Settings › Pages › Deploy from a branch, folder `/site`.
 - **Vercel / Netlify** — point the project at this repository with `site` as the output directory and no build command.
 
-`notchmeter.app` is the preferred domain (see the Domain section of [docs/roadmap.md](../docs/roadmap.md)); until it is registered the repository URL is the address everywhere.
+The site is at https://www.notchmeter.com; both pages carry that host in their canonical and share URLs.
 
 ## Keeping the pictures current
 
@@ -35,11 +35,9 @@ scripts/build.sh
 scripts/site-assets.sh
 ```
 
-## Before it goes live
+## What the pages promise
 
-Two placeholders are deliberate and both are marked in the source:
-
-1. **The Teams waitlist form** in `pricing.html` posts nowhere. Point its `action` at a form endpoint — Formspree, Buttondown, Tally, a Cloudflare Worker, whatever you already use — or delete the form and keep the `mailto:` line under it.
-2. **`hello@notchmeter.app`** is not a real mailbox yet. Change it to one that is.
-
-Also worth a look before launch: the download button links at the `Notchmeter.dmg` of the latest GitHub release, which does not exist until v0.1.0 is published. The README's Install section says the same thing and carries the same caveat.
+The download button links at the `Notchmeter.dmg` of the latest GitHub release, so it serves whichever release is
+current (v0.1.0 since 2026-09-05), and the Homebrew line names the tap. The figures on the pages (energy, resident
+size, poll cadence, what is and is not read) are the README's; change them there first and here second, because a
+number on this page that the README cannot back is the one defect the README's own energy section exists to rule out.

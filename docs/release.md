@@ -1,7 +1,8 @@
 # Releasing Notchmeter
 
-A local `scripts/build.sh` build is ad-hoc signed: it runs on the Mac that built it, Gatekeeper refuses it anywhere
-else, and the in-app updater stays off. A release is different in four ways, and `scripts/release.sh` does all four:
+A local `scripts/build.sh` build is ad-hoc signed, or signed with the local identity from `scripts/signing-identity.sh`
+when that exists: it runs on the Mac that built it, Gatekeeper refuses it anywhere else, and with the ad-hoc signature
+the in-app updater stays off. A release is different in four ways, and `scripts/release.sh` does all four:
 
 1. **Universal binary** (arm64 + x86_64), one SwiftPM slice per architecture, joined with `lipo`.
 2. **Developer ID signature with the hardened runtime**, applied inside out: Sparkle's XPC services and helpers, then
@@ -29,9 +30,9 @@ ad-hoc signature lacks), no notarisation, and a throwaway appcast key stamped in
 be. It leaves a mountable `dist/Notchmeter.dmg` and a signed `dist/appcast.xml` that verifies against that throwaway
 key, so the pipeline is proved on a Mac with no Apple Developer account; it produces nothing you can ship.
 
-## Testing a build before the Developer ID exists
+## Testing an unsigned build
 
-Everything `scripts/build.sh`, the CI artifact and `--dry-run` produce is ad-hoc signed, and Gatekeeper refuses it on any Mac but the one that built it. On macOS 15 (Sequoia) and later, right-click › Open no longer bypasses that. The two routes that work: launch it once and let it be refused, then System Settings › Privacy & Security › *Open Anyway*; or clear the quarantine attribute first, `xattr -d com.apple.quarantine /Applications/Notchmeter.app` (`brew install --cask --no-quarantine` does the same for the tap). A quarantined copy launched from Downloads or the DMG runs App-Translocated, from a random read-only path; the app detects that and offers to move itself to /Applications, and `--smoke` prints the bundle path and whether it is translocated. The README carries the same two paragraphs for users. The notarised release removes all of this and is blocked on step 1 below.
+Everything `scripts/build.sh`, the CI artifact and `--dry-run` produce is ad-hoc signed, and Gatekeeper refuses it on any Mac but the one that built it. On macOS 15 (Sequoia) and later, right-click › Open no longer bypasses that. The two routes that work: launch it once and let it be refused, then System Settings › Privacy & Security › *Open Anyway*; or clear the quarantine attribute first, `xattr -d com.apple.quarantine /Applications/Notchmeter.app` (`brew install --cask --no-quarantine` does the same for the tap). A quarantined copy launched from Downloads or the DMG runs App-Translocated, from a random read-only path; the app detects that and offers to move itself to /Applications, and `--smoke` prints the bundle path and whether it is translocated. The README carries the same two paragraphs for users. The notarised release needs none of this.
 
 ## One-time setup
 
@@ -141,7 +142,7 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
    waits and fails loudly with the `notarytool log` command if Apple rejects the build.
 
    `scripts/release.sh --channel beta` writes `<sparkle:channel>beta</sparkle:channel>` into the new appcast item, so
-   only copies with *Beta updates* on (Settings › Advanced; `Updater.swift`, `allowedChannels`) are offered it and
+   only copies with *Beta updates* on (Settings › Updates; `Updater.swift`, `allowedChannels`) are offered it and
    everyone else keeps the last stable item. Because the feed is the newest non-prerelease's `appcast.xml`, a beta is
    published as a GitHub prerelease for its DMG, and the merged appcast (`PREVIOUS_APPCAST` plus the beta item) is
    re-uploaded to the current stable release's assets so the feed carries both items.
@@ -157,7 +158,7 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
    on a release: publishing again means a new tag, or deleting the asset first, on purpose.
 4. Confirm the feed moved: `curl -fsSL <feed> | grep sparkle:version`. Installed copies check once a day
    (`SUScheduledCheckInterval` 86400) and on *Options → Check for Updates…*.
-5. Update `packaging/homebrew/notchmeter.rb` with the version and the DMG's sha256 the script printed.
+5. Update `packaging/homebrew/notchmeter.rb` with the version and the DMG's sha256 (the script prints it; on path a it is in the job summary), then copy the file to `Casks/notchmeter.rb` in `Amir-Hackett/homebrew-tap` and push. `brew upgrade --cask notchmeter` should then report the new version; the tap is what users install from, not this repository's copy.
 
 ### Verifying on a clean Mac
 
@@ -178,7 +179,7 @@ The gate the app applies before starting Sparkle is in `Sources/Notchmeter/Updat
 `packaging/homebrew/notchmeter.rb` is the cask. homebrew/cask's acceptance policy
 (<https://docs.brew.sh/Package-Acceptance-Policy>) wants a repository at least 30 days old with 30 forks, 30 watchers
 or 75 stars for a general submission, and 90 forks, 90 watchers or 225 stars for a self-submission by the owner. Until
-then, a tap works for everyone today: create a repository `Amir-Hackett/homebrew-tap` with the cask at
+then, the tap works for everyone today: the cask is published from `Amir-Hackett/homebrew-tap` (a copy of `packaging/homebrew/notchmeter.rb`) at
 `Casks/notchmeter.rb`, and users run `brew tap Amir-Hackett/tap && brew install --cask notchmeter`. When the gate is
 met, `brew bump-cask-pr` or a pull request to homebrew/cask with the same file.
 

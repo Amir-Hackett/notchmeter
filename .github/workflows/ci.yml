@@ -24,7 +24,6 @@ jobs:
   build:
     name: macos-15
     runs-on: macos-15
-    # macos-15 is the gate; macos-latest tracks whatever GitHub moves to next and is allowed to fail.
     steps:
       - uses: actions/checkout@v4
 

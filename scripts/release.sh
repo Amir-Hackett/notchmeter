@@ -22,7 +22,8 @@
 #   SPARKLE_PRIVATE_KEY  that file's contents (a CI secret), handed to Sparkle on stdin and never written to disk; or
 #                        neither, and generate_appcast reads the key `generate_keys` stored in the login Keychain
 #   VERSION              the tag without its v (CI); must equal CFBundleShortVersionString in scripts/Info.plist
-#   BUILD_NUMBER         CFBundleVersion, which Sparkle compares; default `git rev-list --count HEAD`, so it only grows
+#   BUILD_NUMBER         CFBundleVersion, which Sparkle compares; default `git rev-list --count HEAD` of the tree built
+#                        from, and checked against PREVIOUS_APPCAST so that it only ever grows
 #   PREVIOUS_APPCAST     the appcast.xml published last time, so its items survive into the new feed
 #   RELEASE_NOTES        an HTML fragment to embed as this version's release notes
 set -euo pipefail
@@ -54,6 +55,15 @@ step() { printf '\n== %s\n' "$*"; }
 PLIST_VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' scripts/Info.plist)"
 VERSION="${VERSION:-$PLIST_VERSION}"
 BUILD_NUMBER="${BUILD_NUMBER:-$(git rev-list --count HEAD)}"
+# Sparkle offers a build only when its number is above the installed one, and a commit count can go backwards: after a
+# history rewrite, or when the last release was built from a tree past its tag (0.1.0 shipped as 89 from a tag that
+# counts 86). So the number is checked against the feed that is already published before anything is built.
+if [ -n "${PREVIOUS_APPCAST:-}" ] && [ -f "$PREVIOUS_APPCAST" ]; then
+  HIGHEST="$(grep -o '<sparkle:version>[0-9]*</sparkle:version>' "$PREVIOUS_APPCAST" | grep -o '[0-9][0-9]*' | sort -n | tail -n 1 || true)"
+  if [ -n "$HIGHEST" ] && [ "$BUILD_NUMBER" -le "$HIGHEST" ]; then
+    fail "BUILD_NUMBER $BUILD_NUMBER is not above the $HIGHEST already published in $PREVIOUS_APPCAST, so Sparkle would never offer this build; build from a later commit, or set BUILD_NUMBER explicitly"
+  fi
+fi
 FEED_URL="$(/usr/libexec/PlistBuddy -c 'Print SUFeedURL' scripts/Info.plist)"
 PUBLIC_KEY="$(/usr/libexec/PlistBuddy -c 'Print SUPublicEDKey' scripts/Info.plist)"
 DOWNLOAD_URL="$REPO_URL/releases/download/v$VERSION/Notchmeter.dmg"
