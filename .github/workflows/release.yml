@@ -13,6 +13,9 @@ concurrency:
 jobs:
   release:
     name: ${{ github.ref_name }}
+    # Stable tags only. A beta (v0.2.0-beta.1) is published by hand, docs/release.md "Each release", because its
+    # appcast item has to be merged into the current stable release's feed, which this job does not do.
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: macos-15
     env:
       TAG: ${{ github.ref_name }}
@@ -33,8 +36,9 @@ jobs:
       - name: Build (release)
         # CI's gate, repeated here so the release path carries it on its own: a warning from anything
         # under Sources/ fails the release before anything is signed, notarised or published. Vendor/ is
-        # exempt. ci.yml is disabled at the repository level for macOS runner cost, so a tag is the only
-        # place this check now runs.
+        # exempt. ci.yml builds pull requests and manual runs, not the merge push and not the tag, so a tag
+        # pushed from a branch that skipped one, or a workflow switched off to save minutes, still meets the
+        # same check here.
         run: |
           set -o pipefail
           swift build -c release 2>&1 | tee build.log
@@ -110,19 +114,52 @@ jobs:
         run: VERSION="${TAG#v}" scripts/release.sh --dry-run
 
       - name: Publish to the GitHub release
+        id: publish
+        # One publisher per tag. A release that already carries a Notchmeter.dmg was published by someone, by hand or
+        # by an earlier run of this job, and installed copies may already have been offered it; this step never
+        # replaces that file, and the uploads below carry no --clobber, so a race with another publisher fails rather
+        # than deletes. An unsigned run that finds one stands down, green: a hand-published release firing this
+        # workflow through its own tag is the documented path. A signed run that finds one is two publishers, an error.
+        # Publishing again is a new tag, or deleting the asset first, on purpose.
         run: |
+          if gh release view "$TAG" --json assets -q '.assets[].name' 2>/dev/null | grep -qx Notchmeter.dmg; then
+            if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
+              echo "::error::$TAG already carries a Notchmeter.dmg; refusing to replace a published build. Bump the version and tag again, or delete the asset first if this re-run is deliberate."
+              exit 1
+            fi
+            echo "::notice::$TAG already carries a Notchmeter.dmg (published by hand, or by an earlier run); standing down without touching it."
+            echo "outcome=stood-down" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
             gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "Notchmeter ${TAG#v}" --generate-notes
-            gh release upload "$TAG" dist/Notchmeter.dmg dist/appcast.xml --clobber
+            gh release upload "$TAG" dist/Notchmeter.dmg dist/appcast.xml
+            echo "outcome=signed" >> "$GITHUB_OUTPUT"
           else
             # A prerelease keeps releases/latest, and with it SUFeedURL, on the last signed build; no appcast is uploaded
-            # because an ad-hoc build can never be installed as an update.
-            gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "Notchmeter ${TAG#v} (unsigned)" --generate-notes --prerelease
-            gh release upload "$TAG" dist/Notchmeter.dmg --clobber
+            # because an ad-hoc build can never be installed as an update. And an ad-hoc build never goes onto a release
+            # that is not a prerelease: that page is where people who trust Gatekeeper download from.
+            if gh release view "$TAG" > /dev/null 2>&1; then
+              if [ "$(gh release view "$TAG" --json isPrerelease -q .isPrerelease)" != "true" ]; then
+                echo "::error::$TAG is a published release; refusing to put an unsigned build on it. Set the signing secrets (docs/release.md, step 5) and re-run."
+                exit 1
+              fi
+            else
+              gh release create "$TAG" --title "Notchmeter ${TAG#v} (unsigned)" --generate-notes --prerelease
+            fi
+            gh release upload "$TAG" dist/Notchmeter.dmg
+            echo "outcome=unsigned" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Summary
         run: |
+          if [ "${{ steps.publish.outputs.outcome }}" = "stood-down" ]; then
+            {
+              echo "## Notchmeter ${TAG#v}: already published"
+              echo "The $TAG release already carried a Notchmeter.dmg, published by hand (docs/release.md, path b) or by an earlier run; this run built, then stood down without touching it."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           sha="$(shasum -a 256 dist/Notchmeter.dmg | cut -d ' ' -f 1)"
           if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
             {

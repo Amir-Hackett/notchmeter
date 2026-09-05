@@ -1,16 +1,21 @@
 name: CI
 
+# Pull requests and manual runs only. A merge to main is the same diff the pull request already built, and a tag
+# is gated by release.yml on its own, so building the merge push again only spent macOS minutes, which bill at ten
+# times the Linux rate: two builds a change, about eighty billed minutes, used the month's allowance in a day.
 on:
-  push:
-    branches: [main]
+  pull_request:
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
       - 'packaging/**'
-  pull_request:
   workflow_dispatch:
 
-# macOS minutes bill at ten times the Linux rate, so a superseded push must not keep building.
+# Checkout, build, test and an artifact upload: nothing here writes to the repository.
+permissions:
+  contents: read
+
+# A superseded push to the same pull request must not keep building.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -19,7 +24,6 @@ jobs:
   build:
     name: macos-15
     runs-on: macos-15
-    # macos-15 is the gate; macos-latest tracks whatever GitHub moves to next and is allowed to fail.
     steps:
       - uses: actions/checkout@v4
 

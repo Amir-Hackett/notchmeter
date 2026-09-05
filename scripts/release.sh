@@ -22,7 +22,8 @@
 #   SPARKLE_PRIVATE_KEY  that file's contents (a CI secret), handed to Sparkle on stdin and never written to disk; or
 #                        neither, and generate_appcast reads the key `generate_keys` stored in the login Keychain
 #   VERSION              the tag without its v (CI); must equal CFBundleShortVersionString in scripts/Info.plist
-#   BUILD_NUMBER         CFBundleVersion, which Sparkle compares; default `git rev-list --count HEAD`, so it only grows
+#   BUILD_NUMBER         CFBundleVersion, which Sparkle compares; default `git rev-list --count HEAD` of the tree built
+#                        from, and checked against PREVIOUS_APPCAST so that it only ever grows
 #   PREVIOUS_APPCAST     the appcast.xml published last time, so its items survive into the new feed
 #   RELEASE_NOTES        an HTML fragment to embed as this version's release notes
 set -euo pipefail
@@ -54,6 +55,16 @@ step() { printf '\n== %s\n' "$*"; }
 PLIST_VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' scripts/Info.plist)"
 VERSION="${VERSION:-$PLIST_VERSION}"
 BUILD_NUMBER="${BUILD_NUMBER:-$(git rev-list --count HEAD)}"
+COMMIT="$(git rev-parse HEAD)"
+# Sparkle offers a build only when its number is above the installed one, and a commit count can go backwards: after a
+# history rewrite, or when the last release was built from a tree past its tag (0.1.0 shipped as 89 from a tag that
+# counts 86). So the number is checked against the feed that is already published before anything is built.
+if [ -n "${PREVIOUS_APPCAST:-}" ] && [ -f "$PREVIOUS_APPCAST" ]; then
+  HIGHEST="$(grep -o '<sparkle:version>[0-9]*</sparkle:version>' "$PREVIOUS_APPCAST" | grep -o '[0-9][0-9]*' | sort -n | tail -n 1 || true)"
+  if [ -n "$HIGHEST" ] && [ "$BUILD_NUMBER" -le "$HIGHEST" ]; then
+    fail "BUILD_NUMBER $BUILD_NUMBER is not above the $HIGHEST already published in $PREVIOUS_APPCAST, so Sparkle would never offer this build; build from a later commit, or set BUILD_NUMBER explicitly"
+  fi
+fi
 FEED_URL="$(/usr/libexec/PlistBuddy -c 'Print SUFeedURL' scripts/Info.plist)"
 PUBLIC_KEY="$(/usr/libexec/PlistBuddy -c 'Print SUPublicEDKey' scripts/Info.plist)"
 DOWNLOAD_URL="$REPO_URL/releases/download/v$VERSION/Notchmeter.dmg"
@@ -168,17 +179,34 @@ if [ "$DRY_RUN" = 1 ]; then
   sha256 $SHA256
 To ship for real: docs/release.md, then DEVELOPER_ID_APP=... NOTARY_PROFILE=... scripts/release.sh
 CHECKLIST
+elif [ -n "$CHANNEL" ]; then
+  cat <<CHECKLIST
+  $DMG       universal, Developer ID, hardened runtime, notarised, stapled; channel $CHANNEL
+  $APPCAST   signed; verified against SUPublicEDKey; carries the $CHANNEL item and the previous feed
+  sha256 $SHA256
+Publish by hand (the workflow ignores a tag with a hyphen in it):
+  1. gh release create v$VERSION $DMG --prerelease --target $COMMIT --title "Notchmeter $VERSION"
+  2. gh release upload <stable-tag> $APPCAST --clobber   # the release releases/latest resolves to; the feed is its appcast
+  3. curl -fsSL $FEED_URL | grep -F '<sparkle:version>$BUILD_NUMBER</sparkle:version>'   # expect exactly this build
+CHECKLIST
 else
   cat <<CHECKLIST
   $DMG       universal, Developer ID, hardened runtime, notarised, stapled
   $APPCAST   signed; verified against SUPublicEDKey
   sha256 $SHA256
-Publish:
-  1. git tag v$VERSION && git push origin v$VERSION
-  2. gh release create v$VERSION $DMG $APPCAST --title "Notchmeter $VERSION" --generate-notes
-     (a tag push runs .github/workflows/release.yml, which does 2 itself when the signing secrets are set)
-  3. curl -fsSL $FEED_URL | grep -c '<sparkle:version>$BUILD_NUMBER</sparkle:version>'   # expect 1
-  4. packaging/homebrew/notchmeter.rb: version "$VERSION", sha256 "$SHA256"
-  5. On a Mac that never saw this build: open the DMG, drag, launch; Options menu shows "Check for Updates…"
+Publish, one of these and never both (the workflow refuses, or stands down, when a DMG is already on the release,
+so a second publisher fails rather than replaces; still, pick one):
+  a. Signing secrets set in GitHub (docs/release.md, step 5):
+       git tag v$VERSION $COMMIT && git push origin v$VERSION
+     release.yml rebuilds from the tag, signs, notarises and creates the release with its DMG and appcast.
+     This build was the rehearsal; do not run gh release create as well.
+  b. No secrets in GitHub:
+       gh release create v$VERSION $DMG $APPCAST --target $COMMIT --title "Notchmeter $VERSION" --generate-notes
+     That creates the tag too, on the commit this was built from (without --target a new tag lands on the default
+     branch, which may have moved). The workflow it fires builds, finds a published release and stands down.
+Then:
+  1. curl -fsSL $FEED_URL | grep -F '<sparkle:version>$BUILD_NUMBER</sparkle:version>'   # expect exactly this build
+  2. packaging/homebrew/notchmeter.rb: version "$VERSION", sha256 "$SHA256" (path a: the sha256 in the job summary)
+  3. On a Mac that never saw this build: open the DMG, drag, launch; Options menu shows "Check for Updates…"
 CHECKLIST
 fi
