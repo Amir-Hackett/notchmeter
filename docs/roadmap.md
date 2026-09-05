@@ -182,6 +182,8 @@ The demand is documented (98% of FinOps teams manage AI spend, only 36% include 
 
 **What it shows the budget owner.** Spend by team and by day; who is on pace to hit a weekly cap and when (the same pace maths, over the fleet); model mix, since Opus share is the lever; tool mix; seats with no activity in 14 days. Real-time, per-prompt, per-project, remote control and blocking are deliberately absent; the moment it can see a prompt or stop a session it is a monitoring product, and the privacy line is what sells it.
 
+> **Not planned** (2026-09-05): the app stays free and pay-what-you-want, and the site no longer offers a Teams tier or waitlist. The design below is kept for the record; if a team product is ever built it is a separate product with its own page.
+
 **Pricing.** Per seat per month, sold to the person who owns the AI budget; free for self-hosted fleets of five or fewer machines, which is the developer who wants their laptop and desktop on one chart.
 
 **Open design questions.** Machine-to-person mapping is the org's job (the label field), not the app's; Anthropic's Team/Enterprise admin dashboards and Cursor's admin analytics already show each vendor's own numbers, so the layer earns its keep only across vendors and on pace, and that needs saying on its landing page; whether Team/Enterprise Claude Code tokens answer the same usage endpoint is unverified.
