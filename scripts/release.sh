@@ -160,34 +160,48 @@ fi
 # The second actually starts it. AMFI decides at exec, before any of the app's own code runs, and a refusal is a
 # SIGKILL: that is the one outcome this fails on. Anything else, including the app finding no window server on a
 # runner and dying its own way, is not this check's business.
-step "Checking the signed app can be started at all"
-# `--cli --help` prints two lines and calls exit(0) (CommandLineTool.run): no run loop, no window server, no
-# network, nothing read from the vendors. It is the shortest path that still goes through exec, which is the only
-# part being tested.
 #
-# macOS has no `timeout`, and polling `kill -0` cannot stand in for one: a finished background child stays a
-# zombie until its parent reaps it, and `kill -0` on a zombie succeeds. A poll would therefore run its whole
-# budget on a process that exited instantly and never read the exit code — a gate that always passes. So: wait
-# for the child properly, with a watchdog beside it that kills it if it is still going after a minute. The
-# watchdog leaves a file behind when it fires, because its own kill also shows up as 137 and only AMFI's may fail
-# the build.
-TIMED_OUT="build/.launch-timed-out"
-rm -f "$TIMED_OUT"
-"$APP/Contents/MacOS/Notchmeter" --cli --help > /dev/null 2>&1 &
-LAUNCH_PID=$!
-( sleep 60; kill -0 "$LAUNCH_PID" 2>/dev/null && : > "$TIMED_OUT" && kill -9 "$LAUNCH_PID" 2>/dev/null ) &
-WATCHDOG=$!
-set +e
-wait "$LAUNCH_PID"
-LAUNCH=$?
-set -e
-kill "$WATCHDOG" 2>/dev/null || true
-# 137 is 128 + 9: killed. Nothing in the app kills itself, and AMFI decides before the app's first instruction
-# runs, so with the watchdog ruled out this is the shape of a rejected entitlement seen from outside.
-if [ "$LAUNCH" -eq 137 ] && [ ! -e "$TIMED_OUT" ]; then
-  fail "the signed app was killed at exec (SIGKILL); macOS refuses to run it. Check Console for amfid, and see docs/release.md"
+# One combination cannot be tested this way and must not be failed for it. A dry run signs ad hoc; an ad-hoc
+# signature carries no Team ID; a profile grants its entitlements to exactly one team. So an ad-hoc build claiming
+# a restricted entitlement is refused by AMFI no matter how sound the release path is, and the SIGKILL means the
+# signature is ad hoc, not that the entitlement is wrong. Failing there would make `--dry-run` impossible to pass
+# with PROVISION_PROFILE set, in the exact words the v0.2.0 disaster printed - which is how a gate teaches people
+# to ignore it. The static check above is the one that carries in a dry run; this one runs for real when signed.
+if [ "$DRY_RUN" = 1 ] && [ -n "$CLAIMED" ]; then
+  step "Not starting the app: an ad-hoc signature can never carry $(echo "$CLAIMED" | tr '\n' ' ')"
+  echo "  A dry run signs ad hoc, so AMFI would refuse this build whatever the profile says. That is a fact about"
+  echo "  the ad-hoc signature, not about the release. The entitlement check above is the one that counts here;"
+  echo "  the launch check runs on the real signature, in CI and in scripts/release.sh without --dry-run."
+else
+  step "Checking the signed app can be started at all"
+  # `--cli --help` prints two lines and calls exit(0) (CommandLineTool.run): no run loop, no window server, no
+  # network, nothing read from the vendors. It is the shortest path that still goes through exec, which is the only
+  # part being tested.
+  #
+  # macOS has no `timeout`, and polling `kill -0` cannot stand in for one: a finished background child stays a
+  # zombie until its parent reaps it, and `kill -0` on a zombie succeeds. A poll would therefore run its whole
+  # budget on a process that exited instantly and never read the exit code — a gate that always passes. So: wait
+  # for the child properly, with a watchdog beside it that kills it if it is still going after a minute. The
+  # watchdog leaves a file behind when it fires, because its own kill also shows up as 137 and only AMFI's may fail
+  # the build.
+  TIMED_OUT="build/.launch-timed-out"
+  rm -f "$TIMED_OUT"
+  "$APP/Contents/MacOS/Notchmeter" --cli --help > /dev/null 2>&1 &
+  LAUNCH_PID=$!
+  ( sleep 60; kill -0 "$LAUNCH_PID" 2>/dev/null && : > "$TIMED_OUT" && kill -9 "$LAUNCH_PID" 2>/dev/null ) &
+  WATCHDOG=$!
+  set +e
+  wait "$LAUNCH_PID"
+  LAUNCH=$?
+  set -e
+  kill "$WATCHDOG" 2>/dev/null || true
+  # 137 is 128 + 9: killed. Nothing in the app kills itself, and AMFI decides before the app's first instruction
+  # runs, so with the watchdog ruled out this is the shape of a rejected entitlement seen from outside.
+  if [ "$LAUNCH" -eq 137 ] && [ ! -e "$TIMED_OUT" ]; then
+    fail "the signed app was killed at exec (SIGKILL); macOS refuses to run it. Check Console for amfid, and see docs/release.md"
+  fi
+  rm -f "$TIMED_OUT"
 fi
-rm -f "$TIMED_OUT"
 
 if [ "$DRY_RUN" = 0 ]; then
   step "Notarising the app"

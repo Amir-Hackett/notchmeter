@@ -79,12 +79,22 @@ refused to launch the app on every Mac, with `amfid` logging `No matching profil
    bundle as `Contents/embedded.provisionprofile` and signs with `scripts/Notchmeter.entitlements`. Without it, the
    app is signed with no entitlements and the notices arrive at the ordinary level. Locally, pass the path yourself:
    `PROVISION_PROFILE=~/Downloads/Notchmeter.provisionprofile scripts/release.sh`.
-5. Install the DMG and open it before making the release latest. Step 5 is not optional; see below.
+5. Install the DMG and open it before making the release latest. That is *Each release* step 4, and it is not
+   optional; the workflow now publishes a prerelease precisely so that step has somewhere to happen.
 
-**Two gates now stand where there were none.** `release.sh` fails the build if the signed app claims an entitlement
-under `com.apple.*` that no profile in the bundle grants, naming the key; and it then starts the signed app and fails
-if macOS kills it at exec, which is what a rejected entitlement looks like from outside. Neither existed for v0.2.0.
-Neither replaces opening the app: they catch this class of fault, not the next one.
+**Three gates now stand where there were none.** `release.sh` fails the build if the signed app claims an entitlement
+under `com.apple.*` that no profile in the bundle grants, naming the key; it then starts the signed app and fails
+if macOS kills it at exec, which is what a rejected entitlement looks like from outside; and `release.yml` publishes
+every `v*` tag as a **prerelease**, so `releases/latest` - the feed installed copies update from, and what `brew`
+installs - cannot move to a build nobody has opened. None existed for v0.2.0.
+
+The launch gate has one honest blind spot, and it does not fail the build for it. A `--dry-run` signs ad hoc, an
+ad-hoc signature carries no Team ID, and a profile grants its entitlements to one team, so an ad-hoc build claiming a
+restricted entitlement is refused by AMFI however sound the release is. With `PROVISION_PROFILE` set, a dry run says
+so and skips that check rather than reporting the v0.2.0 error for a build that was never going to launch. The
+entitlement check still runs, and the launch check runs for real on every signed build.
+
+None of them replaces opening the app: they catch this class of fault, not the next one.
 
 ### 3. Notarisation credentials
 
@@ -130,8 +140,9 @@ and the appcast is verified against it before anything is published.
 ### 5. GitHub Actions secrets
 
 `.github/workflows/release.yml` runs on every `v*` tag. With these repository secrets it signs, notarises and
-publishes; without them it publishes an unsigned DMG as a prerelease, says so in the job summary, and refuses to touch
-a release that already exists. Optional only if every release is published by hand (path b in "Each release").
+publishes - always as a **prerelease**, whatever it finds; promoting it to latest is a separate deliberate step once
+the DMG has been installed and opened. Without them it publishes an unsigned DMG as a prerelease, says so in the job
+summary, and refuses to touch a release that already exists. Optional only if every release is published by hand (path b in "Each release").
 Whether all seven exist is reported, by name and never by value, in the summary of the *release secrets present* job
 of `.github/workflows/secrets.yml` on every push, so it is known before a tag, not from one.
 
@@ -179,8 +190,8 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
 
    - **Secrets set (step 5)**: `git tag v0.2.0 <commit> && git push origin v0.2.0`, naming the commit the script
      built from (it prints it). The workflow rebuilds from the tag, signs, notarises and creates the release with the
-     DMG and the appcast (it fetches the previous appcast itself). The local build was the rehearsal; do not
-     `gh release create` as well.
+     DMG and the appcast (it fetches the previous appcast itself), **as a prerelease**: nothing is offered to an
+     installed copy until step 4 promotes it. The local build was the rehearsal; do not `gh release create` as well.
    - **No secrets**: `gh release create v0.2.0 dist/Notchmeter.dmg dist/appcast.xml --target <commit> --title "Notchmeter 0.2.0" --generate-notes`,
      again naming the commit the script built from: without `--target`, a tag that does not exist yet is created on the
      default branch, which may have moved since the build. That creates the tag as well; the workflow it fires builds,
@@ -189,9 +200,34 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
    The script ends with the same two commands, filled in. Either way the workflow never replaces a `Notchmeter.dmg`
    that is already on a release, and it uploads without `--clobber`, so a race with another publisher fails rather than
    deletes: publishing again means a new tag, or deleting the asset first, on purpose.
-4. Confirm the feed moved: `curl -fsSL <feed> | grep sparkle:version`. Installed copies check once a day
+4. **Install the DMG and open it, then promote.** This is the only step that runs the app, and it is the step v0.2.0
+   needed: that build passed `codesign --verify`, notarisation, `spctl`, its checksum, its appcast signature and
+   `lipo`, and could not start on any Mac. The release is a prerelease until this passes.
+
+   ```bash
+   gh release download v0.2.0 --pattern Notchmeter.dmg --dir /tmp/nm-verify --clobber
+   hdiutil attach /tmp/nm-verify/Notchmeter.dmg -nobrowse -quiet
+   pkill -x Notchmeter || true; rm -rf /Applications/Notchmeter.app
+   cp -R /Volumes/Notchmeter/Notchmeter.app /Applications/; hdiutil detach /Volumes/Notchmeter -quiet
+
+   spctl --assess --type execute --verbose=2 /Applications/Notchmeter.app   # accepted, source=Notarized Developer ID
+   xcrun stapler validate /Applications/Notchmeter.app
+   /Applications/Notchmeter.app/Contents/MacOS/Notchmeter --cli --help; echo "exit $?"
+   open -a Notchmeter && sleep 5 && pgrep -x Notchmeter
+   ```
+
+   **`exit 137` is macOS killing it at exec.** Do not promote; check `log show --predicate 'process == "amfid"'
+   --last 5m` and ship a new patch version. `pgrep` printing nothing means it launched and died: also a stop. Only
+   when both are clean:
+
+   ```bash
+   gh release edit v0.2.0 --prerelease=false --latest
+   ```
+
+   A tagged prerelease nobody promoted costs nothing. `.claude/skills/release/SKILL.md` runs this whole procedure.
+5. Confirm the feed moved: `curl -fsSL <feed> | grep sparkle:version`. Installed copies check once a day
    (`SUScheduledCheckInterval` 86400) and on *Options → Check for Updates…*.
-5. Update `packaging/homebrew/notchmeter.rb` with the version and the DMG's sha256 (the script prints it; on path a it is in the job summary), then copy the file to `Casks/notchmeter.rb` in `Amir-Hackett/homebrew-tap` and push. `brew upgrade --cask notchmeter` should then report the new version; the tap is what users install from, not this repository's copy.
+6. Update `packaging/homebrew/notchmeter.rb` with the version and the DMG's sha256 (the script prints it; on path a it is in the job summary), then copy the file to `Casks/notchmeter.rb` in `Amir-Hackett/homebrew-tap` and push. `brew upgrade --cask notchmeter` should then report the new version; the tap is what users install from, not this repository's copy.
 
 ### Verifying on a clean Mac
 
