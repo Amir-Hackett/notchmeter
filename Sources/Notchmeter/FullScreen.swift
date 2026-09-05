@@ -102,7 +102,13 @@ enum FullScreen {
     /// Reads the on-screen window list once for everything the rule needs. Bounds, owner and layer come back
     /// without Screen Recording permission; only window titles need it, and nothing here reads one.
     @MainActor static func scan(on screen: NSScreen, ownName: String = AppInfo.name) -> Scan {
-        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        // Desktop elements are kept rather than excluded, and only so the diagnostics line carries them. They
+        // sit below the normal layer, so they can never become a candidate and the rule cannot see them. What
+        // they are worth is evidence: the wallpaper's window is on a desktop and not in a full-screen Space,
+        // which is the same thing the Dock's window says but per display rather than per Mac. If a reading from
+        // a second display ever shows the Dock test getting it wrong, this is the field that says what to use
+        // instead, and it costs nothing to carry until then.
+        let options: CGWindowListOption = [.optionOnScreenOnly]
         let infos = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] ?? []
         // Window bounds are in the Window Server's coordinates, the top left of the main display at the origin
         // with y downwards; the screen's frame has y upwards from the main display's bottom left. x agrees.

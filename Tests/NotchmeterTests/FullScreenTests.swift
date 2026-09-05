@@ -78,6 +78,32 @@ import Testing
         #expect(!FullScreen.isActive([], on: space))
     }
 
+    /// The shapes nobody has held a real Mac against. The rule was read off one 14-inch running Chrome, so
+    /// these pin what it answers today rather than claiming the answers are right; each is a reading someone
+    /// could take and contradict, and the `full screen:` line in `--smoke` and the log is what they would send.
+    @Test func theConfigurationsThisRuleHasNeverSeen() {
+        // A Dock that never hides holds its band, so a zoomed window cannot reach the height the rule wants.
+        // This is the case the Dock test was never needed for: the geometry already says no.
+        #expect(!FullScreen.isActive([window(1512, 949 - 70, owner: "Google Chrome")], on: desktop))
+
+        // An app that ignores the safe area and draws into the housing's band, a game: the whole display's
+        // height, which counts on any display with or without a housing.
+        #expect(FullScreen.isActive([window(1512, 982, owner: "A Game")], on: space))
+
+        // Stage Manager keeps the other apps' windows on screen in its strip, so the company test sees them
+        // and a covering window on the desktop still does not count.
+        #expect(!FullScreen.isActive(
+            [window(1512, 949, owner: "Google Chrome"), window(220, 140, owner: "Notes"),
+             window(220, 140, owner: "Finder")], on: space))
+
+        // The one known false positive, and it is a desktop, not a Space: a second display whose only window is
+        // one app's, zoomed to the full height, with the Dock over on the other display. Nothing in a window
+        // list distinguishes that from the same app full-screen there. The readouts step aside on a desktop,
+        // which is the wrong way round, and the fix if anyone hits it is the wallpaper's own window, which the
+        // scan now carries into the diagnostics for exactly this.
+        #expect(FullScreen.isActive([window(1512, 949, owner: "Google Chrome")], on: space))
+    }
+
     @Test func aCoveringWindowIsWorthWatchingWhereverItIs() {
         // Suspicion keeps the watch polling across a Space change, when the rest moves one window at a time.
         #expect(FullScreen.isSuspect(theVideo, on: desktop))
