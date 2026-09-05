@@ -11,7 +11,7 @@
 # Developer ID exists"). The notarised release needs neither.
 cask "notchmeter" do
   version "0.1.0"
-  sha256 "REPLACE_WITH_DMG_SHA256"
+  sha256 "5e447e997783edf6755a95187d406861b1b099ca0f070a521ece65a59953ac45"
 
   url "https://github.com/Amir-Hackett/notchmeter/releases/download/v#{version}/Notchmeter.dmg"
   name "Notchmeter"
