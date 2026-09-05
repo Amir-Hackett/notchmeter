@@ -111,17 +111,27 @@ jobs:
         run: VERSION="${TAG#v}" scripts/release.sh --dry-run
 
       - name: Publish to the GitHub release
+        id: publish
         # One publisher per tag. A release that already carries a Notchmeter.dmg was published by someone, by hand or
         # by an earlier run of this job, and installed copies may already have been offered it; this step never
-        # replaces that file. Publishing again is a new tag, or deleting the asset first, on purpose.
+        # replaces that file, and the uploads below carry no --clobber, so a race with another publisher fails rather
+        # than deletes. An unsigned run that finds one stands down, green: a hand-published release firing this
+        # workflow through its own tag is the documented path. A signed run that finds one is two publishers, an error.
+        # Publishing again is a new tag, or deleting the asset first, on purpose.
         run: |
           if gh release view "$TAG" --json assets -q '.assets[].name' 2>/dev/null | grep -qx Notchmeter.dmg; then
-            echo "::error::$TAG already carries a Notchmeter.dmg; refusing to replace a published build. Bump the version and tag again, or delete the asset first if this re-run is deliberate."
-            exit 1
+            if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
+              echo "::error::$TAG already carries a Notchmeter.dmg; refusing to replace a published build. Bump the version and tag again, or delete the asset first if this re-run is deliberate."
+              exit 1
+            fi
+            echo "::notice::$TAG already carries a Notchmeter.dmg (published by hand, or by an earlier run); standing down without touching it."
+            echo "outcome=stood-down" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
             gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "Notchmeter ${TAG#v}" --generate-notes
-            gh release upload "$TAG" dist/Notchmeter.dmg dist/appcast.xml --clobber
+            gh release upload "$TAG" dist/Notchmeter.dmg dist/appcast.xml
+            echo "outcome=signed" >> "$GITHUB_OUTPUT"
           else
             # A prerelease keeps releases/latest, and with it SUFeedURL, on the last signed build; no appcast is uploaded
             # because an ad-hoc build can never be installed as an update. And an ad-hoc build never goes onto a release
@@ -134,11 +144,19 @@ jobs:
             else
               gh release create "$TAG" --title "Notchmeter ${TAG#v} (unsigned)" --generate-notes --prerelease
             fi
-            gh release upload "$TAG" dist/Notchmeter.dmg --clobber
+            gh release upload "$TAG" dist/Notchmeter.dmg
+            echo "outcome=unsigned" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Summary
         run: |
+          if [ "${{ steps.publish.outputs.outcome }}" = "stood-down" ]; then
+            {
+              echo "## Notchmeter ${TAG#v}: already published"
+              echo "The $TAG release already carried a Notchmeter.dmg, published by hand (docs/release.md, path b) or by an earlier run; this run built, then stood down without touching it."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           sha="$(shasum -a 256 dist/Notchmeter.dmg | cut -d ' ' -f 1)"
           if [ "${{ steps.mode.outputs.signed }}" = "true" ]; then
             {

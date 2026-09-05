@@ -148,14 +148,18 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
    re-uploaded to the current stable release's assets so the feed carries both items.
 3. Publish, one way or the other and never both: two publishers on one tag is how a notarised DMG gets replaced.
 
-   - **Secrets set (step 5)**: `git tag v0.2.0 && git push origin v0.2.0`. The workflow rebuilds from the tag, signs,
-     notarises and creates the release with the DMG and the appcast (it fetches the previous appcast itself). The
-     local build was the rehearsal; do not `gh release create` as well.
-   - **No secrets**: `gh release create v0.2.0 dist/Notchmeter.dmg dist/appcast.xml --title "Notchmeter 0.2.0" --generate-notes`.
-     That creates the tag as well; the workflow it fires finds a published release and leaves it alone.
+   - **Secrets set (step 5)**: `git tag v0.2.0 <commit> && git push origin v0.2.0`, naming the commit the script
+     built from (it prints it). The workflow rebuilds from the tag, signs, notarises and creates the release with the
+     DMG and the appcast (it fetches the previous appcast itself). The local build was the rehearsal; do not
+     `gh release create` as well.
+   - **No secrets**: `gh release create v0.2.0 dist/Notchmeter.dmg dist/appcast.xml --target <commit> --title "Notchmeter 0.2.0" --generate-notes`,
+     again naming the commit the script built from: without `--target`, a tag that does not exist yet is created on the
+     default branch, which may have moved since the build. That creates the tag as well; the workflow it fires builds,
+     finds a published release and stands down without touching it, green.
 
-   The script ends with the same two paths. Either way the workflow never replaces a `Notchmeter.dmg` that is already
-   on a release: publishing again means a new tag, or deleting the asset first, on purpose.
+   The script ends with the same two commands, filled in. Either way the workflow never replaces a `Notchmeter.dmg`
+   that is already on a release, and it uploads without `--clobber`, so a race with another publisher fails rather than
+   deletes: publishing again means a new tag, or deleting the asset first, on purpose.
 4. Confirm the feed moved: `curl -fsSL <feed> | grep sparkle:version`. Installed copies check once a day
    (`SUScheduledCheckInterval` 86400) and on *Options → Check for Updates…*.
 5. Update `packaging/homebrew/notchmeter.rb` with the version and the DMG's sha256 (the script prints it; on path a it is in the job summary), then copy the file to `Casks/notchmeter.rb` in `Amir-Hackett/homebrew-tap` and push. `brew upgrade --cask notchmeter` should then report the new version; the tap is what users install from, not this repository's copy.

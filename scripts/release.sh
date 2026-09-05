@@ -55,6 +55,7 @@ step() { printf '\n== %s\n' "$*"; }
 PLIST_VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' scripts/Info.plist)"
 VERSION="${VERSION:-$PLIST_VERSION}"
 BUILD_NUMBER="${BUILD_NUMBER:-$(git rev-list --count HEAD)}"
+COMMIT="$(git rev-parse HEAD)"
 # Sparkle offers a build only when its number is above the installed one, and a commit count can go backwards: after a
 # history rewrite, or when the last release was built from a tree past its tag (0.1.0 shipped as 89 from a tag that
 # counts 86). So the number is checked against the feed that is already published before anything is built.
@@ -185,14 +186,15 @@ else
   sha256 $SHA256
 Publish, one of these and never both (two publishers on one tag is how a notarised DMG gets replaced):
   a. Signing secrets set in GitHub (docs/release.md, step 5):
-       git tag v$VERSION && git push origin v$VERSION
+       git tag v$VERSION $COMMIT && git push origin v$VERSION
      release.yml rebuilds from the tag, signs, notarises and creates the release with its DMG and appcast.
      This build was the rehearsal; do not run gh release create as well.
   b. No secrets in GitHub:
-       gh release create v$VERSION $DMG $APPCAST --title "Notchmeter $VERSION" --generate-notes
-     That creates the tag too. The workflow it fires finds a published release and refuses to touch it.
+       gh release create v$VERSION $DMG $APPCAST --target $COMMIT --title "Notchmeter $VERSION" --generate-notes
+     That creates the tag too, on the commit this was built from (without --target a new tag lands on the default
+     branch, which may have moved). The workflow it fires builds, finds a published release and stands down.
 Then:
-  1. curl -fsSL $FEED_URL | grep '<sparkle:version>'   # $BUILD_NUMBER, when this build was made from the commit you tagged
+  1. curl -fsSL $FEED_URL | grep -F '<sparkle:version>$BUILD_NUMBER</sparkle:version>'   # expect exactly this build
   2. packaging/homebrew/notchmeter.rb: version "$VERSION", sha256 "$SHA256" (path a: the sha256 in the job summary)
   3. On a Mac that never saw this build: open the DMG, drag, launch; Options menu shows "Check for Updates…"
 CHECKLIST
