@@ -564,7 +564,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// It is the answer for a browser, where the app's name cannot say whether this is a meeting or a film.
     func toggleShowOverFullScreen() {
         let covering = pointerPresenter?.fullScreenApps ?? []
-        prefs.showOverFullScreenNow = !prefs.showsOverFullScreen(covering)
+        // With nothing full-screen there is no app for it to be about, and a value written now would answer for
+        // whatever goes full-screen next, which nobody asked it to.
+        guard !covering.isEmpty else { return }
+        prefs.showOverFullScreenNow = Preferences.FullScreenOverride(show: !prefs.showsOverFullScreen(covering), apps: covering)
         applyLayout()
     }
 
@@ -678,7 +681,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let frame = presenter?.window.map { "\($0.frame)" } ?? "none"
         Probe.emit("panel (\(prefs.edge.rawValue)): visible=\(presenter?.isVisible ?? false) frame=\(frame)")
         if let window = presenter?.window {
-            Probe.emit("window: level=\(window.level.rawValue) fullScreenAuxiliary=\(window.collectionBehavior.contains(.fullScreenAuxiliary)) onActiveSpace=\(window.isOnActiveSpace) (show over full-screen apps=\(prefs.showOverFullScreenApps) exceptions=\(prefs.fullScreenExceptions.sorted().joined(separator: ",")) now=\(prefs.showOverFullScreenNow.map { $0 ? "show" : "hide" } ?? "-"))")
+            Probe.emit("window: level=\(window.level.rawValue) fullScreenAuxiliary=\(window.collectionBehavior.contains(.fullScreenAuxiliary)) onActiveSpace=\(window.isOnActiveSpace) (show over full-screen apps=\(prefs.showOverFullScreenApps) exceptions=\(prefs.fullScreenExceptions.sorted().joined(separator: ",")) now=\(prefs.showOverFullScreenNow.map { "\($0.show ? "show" : "hide") over \($0.apps.joined(separator: "+"))" } ?? "-"))")
         }
         if let regions = presenter?.hover.regions {
             Probe.emit("hover regions: compact=\(regions.compact) expanded=\(regions.expanded)")

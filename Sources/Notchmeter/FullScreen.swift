@@ -67,8 +67,8 @@ enum FullScreen {
     /// window stays on screen inside a full-screen Space, which is why an earlier version of this rule left the
     /// readouts over the video it was written to get out of the way of.
     static func verdict(_ candidates: [Candidate], on display: Display) -> Verdict {
-        guard !display.dockOnScreen, let owners = covering(candidates, on: display),
-              Set(candidates.map(\.owner)).isSubset(of: owners)
+        let owners = covering(candidates, on: display)
+        guard !display.dockOnScreen, !owners.isEmpty, Set(candidates.map(\.owner)).isSubset(of: owners)
         else { return Verdict() }
         return Verdict(apps: owners.sorted())
     }
@@ -80,19 +80,22 @@ enum FullScreen {
     /// Whether a window covers the display at all, whatever else is on screen: while that holds the verdict is
     /// worth re-reading, because entering or leaving a Space moves the rest of this one window at a time.
     static func isSuspect(_ candidates: [Candidate], on display: Display) -> Bool {
-        covering(candidates, on: display) != nil
+        !covering(candidates, on: display).isEmpty
     }
 
-    /// The apps whose windows cover the display, or nil where none does.
-    private static func covering(_ candidates: [Candidate], on display: Display) -> Set<String>? {
+    /// The apps whose windows cover the display; empty where none does. A covering window always has an owner,
+    /// so the empty set says the same thing an optional would.
+    private static func covering(_ candidates: [Candidate], on display: Display) -> Set<String> {
         let tall = candidates.filter { candidate in
             let height = candidate.size.height
             if abs(height - display.size.height) < 1 { return true }
             return display.safeAreaTop > 0 && height >= display.size.height - display.safeAreaTop - 4
         }
         if let whole = tall.first(where: { abs($0.size.width - display.size.width) < 1 }) { return [whole.owner] }
-        // Split View: the divider between the two is the Window Server's, a few points wide.
-        guard tall.count >= 2, tall.map(\.size.width).reduce(0, +) >= display.size.width - 16 else { return nil }
+        // Split View: the divider between the two is the Window Server's, a few points wide. Sizes alone cannot
+        // say the two are side by side rather than stacked, which the Dock and the company tests in `verdict`
+        // are what actually rule out.
+        guard tall.count >= 2, tall.map(\.size.width).reduce(0, +) >= display.size.width - 16 else { return [] }
         return Set(tall.map(\.owner))
     }
 
@@ -116,9 +119,13 @@ enum FullScreen {
                   let raw = info[kCGWindowBounds as String] as? NSDictionary,
                   let bounds = CGRect(dictionaryRepresentation: raw)
             else { continue }
+            // Both axes: displays stack vertically as readily as side by side, and a window belonging to
+            // another display must not count here. The verdict asks whether every app on screen is part of
+            // what covers this display, so one window from the next display over would answer no for ever.
             let onThisDisplay = bounds.midX >= frame.minX && bounds.midX <= frame.maxX
+                && bounds.midY >= top && bounds.midY <= top + frame.height
             if layer == 0 {
-                if owner != ownName { candidates.append(Candidate(owner: owner, size: bounds.size)) }
+                if owner != ownName, onThisDisplay { candidates.append(Candidate(owner: owner, size: bounds.size)) }
                 continue
             }
             if owner == "Dock", layer == Int(CGWindowLevelForKey(.dockWindow)), onThisDisplay { dockOnScreen = true }
@@ -176,6 +183,9 @@ final class FullScreenWatch {
     /// Space notifications are the signal; this only runs while a full-screen app is up, so a missed one
     /// cannot strand the panel off screen.
     private var poll: Timer?
+    /// The looks-again after a Space change. Held so a burst of activations replaces them rather than queueing
+    /// a scan of the whole window list for each one.
+    private var settle: [Timer] = []
     private(set) var verdict = FullScreen.Verdict()
     var isActive: Bool { verdict.isActive }
     private let screen: () -> NSScreen
@@ -218,7 +228,8 @@ final class FullScreenWatch {
             changed(now)
         }
         guard settling else { return }
-        for delay in [0.5, 2.0] {
+        for timer in settle { timer.invalidate() }
+        settle = [0.5, 2.0].map { delay in
             Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
                 Task { @MainActor in self?.refresh() }
             }
@@ -238,6 +249,8 @@ final class FullScreenWatch {
     func stop() {
         for (center, token) in observers { center.removeObserver(token) }
         observers = []
+        for timer in settle { timer.invalidate() }
+        settle = []
         setPolling(false)
     }
 }

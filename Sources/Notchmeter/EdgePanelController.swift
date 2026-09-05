@@ -125,7 +125,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
     var fullScreenApps: [String] { fullScreenWatch?.verdict.apps ?? [] }
 
     private func fullScreenChanged(_ verdict: FullScreen.Verdict) {
-        if !verdict.isActive { prefs.showOverFullScreenNow = nil }
+        if prefs.showOverFullScreenNow?.apps != verdict.apps { prefs.showOverFullScreenNow = nil }
         if apply(fullScreen: verdict) { show() }
     }
 
@@ -175,7 +175,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
     }
 
     func applyWindowBehaviour() {
-        fullScreenWatch?.refresh()
+        // See NotchController: no window-list scan on a path the readings drive.
         panel.collectionBehavior = Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen)
     }
 

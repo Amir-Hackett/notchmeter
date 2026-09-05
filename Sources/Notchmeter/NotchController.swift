@@ -206,7 +206,9 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
     /// This full-screen app alone, either way round; the shortcut does the same thing without the menu, which
     /// is what a person watching something full-screen actually has to hand.
     @objc private func toggleShowOverFullScreenNow() {
-        prefs.showOverFullScreenNow = !prefs.showsOverFullScreen(actions.fullScreenApps())
+        let covering = actions.fullScreenApps()
+        guard !covering.isEmpty else { return }
+        prefs.showOverFullScreenNow = Preferences.FullScreenOverride(show: !prefs.showsOverFullScreen(covering), apps: covering)
         actions.applyLayout()
     }
 
@@ -425,8 +427,9 @@ final class NotchController: NSObject, PanelPresenting {
     var fullScreenApps: [String] { fullScreenWatch?.verdict.apps ?? [] }
 
     private func fullScreenChanged(_ verdict: FullScreen.Verdict) {
-        // "Just this once" is about the app that was on screen when it was asked for, so it goes when that does.
-        if !verdict.isActive { prefs.showOverFullScreenNow = nil }
+        // "Just this once" is about the apps that were on screen when it was asked for, so it goes when they do,
+        // whether that is back to the desktop or straight into another app's full screen.
+        if prefs.showOverFullScreenNow?.apps != verdict.apps { prefs.showOverFullScreenNow = nil }
         if apply(fullScreen: verdict) { show() }
     }
 
@@ -450,7 +453,8 @@ final class NotchController: NSObject, PanelPresenting {
     }
 
     func applyWindowBehaviour() {
-        fullScreenWatch?.refresh()
+        // No scan of the window list here: this runs on every change to the readings, and `show()` above
+        // already re-asks the verdict, which is the only thing that can have changed the answer.
         notch.collectionBehavior = Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen)
         // The notch panel stays black so it reads as one shape with the hardware notch: a glass backdrop
         // over black renders as pale grey and breaks that join. Glass belongs to the edge layouts.

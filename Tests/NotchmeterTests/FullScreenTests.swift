@@ -128,20 +128,32 @@ import Testing
         #expect(prefs.showsOverFullScreen(["Google Chrome"]))
     }
 
-    @MainActor @Test func theShortcutWinsEitherWayAndIsNotWrittenDown() {
+    @MainActor @Test func theShortcutWinsEitherWayForTheAppItWasAskedAbout() {
         let (prefs, defaults, suite) = preferences("Shortcut")
         defer { defaults.removePersistentDomain(forName: suite) }
-        prefs.showOverFullScreenNow = true
+        prefs.showOverFullScreenNow = Preferences.FullScreenOverride(show: true, apps: ["Google Chrome"])
         #expect(prefs.showsOverFullScreen(["Google Chrome"]))
+        // Switching straight from one full-screen app to another must not inherit it: a call answered for
+        // Chrome says nothing about the film that comes next in Safari.
+        #expect(!prefs.showsOverFullScreen(["Safari"]))
         // And back the other way, over both the preference and the list.
         prefs.showOverFullScreenApps = true
         prefs.fullScreenExceptions = ["zoom.us"]
-        prefs.showOverFullScreenNow = false
+        prefs.showOverFullScreenNow = Preferences.FullScreenOverride(show: false, apps: ["zoom.us"])
         #expect(!prefs.showsOverFullScreen(["zoom.us"]))
+        #expect(prefs.showsOverFullScreen(["Safari"]))
         // A new launch reads the list and the preference, never the shortcut's answer.
         let reopened = Preferences(defaults: defaults)
         #expect(reopened.fullScreenExceptions == ["zoom.us"])
         #expect(reopened.showOverFullScreenApps)
         #expect(reopened.showOverFullScreenNow == nil)
+    }
+
+    @MainActor @Test func aTypedExceptionMatchesTheNameTheWindowListGives() {
+        let (prefs, defaults, suite) = preferences("Typed")
+        defer { defaults.removePersistentDomain(forName: suite) }
+        prefs.fullScreenExceptions = ["Zoom.US"]
+        #expect(prefs.showsOverFullScreen(["zoom.us"]))
+        #expect(!prefs.showsOverFullScreen(["zoom.us.helper"]))
     }
 }

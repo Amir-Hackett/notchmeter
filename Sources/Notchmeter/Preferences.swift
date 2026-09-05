@@ -734,17 +734,26 @@ final class Preferences {
     var fullScreenExceptions: [String] {
         didSet { defaults.set(fullScreenExceptions, forKey: Keys.fullScreenExceptions); report(Keys.fullScreenExceptions, fullScreenExceptions, changed: fullScreenExceptions != oldValue) }
     }
-    /// The shortcut's and the menu item's answer for this full-screen app alone, either way round: not written
-    /// down, and dropped the moment that app leaves full screen, so it cannot outlive the meeting it was meant
-    /// for. Nil is the ordinary rules.
-    var showOverFullScreenNow: Bool?
+    /// The shortcut's and the menu item's answer for one full-screen app, either way round, and the apps it was
+    /// given for. It is not written down, and it is dropped the moment those apps stop being the ones covering
+    /// the screen, so it cannot outlive the meeting it was meant for or answer for whatever goes full-screen
+    /// next. Nil is the ordinary rules.
+    struct FullScreenOverride: Equatable {
+        var show: Bool
+        var apps: [String]
+    }
+    var showOverFullScreenNow: FullScreenOverride?
 
-    /// Whether the readouts stay on screen over these full-screen apps: what the person just asked for, then the
-    /// preference, then whether one of the apps covering the screen is an exception.
+    /// Whether the readouts stay on screen over these full-screen apps: what the person just asked for about
+    /// these very apps, then the preference, then whether one of the apps covering the screen is an exception.
     func showsOverFullScreen(_ apps: [String]) -> Bool {
-        if let now = showOverFullScreenNow { return now }
+        if let now = showOverFullScreenNow, now.apps == apps { return now.show }
         if showOverFullScreenApps { return true }
-        return apps.contains { fullScreenExceptions.contains($0) }
+        // The name is typed by hand in Settings as well as taken from the window list by the menu, so a typed
+        // "Zoom.us" has to match the list's "zoom.us".
+        return apps.contains { app in
+            fullScreenExceptions.contains { $0.compare(app, options: .caseInsensitive) == .orderedSame }
+        }
     }
     /// The one-time first-launch offer to install the Claude Code hook has been shown.
     var hookOfferShown: Bool {
