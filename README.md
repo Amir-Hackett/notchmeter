@@ -6,6 +6,8 @@
 
 **Your menu bar ran out of room three apps ago. This one doesn't take any.**
 
+**[notchmeter.com](https://www.notchmeter.com)** · [Download](https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg) · [Support the project](https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800)
+
 
 Usage meters for AI coding tools, living in the MacBook notch — or on any screen edge you prefer. Small rings sit beside the notch all the time; hover and it opens into the full readout.
 
