@@ -106,7 +106,7 @@ import Testing
 /// Who wins when a full-screen app is up: the preference, an exception for that app, and the shortcut, which is
 /// the only one of the three that can tell a call from a film when both are the same browser.
 @Suite struct FullScreenVisibility {
-    func preferences(_ name: String) -> (Preferences, UserDefaults, String) {
+    @MainActor func preferences(_ name: String) -> (Preferences, UserDefaults, String) {
         let suite = "NotchmeterTests.FullScreen\(name)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
