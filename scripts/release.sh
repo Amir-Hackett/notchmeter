@@ -11,8 +11,9 @@
 #   --channel beta                 marks the appcast item <sparkle:channel>beta</sparkle:channel>, so only copies with
 #                                  "Beta updates" on in Settings are offered it (Updater.swift, allowedChannels).
 #
-# The app is signed with scripts/Notchmeter.entitlements (the time-sensitive notifications entitlement); the matching
-# capability must be enabled on the App ID in the developer account or the signature is refused (docs/release.md).
+# The app is signed with scripts/Notchmeter.entitlements (the time-sensitive notifications entitlement) only when
+# PROVISION_PROFILE points at a Developer ID profile that grants it, which is embedded in the bundle at the same
+# time. Without that the app is signed with no entitlements. Never one without the other: docs/release.md, "2".
 #
 # Environment:
 #   DEVELOPER_ID_APP     "Developer ID Application: Your Name (TEAMID)", as `security find-identity -v -p codesigning` lists it
@@ -26,6 +27,8 @@
 #                        from, and checked against PREVIOUS_APPCAST so that it only ever grows
 #   PREVIOUS_APPCAST     the appcast.xml published last time, so its items survive into the new feed
 #   RELEASE_NOTES        an HTML fragment to embed as this version's release notes
+#   PROVISION_PROFILE    optional; a Developer ID .provisionprofile granting the entitlements above, embedded in the
+#                        bundle and signed against. Unset, the app claims no entitlements and still launches
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -106,6 +109,20 @@ ARCHS="arm64 x86_64" scripts/build.sh
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" -c "Set :CFBundleVersion $BUILD_NUMBER" -c "Set :SUPublicEDKey $PUBLIC_KEY" "$APP/Contents/Info.plist"
 lipo -info "$APP/Contents/MacOS/Notchmeter"
 
+# A restricted entitlement (anything under com.apple.*) is only usable outside the App Store when a Developer ID
+# provisioning profile granting it sits in the bundle. With PROVISION_PROFILE pointing at one the app is signed
+# with scripts/Notchmeter.entitlements and the notices break through a Focus; without it the app is signed with no
+# entitlements at all and they arrive at the ordinary level. Never the entitlements without the profile: that is
+# what v0.2.0 shipped, and macOS refused to launch it on every Mac (AMFI -413, "No matching profile found").
+ENTITLEMENTS=scripts/Notchmeter.entitlements
+SIGN_ARGS=()
+if [ -n "${PROVISION_PROFILE:-}" ]; then
+  [ -f "$PROVISION_PROFILE" ] || fail "PROVISION_PROFILE $PROVISION_PROFILE does not exist"
+  step "Embedding the provisioning profile"
+  cp "$PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
+  SIGN_ARGS=(--entitlements "$ENTITLEMENTS")
+fi
+
 step "Signing with \"$IDENTITY\", inside out"
 FRAMEWORK="$APP/Contents/Frameworks/Sparkle.framework"
 sign_code "$FRAMEWORK/Versions/B/XPCServices/Installer.xpc"
@@ -113,25 +130,64 @@ sign_code --preserve-metadata=entitlements "$FRAMEWORK/Versions/B/XPCServices/Do
 sign_code "$FRAMEWORK/Versions/B/Autoupdate"
 sign_code "$FRAMEWORK/Versions/B/Updater.app"
 sign_code "$FRAMEWORK"
-# Signed with no entitlements at all, deliberately. scripts/Notchmeter.entitlements asks for
-# com.apple.developer.usernotifications.time-sensitive, which is a restricted entitlement: an app claiming one
-# outside the App Store must carry a provisioning profile that grants it, at Contents/embedded.provisionprofile.
-# Nothing here makes one, so v0.2.0 shipped claiming an entitlement it could not justify and macOS refused to
-# launch it, on every Mac, with AMFI logging "No matching profile found" (error -413). codesign, notarisation
-# and Gatekeeper all pass such a build, which is why it reached people. Restore the --entitlements argument
-# only together with a profile in the bundle, and only after launching the result.
-sign_code "$APP"
+sign_code "${SIGN_ARGS[@]+"${SIGN_ARGS[@]}"}" "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
-# The check that would have caught it. An entitlement in the Apple namespace is restricted, and a Developer ID
-# build may only claim one when a profile in the bundle grants it; without that the app is unlaunchable however
-# well it verifies. Nothing else in this pipeline runs the app, so nothing else can notice.
-step "Checking the app claims no entitlement it cannot justify"
+# Two checks that would have caught v0.2.0, which passed codesign, notarisation, spctl, its checksum, its appcast
+# signature and lipo, and could not start on any Mac.
+#
+# The first is static: every restricted entitlement the signed app claims has to be granted by the profile in the
+# bundle. No profile, or a profile that does not name the key, and macOS refuses the app at launch.
+#
+# "Restricted" is the Apple namespace minus com.apple.security.*, and that exception is the point: the hardened
+# runtime exceptions (com.apple.security.cs.*) and the sandbox keys are claimed freely by a Developer ID app and
+# never appear in a profile, so treating them as restricted would fail a release that is perfectly sound.
+# Everything else under com.apple.*, com.apple.developer.* above all, needs a profile to name it.
+step "Checking every entitlement claimed is one the profile grants"
 CLAIMED="$(codesign -d --entitlements - --xml "$APP" 2>/dev/null | plutil -convert xml1 -o - - 2>/dev/null \
-  | grep -o '<key>com\.apple\.[^<]*</key>' || true)"
-if [ -n "$CLAIMED" ] && [ ! -e "$APP/Contents/embedded.provisionprofile" ]; then
-  fail "signed app claims $(echo "$CLAIMED" | tr -d ' ' | tr '\n' ' ')with no embedded.provisionprofile to grant it; macOS will refuse to launch it (AMFI -413)"
+  | sed -n 's/.*<key>\(com\.apple\.[^<]*\)<\/key>.*/\1/p' | grep -v '^com\.apple\.security\.' || true)"
+if [ -n "$CLAIMED" ]; then
+  PROFILE_IN_APP="$APP/Contents/embedded.provisionprofile"
+  [ -e "$PROFILE_IN_APP" ] || fail "the app claims${CLAIMED:+ }$(echo "$CLAIMED" | tr '\n' ' ')with no embedded.provisionprofile to grant it; macOS will refuse to launch it (AMFI -413)"
+  GRANTED="$(security cms -D -i "$PROFILE_IN_APP" 2>/dev/null || true)"
+  while read -r key; do
+    [ -n "$key" ] || continue
+    printf '%s' "$GRANTED" | grep -qF "<key>$key</key>" \
+      || fail "the app claims $key and embedded.provisionprofile does not grant it; macOS will refuse to launch it (AMFI -413)"
+  done <<< "$CLAIMED"
 fi
+
+# The second actually starts it. AMFI decides at exec, before any of the app's own code runs, and a refusal is a
+# SIGKILL: that is the one outcome this fails on. Anything else, including the app finding no window server on a
+# runner and dying its own way, is not this check's business.
+step "Checking the signed app can be started at all"
+# `--cli --help` prints two lines and calls exit(0) (CommandLineTool.run): no run loop, no window server, no
+# network, nothing read from the vendors. It is the shortest path that still goes through exec, which is the only
+# part being tested.
+#
+# macOS has no `timeout`, and polling `kill -0` cannot stand in for one: a finished background child stays a
+# zombie until its parent reaps it, and `kill -0` on a zombie succeeds. A poll would therefore run its whole
+# budget on a process that exited instantly and never read the exit code — a gate that always passes. So: wait
+# for the child properly, with a watchdog beside it that kills it if it is still going after a minute. The
+# watchdog leaves a file behind when it fires, because its own kill also shows up as 137 and only AMFI's may fail
+# the build.
+TIMED_OUT="build/.launch-timed-out"
+rm -f "$TIMED_OUT"
+"$APP/Contents/MacOS/Notchmeter" --cli --help > /dev/null 2>&1 &
+LAUNCH_PID=$!
+( sleep 60; kill -0 "$LAUNCH_PID" 2>/dev/null && : > "$TIMED_OUT" && kill -9 "$LAUNCH_PID" 2>/dev/null ) &
+WATCHDOG=$!
+set +e
+wait "$LAUNCH_PID"
+LAUNCH=$?
+set -e
+kill "$WATCHDOG" 2>/dev/null || true
+# 137 is 128 + 9: killed. Nothing in the app kills itself, and AMFI decides before the app's first instruction
+# runs, so with the watchdog ruled out this is the shape of a rejected entitlement seen from outside.
+if [ "$LAUNCH" -eq 137 ] && [ ! -e "$TIMED_OUT" ]; then
+  fail "the signed app was killed at exec (SIGKILL); macOS refuses to run it. Check Console for amfid, and see docs/release.md"
+fi
+rm -f "$TIMED_OUT"
 
 if [ "$DRY_RUN" = 0 ]; then
   step "Notarising the app"
