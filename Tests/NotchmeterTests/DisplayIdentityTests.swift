@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Testing
 @testable import Notchmeter
 
@@ -59,7 +60,7 @@ import Testing
             func applyWindowBehaviour() {}
             func toggle(cause: PanelCause) {}
             func expandNow(cause: PanelCause) {}
-            func glance() {}
+            func glance(for duration: TimeInterval) {}
         }
         let screens = NSScreen.screens
         let presenters: [any PanelPresenting] = screens.map { Stub(screen: $0) }
@@ -92,7 +93,7 @@ import Testing
         #expect(["bottom", "left", "right"].contains(SystemChrome.dockOrientation))
     }
 
-    @Test func theMenuBarPinComposesThePinnedToolsFigures() {
+    @Test func theMenuBarPinComposesThePinnedToolsFigures() throws {
         let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
         let claude = [LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.14, resetsAt: now.addingTimeInterval(3600), periodDuration: Period.fiveHours),
                       LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.04, resetsAt: now.addingTimeInterval(86400), periodDuration: Period.week)]
@@ -102,11 +103,61 @@ import Testing
         #expect(MenuBarItem.pinnedTools(visible: [.claude, .codex, .cursor], chosen: [.cursor, .codex]) == [.codex, .cursor])
         #expect(MenuBarItem.pinnedTools(visible: [.claude, .codex], chosen: [.copilot]) == [.claude])
         #expect(MenuBarItem.pinnedTools(visible: [], chosen: []) == [])
-        let bars = MenuBarBars.image(windows: claude, now: now)
-        #expect(bars.size == MenuBarBars.size)
+        let bars = MenuBarGlyphs.bars(windows: claude, now: now)
+        #expect(bars.size == MenuBarGlyphs.size)
         #expect(bars.isTemplate)
         let behind = [LimitWindow(id: "session", label: "Session", usedFraction: 0.9, resetsAt: now.addingTimeInterval(4 * 3600), periodDuration: Period.fiveHours)]
-        #expect(!MenuBarBars.image(windows: behind, now: now).isTemplate)
+        #expect(!MenuBarGlyphs.bars(windows: behind, now: now).isTemplate)
+        // A tinted bar takes the whole image out of template mode, so every quiet bar beside it is painted as it
+        // is rather than as a mask: black there is a black square on a dark menu bar, and the menu bar's own
+        // foreground colour is the only fill that reads on both themes. The tints are the app's palette, once.
+        #expect(MenuBarGlyphs.fill(for: nil) == .labelColor)
+        #expect(MenuBarGlyphs.fill(for: .ahead) == .labelColor)
+        #expect(MenuBarGlyphs.fill(for: .onTrack) == NSColor(Palette.warn))
+        #expect(MenuBarGlyphs.fill(for: .behind) == NSColor(Palette.danger))
+        // And the drawn image agrees: rendered in a dark menu bar's appearance, the quiet bar beside a tinted one
+        // is light, not the black square this drew before. Sampled a third of the way up the first bar, which is
+        // inside its fill at 14% only because the fill has a floor (0.06 of the height) — read the middle and a
+        // quiet window would be sampling the track instead.
+        let mixed = [claude[0], behind[0]]
+        let rendered = MenuBarGlyphs.bars(windows: mixed, now: now)
+        #expect(!rendered.isTemplate)
+        let dark = try #require(NSAppearance(named: .darkAqua))
+        var quiet: NSColor?
+        dark.performAsCurrentDrawingAppearance {
+            quiet = MenuBarGlyphs.sample(rendered, at: NSPoint(x: 3, y: 3))
+        }
+        let brightness = try #require(quiet?.usingColorSpace(.deviceRGB)?.brightnessComponent)
+        #expect(brightness > 0.5)
+        // The other two icon styles carry the same figures: a ring or a dot per window, laid out along the bar,
+        // and the same rule about the tint taking the image out of template mode.
+        let rings = MenuBarGlyphs.rings(windows: claude, now: now)
+        #expect(rings.size == MenuBarGlyphs.size(count: 2, diameter: MenuBarGlyphs.ringDiameter, gap: MenuBarGlyphs.glyphGap))
+        #expect(rings.isTemplate)
+        #expect(!MenuBarGlyphs.rings(windows: behind, now: now).isTemplate)
+        let dots = MenuBarGlyphs.dots(windows: claude, now: now)
+        #expect(dots.size == MenuBarGlyphs.size(count: 2, diameter: MenuBarGlyphs.dotDiameter, gap: MenuBarGlyphs.glyphGap))
+        #expect(dots.isTemplate)
+        #expect(!MenuBarGlyphs.dots(windows: behind, now: now).isTemplate)
+        #expect(MenuBarStyle.allCases.map(\.rawValue) == ["text", "bars", "rings", "dots"])
+        // The icon's colour is a choice: the pace's own amber and vermillion, the menu bar's colour whatever
+        // happens, or one of your own. Monochrome stays a template, so macOS paints it like every other icon;
+        // a custom colour never can be one, since a template throws the colour away.
+        let chosen = NSColor(srgbRed: 0, green: 0.45, blue: 0.7, alpha: 1)
+        #expect(MenuBarGlyphs.fill(for: .behind, tint: .pace, custom: chosen) == NSColor(Palette.danger))
+        #expect(MenuBarGlyphs.fill(for: .behind, tint: .monochrome, custom: chosen) == .labelColor)
+        #expect(MenuBarGlyphs.fill(for: .ahead, tint: .monochrome, custom: chosen) == .labelColor)
+        #expect(MenuBarGlyphs.fill(for: .behind, tint: .custom, custom: chosen) == chosen)
+        #expect(MenuBarGlyphs.fill(for: .ahead, tint: .custom, custom: chosen) == chosen)
+        #expect(MenuBarGlyphs.isTinted([.behind], tint: .monochrome) == false)
+        #expect(MenuBarGlyphs.isTinted([.ahead], tint: .custom))
+        #expect(MenuBarGlyphs.isTinted([.ahead], tint: .pace) == false)
+        #expect(MenuBarGlyphs.bars(windows: behind, tint: .monochrome, now: now).isTemplate)
+        #expect(!MenuBarGlyphs.dots(windows: claude, tint: .custom, custom: chosen, now: now).isTemplate)
+        // A colour survives the round trip through the preferences, and nonsense reads as the label colour.
+        #expect(HexColour.hex(chosen) == "0073B3")
+        #expect(HexColour.hex(HexColour.colour("0072B2")) == "0072B2")
+        #expect(HexColour.colour("nope") == .labelColor)
     }
 
     @Test func theAwakeRuleHoldsOnlyWhileWorkingOnPower() {

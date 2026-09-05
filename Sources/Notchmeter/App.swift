@@ -88,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var screenObserver: NSObjectProtocol?
     private(set) var updater: Updater?
     let updaterGate = Updater.gate()
+    private var holds = PanelHolds()
     private var menuBarItem: MenuBarItem?
     private let capture = ScreenCaptureMonitor()
     private var localAPI: LocalAPI?
@@ -194,7 +195,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.togglePanel = { [weak self] in self?.pointerPresenter?.toggle(cause: .hotkey) }
         actions.copyPanelImage = { [weak self] in self?.copyPanelImage() }
         actions.installCommandLineTool = { [weak self] in self?.installCommandLineTool() }
-        actions.chooseCompactSide = { [weak self] side in self?.autoSide.sideChosen(side) }
+        actions.accessibilityIsStale = { [weak self] in
+            guard let self, case .stale = self.autoSide.trust else { return false }
+            return true
+        }
+        actions.fixAccessibility = { [weak self] in self?.offerAccessibilityReset() }
+        actions.chooseCompactSide = { [weak self] side in
+            guard let self, case .stale = self.autoSide.sideChosen(side) else { return }
+            self.offerAccessibilityReset()
+        }
         requests.rootsChanged = { [weak self] in self?.store.reloadRoots() }
         requests.menuBarChanged = { [weak self] in self?.applyMenuBarItem() }
         requests.hotkeysChanged = { [weak self] in self?.registerHotkeys() }
@@ -209,7 +218,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // first fit is taken.
         applyMenuBarItem()
         autoSide.refresh()
-        if !CommandLine.arguments.contains("--smoke") { autoSide.askAgainIfAutoIsStranded() }
+        // `--stale-sim` shows the stale-entry alert on a copy whose permission is in perfect order. Rehearsing it
+        // otherwise means revoking a real Accessibility grant, which costs the tester the very minutes the alert
+        // exists to save, and the alert is copy a person has to read to judge.
+        if arguments.contains("--stale-sim") {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1))
+                self.offerAccessibilityReset(simulated: true)
+            }
+        } else if !CommandLine.arguments.contains("--smoke"), case .stale = autoSide.askAgainIfAutoIsStranded() {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1))
+                self.offerAccessibilityReset()
+            }
+        }
         applyPrivacy()
         applyLocalAPI()
         applyPointerFollowing()
@@ -237,7 +259,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if arguments.contains("--smoke") {
             Task { await self.smokeTest() }
         } else {
-            if let updater = Updater.start(gate: updaterGate, beta: { [weak self] in self?.prefs.betaUpdates ?? false }) {
+            if let updater = Updater.start(gate: updaterGate, beta: { [weak self] in self?.prefs.betaUpdates ?? false },
+                                           session: { [weak self] shown in self?.updateSession(shown) }) {
                 self.updater = updater
                 actions.checkForUpdates = { updater.checkForUpdates() }
             }
@@ -245,7 +268,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if Translocation.shouldOffer(bundlePath: Bundle.main.bundlePath) {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(1))
+                    self.hold(.alert, true)
                     Translocation.offerMove()
+                    self.hold(.alert, false)
                 }
             } else if !prefs.hookOfferShown, store.isShown(.claude), HookSettings.status() == .notInstalled {
                 prefs.hookOfferShown = true
@@ -331,15 +356,82 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
-        for presenter in presenters { presenter.holdCompact(true) }
+        hold(.settings, true)
         prefs.refreshLaunchAtLogin()
         settings?.present(on: .pointerScreen, below: presenter?.hover.regions.compact, above: presenter?.window?.level)
         Oracle.shared.emit("settings", settingsFields(action: "shown"))
     }
 
     private func settingsDidClose() {
-        for presenter in presenters { presenter.holdCompact(false) }
+        ColourWell.closePanel()
+        hold(.settings, false)
         Oracle.shared.emit("settings", settingsFields(action: "hidden"))
+    }
+
+    /// Sparkle has a window on screen, or its last one has gone. Its windows are ordinary ones: the panel would
+    /// draw over them from screen-saver level, and the Settings window from the level above that, so both stand
+    /// down for as long as the update session lasts.
+    private func updateSession(_ shown: Bool) {
+        hold(.update, shown)
+        settings?.standAside(shown)
+        Oracle.shared.emit("updateSession", ["action": shown ? "shown" : "hidden"])
+    }
+
+    /// The Accessibility entry macOS keeps for a copy of Notchmeter that is no longer the one running: the switch
+    /// in Privacy & Security is on, Auto is refused all the same, and the system's own prompt leads straight to
+    /// that switch. Nothing but clearing the entry fixes it, and the grant is only re-read at launch, so the offer
+    /// is to clear it and restart — the same two commands as by hand, and the ordinary prompt on the way back up.
+    func offerAccessibilityReset(simulated: Bool = false) {
+        let alert = NSAlert()
+        alert.messageText = L("%@'s Accessibility permission belongs to an older copy", AppInfo.name)
+        alert.informativeText = L("macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do.", AppInfo.name)
+        alert.addButton(withTitle: L("Clear and Restart"))
+        alert.addButton(withTitle: L("Open Accessibility Settings"))
+        alert.addButton(withTitle: L("Not Now"))
+        // Settings is raised above the panel (SettingsWindowController.present), so it would stand over this alert
+        // exactly as the panel would: the Repair button in Settings is one of the two places this is offered from.
+        hold(.alert, true)
+        settings?.standAside(true)
+        NSApp.activate()
+        let response = alert.runModal()
+        settings?.standAside(false)
+        hold(.alert, false)
+        Oracle.shared.emit("accessibility", ["action": "staleEntry", "answer": response.rawValue, "simulated": simulated])
+        if simulated {
+            Probe.emit("stale-sim: answered \(response.rawValue); the entry itself is left alone")
+            return
+        }
+        switch response {
+        case .alertFirstButtonReturn:
+            guard MenuBarExtent.resetTrust() else {
+                MenuBarExtent.openSettings()
+                return
+            }
+            autoSide.forgetTrust()
+            relaunch()
+        case .alertSecondButtonReturn:
+            MenuBarExtent.openSettings()
+        default:
+            break
+        }
+    }
+
+    /// Starts a second copy from the same bundle and stands down; the new one takes the single-instance lock as
+    /// this one drops it.
+    private func relaunch() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-n", Bundle.main.bundlePath]
+        try? process.run()
+        NSApp.terminate(nil)
+    }
+
+    /// Holds the panel closed for one of the app's own windows, or releases that hold. The presenters hear only
+    /// about the change from held to free and back, never about which window asked: an update session that ends
+    /// while Settings is still up must not open the panel over it.
+    private func hold(_ reason: PanelHolds.Reason, _ held: Bool) {
+        guard holds.set(reason, held) else { return }
+        for presenter in presenters { presenter.holdCompact(holds.isHeld) }
     }
 
     var isSettingsVisible: Bool {
@@ -423,7 +515,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return built
         }
         for presenter in presenters {
-            if isSettingsVisible {
+            if holds.isHeld {
                 presenter.holdCompact(true)
             } else {
                 presenter.show()
@@ -571,11 +663,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applyLayout()
     }
 
+    /// A notification's click opens the panel the way a glance does, rather than for good. Nothing that follows
+    /// the click is bound to close it again: the panel is open because of something that happened elsewhere, the
+    /// pointer is wherever the notification was, and in the click-to-open modes only a click outside the panel
+    /// collapses it — so a click that lands in the column the panel occupies, which is the middle of the screen,
+    /// leaves it standing there. A glance closes on its own clock and needs no event at all; the pointer coming
+    /// into the panel still cancels it, so reading the thing you were told about keeps it open.
     private func openFromNotification(_ tool: ToolID?) {
         if tool == nil {
             showSettings()
         } else {
-            pointerPresenter?.expandNow(cause: .notification)
+            pointerPresenter?.glance(for: HoverIntent.notificationGlance)
         }
     }
 

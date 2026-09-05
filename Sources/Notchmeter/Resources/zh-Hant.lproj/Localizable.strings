@@ -595,7 +595,6 @@
 "When an assistant waits for you, or a turn finishes" = "當助手等待你，或一輪結束時";
 "When the cache tier or the metering shifts" = "快取檔位或計量發生變化時";
 "When you start paying (extra usage rises)" = "當你開始付費時（額外用量上漲）";
-"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace." = "固定哪些助理在下方按助理選擇；未選擇時固定第一個可見助理。「長條」把每個固定視窗畫成小條，按進度著色。";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "卡片的圓環、圖例和總額包含哪些助理，順序與「助理」中設定的一致。無法回報花費的助理不會出現在這裡；未勾選的助理仍會在自己的卡片上顯示花費。";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "當 Zoom、Meet、QuickTime 或螢幕共享正在擷取螢幕時，圓環保留形狀但隱藏數字，面板隱藏花費卡片。每五秒檢查一次。";
 "Wide" = "加寬";
@@ -620,3 +619,24 @@
 "Always show over %@" = "一律在 %@ 之上顯示";
 "App to stay over, e.g. zoom.us" = "要保持顯示的 App，例如 zoom.us";
 "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "無論上面的設定為何，讀數都會保持在這些 App 之上，依視窗列表給出的名稱列出：開會時你希望計量在旁邊，而上面的設定是為看影片而關閉的。它無法分辨同一個 App 的兩種用途，瀏覽器中的通話與影片就是例子；「在此全螢幕 App 之上顯示」快速鍵可解決這種情況，只針對螢幕上的 App，並在它離開全螢幕時失效。選項選單會為當時處於全螢幕的 App 同時提供這兩項。";
+
+/* 過期的輔助使用項目：權限屬於已被取代的舊副本（MenuBarExtent、App、SettingsWindow） */
+"%@'s Accessibility permission belongs to an older copy" = "%@ 的輔助使用權限屬於舊的副本";
+"macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS 會把權限綁定到取得授權的那一份副本，而目前執行的這一份已經取代了它。「隱私權與安全性」›「輔助使用」中的開關看起來仍是開啟的，但已經不再生效，只有清除該項目才能復原。%@ 可以清除該項目並重新啟動；屆時會再請你開啟一次開關，在此之前「自動」會維持在現在這一側。";
+"Clear and Restart" = "清除並重新啟動";
+"Open Accessibility Settings" = "打開輔助使用設定";
+"Not Now" = "稍後再說";
+"Repair the Accessibility permission…" = "修復輔助使用權限…";
+"The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "此權限屬於舊的副本：macOS 把它綁定到取得授權的那份副本，副本被取代後仍讓開關維持開啟。清除項目並重新啟動才是回復的方式。";
+
+/* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
+"Dots" = "圓點";
+
+/* The drawn menu bar icon's colour: by pace, monochrome, or one of your own (Preferences, SettingsWindow) */
+"By pace" = "依用量節奏";
+"Monochrome" = "單色";
+"Custom colour" = "自訂顏色";
+"Icon colour" = "圖示顏色";
+"Colour" = "顏色";
+"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "固定哪些助理在下方逐一選擇；都不選時會使用第一個顯示的助理。長條把每個固定的視窗畫成小長條，圓環沿用瀏海旁的形狀，圓點只表示用量節奏。";
+"By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "「依用量節奏」使用本 App 自己的琥珀色與朱紅色，因此圖示會指出某個視窗接近節奏或已經落後。「單色」始終保持選單列本身的顏色，並維持為範本圖像，由 macOS 以繪製其他圖示的方式繪製。自訂顏色保留數值，但放棄警示。";

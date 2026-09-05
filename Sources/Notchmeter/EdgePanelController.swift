@@ -188,8 +188,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
         hover.toggle(cause: cause)
     }
 
-    func glance() {
-        hover.glance(for: AccessibilityDisplay.shared.motionReduced ? HoverIntent.glanceDuration + 2 : HoverIntent.glanceDuration)
+    func glance(for duration: TimeInterval) {
+        hover.glance(for: AccessibilityDisplay.shared.motionReduced ? duration + 2 : duration)
     }
 
     func hide() async {

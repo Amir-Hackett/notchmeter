@@ -24,6 +24,9 @@ struct HoverIntent: Equatable {
     static let settleTimeout: TimeInterval = 0.35
     static let expandedMargin: CGFloat = 8
     static let glanceDuration: TimeInterval = 3
+    /// The window a notification's own click gets. Longer than a glance nobody asked for: clicking the
+    /// notification is a deliberate "show me", and the pointer coming in keeps it open however long it takes.
+    static let notificationGlance: TimeInterval = 8
 
     var mode: Mode
     /// The rest before an open, 0.1 to 1 s.
@@ -33,6 +36,12 @@ struct HoverIntent: Equatable {
     private var insideCompactSince: Int?
     private var outsideExpandedSince: Int?
     private var glanceUntil: Int?
+    /// The panel opened for a look rather than because the user asked for it. A look ends when the pointer leaves,
+    /// whatever the mode: the pointer coming in cancels the clock, because you are reading the thing you were told
+    /// about, and without this that cancelled a glance into a permanent open. In the click-to-open modes the only
+    /// thing that closes an open panel is a click outside it, and the panel stands in the middle of the screen —
+    /// so a notification's panel stayed up through every click that landed in its own column.
+    private var openedForALook = false
 
     init(mode: Mode, state: State = .compact, expandDwell: TimeInterval = HoverIntent.expandDwell) {
         self.mode = mode
@@ -88,7 +97,7 @@ struct HoverIntent: Equatable {
                     return .none
                 }
             }
-            guard mode == .onHover, !inside else {
+            guard mode == .onHover || openedForALook, !inside else {
                 outsideExpandedSince = nil
                 return .none
             }
@@ -144,6 +153,7 @@ struct HoverIntent: Equatable {
         let now = Self.milliseconds(time)
         let output = begin(.expanded, at: now)
         glanceUntil = now + Self.milliseconds(duration)
+        openedForALook = true
         return output
     }
 
@@ -169,6 +179,8 @@ struct HoverIntent: Equatable {
         insideCompactSince = nil
         outsideExpandedSince = nil
         glanceUntil = nil
+        // Every other way in is the user asking for the panel; `glance` sets it again for the one that is not.
+        openedForALook = false
         return next == .expanded ? .expand : .collapse
     }
 

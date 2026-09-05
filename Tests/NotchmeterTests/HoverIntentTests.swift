@@ -372,6 +372,36 @@ import Testing
         #expect(custom.nextDeadline == 5)
     }
 
+    /// A notification's click opens the panel on the same clock, for longer: nothing that follows that click is
+    /// bound to close it again, and in the click-to-open modes a click landing where the panel stands does not.
+    @Test func aNotificationsGlanceRunsLongerAndStillYieldsToThePointer() {
+        var intent = HoverIntent(mode: .onClick)
+        #expect(intent.glance(for: HoverIntent.notificationGlance, at: 0) == .expand)
+        intent.transitionSettled(at: 0.1)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: HoverIntent.glanceDuration + 1) == .none)
+        #expect(intent.pointer(inCompact: false, inExpanded: false, at: HoverIntent.notificationGlance) == .collapse)
+
+        // Reading it cancels the clock — and then leaving it closes it, in a mode where nothing else would. A
+        // panel that opened for a look is not a panel the user asked to keep.
+        var read = HoverIntent(mode: .onClick)
+        _ = read.glance(for: HoverIntent.notificationGlance, at: 0)
+        read.transitionSettled(at: 0.1)
+        #expect(read.pointer(inCompact: false, inExpanded: true, at: 2) == .none)
+        #expect(read.isGlancing == false)
+        #expect(read.state == .expanded)
+        #expect(read.pointer(inCompact: false, inExpanded: true, at: 20) == .none)
+        #expect(read.pointer(inCompact: false, inExpanded: false, at: 21) == .none)
+        #expect(read.pointer(inCompact: false, inExpanded: false, at: 21 + HoverIntent.collapseDwell) == .collapse)
+
+        // A panel the user opened themselves keeps the mode's own rule: leaving it does not close it in click mode.
+        var asked = HoverIntent(mode: .onClick)
+        #expect(asked.clickInside(at: 0) == .expand)
+        asked.transitionSettled(at: 0.1)
+        #expect(asked.pointer(inCompact: false, inExpanded: true, at: 1) == .none)
+        #expect(asked.pointer(inCompact: false, inExpanded: false, at: 2 + HoverIntent.collapseDwell) == .none)
+        #expect(asked.state == .expanded)
+    }
+
     @Test func aClickedOpenPanelTakesTheKeyboardAndEscapeGivesItBack() {
         var intent = HoverIntent(mode: .onClick)
         #expect(intent.clickInside(at: 0) == .expand)

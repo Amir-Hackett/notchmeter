@@ -19,6 +19,10 @@ final class NotchActions {
     var open: (URL) -> Void = { NSWorkspace.shared.open($0) }
     /// Nil while the updater is inactive (see Updater); the Options menu offers "Check for Updates…" only when set.
     var checkForUpdates: (() -> Void)?
+    /// Whether Accessibility is refused because the grant belongs to an older copy of the app (MenuBarExtent.Trust).
+    var accessibilityIsStale: () -> Bool = { false }
+    /// Offers to clear that entry and restart; Settings shows it instead of a link to a pane that looks correct.
+    var fixAccessibility: () -> Void = {}
     /// The apps full-screen on the display under the pointer, so the Options menu can offer to stay over them.
     var fullScreenApps: () -> [String] = { [] }
 }
@@ -55,11 +59,14 @@ protocol PanelPresenting: AnyObject {
     /// Opens the panel for a notification's Open button or the shortcut; the machine adopts the state.
     func toggle(cause: PanelCause)
     func expandNow(cause: PanelCause)
-    /// Opens a closed panel for a few seconds (SessionAttention.glance); the pointer coming in keeps it open.
-    func glance()
+    /// Opens a closed panel for a few seconds (SessionAttention.glance); the pointer coming in keeps it open,
+    /// and it settles by itself if nothing does — the only opening that needs no event to close it again.
+    func glance(for duration: TimeInterval)
 }
 
 extension PanelPresenting {
+    func glance() { glance(for: HoverIntent.glanceDuration) }
+
     /// The window collection behaviour for the setting: joined to every Space, and to a full-screen app's when asked.
     static func collectionBehavior(showOverFullScreen: Bool) -> NSWindow.CollectionBehavior {
         showOverFullScreen ? [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary] : [.canJoinAllSpaces, .stationary]
@@ -77,6 +84,24 @@ struct PanelReporter {
         guard reported != state else { return }
         Oracle.shared.emit("panel", ["state": state.rawValue, "cause": (reported == nil ? PanelCause.launch : cause).rawValue])
         reported = state
+    }
+}
+
+/// Which of the app's own windows want the panel closed. The panel draws above every other window, so anything the
+/// app puts on screen — its Settings window, one of Sparkle's, one of its own alerts — holds it compact for as long
+/// as that window is up, and it opens again only once the last of them has gone.
+struct PanelHolds {
+    enum Reason { case settings, update, alert }
+
+    private var reasons: Set<Reason> = []
+
+    var isHeld: Bool { !reasons.isEmpty }
+
+    /// Records one window's answer; returns whether it changed whether the panel is held at all.
+    mutating func set(_ reason: Reason, _ held: Bool) -> Bool {
+        let before = isHeld
+        if held { reasons.insert(reason) } else { reasons.remove(reason) }
+        return before != isHeld
     }
 }
 
@@ -470,8 +495,8 @@ final class NotchController: NSObject, PanelPresenting {
         hover.toggle(cause: cause)
     }
 
-    func glance() {
-        hover.glance(for: AccessibilityDisplay.shared.motionReduced ? HoverIntent.glanceDuration + 2 : HoverIntent.glanceDuration)
+    func glance(for duration: TimeInterval) {
+        hover.glance(for: AccessibilityDisplay.shared.motionReduced ? duration + 2 : duration)
     }
 
     func hide() async {

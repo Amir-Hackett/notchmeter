@@ -59,6 +59,7 @@ struct SettingsView: View {
     @State private var weeklyBudgetText = ""
     @State private var proxyText = ""
     @State private var accessibilityTrusted = MenuBarExtent.isTrusted
+    @State private var colourWell = ColourWell()
     @State private var originText = ""
     @State private var fullScreenExceptionText = ""
 
@@ -190,7 +191,34 @@ struct SettingsView: View {
                     ForEach(MenuBarStyle.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .disabled(!prefs.menuBarPin)
-                .help(L("Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, tinted by its pace."))
+                .help(L("Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone."))
+                // Only for the drawn styles: Text is drawn by the menu bar itself, in the colour it uses for
+                // everything else, and nothing here could change that without fighting it.
+                if prefs.menuBarStyle != .text {
+                    Picker(L("Icon colour"), selection: Binding(get: { prefs.menuBarTint }, set: { prefs.menuBarTint = $0 })) {
+                        ForEach(MenuBarTint.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                    .disabled(!prefs.menuBarPin)
+                    .help(L("By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning."))
+                    if prefs.menuBarTint == .custom {
+                        HStack {
+                            Text(L("Colour"))
+                            Spacer()
+                            Button {
+                                colourWell.open(colour: HexColour.colour(prefs.menuBarTintHex),
+                                                above: hostWindow()?.level ?? .floating) { prefs.menuBarTintHex = HexColour.hex($0) }
+                            } label: {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(Color(nsColor: HexColour.colour(prefs.menuBarTintHex)))
+                                    .frame(width: 44, height: 22)
+                                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.separator))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(L("Colour"))
+                        }
+                        .disabled(!prefs.menuBarPin)
+                    }
+                }
                 if !prefs.menuBarPin {
                     Text(L("Turn on Pin figures beside the icon to use this."))
                         .font(.caption).foregroundStyle(.secondary)
@@ -273,11 +301,21 @@ struct SettingsView: View {
                 paragraph(L("Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits."))
             }
             if prefs.compactSide == .auto, !accessibilityTrusted {
-                Button(L("Open Accessibility settings…")) {
-                    MenuBarExtent.openSettings()
-                    accessibilityTrusted = MenuBarExtent.isTrusted
+                // A stale entry is not the same problem and does not have the same answer: the pane the other
+                // button opens shows the switch already on, and turning it off and on is what has to happen.
+                if actions.accessibilityIsStale() {
+                    Button(L("Repair the Accessibility permission…")) {
+                        actions.fixAccessibility()
+                        accessibilityTrusted = MenuBarExtent.isTrusted
+                    }
+                    .help(L("The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back."))
+                } else {
+                    Button(L("Open Accessibility settings…")) {
+                        MenuBarExtent.openSettings()
+                        accessibilityTrusted = MenuBarExtent.isTrusted
+                    }
+                    .help(L("Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility."))
                 }
-                .help(L("Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility."))
             }
             Toggle(L("Show details"), isOn: Binding(
                 get: { prefs.showDetails },
@@ -1275,6 +1313,41 @@ final class SettingsPanel: NSPanel {
     }
 }
 
+/// The system colour panel, opened by hand rather than through SwiftUI's `ColorPicker`. Two reasons, both about
+/// this window. It is a non-activating panel, so with the app inactive the first click on SwiftUI's well is spent
+/// making the window key and nothing opens at all — the second one works, which from the outside is a feature that
+/// does not exist. And the colour panel is an ordinary window, while this one is raised above a panel drawing at
+/// screen-saver level, so wherever it was last left it can open under both. So: activate, one level higher again,
+/// and the colour flows back into the preference as it is picked.
+@MainActor
+final class ColourWell: NSObject {
+    private var apply: (NSColor) -> Void = { _ in }
+
+    func open(colour: NSColor, above level: NSWindow.Level, apply: @escaping (NSColor) -> Void) {
+        self.apply = apply
+        let panel = NSColorPanel.shared
+        panel.showsAlpha = false
+        panel.color = colour
+        panel.level = NSWindow.Level(rawValue: level.rawValue + 1)
+        panel.hidesOnDeactivate = false
+        panel.setTarget(self)
+        panel.setAction(#selector(colourChanged))
+        NSApp.activate()
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    /// Closed with the window that opened it: it sits above everything, and a colour panel left standing over
+    /// every other app is not something the user asked for.
+    static func closePanel() {
+        guard NSColorPanel.sharedColorPanelExists, NSColorPanel.shared.isVisible else { return }
+        NSColorPanel.shared.close()
+    }
+
+    @objc private func colourChanged(_ sender: NSColorPanel) {
+        apply(sender.color)
+    }
+}
+
 @MainActor
 final class SettingsWindowController: NSWindowController {
     /// A grouped Form has no intrinsic height, so the window is sized explicitly.
@@ -1286,6 +1359,9 @@ final class SettingsWindowController: NSWindowController {
     nonisolated static let readoutClearance: CGFloat = 12
 
     private let prefs: Preferences
+    /// The panel's level as `present` last saw it, so the window can return to sitting above it.
+    private var panelLevel: NSWindow.Level?
+    private var aside = false
 
     init(store: UsageStore, prefs: Preferences, actions: NotchActions, notifier: Notifier, requests: SettingsRequests) {
         self.prefs = prefs
@@ -1323,11 +1399,23 @@ final class SettingsWindowController: NSWindowController {
     func present(on screen: NSScreen, below readouts: CGRect? = nil, above panelLevel: NSWindow.Level? = nil) {
         guard let window else { return }
         window.appearance = prefs.appearance.nsAppearance
-        if let panelLevel { window.level = Self.level(above: panelLevel) }
+        if let panelLevel {
+            self.panelLevel = panelLevel
+            if !aside { window.level = Self.level(above: panelLevel) }
+        }
         window.setFrame(Self.frame(for: window.frame.size, screen: screen.frame, safeAreaTop: screen.safeAreaInsets.top,
                                    visible: screen.visibleFrame, readouts: readouts), display: false)
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    /// Steps back to the ordinary window level while Sparkle has a window up, and returns to its own afterwards.
+    /// This window is raised above the panel (see `present`), which puts it over the update alert and the
+    /// "you're up to date" alert too — they are ordinary windows, and nothing in them can raise itself past it.
+    func standAside(_ aside: Bool) {
+        self.aside = aside
+        guard let window else { return }
+        window.level = aside ? .normal : (panelLevel.map(Self.level(above:)) ?? .floating)
     }
 
     var isNonActivating: Bool {
