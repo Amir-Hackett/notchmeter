@@ -56,14 +56,24 @@ Without Xcode the certificate comes from the website:
 If `codesign` later says *unable to build chain to self-signed root*, install Apple's *Developer ID - G2* intermediate
 from <https://www.apple.com/certificateauthority/>.
 
-**The time-sensitive notifications capability.** The release is signed with `scripts/Notchmeter.entitlements`, which
-carries `com.apple.developer.usernotifications.time-sensitive` so the *waiting for you* and *limit hit* notifications
-can break through a Focus. Developer ID signing accepts that entitlement only when the App ID carries the capability,
-which is one action in the developer account: <https://developer.apple.com/account/resources/identifiers/list> →
-`com.amirhackett.notchmeter` (register it as an explicit App ID if it is not there) → tick *Time Sensitive
-Notifications* → Save. Without it, macOS delivers those notifications at the ordinary level and logs the missing
-entitlement once; `scripts/release.sh --dry-run` signs ad hoc and leaves the entitlements off, because they need a
-provisioning identity.
+**The time-sensitive notifications capability, and why the release does not claim it.** `scripts/Notchmeter.entitlements`
+asks for `com.apple.developer.usernotifications.time-sensitive`, which would let the *waiting for you* and *limit hit*
+notifications break through a Focus. The release no longer signs with it, and the file is kept only for the day it can
+be used.
+
+This paragraph used to say that without the capability on the App ID, macOS would deliver those notifications at the
+ordinary level and log the missing entitlement once. That is wrong, and v0.2.0 shipped on the strength of it. An
+entitlement in the `com.apple.*` namespace is **restricted**: an app claiming one outside the App Store must carry a
+provisioning profile granting it, at `Contents/embedded.provisionprofile`. Nothing in this pipeline makes one. macOS
+refused to launch the app on every Mac, with `amfid` logging `No matching profile found` (`AppleMobileFileIntegrityError`
+`-413`), and `codesign --verify`, notarisation and `spctl` all passed it, because none of them check this.
+
+To claim it again: enable *Time Sensitive Notifications* on the App ID
+(<https://developer.apple.com/account/resources/identifiers/list> → `com.amirhackett.notchmeter`, registering it as an
+explicit App ID if it is not there), create a **Developer ID** provisioning profile for that App ID, copy it into the
+bundle as `Contents/embedded.provisionprofile` before signing, and restore the `--entitlements` argument in
+`scripts/release.sh`. Then **launch the built app** before publishing. `release.sh` now refuses to build an app that
+claims a restricted entitlement without a profile beside it, so the mistake cannot repeat silently.
 
 ### 3. Notarisation credentials
 

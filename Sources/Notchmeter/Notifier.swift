@@ -156,9 +156,10 @@ final class Notifier {
     }
 
     /// Time-sensitive is reserved for the two notices that need the user now: running out (or out) and waiting for
-    /// them; a finished turn is active. Time-sensitive breaks through Focus only in a build signed with the
-    /// `com.apple.developer.usernotifications.time-sensitive` entitlement (scripts/Notchmeter.entitlements); an
-    /// unsigned build's notices stay behind Focus like active ones.
+    /// them; a finished turn is active. Time-sensitive would break through Focus only in a build signed with the
+    /// `com.apple.developer.usernotifications.time-sensitive` entitlement, which no build claims: it is restricted,
+    /// and an app outside the App Store claiming one without a provisioning profile in the bundle is refused at
+    /// launch (docs/release.md). macOS accepts the level and delivers these behind Focus like active ones.
     nonisolated static func level(for stage: PaceAlert.Stage) -> UNNotificationInterruptionLevel {
         switch stage {
         case .onTrack: .passive

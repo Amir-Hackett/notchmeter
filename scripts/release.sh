@@ -47,7 +47,6 @@ DMG="$DIST/Notchmeter.dmg"
 APPCAST="$DIST/appcast.xml"
 SPARKLE_BIN=.build/artifacts/sparkle/Sparkle/bin
 PLACEHOLDER_KEY=REPLACE_WITH_SPARKLE_PUBLIC_KEY
-ENTITLEMENTS=scripts/Notchmeter.entitlements
 
 fail() { echo "release: $*" >&2; exit 1; }
 step() { printf '\n== %s\n' "$*"; }
@@ -114,9 +113,25 @@ sign_code --preserve-metadata=entitlements "$FRAMEWORK/Versions/B/XPCServices/Do
 sign_code "$FRAMEWORK/Versions/B/Autoupdate"
 sign_code "$FRAMEWORK/Versions/B/Updater.app"
 sign_code "$FRAMEWORK"
-# The app itself carries the entitlements; an ad-hoc dry run signs without them (they need a provisioning identity).
-if [ "$DRY_RUN" = 1 ]; then sign_code "$APP"; else sign_code --entitlements "$ENTITLEMENTS" "$APP"; fi
+# Signed with no entitlements at all, deliberately. scripts/Notchmeter.entitlements asks for
+# com.apple.developer.usernotifications.time-sensitive, which is a restricted entitlement: an app claiming one
+# outside the App Store must carry a provisioning profile that grants it, at Contents/embedded.provisionprofile.
+# Nothing here makes one, so v0.2.0 shipped claiming an entitlement it could not justify and macOS refused to
+# launch it, on every Mac, with AMFI logging "No matching profile found" (error -413). codesign, notarisation
+# and Gatekeeper all pass such a build, which is why it reached people. Restore the --entitlements argument
+# only together with a profile in the bundle, and only after launching the result.
+sign_code "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
+
+# The check that would have caught it. An entitlement in the Apple namespace is restricted, and a Developer ID
+# build may only claim one when a profile in the bundle grants it; without that the app is unlaunchable however
+# well it verifies. Nothing else in this pipeline runs the app, so nothing else can notice.
+step "Checking the app claims no entitlement it cannot justify"
+CLAIMED="$(codesign -d --entitlements - --xml "$APP" 2>/dev/null | plutil -convert xml1 -o - - 2>/dev/null \
+  | grep -o '<key>com\.apple\.[^<]*</key>' || true)"
+if [ -n "$CLAIMED" ] && [ ! -e "$APP/Contents/embedded.provisionprofile" ]; then
+  fail "signed app claims $(echo "$CLAIMED" | tr -d ' ' | tr '\n' ' ')with no embedded.provisionprofile to grant it; macOS will refuse to launch it (AMFI -413)"
+fi
 
 if [ "$DRY_RUN" = 0 ]; then
   step "Notarising the app"
