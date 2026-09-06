@@ -1099,10 +1099,16 @@ final class UsageStore {
         let outcome = sessions.apply(message, now: now)
         applyAwake()
         armSignalRelease(now: now)
+        // The withdrawal goes first because one message can end a wait and start another for the same session:
+        // `apply` seeds stoppedWaiting from `expire`, so a needsInput arriving after its own wait timed out is
+        // demoted and re-raised inside the one call, and both lists name it. Delivered first, the withdrawal took
+        // the new banner straight back down — and the notifier had already spent that session's ten minutes on a
+        // banner nobody saw. Withdrawn first, the notice standing for the wait that expired goes, and the new one
+        // is what is left.
+        withdrawWaiting(outcome.stoppedWaiting)
         if let waiting = outcome.startedWaiting, prefs.notifyWaiting {
             deliverSessionEvent(.waiting(blocking: message.blocksSession), waiting)
         }
-        withdrawWaiting(outcome.stoppedWaiting)
         if let finished = outcome.finished, prefs.notifyFinished, finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
         }
