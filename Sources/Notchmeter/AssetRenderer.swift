@@ -108,7 +108,7 @@ enum AssetRenderer {
             // the launch's pitch line and the whole 1200 pt bar fitted into 1270 put the notch at 280 px and a
             // signal mark at three pixels by two. The README's own picture of the strip stays wide (compact-top.png):
             // there the point is how little of the bar it takes, and here it is what the readouts actually say.
-            let compact = try stage.image(.compact, canvas: CGSize(width: 300, height: 74), pixelScale: 4)
+            let compact = try stage.image(.compact, canvas: CGSize(width: 300, height: 44), pixelScale: 4)
             let notchShape = try edgeNotch(store: store, edge: .left)
             let rightNotchShape = try edgeNotch(store: store, edge: .right)
             let settingsImage = try sheet(settings(store: store, prefs: prefs, actions: actions))
@@ -123,7 +123,7 @@ enum AssetRenderer {
             // 900×1027 one, because at 760 high the whole panel would be at 0.55 px a point.
             let hoverCaption = L("Hover the rings. The panel opens.")
             var hover: [Frame] = []
-            for frame in try stage.demo(canvas: CGSize(width: 580, height: 280), pixelScale: 2) {
+            for frame in try stage.demo(canvas: CGSize(width: 580, height: 280), pixelScale: 2, startOpen: true) {
                 hover.append(Frame(image: try composite(frame.image, caption: hoverCaption, lines: [], canvas: canvas),
                                    delay: frame.delay))
             }
@@ -225,7 +225,9 @@ enum AssetRenderer {
             NSGraphicsContext.current = graphics
             let body: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 24, weight: .regular), .foregroundColor: NSColor(white: 0.85, alpha: 1)]
             let x = image == nil || lines.isEmpty ? margin : canvas.width * 0.5 + margin / 2
-            var y = image == nil ? margin + 40 : textTop
+            var y = image == nil
+                ? max(margin + 40, (canvas.height - captionHeight - CGFloat(lines.count) * 76) / 2)
+                : textTop
             for line in lines {
                 (line as NSString).draw(in: CGRect(x: x, y: y, width: canvas.width - x - margin, height: 80), withAttributes: body)
                 y += 76
@@ -614,17 +616,25 @@ enum AssetRenderer {
         /// a caption band across the foot, which leaves 568 points for a 1039-point panel; it asks instead for a
         /// canvas cropped around the notch and the Cost card, at 2 px a point, so the loop arrives at the frame
         /// already the size it will be drawn and nothing about it is resampled.
-        func demo(canvas: CGSize? = nil, pixelScale: CGFloat = 1) throws -> [Frame] {
+        /// `startOpen` rotates the cycle to begin on the open panel. It is the same frames at the same delays
+        /// looping the same way — only the phase differs — and it exists for one viewer: a social unfurler that
+        /// serves a still of frame one. A still of the closed rings says nothing about what the app is, so the
+        /// gallery's copy starts open and the README's does not, the README being a page nobody shares as a card.
+        func demo(canvas: CGSize? = nil, pixelScale: CGFloat = 1, startOpen: Bool = false) throws -> [Frame] {
             let canvas = canvas ?? CGSize(width: 900, height: panelSize.height + 36)
             var frames: [Frame] = []
             func add(_ pose: Pose, delay: Double) throws {
                 frames.append(Frame(image: try image(pose, canvas: canvas, pixelScale: pixelScale), delay: delay))
             }
-            for _ in 0..<10 { try add(.compact, delay: 0.06) }
-            for step in 0..<24 { try add(.opening(Double(step) / 23), delay: 0.04) }
-            for _ in 0..<30 { try add(.expanded, delay: 0.06) }
-            for step in 1...12 { try add(.closing(Double(step) / 12), delay: 0.04) }
-            for _ in 0..<6 { try add(.compact, delay: 0.06) }
+            func rest(_ count: Int) throws { for _ in 0..<count { try add(.compact, delay: 0.06) } }
+            func opening() throws { for step in 0..<24 { try add(.opening(Double(step) / 23), delay: 0.04) } }
+            func held() throws { for _ in 0..<30 { try add(.expanded, delay: 0.06) } }
+            func closing() throws { for step in 1...12 { try add(.closing(Double(step) / 12), delay: 0.04) } }
+            if startOpen {
+                try held(); try closing(); try rest(16); try opening()
+            } else {
+                try rest(10); try opening(); try held(); try closing(); try rest(6)
+            }
             return frames
         }
 
