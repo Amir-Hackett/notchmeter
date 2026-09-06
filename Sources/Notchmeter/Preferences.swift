@@ -624,7 +624,8 @@ final class Preferences {
     /// Whether a terminal or editor in front holds a session notice back. On, because for the person with one
     /// terminal and one session it is right; off for the person whose session is in some other tab, where the
     /// app cannot tell the two apart without reading window titles, which it will not do (MenuBarExtent.swift).
-    /// A wait the session has stopped for ignores this either way — see Notifier.shouldSuppress.
+    /// A wait the session has stopped for ignores this, but only once per session per ten minutes — see
+    /// Notifier.shouldSuppress.
     var quietWhileTerminalFrontmost: Bool {
         didSet {
             defaults.set(quietWhileTerminalFrontmost, forKey: Keys.quietWhileTerminal)
