@@ -96,7 +96,7 @@
 "+%ld" = "+%ld";
 ", behind pace" = "、ペースより遅れ";
 ", close to pace" = "、ペースに近い";
-"0.02% of one core when idle. Nothing while the screen is locked." = "アイドル時は 1 コアの 0.02%。画面ロック中は何もしません。";
+"0.02% of one core on a quiet day, 1.4% under load." = "平常時は 1 コアの 0.02%、高負荷時は 1.4%。";
 "1 agent" = "1 エージェント";
 "1 hour before" = "1 時間前";
 "1 session" = "1 セッション";
@@ -180,7 +180,10 @@
 "Beside the notch" = "ノッチの横";
 "Beta updates" = "ベータ版アップデート";
 "billing export" = "請求データ";
-"Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらもそのアシスタントのフックが必要で、ターミナルやエディタが最前面のときと静寂時間中は鳴りません。ここではパネルの動作を選びます。リングの動作は上のトグルが決め、どちらか一方だけをオフにできます。「ちら見」はパネルをセッション行とともに数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
+"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらもそのアシスタントのフックが必要で、上の通知と同じ規則に従います。ターミナルが最前面のときの設定と、「おやすみ時間」です。ここではパネルの動作を選びます。リングの動作は上のトグルが決め、どちらか一方だけをオフにできます。「ちら見」はパネルをセッション行とともに数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
+"Stay quiet while a terminal or editor is in front" = "ターミナルやエディタが前面のときは通知しない";
+"On, a notice about a session is held back while a terminal or editor is frontmost, because you are probably looking at the session in it. Off, it arrives anyway — the answer when your sessions sit in tabs you are not looking at, since the app can only see which app is in front and never which window, and never reads a window's title to find out. A wait the session has stopped for, and a session on another Mac, ignore this setting; the quiet hours override it." = "オンのとき、セッションの通知はターミナルやエディタが最前面のあいだ保留されます。そのセッションをそこで見ている可能性が高いからです。オフにするとそれでも届きます。見ていないタブにセッションが並んでいる場合はこちらが答えです。アプリに分かるのはどのアプリが前面かだけで、どのウィンドウかは決して分からず、それを知るためにウィンドウのタイトルを読むこともしません。セッションが停止して待っている場合と、別の Mac のセッションはこの設定を無視します。「おやすみ時間」はこの設定より優先されます。";
+"Both need the assistant's hook. A wait the session has stopped for — a permission prompt, an elicitation, an agent asking — always reaches you. Claude Code's idle nudge, which only means you have gone quiet, and a finished turn stay in the background while a terminal or editor is in front, unless you turn that off below." = "どちらもそのアシスタントのフックが必要です。セッションが停止して待っている場合（許可の確認、入力の要求、エージェントからの質問）は、どこを見ていても必ず届きます。Claude Code のアイドル通知は、あなたが静かになっただけを意味するもので、ターンの完了と同じく、ターミナルやエディタが前面のあいだは表に出ません。下でその設定をオフにすれば届きます。";
 "Both sides" = "両側";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "両側はノッチを中心に見えます。メニューの多いアプリはノッチの左端を越えることがあり、ノッチの右側なら必ず避けられます。";
 "Bottom, above the Dock" = "下、Dock の上";
@@ -420,7 +423,7 @@
 "over by %ld%%" = "%ld%% 超過";
 "Overall %@" = "全体の%@";
 "Pace crossing" = "ペース超過";
-"Pace tick, projection, reset time. Notifications at pace crossings." = "ペースの目盛り、予測、リセット時刻。ペース超過時に通知。";
+"Warns you at pace, not at 90% — while you can still do something about it." = "90% ではなくペースで警告。まだ手を打てるうちに。";
 "Panel" = "パネル";
 "Panel width" = "パネルの幅";
 "Paste" = "ペースト";
@@ -490,6 +493,8 @@
 "Runs out from %@, or lasts to the reset" = "早ければ %@ に枯渇、あるいはリセットまで持ちます";
 "Runs out in %@" = "%@ 後に使い切ります";
 "Select All" = "すべてを選択";
+"Asking for permission failed: %@" = "許可の要求に失敗しました: %@";
+"Sent, but quietly: %@ has provisional permission, so notices go straight to Notification Center with no banner. Allow them under Notifications in System Settings." = "送信しましたが、静かに届いています: %@ には仮の許可しかないため、通知はバナーを出さずに通知センターへ直接届きます。システム設定 › 通知で許可してください。";
 "Sent." = "送信しました。";
 "session" = "セッション";
 "Session" = "セッション";
@@ -548,8 +553,8 @@
 "Third ring" = "3 番目のリング";
 "This" = "この";
 "This GitHub account has no Copilot subscription" = "この GitHub アカウントには Copilot のサブスクリプションがありません";
-"This session block %1$@ · %2$@/min" = "このセッション枠 %1$@ · 毎分 %2$@";
-"This session block %@" = "このセッション枠 %@";
+"This session block %1$@ since %2$@ · %3$@/min" = "このセッション枠 %2$@から %1$@ · 毎分 %3$@";
+"This session block %1$@ since %2$@" = "このセッション枠 %2$@から %1$@";
 "Time format" = "時刻形式";
 "To" = "終了";
 "Today" = "今日";
@@ -607,7 +612,7 @@
 "yesterday" = "昨日";
 "Yesterday" = "昨日";
 "You are now paying: extra usage rose %@ this month." = "支払いが発生しています: 今月の追加使用が %@ 増えました。";
-"Your menu bar ran out of room three apps ago. This one doesn't take any." = "メニューバーは 3 つ前のアプリで満杯になりました。これはスペースを取りません。";
+"Lives in the notch. Takes no menu bar room." = "ノッチに常駐。メニューバーの場所は取りません。";
 "~%ld%% left at reset" = "リセット時に約 %ld%% 残る見込み";
 "~%ld%% over at reset" = "リセット時に約 %ld%% 超過";
 "“%@” is off in Settings" = "設定の「%@」がオフです";

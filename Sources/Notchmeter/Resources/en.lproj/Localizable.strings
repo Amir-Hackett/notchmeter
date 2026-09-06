@@ -112,7 +112,7 @@
 "+%ld" = "+%ld";
 ", behind pace" = ", behind pace";
 ", close to pace" = ", close to pace";
-"0.02% of one core when idle. Nothing while the screen is locked." = "0.02% of one core when idle. Nothing while the screen is locked.";
+"0.02% of one core on a quiet day, 1.4% under load." = "0.02% of one core on a quiet day, 1.4% under load.";
 "1 agent" = "1 agent";
 "1 hour before" = "1 hour before";
 "1 session" = "1 session";
@@ -196,7 +196,10 @@
 "Beside the notch" = "Beside the notch";
 "Beta updates" = "Beta updates";
 "billing export" = "billing export";
-"Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release.";
+"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release.";
+"Stay quiet while a terminal or editor is in front" = "Stay quiet while a terminal or editor is in front";
+"On, a notice about a session is held back while a terminal or editor is frontmost, because you are probably looking at the session in it. Off, it arrives anyway — the answer when your sessions sit in tabs you are not looking at, since the app can only see which app is in front and never which window, and never reads a window's title to find out. A wait the session has stopped for, and a session on another Mac, ignore this setting; the quiet hours override it." = "On, a notice about a session is held back while a terminal or editor is frontmost, because you are probably looking at the session in it. Off, it arrives anyway — the answer when your sessions sit in tabs you are not looking at, since the app can only see which app is in front and never which window, and never reads a window's title to find out. A wait the session has stopped for, and a session on another Mac, ignore this setting; the quiet hours override it.";
+"Both need the assistant's hook. A wait the session has stopped for — a permission prompt, an elicitation, an agent asking — always reaches you. Claude Code's idle nudge, which only means you have gone quiet, and a finished turn stay in the background while a terminal or editor is in front, unless you turn that off below." = "Both need the assistant's hook. A wait the session has stopped for — a permission prompt, an elicitation, an agent asking — always reaches you. Claude Code's idle nudge, which only means you have gone quiet, and a finished turn stay in the background while a terminal or editor is in front, unless you turn that off below.";
 "Both sides" = "Both sides";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them.";
 "Bottom, above the Dock" = "Bottom, above the Dock";
@@ -436,7 +439,7 @@
 "over by %ld%%" = "over by %ld%%";
 "Overall %@" = "Overall %@";
 "Pace crossing" = "Pace crossing";
-"Pace tick, projection, reset time. Notifications at pace crossings." = "Pace tick, projection, reset time. Notifications at pace crossings.";
+"Warns you at pace, not at 90% — while you can still do something about it." = "Warns you at pace, not at 90% — while you can still do something about it.";
 "Panel" = "Panel";
 "Panel width" = "Panel width";
 "Paste" = "Paste";
@@ -506,6 +509,8 @@
 "Runs out from %@, or lasts to the reset" = "Runs out from %@, or lasts to the reset";
 "Runs out in %@" = "Runs out in %@";
 "Select All" = "Select All";
+"Asking for permission failed: %@" = "Asking for permission failed: %@";
+"Sent, but quietly: %@ has provisional permission, so notices go straight to Notification Center with no banner. Allow them under Notifications in System Settings." = "Sent, but quietly: %@ has provisional permission, so notices go straight to Notification Center with no banner. Allow them under Notifications in System Settings.";
 "Sent." = "Sent.";
 "session" = "session";
 "Session" = "Session";
@@ -564,8 +569,8 @@
 "Third ring" = "Third ring";
 "This" = "This";
 "This GitHub account has no Copilot subscription" = "This GitHub account has no Copilot subscription";
-"This session block %1$@ · %2$@/min" = "This session block %1$@ · %2$@/min";
-"This session block %@" = "This session block %@";
+"This session block %1$@ since %2$@ · %3$@/min" = "This session block %1$@ since %2$@ · %3$@/min";
+"This session block %1$@ since %2$@" = "This session block %1$@ since %2$@";
 "Time format" = "Time format";
 "To" = "To";
 "Today" = "Today";
@@ -623,7 +628,7 @@
 "Yesterday" = "Yesterday";
 "yesterday" = "yesterday";
 "You are now paying: extra usage rose %@ this month." = "You are now paying: extra usage rose %@ this month.";
-"Your menu bar ran out of room three apps ago. This one doesn't take any." = "Your menu bar ran out of room three apps ago. This one doesn't take any.";
+"Lives in the notch. Takes no menu bar room." = "Lives in the notch. Takes no menu bar room.";
 "~%ld%% left at reset" = "~%ld%% left at reset";
 "~%ld%% over at reset" = "~%ld%% over at reset";
 "“%@” is off in Settings" = "“%@” is off in Settings";

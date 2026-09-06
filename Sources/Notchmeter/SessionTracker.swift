@@ -228,9 +228,9 @@ struct SessionTracker: Equatable, Sendable {
     @discardableResult
     mutating func apply(_ message: Hook.Message, now: Date) -> Outcome {
         hooksSeen.insert(message.tool)
-        expire(now: now)
-        let id = Self.key(tool: message.tool, session: message.sessionID, host: message.host)
         var outcome = Outcome()
+        outcome.stoppedWaiting = expire(now: now)
+        let id = Self.key(tool: message.tool, session: message.sessionID, host: message.host)
         if message.event == "SessionEnd" {
             if sessions[id]?.isWaiting == true { outcome.stoppedWaiting.append(id) }
             sessions[id] = nil
@@ -317,14 +317,21 @@ struct SessionTracker: Equatable, Sendable {
     /// are up, agents silent that long are forgotten, and sessions silent for four hours are dropped. This is the
     /// app's answer to a hook that stops reporting mid-session: every state here has an end that arrives whether or
     /// not another event ever does.
-    mutating func expire(now: Date) {
+    /// Returns the sessions that stopped waiting by timing out or going stale, so their delivered "is waiting"
+    /// notices can be withdrawn like every other end of a wait. Without this a wait nobody ever answered left its
+    /// banner in Notification Center for good, and the hand stayed up there long after the ring had put it down.
+    @discardableResult
+    mutating func expire(now: Date) -> [String] {
+        var stoppedWaiting: [String] = []
         for (id, var session) in sessions {
             if now.timeIntervalSince(session.lastEvent) >= Self.staleAfter {
+                if session.isWaiting { stoppedWaiting.append(id) }
                 sessions[id] = nil
                 continue
             }
             if case .waiting(let since) = session.state, now.timeIntervalSince(since) >= Self.waitingTimeout {
                 session.state = .idle
+                stoppedWaiting.append(id)
             }
             if let finished = session.finished, now.timeIntervalSince(finished.at) >= Self.finishedHold {
                 session.finished = nil
@@ -332,6 +339,7 @@ struct SessionTracker: Equatable, Sendable {
             session.agents = session.agents.filter { now.timeIntervalSince($0.value) < Self.agentTimeout }
             sessions[id] = session
         }
+        return stoppedWaiting
     }
 
     /// "notchmeter (and 1 more)": the projects waiting, newest first.

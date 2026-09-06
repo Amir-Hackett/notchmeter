@@ -14,7 +14,9 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "not
 @MainActor
 final class Notifier {
     enum SessionEvent {
-        case waiting
+        /// `blocking` is a wait the session has stopped for — a permission prompt, an elicitation, an agent
+        /// asking — as against Claude Code's idle nudge, which only says the user has gone quiet (Hook.swift).
+        case waiting(blocking: Bool)
         case finished(turn: TimeInterval)
     }
 
@@ -23,7 +25,8 @@ final class Notifier {
         case pace, waiting, finished
     }
 
-    /// Terminal and editor apps: an alert is pointless while the user is looking at the session.
+    /// Terminal and editor apps: a notice about a session is usually pointless while one of them is in front.
+    /// Usually, not always — see `shouldSuppress`, which is where the exceptions live.
     nonisolated static let terminalBundleIDs: Set<String> = [
         "com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "dev.warp.Warp", "com.github.wez.wezterm",
         "net.kovidgoyal.kitty", "io.alacritty", "org.alacritty", "com.mitchellh.ghostty", "co.zeit.hyper", "com.microsoft.VSCode",
@@ -41,6 +44,8 @@ final class Notifier {
     /// Preferences by the app delegate.
     var sound: (SoundEvent) -> String = { _ in NotificationSound.defaultChoice }
     var quiet: () -> Bool = { false }
+    /// Whether the frontmost-terminal rule is on at all (Preferences.quietWhileTerminalFrontmost).
+    var terminalRule: () -> Bool = { true }
 
     nonisolated static func isAvailable(arguments: [String] = CommandLine.arguments, bundleIdentifier: String? = Bundle.main.bundleIdentifier) -> Bool {
         bundleIdentifier != nil && !arguments.contains("--probe") && !arguments.contains("--smoke") && !arguments.contains("--render-assets")
@@ -79,14 +84,20 @@ final class Notifier {
         }
     }
 
+    /// A quiet hour hushes these rather than dropping them: UsageStore commits a plan to `alertMemory` before it
+    /// hands the alerts over (UsageStore.swift, `remember` then `send`) and a stage never repeats within its
+    /// period, so an alert dropped here would be one the user is never told about at all. Passive and silent, it
+    /// waits in Notification Center for the morning instead.
     func send(_ alerts: [PaceAlert], context: Advisor.Context) {
         guard center != nil else { return }
         requestProvisionalAuthorization()
+        let hushed = quiet()
         for alert in alerts {
             let loud = alert.stage == .runningOut || alert.stage == .limitHit
             deliver(identifier: alert.identifier, thread: alert.tool.rawValue, tool: alert.tool,
                     title: Advisor.alertTitle(alert), body: Advisor.alertBody(alert, context: context),
-                    level: Self.level(for: alert.stage), sound: loud ? NotificationSound.unSound(for: sound(.pace)) : nil)
+                    level: hushed ? .passive : Self.level(for: alert.stage),
+                    sound: loud && !hushed ? NotificationSound.unSound(for: sound(.pace)) : nil)
         }
     }
 
@@ -95,10 +106,11 @@ final class Notifier {
     func send(advice: [Advice]) {
         guard center != nil else { return }
         requestProvisionalAuthorization()
+        let hushed = quiet()
         for line in advice {
             deliver(identifier: "advice/\(line.id)", thread: line.tool?.rawValue ?? "advice", tool: line.tool, title: L("%@ advice", AppInfo.name),
-                    body: line.text, level: line.priority == .danger ? .timeSensitive : .active,
-                    sound: line.priority == .danger ? NotificationSound.unSound(for: sound(.pace)) : nil)
+                    body: line.text, level: hushed ? .passive : (line.priority == .danger ? .timeSensitive : .active),
+                    sound: line.priority == .danger && !hushed ? NotificationSound.unSound(for: sound(.pace)) : nil)
         }
     }
 
@@ -116,12 +128,14 @@ final class Notifier {
         }
     }
 
-    /// "Claude Code is waiting in notchmeter" or "Cursor finished a 12m turn in notchmeter", unless a terminal is
-    /// frontmost or it is a quiet hour; the banner is threaded under the session's tool, so each assistant's notices
-    /// stack together. Returns whether it was sent.
+    /// "Claude Code is waiting in notchmeter" or "Cursor finished a 12m turn in notchmeter", unless `shouldSuppress`
+    /// says the user is already looking at it or it is a quiet hour; the banner is threaded under the session's
+    /// tool, so each assistant's notices stack together. Returns whether it was sent.
     @discardableResult
     func notify(_ event: SessionEvent, session: AgentSession, frontmost: String? = NSWorkspace.shared.frontmostApplication?.bundleIdentifier) -> Bool {
-        guard center != nil, !Self.shouldSuppress(frontmost: frontmost, quiet: quiet()) else { return false }
+        guard center != nil,
+              !Self.shouldSuppress(event: event, frontmost: frontmost, quiet: quiet(), host: session.host, terminalRule: terminalRule())
+        else { return false }
         requestProvisionalAuthorization()
         let (title, body) = Self.copy(for: event, session: session)
         let (identifier, choice): (String, String) = switch event {
@@ -148,11 +162,25 @@ final class Notifier {
         }
     }
 
-    /// No banner while the user is looking at a terminal or an editor, and none inside the quiet hours.
-    nonisolated static func shouldSuppress(frontmost: String?, quiet: Bool) -> Bool {
+    /// Quiet hours silence everything. Past them, the frontmost-terminal rule holds a notice back only where the
+    /// user could plausibly be looking at the session it is about, which is not the case three times over: a
+    /// session on another machine, which no window on this one can be showing; a wait the session has stopped
+    /// for, which costs the user real time wherever they are looking, and which frontmost-app granularity cannot
+    /// tell from a session in some other tab; and a user who has turned the rule off. Claude Code's idle nudge is
+    /// none of those — it fires whenever a turn ends and the user reads for a minute, so it stays suppressed, and
+    /// it is the reason this rule cannot simply be dropped for waits.
+    nonisolated static func shouldSuppress(event: SessionEvent? = nil, frontmost: String?, quiet: Bool,
+                                           host: String? = nil, terminalRule: Bool = true) -> Bool {
         if quiet { return true }
+        guard terminalRule, host == nil else { return false }
+        if case .waiting(let blocking)? = event, blocking { return false }
         guard let frontmost else { return false }
-        return terminalBundleIDs.contains(frontmost) || frontmost.lowercased().contains("terminal") || frontmost.lowercased().contains("iterm")
+        return isTerminal(frontmost)
+    }
+
+    /// A terminal or an editor: the apps a session is looked at through.
+    nonisolated static func isTerminal(_ bundleID: String) -> Bool {
+        terminalBundleIDs.contains(bundleID) || bundleID.lowercased().contains("terminal") || bundleID.lowercased().contains("iterm")
     }
 
     /// Time-sensitive is reserved for the two notices that need the user now: running out (or out) and waiting for
@@ -176,16 +204,31 @@ final class Notifier {
     }
 
     /// A sample alert in the user's own time format; returns the line Settings shows beneath the button.
+    ///
+    /// The line has to account for provisional permission, which is what the app has until someone answers a
+    /// dialog: under it a notice is delivered, and delivered silently, straight into Notification Center with no
+    /// banner and no sound. Reporting that as "Sent." is how a working Test button reads as a broken one — the
+    /// notice did arrive, in the one place the user was not looking. The flag is set only once the request has
+    /// actually come back, so a request that threw does not leave the app believing it has asked.
     func sendTest(timeFormat: TimeFormatPreference) async -> String {
         guard let center else { return L("Not available: %@ is running unbundled.", AppInfo.name) }
-        authorizationRequested = true
-        _ = try? await center.requestAuthorization(options: [.alert, .sound])
+        do {
+            _ = try await center.requestAuthorization(options: [.alert, .sound])
+            authorizationRequested = true
+        } catch {
+            log.error("authorization failed: \(error.localizedDescription, privacy: .public)")
+            return L("Asking for permission failed: %@", error.localizedDescription)
+        }
         let settings = await center.notificationSettings()
         switch settings.authorizationStatus {
         case .denied:
             return L("Notifications are off for %@ in System Settings › Notifications.", AppInfo.name)
         case .notDetermined:
             return L("Waiting for permission.")
+        case .provisional:
+            deliver(identifier: "test", thread: "test", tool: nil, title: L("%@ test", AppInfo.name), body: Self.sampleBody(timeFormat: timeFormat),
+                    level: .active, sound: NotificationSound.unSound(for: sound(.pace)))
+            return L("Sent, but quietly: %@ has provisional permission, so notices go straight to Notification Center with no banner. Allow them under Notifications in System Settings.", AppInfo.name)
         default:
             deliver(identifier: "test", thread: "test", tool: nil, title: L("%@ test", AppInfo.name), body: Self.sampleBody(timeFormat: timeFormat),
                     level: .active, sound: NotificationSound.unSound(for: sound(.pace)))

@@ -15,13 +15,17 @@ struct CostDetail {
     let claude: CostSummary?
     let now: Date
     let calendar: Calendar
+    /// For the block line's start, which is a clock time rather than a day.
+    let timeFormat: TimeFormatPreference
 
-    init(provider: ProviderCost, range: CostRange, claude: CostSummary? = nil, now: Date = Date(), calendar: Calendar = .current) {
+    init(provider: ProviderCost, range: CostRange, claude: CostSummary? = nil, now: Date = Date(), calendar: Calendar = .current,
+         timeFormat: TimeFormatPreference = .auto) {
         self.provider = provider
         self.range = range
         self.claude = provider.tool == .claude ? claude : nil
         self.now = now
         self.calendar = calendar
+        self.timeFormat = timeFormat
     }
 
     private var name: String { provider.tool.displayName }
@@ -67,11 +71,15 @@ struct CostDetail {
         return L("Claude %1$@ since %2$@ · %3$@ per 1%% of weekly", Money.dollars(week.cost), since, Money.dollars(perPercent))
     }
 
-    /// The live 5-hour session block, which only Claude Code meters.
+    /// The live 5-hour session block, which only Claude Code meters. It names the hour it opened for the same
+    /// reason the week line names its day: the figures above it cover a whole day and this one does not, and a
+    /// block that has just reset otherwise reads as a contradiction of the day's total sitting beside it.
     var block: String? {
         guard let block = claude?.block, block.cost > 0 || block.tokens.total > 0 else { return nil }
-        guard let rate = block.tokensPerMinute else { return L("This session block %@", Money.dollars(block.cost)) }
-        return L("This session block %1$@ · %2$@/min", Money.dollars(block.cost), Money.tokens(Int(rate.rounded())).replacingOccurrences(of: " tokens", with: ""))
+        let since = ResetText.time(block.start, format: timeFormat, calendar: calendar)
+        guard let rate = block.tokensPerMinute else { return L("This session block %1$@ since %2$@", Money.dollars(block.cost), since) }
+        return L("This session block %1$@ since %2$@ · %3$@/min", Money.dollars(block.cost), since,
+                 Money.tokens(Int(rate.rounded())).replacingOccurrences(of: " tokens", with: ""))
     }
 
     /// Everything Claude Code has cost since its history begins, against the 90-day range that asks the question.

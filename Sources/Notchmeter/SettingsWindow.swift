@@ -533,7 +533,9 @@ struct SettingsView: View {
                     .help(L("Once a day when today's cache writes moved to the 5-minute tier against the 30-day norm, or the session meters about twice as heavily as usual."))
             }
             Toggle(L("Notify when an assistant waits for you"), isOn: Binding(get: { prefs.notifyWaiting }, set: { prefs.notifyWaiting = $0; if $0 { notifier.requestAuthorization() } }))
+                .help(L("Both need the assistant's hook. A wait the session has stopped for — a permission prompt, an elicitation, an agent asking — always reaches you. Claude Code's idle nudge, which only means you have gone quiet, and a finished turn stay in the background while a terminal or editor is in front, unless you turn that off below."))
             Toggle(L("Notify when a turn finishes"), isOn: Binding(get: { prefs.notifyFinished }, set: { prefs.notifyFinished = $0; if $0 { notifier.requestAuthorization() } }))
+                .help(L("Both need the assistant's hook. A wait the session has stopped for — a permission prompt, an elicitation, an agent asking — always reaches you. Claude Code's idle nudge, which only means you have gone quiet, and a finished turn stay in the background while a terminal or editor is in front, unless you turn that off below."))
             if prefs.notifyFinished {
                 Stepper(value: Binding(get: { prefs.finishedAfterMinutes }, set: { prefs.finishedAfterMinutes = $0 }), in: 1...60) {
                     HStack {
@@ -543,12 +545,14 @@ struct SettingsView: View {
                     }
                 }
             }
+            Toggle(L("Stay quiet while a terminal or editor is in front"), isOn: Binding(get: { prefs.quietWhileTerminalFrontmost }, set: { prefs.quietWhileTerminalFrontmost = $0 }))
+                .help(L("On, a notice about a session is held back while a terminal or editor is frontmost, because you are probably looking at the session in it. Off, it arrives anyway — the answer when your sessions sit in tabs you are not looking at, since the app can only see which app is in front and never which window, and never reads a window's title to find out. A wait the session has stopped for, and a session on another Mac, ignore this setting; the quiet hours override it."))
             Toggle(L("Colour the rings when an assistant waits or finishes"), isOn: Binding(get: { prefs.signalRings }, set: { prefs.signalRings = $0 }))
                 .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not."))
             Picker(L("When an assistant waits for you, or a turn finishes"), selection: Binding(get: { prefs.sessionAttention }, set: { prefs.sessionAttention = $0 })) {
                 ForEach(SessionAttention.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            .help(L("Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release."))
+            .help(L("Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release."))
             Toggle(L("Sound"), isOn: Binding(get: { prefs.notificationSound }, set: { prefs.notificationSound = $0 }))
             if prefs.notificationSound {
                 SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))

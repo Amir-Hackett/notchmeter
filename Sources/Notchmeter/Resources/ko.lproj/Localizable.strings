@@ -96,7 +96,7 @@
 "+%ld" = "+%ld";
 ", behind pace" = ", 페이스보다 느림";
 ", close to pace" = ", 페이스에 근접";
-"0.02% of one core when idle. Nothing while the screen is locked." = "유휴 시 코어 하나의 0.02%. 화면 잠금 중에는 아무것도 하지 않습니다.";
+"0.02% of one core on a quiet day, 1.4% under load." = "평상시 코어 하나의 0.02%, 부하 시 1.4%.";
 "1 agent" = "에이전트 1개";
 "1 hour before" = "1시간 전";
 "1 session" = "세션 1개";
@@ -180,7 +180,10 @@
 "Beside the notch" = "노치 옆";
 "Beta updates" = "베타 업데이트";
 "billing export" = "청구 내보내기";
-"Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "둘 다 해당 어시스턴트의 훅이 필요하며 터미널이나 편집기가 맨 앞이거나 조용한 시간에는 울리지 않습니다. 이 설정은 패널이 무엇을 할지 정하고, 링이 무엇을 할지는 위의 토글이 정하며, 둘 중 하나만 꺼 둘 수도 있습니다. 잠깐 보기는 패널을 세션 줄과 함께 몇 초 열었다가 포인터가 들어오지 않으면 다시 닫습니다. 동작 줄이기에서는 애니메이션 없이 열리고 조금 더 머뭅니다. \"대기 중\" 알림은 응답하면 철회됩니다. 서명되지 않은 빌드에서는 어떤 알림도 집중 모드나 방해금지를 뚫지 못하고, 서명된 릴리스에서는 시간 민감 알림(소진 임박, 대기 중)이 뚫습니다.";
+"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "둘 다 해당 어시스턴트의 훅이 필요하며, 위 알림과 같은 규칙을 따릅니다. 맨 앞 터미널 설정과 방해 금지 시간입니다. 이 설정은 패널이 무엇을 할지 정하고, 링이 무엇을 할지는 위의 토글이 정하며, 둘 중 하나만 꺼 둘 수도 있습니다. 잠깐 보기는 패널을 세션 줄과 함께 몇 초 열었다가 포인터가 들어오지 않으면 다시 닫습니다. 동작 줄이기에서는 애니메이션 없이 열리고 조금 더 머뭅니다. \"대기 중\" 알림은 응답하면 철회됩니다. 서명되지 않은 빌드에서는 어떤 알림도 집중 모드나 방해금지를 뚫지 못하고, 서명된 릴리스에서는 시간 민감 알림(소진 임박, 대기 중)이 뚫습니다.";
+"Stay quiet while a terminal or editor is in front" = "터미널이나 편집기가 맨 앞일 때 조용히 하기";
+"On, a notice about a session is held back while a terminal or editor is frontmost, because you are probably looking at the session in it. Off, it arrives anyway — the answer when your sessions sit in tabs you are not looking at, since the app can only see which app is in front and never which window, and never reads a window's title to find out. A wait the session has stopped for, and a session on another Mac, ignore this setting; the quiet hours override it." = "켜면 터미널이나 편집기가 맨 앞일 때 세션 알림이 보류됩니다. 그 안에서 세션을 보고 있을 가능성이 높기 때문입니다. 끄면 그래도 도착합니다. 세션이 보고 있지 않은 탭에 있을 때 필요한 답입니다. 이 앱은 어느 앱이 맨 앞인지만 알 뿐 어느 창인지는 결코 알 수 없고, 알아내려고 창 제목을 읽지도 않기 때문입니다. 세션이 멈춰서 기다리는 알림과 다른 Mac의 세션은 이 설정을 무시하며, 방해 금지 시간이 이 설정보다 우선합니다.";
+"Both need the assistant's hook. A wait the session has stopped for — a permission prompt, an elicitation, an agent asking — always reaches you. Claude Code's idle nudge, which only means you have gone quiet, and a finished turn stay in the background while a terminal or editor is in front, unless you turn that off below." = "둘 다 해당 어시스턴트의 훅이 필요합니다. 세션이 멈춰서 기다리는 경우, 즉 권한 요청, 확인 요청, 에이전트의 질문은 언제나 전달됩니다. 사용자가 조용해졌다는 뜻일 뿐인 Claude Code의 유휴 알림과 끝난 턴은 터미널이나 편집기가 맨 앞이면 아래에서 끄지 않는 한 알리지 않고 뒤에 머무릅니다.";
 "Both sides" = "양쪽";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "양쪽은 노치를 중심으로 보입니다. 메뉴가 많은 앱은 노치 왼쪽 가장자리를 넘을 수 있으며, 노치 오른쪽은 항상 이를 피합니다.";
 "Bottom, above the Dock" = "하단, Dock 위";
@@ -420,7 +423,7 @@
 "over by %ld%%" = "%ld%% 초과";
 "Overall %@" = "전체 %@";
 "Pace crossing" = "속도 교차";
-"Pace tick, projection, reset time. Notifications at pace crossings." = "페이스 눈금, 예측, 초기화 시각. 페이스를 넘을 때 알림.";
+"Warns you at pace, not at 90% — while you can still do something about it." = "90%가 아니라 페이스로 알립니다 — 아직 손쓸 수 있을 때.";
 "Panel" = "패널";
 "Panel width" = "패널 너비";
 "Paste" = "붙여넣기";
@@ -490,6 +493,8 @@
 "Runs out from %@, or lasts to the reset" = "이르면 %@ 소진, 아니면 초기화까지 유지";
 "Runs out in %@" = "%@ 후 소진";
 "Select All" = "전체 선택";
+"Asking for permission failed: %@" = "권한 요청에 실패했습니다: %@";
+"Sent, but quietly: %@ has provisional permission, so notices go straight to Notification Center with no banner. Allow them under Notifications in System Settings." = "보냈지만 조용히 전달되었습니다: %@에 임시 권한만 있어 알림이 배너 없이 곧바로 알림 센터로 갑니다. 시스템 설정 › 알림에서 허용하세요.";
 "Sent." = "보냈습니다.";
 "session" = "세션";
 "Session" = "세션";
@@ -548,8 +553,8 @@
 "Third ring" = "세 번째 링";
 "This" = "이";
 "This GitHub account has no Copilot subscription" = "이 GitHub 계정에는 Copilot 구독이 없습니다";
-"This session block %1$@ · %2$@/min" = "이 세션 블록 %1$@ · 분당 %2$@";
-"This session block %@" = "이 세션 블록 %@";
+"This session block %1$@ since %2$@ · %3$@/min" = "이 세션 블록 %2$@부터 %1$@ · 분당 %3$@";
+"This session block %1$@ since %2$@" = "이 세션 블록 %2$@부터 %1$@";
 "Time format" = "시간 형식";
 "To" = "종료";
 "Today" = "오늘";
@@ -607,7 +612,7 @@
 "Yesterday" = "어제";
 "yesterday" = "어제";
 "You are now paying: extra usage rose %@ this month." = "이제 결제되고 있습니다: 이번 달 추가 사용이 %@ 올랐습니다.";
-"Your menu bar ran out of room three apps ago. This one doesn't take any." = "메뉴 막대는 앱 세 개 전에 이미 꽉 찼습니다. 이 앱은 자리를 차지하지 않습니다.";
+"Lives in the notch. Takes no menu bar room." = "노치에 자리합니다. 메뉴 막대는 차지하지 않습니다.";
 "~%ld%% left at reset" = "초기화 시 약 %ld%% 남음";
 "~%ld%% over at reset" = "초기화 시 약 %ld%% 초과";
 "“%@” is off in Settings" = "설정의 “%@”이(가) 꺼져 있습니다";

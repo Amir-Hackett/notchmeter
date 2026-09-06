@@ -110,6 +110,28 @@ import Testing
         #expect(plain.map(\.text) == ["Claude Code is waiting for your input."])
     }
 
+    /// The frontmost-terminal rule holds a session notice back only where the user could actually be looking at
+    /// the session it is about. Three cases say they could not be — a wait the session has stopped for, which the
+    /// app cannot tell from a session sitting in another tab; a session on another Mac, which no window here can
+    /// be showing; and a user who turned the rule off — and the quiet hours outrank all three. Claude Code's idle
+    /// nudge is none of them: it fires whenever a turn ends and the user reads for a minute, so it stays quiet,
+    /// which is the whole reason the rule cannot simply be dropped for waits.
+    @Test func onlyAStoppedSessionIsWorthInterruptingATerminalFor() {
+        let terminal = "com.googlecode.iterm2"
+        #expect(Notifier.shouldSuppress(event: .waiting(blocking: false), frontmost: terminal, quiet: false))
+        #expect(!Notifier.shouldSuppress(event: .waiting(blocking: true), frontmost: terminal, quiet: false))
+        #expect(Notifier.shouldSuppress(event: .finished(turn: 600), frontmost: terminal, quiet: false))
+        #expect(!Notifier.shouldSuppress(event: .waiting(blocking: false), frontmost: terminal, quiet: false, host: "mini"))
+        #expect(!Notifier.shouldSuppress(event: .finished(turn: 600), frontmost: terminal, quiet: false, host: "mini"))
+        #expect(!Notifier.shouldSuppress(event: .waiting(blocking: false), frontmost: terminal, quiet: false, terminalRule: false))
+        #expect(!Notifier.shouldSuppress(event: .finished(turn: 600), frontmost: terminal, quiet: false, terminalRule: false))
+        // Quiet hours are checked first and answer for every exemption above.
+        #expect(Notifier.shouldSuppress(event: .waiting(blocking: true), frontmost: terminal, quiet: true))
+        #expect(Notifier.shouldSuppress(event: .waiting(blocking: true), frontmost: nil, quiet: true, host: "mini", terminalRule: false))
+        // A non-terminal in front never suppressed anything and still does not.
+        #expect(!Notifier.shouldSuppress(event: .waiting(blocking: false), frontmost: "com.apple.Safari", quiet: false))
+    }
+
     @Test func alertLevelsAndSuppression() {
         #expect(Notifier.level(for: .onTrack) == .passive)
         #expect(Notifier.level(for: .behind) == .active)

@@ -96,7 +96,7 @@
 "+%ld" = "+%ld";
 ", behind pace" = "，落後進度";
 ", close to pace" = "，接近進度";
-"0.02% of one core when idle. Nothing while the screen is locked." = "閒置時僅佔一個核心的 0.02%。螢幕鎖定時完全靜默。";
+"0.02% of one core on a quiet day, 1.4% under load." = "清閒時佔一個核心的 0.02%，高負載時 1.4%。";
 "1 agent" = "1 個代理";
 "1 hour before" = "提前 1 小時";
 "1 session" = "1 個工作階段";
@@ -180,7 +180,10 @@
 "Beside the notch" = "瀏海旁";
 "Beta updates" = "測試版更新";
 "billing export" = "帳單匯出";
-"Both need the assistant's hook and stay quiet while a terminal or editor is frontmost and inside the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "兩者都需要該助手的掛鉤，且在終端機或編輯器位於最前、以及安靜時段內保持安靜。這裡選擇面板的行為；圓環的行為由上面的開關決定，兩者可以分別關閉。「一瞥」會將面板連同工作階段行開啟幾秒後再收起，除非指標移入；開啟「減少動態效果」時無動畫開啟並停留稍久。你回覆後「等待中」通知會被撤回。未簽署的組建中任何通知都無法突破專注模式或勿擾模式；簽署版本中的時效性通知（即將用盡、等待你）可以。";
+"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "兩者都需要該助手的掛鉤，並遵循與上述通知相同的規則：終端機在最前時保持安靜的設定，以及勿擾時段。這裡選擇面板的行為；圓環的行為由上面的開關決定，兩者可以分別關閉。「一瞥」會將面板連同工作階段行開啟幾秒後再收起，除非指標移入；開啟「減少動態效果」時無動畫開啟並停留稍久。你回覆後「等待中」通知會被撤回。未簽署的組建中任何通知都無法突破專注模式或勿擾模式；簽署版本中的時效性通知（即將用盡、等待你）可以。";
+"Stay quiet while a terminal or editor is in front" = "終端機或編輯器在最前時保持安靜";
+"On, a notice about a session is held back while a terminal or editor is frontmost, because you are probably looking at the session in it. Off, it arrives anyway — the answer when your sessions sit in tabs you are not looking at, since the app can only see which app is in front and never which window, and never reads a window's title to find out. A wait the session has stopped for, and a session on another Mac, ignore this setting; the quiet hours override it." = "開啟時，只要終端機或編輯器位於最前，關於工作階段的通知就會被壓住，因為你多半正在裡面看著那個工作階段。關閉時，通知照樣送達——當你的工作階段待在你沒在看的分頁裡時，這才是答案，因為這個 App 只看得到哪個 App 在最前，永遠不知道是哪個視窗，也絕不讀取視窗標題去查明。工作階段已停下來等待的情況，以及在另一台 Mac 上的工作階段，會忽略這項設定；勿擾時段則凌駕於它之上。";
+"Both need the assistant's hook. A wait the session has stopped for — a permission prompt, an elicitation, an agent asking — always reaches you. Claude Code's idle nudge, which only means you have gone quiet, and a finished turn stay in the background while a terminal or editor is in front, unless you turn that off below." = "兩者都需要該助手的掛鉤。工作階段已停下來等待的情況——許可提示、引導詢問、代理發問——一定會傳達給你。Claude Code 的閒置提醒只代表你安靜了一會兒，它和一輪工作的完成，在終端機或編輯器位於最前時會留在背景，除非你在下方關閉那項設定。";
 "Both sides" = "兩側";
 "Both sides reads as centred on the notch. An app with many menus can reach past its left edge; right of the notch always clears them." = "兩側顯示時以瀏海為中心。選單較多的應用程式可能超出瀏海左緣；選擇瀏海右側則始終避開。";
 "Bottom, above the Dock" = "底部，Dock 上方";
@@ -420,7 +423,7 @@
 "over by %ld%%" = "超出 %ld%%";
 "Overall %@" = "整體%@";
 "Pace crossing" = "進度越界";
-"Pace tick, projection, reset time. Notifications at pace crossings." = "進度刻度、預測、重設時間。在進度越線時通知。";
+"Warns you at pace, not at 90% — while you can still do something about it." = "依用量節奏提醒你，不是等到 90%——趁你還來得及調整。";
 "Panel" = "面板";
 "Panel width" = "面板寬度";
 "Paste" = "貼上";
@@ -490,6 +493,8 @@
 "Runs out from %@, or lasts to the reset" = "最早 %@ 用盡，或可撐到重設";
 "Runs out in %@" = "%@ 後用完";
 "Select All" = "全選";
+"Asking for permission failed: %@" = "要求授權失敗：%@";
+"Sent, but quietly: %@ has provisional permission, so notices go straight to Notification Center with no banner. Allow them under Notifications in System Settings." = "已傳送，但無聲無息：%@ 只有臨時授權，因此通知會直接進入通知中心，不顯示橫幅。請在系統設定 › 通知中允許。";
 "Sent." = "已傳送。";
 "Session" = "工作階段";
 "session" = "工作階段";
@@ -548,8 +553,8 @@
 "Third ring" = "第三環";
 "This" = "目前";
 "This GitHub account has no Copilot subscription" = "此 GitHub 帳號沒有 Copilot 訂閱";
-"This session block %1$@ · %2$@/min" = "本工作階段時段 %1$@ · 每分鐘 %2$@";
-"This session block %@" = "本工作階段時段 %@";
+"This session block %1$@ since %2$@ · %3$@/min" = "本工作階段時段自%2$@起 %1$@ · 每分鐘 %3$@";
+"This session block %1$@ since %2$@" = "本工作階段時段自%2$@起 %1$@";
 "Time format" = "時間格式";
 "To" = "至";
 "today" = "今天";
@@ -607,7 +612,7 @@
 "Yesterday" = "昨天";
 "yesterday" = "昨天";
 "You are now paying: extra usage rose %@ this month." = "你現在在付費：本月額外用量上漲了 %@。";
-"Your menu bar ran out of room three apps ago. This one doesn't take any." = "你的選單列三個 App 之前就滿了。這一個不佔位置。";
+"Lives in the notch. Takes no menu bar room." = "住在瀏海裡。不佔選單列空間。";
 "~%ld%% left at reset" = "重設時約剩 %ld%%";
 "~%ld%% over at reset" = "重設時約超出 %ld%%";
 "“%@” is off in Settings" = "設定中的「%@」已關閉";

@@ -26,7 +26,7 @@ import Testing
     }
 
     @Test func aWaitIsClaudesBecauseOnlyClaudeCanWait() {
-        let claude = Notifier.copy(for: .waiting, session: session(.claude))
+        let claude = Notifier.copy(for: .waiting(blocking: true), session: session(.claude))
         #expect(claude.title == "Claude Code is waiting")
         #expect(claude.body == "Claude Code is waiting in proj.")
     }

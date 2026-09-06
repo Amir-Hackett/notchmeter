@@ -621,6 +621,16 @@ final class Preferences {
     var notifyFinished: Bool {
         didSet { defaults.set(notifyFinished, forKey: Keys.notifyFinished); report(Keys.notifyFinished, notifyFinished, changed: notifyFinished != oldValue) }
     }
+    /// Whether a terminal or editor in front holds a session notice back. On, because for the person with one
+    /// terminal and one session it is right; off for the person whose session is in some other tab, where the
+    /// app cannot tell the two apart without reading window titles, which it will not do (MenuBarExtent.swift).
+    /// A wait the session has stopped for ignores this either way — see Notifier.shouldSuppress.
+    var quietWhileTerminalFrontmost: Bool {
+        didSet {
+            defaults.set(quietWhileTerminalFrontmost, forKey: Keys.quietWhileTerminal)
+            report(Keys.quietWhileTerminal, quietWhileTerminalFrontmost, changed: quietWhileTerminalFrontmost != oldValue)
+        }
+    }
     /// A turn that ran at least this long is worth a notification when it finishes.
     var finishedAfterMinutes: Int {
         didSet {
@@ -864,6 +874,7 @@ final class Preferences {
         static let resetReminder = "resetReminder"
         static let notifyWaiting = "notifyWaiting"
         static let notifyFinished = "notifyFinished"
+        static let quietWhileTerminal = "quietWhileTerminalFrontmost"
         static let finishedAfter = "finishedAfterMinutes"
         static let notifyExtraUsage = "notifyExtraUsage"
         static let notifyCacheShift = "notifyCacheShift"
@@ -956,6 +967,7 @@ final class Preferences {
         resetReminder = ResetReminder(rawValue: defaults.string(forKey: Keys.resetReminder) ?? "") ?? .off
         notifyWaiting = defaults.bool(forKey: Keys.notifyWaiting)
         notifyFinished = defaults.bool(forKey: Keys.notifyFinished)
+        quietWhileTerminalFrontmost = defaults.object(forKey: Keys.quietWhileTerminal) as? Bool ?? true
         finishedAfterMinutes = defaults.object(forKey: Keys.finishedAfter) as? Int ?? 2
         notifyExtraUsage = defaults.object(forKey: Keys.notifyExtraUsage) as? Bool ?? true
         notifyCacheShift = defaults.bool(forKey: Keys.notifyCacheShift)

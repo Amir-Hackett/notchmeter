@@ -130,7 +130,7 @@ enum AssetRenderer {
             try write(hover, gif: directory.appendingPathComponent("01-hover.gif"))
 
             let frames: [(name: String, image: CGImage?, caption: String, lines: [String])] = [
-                ("02-compact", compact, L("Your menu bar ran out of room three apps ago. This one doesn't take any."), []),
+                ("02-compact", compact, L("Lives in the notch. Takes no menu bar room."), []),
                 // The lines beside the picture used to be three example advice lines lifted from the README's
                 // rules table — "Opus weekly is 91%", "Codex has 78% of its weekly left" — beside a panel showing
                 // no Opus row at all and a Codex card reading "No data". A reader saw the product claim 78% of
@@ -144,17 +144,18 @@ enum AssetRenderer {
                     "At most three lines, highest priority first, and nothing at all when there is nothing to say.",
                     "The same words arrive as a notification when a window's pace crosses.",
                 ]),
-                ("04-pace", claudeCard.image, L("Pace tick, projection, reset time. Notifications at pace crossings."), []),
+                ("04-pace", claudeCard.image, L("Warns you at pace, not at 90% — while you can still do something about it."), []),
                 ("05-accuracy", nil, L("Every number shows its work."), [
                     "Five token buckets: input, output, 5-minute and 1-hour cache writes, cache reads.",
                     "1.1× on inference_geo \"us\". Web search at $10 per 1,000. Fast mode at its own rate.",
-                    "The output_tokens placeholder: the last line of a streamed response is the real count (35% more on this Mac).",
+                    "The output_tokens placeholder: the last line is the real count, 35% more here.",
                     "Golden-transcript tests pin every rule. docs/accuracy.md",
                 ]),
-                ("06-energy", nil, L("0.02% of one core when idle. Nothing while the screen is locked."), [
-                    "60 s, no cost scan: 0.01 CPU-seconds / 61 s = 0.02% of one core",
-                    "180 s with one cached cost scan: 0.86 CPU-seconds / 182 s = 0.47%",
-                    "37 to 69 MB resident. ps and top on an M5 Pro; powermetrics next.",
+                ("06-energy", nil, L("0.02% of one core on a quiet day, 1.4% under load."), [
+                    "Quiet day: 0.01 CPU-s / 61 s = 0.02%; 0.86 / 182 s = 0.47% with a cost scan",
+                    "Heavy day (10 MB+ transcripts): 0.84 / 61 s = 1.4%; 2.99 / 182 s = 1.6%",
+                    "63 MB physical footprint, 77 MB peak (vmmap). ps RSS 99 to 105 MB, flat.",
+                    "Nothing while the screen is locked, the displays are asleep or the Mac is asleep.",
                 ]),
                 // The frame draws one notch and its mirror, so the caption names two edges. It said three while
                 // the bottom bar was nowhere in it, which is the kind of small untruth a reader checks once.

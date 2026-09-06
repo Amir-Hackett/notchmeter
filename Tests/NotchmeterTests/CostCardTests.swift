@@ -200,7 +200,8 @@ import Testing
 
     func detail(_ order: [ToolID], range: CostRange = .today) throws -> CostDetail {
         let selection = CostSelection(all: [claude, cursor], order: order, carried: [.claude, .cursor])
-        return CostDetail(provider: try #require(selection.providers.first), range: range, claude: summary, now: now, calendar: utc)
+        return CostDetail(provider: try #require(selection.providers.first), range: range, claude: summary, now: now, calendar: utc,
+                          timeFormat: .twelveHour)
     }
 
     @Test func withCursorAtTheTopTheBlockIsCursors() throws {
@@ -228,7 +229,7 @@ import Testing
     /// the leader rather than the fact that Claude happens to be installed.
     @Test func claudesOwnWindowsAppearOnlyWhileClaudeLeads() throws {
         #expect(try detail([.claude, .cursor], range: .week).week?.contains("per 1% of weekly") == true)
-        #expect(try detail([.claude, .cursor]).block == "This session block $18.00 · 4K/min")
+        #expect(try detail([.claude, .cursor]).block == "This session block $18.00 since 3:00 PM · 4K/min")
         #expect(try detail([.claude, .cursor], range: .last90Days).since?.hasPrefix("Claude since today") == true)
         #expect(try detail([.cursor, .claude], range: .week).week == nil)
         #expect(try detail([.cursor, .claude]).block == nil)

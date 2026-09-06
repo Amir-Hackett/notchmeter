@@ -14,6 +14,34 @@ import Testing
                      notificationType: type, failure: failure, tool: tool)
     }
 
+    /// A wait nobody answers times out on the ring after ten minutes. The banner it raised has to come down with
+    /// it: `expire` is the only witness to that ending, so it reports what it demoted, and reports it once.
+    @Test func anExpiredWaitIsReportedSoItsNoticeCanBeWithdrawn() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit"), now: t0)
+        let started = tracker.apply(message("Notification", type: "permission_prompt"), now: t0.addingTimeInterval(10))
+        #expect(started.startedWaiting != nil)
+        #expect(started.stoppedWaiting.isEmpty)
+        #expect(tracker.waiting.count == 1)
+        let timeout = t0.addingTimeInterval(10 + SessionTracker.waitingTimeout)
+        #expect(tracker.expire(now: timeout) == ["a"])
+        #expect(tracker.waiting.isEmpty)
+        #expect(tracker.expire(now: timeout.addingTimeInterval(60)).isEmpty, "an ended wait is announced once, not on every sweep")
+    }
+
+    /// The same withdrawal when the whole session goes stale rather than the wait merely timing out, and nothing
+    /// is reported for a session that was not waiting when it went.
+    @Test func aWaitLostToStalenessIsReportedAndAnIdleSessionIsNot() {
+        var waiting = SessionTracker()
+        waiting.apply(message("Notification", type: "permission_prompt"), now: t0)
+        #expect(waiting.expire(now: t0.addingTimeInterval(SessionTracker.staleAfter)) == ["a"])
+        #expect(waiting.all.isEmpty)
+        var idle = SessionTracker()
+        idle.apply(message("SessionStart"), now: t0)
+        #expect(idle.expire(now: t0.addingTimeInterval(SessionTracker.staleAfter)).isEmpty)
+        #expect(idle.all.isEmpty)
+    }
+
     @Test func aTurnGoesWorkingThenIdleAndReportsItsLength() {
         var tracker = SessionTracker()
         #expect(tracker.knownCount == nil)

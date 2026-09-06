@@ -185,6 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         notifier.sound = { [weak self] event in self?.prefs.sound(for: event) ?? NotificationSound.defaultChoice }
         notifier.quiet = { [weak self] in self?.prefs.isQuietHour() ?? false }
+        notifier.terminalRule = { [weak self] in self?.prefs.quietWhileTerminalFrontmost ?? true }
         notifier.onOpen = { [weak self] tool in self?.openFromNotification(tool) }
         store.start()
         actions.refresh = { [weak self] in self?.store.refreshAll(interactive: true) }
@@ -328,11 +329,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Session attention
 
-    /// The notification, then the notch itself: a glance or an open, under the same quiet-hours and
-    /// frontmost-terminal rule, on the presenter under the pointer.
+    /// The notification, then the notch itself: a glance or an open, on the presenter under the pointer. Both go
+    /// through the one rule, with the same event, so the panel cannot disagree with the banner about whether the
+    /// user is looking at the session — a wait the session has stopped for is worth the glance for the same
+    /// reason it is worth the banner.
     private func sessionEvent(_ event: Notifier.SessionEvent, session: AgentSession) {
         notifier.notify(event, session: session)
-        guard prefs.sessionAttention != .nothing, !Notifier.shouldSuppress(frontmost: NSWorkspace.shared.frontmostApplication?.bundleIdentifier, quiet: prefs.isQuietHour()),
+        let suppressed = Notifier.shouldSuppress(event: event, frontmost: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+                                                 quiet: prefs.isQuietHour(), host: session.host, terminalRule: prefs.quietWhileTerminalFrontmost)
+        guard prefs.sessionAttention != .nothing, !suppressed,
               !isSettingsVisible, let presenter = pointerPresenter else { return }
         switch prefs.sessionAttention {
         case .glance: presenter.glance()

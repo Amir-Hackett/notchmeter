@@ -762,6 +762,13 @@ final class UsageStore {
         }
     }
 
+    /// Takes down the "is waiting" notices of sessions that have stopped waiting, however they stopped: answered,
+    /// ended, timed out or gone stale.
+    private func withdrawWaiting(_ ids: [String]) {
+        guard !ids.isEmpty else { return }
+        removeNotifications(ids.map { Notifier.identifier(session: $0, kind: "waiting") })
+    }
+
     private func remember(_ memory: AlertMemory) {
         if memory != alertMemory {
             alertMemory = memory
@@ -907,7 +914,7 @@ final class UsageStore {
                 try? await Task.sleep(for: .seconds(Self.resetCheckInterval))
                 guard !Task.isCancelled, let self else { return }
                 let before = self.sessions
-                self.sessions.expire(now: Date())
+                self.withdrawWaiting(self.sessions.expire(now: Date()))
                 if before != self.sessions { self.applyAwake() }
                 self.checkResets()
             }
@@ -1056,8 +1063,9 @@ final class UsageStore {
             guard !Task.isCancelled, let self else { return }
             signalRelease = nil
             var expired = sessions
-            expired.expire(now: Date())
+            let stopped = expired.expire(now: Date())
             if expired != sessions { sessions = expired }
+            withdrawWaiting(stopped)
             armSignalRelease()
         }
     }
@@ -1092,11 +1100,9 @@ final class UsageStore {
         applyAwake()
         armSignalRelease(now: now)
         if let waiting = outcome.startedWaiting, prefs.notifyWaiting {
-            deliverSessionEvent(.waiting, waiting)
+            deliverSessionEvent(.waiting(blocking: message.blocksSession), waiting)
         }
-        if !outcome.stoppedWaiting.isEmpty {
-            removeNotifications(outcome.stoppedWaiting.map { Notifier.identifier(session: $0, kind: "waiting") })
-        }
+        withdrawWaiting(outcome.stoppedWaiting)
         if let finished = outcome.finished, prefs.notifyFinished, finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
         }
