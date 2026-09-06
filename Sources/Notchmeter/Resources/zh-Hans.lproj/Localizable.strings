@@ -661,3 +661,8 @@
 "Colour" = "颜色";
 "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "固定哪些助手在下方逐个选择；一个都不选时使用第一个显示的助手。条形把每个固定的窗口画成小条，圆环沿用刘海旁的形状，圆点只表示用量节奏。";
 "By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "“按用量节奏”使用本应用自己的琥珀色与朱红色，因此图标会指出某个窗口接近节奏或已经落后。“单色”始终保持菜单栏本身的颜色，并保持为模板图像，由 macOS 像绘制其他图标一样绘制。自定颜色保留数值，但放弃警示。";
+
+/* The peak window read on the reader's own clock, when their zone is not the window's (PeakHours, SettingsWindow) */
+"(%1$@–%2$@ your time)" = "（你当地时间 %1$@–%2$@）";
+"(%1$@–%2$@ your time, the next day)" = "（你当地时间次日 %1$@–%2$@）";
+"(%1$@–%2$@ your time, the day before)" = "（你当地时间前一日 %1$@–%2$@）";

@@ -645,3 +645,8 @@
 "Colour" = "色";
 "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "どのアシスタントをピン留めするかは下のアシスタントごとに選びます。何も選ばなければ、表示中の最初のものになります。バーはピン留めした各ウインドウをミニバーで、リングはノッチ横と同じ形で、ドットはペースだけを描きます。";
 "By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "「ペースに応じて」はこのアプリのアンバーとバーミリオンを使い、ウインドウがペースに近づいたとき、遅れているときをアイコンが伝えます。「モノクロ」は常にメニューバー自身の色のままで、macOS が他のアイコンと同じように描くテンプレート画像を保ちます。任意の色は数値は残しますが、警告は失われます。";
+
+/* The peak window read on the reader's own clock, when their zone is not the window's (PeakHours, SettingsWindow) */
+"(%1$@–%2$@ your time)" = "（お使いの時間帯では %1$@〜%2$@）";
+"(%1$@–%2$@ your time, the next day)" = "（お使いの時間帯では翌日 %1$@〜%2$@）";
+"(%1$@–%2$@ your time, the day before)" = "（お使いの時間帯では前日 %1$@〜%2$@）";

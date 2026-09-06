@@ -563,8 +563,8 @@ struct SettingsView: View {
             Toggle(L("Quiet hours"), isOn: Binding(get: { prefs.quietHoursEnabled }, set: { prefs.quietHoursEnabled = $0 }))
             if prefs.quietHoursEnabled {
                 HStack {
-                    QuietHourPicker(title: L("From"), minutes: Binding(get: { prefs.quietHoursStart }, set: { prefs.quietHoursStart = $0 }))
-                    QuietHourPicker(title: L("To"), minutes: Binding(get: { prefs.quietHoursEnd }, set: { prefs.quietHoursEnd = $0 }))
+                    QuietHourPicker(title: L("From"), minutes: Binding(get: { prefs.quietHoursStart }, set: { prefs.quietHoursStart = $0 }), format: prefs.timeFormat)
+                    QuietHourPicker(title: L("To"), minutes: Binding(get: { prefs.quietHoursEnd }, set: { prefs.quietHoursEnd = $0 }), format: prefs.timeFormat)
                 }
             }
             HStack {
@@ -1145,9 +1145,14 @@ private struct PeakHoursEditor: View {
             if prefs.peakHours.enabled {
                 // Four controls in one row clipped the times to "5:0…" at the window's minimum width.
                 HStack {
-                    QuietHourPicker(title: L("From"), minutes: Binding(get: { prefs.peakHours.startMinute }, set: { prefs.peakHours.startMinute = $0 }))
-                    QuietHourPicker(title: L("To"), minutes: Binding(get: { prefs.peakHours.endMinute }, set: { prefs.peakHours.endMinute = $0 }))
+                    QuietHourPicker(title: L("From"), minutes: Binding(get: { prefs.peakHours.startMinute }, set: { prefs.peakHours.startMinute = $0 }), format: prefs.timeFormat)
+                    QuietHourPicker(title: L("To"), minutes: Binding(get: { prefs.peakHours.endMinute }, set: { prefs.peakHours.endMinute = $0 }), format: prefs.timeFormat)
                     Text(prefs.peakHours.timeZone.abbreviation() ?? prefs.peakHours.timeZoneID).font(.caption).foregroundStyle(.secondary)
+                }
+                // The hours are Anthropic's, on Anthropic's clock; the row above is already full at the window's
+                // minimum width, so what they mean where the reader sits goes on the line below.
+                if let hint = prefs.peakHours.localHint(format: prefs.timeFormat) {
+                    Text(hint).font(.caption).foregroundStyle(.secondary)
                 }
                 Toggle(L("Weekdays only"), isOn: Binding(get: { prefs.peakHours.weekdaysOnly }, set: { prefs.peakHours.weekdaysOnly = $0 }))
                     .toggleStyle(.checkbox).controlSize(.small)
@@ -1209,20 +1214,21 @@ struct HotkeyRow: View {
 private struct QuietHourPicker: View {
     let title: String
     @Binding var minutes: Int
+    /// Time format reaches the entries because the peak-hours row prints the same two times again beside them, as
+    /// the local-time hint; one row reading "From 5:00 AM … (13:00–19:00 your time)" reads as two windows, not one.
+    let format: TimeFormatPreference
 
     var body: some View {
         Picker(title, selection: $minutes) {
             ForEach(Array(stride(from: 0, to: 24 * 60, by: 30)), id: \.self) { value in
-                Text(Self.label(value)).tag(value)
+                Text(Self.label(value, format: format)).tag(value)
             }
         }
     }
 
-    static func label(_ minutes: Int) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
+    static func label(_ minutes: Int, format: TimeFormatPreference) -> String {
         let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date()) ?? Date()
-        return formatter.string(from: date)
+        return ResetText.time(date, format: format)
     }
 }
 

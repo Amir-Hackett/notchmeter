@@ -661,3 +661,8 @@
 "Colour" = "Colour";
 "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone.";
 "By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning.";
+
+/* The peak window read on the reader's own clock, when their zone is not the window's (PeakHours, SettingsWindow) */
+"(%1$@–%2$@ your time)" = "(%1$@–%2$@ your time)";
+"(%1$@–%2$@ your time, the next day)" = "(%1$@–%2$@ your time, the next day)";
+"(%1$@–%2$@ your time, the day before)" = "(%1$@–%2$@ your time, the day before)";
