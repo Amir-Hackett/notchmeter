@@ -92,6 +92,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarItem: MenuBarItem?
     private let capture = ScreenCaptureMonitor()
     private var localAPI: LocalAPI?
+    /// The phones registered for a Live Activity, and the pusher that keeps them current. Both cost nothing until a
+    /// phone registers, which it can only do over the local API with the remote-access token.
+    private lazy var phones = PhoneRegistry()
+    private lazy var phonePusher = PhonePusher(
+        registry: phones,
+        credentials: { [weak self] in
+            guard let self else { return nil }
+            return APNs.Credentials(keyID: prefs.apnsKeyID, teamID: prefs.apnsTeamID, bundleID: prefs.phoneBundleID)
+        },
+        signingKey: { APNs.signingKey() })
     private var hotkeyIDs: [UInt32] = []
     private var screenKey = ""
     /// Each rebuild takes a number; a build for an older number is dropped, so two screen notifications a few
@@ -345,6 +355,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notifier.notify(event, session: session)
         let suppressed = Notifier.shouldSuppress(event: event, frontmost: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
                                                  quiet: prefs.isQuietHour(), host: session.host, terminalRule: prefs.quietWhileTerminalFrontmost)
+        pushToPhones(event, session: session, suppressed: suppressed)
         guard prefs.sessionAttention != .nothing, !suppressed,
               !isSettingsVisible, let presenter = pointerPresenter else { return }
         switch prefs.sessionAttention {
@@ -352,6 +363,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .openPanel: presenter.expandNow(cause: .notification)
         case .nothing: break
         }
+    }
+
+    /// Mirrors a session event onto any registered phone. The state goes every time, so the Live Activity stays
+    /// honest, but only a blocking wait that the Mac itself would have interrupted for gets the alert and the high
+    /// priority that light the screen: `shouldSuppress` already knows you are at the keyboard with a terminal in
+    /// front, and someone at their Mac does not need their phone to tell them about it.
+    private func pushToPhones(_ event: Notifier.SessionEvent, session: AgentSession, suppressed: Bool) {
+        guard !phones.devices.isEmpty else { return }
+        let state = APNs.ActivityState.from(report: store.report(), focus: session)
+        var alert: (title: String, body: String)?
+        var urgent = false
+        if case .waiting(let blocking) = event, blocking, !suppressed {
+            urgent = true
+            // The Notifier's own wording, so the phone and the Mac say the same thing; the body is the project
+            // folder, which is a name and needs no translation.
+            alert = (title: L("%@ is waiting", session.tool.displayName), body: session.project ?? "")
+        }
+        phonePusher.send(state, alert: alert, urgent: urgent)
     }
 
     // MARK: - Settings
@@ -654,6 +683,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             localAPI = LocalAPI(allowedOrigins: { [weak self] in self?.prefs.localAPIOrigins ?? [] },
                                 remoteToken: { [weak self] in self?.prefs.remoteAccessEnabled == true ? RemoteAccess.token() : nil },
                                 hook: { [weak self] message in self?.store.hookReceived(message) },
+                                device: { [weak self] token, name in
+                                    guard let self else { return }
+                                    if token.isEmpty { return }
+                                    phones.register(id: token, name: name)
+                                },
                                 report: { [weak self] in self?.store.report() ?? UsageReport(tools: [:], cost: nil, advice: []) })
         }
         localAPI?.start()

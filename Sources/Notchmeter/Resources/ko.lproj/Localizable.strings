@@ -657,3 +657,15 @@
 "Rotate" = "재발급";
 "Generates a new token. Every device already paired stops working until you give it the new one." = "새 토큰을 생성합니다. 이미 페어링된 기기는 새 토큰을 입력할 때까지 작동하지 않습니다.";
 "The token could not be stored in the Keychain, so network access stays off." = "토큰을 키체인에 저장할 수 없어 네트워크 접근은 꺼진 상태로 둡니다.";
+
+/* The phone's Live Activity and the APNs key that updates it (APNs, PhonePush, SettingsWindow) */
+"Live Activity on your phone" = "휴대폰의 라이브 액티비티";
+"A Live Activity can only be updated by a push from Apple, so this Mac signs its own and posts it. It needs a .p8 key from your developer account and the two IDs beside it; nothing is relayed through anyone else. Leave these empty and the phone still reads the API, it just will not light up on its own." = "라이브 액티비티는 Apple의 푸시로만 업데이트할 수 있어서, 이 Mac이 직접 서명해 전송합니다. 개발자 계정의 .p8 키와 그 옆의 두 ID가 필요하며, 제3자를 거치지 않습니다. 비워 두어도 휴대폰은 API를 읽을 수 있지만, 스스로 켜지지는 않습니다.";
+"Team ID" = "팀 ID";
+"Key ID" = "키 ID";
+"Phone app bundle ID" = "휴대폰 앱 번들 ID";
+"Choose the .p8 key…" = ".p8 키 선택…";
+"Forget" = "지우기";
+"No signing key." = "서명 키가 없습니다.";
+"Signing key stored." = "서명 키를 저장했습니다.";
+"That file is not a P-256 signing key." = "이 파일은 P-256 서명 키가 아닙니다.";

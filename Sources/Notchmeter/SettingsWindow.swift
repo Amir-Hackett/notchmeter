@@ -61,6 +61,10 @@ struct SettingsView: View {
     @State private var accessibilityTrusted = MenuBarExtent.isTrusted
     @State private var colourWell = ColourWell()
     @State private var revealToken = false
+    /// Whether a signing key is in the Keychain, read when the form appears rather than in a property initialiser:
+    /// this Form redraws on every keystroke, and a Keychain query per keystroke is not free.
+    @State private var hasSigningKey = false
+    @State private var signingKeyNote = ""
     @State private var originText = ""
     @State private var fullScreenExceptionText = ""
 
@@ -537,8 +541,61 @@ struct SettingsView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
+                if prefs.remoteAccessEnabled {
+                    Divider()
+                    Text(L("Live Activity on your phone")).font(.callout.weight(.medium))
+                    Text(L("A Live Activity can only be updated by a push from Apple, so this Mac signs its own and posts it. It needs a .p8 key from your developer account and the two IDs beside it; nothing is relayed through anyone else. Leave these empty and the phone still reads the API, it just will not light up on its own."))
+                        .font(.caption).foregroundStyle(.secondary)
+                    LabeledContent(L("Team ID")) {
+                        TextField(text: Binding(get: { prefs.apnsTeamID }, set: { prefs.apnsTeamID = $0.trimmingCharacters(in: .whitespaces) })) { Text(L("Team ID")) }
+                            .labelsHidden().textFieldStyle(.roundedBorder)
+                    }
+                    LabeledContent(L("Key ID")) {
+                        TextField(text: Binding(get: { prefs.apnsKeyID }, set: { prefs.apnsKeyID = $0.trimmingCharacters(in: .whitespaces) })) { Text(L("Key ID")) }
+                            .labelsHidden().textFieldStyle(.roundedBorder)
+                    }
+                    LabeledContent(L("Phone app bundle ID")) {
+                        TextField(text: Binding(get: { prefs.phoneBundleID }, set: { prefs.phoneBundleID = $0.trimmingCharacters(in: .whitespaces) })) { Text(L("Phone app bundle ID")) }
+                            .labelsHidden().textFieldStyle(.roundedBorder)
+                    }
+                    HStack {
+                        Text(signingKeyNote).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button(L("Choose the .p8 key…")) { chooseSigningKey() }.controlSize(.small)
+                        if hasSigningKey {
+                            Button(L("Forget")) {
+                                APNs.forgetSigningKey()
+                                hasSigningKey = false
+                                signingKeyNote = L("No signing key.")
+                            }
+                            .controlSize(.small)
+                        }
+                    }
+                    .onAppear { readSigningKeyState() }
+                }
             }
         }
+    }
+
+    /// Reads a `.p8` and keeps it in the Keychain. A file that is not a P-256 key is refused here rather than at the
+    /// first push, when the failure would be a line in a log nobody is reading.
+    private func chooseSigningKey() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [UTType(filenameExtension: "p8") ?? .data]
+        guard panel.runModal() == .OK, let url = panel.url, let pem = try? String(contentsOf: url, encoding: .utf8) else { return }
+        if APNs.setSigningKey(pem) {
+            hasSigningKey = true
+            signingKeyNote = L("Signing key stored.")
+        } else {
+            signingKeyNote = L("That file is not a P-256 signing key.")
+        }
+    }
+
+    private func readSigningKeyState() {
+        hasSigningKey = APNs.signingKey() != nil
+        signingKeyNote = hasSigningKey ? L("Signing key stored.") : L("No signing key.")
     }
 
     private var notificationsSection: some View {

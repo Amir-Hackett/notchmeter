@@ -673,3 +673,15 @@
 "Rotate" = "Rotate";
 "Generates a new token. Every device already paired stops working until you give it the new one." = "Generates a new token. Every device already paired stops working until you give it the new one.";
 "The token could not be stored in the Keychain, so network access stays off." = "The token could not be stored in the Keychain, so network access stays off.";
+
+/* The phone's Live Activity and the APNs key that updates it (APNs, PhonePush, SettingsWindow) */
+"Live Activity on your phone" = "Live Activity on your phone";
+"A Live Activity can only be updated by a push from Apple, so this Mac signs its own and posts it. It needs a .p8 key from your developer account and the two IDs beside it; nothing is relayed through anyone else. Leave these empty and the phone still reads the API, it just will not light up on its own." = "A Live Activity can only be updated by a push from Apple, so this Mac signs its own and posts it. It needs a .p8 key from your developer account and the two IDs beside it; nothing is relayed through anyone else. Leave these empty and the phone still reads the API, it just will not light up on its own.";
+"Team ID" = "Team ID";
+"Key ID" = "Key ID";
+"Phone app bundle ID" = "Phone app bundle ID";
+"Choose the .p8 key…" = "Choose the .p8 key…";
+"Forget" = "Forget";
+"No signing key." = "No signing key.";
+"Signing key stored." = "Signing key stored.";
+"That file is not a P-256 signing key." = "That file is not a P-256 signing key.";

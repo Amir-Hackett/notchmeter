@@ -657,3 +657,15 @@
 "Rotate" = "Đổi mới";
 "Generates a new token. Every device already paired stops working until you give it the new one." = "Tạo token mới. Mọi thiết bị đã ghép nối sẽ ngừng hoạt động cho đến khi bạn nhập token mới.";
 "The token could not be stored in the Keychain, so network access stays off." = "Không thể lưu token vào Keychain, nên truy cập mạng vẫn tắt.";
+
+/* The phone's Live Activity and the APNs key that updates it (APNs, PhonePush, SettingsWindow) */
+"Live Activity on your phone" = "Live Activity trên điện thoại";
+"A Live Activity can only be updated by a push from Apple, so this Mac signs its own and posts it. It needs a .p8 key from your developer account and the two IDs beside it; nothing is relayed through anyone else. Leave these empty and the phone still reads the API, it just will not light up on its own." = "Live Activity chỉ có thể được cập nhật bằng một thông báo đẩy từ Apple, nên chính máy Mac này tự ký và gửi đi. Việc đó cần khoá .p8 từ tài khoản nhà phát triển của bạn cùng hai ID bên cạnh; không đi qua bên thứ ba nào. Để trống thì điện thoại vẫn đọc được API, chỉ là sẽ không tự sáng lên.";
+"Team ID" = "Team ID";
+"Key ID" = "Key ID";
+"Phone app bundle ID" = "Bundle ID của ứng dụng điện thoại";
+"Choose the .p8 key…" = "Chọn khoá .p8…";
+"Forget" = "Quên";
+"No signing key." = "Chưa có khoá ký.";
+"Signing key stored." = "Đã lưu khoá ký.";
+"That file is not a P-256 signing key." = "Tệp này không phải khoá ký P-256.";

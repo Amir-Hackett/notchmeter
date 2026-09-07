@@ -718,6 +718,17 @@ final class Preferences {
     var remoteAccessEnabled: Bool {
         didSet { defaults.set(remoteAccessEnabled, forKey: Keys.remoteAccess); report(Keys.remoteAccess, remoteAccessEnabled, changed: remoteAccessEnabled != oldValue) }
     }
+    /// The APNs signing key's Key ID, its Team ID, and the phone app's bundle identifier. None is a secret — the
+    /// `.p8` they go with is, and that lives in the Keychain — so they sit here where they are easy to check.
+    var apnsKeyID: String {
+        didSet { defaults.set(apnsKeyID, forKey: Keys.apnsKeyID); report(Keys.apnsKeyID, apnsKeyID, changed: apnsKeyID != oldValue) }
+    }
+    var apnsTeamID: String {
+        didSet { defaults.set(apnsTeamID, forKey: Keys.apnsTeamID); report(Keys.apnsTeamID, apnsTeamID, changed: apnsTeamID != oldValue) }
+    }
+    var phoneBundleID: String {
+        didSet { defaults.set(phoneBundleID, forKey: Keys.phoneBundleID); report(Keys.phoneBundleID, phoneBundleID, changed: phoneBundleID != oldValue) }
+    }
     /// A second Codex endpoint (rate-limit reset credits), opt-in under the one-request-per-token rule.
     var codexResetCredits: Bool {
         didSet { defaults.set(codexResetCredits, forKey: Keys.codexCredits); report(Keys.codexCredits, codexResetCredits, changed: codexResetCredits != oldValue) }
@@ -900,6 +911,9 @@ final class Preferences {
         static let localAPI = "localAPIEnabled"
         static let localAPIOrigins = "localAPIOrigins"
         static let remoteAccess = "remoteAccessEnabled"
+        static let apnsKeyID = "apnsKeyID"
+        static let apnsTeamID = "apnsTeamID"
+        static let phoneBundleID = "phoneBundleID"
         static let codexCredits = ProviderOptIn.codexResetCredits.key
         static let cursorEvents = ProviderOptIn.cursorUsageEvents.key
         static let copilotOrg = ProviderOptIn.copilotOrgBilling.key
@@ -994,6 +1008,9 @@ final class Preferences {
         localAPIEnabled = defaults.bool(forKey: Keys.localAPI)
         localAPIOrigins = defaults.stringArray(forKey: Keys.localAPIOrigins) ?? []
         remoteAccessEnabled = defaults.bool(forKey: Keys.remoteAccess)
+        apnsKeyID = defaults.string(forKey: Keys.apnsKeyID) ?? ""
+        apnsTeamID = defaults.string(forKey: Keys.apnsTeamID) ?? ""
+        phoneBundleID = defaults.string(forKey: Keys.phoneBundleID) ?? ""
         codexResetCredits = ProviderOptIn.codexResetCredits.value(defaults)
         // On by default: the events come from the same account over the same session cookie the usage summary
         // already uses, so hiding a tool's own spend behind a switch cost more than it protected.

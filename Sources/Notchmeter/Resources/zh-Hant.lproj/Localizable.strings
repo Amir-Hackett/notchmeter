@@ -657,3 +657,15 @@
 "Rotate" = "輪換";
 "Generates a new token. Every device already paired stops working until you give it the new one." = "產生新的權杖。已配對的裝置都會停止運作，直到你把新權杖提供給它們。";
 "The token could not be stored in the Keychain, so network access stays off." = "無法將權杖存入鑰匙圈，因此網路存取保持關閉。";
+
+/* The phone's Live Activity and the APNs key that updates it (APNs, PhonePush, SettingsWindow) */
+"Live Activity on your phone" = "手機上的即時動態";
+"A Live Activity can only be updated by a push from Apple, so this Mac signs its own and posts it. It needs a .p8 key from your developer account and the two IDs beside it; nothing is relayed through anyone else. Leave these empty and the phone still reads the API, it just will not light up on its own." = "即時動態只能由 Apple 的推播來更新，因此由這台 Mac 自己簽名並發送。這需要你開發者帳戶中的 .p8 金鑰以及旁邊的兩個 ID；不經過任何第三方中轉。留空也可以，手機仍能讀取 API，只是不會自己亮起來。";
+"Team ID" = "團隊 ID";
+"Key ID" = "金鑰 ID";
+"Phone app bundle ID" = "手機 App 的 Bundle ID";
+"Choose the .p8 key…" = "選擇 .p8 金鑰…";
+"Forget" = "忘記";
+"No signing key." = "沒有簽名金鑰。";
+"Signing key stored." = "簽名金鑰已儲存。";
+"That file is not a P-256 signing key." = "該檔案不是 P-256 簽名金鑰。";

@@ -657,3 +657,15 @@
 "Rotate" = "再生成";
 "Generates a new token. Every device already paired stops working until you give it the new one." = "新しいトークンを生成します。ペアリング済みのデバイスは、新しいトークンを設定するまで動かなくなります。";
 "The token could not be stored in the Keychain, so network access stays off." = "トークンをキーチェーンに保存できなかったため、ネットワークアクセスはオフのままです。";
+
+/* The phone's Live Activity and the APNs key that updates it (APNs, PhonePush, SettingsWindow) */
+"Live Activity on your phone" = "iPhone のライブアクティビティ";
+"A Live Activity can only be updated by a push from Apple, so this Mac signs its own and posts it. It needs a .p8 key from your developer account and the two IDs beside it; nothing is relayed through anyone else. Leave these empty and the phone still reads the API, it just will not light up on its own." = "ライブアクティビティは Apple からのプッシュでしか更新できないため、この Mac が自分で署名して送信します。デベロッパアカウントの .p8 キーと、その隣の 2 つの ID が必要です。第三者を経由することはありません。空のままでも iPhone は API を読めますが、自分から光ることはありません。";
+"Team ID" = "チーム ID";
+"Key ID" = "キー ID";
+"Phone app bundle ID" = "iPhone アプリのバンドル ID";
+"Choose the .p8 key…" = ".p8 キーを選択…";
+"Forget" = "削除";
+"No signing key." = "署名キーがありません。";
+"Signing key stored." = "署名キーを保存しました。";
+"That file is not a P-256 signing key." = "このファイルは P-256 署名キーではありません。";
