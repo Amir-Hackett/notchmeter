@@ -683,10 +683,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             localAPI = LocalAPI(allowedOrigins: { [weak self] in self?.prefs.localAPIOrigins ?? [] },
                                 remoteToken: { [weak self] in self?.prefs.remoteAccessEnabled == true ? RemoteAccess.token() : nil },
                                 hook: { [weak self] message in self?.store.hookReceived(message) },
-                                device: { [weak self] token, name in
+                                device: { [weak self] token, name, remove in
                                     guard let self else { return }
-                                    if token.isEmpty { return }
-                                    phones.register(id: token, name: name)
+                                    remove ? phones.remove(id: token) : phones.register(id: token, name: name)
                                 },
                                 report: { [weak self] in self?.store.report() ?? UsageReport(tools: [:], cost: nil, advice: []) })
         }

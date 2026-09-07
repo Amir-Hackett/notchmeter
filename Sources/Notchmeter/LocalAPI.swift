@@ -104,16 +104,16 @@ final class LocalAPI {
     /// The remote-access token, read afresh per request so rotating it takes effect without a restart; nil keeps the
     /// listener loopback-only and refuses everything that arrives from the network.
     private let remoteToken: () -> String?
-    /// A phone registering (or dropping) its Live Activity push token; the second argument is the name to show in
-    /// Settings, and an empty token means unregister.
-    private let device: (String, String) -> Void
+    /// A phone registering its Live Activity push token, or dropping one it has ended; the second argument is the
+    /// name to show in Settings and the third says which of the two this is.
+    private let device: (String, String, Bool) -> Void
     let port: UInt16
     private(set) var isRunning = false
     /// Whether the listener is bound beyond loopback, for the Settings row and the diagnostics line.
     private(set) var isRemote = false
 
     init(port: UInt16 = LocalAPI.port, allowedOrigins: @escaping () -> [String] = { [] }, remoteToken: @escaping () -> String? = { nil },
-         hook: @escaping (Hook.Message) -> Void = { _ in }, device: @escaping (String, String) -> Void = { _, _ in },
+         hook: @escaping (Hook.Message) -> Void = { _ in }, device: @escaping (String, String, Bool) -> Void = { _, _, _ in },
          report: @escaping () -> UsageReport) {
         self.port = port
         self.allowedOrigins = allowedOrigins
@@ -219,9 +219,9 @@ final class LocalAPI {
             return Self.response(status: 200, body: report().json)
         case ("POST", "/v1/device"):
             guard let registration = Self.registration(from: request.body) else {
-                return Self.response(status: 400, body: Data("{\"error\":\"pushToken missing\"}".utf8))
+                return Self.response(status: 400, body: Data("{\"error\":\"pushToken missing or empty\"}".utf8))
             }
-            device(registration.token, registration.name)
+            device(registration.token, registration.name, registration.remove)
             return Self.response(status: 202, body: Data("{\"accepted\":true}".utf8))
         case ("POST", "/v1/hook"):
             guard let message = Self.hookMessage(from: request.body) else {
@@ -254,15 +254,18 @@ final class LocalAPI {
                             agentID: base.agentID, failure: base.failure, host: host, tool: base.tool)
     }
 
-    /// A phone's registration: its Live Activity push token, and a name for the Settings row. An empty or absent
-    /// name is fine; an absent token is not, and an explicitly empty one means unregister.
-    nonisolated static func registration(from body: Data) -> (token: String, name: String)? {
+    /// A phone's registration: its Live Activity push token, a name for the Settings row, and whether this is the
+    /// phone dropping an activity it has ended rather than starting one. An empty or absent name is fine; a missing
+    /// or empty token is not, because the token is the device's identity in both directions.
+    nonisolated static func registration(from body: Data) -> (token: String, name: String, remove: Bool)? {
         guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
-              let token = object["pushToken"] as? String
+              let raw = object["pushToken"] as? String
         else { return nil }
+        let token = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty else { return nil }
         let name = (object["name"] as? String).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
         // "iPhone" is a product name Apple does not translate, so it is a literal rather than a lookup.
-        return (token.trimmingCharacters(in: .whitespacesAndNewlines), name.isEmpty ? "iPhone" : name)
+        return (token, name.isEmpty ? "iPhone" : name, object["remove"] as? Bool ?? false)
     }
 
     nonisolated static func response(status: Int, body: Data, extraHeaders: [String: String] = [:]) -> Data {

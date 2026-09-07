@@ -134,23 +134,31 @@ import Testing
         let full = try #require(LocalAPI.registration(from: Data(#"{"pushToken":"ab12","name":"Amir's iPhone"}"#.utf8)))
         #expect(full.token == "ab12")
         #expect(full.name == "Amir's iPhone")
+        #expect(!full.remove)
         let bare = try #require(LocalAPI.registration(from: Data(#"{"pushToken":"ab12"}"#.utf8)))
         #expect(bare.name == "iPhone")
+        // The phone dropping an activity it ended still names the token, because that is the device's identity.
+        #expect(try #require(LocalAPI.registration(from: Data(#"{"pushToken":"ab12","remove":true}"#.utf8))).remove)
         #expect(LocalAPI.registration(from: Data(#"{"name":"x"}"#.utf8)) == nil)
         #expect(LocalAPI.registration(from: Data("not json".utf8)) == nil)
-        // An explicit empty token is how a phone says it is going away.
-        #expect(try #require(LocalAPI.registration(from: Data(#"{"pushToken":""}"#.utf8))).token == "")
+        // A token that is empty or only spaces identifies nothing, so it is refused rather than guessed at.
+        #expect(LocalAPI.registration(from: Data(#"{"pushToken":""}"#.utf8)) == nil)
+        #expect(LocalAPI.registration(from: Data(#"{"pushToken":"   "}"#.utf8)) == nil)
     }
 
     @MainActor @Test func aRegistrationOverTheAPIReachesTheRegistry() {
-        var registered: [(String, String)] = []
-        let api = LocalAPI(port: 6737, device: { registered.append(($0, $1)) }, report: { UsageReport(tools: [:], cost: nil, advice: []) })
-        let body = Data(#"{"pushToken":"ff00","name":"iPhone"}"#.utf8)
-        let accepted = String(decoding: api.respond(to: LocalAPI.Request(method: "POST", path: "/v1/device", headers: ["host": "127.0.0.1:6737"], body: body)), as: UTF8.self)
-        #expect(accepted.hasPrefix("HTTP/1.1 202 Accepted"))
-        #expect(registered.map(\.0) == ["ff00"])
-        let bad = String(decoding: api.respond(to: LocalAPI.Request(method: "POST", path: "/v1/device", headers: ["host": "127.0.0.1:6737"], body: Data("{}".utf8))), as: UTF8.self)
-        #expect(bad.hasPrefix("HTTP/1.1 400"))
+        final class Box: @unchecked Sendable { var calls: [(String, String, Bool)] = [] }
+        let box = Box()
+        let api = LocalAPI(port: 6737, device: { box.calls.append(($0, $1, $2)) }, report: { UsageReport(tools: [:], cost: nil, advice: []) })
+        func post(_ json: String) -> String {
+            String(decoding: api.respond(to: LocalAPI.Request(method: "POST", path: "/v1/device",
+                                                              headers: ["host": "127.0.0.1:6737"], body: Data(json.utf8))), as: UTF8.self)
+        }
+        #expect(post(#"{"pushToken":"ff00","name":"iPhone"}"#).hasPrefix("HTTP/1.1 202 Accepted"))
+        #expect(post(#"{"pushToken":"ff00","remove":true}"#).hasPrefix("HTTP/1.1 202 Accepted"))
+        #expect(box.calls.map(\.0) == ["ff00", "ff00"])
+        #expect(box.calls.map(\.2) == [false, true])
+        #expect(post("{}").hasPrefix("HTTP/1.1 400"))
     }
 
     @Test func theStateIsReadOffTheReportThePanelDraws() {
