@@ -18,7 +18,8 @@ import Testing
         #expect(drain.from == 0.12)
         #expect(drain.to == 0.61)
         #expect(abs(drain.over - 68 * 60) < 1)
-        #expect(abs(try #require(drain.perHour) - 0.49 / (68 / 60)) < 1e-9)
+        let expectedPerHour = 0.49 / (68.0 / 60.0)
+        #expect(abs(try #require(drain.perHour) - expectedPerHour) < 1e-9)
         #expect(DrainLog.line(drain) == "12% → 61% in the last hour")
         #expect(abs(try #require(DrainLog.rate(rows, now: now)) - drain.perHour!) < 1e-12)
     }
