@@ -7,7 +7,13 @@
 <meta name="description" content="Usage meters for Claude Code, Codex, Cursor, Antigravity and Copilot, living in the MacBook notch. Pace, projections and what to do next. Free, open source, and it never signs in anywhere.">
 <link rel="icon" href="img/icon.png">
 <link rel="stylesheet" href="style.css">
-<script defer src="/_vercel/insights/script.js"></script>
+<!-- No analytics, by decision (2026-09-07). Vercel Analytics used to load here.
+     It is cookieless and IP-anonymised, so it was never a consent problem, but
+     this site sells an app on the promise that nothing leaves your Mac and a
+     page that phones home to measure you undercuts that no matter how mild the
+     measurement is. Removing it makes every claim on the page literally true
+     rather than something the privacy policy has to qualify. -->
+
 <meta property="og:title" content="Notchmeter — AI coding usage, in the notch">
 <meta property="og:description" content="Every other meter tells you how much. Notchmeter tells you what to do about it.">
 <meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
@@ -60,7 +66,7 @@
       </div>
       <div class="pillar">
         <div class="big">Never signs in</div>
-        <p>No account, no token stored, nothing leaves your Mac.</p>
+        <p>No account, no token stored, nothing sent to a server of ours.</p>
       </div>
       <div class="pillar">
         <div class="big">1.4% of one core</div>
@@ -289,11 +295,20 @@ brew install --cask notchmeter</div>
           <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
           <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
           <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="/privacy.html">Privacy</a></li>
+          <li><a href="/terms.html">Terms</a></li>
         </ul>
       </div>
     </div>
     <div class="foot-note">
-      <span>No account · Nothing leaves your Mac · Pay nothing</span>
+      <!-- Was "Nothing leaves your Mac", which is not true and was the sharpest
+           overclaim on the site: the app polls api.anthropic.com, chatgpt.com,
+           cursor.com, api.github.com and cloudcode-pa.googleapis.com on a 300s
+           cadence, and Sparkle checks GitHub for updates daily. What is actually
+           true, and is the thing people care about, is that none of it goes to
+           a server of Amir's: the app talks only to the user's own providers,
+           with the user's own local credentials, and keeps no backend. -->
+      <span>No account · No server of ours · Pay nothing</span>
       <span>macOS 14+ · Apple silicon or Intel</span>
     </div>
   </div>

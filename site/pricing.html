@@ -7,7 +7,8 @@
 <meta name="description" content="Notchmeter is free forever and MIT licensed. Pay what you want, or nothing; the app is the same either way.">
 <link rel="icon" href="img/icon.png">
 <link rel="stylesheet" href="style.css">
-<script defer src="/_vercel/insights/script.js"></script>
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
+
 <meta property="og:title" content="Pricing — Notchmeter">
 <meta property="og:description" content="Free forever. Pay what you want, or nothing; the app is the same either way.">
 <meta property="og:url" content="https://www.notchmeter.com/pricing.html">
@@ -83,7 +84,7 @@
       </div>
       <div class="gap-card">
         <h3>Because a meter should not have a login</h3>
-        <p style="color:var(--text-dim);margin:0;font-size:15px;line-height:1.65">The app never signs in anywhere and never sends anything anywhere, and a paid tier would need an account to check. So there is no tier. What support pays for is the boring part of shipping a Mac app — Apple's developer programme, notarisation, the domain — and the time to keep five vendors' readings accurate as they change.</p>
+        <p style="color:var(--text-dim);margin:0;font-size:15px;line-height:1.65">The app never signs in anywhere and sends nothing to a server of ours, and a paid tier would need an account to check. So there is no tier. What support pays for is the boring part of shipping a Mac app — Apple's developer programme, notarisation, the domain — and the time to keep five vendors' readings accurate as they change.</p>
       </div>
     </div>
   </div>
@@ -158,11 +159,16 @@
           <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
           <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
           <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="/privacy.html">Privacy</a></li>
+          <li><a href="/terms.html">Terms</a></li>
         </ul>
       </div>
     </div>
     <div class="foot-note">
-      <span>No account · Nothing leaves your Mac · Pay nothing</span>
+      <!-- See the note in index.html: "Nothing leaves your Mac" was not true of
+           an app that polls five vendor APIs, and "No server of ours" is both
+           accurate and the thing people actually care about. -->
+      <span>No account · No server of ours · Pay nothing</span>
       <span>macOS 14+ · Apple silicon or Intel</span>
     </div>
   </div>
