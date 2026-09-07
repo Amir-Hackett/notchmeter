@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy policy · Notchmeter</title>
+<meta name="description" content="What the Notchmeter website collects, every request the Mac app makes and who receives it, and what rights you have. No server of ours, and here is the honest rest of it.">
+<link rel="icon" href="img/icon.png">
+<link rel="stylesheet" href="style.css">
+
+<meta property="og:title" content="Privacy policy · Notchmeter">
+<meta property="og:description" content="Nothing reaches a server of ours. Here is every request the app does make, and to whom.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/privacy.html">
+<link rel="canonical" href="https://www.notchmeter.com/privacy.html">
+<meta property="og:type" content="website">
+
+<style>
+/* Long-form prose, built from the tokens already in style.css. Nothing new is introduced and
+   style.css is not touched. Small text uses --text-dim rather than --text-faint: --text-faint
+   is about 4.35:1 on the page background, which is under WCAG AA for text this size. */
+.legal { max-width: 760px; }
+.legal h2 { margin-top: 0; }
+.legal h3 { font-size: 1.08rem; font-weight: 600; letter-spacing: -0.012em; margin: 38px 0 10px; }
+.legal h4 { font-size: 0.98rem; font-weight: 600; margin: 26px 0 8px; color: var(--text); }
+.legal p { color: var(--text-dim); font-size: 15.5px; line-height: 1.72; margin: 0 0 14px; }
+.legal p.strong-note { color: var(--text); }
+.legal ul, .legal ol { color: var(--text-dim); font-size: 15.5px; line-height: 1.72; margin: 0 0 16px; padding-left: 20px; }
+.legal li { margin-bottom: 8px; }
+.legal li strong, .legal p strong { color: var(--text); font-weight: 600; }
+.legal code { font-family: var(--mono); font-size: 13px; color: var(--text-dim); background: var(--bg); border: 1px solid var(--line-soft); border-radius: 5px; padding: 1px 5px; }
+.legal hr { border: none; border-top: 1px solid var(--line-soft); margin: 44px 0; }
+
+.summary-card {
+  border: 1px solid rgba(0, 114, 178, 0.45);
+  background: linear-gradient(180deg, rgba(0, 114, 178, 0.09), transparent 60%), var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 28px 26px;
+  margin-bottom: 8px;
+}
+.summary-card h3 { margin-top: 0; }
+.summary-card ul { margin-bottom: 0; }
+
+.meta-strip { display: flex; gap: 22px; flex-wrap: wrap; font-size: 14px; color: var(--text-dim); margin-bottom: 34px; }
+
+.toc { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-card); padding: 22px 24px; margin: 34px 0 8px; }
+.toc h4 { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); margin: 0 0 12px; font-weight: 600; }
+.toc ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 32px; font-size: 14.5px; }
+.toc li { margin-bottom: 7px; break-inside: avoid; }
+
+.tablewrap { overflow-x: auto; margin: 0 0 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-card); }
+table.dtable { width: 100%; border-collapse: collapse; font-size: 14.2px; min-width: 620px; }
+table.dtable th, table.dtable td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line-soft); vertical-align: top; line-height: 1.55; }
+table.dtable thead th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); font-weight: 600; }
+table.dtable tbody tr:last-child td { border-bottom: none; }
+table.dtable td { color: var(--text-dim); }
+table.dtable td:first-child { color: var(--text); font-weight: 550; }
+table.dtable code { font-size: 12.4px; }
+
+.legal .callout { border: 1px solid var(--line); border-left: 3px solid var(--calm); border-radius: 0 var(--radius) var(--radius) 0; background: var(--bg-card); padding: 18px 22px; margin: 0 0 20px; }
+.legal .callout p:last-child { margin-bottom: 0; }
+
+@media (max-width: 700px) {
+  .toc ol { columns: 1; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="Notchmeter"><img src="img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links">
+      <a href="index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="index.html#advice" class="hide-sm">Advice</a>
+      <a href="index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<section class="hero plain" style="text-align:left;padding-bottom:24px">
+  <div class="wrap">
+    <div class="legal">
+      <h1 style="font-size:clamp(2rem,5vw,2.9rem)">Privacy policy</h1>
+      <p class="lede" style="margin-left:0;max-width:680px">Two separate things are described here: the notchmeter.com website, and the Notchmeter app for macOS. They behave differently, so they get separate sections. Where a section says "none", that is the real answer, not a hedge.</p>
+    </div>
+  </div>
+</section>
+
+<section class="plain" style="padding-top:0">
+  <div class="wrap">
+    <div class="legal">
+
+      <div class="meta-strip">
+        <span>Effective 7 September 2026</span>
+        <span>Hackett Labs LLC</span>
+        <span>notchmeter.com and Notchmeter for macOS</span>
+      </div>
+
+      <div class="summary-card">
+        <h3>The short version</h3>
+        <ul>
+          <li><strong>No server of ours.</strong> There is no Notchmeter account, no Notchmeter backend, no telemetry, no analytics and no crash reporting. Nothing about your usage, your prompts, your transcripts or your projects ever reaches us. We could not look it up if we wanted to, because we hold no record of you at all.</li>
+          <li><strong>The app is not silent on the network, and you should know who it talks to.</strong> Its whole job is to read your AI usage, and the only way to do that is to ask your providers. It reads the login each tool already saved on your Mac and makes that tool's own usage request to that tool's own vendor, with your own token. Section 4 lists every single request.</li>
+          <li><strong>It also checks GitHub for updates, about once a day.</strong> That means GitHub sees the IP address of a running copy of Notchmeter roughly daily. You can switch it off.</li>
+          <li><strong>This website has no analytics, no cookies and no browser storage.</strong> No script of any kind runs on these pages. The only thing recorded is the ordinary server log kept by our host, Vercel.</li>
+          <li><strong>Downloading the app tells GitHub your IP address</strong>, because GitHub hosts the download. Choosing to donate takes you to Stripe, which handles it under its own privacy policy.</li>
+        </ul>
+      </div>
+
+      <div class="toc">
+        <h4>On this page</h4>
+        <ol>
+          <li><a href="#controller">1. Who is responsible</a></li>
+          <li><a href="#scope">2. What this policy covers</a></li>
+          <li><a href="#website">3. The website</a></li>
+          <li><a href="#app">4. The Mac app</a></li>
+          <li><a href="#basis">5. Legal basis for each use</a></li>
+          <li><a href="#recipients">6. Who receives data, and where</a></li>
+          <li><a href="#transfers">7. International transfers</a></li>
+          <li><a href="#retention">8. How long anything is kept</a></li>
+          <li><a href="#rights">9. Your rights</a></li>
+          <li><a href="#california">10. California notice</a></li>
+          <li><a href="#children">11. Children</a></li>
+          <li><a href="#security">12. Security</a></li>
+          <li><a href="#changes">13. Changes to this policy</a></li>
+          <li><a href="#contact">14. Contact</a></li>
+        </ol>
+      </div>
+
+      <hr>
+
+      <h2 id="controller">1. Who is responsible</h2>
+      <p>Notchmeter is made and published by <strong>Hackett Labs LLC</strong>, a Florida limited liability company in the United States. Hackett Labs LLC is the controller for the small amount of personal data described on this page, and is the merchant of record for the optional donation.</p>
+      <p>Contact for anything to do with privacy or your data: <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a>. You can also open a public issue at <a href="https://github.com/Amir-Hackett/notchmeter/issues">github.com/Amir-Hackett/notchmeter/issues</a>, though email is better for anything you would rather not post in public.</p>
+      <p>There is no data protection officer and none is required. There is no EU or UK representative. Article 3(2) of the GDPR turns on whether a service is targeted at people in the EU, not on whether they can reach it, and neither this site nor this app is aimed at or marketed to the EU or the UK. Nothing here is offered in an EU language or currency, and no EU country is named or addressed anywhere on the site or in the app. Article 27, which requires a representative, applies only where Article 3(2) does.</p>
+
+      <hr>
+
+      <h2 id="scope">2. What this policy covers</h2>
+      <ul>
+        <li>The website at <strong>notchmeter.com</strong>, including this page.</li>
+        <li>The <strong>Notchmeter app for macOS</strong>, distributed as a signed disk image and through Homebrew.</li>
+      </ul>
+      <p>It does not cover the AI coding tools Notchmeter reads from. Anthropic, OpenAI, Cursor, Google and GitHub each have their own privacy policies, and those govern what happens once a request arrives with them. It does not cover GitHub, where the source, the issue tracker and the download live, or Stripe, which handles donations. Each of those companies is its own controller for what it does.</p>
+
+      <hr>
+
+      <h2 id="website">3. The website</h2>
+
+      <h3>3.1 What the site collects</h3>
+      <p>One thing, and it is a consequence of the site being on the internet at all.</p>
+      <p><strong>Server request logs.</strong> The site is hosted on Vercel. Like every web host, Vercel records the requests it serves: your IP address, your browser's user agent string, the page or file you asked for, the time, and the referring URL if your browser sent one. This happens for every page and every image. We cannot switch it off, we do not read it as a matter of routine, and we do not build anything from it.</p>
+      <p>That is the entire list. There is no analytics product on this site, first party or third party.</p>
+
+      <h3>3.2 Cookies and browser storage</h3>
+      <p class="strong-note"><strong>This website sets no cookies.</strong> It writes nothing to <code>localStorage</code>, <code>sessionStorage</code> or IndexedDB, registers no service worker, and does no fingerprinting. There is no JavaScript on these pages at all.</p>
+      <p>That is why there is no consent banner. A banner asking permission for cookies that do not exist would be theatre, and on the site of an app sold on not phoning home it would be worse than nothing. If this ever changes, this section gets rewritten first and the change is announced at the top of this page.</p>
+
+      <h3>3.3 What the site does not do</h3>
+      <ul>
+        <li>No analytics, no page view beacon, no tag manager, no A/B testing, no session replay, no heatmaps.</li>
+        <li>No accounts, no sign-in, no password.</li>
+        <li>No forms, no inputs, no newsletter, no contact box, no search field. There is nowhere on this site to type anything.</li>
+        <li>No advertising, no ad pixels, no social trackers.</li>
+        <li>No web fonts. Typography is your own system fonts, so nothing is fetched from Google Fonts or any other font host.</li>
+        <li>No third-party scripts, stylesheets, images or iframes. Loading a page here makes requests to notchmeter.com and nowhere else.</li>
+        <li>No crash reporting or error tracking.</li>
+      </ul>
+
+      <h3>3.4 When you click a link that leaves the site</h3>
+      <p>A link is inert until you click it. Nothing below happens on page load.</p>
+      <ul>
+        <li><strong>The download button, and the source, docs, issues and licence links</strong> take you to GitHub. GitHub sees your IP address and browser details. The disk image itself is served from GitHub's release asset network, which runs on Microsoft Azure storage.</li>
+        <li><strong>The support link</strong> takes you to a Stripe payment page for a voluntary donation. If you choose to give something, Stripe collects your email address, the amount you pick and your payment details. That goes to Stripe, not through us. Afterwards we can see, in Stripe's own dashboard, the record Stripe shows a merchant: the email address you entered, the amount, the payment method type with the last four digits of a card, and whatever billing details your chosen payment method required. We never see your full card number. Stripe sets cookies on its own pages, not on ours. The merchant name shown at checkout and on your statement is Hackett Labs LLC.</li>
+      </ul>
+      <p>The donation gates nothing. Notchmeter is free and MIT licensed, every feature works whether you give anything or not, and there is nothing to buy, subscribe to or cancel.</p>
+
+      <hr>
+
+      <h2 id="app">4. The Mac app</h2>
+
+      <div class="callout">
+        <p><strong>Nothing the app does reaches us.</strong> There is no Notchmeter account, no Notchmeter server, no telemetry, no analytics, no crash reporter and no usage reporting. The app never sends a prompt, a response, a transcript or a file path anywhere. It never sends any token to us, because there is no "us" on the network for it to send one to.</p>
+        <p>What follows is the honest other half. The app does make network requests. It talks only to providers you already have an account with, using the login their own tool already put on your Mac, and it is worth setting that out request by request rather than waving at it.</p>
+      </div>
+
+      <h3>4.1 Every request the app makes</h3>
+      <p>Notchmeter shows how much of your plan you have used. To do that it reads the login each AI coding tool has <em>already</em> saved on your Mac, and makes that tool's own usage request to that tool's own vendor, with your own token. It never creates a login, never refreshes one, never writes one to disk, and never sends one anywhere except back to the vendor that issued it.</p>
+      <p>Every provider can be switched off individually in Settings. Turn a provider off and no request is made for it.</p>
+      <div class="tablewrap">
+        <table class="dtable">
+          <thead><tr><th>Who receives it</th><th>What is sent</th><th>When</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Anthropic<br><code>api.anthropic.com</code></td>
+              <td>Your IP address and Claude Code's own access token, in the request header. No request body, no machine identifier.</td>
+              <td>About every five minutes while you are working, slower on battery or when idle, and not at all while the Mac is locked or asleep. Also when you hover the rings, press refresh, wake the Mac, or a Claude Code hook fires.</td>
+            </tr>
+            <tr>
+              <td>OpenAI<br><code>chatgpt.com</code></td>
+              <td>Your IP address, Codex's own access token, <strong>and your ChatGPT account identifier</strong>, which this request requires. No request body.</td>
+              <td>Same schedule. A second request, for credit reset details, is made only if you turn that option on. It is off by default.</td>
+            </tr>
+            <tr>
+              <td>Cursor<br><code>cursor.com</code></td>
+              <td>Your IP address and Cursor's own session token, sent as a cookie. Be aware this is the same token that signs you in to the Cursor website. When the usage events option is on, the app also exports your usage events for the last 30 days, which is what makes the Cursor cost figures work, and asks Cursor which teams your account belongs to so it can request the right ones. Those request bodies carry only paging and filter parameters, never any content.</td>
+              <td>Same schedule. <strong>The 30-day usage export is on by default</strong> and can be switched off in Settings.</td>
+            </tr>
+            <tr>
+              <td>GitHub<br><code>api.github.com</code></td>
+              <td>Your IP address and the Copilot or GitHub CLI token already on your Mac, with the editor version headers GitHub's Copilot endpoint expects. If more than one such token is saved, each is tried in turn until one is accepted, so a single check can be more than one request.</td>
+              <td>Same schedule. If you turn on organisation billing, the app also asks GitHub which organisations you belong to and requests a usage summary for up to ten of them. That option is off by default.</td>
+            </tr>
+            <tr>
+              <td>Google<br><code>cloudcode-pa.googleapis.com</code></td>
+              <td>Your IP address, the Gemini CLI access token already on your Mac, a fixed description of the client that identifies nobody, <strong>and your Google Cloud project id</strong>, which the quota request requires.</td>
+              <td>Same schedule. Two requests each time: one to learn the project and tier, one to read the quota.</td>
+            </tr>
+            <tr>
+              <td>GitHub<br><code>github.com</code><br>(software updates)</td>
+              <td>Your IP address and the updater's user agent, when the app checks whether a newer version exists. No account, no token and no identifier is sent, and the updater's optional anonymous system profile is not switched on.</td>
+              <td><strong>Daily by default</strong>, and whenever you choose Check for Updates. Automatic checking can be switched off in Settings.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="strong-note"><strong>What that means in plain terms.</strong> Each vendor learns your IP address and, from your token, which of their accounts you are. That is exactly what happens when their own tool asks the same question, and no more. It is still a real disclosure to a real third party, and once a request arrives at Anthropic, OpenAI, Cursor, Google or GitHub, that company's privacy policy governs what it does with it, not this one. The update check in particular means <strong>GitHub can see, roughly once a day, that a machine at your IP address is running Notchmeter</strong>, whether or not you ever download anything from them again.</p>
+      <p>The updater is the Sparkle framework, and it only runs in properly signed release builds. What it sends is what Sparkle sends with its system profile feature off, which is how the app configures it. We wrote the configuration, not the updater.</p>
+      <p>The app also opens ordinary links in your browser when you click them, such as a vendor's usage page, a status page, or the donation page. Those are handed to your browser with whatever cookies your browser already has. The app makes no request of its own for them.</p>
+
+      <h4>The three options that change what is sent</h4>
+      <ul>
+        <li><strong>Cursor usage events export: on by default.</strong> Switch it off in Settings and Cursor stops receiving the 30-day usage events request. The plain usage summary still works; the detailed cost breakdown does not.</li>
+        <li><strong>Codex credit reset details: off by default.</strong> Turn it on and one extra request goes to OpenAI alongside the usage read.</li>
+        <li><strong>GitHub organisation billing: off by default.</strong> Turn it on and the app asks GitHub for your organisation list and a usage summary for up to ten of them.</li>
+      </ul>
+
+      <h3>4.2 What the app reads on your Mac</h3>
+      <p>All of this stays on your Mac. It is listed because reading it is worth telling you about even when nothing is transmitted.</p>
+      <ul>
+        <li><strong>Saved logins for the tools you enable.</strong> For Claude Code, from your Keychain first, and if it is not there, from the credentials file Claude Code keeps in your home folder, or from the <code>CLAUDE_CODE_OAUTH_TOKEN</code> environment variable if you have set one. For Codex, Cursor, Gemini CLI and GitHub Copilot, from the config files those tools already keep in your home folder. Cursor's database is copied to a temporary file and opened read only, so the live database is never touched. These tokens are read, used for the one request above, and never written, refreshed, copied into a Keychain or stored anywhere by us.</li>
+        <li><strong>Your local Claude Code and Codex transcripts</strong>, for the cost figures. For Claude Code it reads only files changed in the last 30 days. From each line it takes the timestamp, token counts, the model name, a message and request id used to avoid counting the same call twice, a cost figure, a session id, the speed and inference region labels the transcript records, any web search request count, and the <strong>last folder name</strong> of the working directory. It does not read prompt text, does not read response text, and does not keep full paths. None of it is transmitted anywhere.</li>
+        <li><strong>Pricing settings</strong> from Claude Code's own settings file, plus any overrides you write yourself. Model prices otherwise come from a table shipped inside the app. There is no pricing lookup over the network.</li>
+        <li><strong>Modification times only</strong>, with no file contents, for a handful of folders, so the app knows when to slow its polling down.</li>
+        <li><strong>Whether the screen is being shared</strong>, as a yes or no from macOS, and only while the "hide usage while the screen is shared" option is on.</li>
+        <li><strong>Menu bar geometry of the frontmost app</strong>, through the macOS Accessibility API, and only if you choose the Auto layout. It is measured when you switch apps and cached, never polled.</li>
+        <li><strong>Hook and status line events</strong>, if you install the optional hooks. These carry an event name, a session id, a folder name, a git branch, a permission mode, a model name, context fill and a session cost. They explicitly exclude your prompt, the response, the transcript path, the full working directory and any email address.</li>
+      </ul>
+
+      <h3>4.3 What the app keeps on your Mac, and where</h3>
+      <p>These are plain files in your own home folder. You can read them and you can delete them.</p>
+      <div class="tablewrap">
+        <table class="dtable">
+          <thead><tr><th>Where</th><th>What is in it</th></tr></thead>
+          <tbody>
+            <tr><td><code>~/Library/Preferences/</code></td><td>Your settings: layout, notifications, currency, hotkeys, opt-ins. Also the last successful reading for each tool, which notifications have already fired, and a note of when the Cursor export last ran.</td></tr>
+            <tr><td><code>~/Library/Caches/Notchmeter/</code></td><td>Daily cost totals that outlive your transcripts, broken down by model and by folder name, plus the transcript scan cache. Never a token, a prompt or a full path.</td></tr>
+            <tr><td><code>~/Library/Application Support/Notchmeter/drain-log-v1.jsonl</code></td><td>One line per successful usage read: time, tool, window, fraction used, reset time. Trimmed to the last 7 days. Never a token.</td></tr>
+            <tr><td><code>~/Library/Application Support/Notchmeter/report-v1.json</code></td><td>The current full readout, rewritten about every 30 seconds so the command line tool and the status line can read it. This is the richest file on disk: it holds session ids, folder names and cost figures. It is protected by ordinary macOS home folder permissions and nothing more.</td></tr>
+            <tr><td>macOS unified log</td><td>Request outcomes as a status code and a byte count. Never a token, a header or a body.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>No Keychain item is ever created by the app, and no token is ever written to disk. Deleting Notchmeter and removing the folders above removes everything it wrote. Lines already written to the macOS unified log age out on the schedule macOS sets for that log, which the app does not control.</p>
+
+      <h3>4.4 Two local things worth knowing about</h3>
+      <p><strong>The local API.</strong> If you switch on Settings, Local API, the app listens on <code>127.0.0.1</code> so tools on the same Mac, such as the command line tool, a status line script or a widget, can read your usage. It refuses any request that is not from the loopback address, so it is not reachable from your network or from the internet. <strong>It has no authentication</strong>, which means any program already running on your Mac can read your usage figures through it while it is on. It is off by default.</p>
+      <p><strong>Local notifications between apps.</strong> Hook and status line events are broadcast on a macOS notification channel that any other program in your login session can listen to. The payload includes a session id, a folder name, a git branch, a model name, context fill, session cost and an open pull request URL. None of this leaves your Mac, but it is readable locally by other software you have installed.</p>
+
+      <h3>4.5 Copy diagnostics</h3>
+      <p>Settings has a Copy diagnostics button. It reads the app's own last ten minutes of log lines, replaces your home folder path with <code>~</code>, and puts the text on your clipboard. <strong>Nothing is transmitted.</strong> If you paste it into a bug report, you are the one sending it, and you can read it first.</p>
+
+      <hr>
+
+      <h2 id="basis">5. Legal basis for each use</h2>
+      <p>Under Article 6 of the GDPR, where it applies to you:</p>
+      <div class="tablewrap">
+        <table class="dtable">
+          <thead><tr><th>What</th><th>Why</th><th>Legal basis</th></tr></thead>
+          <tbody>
+            <tr><td>Website server logs</td><td>Serving the site, keeping it up, and dealing with abuse or attacks</td><td>Article 6(1)(f), legitimate interests. Our interest is running a website that works. It is ordinary request metadata, it is not used to build a profile, and it is not combined with anything else.</td></tr>
+            <tr><td>A donation, if you choose to make one</td><td>Taking the payment you asked to make</td><td>Article 6(1)(b), the transaction you asked for. Keeping the record afterwards rests on Article 6(1)(f), our interest in holding the accounting and tax records US law requires of us.</td></tr>
+            <tr><td>App update check</td><td>Telling you when a fixed or safer version exists</td><td>Article 6(1)(f), legitimate interests in getting security fixes to installed software. You can switch automatic checking off.</td></tr>
+            <tr><td>App usage reads to AI vendors</td><td>Showing you your own usage, which is the one thing you installed the app to do</td><td>These run on your machine, at your instruction, with your own credentials, and we receive nothing from them. To the extent a basis applies to us at all it is Article 6(1)(f). Each vendor is its own controller for what it does with the request.</td></tr>
+            <tr><td>Everything else the app does</td><td>Showing your usage and cost locally</td><td>No basis is needed, because we do no processing. The data never leaves your Mac and we never see it.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>We do not rely on consent for anything, because nothing here needs it. We do no automated decision making or profiling that produces legal or similarly significant effects. The advice the app shows you is calculated on your own Mac from your own numbers and is never sent anywhere.</p>
+      <p>You are under no statutory or contractual obligation to give us personal data, and you do not have to provide any to use the site or the app. There is nothing on the site to fill in and no account to create. The only thing that reaches anyone by default is the request metadata your browser must send in order to load a page at all, and without that a web page cannot be delivered to you.</p>
+
+      <hr>
+
+      <h2 id="recipients">6. Who receives data, and where</h2>
+      <div class="tablewrap">
+        <table class="dtable">
+          <thead><tr><th>Who</th><th>What they get</th><th>When</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Vercel</td><td>Website server logs: IP address, user agent, the page requested, the time, the referrer</td><td>Every visit to notchmeter.com</td><td>Vercel is a United States company and serves the site from a global edge network</td></tr>
+            <tr><td>Stripe</td><td>Your email address, the amount, and your payment details</td><td>Only if you click the support link and choose to donate</td><td>United States</td></tr>
+            <tr><td>GitHub (Microsoft)</td><td>IP address and browser or updater details</td><td>When you click through to the source, docs or issues, when you download the app, and when the app checks for updates</td><td>United States</td></tr>
+            <tr><td>Anthropic, OpenAI, Cursor, Google, and GitHub for Copilot</td><td>Your IP address and your own saved token for that tool, plus the account, project or organisation identifier that tool's request requires</td><td>Each time the app reads your usage for a provider you have enabled</td><td>United States, and wherever else that vendor operates</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>That is the complete list, other than the infrastructure those companies use themselves. GitHub, for instance, serves release downloads from Microsoft Azure storage, as noted in section 3.4.</p>
+      <p>We do not sell personal information. We do not share it for advertising. There is no affiliate programme, no marketing list and no data broker anywhere in this. Anything beyond the list above would only ever be handed over under a valid legal order, and we hold almost nothing to hand over.</p>
+
+      <hr>
+
+      <h2 id="transfers">7. International transfers</h2>
+      <p>We are in the United States and so are all of the companies above. If you are in the UK, the EEA or Switzerland, using this site or the app means your data is processed in the United States.</p>
+      <p>We transfer nothing ourselves, because we hold nothing to transfer. Where these providers handle UK, EEA or Swiss personal data, each publishes the mechanism it relies on:</p>
+      <ul>
+        <li><strong>Vercel</strong> is certified under the EU-US Data Privacy Framework, and its <a href="https://vercel.com/legal/dpa">Data Processing Addendum</a> also incorporates the European Commission's 2021 Standard Contractual Clauses and, for UK transfers, the UK International Data Transfer Addendum.</li>
+        <li><strong>Stripe</strong> is certified under the EU-US Data Privacy Framework and relies on the Standard Contractual Clauses and the UK Addendum. See <a href="https://stripe.com/legal/privacy-center">Stripe's privacy center</a>.</li>
+        <li><strong>GitHub</strong> complies with the EU-US Data Privacy Framework, the UK Extension to it and the Swiss-US Data Privacy Framework, and also relies on Standard Contractual Clauses. See the <a href="https://docs.github.com/site-policy/privacy-policies/github-privacy-statement">GitHub Privacy Statement</a>.</li>
+        <li><strong>Anthropic, OpenAI, Cursor, Google, and GitHub when you use Copilot,</strong> receive requests only from your own machine, with your own credentials, under the account you already hold with them. The transfer terms of your relationship with each of them are the ones in their own privacy policies, not ours.</li>
+      </ul>
+      <p>Each provider's own notice is the authoritative source for what it does, and those terms can change without us knowing.</p>
+
+      <hr>
+
+      <h2 id="retention">8. How long anything is kept</h2>
+      <ul>
+        <li><strong>By us: nothing about you.</strong> There is no user database, no analytics warehouse and no log archive of our own. The one exception is the donation record described below.</li>
+        <li><strong>Donation records.</strong> If you donate, we keep the transaction record Stripe shows us, which includes the email address you entered, for as long as US tax and accounting rules require records of income to be kept, and then no longer. We do not use it for anything else, and we never add it to a mailing list, because there is no mailing list.</li>
+        <li><strong>Website server logs</strong> are held by Vercel, not by us. Vercel does not publish a single retention period for them; its Data Processing Addendum commits it to anonymising or deleting personal data when it no longer needs it for the purpose it was collected for. We have no way to shorten that and no access to the raw logs.</li>
+        <li><strong>Payment data</strong> is kept by Stripe under its own policy, which states that it generally retains this kind of data for five or more years from the last transaction or the end of the relationship, whichever is later.</li>
+        <li><strong>App data on your Mac</strong> is kept by you, on your machine, until you delete it. The usage read log trims itself to 7 days. Daily cost totals and the caches stay until you remove them, and deleting the folders in section 4.3 deletes them.</li>
+        <li><strong>Requests to AI vendors and to GitHub</strong> are retained by those companies under their own policies. We have no control over that and no visibility into it.</li>
+      </ul>
+
+      <hr>
+
+      <h2 id="rights">9. Your rights</h2>
+      <p>These are the rights the GDPR and UK GDPR give in Articles 15 to 21. We offer them to anyone who asks, wherever you live, because answering honestly costs us nothing.</p>
+      <ul>
+        <li><strong>Access</strong> a copy of the personal data held about you, and information about how it is used.</li>
+        <li><strong>Rectification</strong>, to have inaccurate data corrected.</li>
+        <li><strong>Erasure</strong>, to have data deleted.</li>
+        <li><strong>Restriction</strong>, to have processing paused while a dispute is worked out.</li>
+        <li><strong>Portability</strong>, to receive data you provided in a machine readable form, where the processing is based on consent or a contract and is automated.</li>
+        <li><strong>Object</strong> to processing based on legitimate interests.</li>
+        <li><strong>Withdraw consent</strong>, where consent was the basis. We rely on consent for nothing, so there is nothing to withdraw.</li>
+      </ul>
+      <p class="strong-note">Here is the practical part. <strong>We hold no records about you</strong>, unless you have donated. For most people every one of these requests has the same answer: there is nothing to give you, correct, delete or export. That is not a refusal, it is the actual state of things, and we will say so in writing if you ask.</p>
+      <p>Where data genuinely is held, it is held by someone else, and the right is exercised with them:</p>
+      <ul>
+        <li>Website server logs: Vercel.</li>
+        <li>Payment details: Stripe. Our copy of the transaction record: us.</li>
+        <li>Downloads, issue comments and update checks: GitHub.</li>
+        <li>Your AI usage and account data: Anthropic, OpenAI, Cursor, Google or GitHub, whichever account it belongs to.</li>
+      </ul>
+      <p>Email <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a> and we will answer within one month, and help you route a request to the right provider if that is where the data actually is. There is no charge.</p>
+
+      <h4>Complaining to a regulator</h4>
+      <p>If you are unhappy with how your data has been handled, you can complain to your data protection authority. You do not have to come to us first, though we would rather you did so we can fix it.</p>
+      <ul>
+        <li><strong>EU and EEA:</strong> your local supervisory authority, in the country where you live, where you work, or where you think the problem happened. The list is at <a href="https://www.edpb.europa.eu/about-edpb/about-edpb/members_en">edpb.europa.eu</a>.</li>
+        <li><strong>United Kingdom:</strong> the Information Commissioner's Office, <a href="https://ico.org.uk/make-a-complaint/">ico.org.uk</a>.</li>
+        <li><strong>Switzerland:</strong> the Federal Data Protection and Information Commissioner, <a href="https://www.edoeb.admin.ch/">edoeb.admin.ch</a>.</li>
+      </ul>
+
+      <hr>
+
+      <h2 id="california">10. California notice</h2>
+      <p>This section is for the California Online Privacy Protection Act and for California residents generally.</p>
+      <ul>
+        <li><strong>Categories of personal information collected through this site:</strong> internet activity information only, meaning IP address, browser user agent, the page requested, the time, and the referring page. That is all. No name, no email address, no postal address, no phone number and no account identifier is collected through this website, because there is nowhere on it to enter one.</li>
+        <li><strong>Categories of third parties it is shared with:</strong> our host, Vercel. If you choose to donate, Stripe collects your email and payment details directly. If you click through to the source or the download, GitHub receives the request.</li>
+        <li><strong>Do we sell or share personal information?</strong> No. We do not sell personal information and we do not share it for cross context behavioural advertising. We never have.</li>
+        <li><strong>Reviewing and changing your information:</strong> there is no account and no stored profile, so there is nothing to log in to and change. If you think we hold something about you, email <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a> and we will tell you what we have, which is very likely nothing, and delete it if we do.</li>
+        <li><strong>Do Not Track:</strong> we run no tracking of any kind on this site, so there is nothing for a Do Not Track signal to switch off. We do not track you here and we do not track you across other sites.</li>
+        <li><strong>Third party tracking:</strong> no third party collects information about your activity across different websites through this site. There are no ad networks, no social pixels and no cross site trackers here.</li>
+        <li><strong>Changes to this notice:</strong> see section 13. The effective date is at the top and the bottom of this page.</li>
+      </ul>
+      <p>We do not meet the thresholds that make the California Consumer Privacy Act apply to a business, and we do not meet the thresholds under the other US state privacy laws either. The rights in section 9 are offered to everyone anyway.</p>
+
+      <hr>
+
+      <h2 id="children">11. Children</h2>
+      <p>Notchmeter is a tool for professional software development. It is not directed at children, not designed for them, and nothing about it is aimed at them.</p>
+      <p>We do not knowingly collect personal information from anyone under 13, or under 16 where that is the age set. In practice we collect no personal information from anyone through this site beyond request metadata, and the app sends us none at all. There is no age gate, because adding one would mean asking for a date of birth, which would collect more data than we do now rather than less.</p>
+      <p>If you believe a child has provided personal information to us, email <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a> and we will delete whatever we find.</p>
+
+      <hr>
+
+      <h2 id="security">12. Security</h2>
+      <p>The website is served over HTTPS only. The app is signed with an Apple Developer ID and notarised by Apple, and every update is verified against a cryptographic signature before it is installed, so a tampered update is rejected.</p>
+      <p>The strongest security property here is structural rather than procedural: we hold no user data, so there is no database of yours to breach. The credentials the app reads never leave your Mac except to go back to the vendor that issued them, and they are never written to disk or copied into a Keychain by us.</p>
+      <p>Two things you should weigh yourself. The Cursor token the app reads is the same one that signs you in to the Cursor website, so it is a more powerful credential than a read-only usage key would be. And the local API, if you turn it on, has no authentication, so any program already running on your Mac can read your usage figures through it.</p>
+      <p>The app's source is public under the MIT licence, so none of this has to be taken on trust: <a href="https://github.com/Amir-Hackett/notchmeter">github.com/Amir-Hackett/notchmeter</a>.</p>
+      <p>To report a vulnerability, see <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">SECURITY.md</a> or email <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a>.</p>
+
+      <hr>
+
+      <h2 id="changes">13. Changes to this policy</h2>
+      <p>If what the site or the app does changes, this page is updated before or at the same time as the change, never afterwards. The effective date at the top and bottom of this page always reflects the current version.</p>
+      <p>For a material change, meaning anything that starts a new kind of collection, adds a new recipient, or introduces cookies or device storage, we will say so plainly at the top of this page and note it in the release notes for the version that introduces it. The app has no way to message you and there is no mailing list, so the release notes and this page are the notice.</p>
+      <p>Previous versions of this page are in the public git history of the site at <a href="https://github.com/Amir-Hackett/notchmeter">github.com/Amir-Hackett/notchmeter</a>. You can see exactly what changed and when.</p>
+
+      <hr>
+
+      <h2 id="contact">14. Contact</h2>
+      <p>For anything about this policy or about your data:</p>
+      <ul>
+        <li>Hackett Labs LLC, Florida, United States</li>
+        <li>Email: <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a></li>
+        <li>Public issue tracker: <a href="https://github.com/Amir-Hackett/notchmeter/issues">github.com/Amir-Hackett/notchmeter/issues</a></li>
+      </ul>
+      <p style="margin-top:26px">Effective 7 September 2026. See also the <a href="terms.html">terms of use</a>.</p>
+
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h4>Notchmeter</h4>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="index.html#assistants">Assistants</a></li>
+          <li><a href="index.html#advice">Advice</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="/privacy.html">Privacy</a></li>
+          <li><a href="/terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 14+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
