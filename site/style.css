@@ -116,10 +116,17 @@ nav.links a.here { color: var(--text); }
 
 h1 {
   font-size: clamp(2.3rem, 6vw, 3.7rem);
-  line-height: 1.06;
+  /* 1.06 is right for one line and too tight for three. The headline carries a
+     <br> between its two sentences, so at most widths it is already two lines
+     and the first sentence wraps into a third. */
+  line-height: 1.12;
   letter-spacing: -0.032em;
   margin: 0 0 20px;
   font-weight: 640;
+  /* Stops the orphan. Without it the first sentence wraps to leave "ago." alone
+     on a line, and the forced break under it makes that read as a mistake
+     rather than as a line. Unsupported engines simply wrap as before. */
+  text-wrap: balance;
 }
 
 .lede {
