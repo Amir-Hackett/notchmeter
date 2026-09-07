@@ -61,7 +61,8 @@ import Testing
         #expect(ltr.fittingSize.height > 20)
         #expect(ltr.fittingSize == rtl.fittingSize)
         let tick = Meter.tickOffset(width: 320, tick: 0.4)
-        #expect(tick == 320 * 0.4 - 1)
+        let expectedTick: CGFloat = 320 * 0.4 - 1
+        #expect(tick == expectedTick)
         let sparkline = NSHostingView(rootView: Sparkline(series: [DailySpend(day: now, cost: 1, tokens: 1)], color: .orange).frame(width: 160, height: 22).environment(\.layoutDirection, .rightToLeft))
         sparkline.layoutSubtreeIfNeeded()
         #expect(sparkline.fittingSize.width == 160)
