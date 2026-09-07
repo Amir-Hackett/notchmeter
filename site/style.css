@@ -69,8 +69,14 @@ header.top {
 .brand img { width: 26px; height: 26px; border-radius: 6px; }
 
 nav.links { display: flex; gap: 22px; margin-left: auto; align-items: center; }
-nav.links a { color: var(--text-dim); font-size: 15px; }
-nav.links a:hover { color: var(--text); text-decoration: none; }
+/* :not(.btn) because the Download CTA also lives in this nav, and "nav.links a"
+   is one step more specific than ".btn-primary". It was therefore overriding the
+   button's own white with --text-dim, which is 2.18:1 on --calm and fails WCAG
+   AA outright. The button only looked right on hover, where the second rule
+   happened to restore full --text. The primary call to action was the least
+   legible text on the page. */
+nav.links a:not(.btn) { color: var(--text-dim); font-size: 15px; }
+nav.links a:not(.btn):hover { color: var(--text); text-decoration: none; }
 nav.links a.here { color: var(--text); }
 
 /* ---------- buttons ---------- */
