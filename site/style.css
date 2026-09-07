@@ -11,7 +11,11 @@
   --line-soft: #1a1d24;
   --text: #eef0f4;
   --text-dim: #a2a8b6;
-  --text-faint: #6f7684;
+  /* Was #6f7684, which measures 4.36:1 on --bg and fails WCAG AA for body text.
+     It carries the figcaptions and the install note, both well under 18px, so
+     4.5:1 is the bar they have to clear. #7d8492 measures 5.30:1 and is still
+     visibly the quietest step in the ramp. */
+  --text-faint: #7d8492;
   --calm: #0072B2;
   --calm-lift: #3897d8;
   --warn: #E69F00;
@@ -128,6 +132,10 @@ h1 {
      rather than as a line. Unsupported engines simply wrap as before. */
   text-wrap: balance;
 }
+
+/* The setup, one tone back from the payoff. --text-dim measures 8.36:1 on --bg,
+   so stepping back costs nothing in legibility. */
+h1 .h1-setup { color: var(--text-dim); }
 
 .lede {
   font-size: clamp(1.05rem, 2.2vw, 1.3rem);
