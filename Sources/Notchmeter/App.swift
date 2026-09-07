@@ -185,6 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         notifier.sound = { [weak self] event in self?.prefs.sound(for: event) ?? NotificationSound.defaultChoice }
         notifier.quiet = { [weak self] in self?.prefs.isQuietHour() ?? false }
+        notifier.terminalRule = { [weak self] in self?.prefs.quietWhileTerminalFrontmost ?? true }
         notifier.onOpen = { [weak self] tool in self?.openFromNotification(tool) }
         store.start()
         actions.refresh = { [weak self] in self?.store.refreshAll(interactive: true) }
@@ -328,11 +329,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Session attention
 
-    /// The notification, then the notch itself: a glance or an open, under the same quiet-hours and
-    /// frontmost-terminal rule, on the presenter under the pointer.
+    /// The notification, then the notch itself: a glance or an open, on the presenter under the pointer. Both go
+    /// through the one rule, with the same event, so the panel cannot disagree with the banner about whether the
+    /// user is looking at the session — a wait the session has stopped for is worth the glance for the same
+    /// reason it is worth the banner. They part in one place only, deliberately: the ceiling on repeat blocking
+    /// waits (`Notifier.blockingWaitInterval`) is the notifier's own memory of what it has sent, and this call
+    /// passes no allowance, so a second wait inside ten minutes still reaches the panel while the banner is held.
+    /// A glance is three seconds of a panel that closes itself, silent and leaving nothing in Notification Center,
+    /// and it shows the waiting session rather than a copy of it: the ceiling is on interruption, and that is not
+    /// one. *Open the panel* is not a glance and is not capped either — it is off by default, and a panel the user
+    /// asked to have opened is one they can close, where a banner they were never shown is one they cannot get
+    /// back. Neither makes up for a held banner in the default setup, where `sessionAttention` is `.nothing` and
+    /// nothing happens below this line at all.
     private func sessionEvent(_ event: Notifier.SessionEvent, session: AgentSession) {
         notifier.notify(event, session: session)
-        guard prefs.sessionAttention != .nothing, !Notifier.shouldSuppress(frontmost: NSWorkspace.shared.frontmostApplication?.bundleIdentifier, quiet: prefs.isQuietHour()),
+        let suppressed = Notifier.shouldSuppress(event: event, frontmost: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+                                                 quiet: prefs.isQuietHour(), host: session.host, terminalRule: prefs.quietWhileTerminalFrontmost)
+        guard prefs.sessionAttention != .nothing, !suppressed,
               !isSettingsVisible, let presenter = pointerPresenter else { return }
         switch prefs.sessionAttention {
         case .glance: presenter.glance()

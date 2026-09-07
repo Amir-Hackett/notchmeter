@@ -14,6 +14,34 @@ import Testing
                      notificationType: type, failure: failure, tool: tool)
     }
 
+    /// A wait nobody answers times out on the ring after ten minutes. The banner it raised has to come down with
+    /// it: `expire` is the only witness to that ending, so it reports what it demoted, and reports it once.
+    @Test func anExpiredWaitIsReportedSoItsNoticeCanBeWithdrawn() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit"), now: t0)
+        let started = tracker.apply(message("Notification", type: "permission_prompt"), now: t0.addingTimeInterval(10))
+        #expect(started.startedWaiting != nil)
+        #expect(started.stoppedWaiting.isEmpty)
+        #expect(tracker.waiting.count == 1)
+        let timeout = t0.addingTimeInterval(10 + SessionTracker.waitingTimeout)
+        #expect(tracker.expire(now: timeout) == ["a"])
+        #expect(tracker.waiting.isEmpty)
+        #expect(tracker.expire(now: timeout.addingTimeInterval(60)).isEmpty, "an ended wait is announced once, not on every sweep")
+    }
+
+    /// The same withdrawal when the whole session goes stale rather than the wait merely timing out, and nothing
+    /// is reported for a session that was not waiting when it went.
+    @Test func aWaitLostToStalenessIsReportedAndAnIdleSessionIsNot() {
+        var waiting = SessionTracker()
+        waiting.apply(message("Notification", type: "permission_prompt"), now: t0)
+        #expect(waiting.expire(now: t0.addingTimeInterval(SessionTracker.staleAfter)) == ["a"])
+        #expect(waiting.all.isEmpty)
+        var idle = SessionTracker()
+        idle.apply(message("SessionStart"), now: t0)
+        #expect(idle.expire(now: t0.addingTimeInterval(SessionTracker.staleAfter)).isEmpty)
+        #expect(idle.all.isEmpty)
+    }
+
     @Test func aTurnGoesWorkingThenIdleAndReportsItsLength() {
         var tracker = SessionTracker()
         #expect(tracker.knownCount == nil)
@@ -306,5 +334,38 @@ import Testing
         statusline.statusline(sessionID: "s", project: "p", branch: "main", prURL: "https://github.com/a/b/pull/3", now: t0)
         #expect(statusline.all[0].branch == "main")
         #expect(statusline.all[0].prNumber == "#3")
+    }
+
+    /// One message can end a wait and start another for the same session, because `apply` seeds stoppedWaiting from
+    /// `expire`: a prompt arriving after its own wait timed out demotes the session and re-raises it inside the one
+    /// call, so both lists name it. The tracker is right to report both; what matters is the order the store acts on
+    /// them in.
+    @Test func aPromptAfterItsOwnWaitTimedOutIsBothEndedAndStarted() {
+        var tracker = SessionTracker()
+        tracker.apply(message("Notification", type: "permission_prompt"), now: t0)
+        let outcome = tracker.apply(message("Notification", type: "permission_prompt"), now: t0.addingTimeInterval(601))
+        #expect(outcome.startedWaiting?.id == "a")
+        #expect(outcome.stoppedWaiting == ["a"], "expire demoted the wait that timed out, and the fresh prompt raised it again")
+    }
+
+    /// Delivered first, the withdrawal took the new banner straight back down — and the notifier had already spent
+    /// that session's ten minutes on a banner nobody saw, so the next prompt was capped too. Withdrawn first, the
+    /// notice standing for the wait that expired goes and the new one is what is left.
+    @MainActor @Test func theExpiredNoticeIsWithdrawnBeforeTheFreshOneIsRaised() {
+        let suite = "NotchmeterTests.waitRestart"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let prefs = Preferences(defaults: defaults)
+        prefs.notifyWaiting = true
+        let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults,
+                               drainLog: nil, reportFile: nil)
+        var acted: [String] = []
+        store.deliverSessionEvent = { _, session in acted.append("raise \(session.id)") }
+        store.removeNotifications = { acted.append("withdraw \($0.joined(separator: ","))") }
+        store.hookReceived(message("Notification", type: "permission_prompt"), now: t0)
+        #expect(acted == ["raise a"])
+        store.hookReceived(message("Notification", type: "permission_prompt"), now: t0.addingTimeInterval(601))
+        #expect(acted == ["raise a", "withdraw session/a/waiting", "raise a"])
     }
 }

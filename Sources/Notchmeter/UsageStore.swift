@@ -762,6 +762,13 @@ final class UsageStore {
         }
     }
 
+    /// Takes down the "is waiting" notices of sessions that have stopped waiting, however they stopped: answered,
+    /// ended, timed out or gone stale.
+    private func withdrawWaiting(_ ids: [String]) {
+        guard !ids.isEmpty else { return }
+        removeNotifications(ids.map { Notifier.identifier(session: $0, kind: "waiting") })
+    }
+
     private func remember(_ memory: AlertMemory) {
         if memory != alertMemory {
             alertMemory = memory
@@ -907,7 +914,7 @@ final class UsageStore {
                 try? await Task.sleep(for: .seconds(Self.resetCheckInterval))
                 guard !Task.isCancelled, let self else { return }
                 let before = self.sessions
-                self.sessions.expire(now: Date())
+                self.withdrawWaiting(self.sessions.expire(now: Date()))
                 if before != self.sessions { self.applyAwake() }
                 self.checkResets()
             }
@@ -1056,8 +1063,9 @@ final class UsageStore {
             guard !Task.isCancelled, let self else { return }
             signalRelease = nil
             var expired = sessions
-            expired.expire(now: Date())
+            let stopped = expired.expire(now: Date())
             if expired != sessions { sessions = expired }
+            withdrawWaiting(stopped)
             armSignalRelease()
         }
     }
@@ -1091,11 +1099,15 @@ final class UsageStore {
         let outcome = sessions.apply(message, now: now)
         applyAwake()
         armSignalRelease(now: now)
+        // The withdrawal goes first because one message can end a wait and start another for the same session:
+        // `apply` seeds stoppedWaiting from `expire`, so a needsInput arriving after its own wait timed out is
+        // demoted and re-raised inside the one call, and both lists name it. Delivered first, the withdrawal took
+        // the new banner straight back down — and the notifier had already spent that session's ten minutes on a
+        // banner nobody saw. Withdrawn first, the notice standing for the wait that expired goes, and the new one
+        // is what is left.
+        withdrawWaiting(outcome.stoppedWaiting)
         if let waiting = outcome.startedWaiting, prefs.notifyWaiting {
-            deliverSessionEvent(.waiting, waiting)
-        }
-        if !outcome.stoppedWaiting.isEmpty {
-            removeNotifications(outcome.stoppedWaiting.map { Notifier.identifier(session: $0, kind: "waiting") })
+            deliverSessionEvent(.waiting(blocking: message.blocksSession), waiting)
         }
         if let finished = outcome.finished, prefs.notifyFinished, finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)

@@ -33,6 +33,11 @@ enum Hook {
         /// The basename of `cwd`, never the path.
         let project: String?
         let notificationType: String?
+        /// Whether a wait this message begins has stopped the session, as against merely reporting that the user
+        /// has gone quiet. Anything without a type counts as blocking: no vendor but Claude Code reports an idle
+        /// nudge at all, so a wait with nothing to say for itself is one that is holding.
+        var blocksSession: Bool { notificationType != Hook.idleNotificationType }
+
         /// The branch checked out in `cwd`, when it is a git checkout.
         let branch: String?
         /// `permission_mode`: default, plan, acceptEdits, auto, dontAsk, bypassPermissions.
@@ -123,6 +128,13 @@ enum Hook {
 
     /// Notification types that mean Claude Code is waiting for the user, per the hooks reference.
     static let waitingNotificationTypes: Set<String> = ["permission_prompt", "idle_prompt", "elicitation_dialog", "elicitation_url_dialog", "agent_needs_input"]
+
+    /// The one waiting type that does not block: `idle_prompt` says the user has gone quiet, not that Claude
+    /// cannot go on without them. Every other waiting type any vendor reports — a permission prompt, an
+    /// elicitation, an agent asking — means the session has stopped until it is answered. The difference decides
+    /// whether a wait is worth a banner over a frontmost terminal, because only a stopped session costs anything
+    /// by going unseen.
+    static let idleNotificationType = "idle_prompt"
 
     /// Notification types that end a wait without a Stop: a subagent finished, the elicitation was answered, or
     /// Claude Code's own quota wait ended.
