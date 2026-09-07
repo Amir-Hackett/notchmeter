@@ -1,0 +1,6 @@
+Contact: https://github.com/Amir-Hackett/notchmeter/security/advisories/new
+Contact: mailto:privacy@notchmeter.com
+Expires: 2027-09-07T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://www.notchmeter.com/.well-known/security.txt
+Policy: https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md

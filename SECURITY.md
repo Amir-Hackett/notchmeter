@@ -10,8 +10,8 @@ The latest release on the Releases page, and `main`. Older releases are not patc
 
 Report privately, not as a public issue:
 
-- **GitHub private vulnerability reporting**, once it is enabled for the repository: Security › Report a vulnerability. This is the preferred route.
-- Otherwise, email the author at the address on the GitHub profile (github.com/Amir-Hackett), with "Notchmeter security" in the subject.
+- **GitHub private vulnerability reporting**, now enabled: [Report a vulnerability](https://github.com/Amir-Hackett/notchmeter/security/advisories/new). This is the preferred route.
+- Otherwise, email <privacy@notchmeter.com> with "Notchmeter security" in the subject.
 
 Include what you found, the version (`Settings › Version`, or `--smoke`'s first line), and how to reproduce it. A fix or a response comes within seven days; a fix for a token-exposure class of issue ships as a point release with the finding credited unless you ask otherwise.
 
