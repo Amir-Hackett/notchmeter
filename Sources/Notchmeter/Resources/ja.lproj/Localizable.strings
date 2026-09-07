@@ -650,3 +650,10 @@
 "(%1$@–%2$@ your time)" = "（お使いの時間帯では %1$@〜%2$@）";
 "(%1$@–%2$@ your time, the next day)" = "（お使いの時間帯では翌日 %1$@〜%2$@）";
 "(%1$@–%2$@ your time, the day before)" = "（お使いの時間帯では前日 %1$@〜%2$@）";
+
+/* Reaching the local API from another device on the network (RemoteAccess, SettingsWindow) */
+"Let devices on this network read it" = "このネットワーク上のデバイスからの読み取りを許可";
+"Binds the API to this Mac's network addresses as well as loopback, so a phone or a second Mac can read it. Every request that did not come from this Mac must carry the token below; nothing is relayed and no account is involved, so pair over your own network — a home LAN, or a private network like Tailscale. Leave it off if you do not need it." = "API をループバックに加えてこの Mac のネットワークアドレスにもバインドし、iPhone や別の Mac から読めるようにします。この Mac 以外からのリクエストは、すべて下のトークンを提示する必要があります。中継サーバーもアカウントも使わないため、自宅の LAN や Tailscale のようなプライベートネットワークなど、自分のネットワークでペアリングしてください。必要なければオフのままにしてください。";
+"Rotate" = "再生成";
+"Generates a new token. Every device already paired stops working until you give it the new one." = "新しいトークンを生成します。ペアリング済みのデバイスは、新しいトークンを設定するまで動かなくなります。";
+"The token could not be stored in the Keychain, so network access stays off." = "トークンをキーチェーンに保存できなかったため、ネットワークアクセスはオフのままです。";

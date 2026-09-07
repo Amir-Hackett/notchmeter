@@ -124,3 +124,27 @@ enum Keychain {
         (SecCopyErrorMessageString(status, nil) as String?) ?? "OSStatus \(status)"
     }
 }
+
+extension Keychain {
+    /// Writes one of *Notchmeter's own* generic-password items, creating it or replacing its value. This is the only
+    /// write in the app and it never touches a borrowed credential: the items it owns carry secrets Notchmeter
+    /// generated itself (the remote-access bearer token, the APNs signing key), so the promise that no vendor token
+    /// is ever stored or refreshed still holds. The item is `kSecAttrAccessibleAfterFirstUnlock` so a launch at
+    /// login before the user has typed a password can still read it.
+    static func set(_ value: Data, service: String) throws {
+        let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service]
+        let attributes: [CFString: Any] = [kSecValueData: value, kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlock]
+        let update = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        if update == errSecSuccess { return }
+        guard update == errSecItemNotFound else { throw KeychainError.other(update) }
+        let add = query.merging(attributes) { current, _ in current }
+        let status = SecItemAdd(add as CFDictionary, nil)
+        guard status == errSecSuccess else { throw KeychainError.other(status) }
+    }
+
+    /// Removes one of Notchmeter's own items. Missing is success, so turning a feature off twice is not an error.
+    static func remove(service: String) throws {
+        let status = SecItemDelete([kSecClass: kSecClassGenericPassword, kSecAttrService: service] as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else { throw KeychainError.other(status) }
+    }
+}

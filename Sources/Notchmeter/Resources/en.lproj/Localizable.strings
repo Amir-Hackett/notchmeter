@@ -666,3 +666,10 @@
 "(%1$@–%2$@ your time)" = "(%1$@–%2$@ your time)";
 "(%1$@–%2$@ your time, the next day)" = "(%1$@–%2$@ your time, the next day)";
 "(%1$@–%2$@ your time, the day before)" = "(%1$@–%2$@ your time, the day before)";
+
+/* Reaching the local API from another device on the network (RemoteAccess, SettingsWindow) */
+"Let devices on this network read it" = "Let devices on this network read it";
+"Binds the API to this Mac's network addresses as well as loopback, so a phone or a second Mac can read it. Every request that did not come from this Mac must carry the token below; nothing is relayed and no account is involved, so pair over your own network — a home LAN, or a private network like Tailscale. Leave it off if you do not need it." = "Binds the API to this Mac's network addresses as well as loopback, so a phone or a second Mac can read it. Every request that did not come from this Mac must carry the token below; nothing is relayed and no account is involved, so pair over your own network — a home LAN, or a private network like Tailscale. Leave it off if you do not need it.";
+"Rotate" = "Rotate";
+"Generates a new token. Every device already paired stops working until you give it the new one." = "Generates a new token. Every device already paired stops working until you give it the new one.";
+"The token could not be stored in the Keychain, so network access stays off." = "The token could not be stored in the Keychain, so network access stays off.";

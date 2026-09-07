@@ -50,30 +50,70 @@ final class LocalAPI {
     }
 
     enum Refusal: Equatable {
-        case badHost, origin
+        case badHost, origin, unauthorized
     }
 
-    /// Why a request must not be answered: a Host that is not the loopback address, or an Origin not allowed.
-    nonisolated static func refusal(host: String?, origin: String?, port: UInt16, allowedOrigins: [String]) -> Refusal? {
-        let hosts: Set<String> = ["127.0.0.1:\(port)", "localhost:\(port)", "127.0.0.1", "localhost", "[::1]:\(port)"]
-        guard let host = host?.trimmingCharacters(in: .whitespaces).lowercased(), hosts.contains(host) else { return .badHost }
+    /// Why a request must not be answered.
+    ///
+    /// Over loopback the rule is unchanged and needs no credential: the Host must be the loopback address, so a
+    /// DNS-rebinding page cannot reach the port, and an Origin must be in the allow-list.
+    ///
+    /// A request that arrived over the network is held to more. It must carry `Authorization: Bearer <token>`
+    /// matching the stored token, compared in constant time; with remote access off — `token` nil — it is refused
+    /// whatever it carries, so a listener left bound by a crash still answers nothing. Its Host must be an address
+    /// literal rather than a name, which keeps the rebinding protection that the loopback rule gets for free: an
+    /// attacker's page can point a hostname at this Mac, but the browser then sends that hostname in Host.
+    nonisolated static func refusal(host: String?, origin: String?, port: UInt16, allowedOrigins: [String],
+                                    fromLoopback: Bool = true, authorization: String? = nil, token: String? = nil) -> Refusal? {
+        let host = host?.trimmingCharacters(in: .whitespaces).lowercased()
+        if fromLoopback {
+            let hosts: Set<String> = ["127.0.0.1:\(port)", "localhost:\(port)", "127.0.0.1", "localhost", "[::1]:\(port)"]
+            guard let host, hosts.contains(host) else { return .badHost }
+        } else {
+            guard let token, let bearer = RemoteAccess.bearer(in: authorization), RemoteAccess.matches(bearer, token: token) else {
+                return .unauthorized
+            }
+            guard let host, isAddressLiteral(host, port: port) else { return .badHost }
+        }
         if let origin = origin?.trimmingCharacters(in: .whitespaces), !origin.isEmpty, !allowedOrigins.contains(where: { $0.caseInsensitiveCompare(origin) == .orderedSame }) {
             return .origin
         }
         return nil
     }
 
+    /// Whether a Host header names an address rather than a name: dotted-quad IPv4, or a bracketed IPv6 literal,
+    /// each with or without this listener's port. A name — however it resolves — is not one.
+    nonisolated static func isAddressLiteral(_ host: String, port: UInt16) -> Bool {
+        var value = host
+        if value.hasSuffix(":\(port)") { value = String(value.dropLast(":\(port)".count)) }
+        if value.hasPrefix("["), value.hasSuffix("]") {
+            let inner = String(value.dropFirst().dropLast())
+            return !inner.isEmpty && inner.allSatisfy { $0.isHexDigit || $0 == ":" || $0 == "." } && inner.contains(":")
+        }
+        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 4 else { return false }
+        return parts.allSatisfy { part in
+            !part.isEmpty && part.count <= 3 && part.allSatisfy(\.isNumber) && (UInt8(part) != nil)
+        }
+    }
+
     private var listener: NWListener?
     private let report: () -> UsageReport
     private let hook: (Hook.Message) -> Void
     private let allowedOrigins: () -> [String]
+    /// The remote-access token, read afresh per request so rotating it takes effect without a restart; nil keeps the
+    /// listener loopback-only and refuses everything that arrives from the network.
+    private let remoteToken: () -> String?
     let port: UInt16
     private(set) var isRunning = false
+    /// Whether the listener is bound beyond loopback, for the Settings row and the diagnostics line.
+    private(set) var isRemote = false
 
-    init(port: UInt16 = LocalAPI.port, allowedOrigins: @escaping () -> [String] = { [] }, hook: @escaping (Hook.Message) -> Void = { _ in },
-         report: @escaping () -> UsageReport) {
+    init(port: UInt16 = LocalAPI.port, allowedOrigins: @escaping () -> [String] = { [] }, remoteToken: @escaping () -> String? = { nil },
+         hook: @escaping (Hook.Message) -> Void = { _ in }, report: @escaping () -> UsageReport) {
         self.port = port
         self.allowedOrigins = allowedOrigins
+        self.remoteToken = remoteToken
         self.hook = hook
         self.report = report
     }
@@ -81,10 +121,22 @@ final class LocalAPI {
     func start() {
         guard listener == nil else { return }
         let parameters = NWParameters.tcp
-        parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!)
         parameters.allowLocalEndpointReuse = true
-        guard let listener = try? NWListener(using: parameters) else {
-            log.error("could not listen on 127.0.0.1:\(self.port)")
+        // Binding beyond loopback is what the token buys. Without one the socket stays where it has always been, so
+        // a failed or refused Keychain write can only ever make remote access not happen, never happen unguarded.
+        let remote = remoteToken() != nil
+        if !remote {
+            parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!)
+        }
+        isRemote = remote
+        let made: NWListener?
+        if remote {
+            made = try? NWListener(using: parameters, on: NWEndpoint.Port(rawValue: port)!)
+        } else {
+            made = try? NWListener(using: parameters)
+        }
+        guard let listener = made else {
+            log.error("could not listen on \(remote ? "0.0.0.0" : "127.0.0.1"):\(self.port)")
             return
         }
         listener.stateUpdateHandler = { [weak self] state in
@@ -92,7 +144,7 @@ final class LocalAPI {
                 switch state {
                 case .ready:
                     self?.isRunning = true
-                    log.notice("listening on 127.0.0.1:\(self?.port ?? 0)")
+                    log.notice("listening on \(self?.isRemote == true ? "0.0.0.0" : "127.0.0.1"):\(self?.port ?? 0)")
                 case .failed(let error):
                     self?.isRunning = false
                     log.error("listener failed: \(error.localizedDescription, privacy: .public)")
@@ -114,16 +166,18 @@ final class LocalAPI {
         listener?.cancel()
         listener = nil
         isRunning = false
+        isRemote = false
     }
 
     private func serve(_ connection: NWConnection, buffered: Data = Data()) {
         if buffered.isEmpty { connection.start(queue: .main) }
+        let fromLoopback = Self.isLoopback(connection.endpoint)
         connection.receive(minimumIncompleteLength: 1, maximumLength: 16 * 1024) { [weak self] data, _, complete, _ in
             Task { @MainActor in
                 guard let self else { return }
                 let received = buffered + (data ?? Data())
                 if let request = Self.parse(received) {
-                    let response = self.respond(to: request)
+                    let response = self.respond(to: request, fromLoopback: fromLoopback)
                     connection.send(content: response, completion: .contentProcessed { _ in connection.cancel() })
                 } else if complete || received.count > Self.maximumBody * 2 {
                     connection.send(content: Self.response(status: 400, body: Data()), completion: .contentProcessed { _ in connection.cancel() })
@@ -134,9 +188,25 @@ final class LocalAPI {
         }
     }
 
-    func respond(to request: Request) -> Data {
-        if let refusal = Self.refusal(host: request.header("host"), origin: request.header("origin"), port: port, allowedOrigins: allowedOrigins()) {
+    /// Whether a peer is on this Mac. An inbound connection's endpoint is the far end, so a loopback address there
+    /// means the request never touched the network and is held to the original, credential-free rule.
+    nonisolated static func isLoopback(_ endpoint: NWEndpoint) -> Bool {
+        guard case .hostPort(let host, _) = endpoint else { return false }
+        if case .ipv4(let address) = host { return address.isLoopback }
+        if case .ipv6(let address) = host { return address.isLoopback || (address.asIPv4?.isLoopback ?? false) }
+        if case .name(let name, _) = host { return name.lowercased() == "localhost" }
+        return false
+    }
+
+    func respond(to request: Request, fromLoopback: Bool = true) -> Data {
+        if let refusal = Self.refusal(host: request.header("host"), origin: request.header("origin"), port: port,
+                                      allowedOrigins: allowedOrigins(), fromLoopback: fromLoopback,
+                                      authorization: request.header("authorization"), token: remoteToken()) {
             log.notice("refused a request: \(String(describing: refusal), privacy: .public)")
+            if refusal == .unauthorized {
+                return Self.response(status: 401, body: Data("{\"error\":\"unauthorized\"}".utf8),
+                                     extraHeaders: ["WWW-Authenticate": "Bearer realm=\"notchmeter\""])
+            }
             return Self.response(status: 403, body: Data("{\"error\":\"\(refusal == .origin ? "origin not allowed" : "host not allowed")\"}".utf8))
         }
         switch (request.method, request.path) {
@@ -173,17 +243,19 @@ final class LocalAPI {
                             agentID: base.agentID, failure: base.failure, host: host, tool: base.tool)
     }
 
-    nonisolated static func response(status: Int, body: Data) -> Data {
+    nonisolated static func response(status: Int, body: Data, extraHeaders: [String: String] = [:]) -> Data {
         let reason = switch status {
         case 200: "OK"
         case 202: "Accepted"
         case 400: "Bad Request"
+        case 401: "Unauthorized"
         case 403: "Forbidden"
         case 404: "Not Found"
         case 405: "Method Not Allowed"
         default: "Service Unavailable"
         }
         var head = "HTTP/1.1 \(status) \(reason)\r\n"
+        for key in extraHeaders.keys.sorted() { head += "\(key): \(extraHeaders[key]!)\r\n" }
         head += "Content-Type: application/json\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
         return Data(head.utf8) + body
     }

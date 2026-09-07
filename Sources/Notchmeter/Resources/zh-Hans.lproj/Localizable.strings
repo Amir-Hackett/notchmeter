@@ -666,3 +666,10 @@
 "(%1$@–%2$@ your time)" = "（你当地时间 %1$@–%2$@）";
 "(%1$@–%2$@ your time, the next day)" = "（你当地时间次日 %1$@–%2$@）";
 "(%1$@–%2$@ your time, the day before)" = "（你当地时间前一日 %1$@–%2$@）";
+
+/* Reaching the local API from another device on the network (RemoteAccess, SettingsWindow) */
+"Let devices on this network read it" = "允许本网络中的设备读取";
+"Binds the API to this Mac's network addresses as well as loopback, so a phone or a second Mac can read it. Every request that did not come from this Mac must carry the token below; nothing is relayed and no account is involved, so pair over your own network — a home LAN, or a private network like Tailscale. Leave it off if you do not need it." = "将 API 同时绑定到这台 Mac 的网络地址和回环地址，让手机或另一台 Mac 可以读取它。凡不是来自这台 Mac 的请求，都必须携带下面的令牌；不经过任何中转，也不涉及账户，因此请在你自己的网络中配对——家庭局域网，或 Tailscale 这类私有网络。若不需要，请保持关闭。";
+"Rotate" = "轮换";
+"Generates a new token. Every device already paired stops working until you give it the new one." = "生成新的令牌。已配对的设备都会停止工作，直到你把新令牌告诉它们。";
+"The token could not be stored in the Keychain, so network access stays off." = "无法将令牌存入钥匙串，因此网络访问保持关闭。";

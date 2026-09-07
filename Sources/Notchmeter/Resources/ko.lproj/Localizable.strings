@@ -650,3 +650,10 @@
 "(%1$@–%2$@ your time)" = "(사용자 현지 시간으로 %1$@–%2$@)";
 "(%1$@–%2$@ your time, the next day)" = "(사용자 현지 시간으로 다음 날 %1$@–%2$@)";
 "(%1$@–%2$@ your time, the day before)" = "(사용자 현지 시간으로 전날 %1$@–%2$@)";
+
+/* Reaching the local API from another device on the network (RemoteAccess, SettingsWindow) */
+"Let devices on this network read it" = "이 네트워크의 기기가 읽도록 허용";
+"Binds the API to this Mac's network addresses as well as loopback, so a phone or a second Mac can read it. Every request that did not come from this Mac must carry the token below; nothing is relayed and no account is involved, so pair over your own network — a home LAN, or a private network like Tailscale. Leave it off if you do not need it." = "API를 루프백뿐 아니라 이 Mac의 네트워크 주소에도 바인딩하여 휴대폰이나 다른 Mac에서 읽을 수 있게 합니다. 이 Mac에서 오지 않은 모든 요청은 아래 토큰을 지녀야 합니다. 중계 서버도 계정도 사용하지 않으므로 집의 LAN이나 Tailscale 같은 사설 네트워크 등 본인의 네트워크에서 페어링하세요. 필요하지 않다면 꺼 두세요.";
+"Rotate" = "재발급";
+"Generates a new token. Every device already paired stops working until you give it the new one." = "새 토큰을 생성합니다. 이미 페어링된 기기는 새 토큰을 입력할 때까지 작동하지 않습니다.";
+"The token could not be stored in the Keychain, so network access stays off." = "토큰을 키체인에 저장할 수 없어 네트워크 접근은 꺼진 상태로 둡니다.";

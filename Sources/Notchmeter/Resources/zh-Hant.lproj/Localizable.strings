@@ -650,3 +650,10 @@
 "(%1$@–%2$@ your time)" = "（你當地時間 %1$@–%2$@）";
 "(%1$@–%2$@ your time, the next day)" = "（你當地時間次日 %1$@–%2$@）";
 "(%1$@–%2$@ your time, the day before)" = "（你當地時間前一日 %1$@–%2$@）";
+
+/* Reaching the local API from another device on the network (RemoteAccess, SettingsWindow) */
+"Let devices on this network read it" = "允許本網路中的裝置讀取";
+"Binds the API to this Mac's network addresses as well as loopback, so a phone or a second Mac can read it. Every request that did not come from this Mac must carry the token below; nothing is relayed and no account is involved, so pair over your own network — a home LAN, or a private network like Tailscale. Leave it off if you do not need it." = "將 API 同時繫結到這台 Mac 的網路位址和回環位址，讓手機或另一台 Mac 可以讀取它。凡不是來自這台 Mac 的請求，都必須攜帶下面的權杖；不經過任何中轉，也不涉及帳戶，因此請在你自己的網路中配對——家庭區域網路，或 Tailscale 這類私有網路。若不需要，請保持關閉。";
+"Rotate" = "輪換";
+"Generates a new token. Every device already paired stops working until you give it the new one." = "產生新的權杖。已配對的裝置都會停止運作，直到你把新權杖提供給它們。";
+"The token could not be stored in the Keychain, so network access stays off." = "無法將權杖存入鑰匙圈，因此網路存取保持關閉。";

@@ -637,17 +637,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func applyLocalAPI() {
-        if prefs.localAPIEnabled {
-            if localAPI == nil {
-                localAPI = LocalAPI(allowedOrigins: { [weak self] in self?.prefs.localAPIOrigins ?? [] },
-                                    hook: { [weak self] message in self?.store.hookReceived(message) },
-                                    report: { [weak self] in self?.store.report() ?? UsageReport(tools: [:], cost: nil, advice: []) })
-            }
-            localAPI?.start()
-        } else {
+        guard prefs.localAPIEnabled else {
             localAPI?.stop()
             localAPI = nil
+            return
         }
+        // The token has to exist before the listener starts, because whether it binds beyond loopback is decided
+        // once, at start. A Keychain write that fails leaves it nil and the socket stays local, which is the safe way
+        // for this to go wrong.
+        let wantsRemote = prefs.remoteAccessEnabled && RemoteAccess.ensureToken() != nil
+        if let running = localAPI, running.isRemote != wantsRemote {
+            running.stop()
+            localAPI = nil
+        }
+        if localAPI == nil {
+            localAPI = LocalAPI(allowedOrigins: { [weak self] in self?.prefs.localAPIOrigins ?? [] },
+                                remoteToken: { [weak self] in self?.prefs.remoteAccessEnabled == true ? RemoteAccess.token() : nil },
+                                hook: { [weak self] message in self?.store.hookReceived(message) },
+                                report: { [weak self] in self?.store.report() ?? UsageReport(tools: [:], cost: nil, advice: []) })
+        }
+        localAPI?.start()
     }
 
     private func registerHotkeys() {
@@ -825,7 +834,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit(Probe.describe(store.advice))
         Probe.emit("notifications: \(prefs.notificationsEnabled ? "on" : "off") in settings, \(notifier.isAvailable ? "available" : "no-op in this run"); session attention: \(prefs.sessionAttention.rawValue); keychain prompts: \(prefs.keychainPrompts.rawValue)")
         Probe.emit("updater: \(updaterGate.summary); never started under --smoke")
-        Probe.emit("menu bar item: \(menuBarItem == nil ? "off" : "on") style=\(prefs.menuBarStyle.rawValue); local API: \(localAPI?.isRunning == true ? "on" : "off"); privacy probe: \(ScreenCapture.probeName) captured=\(ScreenCapture.isCaptured()); proxy: \(prefs.proxyURL.isEmpty ? "system" : prefs.proxyURL)")
+        Probe.emit("menu bar item: \(menuBarItem == nil ? "off" : "on") style=\(prefs.menuBarStyle.rawValue); local API: \(localAPI?.isRunning == true ? (localAPI?.isRemote == true ? "on (network)" : "on") : "off"); privacy probe: \(ScreenCapture.probeName) captured=\(ScreenCapture.isCaptured()); proxy: \(prefs.proxyURL.isEmpty ? "system" : prefs.proxyURL)")
         Probe.emit("hooks: " + HookVendor.allCases.map { "\($0.rawValue): \(HookSettings.status(vendor: $0).text)" }.joined(separator: "; ") + "; status line: \(HookSettings.statuslineStatus().text); auto-repair: \(prefs.autoRepairHooks) (never under --smoke); command line tool: \(CommandLineTool.installedLink().map { "\($0.link.path) → \($0.destination)" } ?? "not installed")")
         Probe.emit("main menu: \(MainMenu.describe())")
         Probe.emit("readouts: \(autoSide.description)")

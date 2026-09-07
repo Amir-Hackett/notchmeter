@@ -60,6 +60,7 @@ struct SettingsView: View {
     @State private var proxyText = ""
     @State private var accessibilityTrusted = MenuBarExtent.isTrusted
     @State private var colourWell = ColourWell()
+    @State private var revealToken = false
     @State private var originText = ""
     @State private var fullScreenExceptionText = ""
 
@@ -506,6 +507,35 @@ struct SettingsView: View {
                         originText = ""
                     }
                     .controlSize(.small)
+                }
+                Toggle(L("Let devices on this network read it"), isOn: Binding(get: { prefs.remoteAccessEnabled }, set: { prefs.remoteAccessEnabled = $0; requests.localAPIChanged() }))
+                    .help(L("Binds the API to this Mac's network addresses as well as loopback, so a phone or a second Mac can read it. Every request that did not come from this Mac must carry the token below; nothing is relayed and no account is involved, so pair over your own network — a home LAN, or a private network like Tailscale. Leave it off if you do not need it."))
+                if prefs.remoteAccessEnabled {
+                    if let token = RemoteAccess.token() {
+                        ForEach(RemoteAccess.lanAddresses(), id: \.self) { address in
+                            Text(verbatim: "http://\(address):\(LocalAPI.port)/v1/limits").font(.caption).textSelection(.enabled)
+                        }
+                        HStack {
+                            Text(revealToken ? token : String(repeating: "•", count: 24))
+                                .font(.caption.monospaced()).textSelection(.enabled).lineLimit(1).truncationMode(.middle)
+                            Spacer()
+                            Button(revealToken ? L("Hide") : L("Show")) { revealToken.toggle() }.controlSize(.small)
+                            Button(L("Copy")) {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(token, forType: .string)
+                            }.controlSize(.small)
+                            Button(L("Rotate")) {
+                                RemoteAccess.rotateToken()
+                                revealToken = false
+                                requests.localAPIChanged()
+                            }
+                            .controlSize(.small)
+                            .help(L("Generates a new token. Every device already paired stops working until you give it the new one."))
+                        }
+                    } else {
+                        Text(L("The token could not be stored in the Keychain, so network access stays off."))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
         }

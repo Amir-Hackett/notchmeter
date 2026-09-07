@@ -712,6 +712,12 @@ final class Preferences {
     var localAPIOrigins: [String] {
         didSet { defaults.set(localAPIOrigins, forKey: Keys.localAPIOrigins); report(Keys.localAPIOrigins, localAPIOrigins, changed: localAPIOrigins != oldValue) }
     }
+    /// Whether the local API is bound beyond loopback so a phone or a second Mac on the network can read it. Off,
+    /// and doubly off: the listener stays on 127.0.0.1 and a request from the network is refused whatever it carries.
+    /// On, every such request must present the Keychain-held bearer token. Requires `localAPIEnabled`.
+    var remoteAccessEnabled: Bool {
+        didSet { defaults.set(remoteAccessEnabled, forKey: Keys.remoteAccess); report(Keys.remoteAccess, remoteAccessEnabled, changed: remoteAccessEnabled != oldValue) }
+    }
     /// A second Codex endpoint (rate-limit reset credits), opt-in under the one-request-per-token rule.
     var codexResetCredits: Bool {
         didSet { defaults.set(codexResetCredits, forKey: Keys.codexCredits); report(Keys.codexCredits, codexResetCredits, changed: codexResetCredits != oldValue) }
@@ -893,6 +899,7 @@ final class Preferences {
         static let extraRoots = "extraTranscriptRoots"
         static let localAPI = "localAPIEnabled"
         static let localAPIOrigins = "localAPIOrigins"
+        static let remoteAccess = "remoteAccessEnabled"
         static let codexCredits = ProviderOptIn.codexResetCredits.key
         static let cursorEvents = ProviderOptIn.cursorUsageEvents.key
         static let copilotOrg = ProviderOptIn.copilotOrgBilling.key
@@ -986,6 +993,7 @@ final class Preferences {
         extraTranscriptRoots = defaults.stringArray(forKey: Keys.extraRoots) ?? []
         localAPIEnabled = defaults.bool(forKey: Keys.localAPI)
         localAPIOrigins = defaults.stringArray(forKey: Keys.localAPIOrigins) ?? []
+        remoteAccessEnabled = defaults.bool(forKey: Keys.remoteAccess)
         codexResetCredits = ProviderOptIn.codexResetCredits.value(defaults)
         // On by default: the events come from the same account over the same session cookie the usage summary
         // already uses, so hiding a tool's own spend behind a switch cost more than it protected.

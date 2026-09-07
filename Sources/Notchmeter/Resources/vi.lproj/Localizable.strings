@@ -650,3 +650,10 @@
 "(%1$@–%2$@ your time)" = "(%1$@–%2$@ theo giờ của bạn)";
 "(%1$@–%2$@ your time, the next day)" = "(%1$@–%2$@ theo giờ của bạn, ngày hôm sau)";
 "(%1$@–%2$@ your time, the day before)" = "(%1$@–%2$@ theo giờ của bạn, ngày hôm trước)";
+
+/* Reaching the local API from another device on the network (RemoteAccess, SettingsWindow) */
+"Let devices on this network read it" = "Cho phép thiết bị trong mạng này đọc";
+"Binds the API to this Mac's network addresses as well as loopback, so a phone or a second Mac can read it. Every request that did not come from this Mac must carry the token below; nothing is relayed and no account is involved, so pair over your own network — a home LAN, or a private network like Tailscale. Leave it off if you do not need it." = "Gắn API vào cả địa chỉ mạng của máy Mac này lẫn loopback, để điện thoại hoặc một máy Mac khác có thể đọc. Mọi yêu cầu không đến từ máy Mac này đều phải mang token bên dưới; không có máy trung chuyển và không cần tài khoản, nên hãy ghép nối trong mạng của riêng bạn — mạng LAN ở nhà, hoặc một mạng riêng như Tailscale. Nếu không cần, hãy để tắt.";
+"Rotate" = "Đổi mới";
+"Generates a new token. Every device already paired stops working until you give it the new one." = "Tạo token mới. Mọi thiết bị đã ghép nối sẽ ngừng hoạt động cho đến khi bạn nhập token mới.";
+"The token could not be stored in the Keychain, so network access stays off." = "Không thể lưu token vào Keychain, nên truy cập mạng vẫn tắt.";
