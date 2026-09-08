@@ -40,8 +40,10 @@ import Testing
         // deepest a user can make it: 54 × 6/38 = 8.526…, 54 × 14/38 = 19.894…, and the flare is still under its
         // cap, which is what lets EdgeNotch pad by the cap without ever clipping a ring.
         let radii = SideNotchShape.radii(depth: 54, run: 234)
-        #expect(abs(radii.flare - 54 * 6 / 38) < 0.001)
-        #expect(abs(radii.nose - 54 * 14 / 38) < 0.001)
+        let flareAtFiftyFour: CGFloat = 54 * 6 / 38
+        let noseAtFiftyFour: CGFloat = 54 * 14 / 38
+        #expect(abs(radii.flare - flareAtFiftyFour) < 0.001)
+        #expect(abs(radii.nose - noseAtFiftyFour) < 0.001)
         #expect(radii.flare < SideNotchShape.flareCap,
                 "the padding EdgeNotch adds is the cap, so a flare at or past it would start clipping the rings")
     }
@@ -73,14 +75,16 @@ import Testing
     @Test func theOutlineFlaresOutwardWhereItMeetsTheEdge() {
         let rect = CGRect(x: 0, y: 0, width: 38, height: 200)
         let points = Self.points(of: SideNotchShape(edge: .left).path(in: rect))
-        #expect(points == [CGPoint(x: 0, y: 0),
-                           CGPoint(x: 0, y: 6), CGPoint(x: 6, y: 6),
-                           CGPoint(x: 24, y: 6),
-                           CGPoint(x: 38, y: 6), CGPoint(x: 38, y: 20),
-                           CGPoint(x: 38, y: 180),
-                           CGPoint(x: 38, y: 194), CGPoint(x: 24, y: 194),
-                           CGPoint(x: 6, y: 194),
-                           CGPoint(x: 0, y: 194), CGPoint(x: 0, y: 200)],
+        // The walk itself, named so the macro is handed a list it already knows the type of.
+        let theWalk: [CGPoint] = [CGPoint(x: 0, y: 0),
+                                  CGPoint(x: 0, y: 6), CGPoint(x: 6, y: 6),
+                                  CGPoint(x: 24, y: 6),
+                                  CGPoint(x: 38, y: 6), CGPoint(x: 38, y: 20),
+                                  CGPoint(x: 38, y: 180),
+                                  CGPoint(x: 38, y: 194), CGPoint(x: 24, y: 194),
+                                  CGPoint(x: 6, y: 194),
+                                  CGPoint(x: 0, y: 194), CGPoint(x: 0, y: 200)]
+        #expect(points == theWalk,
                 "the fillet's control has to sit on the flush face at (0, 6) and (0, 194); moved off it, the corner turns inward and the shape stops reading as cut into the edge")
     }
 
@@ -93,7 +97,8 @@ import Testing
         #expect(left.count == right.count)
         for (one, other) in zip(left, right) {
             // 38 − x, y unchanged.
-            #expect(other == CGPoint(x: 38 - one.x, y: one.y))
+            let mirrored = CGPoint(x: 38 - one.x, y: one.y)
+            #expect(other == mirrored)
         }
     }
 }
@@ -228,7 +233,8 @@ import Testing
             #expect(onBoundary.total > 0, "a shape that rendered as nothing would make every comparison below meaningless")
             #expect(standingOff.covered > onBoundary.covered,
                     "the clipped rim has to reach the drawn shape, or the flag is arithmetic nobody looks at (\(edge))")
-            #expect(Double(onBoundary.opaqueBlack) / Double(onBoundary.total) > 0.5,
+            let opaqueShare = Double(onBoundary.opaqueBlack) / Double(onBoundary.total)
+            #expect(opaqueShare > 0.5,
                     "more than half the shape's own box has to be fully opaque black: a notch you can see the desktop through is not a notch (\(edge))")
         }
     }

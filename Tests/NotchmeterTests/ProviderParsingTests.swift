@@ -16,8 +16,10 @@ import Testing
          "extra_usage":{"is_enabled":false,"monthly_limit":null,"used_credits":null,"utilization":null}}
         """
         let reading = try ClaudeProvider.parseUsage(Data(json.utf8), plan: "Max 5x", now: Date(timeIntervalSince1970: 0))
-        #expect(reading.windows.map(\.label) == ["Session", "Weekly", "Fable"])
-        #expect(reading.windows.map(\.model) == [nil, nil, "Fable"])
+        let labels: [String] = reading.windows.map(\.label)
+        #expect(labels == ["Session", "Weekly", "Fable"])
+        let models: [String?] = reading.windows.map(\.model)
+        #expect(models == [nil, nil, "Fable"])
         #expect(reading.windows[0].usedFraction == 0.09)
         #expect(reading.windows[0].periodDuration == Period.fiveHours)
         #expect(reading.windows[1].periodDuration == Period.week)
@@ -33,7 +35,8 @@ import Testing
          "extra_usage":{"is_enabled":true,"monthly_limit":4000,"used_credits":1000,"utilization":25}}
         """
         let reading = try ClaudeProvider.parseUsage(Data(json.utf8), plan: nil)
-        #expect(reading.windows.map(\.label) == ["Session", "Sonnet", "Extra usage"])
+        let labels: [String] = reading.windows.map(\.label)
+        #expect(labels == ["Session", "Sonnet", "Extra usage"])
         #expect(reading.windows[2].usedFraction == 0.25)
         #expect(reading.windows[2].note == "$10.00 of $40")
     }
@@ -45,15 +48,17 @@ import Testing
     }
 
     @Test func buildsWindowsFromUnifiedRateLimitHeaders() throws {
-        let response = try #require(HTTPURLResponse(url: ClaudeProvider.usageURL, statusCode: 200, httpVersion: nil, headerFields: [
+        let headers: [String: String] = [
             "Anthropic-Ratelimit-Unified-5h-Utilization": "0.22",
             "anthropic-ratelimit-unified-5h-reset": "1786518600",
             "anthropic-ratelimit-unified-7d-utilization": " 0.03",
             "anthropic-ratelimit-unified-7d-reset": "1787058000",
             "anthropic-ratelimit-unified-overage-utilization": "0.0",
-        ]))
+        ]
+        let response = try #require(HTTPURLResponse(url: ClaudeProvider.usageURL, statusCode: 200, httpVersion: nil, headerFields: headers))
         let windows = ClaudeProvider.rateLimitWindows(from: response)
-        #expect(windows.map(\.label) == ["Session", "Weekly"])
+        let labels: [String] = windows.map(\.label)
+        #expect(labels == ["Session", "Weekly"])
         #expect(windows[0].id == "five_hour")
         #expect(windows[0].usedFraction == 0.22)
         #expect(windows[0].resetsAt == Date(timeIntervalSince1970: 1_786_518_600))
@@ -65,7 +70,8 @@ import Testing
 
         #expect(ClaudeProvider.rateLimitWindows { _ in nil }.isEmpty)
         let partial = ClaudeProvider.rateLimitWindows { $0 == "anthropic-ratelimit-unified-7d-utilization" ? "1.4" : nil }
-        #expect(partial.map(\.usedFraction) == [1])
+        let cappedAtOne: [Double?] = partial.map(\.usedFraction)
+        #expect(cappedAtOne == [1])
         #expect(partial[0].resetsAt == nil)
         #expect(ClaudeProvider.rateLimitWindows { _ in "n/a" }.isEmpty)
     }
@@ -94,7 +100,8 @@ import Testing
         """
         let reading = try CodexProvider.parseBackend(Data(json.utf8), now: Date(timeIntervalSince1970: 1_759_000_000))
         #expect(reading.plan == "Free")
-        #expect(reading.windows.map(\.label) == ["Session", "Weekly"])
+        let labels: [String] = reading.windows.map(\.label)
+        #expect(labels == ["Session", "Weekly"])
         #expect(reading.windows[0].usedFraction == 0.12)
         #expect(reading.windows[0].resetsAt == Date(timeIntervalSince1970: 1_759_352_940))
         #expect(reading.windows[0].periodDuration == 18000)
@@ -115,9 +122,12 @@ import Testing
         {"plan_type":"free","rate_limit":{"primary_window":{"used_percent":0,"reset_at":1759352940,"limit_window_seconds":2592000},"secondary_window":null}}
         """
         let free = try CodexProvider.parseBackend(Data(monthly.utf8))
-        #expect(free.windows.map(\.label) == ["Session", "Monthly"])
+        let labels: [String] = free.windows.map(\.label)
+        #expect(labels == ["Session", "Monthly"])
         #expect(free.windows[1].periodDuration == 2_592_000)
-        #expect(CodexProvider.windowKind(seconds: 14 * 86400, fallbackIsWeekly: false).label.text == "14-day")
+        let fourteenDays: Double = 14 * 86400
+        let fortnight = CodexProvider.windowKind(seconds: fourteenDays, fallbackIsWeekly: false)
+        #expect(fortnight.label.text == "14-day")
     }
 
     @Test func parsesAuthWithAccountFromIdToken() throws {
@@ -150,12 +160,15 @@ import Testing
         let found = try #require(CodexProvider.latestRateLimits(in: rollout))
         #expect(found.observedAt == DateParsing.iso8601("2026-09-01T10:00:09.000Z"))
         let reading = try CodexProvider.reading(from: found.limits, observedAt: found.observedAt, now: Date(timeIntervalSince1970: 1_756_720_000))
-        #expect(reading.windows.map(\.label) == ["Session", "Weekly"])
+        let labels: [String] = reading.windows.map(\.label)
+        #expect(labels == ["Session", "Weekly"])
         #expect(reading.windows[0].usedFraction == 0.14)
         #expect(reading.windows[0].periodDuration == 18000)
         #expect(reading.plan == "Plus")
         let listed = CodexProvider.recentRollouts(in: dir.appendingPathComponent("sessions"), limit: 8)
-        #expect(listed.map { $0.resolvingSymlinksInPath().path } == [rollout.resolvingSymlinksInPath().path])
+        let listedPaths: [String] = listed.map { $0.resolvingSymlinksInPath().path }
+        let rolloutPath: [String] = [rollout.resolvingSymlinksInPath().path]
+        #expect(listedPaths == rolloutPath)
     }
 
     @Test func labelsWindows() {
@@ -180,7 +193,8 @@ import Testing
         #expect(abs(result.projectedFraction - 0.333) < 0.01)
         let window = LimitWindow(id: "s", label: "Session", usedFraction: 0.09, resetsAt: resetsAt, periodDuration: period)
         #expect(Pace.note(for: window, now: now)?.text == "~67% left at reset")
-        #expect(abs((Pace.elapsedFraction(resetsAt: resetsAt, period: period, now: now) ?? 0) - 0.27) < 0.001)
+        let elapsed: Double = Pace.elapsedFraction(resetsAt: resetsAt, period: period, now: now) ?? 0
+        #expect(abs(elapsed - 0.27) < 0.001)
     }
 
     @Test func flagsRunningOut() throws {
@@ -228,7 +242,8 @@ import Testing
         #expect(entry.dedupeKey == "msg_1:req_1")
         let cost = try #require(ModelPricing.cost(of: entry.tokens, model: entry.model))
         // 1000 × $15 + 100 × $75 + 200 × $18.75 + 50000 × $1.50, all per million.
-        #expect(abs(cost - (0.015 + 0.0075 + 0.00375 + 0.075)) < 1e-9)
+        let priced: Double = 0.015 + 0.0075 + 0.00375 + 0.075
+        #expect(abs(cost - priced) < 1e-9)
 
         let file = Data("\(line)\n\(line)\n{\"type\":\"user\"}\n".utf8)
         let entries = ClaudeCostScanner.parseFile(file)
@@ -286,7 +301,8 @@ import Testing
         #expect(Naming.codexPlan("edu") == "Edu")
         #expect(Naming.codexPlan("some_new_tier") == "Some New Tier")
         let json = #"{"plan_type":"self_serve_business_prolite","rate_limit":{"primary_window":{"used_percent":1,"reset_at":1759352940,"limit_window_seconds":18000}}}"#
-        #expect(try CodexProvider.parseBackend(Data(json.utf8)).plan == "Business Premium")
+        let backend = try CodexProvider.parseBackend(Data(json.utf8))
+        #expect(backend.plan == "Business Premium")
         let limits: [String: Any] = ["primary": ["used_percent": 5, "window_minutes": 300, "resets_at": 1_800_000_000], "plan_type": "self_serve_business_prolite"]
         let snapshot = try CodexProvider.reading(from: limits, observedAt: Date(timeIntervalSince1970: 1_756_720_000), now: Date(timeIntervalSince1970: 1_756_720_100))
         #expect(snapshot.plan == "Business Premium")
@@ -296,10 +312,15 @@ import Testing
 
     @Test func homeFollowsCodexHomeThenTheConfigFolderThenTheDotFolder() {
         let home = URL(fileURLWithPath: "/Users/me")
-        #expect(CodexProvider.defaultHome(environment: ["CODEX_HOME": "/srv/codex", "TERM": "x"], home: home, exists: { _ in false }).path == "/srv/codex")
-        #expect(CodexProvider.defaultHome(environment: ["CODEX_HOME": "~/cx", "TERM": "x"], home: home, exists: { _ in false }).path == (("~/cx" as NSString).expandingTildeInPath))
-        #expect(CodexProvider.defaultHome(environment: ["TERM": "x"], home: home, exists: { $0.path == "/Users/me/.config/codex" }).path == "/Users/me/.config/codex")
-        #expect(CodexProvider.defaultHome(environment: ["TERM": "x"], home: home, exists: { _ in false }).path == "/Users/me/.codex")
+        let fromCodexHome = CodexProvider.defaultHome(environment: ["CODEX_HOME": "/srv/codex", "TERM": "x"], home: home, exists: { _ in false })
+        #expect(fromCodexHome.path == "/srv/codex")
+        let fromATildePath = CodexProvider.defaultHome(environment: ["CODEX_HOME": "~/cx", "TERM": "x"], home: home, exists: { _ in false })
+        let expandedTilde = ("~/cx" as NSString).expandingTildeInPath
+        #expect(fromATildePath.path == expandedTilde)
+        let fromTheConfigFolder = CodexProvider.defaultHome(environment: ["TERM": "x"], home: home, exists: { $0.path == "/Users/me/.config/codex" })
+        #expect(fromTheConfigFolder.path == "/Users/me/.config/codex")
+        let fromTheDotFolder = CodexProvider.defaultHome(environment: ["TERM": "x"], home: home, exists: { _ in false })
+        #expect(fromTheDotFolder.path == "/Users/me/.codex")
         #expect(ProcessEnvironment.value("NOTCHMETER_TEST_MISSING", environment: ["TERM": "x"]) == nil)
         #expect(ProcessEnvironment.value("A", environment: ["A": "b"]) == "b")
         #expect(ProcessEnvironment.value("A", environment: ["A": ""]) == nil)

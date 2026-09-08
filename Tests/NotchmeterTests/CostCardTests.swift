@@ -30,9 +30,11 @@ import Testing
 
     @Test func theCardFollowsTheUsersOrderAndCarriesOnlyWhatItIsAskedFor() {
         let ordered = CostSelection(all: three, order: [.cursor, .antigravity, .claude, .codex], carried: [.claude, .codex, .cursor])
-        #expect(ordered.providers.map(\.tool) == [.cursor, .claude, .codex])
+        let inTheUsersOrder = ordered.providers.map(\.tool)
+        #expect(inTheUsersOrder == [.cursor, .claude, .codex])
         let some = CostSelection(all: three, order: ToolID.allCases, carried: [.claude, .cursor])
-        #expect(some.providers.map(\.tool) == [.claude, .cursor])
+        let justTheTwoCarried = some.providers.map(\.tool)
+        #expect(justTheTwoCarried == [.claude, .cursor])
         // Left out is left out of the total too, so the donut and the figure in the middle describe one set.
         #expect(abs(some.totals(.today).cost - 7) < 1e-9)
         #expect(CostSelection(all: three, order: ToolID.allCases, carried: []).isEmpty)
@@ -41,7 +43,8 @@ import Testing
     /// A tool that cannot report spend has no ProviderCost, so it is absent rather than a zero row.
     @Test func aToolWithNoCostIsNeverASegment() {
         let selection = CostSelection(all: three, order: ToolID.allCases, carried: Set(ToolID.allCases))
-        #expect(selection.providers.map(\.tool) == [.claude, .codex, .cursor])
+        let reporting = selection.providers.map(\.tool)
+        #expect(reporting == [.claude, .codex, .cursor])
         #expect(selection.provider(.copilot) == nil)
         #expect(selection.provider(.antigravity) == nil)
         // Nor is a carried tool that spent nothing in the range on show.
@@ -51,24 +54,33 @@ import Testing
 
     @Test func eachModeSharesTheRangeOutInItsOwnUnit() {
         let selection = CostSelection(all: three, order: ToolID.allCases, carried: Set(ToolID.allCases))
-        #expect(selection.weights(range: .today, mode: .cost).map(\.weight) == [6, 3, 1])
-        #expect(selection.weights(range: .today, mode: .tokens).map(\.weight) == [3_000_000, 500_000, 250_000])
+        let byCost = selection.weights(range: .today, mode: .cost).map(\.weight)
+        #expect(byCost == [6, 3, 1])
+        let byTokens = selection.weights(range: .today, mode: .tokens).map(\.weight)
+        #expect(byTokens == [3_000_000, 500_000, 250_000])
         // $/MTok is a rate, not a quantity to share out, so it is sized by its dollars.
-        #expect(selection.weights(range: .today, mode: .perMillionTokens).map(\.weight) == [6, 3, 1])
+        let byRate = selection.weights(range: .today, mode: .perMillionTokens).map(\.weight)
+        #expect(byRate == [6, 3, 1])
         #expect(abs((selection.share(of: .claude, range: .today, mode: .cost) ?? 0) - 0.6) < 1e-9)
         #expect(abs((selection.share(of: .claude, range: .today, mode: .tokens) ?? 0) - 0.8) < 1e-9)
         #expect(selection.share(of: .copilot, range: .today, mode: .cost) == nil)
         // Per-MTok is each tool's own dollars over its own tokens, never the range's tokens apportioned by cost.
-        #expect(selection.provider(.codex)?.totals(.today).costPerMillionTokens.map { abs($0 - 6) < 1e-9 } == true)
-        #expect(selection.totals(.today).costPerMillionTokens.map { abs($0 - 10 / 3.75) < 1e-9 } == true)
+        let codexPerMillion = selection.provider(.codex)?.totals(.today).costPerMillionTokens.map { abs($0 - 6) < 1e-9 }
+        #expect(codexPerMillion == true)
+        // The card's own rate: the $10 it carries over the 3.75M tokens that earned it.
+        let theCardsOwnRate = 10.0 / 3.75
+        let blendedPerMillion = selection.totals(.today).costPerMillionTokens.map { abs($0 - theCardsOwnRate) < 1e-9 }
+        #expect(blendedPerMillion == true)
     }
 
     @Test func oneProviderDrawsTheRingTheCardHasAlwaysDrawn() {
         let selection = CostSelection(all: three, order: ToolID.allCases, carried: [.claude])
         let arcs = CostDonut.arcs(selection.weights(range: .today, mode: .cost))
-        #expect(arcs == [CostArc(tool: .claude, start: 0.012, end: 0.988)])
+        let wholeRing = [CostArc(tool: .claude, start: 0.012, end: 0.988)]
+        #expect(arcs == wholeRing)
         let budgeted = CostDonut.arcs(selection.weights(range: .month, mode: .cost), fill: 0.4)
-        #expect(budgeted == [CostArc(tool: .claude, start: 0, end: 0.4)])
+        let fortyPercentOfTheRing = [CostArc(tool: .claude, start: 0, end: 0.4)]
+        #expect(budgeted == fortyPercentOfTheRing)
         // An empty month still shows the sliver the ring has always shown against a budget.
         #expect(CostDonut.arcs(selection.weights(range: .month, mode: .cost), fill: 0).first?.end == CostDonut.gap)
     }
@@ -76,14 +88,18 @@ import Testing
     @Test func everyProviderGetsAnArcOfItsOwnShare() {
         let selection = CostSelection(all: three, order: ToolID.allCases, carried: Set(ToolID.allCases))
         let arcs = CostDonut.arcs(selection.weights(range: .today, mode: .cost))
-        #expect(arcs.map(\.tool) == [.claude, .codex, .cursor])
+        let segments = arcs.map(\.tool)
+        #expect(segments == [.claude, .codex, .cursor])
         #expect(arcs.first?.start == CostDonut.gap)
         #expect(arcs.last?.end == 1 - CostDonut.gap)
         // Sized by share, with a hairline between neighbours and none after the last.
         let sweep = 1 - 2 * CostDonut.gap
-        #expect(abs(arcs[0].end - (CostDonut.gap + sweep * 0.6 - CostDonut.separation)) < 1e-9)
-        #expect(abs(arcs[1].start - (CostDonut.gap + sweep * 0.6)) < 1e-9)
-        #expect(abs(arcs[2].start - (CostDonut.gap + sweep * 0.9)) < 1e-9)
+        let claudesEnd = CostDonut.gap + sweep * 0.6 - CostDonut.separation
+        #expect(abs(arcs[0].end - claudesEnd) < 1e-9)
+        let codexStart = CostDonut.gap + sweep * 0.6
+        #expect(abs(arcs[1].start - codexStart) < 1e-9)
+        let cursorStart = CostDonut.gap + sweep * 0.9
+        #expect(abs(arcs[2].start - cursorStart) < 1e-9)
         for arc in arcs { #expect(arc.end > arc.start) }
     }
 
@@ -122,18 +138,25 @@ import Testing
         let carried = prefs.costCardTools
 
         let asShipped = CostSelection(all: three, order: prefs.toolOrder, carried: carried)
-        #expect(prefs.toolOrder == [.claude, .codex, .cursor, .antigravity, .copilot])
-        #expect(asShipped.providers.map(\.tool) == [.claude, .codex, .cursor])
-        #expect(CostDonut.arcs(asShipped.weights(range: .today, mode: .cost)).map(\.tool) == [.claude, .codex, .cursor])
+        let shippedOrder: [ToolID] = [.claude, .codex, .cursor, .antigravity, .copilot]
+        #expect(prefs.toolOrder == shippedOrder)
+        let shippedProviders = asShipped.providers.map(\.tool)
+        #expect(shippedProviders == [.claude, .codex, .cursor])
+        let shippedSegments = CostDonut.arcs(asShipped.weights(range: .today, mode: .cost)).map(\.tool)
+        #expect(shippedSegments == [.claude, .codex, .cursor])
 
         // The user drags Cursor above Claude, as they would in Settings.
         prefs.move(.cursor, by: -1)
         prefs.move(.cursor, by: -1)
-        #expect(prefs.toolOrder == [.cursor, .claude, .codex, .antigravity, .copilot])
+        let draggedOrder: [ToolID] = [.cursor, .claude, .codex, .antigravity, .copilot]
+        #expect(prefs.toolOrder == draggedOrder)
         let reordered = CostSelection(all: three, order: prefs.toolOrder, carried: carried)
-        #expect(reordered.providers.map(\.tool) == [.cursor, .claude, .codex])
-        #expect(reordered.weights(range: .today, mode: .cost).map(\.tool) == [.cursor, .claude, .codex])
-        #expect(CostDonut.arcs(reordered.weights(range: .today, mode: .cost)).map(\.tool) == [.cursor, .claude, .codex])
+        let reorderedProviders = reordered.providers.map(\.tool)
+        #expect(reorderedProviders == [.cursor, .claude, .codex])
+        let reorderedWeights = reordered.weights(range: .today, mode: .cost).map(\.tool)
+        #expect(reorderedWeights == [.cursor, .claude, .codex])
+        let reorderedSegments = CostDonut.arcs(reordered.weights(range: .today, mode: .cost)).map(\.tool)
+        #expect(reorderedSegments == [.cursor, .claude, .codex])
         // The order says nothing about the arithmetic: the same assistants still add up to the same total.
         #expect(abs(reordered.totals(.today).cost - asShipped.totals(.today).cost) < 1e-9)
     }
@@ -147,10 +170,12 @@ import Testing
         defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }
         let prefs = Preferences(defaults: defaults)
-        #expect(prefs.costCardTools == Set(ToolID.allCases.filter(\.reportsCost)))
+        let everyToolThatReportsCost = Set(ToolID.allCases.filter(\.reportsCost))
+        #expect(prefs.costCardTools == everyToolThatReportsCost)
         #expect(!prefs.costCardTools.contains(.copilot))
         prefs.costCardTools = [.claude]
-        #expect(defaults.array(forKey: "costCardTools") as? [String] == ["claude"])
+        let stored = defaults.array(forKey: "costCardTools") as? [String]
+        #expect(stored == ["claude"])
         #expect(Preferences(defaults: defaults).costCardTools == [.claude])
         // Copilot publishes nothing a dollar figure could come from, so a stored list naming it loses it.
         defaults.set(["claude", "copilot"], forKey: "costCardTools")
@@ -260,7 +285,8 @@ import Testing
     @Test func aCarriedToolWithNoSpendGivesTheReasonTheAppKnows() {
         let gaps = CostAbsence.gaps(carried: [.cursor, .claude, .codex], reporting: [.claude], cursorUsageEvents: false,
                                     problems: [:], nothingLocal: [.codex])
-        #expect(gaps.map(\.tool) == [.cursor, .codex])
+        let toolsWithAGap = gaps.map(\.tool)
+        #expect(toolsWithAGap == [.cursor, .codex])
         #expect(gaps[0].text == "Cursor: “Also read Cursor's usage events” is off in Settings")
         #expect(gaps[1].text == "Codex: no sessions on this Mac yet")
     }
@@ -268,7 +294,8 @@ import Testing
     @Test func aReadThatWentWrongSpeaksInItsOwnWords() {
         let gaps = CostAbsence.gaps(carried: [.cursor], reporting: [], cursorUsageEvents: true,
                                     problems: [.cursor: "Signed out of cursor.com"], nothingLocal: [])
-        #expect(gaps.map(\.text) == ["Cursor: Signed out of cursor.com"])
+        let lines = gaps.map(\.text)
+        #expect(lines == ["Cursor: Signed out of cursor.com"])
         // The switch outranks the error: with the read off there is nothing for an error to be about.
         #expect(CostAbsence.reason(for: .cursor, cursorUsageEvents: false, problem: "Signed out of cursor.com", nothingLocal: false)
             == .settingOff("Also read Cursor's usage events"))

@@ -130,7 +130,8 @@ import Testing
         let wrapped = overnight.localWindow(on: noon, in: eastern)!
         #expect(wrapped.start == date(2026, 9, 1, 22, 0, zone: pacific))
         #expect(wrapped.end == date(2026, 9, 2, 6, 0, zone: pacific))
-        #expect(wrapped.end.timeIntervalSince(wrapped.start) == 8 * 3600)
+        let eightHours = 8.0 * 3600
+        #expect(wrapped.end.timeIntervalSince(wrapped.start) == eightHours)
         var off = PeakHours.anthropic
         off.enabled = false
         #expect(off.localWindow(on: noon, in: eastern) == nil)
@@ -206,9 +207,11 @@ import Testing
         let reading = UsageReading(tool: .claude, windows: [session], plan: nil, fetchedAt: now, observedAt: nil)
         var context = Advisor.Context(readings: [reading], timeFormat: .twelveHour, now: now, calendar: calendar)
         context.peakHours = [.claude: .anthropic]
-        #expect(Advisor.peak(context).map(\.text) == ["Peak hours until 11:00 AM PDT: the session projection assumes the peak rate."])
+        let insidePeak = Advisor.peak(context).map(\.text)
+        #expect(insidePeak == ["Peak hours until 11:00 AM PDT: the session projection assumes the peak rate."])
         context.now = date(2026, 9, 1, 10, 20, zone: pacific)
-        #expect(Advisor.peak(context).map(\.text) == ["Off-peak in 40m: start the long job then."])
+        let nearingOffPeak = Advisor.peak(context).map(\.text)
+        #expect(nearingOffPeak == ["Off-peak in 40m: start the long job then."])
         context.now = date(2026, 9, 1, 14, 0, zone: pacific)
         #expect(Advisor.peak(context).isEmpty)
         context.peakHours = [:]
