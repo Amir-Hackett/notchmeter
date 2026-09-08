@@ -160,7 +160,10 @@ enum AssetRenderer {
                 // The frame draws one notch and its mirror, so the caption names two edges. It said three while
                 // the bottom bar was nowhere in it, which is the kind of small untruth a reader checks once.
                 ("07-edges", notchShape, L("A notch cut into the left or the right edge of any Mac."), []),
-                ("08-settings", settingsImage, L("Position, hover or always open, hook install with a backup."), []),
+                // The caption names things the frame has to contain. It named three that lived on the Appearance
+                // and Integrations panes while the capture was one window opened on General, so the sheet is
+                // every pane now (AssetRenderer.settings) and the caption says which frame it is a spread of.
+                ("08-settings", settingsImage, L("All six Settings panes: position, hover or always open, hook install with a backup."), []),
             ]
             for frame in frames {
                 let image = try composite(frame.image, caption: frame.caption, lines: frame.lines, canvas: canvas,
@@ -386,7 +389,18 @@ enum AssetRenderer {
             what: "a panel crop")
     }
 
-    /// The Settings window, title bar included, in the dark appearance the notch panel always has.
+    /// Every pane of the Settings window, one under another, in the dark appearance the notch panel always has.
+    ///
+    /// The window is a sidebar beside one pane, and `paneContent` builds only the pane that is selected: a single
+    /// capture is a picture of a sixth of this window, whichever sixth `@State` happens to start on. So the six
+    /// are captured in turn — each in its own window, opened on that pane by name — and stacked. The reader gets
+    /// all twelve sections, and `sheet` below cuts the ribbon into columns as it always did.
+    @MainActor
+    static func settings(store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
+        try stack(SettingsPane.allCases.map { try settings(pane: $0, store: store, prefs: prefs, actions: actions) })
+    }
+
+    /// One pane of the Settings window, title bar and sidebar included.
     ///
     /// The form is laid out in a 9000 pt scratch window first because a grouped `Form` scrolls and has no
     /// intrinsic height, so the only way to have the rows below the fold exist at all is to give the window more
@@ -396,33 +410,65 @@ enum AssetRenderer {
     /// `08-settings` frame scaled that ribbon into a 1270×760 canvas, which left the whole window a few pixels
     /// wide. It was also not a stable number: 9000 is only what the window is asked for, and a machine that clamps
     /// the ask writes a different, silently cropped file.
+    ///
+    /// What the window is set to is the *content's* height, not the form's: the pane is a title above the form,
+    /// so a window sized to the form alone gives the form a viewport a header short and scrolls the foot of the
+    /// pane out of the picture — on the General pane that is exactly the version line and the "Support
+    /// Notchmeter…" link the README points at. The header is measured rather than assumed: whatever of the
+    /// content view is not the form's viewport.
+    ///
+    /// The floor is `SettingsView`'s own `.frame(minHeight:)` rather than the window's `minSize`, because it is
+    /// the view's minimum that would clip: a hosting view given less lays the pane out at 460 anyway and centres
+    /// the overflow, losing rows off both ends. A pane shorter than that gets a little dead backing instead,
+    /// which the stack below can carry and a cropped row cannot.
     @MainActor
-    static func settings(store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
+    static func settings(pane: SettingsPane, store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
         let requests = SettingsRequests()
         // The Mac this is rendered on is not the Mac in the picture. `/Applications/Notchmeter.app` is where the
         // DMG puts it and what `HookSettings.Status.shorten` prints for it, so the hook rows and the status-line
-        // row read as a machine with every integration in place, which is what the fixture sessions and the
-        // status-line arc elsewhere in these pictures already assume.
+        // row on the Integrations pane read as a machine with every integration in place, which is what the
+        // fixture sessions and the status-line arc elsewhere in these pictures already assume.
         let installed = "/Applications/\(AppInfo.name).app/Contents/MacOS/\(AppInfo.name)"
         requests.renderedHookStatus = (hook: Dictionary(uniqueKeysWithValues: HookVendor.allCases.map { ($0, HookSettings.Status.installed(path: installed)) }),
                                        statusline: .installed(path: installed))
-        let controller = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: Notifier(available: false), requests: requests)
+        let controller = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: Notifier(available: false),
+                                                  requests: requests, pane: pane)
         guard let window = controller.window, let frame = window.contentView?.superview else { throw Failure.snapshot("the Settings window") }
         window.appearance = NSAppearance(named: .darkAqua)
-        // The window opens at 640 pt and scrolls; the picture shows the whole form.
-        window.setContentSize(NSSize(width: 460, height: 9000))
+        // The window opens at its own height and the pane scrolls; the picture shows the whole pane.
+        let width = SettingsWindowController.contentSize.width
+        window.minSize = .zero
+        window.setContentSize(NSSize(width: width, height: 9000))
         window.contentView?.layoutSubtreeIfNeeded()
-        if let height = window.contentView.flatMap(formHeight(in:)) {
-            window.setContentSize(NSSize(width: 460, height: height))
+        if let content = window.contentView, let form = formScroll(in: content), let document = form.documentView {
+            let header = content.frame.height - form.frame.height
+            let height = max(ceil(document.bounds.height + header), SettingsWindowController.minSize.height)
+            window.setContentSize(NSSize(width: width, height: height))
             window.contentView?.layoutSubtreeIfNeeded()
         }
         windows.append(window)
-        return try bitmap(of: frame, size: frame.bounds.size, what: "the Settings window")
+        return try bitmap(of: frame, size: frame.bounds.size, what: "the \(pane.title) pane of the Settings window")
+    }
+
+    /// Images one under another, left-aligned, on the same ground the sheet's gutters use.
+    static func stack(_ images: [CGImage], gutter: CGFloat = 0) throws -> CGImage {
+        guard !images.isEmpty else { throw Failure.snapshot("an empty stack") }
+        let width = CGFloat(images.map(\.width).max() ?? 0)
+        let height = images.reduce(CGFloat(0)) { $0 + CGFloat($1.height) } + CGFloat(images.count - 1) * gutter
+        return try bitmap(CGSize(width: width, height: height), pixelScale: 1) { ctx in
+            ctx.setFillColor(CGColor(srgbRed: 0x1c / 255, green: 0x1c / 255, blue: 0x1e / 255, alpha: 1))
+            ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+            var y: CGFloat = 0
+            for image in images {
+                draw(image, in: CGRect(x: 0, y: y, width: CGFloat(image.width), height: CGFloat(image.height)), alpha: 1, into: ctx)
+                y += CGFloat(image.height) + gutter
+            }
+        }
     }
 
     /// The Settings capture cut into columns and laid out left to right, like a printed spread.
     ///
-    /// The window is 460 pt wide and the form inside it is nearly four thousand tall, so the honest whole-form
+    /// The window is 700 pt wide and its six panes stacked run to several thousand, so the honest whole-form
     /// capture is a ribbon of about one to nine. That shape has no good home: in the README's screenshot table a
     /// cell is around 290 px wide, and a ribbon scaled to it is two and a half thousand px tall, which sets the
     /// height of the whole row and pushes the pictures beside it off the screen; in the gallery's
@@ -533,22 +579,36 @@ enum AssetRenderer {
         return bands
     }
 
-    /// How tall the scrolling form inside a hosting view actually came out. SwiftUI lays a `Form` out inside a
-    /// scroll view, and that scroll view's document view is the one place the whole form's extent is written
-    /// down — the hosting view itself reports the frame it was given, and `fittingSize` answers for the width
-    /// SwiftUI would rather have had (744 pt) rather than the 460 pt the window is. Pre-order, so the form's own
-    /// scroll view wins over any nested one. `nil` when no scroll view is found, which leaves the caller with the
-    /// scratch height it already had: an OS that lays a `Form` out some other way then gives the oversized
-    /// picture that shipped rather than a cropped one.
+    /// The scroll view the pane's form is laid out in. SwiftUI lays a `Form` out inside one, and that scroll
+    /// view's document view is the one place the whole form's extent is written down — the hosting view itself
+    /// reports the frame it was given, and `fittingSize` answers for the width SwiftUI would rather have had
+    /// rather than the width the window is. The scroll view rather than its height alone, because the caller
+    /// needs its viewport too: what the content view has above it is the pane's title, and the window is sized to
+    /// hold both.
+    ///
+    /// The window holds two scroll views, the sidebar's source list and the pane's form, and the **widest** is
+    /// the form: the sidebar is a fixed 190 pt column of a 700 pt window. Picking the taller document instead
+    /// picks the sidebar every time, because a source list of six rows does not scroll and its document view is
+    /// simply as tall as the viewport it is given — 8984 pt inside the 9000 pt scratch window, against the 385
+    /// the General pane's form measures. That is how the whole window came to be sized to the scratch height it
+    /// was measured in, which is the bug the scratch pass exists to avoid.
+    ///
+    /// `nil` when no scroll view is found, which leaves the caller with the scratch height it already had: an OS
+    /// that lays a `Form` out some other way then gives the oversized picture that shipped rather than a cropped
+    /// one.
     @MainActor
-    private static func formHeight(in view: NSView) -> CGFloat? {
-        if let scroll = view as? NSScrollView, let document = scroll.documentView, document.bounds.height > 0 {
-            return ceil(document.bounds.height)
+    private static func formScroll(in view: NSView) -> NSScrollView? {
+        var widest: NSScrollView?
+        func rank(_ scroll: NSScrollView?) -> (CGFloat, CGFloat) {
+            guard let scroll, let document = scroll.documentView else { return (0, 0) }
+            return (scroll.frame.width, document.bounds.height)
         }
+        if rank(view as? NSScrollView) > (0, 0) { widest = view as? NSScrollView }
         for subview in view.subviews {
-            if let height = formHeight(in: subview) { return height }
+            guard let scroll = formScroll(in: subview), rank(scroll) > rank(widest) else { continue }
+            widest = scroll
         }
-        return nil
+        return widest
     }
 
     // MARK: - The notch

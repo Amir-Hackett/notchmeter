@@ -115,6 +115,7 @@
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "같은 세션 쿠키로 cursor.com을 한 번 더 읽습니다. 최근 30일의 사용 이벤트를 내보낸 비용으로 계산해 일별 합계 파일에 Cursor 계열(오늘, 30일, 추세)로 넣습니다.";
 "Add the Notchmeter hook to %@?" = "Notchmeter 훅을 %@에 추가할까요?";
 "Add to %@…" = "%@에 추가…";
+"All six Settings panes: position, hover or always open, hook install with a backup." = "설정의 여섯 개 창 전체: 위치, 마우스 오버 또는 항상 열림, 백업이 있는 훅 설치.";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code는 세션 시작과 종료, 프롬프트 전송, 입력 대기, 중지와 중지 실패, 하위 에이전트 시작과 중지를 보고합니다.";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex는 세션 시작과 종료, 프롬프트 전송, 중지, 중단된 턴, 하위 에이전트 시작과 중지, 그리고 승인을 요청하려는 순간을 보고합니다. 그 승인 프롬프트가 유일한 대기입니다: Codex 링은 그때 대기 손 모양을 보이고 다음 프롬프트, 중지 또는 하위 에이전트에서, 아니면 10분 뒤에 놓습니다. Codex에는 질문이나 속도 제한 이벤트가 없어 제한 도달은 다음 폴링까지 기다립니다. Codex는 새로 추가되거나 바뀐 훅을 Codex 안에서 /hooks를 열어 신뢰하기 전까지 건너뛰며, 실행 중인 세션은 시작할 때의 훅을 유지합니다.";
 "Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex는 아직 보여 주지 않은 훅을 건너뜁니다: Codex에서 /hooks를 열고 새 항목을 신뢰하세요. 이미 실행 중인 세션은 시작할 때의 훅을 유지합니다.";
@@ -326,6 +327,7 @@
 "Installed · pointing at %@" = "설치됨 · %@ 참조";
 "Installed." = "설치되었습니다.";
 "Installed; your previous status line (%@) runs after it." = "설치되었습니다. 이전 상태 표시줄(%@)은 그 다음에 실행됩니다.";
+"Integrations" = "연동";
 "its usage export could not be fetched" = "사용량 내보내기를 가져오지 못했습니다";
 "just now" = "방금";
 "Keeping awake" = "깨어 있음 유지";
@@ -442,7 +444,6 @@
 "Pin to menu bar" = "메뉴 막대에 고정";
 "plan" = "계획";
 "Position" = "위치";
-"Position, hover or always open, hook install with a backup." = "위치, 마우스 오버 또는 항상 열림, 백업이 있는 훅 설치.";
 "PR %@" = "PR %@";
 "Premium requests" = "프리미엄 요청";
 "Press keys…" = "키를 누르세요…";
@@ -600,7 +601,7 @@
 "When an assistant waits for you, or a turn finishes" = "어시스턴트가 대기하거나 턴이 끝날 때";
 "When the cache tier or the metering shifts" = "캐시 계층이나 측정이 바뀔 때";
 "When you start paying (extra usage rises)" = "결제가 시작될 때(추가 사용 증가)";
-"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "카드의 도넛, 범례, 합계에 포함할 어시스턴트입니다. 순서는 어시스턴트 설정을 따릅니다. 비용을 알릴 수 없는 어시스턴트는 여기에 나오지 않으며, 제외한 어시스턴트도 자기 카드에는 비용을 표시합니다.";
+"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "카드의 도넛, 범례, 합계에 포함할 어시스턴트입니다. 순서는 어시스턴트 설정을 따릅니다. 비용을 알릴 수 없거나 로그인하지 않은 어시스턴트는 여기에 나오지 않으며, 제외한 어시스턴트도 자기 카드에는 비용을 표시합니다.";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Zoom, Meet, QuickTime 또는 화면 공유가 화면을 캡처하는 동안 링은 모양을 유지하되 숫자를 숨기고, 패널은 비용 카드를 숨깁니다. 5초마다 확인합니다.";
 "Wide" = "넓게";
 "Will run out (behind pace)" = "소진 예정 (페이스보다 느림)";

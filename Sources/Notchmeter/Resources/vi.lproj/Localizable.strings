@@ -115,6 +115,7 @@
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "Đọc cursor.com thêm một lần với cùng cookie phiên: 30 ngày sự kiện dùng gần nhất, tính giá theo chi phí xuất ra, gộp vào tệp tổng ngày dưới dạng chuỗi Cursor (Hôm nay, 30 ngày và xu hướng).";
 "Add the Notchmeter hook to %@?" = "Thêm hook Notchmeter vào %@?";
 "Add to %@…" = "Thêm vào %@…";
+"All six Settings panes: position, hover or always open, hook install with a backup." = "Toàn bộ sáu ngăn Cài đặt: vị trí, rê chuột hoặc luôn mở, cài hook có sao lưu.";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code báo phiên bắt đầu và kết thúc, prompt được gửi, chờ bạn nhập, dừng và dừng lỗi, và tác tử con bắt đầu và dừng.";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex báo phiên bắt đầu và kết thúc, prompt được gửi, dừng, lượt bị ngắt, tác tử con bắt đầu và dừng, và thời điểm nó sắp hỏi bạn phê duyệt. Lời hỏi phê duyệt đó là lần chờ duy nhất của nó: vòng Codex hiện bàn tay chờ cho việc đó và buông ra ở prompt, lần dừng hay tác tử con kế tiếp, hoặc sau mười phút. Codex không có sự kiện cho câu hỏi hay giới hạn tốc độ, nên chạm giới hạn phải chờ lần thăm dò kế tiếp. Codex bỏ qua hook mới hoặc đã đổi cho tới khi bạn mở /hooks trong Codex và tin cậy nó, và phiên đang chạy giữ các hook nó đã khởi động cùng.";
 "Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex bỏ qua hook chưa được cho nó xem: mở /hooks trong Codex và tin cậy mục mới. Các phiên đang chạy giữ các hook chúng đã khởi động cùng.";
@@ -326,6 +327,7 @@
 "Installed · pointing at %@" = "Đã cài · trỏ tới %@";
 "Installed." = "Đã cài.";
 "Installed; your previous status line (%@) runs after it." = "Đã cài; dòng trạng thái trước của bạn (%@) chạy sau nó.";
+"Integrations" = "Tích hợp";
 "its usage export could not be fetched" = "không lấy được dữ liệu sử dụng đã xuất";
 "just now" = "vừa xong";
 "Keeping awake" = "Giữ máy thức";
@@ -442,7 +444,6 @@
 "Pin to menu bar" = "Ghim vào thanh menu";
 "plan" = "kế hoạch";
 "Position" = "Vị trí";
-"Position, hover or always open, hook install with a backup." = "Vị trí, rê chuột hoặc luôn mở, cài hook có sao lưu.";
 "PR %@" = "PR %@";
 "Premium requests" = "Yêu cầu cao cấp";
 "Press keys…" = "Nhấn phím…";
@@ -600,7 +601,7 @@
 "When an assistant waits for you, or a turn finishes" = "Khi một trợ lý chờ bạn, hoặc một lượt xong";
 "When the cache tier or the metering shifts" = "Khi mức cache hoặc cách đo thay đổi";
 "When you start paying (extra usage rises)" = "Khi bạn bắt đầu trả tiền (dùng thêm tăng)";
-"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "Những trợ lý mà vòng tròn, chú giải và tổng của thẻ bao gồm, theo thứ tự đặt ở mục Trợ lý. Trợ lý không thể báo chi phí không bao giờ có ở đây; trợ lý bị bỏ ra vẫn hiện chi tiêu trên thẻ của chính nó.";
+"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "Những trợ lý mà vòng tròn, chú giải và tổng của thẻ bao gồm, theo thứ tự đặt ở mục Trợ lý. Trợ lý không thể báo chi phí, hoặc bạn chưa đăng nhập, không bao giờ có ở đây; trợ lý bị bỏ ra vẫn hiện chi tiêu trên thẻ của chính nó.";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Khi Zoom, Meet, QuickTime hoặc Chia sẻ màn hình đang ghi màn hình, các vòng giữ hình dạng nhưng ẩn số, và bảng ẩn thẻ Chi phí. Kiểm tra mỗi năm giây.";
 "Wide" = "Rộng";
 "Will run out (behind pace)" = "Sẽ hết (chậm hơn nhịp)";

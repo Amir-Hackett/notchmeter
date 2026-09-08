@@ -115,6 +115,7 @@
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "同じセッション Cookie で cursor.com をもう一度読みます。直近 30 日の使用イベントをエクスポートされたコストで価格付けし、日次合計ファイルに Cursor の系列（本日、30 日、トレンド）として加えます。";
 "Add the Notchmeter hook to %@?" = "Notchmeter のフックを %@ に追加しますか？";
 "Add to %@…" = "%@ に追加…";
+"All six Settings panes: position, hover or always open, hook install with a backup." = "設定の6つのペインすべて：位置、ホバーまたは常時表示、バックアップ付きのフック導入。";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code はセッションの開始と終了、プロンプトの送信、入力待ち、停止と停止の失敗、サブエージェントの開始と停止を報告します。";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex はセッションの開始と終了、プロンプトの送信、停止、中断されたターン、サブエージェントの開始と停止、そして承認を求めようとする瞬間を報告します。その承認プロンプトが唯一の待機です。Codex のリングはそのとき待機の手を示し、次のプロンプト、停止、サブエージェント、または 10 分後に下ろします。Codex には質問やレート制限のイベントがないため、制限到達は次のポーリングまで待ちます。Codex は新規または変更されたフックを、Codex 内で /hooks を開いて信頼するまで無視し、実行中のセッションは開始時のフックを使い続けます。";
 "Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex はまだ提示されていないフックを無視します。Codex で /hooks を開き、新しい項目を信頼してください。実行中のセッションは開始時のフックを使い続けます。";
@@ -326,6 +327,7 @@
 "Installed · pointing at %@" = "インストール済み · %@ を参照";
 "Installed." = "インストールしました。";
 "Installed; your previous status line (%@) runs after it." = "インストールしました。以前のステータスライン（%@）はその後に実行されます。";
+"Integrations" = "連携";
 "its usage export could not be fetched" = "使用状況のエクスポートを取得できませんでした";
 "just now" = "たった今";
 "Keeping awake" = "スリープ抑止中";
@@ -442,7 +444,6 @@
 "Pin to menu bar" = "メニューバーに固定";
 "plan" = "プラン";
 "Position" = "位置";
-"Position, hover or always open, hook install with a backup." = "位置、ホバーまたは常時表示、バックアップ付きのフック導入。";
 "PR %@" = "PR %@";
 "Premium requests" = "プレミアムリクエスト";
 "Press keys…" = "キーを押してください…";
@@ -600,7 +601,7 @@
 "When an assistant waits for you, or a turn finishes" = "アシスタントが待機したとき、またはターンが終わったとき";
 "When the cache tier or the metering shifts" = "キャッシュ層や計測が変わったとき";
 "When you start paying (extra usage rises)" = "支払いが始まったとき（追加使用の増加）";
-"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "カードのドーナツ、凡例、合計に含めるアシスタント。並び順は「アシスタント」の設定に従います。コストを報告できないアシスタントはここに現れません。外したアシスタントも自身のカードにはコストを表示します。";
+"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "カードのドーナツ、凡例、合計に含めるアシスタント。並び順は「アシスタント」の設定に従います。コストを報告できないアシスタント、およびサインインしていないアシスタントはここに現れません。外したアシスタントも自身のカードにはコストを表示します。";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Zoom、Meet、QuickTime、画面共有が画面をキャプチャしている間、リングは形を保ったまま数値を隠し、パネルはコストカードを隠します。5 秒ごとに確認します。";
 "Wide" = "ワイド";
 "Will run out (behind pace)" = "使い切る見込み（ペースより遅れ）";

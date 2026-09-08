@@ -131,6 +131,7 @@
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend).";
 "Add the Notchmeter hook to %@?" = "Add the Notchmeter hook to %@?";
 "Add to %@…" = "Add to %@…";
+"All six Settings panes: position, hover or always open, hook install with a backup." = "All six Settings panes: position, hover or always open, hook install with a backup.";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops.";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with.";
 "Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with.";
@@ -342,6 +343,7 @@
 "Installed · pointing at %@" = "Installed · pointing at %@";
 "Installed." = "Installed.";
 "Installed; your previous status line (%@) runs after it." = "Installed; your previous status line (%@) runs after it.";
+"Integrations" = "Integrations";
 "its usage export could not be fetched" = "its usage export could not be fetched";
 "just now" = "just now";
 "Keeping awake" = "Keeping awake";
@@ -458,7 +460,6 @@
 "Pin to menu bar" = "Pin to menu bar";
 "plan" = "plan";
 "Position" = "Position";
-"Position, hover or always open, hook install with a backup." = "Position, hover or always open, hook install with a backup.";
 "PR %@" = "PR %@";
 "Premium requests" = "Premium requests";
 "Press keys…" = "Press keys…";
@@ -616,7 +617,7 @@
 "When an assistant waits for you, or a turn finishes" = "When an assistant waits for you, or a turn finishes";
 "When the cache tier or the metering shifts" = "When the cache tier or the metering shifts";
 "When you start paying (extra usage rises)" = "When you start paying (extra usage rises)";
-"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card.";
+"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card.";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds.";
 "Wide" = "Wide";
 "Will run out (behind pace)" = "Will run out (behind pace)";

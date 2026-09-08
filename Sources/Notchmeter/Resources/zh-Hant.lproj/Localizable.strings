@@ -115,6 +115,7 @@
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "使用同一工作階段 cookie 再讀取一次 cursor.com：最近 30 天的用量事件，按匯出的費用計價，折算進每日總計檔案作為 Cursor 序列（今日、30 天和趨勢）。";
 "Add the Notchmeter hook to %@?" = "將 Notchmeter 掛鉤加入 %@？";
 "Add to %@…" = "加入 %@…";
+"All six Settings panes: position, hover or always open, hook install with a backup." = "設定的全部六個面板：位置、懸停或永遠開啟、附備份的掛鉤安裝。";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code 回報工作階段的開始與結束、提示的送出、等待你的輸入、停止與停止失敗，以及子代理的啟動與停止。";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex 回報工作階段的開始與結束、提示的送出、停止、被中斷的一輪、子代理的啟動與停止，以及它即將請求你核准的時刻。那個核准提示是它唯一的等待：Codex 圓環為此顯示等待的手形，並在下一次提示、停止或子代理時，或十分鐘後放開。Codex 沒有提問或速率限制的事件，因此觸及限制要等到下一次輪詢。Codex 會略過新增或變更的掛鉤，直到你在 Codex 內開啟 /hooks 並信任它；執行中的工作階段保留它啟動時的掛鉤。";
 "Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex 會略過尚未向它顯示的掛鉤：在 Codex 中開啟 /hooks 並信任新項目。已在執行的工作階段保留它們啟動時的掛鉤。";
@@ -326,6 +327,7 @@
 "Installed · pointing at %@" = "已安裝 · 指向 %@";
 "Installed." = "已安裝。";
 "Installed; your previous status line (%@) runs after it." = "已安裝；你原本的狀態列（%@）會在其後繼續執行。";
+"Integrations" = "整合";
 "its usage export could not be fetched" = "無法取得其用量匯出";
 "just now" = "剛剛";
 "Keeping awake" = "保持喚醒";
@@ -442,7 +444,6 @@
 "Pin to menu bar" = "固定到選單列";
 "plan" = "計畫";
 "Position" = "位置";
-"Position, hover or always open, hook install with a backup." = "位置、懸停或永遠開啟、附備份的掛鉤安裝。";
 "PR %@" = "PR %@";
 "Premium requests" = "進階請求";
 "Press keys…" = "請按下按鍵…";
@@ -600,7 +601,7 @@
 "When an assistant waits for you, or a turn finishes" = "當助手等待你，或一輪結束時";
 "When the cache tier or the metering shifts" = "快取檔位或計量發生變化時";
 "When you start paying (extra usage rises)" = "當你開始付費時（額外用量上漲）";
-"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card." = "卡片的圓環、圖例和總額包含哪些助理，順序與「助理」中設定的一致。無法回報花費的助理不會出現在這裡；未勾選的助理仍會在自己的卡片上顯示花費。";
+"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "卡片的圓環、圖例和總額包含哪些助理，順序與「助理」中設定的一致。無法回報花費的助理，以及你未登入的助理，不會出現在這裡；未勾選的助理仍會在自己的卡片上顯示花費。";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "當 Zoom、Meet、QuickTime 或螢幕共享正在擷取螢幕時，圓環保留形狀但隱藏數字，面板隱藏花費卡片。每五秒檢查一次。";
 "Wide" = "加寬";
 "Will run out (behind pace)" = "將會用完（進度落後）";
