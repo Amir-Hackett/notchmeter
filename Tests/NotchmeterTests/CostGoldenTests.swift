@@ -84,7 +84,8 @@ import Testing
         """
         let summary = total(jsonl)
         #expect(abs(summary.last30Days - 0.70275) < 1e-9)
-        #expect(abs(summary.daily.reduce(0) { $0 + $1.cost } - 0.70275) < 1e-9)
+        let acrossTheDays: Double = summary.daily.reduce(0) { $0 + $1.cost }
+        #expect(abs(acrossTheDays - 0.70275) < 1e-9)
         // The Sonnet line at 13:30 is the only one older than an hour.
         #expect(abs(summary.lastHour - 0.67525) < 1e-9)
         #expect(summary.unpricedModels == ["claude-nimbus-1"])
@@ -96,9 +97,11 @@ import Testing
 @Suite struct CostRules {
     @Test func readsInferenceGeography() throws {
         let us = #"{"timestamp":"2026-09-01T15:00:00Z","message":{"model":"claude-opus-4-6","usage":{"input_tokens":1,"output_tokens":1,"inference_geo":"us"}}}"#
-        #expect(try #require(ClaudeCostScanner.parseLine(Data(us.utf8))).inferenceGeo == "us")
+        let withGeo = try #require(ClaudeCostScanner.parseLine(Data(us.utf8)))
+        #expect(withGeo.inferenceGeo == "us")
         let plain = #"{"timestamp":"2026-09-01T15:00:00Z","message":{"model":"claude-opus-4-6","usage":{"input_tokens":1,"output_tokens":1}}}"#
-        #expect(try #require(ClaudeCostScanner.parseLine(Data(plain.utf8))).inferenceGeo == nil)
+        let withoutGeo = try #require(ClaudeCostScanner.parseLine(Data(plain.utf8)))
+        #expect(withoutGeo.inferenceGeo == nil)
     }
 
     @Test func residencyMultiplierOnlyForUS() {
@@ -116,7 +119,8 @@ import Testing
             UsageEntry(timestamp: Date(timeIntervalSince1970: 0), model: "claude-sonnet-5", tokens: TokenBreakdown(output: output), costUSD: nil, dedupeKey: key)
         }
         let kept = ClaudeCostScanner.dedupe([entry("a", output: 3), entry("a", output: 3), entry("a", output: 1090), entry("b", output: 7), entry(nil, output: 1), entry(nil, output: 1)])
-        #expect(kept.map(\.tokens.output) == [1090, 7, 1, 1])
+        let outputCounts = kept.map(\.tokens.output)
+        #expect(outputCounts == [1090, 7, 1, 1])
     }
 }
 
@@ -147,7 +151,8 @@ import Testing
         let more = summarize(straddling)
         #expect(more.lastHour == 14)
         #expect(more.typicalHourly == 4)
-        #expect(abs(try #require(more.burnMultiple) - 3.5) < 1e-9)
+        let straddlingMultiple = try #require(more.burnMultiple)
+        #expect(abs(straddlingMultiple - 3.5) < 1e-9)
     }
 
     /// The bursty case a median gets wrong: twenty cheap hours and one big one is an ordinary agent month, and
@@ -158,8 +163,10 @@ import Testing
         let summary = summarize(entries)
         let average = 60.95 / 21
         #expect(abs(summary.typicalHourly - average) < 1e-9)
-        #expect(abs(try #require(summary.burnMultiple) - 50.95 / average) < 1e-9)
-        #expect(Burn.multiple(try #require(summary.burnMultiple)) == "18x")
+        let burstOverAverage = 50.95 / average
+        let burnMultiple = try #require(summary.burnMultiple)
+        #expect(abs(burnMultiple - burstOverAverage) < 1e-9)
+        #expect(Burn.multiple(burnMultiple) == "18x")
     }
 
     @Test func needsFiveActiveHoursAndANonZeroAverage() {

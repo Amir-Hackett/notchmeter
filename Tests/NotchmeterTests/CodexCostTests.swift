@@ -82,7 +82,8 @@ import Testing
     @Test func cacheWritesAreBilledOnlyFromGPT56AndAt125xInput() {
         for (id, rates) in OpenAIPricing.table {
             if id.hasPrefix("gpt-5.6") {
-                #expect(abs(rates.cacheWrite - rates.input * 1.25) < 1e-9, "\(id)")
+                let oneAndAQuarterInput = rates.input * 1.25
+                #expect(abs(rates.cacheWrite - oneAndAQuarterInput) < 1e-9, "\(id)")
             } else {
                 #expect(rates.cacheWrite == 0, "\(id)")
             }
@@ -113,7 +114,8 @@ import Testing
         // of its own, and no other row carries the tier at all, so none can pick up a surcharge nothing published
         // for it — gpt-5.5-cyber, whose page is gone and whose row leaves the long columns empty, least of all.
         let tiered = OpenAIPricing.table.filter { $0.value.longContextThreshold != nil }.keys.sorted()
-        #expect(tiered == (published.map(\.id) + ["gpt-5.6-cyber"]).sorted())
+        let everyRowThatCarriesTheTier = (published.map(\.id) + ["gpt-5.6-cyber"]).sorted()
+        #expect(tiered == everyRowThatCarriesTheTier)
         #expect(OpenAIPricing.rates(for: "gpt-5.5-cyber")?.longContextThreshold == nil)
     }
 
@@ -164,11 +166,16 @@ import Testing
     @Test func theFingerprintFollowsTheRowsAndNotOnlyTheDate() {
         #expect(OpenAIPricing.fingerprint.hasPrefix(OpenAIPricing.snapshotDate))
         let one = ["a": OpenAIRates(input: 1, output: 2)]
-        #expect(OpenAIPricing.digest(of: one) == OpenAIPricing.digest(of: ["a": OpenAIRates(input: 1, output: 2)]))
-        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: ["a": OpenAIRates(input: 1.1, output: 2)]))
-        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: ["a": OpenAIRates(input: 1, output: 2, cacheWrite: 1)]))
-        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: ["a": OpenAIRates(input: 1, output: 2, longContext: 10)]))
-        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: ["b": OpenAIRates(input: 1, output: 2)]))
+        let theSameRow = ["a": OpenAIRates(input: 1, output: 2)]
+        let dearerInput = ["a": OpenAIRates(input: 1.1, output: 2)]
+        let withACacheWrite = ["a": OpenAIRates(input: 1, output: 2, cacheWrite: 1)]
+        let withALongContextRow = ["a": OpenAIRates(input: 1, output: 2, longContext: 10)]
+        let underAnotherId = ["b": OpenAIRates(input: 1, output: 2)]
+        #expect(OpenAIPricing.digest(of: one) == OpenAIPricing.digest(of: theSameRow))
+        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: dearerInput))
+        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: withACacheWrite))
+        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: withALongContextRow))
+        #expect(OpenAIPricing.digest(of: one) != OpenAIPricing.digest(of: underAnotherId))
     }
 
     /// The id here is a real model inside a family the table holds, published with no price at all: the case that
@@ -248,13 +255,16 @@ import Testing
         #expect(abs(cost.totals(.last30Days).cost - 0.0469) < 1e-9)
         #expect(cost.daily.count == 30)
         #expect(abs((cost.daily.last?.cost ?? 0) - 0.0469) < 1e-9)
-        #expect(cost.totals(.today).models.map(\.name) == ["gpt-5.3-codex"])
-        #expect(cost.totals(.today).projects.map(\.name) == ["notchmeter"])
+        let models = cost.totals(.today).models.map(\.name)
+        #expect(models == ["gpt-5.3-codex"])
+        let projects = cost.totals(.today).projects.map(\.name)
+        #expect(projects == ["notchmeter"])
         // The entries carry a time of day, so Codex reports an hour of its own.
         #expect(abs((cost.lastHour ?? 0) - 0.0469) < 1e-9)
         #expect(cost.problem == nil)
         // The day totals outlive the rollout, so the history keeps them.
-        #expect(abs((history.load(calendar: utc)[utc.startOfDay(for: now)]?.cost ?? 0) - 0.0469) < 1e-9)
+        let keptForToday = history.load(calendar: utc)[utc.startOfDay(for: now)]?.cost ?? 0
+        #expect(abs(keptForToday - 0.0469) < 1e-9)
     }
 
     /// A session resumed for weeks keeps one rollout whose file is recent while most of its turns are older than

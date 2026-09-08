@@ -26,7 +26,8 @@ import Testing
         """
         let reading = try CursorProvider.parseSummary(Data(json.utf8), now: Date(timeIntervalSince1970: 1_756_700_000))
         #expect(reading.plan == "Pro")
-        #expect(reading.windows.map(\.id) == ["included", "on_demand"])
+        let ids = reading.windows.map(\.id)
+        #expect(ids == ["included", "on_demand"])
         #expect(reading.windows[0].label == "Included usage")
         #expect(reading.windows[0].usedFraction == 0.125)
         #expect(reading.windows[0].resetsAt == DateParsing.iso8601("2026-09-24T05:12:03.105Z"))
@@ -58,7 +59,8 @@ import Testing
         let api = try #require(reading.windows.first { $0.id == "other_models" })
         #expect(auto.usedFraction == 0.47)
         #expect(api.usedFraction == 1)
-        #expect((auto.usedFraction ?? 0) + (api.usedFraction ?? 0) > 1)
+        let bothShares = (auto.usedFraction ?? 0) + (api.usedFraction ?? 0)
+        #expect(bothShares > 1)
         #expect(auto.note == "Metered apart from the included total")
         #expect(api.note == auto.note)
         // Reading as far along as the model windows it covers, it can now be adopted as their total.
@@ -127,7 +129,8 @@ import Testing
                             "onDemand":{"enabled":false}}}
         """
         let reading = try CursorProvider.parseSummary(Data(json.utf8), now: now)
-        #expect(reading.windows.map(\.id) == ["included", "cursor_models", "other_models"])
+        let ids = reading.windows.map(\.id)
+        #expect(ids == ["included", "cursor_models", "other_models"])
         #expect(reading.windows[1].label == "Cursor models")
         #expect(reading.windows[1].usedFraction == 0.095)
         #expect(reading.windows[1].model == "Cursor models")
@@ -139,11 +142,14 @@ import Testing
         defaults.removePersistentDomain(forName: "NotchmeterTests.CursorHidden")
         defer { defaults.removePersistentDomain(forName: "NotchmeterTests.CursorHidden") }
         let prefs = Preferences(defaults: defaults)
-        #expect(prefs.shownWindows(of: reading).map(\.id) == ["included"])
+        var shown = prefs.shownWindows(of: reading).map(\.id)
+        #expect(shown == ["included"])
         prefs.setHidden(false, window: reading.windows[1], of: .cursor)
-        #expect(prefs.shownWindows(of: reading).map(\.id) == ["included", "cursor_models"])
+        shown = prefs.shownWindows(of: reading).map(\.id)
+        #expect(shown == ["included", "cursor_models"])
         prefs.setHidden(true, window: reading.windows[1], of: .cursor)
-        #expect(prefs.shownWindows(of: reading).map(\.id) == ["included"])
+        shown = prefs.shownWindows(of: reading).map(\.id)
+        #expect(shown == ["included"])
         prefs.setHidden(true, window: reading.windows[0], of: .cursor)
         #expect(prefs.shownWindows(of: reading).isEmpty)
     }
@@ -155,14 +161,16 @@ import Testing
          "teamUsage":{"pooled":{"used":12000,"limit":40000,"totalPercentUsed":30},"onDemand":{"enabled":true,"used":500,"limit":10000}}}
         """
         let reading = try CursorProvider.parseSummary(Data(json.utf8), now: now)
-        #expect(reading.windows.map(\.id) == ["team_pooled", "included", "team_on_demand"])
+        let ids = reading.windows.map(\.id)
+        #expect(ids == ["team_pooled", "included", "team_on_demand"])
         #expect(reading.windows[0].label == "Team pooled")
         #expect(reading.windows[0].usedFraction == 0.3)
         #expect(reading.windows[0].note == "$120 of $400")
         #expect(reading.windows[2].hiddenByDefault)
         #expect(Advisor.mainWindow(of: reading)?.id == "team_pooled")
         let individual = try CursorProvider.parseSummary(Data(json.utf8.map { $0 }).replacingTeam(), now: now)
-        #expect(individual.windows.map(\.id) == ["included", "team_pooled", "team_on_demand"])
+        let individualIds = individual.windows.map(\.id)
+        #expect(individualIds == ["included", "team_pooled", "team_on_demand"])
         #expect(Advisor.mainWindow(of: individual)?.id == "included")
     }
 
@@ -186,11 +194,15 @@ import Testing
         let days = CursorProvider.dayRecords(events, calendar: utc)
         #expect(days.count == 2)
         let today = utc.startOfDay(for: Date(timeIntervalSince1970: 1_756_728_000))
-        #expect(abs((days[today]?.cost ?? 0) - 0.17) < 1e-9)
-        #expect(days[today]?.byModel.keys.sorted() == ["claude-4-sonnet", "gpt-5"])
+        let todaysCost = days[today]?.cost ?? 0
+        #expect(abs(todaysCost - 0.17) < 1e-9)
+        let todaysModels = days[today]?.byModel.keys.sorted()
+        #expect(todaysModels == ["claude-4-sonnet", "gpt-5"])
         #expect(days[today]?.tokens.cacheRead == 4000)
         let body = try #require(try JSONSerialization.jsonObject(with: CursorProvider.usageEventsRequestBody(start: now.addingTimeInterval(-86400), end: now)) as? [String: Any])
-        #expect(body["startDate"] as? String == String(Int(now.timeIntervalSince1970 * 1000) - 86_400_000))
+        let startDate = body["startDate"] as? String
+        let aDayBeforeNow = String(Int(now.timeIntervalSince1970 * 1000) - 86_400_000)
+        #expect(startDate == aDayBeforeNow)
         #expect(body["pageSize"] as? Int == 500)
         #expect(CursorProvider.parseUsageEvents(Data("nope".utf8)).isEmpty)
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-cursor-history-\(UUID().uuidString)")
@@ -206,16 +218,19 @@ import Testing
         #expect(cost.source == .billingExport)
         #expect(cost.source.isEstimate == false)
         #expect(cost.daily.count == 30)
-        #expect(abs((cost.daily.last?.cost ?? 0) - 0.17) < 1e-9)
+        let lastDay = cost.daily.last?.cost ?? 0
+        #expect(abs(lastDay - 0.17) < 1e-9)
         #expect(abs(cost.totals(.today).cost - 0.17) < 1e-9)
-        #expect(cost.totals(.last30Days).models.map(\.name) == ["claude-4-sonnet", "gpt-5"])
+        let models = cost.totals(.last30Days).models.map(\.name)
+        #expect(models == ["claude-4-sonnet", "gpt-5"])
         // Cursor's export is day-resolution, so it reports no hour of its own.
         #expect(cost.lastHour == nil)
         #expect(cost.burnMultiple == nil)
         #expect(cost.scannedAt == now.addingTimeInterval(-60))
         #expect(CostHistory(url: dir.appendingPathComponent("daily.jsonl"), tool: .claude).load(calendar: utc).isEmpty)
-        #expect(CursorCostReader(history: CostHistory(url: dir.appendingPathComponent("nothing.jsonl"), tool: .cursor))
-            .read(now: now, daysBack: 30, weekStart: now, calendar: utc, state: ProviderReadState()) == nil)
+        let nothingRecorded = CursorCostReader(history: CostHistory(url: dir.appendingPathComponent("nothing.jsonl"), tool: .cursor))
+            .read(now: now, daysBack: 30, weekStart: now, calendar: utc, state: ProviderReadState())
+        #expect(nothingRecorded == nil)
     }
 }
 

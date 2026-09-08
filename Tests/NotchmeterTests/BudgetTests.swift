@@ -39,18 +39,21 @@ import Testing
     @Test func advisorProjectsTheMonthAgainstTheBudget() {
         var context = Advisor.Context(readings: [], cost: cost(month: 155), now: now, calendar: utc)
         context.monthlyBudgetUSD = 200
-        #expect(Advisor.budget(context).map(\.text) == ["At this rate the month costs $310 against a $200 budget."])
+        let monthProjection = Advisor.budget(context).map(\.text)
+        #expect(monthProjection == ["At this rate the month costs $310 against a $200 budget."])
         #expect(Advisor.budget(context).first?.priority == .warn)
         context.cost = cost(month: 90)
         #expect(Advisor.budget(context).isEmpty)
         context.cost = cost(month: 210)
-        #expect(Advisor.budget(context).map(\.text) == ["The month's $210 is past the $200 budget."])
+        let pastTheBudget = Advisor.budget(context).map(\.text)
+        #expect(pastTheBudget == ["The month's $210 is past the $200 budget."])
         #expect(Advisor.budget(context).first?.priority == .danger)
         context.monthlyBudgetUSD = nil
         context.weeklyBudgetUSD = 50
         context.cost = cost(month: 0, week: 30)
         // Three of seven days in at $30 projects to $70.
-        #expect(Advisor.budget(context).map(\.text) == ["At this rate the week costs $70 against a $50 budget."])
+        let weekProjection = Advisor.budget(context).map(\.text)
+        #expect(weekProjection == ["At this rate the week costs $70 against a $50 budget."])
         #expect(Advisor.budget(Advisor.Context(readings: [], cost: nil, now: now)).isEmpty)
     }
 
@@ -60,11 +63,13 @@ import Testing
         var context = Advisor.Context(readings: [], cost: cost(month: 240, providers: [provider(.claude, month: 90), provider(.cursor, month: 150)]),
                                       now: now, calendar: utc)
         context.monthlyBudgetUSD = 200
-        #expect(Advisor.budget(context).map(\.text) == ["The month's $240 is past the $200 budget. Cursor is $150 of it."])
+        let twoToolLines = Advisor.budget(context).map(\.text)
+        #expect(twoToolLines == ["The month's $240 is past the $200 budget. Cursor is $150 of it."])
         #expect(Advisor.budget(context).first?.tool == .cursor)
         // One tool spending needs no share: the total is already that tool's.
         context.cost = cost(month: 240, providers: [provider(.claude, month: 240)])
-        #expect(Advisor.budget(context).map(\.text) == ["The month's $240 is past the $200 budget."])
+        let oneToolLines = Advisor.budget(context).map(\.text)
+        #expect(oneToolLines == ["The month's $240 is past the $200 budget."])
         #expect(Advisor.budget(context).first?.tool == nil)
     }
 
@@ -74,13 +79,16 @@ import Testing
         #expect(window.id == "budget_month")
         #expect(window.usedFraction == 0.775)
         #expect(window.resetsAt == DateParsing.iso8601("2026-10-01T00:00:00Z"))
-        #expect(abs((window.periodDuration ?? 0) - 30 * 86400) < 1)
+        let thirtyDays = 30.0 * 86400
+        let drift = abs((window.periodDuration ?? 0) - thirtyDays)
+        #expect(drift < 1)
         #expect(window.source == .localEstimate)
         #expect(window.note == "$155 of $200")
         // 77.5 % halfway through projects to 155 %: behind, and the stage says so once per month.
         #expect(Pace.status(for: window, now: now) == .behind)
         let first = NotificationScheduler.plan(memory: .empty, readings: [reading], now: now)
-        #expect(first.alerts.map(\.stage) == [.behind])
+        let stages = first.alerts.map(\.stage)
+        #expect(stages == [.behind])
         #expect(first.alerts.first?.tool == .claude)
         #expect(NotificationScheduler.plan(memory: first.memory, readings: [reading], now: now.addingTimeInterval(3600)).alerts.isEmpty)
         let calm = try #require(NotificationScheduler.budgetReading(cost: cost(month: 60), monthlyUSD: 200, weeklyUSD: nil, now: now, calendar: utc))
@@ -99,12 +107,14 @@ import Testing
         var context = Advisor.Context(readings: [], now: now)
         context.extraUsageRise = ExtraUsageRise(amountUSD: 4.2, over: 3600, planUsed: 0.13, firstThisMonth: true)
         let loud = Advisor.extraUsage(context)
-        #expect(loud.map(\.text) == ["Extra usage rose $4.20 in 1h while your plan has 87% left; check /usage."])
+        let loudLines = loud.map(\.text)
+        #expect(loudLines == ["Extra usage rose $4.20 in 1h while your plan has 87% left; check /usage."])
         #expect(loud.first?.priority == .danger)
         #expect(loud.first?.url == ProviderLinks.usage(.claude))
         context.extraUsageRise = ExtraUsageRise(amountUSD: 4.2, over: 3600, planUsed: 0.95, firstThisMonth: true)
         let first = Advisor.extraUsage(context)
-        #expect(first.map(\.text) == ["You are now paying: extra usage rose $4.20 this month."])
+        let firstLines = first.map(\.text)
+        #expect(firstLines == ["You are now paying: extra usage rose $4.20 this month."])
         #expect(first.first?.priority == .warn)
         context.extraUsageRise = ExtraUsageRise(amountUSD: 4.2, over: 3600, planUsed: 0.95, firstThisMonth: false)
         #expect(Advisor.extraUsage(context).isEmpty)
@@ -112,10 +122,14 @@ import Testing
         #expect(Advisor.extraUsage(context).isEmpty)
         // The advice notifications fire once per repeat period, remembered by id.
         let planned = NotificationScheduler.planAdvice(memory: .empty, advice: loud, now: now) { _ in 3600 }
-        #expect(planned.advice.map(\.id) == ["extra/room"])
-        #expect(NotificationScheduler.planAdvice(memory: planned.memory, advice: loud, now: now.addingTimeInterval(600)) { _ in 3600 }.advice.isEmpty)
-        #expect(NotificationScheduler.planAdvice(memory: planned.memory, advice: loud, now: now.addingTimeInterval(3601)) { _ in 3600 }.advice.count == 1)
-        #expect(NotificationScheduler.planAdvice(memory: .empty, advice: loud, now: now) { _ in nil }.advice.isEmpty)
+        let plannedIDs = planned.advice.map(\.id)
+        #expect(plannedIDs == ["extra/room"])
+        let tooSoon = NotificationScheduler.planAdvice(memory: planned.memory, advice: loud, now: now.addingTimeInterval(600)) { _ in 3600 }
+        #expect(tooSoon.advice.isEmpty)
+        let afterTheHour = NotificationScheduler.planAdvice(memory: planned.memory, advice: loud, now: now.addingTimeInterval(3601)) { _ in 3600 }
+        #expect(afterTheHour.advice.count == 1)
+        let neverRepeats = NotificationScheduler.planAdvice(memory: .empty, advice: loud, now: now) { _ in nil }
+        #expect(neverRepeats.advice.isEmpty)
     }
 
     @Test func everyExtraUsageTransitionIsAppendedToTheDrainLogWithThePlanWindows() throws {
@@ -131,10 +145,13 @@ import Testing
         #expect(rows.count == 1)
         #expect(rows[0].amountUSD == 14.2)
         #expect(rows[0].previousUSD == 10)
-        #expect(rows[0].planWindows == ["five_hour": 0.12, "seven_day": 0.13])
+        let bothPlanWindows: [String: Double] = ["five_hour": 0.12, "seven_day": 0.13]
+        #expect(rows[0].planWindows == bothPlanWindows)
         let samples = log.load(now: now.addingTimeInterval(120))
-        #expect(samples[DrainLog.Key(tool: .claude, window: "five_hour")]?.count == 1)
-        #expect(samples[DrainLog.Key(tool: .claude, window: "extra_usage")] == nil)
+        let sessionSamples = samples[DrainLog.Key(tool: .claude, window: "five_hour")]
+        #expect(sessionSamples?.count == 1)
+        let extraSamples = samples[DrainLog.Key(tool: .claude, window: "extra_usage")]
+        #expect(extraSamples == nil)
         let text = try String(contentsOf: log.url, encoding: .utf8)
         #expect(text.contains("\"kind\":\"extra\""))
         #expect(!text.contains("token"))

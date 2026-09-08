@@ -17,11 +17,14 @@ import Testing
         let drain = try #require(DrainLog.drain(rows, now: now))
         #expect(drain.from == 0.12)
         #expect(drain.to == 0.61)
-        #expect(abs(drain.over - 68 * 60) < 1)
+        let sixtyEightMinutes = 68.0 * 60
+        #expect(abs(drain.over - sixtyEightMinutes) < 1)
         let expectedPerHour = 0.49 / (68.0 / 60.0)
-        #expect(abs(try #require(drain.perHour) - expectedPerHour) < 1e-9)
+        let perHour = try #require(drain.perHour)
+        #expect(abs(perHour - expectedPerHour) < 1e-9)
         #expect(DrainLog.line(drain) == "12% → 61% in the last hour")
-        #expect(abs(try #require(DrainLog.rate(rows, now: now)) - drain.perHour!) < 1e-12)
+        let measured = try #require(DrainLog.rate(rows, now: now))
+        #expect(abs(measured - drain.perHour!) < 1e-12)
     }
 
     @Test func aResetInsideTheHourStartsTheComparisonAfterIt() throws {
@@ -72,7 +75,8 @@ import Testing
                                  plan: nil, fetchedAt: now, observedAt: nil)
         log.append(moved, previous: loaded, now: now)
         loaded = log.load(now: now)
-        #expect(loaded[key]?.map(\.used) == [0.2, 0.35])
+        let afterTheMove = loaded[key]?.map(\.used)
+        #expect(afterTheMove == [0.2, 0.35])
         let text = try String(contentsOf: log.url, encoding: .utf8)
         #expect(!text.contains("token"))
         #expect(text.split(separator: "\n").count == 3)
@@ -101,9 +105,11 @@ import Testing
         }
         let key = DrainLog.Key(tool: .cursor, window: "included")
         store.recordDrain(reading(0.55), now: now)
-        #expect(log.load(now: now)[key]?.map(\.used) == [0.55])
+        let firstReading = log.load(now: now)[key]?.map(\.used)
+        #expect(firstReading == [0.55])
         store.recordDrain(reading(1), now: now.addingTimeInterval(60))
-        #expect(log.load(now: now)[key]?.map(\.used) == [0.55, 1])
+        let afterTheMove = log.load(now: now)[key]?.map(\.used)
+        #expect(afterTheMove == [0.55, 1])
     }
 
     /// A reset that is not a fixed instant. Claude's windows arrive carrying a moment that moves on every read —

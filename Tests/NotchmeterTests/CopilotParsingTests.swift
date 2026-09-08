@@ -14,7 +14,8 @@ import Testing
         """
         let reading = try CopilotProvider.parseUser(Data(json.utf8), now: Date(timeIntervalSince1970: 1_758_000_000))
         #expect(reading.plan == "Individual")
-        #expect(reading.windows.map(\.id) == ["premium"])
+        let ids = reading.windows.map(\.id)
+        #expect(ids == ["premium"])
         #expect(reading.windows[0].label == "Premium requests")
         #expect(reading.windows[0].usedFraction == 0.87)
         #expect(reading.windows[0].note == "39 of 300 left")
@@ -30,7 +31,8 @@ import Testing
                             "completions":{"unlimited":true}}}
         """
         let reading = try CopilotProvider.parseUser(Data(json.utf8))
-        #expect(reading.windows.map(\.id) == ["premium", "chat"])
+        let ids = reading.windows.map(\.id)
+        #expect(ids == ["premium", "chat"])
         #expect(reading.windows[0].usedFraction == 1)
         #expect(reading.windows[0].note == "0 of 300 left · 12 extra this month")
         #expect(reading.windows[1].usedFraction == 0.8)
@@ -72,13 +74,15 @@ import Testing
          "credits":{"has_credits":false}}
         """
         let reading = try CodexProvider.parseBackend(Data(json.utf8), now: Date(timeIntervalSince1970: 1_759_000_000))
-        #expect(reading.windows.map(\.id) == ["session", "weekly", "gpt_5.3_codex_spark_session", "gpt_5.3_codex_spark_weekly"])
+        let ids = reading.windows.map(\.id)
+        #expect(ids == ["session", "weekly", "gpt_5.3_codex_spark_session", "gpt_5.3_codex_spark_weekly"])
         #expect(reading.windows[2].label == "GPT 5.3 Codex Spark Session")
         #expect(reading.windows[2].model == "GPT 5.3 Codex Spark")
         #expect(reading.windows[2].usedFraction == 0.91)
         #expect(reading.windows[3].periodDuration == 604_800)
         let context = Advisor.Context(readings: [reading], now: Date(timeIntervalSince1970: 1_759_000_000))
-        #expect(Advisor.modelRouting(context).map(\.text) == ["GPT 5.3 Codex Spark session is 91%. Overall weekly is 40%. Switch models, not tools."])
+        let routing = Advisor.modelRouting(context).map(\.text)
+        #expect(routing == ["GPT 5.3 Codex Spark session is 91%. Overall weekly is 40%. Switch models, not tools."])
     }
 
     @Test func resetCreditsAreShownNeverClaimed() throws {
@@ -93,14 +97,16 @@ import Testing
         #expect(window.resetsAt == credits[0].expiresAt)
         #expect(window.note == "Full Reset credit expires in 3d — claim it in Codex")
         #expect(CodexProvider.resetCreditWindow([], now: now) == nil)
-        #expect(CodexProvider.resetCreditWindow([CodexProvider.ResetCredit(count: 1, expiresAt: now.addingTimeInterval(-1), kind: nil)], now: now) == nil)
+        let expired = [CodexProvider.ResetCredit(count: 1, expiresAt: now.addingTimeInterval(-1), kind: nil)]
+        #expect(CodexProvider.resetCreditWindow(expired, now: now) == nil)
         #expect(CodexProvider.parseResetCredits(Data("[]".utf8)).isEmpty)
 
         let behind = LimitWindow(id: "weekly", label: "Weekly", usedFraction: 0.9, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)
         let soon = LimitWindow(id: "reset_credits", label: "Reset credits", usedFraction: nil, resetsAt: now.addingTimeInterval(3600 * 5))
         let reading = UsageReading(tool: .codex, windows: [behind, soon], plan: nil, fetchedAt: now, observedAt: nil)
         let advice = Advisor.resetCredits(Advisor.Context(readings: [reading], now: now))
-        #expect(advice.map(\.text) == ["A Codex reset credit expires in 5h. Claim it in Codex."])
+        let claimIt = advice.map(\.text)
+        #expect(claimIt == ["A Codex reset credit expires in 5h. Claim it in Codex."])
         let calm = UsageReading(tool: .codex, windows: [LimitWindow(id: "weekly", label: "Weekly", usedFraction: 0.1, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week), soon],
                                 plan: nil, fetchedAt: now, observedAt: nil)
         #expect(Advisor.resetCredits(Advisor.Context(readings: [calm], now: now)).isEmpty)
@@ -155,7 +161,8 @@ import Testing
         try Data("github.com:\n    oauth_token: gho_live\n".utf8).write(to: gh)
         try Data(#"{"github.com":{"oauth_token":"gho_live"}}"#.utf8).write(to: config.appendingPathComponent("hosts.json"))
         let candidates = CopilotProvider.tokenCandidates(configRoot: config, ghHosts: gh)
-        #expect(candidates.map(\.token) == ["gho_live", "gho_stale"])
+        let tokens = candidates.map(\.token)
+        #expect(tokens == ["gho_live", "gho_stale"])
         #expect(candidates.first?.file.lastPathComponent != "apps.json")
         #expect(CopilotProvider.token(configRoot: config, ghHosts: gh) == "gho_live")
         #expect(CopilotProvider.shortPath(Paths.home.appendingPathComponent(".config/gh/hosts.yml")) == "~/.config/gh/hosts.yml")
@@ -181,7 +188,10 @@ import Testing
         configuration.protocolClasses = [StubProtocol.self]
         let provider = CopilotProvider(session: URLSession(configuration: configuration), configRoot: config, ghHosts: gh)
         let reading = try await provider.fetch()
-        #expect(abs((reading.windows[0].usedFraction ?? 0) - 2.0 / 3) < 1e-9)
+        // 100 of 300 premium requests left, so two thirds of them are spent.
+        let twoThirds = 2.0 / 3
+        let drift = abs((reading.windows[0].usedFraction ?? 0) - twoThirds)
+        #expect(drift < 1e-9)
         #expect(answers.tokens == ["gho_stale", "gho_live"])
         // The live token is remembered and tried first next time.
         _ = try await provider.fetch()
@@ -212,7 +222,8 @@ import Testing
                        {"date":"2026-09-02","product":"Copilot","quantity":30,"grossAmount":1.2,"discountAmount":1.2,"netAmount":0}]}
         """
         let windows = CopilotProvider.parseOrgBilling(Data(summary.utf8), org: "acme")
-        #expect(windows.map(\.id) == ["org_acme_credits", "org_acme_spend"])
+        let ids = windows.map(\.id)
+        #expect(ids == ["org_acme_credits", "org_acme_spend"])
         #expect(windows[0].label == "acme org credits")
         #expect(windows[0].hiddenByDefault)
         #expect(windows[0].usedFraction == nil)

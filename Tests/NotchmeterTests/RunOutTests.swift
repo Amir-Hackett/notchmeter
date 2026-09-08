@@ -29,8 +29,9 @@ import Testing
         let rows = drains(rates: [0.1, 0.1, 0.1, 0.1], reset: reset)
         let interval = try #require(RunOutInterval.estimate(samples: rows, usedFraction: 0.4, resetsAt: reset, now: now))
         // 60 % left at 0.1/h is six hours, past the reset, at every quantile.
-        #expect(abs(interval.earliest - 6 * 3600) < 60)
-        #expect(abs(interval.latest - 6 * 3600) < 60)
+        let sixHours = 6.0 * 3600
+        #expect(abs(interval.earliest - sixHours) < 60)
+        #expect(abs(interval.latest - sixHours) < 60)
         #expect(!interval.isWide)
         #expect(interval.text(now: now, resetsAt: reset, format: .twentyFourHour) == nil)
     }
@@ -42,21 +43,26 @@ import Testing
         #expect(interval.earliest < interval.latest)
         #expect(interval.isWide)
         // The true rates were 0.02 and 0.12 per hour: 30 % left runs out between 2.5 h and 15 h.
-        #expect(abs(interval.earliest - 2.5 * 3600) < 120)
-        #expect(abs(interval.latest - 15 * 3600) < 600)
+        let twoAndAHalfHours = 2.5 * 3600
+        let fifteenHours = 15.0 * 3600
+        #expect(abs(interval.earliest - twoAndAHalfHours) < 120)
+        #expect(abs(interval.latest - fifteenHours) < 600)
         var utc = Calendar(identifier: .gregorian)
         utc.timeZone = TimeZone(identifier: "UTC")!
         let text = try #require(interval.text(now: now, resetsAt: reset, format: .twentyFourHour, calendar: utc))
         #expect(text.hasPrefix("Runs out from 14:"))
-        let sooner = try #require(RunOutInterval.estimate(samples: rows, usedFraction: 0.7, resetsAt: now.addingTimeInterval(20 * 3600), now: now))
-        #expect(sooner.text(now: now, resetsAt: now.addingTimeInterval(20 * 3600), format: .twentyFourHour, calendar: utc)?.hasPrefix("Runs out 14:") == true)
-        #expect(NotificationScheduler.stage(for: LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.7, resetsAt: reset, periodDuration: Period.fiveHours),
-                                            now: now, runOut: interval) == .behind)
+        let inTwentyHours = now.addingTimeInterval(20 * 3600)
+        let sooner = try #require(RunOutInterval.estimate(samples: rows, usedFraction: 0.7, resetsAt: inTwentyHours, now: now))
+        let soonerText = sooner.text(now: now, resetsAt: inTwentyHours, format: .twentyFourHour, calendar: utc)
+        #expect(soonerText?.hasPrefix("Runs out 14:") == true)
+        let session = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.7, resetsAt: reset, periodDuration: Period.fiveHours)
+        #expect(NotificationScheduler.stage(for: session, now: now, runOut: interval) == .behind)
     }
 
     @Test func tooFewRatesOrARunOutPastTheResetGiveNothing() {
         let reset = now.addingTimeInterval(3600)
-        #expect(RunOutInterval.estimate(samples: drains(rates: [0.1], reset: reset), usedFraction: 0.5, resetsAt: reset, now: now)?.sampleCount ?? 0 < RunOutInterval.minimumSamples || true)
+        let samplesFromOneHour = RunOutInterval.estimate(samples: drains(rates: [0.1], reset: reset), usedFraction: 0.5, resetsAt: reset, now: now)?.sampleCount ?? 0
+        #expect(samplesFromOneHour < RunOutInterval.minimumSamples || true)
         #expect(RunOutInterval.estimate(samples: [], usedFraction: 0.5, resetsAt: reset, now: now) == nil)
         #expect(RunOutInterval.estimate(samples: drains(rates: [0.1, 0.1], reset: reset), usedFraction: 1, resetsAt: reset, now: now) == nil)
         let rows = drains(rates: [0.2, 0.2, 0.2, 0.2], reset: now.addingTimeInterval(-60))

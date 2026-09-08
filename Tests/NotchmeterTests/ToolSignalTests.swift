@@ -352,7 +352,9 @@ import Testing
     /// arrived.
     @MainActor @Test func everyMarkIsDrawnRoundAndWhollyInsideTheReadoutsOwnBox() throws {
         let side = Int(CompactRings.side * Self.markScale)
-        #expect(Self.raster(CompactRings(tool: .claude, status: .waiting)).map { ($0.width, $0.height) }.map { $0 == (side, side) } == true,
+        let rendersAsItsOwnBox = Self.raster(CompactRings(tool: .claude, status: .waiting))
+            .map { ($0.width, $0.height) }.map { $0 == (side, side) } == true
+        #expect(rendersAsItsOwnBox,
                 "the readout must render as the box it claims to be, or the bounds below are being checked against the wrong edges")
         for signal in [ToolSignal.waiting(count: 1), .waiting(count: 3), .finished(turn: 600)] {
             let whole = try #require(Self.markBounds(signal, room: 12), "the mark drew nothing, so there is no shape to measure")

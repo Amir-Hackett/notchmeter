@@ -173,8 +173,10 @@ import Testing
             let claudeFirst = CostSelection(all: [claude, cursor], order: [.claude, .cursor, .codex], carried: carried)
             #expect(claudeFirst.providers.map(\.tool) == [.claude, .cursor])
             #expect(CostDonut.arcs(claudeFirst.weights(range: .today, mode: .cost)).map(\.tool) == [.claude, .cursor])
-            // The same assistants either way round, so only the order moved.
-            #expect(abs(cursorFirst.totals(.today).cost - claudeFirst.totals(.today).cost) < 1e-9)
+            // The same assistants either way round, so only the order moved. Named before the macro sees it,
+            // for the reason CostBreakdownTests gives.
+            let drift = abs(cursorFirst.totals(.today).cost - claudeFirst.totals(.today).cost)
+            #expect(drift < 1e-9)
         }
     }
 

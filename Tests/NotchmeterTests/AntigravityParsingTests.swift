@@ -21,9 +21,12 @@ import Testing
         let reading = try AntigravityProvider.parseQuota(Data(json.utf8), plan: "Standard", now: Date(timeIntervalSince1970: 0))
         #expect(reading.tool == .antigravity)
         #expect(reading.plan == "Standard")
-        #expect(reading.windows.map(\.label) == ["Gemini Pro", "Gemini Flash", "Gemini Flash Lite", "Claude Sonnet 4.5"])
-        #expect(reading.windows.map(\.id) == ["gemini_pro", "gemini_flash", "gemini_flash_lite", "model_claude-sonnet-4-5"])
-        #expect(reading.windows.map(\.model) == reading.windows.map(\.label))
+        let labels = reading.windows.map(\.label)
+        let ids = reading.windows.map(\.id)
+        let models = reading.windows.map(\.model)
+        #expect(labels == ["Gemini Pro", "Gemini Flash", "Gemini Flash Lite", "Claude Sonnet 4.5"])
+        #expect(ids == ["gemini_pro", "gemini_flash", "gemini_flash_lite", "model_claude-sonnet-4-5"])
+        #expect(models == labels)
         let used = reading.windows.map { $0.usedFraction ?? -1 }
         #expect(abs(used[0] - 0.4) < 1e-9)
         #expect(abs(used[1] - 0.1) < 1e-9)
@@ -44,8 +47,10 @@ import Testing
                     {"modelId":"gemini-2.5-flash","remainingFraction":1.4}]}
         """
         let reading = try AntigravityProvider.parseQuota(Data(json.utf8), plan: nil)
-        #expect(reading.windows.map(\.label) == ["Gemini Pro", "Gemini Flash"])
-        #expect(abs((reading.windows[0].usedFraction ?? 0) - 0.7) < 1e-9)
+        let labels = reading.windows.map(\.label)
+        #expect(labels == ["Gemini Pro", "Gemini Flash"])
+        let tightest = reading.windows[0].usedFraction ?? 0
+        #expect(abs(tightest - 0.7) < 1e-9)
         #expect(reading.windows[0].resetsAt == DateParsing.iso8601("2026-09-01T20:00:00Z"))
         #expect(reading.windows[1].usedFraction == 0)
         #expect(reading.windows[1].resetsAt == nil)
@@ -66,7 +71,8 @@ import Testing
         let credentials = try AntigravityProvider.parseCredentials(Data(json.utf8))
         #expect(credentials.accessToken == "ya29.test")
         #expect(credentials.expiresAt == Date(timeIntervalSince1970: 1_756_771_200))
-        #expect(try AntigravityProvider.parseCredentials(Data(#"{"access_token":"t"}"#.utf8)).expiresAt == nil)
+        let withoutAnExpiry = try AntigravityProvider.parseCredentials(Data(#"{"access_token":"t"}"#.utf8))
+        #expect(withoutAnExpiry.expiresAt == nil)
         #expect(throws: ProviderError.self) { try AntigravityProvider.parseCredentials(Data(#"{"refresh_token":"r","access_token":""}"#.utf8)) }
         #expect(throws: ProviderError.self) { try AntigravityProvider.parseCredentials(Data("[]".utf8)) }
     }
@@ -87,7 +93,8 @@ import Testing
         let licensed = try AntigravityProvider.parseAccount(Data(#"{"currentTier":{"id":"standard-tier"},"ineligibleTiers":[{"reasonCode":"UNSUPPORTED_CLIENT","tierId":"free-tier"}]}"#.utf8))
         #expect(licensed.plan == "Standard")
         #expect(!licensed.unsupported)
-        #expect(try AntigravityProvider.parseAccount(Data("{}".utf8)) == AntigravityProvider.Account(project: nil, plan: nil, unsupported: false))
+        let empty = try AntigravityProvider.parseAccount(Data("{}".utf8))
+        #expect(empty == AntigravityProvider.Account(project: nil, plan: nil, unsupported: false))
     }
 
     @Test func namesPlansAndModels() {
@@ -236,15 +243,19 @@ import Testing
         }
         let reading = try await provider.fetch()
         #expect(reading.plan == "Standard")
-        #expect(reading.windows.map(\.label) == ["Gemini Pro"])
+        let labels = reading.windows.map(\.label)
+        #expect(labels == ["Gemini Pro"])
         #expect(reading.windows[0].usedFraction == 0.25)
 
         let seen = exchange.seen
-        #expect(seen.map { $0.request.url } == [AntigravityProvider.codeAssistURL, AntigravityProvider.quotaURL])
-        #expect(seen.map { $0.body as NSDictionary } == [
+        let calledInTurn = seen.map { $0.request.url }
+        #expect(calledInTurn == [AntigravityProvider.codeAssistURL, AntigravityProvider.quotaURL])
+        let bodies = seen.map { $0.body as NSDictionary }
+        let expectedBodies: [NSDictionary] = [
             ["metadata": ["ideType": "GEMINI_CLI", "platform": "PLATFORM_UNSPECIFIED", "pluginType": "GEMINI"]] as NSDictionary,
             ["project": "managed-project-123"] as NSDictionary,
-        ])
+        ]
+        #expect(bodies == expectedBodies)
         for (request, _) in seen {
             #expect(request.httpMethod == "POST")
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer ya29.live")
@@ -258,7 +269,8 @@ import Testing
         let unsupported = json(["ineligibleTiers": [["reasonCode": "UNSUPPORTED_CLIENT", "tierId": "free-tier"]]])
         exchange.answer = { url in url.path == "/v1internal:loadCodeAssist" ? (200, unsupported) : (500, Data()) }
         #expect(await failure(of: provider) == .unavailable)
-        #expect(exchange.seen.map { $0.request.url } == [AntigravityProvider.codeAssistURL])
+        let calledInTurn = exchange.seen.map { $0.request.url }
+        #expect(calledInTurn == [AntigravityProvider.codeAssistURL])
     }
 
     @Test func refusalsAreMappedToTheirCauses() async throws {
@@ -315,17 +327,26 @@ func failure(of provider: AntigravityProvider) async -> ProviderFailure? {
     let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
 
     @Test func twoConsecutiveResetsFiveHoursApartConfirmASessionWindow() throws {
-        #expect(AntigravityPeriods.period(betweenResets: 5 * 3600) == Period.fiveHours)
-        #expect(AntigravityPeriods.period(betweenResets: 5.5 * 3600) == Period.fiveHours)
-        #expect(AntigravityPeriods.period(betweenResets: 7 * 86400 - 3600) == Period.week)
-        #expect(AntigravityPeriods.period(betweenResets: 3 * 3600) == nil)
-        let first = now.addingTimeInterval(-5 * 3600)
-        #expect(AntigravityPeriods.confirmedPeriod(resets: [first, first, now, now.addingTimeInterval(30)]) == Period.fiveHours)
+        let fiveHours = 5.0 * 3600
+        let fiveAndAHalfHours = 5.5 * 3600
+        let aWeekLessAnHour = 7.0 * 86400 - 3600
+        let threeHours = 3.0 * 3600
+        #expect(AntigravityPeriods.period(betweenResets: fiveHours) == Period.fiveHours)
+        #expect(AntigravityPeriods.period(betweenResets: fiveAndAHalfHours) == Period.fiveHours)
+        #expect(AntigravityPeriods.period(betweenResets: aWeekLessAnHour) == Period.week)
+        #expect(AntigravityPeriods.period(betweenResets: threeHours) == nil)
+        let first = now.addingTimeInterval(-fiveHours)
+        let resetsFiveHoursApart = [first, first, now, now.addingTimeInterval(30)]
+        #expect(AntigravityPeriods.confirmedPeriod(resets: resetsFiveHoursApart) == Period.fiveHours)
         #expect(AntigravityPeriods.confirmedPeriod(resets: [now]) == nil)
-        #expect(AntigravityPeriods.confirmedPeriod(resets: [now.addingTimeInterval(-2 * 86400), now]) == nil)
-        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: now.addingTimeInterval(3 * 3600), now: now) == Period.fiveHours)
-        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: now.addingTimeInterval(20 * 3600), now: now) == Period.day)
-        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: now.addingTimeInterval(5 * 86400), now: now) == Period.week)
+        let resetsTwoDaysApart = [now.addingTimeInterval(-2.0 * 86400), now]
+        #expect(AntigravityPeriods.confirmedPeriod(resets: resetsTwoDaysApart) == nil)
+        let inThreeHours = now.addingTimeInterval(threeHours)
+        let inTwentyHours = now.addingTimeInterval(20.0 * 3600)
+        let inFiveDays = now.addingTimeInterval(5.0 * 86400)
+        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: inThreeHours, now: now) == Period.fiveHours)
+        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: inTwentyHours, now: now) == Period.day)
+        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: inFiveDays, now: now) == Period.week)
         #expect(AntigravityPeriods.provisionalPeriod(resetsAt: now.addingTimeInterval(-1), now: now) == nil)
     }
 

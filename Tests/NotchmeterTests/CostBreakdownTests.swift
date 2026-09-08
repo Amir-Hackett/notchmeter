@@ -22,7 +22,8 @@ import Testing
         let jsonl = """
         {"type":"assistant","timestamp":"2026-09-01T14:40:00.000Z","requestId":"req_w","cwd":"/Users/me/Developer/notchmeter","message":{"id":"msg_w","model":"claude-sonnet-5","usage":{"input_tokens":1000,"output_tokens":100,"inference_geo":"us","server_tool_use":{"web_search_requests":3,"web_fetch_requests":1}}}}
         """
-        #expect(abs(summary(jsonl).last30Days - 0.0333) < 1e-9)
+        let spend = summary(jsonl).last30Days
+        #expect(abs(spend - 0.0333) < 1e-9)
     }
 
     @Test func fastModeDoublesOpusRates() {
@@ -30,11 +31,14 @@ import Testing
         let fast = """
         {"type":"assistant","timestamp":"2026-09-01T14:40:00.000Z","requestId":"req_f","message":{"id":"msg_f","model":"claude-opus-4-8","usage":{"input_tokens":1000,"output_tokens":100,"speed":"fast"}}}
         """
-        #expect(abs(summary(fast).last30Days - 0.015) < 1e-9)
+        let fastSpend = summary(fast).last30Days
+        #expect(abs(fastSpend - 0.015) < 1e-9)
         let standard = fast.replacingOccurrences(of: "\"speed\":\"fast\"", with: "\"speed\":\"standard\"")
-        #expect(abs(summary(standard).last30Days - 0.0075) < 1e-9)
+        let standardSpend = summary(standard).last30Days
+        #expect(abs(standardSpend - 0.0075) < 1e-9)
         let sonnet = fast.replacingOccurrences(of: "claude-opus-4-8", with: "claude-sonnet-5")
-        #expect(abs(summary(sonnet).last30Days - 0.003) < 1e-9)
+        let sonnetSpend = summary(sonnet).last30Days
+        #expect(abs(sonnetSpend - 0.003) < 1e-9)
         #expect(ModelPricing.rates(for: "claude-opus-5", speed: "fast") == ModelPricing.opusFast)
         #expect(ModelPricing.rates(for: "claude-opus-4-6", speed: "fast") == ModelPricing.opus5)
     }
@@ -46,17 +50,22 @@ import Testing
         {"type":"assistant","timestamp":"2026-09-01T14:42:00.000Z","requestId":"r3","message":{"id":"m3","model":"claude-haiku-4-5","usage":{"input_tokens":1000000,"output_tokens":0}}}
         """
         let entries = ClaudeCostScanner.parseFile(Data(jsonl.utf8), project: "fallback")
-        #expect(entries.map(\.project) == ["notchmeter", "scout", "fallback"])
+        let projects = entries.map(\.project)
+        #expect(projects == ["notchmeter", "scout", "fallback"])
         let totals = ClaudeCostScanner.summarize(entries, now: now, daysBack: 30, calendar: utc).totals(.today)
-        #expect(totals.projects.map(\.name) == ["scout", "notchmeter", "fallback"])
-        #expect(totals.projects.map(\.cost) == [5, 2, 1])
-        #expect(totals.models.map(\.name) == ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"])
+        let ranked = totals.projects.map(\.name)
+        let rankedCost = totals.projects.map(\.cost)
+        let models = totals.models.map(\.name)
+        #expect(ranked == ["scout", "notchmeter", "fallback"])
+        #expect(rankedCost == [5, 2, 1])
+        #expect(models == ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"])
         #expect(totals.tokens.total == 3_000_000)
         #expect(ClaudeCostScanner.projectName(fromFolder: "-Users-amirhackett-Developer-notchmeter") == "notchmeter")
         #expect(ClaudeCostScanner.projectName(fromFolder: "---") == nil)
         #expect(ClaudeCostScanner.projectName(fromPath: "/") == nil)
         let five = CostShare.top(["a": 5, "b": 4, "c": 3, "d": 2, "e": 1, "f": 0.5, "zero": 0])
-        #expect(five.map(\.name) == ["a", "b", "c", "d", CostShare.other])
+        let topFive = five.map(\.name)
+        #expect(topFive == ["a", "b", "c", "d", CostShare.other])
         #expect(five.last?.cost == 1.5)
     }
 
@@ -76,7 +85,8 @@ import Testing
         let week = try #require(cost.week)
         #expect(week.start == weekly.addingTimeInterval(-Period.week))
         #expect(abs(week.cost - 8) < 1e-9)
-        #expect(abs(try #require(week.perPercent) - 0.16) < 1e-9)
+        let perPercent = try #require(week.perPercent)
+        #expect(abs(perPercent - 0.16) < 1e-9)
         #expect(abs(cost.totals(.week).cost - 8) < 1e-9)
         #expect(abs(cost.totals(.month).cost - 4) < 1e-9)
         #expect(abs(cost.today - 4) < 1e-9)
@@ -87,8 +97,13 @@ import Testing
         #expect(block.start == session.addingTimeInterval(-Period.fiveHours))
         #expect(abs(block.cost - 2) < 1e-9)
         #expect(block.tokens.total == 1_000_000)
-        // 1,000,000 tokens since the block's first entry at 13:00, two hours before now.
-        #expect(abs(try #require(block.tokensPerMinute) - 1_000_000 / 120) < 1e-6)
+        // 1,000,000 tokens since the block's first entry at 13:00, two hours before now. Both sides are named
+        // before the macro sees them: #expect wraps every operand in a tree of callAsFunction overloads so it can
+        // report which side differed, and bare literals doing arithmetic inside that tree are what pushed this
+        // file past the solver-scope budget scripts/test.sh sets.
+        let perMinute = try #require(block.tokensPerMinute)
+        let expectedPerMinute = 1_000_000.0 / 120
+        #expect(abs(perMinute - expectedPerMinute) < 1e-6)
         #expect(abs(cost.lastHour - 1) < 1e-9)
         let noWindows = summary(jsonl)
         #expect(noWindows.block == nil)
@@ -115,7 +130,8 @@ import Testing
         #expect(coarse.lastHour == 0)
         #expect(fine.lastHour == 2)
         #expect(fine.daily.last?.topModel == "claude-sonnet-5")
-        #expect(fine.daily.first { utc.component(.day, from: $0.day) == 20 }?.topModel == "claude-opus-5")
+        let theTwentieth = fine.daily.first { utc.component(.day, from: $0.day) == 20 }
+        #expect(theTwentieth?.topModel == "claude-opus-5")
         #expect(ModelPricing.fingerprint.hasPrefix(ModelPricing.snapshotDate))
     }
 
@@ -201,7 +217,8 @@ import Testing
             #expect(JSON.number(row["input"]) == rates.input, Comment(rawValue: prefix))
             #expect(JSON.number(row["output"]) == rates.output, Comment(rawValue: prefix))
         }
-        #expect(Set(models.keys) == Set(ModelPricing.table.map(\.prefix)))
+        let prefixes = Set(ModelPricing.table.map(\.prefix))
+        #expect(Set(models.keys) == prefixes)
         #expect(JSON.number(root["webSearchPerRequest"]) == ModelPricing.webSearchRequest)
     }
 
@@ -218,11 +235,13 @@ import Testing
         try Data((line.replacingOccurrences(of: "\"requestId\":\"r\"", with: "\"requestId\":\"s\"") + "\n").utf8).write(to: synced.appendingPathComponent("s.jsonl"))
         let roots = [dir.appendingPathComponent("local-agent-mode-sessions"), dir.appendingPathComponent("synced")]
         let files = ClaudeCostScanner.transcriptFiles(under: roots)
-        #expect(files.map(\.project) == ["Cowork", "scout"])
+        let projects = files.map(\.project)
+        #expect(projects == ["Cowork", "scout"])
         let scanner = ClaudeCostScanner(roots: roots, cacheURL: dir.appendingPathComponent("cache.json"), history: nil)
         let cost = await scanner.scan(now: now)
         #expect(abs(cost.today - 4) < 1e-9)
-        #expect(cost.totals(.today).projects.map(\.name) == ["Cowork", "scout"])
+        let named = cost.totals(.today).projects.map(\.name)
+        #expect(named == ["Cowork", "scout"])
         let again = await scanner.scan(now: now)
         #expect(again.today == cost.today)
         #expect(ClaudeCostScanner.transcriptFolder(of: dir.appendingPathComponent("synced")).lastPathComponent == "projects")
@@ -258,7 +277,8 @@ import Testing
         let fresh = try #require(stored.first { $0.key.hasSuffix("recent.jsonl") }?.value)
         #expect(aged["entries"] == nil)
         #expect(aged["digest"] != nil)
-        #expect((fresh["entries"] as? [Any])?.count == 1)
+        let freshEntries = fresh["entries"] as? [Any]
+        #expect(freshEntries?.count == 1)
         // The aged file's money survives it: the digest carries the day, and a second scan reads the same totals.
         #expect(abs(first.today - 4) < 1e-9)
         let again = await scanner.scan(now: now)
@@ -319,8 +339,10 @@ import Testing
         let object = UsageReport(tools: [:], cost: summary, advice: [], now: now).object
         let ranges = (object["cost"] as? [String: Any])?["ranges"] as? [String: Any]
         let buckets = (ranges?["today"] as? [String: Any])?["tokenBuckets"] as? [String: Any]
-        #expect(buckets?["cacheWrite5m"] as? Int == 600_000)
-        #expect(buckets?["cacheWrite1h"] as? Int == 0)
+        let write5m = buckets?["cacheWrite5m"] as? Int
+        let write1h = buckets?["cacheWrite1h"] as? Int
+        #expect(write5m == 600_000)
+        #expect(write1h == 0)
     }
 
     @Test func historyExportsAsCSVAndJSONRows() throws {
@@ -336,13 +358,15 @@ import Testing
         let rows = try #require(try JSONSerialization.jsonObject(with: CostHistory.json(records, calendar: utc)) as? [[String: Any]])
         #expect(rows.count == 1)
         #expect(rows[0]["day"] as? String == "2026-09-01")
-        #expect((rows[0]["tokenBuckets"] as? [String: Any])?["cacheRead"] as? Int == 4)
+        let cacheRead = (rows[0]["tokenBuckets"] as? [String: Any])?["cacheRead"] as? Int
+        #expect(cacheRead == 4)
         #expect(rows[0]["topModel"] as? String == "claude-opus-5")
         #expect(rows[0]["sessionTokensPerPercent"] as? Int == 140_000)
         let quoted = CostHistory.csv([day: CostHistory.Record(cost: 1, tokens: TokenBreakdown(), byModel: [:], byProject: ["a,b": 1])], calendar: utc)
         #expect(quoted.contains("\"a,b:1.0000\""))
         let report = UsageReport(tools: [:], cost: nil, advice: [], history: records, now: day)
-        #expect(((report.object["history"] as? [[String: Any]])?.first?["cost"] as? NSNumber)?.doubleValue == 12.5)
+        let exportedCost = (report.object["history"] as? [[String: Any]])?.first?["cost"] as? NSNumber
+        #expect(exportedCost?.doubleValue == 12.5)
     }
 }
 

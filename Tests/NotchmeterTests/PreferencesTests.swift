@@ -112,24 +112,41 @@ import Testing
             let store = UsageStore(prefs: prefs, providers: readings.map { FixtureProvider(reading: $0) },
                                    cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
             store.seed(readings: readings, cost: DemoFixtures.cost(now: now), nextUpdate: now.addingTimeInterval(60), now: now)
-            #expect(store.visibleTools == [.claude, .codex, .cursor])
+            // Every expected list is named and typed first, so the solver resolves the members here rather than
+            // inside the macro's expansion, where each operand is wrapped in a tree of callAsFunction overloads.
+            let asShipped: [ToolID] = [.claude, .codex, .cursor]
+            let cursorSecond: [ToolID] = [.claude, .cursor, .codex]
+            let claudeSecond: [ToolID] = [.cursor, .claude, .codex]
+            let wholeOrder: [ToolID] = [.claude, .cursor, .codex, .antigravity, .copilot]
+            let spending: [ToolID] = [.cursor, .claude]
+            #expect(store.visibleTools == asShipped)
             prefs.move(.cursor, by: -1)
-            #expect(store.visibleTools == [.claude, .cursor, .codex])
-            #expect(store.readyReadings.map(\.tool) == [.claude, .cursor, .codex])
-            #expect(store.adviceContext(now: now).toolOrder == [.claude, .cursor, .codex, .antigravity, .copilot])
+            #expect(store.visibleTools == cursorSecond)
+            let ready = store.readyReadings.map(\.tool)
+            #expect(ready == cursorSecond)
+            let advised = store.adviceContext(now: now).toolOrder
+            #expect(advised == wholeOrder)
             prefs.move(.claude, by: 1)
-            #expect(store.visibleTools == [.cursor, .claude, .codex])
+            #expect(store.visibleTools == claudeSecond)
             // The Cost card reads the same preference, so its donut, its legend and its detail block move with it;
             // an assistant that reported no spend is not in the selection to lead it (CostAbsence names it instead).
             let selection = store.costSelection
-            #expect(selection == CostSelection(all: store.cost?.providers ?? [], order: prefs.toolOrder, carried: prefs.costCardTools))
-            #expect(selection.providers.map(\.tool) == [.cursor, .claude])
-            #expect(CostDonut.arcs(selection.weights(range: .today, mode: .cost)).map(\.tool) == [.cursor, .claude])
+            let fromTheSamePreference = CostSelection(all: store.cost?.providers ?? [], order: prefs.toolOrder, carried: prefs.costCardTools)
+            #expect(selection == fromTheSamePreference)
+            let inTheSelection = selection.providers.map(\.tool)
+            #expect(inTheSelection == spending)
+            let segments = CostDonut.arcs(selection.weights(range: .today, mode: .cost)).map(\.tool)
+            #expect(segments == spending)
             // Codex is carried and shown but reported no spend, so it is named under the legend rather than
             // drawn as a zero slice — and its reason is the one the app already knows.
-            #expect(store.costGaps.map(\.tool) == [.codex])
+            let named = store.costGaps.map(\.tool)
+            let noSpendToShow: [ToolID] = [.codex]
+            #expect(named == noSpendToShow)
             prefs.move(.claude, by: -1)
-            #expect(store.costSelection.providers.map(\.tool) == [.claude, .cursor])
+            // Typed, so the solver resolves the members here rather than inside the macro's expansion.
+            let moved: [ToolID] = [.claude, .cursor]
+            let afterTheMove = store.costSelection.providers.map(\.tool)
+            #expect(afterTheMove == moved)
         }
     }
 }
@@ -197,7 +214,8 @@ import Testing
             prefs.keychainPrompts = .refreshOnly
             prefs.proxyURL = ""
         }
-        #expect(ProxySettings.dictionary(for: "socks5://proxy.local:1080")?[kCFNetworkProxiesSOCKSProxy] as? String == "proxy.local")
+        let socksHost = ProxySettings.dictionary(for: "socks5://proxy.local:1080")?[kCFNetworkProxiesSOCKSProxy] as? String
+        #expect(socksHost == "proxy.local")
         #expect(ProxySettings.dictionary(for: "http://proxy.local:3128")?[kCFNetworkProxiesHTTPSPort] as? Int == 3128)
         #expect(ProxySettings.dictionary(for: "") == nil)
         #expect(ProxySettings.dictionary(for: "ftp://x:1") == nil)

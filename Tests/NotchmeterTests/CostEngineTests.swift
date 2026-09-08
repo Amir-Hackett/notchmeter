@@ -41,7 +41,8 @@ import Testing
         defer { try? FileManager.default.removeItem(at: home) }
         let summary = await engine.scan(now: now, calendar: utc)
         // Codex has no sessions and Cursor no export: neither is a zero row, both are simply absent.
-        #expect(summary.providers.map(\.tool) == [.claude])
+        let scanned = summary.providers.map(\.tool)
+        #expect(scanned == [.claude])
         #expect(summary.provider(.codex) == nil)
         #expect(summary.provider(.cursor) == nil)
         #expect(abs(summary.today - 0.0275) < 1e-9)
@@ -57,19 +58,29 @@ import Testing
         let (engine, home) = try makeEngine(cursorDays: cursorDays)
         defer { try? FileManager.default.removeItem(at: home) }
         let summary = await engine.scan(reads: [.cursor: ProviderReadState(readAt: now.addingTimeInterval(-120))], now: now, calendar: utc)
-        #expect(summary.providers.map(\.tool) == [.claude, .cursor])
-        #expect(summary.providers.map(\.source) == [.localTranscripts, .billingExport])
-        #expect(abs(summary.today - (0.0275 + 1.25)) < 1e-9)
+        let scanned = summary.providers.map(\.tool)
+        let sources = summary.providers.map(\.source)
+        #expect(scanned == [.claude, .cursor])
+        #expect(sources == [.localTranscripts, .billingExport])
+        // Claude's transcript and Cursor's export, added up: the same pair of figures reads as today's total,
+        // as the last row of the daily series, and (with yesterday's 0.5) as the thirty-day total.
+        let bothToday = 0.0275 + 1.25
+        let bothOverThirtyDays = 0.0275 + 1.75
+        #expect(abs(summary.today - bothToday) < 1e-9)
         #expect(abs(summary.yesterday - 0.5) < 1e-9)
-        #expect(abs(summary.last30Days - (0.0275 + 1.75)) < 1e-9)
+        #expect(abs(summary.last30Days - bothOverThirtyDays) < 1e-9)
         #expect(summary.daily.count == 30)
-        #expect(abs((summary.daily.last?.cost ?? 0) - (0.0275 + 1.25)) < 1e-9)
+        let lastDay = summary.daily.last?.cost ?? 0
+        #expect(abs(lastDay - bothToday) < 1e-9)
         // Each tool keeps its own figures beside the total.
-        #expect(abs((summary.provider(.claude)?.totals(.today).cost ?? 0) - 0.0275) < 1e-9)
-        #expect(abs((summary.provider(.cursor)?.totals(.today).cost ?? 0) - 1.25) < 1e-9)
+        let claudeToday = summary.provider(.claude)?.totals(.today).cost ?? 0
+        let cursorToday = summary.provider(.cursor)?.totals(.today).cost ?? 0
+        #expect(abs(claudeToday - 0.0275) < 1e-9)
+        #expect(abs(cursorToday - 1.25) < 1e-9)
         #expect(summary.provider(.cursor)?.scannedAt == now.addingTimeInterval(-120))
         // The models of both tools rank together in the total.
-        #expect(summary.totals(.last30Days).models.map(\.name) == ["gpt-5.3-codex", "claude-sonnet-5"])
+        let ranked = summary.totals(.last30Days).models.map(\.name)
+        #expect(ranked == ["gpt-5.3-codex", "claude-sonnet-5"])
     }
 
     /// A tool the user has turned off, or one that cannot report spend at all, is never scanned.
@@ -78,7 +89,8 @@ import Testing
         let (engine, home) = try makeEngine(cursorDays: [day: CostHistory.Record(cost: 1.25, tokens: TokenBreakdown(), byModel: [:], byProject: [:])])
         defer { try? FileManager.default.removeItem(at: home) }
         let cursorOnly = await engine.scan(tools: [.cursor], now: now, calendar: utc)
-        #expect(cursorOnly.providers.map(\.tool) == [.cursor])
+        let scanned = cursorOnly.providers.map(\.tool)
+        #expect(scanned == [.cursor])
         #expect(abs(cursorOnly.today - 1.25) < 1e-9)
         let none = await engine.scan(tools: [], now: now, calendar: utc)
         #expect(none.providers.isEmpty)
@@ -88,7 +100,8 @@ import Testing
 
     /// The tools that publish no per-request price never reach the engine at all.
     @Test func onlyThreeToolsCanReportSpend() {
-        #expect(ToolID.allCases.filter(\.reportsCost) == [.claude, .codex, .cursor])
+        let reportingCost = ToolID.allCases.filter(\.reportsCost)
+        #expect(reportingCost == [.claude, .codex, .cursor])
         #expect(ToolID.copilot.reportsCost == false)
         #expect(ToolID.antigravity.reportsCost == false)
     }
@@ -98,14 +111,16 @@ import Testing
         let day = utc.startOfDay(for: now)
         let (engine, home) = try makeEngine(cursorDays: [day: CostHistory.Record(cost: 2, tokens: TokenBreakdown(), byModel: [:], byProject: [:])])
         defer { try? FileManager.default.removeItem(at: home) }
-        let stale = ProviderReadState(readAt: now.addingTimeInterval(-3 * 86400), problem: "Cursor's login has expired")
+        let threeDays = 3.0 * 86400
+        let stale = ProviderReadState(readAt: now.addingTimeInterval(-threeDays), problem: "Cursor's login has expired")
         let summary = await engine.scan(reads: [.cursor: stale], now: now, calendar: utc)
         let cursor = try #require(summary.provider(.cursor))
         #expect(cursor.problem == "Cursor's login has expired")
-        #expect(cursor.scannedAt == now.addingTimeInterval(-3 * 86400))
+        #expect(cursor.scannedAt == now.addingTimeInterval(-threeDays))
         #expect(abs(cursor.totals(.today).cost - 2) < 1e-9)
         // The Claude scan is untouched by it.
         #expect(summary.provider(.claude)?.problem == nil)
-        #expect(abs((summary.provider(.claude)?.totals(.today).cost ?? 0) - 0.0275) < 1e-9)
+        let claudeToday = summary.provider(.claude)?.totals(.today).cost ?? 0
+        #expect(abs(claudeToday - 0.0275) < 1e-9)
     }
 }

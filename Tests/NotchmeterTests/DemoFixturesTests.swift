@@ -9,15 +9,20 @@ import Testing
     @Test func costSeriesAddsUpToTheHeadlineFigures() {
         let cost = DemoFixtures.cost(now: Date())
         // Two tools that can report spend, side by side; the headline figures are their total.
-        #expect(cost.providers.map(\.tool) == [.claude, .cursor])
-        #expect(cost.providers.map(\.source) == [.localTranscripts, .billingExport])
-        #expect(abs(cost.today - cost.providers.reduce(0) { $0 + $1.totals(.today).cost }) < 1e-9)
+        let tools = cost.providers.map(\.tool)
+        let sources = cost.providers.map(\.source)
+        #expect(tools == [.claude, .cursor])
+        #expect(sources == [.localTranscripts, .billingExport])
+        let todayAcrossProviders = cost.providers.reduce(0) { $0 + $1.totals(.today).cost }
+        #expect(abs(cost.today - todayAcrossProviders) < 1e-9)
         #expect(cost.provider(.cursor)?.burnMultiple == nil)
         #expect(cost.daily.count == 30)
-        #expect(abs(cost.daily.reduce(0) { $0 + $1.cost } - cost.last30Days) < 0.01)
+        let dailyCostAdded = cost.daily.reduce(0) { $0 + $1.cost }
+        #expect(abs(dailyCostAdded - cost.last30Days) < 0.01)
         #expect(cost.daily.last?.cost == cost.today)
         #expect(cost.daily.dropLast().last?.cost == cost.yesterday)
-        #expect(cost.burnMultiple.map { $0 >= Advisor.burnThreshold } == true)
+        let burnsHardEnough = cost.burnMultiple.map { $0 >= Advisor.burnThreshold }
+        #expect(burnsHardEnough == true)
     }
 
     @Test func everyRingIsQuietAndOnPace() {
@@ -49,7 +54,8 @@ import Testing
     @MainActor @Test func seedsAStoreWithoutAProviderRead() {
         let now = Date()
         let (store, prefs) = DemoFixtures.store(now: now)
-        #expect(store.visibleTools == [.claude, .codex, .cursor])
+        let visible = store.visibleTools
+        #expect(visible == [.claude, .codex, .cursor])
         #expect(store.readyReadings.count == 3)
         #expect(store.nextUpdate != nil)
         #expect(store.advice.contains { $0.id == "burn/claude" })
@@ -82,8 +88,9 @@ import Testing
         #expect(sessions.waiting(of: .claude).count == 1)
         #expect(sessions.waiting(of: .codex).isEmpty)
         #expect(sessions.isWorking(.claude) == false)
-        #expect(ToolSignal.resolve(waiting: sessions.waiting(of: .claude).count, finish: sessions.finish(of: .claude, now: now),
-                                   working: sessions.isWorking(.claude), attended: nil, now: now) == .waiting(count: 1))
+        let signal = ToolSignal.resolve(waiting: sessions.waiting(of: .claude).count, finish: sessions.finish(of: .claude, now: now),
+                                        working: sessions.isWorking(.claude), attended: nil, now: now)
+        #expect(signal == .waiting(count: 1))
     }
 
     @Test func theJustFinishedMomentHoldsATurnThatEndedAndNoWait() {
@@ -91,8 +98,8 @@ import Testing
         #expect(sessions.waiting(of: .claude).isEmpty)
         let finish = sessions.finish(of: .claude, now: now)
         #expect(finish?.turn == turn)
-        #expect(ToolSignal.resolve(waiting: 0, finish: finish, working: sessions.isWorking(.claude), attended: nil, now: now)
-                == .finished(turn: turn))
+        let signal = ToolSignal.resolve(waiting: 0, finish: finish, working: sessions.isWorking(.claude), attended: nil, now: now)
+        #expect(signal == .finished(turn: turn))
     }
 
     /// The failure this guards is a picture with no mark in it at all, which is silent: the render succeeds, the
@@ -106,7 +113,8 @@ import Testing
         }
         #expect(now.timeIntervalSince(since) < SessionTracker.waitingTimeout / 2)
         let finish = DemoFixtures.sessions(now: now, moment: .justFinished).finish(of: .claude, now: now)
-        #expect(finish.map { now.timeIntervalSince($0.at) < ToolSignal.heldFor / 2 } == true)
+        let wellInsideTheHold = finish.map { now.timeIntervalSince($0.at) < ToolSignal.heldFor / 2 }
+        #expect(wellInsideTheHold == true)
     }
 
     /// The fixtures show Claude Code's sessions by choice: Cursor's hook lights the same tick (never the hand, since
@@ -198,7 +206,8 @@ import Testing
         #expect(runs[0].count == runs[1].count)
         #expect(runs[1].lowerBound > runs[0].upperBound, "the runs must not touch, let alone overlap")
         // Both tiles are placed from one spread, so the pair is centred whatever the tile's own size.
-        #expect(abs(runs[0].lowerBound + runs[1].upperBound - Int(Self.canvas.width)) <= 1)
+        let offCentre = runs[0].lowerBound + runs[1].upperBound - Int(Self.canvas.width)
+        #expect(abs(offCentre) <= 1)
     }
 
     /// The second picture is drawn exactly as it is handed over, and no longer flipped. Flipping is what let one
@@ -214,7 +223,8 @@ import Testing
         guard runs.count == 2 else { return }
         // Both stripes sit at their own tile's leading edge, so the gap between the runs is the rest of the first
         // tile plus the margin between them — never the whole tile's width, which is what a flip would give.
-        #expect(runs[1].lowerBound - runs[0].upperBound < Self.tile,
+        let betweenTheStripes = runs[1].lowerBound - runs[0].upperBound
+        #expect(betweenTheStripes < Self.tile,
                 "a stripe drawn at each tile's leading edge is the picture as handed over; a flip would push the second stripe to the far side")
     }
 
@@ -240,7 +250,9 @@ import Testing
                                                 canvas: Self.canvas)
         let runs = try Self.darkRuns(in: frame)
         #expect(runs.count == 1)
-        #expect((runs.first?.upperBound ?? Int.max) <= Int(Self.canvas.width / 2),
+        let pictureEndsAt = runs.first?.upperBound ?? Int.max
+        let theTextColumnStartsAt = Int(Self.canvas.width / 2)
+        #expect(pictureEndsAt <= theTextColumnStartsAt,
                 "the picture crosses the middle of the canvas, which is where the text column begins")
     }
 }
@@ -284,7 +296,8 @@ import Testing
         #expect(cuts.first == 0)
         #expect(cuts.last == image.height)
         for cut in cuts.dropFirst().dropLast() {
-            #expect(Self.isInAGap(cut), "a column ends \(cut % (Self.rowHeight + Self.gap)) px into a row")
+            let intoTheRow = cut % (Self.rowHeight + Self.gap)
+            #expect(Self.isInAGap(cut), "a column ends \(intoTheRow) px into a row")
         }
     }
 
@@ -295,7 +308,8 @@ import Testing
         #expect(heights.allSatisfy { $0 > 0 })
         // A seam travels at most an eighth of a column, so no column is more than a quarter off the even share.
         let even = Double(image.height) / 4
-        #expect(heights.allSatisfy { abs(Double($0) - even) <= even / 4 })
+        let slack = even / 4
+        #expect(heights.allSatisfy { abs(Double($0) - even) <= slack })
     }
 
     /// A capture with nothing to cut on keeps the arithmetic it would have had, rather than losing a column.
@@ -309,6 +323,7 @@ import Testing
             }
         }
         #expect(AssetRenderer.quietBands(in: solid, minimumHeight: 6).isEmpty)
-        #expect(AssetRenderer.columnCuts(of: solid, columns: 4) == [0, 200, 400, 600, 800])
+        let evenCuts: [Int] = [0, 200, 400, 600, 800]
+        #expect(AssetRenderer.columnCuts(of: solid, columns: 4) == evenCuts)
     }
 }

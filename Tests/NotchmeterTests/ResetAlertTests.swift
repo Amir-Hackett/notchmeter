@@ -29,12 +29,14 @@ import Testing
         #expect(early.alerts.isEmpty)
         #expect(early.watched.count == 1)
         let lead = NotificationScheduler.planResets(memory: early.memory, watched: early.watched, now: start.addingTimeInterval(1200), options: options)
-        #expect(lead.alerts.map(\.stage) == [.reminder])
+        let leadStages = lead.alerts.map(\.stage)
+        #expect(leadStages == [.reminder])
         #expect(lead.watched.count == 1)
         let again = NotificationScheduler.planResets(memory: lead.memory, watched: lead.watched, now: start.addingTimeInterval(1500), options: options)
         #expect(again.alerts.isEmpty)
         let reset = NotificationScheduler.planResets(memory: again.memory, watched: again.watched, now: start.addingTimeInterval(1801), options: options)
-        #expect(reset.alerts.map(\.stage) == [.reset])
+        let resetStages = reset.alerts.map(\.stage)
+        #expect(resetStages == [.reset])
         #expect(reset.watched.isEmpty)
         #expect(reset.memory.resets["claude/five_hour"] == watched.window.resetsAt)
         let repeat_ = NotificationScheduler.planResets(memory: reset.memory, watched: [watched], now: start.addingTimeInterval(1900), options: options)
@@ -92,22 +94,24 @@ import Testing
         let out = LimitWindow(id: "five_hour", label: "Session", usedFraction: 1, resetsAt: now.addingTimeInterval(40 * 60), periodDuration: Period.fiveHours)
         let claude = UsageReading(tool: .claude, windows: [out], plan: nil, fetchedAt: now, observedAt: nil)
         let advice = Advisor.advise(Advisor.Context(readings: [claude], now: now))
-        #expect(advice.map(\.text) == ["Claude session resets in 40m; wait rather than switch."])
+        let adviceLines = advice.map(\.text)
+        #expect(adviceLines == ["Claude session resets in 40m; wait rather than switch."])
         #expect(advice.first?.priority == .warn)
         let codex = UsageReading(tool: .codex, windows: [LimitWindow(id: "weekly", label: "Weekly", usedFraction: 0.2, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)],
                                  plan: nil, fetchedAt: now, observedAt: nil)
         #expect(Advisor.waitForReset(Advisor.Context(readings: [claude, codex], now: now)).isEmpty)
         let far = LimitWindow(id: "five_hour", label: "Session", usedFraction: 1, resetsAt: now.addingTimeInterval(3 * 3600), periodDuration: Period.fiveHours)
-        #expect(Advisor.waitForReset(Advisor.Context(readings: [UsageReading(tool: .claude, windows: [far], plan: nil, fetchedAt: now, observedAt: nil)], now: now)).isEmpty)
+        let waitingOnTheFarReset = UsageReading(tool: .claude, windows: [far], plan: nil, fetchedAt: now, observedAt: nil)
+        #expect(Advisor.waitForReset(Advisor.Context(readings: [waitingOnTheFarReset], now: now)).isEmpty)
     }
 
     @Test func waitingNamesTheProjectWhenTheHookKnowsIt() {
         let a = AgentSession(id: "a", project: "notchmeter", state: .waiting(since: now), started: now, lastEvent: now, turnStarted: nil)
         let b = AgentSession(id: "b", project: "scout", state: .waiting(since: now), started: now, lastEvent: now, turnStarted: nil)
-        let named = Advisor.waiting(Advisor.Context(readings: [], awaitingInput: [.claude], waitingSessions: [a, b], now: now))
-        #expect(named.map(\.text) == ["Claude Code is waiting in notchmeter (and 1 more)."])
-        let plain = Advisor.waiting(Advisor.Context(readings: [], awaitingInput: [.claude], now: now))
-        #expect(plain.map(\.text) == ["Claude Code is waiting for your input."])
+        let named = Advisor.waiting(Advisor.Context(readings: [], awaitingInput: [.claude], waitingSessions: [a, b], now: now)).map(\.text)
+        #expect(named == ["Claude Code is waiting in notchmeter (and 1 more)."])
+        let plain = Advisor.waiting(Advisor.Context(readings: [], awaitingInput: [.claude], now: now)).map(\.text)
+        #expect(plain == ["Claude Code is waiting for your input."])
     }
 
     /// The frontmost-terminal rule holds a session notice back only where the user could actually be looking at
