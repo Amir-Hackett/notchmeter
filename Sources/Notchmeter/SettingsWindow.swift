@@ -35,6 +35,72 @@ final class SettingsRequests {
     var updater: () -> Updater? = { nil }
 }
 
+/// One row in the Settings sidebar, and the pane it shows on the right.
+///
+/// Every title is a literal, quoted string handed straight to `L` inside a switch rather than a key built from
+/// the raw value: the localisation scanner only sees literals written at the call site, so a key composed from a
+/// case name would read to it as shipped-but-never-used.
+///
+/// Not file-private: `--render-assets` walks `allCases` and asks for each pane by name, because a capture that
+/// took whatever `@State` happened to default to would be a picture of one sixth of this window.
+enum SettingsPane: String, CaseIterable, Identifiable {
+    case general, appearance, assistants, notifications, integrations, advanced
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .general: return L("General")
+        case .appearance: return L("Appearance")
+        case .assistants: return L("Assistants")
+        case .notifications: return L("Notifications")
+        case .integrations: return L("Integrations")
+        case .advanced: return L("Advanced")
+        }
+    }
+
+    /// One family and one fill weight across the six. An outline glyph beside a solid one reads as two sets
+    /// rather than one list, which is what the first pass shipped: gearshape and terminal were outlines against
+    /// a solid bell and puzzle piece. Every tile is a fill now, and each glyph has to hold at 11 pt — two crossed
+    /// tools (`wrench.and.screwdriver`) turn to mush at that size, so Advanced wears a single wrench.
+    /// `SettingsSidebarTiles` asserts each of these still resolves; a name macOS does not know draws nothing at
+    /// all, with no warning and no crash.
+    var symbol: String {
+        switch self {
+        case .general: return "gearshape.fill"
+        case .appearance: return "paintpalette.fill"
+        case .assistants: return "terminal.fill"
+        case .notifications: return "bell.fill"
+        case .integrations: return "powerplug.fill"
+        case .advanced: return "wrench.adjustable.fill"
+        }
+    }
+
+    /// The tile behind the glyph. Palette.warn and Palette.danger are deliberately absent: they mean "needs
+    /// attention" and "out" a few rows to the right in this same window, and a sidebar that wore them at rest
+    /// would read as alarmed.
+    ///
+    /// Every tile carries an 11 pt semibold white glyph, so every tile owes it the 3:1 WCAG 1.4.11 asks of a
+    /// graphical object. Measured against white under `performAsCurrentDrawingAppearance`, light then dark:
+    /// purple 4.17/3.63, calm 5.19/5.19, pink 3.65/3.52, indigo 5.09/3.51, brown 3.53/3.07, slate 6.45/6.45.
+    /// The system colours do **not** buy adaptivity here: they shift a little between `.aqua` and `.darkAqua`
+    /// and `Increase Contrast` returns the identical sRGB values (`accessibilityHighContrastDarkAqua` answers
+    /// systemGray with the same rgb(152,152,157) `.darkAqua` does), so a tile that fails does so with every
+    /// system remedy switched on. That is why General wears a fixed sRGB grey rather than `.gray`, which is
+    /// 2.87:1 in dark — the worst tile in the sidebar on the pane the window opens on. Brown at 3.07 dark is the
+    /// thinnest margin left; check a replacement against these numbers rather than against the eye.
+    var tint: Color {
+        switch self {
+        case .general: return Palette.slate
+        case .appearance: return .purple
+        case .assistants: return Palette.calm
+        case .notifications: return .pink
+        case .integrations: return .indigo
+        case .advanced: return .brown
+        }
+    }
+}
+
 struct SettingsView: View {
     let store: UsageStore
     let prefs: Preferences
@@ -63,36 +129,34 @@ struct SettingsView: View {
     @State private var originText = ""
     @State private var fullScreenExceptionText = ""
 
+    /// Which pane the sidebar is on. Not optional: a nil selection would leave the detail side blank, and this
+    /// window has no empty state to show there. Seeded through `init` rather than defaulted here, so a caller
+    /// that needs a particular pane on screen — `--render-assets` captures each one in turn — has it laid out
+    /// from the first pass, before `onAppear` has run and without a re-layout the measurement could miss.
+    @State private var pane: SettingsPane
+    /// Pinned to `.all` below. The Settings window is a toolbar-less floating panel, so SwiftUI's sidebar toggle
+    /// is dropped and a collapsed sidebar could never be brought back.
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+
+    init(store: UsageStore, prefs: Preferences, actions: NotchActions, notifier: Notifier, requests: SettingsRequests,
+         hostWindow: @escaping () -> NSWindow?, pane: SettingsPane = .general) {
+        self.store = store
+        self.prefs = prefs
+        self.actions = actions
+        self.notifier = notifier
+        self.requests = requests
+        self.hostWindow = hostWindow
+        _pane = State(initialValue: pane)
+    }
+
     var body: some View {
-        Form {
-            generalSection
-            panelSection
-            shortcutsSection
-            usageSection
-            privacySection
-            notificationsSection
-            assistantsSection
-            hookSection
-            integrationsSection
-            transcriptsSection
-            updatesSection
-            advancedSection
-            Section {
-                Text(L("Version %@", AppInfo.version))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .help(L("%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.", AppInfo.name))
-                // The one ask the app makes, kept to the About footer where a happy user is already looking, in the
-                // same quiet type as the version line: the app is free and stays free, and a button any louder than
-                // this would make it read as if it were not.
-                Button(L("Support %@…", AppInfo.name)) { NSWorkspace.shared.open(AppInfo.supportURL) }
-                    .buttonStyle(.link)
-                    .font(.caption2)
-                    .help(L("An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay."))
-            }
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            sidebar
+        } detail: {
+            detail
         }
-        .formStyle(.grouped)
-        .frame(minWidth: 460, minHeight: 640)
+        .navigationSplitViewStyle(.balanced)
+        .frame(minWidth: SettingsWindowController.minSize.width, minHeight: SettingsWindowController.minSize.height)
         .sheet(item: $showHookSnippet) { vendor in
             HookSnippetView(title: L("%@ hook", vendor.displayName),
                             explanation: L("Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits.", vendor.fileURL.path, vendor.fileName, AppInfo.name,
@@ -121,10 +185,93 @@ struct SettingsView: View {
             proxyText = prefs.proxyURL
             accessibilityTrusted = MenuBarExtent.isTrusted
             refreshHookStatus()
+            // The window can be built with the offer already raised; the onChange below catches it being raised
+            // while the window is open.
+            if requests.hookOffer { pane = .integrations }
         }
         .onChange(of: requests.hookSheetDryRun) { _, url in
             guard let url else { return }
             installHook(at: url, dryRun: true)
+        }
+        // The offer explains the hook rows, so put them on screen behind it rather than leaving the sheet
+        // talking about a pane the reader cannot see.
+        .onChange(of: requests.hookOffer) { _, offered in
+            if offered { pane = .integrations }
+        }
+        // SwiftUI writes to this binding itself, so a constant initial value is not a pin.
+        .onChange(of: columnVisibility) { _, visibility in
+            if visibility != .all { columnVisibility = .all }
+        }
+    }
+
+    // MARK: - The sidebar and the pane it selects
+
+    /// A source list, one row per pane. The rows are ordinary `Label`s in a `List(selection:)`, so Tab reaches
+    /// the list and the arrow keys move through it, and the selected row carries both the list's own fill and a
+    /// heavier title — the selection never rests on colour alone. (The panel spends most of its life not key, so
+    /// that fill is often the inactive grey, which makes the second cue do real work rather than being belt and
+    /// braces.)
+    private var sidebar: some View {
+        List(SettingsPane.allCases, selection: $pane) { item in
+            Label {
+                Text(item.title).fontWeight(item == pane ? .semibold : .regular)
+            } icon: {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(item.tint)
+                    .frame(width: 20, height: 20)
+                    .overlay(Image(systemName: item.symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white))
+                    // Decoration: the row already says "General" in words, and VoiceOver would otherwise read
+                    // the pane name twice, once as the glyph's own name.
+                    .accessibilityHidden(true)
+            }
+            .padding(.vertical, 2)
+        }
+        .listStyle(.sidebar)
+        .navigationSplitViewColumnWidth(190)
+        // The panel has no toolbar of its own and no way to show one, so a toggle that hides the sidebar would
+        // hide it for good; the column visibility below is pinned for the same reason.
+        .toolbar(removing: .sidebarToggle)
+    }
+
+    /// The pane's name as a title, and the pane itself. Switching panes swaps the content outright with no
+    /// transition, so there is nothing here for `prefs.reduceAnimations` to have to turn off.
+    private var detail: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(pane.title)
+                .font(.largeTitle.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, -4)
+            Form {
+                paneContent
+            }
+            .formStyle(.grouped)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder private var paneContent: some View {
+        switch pane {
+        case .general:
+            generalSection
+            updatesSection
+            aboutSection
+        case .appearance:
+            panelSection
+            usageSection
+            shortcutsSection
+        case .assistants:
+            assistantsSection
+            transcriptsSection
+        case .notifications:
+            notificationsSection
+        case .integrations:
+            hookSection
+            integrationsSection
+        case .advanced:
+            privacySection
+            advancedSection
         }
     }
 
@@ -461,18 +608,27 @@ struct SettingsView: View {
             Picker(L("Cost card shows"), selection: Binding(get: { prefs.costCardMode }, set: { prefs.costCardMode = $0 })) {
                 ForEach(CostCardMode.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            LabeledContent(L("In the Cost card")) {
-                ForEach(ToolID.allCases.filter(\.reportsCost), id: \.self) { tool in
-                    Toggle(isOn: Binding(
-                        get: { prefs.costCardTools.contains(tool) },
-                        set: { if $0 { prefs.costCardTools.insert(tool) } else { prefs.costCardTools.remove(tool) } }
-                    )) {
-                        Text(verbatim: tool.displayName)
+            // The same two tests the card itself applies (UsageStore.reportingCostTools): it can report spend, and
+            // it is here to report it. Read from toolOrder rather than allCases so the row is in the order the
+            // help promises — the order set under Assistants — and not the enum's.
+            let costTools = prefs.toolOrder.filter { $0.reportsCost && store.isShown($0) }
+            if !costTools.isEmpty {
+                LabeledContent(L("In the Cost card")) {
+                    ForEach(costTools, id: \.self) { tool in
+                        Toggle(isOn: Binding(
+                            get: { prefs.costCardTools.contains(tool) },
+                            set: { if $0 { prefs.costCardTools.insert(tool) } else { prefs.costCardTools.remove(tool) } }
+                        )) {
+                            Text(verbatim: tool.displayName)
+                        }
+                        .toggleStyle(.checkbox).controlSize(.small)
                     }
-                    .toggleStyle(.checkbox).controlSize(.small)
                 }
+                // A tool that is not here keeps its place in costCardTools rather than being struck from it: the
+                // preference is a Set the user chose, and signing out of one assistant for an afternoon should not
+                // silently drop it from the card it comes back to.
+                .help(L("Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card."))
             }
-            .help(L("Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend is never offered; one left out still shows its own spend on its own card."))
         }
     }
 
@@ -839,6 +995,22 @@ struct SettingsView: View {
             }
             Button(L("Reset All Settings…")) { resetAll() }
                 .help(L("Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept."))
+        }
+    }
+
+    private var aboutSection: some View {
+        Section {
+            Text(L("Version %@", AppInfo.version))
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .help(L("%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.", AppInfo.name))
+            // The one ask the app makes, kept to the About footer where a happy user is already looking, in the
+            // same quiet type as the version line: the app is free and stays free, and a button any louder than
+            // this would make it read as if it were not.
+            Button(L("Support %@…", AppInfo.name)) { NSWorkspace.shared.open(AppInfo.supportURL) }
+                .buttonStyle(.link)
+                .font(.caption2)
+                .help(L("An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay."))
         }
     }
 
@@ -1321,6 +1493,18 @@ final class SettingsPanel: NSPanel {
     override func cancelOperation(_ sender: Any?) {
         close()
     }
+
+    /// Close alone, the way a settings panel wears its corner. The style mask has no `.miniaturizable` — a
+    /// window that is always raised above the readouts has nowhere useful to be minimised to — so macOS drew the
+    /// middle light and then greyed it out, which reads as a broken window rather than as a deliberate one. The
+    /// zoom button is worse than useless here: `.resizable` earns it the system's Move & Resize menu, whose
+    /// halves, quarters and full screen all move the window out from under the notch that `frame(for:…)` spent
+    /// its arithmetic putting it under. Hiding the button leaves the edges draggable, which is the only resizing
+    /// this window ever wanted.
+    func wearCloseOnly() {
+        standardWindowButton(.miniaturizeButton)?.isHidden = true
+        standardWindowButton(.zoomButton)?.isHidden = true
+    }
 }
 
 /// The system colour panel, opened by hand rather than through SwiftUI's `ColorPicker`. Two reasons, both about
@@ -1360,8 +1544,15 @@ final class ColourWell: NSObject {
 
 @MainActor
 final class SettingsWindowController: NSWindowController {
-    /// A grouped Form has no intrinsic height, so the window is sized explicitly.
-    nonisolated static let contentSize = NSSize(width: 460, height: 640)
+    /// A sidebar beside a grouped Form: neither has an intrinsic height, and the sidebar is a fixed 190 pt of
+    /// the width, so the window is sized explicitly. The height stays under the 640 the one-column form used, so
+    /// the placement below still fits the window on a short screen.
+    nonisolated static let contentSize = NSSize(width: 700, height: 620)
+    /// The smallest the window is meant to be dragged to, told to both the window and the view. AppKit recomputes
+    /// `minSize` from the content once the hosting view lays out, so it is `SettingsView`'s own `.frame` minimum
+    /// that actually holds the floor — the two carry the same numbers so a drag can never lay the view out larger
+    /// than the window that clips it.
+    nonisolated static let minSize = NSSize(width: 640, height: 460)
     /// The window's top sits this far below the screen's top safe area: under the notch and the menu bar, with
     /// the collapsed panel's rings clear above it.
     nonisolated static let topClearance: CGFloat = 60
@@ -1373,7 +1564,10 @@ final class SettingsWindowController: NSWindowController {
     private var panelLevel: NSWindow.Level?
     private var aside = false
 
-    init(store: UsageStore, prefs: Preferences, actions: NotchActions, notifier: Notifier, requests: SettingsRequests) {
+    /// `pane` is which sidebar row the window opens on. The app takes the default; `--render-assets` names one,
+    /// because it captures the six in turn.
+    init(store: UsageStore, prefs: Preferences, actions: NotchActions, notifier: Notifier, requests: SettingsRequests,
+         pane: SettingsPane = .general) {
         self.prefs = prefs
         let panel = SettingsPanel(contentRect: NSRect(origin: .zero, size: Self.contentSize),
                                   styleMask: [.titled, .closable, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -1381,17 +1575,18 @@ final class SettingsWindowController: NSWindowController {
         // the non-activating panel is not key, rather than being spent on making it key. The window keeps sizing
         // the view: a grouped Form has no height of its own to offer, and the panel's frame is set below.
         let host = FirstMouseHostingView(rootView: SettingsView(store: store, prefs: prefs, actions: actions, notifier: notifier, requests: requests,
-                                                                hostWindow: { [weak panel] in panel }))
+                                                                hostWindow: { [weak panel] in panel }, pane: pane))
         host.sizingOptions = []
         panel.title = L("%@ Settings", AppInfo.name)
         panel.contentView = host
         panel.setContentSize(Self.contentSize)
-        panel.minSize = NSSize(width: 460, height: 420)
+        panel.minSize = Self.minSize
         panel.level = .floating
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = false
         panel.isReleasedWhenClosed = false
+        panel.wearCloseOnly()
         super.init(window: panel)
     }
 

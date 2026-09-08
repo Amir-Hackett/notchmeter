@@ -20,6 +20,9 @@ enum Palette {
     static let calm = Color(hex: 0x0072B2)    // #0072B2 blue: needs you, not running out
     static let warn = Color(hex: 0xE69F00)    // #E69F00 orange: on track, nearly full, needs attention
     static let danger = Color(hex: 0xD55E00)  // #D55E00 vermillion: behind pace, out
+    /// Not a status colour and never on a reading: the neutral chrome tile behind a white glyph (the Settings
+    /// sidebar). 6.45:1 against white in both appearances, where `.gray` is 3.26 light and 2.87 dark.
+    static let slate = Color(hex: 0x5E5E63)   // #5E5E63 grey: chrome, says nothing about a limit
 }
 
 private extension Color {

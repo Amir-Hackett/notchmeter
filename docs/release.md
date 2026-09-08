@@ -176,7 +176,7 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
    **A beta** is the hand path only; the workflow ignores a tag with a hyphen in it. Set `CFBundleShortVersionString`
    to the beta's version (`0.2.0-beta.1`) and build with `scripts/release.sh --channel beta`, which writes
    `<sparkle:channel>beta</sparkle:channel>` into the new appcast item, so only copies with *Beta updates* on
-   (Settings › Updates; `Updater.swift`, `allowedChannels`) are offered it and everyone else keeps the last stable
+   (Settings › General › Updates; `Updater.swift`, `allowedChannels`) are offered it and everyone else keeps the last stable
    item. Then publish the DMG as a prerelease, and put the merged appcast (`PREVIOUS_APPCAST` plus the beta item)
    onto the current stable release, because the feed is the newest non-prerelease's `appcast.xml`:
 

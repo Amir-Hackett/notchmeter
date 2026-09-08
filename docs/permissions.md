@@ -4,7 +4,7 @@ Notchmeter asks macOS for nothing at launch. One optional setting asks for one p
 
 ## Accessibility, only for *Readouts › Auto*
 
-*Readouts › Auto* (Settings › Panel, or the Options menu) shifts the readouts clear of the frontmost app's menu
+*Readouts › Auto* (Settings › Appearance › Panel, or the Options menu) shifts the readouts clear of the frontmost app's menu
 titles: both sides of the notch while the titles end short of the left-hand readouts, right of the notch while a
 menu-heavy app (Chrome, Xcode) would run into them.
 
