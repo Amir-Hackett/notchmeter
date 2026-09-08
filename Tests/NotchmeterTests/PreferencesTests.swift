@@ -129,7 +129,10 @@ import Testing
             // drawn as a zero slice — and its reason is the one the app already knows.
             #expect(store.costGaps.map(\.tool) == [.codex])
             prefs.move(.claude, by: -1)
-            #expect(store.costSelection.providers.map(\.tool) == [.claude, .cursor])
+            // Typed, so the solver resolves the members here rather than inside the macro's expansion.
+            let moved: [ToolID] = [.claude, .cursor]
+            let afterTheMove = store.costSelection.providers.map(\.tool)
+            #expect(afterTheMove == moved)
         }
     }
 }
@@ -197,7 +200,8 @@ import Testing
             prefs.keychainPrompts = .refreshOnly
             prefs.proxyURL = ""
         }
-        #expect(ProxySettings.dictionary(for: "socks5://proxy.local:1080")?[kCFNetworkProxiesSOCKSProxy] as? String == "proxy.local")
+        let socksHost = ProxySettings.dictionary(for: "socks5://proxy.local:1080")?[kCFNetworkProxiesSOCKSProxy] as? String
+        #expect(socksHost == "proxy.local")
         #expect(ProxySettings.dictionary(for: "http://proxy.local:3128")?[kCFNetworkProxiesHTTPSPort] as? Int == 3128)
         #expect(ProxySettings.dictionary(for: "") == nil)
         #expect(ProxySettings.dictionary(for: "ftp://x:1") == nil)

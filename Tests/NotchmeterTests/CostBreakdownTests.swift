@@ -87,8 +87,13 @@ import Testing
         #expect(block.start == session.addingTimeInterval(-Period.fiveHours))
         #expect(abs(block.cost - 2) < 1e-9)
         #expect(block.tokens.total == 1_000_000)
-        // 1,000,000 tokens since the block's first entry at 13:00, two hours before now.
-        #expect(abs(try #require(block.tokensPerMinute) - 1_000_000 / 120) < 1e-6)
+        // 1,000,000 tokens since the block's first entry at 13:00, two hours before now. Both sides are named
+        // before the macro sees them: #expect wraps every operand in a tree of callAsFunction overloads so it can
+        // report which side differed, and bare literals doing arithmetic inside that tree are what pushed this
+        // file past the solver-scope budget scripts/test.sh sets.
+        let perMinute = try #require(block.tokensPerMinute)
+        let expectedPerMinute = 1_000_000.0 / 120
+        #expect(abs(perMinute - expectedPerMinute) < 1e-6)
         #expect(abs(cost.lastHour - 1) < 1e-9)
         let noWindows = summary(jsonl)
         #expect(noWindows.block == nil)
