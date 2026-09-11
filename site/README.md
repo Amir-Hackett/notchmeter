@@ -42,3 +42,11 @@ The download button links at the `Notchmeter.dmg` of the latest GitHub release, 
 current (v0.1.0 since 2026-09-05), and the Homebrew line names the tap. The figures on the pages (energy, resident
 size, poll cadence, what is and is not read) are the README's; change them there first and here second, because a
 number on this page that the README cannot back is the one defect the README's own energy section exists to rule out.
+
+The Install section says, for everyone, that Notchmeter is a Mac app with no Windows or Linux version, and links
+[the Windows issue](https://github.com/Amir-Hackett/notchmeter/issues/32), which is where demand for one goes. The
+one script on the site (the foot of `index.html`) checks `navigator.userAgentData.platform`, or the user-agent
+string, and on Windows shows that notice with the issue as the headline button and the DMG demoted to the ghost
+one, hides the DMG row and the static line, and rewrites the hero's platform line to say there is no Windows or
+Linux version; the check runs in the browser and the result goes nowhere, so the page still makes no request and
+sets nothing.
