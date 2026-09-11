@@ -52,7 +52,11 @@
       <a class="btn btn-primary" href="#install">Download for macOS</a>
       <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter">View the source</a>
     </div>
-    <p class="cta-note">macOS 14 or later · Apple silicon or Intel · no account, ever</p>
+    <!-- The script at the foot of the page rewrites this line on Windows to
+         say there is no Windows version. The button above it says "for macOS",
+         which is true but is also how a Windows visitor hears "the Windows one
+         is further down"; swapping the middle clause here ends that before the scroll. -->
+    <p class="cta-note" id="hero-note">macOS 14 or later · Apple silicon or Intel · no account, ever</p>
 
     <figure class="shot">
       <img src="img/demo.gif" alt="The rings beside the notch open into the usage panel when the pointer rests on them, showing cost, pace and advice, then close again.">
@@ -251,7 +255,19 @@
   <div class="wrap centered">
     <h2>Install it</h2>
     <p class="section-lede">macOS 14 Sonoma or later, Apple silicon or Intel. Signed, notarised, and it updates itself.</p>
-    <div class="cta-row">
+    <!-- Hidden until the script at the foot of the page finds the browser is on
+         Windows. Then it takes over from the DMG row below, so the headline
+         action for a Windows visitor is the issue and not a disk image they
+         cannot open. The ghost button keeps the DMG reachable for the person
+         fetching it for a Mac they are not sitting at. -->
+    <div class="platform-note" id="windows-notice" hidden>
+      <p>Notchmeter is a Mac app that lives in the notch. There is no Windows version. If you want one, say so on the Windows issue; subscribe to it and GitHub will tell you if that changes.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/issues/32">Open the Windows issue</a>
+        <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Get the DMG for a Mac</a>
+      </div>
+    </div>
+    <div class="cta-row" id="install-cta">
       <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Download the DMG</a>
       <a class="btn btn-ghost" href="pricing.html">Pay what you want</a>
     </div>
@@ -262,6 +278,9 @@ brew trust --cask Amir-Hackett/tap/notchmeter
 brew install --cask notchmeter</div>
     </div>
     <p class="cta-note">Free forever, MIT licensed. If it earns its place in your notch, <a href="https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800">support the project</a>.</p>
+    <!-- The line everyone gets, script or not. The notice above says the same
+         thing with buttons, so the script hides this one when it shows that. -->
+    <p class="cta-note" id="platform-line">Notchmeter is a Mac app. There is no Windows or Linux version; if you want a Windows one, <a href="https://github.com/Amir-Hackett/notchmeter/issues/32">the Windows issue</a> is where to say so.</p>
   </div>
 </section>
 
@@ -317,6 +336,43 @@ brew install --cask notchmeter</div>
     </div>
   </div>
 </footer>
+
+<!-- The only script on the site (2026-09-10). Windows visitors were landing on
+     an Install section whose one button hands them a disk image they cannot
+     open. The honest fix is a line in the HTML, which is above and needs no
+     script; this makes it the headline for the people it is about, and only
+     for them. It reads navigator.userAgentData.platform, or failing that the
+     user-agent string, flips three `hidden` attributes and rewrites the hero's
+     platform line. It makes no request, sets no cookie, touches no storage,
+     and if it is off or throws the page is exactly the page a Mac visitor
+     sees, DMG button and all.
+     The trade: a user-agent sniff, which is a heuristic, so a Windows visitor
+     with a spoofed UA sees the Mac page; that page is still true, just less
+     helpful. The detection is a pure function on `window` so it can be tried
+     from the console: notchmeterPlatform({ userAgent: "Windows NT 10.0" }). -->
+<script>
+(function () {
+  function notchmeterPlatform(nav) {
+    try {
+      if (nav.userAgentData && nav.userAgentData.platform === 'Windows') return 'windows';
+      if (/\bWindows\b/.test(nav.userAgent || '')) return 'windows';
+    } catch (e) {}
+    return 'other';
+  }
+  window.notchmeterPlatform = notchmeterPlatform;
+  try {
+    if (notchmeterPlatform(navigator) !== 'windows') return;
+    var notice = document.getElementById('windows-notice');
+    var cta = document.getElementById('install-cta');
+    var line = document.getElementById('platform-line');
+    var hero = document.getElementById('hero-note');
+    if (notice) notice.hidden = false;
+    if (cta) cta.hidden = true;
+    if (line) line.hidden = true;
+    if (hero) hero.textContent = 'macOS 14 or later · no Windows or Linux version · no account, ever';
+  } catch (e) {}
+})();
+</script>
 
 </body>
 </html>
