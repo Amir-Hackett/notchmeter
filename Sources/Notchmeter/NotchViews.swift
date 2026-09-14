@@ -22,6 +22,7 @@ enum Palette {
     static let danger = Color(hex: 0xD55E00)  // #D55E00 vermillion: behind pace, out
     /// Not a status colour and never on a reading: the neutral chrome tile behind a white glyph (the Settings
     /// sidebar). 6.45:1 against white in both appearances, where `.gray` is 3.26 light and 2.87 dark.
+    static let pine = Color(hex: 0x1D7A5F)    // #1D7A5F green: the Dashboard tile in Settings, 5.4:1 under white
     static let slate = Color(hex: 0x5E5E63)   // #5E5E63 grey: chrome, says nothing about a limit
 }
 
