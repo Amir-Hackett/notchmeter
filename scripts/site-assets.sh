@@ -8,7 +8,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 mkdir -p site/img
-for f in demo.gif expanded.png edge-left.png edge-right-panel.png signal-rings.png compact-top.png settings.png; do
+for f in demo.gif expanded.png edge-left.png edge-right-panel.png signal-rings.png compact-top.png settings.png dashboard.png; do
     cp "docs/media/$f" "site/img/$f"
 done
 cp build/AppIcon.iconset/icon_256x256.png site/img/icon.png 2>/dev/null \
