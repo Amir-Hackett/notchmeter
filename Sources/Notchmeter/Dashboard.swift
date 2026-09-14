@@ -265,8 +265,12 @@ struct DashboardView: View {
     @State private var range: DashboardRange
     @State private var selectedDay: Date?
 
-    init(store: UsageStore, range: DashboardRange = .week) {
+    /// Inside Settings, whose pane already carries the title: the header keeps its line, picker and refresh only.
+    let embedded: Bool
+
+    init(store: UsageStore, range: DashboardRange = .week, embedded: Bool = false) {
         self.store = store
+        self.embedded = embedded
         _range = State(initialValue: range)
     }
 
@@ -309,7 +313,7 @@ struct DashboardView: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(L("Usage")).font(.title2.weight(.semibold))
+                if !embedded { Text(L("Usage")).font(.title2.weight(.semibold)) }
                 Text(updatedLine).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()

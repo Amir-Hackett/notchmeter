@@ -428,7 +428,9 @@ enum AssetRenderer {
     /// all twelve sections, and `sheet` below cuts the ribbon into columns as it always did.
     @MainActor
     static func settings(store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
-        try stack(SettingsPane.allCases.map { try settings(pane: $0, store: store, prefs: prefs, actions: actions) })
+        // The Dashboard pane is left out: it is the Usage Dashboard itself, which --render-dashboard draws, and a
+        // dashboard in the settings sheet would be the one pane of the sheet that is not a setting.
+        try stack(SettingsPane.allCases.filter { $0 != .dashboard }.map { try settings(pane: $0, store: store, prefs: prefs, actions: actions) })
     }
 
     /// One pane of the Settings window, title bar and sidebar included.
