@@ -44,13 +44,14 @@ final class SettingsRequests {
 /// Not file-private: `--render-assets` walks `allCases` and asks for each pane by name, because a capture that
 /// took whatever `@State` happened to default to would be a picture of one sixth of this window.
 enum SettingsPane: String, CaseIterable, Identifiable {
-    case general, appearance, assistants, notifications, integrations, advanced
+    case general, dashboard, appearance, assistants, notifications, integrations, advanced
 
     var id: Self { self }
 
     var title: String {
         switch self {
         case .general: return L("General")
+        case .dashboard: return L("Dashboard")
         case .appearance: return L("Appearance")
         case .assistants: return L("Assistants")
         case .notifications: return L("Notifications")
@@ -68,6 +69,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .general: return "gearshape.fill"
+        case .dashboard: return "chart.bar.fill"
         case .appearance: return "paintpalette.fill"
         case .assistants: return "terminal.fill"
         case .notifications: return "bell.fill"
@@ -92,6 +94,9 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     var tint: Color {
         switch self {
         case .general: return Palette.slate
+        // Not Palette.calm, which Assistants already wears two rows down; a fixed green rather than the system's,
+        // which is under 3:1 against a white glyph in both appearances.
+        case .dashboard: return Palette.pine
         case .appearance: return .purple
         case .assistants: return Palette.calm
         case .notifications: return .pink
@@ -235,7 +240,25 @@ struct SettingsView: View {
 
     /// The pane's name as a title, and the pane itself. Switching panes swaps the content outright with no
     /// transition, so there is nothing here for `prefs.reduceAnimations` to have to turn off.
-    private var detail: some View {
+    @ViewBuilder private var detail: some View {
+        if pane == .dashboard {
+            // The same view as the Usage Dashboard window, not a Form: it scrolls on its own, and its header drops
+            // the "Usage" title that would repeat the pane's.
+            VStack(alignment: .leading, spacing: 0) {
+                Text(pane.title)
+                    .font(.largeTitle.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                DashboardView(store: store, embedded: true)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            formDetail
+        }
+    }
+
+    private var formDetail: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(pane.title)
                 .font(.largeTitle.weight(.semibold))
@@ -257,6 +280,8 @@ struct SettingsView: View {
             generalSection
             updatesSection
             aboutSection
+        case .dashboard:
+            EmptyView()
         case .appearance:
             panelSection
             usageSection
