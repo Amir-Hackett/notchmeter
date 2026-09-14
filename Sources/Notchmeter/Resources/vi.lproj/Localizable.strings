@@ -685,3 +685,5 @@
 "No project" = "Không có dự án";
 "Spend is hidden in Settings, so only limits are shown." = "Chi tiêu đang bị ẩn trong Cài đặt, nên chỉ hiện giới hạn.";
 "since the week reset" = "kể từ lúc đặt lại tuần";
+"%@%% left to the reset" = "Còn %@%% đến lúc đặt lại";
+"per day since %@" = "mỗi ngày kể từ %@";

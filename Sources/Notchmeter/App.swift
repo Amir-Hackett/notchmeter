@@ -487,7 +487,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// while Settings is still up must not open the panel over it.
     private func hold(_ reason: PanelHolds.Reason, _ held: Bool) {
         guard holds.set(reason, held) else { return }
-        for presenter in presenters { presenter.holdCompact(holds.isHeld) }
+        for presenter in presenters { presenter.holdCompact(holds.isHeld, cause: holdCause) }
+    }
+
+    /// The oracle's name for what holds the panel: the dashboard when it alone does, else Settings, which also
+    /// stands for the update session and an alert as it always has.
+    private var holdCause: PanelCause {
+        holds.contains(.dashboard) && !holds.contains(.settings) ? .dashboard : .settings
     }
 
     var isDashboardVisible: Bool {
@@ -576,7 +582,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         for presenter in presenters {
             if holds.isHeld {
-                presenter.holdCompact(true)
+                presenter.holdCompact(true, cause: holdCause)
             } else {
                 presenter.show()
             }
@@ -788,6 +794,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "readings": ToolID.allCases.map { Oracle.fields($0, store.status($0)) },
             "advice": store.advice.map(\.text),
             "settingsVisible": isSettingsVisible,
+            "dashboardVisible": isDashboardVisible,
+            "ringWindows": ToolID.allCases.reduce(into: [String: [String]]()) { rings, tool in
+                if let reading = store.status(tool).reading { rings[tool.rawValue] = prefs.ringWindows(of: reading).map(\.id) }
+            },
             "screens": NSScreen.descriptions,
             "captured": store.screenCaptured,
             "presenters": presenters.map(\.screen.localizedName),

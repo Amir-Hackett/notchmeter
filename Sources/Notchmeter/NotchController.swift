@@ -52,7 +52,8 @@ protocol PanelPresenting: AnyObject {
     func showOptions()
     /// Keeps the panel closed while the app's own Settings window is up, whatever the visibility preference, so
     /// the full-height panel can never sit over it; releasing re-applies the preference.
-    func holdCompact(_ held: Bool)
+    /// `cause` names the window holding it (Settings or the dashboard) in the oracle's panel line.
+    func holdCompact(_ held: Bool, cause: PanelCause)
     /// Measures the visible shapes again now (`--smoke` reads the compact width per style).
     func remeasure()
     /// The Show over full-screen apps setting, applied to the window.
@@ -322,6 +323,8 @@ final class NotchController: NSObject, PanelPresenting {
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     private var transitionSerial = 0
     private var held = false
+    /// Which window holds the panel closed, for the oracle's cause.
+    private var holdCause: PanelCause = .settings
     private var reporter = PanelReporter()
 
     /// DynamicNotchKit's insets around the expanded content: 15 pt at the sides and bottom, the notch on top.
@@ -436,18 +439,19 @@ final class NotchController: NSObject, PanelPresenting {
             if open {
                 await self.expand(cause: .always)
             } else {
-                await self.compact(cause: self.held ? .settings : .menu)
+                await self.compact(cause: self.held ? self.holdCause : .menu)
             }
         }
     }
 
     /// The machine adopts the closed state at once, so whoever presents a window over the panel sees it closed
     /// before the morph has run.
-    func holdCompact(_ held: Bool) {
+    func holdCompact(_ held: Bool, cause: PanelCause) {
         self.held = held
         if held {
+            holdCause = cause
             hover.adopt(.compact)
-            reporter.report(.compact, cause: .settings)
+            reporter.report(.compact, cause: cause)
         }
         show()
     }

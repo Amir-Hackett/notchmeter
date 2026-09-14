@@ -701,3 +701,5 @@
 "No project" = "No project";
 "Spend is hidden in Settings, so only limits are shown." = "Spend is hidden in Settings, so only limits are shown.";
 "since the week reset" = "since the week reset";
+"%@%% left to the reset" = "%@%% left to the reset";
+"per day since %@" = "per day since %@";

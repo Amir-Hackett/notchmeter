@@ -209,6 +209,16 @@ import Testing
     @Test func theLastHourBeforeTheResetIsNotDividedByLessThanOne() throws {
         let limit = try #require(DashboardLimit(tool: .claude, window: weekly(used: 0.5, resetsIn: 600), runOut: nil, format: .twelveHour, now: now))
         #expect(limit.allowance == 0.5)
+        #expect(limit.allowanceLine == "50% left to the reset", "Less than an hour left is not a rate per hour")
+    }
+
+    @Test func theAverageNamesItsFirstDayWhenTheHistoryStartsInsideTheRange() {
+        let claude = provider(.claude, source: .localTranscripts, days: [day(-9): record(50), day(-4): record(50)], weekStart: day(0))
+        let ninety = DashboardModel(providers: [claude], range: .ninetyDays, weekStart: day(0), now: now, calendar: utc)
+        #expect(ninety.averageSince == day(-9))
+        let old = provider(.claude, source: .localTranscripts, days: [day(-60): record(5), day(0): record(5)], weekStart: day(0))
+        let thirty = DashboardModel(providers: [old], range: .thirtyDays, weekStart: day(0), now: now, calendar: utc)
+        #expect(thirty.averageSince == nil, "History older than the range: the average covers every day of it")
     }
 
     @Test func theDashboardHoldsThePanelLikeSettings() {
