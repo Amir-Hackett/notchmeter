@@ -62,7 +62,7 @@ Every line carries `"t"` (ISO 8601 with milliseconds, UTC) and `"event"`; keys a
 |---|---|---|
 | `launched` | the panel has been built | `version`, `edge`, `visibility`, `compactStyle`, `toolOrder` |
 | `regions` | the compact or expanded hover region changed (launch, a reading, a style or order change, a screen change) | `compact`, `expanded` |
-| `panel` | the panel opened or closed | `state` (`compact` / `expanded`), `cause` (`dwell`, `exit`, `clickOutside`, `click`, `swipe`, `hotkey`, `escape`, `space`, `lock`, `always`, `settings`, `menu`, `notification`, `launch`, `glance`, `fullScreen`) |
+| `panel` | the panel opened or closed | `state` (`compact` / `expanded`), `cause` (`dwell`, `exit`, `clickOutside`, `click`, `swipe`, `hotkey`, `escape`, `space`, `lock`, `always`, `settings`, `dashboard`, `menu`, `notification`, `launch`, `glance`, `fullScreen`) |
 | `menu` | the Options menu opened or closed | `action` (`shown` / `dismissed`), `items` (titles, when shown) |
 | `settings` | Settings was presented or closed | `action` (`shown` / `hidden`), `frame`, `level`, `nonActivating`, `frontmostBundleId`, `panelState` |
 | `dashboard` | the Usage Dashboard (Options menu or ⌘U) was presented or closed; the panel is held compact while it is up | `action` (`shown` / `hidden`) |
@@ -85,7 +85,7 @@ Every line carries `"t"` (ISO 8601 with milliseconds, UTC) and `"event"`; keys a
 | `awake` | the keep-awake assertion was taken or released | `holding` |
 | `open` | the app opened a vendor page in the browser (a card's Usage or Status link, an advice line's link) | `host` |
 | `hookRepair` | the hook or status-line entry pointing at an old copy was rewritten at launch | `repaired` (the entries touched) |
-| `snapshot` | the distributed notification `com.amirhackett.notchmeter.oracle.snapshot` was received | every preference, `visibleTools`, `costCard` (`carried`, `leads`, `gaps`), `presence`, `sessions`, `awaitingInput`, `signals` (each tool asking something of you, `<tool>:<state>`), `readings`, `advice`, `panelState`, `panelVisible`, `panelScreen`, `panelScroll` (`offset`, `insetTop`, `contentHeight`, `visibleHeight`, `scrollable`, `contentTopOnScreen`, `titleTopOnScreen`, `notchBottom`, `clearsNotch`; null while the panel is closed, and the notch fields null on the layouts with nothing over them), `regions`, `screens`, `captured`, `settingsVisible`, `settingsFrame` |
+| `snapshot` | the distributed notification `com.amirhackett.notchmeter.oracle.snapshot` was received | every preference, `visibleTools`, `costCard` (`carried`, `leads`, `gaps`), `presence`, `sessions`, `awaitingInput`, `signals` (each tool asking something of you, `<tool>:<state>`), `readings`, `advice`, `panelState`, `panelVisible`, `panelScreen`, `panelScroll` (`offset`, `insetTop`, `contentHeight`, `visibleHeight`, `scrollable`, `contentTopOnScreen`, `titleTopOnScreen`, `notchBottom`, `clearsNotch`; null while the panel is closed, and the notch fields null on the layouts with nothing over them), `regions`, `screens`, `captured`, `settingsVisible`, `settingsFrame`, `dashboardVisible`, `ringWindows` (each tool with a reading: the window ids its rings draw, outermost first) |
 
 Ask for a snapshot from a shell:
 
@@ -93,7 +93,7 @@ Ask for a snapshot from a shell:
 swift -e 'import Foundation; DistributedNotificationCenter.default().postNotificationName(Notification.Name("com.amirhackett.notchmeter.oracle.snapshot"), object: nil, userInfo: nil, deliverImmediately: true)'
 ```
 
-`panel` causes read as they sound: `dwell` and `exit` are the pointer, `clickOutside`, `space` and `lock` are the immediate closes, `always` is the Always open preference opening the panel, `settings` is the Settings window holding it closed, `menu` is a switch to Open on hover from the Options menu or Settings, `launch` is the first report, `glance` is the glance gesture, and `fullScreen` is a full-screen app taking the display.
+`panel` causes read as they sound: `dwell` and `exit` are the pointer, `clickOutside`, `space` and `lock` are the immediate closes, `always` is the Always open preference opening the panel, `settings` is the Settings window holding it closed (or an update session or alert), `dashboard` is the Usage Dashboard holding it closed on its own, `menu` is a switch to Open on hover from the Options menu or Settings, `launch` is the first report, `glance` is the glance gesture, and `fullScreen` is a full-screen app taking the display.
 
 What is never written: tokens, cookies or any credential; any path under the home directory (every string is scrubbed of it, so a path would appear as `~/…`, and no reading or advice carries one); transcript content; the text of a provider error. A `reading` line for a failed read says `"status":"failed"` and shows the cached windows, nothing more.
 

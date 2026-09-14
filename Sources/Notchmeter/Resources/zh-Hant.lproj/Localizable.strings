@@ -685,3 +685,5 @@
 "No project" = "無專案";
 "Spend is hidden in Settings, so only limits are shown." = "支出已在設定中隱藏，因此只顯示限額。";
 "since the week reset" = "自本週重設以來";
+"%@%% left to the reset" = "距重設還剩 %@%%";
+"per day since %@" = "自 %@ 起每天";

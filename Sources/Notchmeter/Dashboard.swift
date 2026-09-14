@@ -62,6 +62,9 @@ struct DashboardModel: Equatable {
     /// The range's spend over its calendar days, counted from the first day with any spend so a history that
     /// starts part-way through ninety days is not averaged against days before it existed. nil with no spend.
     let dailyAverage: Double?
+    /// The day the average is counted from when that is later than the range's first day (the history starts
+    /// inside the range); nil when the average spans the whole range.
+    let averageSince: Date?
     /// The costliest day in the range; nil when nothing was spent.
     let peak: Day?
     let models: [CostShare]
@@ -76,7 +79,7 @@ struct DashboardModel: Equatable {
 
     static func == (lhs: DashboardModel, rhs: DashboardModel) -> Bool {
         lhs.range == rhs.range && lhs.tools == rhs.tools && lhs.days == rhs.days && lhs.total == rhs.total && lhs.today == rhs.today
-            && lhs.dailyAverage == rhs.dailyAverage && lhs.peak == rhs.peak && lhs.models == rhs.models && lhs.projects == rhs.projects
+            && lhs.dailyAverage == rhs.dailyAverage && lhs.averageSince == rhs.averageSince && lhs.peak == rhs.peak && lhs.models == rhs.models && lhs.projects == rhs.projects
             && lhs.sources.map(\.tool) == rhs.sources.map(\.tool) && lhs.sources.map(\.source) == rhs.sources.map(\.source)
     }
 
@@ -149,8 +152,10 @@ struct DashboardModel: Equatable {
         if let historyStart, total > 0 {
             let span = keys.filter { $0 >= historyStart }.count
             dailyAverage = span > 0 ? total / Double(span) : nil
+            averageSince = span > 0 && span < keys.count ? dates[keys.count - span] : nil
         } else {
             dailyAverage = nil
+            averageSince = nil
         }
     }
 }
@@ -169,6 +174,9 @@ struct DashboardLimit: Identifiable, Equatable {
     /// The share of the window left to spend per unit of time until the reset; nil once used up or without a reset.
     let allowance: Double?
     let unit: Unit
+    /// Less than one day (or hour) is left: the remainder is stated as what is left, not as a rate per unit that
+    /// the window will not last to see.
+    let lastUnit: Bool
     /// The pace note the meter row shows, the run-out interval in place of a point when the drain log has one; nil
     /// for an unhurried or spent window, where a projection past 100% says nothing a hard limit can do.
     let note: String?
@@ -196,8 +204,10 @@ struct DashboardLimit: Identifiable, Equatable {
         if let resetsAt = window.resetsAt, used < 1, resetsAt > now {
             let units = resetsAt.timeIntervalSince(now) / (unit == .day ? 86400 : 3600)
             allowance = (1 - used) / max(units, 1)
+            lastUnit = units < 1
         } else {
             allowance = nil
+            lastUnit = false
         }
         note = used < 1 && status != .ahead ? MeterRow.paceNote(window: window, runOut: runOut, format: format, now: now)?.text : nil
         staleLine = staleSince.map { StaleReading.line(fetchedAt: $0, timeFormat: format, now: now) }
@@ -210,6 +220,7 @@ struct DashboardLimit: Identifiable, Equatable {
         guard used > 0, let allowance else { return nil }
         let percent = allowance * 100
         let figure = percent >= 10 || percent == 0 ? "\(Int(percent.rounded()))" : String(format: "%.1f", percent)
+        if lastUnit { return L("%@%% left to the reset", figure) }
         return unit == .day ? L("About %@%% a day lasts to the reset", figure) : L("About %@%% an hour lasts to the reset", figure)
     }
 
@@ -337,7 +348,10 @@ struct DashboardView: View {
         let peakValue = model.peak.map { Money.dollars($0.total, cents: false) } ?? "—"
         let peakCaption = model.peak.map { ResetText.dayPhrase($0.day, now: Date(), calendar: .current) } ?? ""
         let total = tile(L("Total"), Money.dollars(model.total, cents: false), caption: range.title)
-        let average = tile(L("Daily average"), model.dailyAverage.map { Money.dollars($0, cents: false) } ?? "—", caption: L("per calendar day"))
+        // Named by its first day where the history starts inside the range, so a 90-day average over 39 days of
+        // history does not read as spread across all ninety.
+        let averageCaption = model.averageSince.map { L("per day since %@", ResetText.dayPhrase($0, now: Date(), calendar: .current)) } ?? L("per calendar day")
+        let average = tile(L("Daily average"), model.dailyAverage.map { Money.dollars($0, cents: false) } ?? "—", caption: averageCaption)
         let peak = tile(L("Peak day"), peakValue, caption: peakCaption)
         let today = tile(L("Today"), Money.dollars(model.today, cents: false), caption: "")
         // One row where the captions fit on a line, two rows of two where a narrow window or a longer language
@@ -585,7 +599,12 @@ private struct LimitRow: View {
                 }
                 if let line = limit.allowanceLine {
                     Text(verbatim: "·").foregroundStyle(.tertiary)
-                    Text(line).foregroundStyle(.secondary)
+                    if limit.used >= 1 {
+                        // The spent bar is vermillion; the words and a symbol say why, never the fill alone.
+                        Label(line, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Palette.danger)
+                    } else {
+                        Text(line).foregroundStyle(.secondary)
+                    }
                 }
             }
             .font(.caption)

@@ -55,7 +55,7 @@ import Testing
             func show() {}
             func hide() async {}
             func showOptions() {}
-            func holdCompact(_ held: Bool) {}
+            func holdCompact(_ held: Bool, cause: PanelCause) {}
             func remeasure() {}
             func applyWindowBehaviour() {}
             func toggle(cause: PanelCause) {}

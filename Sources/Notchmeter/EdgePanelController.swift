@@ -28,6 +28,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
     private var storedScreen: NSScreen
     private var expanded = false
     private var held = false
+    /// Which window holds the panel closed, for the oracle's cause.
+    private var holdCause: PanelCause = .settings
     private var reporter = PanelReporter()
     private var clickMonitor: Any?
     private var keyMonitor: Any?
@@ -160,13 +162,14 @@ final class EdgePanelController: NSObject, PanelPresenting {
         expanded = !held && (hover.mode == .always || expanded)
         layout(animated: panel.isVisible && wasExpanded != expanded)
         hover.adopt(expanded ? .expanded : .compact)
-        reporter.report(expanded ? .expanded : .compact, cause: expanded ? .always : held ? .settings : .menu)
+        reporter.report(expanded ? .expanded : .compact, cause: expanded ? .always : held ? holdCause : .menu)
         hover.start()
         panel.orderFrontRegardless()
     }
 
-    func holdCompact(_ held: Bool) {
+    func holdCompact(_ held: Bool, cause: PanelCause) {
         self.held = held
+        if held { holdCause = cause }
         show()
     }
 

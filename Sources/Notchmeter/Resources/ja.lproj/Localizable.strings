@@ -685,3 +685,5 @@
 "No project" = "プロジェクトなし";
 "Spend is hidden in Settings, so only limits are shown." = "設定で支出が非表示のため、上限のみ表示しています。";
 "since the week reset" = "週のリセット以降";
+"%@%% left to the reset" = "リセットまで残り%@%%";
+"per day since %@" = "%@以降の1日あたり";
