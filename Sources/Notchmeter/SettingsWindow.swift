@@ -738,14 +738,10 @@ struct SettingsView: View {
         Section {
             let order = prefs.toolOrder
             ForEach(Array(order.enumerated()), id: \.element) { index, tool in
-                if store.isShown(tool) {
-                    DisclosureGroup(isExpanded: expansion(of: tool)) {
-                        assistantOptions(tool)
-                    } label: {
-                        assistantRow(tool, at: index, of: order.count)
-                    }
-                } else {
-                    assistantRow(tool, at: index, of: order.count)
+                assistantRow(tool, at: index, of: order.count)
+                if store.isShown(tool), expansion(of: tool).wrappedValue {
+                    assistantOptions(tool)
+                        .padding(.leading, 22)
                 }
             }
             Button(L("Refresh now")) { store.refreshAll(interactive: true) }
@@ -755,20 +751,53 @@ struct SettingsView: View {
         }
     }
 
-    /// What an assistant shows collapsed: its name, its status line, its switch and the two reorder arrows.
+    /// What an assistant shows collapsed: its name, its status line, its switch and the two reorder arrows. The whole
+    /// name is the expand target, not just a stock disclosure triangle, and clicking it never flips the switch.
     private func assistantRow(_ tool: ToolID, at index: Int, of count: Int) -> some View {
-        HStack(spacing: 10) {
-            Toggle(isOn: Binding(
+        let expandable = store.isShown(tool)
+        let expanded = expandable && expansion(of: tool).wrappedValue
+        let status = subtitle(for: tool)
+        let name = VStack(alignment: .leading, spacing: 2) {
+            Text(tool.displayName)
+            Text(status)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        return HStack(spacing: 10) {
+            if expandable {
+                Button {
+                    withAnimation(AccessibilityDisplay.shared.motionReduced ? nil : .easeInOut(duration: 0.18)) { expansion(of: tool).wrappedValue.toggle() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(expanded ? 90 : 0))
+                            .frame(width: 14)
+                        name
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(expanded ? L("Hide options") : L("Show options"))
+                .accessibilityLabel("\(tool.displayName), \(status)")
+                .accessibilityValue(expanded ? L("Expanded") : L("Collapsed"))
+            } else {
+                // Off or not installed: nothing to expand, so plain text in its ordinary colours rather than a
+                // disabled button that reads the same as a missing assistant.
+                HStack(spacing: 8) {
+                    Color.clear.frame(width: 14, height: 1)
+                    name
+                    Spacer(minLength: 0)
+                }
+                .accessibilityElement(children: .combine)
+            }
+            Toggle(tool.displayName, isOn: Binding(
                 get: { store.isShown(tool) },
                 set: { store.setEnabled(tool, $0) }
-            )) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(tool.displayName)
-                    Text(subtitle(for: tool))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            ))
+            .labelsHidden()
             .disabled(!store.isInstalled(tool))
             ReorderButtons(
                 up: index > 0 ? { prefs.move(tool, by: -1) } : nil,
@@ -1434,11 +1463,12 @@ struct ReorderButtons: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            Button { up?() } label: { Image(systemName: "chevron.up") }
+            // Arrows, not chevrons: the chevron belongs to the row's expand control beside them.
+            Button { up?() } label: { Image(systemName: "arrow.up") }
                 .disabled(up == nil)
                 .help(L("Move up"))
                 .accessibilityLabel(L("Move up"))
-            Button { down?() } label: { Image(systemName: "chevron.down") }
+            Button { down?() } label: { Image(systemName: "arrow.down") }
                 .disabled(down == nil)
                 .help(L("Move down"))
                 .accessibilityLabel(L("Move down"))
@@ -1601,13 +1631,16 @@ final class SettingsWindowController: NSWindowController {
     /// `above` is the panel's window level. The panel sits at screen-saver level so it can draw over the menu
     /// bar, and it collapses out of the way asynchronously; ordering this window above it keeps the settings
     /// visible from the first frame rather than for the tail of that animation.
-    func present(on screen: NSScreen, below readouts: CGRect? = nil, above panelLevel: NSWindow.Level? = nil) {
+    /// `aside` is whether an update session or an alert is already up: a window first made during one never heard
+    /// its standAside(true), and would otherwise rise over the window it should give way to.
+    func present(on screen: NSScreen, below readouts: CGRect? = nil, above panelLevel: NSWindow.Level? = nil, aside: Bool? = nil) {
         guard let window else { return }
         window.appearance = prefs.appearance.nsAppearance
+        if let aside { self.aside = aside }
         if let panelLevel {
             self.panelLevel = panelLevel
-            if !aside { window.level = Self.level(above: panelLevel) }
         }
+        window.level = self.aside ? .normal : (self.panelLevel.map(Self.level(above:)) ?? .floating)
         window.setFrame(Self.frame(for: window.frame.size, screen: screen.frame, safeAreaTop: screen.safeAreaInsets.top,
                                    visible: screen.visibleFrame, readouts: readouts), display: false)
         showWindow(nil)

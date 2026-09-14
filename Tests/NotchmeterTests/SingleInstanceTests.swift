@@ -49,7 +49,7 @@ import Testing
     @Test func diagnosticRunsAreNotSecondCopies() {
         // Each of these returns before NSApplication.run, so none can draw a panel, and each is meant to be run
         // beside the installed app to read what it can see.
-        for flag in ["--smoke", "--menu-bar", "--probe", "--mcp", "--hook", "--statusline", "--render-assets", "--render-gallery"] {
+        for flag in ["--smoke", "--menu-bar", "--probe", "--mcp", "--hook", "--statusline", "--render-assets", "--render-gallery", "--render-dashboard"] {
             #expect(SingleInstance.isSidecar(arguments: ["Notchmeter", flag]), "\(flag) must be exempt")
             #expect(SingleInstance.claim(arguments: ["Notchmeter", flag]), "\(flag) must never be refused a launch")
         }

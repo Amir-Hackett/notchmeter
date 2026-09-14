@@ -79,6 +79,37 @@ enum AssetRenderer {
         AccessibilityDisplay.shared.reduceAnimations = true
     }
 
+    /// `--render-dashboard <dir>`: the usage dashboard from the demo fixtures, the week light and dark and the 30- and
+    /// 90-day ranges once each, at the window's own
+    /// width and tall enough to show every section without scrolling. For review; nothing in the README uses it.
+    @MainActor
+    static func dashboard(into directory: URL, now: Date = Date()) -> Bool {
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            stillEveryAnimation()
+            let (store, _) = DemoFixtures.store(now: now)
+            let renders: [(name: String, appearance: NSAppearance.Name, range: DashboardRange)] = [
+                ("dashboard-light", .aqua, .week), ("dashboard-dark", .darkAqua, .week),
+                ("dashboard-30d", .aqua, .thirtyDays), ("dashboard-90d", .darkAqua, .ninetyDays),
+            ]
+            for (name, appearance, range) in renders {
+                let size = CGSize(width: DashboardWindowController.contentSize.width, height: 1180)
+                let host = NSHostingView(rootView: DashboardView(store: store, range: range).frame(width: size.width, height: size.height).background(Color(nsColor: .windowBackgroundColor)))
+                let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: .borderless, backing: .buffered, defer: false)
+                window.appearance = NSAppearance(named: appearance)
+                window.backgroundColor = .windowBackgroundColor
+                window.contentView = host
+                host.layoutSubtreeIfNeeded()
+                windows.append(window)
+                try write(bitmap(of: host, size: size, what: "the dashboard"), png: directory.appendingPathComponent("\(name).png"))
+            }
+            return true
+        } catch {
+            Probe.emit("render-dashboard: \(error)")
+            return false
+        }
+    }
+
     /// `--render-gallery <dir>`: Product Hunt's eight 1270×760 frames and the 240×240 thumbnail, each one centred
     /// on a #1c1c1e canvas with its caption drawn into the image (the gallery strips captions on mobile).
     ///

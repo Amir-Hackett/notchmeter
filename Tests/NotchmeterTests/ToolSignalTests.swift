@@ -163,12 +163,25 @@ import Testing
 
     @Test func aSignalTakesTheArcAndTheFullnessTintMovesToTheCap() {
         #expect(RingView.arcColour(fraction: 0.5, tool: claude, signal: nil) == claude)
-        #expect(RingView.arcColour(fraction: 0.85, tool: claude, signal: nil) == Palette.warn)
-        #expect(RingView.arcColour(fraction: 0.97, tool: claude, signal: nil) == Palette.danger)
+        #expect(RingView.arcColour(fraction: 0.85, tool: claude, signal: nil) == claude,
+                "A nearly-full ring keeps its assistant's colour; the line says how full it is.")
+        #expect(RingView.arcColour(fraction: 0.97, tool: claude, signal: nil) == claude)
         #expect(RingView.arcColour(fraction: 0.97, tool: claude, signal: .waiting(count: 1)) == Palette.calm,
                 "A permission prompt is the only one of the two facts the reader can act on this second, so it takes the arc.")
         #expect(RingView.arcColour(fraction: 0.1, tool: claude, signal: .finished(turn: 600)) == Palette.calm,
                 "Waiting and finishing ask the same thing of the reader, so they take one colour and are told apart by shape.")
+    }
+
+    @Test func fullnessIsDrawnAsTheLineNotTheColour() {
+        let solid = RingView.arcDash(fraction: 0.79, signal: nil, lineWidth: 3)
+        #expect(solid.isEmpty)
+        let nearlyFull = RingView.arcDash(fraction: 0.8, signal: nil, lineWidth: 3)
+        let almostOut = RingView.arcDash(fraction: 0.97, signal: nil, lineWidth: 3)
+        #expect(nearlyFull.count == 2)
+        #expect(almostOut.count == 2)
+        #expect(nearlyFull != almostOut, "80 % and 95 % must still read as two different lines")
+        let signalled = RingView.arcDash(fraction: 0.97, signal: .waiting(count: 1), lineWidth: 3)
+        #expect(signalled.isEmpty, "A signal takes the arc whole; the fullness moves to the cap")
     }
 
     @Test func theCapKeepsPaceFirstAndTheDisplacedTintSecond() {

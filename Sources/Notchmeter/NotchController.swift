@@ -7,6 +7,7 @@ import SwiftUI
 final class NotchActions {
     var refresh: () -> Void = {}
     var openSettings: () -> Void = {}
+    var openDashboard: () -> Void = {}
     var showOptions: () -> Void = {}
     var applyLayout: () -> Void = {}
     var togglePanel: () -> Void = {}
@@ -91,11 +92,13 @@ struct PanelReporter {
 /// app puts on screen — its Settings window, one of Sparkle's, one of its own alerts — holds it compact for as long
 /// as that window is up, and it opens again only once the last of them has gone.
 struct PanelHolds {
-    enum Reason { case settings, update, alert }
+    enum Reason { case settings, dashboard, update, alert }
 
     private var reasons: Set<Reason> = []
 
     var isHeld: Bool { !reasons.isEmpty }
+
+    func contains(_ reason: Reason) -> Bool { reasons.contains(reason) }
 
     /// Records one window's answer; returns whether it changed whether the panel is held at all.
     mutating func set(_ reason: Reason, _ held: Bool) -> Bool {
@@ -207,6 +210,10 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         let login = item(L("Open at login"), #selector(toggleLaunchAtLogin))
         login.state = prefs.launchAtLogin ? .on : .off
         menu.addItem(login)
+        let dashboard = item(L("Usage Dashboard…"), #selector(showDashboard))
+        dashboard.keyEquivalent = "u"
+        dashboard.keyEquivalentModifierMask = .command
+        menu.addItem(dashboard)
         let settings = item(L("Settings…"), #selector(showSettings))
         settings.keyEquivalent = ","
         settings.keyEquivalentModifierMask = .command
@@ -279,6 +286,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
 
     @objc private func toggleLaunchAtLogin() { try? prefs.setLaunchAtLogin(!prefs.launchAtLogin) }
     @objc private func showSettings() { actions.openSettings() }
+    @objc private func showDashboard() { actions.openDashboard() }
     @objc private func checkForUpdates() { actions.checkForUpdates?() }
     @objc private func quit() { NSApp.terminate(nil) }
 }
