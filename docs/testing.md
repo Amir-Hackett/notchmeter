@@ -44,6 +44,7 @@ Flags:
 | `--hover-log` | prints each decision the real mouse produces meanwhile |
 | `--stale-sim` | shows the "Accessibility permission belongs to an older copy" alert on a copy whose permission is in order, so the copy can be read and the panel seen to get out of its way. Runs on its own (not under `--smoke`), clears nothing whatever you answer, and prints the answer |
 | `--lang zh-Hans` | pins the copy to one shipped language |
+| `--render-dashboard <dir>` | draws the Usage Dashboard from the demo fixtures, the week light and dark and the 30- and 90-day ranges, into `dashboard-light.png`, `dashboard-dark.png`, `dashboard-30d.png` and `dashboard-90d.png`, and exits; for review, nothing in the README uses it |
 | `--e2e-oracle <path>` | writes the oracle file described below, and ends the run with a `snapshot` line |
 
 ## The oracle
@@ -64,6 +65,7 @@ Every line carries `"t"` (ISO 8601 with milliseconds, UTC) and `"event"`; keys a
 | `panel` | the panel opened or closed | `state` (`compact` / `expanded`), `cause` (`dwell`, `exit`, `clickOutside`, `click`, `swipe`, `hotkey`, `escape`, `space`, `lock`, `always`, `settings`, `menu`, `notification`, `launch`, `glance`, `fullScreen`) |
 | `menu` | the Options menu opened or closed | `action` (`shown` / `dismissed`), `items` (titles, when shown) |
 | `settings` | Settings was presented or closed | `action` (`shown` / `hidden`), `frame`, `level`, `nonActivating`, `frontmostBundleId`, `panelState` |
+| `dashboard` | the Usage Dashboard (Options menu or ⌘U) was presented or closed; the panel is held compact while it is up | `action` (`shown` / `hidden`) |
 | `layout` | the edge preference changed | `edge` |
 | `order` | the tool order changed | `toolOrder` |
 | `compactStyle` | the readout style changed | `compactStyle` |

@@ -24,7 +24,7 @@ enum NotchmeterMain {
         // --no-prompt: never raise the Keychain dialog; a locked item reports "needs attention" instead. The
         // command-line tool and the MCP server run headless and never ask either.
         if arguments.contains("--no-prompt") || arguments.contains("--smoke") || arguments.contains("--render-assets") || arguments.contains("--render-gallery")
-            || arguments.contains("--mcp") || CommandLineTool.isInvokedAsTool(arguments: arguments) {
+            || arguments.contains("--render-dashboard") || arguments.contains("--mcp") || CommandLineTool.isInvokedAsTool(arguments: arguments) {
             Keychain.setPromptsAllowed(false)
         }
         // --e2e-oracle <path> (or NOTCHMETER_ORACLE): a JSON line per state change for a tester (docs/testing.md).
@@ -83,6 +83,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var presenters: [any PanelPresenting] = []
     private var settings: SettingsWindowController?
     private var settingsObserver: NSObjectProtocol?
+    private var dashboard: DashboardWindowController?
+    private var dashboardObserver: NSObjectProtocol?
     private var snapshotObserver: NSObjectProtocol?
     private var reopenObserver: NSObjectProtocol?
     private var screenObserver: NSObjectProtocol?
@@ -139,6 +141,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let index = arguments.firstIndex(of: "--render-assets"), index + 1 < arguments.count {
             exit(AssetRenderer.render(into: URL(fileURLWithPath: arguments[index + 1])) ? 0 : 1)
         }
+        // --render-dashboard <dir>: the usage dashboard from the same fixtures, light and dark. Without a directory it
+        // exits rather than falling through: the flag alone exempts this copy from the single-instance guard.
+        if let index = arguments.firstIndex(of: "--render-dashboard") {
+            guard index + 1 < arguments.count else {
+                Probe.emit("render-dashboard: needs a directory")
+                exit(2)
+            }
+            exit(AssetRenderer.dashboard(into: URL(fileURLWithPath: arguments[index + 1])) ? 0 : 1)
+        }
         // --render-gallery <dir>: the Product Hunt composites and thumbnail, from the same fixtures.
         if let index = arguments.firstIndex(of: "--render-gallery"), index + 1 < arguments.count {
             exit(AssetRenderer.gallery(into: URL(fileURLWithPath: arguments[index + 1])) ? 0 : 1)
@@ -190,6 +201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.start()
         actions.refresh = { [weak self] in self?.store.refreshAll(interactive: true) }
         actions.openSettings = { [weak self] in self?.showSettings() }
+        actions.openDashboard = { [weak self] in self?.showDashboard() }
         actions.showOptions = { [weak self] in self?.pointerPresenter?.showOptions() }
         actions.applyLayout = { [weak self] in self?.applyLayout() }
         actions.fullScreenApps = { [weak self] in self?.pointerPresenter?.fullScreenApps ?? [] }
@@ -248,7 +260,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A second copy that found the lock taken asks this one to show itself before it goes, so double-clicking
         // the app still opens the panel instead of appearing to do nothing.
         reopenObserver = DistributedNotificationCenter.default().addObserver(forName: SingleInstance.reopenNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.pointerPresenter?.glance() }
+            Task { @MainActor in
+                // Not under a window of the app's own: the panel is held closed for it, so a glance could not close.
+                guard let self, !self.isSettingsVisible, !self.isDashboardVisible else { return }
+                self.pointerPresenter?.glance()
+            }
         }
         if Oracle.shared.isActive {
             snapshotObserver = DistributedNotificationCenter.default().addObserver(forName: Oracle.snapshotNotification, object: nil, queue: .main) { [weak self] _ in
@@ -346,7 +362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let suppressed = Notifier.shouldSuppress(event: event, frontmost: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
                                                  quiet: prefs.isQuietHour(), host: session.host, terminalRule: prefs.quietWhileTerminalFrontmost)
         guard prefs.sessionAttention != .nothing, !suppressed,
-              !isSettingsVisible, let presenter = pointerPresenter else { return }
+              !isSettingsVisible, !isDashboardVisible, let presenter = pointerPresenter else { return }
         switch prefs.sessionAttention {
         case .glance: presenter.glance()
         case .openPanel: presenter.expandNow(cause: .notification)
@@ -371,7 +387,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         hold(.settings, true)
         prefs.refreshLaunchAtLogin()
-        settings?.present(on: .pointerScreen, below: presenter?.hover.regions.compact, above: presenter?.window?.level)
+        settings?.present(on: .pointerScreen, below: presenter?.hover.regions.compact, above: presenter?.window?.level,
+                          aside: holds.contains(.update) || holds.contains(.alert))
         Oracle.shared.emit("settings", settingsFields(action: "shown"))
     }
 
@@ -381,12 +398,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Oracle.shared.emit("settings", settingsFields(action: "hidden"))
     }
 
+    // MARK: - Dashboard
+
+    /// The usage dashboard, held open the way Settings is: the panel stays collapsed while it is up so the
+    /// full-height panel never covers it. It reads only this account's store.
+    func showDashboard() {
+        if dashboard == nil {
+            let controller = DashboardWindowController(store: store, prefs: prefs)
+            dashboard = controller
+            if let window = controller.window {
+                dashboardObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                    Task { @MainActor in
+                        self?.hold(.dashboard, false)
+                        Oracle.shared.emit("dashboard", ["action": "hidden"])
+                    }
+                }
+            }
+        }
+        hold(.dashboard, true)
+        dashboard?.present(on: .pointerScreen, below: presenter?.hover.regions.compact, above: presenter?.window?.level,
+                           aside: holds.contains(.update) || holds.contains(.alert))
+        Oracle.shared.emit("dashboard", ["action": "shown"])
+    }
+
     /// Sparkle has a window on screen, or its last one has gone. Its windows are ordinary ones: the panel would
     /// draw over them from screen-saver level, and the Settings window from the level above that, so both stand
     /// down for as long as the update session lasts.
     private func updateSession(_ shown: Bool) {
         hold(.update, shown)
         settings?.standAside(shown)
+        dashboard?.standAside(shown)
         Oracle.shared.emit("updateSession", ["action": shown ? "shown" : "hidden"])
     }
 
@@ -405,9 +446,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // exactly as the panel would: the Repair button in Settings is one of the two places this is offered from.
         hold(.alert, true)
         settings?.standAside(true)
+        dashboard?.standAside(true)
         NSApp.activate()
         let response = alert.runModal()
         settings?.standAside(false)
+        dashboard?.standAside(false)
         hold(.alert, false)
         Oracle.shared.emit("accessibility", ["action": "staleEntry", "answer": response.rawValue, "simulated": simulated])
         if simulated {
@@ -445,6 +488,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func hold(_ reason: PanelHolds.Reason, _ held: Bool) {
         guard holds.set(reason, held) else { return }
         for presenter in presenters { presenter.holdCompact(holds.isHeld) }
+    }
+
+    var isDashboardVisible: Bool {
+        dashboard?.window?.isVisible ?? false
     }
 
     var isSettingsVisible: Bool {
@@ -685,7 +732,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func openFromNotification(_ tool: ToolID?) {
         if tool == nil {
             showSettings()
-        } else {
+        } else if !isSettingsVisible, !isDashboardVisible {
             pointerPresenter?.glance(for: HoverIntent.notificationGlance)
         }
     }
@@ -1235,7 +1282,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 /// `build/Notchmeter.app` or `.build/` must never capture the installed hook) and never under `--smoke`.
 enum HookRepair {
     static func mayRepair(executable: String, arguments: [String] = CommandLine.arguments) -> Bool {
-        guard !arguments.contains("--smoke"), !arguments.contains("--render-assets"), !arguments.contains("--render-gallery") else { return false }
+        guard !arguments.contains("--smoke"), !arguments.contains("--render-assets"), !arguments.contains("--render-gallery"),
+              !arguments.contains("--render-dashboard") else { return false }
         return !executable.contains("/build/") && !executable.contains("/.build/")
     }
 }
@@ -1268,6 +1316,11 @@ enum MainMenu {
         let settings = NSMenuItem(title: L("Settings…"), action: #selector(MenuTarget.openSettings), keyEquivalent: ",")
         settings.target = MenuTarget.shared
         app.addItem(settings)
+        // ⌘U here as well as in the Options menu, which exists only while it is open: the shortcut it prints has to
+        // work from Settings, from the dashboard and from the panel too.
+        let dashboard = NSMenuItem(title: L("Usage Dashboard…"), action: #selector(MenuTarget.openDashboard), keyEquivalent: "u")
+        dashboard.target = MenuTarget.shared
+        app.addItem(dashboard)
         app.addItem(.separator())
         app.addItem(NSMenuItem(title: L("Quit %@", AppInfo.name), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         appItem.submenu = app
@@ -1310,6 +1363,10 @@ final class MenuTarget: NSObject {
 
     @objc func openSettings() {
         actions?.openSettings()
+    }
+
+    @objc func openDashboard() {
+        actions?.openDashboard()
     }
 }
 

@@ -115,7 +115,7 @@ final class Notifier {
 
     nonisolated static func isAvailable(arguments: [String] = CommandLine.arguments, bundleIdentifier: String? = Bundle.main.bundleIdentifier) -> Bool {
         bundleIdentifier != nil && !arguments.contains("--probe") && !arguments.contains("--smoke") && !arguments.contains("--render-assets")
-            && !arguments.contains("--render-gallery") && !arguments.contains("--mcp") && !arguments.contains("--cli")
+            && !arguments.contains("--render-gallery") && !arguments.contains("--render-dashboard") && !arguments.contains("--mcp") && !arguments.contains("--cli")
     }
 
     init(available: Bool = Notifier.isAvailable()) {

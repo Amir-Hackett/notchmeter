@@ -98,7 +98,7 @@ extension EnvironmentValues {
     }
 }
 
-private extension Pace.Status {
+extension Pace.Status {
     var meterColor: Color? {
         switch self {
         case .ahead: nil
@@ -179,9 +179,11 @@ struct RingView: View {
                 .stroke(ground.opacity(Self.trackOpacity(signal: signal, contrast: contrast)), lineWidth: lineWidth)
             if let fraction {
                 let shown = max(0.015, min(1, fraction))
+                let dash = Self.arcDash(fraction: fraction, signal: signal, lineWidth: lineWidth)
                 Circle()
                     .trim(from: 0, to: CGFloat(shown))
-                    .stroke(Self.arcColour(fraction: fraction, tool: color, signal: signal), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .stroke(Self.arcColour(fraction: fraction, tool: color, signal: signal),
+                            style: StrokeStyle(lineWidth: lineWidth, lineCap: dash.isEmpty ? .round : .butt, dash: dash))
                     .rotationEffect(.degrees(-90))
                 if let cap {
                     GeometryReader { geometry in
@@ -209,13 +211,24 @@ struct RingView: View {
         return contrast ? 0.45 : 0.22
     }
 
-    /// The colour the arc takes. A signal outranks fullness, which outranks the tool's own colour, because a
-    /// permission prompt is the only one of the three the reader can act on this second: the meter cannot move at
-    /// all until they answer it. That is the order `Presence.level` and `Advisor.waiting` already put these two
-    /// facts in, and nothing is lost by it — the displaced fullness tint moves to the cap.
+    /// The colour the arc takes: a signal's, else the tool's own. Fullness no longer recolours the arc. A ring that
+    /// turned orange at 80 % and vermillion at 95 % stopped saying which assistant it was at exactly the moment the
+    /// reader most needs to know, and beside the pace colours on the digits it said "orange" twice rather than
+    /// "Cursor is nearly out". Fullness is carried by the line instead (arcDash), and a signal still outranks
+    /// both, because a permission prompt is the only fact the reader can act on this second.
     static func arcColour(fraction: Double, tool: Color, signal: ToolSignal?) -> Color {
-        if let signal { return signal.colour }
-        return fullness(fraction) ?? tool
+        signal?.colour ?? tool
+    }
+
+    /// The line a nearly-full window is drawn with, in its own colour: long dashes from 80 %, short ticks from 95 %,
+    /// and a solid line below that. Empty for a solid line, and while a signal holds, when the arc is the signal's
+    /// and the fullness tint is on the cap. Sized from the line width so the 14 pt quiet ring and the 18 pt one
+    /// break the arc into the same number of pieces.
+    static func arcDash(fraction: Double, signal: ToolSignal?, lineWidth: CGFloat) -> [CGFloat] {
+        guard signal == nil else { return [] }
+        if fraction >= 0.95 { return [lineWidth * 0.55, lineWidth * 0.55] }
+        if fraction >= 0.8 { return [lineWidth * 1.4, lineWidth * 0.6] }
+        return []
     }
 
     /// The tint a nearly-full window earns on its own account, or nil while it still has room.

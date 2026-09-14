@@ -49,15 +49,27 @@ struct CostEngine: Sendable {
 
     /// The week every tool's spend is measured against: where the live Claude weekly window started, else the
     /// calendar week. One boundary for the whole card, so the ranges add up.
+    ///
+    /// A reset already in the past is a cached reading from before the window rolled over: the first scan after
+    /// launch runs before the live reading lands, and taking that reset as it stood started the week seven days
+    /// early and doubled the week's figure until the next scan. The window repeats weekly, so it is carried forward.
     static func weekStart(weeklyResetsAt: Date?, now: Date, calendar: Calendar) -> Date {
-        weeklyResetsAt.map { $0.addingTimeInterval(-Period.week) }
-            ?? calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? calendar.startOfDay(for: now)
+        guard var resetsAt = weeklyResetsAt else {
+            return calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? calendar.startOfDay(for: now)
+        }
+        if resetsAt <= now {
+            resetsAt.addTimeInterval((now.timeIntervalSince(resetsAt) / Period.week).rounded(.down) * Period.week + Period.week)
+        }
+        return resetsAt.addingTimeInterval(-Period.week)
     }
 
     func scan(tools: Set<ToolID> = Set(ToolID.allCases), reads: [ToolID: ProviderReadState] = [:], now: Date = Date(), daysBack: Int = 30,
               weeklyResetsAt: Date? = nil, weeklyUsed: Double? = nil, sessionResetsAt: Date? = nil, sessionUsed: Double? = nil,
               calendar: Calendar = .current) async -> CostSummary {
         let week = Self.weekStart(weeklyResetsAt: weeklyResetsAt, now: now, calendar: calendar)
+        // A used fraction whose reset has passed belongs to last week; set against this week's spend it would price
+        // one per cent of the window at a fraction of a cent, so it is left out until the live reading lands.
+        let weeklyUsed = weeklyResetsAt.map { $0 > now } ?? true ? weeklyUsed : nil
         async let claudeSummary = claudeCost(tools: tools, now: now, daysBack: daysBack, weeklyResetsAt: weeklyResetsAt,
                                              weeklyUsed: weeklyUsed, sessionResetsAt: sessionResetsAt, sessionUsed: sessionUsed, calendar: calendar)
         async let codexCost = codexCost(tools: tools, now: now, daysBack: daysBack, weekStart: week, calendar: calendar)

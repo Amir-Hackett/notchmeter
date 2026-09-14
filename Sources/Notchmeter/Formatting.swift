@@ -59,7 +59,9 @@ enum Pace {
     /// The quiet note beside a meter: "~67% left at reset", or the run-out warning when behind. An untouched window
     /// gets none: "~100% left at reset" says nothing, and the meter's tick already shows where the window stands.
     static func note(for window: LimitWindow, now: Date = Date()) -> (text: String, status: Status)? {
-        guard let used = window.usedFraction, used > 0, let resetsAt = window.resetsAt, let period = window.periodDuration,
+        // A spent window has nothing left to project: "~93% over at reset" beside 100% describes usage a hard limit
+        // cannot reach, and the meter already reads full.
+        guard let used = window.usedFraction, used > 0, used < 1, let resetsAt = window.resetsAt, let period = window.periodDuration,
               let result = evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
         else { return nil }
         switch result.status {

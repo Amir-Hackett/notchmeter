@@ -24,7 +24,7 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "ins
 enum SingleInstance {
     /// Arguments that mean "sit beside the running app", not "be the app".
     static let sidecarFlags: Set<String> = ["--smoke", "--menu-bar", "--probe", "--mcp", "--hook", "--statusline",
-                                            "--render-assets", "--render-gallery"]
+                                            "--render-assets", "--render-gallery", "--render-dashboard"]
 
     static func isSidecar(arguments: [String]) -> Bool {
         arguments.contains { sidecarFlags.contains($0) } || CommandLineTool.isInvokedAsTool(arguments: arguments)
