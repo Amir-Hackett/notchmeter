@@ -216,7 +216,7 @@ actor CopilotProvider: UsageProvider {
         // is left of it, reset on `limited_user_reset_date`.
         if windows.isEmpty, let allowance = root["monthly_quotas"] as? [String: Any] {
             let left = root["limited_user_quotas"] as? [String: Any] ?? [:]
-            let freeReset = resetsAt ?? (root["limited_user_reset_date"] as? String).flatMap(resetDate)
+            let freeReset = (root["limited_user_reset_date"] as? String).flatMap(resetDate) ?? resetsAt
             for (key, id, label) in [("chat", "chat", WindowLabel.key("Chat")), ("completions", "completions", WindowLabel.key("Completions"))] {
                 guard let total = JSON.number(allowance[key]), total > 0 else { continue }
                 let remaining = JSON.number(left[key]) ?? total
