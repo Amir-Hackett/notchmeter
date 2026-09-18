@@ -52,8 +52,9 @@ enum Pace {
     }
 
     static func status(for window: LimitWindow, now: Date = Date()) -> Status? {
-        // Nothing runs out on a comparison, so it is never behind: no orange cap, tint or urgency for it.
-        if window.isComparison { return window.usedFraction == nil ? nil : .onTrack }
+        // Nothing runs out on a comparison, so it takes the calm status: the assistant's own colour, never the orange
+        // of a window on course to be used up, nor a cap, tint or urgency.
+        if window.isComparison { return window.usedFraction == nil ? nil : .ahead }
         guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
         return evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)?.status
     }
@@ -66,7 +67,7 @@ enum Pace {
             guard let used = window.usedFraction, used > 0, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
             let percent = window.rawUsedPercent.map { $0 / 100 } ?? used
             let projected = evaluate(usedFraction: percent, resetsAt: resetsAt, period: period, now: now)?.projectedFraction ?? percent
-            return (L("On course for ~%ld%% of a usual day", Int((projected * 100).rounded())), .onTrack)
+            return (L("Heading for ~%ld%% today", Int((projected * 100).rounded())), .ahead)
         }
         // A spent window has nothing left to project: "~93% over at reset" beside 100% describes usage a hard limit
         // cannot reach, and the meter already reads full.
