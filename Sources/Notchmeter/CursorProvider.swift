@@ -69,8 +69,15 @@ actor CursorProvider: UsageProvider {
         switch response?.statusCode ?? 0 {
         case 200:
             let reading = try Self.parseSummary(data)
-            if readUsageEvents() { await recordUsageEvents(cookie: cookie) }
-            return reading
+            guard readUsageEvents() else { return reading }
+            await recordUsageEvents(cookie: cookie)
+            // A seat with no included allowance (Enterprise billed on-demand, 2026-09-18) reads 0 % on every
+            // window however much it spends, so the export's own dollars become the ring: today against a usual day.
+            guard !reading.windows.contains(where: { ["included", "team_pooled"].contains($0.id) && $0.usedFraction != nil }),
+                  let history, let spend = Self.spendToday(history.load(calendar: .current))
+            else { return reading }
+            return UsageReading(tool: .cursor, windows: [spend] + reading.windows, plan: reading.plan, fetchedAt: reading.fetchedAt,
+                                observedAt: reading.observedAt)
         case 401, 403:
             throw ProviderError.notSignedIn(L("Cursor's login was refused. Sign in to Cursor in the editor again"))
         case 404:
@@ -345,6 +352,27 @@ actor CursorProvider: UsageProvider {
             days[day] = record
         }
         return days
+    }
+
+    /// Today's spend from the usage export against the average day of the thirty before it (or of as many as the
+    /// history reaches back), for a seat whose summary meters nothing. Nil until there is a usual day to compare
+    /// with. The ring fills at a usual day's spend; the digits keep counting past it.
+    static func spendToday(_ days: [Date: CostHistory.Record], now: Date = Date(), calendar: Calendar = .current) -> LimitWindow? {
+        let today = calendar.startOfDay(for: now)
+        guard let start = calendar.date(byAdding: .day, value: -30, to: today),
+              let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) else { return nil }
+        let prior = days.filter { $0.key >= start && $0.key < today }
+        guard let earliest = prior.keys.min() else { return nil }
+        let span = max(1, calendar.dateComponents([.day], from: earliest, to: today).day ?? 1)
+        let usual = prior.values.reduce(0) { $0 + $1.cost } / Double(span)
+        guard usual > 0 else { return nil }
+        let spent = days[today]?.cost ?? 0
+        let percent = spent / usual * 100
+        return LimitWindow(
+            id: "spend_today", label: .key("Today's spend"), usedFraction: min(max(spent / usual, 0), 1), resetsAt: tomorrow,
+            note: L("%1$@ of a usual %2$@ day", Money.dollars(spent), Money.dollars(usual, cents: false)),
+            periodDuration: 86400, source: .localEstimate, rawUsedPercent: percent > 100 ? percent : nil, amountUSD: spent
+        )
     }
 
     /// How much of a window is spent, 0...1: whichever of Cursor's two answers reads further along.
