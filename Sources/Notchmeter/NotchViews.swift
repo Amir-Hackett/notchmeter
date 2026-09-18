@@ -784,6 +784,9 @@ struct NotchExpandedView: View {
     static let screenMargin: CGFloat = 24
     /// The room the content keeps above its first card.
     static let contentTopPadding: CGFloat = 8
+    /// The margin either side of the cards. `panelWidth - 2 * this` is the column every card has to fit
+    /// (ExpandedPanelWidth); a card wider than it is drawn past the panel's edge and clipped by the notch shape.
+    static let contentHorizontalPadding: CGFloat = 14
 
     /// The room between the top of the scrolled content and the first card's title: this padding and the card's
     /// own. A reading of where the panel opens counts from the title, which is what has to clear the notch
@@ -872,7 +875,7 @@ struct NotchExpandedView: View {
             }
             FooterView(store: store, actions: actions)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, Self.contentHorizontalPadding)
         .padding(.top, Self.contentTopPadding)
         .padding(.bottom, 10)
         .frame(width: prefs.panelWidth.points, alignment: .leading)
@@ -905,6 +908,84 @@ enum CardImage {
     }
 }
 
+/// A segmented control that fits the width it is offered, which AppKit's own will not.
+///
+/// `Picker(.segmented)` lays every title out at its full width and reports that sum as its minimum however
+/// little it is given, so the card grew to fit the control instead of the control fitting the card: six range
+/// titles at the small control size want 432 pt against the 328 pt the Standard panel's text column has, and
+/// 408 pt on Wide. Worse, the minimum moves with the selection, because the selected title is the one AppKit
+/// will not squeeze -- so the Cost card, and every note under it, jumped ~29 pt to the right and out past the
+/// panel's edge the moment the range changed (0.4.1). `.controlSize(.mini)` and shorter English titles each
+/// only narrow the gap, and neither survives ja/ko/vi/zh, where "Yesterday" is longer than it is here.
+///
+/// Equal columns, so the bar is exactly as wide as the column it sits in whatever is selected; a title that
+/// shrinks before the bar does; and the selection drawn behind it rather than sized around it.
+struct SegmentedBar<Value: Hashable>: View {
+    let values: [Value]
+    let title: (Value) -> String
+    @Binding var selection: Value
+
+    /// Matches the small segmented control the panel used to draw: 5 pt on the pill, 7 pt on the trough it sits in.
+    private static var pillRadius: CGFloat { 5 }
+    private static var troughRadius: CGFloat { 7 }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(values.enumerated()), id: \.element) { index, value in
+                // The divider belongs to the gap before a segment, and a gap beside the selection has the pill
+                // in it already; drawing both is the one place the native control looks busy.
+                if index > 0 {
+                    Rectangle()
+                        .fill(.white.opacity(divided(index) ? 0.18 : 0))
+                        .frame(width: 1, height: 11)
+                        .accessibilityHidden(true)
+                }
+                segment(value)
+            }
+        }
+        .padding(2)
+        .background(RoundedRectangle(cornerRadius: Self.troughRadius, style: .continuous)
+            .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.2 : 0.1)))
+        .accessibilityElement(children: .contain)
+    }
+
+    /// True where the gap before `index` separates two unselected segments.
+    private func divided(_ index: Int) -> Bool {
+        values[index] != selection && values[index - 1] != selection
+    }
+
+    private func segment(_ value: Value) -> some View {
+        let selected = value == selection
+        return Button { selection = value } label: {
+            Text(title(value))
+                .font(.caption)
+                .fontWeight(selected ? .semibold : .regular)
+                .lineLimit(1)
+                // The column is fixed, so a title too long for it shrinks rather than widening the bar. Long
+                // enough to matter only outside English; at the Standard width the shipped titles all fit whole.
+                .minimumScaleFactor(0.6)
+                // Selected: AppKit's own text colour for an emphasised selection, which is what the accent
+                // fill under it is. The pill is `Color.accentColor` and the accent is the user's, not the
+                // app's, so white is not the app's to assume -- macOS ships a yellow one. (Not
+                // `selectedControlTextColor`: that is the pair for an *un*emphasised selection, and is dark.)
+                // Unselected: `.foreground` and not `.primary`, because the panel paints its content white
+                // over black whatever appearance the window carries, and `.primary` would resolve to that
+                // appearance's label colour and turn the title black on the trough.
+                .foregroundStyle(selected ? AnyShapeStyle(Color(nsColor: .alternateSelectedControlTextColor)) : AnyShapeStyle(.foreground))
+                .padding(.vertical, 3)
+                .padding(.horizontal, 4)
+                .frame(maxWidth: .infinity)
+                .background(selected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.clear),
+                            in: RoundedRectangle(cornerRadius: Self.pillRadius, style: .continuous))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .animation(AccessibilityDisplay.shared.motionReduced ? nil : .snappy(duration: 0.15), value: selected)
+        .accessibilityLabel(title(value))
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
 struct SpendCard: View {
     enum Range: CaseIterable, Identifiable {
         case today, yesterday, week, month, thirtyDays, ninetyDays
@@ -934,8 +1015,14 @@ struct SpendCard: View {
     }
 
     let store: UsageStore
-    @State private var range: Range = .today
+    @State private var range: Range
     @Environment(\.density) private var density
+
+    /// The range the card opens on. Only a test or a rendered still ever passes one; the panel always opens on today.
+    init(store: UsageStore, range: Range = .today) {
+        self.store = store
+        _range = State(initialValue: range)
+    }
 
     private var mode: CostCardMode { store.prefs.costCardMode }
 
@@ -1099,15 +1186,11 @@ struct SpendCard: View {
                     }
                 }
             }
-            // Six segments at the regular control size want more width than the card has, and a segmented picker
-            // paints its whole bezel however little it is offered: the card grew to fit it and hung past the
-            // panel's right margin. The small control size fits the titles inside the card's own text column.
-            Picker(L("Range"), selection: $range) {
-                ForEach(Range.allCases) { Text($0.title).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .controlSize(.small)
-            .labelsHidden()
+            // Never a segmented Picker: it takes whatever width its titles come to, and the width it takes
+            // changes with the selection, so the card hung past the panel's right margin and moved when the
+            // range did. SegmentedBar is exactly as wide as the column it is given.
+            SegmentedBar(values: Range.allCases, title: \.title, selection: $range)
+                .accessibilityLabel(L("Range"))
             // Centred against the ring: the column beside it is the legend alone, which is shorter than the ring
             // on every plan anyone has, and top-aligning it left the card's right half empty under two rows.
             VStack(alignment: .leading, spacing: density.rowSpacing) {

@@ -18,7 +18,9 @@ final class EdgePanelController: NSObject, PanelPresenting {
     private let panel: EdgePanel
     private var fullScreenWatch: FullScreenWatch?
     private var suppressedForFullScreen = false
-    private let host: NSHostingView<EdgePanelRoot>
+    /// FirstMouseHostingView, not NSHostingView: this panel never becomes key either, so without it the first
+    /// click on any SwiftUI control in the edge panel is spent on the window rather than the control.
+    private let host: FirstMouseHostingView<EdgePanelRoot>
     /// The two shapes are measured apart from each other and from the window, because the window is now their
     /// union rather than either of them: on a side edge the notch stays on screen while the panel opens beside
     /// it, and a measurement of the assembled root cannot say where each of them lands.
@@ -46,7 +48,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         self.menu = OptionsMenu(prefs: prefs, actions: actions)
         panel = EdgePanel(contentRect: NSRect(x: 0, y: 0, width: 10, height: 10),
                           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        host = NSHostingView(rootView: EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, screen: screen,
+        host = FirstMouseHostingView(rootView: EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, screen: screen,
                                                      arrangement: .empty))
         notchProbe = NSHostingView(rootView: EdgeNotch(store: store, edge: edge, flush: false))
         cardProbe = NSHostingView(rootView: EdgePanelCard(store: store, prefs: prefs, actions: actions, screen: screen))

@@ -355,7 +355,13 @@ private extension DynamicNotch {
         menubarHeight = screen.menubarHeight
 
         let style = effectiveStyle(for: screen)
-        let view = NSHostingView(rootView: NotchContentView(dynamicNotch: self, style: style))
+        // Notchmeter: a hosting view that takes first mouse. The app never activates and nothing ever makes
+        // this panel key, so every click on the open panel is a click on a window that is not key. AppKit asks
+        // the view under such a click whether it accepts it; NSHostingView answers no, and the click is spent
+        // making the panel key instead of reaching the control it was aimed at. AppKit's own controls answer
+        // yes on their own, which is why the panel's SwiftUI buttons and tap gestures went unanswered while a
+        // segmented Picker -- an NSSegmentedControl underneath -- did not. See FirstMouseHostingView.
+        let view = FirstMouseNotchHostingView(rootView: NotchContentView(dynamicNotch: self, style: style))
 
         let panel = DynamicNotchPanel(
             contentRect: .zero,

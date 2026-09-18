@@ -68,3 +68,71 @@ import Testing
         #expect(sparkline.fittingSize.width == 160)
     }
 }
+
+/// The open panel is one width. Every card is offered the panel's text column and has to come out exactly
+/// that wide: narrower and it no longer lines up with the cards above and below it, wider and it is drawn past
+/// the panel's right edge where the notch shape clips it. The card must also not change width as its own
+/// content changes, or picking something inside it moves everything under it sideways and picking back moves
+/// it all home again.
+///
+/// The Cost card's range picker is the control that broke both halves. A segmented `Picker` reports the sum of
+/// its titles' full widths as its minimum however little it is offered, and that sum moves with the selection,
+/// because AppKit squeezes every title except the selected one. So the card sat 29 pt past the panel's right
+/// edge on Yesterday, Week, Month, 30d and 90d with "90d" clipped off it, and snapped back inside on Today.
+/// SegmentedBar replaces it.
+@Suite struct ExpandedPanelWidth {
+    init() { Localization.use(language: "en") }
+
+    @MainActor @Test func theCostCardIsTheSameWidthInEveryRangeAndEveryLanguage() {
+        let defaults = UserDefaults(suiteName: "NotchmeterTests.PanelWidth")!
+        defaults.removePersistentDomain(forName: "NotchmeterTests.PanelWidth")
+        defer {
+            defaults.removePersistentDomain(forName: "NotchmeterTests.PanelWidth")
+            Localization.use(language: "en")
+        }
+        let prefs = Preferences(defaults: defaults)
+        let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
+        // Standard is the tight one, so every language is measured there; Wide only has to hold in English to
+        // prove the card is not simply pinned to one number.
+        for language in Localization.languages {
+            Localization.use(language: language)
+            for width in language == "en" ? PanelWidth.allCases : [.standard] {
+                prefs.panelWidth = width
+                let column = width.points - 2 * NotchExpandedView.contentHorizontalPadding
+                for range in SpendCard.Range.allCases {
+                    let drawn = drawnWidth(SpendCard(store: store, range: range), column: column)
+                    // Equal, not merely no wider: a range that draws the card to a different width from the
+                    // others is the bug whichever side of the column it lands on.
+                    #expect(abs(drawn - column) <= 0.5, "Cost card in \(language)/\(width.rawValue) on \(range.title) drew \(drawn) pt in a \(column) pt column")
+                }
+            }
+        }
+    }
+
+    /// The width a card actually takes when it is offered `column`, which is not `fittingSize`: a child that
+    /// cannot fit the proposal overflows it, and a `.frame(width:)` around it reports the frame either way.
+    @MainActor private func drawnWidth(_ card: some View, column: CGFloat) -> CGFloat {
+        let measured = DrawnWidth()
+        let content = VStack(alignment: .leading) {
+            card.background(GeometryReader { geometry in
+                Color.clear.onAppear { measured.width = geometry.size.width }
+            })
+        }
+        .frame(width: column, alignment: .leading)
+        let host = NSHostingView(rootView: content)
+        host.frame = NSRect(x: 0, y: 0, width: column, height: 600)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        let deadline = Date().addingTimeInterval(2)
+        while measured.width == nil, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.01))
+        }
+        return measured.width ?? .infinity
+    }
+}
+
+/// A box for the width a `GeometryReader` reports back out of a rendered view.
+@MainActor private final class DrawnWidth {
+    var width: CGFloat?
+}
