@@ -622,9 +622,9 @@ final class UsageStore {
         }
     }
 
-    /// The session and weekly windows from a status line under three minutes old, laid over the cached reading.
+    /// The session and weekly windows from a status line that can still stand in (`standsIn`), laid over the cached reading.
     private func statuslineReading(now: Date = Date()) -> UsageReading? {
-        guard let statusline, !statusline.windows.isEmpty, now.timeIntervalSince(statusline.receivedAt) < PollingPolicy.statuslineFreshFor else { return nil }
+        guard let statusline, statusline.standsIn(at: now) else { return nil }
         let base = statuses[.claude]?.reading ?? UsageReading(tool: .claude, windows: [], plan: nil, fetchedAt: now, observedAt: nil)
         return base.replacing(windows: statusline.windows, fetchedAt: statusline.receivedAt)
     }

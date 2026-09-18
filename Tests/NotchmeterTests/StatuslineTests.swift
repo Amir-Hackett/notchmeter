@@ -77,6 +77,19 @@ import Testing
 
     let executable = "/Applications/Notchmeter.app/Contents/MacOS/Notchmeter"
 
+    /// A line from just before a reset still carries the old figure; once the reset passes it no longer stands in
+    /// for the endpoint, so the reset refresh reads the real (emptied) window instead of re-adopting 100 %.
+    @Test func aLineDescribingAPassedResetNoLongerStandsIn() {
+        let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
+        let reset = now.addingTimeInterval(60)
+        let window = LimitWindow(id: "session", label: .key("Session"), usedFraction: 1, resetsAt: reset)
+        let line = Statusline.Message(windows: [window], receivedAt: now)
+        #expect(line.standsIn(at: now.addingTimeInterval(30)))
+        #expect(!line.standsIn(at: reset.addingTimeInterval(5)))
+        #expect(!line.standsIn(at: now.addingTimeInterval(PollingPolicy.statuslineFreshFor + 1)))
+        #expect(!Statusline.Message(receivedAt: now).standsIn(at: now))
+    }
+
     @Test func statusAndRepairFollowThePathInTheCommand() throws {
         let installed = HookSettings.merge(into: [:], executable: executable).settings
         #expect(HookSettings.status(settings: installed, executable: executable) == .installed(path: executable))

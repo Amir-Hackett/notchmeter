@@ -186,7 +186,8 @@ actor CursorProvider: UsageProvider {
         let teamScoped = (root["limitType"] as? String)?.lowercased() == "team"
         let individual = root["individualUsage"] as? [String: Any]
         let team = root["teamUsage"] as? [String: Any]
-        let plan = individual?["plan"] as? [String: Any]
+        // Some Enterprise seats answer `overall` where others answer `plan`, same fields; seen 2026-09-18.
+        let plan = (individual?["plan"] ?? individual?["overall"]) as? [String: Any]
         let onDemand = individual?["onDemand"] as? [String: Any]
 
         var windows: [LimitWindow] = []
@@ -224,30 +225,38 @@ actor CursorProvider: UsageProvider {
             if teamScoped { windows.insert(window, at: 0) } else { windows.append(window) }
         }
 
-        let splits: [(key: String, id: String, label: WindowLabel)] = [
-            ("autoPercentUsed", "cursor_models", .key("Cursor models")),
-            ("apiPercentUsed", "other_models", .key("Other models")),
+        // The same two figures, on seats whose summary drops the numeric fields, survive only in the dashboard's
+        // own sentences ("You've used 0% of your included total usage"), so the percentage is read out of those.
+        let splits: [(key: String, message: String, id: String, label: WindowLabel)] = [
+            ("autoPercentUsed", "autoModelSelectedDisplayMessage", "cursor_models", .key("Cursor models")),
+            ("apiPercentUsed", "namedModelSelectedDisplayMessage", "other_models", .key("Other models")),
         ]
-        for (key, id, label) in splits {
-            guard let percent = number(plan?[key]) else { continue }
+        // They stay off the card while an included or pooled window carries a figure; on a seat where none does,
+        // they are the only figures there are, and hiding them left a card and rings with nothing in them.
+        let headlineMetered = windows.contains { $0.usedFraction != nil }
+        for (key, message, id, label) in splits {
+            guard let percent = number(plan?[key]) ?? percent(in: root[message] as? String) else { continue }
             windows.append(LimitWindow(id: id, label: label, usedFraction: JSON.fraction(percent), resetsAt: cycleEnd,
-                                       note: L("Metered apart from the included total"), periodDuration: cycle, model: label.text, hiddenByDefault: true))
+                                       note: L("Metered apart from the included total"), periodDuration: cycle, model: label.text, hiddenByDefault: headlineMetered))
         }
 
-        if let onDemand, (onDemand["enabled"] as? Bool) == true, let limit = number(onDemand["limit"]), limit > 0 {
+        // On-demand with no limit is still spend worth showing: the dollars, with no fraction to fill a ring with.
+        if let onDemand, (onDemand["enabled"] as? Bool) == true {
             let used = number(onDemand["used"]) ?? 0
+            let limit = number(onDemand["limit"]).flatMap { $0 > 0 ? $0 : nil }
             windows.append(LimitWindow(
-                id: "on_demand", label: .key("On-demand"), usedFraction: min(max(used / limit, 0), 1), resetsAt: cycleEnd,
-                note: L("%1$@ of %2$@", dollars(used), dollars(limit)),
+                id: "on_demand", label: .key("On-demand"), usedFraction: limit.map { min(max(used / $0, 0), 1) }, resetsAt: cycleEnd,
+                note: limit.map { L("%1$@ of %2$@", dollars(used), dollars($0)) } ?? L("%@ so far, no limit set", dollars(used)),
                 periodDuration: cycle, amountUSD: used / 100
             ))
         }
-        if let teamOnDemand = team?["onDemand"] as? [String: Any], (teamOnDemand["enabled"] as? Bool) == true,
-           let limit = number(teamOnDemand["limit"]), limit > 0 {
+        if let teamOnDemand = team?["onDemand"] as? [String: Any], (teamOnDemand["enabled"] as? Bool) == true {
             let used = number(teamOnDemand["used"]) ?? 0
+            let limit = number(teamOnDemand["limit"]).flatMap { $0 > 0 ? $0 : nil }
             windows.append(LimitWindow(
-                id: "team_on_demand", label: .key("Team on-demand"), usedFraction: min(max(used / limit, 0), 1), resetsAt: cycleEnd,
-                note: L("%1$@ of %2$@", dollars(used), dollars(limit)), periodDuration: cycle, hiddenByDefault: true, amountUSD: used / 100
+                id: "team_on_demand", label: .key("Team on-demand"), usedFraction: limit.map { min(max(used / $0, 0), 1) }, resetsAt: cycleEnd,
+                note: limit.map { L("%1$@ of %2$@", dollars(used), dollars($0)) } ?? L("%@ so far, no limit set", dollars(used)),
+                periodDuration: cycle, hiddenByDefault: true, amountUSD: used / 100
             ))
         }
 
@@ -365,6 +374,12 @@ actor CursorProvider: UsageProvider {
     }
 
     private static func number(_ value: Any?) -> Double? { JSON.number(value) }
+
+    /// The first "NN%" in one of the dashboard's sentences.
+    static func percent(in message: String?) -> Double? {
+        guard let message, let range = message.range(of: #"\d+(\.\d+)?(?=\s*%)"#, options: .regularExpression) else { return nil }
+        return Double(message[range])
+    }
 
     /// Cursor reports plan amounts in cents.
     private static func dollars(_ cents: Double) -> String {

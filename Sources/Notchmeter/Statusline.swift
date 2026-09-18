@@ -30,6 +30,14 @@ enum Statusline {
         let prURL: String?
         let receivedAt: Date
 
+        /// Whether it can stand in for the endpoint at `now`: under three minutes old and not describing a window
+        /// that has since reset. A line from just before a reset still says 100 %, and adopting it again in place of
+        /// the reset refresh held the old ring up for the rest of those three minutes.
+        func standsIn(at now: Date) -> Bool {
+            !windows.isEmpty && now.timeIntervalSince(receivedAt) < PollingPolicy.statuslineFreshFor
+                && !windows.contains { $0.resetsAt.map { $0 <= now } ?? false }
+        }
+
         init(sessionID: String? = nil, project: String? = nil, model: String? = nil, effort: String? = nil, contextUsed: Double? = nil,
              contextTokens: Int? = nil, contextSize: Int? = nil, sessionCost: Double? = nil, windows: [LimitWindow] = [], branch: String? = nil,
              prURL: String? = nil, receivedAt: Date) {
