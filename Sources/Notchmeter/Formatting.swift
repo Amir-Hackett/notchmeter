@@ -52,6 +52,8 @@ enum Pace {
     }
 
     static func status(for window: LimitWindow, now: Date = Date()) -> Status? {
+        // Nothing runs out on a comparison, so it is never behind: no orange cap, tint or urgency for it.
+        if window.isComparison { return window.usedFraction == nil ? nil : .onTrack }
         guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
         return evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)?.status
     }
@@ -59,14 +61,18 @@ enum Pace {
     /// The quiet note beside a meter: "~67% left at reset", or the run-out warning when behind. An untouched window
     /// gets none: "~100% left at reset" says nothing, and the meter's tick already shows where the window stands.
     static func note(for window: LimitWindow, now: Date = Date()) -> (text: String, status: Status)? {
+        // A comparison keeps its note past a usual day: going over one is a figure, not a spent limit.
+        if window.isComparison {
+            guard let used = window.usedFraction, used > 0, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
+            let percent = window.rawUsedPercent.map { $0 / 100 } ?? used
+            let projected = evaluate(usedFraction: percent, resetsAt: resetsAt, period: period, now: now)?.projectedFraction ?? percent
+            return (L("On course for ~%ld%% of a usual day", Int((projected * 100).rounded())), .onTrack)
+        }
         // A spent window has nothing left to project: "~93% over at reset" beside 100% describes usage a hard limit
         // cannot reach, and the meter already reads full.
         guard let used = window.usedFraction, used > 0, used < 1, let resetsAt = window.resetsAt, let period = window.periodDuration,
               let result = evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
         else { return nil }
-        if window.isComparison {
-            return (L("On course for ~%ld%% of a usual day", Int((result.projectedFraction * 100).rounded())), .onTrack)
-        }
         switch result.status {
         case .behind:
             if let eta = secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: now) {

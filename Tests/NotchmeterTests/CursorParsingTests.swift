@@ -140,6 +140,8 @@ import Testing
         let over = try #require(CursorProvider.spendToday(days, now: now, calendar: calendar))
         #expect(over.usedFraction == 1)
         #expect(over.rawUsedPercent == 250)
+        // Past a usual day the note keeps going rather than falling silent at 100 %.
+        #expect(Pace.note(for: over, now: calendar.date(byAdding: .hour, value: 12, to: today)!)?.text == "On course for ~500% of a usual day")
         // A usual day is a comparison, not a limit: no "Runs out in", and never the window advice routes from.
         #expect(window.isComparison)
         let midday = calendar.date(byAdding: .hour, value: 12, to: today)!
@@ -148,6 +150,8 @@ import Testing
         #expect(note.status == .onTrack)
         let reading = UsageReading(tool: .cursor, windows: [window], plan: nil, fetchedAt: now, observedAt: nil)
         #expect(Advisor.mainWindow(of: reading) == nil)
+        #expect(Pace.status(for: window, now: midday) == .onTrack)
+        #expect(WatchedReset.watch(.cursor, window, now: midday) == nil)
         // Nothing before today, nothing to call usual.
         #expect(CursorProvider.spendToday([today: days[today]!], now: now, calendar: calendar) == nil)
     }
