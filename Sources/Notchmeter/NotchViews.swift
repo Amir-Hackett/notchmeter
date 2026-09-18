@@ -153,11 +153,13 @@ private extension Advice.Priority {
     }
 }
 
-/// Captions are tertiary on black by default and secondary under Increase Contrast.
+/// Captions are secondary on black by default and primary under Increase Contrast. Tertiary was tried first and
+/// on the black panel it blended in: the lines it carried ("$108.76 of a usual $107 day", "no spend read yet") could
+/// not be read at a glance, which is the only way the panel is read.
 private struct Caption: ViewModifier {
     @MainActor
     static var style: AnyShapeStyle {
-        AccessibilityDisplay.shared.contrast ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary)
+        AccessibilityDisplay.shared.contrast ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)
     }
 
     func body(content: Content) -> some View {
@@ -1266,6 +1268,11 @@ struct SpendCard: View {
                                 if let share = share(provider) {
                                     Text(verbatim: "\(Int((share * 100).rounded()))%")
                                         .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                                        // "100%" is wider than the column: drawn at its own width it reaches left into
+                                        // the spacer and still ends on the column's edge, where wrapping it put "%" on
+                                        // a line of its own and the row off centre. Widening the column instead cut the
+                                        // source label ("transcri…") on every row to serve the one that rarely occurs.
+                                        .fixedSize()
                                         .frame(width: Self.shareColumn, alignment: .trailing)
                                 }
                                 Text(Self.rowFigure(mode: mode, totals: totals)).font(.callout).monospacedDigit()
