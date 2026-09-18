@@ -964,10 +964,14 @@ struct SegmentedBar<Value: Hashable>: View {
                 // The column is fixed, so a title too long for it shrinks rather than widening the bar. Long
                 // enough to matter only outside English; at the Standard width the shipped titles all fit whole.
                 .minimumScaleFactor(0.6)
-                // `.foreground` and not `.primary`: the panel paints its content white over black whatever
-                // appearance the window carries, and `.primary` would resolve to the appearance's label colour
-                // and turn an unselected title black on the trough.
-                .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.foreground))
+                // Selected: AppKit's own text colour for an emphasised selection, which is what the accent
+                // fill under it is. The pill is `Color.accentColor` and the accent is the user's, not the
+                // app's, so white is not the app's to assume -- macOS ships a yellow one. (Not
+                // `selectedControlTextColor`: that is the pair for an *un*emphasised selection, and is dark.)
+                // Unselected: `.foreground` and not `.primary`, because the panel paints its content white
+                // over black whatever appearance the window carries, and `.primary` would resolve to that
+                // appearance's label colour and turn the title black on the trough.
+                .foregroundStyle(selected ? AnyShapeStyle(Color(nsColor: .alternateSelectedControlTextColor)) : AnyShapeStyle(.foreground))
                 .padding(.vertical, 3)
                 .padding(.horizontal, 4)
                 .frame(maxWidth: .infinity)
