@@ -70,10 +70,11 @@ actor CursorProvider: UsageProvider {
         case 200:
             let reading = try Self.parseSummary(data)
             guard readUsageEvents() else { return reading }
-            await recordUsageEvents(cookie: cookie)
             // A seat with no included allowance (Enterprise billed on-demand, 2026-09-18) reads 0 % on every
             // window however much it spends, so the export's own dollars become the ring: today against a usual day.
-            guard !reading.windows.contains(where: { ["included", "team_pooled"].contains($0.id) && $0.usedFraction != nil }),
+            // Only after today's export was actually read: a refused or failed read leaves today's line unwritten
+            // or stale, and the ring would read $0 against a usual day.
+            guard await recordUsageEvents(cookie: cookie), !reading.windows.contains(where: { ["included", "team_pooled"].contains($0.id) && $0.usedFraction != nil }),
                   let history, let spend = Self.spendToday(history.load(calendar: .current))
             else { return reading }
             return UsageReading(tool: .cursor, windows: [spend] + reading.windows, plan: reading.plan, fetchedAt: reading.fetchedAt,
@@ -96,8 +97,9 @@ actor CursorProvider: UsageProvider {
     /// The last 30 days of usage events, folded into per-day records of the daily-totals file; a failure here
     /// never fails the reading. Every outcome is written down (CursorExportRead) as well as logged, because a
     /// refusal, an empty export and an export nobody ever fetched all reach the Cost card as the same silence.
-    private func recordUsageEvents(cookie: String, now: Date = Date()) async {
-        guard let history else { return }
+    /// True when the export was read, empty or not, so today's line in the daily-totals file is current.
+    private func recordUsageEvents(cookie: String, now: Date = Date()) async -> Bool {
+        guard let history else { return false }
         let calendar = Calendar.current
         let start = calendar.date(byAdding: .day, value: -29, to: calendar.startOfDay(for: now)) ?? now
         var teamId = 0
@@ -112,14 +114,14 @@ actor CursorProvider: UsageProvider {
             guard let (data, response) = try? await send(Self.usageEventsURL, cookie: cookie, body: body) else {
                 log.error("Cursor usage events: the request failed on page \(page)")
                 CursorExportRead(readAt: now, problem: L("its usage export could not be fetched")).save(to: defaults)
-                return
+                return false
             }
             guard response?.statusCode == 200 else {
                 // Silence here is what hid an empty Cost card: a refusal reads exactly like a month with no spend.
                 let status = response?.statusCode ?? 0
                 log.error("Cursor usage events: HTTP \(status) for team \(teamId)")
                 CursorExportRead(readAt: now, problem: L("cursor.com refused its usage export (HTTP %ld)", status)).save(to: defaults)
-                return
+                return false
             }
             let batch = Self.parseUsageEvents(data)
             // A server that ignores `page` answers the same events forever; stopping is a short total, counting
@@ -136,11 +138,12 @@ actor CursorProvider: UsageProvider {
         CursorExportRead(readAt: now, events: events.count, costUSD: total).save(to: defaults)
         guard !events.isEmpty else {
             log.notice("Cursor usage events: none in the last 30 days for team \(teamId)")
-            return
+            return true
         }
         let days = Self.dayRecords(events, calendar: calendar)
         history.record(days, existing: history.load(calendar: calendar), calendar: calendar)
         log.notice("Cursor usage events: \(events.count) over \(days.count) days worth \(Money.dollars(total), privacy: .public)")
+        return true
     }
 
     private func send(_ url: URL, cookie: String, body: Data? = nil) async throws -> (Data, HTTPURLResponse?) {
@@ -371,7 +374,7 @@ actor CursorProvider: UsageProvider {
         return LimitWindow(
             id: "spend_today", label: .key("Today's spend"), usedFraction: min(max(spent / usual, 0), 1), resetsAt: tomorrow,
             note: L("%1$@ of a usual %2$@ day", Money.dollars(spent), Money.dollars(usual, cents: false)),
-            periodDuration: 86400, source: .localEstimate, rawUsedPercent: percent > 100 ? percent : nil, amountUSD: spent
+            periodDuration: tomorrow.timeIntervalSince(today), source: .localEstimate, rawUsedPercent: percent > 100 ? percent : nil, amountUSD: spent
         )
     }
 
