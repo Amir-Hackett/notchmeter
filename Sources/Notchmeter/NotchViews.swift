@@ -12,6 +12,22 @@ extension ToolID {
         case .copilot: Color(hex: 0xF0E442)      // #F0E442 yellow, from Wong's set
         }
     }
+
+    /// The colour of each nested ring, outermost first: the assistant's own on the outer ring, then two companions
+    /// near it in hue, so the inner rings read as the same assistant but can be told apart from the outer one at a
+    /// glance ("Cursor models" beside "All models"). None of them is a status colour (`Palette`), so a companion is
+    /// never mistaken for a warning.
+    func ringColor(at index: Int) -> Color {
+        guard index > 0 else { return color }
+        let companions: [Color] = switch self {
+        case .claude: [Color(hex: 0xE88AA8), Color(hex: 0xF2D0A4)]       // rose, sand
+        case .codex: [Color(hex: 0x4FC3E0), Color(hex: 0xB8E476)]        // teal, lime
+        case .cursor: [Color(hex: 0xF08BD6), Color(hex: 0x8FC0FF)]       // pink, periwinkle
+        case .antigravity: [Color(hex: 0x9FA8FF), Color(hex: 0x7FE3CF)]  // indigo, mint
+        case .copilot: [Color(hex: 0xC6E86A), Color(hex: 0xFFF4B0)]      // lime, cream
+        }
+        return companions[min(index, companions.count) - 1]
+    }
 }
 
 /// Status colours are Wong's colour-blind-safe set, and every status also carries a shape or a symbol so the
@@ -332,8 +348,8 @@ struct CompactRings: View {
                     RingView(fraction: windows.first?.usedFraction, color: tool.color, lineWidth: nest[0].lineWidth,
                              pace: windows.first.flatMap { Pace.status(for: $0) }, signal: painted)
                         .frame(width: nest[0].diameter, height: nest[0].diameter)
-                    ForEach(Array(zip(windows, nest).dropFirst().enumerated()), id: \.offset) { _, pair in
-                        RingView(fraction: pair.0.usedFraction, color: tool.color.opacity(0.8), lineWidth: pair.1.lineWidth,
+                    ForEach(Array(zip(windows, nest).dropFirst().enumerated()), id: \.offset) { offset, pair in
+                        RingView(fraction: pair.0.usedFraction, color: tool.ringColor(at: offset + 1), lineWidth: pair.1.lineWidth,
                                  pace: Pace.status(for: pair.0), signal: painted)
                             .frame(width: pair.1.diameter, height: pair.1.diameter)
                     }
