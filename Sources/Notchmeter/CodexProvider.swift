@@ -149,7 +149,8 @@ actor CodexProvider: UsageProvider {
             windows.append(contentsOf: parseRateLimit(limit, model: name))
         }
         if let credits = root["credits"] as? [String: Any], (credits["has_credits"] as? Bool) == true, (credits["unlimited"] as? Bool) != true,
-           let balance = JSON.number(credits["balance"]) {
+           // Codex's own client models the balance as a string ("12.50").
+           let balance = JSON.number(credits["balance"]) ?? (credits["balance"] as? String).flatMap({ Double($0.trimmingCharacters(in: .whitespaces)) }) {
             windows.append(LimitWindow(id: "credits", label: .key("Credits"), usedFraction: nil, resetsAt: nil, note: L("%@ remaining", Money.dollars(balance)), amountUSD: balance))
         }
         let plan = (root["plan_type"] as? String).map(Naming.codexPlan)
@@ -284,6 +285,9 @@ actor CodexProvider: UsageProvider {
             guard let object = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any] else { continue }
             let payload = object["payload"] as? [String: Any]
             guard let limits = (payload?["rate_limits"] ?? object["rate_limits"]) as? [String: Any] else { continue }
+            // A newer line can carry only credits or a plan, both windows null; an older line's figures beat none.
+            guard ["primary", "secondary"].contains(where: { (limits[$0] as? [String: Any]).flatMap { JSON.number($0["used_percent"]) } != nil })
+            else { continue }
             let stamp = (object["timestamp"] as? String).flatMap(DateParsing.iso8601)
                 ?? (try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
                 ?? Date()
@@ -320,8 +324,12 @@ actor CodexProvider: UsageProvider {
                 fraction = 0
                 note = L("Reset since Codex last reported")
             }
+            // Classified by length, as the backend read is: a weekly-only or monthly plan fills the primary slot
+            // with its one long window, and calling that "session" moved the user's ring and Hide choices off it.
+            let kind = windowKind(seconds: minutes.map { Double($0 * 60) }, fallbackIsWeekly: key == "secondary")
+            guard !windows.contains(where: { $0.id == kind.id }) else { continue }
             windows.append(LimitWindow(
-                id: key == "primary" ? "session" : "weekly",
+                id: kind.id,
                 label: minutes.map(label(forMinutes:)) ?? fallbackLabel,
                 usedFraction: fraction,
                 resetsAt: resetsAt,
@@ -331,6 +339,13 @@ actor CodexProvider: UsageProvider {
             ))
         }
         guard !windows.isEmpty else { throw ProviderError.unavailable(L("Codex reported no usage windows")) }
+        // The same placeholders the backend read adds, so the snapshot fallback keeps the window set it replaces.
+        if !windows.contains(where: { $0.id == "session" }) {
+            windows.insert(LimitWindow(id: "session", label: .key("Session"), usedFraction: nil, resetsAt: nil, note: L("No data"), source: .localSnapshot), at: 0)
+        }
+        if windows.count == 1 {
+            windows.append(LimitWindow(id: "weekly", label: .key("Weekly"), usedFraction: nil, resetsAt: nil, note: L("No data"), source: .localSnapshot))
+        }
         let plan = (limits["plan_type"] as? String).map(Naming.codexPlan)
         return UsageReading(tool: .codex, windows: windows, plan: plan, fetchedAt: now, observedAt: observedAt)
     }

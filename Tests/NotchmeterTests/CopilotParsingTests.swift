@@ -23,6 +23,24 @@ import Testing
         #expect(reading.windows[0].periodDuration == Period.month)
     }
 
+    /// Copilot Free reports its allowance as `monthly_quotas` and what is left as `limited_user_quotas`, with no
+    /// snapshots; that threw, so the card showed an error in place of rings.
+    @Test func theFreeTierIsReadFromItsMonthlyQuotas() throws {
+        let json = """
+        {"copilot_plan":"individual","access_type_sku":"free_limited_copilot","limited_user_reset_date":"2026-10-01",
+         "monthly_quotas":{"chat":50,"completions":2000},"limited_user_quotas":{"chat":40,"completions":2000}}
+        """
+        let reading = try CopilotProvider.parseUser(Data(json.utf8))
+        #expect(reading.windows.map(\.id) == ["chat", "completions"])
+        #expect(abs((reading.windows[0].usedFraction ?? 0) - 0.2) < 1e-9)
+        #expect(reading.windows[0].note == "40 of 50 left")
+        #expect(reading.windows[1].usedFraction == 0)
+        #expect(reading.windows[0].resetsAt == CopilotProvider.resetDate("2026-10-01"))
+        let empty = try CopilotProvider.parseUser(Data(#"{"copilot_plan":"individual"}"#.utf8))
+        #expect(empty.windows.count == 1)
+        #expect(empty.windows[0].usedFraction == nil)
+    }
+
     @Test func overageAndLimitedChatAreNoted() throws {
         let json = """
         {"copilot_plan":"business","quota_reset_date":"2026-10-01",

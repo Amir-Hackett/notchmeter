@@ -310,6 +310,41 @@ import Testing
         #expect(snapshot.windows[0].source.tag == "snapshot")
     }
 
+    /// The snapshot fallback names windows by length, as the backend read does, and keeps the same placeholders:
+    /// a monthly or weekly-only plan's lone primary window is not a "session", and the set never drops to one.
+    @Test func aSnapshotClassifiesItsWindowsByLengthLikeTheBackend() throws {
+        let at = Date(timeIntervalSince1970: 1_756_720_000)
+        let monthly: [String: Any] = ["primary": ["used_percent": 0, "window_minutes": 43200, "resets_at": 1_800_000_000]]
+        let free = try CodexProvider.reading(from: monthly, observedAt: at, now: at)
+        #expect(free.windows.map(\.id) == ["session", "monthly"])
+        #expect(free.windows[0].usedFraction == nil)
+        let weekly: [String: Any] = ["primary": ["used_percent": 40, "window_minutes": 10080, "resets_at": 1_800_000_000]]
+        let weeklyOnly = try CodexProvider.reading(from: weekly, observedAt: at, now: at)
+        #expect(weeklyOnly.windows.map(\.id) == ["session", "weekly"])
+        #expect(weeklyOnly.windows[1].usedFraction == 0.4)
+    }
+
+    /// A newer rollout line that carries only credits must not hide the older line's windows.
+    @Test func theScanSkipsARateLimitsLineWithNoWindows() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let rollout = dir.appendingPathComponent("rollout.jsonl")
+        let lines = [
+            #"{"timestamp":"2026-09-01T10:00:05.000Z","payload":{"type":"token_count","rate_limits":{"primary":{"used_percent":20,"window_minutes":300},"secondary":{"used_percent":5,"window_minutes":10080}}}}"#,
+            #"{"timestamp":"2026-09-01T10:00:09.000Z","payload":{"type":"token_count","rate_limits":{"primary":null,"secondary":null,"credits":{"has_credits":false}}}}"#,
+        ]
+        try lines.joined(separator: "\n").write(to: rollout, atomically: true, encoding: .utf8)
+        let found = try #require(CodexProvider.latestRateLimits(in: rollout))
+        #expect(found.observedAt == DateParsing.iso8601("2026-09-01T10:00:05.000Z"))
+    }
+
+    @Test func aCreditsBalanceSentAsAStringIsRead() throws {
+        let json = #"{"rate_limit":{"primary_window":{"used_percent":1,"limit_window_seconds":18000}},"credits":{"has_credits":true,"unlimited":false,"balance":"12.50"}}"#
+        let reading = try CodexProvider.parseBackend(Data(json.utf8))
+        #expect(reading.windows.first { $0.id == "credits" }?.amountUSD == 12.5)
+    }
+
     @Test func homeFollowsCodexHomeThenTheConfigFolderThenTheDotFolder() {
         let home = URL(fileURLWithPath: "/Users/me")
         let fromCodexHome = CodexProvider.defaultHome(environment: ["CODEX_HOME": "/srv/codex", "TERM": "x"], home: home, exists: { _ in false })

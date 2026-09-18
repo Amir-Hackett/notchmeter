@@ -834,7 +834,9 @@ struct SettingsView: View {
     /// Everything the collapsed row leaves out: the rings, the hidden windows, the two per-assistant switches and
     /// whatever second read that assistant alone offers.
     @ViewBuilder private func assistantOptions(_ tool: ToolID) -> some View {
-        if let reading = store.status(tool).reading, reading.windows.count > 1 {
+        // One window is still worth the section: requiring two made the ring pickers vanish without a word when a
+        // vendor's reset left only one (Cursor Enterprise, 2026-09-18), which read as a bug rather than a choice.
+        if let reading = store.status(tool).reading, !reading.windows.isEmpty {
             WindowChoices(tool: tool, reading: reading, prefs: prefs)
         }
         Toggle(L("Pin to menu bar"), isOn: Binding(
@@ -1317,6 +1319,11 @@ private struct WindowChoices: View {
     /// Emptying a ring closes the gap: the rings are drawn outermost first, so a chosen third with no second
     /// would otherwise be stored as a second anyway.
     private func set(at index: Int, _ id: String, ring: [LimitWindow]) {
+        // Choosing a window for a ring asks to see it: a hidden one would be filtered out of the rings and the
+        // picker would snap back to what it showed before, with no word about the Hide box behind it.
+        if let window = reading.windows.first(where: { $0.id == id }), prefs.isHidden(window, of: tool) {
+            prefs.setHidden(false, window: window, of: tool)
+        }
         var ids = (0..<RingSelection.maximum).map { self.id(of: ring, at: $0) }
         ids[index] = id
         prefs.ringWindows[tool] = ids.filter { !$0.isEmpty }

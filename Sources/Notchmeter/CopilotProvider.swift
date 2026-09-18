@@ -212,7 +212,26 @@ actor CopilotProvider: UsageProvider {
             windows.append(LimitWindow(id: spec.id, label: spec.label, usedFraction: used, resetsAt: resetsAt, note: note,
                                        periodDuration: resetsAt.map { _ in Period.month }))
         }
-        guard !windows.isEmpty else { throw ProviderError.parse(L("GitHub Copilot reported no quota")) }
+        // Copilot Free answers without snapshots: `monthly_quotas` is the allowance and `limited_user_quotas` what
+        // is left of it, reset on `limited_user_reset_date`.
+        if windows.isEmpty, let allowance = root["monthly_quotas"] as? [String: Any] {
+            let left = root["limited_user_quotas"] as? [String: Any] ?? [:]
+            let freeReset = resetsAt ?? (root["limited_user_reset_date"] as? String).flatMap(resetDate)
+            for (key, id, label) in [("chat", "chat", WindowLabel.key("Chat")), ("completions", "completions", WindowLabel.key("Completions"))] {
+                guard let total = JSON.number(allowance[key]), total > 0 else { continue }
+                let remaining = JSON.number(left[key]) ?? total
+                windows.append(LimitWindow(id: id, label: label, usedFraction: min(max(1 - remaining / total, 0), 1), resetsAt: freeReset,
+                                           note: L("%1$ld of %2$ld left", Int(max(0, remaining)), Int(total)),
+                                           periodDuration: freeReset.map { _ in Period.month }))
+            }
+        }
+        // An account that names its plan but no quota says so on the card; an error here kept the last figures up as
+        // if current. A body with no plan either is not an account's answer at all.
+        guard !windows.isEmpty || root["copilot_plan"] != nil else { throw ProviderError.parse(L("GitHub Copilot reported no quota")) }
+        if windows.isEmpty {
+            windows.append(LimitWindow(id: "premium", label: .key("Premium requests"), usedFraction: nil, resetsAt: resetsAt,
+                                       note: L("GitHub Copilot reported no quota")))
+        }
         return UsageReading(tool: .copilot, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
     }
 
