@@ -694,7 +694,8 @@ final class UsageStore {
         for (key, samples) in drainSamples {
             if let drain = DrainLog.drain(samples, now: now) { drains[key] = drain }
             series[key] = DrainLog.hourly(samples, now: now)
-            if let window = statuses[key.tool]?.reading?.windows.first(where: { $0.id == key.window }), let used = window.usedFraction, let resetsAt = window.resetsAt,
+            if let window = statuses[key.tool]?.reading?.windows.first(where: { $0.id == key.window }), !window.isComparison,
+               let used = window.usedFraction, let resetsAt = window.resetsAt,
                let interval = RunOutInterval.estimate(samples: samples, usedFraction: used, resetsAt: resetsAt, now: now, peak: prefs.peakHours(for: key.tool)) {
                 runOuts[key] = interval
             }

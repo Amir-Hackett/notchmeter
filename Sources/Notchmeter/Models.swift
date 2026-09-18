@@ -183,6 +183,11 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     let name: WindowLabel
     /// The name in this run's language.
     var label: String { name.text }
+
+    /// A figure measured against a usual amount rather than a limit (Cursor's "Today's spend" against a usual day):
+    /// it fills a ring and paces, but nothing runs out, so it never earns a run-out warning, an alert, or the advice
+    /// to switch tools. A budget the user set is a limit of their own and is not one of these.
+    var isComparison: Bool { id == "spend_today" }
     /// Share of the window already consumed, 0...1. nil when the tool publishes no limit.
     let usedFraction: Double?
     let resetsAt: Date?

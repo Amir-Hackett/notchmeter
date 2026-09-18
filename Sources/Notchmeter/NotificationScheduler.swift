@@ -93,7 +93,7 @@ struct WatchedReset: Equatable, Sendable, Codable {
     static let watchAbove = 0.8
 
     static func watch(_ tool: ToolID, _ window: LimitWindow, now: Date) -> WatchedReset? {
-        guard let used = window.usedFraction, let resetsAt = window.resetsAt, resetsAt > now else { return nil }
+        guard !window.isComparison, let used = window.usedFraction, let resetsAt = window.resetsAt, resetsAt > now else { return nil }
         guard used >= watchAbove || Pace.status(for: window, now: now) == .behind else { return nil }
         return WatchedReset(tool: tool, window: window, seenAt: now)
     }
@@ -160,7 +160,7 @@ enum NotificationScheduler {
         var memory = memory
         var alerts: [PaceAlert] = []
         for reading in readings {
-            for window in reading.windows {
+            for window in reading.windows where !window.isComparison {
                 guard let resetsAt = window.resetsAt else { continue }
                 let key = AlertMemory.key(reading.tool, window)
                 let previous = memory.entries[key]
@@ -209,7 +209,7 @@ enum NotificationScheduler {
     /// once, once per period, whatever its pace maths says.
     static func planLimitHit(memory: AlertMemory, tool: ToolID, reading: UsageReading?, now: Date, options: Options) -> (alerts: [PaceAlert], memory: AlertMemory) {
         var memory = memory
-        let candidates = (reading?.windows ?? []).filter { $0.usedFraction != nil && ($0.resetsAt ?? .distantPast) > now }
+        let candidates = (reading?.windows ?? []).filter { $0.usedFraction != nil && !$0.isComparison && ($0.resetsAt ?? .distantPast) > now }
         func rank(_ window: LimitWindow) -> (Double, Double) {
             (window.usedFraction ?? 0, -(window.resetsAt?.timeIntervalSince1970 ?? 0))
         }

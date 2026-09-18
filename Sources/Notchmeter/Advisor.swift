@@ -146,7 +146,7 @@ enum Advisor {
     static func runOut(_ context: Context) -> [Advice] {
         var found: [(eta: TimeInterval, advice: Advice)] = []
         for reading in context.readings {
-            for window in reading.windows {
+            for window in reading.windows where !window.isComparison {
                 guard let eta = secondsToRunOut(window, tool: reading.tool, context: context),
                       let text = runOutText(tool: reading.tool, window: window, context: context) else { continue }
                 found.append((eta, Advice(id: "run-out/\(reading.tool.rawValue)/\(window.id)", tool: reading.tool, priority: .danger,
@@ -271,7 +271,7 @@ enum Advisor {
         context.readings.compactMap { reading in
             guard headroom(besides: reading.tool, in: context) == nil, !context.limitHitTools.contains(reading.tool) else { return nil }
             let soon = reading.windows.filter { window in
-                guard let used = window.usedFraction, let resetsAt = window.resetsAt, resetsAt > context.now,
+                guard !window.isComparison, let used = window.usedFraction, let resetsAt = window.resetsAt, resetsAt > context.now,
                       resetsAt.timeIntervalSince(context.now) <= waitHorizon else { return false }
                 return used >= 1 || Pace.status(for: window, now: context.now) == .behind
             }
@@ -288,7 +288,7 @@ enum Advisor {
         context.readings.compactMap { reading in
             guard let credit = reading.windows.first(where: { $0.id == "reset_credits" }), let expiresAt = credit.resetsAt,
                   expiresAt > context.now, expiresAt.timeIntervalSince(context.now) <= creditHorizon,
-                  reading.windows.contains(where: { Pace.status(for: $0, now: context.now) == .behind || ($0.usedFraction ?? 0) >= 1 })
+                  reading.windows.contains(where: { !$0.isComparison && (Pace.status(for: $0, now: context.now) == .behind || ($0.usedFraction ?? 0) >= 1) })
             else { return nil }
             return Advice(id: "credit/\(reading.tool.rawValue)", tool: reading.tool, priority: .warn, symbol: "gift.fill",
                           text: L("A %1$@ reset credit expires in %2$@. Claim it in %1$@.", reading.tool.displayName,
@@ -417,7 +417,7 @@ enum Advisor {
     /// Codex, the billing cycle for Cursor).
     static func mainWindow(of reading: UsageReading) -> LimitWindow? {
         reading.windows
-            .filter { $0.usedFraction != nil && $0.model == nil && $0.periodDuration != nil && !$0.id.hasPrefix("budget_") }
+            .filter { $0.usedFraction != nil && $0.model == nil && $0.periodDuration != nil && !$0.id.hasPrefix("budget_") && !$0.isComparison }
             .max { ($0.periodDuration ?? 0) < ($1.periodDuration ?? 0) }
     }
 
