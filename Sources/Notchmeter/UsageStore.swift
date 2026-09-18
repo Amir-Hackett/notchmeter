@@ -798,7 +798,7 @@ final class UsageStore {
             lowPowerMode: lowPowerMode,
             minutesSinceLastAgentActivity: simulatedIdle.map { $0 / 60 } ?? lastActivity[tool].map { now.timeIntervalSince($0) / 60 },
             hookNudge: simulatedIdle == nil && (lastHook[tool].map { now.timeIntervalSince($0) < PollingPolicy.idleAfter } ?? false),
-            secondsSinceStatusline: tool == .claude && base == nil ? statusline.flatMap { $0.windows.isEmpty ? nil : now.timeIntervalSince($0.receivedAt) } : nil,
+            secondsSinceStatusline: tool == .claude && base == nil ? statusline.flatMap { $0.standsIn(at: now) ? now.timeIntervalSince($0.receivedAt) : nil } : nil,
             sessionInactive: sessionInactive,
             exhaustedUntil: main.flatMap { ($0.usedFraction ?? 0) >= 1 ? $0.resetsAt : nil },
             now: now
