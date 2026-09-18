@@ -64,6 +64,9 @@ enum Pace {
         guard let used = window.usedFraction, used > 0, used < 1, let resetsAt = window.resetsAt, let period = window.periodDuration,
               let result = evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
         else { return nil }
+        if window.isComparison {
+            return (L("On course for ~%ld%% of a usual day", Int((result.projectedFraction * 100).rounded())), .onTrack)
+        }
         switch result.status {
         case .behind:
             if let eta = secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: now) {

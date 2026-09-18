@@ -146,7 +146,7 @@ enum Advisor {
     static func runOut(_ context: Context) -> [Advice] {
         var found: [(eta: TimeInterval, advice: Advice)] = []
         for reading in context.readings {
-            for window in reading.windows {
+            for window in reading.windows where !window.isComparison {
                 guard let eta = secondsToRunOut(window, tool: reading.tool, context: context),
                       let text = runOutText(tool: reading.tool, window: window, context: context) else { continue }
                 found.append((eta, Advice(id: "run-out/\(reading.tool.rawValue)/\(window.id)", tool: reading.tool, priority: .danger,
@@ -417,7 +417,7 @@ enum Advisor {
     /// Codex, the billing cycle for Cursor).
     static func mainWindow(of reading: UsageReading) -> LimitWindow? {
         reading.windows
-            .filter { $0.usedFraction != nil && $0.model == nil && $0.periodDuration != nil && !$0.id.hasPrefix("budget_") }
+            .filter { $0.usedFraction != nil && $0.model == nil && $0.periodDuration != nil && !$0.id.hasPrefix("budget_") && !$0.isComparison }
             .max { ($0.periodDuration ?? 0) < ($1.periodDuration ?? 0) }
     }
 

@@ -140,6 +140,14 @@ import Testing
         let over = try #require(CursorProvider.spendToday(days, now: now, calendar: calendar))
         #expect(over.usedFraction == 1)
         #expect(over.rawUsedPercent == 250)
+        // A usual day is a comparison, not a limit: no "Runs out in", and never the window advice routes from.
+        #expect(window.isComparison)
+        let midday = calendar.date(byAdding: .hour, value: 12, to: today)!
+        let note = try #require(Pace.note(for: window, now: midday))
+        #expect(note.text == "On course for ~120% of a usual day")
+        #expect(note.status == .onTrack)
+        let reading = UsageReading(tool: .cursor, windows: [window], plan: nil, fetchedAt: now, observedAt: nil)
+        #expect(Advisor.mainWindow(of: reading) == nil)
         // Nothing before today, nothing to call usual.
         #expect(CursorProvider.spendToday([today: days[today]!], now: now, calendar: calendar) == nil)
     }

@@ -160,7 +160,7 @@ enum NotificationScheduler {
         var memory = memory
         var alerts: [PaceAlert] = []
         for reading in readings {
-            for window in reading.windows {
+            for window in reading.windows where !window.isComparison {
                 guard let resetsAt = window.resetsAt else { continue }
                 let key = AlertMemory.key(reading.tool, window)
                 let previous = memory.entries[key]
@@ -209,7 +209,7 @@ enum NotificationScheduler {
     /// once, once per period, whatever its pace maths says.
     static func planLimitHit(memory: AlertMemory, tool: ToolID, reading: UsageReading?, now: Date, options: Options) -> (alerts: [PaceAlert], memory: AlertMemory) {
         var memory = memory
-        let candidates = (reading?.windows ?? []).filter { $0.usedFraction != nil && ($0.resetsAt ?? .distantPast) > now }
+        let candidates = (reading?.windows ?? []).filter { $0.usedFraction != nil && !$0.isComparison && ($0.resetsAt ?? .distantPast) > now }
         func rank(_ window: LimitWindow) -> (Double, Double) {
             (window.usedFraction ?? 0, -(window.resetsAt?.timeIntervalSince1970 ?? 0))
         }

@@ -691,3 +691,4 @@
 "%@ so far, no limit set" = "현재 %@, 한도 없음";
 "Today's spend" = "오늘 지출";
 "%1$@ of a usual %2$@ day" = "평소 하루 %2$@ 중 %1$@";
+"On course for ~%ld%% of a usual day" = "평소 하루의 약 %ld%% 페이스";

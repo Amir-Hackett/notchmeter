@@ -707,3 +707,4 @@
 "%@ so far, no limit set" = "%@ so far, no limit set";
 "Today's spend" = "Today's spend";
 "%1$@ of a usual %2$@ day" = "%1$@ of a usual %2$@ day";
+"On course for ~%ld%% of a usual day" = "On course for ~%ld%% of a usual day";

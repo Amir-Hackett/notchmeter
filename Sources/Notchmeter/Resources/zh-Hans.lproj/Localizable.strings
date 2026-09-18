@@ -707,3 +707,4 @@
 "%@ so far, no limit set" = "目前 %@，未设上限";
 "Today's spend" = "今日支出";
 "%1$@ of a usual %2$@ day" = "平常一天 %2$@ 中的 %1$@";
+"On course for ~%ld%% of a usual day" = "按此速度约为平常一天的 %ld%%";
