@@ -689,3 +689,5 @@
 "per day since %@" = "自 %@ 起每天";
 "Dashboard" = "儀表板";
 "%@ so far, no limit set" = "目前 %@，未設上限";
+"Today's spend" = "今日支出";
+"%1$@ of a usual %2$@ day" = "平常一天 %2$@ 中的 %1$@";

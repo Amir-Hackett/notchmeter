@@ -689,3 +689,5 @@
 "per day since %@" = "%@ 이후 하루당";
 "Dashboard" = "대시보드";
 "%@ so far, no limit set" = "현재 %@, 한도 없음";
+"Today's spend" = "오늘 지출";
+"%1$@ of a usual %2$@ day" = "평소 하루 %2$@ 중 %1$@";

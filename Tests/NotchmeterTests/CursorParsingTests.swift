@@ -118,6 +118,32 @@ import Testing
         #expect(CursorProvider.percent(in: "No figure here") == nil)
     }
 
+    /// With no included allowance every summary figure stays at 0 %, so the export's dollars carry the ring:
+    /// today against the average day of the history before it, filling at a usual day and counting on past it.
+    @Test func anUnmeteredSeatGetsTodaysSpendAgainstAUsualDay() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let now = DateParsing.iso8601("2026-09-18T16:00:00Z")!
+        let today = calendar.startOfDay(for: now)
+        func day(_ offset: Int, _ cost: Double) -> (Date, CostHistory.Record) {
+            (calendar.date(byAdding: .day, value: offset, to: today)!, CostHistory.Record(cost: cost, tokens: TokenBreakdown(), byModel: [:], byProject: [:]))
+        }
+        // Ten days of history at $1,000 in all: a usual day is $100.
+        var days = Dictionary(uniqueKeysWithValues: [day(-10, 400), day(-5, 600), day(0, 60)])
+        let window = try #require(CursorProvider.spendToday(days, now: now, calendar: calendar))
+        #expect(window.id == "spend_today")
+        #expect(window.label == "Today's spend")
+        #expect(abs((window.usedFraction ?? 0) - 0.6) < 1e-9)
+        #expect(window.note == "$60.00 of a usual $100 day")
+        #expect(window.resetsAt == calendar.date(byAdding: .day, value: 1, to: today))
+        days[today] = CostHistory.Record(cost: 250, tokens: TokenBreakdown(), byModel: [:], byProject: [:])
+        let over = try #require(CursorProvider.spendToday(days, now: now, calendar: calendar))
+        #expect(over.usedFraction == 1)
+        #expect(over.rawUsedPercent == 250)
+        // Nothing before today, nothing to call usual.
+        #expect(CursorProvider.spendToday([today: days[today]!], now: now, calendar: calendar) == nil)
+    }
+
     @Test func parsesLegacyRequestUsage() throws {
         let json = #"{"gpt-4":{"numRequests":120,"numRequestsTotal":120,"numTokens":0,"maxRequestUsage":500,"maxTokenUsage":null},"startOfMonth":"2026-08-24T00:00:00.000Z"}"#
         let reading = try CursorProvider.parseLegacyUsage(Data(json.utf8))
