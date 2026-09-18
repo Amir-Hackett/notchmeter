@@ -281,6 +281,23 @@ h2 {
 }
 .code .p { color: var(--text-faint); }
 
+/* The Windows notice. It ships with the `hidden` attribute and the one script
+   in index.html clears it when the browser is on Windows. Same card as the
+   rest of the page, and nothing moves, so prefers-reduced-motion has nothing
+   to switch off. */
+.platform-note {
+  max-width: 520px;
+  margin: 0 auto 26px;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+}
+.platform-note p { margin: 0 0 16px; color: var(--text-dim); font-size: 15px; line-height: 1.55; text-align: left; }
+/* The script hides the DMG row with `hidden`; .cta-row's own display:flex
+   would otherwise beat the browser's [hidden] rule and leave it showing. */
+[hidden] { display: none !important; }
+
 /* ---------- pricing ---------- */
 
 .plans { display: grid; grid-template-columns: minmax(0, 560px); justify-content: center; gap: 20px; align-items: start; }
