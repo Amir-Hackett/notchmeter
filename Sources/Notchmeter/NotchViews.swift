@@ -869,12 +869,24 @@ struct NotchExpandedView: View {
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 
+    /// The Cost card at the top of the panel, or nil while there is nothing to price: spend hidden, figures hidden
+    /// for a capture, or no carried tool that can report a cost. Built with no range, so it shows the store's
+    /// (`UsageStore.spendRange`): the panel on screen sets it, and the panel rebuilt for "Copy as image"
+    /// (App.swift, copyPanelImage) reads the same value, which is what makes the pasted PNG match the panel.
+    /// Until 0.6.0 that rebuilt panel's card opened on Today. Exposed so CostCardCopyImage can check the card the
+    /// panel builds without rendering it.
+    var spendCard: SpendCard? {
+        let tools = store.visibleTools
+        guard prefs.showSpend, !store.hidesFigures, tools.contains(where: { $0.reportsCost && prefs.costCardTools.contains($0) }) else { return nil }
+        return SpendCard(store: store)
+    }
+
     private var content: some View {
         let tools = store.visibleTools
         let advice = store.advice
         return VStack(alignment: .leading, spacing: prefs.density.cardSpacing) {
-            if prefs.showSpend, !store.hidesFigures, tools.contains(where: { $0.reportsCost && prefs.costCardTools.contains($0) }) {
-                SpendCard(store: store)
+            if let spendCard {
+                spendCard
             }
             if !advice.isEmpty {
                 AdviceStrip(advice: advice, open: actions.open)
@@ -1033,26 +1045,36 @@ struct SpendCard: View {
     }
 
     let store: UsageStore
-    @State private var range: Range
+    /// A range this card is pinned to, or nil for a card that shows and sets the store's (`UsageStore.spendRange`).
+    private let seeded: Range?
     @Environment(\.density) private var density
 
-    /// The range the card opens on, and the range a copied image is drawn at. The panel always opens on today;
-    /// the copy action, tests and rendered stills pass the range they want.
-    init(store: UsageStore, range: Range = .today) {
+    /// The card on the panel passes no range: it draws the store's and its SegmentedBar sets it, so the range
+    /// lives as long as the app rather than as long as the panel. Until 0.6.0 it was the card's own `@State`,
+    /// which died with the panel and left every detached render of the card on Today (see `imageCard`). Tests
+    /// and rendered stills pass the range they want, and a copy passes the one on screen.
+    init(store: UsageStore, range: Range? = nil) {
         self.store = store
-        _range = State(initialValue: range)
+        seeded = range
     }
 
-    /// The range this card was built to open on, read back for the copy test below. Outside `body` a `@State`
-    /// reads its initial value, which is exactly the one a detached render will draw.
+    private var range: Range { seeded ?? store.spendRange }
+
+    /// The SegmentedBar's selection. A seeded card is a picture of one range (a copy, a still, a width test) and
+    /// nothing taps its bar, so the setter only has to serve the live card.
+    private var selectedRange: Binding<Range> {
+        Binding(get: { seeded ?? store.spendRange }, set: { if seeded == nil { store.spendRange = $0 } })
+    }
+
+    /// The range this card draws when rendered, read back by CostCardCopyImage: the seeded one, else the store's.
     var openingRange: Range { range }
 
-    /// The card "Copy as image" renders: a fresh copy seeded with the range on screen. `CardImage.copy` renders a
+    /// The card "Copy as image" renders: a fresh copy pinned to the range on screen. `CardImage.copy` renders a
     /// detached hierarchy, so nothing the user tapped carries over on its own -- until 0.5.0 the action built
     /// `SpendCard(store:)`, and a user who had picked 90d and read $6,412 pasted a Today card saying $118, with
-    /// Today highlighted. Seeding the range here is what makes the pasted card match the one on screen. The
-    /// context-menu Button below must render this, not a fresh `SpendCard(store:)`; CostCardCopyImage checks the
-    /// seeding but cannot see the Button.
+    /// Today highlighted. Since 0.6.0 a fresh card reads the store's range and would already match; pinning it
+    /// keeps the copy a picture of what was on screen when the menu opened. The context-menu Button below must
+    /// render this, not a fresh `SpendCard(store:)`; CostCardCopyImage checks the pinning but cannot see the Button.
     var imageCard: SpendCard { SpendCard(store: store, range: range) }
 
     private var mode: CostCardMode { store.prefs.costCardMode }
@@ -1220,7 +1242,7 @@ struct SpendCard: View {
             // Never a segmented Picker: it takes whatever width its titles come to, and the width it takes
             // changes with the selection, so the card hung past the panel's right margin and moved when the
             // range did. SegmentedBar is exactly as wide as the column it is given.
-            SegmentedBar(values: Range.allCases, title: \.title, selection: $range)
+            SegmentedBar(values: Range.allCases, title: \.title, selection: selectedRange)
                 .accessibilityLabel(L("Range"))
             // Centred against the ring: the column beside it is the legend alone, which is shorter than the ring
             // on every plan anyone has, and top-aligning it left the card's right half empty under two rows.
