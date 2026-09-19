@@ -1611,7 +1611,7 @@ private struct SessionLine: View {
         if let branch = session.branch { parts.append(branch) }
         if let pr = session.prNumber { parts.append(L("PR %@", pr)) }
         guard !parts.isEmpty else { return nil }
-        return (parts.joined(separator: " · "), session.prURL.flatMap(URL.init(string:)), Hook.permissionBadge(session.permissionMode))
+        return (parts.joined(separator: " · "), session.prLink, Hook.permissionBadge(session.permissionMode))
     }
 
     static func contextText(_ used: Double, statusline: Statusline.Message?, hideFigures: Bool) -> String {
