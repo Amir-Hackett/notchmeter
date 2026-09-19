@@ -1528,7 +1528,7 @@ struct ToolCard: View {
         }
         .modifier(CardBackground())
         .contextMenu {
-            Button(L("Refresh")) { Keychain.setInteractive(tool == .claude); Task { await store.refresh(tool, force: true) } }
+            Button(L("Refresh")) { Task { await store.refresh(tool, force: true, interactive: true) } }
             Button(L("Copy as image")) {
                 CardImage.copy(ToolCard(tool: tool, status: status, store: store, prefs: prefs).environment(\.density, density), width: prefs.panelWidth.points - 28)
             }

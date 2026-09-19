@@ -53,7 +53,15 @@ actor ClaudeProvider: UsageProvider {
     }
 
     func fetch() async throws -> UsageReading {
-        let credentials = try loadCredentials()
+        try await fetch(interactive: false)
+    }
+
+    /// `interactive` is the one thing that lets this read raise the Keychain dialog, and it arrives with the read
+    /// rather than through a process-wide flag, so it cannot be consumed by a timer read that happened to be in
+    /// flight or left behind for one that comes later. It is decided at the top, before the network, because
+    /// `loadCredentials` is where the Keychain is read.
+    func fetch(interactive: Bool) async throws -> UsageReading {
+        let credentials = try loadCredentials(interactive: interactive)
         if let expiresAt = credentials.expiresAt, expiresAt.timeIntervalSinceNow < 30 {
             cached = nil
             throw ProviderError.tokenExpired(L("Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself."))
@@ -132,9 +140,9 @@ actor ClaudeProvider: UsageProvider {
 
     // MARK: - Credentials
 
-    private func loadCredentials() throws -> ClaudeCredentials {
+    private func loadCredentials(interactive: Bool) throws -> ClaudeCredentials {
         if let cached { return cached }
-        let parsed = try Self.resolveCredentials(configDir: configDir, mayPrompt: Keychain.mayPromptNow)
+        let parsed = try Self.resolveCredentials(configDir: configDir, mayPrompt: Keychain.mayPrompt(interactive: interactive))
         cached = parsed
         return parsed
     }

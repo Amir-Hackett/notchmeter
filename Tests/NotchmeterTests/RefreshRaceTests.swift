@@ -1,0 +1,115 @@
+import Foundation
+import Testing
+@testable import Notchmeter
+
+/// What `UsageStore.refresh` does about the reads it cannot see across its `await`. Its preconditions are checked
+/// before the fetch; the state they describe can change while the fetch is on the wire, and two of the findings
+/// against 0.4.7 were reads that acted on the state as it had been.
+@Suite struct RefreshRaces {
+    init() { Localization.use(language: "en") }
+
+    @MainActor func store(suite: String, provider: ParkedProvider) -> (UsageStore, UserDefaults) {
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let prefs = Preferences(defaults: defaults)
+        let store = UsageStore(prefs: prefs, providers: [provider], cache: ReadingCache(defaults: defaults), defaults: defaults,
+                               drainLog: nil, reportFile: nil)
+        return (store, defaults)
+    }
+
+    /// A Refresh pressed while a timer read was mid-fetch used to return at the in-flight guard having done
+    /// nothing. For Claude Code that was the one read allowed to raise the Keychain dialog, and the permission
+    /// went with it: it lived in a process-wide flag that the timer read's `defer` then cleared, so pressing
+    /// Refresh changed nothing, repeatedly. The permission now travels with the read, and an interactive read
+    /// waits for the running one and then goes itself; a colliding timer read still just returns.
+    @MainActor @Test func anInteractiveRefreshWaitsForTheReadInFlightRatherThanBeingDropped() async {
+        let suite = "NotchmeterTests.RefreshRaces.interactive"
+        let provider = ParkedProvider(tool: .claude)
+        let (store, defaults) = store(suite: suite, provider: provider)
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let timer = Task { await store.refresh(.claude, force: true) }
+        await provider.fetchesBegun(1)
+        // A second timer read finds the first in flight and leaves it to finish.
+        await store.refresh(.claude, force: true)
+        #expect(await provider.interactives == [false])
+
+        let pressed = Task { await store.refresh(.claude, force: true, interactive: true) }
+        await Task.yield()
+        // The press is waiting, not reading beside the timer read.
+        #expect(await provider.interactives == [false])
+        await provider.release()
+        await timer.value
+        await provider.fetchesBegun(2)
+        await provider.release()
+        await pressed.value
+
+        let expected = [false, true]
+        #expect(await provider.interactives == expected)
+        #expect(store.status(.claude) == .ready(provider.reading))
+    }
+
+    /// The user turns a tool off while its read is on the wire. setEnabled tears the state down at once; the read
+    /// then completes, and used to run the whole adopt path against it: the cache entry the user had just cleared
+    /// was written back, a drain row was logged for a tool they had disabled, and the status went from `.off` to
+    /// `.ready`. The read now checks the switch again once the fetch is back, and a disabled tool's answer is dropped.
+    @MainActor @Test func aReadThatOutlivesTheSwitchIsDropped() async {
+        let suite = "NotchmeterTests.RefreshRaces.disabled"
+        let provider = ParkedProvider(tool: .cursor)
+        let (store, defaults) = store(suite: suite, provider: provider)
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let read = Task { await store.refresh(.cursor, force: true) }
+        await provider.fetchesBegun(1)
+        store.setEnabled(.cursor, false)
+        #expect(store.status(.cursor) == .off)
+        await provider.release()
+        await read.value
+
+        #expect(store.status(.cursor) == .off)
+        #expect(ReadingCache(defaults: defaults).load()[.cursor] == nil)
+        #expect(!store.prefs.enabledTools.contains(.cursor))
+    }
+}
+
+/// Installed, and every read parks until the test lets it go, remembering whether it was asked for by the user.
+actor ParkedProvider: UsageProvider {
+    let tool: ToolID
+    let reading: UsageReading
+    private(set) var interactives: [Bool] = []
+    private var parked: [CheckedContinuation<Void, Never>] = []
+
+    init(tool: ToolID) {
+        self.tool = tool
+        reading = UsageReading(tool: tool, windows: [
+            LimitWindow(id: "session", label: "Session", usedFraction: 0.3, resetsAt: nil),
+        ], plan: nil, fetchedAt: Date(), observedAt: nil)
+    }
+
+    nonisolated var refreshInterval: TimeInterval { 300 }
+    nonisolated func isInstalled() -> Bool { true }
+
+    func fetch() async throws -> UsageReading { try await fetch(interactive: false) }
+
+    func fetch(interactive: Bool) async throws -> UsageReading {
+        interactives.append(interactive)
+        await withCheckedContinuation { parked.append($0) }
+        return reading
+    }
+
+    /// Returns once `count` reads have started, so the test can act while one is on the wire. Bounded, so a read
+    /// that never comes fails the expectation after it instead of hanging the run: a store that dropped the read
+    /// would otherwise leave the test waiting for it forever.
+    func fetchesBegun(_ count: Int) async {
+        for _ in 0..<1000 where interactives.count < count {
+            await Task.yield()
+        }
+    }
+
+    /// Lets every parked read return its reading.
+    func release() {
+        let waiting = parked
+        parked = []
+        for continuation in waiting { continuation.resume() }
+    }
+}

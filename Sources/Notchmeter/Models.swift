@@ -447,6 +447,14 @@ protocol UsageProvider: Sendable {
     var refreshInterval: TimeInterval { get }
     func isInstalled() -> Bool
     func fetch() async throws -> UsageReading
+    /// A read with a note of whether the user asked for it (Refresh, the ring, the Assistants toggle) rather than
+    /// a timer. Only Claude Code's provider cares, because only it has a Keychain dialog to hold back
+    /// (KeychainPromptPolicy); every other provider takes the default below and reads as it always has.
+    func fetch(interactive: Bool) async throws -> UsageReading
+}
+
+extension UsageProvider {
+    func fetch(interactive: Bool) async throws -> UsageReading { try await fetch() }
 }
 
 /// Declared empty on purpose: the only way to build the providers is `all(defaults:)` in UsageStore.swift, which

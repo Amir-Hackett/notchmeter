@@ -114,7 +114,8 @@ final class UsageStore {
     @ObservationIgnored private var loops: [ToolID: Task<Void, Never>] = [:]
     @ObservationIgnored private var sleepers: [ToolID: Task<Void, Error>] = [:]
     @ObservationIgnored private var resetTimers: [ToolID: Task<Void, Never>] = [:]
-    @ObservationIgnored private var inflight: Set<ToolID> = []
+    /// The read in progress for each tool, so a second one can wait for it rather than run beside it or be lost.
+    @ObservationIgnored private var inflight: [ToolID: Task<Void, Never>] = [:]
     @ObservationIgnored private var backoff: [ToolID: TimeInterval] = [:]
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
@@ -436,8 +437,9 @@ final class UsageStore {
         if enabled {
             prefs.enabledTools.insert(tool)
             statuses[tool] = initialStatus(for: tool, cached: nil)
-            if tool == .claude { Keychain.setInteractive(true) }
-            startLoop(tool)
+            // The user just switched the tool on, so the loop's first read is theirs and may ask for the Keychain;
+            // the timer reads that follow it never may.
+            startLoop(tool, interactive: true)
         } else {
             prefs.enabledTools.remove(tool)
             stopLoop(tool)
@@ -458,9 +460,8 @@ final class UsageStore {
     /// `interactive` marks a read the user asked for (Refresh, the ring, a card's menu): the one kind that may
     /// raise the Keychain dialog under the "On Refresh only" policy.
     func refreshAll(force: Bool = true, interactive: Bool = false) {
-        if interactive { Keychain.setInteractive(true) }
         for tool in visibleTools {
-            Task { await refresh(tool, force: force) }
+            Task { await refresh(tool, force: force, interactive: interactive) }
         }
         Task { await refreshCost() }
     }
@@ -491,19 +492,37 @@ final class UsageStore {
 
     /// Unforced refreshes are throttled so hovering the notch cannot hammer the APIs. While the Claude Code status
     /// line is reporting the same windows, the Claude read takes them from it and the endpoint is left alone.
-    func refresh(_ tool: ToolID, force: Bool = false) async {
+    /// `interactive` marks a read the user asked for: it travels to the provider, where it is the one thing that
+    /// may let the Keychain dialog appear (KeychainPromptPolicy), and it is the one kind of read that waits its
+    /// turn behind a read already in flight rather than being dropped. A timer read that collides with one simply
+    /// returns, as before: the figures it wanted are about to arrive anyway.
+    func refresh(_ tool: ToolID, force: Bool = false, interactive: Bool = false) async {
         guard let provider = providers[tool], prefs.enabledTools.contains(tool) else { return }
         guard provider.isInstalled() else {
             statuses[tool] = .notInstalled
             return
         }
         if !force, let last = lastFetch[tool], Date().timeIntervalSince(last) < 60 { return }
-        guard !inflight.contains(tool) else { return }
-        inflight.insert(tool)
-        defer {
-            inflight.remove(tool)
-            if tool == .claude { Keychain.setInteractive(false) }
+        if let running = inflight[tool] {
+            // A Refresh pressed while the poll was mid-fetch used to hit this guard and return having done
+            // nothing, which for Claude Code meant the one read allowed to raise the Keychain dialog after a
+            // token refresh had wiped the user's "Always Allow" never happened; the user pressed Refresh and
+            // nothing changed. So an interactive read lets the running one finish and then goes itself. The one
+            // wait plus the check after it bound this at a single re-run: if some other read has taken the slot in
+            // the meantime, the figures are on their way and there is nothing left to add.
+            guard interactive else { return }
+            await running.value
+            if inflight[tool] != nil { return }
         }
+        let read = Task { await self.read(tool, from: provider, interactive: interactive) }
+        inflight[tool] = read
+        await read.value
+    }
+
+    /// One read of the tool, start to finish; `refresh` decides whether it runs. Clearing `inflight` here, inside
+    /// the task `refresh` stored, is what lets a read waiting on `running.value` find the slot empty when it wakes.
+    private func read(_ tool: ToolID, from provider: any UsageProvider, interactive: Bool) async {
+        defer { inflight[tool] = nil }
         if tool == .claude, let reading = statuslineReading() {
             adopt(reading)
             return
@@ -511,12 +530,25 @@ final class UsageStore {
         lastFetch[tool] = Date()
 
         let cached = statuses[tool]?.reading
+        let outcome: Result<UsageReading, any Error>
         do {
-            let reading = try await provider.fetch()
+            outcome = .success(try await provider.fetch(interactive: interactive))
+        } catch {
+            outcome = .failure(error)
+        }
+        // The user may have switched the tool off while this read was on the wire. setEnabled has already torn
+        // the state down (.off, the cache entry removed, the loop stopped), and a reading adopted past this point
+        // put every piece back: the cache entry the user had just cleared, a drain-log row for a tool they had
+        // disabled, and a reset timer for it. The one check sits above the switch so that a failure cannot
+        // overwrite `.off` with `.failed` either; the guard above the fetch checks the same thing, and anything
+        // written after an `await` has to check it again.
+        guard prefs.enabledTools.contains(tool) else { return }
+        switch outcome {
+        case .success(let reading):
             log.info("\(tool.displayName, privacy: .public) usage -> \(Probe.describe(reading), privacy: .public)")
             serverTrouble[tool] = nil
             adopt(reading)
-        } catch let error as ProviderError {
+        case .failure(let error as ProviderError):
             log.error("\(tool.displayName, privacy: .public) failed: \(error.message, privacy: .public)")
             if case .http(let code, _) = error, code >= 500 { serverTrouble[tool] = code } else { serverTrouble[tool] = nil }
             if error.isCalm {
@@ -541,7 +573,7 @@ final class UsageStore {
                 backoff[tool] = min(600, max(30, (backoff[tool] ?? 15) * 2))
                 statuses[tool] = .failed(error.message, cached: cached)
             }
-        } catch {
+        case .failure(let error):
             log.error("\(tool.displayName, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             if let offline = ProviderError.offline(from: error), case .offline = offline {
                 statuses[tool] = .offline(cached: cached)
@@ -829,12 +861,16 @@ final class UsageStore {
         return parts.joined(separator: "; ")
     }
 
-    private func startLoop(_ tool: ToolID) {
+    /// `interactive` marks the loop's first read as one the user asked for (the Assistants toggle); the reads the
+    /// timer takes after it are never interactive.
+    private func startLoop(_ tool: ToolID, interactive: Bool = false) {
         stopLoop(tool)
         loops[tool] = Task { [weak self] in
+            var interactive = interactive
             while !Task.isCancelled {
                 guard let self else { return }
-                await self.refresh(tool, force: true)
+                await self.refresh(tool, force: true, interactive: interactive)
+                interactive = false
                 await self.waitUntilDue(tool)
             }
         }
