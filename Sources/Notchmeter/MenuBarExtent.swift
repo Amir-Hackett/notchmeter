@@ -8,13 +8,17 @@ import ApplicationServices
 /// geometry (`kAXPositionAttribute`, `kAXSizeAttribute`) of an app's menu bar element (`kAXMenuBarAttribute`) or
 /// its menu bar extras (`kAXExtrasMenuBarAttribute`) and of their immediate children. It never reads a title, a
 /// value, a description, the contents of a menu, nor any element outside the menu bar, and it never writes an
-/// attribute or performs an action anywhere. Nothing else in the app asks for Accessibility, and nothing asks for
-/// it at launch: the prompt happens only when the user picks Auto.
+/// attribute or performs an action anywhere. Nothing else in the app asks for Accessibility. The prompt is put up
+/// when the user picks Auto, and once more per signed copy on a launch that finds Auto already chosen and the
+/// permission refused (`AutoSideWatcher.askAgainIfAutoIsStranded`): a copy that has never picked Auto is never
+/// asked. This comment said "nothing asks for it at launch" until 0.5.0, which had not been true since the launch
+/// re-ask was added, and it hid the bug that re-ask had: nothing remembered it had been shown.
 enum MenuBarExtent {
     /// Whether Accessibility is granted. Never prompts, so it is safe to call at launch and while drawing.
     static var isTrusted: Bool { AXIsProcessTrusted() }
 
-    /// The one prompt there is, shown when the user picks Auto and only then.
+    /// The one prompt there is: shown when the user picks Auto, and on the launch that finds Auto chosen and
+    /// refused — once for each signed copy, which `asksAtLaunch` decides.
     @discardableResult
     static func requestTrust() -> Bool {
         let prompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
@@ -24,20 +28,46 @@ enum MenuBarExtent {
     /// Why Auto is not measuring. macOS ties an Accessibility grant to the copy that was granted it, by certificate
     /// where there is one and by code directory hash where there is not, and it does not withdraw the entry when
     /// that copy is replaced: the switch in Privacy & Security stays on, the new copy is refused, and the system's
-    /// own prompt leads to a pane that looks correct. Only the signature the grant was last seen under tells that
-    /// apart from a permission that was never given, which is what `Preferences.accessibilityGrantedTo` keeps.
+    /// own prompt leads to a pane that looks correct. What tells that apart from a permission that was never given
+    /// is whether the grant was ever seen holding, which is what `Preferences.accessibilityGrantedTo` keeps.
     enum Trust: Equatable {
         case granted
-        /// Never given, or given up: the ordinary prompt is the right answer.
+        /// Never given: the ordinary prompt is the right answer.
         case notGranted
-        /// Given to a copy signed differently from this one — a rebuild, or a build swapped for a release.
+        /// Given, and no longer applying. Usually to a copy signed differently from this one — a rebuild, or a
+        /// build swapped for a release — but the same signature refused is the same trap; see `trust`.
         case stale(grantedTo: String)
     }
 
-    static func trust(isTrusted: Bool, grantedTo: String?, identity: String?) -> Trust {
+    /// `grantedTo` is written only while the grant holds (`AutoSideWatcher.rememberTrust`), so its presence is
+    /// proof that this app was trusted under that signature, and being refused now means the entry is broken
+    /// whichever signature the running copy reads — which is why this takes no identity to compare against.
+    /// Until 0.5.0 it did: a recorded grant under the *same* signature was read as a permission given up and sent
+    /// to the system prompt, and only a changed signature was `.stale`. A screen recording on 2026-09-19 showed
+    /// what that misses: a Developer ID build whose certificate had not changed, refused by macOS with the switch
+    /// in Privacy & Security still on, prompted on every launch into a pane that already looked right, while the
+    /// repair alert that clears the entry — the one thing that mends it — could not be reached, because the
+    /// comparison it was gated on could never come out unequal. Someone who really did turn the switch off loses
+    /// nothing by the change: the alert clears the entry and the relaunch asks once more, which is what the
+    /// prompt would have done, and its Open Accessibility Settings button is the pane the prompt opened.
+    static func trust(isTrusted: Bool, grantedTo: String?) -> Trust {
         if isTrusted { return .granted }
-        guard let grantedTo, let identity, grantedTo != identity else { return .notGranted }
+        guard let grantedTo else { return .notGranted }
         return .stale(grantedTo: grantedTo)
+    }
+
+    /// Whether the launch that finds Auto chosen and the permission refused puts the system prompt up. `askedFor`
+    /// is the signature the prompt was last shown under (`Preferences.accessibilityAskedFor`). The prompt is the
+    /// system's and says nothing back — not whether it was dismissed, answered, or ignored — so the only way to
+    /// keep it from a user who has seen it is to remember that this copy has already asked. Until 0.5.0 that
+    /// memory was a static that lived as long as the process, so every launch was a first launch, and a user who
+    /// had picked Auto and dismissed the prompt was shown it again each time the app started. A new signature is
+    /// a new copy to macOS, with an entry of its own to earn, so it gets one prompt of its own; a signature that
+    /// cannot be read is compared with nothing and asks, which is what it did before.
+    static func asksAtLaunch(side: CompactSide, isTrusted: Bool, askedFor: String?, identity: String?) -> Bool {
+        guard side == .auto, !isTrusted else { return false }
+        guard let askedFor, let identity else { return true }
+        return askedFor != identity
     }
 
     /// Clears Notchmeter's own Accessibility entry. Nothing an app can do inside the pane removes a stale one, and
@@ -384,14 +414,19 @@ final class AutoSideWatcher {
         return asked
     }
 
-    /// Auto already chosen but not trusted — the grant was never given, or a rebuild replaced the binary it was
-    /// given to. Ask again, once, on the launch that finds it that way: the standing choice is the user's own, so
-    /// silently falling back to a fixed side forever is the wrong reading of "never prompt uninvited".
+    /// Auto already chosen but not trusted — the grant was never given, a rebuild replaced the binary it was given
+    /// to, or the entry stopped applying to this very copy. Ask again, once per signed copy, on the launch that
+    /// finds it that way (`MenuBarExtent.asksAtLaunch`): the standing choice is the user's own, so silently falling
+    /// back to a fixed side forever is the wrong reading of "never prompt uninvited", and putting the prompt up on
+    /// every launch is the wrong reading of "ask again". A stale entry is returned rather than prompted for, whether
+    /// or not this copy has had its prompt: the repair alert (AppDelegate.offerAccessibilityReset) is the only thing
+    /// that mends it, and the caller matches `.stale` to offer it.
     @discardableResult
     func askAgainIfAutoIsStranded() -> MenuBarExtent.Trust {
         rememberTrust()
-        guard prefs.compactSide == .auto, !MenuBarExtent.isTrusted, !Self.askedThisLaunch else { return trust }
-        Self.askedThisLaunch = true
+        guard MenuBarExtent.asksAtLaunch(side: prefs.compactSide, isTrusted: MenuBarExtent.isTrusted,
+                                          askedFor: prefs.accessibilityAskedFor,
+                                          identity: CodeSignature.runningIdentity()) else { return trust }
         let asked = ask()
         refresh()
         settle()
@@ -400,15 +435,19 @@ final class AutoSideWatcher {
 
     /// What the running copy's grant looks like right now.
     var trust: MenuBarExtent.Trust {
-        MenuBarExtent.trust(isTrusted: MenuBarExtent.isTrusted, grantedTo: prefs.accessibilityGrantedTo,
-                            identity: CodeSignature.runningIdentity())
+        MenuBarExtent.trust(isTrusted: MenuBarExtent.isTrusted, grantedTo: prefs.accessibilityGrantedTo)
     }
 
-    /// The system prompt, for a permission that was never given. A stale entry gets no prompt: it leads to a pane
-    /// whose switch is already on, which is the whole trap — that one is reported for the app to explain.
+    /// The system prompt, for a permission that was never given, and a note of the signature it was shown under so
+    /// the next launch does not show it again (`Preferences.accessibilityAskedFor`). A stale entry gets no prompt:
+    /// it leads to a pane whose switch is already on, which is the whole trap — that one is reported for the app to
+    /// explain.
     private func ask() -> MenuBarExtent.Trust {
         let trust = self.trust
-        if case .notGranted = trust { MenuBarExtent.requestTrust() }
+        if case .notGranted = trust {
+            MenuBarExtent.requestTrust()
+            prefs.accessibilityAskedFor = CodeSignature.runningIdentity()
+        }
         return trust
     }
 
@@ -424,11 +463,12 @@ final class AutoSideWatcher {
         prefs.accessibilityGrantedTo = identity
     }
 
+    /// After the entry has been reset: the grant is gone, and so is this copy's turn at the prompt, because the
+    /// relaunch that follows must be free to ask for what was just cleared.
     func forgetTrust() {
         prefs.accessibilityGrantedTo = nil
+        prefs.accessibilityAskedFor = nil
     }
-
-    private static var askedThisLaunch = false
 
     /// What Auto measured and what it made of it, for `--smoke`.
     var description: String {
