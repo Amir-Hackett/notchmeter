@@ -312,17 +312,21 @@ import Testing
     }
 }
 
-/// The card `SpendCard.imageCard` hands to "Copy as image". `CardImage.copy` draws a detached hierarchy, so the
-/// copied card only shows the range the user picked if the card it is given is seeded with it; until 0.5.0 the
-/// context-menu Button built `SpendCard(store:)` and every pasted card was Today's, whatever the SegmentedBar
-/// said. This pins the seeding helper only: the Button (NotchViews.swift, `.contextMenu` on SpendCard) must keep
-/// passing `imageCard` to `CardImage.copy`, which no test exercises.
+/// What "Copy as image" draws. `CardImage.copy` renders a detached hierarchy, so a copied card only shows the range
+/// the user picked if the card it is given knows it: until 0.5.0 the card's context-menu Button built
+/// `SpendCard(store:)` and every pasted card was Today's, whatever the SegmentedBar said, and until 0.6.0 the
+/// panel's own "Copy as image" (App.swift, copyPanelImage) rebuilt NotchExpandedView with the same fresh card in
+/// it, so the per-card fix never reached the whole-panel copy. The range now lives on the store
+/// (`UsageStore.spendRange`), which both a card built with no range and the rebuilt panel read. The card's Button
+/// (NotchViews.swift, `.contextMenu` on SpendCard) must keep passing `imageCard` to `CardImage.copy`, which no
+/// test exercises.
 @Suite struct CostCardCopyImage {
+    private static let suite = "NotchmeterTests.CostCardCopyImage"
+
     @MainActor @Test func theCopiedCardOpensOnTheRangeOnScreen() {
-        let suite = "NotchmeterTests.CostCardCopyImage"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let defaults = UserDefaults(suiteName: Self.suite)!
+        defaults.removePersistentDomain(forName: Self.suite)
+        defer { defaults.removePersistentDomain(forName: Self.suite) }
         let prefs = Preferences(defaults: defaults)
         let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
 
@@ -331,9 +335,61 @@ import Testing
         let expected = SpendCard.Range.ninetyDays
         #expect(copied == expected)
 
-        // The panel itself still opens on today, and a copy of that card stays on today.
+        // A launch starts on today, so a fresh store's card, and a copy of it, are today's.
         let opened = SpendCard(store: store).imageCard.openingRange
         let today = SpendCard.Range.today
         #expect(opened == today)
+    }
+
+    /// The card the panel shows is built with no range and follows the store's, which is what the SegmentedBar
+    /// sets; a copy of that card is pinned to the same range.
+    @MainActor @Test func theLiveCardShowsTheStoresRangeAndItsCopyIsPinnedToIt() {
+        let defaults = UserDefaults(suiteName: Self.suite)!
+        defaults.removePersistentDomain(forName: Self.suite)
+        defer { defaults.removePersistentDomain(forName: Self.suite) }
+        let prefs = Preferences(defaults: defaults)
+        let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
+
+        store.spendRange = .ninetyDays
+        let live = SpendCard(store: store)
+        let shown = live.openingRange
+        let copied = live.imageCard.openingRange
+        let expected = SpendCard.Range.ninetyDays
+        #expect(shown == expected)
+        #expect(copied == expected)
+
+        // A card pinned to a range of its own does not follow the store: a still of the month stays the month.
+        let pinned = SpendCard(store: store, range: .month).openingRange
+        let month = SpendCard.Range.month
+        #expect(pinned == month)
+    }
+
+    /// The whole-panel path: the NotchExpandedView copyPanelImage rebuilds carries a Cost card on the range the
+    /// panel on screen is showing, not Today's. The store has to carry a tool that can report a cost for the panel
+    /// to build the card at all, so the check that the card exists is part of the test.
+    @MainActor @Test func theCopiedPanelsCostCardShowsTheRangeOnScreen() {
+        let defaults = UserDefaults(suiteName: Self.suite)!
+        defaults.removePersistentDomain(forName: Self.suite)
+        defer { defaults.removePersistentDomain(forName: Self.suite) }
+        let prefs = Preferences(defaults: defaults)
+        let now = Date()
+        let readings = DemoFixtures.readings(now: now)
+        let store = UsageStore(prefs: prefs, providers: readings.map { FixtureProvider(reading: $0) },
+                               cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
+        store.seed(readings: readings, cost: DemoFixtures.cost(now: now), nextUpdate: now.addingTimeInterval(60), now: now)
+
+        store.spendRange = .thirtyDays
+        let rebuilt = NotchExpandedView(store: store, prefs: prefs, actions: NotchActions(), maxHeight: 10_000)
+        let card = rebuilt.spendCard
+        #expect(card != nil)
+        let copied = card?.openingRange
+        let expected = SpendCard.Range.thirtyDays
+        #expect(copied == expected)
+
+        // The panel on screen is the same view with no cap; changing the range there changes what a rebuild draws.
+        store.spendRange = .yesterday
+        let redrawn = NotchExpandedView(store: store, prefs: prefs, actions: NotchActions(), maxHeight: 10_000).spendCard?.openingRange
+        let yesterday = SpendCard.Range.yesterday
+        #expect(redrawn == yesterday)
     }
 }

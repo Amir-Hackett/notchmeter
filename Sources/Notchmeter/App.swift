@@ -781,6 +781,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// The whole panel, rebuilt for the pasteboard at its natural height. The rebuild carries the density through
+    /// NotchExpandedView's own environment, and its Cost card reads the range from the store
+    /// (`UsageStore.spendRange`), so the copy shows the range on screen; until 0.6.0 the card kept its range as
+    /// `@State` and this fresh panel pasted Today's figure under a 90d reading.
     private func copyPanelImage() {
         CardImage.copy(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000), width: prefs.panelWidth.points + 24)
     }

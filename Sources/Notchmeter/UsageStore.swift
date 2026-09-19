@@ -108,6 +108,14 @@ final class UsageStore {
     private(set) var keepingAwake = false
     /// What Cursor's usage export last answered, so the Cost card can say why Cursor has no figure of its own.
     private(set) var cursorExport: CursorExportRead?
+    /// The range the Cost card on the open panel is showing. It lived in the card as `@State` until 0.6.0, which
+    /// left every other render of the card guessing: "Copy as image" on the whole panel rebuilt NotchExpandedView
+    /// for the pasteboard, and the fresh card inside it opened on Today whatever the panel said, so a user reading
+    /// $6,412 on 90d pasted a panel saying $118. The per-card copy was seeded by hand in 0.5.0; the panel copy
+    /// could not be, because the action in App.swift cannot see a card's state. Held here, the live card writes
+    /// it and every card built with no range of its own reads it, so a whole-panel render matches the panel
+    /// without being told. Not a preference: it is not saved, and a launch starts on Today.
+    var spendRange: SpendCard.Range = .today
     let prefs: Preferences
 
     @ObservationIgnored private let providers: [ToolID: any UsageProvider]
