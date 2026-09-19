@@ -1,6 +1,7 @@
 # Permissions
 
-Notchmeter asks macOS for nothing at launch. One optional setting asks for one permission.
+One optional setting asks for one permission. A copy that has never had Auto picked is never asked anything, at
+launch or otherwise.
 
 ## Accessibility, only for *Readouts › Auto*
 
@@ -14,8 +15,11 @@ menu-heavy app (Chrome, Xcode) would run into them.
   performs an action anywhere. The code is [`MenuBarExtent.swift`](../Sources/Notchmeter/MenuBarExtent.swift).
 - **When it reads.** When an app comes to the front. The answer is remembered per app, so returning to an app
   already seen measures nothing, and there is no timer.
-- **When it asks.** Only when you pick Auto, once per pick. Nothing is asked at launch, and nothing is measured
-  while a fixed side is chosen.
+- **When it asks.** When you pick Auto, once per pick, and once more per signed copy on a launch that finds Auto
+  already chosen and the permission never granted — so a rebuild or an update asks again once, not on every launch.
+  A launch that finds a grant that has stopped applying offers the repair described below instead of the prompt, on
+  the same terms. Nothing is measured while a fixed side is chosen, and a copy that has never picked Auto is never
+  asked.
 - **Without it.** Auto stays centred on the notch with every readout — where it sits whenever the menu bar leaves
   room — whether the permission was never granted or is revoked later. Settings says so and offers a button to
   System Settings › Privacy & Security › Accessibility.
@@ -23,7 +27,12 @@ menu-heavy app (Chrome, Xcode) would run into them.
   leaves the entry behind when that copy is replaced (see below). Notchmeter records the signature the grant was
   last seen under (`accessibilityGrantedTo`), so it can tell that apart from a permission that was never given: it
   offers to clear the entry and restart instead of sending you to a switch that already looks right. Settings shows
-  *Repair the Accessibility permission…* in place of the usual button while that is the case.
+  *Repair the Accessibility permission…* in place of the usual button while that is the case. From 0.5.0 the same
+  repair is offered when the entry stops applying to the very copy it was granted to (seen on a Developer ID build
+  whose certificate had not changed), and when the switch was turned off by hand, since Notchmeter cannot tell those
+  two apart; the alert for that case says so, and names turning the switch back on as the first thing to try. At
+  launch the alert is offered once per signed copy, on the same terms as the prompt: *Not Now* is remembered, and
+  the Repair button offers it again whenever you want it.
 - **Seeing what it read.** `--menu-bar` prints every menu bar extra and which of them Auto counts
   ([docs/testing.md](testing.md#seeing-what-auto-measured)). It reads nothing the feature does not already read.
 

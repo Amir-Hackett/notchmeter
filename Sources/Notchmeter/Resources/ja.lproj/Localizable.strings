@@ -47,10 +47,13 @@
 "%@ advice" = "%@ のアドバイス";
 "%@ as the vendor's own usage export priced it" = "%@ はベンダー自身の使用量エクスポートが付けた価格";
 "%@ billed this month" = "今月 %@ を請求";
+"%@ could not be read as audio, so nothing was imported." = "%@ は音声として読み取れなかったため、何も取り込まれませんでした。";
 "%@ finished" = "%@ が完了";
 "%@ hit its rate limit; wait for the reset." = "%@ がレート制限に達しました。リセットをお待ちください。";
 "%@ hook" = "%@ フック";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "まず %@ を settings.json.bak-<日付> にコピーします。既存のステータスラインは Notchmeter の後に同じ JSON で引き続き実行されます。";
+"%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ は通知センターが再生できない形式のため、ファイルをもう一度選んで変換するまでデフォルトが鳴ります。";
+"%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ は ~/Library/Sounds になくなったため、別の音を選ぶまでデフォルトが鳴ります。";
 "%@ is not a JSON object, so it was left untouched" = "%@ は JSON オブジェクトではないため変更しませんでした";
 "%@ is waiting" = "%@ が待機中";
 "%@ is waiting for your input." = "%@ が入力を待っています。";
@@ -107,7 +110,7 @@
 "90d" = "90日";
 "A %1$@ reset credit expires in %2$@. Claim it in %1$@." = "%1$@ のリセットクレジットが %2$@ 後に失効します。%1$@ で受け取ってください。";
 "A bar resting on top of the Dock." = "Dock の上に置かれるバー。";
-"A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "選択したファイルは ~/Library/Sounds にコピーされ、通知センターがそこから再生します。";
+"A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name." = "選択した .aiff、.wav、.caf はそのまま ~/Library/Sounds にコピーされ、mp3 や m4a などそれ以外の形式は、通知センターが名前で再生できる唯一の形式である .caf にそこで変換されます。";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "名前で選んだディスプレイはハードウェア ID で記憶されるため、同じ機種の 2 台も区別でき、名前が変わっても失われません。";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "左端に切り込まれたノッチ。パネルはその横に開きます。同じ側に Dock やステージマネージャの帯があるときは譲ります。";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "右端に切り込まれたノッチ。パネルはその横に開きます。同じ側に Dock があるときは譲ります。";
@@ -176,6 +179,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "このペースでは%1$@の費用は %2$@ となり、予算は %3$@ です。";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "このペースでは %1$@ の%2$@上限に%3$@ %4$@〜%5$@ に達します。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "このペースでは %1$@ の%2$@上限に %3$@ に達し、リセットまで %4$@ 残ります。%5$@";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "このペースでは %2$@ に%1$@を超え、リセットまで %3$@ 残ります。";
 "Auto" = "自動";
 "another user is logged in" = "別のユーザーがログイン中";
 "auto" = "自動";
@@ -287,6 +291,7 @@
 "extra usage on" = "追加利用オン";
 "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage." = "プランに %3$ld%% 残っているのに、追加使用が %2$@で %1$@ 増えました。/usage を確認してください。";
 "Fast requests" = "高速リクエスト";
+"Figures are hidden while the screen is shared; the panel has them once it ends." = "画面共有中は数値を隠しています。共有が終わればパネルで確認できます。";
 "Flip countdown and exact time" = "カウントダウンと正確な時刻を切り替え";
 "Flip used and left" = "使用済みと残りを切り替え";
 "From" = "開始";
@@ -314,6 +319,7 @@
 "Hover delay" = "ホバーの遅延";
 "Hover the rings. The panel opens." = "リングにホバーするとパネルが開きます。";
 "Icon style" = "アイコンのスタイル";
+"Importing %@…" = "%@ を取り込んでいます…";
 "In the Cost card" = "コストカードに表示";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "上の通貨で入力し、空欄なら予算なしです。コストカードのリングは月の予算に対して満たされ、メーターと同じペース目盛りが付きます。アドバイス欄は月を予算に対して予測し、「順調」「遅れ」「枯渇」の通知が月を期間として適用されます。";
 "In the pill" = "ピル内";
@@ -333,6 +339,7 @@
 "Installed; your previous status line (%@) runs after it." = "インストールしました。以前のステータスライン（%@）はその後に実行されます。";
 "Integrations" = "連携";
 "its usage export could not be fetched" = "使用状況のエクスポートを取得できませんでした";
+"its usage export came back in a shape Notchmeter could not read" = "使用状況のエクスポートが Notchmeter の読み取れない形式で返されました";
 "just now" = "たった今";
 "Keeping awake" = "スリープ抑止中";
 "Keeping awake · %ld sessions" = "スリープ抑止中 · %ld セッション";
@@ -543,6 +550,8 @@
 "Tells you what to do, not just how much." = "使用量だけでなく、何をすべきかも伝えます。";
 "Test notification" = "テスト通知";
 "Text" = "テキスト";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "%1$@はペースに近づいています: リセット時に約 %2$ld%% 残る見込み。";
+"The %1$@ is spent. %2$@." = "%1$@を使い切りました。%2$@。";
 "The %1$@'s %2$@ is past the %3$@ budget." = "%1$@の %2$@ は予算 %3$@ を超えています。";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "コストカードのドーナツ・凡例・消費ペース以外の行（予算、今週、モデル別）と、セッションブロック、トークン、主なプロジェクト、スパークライン。オフにするとパネルが短くなり、スクロールが不要になります。";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "日次合計ファイルを CSV または JSON で書き出します。1 日 1 行で、コスト、5 つのトークン区分、最多モデル、モデル別とプロジェクト別のコストを含みます。";
@@ -606,7 +615,7 @@
 "When the cache tier or the metering shifts" = "キャッシュ層や計測が変わったとき";
 "When you start paying (extra usage rises)" = "支払いが始まったとき（追加使用の増加）";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "カードのドーナツ、凡例、合計に含めるアシスタント。並び順は「アシスタント」の設定に従います。コストを報告できないアシスタント、およびサインインしていないアシスタントはここに現れません。外したアシスタントも自身のカードにはコストを表示します。";
-"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Zoom、Meet、QuickTime、画面共有が画面をキャプチャしている間、リングは形を保ったまま数値を隠し、パネルはコストカードを隠します。5 秒ごとに確認します。";
+"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "Zoom、Meet、QuickTime、画面共有が画面をキャプチャしている間、リングは形を保ったまま数値を隠し、パネルはコストカードを隠し、その間に表示される通知には数値もプロジェクト名も含まれません。5 秒ごとに確認します。";
 "Wide" = "ワイド";
 "Will run out (behind pace)" = "使い切る見込み（ペースより遅れ）";
 "Window" = "ウインドウ";
@@ -630,14 +639,16 @@
 "App to stay over, e.g. zoom.us" = "上に表示し続けるアプリ（例：zoom.us）";
 "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "上の設定にかかわらず読み取りを上に表示し続けるアプリを、ウインドウリストが返す名前で指定します。動画のために上の設定をオフにしていても、会議中はメーターを横に置いておきたい場合に使います。同じアプリの二つの使い方は区別できません。ブラウザ内の通話と動画がその例です。その場合は「このフルスクリーンアプリの上に表示」ショートカットが答えで、画面上のアプリだけに効き、そのアプリがフルスクリーンを離れると解除されます。オプションメニューには、そのときフルスクリーンのアプリについて両方が並びます。";
 
-/* 古いアクセシビリティ項目: 許可が置き換えられた前のコピーに属している場合（MenuBarExtent、App、SettingsWindow） */
+/* 古いアクセシビリティ項目: 許可は与えられたが、実行中のコピーには効かなくなっている場合。新しいコピーが置き換えたときも、同じコピーが拒否されるときも含む（MenuBarExtent、App、SettingsWindow） */
 "%@'s Accessibility permission belongs to an older copy" = "%@ のアクセシビリティ許可は以前のコピーのものです";
 "macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS は許可を与えられたコピーそのものに結び付けます。このコピーはそれを置き換えたものです。「プライバシーとセキュリティ」の「アクセシビリティ」ではスイッチが入ったままに見えますが、もう適用されておらず、項目を消すことでしか元に戻せません。%@ が項目を消して再起動できます。もう一度スイッチを入れるよう求められ、それまで自動は現在の側のままです。";
+"%@'s Accessibility permission has stopped applying" = "%@ のアクセシビリティ許可が効かなくなりました";
+"macOS is refusing the Accessibility permission it once granted this very copy. If the switch in Privacy & Security › Accessibility is off, turning it on is enough. If it is on and Auto still does not measure, the entry behind it has stopped applying and only clearing it brings it back: %@ can clear it and restart, you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS は、このコピーに一度与えたアクセシビリティ許可を拒否しています。「プライバシーとセキュリティ」の「アクセシビリティ」でスイッチが切れているなら、入れ直すだけで済みます。スイッチが入っているのに自動が測定できないなら、その項目は効かなくなっており、消すことでしか元に戻せません。%@ が項目を消して再起動できます。もう一度スイッチを入れるよう求められ、それまで自動は現在の側のままです。";
 "Clear and Restart" = "消して再起動";
 "Open Accessibility Settings" = "アクセシビリティ設定を開く";
 "Not Now" = "後で";
 "Repair the Accessibility permission…" = "アクセシビリティ許可を修復…";
-"The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "許可は以前のコピーのものです。macOS は許可を与えられたコピーに結び付け、そのコピーが置き換わってもスイッチは入ったままにします。項目を消して再起動するのが戻る道です。";
+"Accessibility is refusing a permission it once granted this app: macOS ties it to the exact copy it was granted to, and a replaced copy or an entry that stopped applying leaves the switch on with the permission gone. If the switch is off, turning it on is enough; otherwise clearing the entry and restarting is the way back." = "アクセシビリティは、このアプリに一度与えた許可を拒否しています。macOS は許可を与えられたコピーそのものに結び付けるため、コピーが置き換わったり項目が効かなくなったりすると、スイッチは入ったままで許可だけが失われます。スイッチが切れているなら入れ直すだけで済みます。そうでなければ、項目を消して再起動するのが戻る道です。";
 
 /* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
 "Dots" = "ドット";

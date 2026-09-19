@@ -28,7 +28,7 @@ Update this table at each stage's commit: `ls Sources/Notchmeter/*.swift | wc -l
 | | Status | Where |
 |---|---|---|
 | Advice strip: run-out with a named alternative tool, switch-models, burn multiple, room elsewhere, "Claude Code is waiting in notchmeter (and 1 more)" | shipped | `Advisor.swift`, `AdvisorTests.swift`; README "Advice and notifications" |
-| Notifications at pace crossings, not percentage crossings; one per state per period; nothing in the first tenth of a window; per-stage toggles; interruption levels; click opens the panel | shipped | `NotificationScheduler.swift`, `Notifier.swift` |
+| Notifications at pace crossings, not percentage crossings; one per state per period; no projected stage in the first tenth of a window (*Limit hit* fires at once); per-stage toggles; interruption levels; click opens the panel | shipped | `NotificationScheduler.swift`, `Notifier.swift` |
 | "When a window resets" and "remind me before a reset", timer-driven, once per period | shipped | `NotificationScheduler.planResets`, `ResetAlertTests.swift` |
 | Cross-provider routing ("Codex has 78% of its weekly left") | shipped | `Advisor.swift` |
 | Burn rate against the user's own 30-day average active hour | shipped | `ClaudeCostScanner.swift`; accuracy doc "Burn rate" |

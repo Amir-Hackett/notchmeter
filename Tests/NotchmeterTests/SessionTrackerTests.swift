@@ -336,6 +336,38 @@ import Testing
         #expect(statusline.all[0].prNumber == "#3")
     }
 
+    /// The status-line bus is unauthenticated, so a pull request link is only a link when it is an ordinary web
+    /// address: a `file:` path or a custom scheme draws no button and no "PR #n", however the path ends.
+    @Test func onlyWebLinksBecomeAPullRequest() throws {
+        func session(_ prURL: String) -> AgentSession {
+            AgentSession(id: "s", project: "p", state: .idle, started: t0, lastEvent: t0, turnStarted: nil, prURL: prURL)
+        }
+        let github = URL(string: "https://github.com/o/r/pull/12")
+        #expect(session("https://github.com/o/r/pull/12").prLink == github)
+        #expect(session("https://github.com/o/r/pull/12").prNumber == "#12")
+        #expect(session("HTTP://github.com/o/r/pull/7").prNumber == "#7")
+        #expect(session("file:///Volumes/Installer/Setup.app").prLink == nil)
+        #expect(session("file:///Volumes/Installer/12").prNumber == nil)
+        #expect(session("x-apple.systempreferences:com.apple.preference.security").prLink == nil)
+        #expect(session("https:///pull/12").prLink == nil)
+        #expect(session("not a url").prLink == nil)
+        var tracker = SessionTracker()
+        tracker.statusline(sessionID: "s", project: "p", prURL: "file:///Volumes/X/9", now: t0)
+        #expect(tracker.all[0].prLink == nil)
+        #expect(tracker.all[0].prNumber == nil)
+
+        // The report is a reader of the link too: the local API, the command-line tool and the MCP server all get
+        // its `pr`, and until 0.5.0 it carried the raw string the panel had refused.
+        func reported(_ tracker: SessionTracker) throws -> Any? {
+            let json = try JSONSerialization.jsonObject(with: UsageReport(tools: [:], cost: nil, advice: [], sessions: tracker.all, now: t0).json)
+            let sessions = try #require(json as? [String: Any])["sessions"] as? [[String: Any]]
+            return try #require(sessions?.first)["pr"]
+        }
+        #expect(try reported(tracker) is NSNull)
+        tracker.statusline(sessionID: "s", project: "p", prURL: "https://github.com/o/r/pull/9", now: t0)
+        #expect(try reported(tracker) as? String == "https://github.com/o/r/pull/9")
+    }
+
     /// One message can end a wait and start another for the same session, because `apply` seeds stoppedWaiting from
     /// `expire`: a prompt arriving after its own wait timed out demotes the session and re-raises it inside the one
     /// call, so both lists name it. The tracker is right to report both; what matters is the order the store acts on

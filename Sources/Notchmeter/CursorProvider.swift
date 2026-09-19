@@ -123,12 +123,23 @@ actor CursorProvider: UsageProvider {
                 CursorExportRead(readAt: now, problem: L("cursor.com refused its usage export (HTTP %ld)", status)).save(to: defaults)
                 return false
             }
-            let batch = Self.parseUsageEvents(data)
+            let parsed = Self.parseUsageEvents(data)
+            // On any page, not just the first: a partial fold would write an understated today row, which is the
+            // same confident-low ring by another route. `fetch()` falls back to the summary windows and the Cost
+            // card prints the problem, as it does for a refusal.
+            guard parsed.recognised else {
+                log.error("Cursor usage events: page \(page) came back in a shape this build cannot read (\(data.count) bytes) for team \(teamId)")
+                CursorExportRead(readAt: now, problem: L("its usage export came back in a shape Notchmeter could not read")).save(to: defaults)
+                return false
+            }
+            let batch = parsed.events
             // A server that ignores `page` answers the same events forever; stopping is a short total, counting
             // them twice is a made-up one.
-            guard !batch.isEmpty, batch != Array(events.suffix(batch.count)) else { break }
+            guard parsed.rows > 0, batch != Array(events.suffix(batch.count)) else { break }
             events += batch
-            if batch.count < Self.eventPageSize { break }
+            // The last page is the one the server sent short, counted in the rows it returned rather than the
+            // events that parsed: one row with an unreadable timestamp on a full page used to end the export there.
+            if parsed.rows < Self.eventPageSize { break }
             page += 1
         }
         if page > Self.maxEventPages {
@@ -315,13 +326,25 @@ actor CursorProvider: UsageProvider {
         return nil
     }
 
+    /// One page of the export: the events it held, how many rows the server sent, and whether the body was a shape
+    /// this build recognises. An unrecognised body is not an empty month — "nothing billed" is a claim about the
+    /// account, and making it from a body that could not be read is the silent zero the refusal paths above exist
+    /// to avoid. Until 2026-09-19 an unreadable 200 parsed to `[]`, was written down as a clean read of $0, and the
+    /// Cost card said "nothing used in the last 30 days" for a seat that was spending.
+    struct UsageEventPage: Equatable, Sendable {
+        var events: [UsageEvent] = []
+        var rows = 0
+        var recognised = false
+    }
+
     /// `usageEventsDisplay[]`: `timestamp` (epoch milliseconds, as a string or a number), `model`, and the cost as
     /// `tokenUsage.totalCents` when the call was token-based, else the `usageBasedCosts` dollar string ("$0.05";
     /// "-" and "Included" cost nothing). Token counts come from `tokenUsage` when present.
-    static func parseUsageEvents(_ data: Data) -> [UsageEvent] {
-        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
-        let list = (root["usageEventsDisplay"] ?? root["usageEvents"] ?? root["events"]) as? [Any] ?? []
-        return list.compactMap { item -> UsageEvent? in
+    static func parseUsageEvents(_ data: Data) -> UsageEventPage {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let list = (root["usageEventsDisplay"] ?? root["usageEvents"] ?? root["events"]) as? [Any]
+        else { return UsageEventPage() }
+        let events = list.compactMap { item -> UsageEvent? in
             guard let object = item as? [String: Any] else { return nil }
             let stamp: Double? = (object["timestamp"] as? String).flatMap(Double.init) ?? JSON.number(object["timestamp"])
             guard let stamp else { return nil }
@@ -338,6 +361,10 @@ actor CursorProvider: UsageProvider {
             }
             return UsageEvent(timestamp: timestamp, model: object["model"] as? String, tokens: tokens, costUSD: cost)
         }
+        // A list with rows in it that yielded no events is a renamed per-event field (the likelier drift, since
+        // the list key has three spellings already), not an empty month. A partial parse still counts as read:
+        // the fixture's timestamp-less row is skipped and the rest of the page stands.
+        return UsageEventPage(events: events, rows: list.count, recognised: events.isEmpty == list.isEmpty)
     }
 
     /// Per local day: cost, tokens and the per-model split; projects are not part of the export.

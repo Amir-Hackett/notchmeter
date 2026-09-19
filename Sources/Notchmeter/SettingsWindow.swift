@@ -474,13 +474,15 @@ struct SettingsView: View {
             }
             if prefs.compactSide == .auto, !accessibilityTrusted {
                 // A stale entry is not the same problem and does not have the same answer: the pane the other
-                // button opens shows the switch already on, and turning it off and on is what has to happen.
+                // button opens may show the switch on (a replaced copy, or an entry that stopped applying) or off
+                // (turned off by hand), and the alert the action puts up tells whichever story the code can stand
+                // behind. This help sees neither, so it is worded for both.
                 if actions.accessibilityIsStale() {
                     Button(L("Repair the Accessibility permission…")) {
                         actions.fixAccessibility()
                         accessibilityTrusted = MenuBarExtent.isTrusted
                     }
-                    .help(L("The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back."))
+                    .help(L("Accessibility is refusing a permission it once granted this app: macOS ties it to the exact copy it was granted to, and a replaced copy or an entry that stopped applying leaves the switch on with the permission gone. If the switch is off, turning it on is enough; otherwise clearing the entry and restarting is the way back."))
                 } else {
                     Button(L("Open Accessibility settings…")) {
                         MenuBarExtent.openSettings()
@@ -660,7 +662,7 @@ struct SettingsView: View {
     private var privacySection: some View {
         Section(L("Privacy")) {
             Toggle(L("Hide usage while the screen is shared or recorded"), isOn: Binding(get: { prefs.hideFromScreenShare }, set: { prefs.hideFromScreenShare = $0; requests.privacyChanged() }))
-                .help(L("While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds."))
+                .help(L("While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds."))
             Picker(L("Ask for Keychain access"), selection: Binding(get: { prefs.keychainPrompts }, set: { prefs.keychainPrompts = $0 })) {
                 ForEach(KeychainPromptPolicy.allCases, id: \.self) { Text($0.title).tag($0) }
             }
@@ -739,7 +741,7 @@ struct SettingsView: View {
                 SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))
                 SoundPicker(title: L("Waiting for you"), choice: Binding(get: { prefs.soundWaiting }, set: { prefs.soundWaiting = $0 }))
                 SoundPicker(title: L("Turn finished"), choice: Binding(get: { prefs.soundFinished }, set: { prefs.soundFinished = $0 }))
-                paragraph(L("A chosen file is copied into ~/Library/Sounds, where Notification Center can play it."))
+                paragraph(L("A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name."))
             }
             Toggle(L("Quiet hours"), isOn: Binding(get: { prefs.quietHoursEnabled }, set: { prefs.quietHoursEnabled = $0 }))
             if prefs.quietHoursEnabled {
@@ -1094,7 +1096,7 @@ struct SettingsView: View {
         case .waiting: return L("Waiting for the first reading")
         case .idle(let message): return message
         case .ready(let reading): return reading.plan.map { L("Signed in · %@", $0) } ?? L("Signed in")
-        case .needsAttention(let message, _), .failed(let message, _): return message
+        case .needsAttention(let message, _), .failed(let message, _), .rateLimited(let message, _): return message
         case .offline: return L("Offline, retrying")
         case .notInstalled: return L("Not installed on this Mac")
         }
@@ -1334,23 +1336,51 @@ private struct WindowChoices: View {
 private struct SoundPicker: View {
     let title: String
     @Binding var choice: String
+    /// What the last import or fallback has to say, shown under the row; nil when there is nothing to report.
+    @State private var note: String?
+    /// True from the moment a file is chosen until its import has been applied or refused. The import runs off the
+    /// main actor (an mp3 is decoded whole), so the row stays live meanwhile and this keeps a second Choose file…
+    /// from starting a parallel import that would race the first for the same name in ~/Library/Sounds.
+    @State private var importing = false
 
     var body: some View {
-        HStack {
-            Picker(title, selection: $choice) {
-                Text(L("Default")).tag(NotificationSound.defaultChoice)
-                Text(L("None")).tag(NotificationSound.none)
-                Divider()
-                ForEach(NotificationSound.systemSounds(), id: \.self) { name in Text(name).tag("system:\(name)") }
-                let custom = NotificationSound.customSounds()
-                if !custom.isEmpty {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Picker(title, selection: $choice) {
+                    Text(L("Default")).tag(NotificationSound.defaultChoice)
+                    Text(L("None")).tag(NotificationSound.none)
                     Divider()
-                    ForEach(custom, id: \.self) { name in Text((name as NSString).deletingPathExtension).tag("custom:\(name)") }
+                    ForEach(NotificationSound.systemSounds(), id: \.self) { name in Text(name).tag("system:\(name)") }
+                    let custom = NotificationSound.customSounds()
+                    if !custom.isEmpty {
+                        Divider()
+                        ForEach(custom, id: \.self) { name in Text((name as NSString).deletingPathExtension).tag("custom:\(name)") }
+                    }
                 }
+                Button(L("Preview")) { NotificationSound.preview(choice) }.controlSize(.small)
+                Button(L("Choose file…")) { chooseFile() }.controlSize(.small).disabled(importing)
             }
-            Button(L("Preview")) { NotificationSound.preview(choice) }.controlSize(.small)
-            Button(L("Choose file…")) { chooseFile() }.controlSize(.small)
+            if let note {
+                Text(note).font(.caption).foregroundStyle(.secondary)
+            }
         }
+        .onAppear { settleMissingCustom() }
+    }
+
+    /// A stored "custom:" choice whose file is gone, or was imported as an .mp3/.m4a that 0.5.0 stopped offering,
+    /// matches no tag and left the Picker blank. Default is what the banner plays for it anyway (`unSound`), so the
+    /// stored choice is brought in line and the row says which file it was, once, so the change is not a mystery.
+    /// The two cases get different words: the mp3 is still sitting in ~/Library/Sounds, so telling its owner it is
+    /// gone would send them to the folder to find it there with no hint that choosing it again is what converts it.
+    private func settleMissingCustom() {
+        guard choice.hasPrefix("custom:") else { return }
+        let name = String(choice.dropFirst("custom:".count))
+        guard !NotificationSound.customSounds().contains(name) else { return }
+        let stored = choice
+        choice = NotificationSound.defaultChoice
+        note = NotificationSound.isUnplayableCustom(stored)
+            ? L("%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it.", name)
+            : L("%@ is no longer in ~/Library/Sounds, so Default plays until you choose another.", name)
     }
 
     private func chooseFile() {
@@ -1361,7 +1391,20 @@ private struct SoundPicker: View {
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             Task { @MainActor in
-                if let imported = try? NotificationSound.importCustom(url) { choice = imported }
+                // Until 0.5.0 a failed import was swallowed by `try?` and the Picker simply stayed where it was, so
+                // the user could not tell a refused file from a copy that had not happened yet.
+                // The import may decode a whole mp3 or m4a into PCM, so it runs off the main actor and only its
+                // result is applied here; the row says what it is doing meanwhile, since the Picker does not move
+                // until the file is in place.
+                importing = true
+                note = L("Importing %@…", url.lastPathComponent)
+                defer { importing = false }
+                do {
+                    choice = try await NotificationSound.importCustomInBackground(url)
+                    note = nil
+                } catch {
+                    note = error.localizedDescription
+                }
             }
         }
     }

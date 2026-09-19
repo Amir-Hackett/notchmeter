@@ -83,10 +83,20 @@ struct MeteringRatio: Equatable, Sendable {
     static let minimumDays = 5
     /// Today metering at least this much heavier than the norm is worth a line.
     static let heavierBy = 2.0
+    /// Below this the block is too small for its share of the window to mean anything: the numerator is this
+    /// Mac's transcripts and the denominator is the whole account's window, so a few thousand tokens against a
+    /// window mostly spent elsewhere read as an absurd ratio, and recorded as the day's figure they pulled the
+    /// 30-day median with them.
+    static let minimumBlockTokens = 50_000
+    /// Past this multiple, usage the app cannot see (another Mac, another macOS account, claude.ai on the same
+    /// Anthropic account) explains the gap far better than a change in metering: an hour's work elsewhere and a
+    /// small task here read as "165x heavier", and the advice line blamed Anthropic for it.
+    static let implausibleAbove = 6.0
 
-    /// The block's tokens over the session's used share; nil until the window has moved at all.
+    /// The block's tokens over the session's used share; nil until the window has moved at all and the block
+    /// holds enough to compare.
     static func tokensPerPercent(blockTokens: Int, usedFraction: Double) -> Double? {
-        guard usedFraction >= minimumUsed, blockTokens > 0 else { return nil }
+        guard usedFraction >= minimumUsed, blockTokens >= minimumBlockTokens else { return nil }
         return Double(blockTokens) / (usedFraction * 100)
     }
 
@@ -104,6 +114,7 @@ struct MeteringRatio: Equatable, Sendable {
     }
 
     var isHeavier: Bool {
-        (multiple ?? 0) >= Self.heavierBy
+        guard let multiple else { return false }
+        return multiple >= Self.heavierBy && multiple < Self.implausibleAbove
     }
 }

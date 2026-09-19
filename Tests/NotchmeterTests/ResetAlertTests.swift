@@ -50,6 +50,38 @@ import Testing
         #expect(!PaceAlert.Stage.reset.isEscalating)
     }
 
+    /// A Codex snapshot's reset is measured from when the snapshot was written, so a watched window's reset moves
+    /// by a few seconds on every read inside one period. Compared exactly, each move read as a new period here, and
+    /// the reminder fired again on every tick that followed a snapshot; compared with `ResetPeriod.same`, it does
+    /// not. `UsageStore.adopt` also pins a watched window to the reset it was first watched with, so the identifier
+    /// every one of its notices carries stays the same for the life of the period.
+    @Test func aResetThatDriftsAFewSecondsIsStillTheSamePeriod() throws {
+        let watched = try #require(WatchedReset.watch(.claude, window(used: 0.9, resetsIn: 1800), now: start))
+        let options = NotificationScheduler.Options(reminderLead: 600)
+        let lead = NotificationScheduler.planResets(memory: .empty, watched: [watched], now: start.addingTimeInterval(1200), options: options)
+        let leadStages = lead.alerts.map(\.stage)
+        #expect(leadStages == [.reminder])
+        let drifted = try #require(WatchedReset.watch(.claude, window(used: 0.9, resetsIn: 1845), now: start))
+        let again = NotificationScheduler.planResets(memory: lead.memory, watched: [drifted], now: start.addingTimeInterval(1230), options: options)
+        #expect(again.alerts.isEmpty)
+        let reset = NotificationScheduler.planResets(memory: again.memory, watched: [drifted], now: start.addingTimeInterval(1846), options: options)
+        let resetStages = reset.alerts.map(\.stage)
+        #expect(resetStages == [.reset])
+        let driftedBack = WatchedReset(tool: .claude, window: window(used: 0.9, resetsIn: 1800), seenAt: start)
+        let repeated = NotificationScheduler.planResets(memory: reset.memory, watched: [driftedBack], now: start.addingTimeInterval(1900), options: options)
+        #expect(repeated.alerts.isEmpty)
+
+        let firstReset = try #require(watched.window.resetsAt)
+        let pinned = drifted.window.pinningReset(to: firstReset)
+        #expect(pinned.resetsAt == firstReset)
+        #expect(pinned.usedFraction == drifted.window.usedFraction)
+        #expect(pinned.periodDuration == drifted.window.periodDuration)
+        let sentReminder = PaceAlert(tool: .claude, window: watched.window, stage: .reminder).identifier
+        #expect(PaceAlert(tool: .claude, window: drifted.window, stage: .reminder).identifier != sentReminder)
+        #expect(PaceAlert(tool: .claude, window: pinned, stage: .reminder).identifier == sentReminder)
+        #expect(PaceAlert.identifiers(tool: .claude, window: pinned).contains(sentReminder))
+    }
+
     @Test func togglesDropAlertsButStillRememberTheStage() {
         let behind = window(used: 0.5, resetsIn: 4 * 3600)
         let reading = UsageReading(tool: .claude, windows: [behind], plan: nil, fetchedAt: start, observedAt: nil)

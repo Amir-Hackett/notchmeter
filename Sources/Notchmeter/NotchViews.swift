@@ -1036,11 +1036,24 @@ struct SpendCard: View {
     @State private var range: Range
     @Environment(\.density) private var density
 
-    /// The range the card opens on. Only a test or a rendered still ever passes one; the panel always opens on today.
+    /// The range the card opens on, and the range a copied image is drawn at. The panel always opens on today;
+    /// the copy action, tests and rendered stills pass the range they want.
     init(store: UsageStore, range: Range = .today) {
         self.store = store
         _range = State(initialValue: range)
     }
+
+    /// The range this card was built to open on, read back for the copy test below. Outside `body` a `@State`
+    /// reads its initial value, which is exactly the one a detached render will draw.
+    var openingRange: Range { range }
+
+    /// The card "Copy as image" renders: a fresh copy seeded with the range on screen. `CardImage.copy` renders a
+    /// detached hierarchy, so nothing the user tapped carries over on its own -- until 0.5.0 the action built
+    /// `SpendCard(store:)`, and a user who had picked 90d and read $6,412 pasted a Today card saying $118, with
+    /// Today highlighted. Seeding the range here is what makes the pasted card match the one on screen. The
+    /// context-menu Button below must render this, not a fresh `SpendCard(store:)`; CostCardCopyImage checks the
+    /// seeding but cannot see the Button.
+    var imageCard: SpendCard { SpendCard(store: store, range: range) }
 
     private var mode: CostCardMode { store.prefs.costCardMode }
 
@@ -1307,7 +1320,9 @@ struct SpendCard: View {
         }
         .modifier(CardBackground())
         .contextMenu {
-            Button(L("Copy as image")) { CardImage.copy(SpendCard(store: store), width: store.prefs.panelWidth.points - 28) }
+            Button(L("Copy as image")) {
+                CardImage.copy(imageCard.environment(\.density, density), width: store.prefs.panelWidth.points - 28)
+            }
         }
     }
 }
@@ -1488,6 +1503,9 @@ struct ToolCard: View {
             case .offline:
                 Label(L("Offline, retrying"), systemImage: "wifi.slash")
                     .font(.caption).foregroundStyle(.secondary)
+            case .rateLimited(let message, _):
+                Label(message, systemImage: "clock.badge.exclamationmark")
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
             default:
                 EmptyView()
             }
@@ -1525,7 +1543,7 @@ struct ToolCard: View {
         }
         .modifier(CardBackground())
         .contextMenu {
-            Button(L("Refresh")) { Keychain.setInteractive(tool == .claude); Task { await store.refresh(tool, force: true) } }
+            Button(L("Refresh")) { Task { await store.refresh(tool, force: true, interactive: true) } }
             Button(L("Copy as image")) {
                 CardImage.copy(ToolCard(tool: tool, status: status, store: store, prefs: prefs).environment(\.density, density), width: prefs.panelWidth.points - 28)
             }
@@ -1611,7 +1629,7 @@ private struct SessionLine: View {
         if let branch = session.branch { parts.append(branch) }
         if let pr = session.prNumber { parts.append(L("PR %@", pr)) }
         guard !parts.isEmpty else { return nil }
-        return (parts.joined(separator: " · "), session.prURL.flatMap(URL.init(string:)), Hook.permissionBadge(session.permissionMode))
+        return (parts.joined(separator: " · "), session.prLink, Hook.permissionBadge(session.permissionMode))
     }
 
     static func contextText(_ used: Double, statusline: Statusline.Message?, hideFigures: Bool) -> String {

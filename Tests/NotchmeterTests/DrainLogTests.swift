@@ -82,6 +82,31 @@ import Testing
         #expect(text.split(separator: "\n").count == 3)
     }
 
+    /// The appends are enqueued, not waited for. `load` holds the queue for the whole compaction at launch, and the
+    /// status line adopts its first reading on the main actor before the file is back, so a synchronous append
+    /// there froze the notch, the rings and the menu bar item until the rewrite finished (0.5.0). A held block
+    /// stands in for the compaction here: the append must come back while the queue is still occupied, and the row
+    /// must be on file once it is free, since the reads stay behind the appends.
+    @Test func anAppendDoesNotWaitBehindTheQueue() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-drain-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let log = DrainLog(url: dir.appendingPathComponent("drain.jsonl"))
+        let reading = UsageReading(tool: .claude, windows: [
+            LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.2, resetsAt: nil, periodDuration: Period.fiveHours),
+        ], plan: nil, fetchedAt: now, observedAt: nil)
+
+        let gate = DispatchSemaphore(value: 0)
+        DrainLog.io.async { gate.wait() }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 1) { gate.signal() }
+        let began = Date()
+        log.append(reading, previous: [:], now: now)
+        let waited = Date().timeIntervalSince(began)
+        #expect(waited < 0.5, "the append waited \(waited)s for the queue")
+
+        let loaded = log.load(now: now)
+        #expect(loaded[DrainLog.Key(tool: .claude, window: "five_hour")]?.map(\.used) == [0.2])
+    }
+
     /// The wiring rather than the file format. The log skips a window that has not moved since its last row, so the
     /// store must hand it the samples as they stood *before* the reading being recorded. Handing over the dictionary
     /// it had just written to made every window its own predecessor: every row was skipped as unchanged, the file
@@ -110,6 +135,65 @@ import Testing
         store.recordDrain(reading(1), now: now.addingTimeInterval(60))
         let afterTheMove = log.load(now: now)[key]?.map(\.used)
         #expect(afterTheMove == [0.55, 1])
+    }
+
+    /// The in-memory mirror obeys the file's rules. Until 0.5.0 it did not: the file skipped a window whose figure
+    /// had not moved, the dictionary beside it appended a sample on every poll regardless, and nothing ever trimmed
+    /// it, so a month of uptime left hundreds of thousands of samples that `recomputeDrains` re-filtered several
+    /// times a minute and that no consumer, all of which look back at most seven days, would ever read.
+    @MainActor @Test func theStoreKeepsItsMirrorAsThinAsTheFile() throws {
+        let suite = "NotchmeterTests.Drain.mirror"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = UsageStore(prefs: Preferences(defaults: defaults), providers: [], cache: ReadingCache(defaults: defaults),
+                               defaults: defaults, drainLog: nil, reportFile: nil)
+        let reset = now.addingTimeInterval(8 * 86400)
+        func reading(_ used: Double) -> UsageReading {
+            UsageReading(tool: .cursor, windows: [
+                LimitWindow(id: "included", label: "Included usage", usedFraction: used, resetsAt: reset, periodDuration: Period.week),
+            ], plan: nil, fetchedAt: now, observedAt: nil)
+        }
+        let key = DrainLog.Key(tool: .cursor, window: "included")
+        store.recordDrain(reading(0.55), now: now)
+        // The same figure a minute later is not a sample; the same figure five minutes on is.
+        store.recordDrain(reading(0.55), now: now.addingTimeInterval(60))
+        #expect(store.drainSamples[key]?.count == 1)
+        store.recordDrain(reading(0.55), now: now.addingTimeInterval(300))
+        #expect(store.drainSamples[key]?.count == 2)
+        // Eight days on, both of those rows are past the keep window and leave; only the new one remains.
+        let eightDaysOn = now.addingTimeInterval(8 * 86400 - 3600)
+        store.recordDrain(reading(0.60), now: eightDaysOn)
+        let afterTheTrim = store.drainSamples[key]?.map(\.used)
+        #expect(afterTheTrim == [0.60])
+    }
+
+    /// The one rule the file and its mirror share.
+    @Test func aFigureEarnsARowWhenItMovesItsResetChangesOrFiveMinutesPass() {
+        let reset = now.addingTimeInterval(3600)
+        let last = DrainSample(t: now, used: 0.40, resetsAt: reset)
+        #expect(DrainLog.moved(nil, used: 0.40, resetsAt: reset, now: now))
+        #expect(!DrainLog.moved(last, used: 0.40, resetsAt: reset, now: now.addingTimeInterval(60)))
+        #expect(!DrainLog.moved(last, used: 0.4004, resetsAt: reset, now: now.addingTimeInterval(60)))
+        #expect(DrainLog.moved(last, used: 0.41, resetsAt: reset, now: now.addingTimeInterval(60)))
+        #expect(DrainLog.moved(last, used: 0.40, resetsAt: reset.addingTimeInterval(5 * 3600), now: now.addingTimeInterval(60)))
+        #expect(DrainLog.moved(last, used: 0.40, resetsAt: reset, now: now.addingTimeInterval(300)))
+    }
+
+    /// The launch load lands after the first readings. The file's rows fold into what the store recorded in the
+    /// meantime: a row on both sides counts once, a row only the store saw survives, and a window only the store
+    /// saw survives whole. Replacing the dictionary lost the newest points; concatenating doubled the shared one.
+    @Test func theFileFoldsIntoWhatTheStoreRecordedWhileItWasBeingRead() {
+        let key = DrainLog.Key(tool: .claude, window: "five_hour")
+        let other = DrainLog.Key(tool: .codex, window: "primary")
+        let loaded: [DrainLog.Key: [DrainSample]] = [key: [sample(120, 0.10), sample(60, 0.20)]]
+        let live: [DrainLog.Key: [DrainSample]] = [key: [sample(60, 0.20), sample(1, 0.30)], other: [sample(1, 0.05)]]
+        let merged = DrainLog.merged(loaded, with: live)
+        let oneOfEach = [0.10, 0.20, 0.30]
+        #expect(merged[key]?.map(\.used) == oneOfEach)
+        #expect(merged[other]?.map(\.used) == [0.05])
+        let untouched = DrainLog.merged(loaded, with: [:])
+        #expect(untouched == loaded)
     }
 
     /// A reset that is not a fixed instant. Claude's windows arrive carrying a moment that moves on every read —

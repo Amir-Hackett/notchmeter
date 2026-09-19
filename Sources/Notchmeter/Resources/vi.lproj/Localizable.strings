@@ -47,10 +47,13 @@
 "%@ advice" = "Lời khuyên của %@";
 "%@ as the vendor's own usage export priced it" = "%@ theo giá trong bản xuất mức dùng của chính nhà cung cấp";
 "%@ billed this month" = "Đã tính phí %@ tháng này";
+"%@ could not be read as audio, so nothing was imported." = "Không đọc được %@ dưới dạng âm thanh nên không nhập gì cả.";
 "%@ finished" = "%@ đã xong";
 "%@ hit its rate limit; wait for the reset." = "%@ đã chạm giới hạn tốc độ; hãy đợi đặt lại.";
 "%@ hook" = "Hook %@";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "%@ được sao chép thành settings.json.bak-<ngày> trước. Dòng trạng thái đã có tiếp tục chạy sau dòng của Notchmeter, với cùng JSON.";
+"%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ ở định dạng Trung tâm thông báo không phát được, nên âm mặc định sẽ phát cho đến khi bạn chọn lại tệp để chuyển đổi.";
+"%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ không còn trong ~/Library/Sounds nên âm mặc định sẽ phát cho đến khi bạn chọn âm khác.";
 "%@ is not a JSON object, so it was left untouched" = "%@ không phải đối tượng JSON nên được giữ nguyên";
 "%@ is waiting" = "%@ đang chờ";
 "%@ is waiting for your input." = "%@ đang chờ bạn nhập.";
@@ -107,7 +110,7 @@
 "90d" = "90 ngày";
 "A %1$@ reset credit expires in %2$@. Claim it in %1$@." = "Một tín dụng đặt lại của %1$@ hết hạn sau %2$@. Hãy nhận trong %1$@.";
 "A bar resting on top of the Dock." = "Một thanh nằm phía trên Dock.";
-"A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "Tệp đã chọn được sao chép vào ~/Library/Sounds để Trung tâm thông báo phát.";
+"A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name." = "Tệp .aiff, .wav hoặc .caf đã chọn được sao chép nguyên trạng vào ~/Library/Sounds; định dạng khác, chẳng hạn mp3 hay m4a, được chuyển thành .caf tại đó vì Trung tâm thông báo không phát định dạng nào khác theo tên.";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "Màn hình được chọn theo tên được ghi nhớ bằng định danh phần cứng, nên hai màn hình cùng mẫu vẫn phân biệt được và đổi tên không làm mất.";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "Một notch khoét vào cạnh trái, bảng mở ra ngay bên cạnh. Nó nhường chỗ cho Dock hoặc dải Stage Manager ở phía đó.";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "Một notch khoét vào cạnh phải, bảng mở ra ngay bên cạnh. Nó nhường chỗ cho Dock ở phía đó.";
@@ -176,6 +179,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "Với tốc độ này, %1$@ tốn %2$@ so với ngân sách %3$@.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "Với tốc độ này bạn chạm trần %2$@ của %1$@ vào %3$@ trong khoảng %4$@ đến %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "Với tốc độ này bạn sẽ chạm trần %2$@ của %1$@ vào %3$@, còn %4$@ trước khi đặt lại.%5$@";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "Với tốc độ này bạn sẽ vượt %1$@ vào %2$@, còn %3$@ trước khi đặt lại.";
 "Auto" = "Tự động";
 "another user is logged in" = "người dùng khác đang đăng nhập";
 "auto" = "tự động";
@@ -287,6 +291,7 @@
 "extra usage on" = "đã bật dùng thêm";
 "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage." = "Dùng thêm tăng %1$@ trong %2$@ khi gói còn %3$ld%%; hãy kiểm tra /usage.";
 "Fast requests" = "Yêu cầu nhanh";
+"Figures are hidden while the screen is shared; the panel has them once it ends." = "Số liệu được ẩn khi màn hình đang được chia sẻ; bảng sẽ hiện lại số liệu khi ngừng chia sẻ.";
 "Flip countdown and exact time" = "Đổi giữa đếm ngược và giờ chính xác";
 "Flip used and left" = "Đổi giữa đã dùng và còn lại";
 "From" = "Từ";
@@ -314,6 +319,7 @@
 "Hover delay" = "Độ trễ rê chuột";
 "Hover the rings. The panel opens." = "Rê chuột lên các vòng. Bảng sẽ mở.";
 "Icon style" = "Kiểu biểu tượng";
+"Importing %@…" = "Đang nhập %@…";
 "In the Cost card" = "Trong thẻ chi phí";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "Theo tiền tệ ở trên; để trống nếu không có. Vòng của thẻ Chi phí đầy theo ngân sách tháng với cùng vạch nhịp như các đồng hồ, dải Lời khuyên dự phóng tháng so với nó, và thông báo đúng nhịp, chậm nhịp, sắp hết áp dụng cho nó với tháng là chu kỳ.";
 "In the pill" = "Trong viên thuốc";
@@ -333,6 +339,7 @@
 "Installed; your previous status line (%@) runs after it." = "Đã cài; dòng trạng thái trước của bạn (%@) chạy sau nó.";
 "Integrations" = "Tích hợp";
 "its usage export could not be fetched" = "không lấy được dữ liệu sử dụng đã xuất";
+"its usage export came back in a shape Notchmeter could not read" = "dữ liệu sử dụng đã xuất trả về ở dạng Notchmeter không đọc được";
 "just now" = "vừa xong";
 "Keeping awake" = "Giữ máy thức";
 "Keeping awake · %ld sessions" = "Giữ máy thức · %ld phiên";
@@ -543,6 +550,8 @@
 "Tells you what to do, not just how much." = "Cho bạn biết nên làm gì, không chỉ đã dùng bao nhiêu.";
 "Test notification" = "Thông báo thử";
 "Text" = "Chữ";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "Bạn đang sát nhịp với %1$@: ~%2$ld%% còn lại khi đặt lại.";
+"The %1$@ is spent. %2$@." = "Bạn đã dùng hết %1$@. %2$@.";
 "The %1$@'s %2$@ is past the %3$@ budget." = "%2$@ của %1$@ đã vượt ngân sách %3$@.";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "Phần thẻ chi phí ngoài vòng tròn, chú giải và dòng tốc độ tiêu (ngân sách, tuần và các dòng theo mô hình), cùng khối phiên, token, dự án chính và biểu đồ nhỏ. Tắt để bảng đủ ngắn, không cần cuộn.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "Tệp tổng ngày dạng CSV hoặc JSON: mỗi ngày một dòng với chi phí, năm nhóm token, mô hình cao nhất và chi phí theo mô hình và theo dự án.";
@@ -606,7 +615,7 @@
 "When the cache tier or the metering shifts" = "Khi mức cache hoặc cách đo thay đổi";
 "When you start paying (extra usage rises)" = "Khi bạn bắt đầu trả tiền (dùng thêm tăng)";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "Những trợ lý mà vòng tròn, chú giải và tổng của thẻ bao gồm, theo thứ tự đặt ở mục Trợ lý. Trợ lý không thể báo chi phí, hoặc bạn chưa đăng nhập, không bao giờ có ở đây; trợ lý bị bỏ ra vẫn hiện chi tiêu trên thẻ của chính nó.";
-"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Khi Zoom, Meet, QuickTime hoặc Chia sẻ màn hình đang ghi màn hình, các vòng giữ hình dạng nhưng ẩn số, và bảng ẩn thẻ Chi phí. Kiểm tra mỗi năm giây.";
+"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "Khi Zoom, Meet, QuickTime hoặc Chia sẻ màn hình đang ghi màn hình, các vòng giữ hình dạng nhưng ẩn số, bảng ẩn thẻ Chi phí, và biểu ngữ nào hiện lên trong lúc đó không mang số liệu hay tên dự án. Kiểm tra mỗi năm giây.";
 "Wide" = "Rộng";
 "Will run out (behind pace)" = "Sẽ hết (chậm hơn nhịp)";
 "Window" = "Cửa sổ";
@@ -630,14 +639,16 @@
 "App to stay over, e.g. zoom.us" = "Ứng dụng cần hiện đè lên, ví dụ zoom.us";
 "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "Các ứng dụng mà số liệu vẫn hiện đè lên, theo tên mà danh sách cửa sổ đưa ra: một cuộc họp bạn muốn có đồng hồ bên cạnh, trong khi cài đặt ở trên đang tắt vì phim. Nó không phân biệt được hai cách dùng của cùng một ứng dụng, một cuộc gọi và một bộ phim đều trong trình duyệt là ví dụ; phím tắt Hiện trên ứng dụng toàn màn hình này giải quyết trường hợp đó, chỉ cho ứng dụng đang trên màn hình và cho tới khi nó rời toàn màn hình. Menu Tùy chọn đưa ra cả hai cho bất kỳ ứng dụng nào đang toàn màn hình lúc đó.";
 
-/* Mục Trợ năng cũ: quyền thuộc về bản ứng dụng đã bị thay thế (MenuBarExtent, App, SettingsWindow) */
+/* Mục Trợ năng cũ: quyền đã được cấp nhưng không còn hiệu lực với bản đang chạy, dù là bản mới đã thay thế bản được cấp hay chính bản đó bị từ chối (MenuBarExtent, App, SettingsWindow) */
 "%@'s Accessibility permission belongs to an older copy" = "Quyền Trợ năng của %@ thuộc về một bản cũ hơn";
 "macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS gắn quyền này với đúng bản đã được cấp, và bản đang chạy đã thay thế bản đó. Trong Quyền riêng tư & Bảo mật › Trợ năng, công tắc vẫn hiện đang bật nhưng không còn hiệu lực, và chỉ xóa mục đó mới lấy lại được. %@ có thể xóa mục đó rồi khởi động lại; bạn sẽ được hỏi để bật lại một lần nữa, và Tự động vẫn giữ nguyên bên hiện tại cho đến khi đó.";
+"%@'s Accessibility permission has stopped applying" = "Quyền Trợ năng của %@ không còn hiệu lực";
+"macOS is refusing the Accessibility permission it once granted this very copy. If the switch in Privacy & Security › Accessibility is off, turning it on is enough. If it is on and Auto still does not measure, the entry behind it has stopped applying and only clearing it brings it back: %@ can clear it and restart, you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS đang từ chối quyền Trợ năng mà nó từng cấp cho chính bản này. Nếu công tắc trong Quyền riêng tư & Bảo mật › Trợ năng đang tắt, chỉ cần bật lại là đủ. Nếu công tắc đang bật mà Tự động vẫn không đo được, mục đứng sau nó đã mất hiệu lực và chỉ xóa mục đó mới lấy lại được: %@ có thể xóa mục đó rồi khởi động lại, bạn sẽ được hỏi để bật lại một lần nữa, và Tự động vẫn giữ nguyên bên hiện tại cho đến khi đó.";
 "Clear and Restart" = "Xóa và khởi động lại";
 "Open Accessibility Settings" = "Mở cài đặt Trợ năng";
 "Not Now" = "Để sau";
 "Repair the Accessibility permission…" = "Sửa quyền Trợ năng…";
-"The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "Quyền này thuộc về một bản cũ hơn: macOS gắn nó với bản đã được cấp và vẫn để công tắc bật khi bản đó bị thay thế. Xóa mục đó rồi khởi động lại là cách quay về.";
+"Accessibility is refusing a permission it once granted this app: macOS ties it to the exact copy it was granted to, and a replaced copy or an entry that stopped applying leaves the switch on with the permission gone. If the switch is off, turning it on is enough; otherwise clearing the entry and restarting is the way back." = "Trợ năng đang từ chối một quyền mà nó từng cấp cho ứng dụng này: macOS gắn quyền với đúng bản đã được cấp, nên một bản bị thay thế hoặc một mục mất hiệu lực sẽ để công tắc vẫn bật trong khi quyền đã mất. Nếu công tắc đang tắt, chỉ cần bật lại là đủ; nếu không, xóa mục đó rồi khởi động lại là cách quay về.";
 
 /* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
 "Dots" = "Chấm";

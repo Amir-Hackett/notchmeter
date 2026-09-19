@@ -54,6 +54,20 @@ struct DrainLog: Sendable {
     static let keepFor: TimeInterval = 7 * 86400
     static let compactAbove = 20_000
 
+    /// Every touch of the file goes through this one serial queue. The store appends from the main actor while
+    /// `load` runs on a detached task at launch, and `load` rewrites the whole file with an atomic write once it
+    /// has grown past `compactAbove`: an atomic write swaps a fresh inode in under the path, so an append that had
+    /// already opened a handle and sought to the end of the old file wrote its row into an inode nothing pointed
+    /// at any more, and the row was gone. Serialising the read-and-rewrite against the appends is the whole fix.
+    /// The appends are enqueued asynchronously, though, because `load` does hold the queue long enough to feel:
+    /// compacting a file past `compactAbove` parses it twice, re-encodes every kept row and rewrites it, about
+    /// 100 ms at 20 000 lines and more after a long run, and it does so at launch, when the status line adopts its
+    /// first reading on the main actor before the file is back. A synchronous append there froze the notch, the
+    /// rings and the menu bar item for the whole compaction. The reads stay synchronous, so a `load` queued after
+    /// an append still sees the row. Internal rather than private so a test can occupy the queue and check that
+    /// an append does not wait behind it.
+    static let io = DispatchQueue(label: "com.notchmeter.drainlog")
+
     init(url: URL = Paths.applicationSupport.appendingPathComponent("drain-log-v1.jsonl")) {
         self.url = url
     }
@@ -71,28 +85,40 @@ struct DrainLog: Sendable {
         return decoder
     }()
 
+    /// True when this figure earns a row: it moved, its reset changed, or five minutes have passed since the last
+    /// one, so an idle account writes little. The rule lives here, once, because the store keeps an in-memory
+    /// mirror of the file and applies the same test before appending to it. Until 0.5.0 the mirror had no test at
+    /// all: it grew by one sample per window on every poll however still the figure was, and after a month of
+    /// uptime carried hundreds of thousands of samples that nothing would ever read, since every consumer looks
+    /// back at most seven days. Two copies of the rule would drift the first time one of them was edited.
+    static func moved(_ last: DrainSample?, used: Double, resetsAt: Date?, now: Date) -> Bool {
+        guard let last else { return true }
+        return abs(last.used - used) >= 0.0005 || !ResetPeriod.same(last.resetsAt, resetsAt) || now.timeIntervalSince(last.t) >= 300
+    }
+
     /// Appends one row per limited window of the reading; a window whose figure has not moved since its last row
     /// is skipped unless five minutes have passed, so an idle account writes little.
     func append(_ reading: UsageReading, previous: [Key: [DrainSample]], now: Date = Date()) {
         var data = Data()
         for window in reading.windows {
             guard let used = window.usedFraction else { continue }
-            if let last = previous[Key(tool: reading.tool, window: window.id)]?.last,
-               abs(last.used - used) < 0.0005, ResetPeriod.same(last.resetsAt, window.resetsAt), now.timeIntervalSince(last.t) < 300 { continue }
+            guard Self.moved(previous[Key(tool: reading.tool, window: window.id)]?.last, used: used, resetsAt: window.resetsAt, now: now) else { continue }
             let line = Line(t: now, tool: reading.tool.rawValue, window: window.id, used: used, resetsAt: window.resetsAt)
             guard let encoded = try? Self.encoder.encode(line) else { continue }
             data.append(encoded)
             data.append(0x0A)
         }
         guard !data.isEmpty else { return }
-        let fm = FileManager.default
-        try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let handle = try? FileHandle(forWritingTo: url) {
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: data)
-            try? handle.close()
-        } else {
-            try? data.write(to: url, options: .atomic)
+        Self.io.async { [url, data] in
+            let fm = FileManager.default
+            try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if let handle = try? FileHandle(forWritingTo: url) {
+                _ = try? handle.seekToEnd()
+                try? handle.write(contentsOf: data)
+                try? handle.close()
+            } else {
+                try? data.write(to: url, options: .atomic)
+            }
         }
     }
 
@@ -105,20 +131,22 @@ struct DrainLog: Sendable {
         line.amount = amountUSD
         line.plan = plan
         guard let encoded = try? Self.encoder.encode(line) else { return }
-        let fm = FileManager.default
-        try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let handle = try? FileHandle(forWritingTo: url) {
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: encoded + Data([0x0A]))
-            try? handle.close()
-        } else {
-            try? (encoded + Data([0x0A])).write(to: url, options: .atomic)
+        Self.io.async { [url, encoded] in
+            let fm = FileManager.default
+            try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if let handle = try? FileHandle(forWritingTo: url) {
+                _ = try? handle.seekToEnd()
+                try? handle.write(contentsOf: encoded + Data([0x0A]))
+                try? handle.close()
+            } else {
+                try? (encoded + Data([0x0A])).write(to: url, options: .atomic)
+            }
         }
     }
 
     /// The extra-usage transitions on file, oldest first.
     func loadExtraUsage() -> [ExtraUsageRow] {
-        guard let data = try? Data(contentsOf: url) else { return [] }
+        guard let data = Self.io.sync(execute: { try? Data(contentsOf: url) }) else { return [] }
         return Self.parseExtraUsage(data)
     }
 
@@ -132,32 +160,48 @@ struct DrainLog: Sendable {
     /// Everything within the keep window, oldest first per window; rows older than that are dropped from the file
     /// once it has grown past a few thousand lines.
     func load(now: Date = Date()) -> [Key: [DrainSample]] {
-        guard let data = try? Data(contentsOf: url) else { return [:] }
-        let samples = Self.parse(data, now: now)
-        let lines = data.split(separator: 0x0A).count
-        if lines > Self.compactAbove {
-            var whole = Data()
-            for extra in Self.parseExtraUsage(data) {
-                var line = Line(t: extra.t, tool: ToolID.claude.rawValue, window: "extra_usage", used: extra.previousUSD ?? 0, resetsAt: nil)
-                line.kind = "extra"
-                line.amount = extra.amountUSD
-                line.plan = extra.planWindows
-                if let encoded = try? Self.encoder.encode(line) {
-                    whole.append(encoded)
-                    whole.append(0x0A)
-                }
-            }
-            for (key, rows) in samples {
-                for sample in rows {
-                    if let encoded = try? Self.encoder.encode(Line(t: sample.t, tool: key.tool.rawValue, window: key.window, used: sample.used, resetsAt: sample.resetsAt)) {
+        Self.io.sync {
+            guard let data = try? Data(contentsOf: url) else { return [:] }
+            let samples = Self.parse(data, now: now)
+            let lines = data.split(separator: 0x0A).count
+            if lines > Self.compactAbove {
+                var whole = Data()
+                for extra in Self.parseExtraUsage(data) {
+                    var line = Line(t: extra.t, tool: ToolID.claude.rawValue, window: "extra_usage", used: extra.previousUSD ?? 0, resetsAt: nil)
+                    line.kind = "extra"
+                    line.amount = extra.amountUSD
+                    line.plan = extra.planWindows
+                    if let encoded = try? Self.encoder.encode(line) {
                         whole.append(encoded)
                         whole.append(0x0A)
                     }
                 }
+                for (key, rows) in samples {
+                    for sample in rows {
+                        if let encoded = try? Self.encoder.encode(Line(t: sample.t, tool: key.tool.rawValue, window: key.window, used: sample.used, resetsAt: sample.resetsAt)) {
+                            whole.append(encoded)
+                            whole.append(0x0A)
+                        }
+                    }
+                }
+                try? whole.write(to: url, options: .atomic)
             }
-            try? whole.write(to: url, options: .atomic)
+            return samples
         }
-        return samples
+    }
+
+    /// The file's rows folded into the samples the store recorded while the file was being read. `load` runs on a
+    /// detached task at launch, and the first readings adopt before it comes back (the status line answers with no
+    /// fetch at all), so by the time the parsed file lands the store already holds rows the read never saw. Those
+    /// rows are on disk too, and a row appended just before the read is on both sides. Replacing the dictionary
+    /// dropped the newest points from the sparkline and the last-hour drain until the next poll, and left the
+    /// skip-if-unmoved rule comparing against a stale predecessor; concatenating and sorting would count a row
+    /// present on both sides twice. So: one sample per timestamp, the file's copy winning, oldest first.
+    static func merged(_ loaded: [Key: [DrainSample]], with live: [Key: [DrainSample]]) -> [Key: [DrainSample]] {
+        loaded.merging(live) { fromFile, recorded in
+            let known = Set(fromFile.map(\.t))
+            return (fromFile + recorded.filter { !known.contains($0.t) }).sorted { $0.t < $1.t }
+        }
     }
 
     static func parse(_ data: Data, now: Date) -> [Key: [DrainSample]] {

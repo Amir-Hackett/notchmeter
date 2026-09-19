@@ -63,10 +63,13 @@
 "%@ advice" = "%@ advice";
 "%@ as the vendor's own usage export priced it" = "%@ as the vendor's own usage export priced it";
 "%@ billed this month" = "%@ billed this month";
+"%@ could not be read as audio, so nothing was imported." = "%@ could not be read as audio, so nothing was imported.";
 "%@ finished" = "%@ finished";
 "%@ hit its rate limit; wait for the reset." = "%@ hit its rate limit; wait for the reset.";
 "%@ hook" = "%@ hook";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON.";
+"%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it.";
+"%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ is no longer in ~/Library/Sounds, so Default plays until you choose another.";
 "%@ is not a JSON object, so it was left untouched" = "%@ is not a JSON object, so it was left untouched";
 "%@ is waiting" = "%@ is waiting";
 "%@ is waiting for your input." = "%@ is waiting for your input.";
@@ -123,7 +126,7 @@
 "90d" = "90d";
 "A %1$@ reset credit expires in %2$@. Claim it in %1$@." = "A %1$@ reset credit expires in %2$@. Claim it in %1$@.";
 "A bar resting on top of the Dock." = "A bar resting on top of the Dock.";
-"A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "A chosen file is copied into ~/Library/Sounds, where Notification Center can play it.";
+"A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name." = "A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name.";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it.";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side.";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side.";
@@ -192,6 +195,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "At this rate the %1$@ costs %2$@ against a %3$@ budget.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "At this rate you pass the %1$@ %2$@, %3$@ before it resets.";
 "another user is logged in" = "another user is logged in";
 "auto" = "auto";
 "Auto" = "Auto";
@@ -303,6 +307,7 @@
 "extra usage on" = "extra usage on";
 "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage." = "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage.";
 "Fast requests" = "Fast requests";
+"Figures are hidden while the screen is shared; the panel has them once it ends." = "Figures are hidden while the screen is shared; the panel has them once it ends.";
 "Flip countdown and exact time" = "Flip countdown and exact time";
 "Flip used and left" = "Flip used and left";
 "From" = "From";
@@ -330,6 +335,7 @@
 "Hover delay" = "Hover delay";
 "Hover the rings. The panel opens." = "Hover the rings. The panel opens.";
 "Icon style" = "Icon style";
+"Importing %@…" = "Importing %@…";
 "In the Cost card" = "In the Cost card";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period.";
 "In the pill" = "In the pill";
@@ -349,6 +355,7 @@
 "Installed; your previous status line (%@) runs after it." = "Installed; your previous status line (%@) runs after it.";
 "Integrations" = "Integrations";
 "its usage export could not be fetched" = "its usage export could not be fetched";
+"its usage export came back in a shape Notchmeter could not read" = "its usage export came back in a shape Notchmeter could not read";
 "just now" = "just now";
 "Keeping awake" = "Keeping awake";
 "Keeping awake · %ld sessions" = "Keeping awake · %ld sessions";
@@ -559,6 +566,8 @@
 "Tells you what to do, not just how much." = "Tells you what to do, not just how much.";
 "Test notification" = "Test notification";
 "Text" = "Text";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "The %1$@ is close to pace: ~%2$ld%% left at reset.";
+"The %1$@ is spent. %2$@." = "The %1$@ is spent. %2$@.";
 "The %1$@'s %2$@ is past the %3$@ budget." = "The %1$@'s %2$@ is past the %3$@ budget.";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost.";
@@ -622,7 +631,7 @@
 "When the cache tier or the metering shifts" = "When the cache tier or the metering shifts";
 "When you start paying (extra usage rises)" = "When you start paying (extra usage rises)";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card.";
-"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds.";
+"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds.";
 "Wide" = "Wide";
 "Will run out (behind pace)" = "Will run out (behind pace)";
 "Window" = "Window";
@@ -646,14 +655,16 @@
 "App to stay over, e.g. zoom.us" = "App to stay over, e.g. zoom.us";
 "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time.";
 
-/* A stale Accessibility entry: the permission belongs to a copy of the app that was replaced (MenuBarExtent, App, SettingsWindow) */
+/* A stale Accessibility entry: the permission was granted and no longer applies to the running copy, whether a newer copy replaced the one it was granted to or the same copy is refused (MenuBarExtent, App, SettingsWindow) */
 "%@'s Accessibility permission belongs to an older copy" = "%@'s Accessibility permission belongs to an older copy";
 "macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do.";
+"%@'s Accessibility permission has stopped applying" = "%@'s Accessibility permission has stopped applying";
+"macOS is refusing the Accessibility permission it once granted this very copy. If the switch in Privacy & Security › Accessibility is off, turning it on is enough. If it is on and Auto still does not measure, the entry behind it has stopped applying and only clearing it brings it back: %@ can clear it and restart, you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS is refusing the Accessibility permission it once granted this very copy. If the switch in Privacy & Security › Accessibility is off, turning it on is enough. If it is on and Auto still does not measure, the entry behind it has stopped applying and only clearing it brings it back: %@ can clear it and restart, you are asked to switch it on once more, and Auto keeps to the side it has until you do.";
 "Clear and Restart" = "Clear and Restart";
 "Open Accessibility Settings" = "Open Accessibility Settings";
 "Not Now" = "Not Now";
 "Repair the Accessibility permission…" = "Repair the Accessibility permission…";
-"The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back.";
+"Accessibility is refusing a permission it once granted this app: macOS ties it to the exact copy it was granted to, and a replaced copy or an entry that stopped applying leaves the switch on with the permission gone. If the switch is off, turning it on is enough; otherwise clearing the entry and restarting is the way back." = "Accessibility is refusing a permission it once granted this app: macOS ties it to the exact copy it was granted to, and a replaced copy or an entry that stopped applying leaves the switch on with the permission gone. If the switch is off, turning it on is enough; otherwise clearing the entry and restarting is the way back.";
 
 /* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
 "Dots" = "Dots";

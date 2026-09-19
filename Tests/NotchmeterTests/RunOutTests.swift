@@ -111,6 +111,15 @@ import Testing
         #expect(abs((heavy.multiple ?? 0) - 2.1) < 1e-9)
         #expect(!MeteringRatio(tokensPerPercent: 2_000_000, median: 2_100_000).isHeavier)
         #expect(MeteringRatio(tokensPerPercent: 1_000_000, median: nil).multiple == nil)
+        // A block too small to compare gives no figure: the window's share is the account's, the tokens this Mac's.
+        let tooSmall = MeteringRatio.minimumBlockTokens - 1
+        #expect(MeteringRatio.tokensPerPercent(blockTokens: tooSmall, usedFraction: 0.5) == nil)
+        #expect(MeteringRatio.tokensPerPercent(blockTokens: MeteringRatio.minimumBlockTokens, usedFraction: 0.5) == 1000)
+        // An hour's work on another Mac and a small task here: 165x is not Anthropic metering differently.
+        let elsewhere = MeteringRatio(tokensPerPercent: 6_700, median: 1_100_000)
+        #expect(!elsewhere.isHeavier)
+        #expect(MeteringRatio(tokensPerPercent: 200_000, median: 1_180_000).isHeavier)
+        #expect(!MeteringRatio(tokensPerPercent: 200_000, median: 1_200_000).isHeavier)
         let now = Date()
         var context = Advisor.Context(readings: [], now: now)
         context.metering = heavy

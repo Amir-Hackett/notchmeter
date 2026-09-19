@@ -345,6 +345,64 @@ import Testing
         #expect(reading.windows.first { $0.id == "credits" }?.amountUSD == 12.5)
     }
 
+    /// A body with no measured window is not a reading, as the snapshot read already held. The backend read used
+    /// to make two "No data" placeholders into one, which the store then cached over the last good figures. A
+    /// per-model pair on its own still counts, and does not cost the main pair its placeholders.
+    @Test func aBackendBodyWithNoMeasuredWindowIsNotAReading() throws {
+        let bothNull = #"{"plan_type":"plus","rate_limit":{"primary_window":null,"secondary_window":null}}"#
+        #expect(throws: ProviderError.parse("Codex reported no usage windows")) {
+            try CodexProvider.parseBackend(Data(bothNull.utf8))
+        }
+        let renamed = #"{"plan_type":"plus","rate_limits":{"primary_window":{"used_percent":40,"limit_window_seconds":18000}}}"#
+        #expect(throws: ProviderError.parse("Codex reported no usage windows")) {
+            try CodexProvider.parseBackend(Data(renamed.utf8))
+        }
+        let sparkOnly = """
+        {"plan_type":"plus","rate_limit":{"primary_window":null,"secondary_window":null},
+         "additional_rate_limits":[{"limit_name":"GPT-5.3-Codex-Spark","rate_limit":{"primary_window":{"used_percent":30,"limit_window_seconds":18000},
+                                    "secondary_window":{"used_percent":5,"limit_window_seconds":604800}}}]}
+        """
+        let spark = try CodexProvider.parseBackend(Data(sparkOnly.utf8))
+        #expect(spark.windows.prefix(2).map(\.usedFraction) == [nil, nil])
+        #expect(spark.windows.prefix(2).map(\.note) == ["No data", "No data"])
+        #expect(spark.windows.dropFirst(2).map(\.usedFraction) == [0.3, 0.05])
+    }
+
+    /// The one branch of `fetch()` with no fallback: a 200 that parses to nothing now reads the rollouts on disk,
+    /// as an expired login, a refusal, a server error and a dead network already did.
+    @Test func aBackendAnswerWithNoWindowsFallsBackToTheRollouts() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-codex-fallback-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir.appendingPathComponent("sessions"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try Data(#"{"tokens":{"access_token":"not-a-jwt","account_id":"acct_1"}}"#.utf8).write(to: dir.appendingPathComponent("auth.json"))
+        let line = #"{"timestamp":"2026-09-01T10:00:05.000Z","payload":{"type":"token_count","rate_limits":{"primary":{"used_percent":20,"window_minutes":300,"resets_at":1900000000},"secondary":{"used_percent":5,"window_minutes":10080,"resets_at":1900000000}}}}"#
+        try line.write(to: dir.appendingPathComponent("sessions/rollout.jsonl"), atomically: true, encoding: .utf8)
+        BackendStub.body = Data(#"{"plan_type":"plus","rate_limit":{"primary_window":null,"secondary_window":null}}"#.utf8)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [BackendStub.self]
+        let provider = CodexProvider(session: URLSession(configuration: configuration), root: dir, readResetCredits: { false })
+        let reading = try await provider.fetch()
+        #expect(reading.windows.map(\.id) == ["session", "weekly"])
+        #expect(reading.windows.map(\.usedFraction) == [0.2, 0.05])
+        #expect(reading.windows.allSatisfy { $0.source == .localSnapshot })
+        #expect(reading.observedAt == DateParsing.iso8601("2026-09-01T10:00:05.000Z"))
+    }
+
+    /// Answers every request with HTTP 200 and one fixed body.
+    final class BackendStub: URLProtocol {
+        nonisolated(unsafe) static var body = Data()
+
+        override class func canInit(with request: URLRequest) -> Bool { true }
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+        override func stopLoading() {}
+        override func startLoading() {
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: Self.body)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+    }
+
     @Test func homeFollowsCodexHomeThenTheConfigFolderThenTheDotFolder() {
         let home = URL(fileURLWithPath: "/Users/me")
         let fromCodexHome = CodexProvider.defaultHome(environment: ["CODEX_HOME": "/srv/codex", "TERM": "x"], home: home, exists: { _ in false })

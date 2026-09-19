@@ -34,7 +34,6 @@ enum KeychainPromptPolicy: String, CaseIterable, Codable, Sendable {
 enum Keychain {
     private struct Access {
         var policy = KeychainPromptPolicy.refreshOnly
-        var interactive = false
         var promptsAllowed = true
     }
 
@@ -52,14 +51,16 @@ enum Keychain {
         access.withLock { $0.policy = policy }
     }
 
-    /// The next Claude read was asked for by the user (Refresh, the ring, the Assistants toggle), so the policy may
-    /// let it ask; a timer read never sets this.
-    static func setInteractive(_ interactive: Bool) {
-        access.withLock { $0.interactive = interactive }
-    }
-
-    static var mayPromptNow: Bool {
-        access.withLock { $0.promptsAllowed && $0.policy.mayPrompt(interactive: $0.interactive) }
+    /// Whether a read may raise the dialog: only one the user asked for (Refresh, the ring, the Assistants toggle),
+    /// under the permissive policy, with the process-wide switch on. `interactive` travels with the read that asked
+    /// for it, through `UsageProvider.fetch(interactive:)`. It used to be a third field in `Access`, set by
+    /// `refreshAll` and cleared by a `defer` in `refresh`, and a process-wide flag cannot say which read armed it:
+    /// a Refresh pressed while a timer read was mid-fetch was thrown away by the in-flight guard, and that read's
+    /// `defer` then cleared the flag the Refresh had set, so the one read allowed to ask never happened. Worse, a
+    /// Refresh that returned early at a guard above the `defer` left the flag set for good, and the next timer read
+    /// raised the dialog over the user's work, the exact thing the policy exists to prevent.
+    static func mayPrompt(interactive: Bool) -> Bool {
+        access.withLock { $0.promptsAllowed && $0.policy.mayPrompt(interactive: interactive) }
     }
 
     /// Reads a generic-password item. The first read of another app's item makes macOS ask the user;

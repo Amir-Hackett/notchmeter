@@ -114,15 +114,18 @@ final class UsageStore {
     @ObservationIgnored private var loops: [ToolID: Task<Void, Never>] = [:]
     @ObservationIgnored private var sleepers: [ToolID: Task<Void, Error>] = [:]
     @ObservationIgnored private var resetTimers: [ToolID: Task<Void, Never>] = [:]
-    @ObservationIgnored private var inflight: Set<ToolID> = []
+    /// The read in progress for each tool, so a second one can wait for it rather than run beside it or be lost.
+    @ObservationIgnored private var inflight: [ToolID: Task<Void, Never>] = [:]
     @ObservationIgnored private var backoff: [ToolID: TimeInterval] = [:]
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    /// IOKit's mains/battery transition source (PowerSource.observeTransitions), held so it is not collected.
+    @ObservationIgnored private var powerSourceWatch: CFRunLoopSource?
     @ObservationIgnored private var costEngine: CostEngine
     @ObservationIgnored private var activity: AgentActivity
     @ObservationIgnored private let drainLog: DrainLog?
-    @ObservationIgnored private var drainSamples: [DrainLog.Key: [DrainSample]] = [:]
+    @ObservationIgnored private(set) var drainSamples: [DrainLog.Key: [DrainSample]] = [:]
     @ObservationIgnored private var tick: Task<Void, Never>?
     @ObservationIgnored private var resetTimer: Task<Void, Never>?
     /// Releases a waiting or finished ring the moment its own clock runs out (armSignalRelease).
@@ -323,8 +326,14 @@ final class UsageStore {
         footerNote = note
     }
 
-    /// A vendor's page or a pull request, from the card.
+    /// A vendor's page or a pull request, from the card. Only web links leave here: `AgentSession.prLink` already
+    /// refuses anything else, but a pull request URL is the one string on this path that an untrusted process can
+    /// supply, so the sink checks the scheme again rather than trusting every future caller to have done so (0.5.0).
     func openURL(_ url: URL) {
+        guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
+            Oracle.shared.emit("open", ["refused": url.scheme ?? ""])
+            return
+        }
         Oracle.shared.emit("open", ["host": url.host ?? url.absoluteString])
         NSWorkspace.shared.open(url)
     }
@@ -334,11 +343,18 @@ final class UsageStore {
         prefs.hideFromScreenShare && screenCaptured
     }
 
-    /// Live readings of the visible tools; a cached reading shown beside an error is left out.
+    /// Readings the Advisor may steer by: live ones, plus the cached reading a rate-limit wait keeps on screen. A
+    /// reading kept beside a fault (needsAttention, failed, offline) is left out; a 429 is a wait, not a fault, and
+    /// its figures still drive the rings, the card and the JSON, so the advice strip should not empty on it. It did
+    /// for the first cut of 0.5.0: a 429 used to launder the cache into `.ready` and every advice line stayed up,
+    /// and marking it stale dropped the tool's lines for the whole backoff while the card under them kept the figure.
     var readyReadings: [UsageReading] {
         visibleTools.compactMap {
-            if case .ready(let reading) = status($0) { return reading }
-            return nil
+            switch status($0) {
+            case .ready(let reading): return reading
+            case .rateLimited(_, let cached): return cached
+            default: return nil
+            }
         }
     }
 
@@ -436,8 +452,9 @@ final class UsageStore {
         if enabled {
             prefs.enabledTools.insert(tool)
             statuses[tool] = initialStatus(for: tool, cached: nil)
-            if tool == .claude { Keychain.setInteractive(true) }
-            startLoop(tool)
+            // The user just switched the tool on, so the loop's first read is theirs and may ask for the Keychain;
+            // the timer reads that follow it never may.
+            startLoop(tool, interactive: true)
         } else {
             prefs.enabledTools.remove(tool)
             stopLoop(tool)
@@ -458,9 +475,8 @@ final class UsageStore {
     /// `interactive` marks a read the user asked for (Refresh, the ring, a card's menu): the one kind that may
     /// raise the Keychain dialog under the "On Refresh only" policy.
     func refreshAll(force: Bool = true, interactive: Bool = false) {
-        if interactive { Keychain.setInteractive(true) }
         for tool in visibleTools {
-            Task { await refresh(tool, force: force) }
+            Task { await refresh(tool, force: force, interactive: interactive) }
         }
         Task { await refreshCost() }
     }
@@ -491,19 +507,44 @@ final class UsageStore {
 
     /// Unforced refreshes are throttled so hovering the notch cannot hammer the APIs. While the Claude Code status
     /// line is reporting the same windows, the Claude read takes them from it and the endpoint is left alone.
-    func refresh(_ tool: ToolID, force: Bool = false) async {
+    /// `interactive` marks a read the user asked for: it travels to the provider, where it is the one thing that
+    /// may let the Keychain dialog appear (KeychainPromptPolicy), and it is the one kind of read that waits its
+    /// turn behind a read already in flight rather than being dropped. A timer read that collides with one simply
+    /// returns, as before: the figures it wanted are about to arrive anyway.
+    func refresh(_ tool: ToolID, force: Bool = false, interactive: Bool = false) async {
         guard let provider = providers[tool], prefs.enabledTools.contains(tool) else { return }
         guard provider.isInstalled() else {
             statuses[tool] = .notInstalled
             return
         }
         if !force, let last = lastFetch[tool], Date().timeIntervalSince(last) < 60 { return }
-        guard !inflight.contains(tool) else { return }
-        inflight.insert(tool)
-        defer {
-            inflight.remove(tool)
-            if tool == .claude { Keychain.setInteractive(false) }
+        if let running = inflight[tool] {
+            // A Refresh pressed while the poll was mid-fetch used to hit this guard and return having done
+            // nothing, which for Claude Code meant the one read allowed to raise the Keychain dialog after a
+            // token refresh had wiped the user's "Always Allow" never happened; the user pressed Refresh and
+            // nothing changed. So an interactive read lets the running one finish and then goes itself. The one
+            // wait plus the check after it bound this at a single re-run: if some other read has taken the slot in
+            // the meantime, the figures are on their way and there is nothing left to add.
+            guard interactive else { return }
+            await running.value
+            // The wait is an await like any other, and the guards above were checked before it. The user may have
+            // switched the tool off while this read waited (setEnabled stops the loop but has no handle on a parked
+            // press), or some other read may have taken the slot; either way there is nothing left for it to do.
+            // Without the enabled check a Refresh pressed during the poll and followed by an untick started a full
+            // read for the tool that is now off: for Claude Code that adopted the status line straight into `.ready`,
+            // re-wrote the cache entry the untick had just cleared, or raised the Keychain dialog over the user's
+            // work for a tool they no longer wanted read (0.5.0).
+            guard inflight[tool] == nil, prefs.enabledTools.contains(tool), provider.isInstalled() else { return }
         }
+        let read = Task { await self.read(tool, from: provider, interactive: interactive) }
+        inflight[tool] = read
+        await read.value
+    }
+
+    /// One read of the tool, start to finish; `refresh` decides whether it runs. Clearing `inflight` here, inside
+    /// the task `refresh` stored, is what lets a read waiting on `running.value` find the slot empty when it wakes.
+    private func read(_ tool: ToolID, from provider: any UsageProvider, interactive: Bool) async {
+        defer { inflight[tool] = nil }
         if tool == .claude, let reading = statuslineReading() {
             adopt(reading)
             return
@@ -511,37 +552,48 @@ final class UsageStore {
         lastFetch[tool] = Date()
 
         let cached = statuses[tool]?.reading
+        let outcome: Result<UsageReading, any Error>
         do {
-            let reading = try await provider.fetch()
+            outcome = .success(try await provider.fetch(interactive: interactive))
+        } catch {
+            outcome = .failure(error)
+        }
+        // The user may have switched the tool off while this read was on the wire. setEnabled has already torn
+        // the state down (.off, the cache entry removed, the loop stopped), and a reading adopted past this point
+        // put every piece back: the cache entry the user had just cleared, a drain-log row for a tool they had
+        // disabled, and a reset timer for it. The one check sits above the switch so that a failure cannot
+        // overwrite `.off` with `.failed` either; the guard above the fetch checks the same thing, and anything
+        // written after an `await` has to check it again.
+        guard prefs.enabledTools.contains(tool) else { return }
+        switch outcome {
+        case .success(let reading):
             log.info("\(tool.displayName, privacy: .public) usage -> \(Probe.describe(reading), privacy: .public)")
             serverTrouble[tool] = nil
             adopt(reading)
-        } catch let error as ProviderError {
+        case .failure(let error as ProviderError):
             log.error("\(tool.displayName, privacy: .public) failed: \(error.message, privacy: .public)")
             if case .http(let code, _) = error, code >= 500 { serverTrouble[tool] = code } else { serverTrouble[tool] = nil }
+            // The status is one mapping shared with the probe (ToolStatus.init(_:cached:)); only the backoff is
+            // decided here, because only the store has a loop to back off.
+            statuses[tool] = ToolStatus(error, cached: cached)
             if error.isCalm {
-                statuses[tool] = .idle(error.message)
                 backoff[tool] = 0
             } else if case .offline = error {
-                statuses[tool] = .offline(cached: cached)
                 backoff[tool] = min(300, max(30, (backoff[tool] ?? 15) * 2))
             } else if case .rateLimited(let retry) = error {
-                // Transient: keep the last good numbers on screen and try again later.
-                let wait = ProviderError.rateLimitWait(retryAfter: retry)
-                backoff[tool] = wait
-                if let cached {
-                    statuses[tool] = .ready(cached)
-                } else {
-                    statuses[tool] = .failed(L("Rate limited, retrying in %lds", Int(wait)), cached: nil)
-                }
+                // Transient: keep the last good numbers on screen, marked as the old numbers they are, and try again
+                // later. This branch used to set `.ready(cached)`, which presented them as a live reading everywhere
+                // (ToolStatus.rateLimited says where). The wait is clamped like its neighbours' because it is the
+                // only one a vendor sets: a `Retry-After: 1800` was honoured verbatim and held the reading for half
+                // an hour. The clamp is in rateLimitWait, so the log line above, the footer and the probe all name
+                // the wait the app really takes.
+                backoff[tool] = ProviderError.rateLimitWait(retryAfter: retry)
             } else if error.needsAttention {
-                statuses[tool] = .needsAttention(error.message, cached: cached)
                 backoff[tool] = 60
             } else {
                 backoff[tool] = min(600, max(30, (backoff[tool] ?? 15) * 2))
-                statuses[tool] = .failed(error.message, cached: cached)
             }
-        } catch {
+        case .failure(let error):
             log.error("\(tool.displayName, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
             if let offline = ProviderError.offline(from: error), case .offline = offline {
                 statuses[tool] = .offline(cached: cached)
@@ -566,8 +618,17 @@ final class UsageStore {
         cache.store(reading)
         lastUpdated = now
         recordDrain(reading, now: now)
-        for window in reading.windows {
+        for var window in reading.windows {
             let key = AlertMemory.key(reading.tool, window)
+            // A watched window keeps the reset it was first watched with for as long as the readings stay in the
+            // same period. Every notification built from it embeds that instant in its identifier
+            // (`PaceAlert.identifier`), and a Codex snapshot's reset is measured from when the snapshot was
+            // written, so it moves by a few seconds on every read: taken as it came, each reminder replaced
+            // nothing and stacked beside the last, and the identifiers `checkResets` withdraws at the reset,
+            // rebuilt from the window then current, matched none of the ones that had been sent.
+            if let existing = watchedResets[key], let pinned = existing.window.resetsAt, ResetPeriod.same(pinned, window.resetsAt) {
+                window = window.pinningReset(to: pinned)
+            }
             if let watch = WatchedReset.watch(reading.tool, window, now: now) {
                 watchedResets[key] = watch
             } else if let existing = watchedResets[key], !ResetPeriod.same(existing.window.resetsAt, window.resetsAt) {
@@ -667,8 +728,11 @@ final class UsageStore {
         Task.detached(priority: .utility) {
             let samples = log.load(now: now)
             await MainActor.run { [weak self] in
-                self?.drainSamples = samples
-                self?.recomputeDrains(now: now)
+                guard let self else { return }
+                // The loops start the moment this task is spawned, and a reading can be adopted before the file
+                // comes back, so what the store holds by now is not empty: fold the file into it rather than over it.
+                drainSamples = DrainLog.merged(samples, with: drainSamples)
+                recomputeDrains(now: now)
             }
         }
     }
@@ -679,9 +743,21 @@ final class UsageStore {
         // they stood *before* this reading. Handing it the mutated dictionary made every window its own predecessor
         // — nothing ever moved, nothing was ever written, and the file was never created.
         let previous = drainSamples
+        // The same skip applies in memory, so this dictionary stays a mirror of what `load` returns after a relaunch
+        // rather than growing on every poll, and rows past the seven-day keep window leave from the front the way
+        // they leave the file. Nothing downstream looks back further: the drain spans an hour, the sparkline a day,
+        // the run-out estimate a week. Without the trim a month's uptime meant a third of a million samples that
+        // `recomputeDrains` filtered afresh several times a minute.
+        let cutoff = now.addingTimeInterval(-DrainLog.keepFor)
         for window in reading.windows {
             guard let used = window.usedFraction else { continue }
-            drainSamples[DrainLog.Key(tool: reading.tool, window: window.id), default: []].append(DrainSample(t: now, used: used, resetsAt: window.resetsAt))
+            let key = DrainLog.Key(tool: reading.tool, window: window.id)
+            var samples = drainSamples[key] ?? []
+            if DrainLog.moved(samples.last, used: used, resetsAt: window.resetsAt, now: now) {
+                samples.append(DrainSample(t: now, used: used, resetsAt: window.resetsAt))
+            }
+            samples.removeFirst(samples.prefix { $0.t < cutoff }.count)
+            drainSamples[key] = samples
         }
         drainLog?.append(reading, previous: previous, now: now)
         recomputeDrains(now: now)
@@ -820,12 +896,16 @@ final class UsageStore {
         return parts.joined(separator: "; ")
     }
 
-    private func startLoop(_ tool: ToolID) {
+    /// `interactive` marks the loop's first read as one the user asked for (the Assistants toggle); the reads the
+    /// timer takes after it are never interactive.
+    private func startLoop(_ tool: ToolID, interactive: Bool = false) {
         stopLoop(tool)
         loops[tool] = Task { [weak self] in
+            var interactive = interactive
             while !Task.isCancelled {
                 guard let self else { return }
-                await self.refresh(tool, force: true)
+                await self.refresh(tool, force: true, interactive: interactive)
+                interactive = false
                 await self.waitUntilDue(tool)
             }
         }
@@ -914,12 +994,31 @@ final class UsageStore {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(Self.resetCheckInterval))
                 guard !Task.isCancelled, let self else { return }
-                let before = self.sessions
-                self.withdrawWaiting(self.sessions.expire(now: Date()))
-                if before != self.sessions { self.applyAwake() }
+                self.sweepSessions()
                 self.checkResets()
             }
         }
+    }
+
+    /// The clock's pass over the sessions: waits past ten minutes, finished marks past ninety seconds and sessions
+    /// silent for four hours are retired (SessionTracker.expire), and the notices of any wait that ended this way
+    /// are withdrawn. The tracker is copied out, expired, and written back only when the copy differs. `sessions`
+    /// is a stored property of an `@Observable` class, and a `mutating` call straight on it goes through the
+    /// generated accessor, which publishes to every observer whether or not the call changed a thing; an equality
+    /// check after the fact is too late, the notification has already gone out. Until 0.5.0 the thirty-second
+    /// sweep did exactly that, so with no assistant running and nothing to expire, every presenter on every screen
+    /// re-measured the whole expanded card, reframed its window and rebuilt the menu bar item twice a minute for
+    /// the life of the process, to arrive at the frame it already had. Both clocks that retire sessions, the sweep
+    /// and `armSignalRelease`, come through here so neither can drift back to the in-place call. The awake
+    /// assertion is re-applied on a change because a session dropped for silence may have been the last one working.
+    func sweepSessions(now: Date = Date()) {
+        var expired = sessions
+        let stopped = expired.expire(now: now)
+        if expired != sessions {
+            sessions = expired
+            applyAwake()
+        }
+        withdrawWaiting(stopped)
     }
 
     private func sampleEnvironment() async {
@@ -930,10 +1029,7 @@ final class UsageStore {
         let lowPower = PowerSource.lowPowerMode()
         let before = visibleTools.map { PollingPolicy.decide(pollingInputs(for: $0)) }
         if sampled != lastActivity { lastActivity = sampled }
-        if battery != onBattery {
-            onBattery = battery
-            applyAwake()
-        }
+        setOnBattery(battery)
         if lowPower != lowPowerMode { lowPowerMode = lowPower }
         let after = visibleTools.map { PollingPolicy.decide(pollingInputs(for: $0)) }
         if before != after { reschedule() }
@@ -975,6 +1071,14 @@ final class UsageStore {
         observers.append(NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.setLowPowerMode(PowerSource.lowPowerMode()) }
         })
+        // The power-state notification above is Low Power Mode, not the charger: nothing here heard the Mac
+        // move to battery until 0.5.0, so `onBattery` was the minute tick's alone, and the tick is parked while
+        // the display sleeps or the screen is locked. That is where an unattended run spends its time, so the
+        // charger came out and the awake assertion kept holding on the last snapshot it had. IOKit tells us
+        // directly, tick or no tick.
+        powerSourceWatch = PowerSource.observeTransitions { [weak self] in
+            Task { @MainActor in self?.setOnBattery(PowerSource.onBattery()) }
+        }
         observers.append(distributed.addObserver(forName: Hook.notificationName, object: nil, queue: .main) { [weak self] note in
             guard let message = Hook.Message(userInfo: note.userInfo) else { return }
             Task { @MainActor in self?.hookReceived(message) }
@@ -1022,6 +1126,18 @@ final class UsageStore {
         reschedule()
     }
 
+    /// The one writer for `onBattery` after `start()`, fed by IOKit's transition callback and backstopped by the
+    /// minute tick. The awake assertion is re-decided here because the power source is one of its two inputs and
+    /// nothing else asks again when it moves; the loops are rescheduled because the cadence multiplier reads it
+    /// too. Internal rather than private so a test can move the power source, which the hardware will not do on
+    /// cue.
+    func setOnBattery(_ value: Bool) {
+        guard onBattery != value else { return }
+        onBattery = value
+        applyAwake()
+        reschedule()
+    }
+
     /// Pausing parks every loop and the minute tick; resuming reads everything at once, a few seconds after a wake
     /// so the network has come back first.
     private func environmentChanged(delayed: Bool = false) {
@@ -1063,10 +1179,7 @@ final class UsageStore {
             try? await Task.sleep(for: .seconds(interval))
             guard !Task.isCancelled, let self else { return }
             signalRelease = nil
-            var expired = sessions
-            let stopped = expired.expire(now: Date())
-            if expired != sessions { sessions = expired }
-            withdrawWaiting(stopped)
+            sweepSessions()
             armSignalRelease()
         }
     }

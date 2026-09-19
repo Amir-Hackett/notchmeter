@@ -63,10 +63,13 @@
 "%@ advice" = "%@ 建议";
 "%@ as the vendor's own usage export priced it" = "%@ 取自厂商自己的用量导出，由厂商计价";
 "%@ billed this month" = "本月已计费 %@";
+"%@ could not be read as audio, so nothing was imported." = "%@ 无法作为音频读取，因此未导入任何内容。";
 "%@ finished" = "%@ 已完成";
 "%@ hit its rate limit; wait for the reset." = "%@ 已触及速率限制；请等待重置。";
 "%@ hook" = "%@ 钩子";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "会先把 %@ 复制为 settings.json.bak-<日期>。已有的状态行会在 Notchmeter 之后继续运行，并收到同一份 JSON。";
+"%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ 的格式通知中心无法播放，在你重新选择该文件将其转换之前将播放默认声音。";
+"%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ 已不在 ~/Library/Sounds 中，在你选择其他声音之前将播放默认声音。";
 "%@ is not a JSON object, so it was left untouched" = "%@ 不是 JSON 对象，因此未作改动";
 "%@ is waiting" = "%@ 正在等待";
 "%@ is waiting for your input." = "%@ 正在等待你的输入。";
@@ -123,7 +126,7 @@
 "90d" = "90 天";
 "A %1$@ reset credit expires in %2$@. Claim it in %1$@." = "一个 %1$@ 重置额度将在 %2$@ 后过期。请在 %1$@ 中领取。";
 "A bar resting on top of the Dock." = "停靠在 Dock 上方的横条。";
-"A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "所选文件会复制到 ~/Library/Sounds，通知中心可从那里播放。";
+"A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name." = "所选的 .aiff、.wav 或 .caf 会原样复制到 ~/Library/Sounds；其他格式（例如 mp3 或 m4a）会在那里转换为 .caf，因为通知中心按名称只能播放这些格式。";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "指定的显示器按硬件标识记忆，同型号的两台显示器可区分，重命名也不会丢失。";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "在左侧边缘切出的刘海，面板在它旁边打开。该侧有程序坞或台前调度边栏时会让开。";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "在右侧边缘切出的刘海，面板在它旁边打开。该侧有程序坞时会让开。";
@@ -192,6 +195,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "按此速度，本%1$@将花费 %2$@，预算为 %3$@。";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "按此速度，你将在%3$@ %4$@ 至 %5$@ 之间触及 %1$@ %2$@上限。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "按当前速度，%1$@ 的%2$@额度将于%3$@达到上限，距离重置还有 %4$@。%5$@";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "按当前速度，你将在 %2$@ 超出%1$@，距离重置还有 %3$@。";
 "Auto" = "自动";
 "another user is logged in" = "另一用户已登录";
 "auto" = "自动";
@@ -303,6 +307,7 @@
 "extra usage on" = "已开启额外用量";
 "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage." = "额外用量在 %2$@内上涨了 %1$@，而你的套餐仍剩 %3$ld%%；请检查 /usage。";
 "Fast requests" = "快速请求";
+"Figures are hidden while the screen is shared; the panel has them once it ends." = "屏幕共享期间隐藏数字；共享结束后可在面板中查看。";
 "Flip countdown and exact time" = "在倒计时与确切时间之间切换";
 "Flip used and left" = "在已用与剩余之间切换";
 "From" = "从";
@@ -330,6 +335,7 @@
 "Hover delay" = "悬停延迟";
 "Hover the rings. The panel opens." = "悬停在圆环上，面板即会展开。";
 "Icon style" = "图标样式";
+"Importing %@…" = "正在导入 %@…";
 "In the Cost card" = "费用卡片中显示";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "以上方的货币计；留空表示无预算。费用卡片的圆环按本月预算填充，并带有与仪表相同的进度刻度；建议条会据此预测本月；“接近”“落后”“即将用尽”通知以月为周期适用于它。";
 "In the pill" = "胶囊内";
@@ -349,6 +355,7 @@
 "Installed; your previous status line (%@) runs after it." = "已安装；你原有的状态行（%@）会在其后继续运行。";
 "Integrations" = "集成";
 "its usage export could not be fetched" = "无法获取其用量导出";
+"its usage export came back in a shape Notchmeter could not read" = "其用量导出以 Notchmeter 无法读取的格式返回";
 "just now" = "刚刚";
 "Keeping awake" = "保持唤醒";
 "Keeping awake · %ld sessions" = "保持唤醒 · %ld 个会话";
@@ -559,6 +566,8 @@
 "Tells you what to do, not just how much." = "不仅告诉你用了多少，还告诉你该怎么做。";
 "Test notification" = "测试通知";
 "Text" = "文字";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "%1$@接近进度：重置时约剩余 %2$ld%%。";
+"The %1$@ is spent. %2$@." = "%1$@已用尽。%2$@。";
 "The %1$@'s %2$@ is past the %3$@ budget." = "本%1$@已花费 %2$@，超出 %3$@ 的预算。";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "费用卡片上圆环、图例和消耗速率之外的内容（预算、本周和模型明细），以及会话区块、令牌、主要项目和迷你图。关闭后面板足够短，无需滚动。";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "每日总计文件导出为 CSV 或 JSON：每天一行，含费用、五类 token 计数、最高模型以及按模型和按项目的费用。";
@@ -622,7 +631,7 @@
 "When the cache tier or the metering shifts" = "缓存档位或计量发生变化时";
 "When you start paying (extra usage rises)" = "当你开始付费时（额外用量上涨）";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "卡片的圆环、图例和总额包含哪些助手，顺序与“助手”中设置的一致。无法报告成本的助手，以及你未登录的助手，不会出现在这里；未勾选的助手仍会在自己的卡片上显示成本。";
-"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "当 Zoom、Meet、QuickTime 或屏幕共享在捕获屏幕时，圆环保留形状但隐藏数字，面板隐藏花费卡片。每五秒检查一次。";
+"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "当 Zoom、Meet、QuickTime 或屏幕共享在捕获屏幕时，圆环保留形状但隐藏数字，面板隐藏花费卡片，此时弹出的横幅不含数字和项目名称。每五秒检查一次。";
 "Wide" = "加宽";
 "Will run out (behind pace)" = "将会用完（节奏落后）";
 "Window" = "窗口";
@@ -646,14 +655,16 @@
 "App to stay over, e.g. zoom.us" = "要保持显示的应用，例如 zoom.us";
 "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "无论上面的设置如何，读数都会保持在这些应用之上，按窗口列表给出的名称列出：会议时你希望仪表在旁边，而上面的设置是为看影片而关闭的。它无法区分同一个应用的两种用途，浏览器中的通话和影片就是例子；「在此全屏应用之上显示」快捷键可以解决这种情况，只针对屏幕上的应用，并在它退出全屏时失效。选项菜单会为当时处于全屏的应用同时提供这两项。";
 
-/* 过期的辅助功能条目：权限属于已被替换的旧副本（MenuBarExtent、App、SettingsWindow） */
+/* 过期的辅助功能条目：权限已授予，但对当前运行的副本不再生效，无论是新副本替换了获得授权的那一份，还是同一份副本被拒绝（MenuBarExtent、App、SettingsWindow） */
 "%@'s Accessibility permission belongs to an older copy" = "%@ 的辅助功能权限属于旧的副本";
 "macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS 会把权限绑定到获得授权的那一份副本，而当前运行的这一份已经替换了它。“隐私与安全性”›“辅助功能”里的开关看上去仍是打开的，但已经不再生效，只有清除该条目才能恢复。%@ 可以清除该条目并重新启动；届时会再请你打开一次开关，在此之前“自动”会保持在现在这一侧。";
+"%@'s Accessibility permission has stopped applying" = "%@ 的辅助功能权限已不再生效";
+"macOS is refusing the Accessibility permission it once granted this very copy. If the switch in Privacy & Security › Accessibility is off, turning it on is enough. If it is on and Auto still does not measure, the entry behind it has stopped applying and only clearing it brings it back: %@ can clear it and restart, you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS 正在拒绝它曾授予这一份副本的辅助功能权限。如果“隐私与安全性”›“辅助功能”里的开关是关闭的，重新打开即可。如果开关是打开的而“自动”仍然无法测量，那么背后的条目已经失效，只有清除它才能恢复：%@ 可以清除该条目并重新启动，届时会再请你打开一次开关，在此之前“自动”会保持在现在这一侧。";
 "Clear and Restart" = "清除并重启";
 "Open Accessibility Settings" = "打开辅助功能设置";
 "Not Now" = "以后再说";
 "Repair the Accessibility permission…" = "修复辅助功能权限…";
-"The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "该权限属于旧的副本：macOS 把它绑定到获得授权的那份副本，副本被替换后仍让开关保持打开。清除条目并重新启动才是回到正常的办法。";
+"Accessibility is refusing a permission it once granted this app: macOS ties it to the exact copy it was granted to, and a replaced copy or an entry that stopped applying leaves the switch on with the permission gone. If the switch is off, turning it on is enough; otherwise clearing the entry and restarting is the way back." = "辅助功能正在拒绝它曾授予此应用的权限：macOS 把权限绑定到获得授权的那一份副本，副本被替换或条目失效后，开关仍然打开，权限却已不在。如果开关是关闭的，重新打开即可；否则，清除条目并重新启动才是回到正常的办法。";
 
 /* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
 "Dots" = "圆点";

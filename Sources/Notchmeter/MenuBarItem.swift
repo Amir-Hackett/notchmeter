@@ -36,12 +36,34 @@ final class MenuBarItem {
     /// colour, because the image stays a template and so keeps following the menu bar's own appearance, and because
     /// an icon that changed colour for ninety seconds would look like a fault rather than a message. The `bars`
     /// style replaces this image with the meters' glyph, which fills its 22 × 16 edge to edge and has no room for a
-    /// second claim; there the tooltip and the VoiceOver value carry it.
-    private static func icon(signal: ToolSignal? = nil) -> NSImage? {
+    /// second claim; there the tooltip and the VoiceOver value carry it — unless there is no meter to draw, in which
+    /// case `glyph` hands this image back (see there).
+    nonisolated static func icon(signal: ToolSignal? = nil) -> NSImage? {
         let image = NSImage(systemSymbolName: signal?.symbolName ?? "gauge.with.dots.needle.33percent",
                             accessibilityDescription: signal?.spokenText ?? AppInfo.name)
         image?.isTemplate = true
         return image
+    }
+
+    /// The drawn styles' image: the meters' glyph for the windows there are, and the gauge when there are none.
+    ///
+    /// `update` guards only that some pinned tool has a reading, not that the reading has a window left to show,
+    /// and `prefs.ringWindows(of:)` returns `[]` once the user has hidden every window of a tool in Settings — there
+    /// is no floor on the Hide checkboxes. The `.text` style already degrades to `CompactLabel.noLimit`'s "–"; the
+    /// three drawn styles cannot, because `MenuBarGlyphs` strokes everything, the quarter-strength track included,
+    /// inside a loop over the windows. Drawn from an empty array that is a transparent image, and `isTinted([])` is
+    /// false, so it was installed as a template: a blank, still-clickable 13 pt gap in the menu bar (8 pt for dots,
+    /// 22 pt for bars) with the title cleared, no hint that the app was running and no hint where its menu was.
+    /// Falling back to the gauge also puts the raised hand and the tick back within reach, which the glyph has no
+    /// room for. Static and pure so the rule is testable without a status item.
+    nonisolated static func glyph(windows: [LimitWindow], style: MenuBarStyle, tint: MenuBarTint, custom: NSColor,
+                      signal: ToolSignal? = nil, now: Date = Date()) -> NSImage? {
+        guard !windows.isEmpty else { return icon(signal: signal) }
+        return switch style {
+        case .rings: MenuBarGlyphs.rings(windows: windows, tint: tint, custom: custom, now: now)
+        case .dots: MenuBarGlyphs.dots(windows: windows, tint: tint, custom: custom, now: now)
+        case .bars, .text: MenuBarGlyphs.bars(windows: windows, tint: tint, custom: custom, now: now)
+        }
     }
 
     /// The pinned tools, in the user's order: the chosen set when any of them is visible, else the first visible tool.
@@ -124,14 +146,8 @@ final class MenuBarItem {
             button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize(for: .small), weight: .medium)
         case .bars, .rings, .dots:
             button.title = ""
-            let windows = Array(readings.flatMap(\.windows).prefix(4))
-            let tint = prefs.menuBarTint
-            let custom = HexColour.colour(prefs.menuBarTintHex)
-            button.image = switch prefs.menuBarStyle {
-            case .rings: MenuBarGlyphs.rings(windows: windows, tint: tint, custom: custom)
-            case .dots: MenuBarGlyphs.dots(windows: windows, tint: tint, custom: custom)
-            default: MenuBarGlyphs.bars(windows: windows, tint: tint, custom: custom)
-            }
+            button.image = Self.glyph(windows: Array(readings.flatMap(\.windows).prefix(4)), style: prefs.menuBarStyle,
+                                      tint: prefs.menuBarTint, custom: HexColour.colour(prefs.menuBarTintHex), signal: signalled?.signal)
         }
         button.setAccessibilityValue([signalled?.signal.spokenText, Self.label(readings: readings, countdown: prefs.showResetCountdown)]
             .compactMap { $0 }.joined(separator: ", "))
@@ -147,11 +163,12 @@ final class MenuBarItem {
             // had just looked at was already plain. Five surfaces read one answer, and one of them lagging the
             // others by a minute and a half is the contradiction that promise exists to rule out. `attendedAt`
             // costs at most one extra pass per turn — `wakeFromIdle` writes the date only while a finish is
-            // actually lit — but `store.sessions` costs two a minute whatever happens: `UsageStore`'s thirty-second
-            // sweep calls `sessions.expire` unconditionally, and a mutating call through `@Observable` publishes
-            // whether or not it changed anything. That is a rebuilt NSMenu twice a minute, which the `isOpen` guard
-            // above keeps off the menu the user is holding open and which is otherwise cheap; naming it here so the
-            // next person weighing a finer-grained key knows what the coarse one actually costs. `prefs.signalRings`
+            // actually lit — and `store.sessions` publishes only when a session actually changes: until 0.5.0 the
+            // thirty-second sweep in `UsageStore` called `sessions.expire` in place, and a mutating call through
+            // `@Observable` publishes whether or not it changed anything, which was a rebuilt NSMenu twice a minute
+            // with nothing running. `UsageStore.sweepSessions` now copies, expires and compares before it writes,
+            // so an idle Mac costs this item nothing; the `isOpen` guard above still keeps a real change off the
+            // menu the user is holding open. `prefs.signalRings`
             // is deliberately absent: it decides whether the rings beside the notch take the state colour, and this
             // item's glyph carries the state whatever it says, so tracking it bought a repaint and a rebuilt NSMenu
             // every time the toggle moved and changed nothing here.

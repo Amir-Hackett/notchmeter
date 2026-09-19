@@ -103,7 +103,7 @@ struct UsageReport {
             "sessions": sessions.map { session -> [String: Any] in
                 ["id": session.id, "tool": session.tool.rawValue, "project": session.project as Any, "state": Self.stateName(session.state),
                  "stateSeconds": session.stateDuration(now: now).map { Int($0) } as Any, "agents": session.agents.count,
-                 "branch": session.branch as Any, "pr": session.prURL as Any, "permissionMode": session.permissionMode as Any, "host": session.host as Any]
+                 "branch": session.branch as Any, "pr": session.prLink?.absoluteString as Any, "permissionMode": session.permissionMode as Any, "host": session.host as Any]
             },
         ]
         if let cost { root["cost"] = costObject(cost) }

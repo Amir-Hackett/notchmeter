@@ -205,6 +205,9 @@ final class EdgePanelController: NSObject, PanelPresenting {
         keyMonitor = nil
         for (center, token) in observers { center.removeObserver(token) }
         observers = []
+        // The discard path, as in NotchController.hide(): the watch and its poll end with the controller.
+        fullScreenWatch?.stop()
+        fullScreenWatch = nil
         transitionSerial += 1
         panel.orderOut(nil)
     }

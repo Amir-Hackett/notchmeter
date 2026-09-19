@@ -219,6 +219,14 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
         self.amountUSD = amountUSD
     }
 
+    /// The same window with its reset at `resetsAt`, for a reading whose reset has wandered inside the period it
+    /// was first seen in (`ResetPeriod`). Everything that identifies a notification by its window embeds the
+    /// reset's instant, so a window that is kept for the life of a period keeps the instant it arrived with.
+    func pinningReset(to resetsAt: Date) -> LimitWindow {
+        LimitWindow(id: id, label: name, usedFraction: usedFraction, resetsAt: resetsAt, note: note, periodDuration: periodDuration, model: model,
+                    source: source, hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD)
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id, usedFraction, resetsAt, note, periodDuration, model, source, hiddenByDefault, rawUsedPercent, amountUSD
         case name = "label"
@@ -331,12 +339,21 @@ enum ProviderError: Error, Equatable {
     case apiKeyOnly(String)
 
     /// The shortest a rate-limit backoff is ever allowed to be. A vendor that answers `Retry-After: 0` still gets a
-    /// minute, so the wait the message names is the wait the app takes.
+    /// minute, and one that answers `Retry-After: 1800` gets ten (`rateLimitCeiling`), so the wait the message names
+    /// is the wait the app takes.
     static let rateLimitFloor: TimeInterval = 60
 
-    /// How long the app will really wait after a rate-limit answer: the vendor's own delay, never under the floor.
+    /// The longest, matching the other backoffs in UsageStore: a vendor's half-hour Retry-After does not hold the
+    /// reading that long. The ceiling lives here beside the floor rather than in the store because `message` is
+    /// what the unified log, the `--probe` transcript and the card footer all print: 0.5.0 first capped the wait in
+    /// the store alone and built a second string there, so a `Retry-After: 1800` logged "retrying in 1800s" while
+    /// the footer said 600s and the app waited 600s.
+    static let rateLimitCeiling: TimeInterval = 600
+
+    /// How long the app will really wait after a rate-limit answer: the vendor's own delay, clamped to
+    /// [`rateLimitFloor`, `rateLimitCeiling`].
     static func rateLimitWait(retryAfter: TimeInterval?) -> TimeInterval {
-        max(rateLimitFloor, retryAfter ?? 0)
+        min(rateLimitCeiling, max(rateLimitFloor, retryAfter ?? 0))
     }
 
     var message: String {
@@ -390,11 +407,39 @@ enum ToolStatus: Equatable {
     case failed(String, cached: UsageReading?)
     /// No network: the cached reading stays on screen without a problem mark; the footer says "Offline, retrying".
     case offline(cached: UsageReading?)
+    /// The vendor answered 429: the cached reading stays on screen without a problem mark, and the footer names the
+    /// wait. It is its own case rather than `.ready(cached)`, which is what the store used to set: `.ready` is the
+    /// one status with no `staleReading`, so a 429 dropped the "Last reading … may be out of date" caption, stopped
+    /// dimming the meter rows and wrote `"stale": false` into the probe JSON, the local API and the MCP server for
+    /// figures that were as old as the vendor's Retry-After. A tool already showing `.failed(_, cached:)` even came
+    /// out of a 429 looking healthier than it went in. With a reading cached there is no problem mark, because the
+    /// footer names the wait under figures that are still worth reading, and the Advisor keeps steering by them
+    /// (`UsageStore.readyReadings`); with nothing cached the wait is all there is to show, so `problem` carries it
+    /// and the ring wears the mark as it did for `.failed`, rather than dimming to the "no reading yet" look.
+    case rateLimited(String, cached: UsageReading?)
+
+    /// The status a provider's error leaves a tool in, for the store and the one-shot probe alike. One mapping so
+    /// that a new kind of error cannot be wired into one producer and not the other: 0.5.0 gave the store
+    /// `.rateLimited` while `--probe`, and the MCP server and command-line tool falling back to it, still turned the
+    /// same 429 into `.failed` with a problem to report.
+    init(_ error: ProviderError, cached: UsageReading?) {
+        if error.isCalm {
+            self = .idle(error.message)
+        } else if case .offline = error {
+            self = .offline(cached: cached)
+        } else if case .rateLimited = error {
+            self = .rateLimited(error.message, cached: cached)
+        } else if error.needsAttention {
+            self = .needsAttention(error.message, cached: cached)
+        } else {
+            self = .failed(error.message, cached: cached)
+        }
+    }
 
     var reading: UsageReading? {
         switch self {
         case .ready(let r): r
-        case .needsAttention(_, let c), .failed(_, let c), .offline(let c): c
+        case .needsAttention(_, let c), .failed(_, let c), .offline(let c), .rateLimited(_, let c): c
         case .notInstalled, .off, .waiting, .idle: nil
         }
     }
@@ -402,6 +447,8 @@ enum ToolStatus: Equatable {
     var problem: String? {
         switch self {
         case .needsAttention(let m, _), .failed(let m, _): m
+        // A 429 with nothing cached has nothing to show but the wait; with a reading on screen the footer names it.
+        case .rateLimited(let m, cached: .none): m
         default: nil
         }
     }
@@ -416,7 +463,7 @@ enum ToolStatus: Equatable {
     /// The reading still on screen after the tool stopped answering; its numbers may be out of date.
     var staleReading: UsageReading? {
         switch self {
-        case .needsAttention(_, let c), .failed(_, let c), .offline(let c): c
+        case .needsAttention(_, let c), .failed(_, let c), .offline(let c), .rateLimited(_, let c): c
         default: nil
         }
     }
@@ -432,6 +479,14 @@ protocol UsageProvider: Sendable {
     var refreshInterval: TimeInterval { get }
     func isInstalled() -> Bool
     func fetch() async throws -> UsageReading
+    /// A read with a note of whether the user asked for it (Refresh, the ring, the Assistants toggle) rather than
+    /// a timer. Only Claude Code's provider cares, because only it has a Keychain dialog to hold back
+    /// (KeychainPromptPolicy); every other provider takes the default below and reads as it always has.
+    func fetch(interactive: Bool) async throws -> UsageReading
+}
+
+extension UsageProvider {
+    func fetch(interactive: Bool) async throws -> UsageReading { try await fetch() }
 }
 
 /// Declared empty on purpose: the only way to build the providers is `all(defaults:)` in UsageStore.swift, which
@@ -453,6 +508,12 @@ enum Paths {
     /// The running app's newest machine-readable report, beside the drain log, for the command-line tool and the
     /// status line to read instead of polling every vendor again.
     static var reportFile: URL { applicationSupport.appendingPathComponent("report-v1.json") }
+    /// The long-term daily totals (CostHistory). Application Support, not Caches: this file is the only record of
+    /// any day older than the transcripts, and ~/Library/Caches is both purgeable by the OS when disk runs short and
+    /// left out of Time Machine, so a purge or a restore lost months of history with nothing to rebuild it from.
+    static var historyFile: URL { applicationSupport.appendingPathComponent("daily-history-v1.jsonl") }
+    /// Where builds before 2026-09-19 kept the daily totals; read as a fallback and moved on launch.
+    static var legacyHistoryFile: URL { caches.appendingPathComponent("daily-history-v1.jsonl") }
 }
 
 /// A value from the process environment, or from launchd's when the app was launched from the Finder and

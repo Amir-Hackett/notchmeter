@@ -47,10 +47,13 @@
 "%@ advice" = "%@ 조언";
 "%@ as the vendor's own usage export priced it" = "%@ 은(는) 공급업체 자체 사용량 내보내기가 매긴 금액";
 "%@ billed this month" = "이번 달 %@ 청구됨";
+"%@ could not be read as audio, so nothing was imported." = "%@을(를) 오디오로 읽을 수 없어 아무것도 가져오지 않았습니다.";
 "%@ finished" = "%@ 완료";
 "%@ hit its rate limit; wait for the reset." = "%@이(가) 속도 제한에 도달했습니다. 초기화를 기다리세요.";
 "%@ hook" = "%@ 훅";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "먼저 %@을(를) settings.json.bak-<날짜>로 복사합니다. 기존 상태 표시줄은 Notchmeter 다음에 같은 JSON으로 계속 실행됩니다.";
+"%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@은(는) 알림 센터가 재생할 수 없는 형식이어서, 파일을 다시 선택해 변환할 때까지 기본 소리가 재생됩니다.";
+"%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@이(가) 더 이상 ~/Library/Sounds에 없어 다른 소리를 선택할 때까지 기본 소리가 재생됩니다.";
 "%@ is not a JSON object, so it was left untouched" = "%@은(는) JSON 객체가 아니므로 변경하지 않았습니다";
 "%@ is waiting" = "%@ 대기 중";
 "%@ is waiting for your input." = "%@이(가) 입력을 기다리고 있습니다.";
@@ -107,7 +110,7 @@
 "90d" = "90일";
 "A %1$@ reset credit expires in %2$@. Claim it in %1$@." = "%1$@ 초기화 크레딧이 %2$@ 후 만료됩니다. %1$@에서 받으세요.";
 "A bar resting on top of the Dock." = "Dock 위에 놓이는 막대.";
-"A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "선택한 파일은 ~/Library/Sounds에 복사되어 알림 센터가 재생합니다.";
+"A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name." = "선택한 .aiff, .wav, .caf는 그대로 ~/Library/Sounds에 복사되고, mp3나 m4a 같은 그 외 형식은 알림 센터가 이름으로 재생할 수 있는 유일한 형식인 .caf로 그곳에서 변환됩니다.";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "이름으로 고른 디스플레이는 하드웨어 ID로 기억되어 같은 모델 두 대를 구분하고 이름이 바뀌어도 잃지 않습니다.";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "왼쪽 가장자리에 파낸 노치. 패널은 그 옆에 열립니다. 같은 쪽에 Dock이나 스테이지 매니저 띠가 있으면 자리를 내줍니다.";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "오른쪽 가장자리에 파낸 노치. 패널은 그 옆에 열립니다. 같은 쪽에 Dock이 있으면 자리를 내줍니다.";
@@ -176,6 +179,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "이 속도면 이번 %1$@ 비용은 %2$@이며 예산은 %3$@입니다.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "이 속도면 %3$@ %4$@과 %5$@ 사이에 %1$@ %2$@ 한도에 도달합니다.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "이 속도라면 %3$@에 %1$@ %2$@ 한도에 도달하며, 초기화까지 %4$@ 남습니다.%5$@";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "이 속도라면 %2$@에 %1$@을(를) 넘으며, 초기화까지 %3$@ 남습니다.";
 "another user is logged in" = "다른 사용자가 로그인 중";
 "auto" = "자동";
 "Auto" = "자동";
@@ -287,6 +291,7 @@
 "extra usage on" = "추가 사용 켜짐";
 "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage." = "플랜에 %3$ld%%가 남았는데 추가 사용이 %2$@ 동안 %1$@ 올랐습니다. /usage를 확인하세요.";
 "Fast requests" = "빠른 요청";
+"Figures are hidden while the screen is shared; the panel has them once it ends." = "화면이 공유되는 동안 숫자를 숨깁니다. 공유가 끝나면 패널에서 볼 수 있습니다.";
 "Flip countdown and exact time" = "카운트다운과 정확한 시각 전환";
 "Flip used and left" = "사용과 남음 전환";
 "From" = "시작";
@@ -314,6 +319,7 @@
 "Hover delay" = "마우스 오버 지연";
 "Hover the rings. The panel opens." = "링에 마우스를 올리면 패널이 열립니다.";
 "Icon style" = "아이콘 스타일";
+"Importing %@…" = "%@ 가져오는 중…";
 "In the Cost card" = "비용 카드에 표시";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "위의 통화로 입력하며, 비우면 없음입니다. 비용 카드의 링은 월 예산에 대해 채워지고 미터와 같은 속도 눈금이 붙습니다. 조언 띠는 월을 예산에 대해 예측하고, 정상·뒤처짐·소진 알림이 월을 기간으로 적용됩니다.";
 "In the pill" = "알약 안";
@@ -333,6 +339,7 @@
 "Installed; your previous status line (%@) runs after it." = "설치되었습니다. 이전 상태 표시줄(%@)은 그 다음에 실행됩니다.";
 "Integrations" = "연동";
 "its usage export could not be fetched" = "사용량 내보내기를 가져오지 못했습니다";
+"its usage export came back in a shape Notchmeter could not read" = "사용량 내보내기가 Notchmeter가 읽을 수 없는 형식으로 반환되었습니다";
 "just now" = "방금";
 "Keeping awake" = "깨어 있음 유지";
 "Keeping awake · %ld sessions" = "깨어 있음 유지 · 세션 %ld개";
@@ -543,6 +550,8 @@
 "Tells you what to do, not just how much." = "얼마나 썼는지뿐 아니라 무엇을 해야 하는지 알려줍니다.";
 "Test notification" = "테스트 알림";
 "Text" = "텍스트";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "%1$@이(가) 페이스에 근접: 초기화 시 약 %2$ld%% 남음.";
+"The %1$@ is spent. %2$@." = "%1$@이(가) 소진되었습니다. %2$@.";
 "The %1$@'s %2$@ is past the %3$@ budget." = "이번 %1$@의 %2$@은(는) %3$@ 예산을 넘었습니다.";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "비용 카드에서 도넛, 범례, 소모 속도 줄을 뺀 나머지(예산, 이번 주, 모델 줄)와 세션 블록, 토큰, 주요 프로젝트, 스파크라인. 끄면 패널이 짧아져 스크롤이 필요 없습니다.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "일별 합계 파일을 CSV 또는 JSON으로: 하루 한 줄에 비용, 다섯 토큰 버킷, 최다 모델, 모델별·프로젝트별 비용을 담습니다.";
@@ -606,7 +615,7 @@
 "When the cache tier or the metering shifts" = "캐시 계층이나 측정이 바뀔 때";
 "When you start paying (extra usage rises)" = "결제가 시작될 때(추가 사용 증가)";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "카드의 도넛, 범례, 합계에 포함할 어시스턴트입니다. 순서는 어시스턴트 설정을 따릅니다. 비용을 알릴 수 없거나 로그인하지 않은 어시스턴트는 여기에 나오지 않으며, 제외한 어시스턴트도 자기 카드에는 비용을 표시합니다.";
-"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Zoom, Meet, QuickTime 또는 화면 공유가 화면을 캡처하는 동안 링은 모양을 유지하되 숫자를 숨기고, 패널은 비용 카드를 숨깁니다. 5초마다 확인합니다.";
+"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "Zoom, Meet, QuickTime 또는 화면 공유가 화면을 캡처하는 동안 링은 모양을 유지하되 숫자를 숨기고, 패널은 비용 카드를 숨기며, 그동안 표시되는 배너에는 숫자와 프로젝트 이름이 들어가지 않습니다. 5초마다 확인합니다.";
 "Wide" = "넓게";
 "Will run out (behind pace)" = "소진 예정 (페이스보다 느림)";
 "Window" = "윈도우";
@@ -630,14 +639,16 @@
 "App to stay over, e.g. zoom.us" = "위에 계속 표시할 앱, 예: zoom.us";
 "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "위 설정과 상관없이 수치를 계속 위에 표시할 앱을, 윈도우 목록이 주는 이름으로 지정합니다. 영상 때문에 위 설정을 꺼 두었더라도 회의 중에는 미터를 옆에 두고 싶을 때 씁니다. 한 앱의 두 가지 용도는 구분하지 못합니다. 브라우저 안의 통화와 영상이 그 예입니다. 그런 경우에는 '이 전체 화면 앱 위에 표시' 단축키가 답이며, 화면에 있는 앱에만 적용되고 그 앱이 전체 화면을 벗어나면 풀립니다. 옵션 메뉴에는 그때 전체 화면인 앱에 대해 두 가지가 함께 나옵니다.";
 
-/* 오래된 손쉬운 사용 항목: 권한이 교체된 이전 사본에 속한 경우 (MenuBarExtent, App, SettingsWindow) */
+/* 오래된 손쉬운 사용 항목: 권한은 허용되었지만 실행 중인 사본에는 더 이상 적용되지 않는 경우. 새 사본이 이전 사본을 교체한 때와 같은 사본이 거부되는 때를 모두 포함 (MenuBarExtent, App, SettingsWindow) */
 "%@'s Accessibility permission belongs to an older copy" = "%@의 손쉬운 사용 권한이 이전 사본의 것입니다";
 "macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS는 권한을 허용받은 사본 자체에 묶어 둡니다. 지금 실행 중인 사본은 그 사본을 대체한 것입니다. 개인정보 보호 및 보안 › 손쉬운 사용에는 스위치가 켜진 것으로 보이지만 더 이상 적용되지 않으며, 항목을 지워야만 되돌릴 수 있습니다. %@이(가) 항목을 지우고 다시 실행할 수 있습니다. 스위치를 한 번 더 켜 달라는 요청을 받게 되며, 그때까지 자동은 지금 쪽을 유지합니다.";
+"%@'s Accessibility permission has stopped applying" = "%@의 손쉬운 사용 권한이 더 이상 적용되지 않습니다";
+"macOS is refusing the Accessibility permission it once granted this very copy. If the switch in Privacy & Security › Accessibility is off, turning it on is enough. If it is on and Auto still does not measure, the entry behind it has stopped applying and only clearing it brings it back: %@ can clear it and restart, you are asked to switch it on once more, and Auto keeps to the side it has until you do." = "macOS가 이 사본에 한 번 허용했던 손쉬운 사용 권한을 거부하고 있습니다. 개인정보 보호 및 보안 › 손쉬운 사용에서 스위치가 꺼져 있다면 다시 켜는 것으로 충분합니다. 스위치가 켜져 있는데도 자동이 측정하지 못한다면 그 항목은 더 이상 적용되지 않는 것이며, 항목을 지워야만 되돌릴 수 있습니다. %@이(가) 항목을 지우고 다시 실행할 수 있습니다. 스위치를 한 번 더 켜 달라는 요청을 받게 되며, 그때까지 자동은 지금 쪽을 유지합니다.";
 "Clear and Restart" = "지우고 다시 실행";
 "Open Accessibility Settings" = "손쉬운 사용 설정 열기";
 "Not Now" = "나중에";
 "Repair the Accessibility permission…" = "손쉬운 사용 권한 복구…";
-"The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back." = "권한이 이전 사본의 것입니다. macOS는 권한을 허용받은 사본에 묶어 두고, 그 사본이 교체되어도 스위치를 켜진 채로 둡니다. 항목을 지우고 다시 실행하는 것이 되돌아가는 길입니다.";
+"Accessibility is refusing a permission it once granted this app: macOS ties it to the exact copy it was granted to, and a replaced copy or an entry that stopped applying leaves the switch on with the permission gone. If the switch is off, turning it on is enough; otherwise clearing the entry and restarting is the way back." = "손쉬운 사용이 이 앱에 한 번 허용했던 권한을 거부하고 있습니다. macOS는 권한을 허용받은 사본 자체에 묶어 두기 때문에, 사본이 교체되거나 항목이 더 이상 적용되지 않으면 스위치는 켜진 채로 권한만 사라집니다. 스위치가 꺼져 있다면 다시 켜는 것으로 충분하고, 그렇지 않다면 항목을 지우고 다시 실행하는 것이 되돌아가는 길입니다.";
 
 /* The menu bar icon styles, beside Text, Bars and Rings (Preferences, MenuBarItem) */
 "Dots" = "점";

@@ -42,7 +42,7 @@ Flags:
 | `--glance-sim` | opens a real glance through the presenter and fails the run if it does not close again |
 | `--hover-sim` | a scripted pointer path through the live hover machine: a fast sweep that must not open, then a dwell that opens once, a 3 s rest that must not collapse, and a leave that collapses once. Fails the run if the panel loops. Needs *Open on hover*, so pair it with `--visibility onHover`; under the other two it says so and passes |
 | `--hover-log` | prints each decision the real mouse produces meanwhile |
-| `--stale-sim` | shows the "Accessibility permission belongs to an older copy" alert on a copy whose permission is in order, so the copy can be read and the panel seen to get out of its way. Runs on its own (not under `--smoke`), clears nothing whatever you answer, and prints the answer |
+| `--stale-sim` | shows the "Accessibility permission belongs to an older copy" alert on a copy whose permission is in order, so the copy can be read and the panel seen to get out of its way; `--stale-sim same` shows the same-copy wording instead ("Accessibility permission has stopped applying", for an entry that stopped applying to the copy it was granted to or a switch turned off by hand). Runs on its own (not under `--smoke`), clears nothing whatever you answer, and prints the answer |
 | `--lang zh-Hans` | pins the copy to one shipped language |
 | `--render-dashboard <dir>` | draws the Usage Dashboard from the demo fixtures, the week light and dark and the 30- and 90-day ranges, into `dashboard-light.png`, `dashboard-dark.png`, `dashboard-30d.png` and `dashboard-90d.png`, and exits; for review, nothing in the README uses it |
 | `--e2e-oracle <path>` | writes the oracle file described below, and ends the run with a `snapshot` line |
@@ -70,7 +70,7 @@ Every line carries `"t"` (ISO 8601 with milliseconds, UTC) and `"event"`; keys a
 | `order` | the tool order changed | `toolOrder` |
 | `compactStyle` | the readout style changed | `compactStyle` |
 | `pref` | any other preference changed | `key`, `value` |
-| `reading` | a tool's status changed (and once per tool at launch) | `tool`, `status` (`notInstalled`, `off`, `waiting`, `idle`, `needsAttention`, `ready`, `failed`, `offline`), and with a reading `plan`, `stale`, `windows` (`id`, `label`, `used` 0…1 or null, `resetsAt`, `pace`) |
+| `reading` | a tool's status changed (and once per tool at launch) | `tool`, `status` (`notInstalled`, `off`, `waiting`, `idle`, `needsAttention`, `ready`, `failed`, `offline`, `rateLimited`), and with a reading `plan`, `stale`, `windows` (`id`, `label`, `used` 0…1 or null, `resetsAt`, `pace`) |
 | `notification` | a pace or advice alert was decided on, delivered, held by the ten-minute ceiling on a session's repeated waiting banner, clicked, or withdrawn from Notification Center (a window reset or moved back to on track, or a session's wait ended) | `action` (`scheduled` / `sent` / `capped` / `clicked` / `removed`), `title`, `stage` when scheduled (`advice` for an advice notification), `level` when sent, `tool` and `identifier` when clicked or removed, `identifier` and `sinceLast` (seconds since the banner that spent this session's allowance) when capped |
 | `hook` | a hook event arrived from Claude Code, Codex, Cursor, Gemini CLI or Copilot CLI | `name` (Claude Code's event vocabulary for all five; the other assistants' names are mapped onto it, so Gemini's `AfterAgent` and Copilot's `agentStop` both log as `Stop`), `needsInput`, `session`, `project`, and `tool` only when the event is not Claude Code's (`codex`, `cursor`, `antigravity`, `copilot`) |
 | `advice` | the advice strip's lines changed | `titles` |
@@ -238,10 +238,12 @@ None of the states below can be unit-tested; each is a manual check with the exp
 | Display sleep (no lock) | polling paused, panel collapsed | footer "Paused while the display sleeps" |
 | Low Power Mode | half the cadence, footer note | `polling:` line, footer "low power mode" |
 | Offline | cached readings stay without a problem mark; footer "Offline, retrying" | reading `status: offline` in the oracle |
+| A vendor answers 429 | the cached reading stays, dimmed and captioned "Last reading … may be out of date", without a problem mark; the footer names the wait, clamped to one to ten minutes whatever the Retry-After; the advice strip keeps steering by the cached figures. With nothing cached the wait is the problem and the ring wears the mark, as for a failed read. The same 429 reads `rateLimited` from `--probe`, the local API, the MCP server and the running app alike | reading `status: rateLimited`, `stale: true` in the oracle; `--probe --json` `"status": "rateLimited"` |
 | Increase Contrast | brighter tracks and card fills, secondary captions, no quiet dim | `--render-assets` produces `expanded-contrast.png`; read it against `expanded.png`, which is the same panel a second earlier. Every countdown in the pair agrees, because `DemoFixtures.readings` places each reset in the middle of the unit its countdown prints rather than on the boundary of it |
 | Reduce Transparency | solid black surfaces, no glass | `accessibility` line |
 | Reduce Motion (system) or Reduce animations (app) | every transition instant, no pulse | `reduce motion:` line |
 | Screen shared or recorded, privacy on | rings keep their shape without digits; Cost card hidden; menu bar pin blank | oracle `privacy captured=true` |
+| Screen shared or recorded, privacy on, a banner fires | the title still names the tool and window (or "Notchmeter advice"); the body carries no figure, and a session banner no project | oracle `notification action=sent` after `privacy captured=true`; the bodies are pinned in `NotifierCopy` |
 | App-Translocated launch | the move-to-Applications offer; login item disabled with a note | `bundle … translocated=true` line |
 | Login item requires approval | "Approve in System Settings" button in Settings | Settings › General |
 

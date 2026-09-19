@@ -3,7 +3,7 @@ import Testing
 @testable import Notchmeter
 
 /// The updater starts only for a build that could take an update: an https feed, a real 32-byte EdDSA public key in
-/// place of the placeholder scripts/Info.plist ships, and a code signature that names a certificate.
+/// place of the placeholder scripts/Info.plist ships, and a Developer ID code signature.
 @Suite struct UpdaterGate {
     let feed = "https://github.com/Amir-Hackett/notchmeter/releases/latest/download/appcast.xml"
     let key = Data((0..<32).map { UInt8($0) }).base64EncodedString()
@@ -26,8 +26,23 @@ import Testing
         #expect(Updater.gate(feed: "http://example.com/appcast.xml", publicKey: key, signedWithCertificate: true) == .noFeed)
     }
 
-    @Test func adHocSignatureStaysInactive() {
-        #expect(Updater.gate(feed: feed, publicKey: key, signedWithCertificate: false) == .adHocSignature)
+    @Test func buildNotSignedForDistributionStaysInactive() {
+        #expect(Updater.gate(feed: feed, publicKey: key, signedWithCertificate: false) == .unsignedForDistribution)
+    }
+
+    /// Only the Developer ID leaf scripts/release.sh signs with opens the gate. The self-signed "Notchmeter Local"
+    /// identity scripts/build.sh prefers names a certificate too, and used to pass; it must not, or a developer's own
+    /// build polls the public appcast. Apple Development, an ad-hoc cdhash and unreadable code all stay out as well.
+    @Test func onlyDeveloperIDCountsAsSignedForDistribution() {
+        let developerID = "certificate:Developer ID Application: Amir Hacket (N38C775YA8)"
+        let local = "certificate:Notchmeter Local"
+        let development = "certificate:Apple Development: Amir Hacket (ABCDE12345)"
+        let adHoc = "cdhash:0123456789abcdef0123456789abcdef01234567"
+        #expect(CodeSignature.isDeveloperID(developerID))
+        #expect(CodeSignature.isDeveloperID(local) == false)
+        #expect(CodeSignature.isDeveloperID(development) == false)
+        #expect(CodeSignature.isDeveloperID(adHoc) == false)
+        #expect(CodeSignature.isDeveloperID(nil) == false)
     }
 
     /// The shipped plist must name the real feed and either the exact placeholder (updater off) or a usable key.

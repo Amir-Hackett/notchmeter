@@ -311,3 +311,29 @@ import Testing
         #expect(CostAbsence.reason(for: .claude, cursorUsageEvents: true, problem: nil, nothingLocal: false) == .notReadYet)
     }
 }
+
+/// The card `SpendCard.imageCard` hands to "Copy as image". `CardImage.copy` draws a detached hierarchy, so the
+/// copied card only shows the range the user picked if the card it is given is seeded with it; until 0.5.0 the
+/// context-menu Button built `SpendCard(store:)` and every pasted card was Today's, whatever the SegmentedBar
+/// said. This pins the seeding helper only: the Button (NotchViews.swift, `.contextMenu` on SpendCard) must keep
+/// passing `imageCard` to `CardImage.copy`, which no test exercises.
+@Suite struct CostCardCopyImage {
+    @MainActor @Test func theCopiedCardOpensOnTheRangeOnScreen() {
+        let suite = "NotchmeterTests.CostCardCopyImage"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let prefs = Preferences(defaults: defaults)
+        let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
+
+        let onScreen = SpendCard(store: store, range: .ninetyDays)
+        let copied = onScreen.imageCard.openingRange
+        let expected = SpendCard.Range.ninetyDays
+        #expect(copied == expected)
+
+        // The panel itself still opens on today, and a copy of that card stays on today.
+        let opened = SpendCard(store: store).imageCard.openingRange
+        let today = SpendCard.Range.today
+        #expect(opened == today)
+    }
+}

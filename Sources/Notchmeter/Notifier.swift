@@ -154,14 +154,14 @@ final class Notifier {
     /// hands the alerts over (UsageStore.swift, `remember` then `send`) and a stage never repeats within its
     /// period, so an alert dropped here would be one the user is never told about at all. Passive and silent, it
     /// waits in Notification Center for the morning instead.
-    func send(_ alerts: [PaceAlert], context: Advisor.Context) {
+    func send(_ alerts: [PaceAlert], context: Advisor.Context, hidingFigures: Bool = false) {
         guard center != nil else { return }
         requestProvisionalAuthorization()
         let hushed = quiet()
         for alert in alerts {
             let loud = alert.stage == .runningOut || alert.stage == .limitHit
             deliver(identifier: alert.identifier, thread: alert.tool.rawValue, tool: alert.tool,
-                    title: Advisor.alertTitle(alert), body: Advisor.alertBody(alert, context: context),
+                    title: Advisor.alertTitle(alert), body: Self.body(for: alert, context: context, hidingFigures: hidingFigures),
                     level: hushed ? .passive : Self.level(for: alert.stage),
                     sound: loud && !hushed ? NotificationSound.unSound(for: sound(.pace)) : nil)
         }
@@ -169,23 +169,44 @@ final class Notifier {
 
     /// An advice line as a banner: extra usage, a cache-tier shift, heavy metering. Time-sensitive when the line is
     /// about money already flowing.
-    func send(advice: [Advice]) {
+    func send(advice: [Advice], hidingFigures: Bool = false) {
         guard center != nil else { return }
         requestProvisionalAuthorization()
         let hushed = quiet()
         for line in advice {
             deliver(identifier: "advice/\(line.id)", thread: line.tool?.rawValue ?? "advice", tool: line.tool, title: L("%@ advice", AppInfo.name),
-                    body: line.text, level: hushed ? .passive : (line.priority == .danger ? .timeSensitive : .active),
+                    body: Self.body(for: line, hidingFigures: hidingFigures), level: hushed ? .passive : (line.priority == .danger ? .timeSensitive : .active),
                     sound: line.priority == .danger && !hushed ? NotificationSound.unSound(for: sound(.pace)) : nil)
         }
     }
 
+    /// The banner's body while the screen is shared and the privacy setting is on (`UsageStore.hidesFigures`,
+    /// passed in by the app delegate so this type keeps no store): a stand-in with no figure in it, where the
+    /// pace line carries a percentage and a time and the advice line a dollar amount. The panel behind the banner
+    /// is withholding those same digits, so a banner that showed them in front of a call undid the setting. A
+    /// stand-in rather than nothing, for the reason quiet hours hush rather than drop (above `send`): the stage is
+    /// already remembered upstream, so a banner not sent now is never sent. The title stays as it is — a tool and a
+    /// window, or "Notchmeter advice" — which carries no figure and says what the panel has waiting.
+    nonisolated static func body(for alert: PaceAlert, context: Advisor.Context, hidingFigures: Bool) -> String {
+        hidingFigures ? hiddenFiguresBody : Advisor.alertBody(alert, context: context)
+    }
+
+    nonisolated static func body(for line: Advice, hidingFigures: Bool) -> String {
+        hidingFigures ? hiddenFiguresBody : line.text
+    }
+
+    nonisolated static var hiddenFiguresBody: String {
+        L("Figures are hidden while the screen is shared; the panel has them once it ends.")
+    }
+
     /// The title and body for a session event, named after the session's tool: "Cursor finished" / "Cursor finished
     /// a 12m turn in notchmeter." Pure, so the copy is pinned. The waiting body is the same key Advisor's waiting
-    /// line uses, so the banner and the advice read alike.
-    nonisolated static func copy(for event: SessionEvent, session: AgentSession) -> (title: String, body: String) {
+    /// line uses, so the banner and the advice read alike. While the screen is shared (`hidingFigures`), the project
+    /// is left out the way it is for a session the hook never named: the directory a session runs in is the one
+    /// thing in these banners a viewer of the call has no business reading, and the tool's name is still the news.
+    nonisolated static func copy(for event: SessionEvent, session: AgentSession, hidingFigures: Bool = false) -> (title: String, body: String) {
         let name = session.tool.productName
-        let project = session.displayName ?? L("a session")
+        let project = (hidingFigures ? nil : session.displayName) ?? L("a session")
         return switch event {
         case .waiting:
             (L("%@ is waiting", name), L("%1$@ is waiting in %2$@.", name, project))
@@ -199,7 +220,7 @@ final class Notifier {
     /// wait inside `blockingWaitInterval`; the banner is threaded under the session's tool, so each assistant's
     /// notices stack together. Returns whether it was sent, and only a banner that was sent spends the allowance.
     @discardableResult
-    func notify(_ event: SessionEvent, session: AgentSession,
+    func notify(_ event: SessionEvent, session: AgentSession, hidingFigures: Bool = false,
                 frontmost: String? = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, now: Date = Date()) -> Bool {
         guard center != nil else { return false }
         switch waitBanners.verdict(for: event, session: session.id, frontmost: frontmost, quiet: quiet(), host: session.host,
@@ -214,7 +235,7 @@ final class Notifier {
             return false
         }
         requestProvisionalAuthorization()
-        let (title, body) = Self.copy(for: event, session: session)
+        let (title, body) = Self.copy(for: event, session: session, hidingFigures: hidingFigures)
         let (identifier, choice): (String, String) = switch event {
         case .waiting: (Self.identifier(session: session.id, kind: "waiting"), sound(.waiting))
         case .finished: (Self.identifier(session: session.id, kind: "finished"), sound(.finished))
