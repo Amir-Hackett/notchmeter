@@ -14,8 +14,14 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "hoo
 /// have the app take it as an assistant's word, so a forged "waiting for you" or a forged status line cost nothing
 /// (the audit's M7; 0.5.0 closed the one place a forged payload did concrete damage, the pull-request link, and
 /// left the transport itself open). Both ends of the hop are the same binary — the vendors' files run
-/// `Notchmeter --hook`, and the status line runs it too — so there was never a compatibility window to keep the
-/// broadcast for: the hop is replaced outright.
+/// `Notchmeter --hook`, and the status line runs it too — so the hop is replaced outright, with no fallback to the
+/// broadcast: one for an absent socket would reopen it whenever the app is not running, which is the everyday
+/// case. The one window that leaves is a copy of 0.5.0 or earlier still running under a bundle that a drag onto
+/// Applications replaced beneath it (Homebrew quits the app first and Sparkle relaunches it, so only the manual
+/// install gets there): until that copy is relaunched, every hook and status-line render runs the new binary,
+/// finds no socket and exits silently, while the Hooks rows, which judge an entry by its path, keep saying
+/// installed. Nothing here can close that window, since the old copy carries none of this code; docs/hooks.md
+/// says to relaunch.
 ///
 /// The socket lives at `Paths.hookSocket`, in a folder made 0700 and itself made 0600, unlinked on quit and
 /// recreated on launch (a stale file left by a crash is replaced, since nothing holds a socket file the way `flock`
@@ -28,7 +34,10 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "hoo
 /// requirement names the bundle identifier and the Developer ID certificate, so any copy of any Notchmeter release
 /// passes wherever it sits; an ad-hoc developer build's names its code directory hash, so the same build passes
 /// from any path and a different build does not — which is the case Settings › Integrations already flags as a
-/// hook pointing at a copy other than the running one, and the launch-time repair rewrites.
+/// hook pointing at a copy other than the running one. The launch-time repair rewrites it only when the running
+/// copy is an installed one, never from `build/` or `.build/` (`HookRepair.mayRepair`), so a developer build run
+/// beside an installed release refuses the release's hooks until the file is pointed at the build, by hand or by
+/// the row's Repair.
 ///
 /// The peer must still be alive when the app checks it, since a code object is resolved through the pid, and
 /// that is why the command does not fire and forget: it writes its one line, half-closes, and waits for the app
@@ -90,48 +99,90 @@ enum HookSocket {
         /// The line went out and the app closed the connection: it was read, or the peer was refused, which the
         /// command has no need to tell apart because it does the same either way, exit 0 and say nothing.
         case sent
-        /// No app is listening: no socket file, or one nobody holds. The everyday case when Notchmeter is not running.
+        /// No app is listening: no socket file, or one that refused every try. The everyday case when Notchmeter is
+        /// not running.
         case noListener
         /// The line could not be built, the path does not fit `sun_path`, or the socket failed under us.
         case failed(String)
     }
 
+    /// Connect errors that mean nobody is there: no socket file (the app unlinks it on quit), a file no process
+    /// holds (a crash's leftover, replaced at the next launch), a path that is not a socket at all. Anything else
+    /// is a fault worth naming.
+    static let noListenerErrors: Set<Int32> = [ENOENT, ECONNREFUSED, ENOTSOCK]
+
+    /// The pauses before a second, third and fourth connect when the first is refused. The kernel answers a
+    /// connect that finds the accept queue full with the same ECONNREFUSED a leftover file gives, and nothing the
+    /// command can see tells the two apart; but the app's acceptor drains its queue in microseconds, so a few
+    /// milliseconds' patience is what tells a busy listener from an absent one. A leftover refuses every try and
+    /// costs the command the sum of these, a small fraction of its budget.
+    static let connectPauses: [TimeInterval] = [0.005, 0.01, 0.02]
+
+    /// A connected descriptor for the socket at `path`, with `timeout` set as its send and receive budget, or -1
+    /// with `errno` as the last connect left it. A refusal is tried again after each of `connectPauses`, never
+    /// past the deadline; each try is a fresh socket, since a stream socket whose connect failed is not one to
+    /// connect again.
+    private static func dial(_ path: String, timeout: TimeInterval) -> Int32 {
+        let deadline = Date().addingTimeInterval(timeout)
+        var budget = timeval(tv_sec: Int(timeout), tv_usec: Int32((timeout - floor(timeout)) * 1_000_000))
+        var address = sockaddr_un(path: path)
+        var attempt = 0
+        while true {
+            let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+            guard fd >= 0 else { return -1 }
+            var on: Int32 = 1
+            setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+            setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &budget, socklen_t(MemoryLayout<timeval>.size))
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &budget, socklen_t(MemoryLayout<timeval>.size))
+            let connected = withUnsafePointer(to: &address) {
+                $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+            }
+            if connected == 0 { return fd }
+            let error = errno
+            close(fd)
+            errno = error
+            guard [ECONNREFUSED, EAGAIN, EINTR].contains(error), attempt < connectPauses.count,
+                  Date().addingTimeInterval(connectPauses[attempt]) < deadline else { return -1 }
+            Thread.sleep(forTimeInterval: connectPauses[attempt])
+            attempt += 1
+        }
+    }
+
     /// Connects, writes the one line, half-closes and waits for the app to hang up. `timeout` bounds every step
-    /// (the connect cannot block on a Unix socket, the write can only if the app's buffer is full, and the wait
-    /// for the hang-up is what keeps this process alive through the app's check of it), so the command is back
-    /// within the budget whatever the app is doing.
+    /// (the connect cannot block on a Unix socket, and is tried again briefly when the app's accept queue was
+    /// full; the write can only block if the app's buffer is full, and the wait for the hang-up is what keeps
+    /// this process alive through the app's check of it), so the command is back within the budget whatever the
+    /// app is doing.
     @discardableResult
     static func send(_ kind: Kind, _ payload: [String: Any], to path: String = Paths.hookSocket.path, timeout: TimeInterval = 1) -> SendResult {
         guard let line = encode(kind, payload) else { return .failed("payload is not JSON") }
         guard fits(path) else { return .failed("socket path too long: \(path)") }
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { return .failed("socket: \(String(cString: strerror(errno)))") }
+        let fd = dial(path, timeout: timeout)
+        guard fd >= 0 else {
+            // Nobody there is not an error for a fail-open hook; a refusal that outlasted the retries reads the
+            // same way, since a leftover file and an app still overrun after them are one errno.
+            return noListenerErrors.contains(errno) ? .noListener : .failed("connect: \(String(cString: strerror(errno)))")
+        }
         defer { close(fd) }
-        var on: Int32 = 1
-        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
-        var budget = timeval(tv_sec: Int(timeout), tv_usec: Int32((timeout - floor(timeout)) * 1_000_000))
-        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &budget, socklen_t(MemoryLayout<timeval>.size))
-        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &budget, socklen_t(MemoryLayout<timeval>.size))
-        var address = sockaddr_un(path: path)
-        let connected = withUnsafePointer(to: &address) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
-        }
-        guard connected == 0 else {
-            // ENOENT: no socket file; ECONNREFUSED: a file nobody listens on (a crash's leftover, replaced at the
-            // next launch). Both mean the app is not there, which is not an error for a fail-open hook.
-            return [ENOENT, ECONNREFUSED, ENOTSOCK].contains(errno) ? .noListener : .failed("connect: \(String(cString: strerror(errno)))")
-        }
         var written = 0
         while written < line.count {
             let count = line.withUnsafeBytes { write(fd, $0.baseAddress! + written, line.count - written) }
             guard count > 0 else { return .failed("write: \(String(cString: strerror(errno)))") }
             written += count
         }
+        awaitHangUp(fd)
+        return .sent
+    }
+
+    /// Half-closes and waits for the app to hang up, which it does once the peer is checked and its line read; the
+    /// app writes nothing back, so the read returns 0 when it closes, or -1 when the budget runs out. The wait
+    /// matters twice over: the peer must still be alive when the app resolves its code object, and a peer that
+    /// closes before it is even accepted leaves the kernel nothing to name it by (`LOCAL_PEERPID` answers ENOTCONN
+    /// once the other end has gone), so the app would log it as a peer whose pid could not be read.
+    private static func awaitHangUp(_ fd: Int32) {
         shutdown(fd, SHUT_WR)
-        // The app writes nothing back; the read returns 0 when it closes, or -1 when the budget runs out.
         var scratch = [UInt8](repeating: 0, count: 64)
         while read(fd, &scratch, scratch.count) > 0 {}
-        return .sent
     }
 
     // MARK: - The peer check
@@ -186,12 +237,28 @@ enum HookSocket {
 
     // MARK: - The app's end
 
-    /// What `--smoke` reports about the transport: whether a socket stands at the path, which beside the installed
-    /// app says the running copy is listening, and beside nothing says the hooks have nowhere to go.
+    /// What `--smoke` reports about the transport, in one of three states. `present (listening)`: a connect finds
+    /// the running app holding the socket, which beside the installed app says the hooks have somewhere to go.
+    /// `stale (nobody listening; a relaunch replaces it)`: a socket stands at the path but refuses, which is what a
+    /// crash or a `kill` leaves behind, since only a quit unlinks the file; every hook is getting the same refusal,
+    /// and nothing in the assistants' files will change that. `absent`: no file, so the app is not running. A
+    /// stat alone cannot tell the first two apart, which is why the probe connects; it then half-closes without
+    /// writing a byte and waits to be hung up on, as the command does, which the app takes as nothing to read and
+    /// does not log. A refusal for any other reason keeps `present` and names the errno, so a permission problem
+    /// stays visible.
     static func describe(path: String = Paths.hookSocket.path) -> String {
         var info = stat()
-        let kind = stat(path, &info) == 0 ? ((info.st_mode & S_IFMT) == S_IFSOCK ? "present" : "not a socket") : "absent"
-        return "socket \(path) \(kind)"
+        guard stat(path, &info) == 0 else { return "socket \(path) absent" }
+        guard (info.st_mode & S_IFMT) == S_IFSOCK else { return "socket \(path) not a socket" }
+        guard fits(path) else { return "socket \(path) present (path too long for sun_path)" }
+        let fd = dial(path, timeout: Listener.readBudget)
+        guard fd >= 0 else {
+            return errno == ECONNREFUSED ? "socket \(path) stale (nobody listening; a relaunch replaces it)"
+                                         : "socket \(path) present (connect: \(String(cString: strerror(errno))))"
+        }
+        awaitHangUp(fd)
+        close(fd)
+        return "socket \(path) present (listening)"
     }
 
     /// The listening end, owned by the store for the life of the app. Connections are accepted on a queue of its
@@ -250,12 +317,17 @@ enum HookSocket {
             let bound = withUnsafePointer(to: &address) {
                 $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
             }
-            guard bound == 0, chmod(file, 0o600) == 0, listen(fd, 16) == 0 else {
+            // The kernel's whole backlog (128 on macOS): a connect that finds it full is refused with the errno of a
+            // dead socket, so this is how many hooks may land between two turns of the accept loop before one has
+            // to try again.
+            guard bound == 0, chmod(file, 0o600) == 0, listen(fd, SOMAXCONN) == 0 else {
                 log.error("hook socket bind at \(file, privacy: .public): \(String(cString: strerror(errno)), privacy: .public)")
                 close(fd)
                 unlink(file)
                 return false
             }
+            // Non-blocking for the accept loop's sake, so it can drain the queue to EAGAIN. Every peer it accepts
+            // inherits the flag and is put back to blocking in serve().
             _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
             let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: acceptQueue)
             source.setEventHandler { [weak self] in self?.acceptPending(on: fd) }
@@ -292,6 +364,11 @@ enum HookSocket {
         /// fails the check is never parsed, whatever it sent.
         private func serve(_ client: Int32) {
             defer { close(client) }
+            // On macOS accept() copies the listener's O_NONBLOCK onto the peer (BSD semantics; Linux does not), and
+            // a non-blocking read ignores SO_RCVTIMEO: it answers EAGAIN the moment the peer's bytes have not landed,
+            // which the loop below would take for the end of the line. Blocking again is what makes readBudget the
+            // bound the class comment promises, rather than a race the peer's write usually, and not always, wins.
+            _ = fcntl(client, F_SETFL, fcntl(client, F_GETFL) & ~O_NONBLOCK)
             var budget = timeval(tv_sec: Int(Self.readBudget), tv_usec: 0)
             setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &budget, socklen_t(MemoryLayout<timeval>.size))
             var pid: pid_t = 0
@@ -306,14 +383,23 @@ enum HookSocket {
             }
             var line = Data()
             var chunk = [UInt8](repeating: 0, count: 4096)
+            var hungUp = false
             while line.count < HookSocket.maximumLine {
                 let count = read(client, &chunk, chunk.count)
-                guard count > 0 else { break }
+                guard count > 0 else {
+                    hungUp = count == 0
+                    break
+                }
                 line.append(chunk, count: count)
                 if chunk[..<count].contains(0x0A) { break }
             }
             guard let newline = line.firstIndex(of: 0x0A) else {
-                log.notice("hook socket: pid \(pid) sent no complete line")
+                // A peer that hangs up without a byte is `--smoke` asking whether anyone listens, not a line lost,
+                // and it leaves nothing in the log a user reads while hunting a refused hook. Bytes with no newline,
+                // or a peer that went quiet past the budget, do.
+                if !(hungUp && line.isEmpty) {
+                    log.notice("hook socket: pid \(pid) sent no complete line")
+                }
                 return
             }
             guard let message = HookSocket.decode(line[..<newline]) else {

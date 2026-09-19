@@ -45,16 +45,17 @@ import os
         #expect(listener.start())
         defer { listener.stop() }
         #expect(listener.isListening)
-        #expect(HookSocket.describe(path: url.path) == "socket \(url.path) present")
+        #expect(HookSocket.describe(path: url.path) == "socket \(url.path) present (listening)")
 
         let message = Hook.Message(event: "PermissionRequest", needsInput: true, sessionID: "abc", project: "notchmeter", branch: "main",
                                    permissionMode: "plan", agentID: "a1", tool: .codex)
         #expect(HookSocket.send(.hook, message.userInfo, to: url.path) == .sent)
         #expect(seen.delivered.wait(timeout: .now() + 2) == .success, "the line must reach the listener")
         #expect(seen.messages == [.hook(message)])
-        // LOCAL_PEERPID is the kernel's word on who connected, and the command is this process here.
+        // LOCAL_PEERPID is the kernel's word on who connected, and the command is this process here. The smoke
+        // probe above connected too and passed the check before hanging up with nothing to read.
         let ourPid = getpid()
-        #expect(seen.pids == [ourPid])
+        #expect(seen.pids == [ourPid, ourPid])
 
         // The socket is the app's alone: 0600 in a 0700 folder.
         let socketMode = try #require(FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? Int)
@@ -118,14 +119,168 @@ import os
         #expect(Date().timeIntervalSince(started) < 0.1)
         #expect(HookSocket.describe(path: missing.path) == "socket \(missing.path) absent")
 
-        // A file nobody holds: what a crash leaves behind until the next launch replaces it.
+        // A file nobody holds: what a crash leaves behind until the next launch replaces it. It refuses with the
+        // errno a full accept queue gives, so the command tries again a few times before believing it; the pauses
+        // add up to a few tens of milliseconds, nowhere near the budget.
         let stale = Self.scratch("stale")
         try? FileManager.default.removeItem(at: stale.deletingLastPathComponent())
         defer { try? FileManager.default.removeItem(at: stale.deletingLastPathComponent()) }
         try Self.leaveStaleSocket(at: stale)
         started = Date()
         #expect(HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false).userInfo, to: stale.path) == .noListener)
-        #expect(Date().timeIntervalSince(started) < 0.1)
+        let elapsed = Date().timeIntervalSince(started)
+        let promptly = 0.2
+        #expect(elapsed < promptly)
+        // The smoke report tells that file from a held socket, which a stat alone cannot: it connects.
+        #expect(HookSocket.describe(path: stale.path) == "socket \(stale.path) stale (nobody listening; a relaunch replaces it)")
+    }
+
+    @Test func aPeerSlowToWriteIsStillReadInsideTheBudget() throws {
+        // The command writes the moment it connects, so the app's read usually finds the bytes there. A process
+        // preempted between its connect and its write is the case the one-second read budget exists for: the
+        // app must wait for the line, not take the empty socket for the end of it. The accepted descriptor
+        // inherits the listener's O_NONBLOCK on macOS, which made the budget a dead letter until 0.6.0 cleared it.
+        let url = Self.scratch("slow")
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let seen = Seen()
+        let listener = Self.listener(at: url, verdict: .accepted, seen: seen)
+        #expect(listener.start())
+        defer { listener.stop() }
+
+        let message = Hook.Message(event: "PermissionRequest", needsInput: true, sessionID: "slow")
+        let line = try #require(HookSocket.encode(.hook, message.userInfo))
+        #expect(Self.sendRaw(line, to: url, after: 0.05), "the app must still be there to take the line 50 ms in")
+        #expect(seen.delivered.wait(timeout: .now() + 2) == .success, "a 50 ms pause inside a 1 s budget must not lose the line")
+        #expect(seen.messages == [.hook(message)])
+    }
+
+    @Test func fiveHundredBackToBackSendsAllArrive() throws {
+        // What a swarm of subagents does to the socket: one command after another, each connecting, writing and
+        // waiting to be hung up on. Every one must be delivered; the race that dropped one in a few thousand was
+        // the app's first read landing before the peer's write.
+        let url = Self.scratch("burst")
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let seen = Seen()
+        let listener = Self.listener(at: url, verdict: .accepted, seen: seen)
+        #expect(listener.start())
+        defer { listener.stop() }
+
+        let total = 500
+        let payload = Hook.Message(event: "SubagentStop", needsInput: false, sessionID: "swarm").userInfo
+        var sent = 0
+        for _ in 0..<total where HookSocket.send(.hook, payload, to: url.path) == .sent { sent += 1 }
+        #expect(sent == total, "every command must see the app hang up on it")
+        let delivered = Self.count(seen.delivered, upTo: total)
+        #expect(delivered == total, "delivered \(delivered) of \(total)")
+    }
+
+    @Test func aConnectRefusedByAFullBacklogIsRetriedWithinTheBudget() throws {
+        // The kernel refuses a connect that finds the accept queue full with ECONNREFUSED, the errno of a socket
+        // nobody holds. The app's acceptor drains its queue in microseconds, so the command tries again after a
+        // pause rather than reading a busy app as an absent one and dropping the line. A raw listener with a
+        // backlog of one, filled and then drained after a moment, is that situation held still.
+        let url = Self.scratch("backlog")
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let listenFD = socket(AF_UNIX, SOCK_STREAM, 0)
+        try #require(listenFD >= 0)
+        defer { close(listenFD) }
+        var address = Self.address(of: url)
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(listenFD, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+        }
+        try #require(bound == 0)
+        try #require(listen(listenFD, 1) == 0)
+
+        // Fill the backlog: connect until the kernel says no. Each filler half-closes at once so the drain below
+        // reads its end of file rather than waiting on it.
+        var fillers: [Int32] = []
+        defer { fillers.forEach { close($0) } }
+        var refused = false
+        for _ in 0..<8 where !refused {
+            let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+            try #require(fd >= 0)
+            let connected = withUnsafePointer(to: &address) {
+                $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+            }
+            if connected == 0 {
+                shutdown(fd, SHUT_WR)
+                fillers.append(fd)
+            } else {
+                refused = errno == ECONNREFUSED
+                close(fd)
+            }
+        }
+        try #require(refused, "the kernel must refuse the connect that finds the backlog full, or this proves nothing")
+
+        // The acceptor: after 10 ms it takes every connection, reads it to its end and hangs up, as the app does.
+        let stop = OSAllocatedUnfairLock(initialState: false)
+        let drained = DispatchSemaphore(value: 0)
+        Thread.detachNewThread {
+            usleep(10_000)
+            var waiting = pollfd(fd: listenFD, events: Int16(POLLIN), revents: 0)
+            var scratch = [UInt8](repeating: 0, count: 256)
+            while !stop.withLock({ $0 }) {
+                guard poll(&waiting, 1, 20) > 0 else { continue }
+                let client = accept(listenFD, nil, nil)
+                guard client >= 0 else { continue }
+                while read(client, &scratch, scratch.count) > 0 {}
+                close(client)
+            }
+            drained.signal()
+        }
+        defer {
+            stop.withLock { $0 = true }
+            drained.wait()
+        }
+
+        let started = Date()
+        let result = HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false).userInfo, to: url.path)
+        #expect(result == .sent, "a refusal from a full backlog is a reason to try again, not a missing app")
+        #expect(Date().timeIntervalSince(started) < 1)
+    }
+
+    @Test func aHundredPeersConnectingAtOnceAreAllTaken() throws {
+        // The listener asks the kernel for its whole backlog, 128 on macOS. A hundred connects landing in the same
+        // instant, before the accept loop has had a turn, all sit in the queue; with the sixteen the first cut
+        // asked for, the seventeenth was refused and its command read that as no app.
+        let url = Self.scratch("crowd")
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let seen = Seen()
+        let listener = Self.listener(at: url, verdict: .accepted, seen: seen)
+        #expect(listener.start())
+        defer { listener.stop() }
+
+        let total = 100
+        let line = try #require(HookSocket.encode(.hook, Hook.Message(event: "Stop", needsInput: false, sessionID: "crowd").userInfo))
+        let go = DispatchSemaphore(value: 0)
+        let refusals = OSAllocatedUnfairLock(initialState: 0)
+        let finished = DispatchGroup()
+        for _ in 0..<total {
+            finished.enter()
+            Thread.detachNewThread {
+                defer { finished.leave() }
+                go.wait()
+                if !Self.sendRaw(line, to: url, after: 0) { refusals.withLock { $0 += 1 } }
+            }
+        }
+        for _ in 0..<total { go.signal() }
+        #expect(finished.wait(timeout: .now() + 5) == .success)
+        #expect(refusals.withLock { $0 } == 0, "no connect in the crowd may be refused")
+        let delivered = Self.count(seen.delivered, upTo: total)
+        #expect(delivered == total, "delivered \(delivered) of \(total)")
+    }
+
+    /// How many of `total` deliveries the semaphore reports, giving up at the first that is two seconds late
+    /// rather than waiting that long for each one missing.
+    static func count(_ delivered: DispatchSemaphore, upTo total: Int) -> Int {
+        var seen = 0
+        while seen < total, delivered.wait(timeout: .now() + 2) == .success { seen += 1 }
+        return seen
     }
 
     @Test func aStaleSocketFileIsReplacedAtStartAndRemovedAtStop() throws {
@@ -210,11 +365,8 @@ import os
         }
     }
 
-    /// Binds a socket at `url` and closes it without unlinking, which is the file a crash leaves behind.
-    static func leaveStaleSocket(at url: URL) throws {
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        try #require(fd >= 0)
+    /// An address for `url`, whose path the suite keeps short enough for `sun_path`.
+    static func address(of url: URL) -> sockaddr_un {
         var address = sockaddr_un()
         address.sun_family = sa_family_t(AF_UNIX)
         let capacity = MemoryLayout.size(ofValue: address.sun_path)
@@ -223,6 +375,38 @@ import os
                 _ = url.path.withCString { strlcpy(buffer, $0, capacity) }
             }
         }
+        return address
+    }
+
+    /// The command's side of the hop, done by hand and without its hurry: connects, waits `delay`, then writes
+    /// `line`, half-closes and waits for the hang-up. False when the connect was refused or the line did not all
+    /// go out. SO_NOSIGPIPE as the command sets it, so a listener that hung up early fails the test rather than
+    /// killing the process.
+    static func sendRaw(_ line: Data, to url: URL, after delay: TimeInterval) -> Bool {
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return false }
+        defer { close(fd) }
+        var on: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+        var address = address(of: url)
+        let connected = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+        }
+        guard connected == 0 else { return false }
+        if delay > 0 { Thread.sleep(forTimeInterval: delay) }
+        let written = line.withUnsafeBytes { write(fd, $0.baseAddress!, line.count) }
+        shutdown(fd, SHUT_WR)
+        var scratch = [UInt8](repeating: 0, count: 64)
+        while read(fd, &scratch, scratch.count) > 0 {}
+        return written == line.count
+    }
+
+    /// Binds a socket at `url` and closes it without unlinking, which is the file a crash leaves behind.
+    static func leaveStaleSocket(at url: URL) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        try #require(fd >= 0)
+        var address = Self.address(of: url)
         let bound = withUnsafePointer(to: &address) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
         }
