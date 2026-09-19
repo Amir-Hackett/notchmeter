@@ -11,6 +11,34 @@ enum PowerSource {
     static func lowPowerMode() -> Bool {
         ProcessInfo.processInfo.isLowPowerModeEnabled
     }
+
+    /// Calls `handler` on the main run loop each time the Mac moves between mains and battery. `onBattery()` is a
+    /// snapshot, and for a long time the only thing taking one was the store's minute tick, which the polling
+    /// policy parks while the display sleeps or the screen is locked. Those are exactly the states an unattended
+    /// run sits in, so the charger came out and nothing noticed until somebody woke the display, and the awake
+    /// assertion the store holds from that snapshot held the Mac out of idle sleep on battery against the user's
+    /// own setting (and symmetrically let it sleep mid-run once plugged back in). IOKit's limited-power
+    /// notification fires only on the mains/battery transition, not on every percent the battery gains or loses
+    /// as `IOPSNotificationCreateRunLoopSource` does, so the handler runs a handful of times a day. The source is
+    /// scheduled on the main run loop for the life of the process, like the workspace observers beside it, and the
+    /// handler box is retained for the same span; nil means IOKit refused, which leaves the tick as the only reader.
+    static func observeTransitions(_ handler: @escaping () -> Void) -> CFRunLoopSource? {
+        let box = Unmanaged.passRetained(Handler(handler)).toOpaque()
+        guard let source = IOPSCreateLimitedPowerNotification({ context in
+            guard let context else { return }
+            Unmanaged<Handler>.fromOpaque(context).takeUnretainedValue().run()
+        }, box)?.takeRetainedValue() else {
+            Unmanaged<Handler>.fromOpaque(box).release()
+            return nil
+        }
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .defaultMode)
+        return source
+    }
+
+    private final class Handler {
+        let run: () -> Void
+        init(_ run: @escaping () -> Void) { self.run = run }
+    }
 }
 
 /// When each tool last touched its files, sampled with a few directory listings rather than a scan: Claude Code's
