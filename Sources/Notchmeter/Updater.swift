@@ -8,8 +8,12 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "upd
 /// Sparkle, started only for a build that could actually take an update. Three facts about the running bundle decide
 /// it: Info.plist names an https feed (SUFeedURL); Info.plist carries a real EdDSA public key (SUPublicEDKey decodes
 /// to 32 bytes, which the REPLACE_WITH_SPARKLE_PUBLIC_KEY placeholder in scripts/Info.plist does not); and the code
-/// signature names a certificate. The ad-hoc signature scripts/build.sh applies names none, and Sparkle could not
-/// install over it anyway, so a local build never starts the updater and never sees one of its alerts.
+/// signature is a Developer ID one, the identity scripts/release.sh signs with and the only one Sparkle could install
+/// a released build over. Naming any certificate is deliberately not enough: scripts/build.sh prefers the self-signed
+/// "Notchmeter Local" identity from scripts/signing-identity.sh over ad-hoc signing (since 2026-09-03), and until
+/// 0.5.0 that identity opened the gate, so a developer's own build polled the public appcast with a non-numeric
+/// CFBundleVersion and could be offered a release it could never install over its local signature. A local build,
+/// self-signed or ad hoc, therefore never starts the updater and never sees one of its alerts.
 /// Settings › Updates binds the automatic check and download switches and the beta channel to it.
 @MainActor
 final class Updater {
@@ -17,14 +21,14 @@ final class Updater {
         case active
         case noFeed
         case noPublicKey
-        case adHocSignature
+        case unsignedForDistribution
 
         var summary: String {
             switch self {
             case .active: "active"
             case .noFeed: "inactive: SUFeedURL is not an https URL"
             case .noPublicKey: "inactive: SUPublicEDKey is not a 32-byte EdDSA key"
-            case .adHocSignature: "inactive: the code signature names no certificate"
+            case .unsignedForDistribution: "inactive: not signed with Developer ID"
             }
         }
     }
@@ -32,13 +36,13 @@ final class Updater {
     nonisolated static func gate(feed: String?, publicKey: String?, signedWithCertificate: Bool) -> Gate {
         guard let feed, let url = URL(string: feed), url.scheme == "https", url.host != nil else { return .noFeed }
         guard let publicKey, let key = Data(base64Encoded: publicKey), key.count == 32 else { return .noPublicKey }
-        return signedWithCertificate ? .active : .adHocSignature
+        return signedWithCertificate ? .active : .unsignedForDistribution
     }
 
     nonisolated static func gate(bundle: Bundle = .main) -> Gate {
         gate(feed: bundle.object(forInfoDictionaryKey: "SUFeedURL") as? String,
              publicKey: bundle.object(forInfoDictionaryKey: "SUPublicEDKey") as? String,
-             signedWithCertificate: CodeSignature.runningCodeNamesCertificate())
+             signedWithCertificate: CodeSignature.runningCodeIsDeveloperIDSigned())
     }
 
     /// Nil unless the gate is open; nothing of Sparkle's is touched before then. `session` is told when Sparkle
@@ -141,14 +145,19 @@ final class ChannelDelegate: NSObject, SPUUpdaterDelegate {
 
 /// What the running code's signature says about where it came from.
 enum CodeSignature {
-    /// True when the signature carries a certificate chain (Developer ID, Apple Development, …); false for the ad-hoc
-    /// signature that `codesign --sign -` and the linker apply, and for unsigned code.
-    static func runningCodeNamesCertificate() -> Bool {
-        var code: SecCode?
-        guard SecCodeCopySelf([], &code) == errSecSuccess, let code else { return false }
-        var staticCode: SecStaticCode?
-        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return false }
-        return namesCertificate(staticCode)
+    /// True only when the running code carries a Developer ID leaf: the identity scripts/release.sh signs with, and
+    /// the only signature Sparkle could install a released build over. The self-signed "Notchmeter Local" identity
+    /// scripts/build.sh prefers does name a certificate, but is not one of these, so a local build stays outside the
+    /// updater gate; an Apple Development build is excluded for the same reason. The leaf's common name is the
+    /// discriminator rather than the Team ID, because a Team ID alone would admit any Apple Development build.
+    static func runningCodeIsDeveloperIDSigned() -> Bool {
+        isDeveloperID(runningIdentity())
+    }
+
+    /// The rule behind `runningCodeIsDeveloperIDSigned`, over the string `runningIdentity` produces, so it can be
+    /// tested without a Developer ID-signed host. A `cdhash:` identity (ad hoc) and nil (unreadable code) both fail.
+    static func isDeveloperID(_ identity: String?) -> Bool {
+        identity?.hasPrefix("certificate:Developer ID Application:") ?? false
     }
 
     /// What macOS ties a privacy grant to. Code signed with a certificate is pinned to the certificate, so every
