@@ -219,10 +219,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self, case .stale = self.autoSide.trust else { return false }
             return true
         }
-        actions.fixAccessibility = { [weak self] in self?.offerAccessibilityReset() }
+        actions.fixAccessibility = { [weak self] in
+            guard let self else { return }
+            self.offerAccessibilityReset(replaced: self.accessibilityEntryWasReplaced)
+        }
         actions.chooseCompactSide = { [weak self] side in
-            guard let self, case .stale = self.autoSide.sideChosen(side) else { return }
-            self.offerAccessibilityReset()
+            guard let self, case .stale(_, let replaced) = self.autoSide.sideChosen(side) else { return }
+            self.offerAccessibilityReset(replaced: replaced)
         }
         requests.rootsChanged = { [weak self] in self?.store.reloadRoots() }
         requests.menuBarChanged = { [weak self] in self?.applyMenuBarItem() }
@@ -240,16 +243,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         autoSide.refresh()
         // `--stale-sim` shows the stale-entry alert on a copy whose permission is in perfect order. Rehearsing it
         // otherwise means revoking a real Accessibility grant, which costs the tester the very minutes the alert
-        // exists to save, and the alert is copy a person has to read to judge.
-        if arguments.contains("--stale-sim") {
+        // exists to save, and the alert is copy a person has to read to judge. It shows the replaced-copy wording;
+        // `--stale-sim same` shows the same-copy one (the 2026-09-19 case, or a switch turned off by hand).
+        if let at = arguments.firstIndex(of: "--stale-sim") {
+            let replaced = arguments.dropFirst(at + 1).first != "same"
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1))
-                self.offerAccessibilityReset(simulated: true)
+                self.offerAccessibilityReset(replaced: replaced, simulated: true)
             }
-        } else if !CommandLine.arguments.contains("--smoke"), case .stale = autoSide.askAgainIfAutoIsStranded() {
+        } else if !CommandLine.arguments.contains("--smoke"), case .stale(_, let replaced)? = autoSide.askAgainIfAutoIsStranded() {
+            // Nil is a launch that asked nothing: a fixed side, a grant that holds, or a copy that has had its one
+            // offer already (MenuBarExtent.asksAtLaunch). Only a launch that asked shows the alert.
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1))
-                self.offerAccessibilityReset()
+                self.offerAccessibilityReset(replaced: replaced)
             }
         }
         applyPrivacy()
@@ -438,14 +445,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Oracle.shared.emit("updateSession", ["action": shown ? "shown" : "hidden"])
     }
 
-    /// The Accessibility entry macOS keeps for a copy of Notchmeter that is no longer the one running: the switch
-    /// in Privacy & Security is on, Auto is refused all the same, and the system's own prompt leads straight to
-    /// that switch. Nothing but clearing the entry fixes it, and the grant is only re-read at launch, so the offer
-    /// is to clear it and restart — the same two commands as by hand, and the ordinary prompt on the way back up.
-    func offerAccessibilityReset(simulated: Bool = false) {
+    /// Whether the entry Accessibility is refusing was recorded under a signature other than the one running, for
+    /// the Repair button in Settings, which sees only that the entry is stale (`actions.accessibilityIsStale`).
+    /// False when nothing is stale, which the button never is while it shows.
+    private var accessibilityEntryWasReplaced: Bool {
+        guard case .stale(_, let replaced) = autoSide.trust else { return false }
+        return replaced
+    }
+
+    /// An Accessibility entry macOS keeps for Notchmeter that no longer applies to the copy running: Auto is
+    /// refused, and the system's own prompt leads straight to a switch in Privacy & Security. Two stories end
+    /// there, and the alert tells the one the code can stand behind (`MenuBarExtent.Trust.stale(replaced:)`). A
+    /// replaced copy — a rebuild, a build swapped for a release — leaves the switch on for a copy that is gone, and
+    /// nothing but clearing the entry fixes it. The same copy refused is either the entry stopping to apply on its
+    /// own, with the switch still on (the 2026-09-19 recording), or the switch turned off by hand; the app cannot
+    /// tell those apart, so that wording names turning the switch on as the first thing to try and clearing as the
+    /// second. Until 0.5.0 every path here asserted a replaced copy with the switch on, which was true by
+    /// construction while only a changed signature counted as stale, and false for the users 0.5.0 let through. The
+    /// grant is only re-read at launch, so the offer is to clear it and restart — the same two commands as by hand,
+    /// and the ordinary prompt on the way back up.
+    func offerAccessibilityReset(replaced: Bool, simulated: Bool = false) {
         let alert = NSAlert()
-        alert.messageText = L("%@'s Accessibility permission belongs to an older copy", AppInfo.name)
-        alert.informativeText = L("macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do.", AppInfo.name)
+        if replaced {
+            alert.messageText = L("%@'s Accessibility permission belongs to an older copy", AppInfo.name)
+            alert.informativeText = L("macOS ties the permission to the exact copy it was granted to, and this copy replaced that one. Privacy & Security › Accessibility still shows the switch on, but it no longer applies, and only clearing the entry brings it back. %@ can clear it and restart; you are asked to switch it on once more, and Auto keeps to the side it has until you do.", AppInfo.name)
+        } else {
+            alert.messageText = L("%@'s Accessibility permission has stopped applying", AppInfo.name)
+            alert.informativeText = L("macOS is refusing the Accessibility permission it once granted this very copy. If the switch in Privacy & Security › Accessibility is off, turning it on is enough. If it is on and Auto still does not measure, the entry behind it has stopped applying and only clearing it brings it back: %@ can clear it and restart, you are asked to switch it on once more, and Auto keeps to the side it has until you do.", AppInfo.name)
+        }
         alert.addButton(withTitle: L("Clear and Restart"))
         alert.addButton(withTitle: L("Open Accessibility Settings"))
         alert.addButton(withTitle: L("Not Now"))
@@ -459,7 +486,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings?.standAside(false)
         dashboard?.standAside(false)
         hold(.alert, false)
-        Oracle.shared.emit("accessibility", ["action": "staleEntry", "answer": response.rawValue, "simulated": simulated])
+        Oracle.shared.emit("accessibility", ["action": "staleEntry", "answer": response.rawValue, "replaced": replaced, "simulated": simulated])
         if simulated {
             Probe.emit("stale-sim: answered \(response.rawValue); the entry itself is left alone")
             return

@@ -20,7 +20,8 @@ final class NotchActions {
     var open: (URL) -> Void = { NSWorkspace.shared.open($0) }
     /// Nil while the updater is inactive (see Updater); the Options menu offers "Check for Updates…" only when set.
     var checkForUpdates: (() -> Void)?
-    /// Whether Accessibility is refused because the grant belongs to an older copy of the app (MenuBarExtent.Trust).
+    /// Whether Accessibility is refusing a grant this app once held (MenuBarExtent.Trust.stale), whether the copy
+    /// was replaced or the entry stopped applying to this one.
     var accessibilityIsStale: () -> Bool = { false }
     /// Offers to clear that entry and restart; Settings shows it instead of a link to a pane that looks correct.
     var fixAccessibility: () -> Void = {}

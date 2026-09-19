@@ -474,13 +474,15 @@ struct SettingsView: View {
             }
             if prefs.compactSide == .auto, !accessibilityTrusted {
                 // A stale entry is not the same problem and does not have the same answer: the pane the other
-                // button opens shows the switch already on, and turning it off and on is what has to happen.
+                // button opens may show the switch on (a replaced copy, or an entry that stopped applying) or off
+                // (turned off by hand), and the alert the action puts up tells whichever story the code can stand
+                // behind. This help sees neither, so it is worded for both.
                 if actions.accessibilityIsStale() {
                     Button(L("Repair the Accessibility permission…")) {
                         actions.fixAccessibility()
                         accessibilityTrusted = MenuBarExtent.isTrusted
                     }
-                    .help(L("The permission belongs to an older copy: macOS ties it to the copy it was granted to and leaves the switch on when that copy is replaced. Clearing the entry and restarting is the way back."))
+                    .help(L("Accessibility is refusing a permission it once granted this app: macOS ties it to the exact copy it was granted to, and a replaced copy or an entry that stopped applying leaves the switch on with the permission gone. If the switch is off, turning it on is enough; otherwise clearing the entry and restarting is the way back."))
                 } else {
                     Button(L("Open Accessibility settings…")) {
                         MenuBarExtent.openSettings()
