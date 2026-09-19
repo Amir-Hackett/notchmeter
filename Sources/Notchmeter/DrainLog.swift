@@ -53,6 +53,15 @@ struct DrainLog: Sendable {
     let url: URL
     static let keepFor: TimeInterval = 7 * 86400
     static let compactAbove = 20_000
+    /// How long a file may go between compactions while the app stays up. Until 0.6.0 the only compaction ran in
+    /// `load`, at launch, so a Mac that stayed up for weeks grew the file past the seven days it keeps until the
+    /// next relaunch, and a launch after a long run then paid for the whole backlog at once. The append path now
+    /// compacts once a day as well: the compaction rewrites the file, so it must stay rare, and one rewrite a day
+    /// bounds the file at eight days of rows, which is the cheapest cadence that never lets it drift. The marker
+    /// is the file's own creation date rather than anything held in memory: an atomic write swaps a fresh inode in
+    /// under the path, so the birth time is the moment of the last rewrite (or of the first row), an ordinary
+    /// append leaves it alone, and it survives a relaunch and needs no state a second process could not see.
+    static let compactEvery: TimeInterval = 86400
 
     /// Every touch of the file goes through this one serial queue. The store appends from the main actor while
     /// `load` runs on a detached task at launch, and `load` rewrites the whole file with an atomic write once it
@@ -110,16 +119,48 @@ struct DrainLog: Sendable {
         }
         guard !data.isEmpty else { return }
         Self.io.async { [url, data] in
-            let fm = FileManager.default
-            try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            if let handle = try? FileHandle(forWritingTo: url) {
-                _ = try? handle.seekToEnd()
-                try? handle.write(contentsOf: data)
-                try? handle.close()
-            } else {
-                try? data.write(to: url, options: .atomic)
-            }
+            Self.write(data, to: url)
+            Self.compactIfDue(at: url, now: now)
         }
+    }
+
+    /// Appends the encoded rows to the file, creating the directory and the file when they are not there yet.
+    /// Runs on `io` only.
+    private static func write(_ data: Data, to url: URL) {
+        let fm = FileManager.default
+        try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if let handle = try? FileHandle(forWritingTo: url) {
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+
+    /// Rewrites the file without the rows past the keep window when its last rewrite is `compactEvery` or more
+    /// behind `now`; the file's creation date is that marker (see `compactEvery`). Runs on `io` only, after an
+    /// append, so it never touches the main actor and the read-and-rewrite is serialised against the appends the
+    /// way the launch compaction is. A file whose birth time cannot be read is left alone rather than rewritten
+    /// on every append.
+    private static func compactIfDue(at url: URL, now: Date) {
+        guard let born = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.creationDate] as? Date,
+              now.timeIntervalSince(born) >= compactEvery,
+              let data = try? Data(contentsOf: url) else { return }
+        try? compacted(data, now: now).write(to: url, options: .atomic)
+    }
+
+    /// Waits until every append enqueued so far is on disk, or until `bound` passes, and says which. The appends
+    /// are asynchronous on `io` (see there), and GCD does not run a queue's pending blocks when the process exits,
+    /// so a row enqueued in the last milliseconds before quit -- the reading a poll adopted as the user pressed
+    /// ⌘Q -- was lost until 0.6.0. `applicationWillTerminate` calls this once. The bound keeps a quit from hanging
+    /// behind a compaction that has only just started; a compaction lost to the bound costs nothing, since the
+    /// next one redoes the same work, and a row lost to it is the same row that was lost every time before.
+    @discardableResult
+    static func flush(within bound: TimeInterval = 2) -> Bool {
+        let drained = DispatchSemaphore(value: 0)
+        io.async { drained.signal() }
+        return drained.wait(timeout: .now() + bound) == .success
     }
 
     /// Appends the moment extra-usage credits rose, with the plan windows' figures beside it, so the user keeps a
@@ -132,15 +173,7 @@ struct DrainLog: Sendable {
         line.plan = plan
         guard let encoded = try? Self.encoder.encode(line) else { return }
         Self.io.async { [url, encoded] in
-            let fm = FileManager.default
-            try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            if let handle = try? FileHandle(forWritingTo: url) {
-                _ = try? handle.seekToEnd()
-                try? handle.write(contentsOf: encoded + Data([0x0A]))
-                try? handle.close()
-            } else {
-                try? (encoded + Data([0x0A])).write(to: url, options: .atomic)
-            }
+            Self.write(encoded + Data([0x0A]), to: url)
         }
     }
 
@@ -158,36 +191,44 @@ struct DrainLog: Sendable {
     }
 
     /// Everything within the keep window, oldest first per window; rows older than that are dropped from the file
-    /// once it has grown past a few thousand lines.
+    /// once it has grown past a few thousand lines (and once a day while the app stays up: `compactEvery`).
     func load(now: Date = Date()) -> [Key: [DrainSample]] {
         Self.io.sync {
             guard let data = try? Data(contentsOf: url) else { return [:] }
             let samples = Self.parse(data, now: now)
             let lines = data.split(separator: 0x0A).count
             if lines > Self.compactAbove {
-                var whole = Data()
-                for extra in Self.parseExtraUsage(data) {
-                    var line = Line(t: extra.t, tool: ToolID.claude.rawValue, window: "extra_usage", used: extra.previousUSD ?? 0, resetsAt: nil)
-                    line.kind = "extra"
-                    line.amount = extra.amountUSD
-                    line.plan = extra.planWindows
-                    if let encoded = try? Self.encoder.encode(line) {
-                        whole.append(encoded)
-                        whole.append(0x0A)
-                    }
-                }
-                for (key, rows) in samples {
-                    for sample in rows {
-                        if let encoded = try? Self.encoder.encode(Line(t: sample.t, tool: key.tool.rawValue, window: key.window, used: sample.used, resetsAt: sample.resetsAt)) {
-                            whole.append(encoded)
-                            whole.append(0x0A)
-                        }
-                    }
-                }
-                try? whole.write(to: url, options: .atomic)
+                try? Self.compacted(data, now: now).write(to: url, options: .atomic)
             }
             return samples
         }
+    }
+
+    /// The file's content with every utilization row older than the keep window dropped: the extra-usage
+    /// transitions first, every one of them (the record of when real money flowed is kept whole), then each
+    /// window's surviving rows oldest first. Pure, so the launch compaction and the daily one share it and a test
+    /// can pin what survives.
+    static func compacted(_ data: Data, now: Date) -> Data {
+        var whole = Data()
+        for extra in parseExtraUsage(data) {
+            var line = Line(t: extra.t, tool: ToolID.claude.rawValue, window: "extra_usage", used: extra.previousUSD ?? 0, resetsAt: nil)
+            line.kind = "extra"
+            line.amount = extra.amountUSD
+            line.plan = extra.planWindows
+            if let encoded = try? encoder.encode(line) {
+                whole.append(encoded)
+                whole.append(0x0A)
+            }
+        }
+        for (key, rows) in parse(data, now: now) {
+            for sample in rows {
+                if let encoded = try? encoder.encode(Line(t: sample.t, tool: key.tool.rawValue, window: key.window, used: sample.used, resetsAt: sample.resetsAt)) {
+                    whole.append(encoded)
+                    whole.append(0x0A)
+                }
+            }
+        }
+        return whole
     }
 
     /// The file's rows folded into the samples the store recorded while the file was being read. `load` runs on a
