@@ -58,9 +58,15 @@ struct DrainLog: Sendable {
     /// `load` runs on a detached task at launch, and `load` rewrites the whole file with an atomic write once it
     /// has grown past `compactAbove`: an atomic write swaps a fresh inode in under the path, so an append that had
     /// already opened a handle and sought to the end of the old file wrote its row into an inode nothing pointed
-    /// at any more, and the row was gone. Serialising the read-and-rewrite against the appends is the whole fix;
-    /// nothing here holds the queue long enough for a caller to feel it.
-    private static let io = DispatchQueue(label: "com.notchmeter.drainlog")
+    /// at any more, and the row was gone. Serialising the read-and-rewrite against the appends is the whole fix.
+    /// The appends are enqueued asynchronously, though, because `load` does hold the queue long enough to feel:
+    /// compacting a file past `compactAbove` parses it twice, re-encodes every kept row and rewrites it, about
+    /// 100 ms at 20 000 lines and more after a long run, and it does so at launch, when the status line adopts its
+    /// first reading on the main actor before the file is back. A synchronous append there froze the notch, the
+    /// rings and the menu bar item for the whole compaction. The reads stay synchronous, so a `load` queued after
+    /// an append still sees the row. Internal rather than private so a test can occupy the queue and check that
+    /// an append does not wait behind it.
+    static let io = DispatchQueue(label: "com.notchmeter.drainlog")
 
     init(url: URL = Paths.applicationSupport.appendingPathComponent("drain-log-v1.jsonl")) {
         self.url = url
@@ -103,7 +109,7 @@ struct DrainLog: Sendable {
             data.append(0x0A)
         }
         guard !data.isEmpty else { return }
-        Self.io.sync {
+        Self.io.async { [url, data] in
             let fm = FileManager.default
             try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             if let handle = try? FileHandle(forWritingTo: url) {
@@ -125,7 +131,7 @@ struct DrainLog: Sendable {
         line.amount = amountUSD
         line.plan = plan
         guard let encoded = try? Self.encoder.encode(line) else { return }
-        Self.io.sync {
+        Self.io.async { [url, encoded] in
             let fm = FileManager.default
             try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             if let handle = try? FileHandle(forWritingTo: url) {

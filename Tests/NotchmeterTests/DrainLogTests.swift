@@ -82,6 +82,31 @@ import Testing
         #expect(text.split(separator: "\n").count == 3)
     }
 
+    /// The appends are enqueued, not waited for. `load` holds the queue for the whole compaction at launch, and the
+    /// status line adopts its first reading on the main actor before the file is back, so a synchronous append
+    /// there froze the notch, the rings and the menu bar item until the rewrite finished (0.5.0). A held block
+    /// stands in for the compaction here: the append must come back while the queue is still occupied, and the row
+    /// must be on file once it is free, since the reads stay behind the appends.
+    @Test func anAppendDoesNotWaitBehindTheQueue() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-drain-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let log = DrainLog(url: dir.appendingPathComponent("drain.jsonl"))
+        let reading = UsageReading(tool: .claude, windows: [
+            LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.2, resetsAt: nil, periodDuration: Period.fiveHours),
+        ], plan: nil, fetchedAt: now, observedAt: nil)
+
+        let gate = DispatchSemaphore(value: 0)
+        DrainLog.io.async { gate.wait() }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 1) { gate.signal() }
+        let began = Date()
+        log.append(reading, previous: [:], now: now)
+        let waited = Date().timeIntervalSince(began)
+        #expect(waited < 0.5, "the append waited \(waited)s for the queue")
+
+        let loaded = log.load(now: now)
+        #expect(loaded[DrainLog.Key(tool: .claude, window: "five_hour")]?.map(\.used) == [0.2])
+    }
+
     /// The wiring rather than the file format. The log skips a window that has not moved since its last row, so the
     /// store must hand it the samples as they stood *before* the reading being recorded. Handing over the dictionary
     /// it had just written to made every window its own predecessor: every row was skipped as unchanged, the file
