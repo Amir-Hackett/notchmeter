@@ -83,6 +83,40 @@ import Testing
         }
     }
 
+    /// The ring pickers reveal a hidden pick the same way: choosing the second window for the inner ring while
+    /// the floor is showing the first keeps the first on the card and in the outer ring, rather than revealing
+    /// the pick alone and letting the stored "hidden" take the floored window with it.
+    @Test func choosingAHiddenWindowForARingKeepsTheFlooredOne() {
+        withSuite("ring") { defaults in
+            defaults.set(["claude": ["session", "weekly"]], forKey: "hiddenWindows")
+            let prefs = Preferences(defaults: defaults)
+            prefs.setRingWindow(at: 1, to: "weekly", in: Self.reading)
+            let expected = ["session", "weekly"]
+            let shown = prefs.shownWindows(of: Self.reading).map(\.id)
+            #expect(shown == expected)
+            let rings = prefs.ringWindows(of: Self.reading).map(\.id)
+            #expect(rings == expected)
+            let stored = defaults.dictionary(forKey: "hiddenWindows") as? [String: [String]] ?? [:]
+            #expect(stored.isEmpty)
+        }
+    }
+
+    /// The dashboard lists the same windows the card shows: with every window of the tool hidden in the
+    /// preference, its floored first window has a row rather than the tool having no limits at all.
+    @Test func theDashboardListsTheFlooredWindow() {
+        withSuite("dashboard") { defaults in
+            defaults.set(["claude": ["session", "weekly"]], forKey: "hiddenWindows")
+            let prefs = Preferences(defaults: defaults)
+            let store = UsageStore(prefs: prefs, providers: [FixtureProvider(reading: Self.reading)],
+                                   cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
+            let now = Date()
+            store.seed(readings: [Self.reading], cost: DemoFixtures.cost(now: now), nextUpdate: now.addingTimeInterval(60), now: now)
+            let expected = ["session"]
+            let listed = DashboardLimit.all(store: store, now: now).map(\.window.id)
+            #expect(listed == expected)
+        }
+    }
+
     @Test func hidingAllButOneThroughTheReadingLeavesThatOne() {
         withSuite("last") { defaults in
             let prefs = Preferences(defaults: defaults)

@@ -1127,6 +1127,24 @@ final class Preferences {
         return RingSelection.windows(of: reading, chosen: ringWindows[reading.tool] ?? [], hidden: Set(reading.windows.map(\.id)).subtracting(shown))
     }
 
+    /// A ring picker's write: `id` for the ring at `index` (outermost first), "" for none. Choosing a window for a
+    /// ring asks to see it: a hidden one would be filtered out of the rings and the picker would snap back to what
+    /// it showed before, with no word about the Hide box behind it. The reveal goes through the reading like the
+    /// Hide checkbox does (`setHidden(_:window:in:)`), not the raw preference: with a pre-0.6.0 dictionary that
+    /// hides every window, the floor is showing the first one, and a raw reveal of the pick would leave that
+    /// stored "hidden" in force, so the floored window dropped off the card and the outer ring snapped onto the
+    /// pick, as if the choice had landed on the wrong ring. Emptying a ring closes the gap: the rings are drawn
+    /// outermost first, so a chosen third with no second would otherwise be stored as a second anyway.
+    func setRingWindow(at index: Int, to id: String, in reading: UsageReading) {
+        if let window = reading.windows.first(where: { $0.id == id }), isHidden(window, of: reading.tool) {
+            setHidden(false, window: window, in: reading)
+        }
+        let ring = ringWindows(of: reading)
+        var ids = (0..<RingSelection.maximum).map { ring.indices.contains($0) ? ring[$0].id : "" }
+        ids[index] = id
+        ringWindows[reading.tool] = ids.filter { !$0.isEmpty }
+    }
+
     func resetLine(for window: LimitWindow, stale: Bool = false, now: Date = Date()) -> String {
         ResetText.line(resetsAt: window.resetsAt, hasLimit: window.usedFraction != nil, display: resetDisplay, timeFormat: timeFormat,
                        stale: stale, unused: window.usedFraction == 0, now: now)
