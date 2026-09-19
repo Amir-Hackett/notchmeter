@@ -137,13 +137,17 @@ import Testing
     }
 
     /// The 2026-09-19 recording, end to end: Auto chosen, the grant recorded under this very signature, and macOS
-    /// refusing it. The first launch reports the stale entry for the alert and writes the marker, since the alert
-    /// is this copy's ask; the next launch finds the marker and offers nothing, which is what "Not Now" has to
-    /// mean. The first cut of 0.5.0 wrote the marker for the system prompt alone, so this returned `.stale` on
-    /// every launch and the alert came back each time.
+    /// refusing it. The first launch reports the stale entry for the alert; the alert, as it goes up, writes the
+    /// marker (`rememberAsked` stands in for it here), since the alert is this copy's ask; the next launch finds the
+    /// marker and offers nothing, which is what "Not Now" has to mean. The first cut of 0.5.0 wrote the marker for
+    /// the system prompt alone, so this returned `.stale` on every launch and the alert came back each time; the
+    /// second wrote it at the decision, a second before the alert, so a launch quit in that second lost its offer.
     @Test func theUsersOwnCaseIsOfferedTheAlertOnceAndThenLeftAlone() {
         rehearse("same-copy", grantedTo: signed) { prefs, launch in
-            #expect(launch(false).askAgainIfAutoIsStranded() == .stale(grantedTo: signed, replaced: false))
+            let first = launch(false)
+            #expect(first.askAgainIfAutoIsStranded() == .stale(grantedTo: signed, replaced: false))
+            #expect(prefs.accessibilityAskedFor == nil, "reporting the entry is not yet asking: the alert has not gone up")
+            first.rememberAsked()
             #expect(prefs.accessibilityAskedFor == signed, "the alert is this copy's ask, and is remembered as one")
             #expect(launch(false).askAgainIfAutoIsStranded() == nil, "the next launch offers nothing")
             #expect(prefs.accessibilityGrantedTo == signed, "the entry itself is left alone until Clear and Restart")
@@ -154,7 +158,9 @@ import Testing
     /// alert can say so, and then silence under that signature.
     @Test func aReplacedCopyIsOfferedTheAlertOnceToo() {
         rehearse("replaced", grantedTo: local) { prefs, launch in
-            #expect(launch(false).askAgainIfAutoIsStranded() == .stale(grantedTo: local, replaced: true))
+            let first = launch(false)
+            #expect(first.askAgainIfAutoIsStranded() == .stale(grantedTo: local, replaced: true))
+            first.rememberAsked()
             #expect(prefs.accessibilityAskedFor == signed)
             #expect(launch(false).askAgainIfAutoIsStranded() == nil)
         }
@@ -198,7 +204,9 @@ import Testing
         rehearse("prompted-granted-refused", grantedTo: nil, askedFor: signed) { prefs, launch in
             launch(true).refresh()
             #expect(prefs.accessibilityAskedFor == nil)
-            #expect(launch(false).askAgainIfAutoIsStranded() == .stale(grantedTo: signed, replaced: false))
+            let offered = launch(false)
+            #expect(offered.askAgainIfAutoIsStranded() == .stale(grantedTo: signed, replaced: false))
+            offered.rememberAsked()
             #expect(prefs.accessibilityAskedFor == signed)
             #expect(launch(false).askAgainIfAutoIsStranded() == nil)
         }

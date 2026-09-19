@@ -473,9 +473,11 @@ final class AutoSideWatcher {
     /// The system prompt, for a permission that was never given, and a note of the signature the offer was made
     /// under so the next launch does not make it again (`Preferences.accessibilityAskedFor`). A stale entry gets
     /// no prompt: it leads to a pane whose switch is already on, which is the whole trap — that one is reported for
-    /// the app to explain, and the alert it explains it with is this copy's ask for that entry, so the marker is
-    /// written for it too. The first cut of 0.5.0 wrote it for the prompt alone, and the alert came back on every
-    /// launch.
+    /// the app to explain, and the alert it explains it with is this copy's ask for that entry. That marker is
+    /// written by the alert as it goes up (`rememberAsked`, from AppDelegate.offerAccessibilityReset), not here:
+    /// "asked" has to mean "shown", and between this decision and the alert there is a second's delay in which the
+    /// app can be quit, which would have spent the copy's one offer on an alert nobody saw. The first cut of 0.5.0
+    /// wrote the marker for the prompt alone, and the alert came back on every launch.
     private func ask() -> MenuBarExtent.Trust {
         let trust = self.trust
         switch trust {
@@ -485,9 +487,16 @@ final class AutoSideWatcher {
             MenuBarExtent.requestTrust()
             prefs.accessibilityAskedFor = identity()
         case .stale:
-            prefs.accessibilityAskedFor = identity()
+            break
         }
         return trust
+    }
+
+    /// The repair alert is on screen: this copy has had its offer for the stale entry, and the next launch that
+    /// finds Auto stranded says nothing (`MenuBarExtent.asksAtLaunch`). Called by the alert itself, so an offer
+    /// counts only once it has actually been made; a grant seen holding clears it again (`rememberTrust`).
+    func rememberAsked() {
+        prefs.accessibilityAskedFor = identity()
     }
 
     /// Records the signature the grant is held under while it holds, so a later launch can tell a replaced copy

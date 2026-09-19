@@ -482,6 +482,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings?.standAside(true)
         dashboard?.standAside(true)
         NSApp.activate()
+        // The offer is made here, so it is remembered here (AutoSideWatcher.rememberAsked): a launch that reported
+        // the stale entry but was quit before this line kept its turn. The rehearsal leaves the marker alone.
+        if !simulated { autoSide.rememberAsked() }
         let response = alert.runModal()
         settings?.standAside(false)
         dashboard?.standAside(false)

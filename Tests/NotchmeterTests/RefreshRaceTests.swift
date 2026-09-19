@@ -29,7 +29,7 @@ import Testing
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let timer = Task { await store.refresh(.claude, force: true) }
-        await provider.fetchesBegun(1)
+        #expect(await provider.fetchesBegun(1))
         // A second timer read finds the first in flight and leaves it to finish.
         await store.refresh(.claude, force: true)
         #expect(await provider.interactives == [false])
@@ -40,7 +40,7 @@ import Testing
         #expect(await provider.interactives == [false])
         await provider.release()
         await timer.value
-        await provider.fetchesBegun(2)
+        #expect(await provider.fetchesBegun(2))
         await provider.release()
         await pressed.value
 
@@ -60,7 +60,7 @@ import Testing
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let read = Task { await store.refresh(.cursor, force: true) }
-        await provider.fetchesBegun(1)
+        #expect(await provider.fetchesBegun(1))
         store.setEnabled(.cursor, false)
         #expect(store.status(.cursor) == .off)
         await provider.release()
@@ -82,15 +82,16 @@ import Testing
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let timer = Task { await store.refresh(.cursor, force: true) }
-        await provider.fetchesBegun(1)
+        #expect(await provider.fetchesBegun(1))
         let pressed = Task { await store.refresh(.cursor, force: true, interactive: true) }
         await Task.yield()
         store.setEnabled(.cursor, false)
         await provider.release()
         await timer.value
-        // Bounded, so a store that does start the press's read fails the expectation below rather than parking
-        // that read here for ever.
-        await provider.fetchesBegun(2)
+        // The press must never reach the provider: this wait is expected to give up. Once it has, a read that did
+        // start late passes straight through rather than parking for ever, so `pressed` still finishes.
+        let pressBegan = await provider.fetchesBegun(2)
+        #expect(!pressBegan, "the press's read must not start for a tool switched off while it waited")
         await provider.release()
         await pressed.value
 
@@ -123,17 +124,29 @@ actor ParkedProvider: UsageProvider {
 
     func fetch(interactive: Bool) async throws -> UsageReading {
         interactives.append(interactive)
+        // A read that arrives after the test gave up waiting for it returns at once rather than parking: nothing
+        // will call `release` for it any more, and a continuation nobody resumes is a test that never ends.
+        if abandoned { return reading }
         await withCheckedContinuation { parked.append($0) }
         return reading
     }
 
-    /// Returns once `count` reads have started, so the test can act while one is on the wire. Bounded, so a read
-    /// that never comes fails the expectation after it instead of hanging the run: a store that dropped the read
-    /// would otherwise leave the test waiting for it forever.
-    func fetchesBegun(_ count: Int) async {
+    /// Whether `fetchesBegun` has given up on a read; from then on reads pass straight through (see `fetch`).
+    private var abandoned = false
+
+    /// Returns once `count` reads have started, so the test can act while one is on the wire, and says whether they
+    /// did. Bounded: a read that never comes returns false after a thousand yields instead of hanging the run, and
+    /// from then on any late read passes straight through `fetch` rather than parking where no `release` will reach
+    /// it. The one test that expects a read *not* to start asserts the false; the others assert the true, so a store
+    /// that dropped a read fails at the line that waited for it rather than at some later one.
+    @discardableResult
+    func fetchesBegun(_ count: Int) async -> Bool {
         for _ in 0..<1000 where interactives.count < count {
             await Task.yield()
         }
+        let begun = interactives.count >= count
+        if !begun { abandoned = true }
+        return begun
     }
 
     /// Lets every parked read return its reading.
