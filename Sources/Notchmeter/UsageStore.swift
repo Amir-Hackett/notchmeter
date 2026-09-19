@@ -125,7 +125,7 @@ final class UsageStore {
     @ObservationIgnored private var costEngine: CostEngine
     @ObservationIgnored private var activity: AgentActivity
     @ObservationIgnored private let drainLog: DrainLog?
-    @ObservationIgnored private var drainSamples: [DrainLog.Key: [DrainSample]] = [:]
+    @ObservationIgnored private(set) var drainSamples: [DrainLog.Key: [DrainSample]] = [:]
     @ObservationIgnored private var tick: Task<Void, Never>?
     @ObservationIgnored private var resetTimer: Task<Void, Never>?
     /// Releases a waiting or finished ring the moment its own clock runs out (armSignalRelease).
@@ -716,8 +716,11 @@ final class UsageStore {
         Task.detached(priority: .utility) {
             let samples = log.load(now: now)
             await MainActor.run { [weak self] in
-                self?.drainSamples = samples
-                self?.recomputeDrains(now: now)
+                guard let self else { return }
+                // The loops start the moment this task is spawned, and a reading can be adopted before the file
+                // comes back, so what the store holds by now is not empty: fold the file into it rather than over it.
+                drainSamples = DrainLog.merged(samples, with: drainSamples)
+                recomputeDrains(now: now)
             }
         }
     }
@@ -728,9 +731,21 @@ final class UsageStore {
         // they stood *before* this reading. Handing it the mutated dictionary made every window its own predecessor
         // — nothing ever moved, nothing was ever written, and the file was never created.
         let previous = drainSamples
+        // The same skip applies in memory, so this dictionary stays a mirror of what `load` returns after a relaunch
+        // rather than growing on every poll, and rows past the seven-day keep window leave from the front the way
+        // they leave the file. Nothing downstream looks back further: the drain spans an hour, the sparkline a day,
+        // the run-out estimate a week. Without the trim a month's uptime meant a third of a million samples that
+        // `recomputeDrains` filtered afresh several times a minute.
+        let cutoff = now.addingTimeInterval(-DrainLog.keepFor)
         for window in reading.windows {
             guard let used = window.usedFraction else { continue }
-            drainSamples[DrainLog.Key(tool: reading.tool, window: window.id), default: []].append(DrainSample(t: now, used: used, resetsAt: window.resetsAt))
+            let key = DrainLog.Key(tool: reading.tool, window: window.id)
+            var samples = drainSamples[key] ?? []
+            if DrainLog.moved(samples.last, used: used, resetsAt: window.resetsAt, now: now) {
+                samples.append(DrainSample(t: now, used: used, resetsAt: window.resetsAt))
+            }
+            samples.removeFirst(samples.prefix { $0.t < cutoff }.count)
+            drainSamples[key] = samples
         }
         drainLog?.append(reading, previous: previous, now: now)
         recomputeDrains(now: now)
