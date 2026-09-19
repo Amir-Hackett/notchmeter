@@ -266,9 +266,12 @@ import Testing
         try Data(line("r").utf8).write(to: recent)
         try Data(line("o").utf8).write(to: old)
         try fm.setAttributes([.modificationDate: now.addingTimeInterval(-4 * 3600)], ofItemAtPath: old.path)
-        let superseded = dir.appendingPathComponent("claude-usage-cache-v2.json")
+        let superseded = dir.appendingPathComponent("claude-usage-cache-v3.json")
         try Data("{}".utf8).write(to: superseded)
-        let cacheURL = dir.appendingPathComponent("claude-usage-cache-v3.json")
+        let cacheName = try #require(ClaudeCostScanner.defaultCacheURL()).lastPathComponent
+        let currentCacheName = "claude-usage-cache-v4.json"
+        #expect(cacheName == currentCacheName, "0.6.0 changed the per-project digest, so the version moved on")
+        let cacheURL = dir.appendingPathComponent(cacheName)
         let scanner = ClaudeCostScanner(roots: [dir], cacheURL: cacheURL, history: nil)
         let first = await scanner.scan(now: now)
         #expect(!fm.fileExists(atPath: superseded.path))
