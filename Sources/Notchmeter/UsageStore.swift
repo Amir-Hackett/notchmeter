@@ -473,9 +473,10 @@ final class UsageStore {
             cache.remove(tool)
             // The watched resets went with nothing until 0.6.0, so a tool switched off at 90 % still announced its
             // reset from the thirty-second timer, and one switched back on after the reset announced a period that
-            // had ended while it was off. The clear lives here rather than in `stopLoop`, which `startLoop` calls
-            // on every restart and which must not lose a watch to a wake or a settings change.
-            watchedResets = watchedResets.filter { $0.value.tool != tool }
+            // had ended while it was off. The tool's pace notices go with the watch: the reset that would have
+            // withdrawn them is no longer announced. The drop lives here rather than in `stopLoop`, which
+            // `startLoop` calls on every restart and which must not lose a watch to a wake or a settings change.
+            dropWatches { $0.tool == tool }
         }
     }
 
@@ -848,7 +849,7 @@ final class UsageStore {
     /// the clock past a reset without the thirty-second timer.
     func checkResets(now: Date = Date()) {
         guard prefs.notificationsEnabled else { return }
-        watchedResets = watchedResets.filter { isShown($0.value.tool) }
+        dropWatches { !isShown($0.tool) }
         guard !watchedResets.isEmpty else { return }
         let plan = NotificationScheduler.planResets(memory: alertMemory, watched: Array(watchedResets.values), now: now, options: alertOptions)
         watchedResets = plan.watched.reduce(into: [:]) { $0[AlertMemory.key($1.tool, $1.window)] = $1 }
@@ -858,6 +859,19 @@ final class UsageStore {
         if !passed.isEmpty {
             removeNotifications(passed.flatMap { PaceAlert.identifiers(tool: $0.tool, window: $0.window) })
         }
+    }
+
+    /// Drops every watch that `dropped` selects and takes its period's pace notices down with it. A watch is the
+    /// only thing that withdraws a window's notices (`checkResets`, once the reset has passed), so a watch dropped
+    /// early, for a tool switched off or no longer installed, would otherwise leave a "running out" or "limit hit"
+    /// banner in Notification Center for good: the tool's next period builds identifiers from its own reset and
+    /// never matches the old ones. Until 0.6.0 the withdrawal rode on the reset announcement that a dropped watch
+    /// wrongly kept making; now it happens at the drop, whether or not resets are announced at all.
+    private func dropWatches(where dropped: (WatchedReset) -> Bool) {
+        let gone = watchedResets.values.filter(dropped)
+        guard !gone.isEmpty else { return }
+        watchedResets = watchedResets.filter { !dropped($0.value) }
+        removeNotifications(gone.flatMap { PaceAlert.identifiers(tool: $0.tool, window: $0.window) })
     }
 
     /// Takes down the "is waiting" notices of sessions that have stopped waiting, however they stopped: answered,

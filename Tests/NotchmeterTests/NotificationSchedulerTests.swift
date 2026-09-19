@@ -317,16 +317,20 @@ import Testing
     /// Switching a tool off never touched its watched resets until 0.6.0, and `checkResets` did not ask whether a
     /// watch's tool was still shown, so a tool switched off at 90 % had its reset announced from the thirty-second
     /// timer all the same, and one switched back on after the reset announced a period that had ended while it
-    /// was off. The reading's reset sits in the real future because `adopt` stamps the watch with the wall clock;
-    /// the store left on is the control that says the watch was made at all. Each store gets a suite of its own,
-    /// because the two would otherwise share one persisted memory and the control's reset would silence the other.
-    @MainActor @Test func aToolSwitchedOffAnnouncesNoReset() async throws {
+    /// was off. That wrong announcement was also the only thing withdrawing the period's pace notices, so the
+    /// switch-off must take them down itself, at the switch and not at a reset it no longer announces. The
+    /// reading's reset sits in the real future because `adopt` stamps the watch with the wall clock; the store
+    /// left on is the control that says the watch was made at all and still withdraws at its reset. Each store
+    /// gets a suite of its own, because the two would otherwise share one persisted memory and the control's
+    /// reset would silence the other.
+    @MainActor @Test func aToolSwitchedOffAnnouncesNoResetAndWithdrawsItsNotices() async throws {
         let now = Date()
         let window = LimitWindow(id: "session", label: "Session", usedFraction: 0.9, resetsAt: now.addingTimeInterval(600), periodDuration: Period.fiveHours)
         let reading = UsageReading(tool: .codex, windows: [window], plan: nil, fetchedAt: now, observedAt: nil)
         let afterReset = now.addingTimeInterval(1200)
+        let identifiers = PaceAlert.identifiers(tool: .codex, window: window)
 
-        func announced(suite: String, switchedOff: Bool) async throws -> [PaceAlert.Stage] {
+        func announced(suite: String, switchedOff: Bool) async throws -> (stages: [PaceAlert.Stage], atSwitch: [String], atReset: [String]) {
             let defaults = try #require(UserDefaults(suiteName: suite))
             defaults.removePersistentDomain(forName: suite)
             defer { defaults.removePersistentDomain(forName: suite) }
@@ -334,27 +338,68 @@ import Testing
                                    cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
             let delivered = Delivered()
             store.deliverAlerts = { delivered.alerts += $0 }
+            store.removeNotifications = { delivered.withdrawn += $0 }
             await store.refresh(.codex, force: true)
             #expect(store.status(.codex) == .ready(reading))
+            #expect(delivered.withdrawn.isEmpty)
             if switchedOff {
                 store.setEnabled(.codex, false)
                 #expect(store.status(.codex) == .off)
             }
+            let atSwitch = delivered.withdrawn
             delivered.alerts = []
+            delivered.withdrawn = []
             store.checkResets(now: afterReset)
-            return delivered.alerts.map(\.stage)
+            return (delivered.alerts.map(\.stage), atSwitch, delivered.withdrawn)
         }
 
         let control = try await announced(suite: "NotchmeterTests.Alerts.resetWhileOn", switchedOff: false)
-        #expect(control == [.reset])
+        #expect(control.stages == [.reset])
+        #expect(control.atSwitch.isEmpty)
+        #expect(Set(control.atReset) == Set(identifiers), "the control withdraws at its reset")
         let off = try await announced(suite: "NotchmeterTests.Alerts.resetWhileOff", switchedOff: true)
-        #expect(off.isEmpty, "a tool switched off announced \(off)")
+        #expect(off.stages.isEmpty, "a tool switched off announced \(off.stages)")
+        #expect(Set(off.atSwitch) == Set(identifiers), "the switch-off withdrew \(off.atSwitch)")
+        #expect(off.atReset.isEmpty, "nothing left to withdraw at the reset, got \(off.atReset)")
+    }
+
+    /// The other way a watch leaves the screen: the tool stays enabled but its provider stops reporting it
+    /// installed (its config directory removed). `checkResets` drops the watch on its next tick, and the drop takes
+    /// the period's pace notices with it just as the switch does, without announcing the reset.
+    @MainActor @Test func aToolNoLongerInstalledWithdrawsItsNoticesWhenItsWatchIsDropped() async throws {
+        let suite = "NotchmeterTests.Alerts.resetWhileUninstalled"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let now = Date()
+        let window = LimitWindow(id: "session", label: "Session", usedFraction: 0.9, resetsAt: now.addingTimeInterval(600), periodDuration: Period.fiveHours)
+        let reading = UsageReading(tool: .codex, windows: [window], plan: nil, fetchedAt: now, observedAt: nil)
+        let provider = RemovableProvider(tool: .codex, reading: reading)
+        let store = UsageStore(prefs: Preferences(defaults: defaults), providers: [provider],
+                               cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
+        let delivered = Delivered()
+        store.deliverAlerts = { delivered.alerts += $0 }
+        store.removeNotifications = { delivered.withdrawn += $0 }
+        await store.refresh(.codex, force: true)
+        #expect(store.status(.codex) == .ready(reading))
+        provider.installed.remove()
+        #expect(!store.isShown(.codex))
+        delivered.alerts = []
+        store.checkResets(now: now.addingTimeInterval(60))
+        #expect(delivered.alerts.isEmpty)
+        #expect(Set(delivered.withdrawn) == Set(PaceAlert.identifiers(tool: .codex, window: window)), "the drop withdrew \(delivered.withdrawn)")
+        delivered.withdrawn = []
+        store.checkResets(now: now.addingTimeInterval(1200))
+        #expect(delivered.alerts.isEmpty, "a tool no longer installed announced \(delivered.alerts.map(\.stage))")
+        #expect(delivered.withdrawn.isEmpty)
     }
 }
 
-/// The alerts a store handed to `deliverAlerts`, in a box the closure can write to.
+/// The alerts a store handed to `deliverAlerts` and the identifiers it handed to `removeNotifications`, in a box
+/// the closures can write to.
 @MainActor private final class Delivered {
     var alerts: [PaceAlert] = []
+    var withdrawn: [String] = []
 }
 
 /// Installed, and answers every read with the one reading it was given.
@@ -363,5 +408,23 @@ private struct FixedProvider: UsageProvider {
     let reading: UsageReading
     var refreshInterval: TimeInterval { 300 }
     func isInstalled() -> Bool { true }
+    func fetch() async throws -> UsageReading { reading }
+}
+
+/// A `FixedProvider` whose installation can be taken away mid-test, the way removing a tool's config directory
+/// takes it off the screen without touching the enabled set.
+private struct RemovableProvider: UsageProvider {
+    final class Installed: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = true
+        var isInstalled: Bool { lock.withLock { value } }
+        func remove() { lock.withLock { value = false } }
+    }
+
+    let tool: ToolID
+    let reading: UsageReading
+    let installed = Installed()
+    var refreshInterval: TimeInterval { 300 }
+    func isInstalled() -> Bool { installed.isInstalled }
     func fetch() async throws -> UsageReading { reading }
 }
