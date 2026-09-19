@@ -2,9 +2,10 @@ import Foundation
 
 /// A run-out estimate as an interval rather than a point: the 20th and 80th percentile of the hourly drain rates
 /// the log has seen for the window over the last seven days, in the same peak or off-peak state as now when
-/// enough of those exist, give the latest and the earliest moment the window runs out at those rates. Shown as a
-/// range when the two are more than fifteen minutes apart; notifications fire on the earliest edge. The method
-/// and its limits are in docs/accuracy.md.
+/// enough of those exist, give the latest and the earliest moment the window runs out at those rates. How the two
+/// are shown is one rule, `presentation`, for the card and the advice alike: a range when they are more than
+/// fifteen minutes apart, one time at their midpoint when they are not. Notifications fire on the earliest edge,
+/// which is a threshold rather than a display. The method and its limits are in docs/accuracy.md.
 struct RunOutInterval: Equatable, Sendable {
     /// Seconds from now to the run-out at the fastest rate seen (the pessimistic edge).
     let earliest: TimeInterval
@@ -59,14 +60,57 @@ struct RunOutInterval: Equatable, Sendable {
         return RunOutInterval(earliest: left / fast * 3600, latest: left / slow * 3600, sampleCount: rates.count)
     }
 
-    /// "Runs out 2:10–3:40 PM" when wide, "Runs out in 2h" when narrow; nil when even the fastest rate lasts past the reset.
+    /// How the interval is shown. One rule, because until 0.6.0 the card and the advice each had their own and the
+    /// panel named two times for one event: the card printed the midpoint of a narrow interval ("Runs out in
+    /// 1h 10m", 4:20 PM) while the advice under it quoted the earliest edge ("hit the cap at 3:54 PM"), and a
+    /// reader could not tell which to plan around.
+    enum Presentation: Equatable {
+        /// The edges lie within `wideBeyond` of each other: one time, their midpoint. Inside a quarter of an hour
+        /// neither edge is the better guess, and quoting the earliest as if it were reads as false precision.
+        case single(at: Date)
+        /// Both edges fall before the reset and further apart than `wideBeyond`: the window runs out somewhere between.
+        case range(from: Date, to: Date)
+        /// The fastest rate seen runs the window out at `from` and the slowest carries it past the reset, so the far
+        /// edge of the range is the reset itself and the window may last.
+        case rangeToReset(from: Date)
+
+        /// The time a sentence names first: the single time, or the near edge of a range. The advice sorts on it and
+        /// measures its "before reset" margin from it, so the margin agrees with the time it stands beside.
+        var at: Date {
+            switch self {
+            case .single(let at), .range(let at, _), .rangeToReset(let at): at
+            }
+        }
+    }
+
+    /// Nil when the interval has nothing to show: the fastest rate lasts past the reset, or the edges are close and
+    /// their midpoint does, in which case the window lasts as far as the interval can tell and the callers fall back
+    /// to their other projections.
+    func presentation(now: Date, resetsAt: Date) -> Presentation? {
+        let from = now.addingTimeInterval(earliest)
+        guard from < resetsAt else { return nil }
+        guard isWide else {
+            let midpoint = now.addingTimeInterval((earliest + latest) / 2)
+            return midpoint < resetsAt ? .single(at: midpoint) : nil
+        }
+        let to = now.addingTimeInterval(latest)
+        return to < resetsAt ? .range(from: from, to: to) : .rangeToReset(from: from)
+    }
+
+    /// The card's line: "Runs out 2:10–3:40 PM" when wide, "Runs out in 2h" when narrow, "Runs out from 2:10 PM, or
+    /// lasts to the reset" when only the fast edge falls before it; nil when `presentation` is.
     func text(now: Date, resetsAt: Date, format: TimeFormatPreference, calendar: Calendar = .current) -> String? {
-        guard now.addingTimeInterval(earliest) < resetsAt else { return nil }
-        guard isWide else { return L("Runs out in %@", ResetText.duration((earliest + latest) / 2)) }
-        let from = ResetText.time(now.addingTimeInterval(earliest), format: format, calendar: calendar)
-        guard now.addingTimeInterval(latest) < resetsAt else { return L("Runs out from %@, or lasts to the reset", from) }
-        let to = ResetText.time(now.addingTimeInterval(latest), format: format, calendar: calendar)
-        return L("Runs out %1$@–%2$@", from, to)
+        switch presentation(now: now, resetsAt: resetsAt) {
+        case nil:
+            return nil
+        case .single(let at):
+            return L("Runs out in %@", ResetText.duration(at.timeIntervalSince(now)))
+        case .rangeToReset(let from):
+            return L("Runs out from %@, or lasts to the reset", ResetText.time(from, format: format, calendar: calendar))
+        case .range(let from, let to):
+            return L("Runs out %1$@–%2$@", ResetText.time(from, format: format, calendar: calendar),
+                     ResetText.time(to, format: format, calendar: calendar))
+        }
     }
 }
 
