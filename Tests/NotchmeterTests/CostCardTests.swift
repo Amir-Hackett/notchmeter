@@ -312,9 +312,11 @@ import Testing
     }
 }
 
-/// What "Copy as image" on the Cost card renders. `CardImage.copy` draws a detached hierarchy, so the copied card
-/// only shows the range the user picked if the action seeds it; until 0.5.0 it built `SpendCard(store:)` and every
-/// pasted card was Today's, whatever the SegmentedBar said.
+/// The card `SpendCard.imageCard` hands to "Copy as image". `CardImage.copy` draws a detached hierarchy, so the
+/// copied card only shows the range the user picked if the card it is given is seeded with it; until 0.5.0 the
+/// context-menu Button built `SpendCard(store:)` and every pasted card was Today's, whatever the SegmentedBar
+/// said. This pins the seeding helper only: the Button (NotchViews.swift, `.contextMenu` on SpendCard) must keep
+/// passing `imageCard` to `CardImage.copy`, which no test exercises.
 @Suite struct CostCardCopyImage {
     @MainActor @Test func theCopiedCardOpensOnTheRangeOnScreen() {
         let suite = "NotchmeterTests.CostCardCopyImage"

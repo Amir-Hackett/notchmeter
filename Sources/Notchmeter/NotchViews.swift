@@ -1050,7 +1050,9 @@ struct SpendCard: View {
     /// The card "Copy as image" renders: a fresh copy seeded with the range on screen. `CardImage.copy` renders a
     /// detached hierarchy, so nothing the user tapped carries over on its own -- until 0.5.0 the action built
     /// `SpendCard(store:)`, and a user who had picked 90d and read $6,412 pasted a Today card saying $118, with
-    /// Today highlighted. Seeding the range here is what makes the pasted card match the one on screen.
+    /// Today highlighted. Seeding the range here is what makes the pasted card match the one on screen. The
+    /// context-menu Button below must render this, not a fresh `SpendCard(store:)`; CostCardCopyImage checks the
+    /// seeding but cannot see the Button.
     var imageCard: SpendCard { SpendCard(store: store, range: range) }
 
     private var mode: CostCardMode { store.prefs.costCardMode }
