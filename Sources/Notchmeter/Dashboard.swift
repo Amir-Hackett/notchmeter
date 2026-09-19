@@ -701,6 +701,7 @@ final class DashboardWindowController: NSWindowController {
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = false
         panel.isReleasedWhenClosed = false
+        panel.wearCloseOnly()
         super.init(window: panel)
         followAppearance()
     }
