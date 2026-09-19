@@ -615,7 +615,7 @@
 "When the cache tier or the metering shifts" = "캐시 계층이나 측정이 바뀔 때";
 "When you start paying (extra usage rises)" = "결제가 시작될 때(추가 사용 증가)";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "카드의 도넛, 범례, 합계에 포함할 어시스턴트입니다. 순서는 어시스턴트 설정을 따릅니다. 비용을 알릴 수 없거나 로그인하지 않은 어시스턴트는 여기에 나오지 않으며, 제외한 어시스턴트도 자기 카드에는 비용을 표시합니다.";
-"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Zoom, Meet, QuickTime 또는 화면 공유가 화면을 캡처하는 동안 링은 모양을 유지하되 숫자를 숨기고, 패널은 비용 카드를 숨깁니다. 5초마다 확인합니다.";
+"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "Zoom, Meet, QuickTime 또는 화면 공유가 화면을 캡처하는 동안 링은 모양을 유지하되 숫자를 숨기고, 패널은 비용 카드를 숨기며, 그동안 표시되는 배너에는 숫자와 프로젝트 이름이 들어가지 않습니다. 5초마다 확인합니다.";
 "Wide" = "넓게";
 "Will run out (behind pace)" = "소진 예정 (페이스보다 느림)";
 "Window" = "윈도우";

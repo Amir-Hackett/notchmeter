@@ -615,7 +615,7 @@
 "When the cache tier or the metering shifts" = "Khi mức cache hoặc cách đo thay đổi";
 "When you start paying (extra usage rises)" = "Khi bạn bắt đầu trả tiền (dùng thêm tăng)";
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "Những trợ lý mà vòng tròn, chú giải và tổng của thẻ bao gồm, theo thứ tự đặt ở mục Trợ lý. Trợ lý không thể báo chi phí, hoặc bạn chưa đăng nhập, không bao giờ có ở đây; trợ lý bị bỏ ra vẫn hiện chi tiêu trên thẻ của chính nó.";
-"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits and the panel hides the Cost card. Checked every five seconds." = "Khi Zoom, Meet, QuickTime hoặc Chia sẻ màn hình đang ghi màn hình, các vòng giữ hình dạng nhưng ẩn số, và bảng ẩn thẻ Chi phí. Kiểm tra mỗi năm giây.";
+"While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "Khi Zoom, Meet, QuickTime hoặc Chia sẻ màn hình đang ghi màn hình, các vòng giữ hình dạng nhưng ẩn số, bảng ẩn thẻ Chi phí, và biểu ngữ nào hiện lên trong lúc đó không mang số liệu hay tên dự án. Kiểm tra mỗi năm giây.";
 "Wide" = "Rộng";
 "Will run out (behind pace)" = "Sẽ hết (chậm hơn nhịp)";
 "Window" = "Cửa sổ";

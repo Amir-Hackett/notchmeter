@@ -16,8 +16,10 @@ menu-heavy app (Chrome, Xcode) would run into them.
 - **When it reads.** When an app comes to the front. The answer is remembered per app, so returning to an app
   already seen measures nothing, and there is no timer.
 - **When it asks.** When you pick Auto, once per pick, and once more per signed copy on a launch that finds Auto
-  already chosen and the permission refused — so a rebuild or an update asks again once, not on every launch.
-  Nothing is measured while a fixed side is chosen, and a copy that has never picked Auto is never asked.
+  already chosen and the permission never granted — so a rebuild or an update asks again once, not on every launch.
+  A launch that finds a grant that has stopped applying offers the repair described below instead of the prompt, on
+  the same terms. Nothing is measured while a fixed side is chosen, and a copy that has never picked Auto is never
+  asked.
 - **Without it.** Auto stays centred on the notch with every readout — where it sits whenever the menu bar leaves
   room — whether the permission was never granted or is revoked later. Settings says so and offers a button to
   System Settings › Privacy & Security › Accessibility.
