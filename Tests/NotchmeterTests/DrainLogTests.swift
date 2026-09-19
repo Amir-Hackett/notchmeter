@@ -147,11 +147,24 @@ import Testing
         #expect(loaded[DrainLog.Key(tool: .claude, window: "seven_day")]?.map(\.used) == keptOldestFirst)
         #expect(log.loadExtraUsage().map(\.amountUSD) == [4])
 
-        // The rewrite refreshed the birth time, so the next append is an append and nothing more.
+        // The rewrite refreshed the birth time, so the next append is an append and nothing more. A line count
+        // cannot tell the two apart: every surviving row is inside the keep window, so a second rewrite would
+        // also leave seven lines. What an append leaves is the birth time as the rewrite set it and the
+        // compacted text intact at the head of the file, where a rewrite regroups the rows per window and
+        // moves the new pair in among them.
+        func born() throws -> Date? {
+            try FileManager.default.attributesOfItem(atPath: log.url.path)[.creationDate] as? Date
+        }
+        let bornAtTheRewrite = try #require(try born())
+        #expect(now.timeIntervalSince(bornAtTheRewrite) < DrainLog.compactEvery)
+        let asCompacted = try String(contentsOf: log.url, encoding: .utf8)
         log.append(reading(0.6), previous: loaded, now: now.addingTimeInterval(60))
         DrainLog.flush()
         let oneMoreRowPerWindow = 7
         #expect(try lines() == oneMoreRowPerWindow)
+        #expect(try born() == bornAtTheRewrite)
+        let appendedInPlace = try String(contentsOf: log.url, encoding: .utf8)
+        #expect(appendedInPlace.hasPrefix(asCompacted))
     }
 
     /// `flush` is what `applicationWillTerminate` calls: the appends are asynchronous on the serial queue, and GCD
