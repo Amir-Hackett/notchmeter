@@ -47,10 +47,12 @@
 "%@ advice" = "Lời khuyên của %@";
 "%@ as the vendor's own usage export priced it" = "%@ theo giá trong bản xuất mức dùng của chính nhà cung cấp";
 "%@ billed this month" = "Đã tính phí %@ tháng này";
+"%@ could not be read as audio, so nothing was imported." = "Không đọc được %@ dưới dạng âm thanh nên không nhập gì cả.";
 "%@ finished" = "%@ đã xong";
 "%@ hit its rate limit; wait for the reset." = "%@ đã chạm giới hạn tốc độ; hãy đợi đặt lại.";
 "%@ hook" = "Hook %@";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "%@ được sao chép thành settings.json.bak-<ngày> trước. Dòng trạng thái đã có tiếp tục chạy sau dòng của Notchmeter, với cùng JSON.";
+"%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ không còn trong ~/Library/Sounds nên âm mặc định sẽ phát cho đến khi bạn chọn âm khác.";
 "%@ is not a JSON object, so it was left untouched" = "%@ không phải đối tượng JSON nên được giữ nguyên";
 "%@ is waiting" = "%@ đang chờ";
 "%@ is waiting for your input." = "%@ đang chờ bạn nhập.";

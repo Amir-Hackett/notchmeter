@@ -1334,23 +1334,42 @@ private struct WindowChoices: View {
 private struct SoundPicker: View {
     let title: String
     @Binding var choice: String
+    /// What the last import or fallback has to say, shown under the row; nil when there is nothing to report.
+    @State private var note: String?
 
     var body: some View {
-        HStack {
-            Picker(title, selection: $choice) {
-                Text(L("Default")).tag(NotificationSound.defaultChoice)
-                Text(L("None")).tag(NotificationSound.none)
-                Divider()
-                ForEach(NotificationSound.systemSounds(), id: \.self) { name in Text(name).tag("system:\(name)") }
-                let custom = NotificationSound.customSounds()
-                if !custom.isEmpty {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Picker(title, selection: $choice) {
+                    Text(L("Default")).tag(NotificationSound.defaultChoice)
+                    Text(L("None")).tag(NotificationSound.none)
                     Divider()
-                    ForEach(custom, id: \.self) { name in Text((name as NSString).deletingPathExtension).tag("custom:\(name)") }
+                    ForEach(NotificationSound.systemSounds(), id: \.self) { name in Text(name).tag("system:\(name)") }
+                    let custom = NotificationSound.customSounds()
+                    if !custom.isEmpty {
+                        Divider()
+                        ForEach(custom, id: \.self) { name in Text((name as NSString).deletingPathExtension).tag("custom:\(name)") }
+                    }
                 }
+                Button(L("Preview")) { NotificationSound.preview(choice) }.controlSize(.small)
+                Button(L("Choose file…")) { chooseFile() }.controlSize(.small)
             }
-            Button(L("Preview")) { NotificationSound.preview(choice) }.controlSize(.small)
-            Button(L("Choose file…")) { chooseFile() }.controlSize(.small)
+            if let note {
+                Text(note).font(.caption).foregroundStyle(.secondary)
+            }
         }
+        .onAppear { settleMissingCustom() }
+    }
+
+    /// A stored "custom:" choice whose file is gone, or was imported as an .mp3/.m4a that 0.5.0 stopped offering,
+    /// matches no tag and left the Picker blank. Default is what the banner plays for it anyway (`unSound`), so the
+    /// stored choice is brought in line and the row says which file it was, once, so the change is not a mystery.
+    private func settleMissingCustom() {
+        guard choice.hasPrefix("custom:") else { return }
+        let name = String(choice.dropFirst("custom:".count))
+        guard !NotificationSound.customSounds().contains(name) else { return }
+        choice = NotificationSound.defaultChoice
+        note = L("%@ is no longer in ~/Library/Sounds, so Default plays until you choose another.", name)
     }
 
     private func chooseFile() {
@@ -1361,7 +1380,14 @@ private struct SoundPicker: View {
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             Task { @MainActor in
-                if let imported = try? NotificationSound.importCustom(url) { choice = imported }
+                // Until 0.5.0 a failed import was swallowed by `try?` and the Picker simply stayed where it was, so
+                // the user could not tell a refused file from a copy that had not happened yet.
+                do {
+                    choice = try NotificationSound.importCustom(url)
+                    note = nil
+                } catch {
+                    note = error.localizedDescription
+                }
             }
         }
     }

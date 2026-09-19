@@ -47,10 +47,12 @@
 "%@ advice" = "%@ 建議";
 "%@ as the vendor's own usage export priced it" = "%@ 取自廠商自己的用量匯出，由廠商計價";
 "%@ billed this month" = "本月已計費 %@";
+"%@ could not be read as audio, so nothing was imported." = "%@ 無法作為音訊讀取，因此未匯入任何內容。";
 "%@ finished" = "%@ 已完成";
 "%@ hit its rate limit; wait for the reset." = "%@ 已觸及速率限制；請等待重設。";
 "%@ hook" = "%@ 掛鉤";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "會先將 %@ 複製為 settings.json.bak-<日期>。既有的狀態列會在 Notchmeter 之後繼續執行，並收到相同的 JSON。";
+"%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ 已不在 ~/Library/Sounds 中，在你選擇其他聲音之前將播放預設聲音。";
 "%@ is not a JSON object, so it was left untouched" = "%@ 不是 JSON 物件，因此未做更動";
 "%@ is waiting" = "%@ 正在等待";
 "%@ is waiting for your input." = "%@ 正在等待你的輸入。";
