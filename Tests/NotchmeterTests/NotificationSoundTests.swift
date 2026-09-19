@@ -61,6 +61,30 @@ import Testing
         #expect(NotificationSound.unSound(for: imported) != .default)
     }
 
+    /// The Settings row awaits this from the main actor, where until 0.5.0 the import ran inline: a copy then, a
+    /// whole-file decode now, which froze Settings and the rings for the length of the track. The choice and the
+    /// file arrive exactly as from the synchronous import, and the transcode itself happened off the main thread.
+    @MainActor @Test func anImportAwaitedFromTheMainActorStillAppliesItsChoice() async throws {
+        let (root, sounds) = try scratch()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("src/chime.m4a")
+        try writeAAC(to: source)
+
+        let imported = try await NotificationSound.importCustomInBackground(source, folder: sounds)
+        let expected = "custom:chime.caf"
+        #expect(imported == expected)
+        #expect(NotificationSound.customSounds(folder: sounds) == ["chime.caf"])
+        #expect(NotificationSound.unSound(for: imported) != .default)
+
+        var message: String?
+        do {
+            _ = try await NotificationSound.importCustomInBackground(root.appendingPathComponent("src/missing.mp3"), folder: sounds)
+        } catch {
+            message = error.localizedDescription
+        }
+        #expect(message == "missing.mp3 could not be read as audio, so nothing was imported.", "a refusal comes back the same way")
+    }
+
     @Test func aPlayableFormatIsStillCopiedVerbatim() throws {
         let (root, sounds) = try scratch()
         defer { try? FileManager.default.removeItem(at: root) }

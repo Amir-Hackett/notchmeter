@@ -124,6 +124,16 @@ enum NotificationSound {
         return "custom:\(name)"
     }
 
+    /// `importCustom` run off the calling actor, for the Settings row. Until 0.5.0 the import was a copy, a few
+    /// milliseconds however long the file, and ran on the main actor because the row's state lives there. Now
+    /// that an mp3 or m4a is decoded and re-encoded whole, the same call on the main actor froze Settings, the
+    /// notch rings and the menu bar item for as long as the decode took, which grows with the track: a four-minute
+    /// song picked from Music was a stall of a second or more. The file work happens on a detached task and only
+    /// the choice string, or the failure, comes back to whoever awaited it.
+    static func importCustomInBackground(_ source: URL, folder: URL = userFolder) async throws -> String {
+        try await Task.detached(priority: .userInitiated) { try importCustom(source, folder: folder) }.value
+    }
+
     /// Decodes any file AVFoundation can read into 16-bit Linear PCM in a .caf, the one container that takes any
     /// sample rate and channel count Notification Center will play. The source's own rate and channels are kept so
     /// nothing is resampled; only the codec changes. A file AVFoundation cannot open (a PDF renamed .mp3, a DRM

@@ -52,6 +52,7 @@
 "%@ hit its rate limit; wait for the reset." = "%@ 已觸及速率限制；請等待重設。";
 "%@ hook" = "%@ 掛鉤";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "會先將 %@ 複製為 settings.json.bak-<日期>。既有的狀態列會在 Notchmeter 之後繼續執行，並收到相同的 JSON。";
+"%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ 的格式通知中心無法播放，在你重新選擇該檔案將其轉換之前將播放預設聲音。";
 "%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ 已不在 ~/Library/Sounds 中，在你選擇其他聲音之前將播放預設聲音。";
 "%@ is not a JSON object, so it was left untouched" = "%@ 不是 JSON 物件，因此未做更動";
 "%@ is waiting" = "%@ 正在等待";
@@ -109,7 +110,7 @@
 "90d" = "90 天";
 "A %1$@ reset credit expires in %2$@. Claim it in %1$@." = "一個 %1$@ 重設額度將在 %2$@ 後到期。請在 %1$@ 中領取。";
 "A bar resting on top of the Dock." = "停在 Dock 上方的橫條。";
-"A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "所選檔案會複製到 ~/Library/Sounds，通知中心可從那裡播放。";
+"A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name." = "所選的 .aiff、.wav 或 .caf 會原樣複製到 ~/Library/Sounds；其他格式（例如 mp3 或 m4a）會在那裡轉換為 .caf，因為通知中心按名稱只能播放這些格式。";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "指定的顯示器按硬體識別記憶，同型號的兩台顯示器可區分，重新命名也不會遺失。";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "在左側邊緣切出的瀏海，面板在它旁邊開啟。該側有 Dock 或幕前調度側欄時會讓開。";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "在右側邊緣切出的瀏海，面板在它旁邊開啟。該側有 Dock 時會讓開。";
@@ -318,6 +319,7 @@
 "Hover delay" = "懸停延遲";
 "Hover the rings. The panel opens." = "將游標停在圓環上，面板便會展開。";
 "Icon style" = "圖示樣式";
+"Importing %@…" = "正在匯入 %@…";
 "In the Cost card" = "費用卡片中顯示";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "以上方的貨幣計；留空表示無預算。費用卡片的圓環按本月預算填充，並帶有與儀表相同的進度刻度；建議條會據此預測本月；「接近」「落後」「即將用盡」通知以月為週期適用於它。";
 "In the pill" = "膠囊內";

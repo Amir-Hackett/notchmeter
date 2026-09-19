@@ -52,6 +52,7 @@
 "%@ hit its rate limit; wait for the reset." = "%@ がレート制限に達しました。リセットをお待ちください。";
 "%@ hook" = "%@ フック";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "まず %@ を settings.json.bak-<日付> にコピーします。既存のステータスラインは Notchmeter の後に同じ JSON で引き続き実行されます。";
+"%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ は通知センターが再生できない形式のため、ファイルをもう一度選んで変換するまでデフォルトが鳴ります。";
 "%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ は ~/Library/Sounds になくなったため、別の音を選ぶまでデフォルトが鳴ります。";
 "%@ is not a JSON object, so it was left untouched" = "%@ は JSON オブジェクトではないため変更しませんでした";
 "%@ is waiting" = "%@ が待機中";
@@ -109,7 +110,7 @@
 "90d" = "90日";
 "A %1$@ reset credit expires in %2$@. Claim it in %1$@." = "%1$@ のリセットクレジットが %2$@ 後に失効します。%1$@ で受け取ってください。";
 "A bar resting on top of the Dock." = "Dock の上に置かれるバー。";
-"A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "選択したファイルは ~/Library/Sounds にコピーされ、通知センターがそこから再生します。";
+"A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name." = "選択した .aiff、.wav、.caf はそのまま ~/Library/Sounds にコピーされ、mp3 や m4a などそれ以外の形式は、通知センターが名前で再生できる唯一の形式である .caf にそこで変換されます。";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "名前で選んだディスプレイはハードウェア ID で記憶されるため、同じ機種の 2 台も区別でき、名前が変わっても失われません。";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "左端に切り込まれたノッチ。パネルはその横に開きます。同じ側に Dock やステージマネージャの帯があるときは譲ります。";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "右端に切り込まれたノッチ。パネルはその横に開きます。同じ側に Dock があるときは譲ります。";
@@ -318,6 +319,7 @@
 "Hover delay" = "ホバーの遅延";
 "Hover the rings. The panel opens." = "リングにホバーするとパネルが開きます。";
 "Icon style" = "アイコンのスタイル";
+"Importing %@…" = "%@ を取り込んでいます…";
 "In the Cost card" = "コストカードに表示";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "上の通貨で入力し、空欄なら予算なしです。コストカードのリングは月の予算に対して満たされ、メーターと同じペース目盛りが付きます。アドバイス欄は月を予算に対して予測し、「順調」「遅れ」「枯渇」の通知が月を期間として適用されます。";
 "In the pill" = "ピル内";

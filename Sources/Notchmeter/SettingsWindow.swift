@@ -741,7 +741,7 @@ struct SettingsView: View {
                 SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))
                 SoundPicker(title: L("Waiting for you"), choice: Binding(get: { prefs.soundWaiting }, set: { prefs.soundWaiting = $0 }))
                 SoundPicker(title: L("Turn finished"), choice: Binding(get: { prefs.soundFinished }, set: { prefs.soundFinished = $0 }))
-                paragraph(L("A chosen file is copied into ~/Library/Sounds, where Notification Center can play it."))
+                paragraph(L("A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name."))
             }
             Toggle(L("Quiet hours"), isOn: Binding(get: { prefs.quietHoursEnabled }, set: { prefs.quietHoursEnabled = $0 }))
             if prefs.quietHoursEnabled {
@@ -1338,6 +1338,10 @@ private struct SoundPicker: View {
     @Binding var choice: String
     /// What the last import or fallback has to say, shown under the row; nil when there is nothing to report.
     @State private var note: String?
+    /// True from the moment a file is chosen until its import has been applied or refused. The import runs off the
+    /// main actor (an mp3 is decoded whole), so the row stays live meanwhile and this keeps a second Choose file…
+    /// from starting a parallel import that would race the first for the same name in ~/Library/Sounds.
+    @State private var importing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -1354,7 +1358,7 @@ private struct SoundPicker: View {
                     }
                 }
                 Button(L("Preview")) { NotificationSound.preview(choice) }.controlSize(.small)
-                Button(L("Choose file…")) { chooseFile() }.controlSize(.small)
+                Button(L("Choose file…")) { chooseFile() }.controlSize(.small).disabled(importing)
             }
             if let note {
                 Text(note).font(.caption).foregroundStyle(.secondary)
@@ -1366,12 +1370,17 @@ private struct SoundPicker: View {
     /// A stored "custom:" choice whose file is gone, or was imported as an .mp3/.m4a that 0.5.0 stopped offering,
     /// matches no tag and left the Picker blank. Default is what the banner plays for it anyway (`unSound`), so the
     /// stored choice is brought in line and the row says which file it was, once, so the change is not a mystery.
+    /// The two cases get different words: the mp3 is still sitting in ~/Library/Sounds, so telling its owner it is
+    /// gone would send them to the folder to find it there with no hint that choosing it again is what converts it.
     private func settleMissingCustom() {
         guard choice.hasPrefix("custom:") else { return }
         let name = String(choice.dropFirst("custom:".count))
         guard !NotificationSound.customSounds().contains(name) else { return }
+        let stored = choice
         choice = NotificationSound.defaultChoice
-        note = L("%@ is no longer in ~/Library/Sounds, so Default plays until you choose another.", name)
+        note = NotificationSound.isUnplayableCustom(stored)
+            ? L("%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it.", name)
+            : L("%@ is no longer in ~/Library/Sounds, so Default plays until you choose another.", name)
     }
 
     private func chooseFile() {
@@ -1384,8 +1393,14 @@ private struct SoundPicker: View {
             Task { @MainActor in
                 // Until 0.5.0 a failed import was swallowed by `try?` and the Picker simply stayed where it was, so
                 // the user could not tell a refused file from a copy that had not happened yet.
+                // The import may decode a whole mp3 or m4a into PCM, so it runs off the main actor and only its
+                // result is applied here; the row says what it is doing meanwhile, since the Picker does not move
+                // until the file is in place.
+                importing = true
+                note = L("Importing %@…", url.lastPathComponent)
+                defer { importing = false }
                 do {
-                    choice = try NotificationSound.importCustom(url)
+                    choice = try await NotificationSound.importCustomInBackground(url)
                     note = nil
                 } catch {
                     note = error.localizedDescription

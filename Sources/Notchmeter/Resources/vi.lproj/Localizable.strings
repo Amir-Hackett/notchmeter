@@ -52,6 +52,7 @@
 "%@ hit its rate limit; wait for the reset." = "%@ đã chạm giới hạn tốc độ; hãy đợi đặt lại.";
 "%@ hook" = "Hook %@";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "%@ được sao chép thành settings.json.bak-<ngày> trước. Dòng trạng thái đã có tiếp tục chạy sau dòng của Notchmeter, với cùng JSON.";
+"%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ ở định dạng Trung tâm thông báo không phát được, nên âm mặc định sẽ phát cho đến khi bạn chọn lại tệp để chuyển đổi.";
 "%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ không còn trong ~/Library/Sounds nên âm mặc định sẽ phát cho đến khi bạn chọn âm khác.";
 "%@ is not a JSON object, so it was left untouched" = "%@ không phải đối tượng JSON nên được giữ nguyên";
 "%@ is waiting" = "%@ đang chờ";
@@ -109,7 +110,7 @@
 "90d" = "90 ngày";
 "A %1$@ reset credit expires in %2$@. Claim it in %1$@." = "Một tín dụng đặt lại của %1$@ hết hạn sau %2$@. Hãy nhận trong %1$@.";
 "A bar resting on top of the Dock." = "Một thanh nằm phía trên Dock.";
-"A chosen file is copied into ~/Library/Sounds, where Notification Center can play it." = "Tệp đã chọn được sao chép vào ~/Library/Sounds để Trung tâm thông báo phát.";
+"A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name." = "Tệp .aiff, .wav hoặc .caf đã chọn được sao chép nguyên trạng vào ~/Library/Sounds; định dạng khác, chẳng hạn mp3 hay m4a, được chuyển thành .caf tại đó vì Trung tâm thông báo không phát định dạng nào khác theo tên.";
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "Màn hình được chọn theo tên được ghi nhớ bằng định danh phần cứng, nên hai màn hình cùng mẫu vẫn phân biệt được và đổi tên không làm mất.";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "Một notch khoét vào cạnh trái, bảng mở ra ngay bên cạnh. Nó nhường chỗ cho Dock hoặc dải Stage Manager ở phía đó.";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "Một notch khoét vào cạnh phải, bảng mở ra ngay bên cạnh. Nó nhường chỗ cho Dock ở phía đó.";
@@ -318,6 +319,7 @@
 "Hover delay" = "Độ trễ rê chuột";
 "Hover the rings. The panel opens." = "Rê chuột lên các vòng. Bảng sẽ mở.";
 "Icon style" = "Kiểu biểu tượng";
+"Importing %@…" = "Đang nhập %@…";
 "In the Cost card" = "Trong thẻ chi phí";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "Theo tiền tệ ở trên; để trống nếu không có. Vòng của thẻ Chi phí đầy theo ngân sách tháng với cùng vạch nhịp như các đồng hồ, dải Lời khuyên dự phóng tháng so với nó, và thông báo đúng nhịp, chậm nhịp, sắp hết áp dụng cho nó với tháng là chu kỳ.";
 "In the pill" = "Trong viên thuốc";
