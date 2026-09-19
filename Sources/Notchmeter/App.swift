@@ -182,6 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MainMenu.install(actions: actions)
         AccessibilityDisplay.shared.reduceAnimations = prefs.reduceAnimations
         LegacyCaches.clean()
+        CostHistory.migrateFromCaches()
         store = UsageStore(prefs: prefs)
         // The privacy setting is answered here, at the three places a banner is handed over (this pair and
         // `sessionEvent`), rather than by giving the Notifier the store: it stays a type with no dependencies,

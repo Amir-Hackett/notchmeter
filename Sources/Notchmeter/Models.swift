@@ -476,6 +476,12 @@ enum Paths {
     /// The running app's newest machine-readable report, beside the drain log, for the command-line tool and the
     /// status line to read instead of polling every vendor again.
     static var reportFile: URL { applicationSupport.appendingPathComponent("report-v1.json") }
+    /// The long-term daily totals (CostHistory). Application Support, not Caches: this file is the only record of
+    /// any day older than the transcripts, and ~/Library/Caches is both purgeable by the OS when disk runs short and
+    /// left out of Time Machine, so a purge or a restore lost months of history with nothing to rebuild it from.
+    static var historyFile: URL { applicationSupport.appendingPathComponent("daily-history-v1.jsonl") }
+    /// Where builds before 2026-09-19 kept the daily totals; read as a fallback and moved on launch.
+    static var legacyHistoryFile: URL { caches.appendingPathComponent("daily-history-v1.jsonl") }
 }
 
 /// A value from the process environment, or from launchd's when the app was launched from the Finder and
