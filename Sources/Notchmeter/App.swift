@@ -319,6 +319,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         localAPI?.stop()
         store.stopListeningForHooks()
         awake.apply(hold: false)
+        // The drain log's appends are asynchronous on its serial queue, and GCD does not run what is still queued
+        // when the process exits, so the row for a reading adopted in the last moments before quit was lost until
+        // 0.6.0. Bounded, so a quit never hangs behind a compaction.
+        DrainLog.flush()
     }
 
     // MARK: - Hooks
