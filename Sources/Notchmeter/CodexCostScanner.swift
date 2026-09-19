@@ -71,6 +71,7 @@ actor CodexCostScanner {
         var unpriced: Set<String> = []
         var unmodelled = 0
         var fine: [CodexUsage] = []
+        let projects = ProjectName.Resolver()
         for url in Self.rolloutFiles(under: sessionsFolder, modifiedSince: cutoff) {
             let path = url.path
             let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
@@ -82,7 +83,7 @@ actor CodexCostScanner {
             if let hit = cache[path], hit.size == size, hit.modified == modified, hit.pricing == pricing, hit.entries != nil || !needsEntries {
                 cached = hit
             } else {
-                let entries = Self.dedupe((try? Data(contentsOf: url)).map { Self.parseFile($0) } ?? [])
+                let entries = Self.dedupe((try? Data(contentsOf: url)).map { Self.parseFile($0, projects: projects) } ?? [])
                 cached = Self.digest(entries, size: size, modified: modified, pricing: pricing, calendar: calendar)
                 cache[path] = cached
             }
@@ -177,7 +178,8 @@ actor CodexCostScanner {
 
     /// One rollout. `token_usage_record` lines are the record of a turn; where a file has any, the `token_count`
     /// events in the same file are running totals of those same turns and are left alone.
-    static func parseFile(_ data: Data) -> [CodexUsage] {
+    /// `projects` is the scan's resolver, so a worktree's `.git` is read once per scan rather than once per rollout.
+    static func parseFile(_ data: Data, projects: ProjectName.Resolver = ProjectName.Resolver()) -> [CodexUsage] {
         // The four line types worth parsing, as the byte markers their `"type"` field carries. Everything else in
         // a rollout is the conversation itself, which is never read here.
         let markers = ["token_usage_record", "token_count", "turn_context", "session_meta"].map { Data($0.utf8) }
@@ -198,7 +200,7 @@ actor CodexCostScanner {
             switch type {
             case "turn_context", "session_meta":
                 if let name = payload?["model"] as? String, !name.isEmpty { model = name }
-                if let cwd = payload?["cwd"] as? String, let name = ProjectName.ofPath(cwd) { project = name }
+                if let cwd = payload?["cwd"] as? String, let name = projects.name(ofPath: cwd) { project = name }
             case "token_usage_record":
                 guard let stamp = timestamp(object), let tokens = tokens(payload?["usage"]) else { continue }
                 records.append(CodexUsage(timestamp: stamp, model: model, project: project, tokens: tokens,

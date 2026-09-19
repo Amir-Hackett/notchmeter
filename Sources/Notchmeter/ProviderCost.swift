@@ -103,11 +103,81 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
     }
 }
 
-/// The name the Cost card groups spend under: the folder a turn ran in, whichever tool ran it.
+/// The name the Cost card groups spend under: the folder a turn ran in, whichever tool ran it, with a git worktree
+/// folded onto the repository it was cut from. Agents run in worktrees, and until 0.6.0 each one showed up on the
+/// card's "Top:" line as its own project ("wf_4213f04c-061-4 $4.73") beside the repository the work belonged to.
+///
+/// A worktree is recognised without forking git, because a scan meets a `cwd` on every transcript line: by its
+/// `.git`, which in a worktree is a FILE whose one line reads `gitdir: <repo>/.git/worktrees/<name>`, or, once the
+/// worktree has been removed and that file with it (the transcript outlives the checkout), by the path shape
+/// `<repo>/.claude/worktrees/<name>` that Claude Code gives the worktrees it creates. A `cwd` inside a worktree's
+/// subfolder walks up to the nearest `.git`. A `.git` DIRECTORY is a plain checkout and ends the walk with the
+/// cwd's own folder name, so a plain repository's subfolders keep the names they always had; a `.git` file that
+/// points anywhere else (a submodule's `../.git/modules/<name>`) is left alone the same way.
 enum ProjectName {
-    static func ofPath(_ path: String) -> String? {
-        let name = URL(fileURLWithPath: path).lastPathComponent
-        return name.isEmpty || name == "/" ? nil : name
+    static func ofPath(_ path: String) -> String? { Resolver().name(ofPath: path) }
+
+    /// One per scan: the walk costs a stat per ancestor, and a transcript names the same directory on every line,
+    /// so each directory's answer is kept for the scan's lifetime and the filesystem is asked once.
+    final class Resolver {
+        /// The repository a directory belongs to, or nil when it is not a worktree; a key is present once asked.
+        private var repositories: [String: URL?] = [:]
+
+        init() {}
+
+        func name(ofPath path: String) -> String? {
+            let directory = URL(fileURLWithPath: path).standardizedFileURL
+            let own = directory.lastPathComponent
+            guard !own.isEmpty, own != "/" else { return nil }
+            guard let repository = repository(containing: directory) else { return own }
+            let name = repository.lastPathComponent
+            return name.isEmpty || name == "/" ? own : name
+        }
+
+        /// The repository whose worktree holds `directory`, by the path shape first (no filesystem), then by the
+        /// nearest `.git` walking up. Every ancestor visited is remembered, so a second cwd under the same worktree
+        /// stops at the first directory already answered.
+        func repository(containing directory: URL) -> URL? {
+            if let known = repositories[directory.path] { return known }
+            let answer = resolve(directory)
+            repositories[directory.path] = answer
+            return answer
+        }
+
+        private func resolve(_ directory: URL) -> URL? {
+            if let repository = ProjectName.claudeWorktreeRepository(of: directory) { return repository }
+            let dotGit = directory.appendingPathComponent(".git")
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: dotGit.path, isDirectory: &isDirectory) {
+                return isDirectory.boolValue ? nil : ProjectName.worktreeRepository(gitFile: dotGit)
+            }
+            guard directory.pathComponents.count > 1 else { return nil }
+            return repository(containing: directory.deletingLastPathComponent())
+        }
+    }
+
+    /// `<repo>/.claude/worktrees/<name>[/...]` → `<repo>`, from the path alone: Claude Code keeps the worktrees
+    /// it cuts under the repository's own `.claude`, and the shape survives the worktree's removal.
+    static func claudeWorktreeRepository(of directory: URL) -> URL? {
+        let parts = directory.pathComponents
+        guard let at = parts.indices.dropLast(2).first(where: { parts[$0] == ".claude" && parts[$0 + 1] == "worktrees" }),
+              at >= 2
+        else { return nil }
+        return parts[1..<at].reduce(URL(fileURLWithPath: "/")) { $0.appendingPathComponent($1) }
+    }
+
+    /// The `<repo>` a worktree's `.git` file names, `gitdir: <repo>/.git/worktrees/<name>`, resolved against the
+    /// file's folder when git wrote it relative; nil for any other pointer.
+    static func worktreeRepository(gitFile: URL) -> URL? {
+        guard let pointer = try? String(contentsOf: gitFile, encoding: .utf8), let line = pointer.split(separator: "\n").first,
+              line.hasPrefix("gitdir:") else { return nil }
+        let target = line.dropFirst("gitdir:".count).trimmingCharacters(in: .whitespaces)
+        guard !target.isEmpty else { return nil }
+        let gitdir = (target.hasPrefix("/") ? URL(fileURLWithPath: target) : gitFile.deletingLastPathComponent().appendingPathComponent(target))
+            .standardizedFileURL
+        let parts = gitdir.pathComponents
+        guard parts.count >= 5, parts[parts.count - 3] == ".git", parts[parts.count - 2] == "worktrees" else { return nil }
+        return gitdir.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     }
 }
 
