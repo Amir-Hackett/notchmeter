@@ -328,7 +328,7 @@ final class UsageStore {
 
     /// A vendor's page or a pull request, from the card. Only web links leave here: `AgentSession.prLink` already
     /// refuses anything else, but a pull request URL is the one string on this path that an untrusted process can
-    /// supply, so the sink checks the scheme again rather than trusting every future caller to have done so (0.4.8).
+    /// supply, so the sink checks the scheme again rather than trusting every future caller to have done so (0.5.0).
     func openURL(_ url: URL) {
         guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
             Oracle.shared.emit("open", ["refused": url.scheme ?? ""])
@@ -993,7 +993,7 @@ final class UsageStore {
     /// are withdrawn. The tracker is copied out, expired, and written back only when the copy differs. `sessions`
     /// is a stored property of an `@Observable` class, and a `mutating` call straight on it goes through the
     /// generated accessor, which publishes to every observer whether or not the call changed a thing; an equality
-    /// check after the fact is too late, the notification has already gone out. Until 0.4.8 the thirty-second
+    /// check after the fact is too late, the notification has already gone out. Until 0.5.0 the thirty-second
     /// sweep did exactly that, so with no assistant running and nothing to expire, every presenter on every screen
     /// re-measured the whole expanded card, reframed its window and rebuilt the menu bar item twice a minute for
     /// the life of the process, to arrive at the frame it already had. Both clocks that retire sessions, the sweep

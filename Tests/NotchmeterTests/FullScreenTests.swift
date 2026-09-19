@@ -130,7 +130,7 @@ import Testing
 }
 
 /// What a watch leaves behind once it is dropped. A scheduled Timer is the run loop's, not the watch's, and its
-/// block holds the watch weakly, so until 0.4.8 a presenter rebuild with a full-screen app up (a dock, a lid,
+/// block holds the watch weakly, so until 0.5.0 a presenter rebuild with a full-screen app up (a dock, a lid,
 /// the pointer crossing to another display) left the old watch's two-second poll firing against nil for the
 /// rest of the process, and one more each time. The reading is stubbed: the real scan needs a Window Server,
 /// and the note at the foot of FullScreenRule says what a test runner does without one.

@@ -163,7 +163,7 @@ final class MenuBarItem {
             // had just looked at was already plain. Five surfaces read one answer, and one of them lagging the
             // others by a minute and a half is the contradiction that promise exists to rule out. `attendedAt`
             // costs at most one extra pass per turn — `wakeFromIdle` writes the date only while a finish is
-            // actually lit — and `store.sessions` publishes only when a session actually changes: until 0.4.8 the
+            // actually lit — and `store.sessions` publishes only when a session actually changes: until 0.5.0 the
             // thirty-second sweep in `UsageStore` called `sessions.expire` in place, and a mutating call through
             // `@Observable` publishes whether or not it changed anything, which was a rebuilt NSMenu twice a minute
             // with nothing running. `UsageStore.sweepSessions` now copies, expires and compares before it writes,
