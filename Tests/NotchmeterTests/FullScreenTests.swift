@@ -129,6 +129,54 @@ import Testing
     // line is checked where the scan has something to read, on a Mac with a screen (docs/testing.md).
 }
 
+/// What a watch leaves behind once it is dropped. A scheduled Timer is the run loop's, not the watch's, and its
+/// block holds the watch weakly, so until 0.4.8 a presenter rebuild with a full-screen app up (a dock, a lid,
+/// the pointer crossing to another display) left the old watch's two-second poll firing against nil for the
+/// rest of the process, and one more each time. The reading is stubbed: the real scan needs a Window Server,
+/// and the note at the foot of FullScreenRule says what a test runner does without one.
+@Suite struct FullScreenWatchTeardown {
+    /// A covering window on a desktop: suspect, so the watch polls, but not full-screen, so nothing is hidden.
+    let suspect = FullScreen.Scan(
+        candidates: [FullScreen.Candidate(owner: "Google Chrome", size: CGSize(width: 1512, height: 949))],
+        display: FullScreen.Display(size: CGSize(width: 1512, height: 982), safeAreaTop: 32,
+                                    dockOnScreen: true, menuBarShowing: true),
+        chrome: [])
+
+    @MainActor @Test func aDroppedWatchTakesItsPollWithIt() {
+        var watch: FullScreenWatch? = FullScreenWatch(read: { [suspect] in suspect }) { _ in }
+        let timer = watch?.poll
+        #expect(timer != nil)
+        #expect(timer?.isValid == true)
+        watch = nil
+        // The run loop would otherwise keep this one alive and firing every two seconds for good.
+        #expect(timer?.isValid == false)
+    }
+
+    @MainActor @Test func aDroppedWatchTakesItsSettleTimersWithIt() {
+        var watch: FullScreenWatch? = FullScreenWatch(read: { [suspect] in suspect }) { _ in }
+        watch?.refresh(settling: true)
+        let timers = watch?.settle ?? []
+        let expectedCount = 2
+        #expect(timers.count == expectedCount)
+        let armed = timers.filter(\.isValid).count
+        #expect(armed == expectedCount)
+        watch = nil
+        let stillArmed = timers.filter(\.isValid).count
+        #expect(stillArmed == 0)
+    }
+
+    @MainActor @Test func stopEndsPollingBeforeTheWatchIsDropped() {
+        // The controllers call this from hide(), so the poll ends at a moment they choose rather than whenever
+        // the last reference happens to go.
+        let watch = FullScreenWatch(read: { [suspect] in suspect }) { _ in }
+        let timer = watch.poll
+        #expect(timer?.isValid == true)
+        watch.stop()
+        #expect(watch.poll == nil)
+        #expect(timer?.isValid == false)
+    }
+}
+
 /// Who wins when a full-screen app is up: the preference, an exception for that app, and the shortcut, which is
 /// the only one of the three that can tell a call from a film when both are the same browser.
 @Suite struct FullScreenVisibility {

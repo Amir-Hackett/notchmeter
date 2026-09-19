@@ -187,18 +187,26 @@ enum FullScreen {
 final class FullScreenWatch {
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     /// Space notifications are the signal; this only runs while a full-screen app is up, so a missed one
-    /// cannot strand the panel off screen.
-    private var poll: Timer?
+    /// cannot strand the panel off screen. Readable so a test can hold the timer and ask, once the watch is
+    /// gone, whether it went with it.
+    private(set) var poll: Timer?
     /// The looks-again after a Space change. Held so a burst of activations replaces them rather than queueing
     /// a scan of the whole window list for each one.
-    private var settle: [Timer] = []
+    private(set) var settle: [Timer] = []
     private(set) var verdict = FullScreen.Verdict()
     var isActive: Bool { verdict.isActive }
-    private let screen: () -> NSScreen
+    private let read: @MainActor () -> FullScreen.Scan
     private let changed: (FullScreen.Verdict) -> Void
 
-    init(screen: @escaping () -> NSScreen, changed: @escaping (FullScreen.Verdict) -> Void) {
-        self.screen = screen
+    convenience init(screen: @escaping () -> NSScreen, changed: @escaping (FullScreen.Verdict) -> Void) {
+        self.init(read: { FullScreen.scan(on: screen()) }, changed: changed)
+    }
+
+    /// The reading comes from a closure so a test can stand the watch up at all: `FullScreen.scan(on:)` asks
+    /// the Window Server for the window list, and a test runner has no session to ask with (the note at the foot
+    /// of FullScreenRule in FullScreenTests.swift has the crash). The app never passes anything but the scan.
+    init(read: @escaping @MainActor () -> FullScreen.Scan, changed: @escaping (FullScreen.Verdict) -> Void) {
+        self.read = read
         self.changed = changed
         let workspace = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
@@ -211,6 +219,14 @@ final class FullScreenWatch {
 
     deinit {
         for (center, token) in observers { center.removeObserver(token) }
+        // A scheduled Timer belongs to the run loop, not to the object holding it, and its block only holds
+        // `self` weakly, so dropping the watch used to leave the two-second poll firing against nil for the
+        // rest of the process, one more of them each time the presenters were rebuilt with a full-screen app
+        // up (a dock, a lid, or the pointer crossing displays). The controllers' hide() calls stop() first;
+        // this covers any path that drops a watch without it. Direct property access on purpose: stop() is
+        // isolated to the main actor and a deinit is not, which language mode 5 lets through and 6 does not.
+        poll?.invalidate()
+        for timer in settle { timer.invalidate() }
     }
 
     /// `settling` looks again shortly after: a Space change is reported while the window list and the menu bar
@@ -220,7 +236,7 @@ final class FullScreenWatch {
     /// menu bar: the pointer at the top edge of a full-screen Space brings the bar in, the verdict flips to
     /// "left", and without the poll the readouts would stay over the app once the bar had gone again.
     func refresh(settling: Bool = false) {
-        let reading = FullScreen.scan(on: screen())
+        let reading = read()
         let now = FullScreen.verdict(reading.candidates, on: reading.display)
         setPolling(now.isActive || FullScreen.isSuspect(reading.candidates, on: reading.display))
         // Every reading, not only the ones that change the verdict: `log stream --level debug` beside a
@@ -252,6 +268,8 @@ final class FullScreenWatch {
         }
     }
 
+    /// The teardown the controllers run from hide(), before the watch is dropped with them. Polling ends here
+    /// rather than at deallocation, whose moment and thread nothing guarantees; deinit only backs this up.
     func stop() {
         for (center, token) in observers { center.removeObserver(token) }
         observers = []

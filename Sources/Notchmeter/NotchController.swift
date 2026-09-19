@@ -519,6 +519,11 @@ final class NotchController: NSObject, PanelPresenting {
         keyMonitor = nil
         for (center, token) in observers { center.removeObserver(token) }
         observers = []
+        // hide() is only ever the discard path (App.rebuildPresenters drops the controller once it returns),
+        // so the watch goes with everything else here; show() builds a fresh one when it finds none. Left
+        // alone, its two-second poll outlived the controller: see FullScreenWatch.deinit.
+        fullScreenWatch?.stop()
+        fullScreenWatch = nil
         transitionSerial += 1
         await notch.hide()
     }
