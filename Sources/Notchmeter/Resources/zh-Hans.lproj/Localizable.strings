@@ -195,7 +195,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "按此速度，本%1$@将花费 %2$@，预算为 %3$@。";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "按此速度，你将在%3$@ %4$@ 至 %5$@ 之间触及 %1$@ %2$@上限。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "按当前速度，%1$@ 的%2$@额度将于%3$@达到上限，距离重置还有 %4$@。%5$@";
-"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "按当前速度，%2$@将超出%1$@，距离重置还有 %3$@。";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "按当前速度，你将在 %2$@ 超出%1$@，距离重置还有 %3$@。";
 "Auto" = "自动";
 "another user is logged in" = "另一用户已登录";
 "auto" = "自动";

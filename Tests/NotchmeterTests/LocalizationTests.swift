@@ -96,6 +96,24 @@ import Testing
         #expect(L("not a key in any table") == "not a key in any table")
     }
 
+    /// The budget banners name their window through `WindowLabel.inSentence`, which lowercases a translated label
+    /// ("Ngân sách tháng" becomes "ngân sách tháng") because English puts "The " in front of it. A translation that
+    /// opens with that placeholder therefore starts its sentence in lowercase; 0.5.0's first Vietnamese draft did,
+    /// and the specifier check above cannot see it. Only the cased languages can show it: CJK has no case.
+    @Test func aLowercasedWindowNameNeverOpensABudgetBanner() throws {
+        let keys = ["The %1$@ is spent. %2$@.", "The %1$@ is close to pace: ~%2$ld%% left at reset."]
+        for language in ["en", "vi"] {
+            let table = try self.table(language)
+            let locale = Locale(identifier: language)
+            for key in keys {
+                let value = try #require(table[key])
+                let first = try #require(value.first)
+                #expect(!value.hasPrefix("%1$@"), "\(language) opens \(key) with the lowercased window name")
+                #expect(String(first).uppercased(with: locale) == String(first), "\(language) starts \(key) in lowercase")
+            }
+        }
+    }
+
     /// Six languages ship, all left-to-right. The compact strip beside the notch is pinned to left-to-right in code
     /// (NotchCompactView, EdgeCompactView) because it refers to the physical notch, so a right-to-left language
     /// (Arabic, Hebrew) can be added without the strip mirroring away from its hover geometry; the rest of the
