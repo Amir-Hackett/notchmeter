@@ -514,6 +514,10 @@ enum Paths {
     static var historyFile: URL { applicationSupport.appendingPathComponent("daily-history-v1.jsonl") }
     /// Where builds before 2026-09-19 kept the daily totals; read as a fallback and moved on launch.
     static var legacyHistoryFile: URL { caches.appendingPathComponent("daily-history-v1.jsonl") }
+    /// The Unix-domain socket the running app listens on for the hook and status-line commands (HookSocket.swift),
+    /// since 0.6.0 in place of a distributed notification any process could read or forge. Created 0600 in a
+    /// folder made 0700 at launch, removed at quit; a leftover from a crash is replaced.
+    static var hookSocket: URL { applicationSupport.appendingPathComponent("hook.sock") }
 }
 
 /// A value from the process environment, or from launchd's when the app was launched from the Finder and

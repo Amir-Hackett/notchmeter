@@ -120,6 +120,9 @@ final class UsageStore {
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    /// The socket the hook and status-line commands write to (HookSocket.swift); nil until `start`, and in a
+    /// sidecar run, which must never take the running app's socket from under it.
+    @ObservationIgnored private var hookSocket: HookSocket.Listener?
     /// IOKit's mains/battery transition source (PowerSource.observeTransitions), held so it is not collected.
     @ObservationIgnored private var powerSourceWatch: CFRunLoopSource?
     @ObservationIgnored private var costEngine: CostEngine
@@ -1089,14 +1092,33 @@ final class UsageStore {
         powerSourceWatch = PowerSource.observeTransitions { [weak self] in
             Task { @MainActor in self?.setOnBattery(PowerSource.onBattery()) }
         }
-        observers.append(distributed.addObserver(forName: Hook.notificationName, object: nil, queue: .main) { [weak self] note in
-            guard let message = Hook.Message(userInfo: note.userInfo) else { return }
-            Task { @MainActor in self?.hookReceived(message) }
-        })
-        observers.append(distributed.addObserver(forName: Statusline.notificationName, object: nil, queue: .main) { [weak self] note in
-            guard let message = Statusline.Message(userInfo: note.userInfo) else { return }
-            Task { @MainActor in self?.statuslineReceived(message) }
-        })
+        listenForHooks()
+    }
+
+    /// The hook and status-line commands reach the store over a socket only this app's own signature may write to
+    /// (HookSocket.swift). Until 0.6.0 they were two distributed notifications, which any process of the same
+    /// user could read as they went by and post in an assistant's name. The listener is the app's alone: a
+    /// `--smoke` or `--probe` run beside the installed copy goes through this same `start`, and binding here would
+    /// unlink the running app's socket and leave its hooks talking to a process about to exit, so a sidecar never
+    /// listens. Delivery is on a background queue and hops to the main actor, as the observers did.
+    private func listenForHooks(arguments: [String] = CommandLine.arguments) {
+        guard hookSocket == nil, !SingleInstance.isSidecar(arguments: arguments) else { return }
+        let listener = HookSocket.Listener { [weak self] message in
+            Task { @MainActor in
+                switch message {
+                case .hook(let hook): self?.hookReceived(hook)
+                case .statusline(let line): self?.statuslineReceived(line)
+                }
+            }
+        }
+        listener.start()
+        hookSocket = listener
+    }
+
+    /// Removes the socket at quit, so a hook that fires afterwards finds nothing rather than a file that refuses it.
+    func stopListeningForHooks() {
+        hookSocket?.stop()
+        hookSocket = nil
     }
 
     private func setAsleep(_ value: Bool) {

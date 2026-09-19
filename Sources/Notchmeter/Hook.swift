@@ -1,16 +1,16 @@
 import Foundation
 
 /// The `--hook` half of the assistant integrations: a hook command that turns one Claude Code, Codex, Cursor,
-/// Gemini CLI or GitHub Copilot event into one distributed notification carrying the event name, whether the
+/// Gemini CLI or GitHub Copilot event into one line on the running app's socket carrying the event name, whether the
 /// assistant is waiting on the user, the session id, the last path component of the working directory, the git
 /// branch checked out there, the permission mode, the subagent id, a stop failure's kind and — only when it is not
 /// Claude Code — which assistant sent it, nothing else. Claude Code's command sends no tool; every other
 /// installer sends `--tool <id>` and each ToolID has a parser of its own (Hook+Codex.swift, Hook+Cursor.swift,
 /// Hook+Gemini.swift, Hook+Copilot.swift); failing the flag, a payload whose shape only one vendor produces is
-/// recognised by it. The running app listens in UsageStore; a remote host's hook posts the same fields to the
-/// local API instead (docs/hooks.md).
+/// recognised by it. The running app listens in UsageStore, over the socket HookSocket.swift describes (until
+/// 0.6.0 it was a distributed notification, which any local process could read or forge); a remote host's hook
+/// posts the same fields to the local API instead (docs/hooks.md).
 enum Hook {
-    static let notificationName = Notification.Name("com.amirhackett.notchmeter.hook")
     static let eventKey = "hook_event_name"
     static let needsInputKey = "needsInput"
     static let sessionKey = "session_id"
@@ -252,15 +252,16 @@ enum Hook {
         return name.isEmpty ? nil : name
     }
 
-    /// `Notchmeter --hook [--tool <id>] [--event <name>]`: read what the assistant pipes in, post it, exit 0. The
-    /// whole run must fit in 50 ms including launch, so the read gives up after 25 ms and an empty or unreadable
-    /// payload is not an error. The tool flag names the sender before a byte of payload is read; without it the
-    /// payload's shape decides. The event flag names the event for a payload that does not (Copilot's).
+    /// `Notchmeter --hook [--tool <id>] [--event <name>]`: read what the assistant pipes in, hand it to the running
+    /// app, exit 0. The whole run must fit in 50 ms including launch, so the read gives up after 25 ms and an empty
+    /// or unreadable payload is not an error. The tool flag names the sender before a byte of payload is read;
+    /// without it the payload's shape decides. The event flag names the event for a payload that does not
+    /// (Copilot's). The hand-over is one line on the app's socket (HookSocket.send), and its answer is not looked
+    /// at: no app listening is the everyday case of Notchmeter not running, and a refusal is the app's to log, so
+    /// the command has nothing to say to the assistant either way and exits 0 silently.
     static func runCommand(arguments: [String] = CommandLine.arguments) -> Never {
         if let message = message(from: readStandardInput(within: 0.025), tool: tool(in: arguments), event: event(in: arguments)) {
-            DistributedNotificationCenter.default().postNotificationName(
-                notificationName, object: nil, userInfo: message.userInfo, deliverImmediately: true
-            )
+            HookSocket.send(.hook, message.userInfo)
         }
         exit(0)
     }
