@@ -78,9 +78,21 @@ struct AgentSession: Equatable, Sendable, Identifiable {
         return host.map { "\(project)@\($0)" } ?? project
     }
 
+    /// The pull request's page, accepted only as an ordinary web link. `prURL` arrives as a free string from the
+    /// status-line distributed notification, which any local process can post, and the panel hands it straight to
+    /// NSWorkspace when the arrow button is clicked; without this gate a forged `file:///Volumes/X/Setup.app` or a
+    /// third-party app's custom scheme drew the familiar PR button and launched whatever it named. Every reader of
+    /// the link goes through here so the check lives in one place rather than at each button (0.4.8).
+    var prLink: URL? {
+        guard let prURL, let url = URL(string: prURL),
+              let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http",
+              let host = url.host, !host.isEmpty else { return nil }
+        return url
+    }
+
     /// "#12" from a pull request URL's last path component.
     var prNumber: String? {
-        guard let prURL, let last = URL(string: prURL)?.lastPathComponent, Int(last) != nil else { return nil }
+        guard let last = prLink?.lastPathComponent, Int(last) != nil else { return nil }
         return "#\(last)"
     }
 

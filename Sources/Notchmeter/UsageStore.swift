@@ -326,8 +326,14 @@ final class UsageStore {
         footerNote = note
     }
 
-    /// A vendor's page or a pull request, from the card.
+    /// A vendor's page or a pull request, from the card. Only web links leave here: `AgentSession.prLink` already
+    /// refuses anything else, but a pull request URL is the one string on this path that an untrusted process can
+    /// supply, so the sink checks the scheme again rather than trusting every future caller to have done so (0.4.8).
     func openURL(_ url: URL) {
+        guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
+            Oracle.shared.emit("open", ["refused": url.scheme ?? ""])
+            return
+        }
         Oracle.shared.emit("open", ["host": url.host ?? url.absoluteString])
         NSWorkspace.shared.open(url)
     }
