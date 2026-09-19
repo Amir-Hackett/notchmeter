@@ -48,7 +48,8 @@ struct ExtraUsageRise: Equatable, Sendable {
 /// combined list is sorted by priority, capped at three, and empty when there is nothing worth saying.
 enum Advisor {
     struct Context {
-        /// Live readings of the visible tools, in the user's tool order; a stale reading kept beside an error is not one.
+        /// Readings of the visible tools, in the user's tool order: the live ones and the cached reading a
+        /// rate-limit wait keeps on screen; a stale reading kept beside a fault is not one (`UsageStore.readyReadings`).
         var readings: [UsageReading]
         var awaitingInput: Set<ToolID> = []
         /// The sessions waiting on the user, newest first, of every tool whose hook reports them; each carries its

@@ -343,11 +343,18 @@ final class UsageStore {
         prefs.hideFromScreenShare && screenCaptured
     }
 
-    /// Live readings of the visible tools; a cached reading shown beside an error is left out.
+    /// Readings the Advisor may steer by: live ones, plus the cached reading a rate-limit wait keeps on screen. A
+    /// reading kept beside a fault (needsAttention, failed, offline) is left out; a 429 is a wait, not a fault, and
+    /// its figures still drive the rings, the card and the JSON, so the advice strip should not empty on it. It did
+    /// for the first cut of 0.5.0: a 429 used to launder the cache into `.ready` and every advice line stayed up,
+    /// and marking it stale dropped the tool's lines for the whole backoff while the card under them kept the figure.
     var readyReadings: [UsageReading] {
         visibleTools.compactMap {
-            if case .ready(let reading) = status($0) { return reading }
-            return nil
+            switch status($0) {
+            case .ready(let reading): return reading
+            case .rateLimited(_, let cached): return cached
+            default: return nil
+            }
         }
     }
 
@@ -559,27 +566,25 @@ final class UsageStore {
         case .failure(let error as ProviderError):
             log.error("\(tool.displayName, privacy: .public) failed: \(error.message, privacy: .public)")
             if case .http(let code, _) = error, code >= 500 { serverTrouble[tool] = code } else { serverTrouble[tool] = nil }
+            // The status is one mapping shared with the probe (ToolStatus.init(_:cached:)); only the backoff is
+            // decided here, because only the store has a loop to back off.
+            statuses[tool] = ToolStatus(error, cached: cached)
             if error.isCalm {
-                statuses[tool] = .idle(error.message)
                 backoff[tool] = 0
             } else if case .offline = error {
-                statuses[tool] = .offline(cached: cached)
                 backoff[tool] = min(300, max(30, (backoff[tool] ?? 15) * 2))
             } else if case .rateLimited(let retry) = error {
                 // Transient: keep the last good numbers on screen, marked as the old numbers they are, and try again
                 // later. This branch used to set `.ready(cached)`, which presented them as a live reading everywhere
-                // (ToolStatus.rateLimited says where). The wait is capped like its neighbours' because it is the
+                // (ToolStatus.rateLimited says where). The wait is clamped like its neighbours' because it is the
                 // only one a vendor sets: a `Retry-After: 1800` was honoured verbatim and held the reading for half
-                // an hour, and the message names the wait the app really takes.
-                let wait = min(600, ProviderError.rateLimitWait(retryAfter: retry))
-                backoff[tool] = wait
-                statuses[tool] = .rateLimited(L("Rate limited, retrying in %lds", Int(wait)), cached: cached)
+                // an hour. The clamp is in rateLimitWait, so the log line above, the footer and the probe all name
+                // the wait the app really takes.
+                backoff[tool] = ProviderError.rateLimitWait(retryAfter: retry)
             } else if error.needsAttention {
-                statuses[tool] = .needsAttention(error.message, cached: cached)
                 backoff[tool] = 60
             } else {
                 backoff[tool] = min(600, max(30, (backoff[tool] ?? 15) * 2))
-                statuses[tool] = .failed(error.message, cached: cached)
             }
         case .failure(let error):
             log.error("\(tool.displayName, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")

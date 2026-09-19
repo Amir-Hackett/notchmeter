@@ -380,8 +380,8 @@ enum Spoken {
             case .off: parts.append(L("off"))
             case .notInstalled: parts.append(L("not installed"))
             case .offline: parts.append(L("Offline, retrying"))
-            case .rateLimited(let message, _): parts.append(phrase(message))
-            case .ready, .needsAttention, .failed: break
+            // A 429 with nothing cached arrives through `problem` above, so the wait is spoken once.
+            case .ready, .needsAttention, .failed, .rateLimited: break
             }
         }
         return parts.joined(separator: "; ")

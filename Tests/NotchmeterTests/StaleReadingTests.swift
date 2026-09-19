@@ -25,6 +25,10 @@ import Testing
         #expect(ToolStatus.offline(cached: reading).staleReading == reading)
         #expect(ToolStatus.rateLimited("Rate limited, retrying in 60s", cached: reading).staleReading == reading)
         #expect(ToolStatus.rateLimited("Rate limited, retrying in 60s", cached: reading).problem == nil)
+        // With nothing cached the wait is the only thing to show, so it is the problem, as a failed read's message
+        // is, and the compact ring's spoken line says it once rather than twice.
+        #expect(ToolStatus.rateLimited("Rate limited, retrying in 60s", cached: nil).problem == "Rate limited, retrying in 60s")
+        #expect(Spoken.status(.rateLimited("Rate limited, retrying in 60s", cached: nil)) == "Rate limited, retrying in 60 seconds")
         #expect(ToolStatus.ready(reading).staleReading == nil)
         #expect(ToolStatus.waiting.staleReading == nil)
         #expect(ToolStatus.idle("nothing yet").staleReading == nil)
@@ -66,9 +70,40 @@ import Testing
         #expect(ProviderError.rateLimitWait(retryAfter: nil) == 60)
         #expect(ProviderError.rateLimitWait(retryAfter: 15) == 60)
         #expect(ProviderError.rateLimitWait(retryAfter: 300) == 300)
+        // The ceiling sits beside the floor so the log line, the probe transcript and the footer all name the ten
+        // minutes the app really waits, not the vendor's half hour.
+        #expect(ProviderError.rateLimitWait(retryAfter: 1800) == 600)
         #expect(ProviderError.rateLimited(retryAfter: 0).message == "Rate limited, retrying in 60s")
         #expect(ProviderError.rateLimited(retryAfter: 300).message == "Rate limited, retrying in 300s")
+        #expect(ProviderError.rateLimited(retryAfter: 1800).message == "Rate limited, retrying in 600s")
         #expect(ProviderError.rateLimited(retryAfter: nil).message == "Rate limited, backing off")
+    }
+
+    /// The store and the one-shot probe turn a provider's error into the same status, so `--probe --json` (and
+    /// the MCP server or command-line tool falling back to it while the app is not running) says `rateLimited`
+    /// for the 429 the running app's report says `rateLimited` for, rather than `failed` with a fault to report.
+    @Test func theProbeAndTheStoreAgreeOnWhatAnErrorLeavesBehind() {
+        let reading = UsageReading(tool: .codex, windows: [], plan: nil, fetchedAt: Date(), observedAt: nil)
+        #expect(ToolStatus(.rateLimited(retryAfter: 1800), cached: nil) == .rateLimited("Rate limited, retrying in 600s", cached: nil))
+        #expect(ToolStatus(.rateLimited(retryAfter: 1800), cached: reading) == .rateLimited("Rate limited, retrying in 600s", cached: reading))
+        #expect(ToolStatus(.notSignedIn("Sign in"), cached: reading) == .needsAttention("Sign in", cached: reading))
+        #expect(ToolStatus(.nothingYet("Nothing yet"), cached: nil) == .idle("Nothing yet"))
+        #expect(ToolStatus(.offline("Offline, retrying"), cached: reading) == .offline(cached: reading))
+        #expect(ToolStatus(.http(503, "Server error"), cached: reading) == .failed("Server error (HTTP 503)", cached: reading))
+        #expect(Oracle.kind(ToolStatus(.rateLimited(retryAfter: nil), cached: nil)) == "rateLimited")
+    }
+
+    /// What the probe writes for a 429 it has no cache for: the status names the wait as its problem, and there is
+    /// no `stale` flag because there is no reading to be stale.
+    @Test func aColdProbesRateLimitReadsAsAWaitInTheReport() throws {
+        let now = DateParsing.iso8601("2026-09-01T12:00:00Z")!
+        let report = UsageReport(tools: [.codex: ToolStatus(.rateLimited(retryAfter: 1800), cached: nil)], cost: nil, advice: [], now: now)
+        let object = try #require(try JSONSerialization.jsonObject(with: report.json) as? [String: Any])
+        let tool = try #require((object["tools"] as? [[String: Any]])?.first)
+        #expect(tool["status"] as? String == "rateLimited")
+        #expect(tool["problem"] as? String == "Rate limited, retrying in 600s")
+        #expect(tool["stale"] == nil)
+        #expect(tool["windows"] == nil)
     }
 
     /// A 429 keeps the last good numbers on screen as the old numbers they are. The store used to set
@@ -99,6 +134,9 @@ import Testing
             return
         }
         #expect(message == "Rate limited, retrying in 600s")
+        // The advice strip keeps steering by the cached figures through the wait; on 0.4.x a 429 laundered them
+        // into .ready and every advice line for the tool stayed up, and marking them stale must not drop them.
+        #expect(store.readyReadings.contains(reading))
     }
 }
 

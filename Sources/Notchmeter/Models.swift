@@ -339,12 +339,21 @@ enum ProviderError: Error, Equatable {
     case apiKeyOnly(String)
 
     /// The shortest a rate-limit backoff is ever allowed to be. A vendor that answers `Retry-After: 0` still gets a
-    /// minute, so the wait the message names is the wait the app takes.
+    /// minute, and one that answers `Retry-After: 1800` gets ten (`rateLimitCeiling`), so the wait the message names
+    /// is the wait the app takes.
     static let rateLimitFloor: TimeInterval = 60
 
-    /// How long the app will really wait after a rate-limit answer: the vendor's own delay, never under the floor.
+    /// The longest, matching the other backoffs in UsageStore: a vendor's half-hour Retry-After does not hold the
+    /// reading that long. The ceiling lives here beside the floor rather than in the store because `message` is
+    /// what the unified log, the `--probe` transcript and the card footer all print: 0.5.0 first capped the wait in
+    /// the store alone and built a second string there, so a `Retry-After: 1800` logged "retrying in 1800s" while
+    /// the footer said 600s and the app waited 600s.
+    static let rateLimitCeiling: TimeInterval = 600
+
+    /// How long the app will really wait after a rate-limit answer: the vendor's own delay, clamped to
+    /// [`rateLimitFloor`, `rateLimitCeiling`].
     static func rateLimitWait(retryAfter: TimeInterval?) -> TimeInterval {
-        max(rateLimitFloor, retryAfter ?? 0)
+        min(rateLimitCeiling, max(rateLimitFloor, retryAfter ?? 0))
     }
 
     var message: String {
@@ -403,8 +412,29 @@ enum ToolStatus: Equatable {
     /// one status with no `staleReading`, so a 429 dropped the "Last reading … may be out of date" caption, stopped
     /// dimming the meter rows and wrote `"stale": false` into the probe JSON, the local API and the MCP server for
     /// figures that were as old as the vendor's Retry-After. A tool already showing `.failed(_, cached:)` even came
-    /// out of a 429 looking healthier than it went in.
+    /// out of a 429 looking healthier than it went in. With a reading cached there is no problem mark, because the
+    /// footer names the wait under figures that are still worth reading, and the Advisor keeps steering by them
+    /// (`UsageStore.readyReadings`); with nothing cached the wait is all there is to show, so `problem` carries it
+    /// and the ring wears the mark as it did for `.failed`, rather than dimming to the "no reading yet" look.
     case rateLimited(String, cached: UsageReading?)
+
+    /// The status a provider's error leaves a tool in, for the store and the one-shot probe alike. One mapping so
+    /// that a new kind of error cannot be wired into one producer and not the other: 0.5.0 gave the store
+    /// `.rateLimited` while `--probe`, and the MCP server and command-line tool falling back to it, still turned the
+    /// same 429 into `.failed` with a problem to report.
+    init(_ error: ProviderError, cached: UsageReading?) {
+        if error.isCalm {
+            self = .idle(error.message)
+        } else if case .offline = error {
+            self = .offline(cached: cached)
+        } else if case .rateLimited = error {
+            self = .rateLimited(error.message, cached: cached)
+        } else if error.needsAttention {
+            self = .needsAttention(error.message, cached: cached)
+        } else {
+            self = .failed(error.message, cached: cached)
+        }
+    }
 
     var reading: UsageReading? {
         switch self {
@@ -417,6 +447,8 @@ enum ToolStatus: Equatable {
     var problem: String? {
         switch self {
         case .needsAttention(let m, _), .failed(let m, _): m
+        // A 429 with nothing cached has nothing to show but the wait; with a reading on screen the footer names it.
+        case .rateLimited(let m, cached: .none): m
         default: nil
         }
     }

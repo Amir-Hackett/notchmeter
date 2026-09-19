@@ -1453,7 +1453,9 @@ enum Probe {
                 statuses[provider.tool] = .ready(reading)
                 if verbose { emit(describe(reading)) }
             } catch let error as ProviderError {
-                statuses[provider.tool] = error.needsAttention ? .needsAttention(error.message, cached: nil) : error.isCalm ? .idle(error.message) : .failed(error.message, cached: nil)
+                // The same mapping the store applies, so a 429 reads `rateLimited` here as it does from the running
+                // app's report, the local API and the MCP server, rather than `failed` with a fault to report.
+                statuses[provider.tool] = ToolStatus(error, cached: nil)
                 if verbose { emit("\(name): \(error.message)") }
             } catch {
                 statuses[provider.tool] = .failed(error.localizedDescription, cached: nil)

@@ -238,6 +238,7 @@ None of the states below can be unit-tested; each is a manual check with the exp
 | Display sleep (no lock) | polling paused, panel collapsed | footer "Paused while the display sleeps" |
 | Low Power Mode | half the cadence, footer note | `polling:` line, footer "low power mode" |
 | Offline | cached readings stay without a problem mark; footer "Offline, retrying" | reading `status: offline` in the oracle |
+| A vendor answers 429 | the cached reading stays, dimmed and captioned "Last reading … may be out of date", without a problem mark; the footer names the wait, clamped to one to ten minutes whatever the Retry-After; the advice strip keeps steering by the cached figures. With nothing cached the wait is the problem and the ring wears the mark, as for a failed read. The same 429 reads `rateLimited` from `--probe`, the local API, the MCP server and the running app alike | reading `status: rateLimited`, `stale: true` in the oracle; `--probe --json` `"status": "rateLimited"` |
 | Increase Contrast | brighter tracks and card fills, secondary captions, no quiet dim | `--render-assets` produces `expanded-contrast.png`; read it against `expanded.png`, which is the same panel a second earlier. Every countdown in the pair agrees, because `DemoFixtures.readings` places each reset in the middle of the unit its countdown prints rather than on the boundary of it |
 | Reduce Transparency | solid black surfaces, no glass | `accessibility` line |
 | Reduce Motion (system) or Reduce animations (app) | every transition instant, no pulse | `reduce motion:` line |
