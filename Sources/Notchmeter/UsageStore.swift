@@ -119,6 +119,8 @@ final class UsageStore {
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    /// IOKit's mains/battery transition source (PowerSource.observeTransitions), held so it is not collected.
+    @ObservationIgnored private var powerSourceWatch: CFRunLoopSource?
     @ObservationIgnored private var costEngine: CostEngine
     @ObservationIgnored private var activity: AgentActivity
     @ObservationIgnored private let drainLog: DrainLog?
@@ -930,10 +932,7 @@ final class UsageStore {
         let lowPower = PowerSource.lowPowerMode()
         let before = visibleTools.map { PollingPolicy.decide(pollingInputs(for: $0)) }
         if sampled != lastActivity { lastActivity = sampled }
-        if battery != onBattery {
-            onBattery = battery
-            applyAwake()
-        }
+        setOnBattery(battery)
         if lowPower != lowPowerMode { lowPowerMode = lowPower }
         let after = visibleTools.map { PollingPolicy.decide(pollingInputs(for: $0)) }
         if before != after { reschedule() }
@@ -975,6 +974,14 @@ final class UsageStore {
         observers.append(NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.setLowPowerMode(PowerSource.lowPowerMode()) }
         })
+        // The power-state notification above is Low Power Mode, not the charger: nothing here heard the Mac
+        // move to battery until 0.5.0, so `onBattery` was the minute tick's alone, and the tick is parked while
+        // the display sleeps or the screen is locked. That is where an unattended run spends its time, so the
+        // charger came out and the awake assertion kept holding on the last snapshot it had. IOKit tells us
+        // directly, tick or no tick.
+        powerSourceWatch = PowerSource.observeTransitions { [weak self] in
+            Task { @MainActor in self?.setOnBattery(PowerSource.onBattery()) }
+        }
         observers.append(distributed.addObserver(forName: Hook.notificationName, object: nil, queue: .main) { [weak self] note in
             guard let message = Hook.Message(userInfo: note.userInfo) else { return }
             Task { @MainActor in self?.hookReceived(message) }
@@ -1019,6 +1026,18 @@ final class UsageStore {
     private func setLowPowerMode(_ value: Bool) {
         guard lowPowerMode != value else { return }
         lowPowerMode = value
+        reschedule()
+    }
+
+    /// The one writer for `onBattery` after `start()`, fed by IOKit's transition callback and backstopped by the
+    /// minute tick. The awake assertion is re-decided here because the power source is one of its two inputs and
+    /// nothing else asks again when it moves; the loops are rescheduled because the cadence multiplier reads it
+    /// too. Internal rather than private so a test can move the power source, which the hardware will not do on
+    /// cue.
+    func setOnBattery(_ value: Bool) {
+        guard onBattery != value else { return }
+        onBattery = value
+        applyAwake()
         reschedule()
     }
 
