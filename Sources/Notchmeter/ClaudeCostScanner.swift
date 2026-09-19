@@ -12,7 +12,8 @@ struct UsageEntry: Codable, Equatable, Sendable {
     let dedupeKey: String?
     /// `usage.inference_geo`; "us" is billed at 1.1x list.
     let inferenceGeo: String?
-    /// The last path component of the line's `cwd`, else of the transcript's project folder.
+    /// The project name of the line's `cwd` (ProjectName: the repository a worktree was cut from, else the last path
+    /// component), else of the transcript's project folder.
     let project: String?
     let sessionID: String?
     /// `usage.server_tool_use.web_search_requests`, a per-request fee.

@@ -52,7 +52,8 @@ extension Hook {
         }
 
         /// Only the event name, `session_id` (else the GEMINI_SESSION_ID the hook process is given), the root's
-        /// basename and `notification_type` are read; the transcript path, timestamp, prompt, response, message,
+        /// project name (its folder's, or the repository's for a git worktree: ProjectName) and `notification_type`
+        /// are read; the transcript path, timestamp, prompt, response, message,
         /// details, reason, trigger and source are not.
         ///
         /// The notification type rides along only when it is a documented waiting type. `Message.clearsWaiting`

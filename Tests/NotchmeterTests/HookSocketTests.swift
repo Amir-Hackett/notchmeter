@@ -110,6 +110,33 @@ import os
         #expect(seen.messages.isEmpty)
     }
 
+    @Test func theWaitForTheHangUpIsCappedAtOneSecond() throws {
+        // The command waits to be hung up on so the app can resolve its code object through a live pid, and
+        // docs/hooks.md promises that an app which is stopped or starved holds a hook for at most a second, not
+        // the few milliseconds of the ordinary case. A peer check that sleeps two seconds is such an app held
+        // still: the cap is `send`'s timeout on the socket, and the command still answers `.sent`, since it has
+        // nothing to tell the assistant either way and the app may yet read the line once it wakes.
+        let url = Self.scratch("cap")
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let seen = Seen()
+        let listener = HookSocket.Listener(path: url, peerCheck: { _ in
+            Thread.sleep(forTimeInterval: 2)
+            return .accepted
+        }, deliver: { seen.deliver($0) })
+        #expect(listener.start())
+        defer { listener.stop() }
+
+        let started = Date()
+        let result = HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false, sessionID: "cap").userInfo, to: url.path)
+        let elapsed = Date().timeIntervalSince(started)
+        #expect(result == .sent)
+        #expect(elapsed >= 0.9, "the command must wait for the app's hang-up, not give up early: \(elapsed) s")
+        #expect(elapsed < 1.5, "the wait is capped at one second, the figure the docs give: \(elapsed) s")
+        // The line was in the kernel's buffer all along, so the app reads it once its check returns.
+        #expect(seen.delivered.wait(timeout: .now() + 3) == .success, "a slow check delays the line and does not lose it")
+    }
+
     @Test func noListenerMeansASilentAnswerWithinTheBudget() throws {
         // No file at all: the everyday case of Notchmeter not running.
         let missing = Self.scratch("missing")

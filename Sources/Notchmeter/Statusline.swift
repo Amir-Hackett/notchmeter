@@ -7,7 +7,8 @@ import Foundation
 /// (HookSocket.swift; a distributed notification until 0.6.0), then prints one line for Claude Code's own bar, or
 /// runs the status-line command that was configured before (`--then '<command>'`) with the same JSON so nothing
 /// the user had is lost.
-/// Never forwarded: the transcript path, the working directory beyond its basename, the prompt.
+/// Never forwarded: the transcript path, the working directory beyond its project name (ProjectName.ofPath: the
+/// repository a worktree was cut from, else the basename), the prompt.
 enum Statusline {
     static let readBudget: TimeInterval = 0.2
 
@@ -116,7 +117,8 @@ enum Statusline {
                            periodDuration: spec.period, source: .statusline, rawUsedPercent: percent > 100 ? percent : nil)
     }
 
-    /// The fields read from Claude Code's JSON: `session_id`, the basename of `cwd`, `model.display_name`,
+    /// The fields read from Claude Code's JSON: `session_id`, the project name of `cwd` (ProjectName.ofPath: the
+    /// repository a worktree was cut from, else the basename), `model.display_name`,
     /// `effort.level`, `context_window.used_percentage` (or its token counts), `cost.total_cost_usd`,
     /// `rate_limits.<window>`'s `used_percentage` and `resets_at` (epoch seconds), `worktree.branch` (else the
     /// basename of `workspace.git_worktree`) and `pr.url`. Any of them may be missing.

@@ -78,12 +78,15 @@ struct AgentSession: Equatable, Sendable, Identifiable {
         return host.map { "\(project)@\($0)" } ?? project
     }
 
-    /// The pull request's page, accepted only as an ordinary web link. `prURL` arrives as a free string from the
-    /// status-line distributed notification, which any local process can post, and the panel hands it straight to
-    /// NSWorkspace when the arrow button is clicked; without this gate a forged `file:///Volumes/X/Setup.app` or a
-    /// third-party app's custom scheme drew the familiar PR button and launched whatever it named. Every reader of
-    /// the link, the panel button, `prNumber` and the report's `pr` field, goes through here so the check lives in
-    /// one place rather than at each button; the report used to export the raw string, so a forged address the
+    /// The pull request's page, accepted only as an ordinary web link. `prURL` is `pr.url` from Claude Code's
+    /// status-line JSON, forwarded by `--statusline` over the hook socket (HookSocket.swift; a distributed
+    /// notification any local process could post until 0.6.0). The socket vouches for the sender being a copy of
+    /// this app's binary, not for the string: Claude Code, a rewritten hook or settings file, or any same-user
+    /// process that runs `Notchmeter --statusline` itself still chooses what the payload says, and the panel hands
+    /// it straight to NSWorkspace when the arrow button is clicked; without this gate a `file:///Volumes/X/Setup.app`
+    /// or a third-party app's custom scheme drew the familiar PR button and launched whatever it named. Every
+    /// reader of the link, the panel button, `prNumber` and the report's `pr` field, goes through here so the check
+    /// lives in one place rather than at each button; the report used to export the raw string, so an address the
     /// panel refused still reached the local API, the command-line tool and the MCP server (0.5.0).
     var prLink: URL? {
         guard let prURL, let url = URL(string: prURL),

@@ -38,7 +38,8 @@ extension Hook {
         /// parent and nothing more — the subagent itself is already counted from `SubagentStart`.
         static let subagentPromptEvent = "SubagentPromptSubmit"
 
-        /// Only the event name, `session_id`, the basename of `cwd`, `permission_mode` and `agent_id` are read; the
+        /// Only the event name, `session_id`, the project name of `cwd` (its folder's, or the repository's for a git
+        /// worktree: ProjectName), `permission_mode` and `agent_id` are read; the
         /// branch is read from `cwd`'s `.git`. `agent_id` is read on every event, both to name the subagent on
         /// SubagentStart and SubagentStop and to tell a subagent's `UserPromptSubmit` from the user's own. Not read:
         /// `transcript_path`, `model`, `turn_id`, `prompt`, `last_assistant_message`, `stop_hook_active`, `tool_name`,

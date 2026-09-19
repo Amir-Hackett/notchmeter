@@ -11,26 +11,48 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "hoo
 /// Until 0.6.0 the commands posted their payload as a `DistributedNotificationCenter` notification. That centre is
 /// a broadcast: any process of the same user could observe the two names and read every payload as it went by
 /// (the session id, the project folder, the branch, the pull request's URL), and any process could post one and
-/// have the app take it as an assistant's word, so a forged "waiting for you" or a forged status line cost nothing
-/// (the audit's M7; 0.5.0 closed the one place a forged payload did concrete damage, the pull-request link, and
-/// left the transport itself open). Both ends of the hop are the same binary — the vendors' files run
-/// `Notchmeter --hook`, and the status line runs it too — so the hop is replaced outright, with no fallback to the
-/// broadcast: one for an absent socket would reopen it whenever the app is not running, which is the everyday
-/// case. The one window that leaves is a copy of 0.5.0 or earlier still running under a bundle that a drag onto
-/// Applications replaced beneath it (Homebrew quits the app first and Sparkle relaunches it, so only the manual
-/// install gets there): until that copy is relaunched, every hook and status-line render runs the new binary,
-/// finds no socket and exits silently, while the Hooks rows, which judge an entry by its path, keep saying
-/// installed. Nothing here can close that window, since the old copy carries none of this code; docs/hooks.md
-/// says to relaunch.
+/// have the app take it as an assistant's word (the audit's M7; 0.5.0 closed the one place a forged payload did
+/// concrete damage, the pull-request link, and left the transport itself open). Both ends of the hop are the same
+/// binary — the vendors' files run `Notchmeter --hook`, and the status line runs it too — so the hop is replaced
+/// outright, with no fallback to the broadcast: one for an absent socket would reopen it whenever the app is not
+/// running, which is the everyday case. The one window that leaves is a copy of 0.5.0 or earlier still running
+/// under a bundle that a drag onto Applications replaced beneath it (Homebrew quits the app first and Sparkle
+/// relaunches it, so only the manual install gets there): until that copy is relaunched, every hook and
+/// status-line render runs the new binary, finds no socket and exits silently, while the Hooks rows, which judge
+/// an entry by its path, keep saying installed. Nothing here can close that window, since the old copy carries
+/// none of this code; docs/hooks.md says to relaunch.
+///
+/// What the socket closes, and what it does not, is worth stating exactly, because the check below is easy to
+/// read as more than it is. The reading side is closed: there is no broadcast, the file is 0600 in a 0700 folder,
+/// and a line goes to the one process holding the socket, so nothing observes another process's payload as it
+/// goes by. The writing side is closed for every process that cannot exec a copy of Notchmeter or reach the
+/// folder: another user, an App-Sandboxed app, a build whose signature differs from the running one. It is not
+/// closed for the same user's other code, and cannot be by this design. The check proves that the connecting
+/// process is a copy of Notchmeter, not who ran it, and `Notchmeter --hook` is a public command that forwards
+/// whatever is piped to it, so any unsandboxed process of the same user can still have a line accepted at the
+/// cost of one spawn (`printf '{…}' | Notchmeter --hook`, the very invocation docs/hooks.md gives for trying a
+/// hook by hand). Authenticating the sender would need a secret the assistant's hook could hold and other
+/// same-user processes could not, which a shared public binary cannot offer; SECURITY.md keeps a Mac compromised
+/// at the user level out of scope for that reason, and the one field a forged line could turn into harm, the
+/// pull-request link, is gated in `SessionTracker.prLink` whatever the transport vouches for.
+///
+/// Nor does a Unix socket stamp identity per byte. The check resolves the peer's code image at the moment it
+/// runs, through a pid the kernel recorded at `connect`; a process that connects, writes a line and then execs a
+/// Notchmeter binary before the app looks (`--statusline` keeps the exec'd image alive for its read budget)
+/// presents a genuine image over bytes no command shaped, including a `host` that no local command emits. The one
+/// per-message primitive macOS offers is an XPC audit token (`SecCodeCreateWithXPCMessage`), so moving the hop to
+/// XPC is the way to close that, and is the intended follow-up; the socket cannot. What the check proves, then,
+/// is that a Notchmeter image held the connection when the app looked, which is what refuses every process that
+/// is not one, and the bytes are read on that word.
 ///
 /// The socket lives at `Paths.hookSocket`, in a folder made 0700 and itself made 0600, unlinked on quit and
 /// recreated on launch (a stale file left by a crash is replaced, since nothing holds a socket file the way `flock`
 /// holds `instance.lock`). The permission bits are the first fence, but only against other users; the second is
-/// the one that matters. For every connection the app reads the peer's pid off the socket (`LOCAL_PEERPID`, which
-/// the kernel records at `connect` and nothing on the peer's side can choose), builds the code object of that
-/// process (`SecCodeCopyGuestWithAttributes` by pid), and checks it against the app's own designated requirement
-/// (`SecCodeCopySelf` → `SecCodeCopyDesignatedRequirement` → `SecCodeCheckValidity`). A peer that fails is closed
-/// with one notice line naming its pid and path, and not a byte of what it sent is parsed. A release build's
+/// the check just described. For every connection the app reads the peer's pid off the socket (`LOCAL_PEERPID`,
+/// which the kernel records at `connect` and nothing on the peer's side can choose), builds the code object of
+/// that process (`SecCodeCopyGuestWithAttributes` by pid), and checks it against the app's own designated
+/// requirement (`SecCodeCopySelf` → `SecCodeCopyDesignatedRequirement` → `SecCodeCheckValidity`). A peer that fails
+/// is closed with one notice line naming its pid and path, and its line is left unread. A release build's
 /// requirement names the bundle identifier and the Developer ID certificate, so any copy of any Notchmeter release
 /// passes wherever it sits; an ad-hoc developer build's names its code directory hash, so the same build passes
 /// from any path and a different build does not — which is the case Settings › Integrations already flags as a
@@ -41,10 +63,19 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "hoo
 ///
 /// The peer must still be alive when the app checks it, since a code object is resolved through the pid, and
 /// that is why the command does not fire and forget: it writes its one line, half-closes, and waits for the app
-/// to close the connection, which the app does once the peer is checked and the line read. The wait is bounded,
-/// and the whole command still runs inside the hooks' budget (docs/hooks.md). A socket that is absent or refuses
-/// means the app is not running, and the command exits 0 silently, as it always has: every vendor's hook is
-/// fail-open and the command's silence is what keeps the assistant from seeing a decision.
+/// to close the connection, which the app does once the peer is checked and the line read. The wait is capped at
+/// one second (`send`'s `timeout`) and is a few milliseconds in the ordinary case, so the command stays inside the
+/// hooks' budget while the app is alive and is back within a second when the app is stopped or starved
+/// (docs/hooks.md gives the figures; every vendor's configured timeout sits above the cap). A socket that is
+/// absent or refuses means the app is not running, and the command exits 0 silently, as it always has: every
+/// vendor's hook is fail-open and the command's silence is what keeps the assistant from seeing a decision.
+///
+/// The command checks nothing about the listener in turn: it writes to whatever holds the path. A same-user
+/// process that unlinks the file and binds its own there receives the lines, and the app cannot tell:
+/// `Listener.isListening` tests the app's own descriptor and `describe` only finds a socket standing at the path,
+/// so `--smoke` says present. That is the same-user attacker again, one who can read the same fields from the
+/// assistants' own files under `~/.claude`, and what it costs the user is quiet rings: the local denial of
+/// service SECURITY.md leaves out of scope, not a fence this code claims.
 ///
 /// The wire is one JSON object per connection, terminated by a newline, with a single key naming the kind of line
 /// (`hook` or `statusline`) and the same flat payload the notification used to carry under it, so `Hook.Message`
@@ -205,8 +236,10 @@ enum HookSocket {
             return requirement
         }()
 
-        /// Whether the process `pid` runs code that satisfies this process's designated requirement. A pid that has
-        /// exited has no code object and is refused, which is why the command waits to be hung up on. With no
+        /// Whether the process `pid` runs, at this moment, code that satisfies this process's designated requirement;
+        /// a pid survives `execve`, so this is the image behind the pid now and not the one that connected (the
+        /// file comment's exec caveat). A pid that has exited has no code object and is refused, which is why the
+        /// command waits to be hung up on. With no
         /// requirement of our own to check against, nothing is accepted: an unauthenticated hop is the thing
         /// being removed, and a build so broken it cannot read its own signature should lose its hooks, not its
         /// guard.
@@ -361,7 +394,8 @@ enum HookSocket {
         }
 
         /// The order is the point: the peer's identity is settled before a byte of its line is read, so a peer that
-        /// fails the check is never parsed, whatever it sent.
+        /// fails the check is never parsed, whatever it sent. Passing proves only that a Notchmeter image held the
+        /// connection at that moment (the file comment's exec caveat); the line is then read on that word.
         private func serve(_ client: Int32) {
             defer { close(client) }
             // On macOS accept() copies the listener's O_NONBLOCK onto the peer (BSD semantics; Linux does not), and
