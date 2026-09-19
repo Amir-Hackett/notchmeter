@@ -48,8 +48,10 @@ final class MenuBarItem {
     /// The drawn styles' image: the meters' glyph for the windows there are, and the gauge when there are none.
     ///
     /// `update` guards only that some pinned tool has a reading, not that the reading has a window left to show,
-    /// and `prefs.ringWindows(of:)` returns `[]` once the user has hidden every window of a tool in Settings — there
-    /// is no floor on the Hide checkboxes. The `.text` style already degrades to `CompactLabel.noLimit`'s "–"; the
+    /// and `prefs.ringWindows(of:)` returned `[]` once the user had hidden every window of a tool in Settings — there
+    /// was no floor on the Hide checkboxes until 0.6.0 (WindowFloor), which is the root this fallback stood in for;
+    /// it stays because a reading with no windows at all still lands here. The `.text` style already degrades to
+    /// `CompactLabel.noLimit`'s "–"; the
     /// three drawn styles cannot, because `MenuBarGlyphs` strokes everything, the quarter-strength track included,
     /// inside a loop over the windows. Drawn from an empty array that is a transparent image, and `isTinted([])` is
     /// false, so it was installed as a template: a blank, still-clickable 13 pt gap in the menu bar (8 pt for dots,
