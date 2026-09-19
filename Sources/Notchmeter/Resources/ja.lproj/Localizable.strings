@@ -176,6 +176,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "このペースでは%1$@の費用は %2$@ となり、予算は %3$@ です。";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "このペースでは %1$@ の%2$@上限に%3$@ %4$@〜%5$@ に達します。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "このペースでは %1$@ の%2$@上限に %3$@ に達し、リセットまで %4$@ 残ります。%5$@";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "このペースでは %2$@ に%1$@を超え、リセットまで %3$@ 残ります。";
 "Auto" = "自動";
 "another user is logged in" = "別のユーザーがログイン中";
 "auto" = "自動";
@@ -287,6 +288,7 @@
 "extra usage on" = "追加利用オン";
 "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage." = "プランに %3$ld%% 残っているのに、追加使用が %2$@で %1$@ 増えました。/usage を確認してください。";
 "Fast requests" = "高速リクエスト";
+"Figures are hidden while the screen is shared; the panel has them once it ends." = "画面共有中は数値を隠しています。共有が終わればパネルで確認できます。";
 "Flip countdown and exact time" = "カウントダウンと正確な時刻を切り替え";
 "Flip used and left" = "使用済みと残りを切り替え";
 "From" = "開始";
@@ -543,6 +545,8 @@
 "Tells you what to do, not just how much." = "使用量だけでなく、何をすべきかも伝えます。";
 "Test notification" = "テスト通知";
 "Text" = "テキスト";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "%1$@はペースに近づいています: リセット時に約 %2$ld%% 残る見込み。";
+"The %1$@ is spent. %2$@." = "%1$@を使い切りました。%2$@。";
 "The %1$@'s %2$@ is past the %3$@ budget." = "%1$@の %2$@ は予算 %3$@ を超えています。";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "コストカードのドーナツ・凡例・消費ペース以外の行（予算、今週、モデル別）と、セッションブロック、トークン、主なプロジェクト、スパークライン。オフにするとパネルが短くなり、スクロールが不要になります。";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "日次合計ファイルを CSV または JSON で書き出します。1 日 1 行で、コスト、5 つのトークン区分、最多モデル、モデル別とプロジェクト別のコストを含みます。";

@@ -183,11 +183,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AccessibilityDisplay.shared.reduceAnimations = prefs.reduceAnimations
         LegacyCaches.clean()
         store = UsageStore(prefs: prefs)
+        // The privacy setting is answered here, at the three places a banner is handed over (this pair and
+        // `sessionEvent`), rather than by giving the Notifier the store: it stays a type with no dependencies,
+        // which is what lets its copy be pinned in tests without Notification Center.
         store.deliverAlerts = { [weak self] alerts in
             guard let self else { return }
-            self.notifier.send(alerts, context: self.store.adviceContext())
+            self.notifier.send(alerts, context: self.store.adviceContext(), hidingFigures: self.store.hidesFigures)
         }
-        store.deliverAdvice = { [weak self] advice in self?.notifier.send(advice: advice) }
+        store.deliverAdvice = { [weak self] advice in
+            guard let self else { return }
+            self.notifier.send(advice: advice, hidingFigures: self.store.hidesFigures)
+        }
         store.deliverSessionEvent = { [weak self] event, session in self?.sessionEvent(event, session: session) }
         store.removeNotifications = { [weak self] identifiers in self?.notifier.remove(identifiers: identifiers) }
         store.awakeChanged = { [weak self] hold in
@@ -358,7 +364,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// back. Neither makes up for a held banner in the default setup, where `sessionAttention` is `.nothing` and
     /// nothing happens below this line at all.
     private func sessionEvent(_ event: Notifier.SessionEvent, session: AgentSession) {
-        notifier.notify(event, session: session)
+        notifier.notify(event, session: session, hidingFigures: store.hidesFigures)
         let suppressed = Notifier.shouldSuppress(event: event, frontmost: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
                                                  quiet: prefs.isQuietHour(), host: session.host, terminalRule: prefs.quietWhileTerminalFrontmost)
         guard prefs.sessionAttention != .nothing, !suppressed,

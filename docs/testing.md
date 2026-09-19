@@ -242,6 +242,7 @@ None of the states below can be unit-tested; each is a manual check with the exp
 | Reduce Transparency | solid black surfaces, no glass | `accessibility` line |
 | Reduce Motion (system) or Reduce animations (app) | every transition instant, no pulse | `reduce motion:` line |
 | Screen shared or recorded, privacy on | rings keep their shape without digits; Cost card hidden; menu bar pin blank | oracle `privacy captured=true` |
+| Screen shared or recorded, privacy on, a banner fires | the title still names the tool and window (or "Notchmeter advice"); the body carries no figure, and a session banner no project | oracle `notification action=sent` after `privacy captured=true`; the bodies are pinned in `NotifierCopy` |
 | App-Translocated launch | the move-to-Applications offer; login item disabled with a note | `bundle … translocated=true` line |
 | Login item requires approval | "Approve in System Settings" button in Settings | Settings › General |
 

@@ -192,6 +192,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "按此速度，本%1$@将花费 %2$@，预算为 %3$@。";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "按此速度，你将在%3$@ %4$@ 至 %5$@ 之间触及 %1$@ %2$@上限。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "按当前速度，%1$@ 的%2$@额度将于%3$@达到上限，距离重置还有 %4$@。%5$@";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "按当前速度，%2$@将超出%1$@，距离重置还有 %3$@。";
 "Auto" = "自动";
 "another user is logged in" = "另一用户已登录";
 "auto" = "自动";
@@ -303,6 +304,7 @@
 "extra usage on" = "已开启额外用量";
 "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage." = "额外用量在 %2$@内上涨了 %1$@，而你的套餐仍剩 %3$ld%%；请检查 /usage。";
 "Fast requests" = "快速请求";
+"Figures are hidden while the screen is shared; the panel has them once it ends." = "屏幕共享期间隐藏数字；共享结束后可在面板中查看。";
 "Flip countdown and exact time" = "在倒计时与确切时间之间切换";
 "Flip used and left" = "在已用与剩余之间切换";
 "From" = "从";
@@ -559,6 +561,8 @@
 "Tells you what to do, not just how much." = "不仅告诉你用了多少，还告诉你该怎么做。";
 "Test notification" = "测试通知";
 "Text" = "文字";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "%1$@接近进度：重置时约剩余 %2$ld%%。";
+"The %1$@ is spent. %2$@." = "%1$@已用尽。%2$@。";
 "The %1$@'s %2$@ is past the %3$@ budget." = "本%1$@已花费 %2$@，超出 %3$@ 的预算。";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "费用卡片上圆环、图例和消耗速率之外的内容（预算、本周和模型明细），以及会话区块、令牌、主要项目和迷你图。关闭后面板足够短，无需滚动。";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "每日总计文件导出为 CSV 或 JSON：每天一行，含费用、五类 token 计数、最高模型以及按模型和按项目的费用。";

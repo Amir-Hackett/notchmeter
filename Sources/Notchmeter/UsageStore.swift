@@ -566,8 +566,17 @@ final class UsageStore {
         cache.store(reading)
         lastUpdated = now
         recordDrain(reading, now: now)
-        for window in reading.windows {
+        for var window in reading.windows {
             let key = AlertMemory.key(reading.tool, window)
+            // A watched window keeps the reset it was first watched with for as long as the readings stay in the
+            // same period. Every notification built from it embeds that instant in its identifier
+            // (`PaceAlert.identifier`), and a Codex snapshot's reset is measured from when the snapshot was
+            // written, so it moves by a few seconds on every read: taken as it came, each reminder replaced
+            // nothing and stacked beside the last, and the identifiers `checkResets` withdraws at the reset,
+            // rebuilt from the window then current, matched none of the ones that had been sent.
+            if let existing = watchedResets[key], let pinned = existing.window.resetsAt, ResetPeriod.same(pinned, window.resetsAt) {
+                window = window.pinningReset(to: pinned)
+            }
             if let watch = WatchedReset.watch(reading.tool, window, now: now) {
                 watchedResets[key] = watch
             } else if let existing = watchedResets[key], !ResetPeriod.same(existing.window.resetsAt, window.resetsAt) {

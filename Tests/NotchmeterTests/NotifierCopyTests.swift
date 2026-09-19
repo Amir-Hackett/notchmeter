@@ -30,6 +30,31 @@ import Testing
         #expect(claude.title == "Claude Code is waiting")
         #expect(claude.body == "Claude Code is waiting in proj.")
     }
+
+    /// While the screen is shared and the privacy setting is on, the panel withholds its digits, and a banner
+    /// sliding in over the call must not show them instead: the pace and advice bodies become a stand-in with no
+    /// figure, and a session banner loses its project the way it does for a session the hook never named. The
+    /// titles are kept, so the user still knows what fired.
+    @Test func aSharedScreenGetsBannersWithoutFiguresOrProjects() {
+        let waiting = Notifier.copy(for: .waiting(blocking: true), session: session(.claude), hidingFigures: true)
+        #expect(waiting.title == "Claude Code is waiting")
+        #expect(waiting.body == "Claude Code is waiting in a session.")
+        #expect(Notifier.copy(for: .finished(turn: 600), session: session(.cursor), hidingFigures: true).body == "Cursor finished a 10m turn in a session.")
+        #expect(Notifier.copy(for: .waiting(blocking: true), session: session(.claude), hidingFigures: false).body == "Claude Code is waiting in proj.")
+
+        let weekly = LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.6, resetsAt: t0.addingTimeInterval(4 * 86400), periodDuration: Period.week)
+        let behind = PaceAlert(tool: .claude, window: weekly, stage: .behind)
+        let context = Advisor.Context(readings: [], timeFormat: .twentyFourHour, now: t0)
+        let shown = Notifier.body(for: behind, context: context, hidingFigures: false)
+        #expect(shown.hasPrefix("At this rate you hit the Claude weekly cap "))
+        let hidden = Notifier.body(for: behind, context: context, hidingFigures: true)
+        #expect(hidden == "Figures are hidden while the screen is shared; the panel has them once it ends.")
+        #expect(!hidden.contains { $0.isNumber })
+
+        let advice = Advice(id: "extra/rise", tool: .claude, priority: .warn, symbol: "dollarsign.circle", text: "You are now paying: extra usage rose $4.20 this month.")
+        #expect(Notifier.body(for: advice, hidingFigures: false) == advice.text)
+        #expect(Notifier.body(for: advice, hidingFigures: true) == hidden)
+    }
 }
 
 /// One banner per session per ten minutes for a wait the session has stopped for. Nothing bounded that exemption

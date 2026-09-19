@@ -95,8 +95,13 @@ import Testing
         #expect(NotificationScheduler.plan(memory: .empty, readings: [calm], now: now).alerts.isEmpty)
         #expect(NotificationScheduler.budgetReading(cost: cost(month: 60), monthlyUSD: nil, weeklyUSD: nil, now: now, calendar: utc) == nil)
         #expect(Advisor.mainWindow(of: reading) == nil)
-        let body = Advisor.alertBody(first.alerts[0], context: Advisor.Context(readings: [], timeFormat: .twentyFourHour, now: now, calendar: utc))
-        #expect(body.hasPrefix("At this rate you hit the Claude monthly budget cap"))
+        // The reading is Claude's so the scheduler's key holds all month; the banner names the budget, not Claude.
+        let alert = first.alerts[0]
+        #expect(Advisor.alertTitle(alert) == "Monthly budget")
+        let body = Advisor.alertBody(alert, context: Advisor.Context(readings: [], timeFormat: .twentyFourHour, now: now, calendar: utc))
+        #expect(body.hasPrefix("At this rate you pass the monthly budget Sep 20 at 08:3"))
+        #expect(body.hasSuffix(" before it resets."))
+        #expect(!body.contains("Claude"))
         #expect(SettingsView.budgetUSD("150", rate: 1) == 150)
         #expect(SettingsView.budgetUSD("300", rate: 1.5) == 200)
         #expect(SettingsView.budgetUSD("", rate: 1) == nil)

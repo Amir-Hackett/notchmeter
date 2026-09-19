@@ -331,6 +331,35 @@ import Testing
         #expect(Advisor.alertBody(out, context: context([codex])) == "Claude session has run out. Resets today at 14:00. Codex weekly is at 22%.")
     }
 
+    /// The budget rides the scheduler under Claude's key so the key holds all month, but the money in it is every
+    /// tool's: the banner names the budget alone, on keys with no tool argument to leave blank, and carries no
+    /// headroom nudge, because room on another tool is no answer to money.
+    @Test func aBudgetAlertNamesNoVendor() {
+        let codex = UsageReading(tool: .codex, windows: [LimitWindow(id: "weekly", label: "Weekly", usedFraction: 0.22, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)],
+                                 plan: nil, fetchedAt: now, observedAt: nil)
+        let halfway = now.addingTimeInterval(15 * 86400)
+        let month: TimeInterval = 30 * 86400
+        func budget(used: Double) -> LimitWindow {
+            LimitWindow(id: "budget_month", label: .key("Monthly budget"), usedFraction: used, resetsAt: halfway, periodDuration: month, source: .localEstimate)
+        }
+        let spent = PaceAlert(tool: .claude, window: budget(used: 1), stage: .limitHit)
+        #expect(Advisor.isBudget(spent.window))
+        #expect(Advisor.alertTitle(spent) == "Monthly budget")
+        let spentBody = Advisor.alertBody(spent, context: context([codex]))
+        #expect(spentBody.hasPrefix("The monthly budget is spent. Resets "))
+        #expect(!spentBody.contains("Claude"))
+        #expect(!spentBody.contains("Codex"))
+        // 60 % halfway through runs out in 10 days, 5 before the month ends.
+        let behind = PaceAlert(tool: .claude, window: budget(used: 0.6), stage: .behind)
+        #expect(Advisor.alertBody(behind, context: context([codex])) == "At this rate you pass the monthly budget Sep 11 at 12:00, 5d before it resets.")
+        // 40 % halfway through projects to 80 %.
+        let onTrack = PaceAlert(tool: .claude, window: budget(used: 0.4), stage: .onTrack)
+        #expect(Advisor.alertBody(onTrack, context: context([codex])) == "The monthly budget is close to pace: ~20% left at reset.")
+        let weekly = PaceAlert(tool: .claude, window: LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.6, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week), stage: .behind)
+        #expect(!Advisor.isBudget(weekly.window))
+        #expect(Advisor.alertTitle(weekly) == "Claude Weekly")
+    }
+
     @Test func theSampleIsARealRunOutLine() {
         let sample = Notifier.sampleBody(timeFormat: .twentyFourHour, now: now)
         #expect(sample.hasPrefix("At this rate you hit the Claude weekly cap "))

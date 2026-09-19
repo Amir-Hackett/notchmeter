@@ -219,6 +219,14 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
         self.amountUSD = amountUSD
     }
 
+    /// The same window with its reset at `resetsAt`, for a reading whose reset has wandered inside the period it
+    /// was first seen in (`ResetPeriod`). Everything that identifies a notification by its window embeds the
+    /// reset's instant, so a window that is kept for the life of a period keeps the instant it arrived with.
+    func pinningReset(to resetsAt: Date) -> LimitWindow {
+        LimitWindow(id: id, label: name, usedFraction: usedFraction, resetsAt: resetsAt, note: note, periodDuration: periodDuration, model: model,
+                    source: source, hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD)
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id, usedFraction, resetsAt, note, periodDuration, model, source, hiddenByDefault, rawUsedPercent, amountUSD
         case name = "label"

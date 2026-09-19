@@ -356,13 +356,23 @@ enum Advisor {
 
     // MARK: - Notification copy
 
+    /// A spend budget reaches the scheduler as a window of a Claude reading (`NotificationScheduler.budgetReading`),
+    /// because the scheduler keys its memory on a tool and the key has to hold for the whole period, whichever
+    /// tool is most of the month's spend that day. The money inside it is every tool's, so the copy must not take
+    /// the tool at its word: "Claude Monthly budget has run out" was what a Cursor-only spender read, while the
+    /// strip's own budget line named Cursor. The same prefix `mainWindow` filters on.
+    static func isBudget(_ window: LimitWindow) -> Bool {
+        window.id.hasPrefix("budget_")
+    }
+
     static func alertTitle(_ alert: PaceAlert) -> String {
-        "\(alert.tool.displayName) \(alert.window.label)"
+        isBudget(alert.window) ? alert.window.label : "\(alert.tool.displayName) \(alert.window.label)"
     }
 
     /// The same prescriptive line the strip would show for the window, in the state the alert reports.
     static func alertBody(_ alert: PaceAlert, context: Context) -> String {
         let window = alert.window
+        if isBudget(window), let body = budgetAlertBody(alert, context: context) { return body }
         let suffix = headroomSuffix(besides: alert.tool, in: context)
         switch alert.stage {
         case .behind, .runningOut, .limitHit:
@@ -390,6 +400,44 @@ enum Advisor {
             if let next { return L("%1$@ %2$@ reset — 100%% until it %3$@.", alert.tool.displayName, name(window, of: alert.tool), next.prefix(1).lowercased() + next.dropFirst()) }
             return L("%1$@ %2$@ reset — 100%% available.", alert.tool.displayName, name(window, of: alert.tool))
         }
+    }
+
+    /// The budget's sentences, on keys of their own with no vendor in them: "the monthly budget", never "the Claude
+    /// monthly budget". The generic keys are not reused with a blank tool argument because a translation may hang
+    /// a particle off that argument — ja renders "%1$@ %2$@ has run out" as "%1$@ の%2$@を…", and a blank first
+    /// argument would leave "の" dangling. The headroom suffix is left off as well: room left on another tool
+    /// answers a quota that is running out, not money that is, and the suffix would otherwise name a tool whose
+    /// spend is already inside the total. nil for a reminder or a reset, which a budget never gets: only an
+    /// adopted reading's windows are watched, and the budget reading is built for the scheduler alone.
+    private static func budgetAlertBody(_ alert: PaceAlert, context: Context) -> String? {
+        let window = alert.window
+        switch alert.stage {
+        case .behind, .runningOut, .limitHit:
+            if let text = budgetRunOutText(window, tool: alert.tool, context: context) { return text }
+            let reset = ResetText.line(resetsAt: window.resetsAt, hasLimit: true, display: .exact, timeFormat: context.timeFormat,
+                                       now: context.now, calendar: context.calendar)
+            return L("The %1$@ is spent. %2$@.", name(window), reset)
+        case .onTrack:
+            let projected = window.usedFraction.flatMap { used in
+                window.resetsAt.flatMap { resetsAt in
+                    window.periodDuration.flatMap { Pace.evaluate(usedFraction: used, resetsAt: resetsAt, period: $0, now: context.now)?.projectedFraction }
+                }
+            } ?? 1
+            return L("The %1$@ is close to pace: ~%2$ld%% left at reset.", name(window), percent(max(0, 1 - projected)))
+        case .reminder, .reset:
+            return nil
+        }
+    }
+
+    /// "At this rate you pass the monthly budget Sep 24 at 00:00, 6d before it resets." The even-burn projection
+    /// only: the drain log never sees a budget window, so there is no measured interval to widen it with.
+    private static func budgetRunOutText(_ window: LimitWindow, tool: ToolID, context: Context) -> String? {
+        guard let resetsAt = window.resetsAt, let eta = secondsToRunOut(window, tool: tool, context: context) else { return nil }
+        let runsOutAt = context.now.addingTimeInterval(eta)
+        let when = L("%1$@ at %2$@", ResetText.dayPhrase(runsOutAt, now: context.now, calendar: context.calendar),
+                     ResetText.time(runsOutAt, format: context.timeFormat, calendar: context.calendar))
+        let margin = ResetText.duration(resetsAt.timeIntervalSince(runsOutAt))
+        return L("At this rate you pass the %1$@ %2$@, %3$@ before it resets.", name(window), when, margin)
     }
 
     // MARK: - Pieces

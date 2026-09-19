@@ -176,6 +176,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "按此速度，本%1$@將花費 %2$@，預算為 %3$@。";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "按此速度，你將在%3$@ %4$@ 至 %5$@ 之間觸及 %1$@ %2$@上限。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "照此速度，你將在 %3$@ 觸及 %1$@ 的%2$@上限，距離重設還有 %4$@。%5$@";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "照此速度，你將在 %2$@ 超出%1$@，距離重設還有 %3$@。";
 "Auto" = "自動";
 "another user is logged in" = "另一使用者已登入";
 "auto" = "自動";
@@ -287,6 +288,7 @@
 "extra usage on" = "已開啟額外用量";
 "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage." = "額外用量在 %2$@內上漲了 %1$@，而你的方案仍剩 %3$ld%%；請檢查 /usage。";
 "Fast requests" = "快速請求";
+"Figures are hidden while the screen is shared; the panel has them once it ends." = "螢幕共享期間隱藏數字；共享結束後可在面板中查看。";
 "Flip countdown and exact time" = "切換倒數與確切時間";
 "Flip used and left" = "切換已用與剩餘";
 "From" = "從";
@@ -543,6 +545,8 @@
 "Tells you what to do, not just how much." = "不只告訴你用了多少，還告訴你該怎麼做。";
 "Test notification" = "測試通知";
 "Text" = "文字";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "%1$@接近進度：重設時約剩 %2$ld%%。";
+"The %1$@ is spent. %2$@." = "%1$@已用完。%2$@。";
 "The %1$@'s %2$@ is past the %3$@ budget." = "本%1$@已花費 %2$@，超出 %3$@ 的預算。";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "費用卡片上圓環、圖例和消耗速率以外的內容（預算、本週和模型明細），以及工作階段區塊、權杖、主要專案和走勢圖。關閉後面板夠短，無需捲動。";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "每日總計檔案匯出為 CSV 或 JSON：每天一行，含費用、五類 token 計數、最高模型以及按模型和按專案的費用。";

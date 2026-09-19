@@ -101,11 +101,12 @@ struct WatchedReset: Equatable, Sendable, Codable {
 
 /// Pace-crossing notifications: a window is reported when its pace first reaches on track or behind, and again
 /// when it first comes within an hour of running out, and once more when it is used up. Each stage fires once per
-/// reset period, only as an escalation, and only once a tenth of the period has elapsed, because the projection
-/// from the first minutes of a window is noise no one should be interrupted for. Reset and reminder alerts are
-/// timer-driven: they fire when the clock passes the reset (or the lead time before it) of a watched window, once
-/// each per period. A spend budget is a window too: the calendar month (or the week) is its period, so the same
-/// stages and toggles apply.
+/// reset period, only as an escalation, and the projected ones only once a tenth of the period has elapsed,
+/// because the projection from the first minutes of a window is noise no one should be interrupted for. Used up
+/// is the exception: it is measured, not projected, so it is reported the moment it is seen. Reset and reminder
+/// alerts are timer-driven: they fire when the clock passes the reset (or the lead time before it) of a watched
+/// window, once each per period. A spend budget is a window too: the calendar month (or the week) is its period,
+/// so the same stages and toggles apply.
 enum NotificationScheduler {
     static let runningOutWithin: TimeInterval = 3600
     static let minimumElapsedFraction = 0.1
@@ -137,10 +138,18 @@ enum NotificationScheduler {
     /// either, the run-out time comes from it (the pessimistic edge of an interval) rather than the even-burn projection.
     static func stage(for window: LimitWindow, now: Date, rate: Double? = nil, runOut: RunOutInterval? = nil) -> PaceAlert.Stage? {
         guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration,
-              let elapsed = Pace.elapsedFraction(resetsAt: resetsAt, period: period, now: now), elapsed >= minimumElapsedFraction,
+              let elapsed = Pace.elapsedFraction(resetsAt: resetsAt, period: period, now: now)
+        else { return nil }
+        // Used up is a measurement, not a projection, so the tenth-of-the-period guard below does not apply to it:
+        // held behind that guard, a $50 budget spent by the 2nd said nothing until the 4th, and a session window
+        // gone in its first half hour said nothing for the rest of that half hour. It does stay below
+        // `Pace.elapsedFraction`, which is what refuses a reset already in the past: a stale snapshot still at
+        // 100 % after its reset would otherwise be reported as used up, and the escalation memory would then
+        // hold every genuine lower stage of the new period behind it.
+        if used >= 1 { return .limitHit }
+        guard elapsed >= minimumElapsedFraction,
               let result = Pace.evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
         else { return nil }
-        if used >= 1 { return .limitHit }
         switch result.status {
         case .ahead:
             return nil
@@ -180,6 +189,12 @@ enum NotificationScheduler {
 
     /// The timer's half: for each watched window, a reminder once the lead time is reached and a reset once the
     /// reset has passed, each once per reset. Watched windows whose reset has passed are dropped from the list.
+    ///
+    /// "Once per reset" is judged with `ResetPeriod.same`, not by equality. Both remembered dates used to be
+    /// compared exactly, which made this the one place in the app that read a reset a few seconds from the last
+    /// one as a new period: a Codex snapshot recomputes its reset from a remaining duration on every write, so
+    /// inside the reminder's lead time every new snapshot moved the watched reset a little and the reminder fired
+    /// again, under a new identifier, on the next tick. `same(nil, date)` is false, so a first reminder still fires.
     static func planResets(memory: AlertMemory, watched: [WatchedReset], now: Date, options: Options) -> (alerts: [PaceAlert], memory: AlertMemory, watched: [WatchedReset]) {
         var memory = memory
         var alerts: [PaceAlert] = []
@@ -188,14 +203,14 @@ enum NotificationScheduler {
             guard let resetsAt = watch.window.resetsAt else { continue }
             let key = AlertMemory.key(watch.tool, watch.window)
             if now >= resetsAt {
-                if options.reset, memory.resets[key] != resetsAt {
+                if options.reset, !ResetPeriod.same(memory.resets[key], resetsAt) {
                     memory.resets[key] = resetsAt
                     alerts.append(PaceAlert(tool: watch.tool, window: watch.window, stage: .reset))
                 }
                 continue
             }
             remaining.append(watch)
-            if let lead = options.reminderLead, resetsAt.timeIntervalSince(now) <= lead, memory.reminders[key] != resetsAt {
+            if let lead = options.reminderLead, resetsAt.timeIntervalSince(now) <= lead, !ResetPeriod.same(memory.reminders[key], resetsAt) {
                 memory.reminders[key] = resetsAt
                 alerts.append(PaceAlert(tool: watch.tool, window: watch.window, stage: .reminder))
             }

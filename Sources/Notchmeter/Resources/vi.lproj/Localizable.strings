@@ -176,6 +176,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "Với tốc độ này, %1$@ tốn %2$@ so với ngân sách %3$@.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "Với tốc độ này bạn chạm trần %2$@ của %1$@ vào %3$@ trong khoảng %4$@ đến %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "Với tốc độ này bạn sẽ chạm trần %2$@ của %1$@ vào %3$@, còn %4$@ trước khi đặt lại.%5$@";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "Với tốc độ này bạn sẽ vượt %1$@ vào %2$@, còn %3$@ trước khi đặt lại.";
 "Auto" = "Tự động";
 "another user is logged in" = "người dùng khác đang đăng nhập";
 "auto" = "tự động";
@@ -287,6 +288,7 @@
 "extra usage on" = "đã bật dùng thêm";
 "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage." = "Dùng thêm tăng %1$@ trong %2$@ khi gói còn %3$ld%%; hãy kiểm tra /usage.";
 "Fast requests" = "Yêu cầu nhanh";
+"Figures are hidden while the screen is shared; the panel has them once it ends." = "Số liệu được ẩn khi màn hình đang được chia sẻ; bảng sẽ có chúng khi việc chia sẻ kết thúc.";
 "Flip countdown and exact time" = "Đổi giữa đếm ngược và giờ chính xác";
 "Flip used and left" = "Đổi giữa đã dùng và còn lại";
 "From" = "Từ";
@@ -543,6 +545,8 @@
 "Tells you what to do, not just how much." = "Cho bạn biết nên làm gì, không chỉ đã dùng bao nhiêu.";
 "Test notification" = "Thông báo thử";
 "Text" = "Chữ";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "%1$@ đang sát nhịp: ~%2$ld%% còn lại khi đặt lại.";
+"The %1$@ is spent. %2$@." = "%1$@ đã dùng hết. %2$@.";
 "The %1$@'s %2$@ is past the %3$@ budget." = "%2$@ của %1$@ đã vượt ngân sách %3$@.";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "Phần thẻ chi phí ngoài vòng tròn, chú giải và dòng tốc độ tiêu (ngân sách, tuần và các dòng theo mô hình), cùng khối phiên, token, dự án chính và biểu đồ nhỏ. Tắt để bảng đủ ngắn, không cần cuộn.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "Tệp tổng ngày dạng CSV hoặc JSON: mỗi ngày một dòng với chi phí, năm nhóm token, mô hình cao nhất và chi phí theo mô hình và theo dự án.";

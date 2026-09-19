@@ -31,6 +31,24 @@ import Testing
         #expect(NotificationScheduler.stage(for: LimitWindow(id: "x", label: "X", usedFraction: 0.9, resetsAt: nil), now: t4) == nil)
     }
 
+    /// Used up is measured, not projected, so it is not held behind the tenth-of-the-period guard the projections
+    /// wait for: a $50 budget spent by the 2nd used to go unreported until the 4th. It still waits on a reset
+    /// that is ahead, so a stale snapshot at 100 % after its reset reports nothing.
+    @Test func aUsedUpWindowIsReportedBeforeTheProjectionGuard() {
+        let (out, t0) = session(used: 1, elapsed: 300)
+        #expect(NotificationScheduler.stage(for: out, now: t0) == .limitHit)
+        let (early, t1) = session(used: 0.9, elapsed: 300)
+        #expect(NotificationScheduler.stage(for: early, now: t1) == nil)
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let month = NotificationScheduler.budgetWindow(id: "budget_month", label: .key("Monthly budget"), spentUSD: 62, budgetUSD: 50,
+                                                       period: BudgetPeriod.month(now: start, calendar: utc))
+        #expect(NotificationScheduler.stage(for: month, now: start) == .limitHit)
+        let stalePeriod = Period.fiveHours + 60
+        let (stale, t2) = session(used: 1, elapsed: stalePeriod)
+        #expect(NotificationScheduler.stage(for: stale, now: t2) == nil)
+    }
+
     @Test func eachStageFiresOncePerPeriodAndOnlyAsAnEscalation() {
         let (behind, t0) = session(used: 0.5, elapsed: 3600)
         let first = plan(.empty, [behind], now: t0)

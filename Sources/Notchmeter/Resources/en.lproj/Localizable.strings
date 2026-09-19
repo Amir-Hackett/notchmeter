@@ -192,6 +192,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "At this rate the %1$@ costs %2$@ against a %3$@ budget.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "At this rate you pass the %1$@ %2$@, %3$@ before it resets.";
 "another user is logged in" = "another user is logged in";
 "auto" = "auto";
 "Auto" = "Auto";
@@ -303,6 +304,7 @@
 "extra usage on" = "extra usage on";
 "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage." = "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage.";
 "Fast requests" = "Fast requests";
+"Figures are hidden while the screen is shared; the panel has them once it ends." = "Figures are hidden while the screen is shared; the panel has them once it ends.";
 "Flip countdown and exact time" = "Flip countdown and exact time";
 "Flip used and left" = "Flip used and left";
 "From" = "From";
@@ -559,6 +561,8 @@
 "Tells you what to do, not just how much." = "Tells you what to do, not just how much.";
 "Test notification" = "Test notification";
 "Text" = "Text";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "The %1$@ is close to pace: ~%2$ld%% left at reset.";
+"The %1$@ is spent. %2$@." = "The %1$@ is spent. %2$@.";
 "The %1$@'s %2$@ is past the %3$@ budget." = "The %1$@'s %2$@ is past the %3$@ budget.";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost.";

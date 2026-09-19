@@ -176,6 +176,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "이 속도면 이번 %1$@ 비용은 %2$@이며 예산은 %3$@입니다.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "이 속도면 %3$@ %4$@과 %5$@ 사이에 %1$@ %2$@ 한도에 도달합니다.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "이 속도라면 %3$@에 %1$@ %2$@ 한도에 도달하며, 초기화까지 %4$@ 남습니다.%5$@";
+"At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "이 속도라면 %2$@에 %1$@을(를) 넘으며, 초기화까지 %3$@ 남습니다.";
 "another user is logged in" = "다른 사용자가 로그인 중";
 "auto" = "자동";
 "Auto" = "자동";
@@ -287,6 +288,7 @@
 "extra usage on" = "추가 사용 켜짐";
 "Extra usage rose %1$@ in %2$@ while your plan has %3$ld%% left; check /usage." = "플랜에 %3$ld%%가 남았는데 추가 사용이 %2$@ 동안 %1$@ 올랐습니다. /usage를 확인하세요.";
 "Fast requests" = "빠른 요청";
+"Figures are hidden while the screen is shared; the panel has them once it ends." = "화면이 공유되는 동안 숫자를 숨깁니다. 공유가 끝나면 패널에서 볼 수 있습니다.";
 "Flip countdown and exact time" = "카운트다운과 정확한 시각 전환";
 "Flip used and left" = "사용과 남음 전환";
 "From" = "시작";
@@ -543,6 +545,8 @@
 "Tells you what to do, not just how much." = "얼마나 썼는지뿐 아니라 무엇을 해야 하는지 알려줍니다.";
 "Test notification" = "테스트 알림";
 "Text" = "텍스트";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "%1$@이(가) 페이스에 근접: 초기화 시 약 %2$ld%% 남음.";
+"The %1$@ is spent. %2$@." = "%1$@을(를) 모두 썼습니다. %2$@.";
 "The %1$@'s %2$@ is past the %3$@ budget." = "이번 %1$@의 %2$@은(는) %3$@ 예산을 넘었습니다.";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "비용 카드에서 도넛, 범례, 소모 속도 줄을 뺀 나머지(예산, 이번 주, 모델 줄)와 세션 블록, 토큰, 주요 프로젝트, 스파크라인. 끄면 패널이 짧아져 스크롤이 필요 없습니다.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "일별 합계 파일을 CSV 또는 JSON으로: 하루 한 줄에 비용, 다섯 토큰 버킷, 최다 모델, 모델별·프로젝트별 비용을 담습니다.";
