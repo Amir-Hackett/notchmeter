@@ -444,16 +444,21 @@ enum Advisor {
     // MARK: - Pieces
 
     /// "At this rate you hit the Claude weekly cap tomorrow at 2:00 PM, 3d 4h before reset. Codex weekly is at 22%."
-    /// With a wide run-out interval from the drain log: "…cap between 2:10 and 3:40 PM…".
+    /// With a wide run-out interval from the drain log whose edges both fall before the reset: "…cap between 2:10
+    /// and 3:40 PM…". The times are `RunOutInterval.presentation`'s, the rule the card uses, so a narrow interval
+    /// reads as its midpoint here as there and the margin is measured from the same time; until 0.6.0 this quoted
+    /// the earliest edge while the card above it printed the midpoint. An interval whose slow edge lasts past the
+    /// reset names its near edge as a single time here, the one the card gives as "from": the two strings shipped
+    /// in six languages have no third form.
     static func runOutText(tool: ToolID, window: LimitWindow, context: Context) -> String? {
         guard let resetsAt = window.resetsAt, let eta = secondsToRunOut(window, tool: tool, context: context) else { return nil }
         let runsOutAt = context.now.addingTimeInterval(eta)
         let suffix = headroomSuffix(besides: tool, in: context)
-        if let interval = context.runOuts["\(tool.rawValue)/\(window.id)"], interval.isWide, context.now.addingTimeInterval(interval.latest) < resetsAt {
-            let from = ResetText.time(context.now.addingTimeInterval(interval.earliest), format: context.timeFormat, calendar: context.calendar)
-            let to = ResetText.time(context.now.addingTimeInterval(interval.latest), format: context.timeFormat, calendar: context.calendar)
-            let day = ResetText.dayPhrase(context.now.addingTimeInterval(interval.earliest), now: context.now, calendar: context.calendar)
-            return L("At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@", tool.displayName, name(window, of: tool), day, from, to, suffix)
+        if case .range(let from, let to)? = context.runOuts["\(tool.rawValue)/\(window.id)"]?.presentation(now: context.now, resetsAt: resetsAt) {
+            let fromText = ResetText.time(from, format: context.timeFormat, calendar: context.calendar)
+            let toText = ResetText.time(to, format: context.timeFormat, calendar: context.calendar)
+            let day = ResetText.dayPhrase(from, now: context.now, calendar: context.calendar)
+            return L("At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@", tool.displayName, name(window, of: tool), day, fromText, toText, suffix)
         }
         let when = L("%1$@ at %2$@", ResetText.dayPhrase(runsOutAt, now: context.now, calendar: context.calendar),
                      ResetText.time(runsOutAt, format: context.timeFormat, calendar: context.calendar))
@@ -521,12 +526,15 @@ enum Advisor {
         1 - (window.usedFraction ?? 1)
     }
 
-    /// The pessimistic edge of the run-out interval when the log has one, else the measured drain, else the even-burn projection.
+    /// The moment the advice names and sorts on: the run-out interval's presented time when the log has one (the
+    /// midpoint of a narrow interval, the near edge of a wide one, which is the time the card shows, so the panel
+    /// names one time for one event), else the measured drain, else the even-burn projection. An interval with
+    /// nothing to show, because even its fast edge lasts past the reset, falls through like an absent one.
     private static func secondsToRunOut(_ window: LimitWindow, tool: ToolID, context: Context) -> TimeInterval? {
         guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
         guard Pace.status(for: window, now: context.now) == .behind else { return nil }
-        if let interval = context.runOuts["\(tool.rawValue)/\(window.id)"], context.now.addingTimeInterval(interval.earliest) < resetsAt {
-            return interval.earliest
+        if let shown = context.runOuts["\(tool.rawValue)/\(window.id)"]?.presentation(now: context.now, resetsAt: resetsAt) {
+            return shown.at.timeIntervalSince(context.now)
         }
         if let measured = Pace.secondsToRunOut(usedFraction: used, rate: context.drainRates["\(tool.rawValue)/\(window.id)"], resetsAt: resetsAt, now: context.now) {
             return measured

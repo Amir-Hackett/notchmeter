@@ -59,6 +59,42 @@ import Testing
         #expect(NotificationScheduler.stage(for: session, now: now, runOut: interval) == .behind)
     }
 
+    /// One rule for how the interval is shown, read by the card and the advice alike (AdvisorRoundTwo checks both ends):
+    /// one time at the midpoint inside fifteen minutes, a range beyond it, and nothing when the interval cannot say
+    /// the window runs out before the reset.
+    @Test func thePresentationIsOneTimeAtTheMidpointUnlessTheEdgesAreWideApart() {
+        let reset = now.addingTimeInterval(4 * 3600)
+        let narrow = RunOutInterval(earliest: 70 * 60, latest: 74 * 60, sampleCount: 8)
+        let midpointAt = now.addingTimeInterval(72 * 60)
+        #expect(narrow.presentation(now: now, resetsAt: reset) == .single(at: midpointAt))
+        #expect(narrow.presentation(now: now, resetsAt: reset)?.at == midpointAt)
+        let narrowText = "Runs out in 1h 12m"
+        #expect(narrow.text(now: now, resetsAt: reset, format: .twentyFourHour) == narrowText)
+
+        // Exactly fifteen minutes apart is still one time; a second more is a range.
+        let hour: TimeInterval = 3600
+        let atTheEdge = RunOutInterval(earliest: hour, latest: hour + RunOutInterval.wideBeyond, sampleCount: 8)
+        let edgeMidpointAt = now.addingTimeInterval(hour + RunOutInterval.wideBeyond / 2)
+        #expect(atTheEdge.presentation(now: now, resetsAt: reset) == .single(at: edgeMidpointAt))
+        let justPast = RunOutInterval(earliest: hour, latest: hour + RunOutInterval.wideBeyond + 1, sampleCount: 8)
+        let hourAt = now.addingTimeInterval(hour)
+        let justPastAt = now.addingTimeInterval(hour + RunOutInterval.wideBeyond + 1)
+        #expect(justPast.presentation(now: now, resetsAt: reset) == .range(from: hourAt, to: justPastAt))
+        #expect(justPast.presentation(now: now, resetsAt: reset)?.at == hourAt)
+
+        // The slow edge past the reset leaves the fast edge and the reset as the range.
+        let open = RunOutInterval(earliest: hour, latest: 5 * hour, sampleCount: 8)
+        #expect(open.presentation(now: now, resetsAt: reset) == .rangeToReset(from: hourAt))
+
+        // Nothing when even the fast edge lasts past the reset, or the edges are close and their midpoint does:
+        // "Runs out in 4h 3m" beside a reset in 4h was a run-out the interval could not vouch for.
+        let lasting = RunOutInterval(earliest: 5 * hour, latest: 6 * hour, sampleCount: 8)
+        #expect(lasting.presentation(now: now, resetsAt: reset) == nil)
+        let straddling = RunOutInterval(earliest: 4 * hour - 240, latest: 4 * hour + 600, sampleCount: 8)
+        #expect(straddling.presentation(now: now, resetsAt: reset) == nil)
+        #expect(straddling.text(now: now, resetsAt: reset, format: .twentyFourHour) == nil)
+    }
+
     @Test func tooFewRatesOrARunOutPastTheResetGiveNothing() {
         let reset = now.addingTimeInterval(3600)
         let samplesFromOneHour = RunOutInterval.estimate(samples: drains(rates: [0.1], reset: reset), usedFraction: 0.5, resetsAt: reset, now: now)?.sampleCount ?? 0
