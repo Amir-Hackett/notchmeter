@@ -91,7 +91,9 @@ import Testing
 
 /// The move from ~/Library/Caches to Application Support (2026-09-19): the file is merged, not copied over or
 /// skipped, because the `notchmeter` command may have written the new file before the app first launched the build
-/// that moved it; and a process that never runs the launch path reads the old file until the move has happened.
+/// that moved it; and a process that never runs the launch path performs the move itself the first time it reads
+/// or writes, so no reader ever sees less than the whole history and no scan writes a smaller figure over a day
+/// it never loaded.
 @Suite struct DailyHistoryMigration {
     static let utc = DailyHistoryWrites.utc
 
@@ -153,8 +155,9 @@ import Testing
         #expect(!fm.fileExists(atPath: empty.path))
     }
 
-    /// The status line or the command reading before the app has launched the build that moved the file.
-    @Test func loadFallsBackToTheLegacyFileUntilTheMove() throws {
+    /// The status line or the command reading before the app has launched the build that moved the file: the
+    /// first read moves it, and reads the whole of it.
+    @Test func theFirstReaderMovesTheLegacyFile() throws {
         let fm = FileManager.default
         let dir = try DailyHistoryWrites.directory("history-fallback")
         defer { try? fm.removeItem(at: dir) }
@@ -165,10 +168,73 @@ import Testing
 
         let reader = CostHistory(url: new, tool: .claude, legacy: old)
         #expect(reader.load(calendar: Self.utc)[today]?.cost == 1.5)
-        // Once the new file exists it is the only one read, even when it holds less.
-        CostHistory(url: new, tool: .claude).record([today: Self.record(0.25)], existing: [:], calendar: Self.utc)
-        #expect(reader.load(calendar: Self.utc)[today]?.cost == 0.25)
+        #expect(!fm.fileExists(atPath: old.path), "a reader that found the legacy file left it where it was")
+        #expect(fm.fileExists(atPath: new.path))
         // A test's own URL never reaches for the real legacy file.
         #expect(CostHistory(url: new, tool: .claude).legacy == nil)
+    }
+
+    /// Two scans from a process that never runs the launch path (the MCP server, `--probe`), then the app's own
+    /// launch. A day whose transcripts are partly cleaned prices lower than the legacy file remembers; until
+    /// 0.5.0 the second scan found that day absent from the few lines the first had written to the new file,
+    /// appended the lower figure, and the app's later merge kept it as the newer line: the day was short for good.
+    @Test func scansBeforeTheAppsFirstLaunchKeepEveryLegacyDayAndTheLargerFigure() throws {
+        let fm = FileManager.default
+        let dir = try DailyHistoryWrites.directory("history-cli-first")
+        defer { try? fm.removeItem(at: dir) }
+        let old = dir.appendingPathComponent("Caches/daily-history-v1.jsonl")
+        let new = dir.appendingPathComponent("Application Support/daily-history-v1.jsonl")
+        let today = Self.utc.startOfDay(for: Date())
+        let yesterday = Self.utc.date(byAdding: .day, value: -1, to: today)!
+        let partlyCleaned = Self.utc.date(byAdding: .day, value: -29, to: today)!
+        let beyondTranscripts = Self.utc.date(byAdding: .day, value: -60, to: today)!
+        CostHistory(url: old, tool: .claude).record([beyondTranscripts: Self.record(3), partlyCleaned: Self.record(12), yesterday: Self.record(1)],
+                                                    existing: [:], calendar: Self.utc)
+
+        // What the transcripts price to now, scan after scan: today is new, and the cleaned day is down to 7.
+        let scanned = [today: Self.record(2), partlyCleaned: Self.record(7), yesterday: Self.record(1)]
+        let scanner = CostHistory(url: new, tool: .claude, legacy: old)
+        for _ in 0..<2 {
+            let stored = scanner.load(calendar: Self.utc)
+            #expect(stored.count >= 3, "a scan before the app's launch loaded \(stored.count) days of the legacy three")
+            #expect(stored[beyondTranscripts]?.cost == 3)
+            scanner.record(scanned, existing: stored, calendar: Self.utc)
+        }
+
+        CostHistory.migrateFromCaches(old: old, new: new)
+        let loaded = CostHistory(url: new, tool: .claude).load(calendar: Self.utc)
+        let days = 4
+        #expect(loaded.count == days)
+        #expect(loaded[partlyCleaned]?.cost == 12, "the transcripts' lower figure replaced the one the legacy file held")
+        #expect(loaded[beyondTranscripts]?.cost == 3)
+        #expect(loaded[yesterday]?.cost == 1)
+        #expect(loaded[today]?.cost == 2)
+        #expect(!fm.fileExists(atPath: old.path))
+    }
+
+    /// A sidecar the user cannot open (one left root-owned by a probe run under sudo, say) must not make the
+    /// append and the move silent no-ops for the life of the install; both go ahead without the lock.
+    @Test func anUnopenableLockSidecarStillLetsTheHistoryBeWrittenAndMoved() throws {
+        let fm = FileManager.default
+        let dir = try DailyHistoryWrites.directory("history-lock")
+        defer { try? fm.removeItem(at: dir) }
+        let new = dir.appendingPathComponent("Application Support/daily-history-v1.jsonl")
+        let old = dir.appendingPathComponent("Caches/daily-history-v1.jsonl")
+        let today = Self.utc.startOfDay(for: Date())
+        let yesterday = Self.utc.date(byAdding: .day, value: -1, to: today)!
+        try fm.createDirectory(at: new.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let lock = new.appendingPathExtension("lock")
+        try Data().write(to: lock)
+        try fm.setAttributes([.posixPermissions: 0o000], ofItemAtPath: lock.path)
+        defer { try? fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: lock.path) }
+
+        CostHistory(url: old, tool: .claude).record([yesterday: Self.record(1)], existing: [:], calendar: Self.utc)
+        let history = CostHistory(url: new, tool: .claude, legacy: old)
+        history.record([today: Self.record(2)], existing: history.load(calendar: Self.utc), calendar: Self.utc)
+
+        let loaded = history.load(calendar: Self.utc)
+        #expect(loaded[today]?.cost == 2, "the append was skipped for want of the lock")
+        #expect(loaded[yesterday]?.cost == 1)
+        #expect(!fm.fileExists(atPath: old.path), "the move out of Caches was skipped for want of the lock")
     }
 }
