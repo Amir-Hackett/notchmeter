@@ -140,6 +140,21 @@ import Testing
         #expect(dots.isTemplate)
         #expect(!MenuBarGlyphs.dots(windows: behind, now: now).isTemplate)
         #expect(MenuBarStyle.allCases.map(\.rawValue) == ["text", "bars", "rings", "dots"])
+        // Every window of the pinned tool hidden in Settings leaves the drawn styles nothing to stroke, and an
+        // untinted empty image is a transparent template: the pin used to become an invisible gap in the menu bar.
+        // The drawn styles fall back to the gauge instead, and keep drawing the meters when there is one.
+        let gauge = try #require(MenuBarItem.icon())
+        let emptyRingSize = MenuBarGlyphs.size(count: 0, diameter: MenuBarGlyphs.ringDiameter, gap: MenuBarGlyphs.glyphGap)
+        for style in [MenuBarStyle.bars, .rings, .dots] {
+            let fallback = try #require(MenuBarItem.glyph(windows: [], style: style, tint: .pace, custom: .labelColor, now: now))
+            #expect(fallback.size == gauge.size)
+            #expect(fallback.size != emptyRingSize)
+            #expect(fallback.isTemplate)
+        }
+        let drawn = try #require(MenuBarItem.glyph(windows: claude, style: .rings, tint: .pace, custom: .labelColor, now: now))
+        #expect(drawn.size == rings.size)
+        let signalled = try #require(MenuBarItem.glyph(windows: [], style: .dots, tint: .pace, custom: .labelColor, signal: .waiting(count: 1), now: now))
+        #expect(signalled.accessibilityDescription == ToolSignal.waiting(count: 1).spokenText)
         // The icon's colour is a choice: the pace's own amber and vermillion, the menu bar's colour whatever
         // happens, or one of your own. Monochrome stays a template, so macOS paints it like every other icon;
         // a custom colour never can be one, since a template throws the colour away.
