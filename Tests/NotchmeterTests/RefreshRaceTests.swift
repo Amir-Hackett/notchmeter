@@ -70,6 +70,36 @@ import Testing
         #expect(ReadingCache(defaults: defaults).load()[.cursor] == nil)
         #expect(!store.prefs.enabledTools.contains(.cursor))
     }
+
+    /// The user switches the tool off while a Refresh is waiting behind the timer read. setEnabled stops the loop
+    /// but has no handle on the parked press, so it wakes to an empty slot; it must check the switch again rather
+    /// than go, because the tool is off, and for Claude Code that read could raise the Keychain dialog. The wait
+    /// was the one await in `refresh` whose preconditions were not re-checked after it (0.5.0).
+    @MainActor @Test func aWaitingRefreshDoesNotStartForAToolSwitchedOffMeanwhile() async {
+        let suite = "NotchmeterTests.RefreshRaces.disabledWhileWaiting"
+        let provider = ParkedProvider(tool: .cursor)
+        let (store, defaults) = store(suite: suite, provider: provider)
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let timer = Task { await store.refresh(.cursor, force: true) }
+        await provider.fetchesBegun(1)
+        let pressed = Task { await store.refresh(.cursor, force: true, interactive: true) }
+        await Task.yield()
+        store.setEnabled(.cursor, false)
+        await provider.release()
+        await timer.value
+        // Bounded, so a store that does start the press's read fails the expectation below rather than parking
+        // that read here for ever.
+        await provider.fetchesBegun(2)
+        await provider.release()
+        await pressed.value
+
+        // One read only, the timer's; the press never reached the provider.
+        let expected = [false]
+        #expect(await provider.interactives == expected)
+        #expect(store.status(.cursor) == .off)
+        #expect(ReadingCache(defaults: defaults).load()[.cursor] == nil)
+    }
 }
 
 /// Installed, and every read parks until the test lets it go, remembering whether it was asked for by the user.

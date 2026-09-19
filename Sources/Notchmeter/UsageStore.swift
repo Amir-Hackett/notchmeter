@@ -527,7 +527,14 @@ final class UsageStore {
             // the meantime, the figures are on their way and there is nothing left to add.
             guard interactive else { return }
             await running.value
-            if inflight[tool] != nil { return }
+            // The wait is an await like any other, and the guards above were checked before it. The user may have
+            // switched the tool off while this read waited (setEnabled stops the loop but has no handle on a parked
+            // press), or some other read may have taken the slot; either way there is nothing left for it to do.
+            // Without the enabled check a Refresh pressed during the poll and followed by an untick started a full
+            // read for the tool that is now off: for Claude Code that adopted the status line straight into `.ready`,
+            // re-wrote the cache entry the untick had just cleared, or raised the Keychain dialog over the user's
+            // work for a tool they no longer wanted read (0.5.0).
+            guard inflight[tool] == nil, prefs.enabledTools.contains(tool), provider.isInstalled() else { return }
         }
         let read = Task { await self.read(tool, from: provider, interactive: interactive) }
         inflight[tool] = read
