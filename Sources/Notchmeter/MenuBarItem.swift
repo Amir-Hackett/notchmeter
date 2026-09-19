@@ -163,11 +163,12 @@ final class MenuBarItem {
             // had just looked at was already plain. Five surfaces read one answer, and one of them lagging the
             // others by a minute and a half is the contradiction that promise exists to rule out. `attendedAt`
             // costs at most one extra pass per turn — `wakeFromIdle` writes the date only while a finish is
-            // actually lit — but `store.sessions` costs two a minute whatever happens: `UsageStore`'s thirty-second
-            // sweep calls `sessions.expire` unconditionally, and a mutating call through `@Observable` publishes
-            // whether or not it changed anything. That is a rebuilt NSMenu twice a minute, which the `isOpen` guard
-            // above keeps off the menu the user is holding open and which is otherwise cheap; naming it here so the
-            // next person weighing a finer-grained key knows what the coarse one actually costs. `prefs.signalRings`
+            // actually lit — and `store.sessions` publishes only when a session actually changes: until 0.4.8 the
+            // thirty-second sweep in `UsageStore` called `sessions.expire` in place, and a mutating call through
+            // `@Observable` publishes whether or not it changed anything, which was a rebuilt NSMenu twice a minute
+            // with nothing running. `UsageStore.sweepSessions` now copies, expires and compares before it writes,
+            // so an idle Mac costs this item nothing; the `isOpen` guard above still keeps a real change off the
+            // menu the user is holding open. `prefs.signalRings`
             // is deliberately absent: it decides whether the rings beside the notch take the state colour, and this
             // item's glyph carries the state whatever it says, so tracking it bought a repaint and a rebuilt NSMenu
             // every time the toggle moved and changed nothing here.
