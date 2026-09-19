@@ -213,8 +213,10 @@ import Testing
         prefs.setHidden(true, window: reading.windows[1], of: .cursor)
         shown = prefs.shownWindows(of: reading).map(\.id)
         #expect(shown == ["included"])
+        // Hiding the last window too is a stale preference from before 0.6.0; the floor shows the first anyway.
         prefs.setHidden(true, window: reading.windows[0], of: .cursor)
-        #expect(prefs.shownWindows(of: reading).isEmpty)
+        shown = prefs.shownWindows(of: reading).map(\.id)
+        #expect(shown == ["included"])
     }
 
     @Test func aTeamPlanPutsThePooledUsageFirst() throws {

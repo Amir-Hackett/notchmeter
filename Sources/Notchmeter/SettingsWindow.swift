@@ -1306,10 +1306,16 @@ private struct WindowChoices: View {
             ForEach(choices) { window in Text(window.label).tag(window.id) }
         }
         .disabled(choices.isEmpty)
+        // The checkboxes read from the shown set rather than the raw preference, so a window the floor is showing
+        // against a stale preference reads as shown; the one window left is disabled, with the help saying why.
+        let shown = prefs.shownWindows(of: reading)
         LabeledContent(L("Hide")) {
             ForEach(reading.windows) { window in
-                Toggle(window.label, isOn: Binding(get: { prefs.isHidden(window, of: tool) }, set: { prefs.setHidden($0, window: window, of: tool) }))
+                let last = !WindowFloor.canHide(window, shown: shown)
+                Toggle(window.label, isOn: Binding(get: { !shown.contains { $0.id == window.id } }, set: { prefs.setHidden($0, window: window, in: reading) }))
                     .toggleStyle(.checkbox).controlSize(.small)
+                    .disabled(last)
+                    .help(last ? L("The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one.") : "")
             }
         }
     }
