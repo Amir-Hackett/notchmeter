@@ -63,10 +63,12 @@
 "%@ advice" = "%@ advice";
 "%@ as the vendor's own usage export priced it" = "%@ as the vendor's own usage export priced it";
 "%@ billed this month" = "%@ billed this month";
+"%@ could not be read as audio, so nothing was imported." = "%@ could not be read as audio, so nothing was imported.";
 "%@ finished" = "%@ finished";
 "%@ hit its rate limit; wait for the reset." = "%@ hit its rate limit; wait for the reset.";
 "%@ hook" = "%@ hook";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON.";
+"%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ is no longer in ~/Library/Sounds, so Default plays until you choose another.";
 "%@ is not a JSON object, so it was left untouched" = "%@ is not a JSON object, so it was left untouched";
 "%@ is waiting" = "%@ is waiting";
 "%@ is waiting for your input." = "%@ is waiting for your input.";

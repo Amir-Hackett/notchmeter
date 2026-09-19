@@ -47,10 +47,12 @@
 "%@ advice" = "%@ のアドバイス";
 "%@ as the vendor's own usage export priced it" = "%@ はベンダー自身の使用量エクスポートが付けた価格";
 "%@ billed this month" = "今月 %@ を請求";
+"%@ could not be read as audio, so nothing was imported." = "%@ は音声として読み取れなかったため、何も取り込まれませんでした。";
 "%@ finished" = "%@ が完了";
 "%@ hit its rate limit; wait for the reset." = "%@ がレート制限に達しました。リセットをお待ちください。";
 "%@ hook" = "%@ フック";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "まず %@ を settings.json.bak-<日付> にコピーします。既存のステータスラインは Notchmeter の後に同じ JSON で引き続き実行されます。";
+"%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ は ~/Library/Sounds になくなったため、別の音を選ぶまでデフォルトが鳴ります。";
 "%@ is not a JSON object, so it was left untouched" = "%@ は JSON オブジェクトではないため変更しませんでした";
 "%@ is waiting" = "%@ が待機中";
 "%@ is waiting for your input." = "%@ が入力を待っています。";
