@@ -460,6 +460,11 @@ final class UsageStore {
             stopLoop(tool)
             statuses[tool] = .off
             cache.remove(tool)
+            // The watched resets went with nothing until 0.6.0, so a tool switched off at 90 % still announced its
+            // reset from the thirty-second timer, and one switched back on after the reset announced a period that
+            // had ended while it was off. The clear lives here rather than in `stopLoop`, which `startLoop` calls
+            // on every restart and which must not lose a watch to a wake or a settings change.
+            watchedResets = watchedResets.filter { $0.value.tool != tool }
         }
     }
 
@@ -618,17 +623,16 @@ final class UsageStore {
         cache.store(reading)
         lastUpdated = now
         recordDrain(reading, now: now)
-        for var window in reading.windows {
+        // The notification pipeline sees one instant per period for each window, not the reset as this read
+        // reported it (`NotificationScheduler.canonicalReset`). Every notification embeds its window's reset in its
+        // identifier, and a Codex snapshot's reset is measured from when the snapshot was written, so it moves by
+        // a few seconds on every read. 0.5.0 pinned only the watched reset, and only against itself: the reminder
+        // and the reset notice held steady, but the pace notices `evaluateAlerts` planned from the reading as it
+        // came carried the moved instant, and `checkResets`, withdrawing by the pinned window's identifiers at the
+        // reset, left them standing. The reading on the ring and in the cache stays as the vendor gave it; only
+        // what is planned, watched and remembered from it is pinned.
+        for window in NotificationScheduler.pinned(reading, memory: alertMemory, watched: watchedResets).windows {
             let key = AlertMemory.key(reading.tool, window)
-            // A watched window keeps the reset it was first watched with for as long as the readings stay in the
-            // same period. Every notification built from it embeds that instant in its identifier
-            // (`PaceAlert.identifier`), and a Codex snapshot's reset is measured from when the snapshot was
-            // written, so it moves by a few seconds on every read: taken as it came, each reminder replaced
-            // nothing and stacked beside the last, and the identifiers `checkResets` withdraws at the reset,
-            // rebuilt from the window then current, matched none of the ones that had been sent.
-            if let existing = watchedResets[key], let pinned = existing.window.resetsAt, ResetPeriod.same(pinned, window.resetsAt) {
-                window = window.pinningReset(to: pinned)
-            }
             if let watch = WatchedReset.watch(reading.tool, window, now: now) {
                 watchedResets[key] = watch
             } else if let existing = watchedResets[key], !ResetPeriod.same(existing.window.resetsAt, window.resetsAt) {
@@ -805,7 +809,7 @@ final class UsageStore {
     /// window of its own, and advice lines worth a banner go out here too.
     private func evaluateAlerts(now: Date = Date()) {
         guard prefs.notificationsEnabled else { return }
-        var readings = readyReadings
+        var readings = readyReadings.map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
         if let budget = NotificationScheduler.budgetReading(cost: prefs.showSpend ? cost : nil, monthlyUSD: prefs.monthlyBudgetUSD, weeklyUSD: prefs.weeklyBudgetUSD, now: now) {
             readings.append(budget)
         }
@@ -826,9 +830,15 @@ final class UsageStore {
     }
 
     /// The timer's half: resets and reminders for windows that were nearly gone when last seen; the pace notices
-    /// of a window that has reset are withdrawn.
-    private func checkResets(now: Date = Date()) {
-        guard prefs.notificationsEnabled, !watchedResets.isEmpty else { return }
+    /// of a window that has reset are withdrawn. Only the tools on screen are checked: a watch belonging to a tool
+    /// that is off or no longer installed is dropped here rather than kept, because a watch kept through an
+    /// absence would announce, the moment the tool came back, a reset that passed while nobody was metering it.
+    /// The next reading re-watches whatever is still worth watching. Internal, not private, so a test can drive
+    /// the clock past a reset without the thirty-second timer.
+    func checkResets(now: Date = Date()) {
+        guard prefs.notificationsEnabled else { return }
+        watchedResets = watchedResets.filter { isShown($0.value.tool) }
+        guard !watchedResets.isEmpty else { return }
         let plan = NotificationScheduler.planResets(memory: alertMemory, watched: Array(watchedResets.values), now: now, options: alertOptions)
         watchedResets = plan.watched.reduce(into: [:]) { $0[AlertMemory.key($1.tool, $1.window)] = $1 }
         remember(plan.memory)
@@ -1228,7 +1238,8 @@ final class UsageStore {
         }
         guard isShown(tool) else { return }
         if outcome.limitHit != nil, prefs.notificationsEnabled {
-            let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: tool, reading: status(tool).reading, now: now, options: alertOptions)
+            let reading = status(tool).reading.map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
+            let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: tool, reading: reading, now: now, options: alertOptions)
             remember(plan.memory)
             send(plan.alerts)
         }

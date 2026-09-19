@@ -101,6 +101,71 @@ import Testing
         #expect(plan(first.memory, [drifted], now: t1).alerts.isEmpty)
     }
 
+    /// Every notice of a period carries the same instant, whatever the wire said on the read that raised it. 0.5.0
+    /// pinned the watched reset, so the reminder and the reset notice held steady, but a pace notice planned from
+    /// a reading whose reset had moved by seven seconds embedded the moved instant, and the withdrawal at the
+    /// reset, built from the pinned window, never matched it: the "running out" stayed in Notification Center
+    /// after the window had reset. Both halves are exercised here as the store runs them: the reading is pinned
+    /// before `plan`, and `plan` pins against its own memory besides, so the two agree.
+    @Test func aPaceNoticeSentAfterTheResetDriftedIsStillWithdrawnAtTheReset() throws {
+        let (behind, t0) = session(used: 0.5, elapsed: 3600)
+        let first = plan(.empty, [behind], now: t0)
+        #expect(first.alerts.map(\.stage) == [.behind])
+        let firstReset = try #require(behind.resetsAt)
+        let key = AlertMemory.key(.claude, behind)
+        let watched = [key: try #require(WatchedReset.watch(.claude, behind, now: t0))]
+
+        let drift: TimeInterval = 7
+        let (drifted, t1) = session(used: 0.7, elapsed: 5400 + drift, resetsAt: firstReset.addingTimeInterval(drift))
+        let reading = UsageReading(tool: .claude, windows: [drifted], plan: nil, fetchedAt: t1, observedAt: nil)
+        let pinned = NotificationScheduler.pinned(reading, memory: first.memory, watched: watched)
+        #expect(pinned.windows.first?.resetsAt == firstReset)
+        #expect(pinned.windows.first?.usedFraction == drifted.usedFraction)
+        let second = NotificationScheduler.plan(memory: first.memory, readings: [pinned], now: t1)
+        #expect(second.alerts.map(\.stage) == [.runningOut])
+        #expect(second.memory.entries[key]?.resetsAt == firstReset)
+        let asItCame = NotificationScheduler.plan(memory: first.memory, readings: [reading], now: t1)
+        #expect(asItCame.alerts.map(\.identifier) == second.alerts.map(\.identifier))
+        #expect(asItCame.memory == second.memory)
+
+        let reset = NotificationScheduler.planResets(memory: second.memory, watched: Array(watched.values), now: firstReset.addingTimeInterval(1), options: .all)
+        #expect(reset.alerts.map(\.stage) == [.reset])
+        let passed = try #require(reset.alerts.first)
+        let withdrawn = PaceAlert.identifiers(tool: passed.tool, window: passed.window)
+        let sent = (first.alerts + second.alerts).map(\.identifier)
+        let sentCount = 2
+        #expect(Set(sent).count == sentCount)
+        #expect(sent.allSatisfy(withdrawn.contains), "\(sent) are not all among \(withdrawn)")
+    }
+
+    /// The instant can live in the memory alone: an on-track window watches nothing (`WatchedReset.watch`), so
+    /// when it falls behind on a read whose reset has moved, the watch made then must take the memory's instant,
+    /// or the reset notice and the withdrawal would be built from a different one than the on-track notice. A
+    /// reset outside the period is genuinely new and stays the reading's own.
+    @Test func theMemoryAlonePinsAWindowNotYetWatched() throws {
+        let (onTrack, t0) = session(used: 0.19, elapsed: 3600)
+        let first = plan(.empty, [onTrack], now: t0)
+        #expect(first.alerts.map(\.stage) == [.onTrack])
+        #expect(WatchedReset.watch(.claude, onTrack, now: t0) == nil)
+        let firstReset = try #require(onTrack.resetsAt)
+
+        let (behind, t1) = session(used: 0.5, elapsed: 3600 + 600 + 7, resetsAt: firstReset.addingTimeInterval(7))
+        let reading = UsageReading(tool: .claude, windows: [behind], plan: nil, fetchedAt: t1, observedAt: nil)
+        let pinned = NotificationScheduler.pinned(reading, memory: first.memory, watched: [:])
+        let pinnedWindow = try #require(pinned.windows.first)
+        let watch = try #require(WatchedReset.watch(.claude, pinnedWindow, now: t1))
+        #expect(watch.window.resetsAt == firstReset)
+        let second = NotificationScheduler.plan(memory: first.memory, readings: [pinned], now: t1)
+        #expect(second.alerts.map(\.stage) == [.behind])
+        #expect(PaceAlert.identifiers(tool: .claude, window: watch.window).contains(try #require(first.alerts.first).identifier))
+
+        let nextReset = firstReset.addingTimeInterval(Period.fiveHours)
+        let (next, t2) = session(used: 0.5, elapsed: 3600, resetsAt: nextReset)
+        let nextReading = UsageReading(tool: .claude, windows: [next], plan: nil, fetchedAt: t2, observedAt: nil)
+        #expect(NotificationScheduler.pinned(nextReading, memory: second.memory, watched: [AlertMemory.key(.claude, behind): watch]).windows.first?.resetsAt == nextReset)
+        #expect(NotificationScheduler.canonicalReset(tool: .claude, window: LimitWindow(id: "x", label: "X", usedFraction: 0.9, resetsAt: nil), memory: second.memory, watched: [:]) == nil)
+    }
+
     @Test func theFirstTenthOfAWindowNeverInterrupts() {
         let (early, t0) = session(used: 0.2, elapsed: 600)
         #expect(Pace.status(for: early, now: t0) == .behind)
@@ -204,6 +269,24 @@ import Testing
         #expect(body.hasPrefix("Claude session has run out.") || body.hasPrefix("At this rate"))
     }
 
+    /// The hook's limit hit is identified by the period's instant like every other stage: raised after a behind
+    /// notice, from a reading whose reset has moved by seven seconds, it carries the behind notice's instant, so the
+    /// one withdrawal at the reset takes both down.
+    @Test func theHookLimitHitCarriesThePeriodsInstant() throws {
+        let firstReset = now.addingTimeInterval(4 * 3600)
+        let behind = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.5, resetsAt: firstReset, periodDuration: Period.fiveHours)
+        let paced = NotificationScheduler.plan(memory: .empty, readings: [UsageReading(tool: .claude, windows: [behind], plan: nil, fetchedAt: now, observedAt: nil)], now: now)
+        #expect(paced.alerts.map(\.stage) == [.behind])
+        let drifted = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.97, resetsAt: firstReset.addingTimeInterval(7), periodDuration: Period.fiveHours)
+        let reading = UsageReading(tool: .claude, windows: [drifted], plan: nil, fetchedAt: now, observedAt: nil)
+        let hit = NotificationScheduler.planLimitHit(memory: paced.memory, tool: .claude, reading: reading, now: now.addingTimeInterval(60), options: .all)
+        #expect(hit.alerts.map(\.stage) == [.limitHit])
+        #expect(hit.alerts.first?.window.resetsAt == firstReset)
+        #expect(hit.memory.entries["claude/five_hour"]?.resetsAt == firstReset)
+        let withdrawn = PaceAlert.identifiers(tool: .claude, window: behind)
+        #expect(withdrawn.contains(try #require(hit.alerts.first).identifier))
+    }
+
     @Test func soundChoicesMapToNotificationSounds() {
         #expect(NotificationSound.unSound(for: NotificationSound.none) == nil)
         #expect(NotificationSound.unSound(for: NotificationSound.defaultChoice) == .default)
@@ -225,4 +308,60 @@ import Testing
         #expect((try? NotificationSound.importCustom(source, folder: folder)) == "custom:chime 2.aiff")
         #expect(NotificationSound.customSounds(folder: folder) == ["chime 2.aiff", "chime.aiff"])
     }
+}
+
+/// The timer half of the scheduler answers to the Assistants switch: a tool that is off has no resets to announce.
+@Suite struct WatchedResetsFollowTheSwitch {
+    init() { Localization.use(language: "en") }
+
+    /// Switching a tool off never touched its watched resets until 0.6.0, and `checkResets` did not ask whether a
+    /// watch's tool was still shown, so a tool switched off at 90 % had its reset announced from the thirty-second
+    /// timer all the same, and one switched back on after the reset announced a period that had ended while it
+    /// was off. The reading's reset sits in the real future because `adopt` stamps the watch with the wall clock;
+    /// the store left on is the control that says the watch was made at all. Each store gets a suite of its own,
+    /// because the two would otherwise share one persisted memory and the control's reset would silence the other.
+    @MainActor @Test func aToolSwitchedOffAnnouncesNoReset() async throws {
+        let now = Date()
+        let window = LimitWindow(id: "session", label: "Session", usedFraction: 0.9, resetsAt: now.addingTimeInterval(600), periodDuration: Period.fiveHours)
+        let reading = UsageReading(tool: .codex, windows: [window], plan: nil, fetchedAt: now, observedAt: nil)
+        let afterReset = now.addingTimeInterval(1200)
+
+        func announced(suite: String, switchedOff: Bool) async throws -> [PaceAlert.Stage] {
+            let defaults = try #require(UserDefaults(suiteName: suite))
+            defaults.removePersistentDomain(forName: suite)
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let store = UsageStore(prefs: Preferences(defaults: defaults), providers: [FixedProvider(tool: .codex, reading: reading)],
+                                   cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
+            let delivered = Delivered()
+            store.deliverAlerts = { delivered.alerts += $0 }
+            await store.refresh(.codex, force: true)
+            #expect(store.status(.codex) == .ready(reading))
+            if switchedOff {
+                store.setEnabled(.codex, false)
+                #expect(store.status(.codex) == .off)
+            }
+            delivered.alerts = []
+            store.checkResets(now: afterReset)
+            return delivered.alerts.map(\.stage)
+        }
+
+        let control = try await announced(suite: "NotchmeterTests.Alerts.resetWhileOn", switchedOff: false)
+        #expect(control == [.reset])
+        let off = try await announced(suite: "NotchmeterTests.Alerts.resetWhileOff", switchedOff: true)
+        #expect(off.isEmpty, "a tool switched off announced \(off)")
+    }
+}
+
+/// The alerts a store handed to `deliverAlerts`, in a box the closure can write to.
+@MainActor private final class Delivered {
+    var alerts: [PaceAlert] = []
+}
+
+/// Installed, and answers every read with the one reading it was given.
+private struct FixedProvider: UsageProvider {
+    let tool: ToolID
+    let reading: UsageReading
+    var refreshInterval: TimeInterval { 300 }
+    func isInstalled() -> Bool { true }
+    func fetch() async throws -> UsageReading { reading }
 }
