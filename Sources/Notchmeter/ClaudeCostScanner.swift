@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "cost")
 
 struct UsageEntry: Codable, Equatable, Sendable {
     let timestamp: Date
@@ -783,11 +786,58 @@ struct CostHistory: Sendable {
 
     let url: URL
     let tool: ToolID
+    /// The file's old home, read when `url` has nothing yet. The status line, the `notchmeter` command and the MCP
+    /// server build a CostHistory in a process that never runs the app's launch path, so between installing a
+    /// build that keeps the file in Application Support and the app's next launch (which moves it) they would
+    /// otherwise open an absent file and report nothing. Only the production file has one; a test's URL never
+    /// falls back onto the real history.
+    let legacy: URL?
     static let compactAbove = 4000
 
-    init(url: URL = Paths.caches.appendingPathComponent("daily-history-v1.jsonl"), tool: ToolID = .claude) {
+    init(url: URL = Paths.historyFile, tool: ToolID = .claude, legacy: URL? = nil) {
         self.url = url
         self.tool = tool
+        self.legacy = legacy ?? (url == Paths.historyFile ? Paths.legacyHistoryFile : nil)
+    }
+
+    /// Builds before 2026-09-19 kept the file in ~/Library/Caches, which the OS may empty when disk runs short and
+    /// Time Machine never backs up. Called once at launch, before the providers build their CostHistory values.
+    /// Idempotent, and safe with a scan from another process (the command-line tool) having already written the
+    /// new file: the legacy lines go in front of the existing ones, and since `parse` takes the newest line per
+    /// (tool, day) the readings already in the new file still win. The old file is removed only after the copy or
+    /// merge has been written, so a failure part way leaves both files and the next launch tries again.
+    static func migrateFromCaches(old: URL = Paths.legacyHistoryFile, new: URL = Paths.historyFile) {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: old.path) else { return }
+        try? fm.createDirectory(at: new.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let moved: Bool? = locked(new, LOCK_EX) {
+            guard let legacy = try? Data(contentsOf: old) else { return false }
+            if let existing = try? Data(contentsOf: new), !existing.isEmpty {
+                var whole = legacy
+                if whole.last != 0x0A { whole.append(0x0A) }
+                whole.append(existing)
+                return (try? whole.write(to: new, options: .atomic)) != nil
+            }
+            return (try? legacy.write(to: new, options: .atomic)) != nil
+        }
+        guard moved == true, (try? fm.removeItem(at: old)) != nil else { return }
+        log.notice("moved the daily history out of Caches")
+    }
+
+    /// `body` with `operation` (LOCK_EX or LOCK_SH) held on a sidecar `.lock` beside the file, or nil when the lock
+    /// could not be taken. Three actors in this process (Claude's scanner, Codex's scanner, Cursor's provider) each
+    /// hold their own CostHistory over the one path, and the `notchmeter` command appends from a second process,
+    /// so a Swift lock would serialise only some of the writers; a flock serialises them all. The lock is a
+    /// sidecar rather than the history file itself because compaction rewrites the history atomically, a temp
+    /// file plus a rename, which gives the path a new inode: a lock taken on the old one would be dropped by the
+    /// very write it has to exclude.
+    private static func locked<T>(_ url: URL, _ operation: Int32, _ body: () -> T) -> T? {
+        let fd = open(url.appendingPathExtension("lock").path, O_CREAT | O_RDWR | O_CLOEXEC, 0o644)
+        guard fd >= 0 else { return nil }
+        defer { close(fd) }
+        guard flock(fd, operation) == 0 else { return nil }
+        defer { flock(fd, LOCK_UN) }
+        return body()
     }
 
     /// The proleptic Gregorian reading of `calendar`'s wall clock: keys are the file's format, not the user's,
@@ -817,8 +867,13 @@ struct CostHistory: Sendable {
         return calendar.startOfDay(for: date)
     }
 
+    /// Read under a shared lock, so a compaction in another writer is seen whole rather than as the empty file
+    /// between its truncate and its rewrite. When the lock cannot be taken (the folder is not there yet, say) the
+    /// file is read anyway: a missing lock must not turn a present history into an empty one.
     func load(calendar: Calendar = .current) -> [Date: Record] {
-        guard let data = try? Data(contentsOf: url) else { return [:] }
+        let data = Self.locked(url, LOCK_SH) { try? Data(contentsOf: url) } ?? (try? Data(contentsOf: url))
+        if let data { return Self.parse(data, tool: tool, calendar: calendar) }
+        guard let legacy, let data = try? Data(contentsOf: legacy) else { return [:] }
         return Self.parse(data, tool: tool, calendar: calendar)
     }
 
@@ -854,17 +909,35 @@ struct CostHistory: Sendable {
         guard !appended.isEmpty else { return }
         let fm = FileManager.default
         try? fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let lines = (try? Data(contentsOf: url))?.split(separator: 0x0A).count ?? 0
-        if lines + days.count > Self.compactAbove {
-            try? compacted(merged, calendar: calendar, encoder: encoder).write(to: url, options: .atomic)
-            return
-        }
-        if let handle = try? FileHandle(forWritingTo: url) {
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: appended)
-            try? handle.close()
-        } else {
-            try? appended.write(to: url, options: .atomic)
+        // The line count, the compaction's re-read of every other tool's lines and the write are one critical
+        // section: counted outside the lock, a compaction rewrote the file from a snapshot that predated another
+        // writer's append and dropped it. This tool's own days come from `existing`, which the caller loaded a
+        // moment ago; the only writer that could have raised one of them since is the same scanner in another
+        // process, and its line is re-appended by whichever scan next finds the file short of it.
+        _ = Self.locked(url, LOCK_EX) {
+            let lines = (try? Data(contentsOf: url))?.split(separator: 0x0A).count ?? 0
+            if lines + days.count > Self.compactAbove {
+                try? compacted(merged, calendar: calendar, encoder: encoder).write(to: url, options: .atomic)
+                return
+            }
+            // O_APPEND: the kernel picks the offset and lands the bytes in one call, so two appends cannot resolve
+            // the same end of file even from a writer that takes no lock (an older build of the command, say).
+            // O_CREAT is the whole of the first-write path. There is deliberately no fallback when the open fails:
+            // until 2026-09-19 a failed open on an existing file fell through to an atomic write of just the new
+            // lines, which replaced the entire history with the few days that had changed. Skipping the write
+            // costs nothing, because the next scan finds the file short of those days and appends them again.
+            let fd = open(url.path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0o644)
+            guard fd >= 0 else { return }
+            defer { close(fd) }
+            appended.withUnsafeBytes { buffer in
+                guard let base = buffer.baseAddress else { return }
+                var offset = 0
+                while offset < buffer.count {
+                    let written = write(fd, base.advanced(by: offset), buffer.count - offset)
+                    guard written > 0 else { return }
+                    offset += written
+                }
+            }
         }
     }
 

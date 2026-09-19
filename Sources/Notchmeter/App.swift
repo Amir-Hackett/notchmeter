@@ -182,6 +182,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MainMenu.install(actions: actions)
         AccessibilityDisplay.shared.reduceAnimations = prefs.reduceAnimations
         LegacyCaches.clean()
+        CostHistory.migrateFromCaches()
         store = UsageStore(prefs: prefs)
         store.deliverAlerts = { [weak self] alerts in
             guard let self else { return }
