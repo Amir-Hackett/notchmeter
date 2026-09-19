@@ -823,6 +823,17 @@ final class Preferences {
             report(Keys.accessibilityGrant, accessibilityGrantedTo ?? "none", changed: accessibilityGrantedTo != oldValue)
         }
     }
+    /// The code signature the Accessibility prompt was last shown under (CodeSignature.runningIdentity), whether
+    /// the user picked Auto or a launch found Auto chosen and refused. The prompt is the system's and says nothing
+    /// back, so this is the only way not to show it on every launch to a user who dismissed it; a new signature is
+    /// a new copy to macOS and asks once more. Cleared with the grant when the entry is reset, so the relaunch can
+    /// ask for what was just cleared.
+    var accessibilityAskedFor: String? {
+        didSet {
+            defaults.set(accessibilityAskedFor, forKey: Keys.accessibilityAsked)
+            report(Keys.accessibilityAsked, accessibilityAskedFor ?? "none", changed: accessibilityAskedFor != oldValue)
+        }
+    }
     private(set) var launchAtLogin: Bool
     private(set) var launchAtLoginStatus: SMAppService.Status
 
@@ -908,6 +919,7 @@ final class Preferences {
         static let hotkeySettings = "hotkeyOpenSettings"
         static let hookOffer = "hookOfferShown"
         static let accessibilityGrant = "accessibilityGrantedTo"
+        static let accessibilityAsked = "accessibilityAskedFor"
         static let launchAtLogin = "launchAtLogin"
     }
 
@@ -1010,6 +1022,7 @@ final class Preferences {
         showOverFullScreenHotkey = Self.codable(defaults, Keys.hotkeyFullScreen)
         hookOfferShown = defaults.bool(forKey: Keys.hookOffer)
         accessibilityGrantedTo = defaults.string(forKey: Keys.accessibilityGrant)
+        accessibilityAskedFor = defaults.string(forKey: Keys.accessibilityAsked)
         let status = SMAppService.mainApp.status
         launchAtLoginStatus = status
         launchAtLogin = status == .enabled
