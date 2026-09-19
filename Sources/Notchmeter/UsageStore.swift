@@ -914,12 +914,31 @@ final class UsageStore {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(Self.resetCheckInterval))
                 guard !Task.isCancelled, let self else { return }
-                let before = self.sessions
-                self.withdrawWaiting(self.sessions.expire(now: Date()))
-                if before != self.sessions { self.applyAwake() }
+                self.sweepSessions()
                 self.checkResets()
             }
         }
+    }
+
+    /// The clock's pass over the sessions: waits past ten minutes, finished marks past ninety seconds and sessions
+    /// silent for four hours are retired (SessionTracker.expire), and the notices of any wait that ended this way
+    /// are withdrawn. The tracker is copied out, expired, and written back only when the copy differs. `sessions`
+    /// is a stored property of an `@Observable` class, and a `mutating` call straight on it goes through the
+    /// generated accessor, which publishes to every observer whether or not the call changed a thing; an equality
+    /// check after the fact is too late, the notification has already gone out. Until 0.4.8 the thirty-second
+    /// sweep did exactly that, so with no assistant running and nothing to expire, every presenter on every screen
+    /// re-measured the whole expanded card, reframed its window and rebuilt the menu bar item twice a minute for
+    /// the life of the process, to arrive at the frame it already had. Both clocks that retire sessions, the sweep
+    /// and `armSignalRelease`, come through here so neither can drift back to the in-place call. The awake
+    /// assertion is re-applied on a change because a session dropped for silence may have been the last one working.
+    func sweepSessions(now: Date = Date()) {
+        var expired = sessions
+        let stopped = expired.expire(now: now)
+        if expired != sessions {
+            sessions = expired
+            applyAwake()
+        }
+        withdrawWaiting(stopped)
     }
 
     private func sampleEnvironment() async {
@@ -1063,10 +1082,7 @@ final class UsageStore {
             try? await Task.sleep(for: .seconds(interval))
             guard !Task.isCancelled, let self else { return }
             signalRelease = nil
-            var expired = sessions
-            let stopped = expired.expire(now: Date())
-            if expired != sessions { sessions = expired }
-            withdrawWaiting(stopped)
+            sweepSessions()
             armSignalRelease()
         }
     }
