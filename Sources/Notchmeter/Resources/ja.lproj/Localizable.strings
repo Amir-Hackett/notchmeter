@@ -335,6 +335,7 @@
 "Installed; your previous status line (%@) runs after it." = "インストールしました。以前のステータスライン（%@）はその後に実行されます。";
 "Integrations" = "連携";
 "its usage export could not be fetched" = "使用状況のエクスポートを取得できませんでした";
+"its usage export came back in a shape Notchmeter could not read" = "使用状況のエクスポートが Notchmeter の読み取れない形式で返されました";
 "just now" = "たった今";
 "Keeping awake" = "スリープ抑止中";
 "Keeping awake · %ld sessions" = "スリープ抑止中 · %ld セッション";

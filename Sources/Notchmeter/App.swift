@@ -1543,6 +1543,7 @@ enum Probe {
         case .needsAttention(let message, _): "needs attention: \(message)"
         case .failed(let message, _): "failed: \(message)"
         case .offline(let cached): "offline" + (cached.map { ", showing \(describe($0))" } ?? "")
+        case .rateLimited(let message, let cached): "rate limited: \(message)" + (cached.map { ", showing \(describe($0))" } ?? "")
         }
     }
 }

@@ -128,6 +128,7 @@ final class Oracle: @unchecked Sendable {
         case .ready: "ready"
         case .failed: "failed"
         case .offline: "offline"
+        case .rateLimited: "rateLimited"
         }
     }
 }

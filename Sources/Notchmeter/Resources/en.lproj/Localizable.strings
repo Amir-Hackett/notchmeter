@@ -351,6 +351,7 @@
 "Installed; your previous status line (%@) runs after it." = "Installed; your previous status line (%@) runs after it.";
 "Integrations" = "Integrations";
 "its usage export could not be fetched" = "its usage export could not be fetched";
+"its usage export came back in a shape Notchmeter could not read" = "its usage export came back in a shape Notchmeter could not read";
 "just now" = "just now";
 "Keeping awake" = "Keeping awake";
 "Keeping awake · %ld sessions" = "Keeping awake · %ld sessions";

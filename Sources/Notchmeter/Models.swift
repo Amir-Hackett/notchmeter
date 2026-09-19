@@ -398,11 +398,18 @@ enum ToolStatus: Equatable {
     case failed(String, cached: UsageReading?)
     /// No network: the cached reading stays on screen without a problem mark; the footer says "Offline, retrying".
     case offline(cached: UsageReading?)
+    /// The vendor answered 429: the cached reading stays on screen without a problem mark, and the footer names the
+    /// wait. It is its own case rather than `.ready(cached)`, which is what the store used to set: `.ready` is the
+    /// one status with no `staleReading`, so a 429 dropped the "Last reading … may be out of date" caption, stopped
+    /// dimming the meter rows and wrote `"stale": false` into the probe JSON, the local API and the MCP server for
+    /// figures that were as old as the vendor's Retry-After. A tool already showing `.failed(_, cached:)` even came
+    /// out of a 429 looking healthier than it went in.
+    case rateLimited(String, cached: UsageReading?)
 
     var reading: UsageReading? {
         switch self {
         case .ready(let r): r
-        case .needsAttention(_, let c), .failed(_, let c), .offline(let c): c
+        case .needsAttention(_, let c), .failed(_, let c), .offline(let c), .rateLimited(_, let c): c
         case .notInstalled, .off, .waiting, .idle: nil
         }
     }
@@ -424,7 +431,7 @@ enum ToolStatus: Equatable {
     /// The reading still on screen after the tool stopped answering; its numbers may be out of date.
     var staleReading: UsageReading? {
         switch self {
-        case .needsAttention(_, let c), .failed(_, let c), .offline(let c): c
+        case .needsAttention(_, let c), .failed(_, let c), .offline(let c), .rateLimited(_, let c): c
         default: nil
         }
     }

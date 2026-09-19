@@ -22,6 +22,9 @@ import Testing
         #expect(ToolStatus.needsAttention("login expired", cached: reading).staleReading == reading)
         #expect(ToolStatus.failed("timed out", cached: reading).staleReading == reading)
         #expect(ToolStatus.failed("timed out", cached: nil).staleReading == nil)
+        #expect(ToolStatus.offline(cached: reading).staleReading == reading)
+        #expect(ToolStatus.rateLimited("Rate limited, retrying in 60s", cached: reading).staleReading == reading)
+        #expect(ToolStatus.rateLimited("Rate limited, retrying in 60s", cached: reading).problem == nil)
         #expect(ToolStatus.ready(reading).staleReading == nil)
         #expect(ToolStatus.waiting.staleReading == nil)
         #expect(ToolStatus.idle("nothing yet").staleReading == nil)
@@ -67,6 +70,45 @@ import Testing
         #expect(ProviderError.rateLimited(retryAfter: 300).message == "Rate limited, retrying in 300s")
         #expect(ProviderError.rateLimited(retryAfter: nil).message == "Rate limited, backing off")
     }
+
+    /// A 429 keeps the last good numbers on screen as the old numbers they are. The store used to set
+    /// `.ready(cached)`, the one status with no `staleReading`, so the caption, the dimmed rows and the probe's
+    /// `"stale"` all said the figures were live for as long as the vendor's Retry-After — which was honoured
+    /// verbatim, where every neighbouring backoff is capped. The message names the wait the app really takes.
+    @MainActor @Test func aRateLimitKeepsTheCachedReadingAsStaleNotReady() async {
+        let suite = "NotchmeterTests.StaleReading.rateLimited"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let prefs = Preferences(defaults: defaults)
+        let now = Date()
+        let reading = UsageReading(tool: .codex, windows: [
+            LimitWindow(id: "session", label: "Session", usedFraction: 0.4, resetsAt: now.addingTimeInterval(3600), periodDuration: Period.fiveHours),
+        ], plan: nil, fetchedAt: now, observedAt: nil)
+        let store = UsageStore(prefs: prefs, providers: [RateLimitedProvider(tool: .codex, retryAfter: 1800)],
+                               cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
+        store.seed(readings: [reading], cost: .empty, nextUpdate: now.addingTimeInterval(60), now: now)
+        await store.refresh(.codex, force: true)
+        let status = store.status(.codex)
+        #expect(status.staleReading == reading)
+        #expect(status.reading == reading)
+        #expect(status.problem == nil)
+        #expect(Oracle.kind(status) == "rateLimited")
+        guard case .rateLimited(let message, _) = status else {
+            Issue.record("a 429 with a cached reading read as \(status)")
+            return
+        }
+        #expect(message == "Rate limited, retrying in 600s")
+    }
+}
+
+/// Installed, and answers every read with the vendor's 429.
+private struct RateLimitedProvider: UsageProvider {
+    let tool: ToolID
+    let retryAfter: TimeInterval?
+    var refreshInterval: TimeInterval { 300 }
+    func isInstalled() -> Bool { true }
+    func fetch() async throws -> UsageReading { throw ProviderError.rateLimited(retryAfter: retryAfter) }
 }
 
 /// A reading carries no language of its own: a window's name travels as the key it will be looked up under, so a

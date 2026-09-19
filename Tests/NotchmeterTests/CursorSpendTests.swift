@@ -198,6 +198,39 @@ import Testing
         }
     }
 
+    /// An HTTP 200 whose body this build cannot read used to be written down as a clean read of $0: the export
+    /// parsed to no events, the card said "nothing used in the last 30 days", and today's line in the daily-totals
+    /// file was never written. It is a failed read, named on the card like a refusal is.
+    @Test func anExportInAShapeThisBuildCannotReadIsAFailedReadNotAnEmptyOne() async throws {
+        let renamed = Data(#"{"usageEventsDisplayV2":[{"timestamp":"1756728000000","model":"gpt-5","tokenUsage":{"totalCents":250}}]}"#.utf8)
+        try await withCursor("renamed", answer: Self.answering { _ in (200, renamed) }) { provider, history, defaults, _ in
+            let reading = try await provider.fetch()
+            #expect(!reading.windows.contains(where: { $0.id == "spend_today" }))
+            let read = try #require(CursorExportRead.load(from: defaults))
+            #expect(read.events == 0)
+            #expect(read.problem == "its usage export came back in a shape Notchmeter could not read")
+            #expect(history.load().isEmpty)
+            let gaps = CostAbsence.gaps(carried: [.cursor], reporting: [], cursorUsageEvents: true, cursorExport: read,
+                                        problems: [:], nothingLocal: [])
+            #expect(gaps.map(\.text) == ["Cursor: its usage export came back in a shape Notchmeter could not read"])
+        }
+    }
+
+    /// The same on a later page, with nothing from the pages before it written: a partial fold would be an
+    /// understated today row, which is the same confident-low figure by another route.
+    @Test func anUnreadablePageAnywhereInTheExportFailsTheWholeRead() async throws {
+        let full = Self.events((0..<CursorProvider.eventPageSize).map { _ in (offset: -3600, cents: 1, model: "gpt-5") })
+        let renamed = Data(#"{"usageEventsDisplayV2":[]}"#.utf8)
+        try await withCursor("renamed-later", answer: Self.answering { page in (200, page == 1 ? full : renamed) }) { provider, history, defaults, exchange in
+            _ = try await provider.fetch()
+            #expect(exchange.pages == [1, 2])
+            let read = try #require(CursorExportRead.load(from: defaults))
+            #expect(read.events == 0)
+            #expect(read.problem != nil)
+            #expect(history.load().isEmpty)
+        }
+    }
+
     /// A refusal used to reach the log and nowhere else, and the card said "no spend read yet" for it.
     @Test func aRefusedExportReachesTheCardAndNotJustTheLog() async throws {
         try await withCursor("refused", answer: Self.answering { _ in (403, Data()) }) { provider, history, defaults, _ in
@@ -234,6 +267,27 @@ import Testing
             #expect(exchange.pages == [1, 2])
             #expect(CursorExportRead.load(from: defaults)?.events == CursorProvider.eventPageSize + 1)
             #expect(abs((CursorExportRead.load(from: defaults)?.costUSD ?? 0) - 5.5) < 1e-9)
+        }
+    }
+
+    /// The last page is the one the server sent short, in rows, not in the events that parsed from it: one row on a
+    /// full page with a timestamp in a spelling this build does not read used to end the export on that page.
+    @Test func aRowThatDoesNotParseDoesNotEndTheExport() async throws {
+        var rows = (0..<CursorProvider.eventPageSize - 1).map { _ -> [String: Any] in
+            ["timestamp": String(Int(Self.midday.addingTimeInterval(-3600).timeIntervalSince1970 * 1000)), "model": "gpt-5",
+             "tokenUsage": ["totalCents": 1]]
+        }
+        rows.append(["timestamp": "2026-09-19T12:00:00Z", "model": "gpt-5", "tokenUsage": ["totalCents": 1]])
+        let full = try JSONSerialization.data(withJSONObject: ["usageEventsDisplay": rows])
+        let tail = Self.events([(offset: -7200, cents: 50, model: "gpt-5")])
+        try await withCursor("skipped-row", answer: Self.answering { page in (200, page == 1 ? full : tail) }) { provider, _, defaults, exchange in
+            _ = try await provider.fetch()
+            #expect(exchange.pages == [1, 2])
+            let read = try #require(CursorExportRead.load(from: defaults))
+            // The first page's 499 readable rows and the tail's one.
+            let readEvents = CursorProvider.eventPageSize
+            #expect(read.events == readEvents)
+            #expect(read.problem == nil)
         }
     }
 

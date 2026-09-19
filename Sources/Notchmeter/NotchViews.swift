@@ -1488,6 +1488,9 @@ struct ToolCard: View {
             case .offline:
                 Label(L("Offline, retrying"), systemImage: "wifi.slash")
                     .font(.caption).foregroundStyle(.secondary)
+            case .rateLimited(let message, _):
+                Label(message, systemImage: "clock.badge.exclamationmark")
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
             default:
                 EmptyView()
             }

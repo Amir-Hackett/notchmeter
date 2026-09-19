@@ -246,7 +246,10 @@ import Testing
           {"timestamp":"1756641600000","model":"claude-4-sonnet","tokenUsage":{"totalCents":30}},
           {"model":"missing-timestamp"}]}
         """
-        let events = CursorProvider.parseUsageEvents(Data(json.utf8))
+        let page = CursorProvider.parseUsageEvents(Data(json.utf8))
+        #expect(page.recognised)
+        #expect(page.rows == 4)
+        let events = page.events
         #expect(events.count == 3)
         #expect(events[0].costUSD == 0.12)
         #expect(events[0].tokens.total == 5600)
@@ -267,7 +270,7 @@ import Testing
         let aDayBeforeNow = String(Int(now.timeIntervalSince1970 * 1000) - 86_400_000)
         #expect(startDate == aDayBeforeNow)
         #expect(body["pageSize"] as? Int == 500)
-        #expect(CursorProvider.parseUsageEvents(Data("nope".utf8)).isEmpty)
+        #expect(CursorProvider.parseUsageEvents(Data("nope".utf8)).events.isEmpty)
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-cursor-history-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }
         let history = CostHistory(url: dir.appendingPathComponent("daily.jsonl"), tool: .cursor)
@@ -294,6 +297,20 @@ import Testing
         let nothingRecorded = CursorCostReader(history: CostHistory(url: dir.appendingPathComponent("nothing.jsonl"), tool: .cursor))
             .read(now: now, daysBack: 30, weekStart: now, calendar: utc, state: ProviderReadState())
         #expect(nothingRecorded == nil)
+    }
+
+    /// A body this build cannot read is not an empty month. Both drifts count: the list under a key with a new
+    /// name, and the list still found but every row's timestamp renamed, which parses to no events at all.
+    @Test func anExportInAShapeThisBuildCannotReadIsNotAnEmptyMonth() {
+        #expect(CursorProvider.parseUsageEvents(Data("nope".utf8)).recognised == false)
+        #expect(CursorProvider.parseUsageEvents(Data(#"{"rows":[{"ts":1}]}"#.utf8)).recognised == false)
+        let renamedTimestamp = CursorProvider.parseUsageEvents(Data(#"{"usageEventsDisplay":[{"ts":1756728000000,"model":"gpt-5"}]}"#.utf8))
+        #expect(renamedTimestamp.recognised == false)
+        #expect(renamedTimestamp.rows == 1)
+        let empty = CursorProvider.parseUsageEvents(Data(#"{"usageEventsDisplay":[]}"#.utf8))
+        #expect(empty.recognised)
+        #expect(empty.rows == 0)
+        #expect(empty.events.isEmpty)
     }
 }
 

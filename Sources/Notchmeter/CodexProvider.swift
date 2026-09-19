@@ -75,7 +75,17 @@ actor CodexProvider: UsageProvider {
 
         switch response?.statusCode ?? 0 {
         case 200:
-            var reading = try Self.parseBackend(body)
+            // A 200 whose body carries no window is a shape this build cannot read, and the rollouts on disk still
+            // hold real figures for it, as they do for every other way the endpoint can fail to answer. Until
+            // 2026-09-19 this was the one branch with no fallback: the empty reading was adopted, cached over the
+            // last good one, and both rings read "No data" across relaunches.
+            var reading: UsageReading
+            do {
+                reading = try Self.parseBackend(body)
+            } catch {
+                if let local = try? localReading() { return local }
+                throw error
+            }
             if readResetCredits(), let (credits, creditResponse) = try? await get(Self.resetCreditsURL, auth: auth), creditResponse?.statusCode == 200,
                let window = Self.resetCreditWindow(Self.parseResetCredits(credits)) {
                 reading = reading.with(windows: reading.windows + [window])
@@ -137,17 +147,27 @@ actor CodexProvider: UsageProvider {
             throw ProviderError.parse(L("Codex usage response unreadable"))
         }
         var windows = parseRateLimit(root["rate_limit"] as? [String: Any], model: nil)
+        var perModel: [LimitWindow] = []
+        for case let extra as [String: Any] in (root["additional_rate_limits"] as? [Any]) ?? [] {
+            let name = additionalModelName(extra)
+            let limit = (extra["rate_limit"] as? [String: Any]) ?? extra
+            perModel.append(contentsOf: parseRateLimit(limit, model: name))
+        }
+        // As the snapshot read does (`reading(from:observedAt:now:)`): a body with no measured window is not a
+        // reading. Codex's own payloads can carry both windows null beside a credits balance, and a renamed key
+        // would look the same, so without this the placeholders below became a "reading" of two "No data" rings
+        // that the store cached over the last good figures. The per-model windows count towards the guard but are
+        // kept out of the placeholder test, which asks about the main pair alone.
+        guard (windows + perModel).contains(where: { $0.usedFraction != nil }) else {
+            throw ProviderError.parse(L("Codex reported no usage windows"))
+        }
         if !windows.contains(where: { $0.id == "session" }) {
             windows.insert(LimitWindow(id: "session", label: .key("Session"), usedFraction: nil, resetsAt: nil, note: L("No data")), at: 0)
         }
         if windows.count == 1 {
             windows.append(LimitWindow(id: "weekly", label: .key("Weekly"), usedFraction: nil, resetsAt: nil, note: L("No data")))
         }
-        for case let extra as [String: Any] in (root["additional_rate_limits"] as? [Any]) ?? [] {
-            let name = additionalModelName(extra)
-            let limit = (extra["rate_limit"] as? [String: Any]) ?? extra
-            windows.append(contentsOf: parseRateLimit(limit, model: name))
-        }
+        windows += perModel
         if let credits = root["credits"] as? [String: Any], (credits["has_credits"] as? Bool) == true, (credits["unlimited"] as? Bool) != true,
            // Codex's own client models the balance as a string ("12.50").
            let balance = JSON.number(credits["balance"]) ?? (credits["balance"] as? String).flatMap({ Double($0.trimmingCharacters(in: .whitespaces)) }) {

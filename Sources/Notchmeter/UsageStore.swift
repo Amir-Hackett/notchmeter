@@ -526,14 +526,14 @@ final class UsageStore {
                 statuses[tool] = .offline(cached: cached)
                 backoff[tool] = min(300, max(30, (backoff[tool] ?? 15) * 2))
             } else if case .rateLimited(let retry) = error {
-                // Transient: keep the last good numbers on screen and try again later.
-                let wait = ProviderError.rateLimitWait(retryAfter: retry)
+                // Transient: keep the last good numbers on screen, marked as the old numbers they are, and try again
+                // later. This branch used to set `.ready(cached)`, which presented them as a live reading everywhere
+                // (ToolStatus.rateLimited says where). The wait is capped like its neighbours' because it is the
+                // only one a vendor sets: a `Retry-After: 1800` was honoured verbatim and held the reading for half
+                // an hour, and the message names the wait the app really takes.
+                let wait = min(600, ProviderError.rateLimitWait(retryAfter: retry))
                 backoff[tool] = wait
-                if let cached {
-                    statuses[tool] = .ready(cached)
-                } else {
-                    statuses[tool] = .failed(L("Rate limited, retrying in %lds", Int(wait)), cached: nil)
-                }
+                statuses[tool] = .rateLimited(L("Rate limited, retrying in %lds", Int(wait)), cached: cached)
             } else if error.needsAttention {
                 statuses[tool] = .needsAttention(error.message, cached: cached)
                 backoff[tool] = 60

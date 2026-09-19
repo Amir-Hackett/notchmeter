@@ -1094,7 +1094,7 @@ struct SettingsView: View {
         case .waiting: return L("Waiting for the first reading")
         case .idle(let message): return message
         case .ready(let reading): return reading.plan.map { L("Signed in · %@", $0) } ?? L("Signed in")
-        case .needsAttention(let message, _), .failed(let message, _): return message
+        case .needsAttention(let message, _), .failed(let message, _), .rateLimited(let message, _): return message
         case .offline: return L("Offline, retrying")
         case .notInstalled: return L("Not installed on this Mac")
         }

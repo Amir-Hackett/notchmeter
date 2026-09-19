@@ -335,6 +335,7 @@
 "Installed; your previous status line (%@) runs after it." = "Đã cài; dòng trạng thái trước của bạn (%@) chạy sau nó.";
 "Integrations" = "Tích hợp";
 "its usage export could not be fetched" = "không lấy được dữ liệu sử dụng đã xuất";
+"its usage export came back in a shape Notchmeter could not read" = "dữ liệu sử dụng đã xuất trả về ở dạng Notchmeter không đọc được";
 "just now" = "vừa xong";
 "Keeping awake" = "Giữ máy thức";
 "Keeping awake · %ld sessions" = "Giữ máy thức · %ld phiên";

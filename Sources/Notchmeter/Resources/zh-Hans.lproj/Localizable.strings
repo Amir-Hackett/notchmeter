@@ -351,6 +351,7 @@
 "Installed; your previous status line (%@) runs after it." = "已安装；你原有的状态行（%@）会在其后继续运行。";
 "Integrations" = "集成";
 "its usage export could not be fetched" = "无法获取其用量导出";
+"its usage export came back in a shape Notchmeter could not read" = "其用量导出以 Notchmeter 无法读取的格式返回";
 "just now" = "刚刚";
 "Keeping awake" = "保持唤醒";
 "Keeping awake · %ld sessions" = "保持唤醒 · %ld 个会话";

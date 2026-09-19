@@ -335,6 +335,7 @@
 "Installed; your previous status line (%@) runs after it." = "설치되었습니다. 이전 상태 표시줄(%@)은 그 다음에 실행됩니다.";
 "Integrations" = "연동";
 "its usage export could not be fetched" = "사용량 내보내기를 가져오지 못했습니다";
+"its usage export came back in a shape Notchmeter could not read" = "사용량 내보내기가 Notchmeter가 읽을 수 없는 형식으로 반환되었습니다";
 "just now" = "방금";
 "Keeping awake" = "깨어 있음 유지";
 "Keeping awake · %ld sessions" = "깨어 있음 유지 · 세션 %ld개";
