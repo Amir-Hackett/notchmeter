@@ -369,6 +369,17 @@ In [UsageStore.swift](../Sources/Notchmeter/UsageStore.swift), `hookReceived`:
 
 Each event is written to the unified log as `hook <event>`, with ` (<tool>)` after the name when it is not Claude Code's (`hook Stop (codex)`, `hook Stop (cursor)`, `hook Stop (antigravity)`, `hook Stop (copilot)`); nothing else about it is logged.
 
+## Install as a Claude Code plugin
+
+The hook and the status line are Claude Code telling Notchmeter things. The plugin is the other direction: it packages the [`notchmeter` skill](../skills/notchmeter/SKILL.md), so Claude reads the windows and the advice before long work without being asked, and the `get_limits` MCP tool from `notchmeter --mcp`, the same object as `--probe --json`. The manifest is [`.claude-plugin/plugin.json`](../.claude-plugin/plugin.json), listed by [`marketplace.json`](../.claude-plugin/marketplace.json) beside it, so the repository is its own marketplace:
+
+```text
+/plugin marketplace add Amir-Hackett/notchmeter
+/plugin install notchmeter@notchmeter
+```
+
+The MCP server is declared as the `notchmeter` command, which Settings › General › *Install command line tool…* links into `~/.local/bin` or `/usr/local/bin` (the Homebrew cask links it too); without it on the PATH the server does not start and Claude Code says so in `/mcp`, while the skill still answers through the app's own path. The plugin installs no hook and no status line: those stay a button in Settings, per the rule that nothing is written into `~/.claude/settings.json` except on your press or the launch repair of Notchmeter's own entry. Its version is the app's, held equal to `scripts/Info.plist` by `ReleasePackagingTests`.
+
 ## Removing it
 
 Delete the groups whose command contains `Notchmeter … --hook` from `~/.claude/settings.json`, and the `statusLine` entry (restoring the `--then` command as your own if you had one), or restore the `settings.json.bak-…` copy; for Codex, delete the groups whose command contains `--hook --tool codex` from `hooks.json` in its home folder, or restore the `hooks.json.bak-…` copy (Codex drops the trust record with the entry); for Cursor, delete the entries whose command contains `Notchmeter … --hook --tool cursor` from `~/.cursor/hooks.json`, or restore the `hooks.json.bak-…` copy; for Gemini CLI, delete the groups whose command contains `--hook --tool antigravity` from the `hooks` object of `~/.gemini/settings.json`, or restore the `settings.json.bak-…` copy; for Copilot CLI, delete `~/.copilot/hooks/notchmeter.json`, which is Notchmeter's own file, and restart Copilot. Turning the assistant off in Notchmeter's Settings, or quitting Notchmeter, also stops its hook from having any effect; the commands still run and exit at once.

@@ -26,7 +26,9 @@
 #   BUILD_NUMBER         CFBundleVersion, which Sparkle compares; default `git rev-list --count HEAD` of the tree built
 #                        from, and checked against PREVIOUS_APPCAST so that it only ever grows
 #   PREVIOUS_APPCAST     the appcast.xml published last time, so its items survive into the new feed
-#   RELEASE_NOTES        an HTML fragment to embed as this version's release notes
+#   RELEASE_NOTES        this version's release notes, embedded in the appcast item: a .md file (Sparkle 2.9 renders
+#                        Markdown on macOS 12 and later; docs/release-notes/<version>.md is where the tag workflow
+#                        looks), or .html / .txt. Unset, the item carries only the link to the GitHub release
 #   PROVISION_PROFILE    optional; a Developer ID .provisionprofile granting the entitlements above, embedded in the
 #                        bundle and signed against. Unset, the app claims no entitlements and still launches
 set -euo pipefail
@@ -234,7 +236,22 @@ if [ -n "${PREVIOUS_APPCAST:-}" ] && [ -f "$PREVIOUS_APPCAST" ]; then
 else
   rm -f "$APPCAST"
 fi
-if [ -n "${RELEASE_NOTES:-}" ]; then cp "$RELEASE_NOTES" "$DIST/Notchmeter.html"; else rm -f "$DIST/Notchmeter.html"; fi
+# generate_appcast takes the release notes from a file beside the archive with the archive's basename: Notchmeter.html,
+# .txt, .md or .markdown, the first it finds winning. Every one of them is removed first, so a file left in dist/ by
+# an earlier run can never become this version's notes, and the one copied keeps RELEASE_NOTES's own suffix, which
+# is what decides the sparkle:format the item carries (markdown, plain-text, or none for HTML).
+rm -f "$DIST"/Notchmeter.html "$DIST"/Notchmeter.txt "$DIST"/Notchmeter.md "$DIST"/Notchmeter.markdown
+NOTES_FORMAT=""
+if [ -n "${RELEASE_NOTES:-}" ]; then
+  [ -f "$RELEASE_NOTES" ] || fail "RELEASE_NOTES $RELEASE_NOTES does not exist"
+  [ -s "$RELEASE_NOTES" ] || fail "RELEASE_NOTES $RELEASE_NOTES is empty; write the notes or unset it"
+  case "$RELEASE_NOTES" in
+    *.md|*.markdown) NOTES_FORMAT=markdown; cp "$RELEASE_NOTES" "$DIST/Notchmeter.md" ;;
+    *.txt) NOTES_FORMAT=plain-text; cp "$RELEASE_NOTES" "$DIST/Notchmeter.txt" ;;
+    *.html|*.htm) NOTES_FORMAT=html; cp "$RELEASE_NOTES" "$DIST/Notchmeter.html" ;;
+    *) fail "RELEASE_NOTES $RELEASE_NOTES must end in .md, .txt or .html so Sparkle knows how to render it" ;;
+  esac
+fi
 KEY_ARGS=()
 if [ -n "${SPARKLE_PRIVATE_KEY:-}" ]; then
   KEY_ARGS=(--ed-key-file -)
@@ -243,7 +260,12 @@ elif [ -n "${SPARKLE_KEY_PATH:-}" ]; then
 fi
 CHANNEL_ARGS=()
 if [ -n "$CHANNEL" ]; then CHANNEL_ARGS=(--channel "$CHANNEL"); fi
+# --embed-release-notes puts the notes file into the new item as <description>, with sparkle:format="markdown" or
+# "plain-text" for a .md or .txt file. Without it generate_appcast embeds only a bare HTML fragment and turns a .md
+# into a <sparkle:releaseNotesLink> relative to the feed, a URL nothing publishes, so the update alert would show an
+# error where the notes should be. Items carried over from PREVIOUS_APPCAST are never touched either way.
 printf '%s' "${SPARKLE_PRIVATE_KEY:-}" | "$SPARKLE_BIN/generate_appcast" ${KEY_ARGS[@]+"${KEY_ARGS[@]}"} ${CHANNEL_ARGS[@]+"${CHANNEL_ARGS[@]}"} \
+  --embed-release-notes \
   --download-url-prefix "$REPO_URL/releases/download/v$VERSION/" \
   --link "$REPO_URL" \
   --full-release-notes-url "$REPO_URL/releases/tag/v$VERSION" \
@@ -251,9 +273,22 @@ printf '%s' "${SPARKLE_PRIVATE_KEY:-}" | "$SPARKLE_BIN/generate_appcast" ${KEY_A
 if [ -n "$CHANNEL" ]; then
   grep -q "<sparkle:channel>$CHANNEL</sparkle:channel>" "$APPCAST" || fail "generate_appcast did not write the $CHANNEL channel into $APPCAST"
 fi
+# The check is on this build's item alone, cut out of the feed by its sparkle:version, because an older item's notes
+# would satisfy a grep over the whole file and prove nothing about the one just written.
+ITEM="$(awk -v marker="<sparkle:version>$BUILD_NUMBER</sparkle:version>" 'BEGIN { RS = "</item>" } index($0, marker) { print; exit }' "$APPCAST")"
+[ -n "$ITEM" ] || fail "no <item> with <sparkle:version>$BUILD_NUMBER</sparkle:version> in $APPCAST"
+case "$NOTES_FORMAT" in
+  markdown|plain-text)
+    grep -q "<description[^>]*sparkle:format=\"$NOTES_FORMAT\"" <<<"$ITEM" \
+      || fail "generate_appcast did not embed $RELEASE_NOTES as a $NOTES_FORMAT <description> in build $BUILD_NUMBER's item" ;;
+  html)
+    grep -q "<description" <<<"$ITEM" || fail "generate_appcast did not embed $RELEASE_NOTES as a <description> in build $BUILD_NUMBER's item" ;;
+  "")
+    grep -q "<description" <<<"$ITEM" && fail "build $BUILD_NUMBER's item carries a <description> although RELEASE_NOTES is unset; a stray notes file in $DIST?" ;;
+esac
 
 step "Checking the appcast against the public key the app ships"
-swift scripts/appcast-check.swift verify "$DMG" "$APPCAST" "$PUBLIC_KEY" "$DOWNLOAD_URL"
+swift scripts/appcast-check.swift verify "$DMG" "$APPCAST" "$PUBLIC_KEY" "$DOWNLOAD_URL" ${NOTES_FORMAT:+--notes "$NOTES_FORMAT"}
 
 SHA256="$(shasum -a 256 "$DMG" | cut -d ' ' -f 1)"
 step "Release $VERSION is ready in $DIST/"

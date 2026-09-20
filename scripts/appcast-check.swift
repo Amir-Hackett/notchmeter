@@ -1,6 +1,9 @@
 // Proves a generated appcast will verify on users' Macs: the archive's sparkle:edSignature must check out under the
 // SUPublicEDKey the app ships, or every update would download and then be refused.
-//   swift scripts/appcast-check.swift verify <archive> <appcast.xml> <public-key-base64> <enclosure-url>
+//   swift scripts/appcast-check.swift verify <archive> <appcast.xml> <public-key-base64> <enclosure-url> [--notes <format>]
+//       --notes markdown|plain-text|html also requires the enclosure's item to carry a non-empty <description>, with
+//       sparkle:format naming that format (HTML carries no attribute, being Sparkle's default), so a release whose notes
+//       were meant to be embedded cannot ship an item that shows the update alert an error instead.
 //   swift scripts/appcast-check.swift public-key      reads a `generate_keys -x` seed on stdin, prints its public key
 import CryptoKit
 import Foundation
@@ -20,7 +23,11 @@ case "public-key":
     let key = try Curve25519.Signing.PrivateKey(rawRepresentation: seed)
     print(key.publicKey.rawRepresentation.base64EncodedString())
 
-case "verify" where arguments.count == 6:
+case "verify" where arguments.count == 6 || (arguments.count == 8 && arguments[6] == "--notes"):
+    let expectedNotesFormat: String? = arguments.count == 8 ? arguments[7] : nil
+    if let format = expectedNotesFormat, !["markdown", "plain-text", "html"].contains(format) {
+        fail("--notes takes markdown, plain-text or html, not \(format)")
+    }
     let archive = URL(fileURLWithPath: arguments[2])
     let appcast = try XMLDocument(contentsOf: URL(fileURLWithPath: arguments[3]), options: [])
     guard let keyData = Data(base64Encoded: arguments[4]), keyData.count == 32 else {
@@ -41,8 +48,24 @@ case "verify" where arguments.count == 6:
     guard publicKey.isValidSignature(signature, for: data) else {
         fail("the signature on \(archive.lastPathComponent) does not verify under the public key the app ships; the appcast was signed with a different Sparkle key")
     }
+    if let format = expectedNotesFormat {
+        let item = enclosure.parent as? XMLElement
+        guard let description = item?.elements(forName: "description").first else {
+            fail("the enclosure's <item> carries no <description>; the release notes were not embedded (generate_appcast needs --embed-release-notes and a notes file named after the archive)")
+        }
+        let text = description.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !text.isEmpty else {
+            fail("the enclosure's <item> carries an empty <description>; the release notes file was empty")
+        }
+        let attribute = description.attribute(forName: "sparkle:format")?.stringValue
+        let actual = attribute ?? "html"
+        guard actual == format else {
+            fail("the <description> is \(actual) where \(format) release notes were supplied; the notes file's suffix and its contents disagree")
+        }
+        print("appcast-check: the item carries \(text.count) characters of \(format) release notes")
+    }
     print("appcast-check: \(archive.lastPathComponent) (\(data.count) bytes) verifies under the shipped public key")
 
 default:
-    fail("usage: verify <archive> <appcast.xml> <public-key-base64> <enclosure-url> | public-key")
+    fail("usage: verify <archive> <appcast.xml> <public-key-base64> <enclosure-url> [--notes markdown|plain-text|html] | public-key")
 }

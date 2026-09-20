@@ -60,6 +60,39 @@ if [ ! -f build/AppIcon.icns ]; then
 fi
 [ -f build/AppIcon.icns ] && cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
+# The Liquid Glass icon for macOS 26 (Tahoe). packaging/AppIcon.icon is an Icon Composer document, which only
+# Xcode 26's actool can compile, into an Assets.car that CFBundleIconName points at; the Command Line Tools this
+# script otherwise needs have no actool (`xcrun --find actool` exits 72 on such a Mac). So the step runs only when
+# both the document and the tool exist, which is CI's runner with an Xcode 26 selected (release.yml), and a
+# developer build without either is exactly the build it was before: the make-icon.swift .icns above, under
+# CFBundleIconFile, is what every macOS before 26 shows and what a Tahoe Mac falls back to. actool also writes its
+# own flattened AppIcon.icns beside the car; it is not copied, because the hand-drawn one is the better fallback
+# and CFBundleIconFile already names it. CFBundleIconName is added to the bundle's plist only when the car was
+# produced, so scripts/Info.plist never promises an asset the bundle does not hold. docs/release.md, "The icon".
+ICON_DOCUMENT=packaging/AppIcon.icon
+if [ -d "$ICON_DOCUMENT" ] && ACTOOL="$(xcrun --find actool 2>/dev/null)"; then
+  ICON_OUT=build/icon-compile
+  rm -rf "$ICON_OUT"
+  mkdir -p "$ICON_OUT"
+  MIN_OS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' scripts/Info.plist)"
+  if "$ACTOOL" "$ICON_DOCUMENT" --compile "$ICON_OUT" \
+       --output-format human-readable-text --notices --warnings --errors \
+       --output-partial-info-plist "$ICON_OUT/AppIcon-partial.plist" \
+       --app-icon AppIcon --include-all-app-icons \
+       --enable-on-demand-resources NO --development-region en \
+       --target-device mac --platform macosx --minimum-deployment-target "$MIN_OS" \
+     && [ -f "$ICON_OUT/Assets.car" ]; then
+    cp "$ICON_OUT/Assets.car" "$APP/Contents/Resources/Assets.car"
+    /usr/libexec/PlistBuddy -c 'Add :CFBundleIconName string AppIcon' "$APP/Contents/Info.plist" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c 'Set :CFBundleIconName AppIcon' "$APP/Contents/Info.plist"
+    echo "compiled $ICON_DOCUMENT into Contents/Resources/Assets.car (CFBundleIconName AppIcon)"
+  else
+    echo "actool could not compile $ICON_DOCUMENT; continuing with the .icns alone"
+  fi
+elif [ -d "$ICON_DOCUMENT" ]; then
+  echo "no actool in the selected developer directory; the Tahoe icon is compiled in CI, this build carries the .icns alone"
+fi
+
 # Sign with the local identity when it is usable, else ad hoc. macOS ties the Accessibility and Keychain grants
 # to the signing identity, so an ad-hoc build loses both on every install; a stable identity keeps them. The
 # attempt is time-boxed because an identity whose key still asks permission would otherwise hang the build

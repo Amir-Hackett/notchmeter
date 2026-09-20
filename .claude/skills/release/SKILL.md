@@ -58,11 +58,26 @@ one of the seven means a `v*` tag builds an **unsigned prerelease** — say so a
 
 If `scripts/Info.plist` still needs the bump, make it, commit it, and let CI go green before tagging.
 
+Three more files carry the version or the release, and none of them reaches CI on its own:
+
+```bash
+grep '"version"' .claude-plugin/plugin.json               # must equal $VERSION (ReleasePackagingTests holds it to the plist)
+test -s "docs/release-notes/$VERSION.md" && head -5 "docs/release-notes/$VERSION.md"   # the notes Sparkle shows; written, not a stub
+grep -E '^\s*(version|sha256)' packaging/homebrew/notchmeter.rb   # the previous release until step 8; note it, do not touch it yet
+```
+
+Read the notes file through: it is embedded in the appcast item and shown in every installed copy's update alert,
+so every claim in it must be something this build does. A missing file ships the release without notes (the
+workflow warns and carries on); a wrong one ships the wrong words to everyone. Fix it and commit before tagging.
+
 ### 2. Rehearse
 
 ```bash
-scripts/release.sh --dry-run
+RELEASE_NOTES="docs/release-notes/$VERSION.md" scripts/release.sh --dry-run
 ```
+
+With `RELEASE_NOTES` set the dry run also proves the notes are embedded: it fails if the new item carries no
+`<description sparkle:format="markdown">`, which is what the tag run will do too.
 
 Ad-hoc signature, no notarisation, throwaway appcast key. It proves the pipeline and produces nothing shippable.
 A failure here is a failure of the real thing; fix it before tagging.
