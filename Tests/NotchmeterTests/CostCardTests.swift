@@ -223,10 +223,27 @@ import Testing
                     firstUse: today, sinceFirstUse: 41_300)
     }
 
-    func detail(_ order: [ToolID], range: CostRange = .today) throws -> CostDetail {
+    func detail(_ order: [ToolID], range: CostRange = .today, promptCache: PromptCacheSummary? = nil) throws -> CostDetail {
         let selection = CostSelection(all: [claude, cursor], order: order, carried: [.claude, .cursor])
         return CostDetail(provider: try #require(selection.providers.first), range: range, claude: summary, now: now, calendar: utc,
-                          timeFormat: .twelveHour)
+                          timeFormat: .twelveHour, promptCache: promptCache)
+    }
+
+    /// The prompt-cache caption is Claude Code's own count from its status line, so it follows Claude the way the
+    /// cache tiers do: under Claude it sits between the tiers and the folders; under Cursor it is absent, and an
+    /// empty count draws no line.
+    @Test func thePromptCacheCaptionFollowsClaudeAndSitsAmongTheCaptions() throws {
+        let cache = PromptCacheSummary(misses: 4, requests: 31, rewrittenTokens: 310_400, rewrittenUSD: 0.93, lastCause: "tools_changed", sessions: 2)
+        let claudeLeads = try detail([.claude, .cursor], promptCache: cache)
+        #expect(claudeLeads.promptCacheLine == "Prompt cache: 4 misses today · 310K tokens (~$0.93) rewritten · cause: tools changed")
+        #expect(claudeLeads.detailCaptions == ["Claude used 10M tokens · 79% cache reads", "cache writes 80% 1-hour · 20% 5-minute",
+                                               "Prompt cache: 4 misses today · 310K tokens (~$0.93) rewritten · cause: tools changed",
+                                               "Top: notchmeter $30 · scout $10"])
+        #expect(try detail([.cursor, .claude], promptCache: cache).promptCacheLine == nil)
+        #expect(try detail([.cursor, .claude], promptCache: cache).detailCaptions == ["Cursor used 1.1M tokens · 67% cache reads"])
+        let quiet = PromptCacheSummary(misses: 0, requests: 9, rewrittenTokens: 0, rewrittenUSD: nil, lastCause: nil, sessions: 1)
+        #expect(try detail([.claude, .cursor], promptCache: quiet).promptCacheLine == nil)
+        #expect(try detail([.claude, .cursor]).promptCacheLine == nil)
     }
 
     @Test func withCursorAtTheTopTheBlockIsCursors() throws {

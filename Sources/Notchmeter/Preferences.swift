@@ -653,6 +653,10 @@ final class Preferences {
     var notifyCacheShift: Bool {
         didSet { defaults.set(notifyCacheShift, forKey: Keys.notifyCacheShift); report(Keys.notifyCacheShift, notifyCacheShift, changed: notifyCacheShift != oldValue) }
     }
+    /// When Claude Code's prompt cache kept missing in the current session block (Advisor.promptCache), once a day.
+    var notifyPromptCache: Bool {
+        didSet { defaults.set(notifyPromptCache, forKey: Keys.notifyPromptCache); report(Keys.notifyPromptCache, notifyPromptCache, changed: notifyPromptCache != oldValue) }
+    }
     /// What the notch itself does when an assistant waits or a long turn finishes.
     var sessionAttention: SessionAttention {
         didSet { defaults.set(sessionAttention.rawValue, forKey: Keys.sessionAttention); report(Keys.sessionAttention, sessionAttention.rawValue, changed: sessionAttention != oldValue) }
@@ -890,6 +894,7 @@ final class Preferences {
         static let finishedAfter = "finishedAfterMinutes"
         static let notifyExtraUsage = "notifyExtraUsage"
         static let notifyCacheShift = "notifyCacheShift"
+        static let notifyPromptCache = "notifyPromptCache"
         static let sessionAttention = "sessionAttention"
         static let signalRings = "signalRings"
         static let notificationSound = "notificationSound"
@@ -984,6 +989,7 @@ final class Preferences {
         finishedAfterMinutes = defaults.object(forKey: Keys.finishedAfter) as? Int ?? 2
         notifyExtraUsage = defaults.object(forKey: Keys.notifyExtraUsage) as? Bool ?? true
         notifyCacheShift = defaults.bool(forKey: Keys.notifyCacheShift)
+        notifyPromptCache = defaults.object(forKey: Keys.notifyPromptCache) as? Bool ?? true
         sessionAttention = SessionAttention(rawValue: defaults.string(forKey: Keys.sessionAttention) ?? "") ?? .nothing
         signalRings = defaults.object(forKey: Keys.signalRings) as? Bool ?? true
         notificationSound = defaults.object(forKey: Keys.notificationSound) as? Bool ?? true

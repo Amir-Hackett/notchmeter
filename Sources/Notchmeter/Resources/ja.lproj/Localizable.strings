@@ -705,3 +705,19 @@
 "Today's spend" = "今日の支出";
 "%1$@ of a usual %2$@ day" = "通常の1日 %2$@ のうち %1$@";
 "Heading for ~%ld%% today" = "今日は約%ld%%のペース";
+
+/* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
+"%1$@ (~%2$@)" = "%1$@（約 %2$@）";
+"%ld misses" = "%ld 回のミス";
+"1 miss" = "1 回のミス";
+"5-minute cache expired" = "5 分キャッシュの期限切れ";
+"cause: %@" = "原因: %@";
+"Cause: %@." = "原因: %@。";
+"likely server-side" = "サーバー側の可能性";
+"Once a day when Claude Code's status line counts three prompt-cache misses in the current session block, or 200K tokens rewritten, with the cause Claude Code diagnosed." = "Claude Code のステータスラインが現在のセッション枠でプロンプトキャッシュのミスを 3 回数えたとき、または 200K トークンが書き直されたとき、Claude Code が診断した原因とともに 1 日 1 回通知します。";
+"Prompt cache: %1$@ today · %2$@ rewritten" = "プロンプトキャッシュ: 本日 %1$@ · %2$@ を書き直し";
+"system prompt changed" = "システムプロンプトの変更";
+"tools changed" = "ツールの変更";
+"When the prompt cache keeps missing" = "プロンプトキャッシュのミスが続くとき";
+"Your MCP server list is changing mid-session." = "MCP サーバーの一覧がセッションの途中で変わっています。";
+"Your prompt cache missed %1$ld times — %2$@ rewritten." = "プロンプトキャッシュが %1$ld 回ミスしました — %2$@ を書き直しました。";

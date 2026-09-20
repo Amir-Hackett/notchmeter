@@ -196,6 +196,81 @@ import Testing
         #expect(Statusline.line(Statusline.Message(receivedAt: now), extras: Statusline.Extras(today: 0.5)) == "today $0.50")
     }
 
+    /// The 0.7.0 fields, read as the status line documents them: `prompt_cache` whole (the causes as named, the
+    /// per-cause counts, `null` as absent), fast mode, thinking, the agent's and the session's names, the line
+    /// counts, the API time, the repository, and the three usage counts kept apart. All of it survives the flat
+    /// wire, and the line ends with the session's own miss share.
+    @Test func readsThePromptCacheAndTheRoundThreeFieldsAndCarriesThemFlat() throws {
+        let payload = """
+        {"hook_event_name":"Status","session_id":"pc1","cwd":"/Users/me/Developer/notchmeter","transcript_path":"/Users/me/.claude/x.jsonl",
+         "model":{"id":"claude-opus-4-8","display_name":"Opus"},"fast_mode":true,"thinking":{"enabled":true},"agent":{"name":"reviewer"},
+         "session_name":"fix the notch","cost":{"total_cost_usd":0.5,"total_lines_added":156,"total_lines_removed":23,"total_api_duration_ms":2300},
+         "workspace":{"current_dir":"/Users/me/Developer/notchmeter","repo":{"host":"github.com","owner":"amir","name":"notchmeter"}},
+         "context_window":{"context_window_size":200000,"current_usage":{"input_tokens":12000,"cache_creation_input_tokens":500,"cache_read_input_tokens":111500}},
+         "prompt_cache":{"warm":true,"caching_observed":true,"ttl":"1h","expires_at":1756732800,"requests":14,"misses":2,"expected_rebuilds":1,
+           "hit_ratio":0.91,"cache_write_tokens":352000,"miss_recache_tokens":310200,"last_miss_at":1756728000,
+           "last_miss_cause":{"causes":["tools_changed"],"tools_added":2,"tools_removed":0},"miss_causes":{"tools_changed":2},"recache_tokens_if_cold":null}}
+        """
+        let message = try #require(Statusline.message(from: Data(payload.utf8), now: now))
+        #expect(message.inputTokens == 12_000)
+        #expect(message.cacheCreationTokens == 500)
+        #expect(message.cacheReadTokens == 111_500)
+        #expect(message.contextTokens == 124_000)
+        #expect(message.fastMode == true)
+        #expect(message.thinking == true)
+        #expect(message.agentName == "reviewer")
+        #expect(message.sessionName == "fix the notch")
+        #expect(message.linesAdded == 156)
+        #expect(message.linesRemoved == 23)
+        #expect(message.apiDurationMs == 2300)
+        #expect(message.repoHost == "github.com")
+        #expect(message.repoOwner == "amir")
+        #expect(message.repoName == "notchmeter")
+        let cache = try #require(message.promptCache)
+        #expect(cache.warm == true)
+        #expect(cache.cachingObserved == true)
+        #expect(cache.ttl == "1h")
+        #expect(cache.expiresAt == Date(timeIntervalSince1970: 1_756_732_800))
+        #expect(cache.requests == 14)
+        #expect(cache.misses == 2)
+        #expect(cache.expectedRebuilds == 1)
+        #expect(cache.hitRatio == 0.91)
+        #expect(cache.cacheWriteTokens == 352_000)
+        #expect(cache.missRecacheTokens == 310_200)
+        #expect(cache.lastMissAt == Date(timeIntervalSince1970: 1_756_728_000))
+        #expect(cache.lastMissCauses == ["tools_changed"])
+        #expect(cache.toolsAdded == 2)
+        #expect(cache.toolsRemoved == 0)
+        #expect(cache.systemCharDelta == nil)
+        #expect(cache.missCauses == ["tools_changed": 2])
+        #expect(cache.recacheTokensIfCold == nil)
+        let info = message.userInfo
+        #expect(!info.keys.contains("transcript_path"))
+        #expect(!info.keys.contains("cwd"))
+        #expect(info["cache_miss_causes"] as? String == #"{"tools_changed":2}"#)
+        #expect(info["cache_last_miss_causes"] as? String == "tools_changed")
+        #expect(info["prompt_cache"] as? Bool == true)
+        #expect(JSONSerialization.isValidJSONObject(info))
+        #expect(Statusline.Message(userInfo: info) == message)
+        // 2 of 14 requests: 14 %, coloured from one in ten.
+        #expect(Statusline.line(message) == "Opus · ctx 62% · $0.50 · cache 14% miss")
+        #expect(Statusline.line(message, colors: true).hasSuffix("\u{1B}[33mcache 14% miss\u{1B}[0m"))
+        #expect(Statusline.tint(cacheMiss: 0.25) == .danger)
+        #expect(Statusline.tint(cacheMiss: 0.1) == .warn)
+        #expect(Statusline.tint(cacheMiss: 0.09) == .none)
+        // Before the first request the part is absent, and an empty object still travels as present.
+        let early = try #require(Statusline.message(from: Data(#"{"model":{"display_name":"Opus"},"prompt_cache":{"warm":false,"requests":0,"misses":0}}"#.utf8), now: now))
+        #expect(Statusline.line(early) == "Opus")
+        #expect(early.promptCache?.warm == false)
+        #expect(Statusline.Message(userInfo: early.userInfo)?.promptCache == early.promptCache)
+        // With no figure of its own, the line takes today's from the app's report; with neither, nothing.
+        let bare = try #require(Statusline.message(from: Data(#"{"model":{"display_name":"Opus"}}"#.utf8), now: now))
+        #expect(bare.promptCache == nil)
+        #expect(Statusline.line(bare, extras: Statusline.Extras(cacheMissShare: 0.3)) == "Opus · cache 30% miss")
+        #expect(Statusline.line(bare) == "Opus")
+        #expect(Statusline.Message(userInfo: bare.userInfo)?.promptCache == nil)
+    }
+
     @Test func extrasComeFromTheReportFileThenTheDailyHistory() throws {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent("notchmeter-extras-\(UUID().uuidString)")

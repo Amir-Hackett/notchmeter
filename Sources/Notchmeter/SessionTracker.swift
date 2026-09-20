@@ -37,6 +37,16 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// the store because that is the only place it cannot outlive its evidence: a session dropped for staleness or
     /// ended by `SessionEnd` takes its finish with it, and two sessions of one tool cannot borrow each other's.
     var finished: ToolSignal.Finish?
+    // From Claude Code's status line (0.7.0), so every one is nil for a session only the hook reports.
+    /// The model's display name as the status line carries it ("Opus").
+    var model: String?
+    /// `session_name`: the name set with `--name` or `/rename`, else Claude Code's own title for the session;
+    /// never the default `my-app-3f` display name. Shown only under the same setting as the prompt title.
+    var sessionName: String?
+    var linesAdded: Int?
+    var linesRemoved: Int?
+    /// Claude Code's account of this session's prompt cache, priced (PromptCache.swift).
+    var promptCache: PromptCacheStats?
 
     init(id: String, tool: ToolID = .claude, project: String?, state: State, started: Date, lastEvent: Date, turnStarted: Date?, branch: String? = nil,
          prURL: String? = nil, permissionMode: String? = nil, host: String? = nil) {
@@ -319,13 +329,23 @@ struct SessionTracker: Equatable, Sendable {
 
     /// A status-line update is proof the session is alive; its project, branch and pull request are taken. Only
     /// Claude Code has a status line, and its key is the bare id, so no `key(tool:session:host:)` is needed here.
-    mutating func statusline(sessionID: String?, project: String?, branch: String? = nil, prURL: String? = nil, now: Date) {
+    /// The status line's per-session figures. The model, the name and the line counts are Claude Code's running
+    /// values and replace what was held; the prompt-cache object is priced here at the session model's
+    /// cache-write rate (`PromptCacheStats`), so the tracker holds a figure the card can show without pricing.
+    mutating func statusline(sessionID: String?, project: String?, branch: String? = nil, prURL: String? = nil, model: String? = nil,
+                             sessionName: String? = nil, linesAdded: Int? = nil, linesRemoved: Int? = nil,
+                             promptCache: Statusline.PromptCache? = nil, now: Date) {
         guard let sessionID else { return }
         expire(now: now)
         var session = sessions[sessionID] ?? AgentSession(id: sessionID, project: project, state: .idle, started: now, lastEvent: now, turnStarted: nil)
         if session.project == nil { session.project = project }
         if let branch { session.branch = branch }
         session.prURL = prURL ?? session.prURL
+        if let model { session.model = model }
+        if let sessionName { session.sessionName = sessionName }
+        if let linesAdded { session.linesAdded = linesAdded }
+        if let linesRemoved { session.linesRemoved = linesRemoved }
+        if let promptCache { session.promptCache = PromptCacheStats(promptCache, model: model ?? session.model) }
         session.lastEvent = now
         sessions[sessionID] = session
     }

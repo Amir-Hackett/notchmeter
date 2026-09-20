@@ -17,15 +17,19 @@ struct CostDetail {
     let calendar: Calendar
     /// For the block line's start, which is a clock time rather than a day.
     let timeFormat: TimeFormatPreference
+    /// Today's prompt-cache figures from Claude Code's status line (PromptCache.summary), which only Claude Code
+    /// reports; nil under any other leader for the same reason as `claude`.
+    let promptCache: PromptCacheSummary?
 
     init(provider: ProviderCost, range: CostRange, claude: CostSummary? = nil, now: Date = Date(), calendar: Calendar = .current,
-         timeFormat: TimeFormatPreference = .auto) {
+         timeFormat: TimeFormatPreference = .auto, promptCache: PromptCacheSummary? = nil) {
         self.provider = provider
         self.range = range
         self.claude = provider.tool == .claude ? claude : nil
         self.now = now
         self.calendar = calendar
         self.timeFormat = timeFormat
+        self.promptCache = provider.tool == .claude ? promptCache : nil
     }
 
     private var name: String { provider.tool.displayName }
@@ -53,6 +57,14 @@ struct CostDetail {
     var cacheWrites: String? {
         guard provider.tool == .claude, let share = CacheTTL.oneHourShare(totals.tokens) else { return nil }
         return L("cache writes %1$ld%% 1-hour · %2$ld%% 5-minute", Int((share * 100).rounded()), Int(((1 - share) * 100).rounded()))
+    }
+
+    /// Claude Code's own count of the prompt cache's misses today, the tokens they wrote back priced at the
+    /// session model's cache-write rate, and the cause it diagnosed for the last one. Nothing is inferred from a
+    /// transcript, so the line exists only while the status line reports and only under Claude.
+    var promptCacheLine: String? {
+        guard let promptCache, promptCache.misses > 0 || promptCache.rewrittenTokens > 0 else { return nil }
+        return PromptCache.caption(promptCache)
     }
 
     /// The folders this assistant's spend ran in. Cursor's export carries no folder, so Cursor has no such line.
@@ -100,5 +112,5 @@ struct CostDetail {
     var detailLines: [String] { [week, since, block].compactMap { $0 } }
 
     /// The same, in the card's quieter caption style.
-    var detailCaptions: [String] { [tokens, cacheWrites, projects].compactMap { $0 } }
+    var detailCaptions: [String] { [tokens, cacheWrites, promptCacheLine, projects].compactMap { $0 } }
 }

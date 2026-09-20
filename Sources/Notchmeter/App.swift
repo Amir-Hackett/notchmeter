@@ -923,6 +923,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             Probe.emit("cost: still scanning")
         }
+        Probe.emit(store.promptCacheToday.map(Probe.describe) ?? "prompt cache: no status line with prompt_cache yet")
+        Probe.emit("drain boundaries: " + (store.drainBoundaries.isEmpty ? "none" : store.drainBoundaries.map { "\($0.tool.rawValue)/\($0.window) \(Oracle.timestamp($0.t))" }.joined(separator: ", ")))
         let costCardPassed = reportCostCard()
         let scrollPassed = await reportScroll()
         Probe.emit(Probe.describe(store.advice))
@@ -1514,6 +1516,7 @@ enum Probe {
             lines.append("\(tool.displayName): \(describe(status))")
         }
         if let cost = report.cost { lines.append(describe(cost)) }
+        if let cache = report.promptCache { lines.append(describe(cache)) }
         for (key, drain) in report.drains.sorted(by: { "\($0.key.tool.rawValue)/\($0.key.window)" < "\($1.key.tool.rawValue)/\($1.key.window)" }) {
             var line = "drain \(key.tool.displayName) \(key.window): \(DrainLog.line(drain))"
             if let interval = report.runOuts[key] { line += " · runs out in \(ResetText.duration(interval.earliest))–\(ResetText.duration(interval.latest)) (\(interval.sampleCount) rates)" }
@@ -1568,6 +1571,15 @@ enum Probe {
             line += " (\(provider.source.rawValue))" + (provider.problem.map { " [\($0)]" } ?? "")
         }
         return line + " unpriced=\(cost.unpricedModels.sorted())"
+    }
+
+    /// "prompt cache today: 4 misses of 31 requests (13%), 310K tokens rewritten (~$0.93), last cause tools_changed, 2 sessions".
+    static func describe(_ cache: PromptCacheSummary) -> String {
+        var line = "prompt cache today: \(cache.misses) misses of \(cache.requests) requests"
+        if let share = cache.missShare { line += " (\(Int((share * 100).rounded()))%)" }
+        line += ", \(Money.tokens(cache.rewrittenTokens)) rewritten" + (cache.rewrittenUSD.map { " (~\(Money.dollars($0)))" } ?? "")
+        if let cause = cache.lastCause { line += ", last cause \(cause)" }
+        return line + ", \(cache.sessions) sessions"
     }
 
     static func describe(_ advice: [Advice]) -> String {

@@ -705,3 +705,19 @@
 "Today's spend" = "今日支出";
 "%1$@ of a usual %2$@ day" = "平常一天 %2$@ 中的 %1$@";
 "Heading for ~%ld%% today" = "今天預計約 %ld%%";
+
+/* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
+"%1$@ (~%2$@)" = "%1$@（約 %2$@）";
+"%ld misses" = "%ld 次未命中";
+"1 miss" = "1 次未命中";
+"5-minute cache expired" = "5 分鐘快取已過期";
+"cause: %@" = "原因：%@";
+"Cause: %@." = "原因：%@。";
+"likely server-side" = "可能來自伺服器端";
+"Once a day when Claude Code's status line counts three prompt-cache misses in the current session block, or 200K tokens rewritten, with the cause Claude Code diagnosed." = "每天一次：當 Claude Code 的狀態列在目前工作階段時段內計到三次提示快取未命中，或重寫了 200K 個 token 時提醒，並附上 Claude Code 診斷的原因。";
+"Prompt cache: %1$@ today · %2$@ rewritten" = "提示快取：今日 %1$@ · 重寫 %2$@";
+"system prompt changed" = "系統提示已變更";
+"tools changed" = "工具已變更";
+"When the prompt cache keeps missing" = "提示快取持續未命中時";
+"Your MCP server list is changing mid-session." = "你的 MCP 伺服器清單在工作階段中途發生了變更。";
+"Your prompt cache missed %1$ld times — %2$@ rewritten." = "你的提示快取未命中 %1$ld 次 — 重寫了 %2$@。";

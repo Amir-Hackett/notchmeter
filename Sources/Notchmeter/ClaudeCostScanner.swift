@@ -410,7 +410,7 @@ actor ClaudeCostScanner {
     }
 
     func scan(now: Date = Date(), daysBack: Int = 30, weeklyResetsAt: Date? = nil, weeklyUsed: Double? = nil, sessionResetsAt: Date? = nil,
-              sessionUsed: Double? = nil, calendar: Calendar = .current) -> CostSummary {
+              sessionUsed: Double? = nil, meteringSince: Date? = nil, calendar: Calendar = .current) -> CostSummary {
         loadCacheIfNeeded()
         let files = Self.transcriptFiles(under: roots)
         let cutoff = calendar.date(byAdding: .day, value: -(daysBack - 1), to: calendar.startOfDay(for: now)) ?? .distantPast
@@ -456,7 +456,7 @@ actor ClaudeCostScanner {
                                      weeklyUsed: weeklyUsed, sessionResetsAt: sessionResetsAt, history: stored, calendar: calendar)
         var records = Self.dayRecords(digests: digests, now: now, daysBack: daysBack, calendar: calendar)
         let today = calendar.startOfDay(for: now)
-        let metering = Self.metering(blockTokens: summary.block?.tokens.total, sessionUsed: sessionUsed, history: stored, today: today)
+        let metering = Self.metering(blockTokens: summary.block?.tokens.total, sessionUsed: sessionUsed, history: stored, today: today, since: meteringSince)
         if let metering, var record = records[today] {
             record.sessionTokensPerPercent = metering.tokensPerPercent
             records[today] = record
@@ -467,9 +467,13 @@ actor ClaudeCostScanner {
     }
 
     /// Today's tokens per one per cent of the session window, against the median of the days the history holds.
-    static func metering(blockTokens: Int?, sessionUsed: Double?, history: [Date: CostHistory.Record], today: Date) -> MeteringRatio? {
+    /// `since` floors the median at a drain-log boundary (DrainLog.Boundary): a day that began before the vendor
+    /// changed what the window measures is not a norm for the days after it, and the 30-day median would
+    /// otherwise carry the old figures for a month after the change.
+    static func metering(blockTokens: Int?, sessionUsed: Double?, history: [Date: CostHistory.Record], today: Date, since: Date? = nil) -> MeteringRatio? {
         guard let blockTokens, let sessionUsed, let ratio = MeteringRatio.tokensPerPercent(blockTokens: blockTokens, usedFraction: sessionUsed) else { return nil }
-        let past = history.filter { $0.key < today }.compactMap { $0.value.sessionTokensPerPercent }
+        let floor = since ?? .distantPast
+        let past = history.filter { $0.key < today && $0.key >= floor }.compactMap { $0.value.sessionTokensPerPercent }
         return MeteringRatio(tokensPerPercent: ratio, median: MeteringRatio.median(past))
     }
 
