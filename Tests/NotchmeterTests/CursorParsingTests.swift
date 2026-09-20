@@ -156,6 +156,37 @@ import Testing
         #expect(CursorProvider.spendToday([today: days[today]!], now: now, calendar: calendar) == nil)
     }
 
+    /// The seat above two days on: both model meters at 0 % with $8.76 of export behind them that day. A 0 that
+    /// money is flowing past is not a figure, so behind the spend window the meter loses it and says why; the
+    /// combined "All models" window, which needs two figures, goes with it. A meter above 0 is alive and untouched.
+    @Test func aZeroModelMeterBehindTodaysSpendIsNotAFigure() throws {
+        let json = """
+        {"billingCycleStart":"2026-09-18T00:00:00.000Z","billingCycleEnd":"2026-10-18T00:00:00.000Z",
+         "membershipType":"enterprise","limitType":"team","isUnlimited":false,
+         "autoModelSelectedDisplayMessage":"You've used 0% of your included total usage",
+         "namedModelSelectedDisplayMessage":"You've used 0% of your included API usage",
+         "individualUsage":{"overall":{"enabled":false,"used":0,"limit":null,"remaining":null}},
+         "teamUsage":{"onDemand":{"enabled":true,"used":876,"limit":null,"remaining":null}}}
+        """
+        let reading = try CursorProvider.parseSummary(Data(json.utf8))
+        #expect(reading.windows.map(\.usedFraction) == [nil, 0, 0, nil])
+        #expect(CombinedWindow.of(windows: reading.windows)?.usedFraction == 0)
+
+        let demoted = CursorProvider.withoutDeadSplits(reading.windows)
+        #expect(demoted.map(\.id) == reading.windows.map(\.id), "the windows stay on the card and in the pickers")
+        #expect(demoted.map(\.usedFraction) == [nil, nil, nil, nil])
+        #expect(demoted[1].note == "Reads 0% on this seat however much it spends; Today's spend carries the reading")
+        #expect(demoted[1].model == "Cursor models" && demoted[1].resetsAt == reading.windows[1].resetsAt)
+        #expect(demoted[0].note == "Enterprise plan has nothing for Cursor to meter yet", "the headline window is not touched")
+        #expect(CombinedWindow.of(windows: demoted) == nil)
+
+        // The meter that counts keeps its figure, and the other one alone is still not a figure.
+        let alive = try CursorProvider.parseSummary(Data(json.replacingOccurrences(of: "0% of your included total", with: "12% of your included total").utf8))
+        let kept = CursorProvider.withoutDeadSplits(alive.windows)
+        #expect(kept[1].usedFraction == 0.12 && kept[1].note == "Metered apart from the included total")
+        #expect(kept[2].usedFraction == nil)
+    }
+
     @Test func parsesLegacyRequestUsage() throws {
         let json = #"{"gpt-4":{"numRequests":120,"numRequestsTotal":120,"numTokens":0,"maxRequestUsage":500,"maxTokenUsage":null},"startOfMonth":"2026-08-24T00:00:00.000Z"}"#
         let reading = try CursorProvider.parseLegacyUsage(Data(json.utf8))

@@ -1230,6 +1230,15 @@ enum RingSelection {
         // one id, this put a second window back, and the Inner ring picker snapped from None to that window. The
         // fallback applies only when nothing chosen survives (nothing chosen, or every chosen id gone or hidden),
         // and a choice whose ids are partly gone or repeated is still filled to the count that was asked for.
+        // An explicit choice wins even where it draws an empty ring (RingsPreferWindowsWithFigures), with one
+        // exception: a choice that would draw only empty rings while a comparison window is on show yields to
+        // the data. A comparison window exists only because the vendor meters nothing on the seat, so the choice
+        // is of meters that have stopped: Cursor's model meters lose their 0 % behind Today's spend
+        // (CursorProvider.withoutDeadSplits) and the rings move to it. The choice is not rewritten; the day a
+        // meter counts again it is honoured as before.
+        if !result.isEmpty, result.allSatisfy({ $0.usedFraction == nil }), shown.contains(where: { $0.isComparison && $0.usedFraction != nil }) {
+            result = []
+        }
         let target = result.isEmpty ? fallback : chosen.count
         let byData = shown.filter { $0.usedFraction != nil } + shown.filter { $0.usedFraction == nil }
         for window in byData where result.count < target && !result.contains(where: { $0.id == window.id }) {

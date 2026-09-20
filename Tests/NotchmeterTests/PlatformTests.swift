@@ -72,6 +72,35 @@ import Testing
         #expect(RingSelection.windows(of: reading, chosen: ["seven_day", "seven_day"], hidden: []).map(\.id) == ["seven_day", "five_hour"])
     }
 
+    /// A choice that would draw only empty rings yields to the data while a comparison window (Today's spend) is
+    /// on show, and is not rewritten. The case that found it: Cursor's model meters chosen for both rings on a seat
+    /// where they lost their 0 % (CursorProvider.withoutDeadSplits); the rings read "0% · 0%" all day while the
+    /// export showed $8.76 spent. Without a comparison window the explicit choice wins as it always has.
+    @Test func ringSelectionYieldsAChoiceWithNoFigureToTheDataAndKeepsIt() {
+        let now = Date()
+        func reading(_ cursorModels: Double?, _ otherModels: Double?) -> UsageReading {
+            UsageReading(tool: .cursor, windows: [
+                LimitWindow(id: "spend_today", label: "Today's spend", usedFraction: 0.09, resetsAt: now),
+                LimitWindow(id: "included", label: "Included usage", usedFraction: nil, resetsAt: now),
+                LimitWindow(id: "cursor_models", label: "Cursor models", usedFraction: cursorModels, resetsAt: now, model: "Cursor models"),
+                LimitWindow(id: "other_models", label: "Other models", usedFraction: otherModels, resetsAt: now, model: "Other models"),
+            ], plan: nil, fetchedAt: now, observedAt: nil)
+        }
+        let dead = reading(nil, nil)
+        #expect(RingSelection.windows(of: dead, chosen: ["cursor_models", "other_models"], hidden: []).map(\.id) == ["spend_today", "included"])
+        #expect(RingSelection.windows(of: dead, chosen: ["cursor_models", CombinedWindow.id], hidden: []).map(\.id) == ["spend_today", "included"])
+        #expect(RingSelection.windows(of: dead, chosen: ["included"], hidden: []).map(\.id) == ["spend_today", "included"])
+        // The day a meter counts, the same stored choice is honoured again, the other ring filled as before.
+        let alive = reading(0.12, nil)
+        #expect(RingSelection.windows(of: alive, chosen: ["cursor_models", "other_models"], hidden: []).map(\.id) == ["cursor_models", "other_models"])
+        // No comparison window on show: the choice stands, empty rings and all, as RingsPreferWindowsWithFigures pins.
+        let bare = UsageReading(tool: .cursor, windows: Array(dead.windows.dropFirst()), plan: nil, fetchedAt: now, observedAt: nil)
+        #expect(RingSelection.windows(of: bare, chosen: ["cursor_models", "other_models"], hidden: []).map(\.id) == ["cursor_models", "other_models"])
+        let metered = UsageReading(tool: .cursor, windows: [LimitWindow(id: "included", label: "Included usage", usedFraction: 0.3, resetsAt: now)] + Array(dead.windows.dropFirst(2)),
+                                   plan: nil, fetchedAt: now, observedAt: nil)
+        #expect(RingSelection.windows(of: metered, chosen: ["cursor_models"], hidden: []).map(\.id) == ["cursor_models"], "a figure that is not a comparison changes nothing")
+    }
+
     @Test func hotkeyDescriptionsAndKeyNames() {
         #expect(Hotkey(keyCode: 45, modifiers: Hotkey.commandKey | Hotkey.shiftKey).description == "⇧⌘N")
         #expect(Hotkey(keyCode: 49, modifiers: Hotkey.controlKey | Hotkey.optionKey).description == "⌃⌥Space")
