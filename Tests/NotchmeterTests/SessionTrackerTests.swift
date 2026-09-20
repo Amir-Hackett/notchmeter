@@ -297,7 +297,9 @@ import Testing
             LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.5, resetsAt: t0.addingTimeInterval(3 * 86400), periodDuration: Period.week),
         ], plan: nil, fetchedAt: t0, observedAt: nil)], now: t0)
         context.limitHitTools = [.claude]
-        #expect(Advisor.limitHit(context).map(\.text) == ["Claude Code hit its limit; session resets in 2h 10m."])
+        // The session was the window hit and the week has room, so the quieter /limit-reset offer follows the line.
+        #expect(Advisor.limitHit(context).map(\.text) == ["Claude Code hit its limit; session resets in 2h 10m.",
+                                                          "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."])
         #expect(Advisor.waitForReset(context).isEmpty)
         context.readings = []
         #expect(Advisor.limitHit(context).isEmpty)

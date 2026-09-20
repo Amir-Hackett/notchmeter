@@ -8,6 +8,7 @@
 /* 어시스턴트 훅과 훅 섹션(HookSettings, HookVendor, SettingsWindow, Notifier) */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ %2$@은(는) %3$ld%%입니다.";
 " %1$@ is %2$@ of it." = " 그중 %1$@이(가) %2$@.";
+" %@ counts about 30%% more tokens for the same text." = " 같은 텍스트라도 %@은(는) 토큰을 약 30%% 더 셉니다.";
 " percent" = " 퍼센트";
 "$/MTok" = "$/백만 토큰";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ %2$@이(가) 소진되었습니다. %3$@.%4$@";
@@ -216,6 +217,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "이 속도면 이번 %1$@ 비용은 %2$@이며 예산은 %3$@입니다.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "이 속도면 %3$@ %4$@과 %5$@ 사이에 %1$@ %2$@ 한도에 도달합니다.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "이 속도라면 %3$@에 %1$@ %2$@ 한도에 도달하며, 초기화까지 %4$@ 남습니다.%5$@";
+"At this rate you hit the %1$@ %2$@ cap between %3$@ and %4$@.%5$@" = "이 속도면 %3$@과 %4$@ 사이에 %1$@ %2$@ 한도에 도달합니다.%5$@";
 "At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "이 속도라면 %2$@에 %1$@을(를) 넘으며, 초기화까지 %3$@ 남습니다.";
 "another user is logged in" = "다른 사용자가 로그인 중";
 "auto" = "자동";
@@ -248,6 +250,7 @@
 "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %2$@부터 %1$@ · 주간 한도 1%%당 %3$@";
 "Claude Code has not signed in" = "Claude Code가 로그인되어 있지 않습니다";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code가 API 키로 동작합니다. 측정할 플랜 창이 없으며 비용 카드가 측정기입니다";
+"Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap." = "Claude Code에 이번 주 /limit-reset이 남아 있을 수 있습니다. 5시간 창만 초기화하고 주간 한도는 그대로입니다.";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code는 토큰을 갱신할 때마다 키체인 항목을 다시 만들어 \"항상 허용\"을 잊습니다. 타이머 읽기는 대화상자를 띄우지 않습니다. Claude Code가 쓰기에 쓴 Apple의 security 도구로 항목을 읽고, 다음 자격 증명 파일, 다음 상태 표시줄을 읽으며, 그렇지 않으면 마지막 읽기를 \"확인 필요\"로 표시해 둡니다. Claude 링 클릭, 새로 고침, 어시스턴트 토글만 물을 수 있고, 그것도 \"새로 고침 시에만\"일 때만입니다.";
 "Claude Code status line" = "Claude Code 상태 표시줄";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code 로그인이 만료되었습니다. 터미널에서 claude를 한 번 실행해 갱신하세요 — Notchmeter는 토큰을 직접 갱신하지 않습니다.";
@@ -405,6 +408,7 @@
 "Match system" = "시스템에 맞춤";
 "MCP server" = "MCP 서버";
 "month" = "달";
+"Mixed tokenizers: %@ counts about 30%% more tokens for the same text." = "토크나이저 혼재: 같은 텍스트라도 %@은(는) 토큰을 약 30%% 더 셉니다.";
 "Month" = "이번 달";
 "Month %1$@ of a %2$@ budget" = "이번 달 %1$@ / 예산 %2$@";
 "Monthly" = "월간";
@@ -544,6 +548,7 @@
 "Route requests through" = "요청 경유";
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "여기서 실행하면 '로그인 시 열기'와 업데이트가 동작하지 않습니다. 앱을 /Applications로 복사해 거기서 다시 실행하고, 이 복사본은 휴지통으로 이동합니다.";
 "Runs out %1$@–%2$@" = "%1$@–%2$@ 소진";
+"Runs out between %1$@ and %2$@" = "%1$@과 %2$@ 사이에 소진";
 "Runs out from %@, or lasts to the reset" = "이르면 %@ 소진, 아니면 초기화까지 유지";
 "Runs out in %@" = "%@ 후 소진";
 "Select All" = "전체 선택";

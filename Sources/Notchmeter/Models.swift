@@ -301,6 +301,15 @@ struct UsageReading: Codable, Equatable, Sendable {
     /// When the tool itself produced the numbers. Codex writes snapshots to disk, so this can trail fetchedAt.
     let observedAt: Date?
 
+    /// Whether the plan is one the user pays for, which is what makes its room worth routing work to: a free
+    /// tier's window is small and has no overage behind it. The only hard signal is the plan's own name — Codex's
+    /// "free" slug, Copilot's free SKU, a Claude "free" subscription — so a reading that names no plan at all, or
+    /// one this cannot read, counts as paid rather than silencing the advice for every vendor that omits it.
+    var isPaid: Bool {
+        guard let plan = plan?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !plan.isEmpty else { return true }
+        return plan != "free" && !plan.hasPrefix("free ")
+    }
+
     /// The same reading with some of its windows swapped for newer ones (the Claude Code status line replaces the
     /// session and weekly figures while a session runs; everything else is kept).
     func replacing(windows replacements: [LimitWindow], fetchedAt: Date) -> UsageReading {

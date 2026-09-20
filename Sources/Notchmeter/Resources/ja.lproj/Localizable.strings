@@ -8,6 +8,7 @@
 /* アシスタントのフックと「フック」セクション（HookSettings、HookVendor、SettingsWindow、Notifier） */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ の%2$@は %3$ld%% です。";
 " %1$@ is %2$@ of it." = " うち %1$@ が %2$@。";
+" %@ counts about 30%% more tokens for the same text." = " 同じテキストでも %@ はトークン数が約 30%% 多くなります。";
 " percent" = " パーセント";
 "$/MTok" = "$/百万トークン";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ の%2$@を使い切りました。%3$@。%4$@";
@@ -216,6 +217,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "このペースでは%1$@の費用は %2$@ となり、予算は %3$@ です。";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "このペースでは %1$@ の%2$@上限に%3$@ %4$@〜%5$@ に達します。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "このペースでは %1$@ の%2$@上限に %3$@ に達し、リセットまで %4$@ 残ります。%5$@";
+"At this rate you hit the %1$@ %2$@ cap between %3$@ and %4$@.%5$@" = "このペースでは %1$@ の%2$@上限に %3$@〜%4$@ に達します。%5$@";
 "At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "このペースでは %2$@ に%1$@を超え、リセットまで %3$@ 残ります。";
 "Auto" = "自動";
 "another user is logged in" = "別のユーザーがログイン中";
@@ -248,6 +250,7 @@
 "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %2$@から %1$@ · 週間枠 1%% あたり %3$@";
 "Claude Code has not signed in" = "Claude Code はサインインしていません";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code は API キーで動作しています。計測するプランのウィンドウはなく、コストカードが計測器です";
+"Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap." = "Claude Code には今週 /limit-reset が残っているかもしれません。5 時間ウィンドウをリセットしますが、週間上限はそのままです。";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code はトークン更新のたびにキーチェーン項目を作り直すため、「常に許可」が忘れられます。タイマー読み取りはダイアログを出しません。Claude Code が書き込みに使う Apple の security ツールで項目を読み、次に認証情報ファイル、次にステータスラインを読み、どれもなければ最後の読み取りを「あなたの許可が必要」として保持します。Claude リングのクリック、更新、アシスタントのスイッチだけが尋ねることがあり、それも「更新時のみ」の場合だけです。";
 "Claude Code status line" = "Claude Code ステータスライン";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code のログインが期限切れです。ターミナルで claude を一度実行して更新してください — Notchmeter がトークンを更新することはありません。";
@@ -405,6 +408,7 @@
 "Match system" = "システムに合わせる";
 "MCP server" = "MCP サーバー";
 "month" = "月";
+"Mixed tokenizers: %@ counts about 30%% more tokens for the same text." = "トークナイザーが混在: 同じテキストでも %@ はトークン数が約 30%% 多くなります。";
 "Month" = "今月";
 "Month %1$@ of a %2$@ budget" = "今月 %1$@ / 予算 %2$@";
 "Monthly" = "月間";
@@ -544,6 +548,7 @@
 "Route requests through" = "リクエストの経路";
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "この場所から実行すると「ログイン時に開く」とアップデートが機能しません。アプリを /Applications にコピーしてそこから再起動し、このコピーはゴミ箱に移動します。";
 "Runs out %1$@–%2$@" = "%1$@〜%2$@に枯渇";
+"Runs out between %1$@ and %2$@" = "%1$@〜%2$@に枯渇";
 "Runs out from %@, or lasts to the reset" = "早ければ %@ に枯渇、あるいはリセットまで持ちます";
 "Runs out in %@" = "%@ 後に使い切ります";
 "Select All" = "すべてを選択";

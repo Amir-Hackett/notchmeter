@@ -180,7 +180,7 @@ Things a bill can contain that this estimate does not, in the order they are lik
 
 Modelled since 2026-09-02, and so no longer divergences: the web-search fee and fast mode (above).
 
-Token counts themselves are never estimated: every count comes from the API's own `usage` object as Claude Code recorded it, so tokenizer differences between models do not enter.
+Token counts themselves are never estimated: every count comes from the API's own `usage` object as Claude Code recorded it, so tokenizer differences between models do not enter a cost or a count — each model's tokens are counted by its own tokenizer, and priced at its own rate. They do enter a comparison across models. Anthropic's pricing page says Claude 4.7 and later, and the Mythos/Fable line, tokenize with a vocabulary that yields approximately 30 % more tokens than Claude 4.6 and earlier for the same text, so a million tokens is not one unit across that line: the **$/MTok** mode adds a quiet caption naming the costliest newer-side model when the range holds models on both sides, and the switch-models advice adds the same clause when the two models it names straddle it. A name that cannot be placed — the vendor's bare "Opus" or "Sonnet" label with no version, or any non-Claude model — is not placed on either side, and nothing is said. Pinned by `TokenizerTests`, `CostCardTests` and `AdvisorTests`.
 
 ## Ranges, projects and the block
 
