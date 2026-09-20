@@ -143,12 +143,16 @@ import os
         try? FileManager.default.removeItem(at: missing.deletingLastPathComponent())
         var started = Date()
         #expect(HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false).userInfo, to: missing.path) == .noListener)
-        #expect(Date().timeIntervalSince(started) < 0.1)
+        // The bound is against a hang towards the one-second budget, not a stopwatch: this path is one ENOENT and
+        // takes a millisecond here, but a busy CI runner measured the stale case below at 202 ms against a 200 ms
+        // line, so both bounds sit at half the budget, where a real stall still fails and scheduling noise does not.
+        let promptly = 0.5
+        #expect(Date().timeIntervalSince(started) < promptly)
         #expect(HookSocket.describe(path: missing.path) == "socket \(missing.path) absent")
 
         // A file nobody holds: what a crash leaves behind until the next launch replaces it. It refuses with the
         // errno a full accept queue gives, so the command tries again a few times before believing it; the pauses
-        // add up to a few tens of milliseconds, nowhere near the budget.
+        // add up to a few tens of milliseconds here, two hundred on a loaded runner, nowhere near the budget.
         let stale = Self.scratch("stale")
         try? FileManager.default.removeItem(at: stale.deletingLastPathComponent())
         defer { try? FileManager.default.removeItem(at: stale.deletingLastPathComponent()) }
@@ -156,8 +160,7 @@ import os
         started = Date()
         #expect(HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false).userInfo, to: stale.path) == .noListener)
         let elapsed = Date().timeIntervalSince(started)
-        let promptly = 0.2
-        #expect(elapsed < promptly)
+        #expect(elapsed < promptly, "a leftover socket must be given up on well inside the budget: \(elapsed) s")
         // The smoke report tells that file from a held socket, which a stat alone cannot: it connects.
         #expect(HookSocket.describe(path: stale.path) == "socket \(stale.path) stale (nobody listening; a relaunch replaces it)")
     }
