@@ -8,6 +8,7 @@
 /* Hook của trợ lý và mục Hook (HookSettings, HookVendor, SettingsWindow, Notifier) */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ %2$@ đang ở %3$ld%%.";
 " %1$@ is %2$@ of it." = " Trong đó %1$@ là %2$@.";
+" %@ counts about 30%% more tokens for the same text." = " %@ đếm nhiều hơn khoảng 30%% token cho cùng một đoạn văn bản.";
 " percent" = " phần trăm";
 "$/MTok" = "$/triệu token";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ %2$@ đã hết. %3$@.%4$@";
@@ -180,6 +181,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "Với tốc độ này, %1$@ tốn %2$@ so với ngân sách %3$@.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "Với tốc độ này bạn chạm trần %2$@ của %1$@ vào %3$@ trong khoảng %4$@ đến %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "Với tốc độ này bạn sẽ chạm trần %2$@ của %1$@ vào %3$@, còn %4$@ trước khi đặt lại.%5$@";
+"At this rate you hit the %1$@ %2$@ cap between %3$@ and %4$@.%5$@" = "Với tốc độ này bạn chạm trần %2$@ của %1$@ trong khoảng %3$@ đến %4$@.%5$@";
 "At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "Với tốc độ này bạn sẽ vượt %1$@ vào %2$@, còn %3$@ trước khi đặt lại.";
 "Auto" = "Tự động";
 "another user is logged in" = "người dùng khác đang đăng nhập";
@@ -211,6 +213,7 @@
 "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %1$@ kể từ %2$@ · %3$@ cho mỗi 1%% hạn mức tuần";
 "Claude Code has not signed in" = "Claude Code chưa đăng nhập";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code dùng khóa API: không có cửa sổ gói để đo; thẻ Chi phí chính là thước đo";
+"Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap." = "Claude Code có thể còn một lần /limit-reset trong tuần này: nó xóa cửa sổ 5 giờ, không xóa trần hằng tuần.";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code tạo lại mục Keychain mỗi lần làm mới token, quên mất \"Luôn cho phép\" bạn đã cho. Đọc theo hẹn giờ không bao giờ hiện hộp thoại: nó đọc mục qua công cụ security của Apple mà Claude Code dùng để ghi, rồi tệp thông tin đăng nhập, rồi thanh trạng thái, nếu không thì giữ lần đọc cuối với nhãn \"cần bạn đồng ý\". Chỉ nhấp vòng Claude, Làm mới hoặc công tắc Trợ lý mới có thể hỏi, và chỉ khi ở \"Chỉ khi làm mới\".";
 "Claude Code status line" = "Dòng trạng thái Claude Code";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Đăng nhập Claude Code đã hết hạn. Hãy chạy claude trong terminal một lần để làm mới — Notchmeter không bao giờ tự làm mới token.";
@@ -367,6 +370,7 @@
 "Main display (the one with the menu bar)" = "Màn hình chính (màn hình có thanh menu)";
 "Match system" = "Theo hệ thống";
 "MCP server" = "Máy chủ MCP";
+"Mixed tokenizers: %@ counts about 30%% more tokens for the same text." = "Bộ tách token khác nhau: %@ đếm nhiều hơn khoảng 30%% token cho cùng một đoạn văn bản.";
 "Month" = "Tháng";
 "month" = "tháng";
 "Month %1$@ of a %2$@ budget" = "Tháng này %1$@ trên ngân sách %2$@";
@@ -503,6 +507,7 @@
 "Route requests through" = "Dẫn yêu cầu qua";
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "Chạy từ đây, Mở khi đăng nhập và cập nhật sẽ không hoạt động. Ứng dụng được sao chép vào /Applications, khởi chạy lại từ đó, và bản này được chuyển vào Thùng rác.";
 "Runs out %1$@–%2$@" = "Hết vào %1$@–%2$@";
+"Runs out between %1$@ and %2$@" = "Hết trong khoảng %1$@ đến %2$@";
 "Runs out from %@, or lasts to the reset" = "Hết sớm nhất từ %@, hoặc trụ đến lúc đặt lại";
 "Runs out in %@" = "Hết sau %@";
 "Select All" = "Chọn tất cả";

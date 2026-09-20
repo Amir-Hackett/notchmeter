@@ -24,6 +24,7 @@
 /* 助手钩子与“钩子”分区（HookSettings、HookVendor、SettingsWindow、Notifier） */
 " %1$@ %2$@ is at %3$ld%%." = "%1$@ 的%2$@额度已用 %3$ld%%。";
 " %1$@ is %2$@ of it." = " 其中 %1$@ 占 %2$@。";
+" %@ counts about 30%% more tokens for the same text." = " 同样的文本，%@ 计入的 token 约多 30%%。";
 " percent" = "%";
 "$/MTok" = "$/百万 token";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ 的%2$@额度已用尽。%3$@。%4$@";
@@ -196,6 +197,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "按此速度，本%1$@将花费 %2$@，预算为 %3$@。";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "按此速度，你将在%3$@ %4$@ 至 %5$@ 之间触及 %1$@ %2$@上限。%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "按当前速度，%1$@ 的%2$@额度将于%3$@达到上限，距离重置还有 %4$@。%5$@";
+"At this rate you hit the %1$@ %2$@ cap between %3$@ and %4$@.%5$@" = "按此速度，你将在 %3$@ 至 %4$@ 之间触及 %1$@ %2$@上限。%5$@";
 "At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "按当前速度，你将在 %2$@ 超出%1$@，距离重置还有 %3$@。";
 "Auto" = "自动";
 "another user is logged in" = "另一用户已登录";
@@ -227,6 +229,7 @@
 "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude 自%2$@起 %1$@ · 每周额度每 1%% 折合 %3$@";
 "Claude Code has not signed in" = "Claude Code 尚未登录";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code 使用 API 密钥：没有套餐窗口可计量；费用卡片就是计量器";
+"Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap." = "Claude Code 本周或许还有一次 /limit-reset：它只清空 5 小时窗口，不清空每周上限。";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code 每次刷新令牌都会重建钥匙串项，从而忘记你给的“始终允许”。定时读取绝不弹出对话框：它先通过 Apple 的 security 工具（Claude Code 正是用它写入该项）读取，再读凭据文件，再读状态栏，否则保留上次读数并标记“需要你的确认”。只有点击 Claude 环、刷新或助手开关才可能询问，且仅在“仅刷新时”下。";
 "Claude Code status line" = "Claude Code 状态行";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code 的登录已过期。请在终端运行一次 claude 以刷新 — Notchmeter 从不自行刷新令牌。";
@@ -384,6 +387,7 @@
 "Match system" = "跟随系统";
 "MCP server" = "MCP 服务器";
 "month" = "月";
+"Mixed tokenizers: %@ counts about 30%% more tokens for the same text." = "分词器不一：同样的文本，%@ 计入的 token 约多 30%%。";
 "Month" = "本月";
 "Month %1$@ of a %2$@ budget" = "本月 %1$@，预算 %2$@";
 "Monthly" = "每月";
@@ -519,6 +523,7 @@
 "Route requests through" = "请求经由";
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "从当前位置运行时，“登录时打开”和更新都无法工作。应用会被复制到 /Applications 并从那里重新启动，当前副本会移到废纸篓。";
 "Runs out %1$@–%2$@" = "%1$@–%2$@ 用尽";
+"Runs out between %1$@ and %2$@" = "%1$@ 至 %2$@ 之间用尽";
 "Runs out from %@, or lasts to the reset" = "最早 %@ 用尽，或可撑到重置";
 "Runs out in %@" = "%@后用尽";
 "Select All" = "全选";

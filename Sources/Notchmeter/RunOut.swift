@@ -98,18 +98,23 @@ struct RunOutInterval: Equatable, Sendable {
     }
 
     /// The card's line: "Runs out 2:10–3:40 PM" when wide, "Runs out in 2h" when narrow, "Runs out from 2:10 PM, or
-    /// lasts to the reset" when only the fast edge falls before it; nil when `presentation` is.
+    /// lasts to the reset" when only the fast edge falls before it; nil when `presentation` is. A time on another
+    /// day than today carries its day ("Runs out tomorrow at 12:10–12:50 AM"), and a range whose edges fall on
+    /// different days names both ("Runs out between today at 11:50 PM and tomorrow at 12:30 AM"): two bare clock
+    /// times across midnight read backwards.
     func text(now: Date, resetsAt: Date, format: TimeFormatPreference, calendar: Calendar = .current) -> String? {
+        func clock(_ date: Date) -> String { ResetText.time(date, format: format, calendar: calendar) }
+        func dated(_ date: Date) -> String { L("%1$@ at %2$@", ResetText.dayPhrase(date, now: now, calendar: calendar), clock(date)) }
         switch presentation(now: now, resetsAt: resetsAt) {
         case nil:
             return nil
         case .single(let at):
             return L("Runs out in %@", ResetText.duration(at.timeIntervalSince(now)))
         case .rangeToReset(let from):
-            return L("Runs out from %@, or lasts to the reset", ResetText.time(from, format: format, calendar: calendar))
+            return L("Runs out from %@, or lasts to the reset", calendar.isDate(from, inSameDayAs: now) ? clock(from) : dated(from))
         case .range(let from, let to):
-            return L("Runs out %1$@–%2$@", ResetText.time(from, format: format, calendar: calendar),
-                     ResetText.time(to, format: format, calendar: calendar))
+            guard calendar.isDate(from, inSameDayAs: to) else { return L("Runs out between %1$@ and %2$@", dated(from), dated(to)) }
+            return L("Runs out %1$@–%2$@", calendar.isDate(from, inSameDayAs: now) ? clock(from) : dated(from), clock(to))
         }
     }
 }

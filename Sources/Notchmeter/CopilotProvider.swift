@@ -174,7 +174,11 @@ actor CopilotProvider: UsageProvider {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ProviderError.parse(L("GitHub Copilot's usage response unreadable"))
         }
-        let plan = (root["copilot_plan"] as? String).map(Naming.plan)
+        // Copilot Free answers `copilot_plan` "individual" like a paid seat and says "free" only in its SKU
+        // (`access_type_sku` "free_limited_copilot"), so the plan is named from the SKU where it says so: the
+        // advice reads the name to know whether the seat is one worth routing work to (`UsageReading.isPaid`).
+        let sku = (root["access_type_sku"] as? String)?.lowercased() ?? ""
+        let plan = sku.hasPrefix("free") ? Naming.plan("free") : (root["copilot_plan"] as? String).map(Naming.plan)
         let resetsAt = (root["quota_reset_date"] as? String).flatMap(resetDate)
         let snapshots = root["quota_snapshots"] as? [String: Any] ?? [:]
         var windows: [LimitWindow] = []

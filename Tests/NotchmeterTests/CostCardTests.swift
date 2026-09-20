@@ -264,6 +264,29 @@ import Testing
         #expect(try detail([.claude, .cursor]).since == nil)
     }
 
+    /// Under $/MTok a range that mixes models across Anthropic's 4.6/4.7 tokenizer line gets one quiet caption
+    /// naming the costliest model on the newer side: a million of its tokens is less text than a million of the
+    /// others'. Under the other units, or with every model on one side, the caption is absent.
+    @Test func theRatePerMillionSaysWhenTheRangeMixesTokenizers() throws {
+        func detail(byModel: [String: Double], mode: CostCardMode) throws -> CostDetail {
+            let tokens = TokenBreakdown(input: 1_000_000, output: 100_000)
+            let record = CostHistory.Record(cost: byModel.values.reduce(0, +), tokens: tokens, byModel: byModel, byProject: [:])
+            let provider = try #require(ProviderCost.build(tool: .claude, source: .localTranscripts, days: [today: record], now: now, weekStart: today,
+                                                            calendar: utc, scannedAt: now))
+            return CostDetail(provider: provider, range: .today, claude: summary, now: now, calendar: utc, timeFormat: .twelveHour, mode: mode)
+        }
+        let mixed = ["claude-sonnet-4-5": 30.0, "claude-fable-5-1": 10.0]
+        #expect(try detail(byModel: mixed, mode: .perMillionTokens).tokenizerNote == "Mixed tokenizers: Claude Fable 5.1 counts about 30% more tokens for the same text.")
+        #expect(try detail(byModel: mixed, mode: .cost).tokenizerNote == nil)
+        #expect(try detail(byModel: mixed, mode: .tokens).tokenizerNote == nil)
+        #expect(try detail(byModel: ["claude-sonnet-4-5": 30, "claude-opus-4-6": 10], mode: .perMillionTokens).tokenizerNote == nil)
+        #expect(try detail(byModel: ["claude-fable-5-1": 30, "claude-sonnet-4-7": 10], mode: .perMillionTokens).tokenizerNote == nil)
+        // The fixture's single model gives none, and the caption is not one of the Show-details captions.
+        let single = try self.detail([.claude, .cursor])
+        #expect(single.tokenizerNote == nil)
+        #expect(!(try detail(byModel: mixed, mode: .perMillionTokens).detailCaptions.contains { $0.hasPrefix("Mixed tokenizers") }))
+    }
+
     /// A range the leader spent nothing in has no tokens, no folders and no cache split to report.
     @Test func aRangeTheLeaderHasNothingInDropsEveryLineItCannotFill() throws {
         let detail = try detail([.claude, .cursor], range: .yesterday)

@@ -1135,7 +1135,7 @@ struct SpendCard: View {
     /// The detail block describes the assistant at the top of the card's order, not the blend: one tool's own
     /// last hour, tokens, cache tiers and folders, with any line its source cannot answer simply absent.
     private var detail: CostDetail? {
-        selection.providers.first.map { CostDetail(provider: $0, range: range.costRange, claude: store.cost, timeFormat: store.prefs.timeFormat) }
+        selection.providers.first.map { CostDetail(provider: $0, range: range.costRange, claude: store.cost, timeFormat: store.prefs.timeFormat, mode: mode) }
     }
 
     private var burnLine: String? { detail?.burn }
@@ -1208,6 +1208,8 @@ struct SpendCard: View {
             lines += detailLines.map { (text: $0, quiet: false) }
             lines += detailCaptions.map { (text: $0, quiet: true) }
         }
+        // The $/MTok caveat stands whenever that unit is on show, details or not: it is about the headline figure.
+        if let note = detail?.tokenizerNote { lines.append((text: note, quiet: true)) }
         if !selection.unpricedModels.isEmpty {
             lines.append((text: L("Unpriced: %@", selection.unpricedModels.sorted().joined(separator: ", ")), quiet: true))
         }

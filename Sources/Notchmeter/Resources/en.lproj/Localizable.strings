@@ -24,6 +24,7 @@
 /* Assistant hooks and the Hooks section (HookSettings, HookVendor, SettingsWindow, Notifier) */
 " %1$@ %2$@ is at %3$ld%%." = " %1$@ %2$@ is at %3$ld%%.";
 " %1$@ is %2$@ of it." = " %1$@ is %2$@ of it.";
+" %@ counts about 30%% more tokens for the same text." = " %@ counts about 30%% more tokens for the same text.";
 " percent" = " percent";
 "$/MTok" = "$/MTok";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ %2$@ has run out. %3$@.%4$@";
@@ -196,6 +197,7 @@
 "At this rate the %1$@ costs %2$@ against a %3$@ budget." = "At this rate the %1$@ costs %2$@ against a %3$@ budget.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@";
+"At this rate you hit the %1$@ %2$@ cap between %3$@ and %4$@.%5$@" = "At this rate you hit the %1$@ %2$@ cap between %3$@ and %4$@.%5$@";
 "At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "At this rate you pass the %1$@ %2$@, %3$@ before it resets.";
 "another user is logged in" = "another user is logged in";
 "auto" = "auto";
@@ -227,6 +229,7 @@
 "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %1$@ since %2$@ · %3$@ per 1%% of weekly";
 "Claude Code has not signed in" = "Claude Code has not signed in";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter";
+"Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap." = "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap.";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only.";
 "Claude Code status line" = "Claude Code status line";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself.";
@@ -384,6 +387,7 @@
 "Match system" = "Match system";
 "MCP server" = "MCP server";
 "month" = "month";
+"Mixed tokenizers: %@ counts about 30%% more tokens for the same text." = "Mixed tokenizers: %@ counts about 30%% more tokens for the same text.";
 "Month" = "Month";
 "Month %1$@ of a %2$@ budget" = "Month %1$@ of a %2$@ budget";
 "Monthly" = "Monthly";
@@ -519,6 +523,7 @@
 "Route requests through" = "Route requests through";
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash.";
 "Runs out %1$@–%2$@" = "Runs out %1$@–%2$@";
+"Runs out between %1$@ and %2$@" = "Runs out between %1$@ and %2$@";
 "Runs out from %@, or lasts to the reset" = "Runs out from %@, or lasts to the reset";
 "Runs out in %@" = "Runs out in %@";
 "Select All" = "Select All";

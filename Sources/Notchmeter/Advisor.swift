@@ -22,14 +22,24 @@ struct Advice: Identifiable, Equatable, Sendable {
     let symbol: String
     let text: String
     let url: URL?
+    /// The headroom clause the text ends with (" Codex weekly is at 22%."), empty when it carries none, so the
+    /// strip can say it once across its lines (`Advisor.withoutRepeatedHeadroom`) without parsing the sentence.
+    let headroom: String
 
-    init(id: String, tool: ToolID?, priority: Priority, symbol: String, text: String, url: URL? = nil) {
+    init(id: String, tool: ToolID?, priority: Priority, symbol: String, text: String, url: URL? = nil, headroom: String = "") {
         self.id = id
         self.tool = tool
         self.priority = priority
         self.symbol = symbol
         self.text = text
         self.url = url
+        self.headroom = headroom
+    }
+
+    /// The same line with its headroom clause dropped from the end; unchanged when the text does not end with it.
+    func withoutHeadroom() -> Advice {
+        guard !headroom.isEmpty, text.hasSuffix(headroom) else { return self }
+        return Advice(id: id, tool: tool, priority: priority, symbol: symbol, text: String(text.dropLast(headroom.count)), url: url)
     }
 }
 
@@ -89,6 +99,10 @@ enum Advisor {
     static let modelNearlyOut = 0.85
     /// ...to a model or the overall weekly window with at least this much left.
     static let modelHeadroom = 0.4
+    /// A window this far used, when the hook reports a limit hit, is the one that was hit.
+    static let atLimit = 0.9
+    /// Claude's weekly window with at least this much left makes clearing the session window worth a line.
+    static let limitResetHeadroom = 0.4
     /// The last hour costing this many times the usual active hour is worth a line.
     static let burnThreshold = 3.0
     /// A window that is out or behind and resets within this is worth waiting for rather than switching away from.
@@ -120,10 +134,23 @@ enum Advisor {
             + serverTrouble(context)
             + peak(context)
             + crossProvider(context).filter { $0.tool.map { !alreadyRouted.contains($0) } ?? true }
-        return Array(all.enumerated()
+        return withoutRepeatedHeadroom(Array(all.enumerated()
             .sorted { ($0.element.priority.rawValue, $0.offset) < ($1.element.priority.rawValue, $1.offset) }
             .map(\.element)
-            .prefix(limit))
+            .prefix(limit)))
+    }
+
+    /// The headroom clause answers every run-out line the same way ("Codex weekly is at 22%"), so the strip says
+    /// it once, on the first line that carries it, and the lines under it keep their own sentence. This runs after
+    /// the sort and the cap, on the strip alone: a notification body is built one line at a time through
+    /// `runOutText` and keeps the clause, as does the sample notification. Two lines pointing at different tools
+    /// each keep theirs, because each clause is news.
+    static func withoutRepeatedHeadroom(_ lines: [Advice]) -> [Advice] {
+        var said: Set<String> = []
+        return lines.map { line in
+            guard !line.headroom.isEmpty, !said.insert(line.headroom).inserted else { return line }
+            return line.withoutHeadroom()
+        }
     }
 
     // MARK: - Rules
@@ -147,11 +174,12 @@ enum Advisor {
     static func runOut(_ context: Context) -> [Advice] {
         var found: [(eta: TimeInterval, advice: Advice)] = []
         for reading in context.readings {
+            let headroom = headroomSuffix(besides: reading.tool, in: context)
             for window in reading.windows where !window.isComparison {
                 guard let eta = secondsToRunOut(window, tool: reading.tool, context: context),
-                      let text = runOutText(tool: reading.tool, window: window, context: context) else { continue }
+                      let text = runOutText(tool: reading.tool, window: window, context: context, headroom: headroom) else { continue }
                 found.append((eta, Advice(id: "run-out/\(reading.tool.rawValue)/\(window.id)", tool: reading.tool, priority: .danger,
-                                          symbol: "exclamationmark.triangle.fill", text: text)))
+                                          symbol: "exclamationmark.triangle.fill", text: text, headroom: headroom)))
             }
         }
         return found.sorted { $0.eta < $1.eta }.map(\.advice)
@@ -173,20 +201,41 @@ enum Advisor {
     }
 
     /// The hook says a session stopped on a rate limit or waits on quota: name the reset, whatever else has room.
+    /// For Claude Code, when the hit is the session's and the week still has room, a second, quieter line offers
+    /// `/limit-reset`.
     static func limitHit(_ context: Context) -> [Advice] {
-        context.readings.compactMap { reading in
-            guard context.limitHitTools.contains(reading.tool) else { return nil }
+        context.readings.flatMap { reading -> [Advice] in
+            guard context.limitHitTools.contains(reading.tool) else { return [] }
             let candidates = reading.windows.filter { window in
                 guard let resetsAt = window.resetsAt, resetsAt > context.now, let used = window.usedFraction else { return false }
-                return used >= 0.9
+                return used >= atLimit
             }
-            guard let window = candidates.min(by: { ($0.resetsAt ?? .distantFuture) < ($1.resetsAt ?? .distantFuture) }), let resetsAt = window.resetsAt else {
-                return Advice(id: "limit/\(reading.tool.rawValue)", tool: reading.tool, priority: .warn, symbol: "clock.arrow.circlepath",
+            let hit = candidates.min(by: { ($0.resetsAt ?? .distantFuture) < ($1.resetsAt ?? .distantFuture) })
+            let line: Advice
+            if let hit, let resetsAt = hit.resetsAt {
+                line = Advice(id: "limit/\(reading.tool.rawValue)/\(hit.id)", tool: reading.tool, priority: .warn, symbol: "clock.arrow.circlepath",
+                              text: L("%1$@ hit its limit; %2$@ resets in %3$@.", reading.tool.productName, name(hit, of: reading.tool), ResetText.duration(resetsAt.timeIntervalSince(context.now))))
+            } else {
+                line = Advice(id: "limit/\(reading.tool.rawValue)", tool: reading.tool, priority: .warn, symbol: "clock.arrow.circlepath",
                               text: L("%@ hit its rate limit; wait for the reset.", reading.tool.productName))
             }
-            return Advice(id: "limit/\(reading.tool.rawValue)/\(window.id)", tool: reading.tool, priority: .warn, symbol: "clock.arrow.circlepath",
-                          text: L("%1$@ hit its limit; %2$@ resets in %3$@.", reading.tool.productName, name(window, of: reading.tool), ResetText.duration(resetsAt.timeIntervalSince(context.now))))
+            return [line] + limitReset(reading, hit: hit, context: context)
         }
+    }
+
+    /// Claude Code's `/limit-reset`, which users report as a once-a-week command that clears the 5-hour window
+    /// and leaves the weekly cap where it was. The rule is community-sourced: as of 2026-09-20 Anthropic's
+    /// documentation does not describe the command, so the line says "may have" and is `.info`, never louder.
+    /// Offered only where it would help: the hit is the session's (the session window at its limit, or a rate
+    /// limit the hook recorded that no window at its limit accounts for) and the weekly still has room to spend.
+    private static func limitReset(_ reading: UsageReading, hit: LimitWindow?, context: Context) -> [Advice] {
+        guard reading.tool == .claude,
+              let session = reading.windows.first(where: { $0.id == "five_hour" }),
+              let weekly = reading.windows.first(where: { $0.id == "seven_day" }), left(of: weekly) >= limitResetHeadroom,
+              (session.usedFraction ?? 0) >= atLimit || hit == nil
+        else { return [] }
+        return [Advice(id: "limit-reset", tool: .claude, priority: .info, symbol: "arrow.counterclockwise.circle",
+                       text: L("Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."))]
     }
 
     /// The month (or the week since the weekly window started) projected against the budget. The budget is one
@@ -249,20 +298,30 @@ enum Advisor {
             guard let hot = scoped.filter({ ($0.usedFraction ?? 0) >= modelNearlyOut }).max(by: { ($0.usedFraction ?? 0) < ($1.usedFraction ?? 0) }),
                   let used = hot.usedFraction
             else { return nil }
-            let alternative: (name: String, used: Double)?
+            let alternative: (name: String, model: String?, used: Double)?
             if let other = scoped.filter({ $0.model != hot.model && left(of: $0) >= modelHeadroom }).max(by: { left(of: $0) < left(of: $1) }),
                let otherModel = other.model, let otherUsed = other.usedFraction {
-                alternative = (otherModel, otherUsed)
+                alternative = (otherModel, otherModel, otherUsed)
             } else if let main = mainWindow(of: reading), let mainUsed = main.usedFraction, 1 - mainUsed >= modelHeadroom {
-                alternative = (L("Overall %@", name(main)), mainUsed)
+                alternative = (L("Overall %@", name(main)), nil, mainUsed)
             } else {
                 alternative = nil
             }
             guard let alternative else { return nil }
             return Advice(id: "model/\(reading.tool.rawValue)/\(hot.id)", tool: reading.tool, priority: .warn, symbol: "arrow.left.arrow.right",
                           text: L("%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools.",
-                                  name(hot), percent(used), alternative.name, percent(alternative.used)))
+                                  name(hot), percent(used), alternative.name, percent(alternative.used))
+                              + tokenizerCaveat(between: hot.model, and: alternative.model))
         }
+    }
+
+    /// " Fable counts about 30% more tokens for the same text." when the two models count with different
+    /// vocabularies (`Tokenizer`), naming the one on the newer side whichever way the switch runs; empty when
+    /// they share one or either cannot be placed. The overall window has no model and gets no clause.
+    static func tokenizerCaveat(between hot: String?, and alternative: String?) -> String {
+        guard let hot, let alternative, Tokenizer.straddle(hot, alternative) else { return "" }
+        let newer = Tokenizer.generation(of: hot) == .current ? hot : alternative
+        return L(" %@ counts about 30%% more tokens for the same text.", newer)
     }
 
     /// A window that is out or behind pace, resetting within the hour, while no other tool has room: waiting beats
@@ -444,27 +503,38 @@ enum Advisor {
     // MARK: - Pieces
 
     /// "At this rate you hit the Claude weekly cap tomorrow at 2:00 PM, 3d 4h before reset. Codex weekly is at 22%."
-    /// With a wide run-out interval from the drain log whose edges both fall before the reset: "…cap between 2:10
-    /// and 3:40 PM…". The times are `RunOutInterval.presentation`'s, the rule the card uses, so a narrow interval
-    /// reads as its midpoint here as there and the margin is measured from the same time; until 0.6.0 this quoted
-    /// the earliest edge while the card above it printed the midpoint. An interval whose slow edge lasts past the
-    /// reset names its near edge as a single time here, the one the card gives as "from": the two strings shipped
-    /// in six languages have no third form.
+    /// With a wide run-out interval from the drain log whose edges both fall before the reset: "…cap today between
+    /// 2:10 and 3:40 PM…", or, when the edges fall on different days, "…cap between today at 11:50 PM and tomorrow
+    /// at 12:30 AM…": a day per edge, because one day printed for both read as "today between 23:50 and 00:30".
+    /// The times are `RunOutInterval.presentation`'s, the rule the card uses, so a narrow interval reads as its
+    /// midpoint here as there and the margin is measured from the same time; until 0.6.0 this quoted the earliest
+    /// edge while the card above it printed the midpoint. An interval whose slow edge lasts past the reset names
+    /// its near edge as a single time here, the one the card gives as "from": the strings shipped in six languages
+    /// have no third form. The headroom clause is the tool's own; `runOut` passes it in so the strip can drop a
+    /// repeat, and a notification body, built here alone, keeps it.
     static func runOutText(tool: ToolID, window: LimitWindow, context: Context) -> String? {
+        runOutText(tool: tool, window: window, context: context, headroom: headroomSuffix(besides: tool, in: context))
+    }
+
+    static func runOutText(tool: ToolID, window: LimitWindow, context: Context, headroom: String) -> String? {
         guard let resetsAt = window.resetsAt, let eta = secondsToRunOut(window, tool: tool, context: context) else { return nil }
         let runsOutAt = context.now.addingTimeInterval(eta)
-        let suffix = headroomSuffix(besides: tool, in: context)
         if case .range(let from, let to)? = context.runOuts["\(tool.rawValue)/\(window.id)"]?.presentation(now: context.now, resetsAt: resetsAt) {
             let fromText = ResetText.time(from, format: context.timeFormat, calendar: context.calendar)
             let toText = ResetText.time(to, format: context.timeFormat, calendar: context.calendar)
-            let day = ResetText.dayPhrase(from, now: context.now, calendar: context.calendar)
-            return L("At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@", tool.displayName, name(window, of: tool), day, fromText, toText, suffix)
+            let fromDay = ResetText.dayPhrase(from, now: context.now, calendar: context.calendar)
+            guard context.calendar.isDate(from, inSameDayAs: to) else {
+                let toDay = ResetText.dayPhrase(to, now: context.now, calendar: context.calendar)
+                return L("At this rate you hit the %1$@ %2$@ cap between %3$@ and %4$@.%5$@", tool.displayName, name(window, of: tool),
+                         L("%1$@ at %2$@", fromDay, fromText), L("%1$@ at %2$@", toDay, toText), headroom)
+            }
+            return L("At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@", tool.displayName, name(window, of: tool), fromDay, fromText, toText, headroom)
         }
         let when = L("%1$@ at %2$@", ResetText.dayPhrase(runsOutAt, now: context.now, calendar: context.calendar),
                      ResetText.time(runsOutAt, format: context.timeFormat, calendar: context.calendar))
         let margin = ResetText.duration(resetsAt.timeIntervalSince(runsOutAt))
         return L("At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@",
-                 tool.displayName, name(window, of: tool), when, margin, suffix)
+                 tool.displayName, name(window, of: tool), when, margin, headroom)
     }
 
     /// The window a routing decision spends: the longest tool-wide window with a limit (weekly for Claude and
@@ -476,10 +546,12 @@ enum Advisor {
     }
 
     /// The other tool with the most of its main window left, when that is at least the routing headroom; on a tie,
-    /// the one the user placed first.
+    /// the one the user placed first. A tool on a free plan is never the answer, however empty its window: its
+    /// room is not worth routing a paid tool's work to (`UsageReading.isPaid`), so neither the headroom clause
+    /// nor the room-elsewhere line names it.
     static func headroom(besides tool: ToolID, in context: Context) -> (tool: ToolID, window: LimitWindow, left: Double)? {
         context.readings
-            .filter { $0.tool != tool }
+            .filter { $0.tool != tool && $0.isPaid }
             .compactMap { reading in mainWindow(of: reading).map { (tool: reading.tool, window: $0, left: left(of: $0)) } }
             .filter { $0.left >= routingHeadroom }
             .max { ($0.left, -Double(context.rank($0.tool))) < ($1.left, -Double(context.rank($1.tool))) }

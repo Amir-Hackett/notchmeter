@@ -17,15 +17,18 @@ struct CostDetail {
     let calendar: Calendar
     /// For the block line's start, which is a clock time rather than a day.
     let timeFormat: TimeFormatPreference
+    /// The card's unit, which decides whether the tokenizer caption applies.
+    let mode: CostCardMode
 
     init(provider: ProviderCost, range: CostRange, claude: CostSummary? = nil, now: Date = Date(), calendar: Calendar = .current,
-         timeFormat: TimeFormatPreference = .auto) {
+         timeFormat: TimeFormatPreference = .auto, mode: CostCardMode = .cost) {
         self.provider = provider
         self.range = range
         self.claude = provider.tool == .claude ? claude : nil
         self.now = now
         self.calendar = calendar
         self.timeFormat = timeFormat
+        self.mode = mode
     }
 
     private var name: String { provider.tool.displayName }
@@ -94,6 +97,15 @@ struct CostDetail {
         provider.source.isEstimate
             ? L("%@ priced here from local files at published list rates", name)
             : L("%@ as the vendor's own usage export priced it", name)
+    }
+
+    /// Under $/MTok, when the range mixes models that count with different vocabularies (`Tokenizer`): a million
+    /// tokens is not one unit across that line, so the blended rate above is a blend of two rulers. Names the
+    /// costliest model on the newer side. Under the other units, and where every placed model is on one side,
+    /// nothing: the count is exact for the model that made it.
+    var tokenizerNote: String? {
+        guard mode == .perMillionTokens, let newer = Tokenizer.newerLeader(in: totals.byModel) else { return nil }
+        return L("Mixed tokenizers: %@ counts about 30%% more tokens for the same text.", ModelNames.display(newer))
     }
 
     /// The leader's lines the card keeps behind Show details, in the order it draws them.
