@@ -172,13 +172,14 @@ import Testing
         let prefs = Preferences(defaults: defaults)
         let everyToolThatReportsCost = Set(ToolID.allCases.filter(\.reportsCost))
         #expect(prefs.costCardTools == everyToolThatReportsCost)
-        #expect(!prefs.costCardTools.contains(.copilot))
+        #expect(prefs.costCardTools.contains(.copilot))
+        #expect(!prefs.costCardTools.contains(.antigravity))
         prefs.costCardTools = [.claude]
         let stored = defaults.array(forKey: "costCardTools") as? [String]
         #expect(stored == ["claude"])
         #expect(Preferences(defaults: defaults).costCardTools == [.claude])
-        // Copilot publishes nothing a dollar figure could come from, so a stored list naming it loses it.
-        defaults.set(["claude", "copilot"], forKey: "costCardTools")
+        // Antigravity publishes nothing a dollar figure could come from, so a stored list naming it loses it.
+        defaults.set(["claude", "antigravity"], forKey: "costCardTools")
         #expect(Preferences(defaults: defaults).costCardTools == [.claude])
     }
 }
@@ -345,10 +346,26 @@ import Testing
         #expect(CostAbsence.gaps(carried: [.claude, .codex], reporting: [.claude, .codex], cursorUsageEvents: true,
                                  problems: [:], nothingLocal: []).isEmpty)
         // A tool that can never report spend was never a row, so it is not a gap either (docs/accuracy.md).
-        #expect(CostAbsence.gaps(carried: [.copilot, .antigravity], reporting: [], cursorUsageEvents: true,
+        #expect(CostAbsence.gaps(carried: [.antigravity], reporting: [], cursorUsageEvents: true,
                                  problems: [:], nothingLocal: []).isEmpty)
         // With nothing else known the line says exactly that rather than guessing at a cause.
         #expect(CostAbsence.reason(for: .claude, cursorUsageEvents: true, problem: nil, nothingLocal: false) == .notReadYet)
+    }
+
+    /// Copilot's gap names what GitHub said about the seat's credits: not metered in credits at all, or metered
+    /// and not yet risen since the count began; and before any read, only that nothing was read.
+    @Test func copilotSaysWhatGitHubSaidAboutItsCredits() {
+        let now = Date()
+        #expect(CostAbsence.reason(for: .copilot, cursorUsageEvents: true, copilotCredits: nil, problem: nil, nothingLocal: false) == .notReadYet)
+        let unmetered = CopilotCreditsRead(readAt: now, credits: nil)
+        #expect(CostAbsence.reason(for: .copilot, cursorUsageEvents: true, copilotCredits: unmetered, problem: nil, nothingLocal: false) == .noCredits)
+        let metered = CopilotCreditsRead(readAt: now, credits: 31)
+        #expect(CostAbsence.reason(for: .copilot, cursorUsageEvents: true, copilotCredits: metered, problem: nil, nothingLocal: false) == .noCreditsCounted)
+        let gaps = CostAbsence.gaps(carried: [.copilot], reporting: [], cursorUsageEvents: true, copilotCredits: unmetered, problems: [:], nothingLocal: [])
+        #expect(gaps.map(\.text) == ["Copilot: GitHub reports no AI credits for this seat"])
+        #expect(CostAbsence.noCreditsCounted.text == "no AI credits used since Notchmeter began counting")
+        // A read that failed outranks what an earlier one said.
+        #expect(CostAbsence.reason(for: .copilot, cursorUsageEvents: true, copilotCredits: metered, problem: "refused", nothingLocal: false) == .problem("refused"))
     }
 }
 

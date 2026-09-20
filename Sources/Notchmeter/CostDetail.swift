@@ -105,11 +105,7 @@ struct CostDetail {
 
     /// What kind of number the block above is. The legend tags each row with its own source in a word; this says
     /// it in full for the leader, whose figures these are.
-    var source: String {
-        provider.source.isEstimate
-            ? L("%@ priced here from local files at published list rates", name)
-            : L("%@ as the vendor's own usage export priced it", name)
-    }
+    var source: String { provider.source.provenance(of: provider.tool) }
 
     /// Under $/MTok, when the range mixes models that count with different vocabularies (`Tokenizer`): a million
     /// tokens is not one unit across that line, so the blended rate above is a blend of two rulers. Names the

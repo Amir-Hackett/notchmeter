@@ -30,17 +30,54 @@ struct AntigravityCredentials: Equatable {
 ///
 /// Buckets are grouped the way Gemini CLI's own /stats view groups them (ui/components/ModelQuotaDisplay.tsx): the
 /// Gemini models of one tier (Pro, Flash, Flash Lite) share a pool, so a tier is one window at its lowest remaining
-/// fraction; every other model is a window of its own; a bucket without a fraction is skipped, as it is there.
+/// fraction; every other model is a window of its own.
+///
+/// Since September 2026 (docs/accuracy.md, *Antigravity*) three more things are true of these two calls:
+///
+/// - An Antigravity licence is held by the user, not a project. The project-scoped quota call answers 403 "You do
+///   not have a valid license of this product" for an Antigravity-only account while the same call with `{}`
+///   answers, and the backend picks which product's licence to check from the caller's identity, so when the login
+///   on this Mac is Antigravity's the calls carry `User-Agent: antigravity`, a `Client-Metadata` naming the IDE,
+///   and `ideType: ANTIGRAVITY`; a Gemini CLI login keeps Gemini CLI's own identity, above.
+/// - `:retrieveUserQuotaSummary` (`{}`) is the richer answer, the session and weekly groups Antigravity's own
+///   panel shows, with a declared window length; it is asked first and the per-model buckets are the fallback.
+/// - The quota is metered on one of two deployments, `cloudcode-pa.googleapis.com` and
+///   `daily-cloudcode-pa.googleapis.com`, and the other one answers every bucket untouched with a reset five hours
+///   from the moment it was asked, whatever has been used (antigravity-cli #387). The host Antigravity's own CLI
+///   logged is preferred; failing that both are tried and the first with a live figure is believed. A payload
+///   whose every bucket reads untouched with one identical reset is written down as unmetered rather than as a
+///   100 % ring, a bucket with no fraction is a window with no figure rather than a skipped one, and a fraction of
+///   exactly 0 is exhausted.
 actor AntigravityProvider: UsageProvider {
     nonisolated let tool: ToolID = .antigravity
     nonisolated let refreshInterval: TimeInterval = 300
     nonisolated let credentialsFile: URL
     nonisolated let applicationBundle: URL
     nonisolated let antigravityHome: URL
+    /// `~/.gemini/antigravity-cli`: the Antigravity CLI's own folder, whose presence marks the login as Antigravity's
+    /// and whose `cli.log` names the deployment the account is metered on.
+    nonisolated let antigravityCLIHome: URL
 
-    static let codeAssistURL = URL(string: "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist")!
-    static let quotaURL = URL(string: "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota")!
-    static let codeAssistBody: [String: Any] = ["metadata": ["ideType": "GEMINI_CLI", "platform": "PLATFORM_UNSPECIFIED", "pluginType": "GEMINI"]]
+    static let productionHost = "cloudcode-pa.googleapis.com"
+    static let dailyHost = "daily-cloudcode-pa.googleapis.com"
+    /// The order tried when no log names a host: the daily deployment first, because it is the one a production
+    /// read misreports for, and the production one answers a daily-metered account with untouched buckets that
+    /// the liveness test below then declines.
+    static let hostsToTry = [dailyHost, productionHost]
+    static func url(host: String, method: String) -> URL { URL(string: "https://\(host)/v1internal:\(method)")! }
+    static let codeAssistURL = url(host: productionHost, method: "loadCodeAssist")
+    static let quotaURL = url(host: productionHost, method: "retrieveUserQuota")
+    static let quotaSummaryURL = url(host: productionHost, method: "retrieveUserQuotaSummary")
+    static let codeAssistBody: [String: Any] = codeAssistBody(antigravity: false)
+    static func codeAssistBody(antigravity: Bool) -> [String: Any] {
+        ["metadata": ["ideType": antigravity ? "ANTIGRAVITY" : "GEMINI_CLI", "platform": "PLATFORM_UNSPECIFIED", "pluginType": "GEMINI"]]
+    }
+    static let antigravityUserAgent = "antigravity"
+    static let antigravityClientMetadata = #"{"ideType":"ANTIGRAVITY","platform":"MACOS","pluginType":"GEMINI"}"#
+    /// How far a reset may sit from "now plus five hours" and still count as the placeholder an unmetering host
+    /// answers with; a real five-hour window that happened to open this very minute reads the same, and is caught
+    /// on the next poll when its reset stops moving with the clock.
+    static let placeholderResetTolerance: TimeInterval = 120
     static var shutdownMessage: String {
         L("Google stopped serving Gemini CLI quota to personal accounts in June 2026; Code Assist Standard and Enterprise accounts still report it")
     }
@@ -61,6 +98,7 @@ actor AntigravityProvider: UsageProvider {
          antigravityHome: URL = Paths.home.appendingPathComponent(".antigravity")) {
         self.session = session
         credentialsFile = geminiHome.appendingPathComponent("oauth_creds.json")
+        antigravityCLIHome = geminiHome.appendingPathComponent("antigravity-cli")
         self.applicationBundle = applicationBundle
         self.antigravityHome = antigravityHome
     }
@@ -68,6 +106,15 @@ actor AntigravityProvider: UsageProvider {
     nonisolated func isInstalled() -> Bool {
         let fm = FileManager.default
         return fm.fileExists(atPath: credentialsFile.path)
+            || fm.fileExists(atPath: applicationBundle.path)
+            || fm.fileExists(atPath: antigravityHome.path)
+    }
+
+    /// Whether the login on this Mac is Antigravity's rather than Gemini CLI's alone: the app, its home folder or
+    /// its CLI's folder is here. Decides the identity the calls carry.
+    nonisolated var identifiesAsAntigravity: Bool {
+        let fm = FileManager.default
+        return fm.fileExists(atPath: antigravityCLIHome.path)
             || fm.fileExists(atPath: applicationBundle.path)
             || fm.fileExists(atPath: antigravityHome.path)
     }
@@ -80,15 +127,49 @@ actor AntigravityProvider: UsageProvider {
         if let expiresAt = credentials.expiresAt, expiresAt.timeIntervalSinceNow < 30 {
             throw ProviderError.tokenExpired(L("Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in"))
         }
+        let antigravity = identifiesAsAntigravity
+        let hosts = Self.loggedHost(in: antigravityCLIHome.appendingPathComponent("cli.log")).map { [$0] } ?? Self.hostsToTry
+        let now = Date()
+        var unmetered: UsageReading?
+        var shutdown = false
+        var lastError: ProviderError?
+        for host in hosts {
+            let account = try await loadAccount(host: host, token: credentials.accessToken, antigravity: antigravity)
+            if account.unsupported {
+                shutdown = true
+                continue
+            }
+            do {
+                let reading = try await quota(host: host, token: credentials.accessToken, account: account, antigravity: antigravity, now: now)
+                if Self.looksMetered(reading, now: now) { return reading }
+                unmetered = unmetered ?? reading
+            } catch let error as ProviderError {
+                if case .unavailable = error { shutdown = true } else { lastError = error }
+            }
+        }
+        if let unmetered { return unmetered }
+        if shutdown { throw ProviderError.unavailable(Self.shutdownMessage) }
+        throw lastError ?? ProviderError.unavailable(Self.shutdownMessage)
+    }
 
-        let account = try await loadAccount(token: credentials.accessToken)
-        if account.unsupported { throw ProviderError.unavailable(Self.shutdownMessage) }
-
+    /// The reading from one host: the summary's groups first, else the per-model buckets, with a project-scoped
+    /// refusal retried project-less before it is taken as a refusal. The retry keeps the first refusal's body for
+    /// the shutdown diagnosis, which reads the `SUBSCRIPTION_REQUIRED` reason out of it.
+    private func quota(host: String, token: String, account: Account, antigravity: Bool, now: Date) async throws -> UsageReading {
+        if let (summary, summaryResponse) = try? await post(Self.url(host: host, method: "retrieveUserQuotaSummary"), token: token, body: [:], antigravity: antigravity),
+           summaryResponse?.statusCode == 200, let reading = try? Self.parseQuotaSummary(summary, plan: account.plan, now: now) {
+            return reading
+        }
+        let quotaURL = Self.url(host: host, method: "retrieveUserQuota")
         let body: [String: Any] = account.project.map { ["project": $0] } ?? [:]
-        let (quota, response) = try await post(Self.quotaURL, token: credentials.accessToken, body: body)
+        let (quota, response) = try await post(quotaURL, token: token, body: body, antigravity: antigravity)
+        if response?.statusCode == 403, account.project != nil {
+            let (retry, retryResponse) = try await post(quotaURL, token: token, body: [:], antigravity: antigravity)
+            if retryResponse?.statusCode == 200 { return try Self.parseQuota(retry, plan: account.plan, now: now) }
+        }
         switch response?.statusCode ?? 0 {
         case 200:
-            return try Self.parseQuota(quota, plan: account.plan)
+            return try Self.parseQuota(quota, plan: account.plan, now: now)
         case 401:
             throw ProviderError.notSignedIn(L("Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in"))
         case 403:
@@ -102,8 +183,9 @@ actor AntigravityProvider: UsageProvider {
     }
 
     /// A refused account is final; any other trouble here leaves the project unknown and lets the quota call decide.
-    private func loadAccount(token: String) async throws -> Account {
-        let (data, response) = try await post(Self.codeAssistURL, token: token, body: Self.codeAssistBody)
+    private func loadAccount(host: String, token: String, antigravity: Bool) async throws -> Account {
+        let (data, response) = try await post(Self.url(host: host, method: "loadCodeAssist"), token: token,
+                                              body: Self.codeAssistBody(antigravity: antigravity), antigravity: antigravity)
         switch response?.statusCode ?? 0 {
         case 200:
             return try Self.parseAccount(data)
@@ -116,7 +198,7 @@ actor AntigravityProvider: UsageProvider {
         }
     }
 
-    private func post(_ url: URL, token: String, body: [String: Any]) async throws -> (Data, HTTPURLResponse?) {
+    private func post(_ url: URL, token: String, body: [String: Any], antigravity: Bool) async throws -> (Data, HTTPURLResponse?) {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 20
@@ -124,7 +206,12 @@ actor AntigravityProvider: UsageProvider {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
+        if antigravity {
+            request.setValue(Self.antigravityUserAgent, forHTTPHeaderField: "User-Agent")
+            request.setValue(Self.antigravityClientMetadata, forHTTPHeaderField: "Client-Metadata")
+        } else {
+            request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
+        }
         do {
             let (data, response) = try await (session ?? NetworkSession.shared).data(for: request)
             let http = response as? HTTPURLResponse
@@ -185,19 +272,24 @@ actor AntigravityProvider: UsageProvider {
         return details.contains { $0["reason"] as? String == "SUBSCRIPTION_REQUIRED" }
     }
 
+    /// The per-model buckets. A bucket with no `remainingFraction` is a window with no figure (its reset is kept),
+    /// never one at 100 % remaining; a fraction of exactly 0 is exhausted; and a payload whose every bucket reads
+    /// untouched with the same reset is the shape a host that is not metering this account answers with, so it is
+    /// written down as unmetered rather than drawn as untouched.
     static func parseQuota(_ data: Data, plan: String?, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ProviderError.parse(L("Antigravity quota response unreadable"))
         }
         var pools: [Pool] = []
         for case let object as [String: Any] in (root["buckets"] as? [Any]) ?? [] {
-            guard let modelID = object["modelId"] as? String, !modelID.isEmpty,
-                  let remaining = JSON.number(object["remainingFraction"])
-            else { continue }
+            guard let modelID = object["modelId"] as? String, !modelID.isEmpty else { continue }
+            let remaining = JSON.number(object["remainingFraction"]).map { min(max($0, 0), 1) }
+            let resetsAt = (object["resetTime"] as? String).flatMap(DateParsing.iso8601)
+            guard remaining != nil || resetsAt != nil else { continue }
             let bucket = Bucket(
                 modelID: modelID,
-                remaining: min(max(remaining, 0), 1),
-                resetsAt: (object["resetTime"] as? String).flatMap(DateParsing.iso8601),
+                remaining: remaining,
+                resetsAt: resetsAt,
                 remainingAmount: (object["remainingAmount"] as? String).flatMap { Int($0) } ?? JSON.number(object["remainingAmount"]).map { Int($0) }
             )
             let kind = pool(for: modelID)
@@ -209,7 +301,109 @@ actor AntigravityProvider: UsageProvider {
         }
         let windows = pools.sorted { ($0.rank, $0.order) < ($1.rank, $1.order) }.map(\.window)
         guard !windows.isEmpty else { throw ProviderError.parse(L("Antigravity reported no quota buckets")) }
-        return UsageReading(tool: .antigravity, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
+        return UsageReading(tool: .antigravity, windows: unmeteredIfUntouched(windows), plan: plan, fetchedAt: now, observedAt: nil)
+    }
+
+    /// `:retrieveUserQuotaSummary`: `groups[]` (Gemini models; Claude and GPT models), each with `buckets[]` carrying
+    /// a `window` of `5h`, `weekly` or `daily`, a `resetTime` and a `remainingFraction`, which the proto-JSON
+    /// variant nests as `remaining.remainingFraction` or `remaining.value`. The window length is declared here, so
+    /// these windows pace from the first read and need no inference. An unknown window keeps the vendor's own
+    /// bucket name.
+    static func parseQuotaSummary(_ data: Data, plan: String?, now: Date = Date()) throws -> UsageReading {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let groups = root["groups"] as? [[String: Any]], !groups.isEmpty
+        else { throw ProviderError.parse(L("Antigravity quota response unreadable")) }
+        var windows: [LimitWindow] = []
+        for group in groups {
+            let name = groupName(group["displayName"] as? String)
+            let slug = name.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).joined(separator: "_")
+            for bucket in (group["buckets"] as? [[String: Any]]) ?? [] {
+                let kind = (bucket["window"] as? String)?.lowercased() ?? ""
+                let spec: (id: String, label: WindowLabel, period: TimeInterval?) = switch kind {
+                case "5h", "5hr", "session": ("session", .key("Session"), Period.fiveHours)
+                case "weekly", "week", "7d": ("weekly", .key("Weekly"), Period.week)
+                case "daily", "day", "24h": ("daily", .key("Daily"), Period.day)
+                default: ((bucket["bucketId"] as? String) ?? kind, .vendor((bucket["displayName"] as? String) ?? kind), nil)
+                }
+                guard !spec.id.isEmpty else { continue }
+                let remaining = remainingFraction(of: bucket).map { min(max($0, 0), 1) }
+                windows.append(LimitWindow(id: "\(slug)_\(spec.id)", label: .scoped(model: name, of: spec.label), usedFraction: remaining.map { 1 - $0 },
+                                           resetsAt: (bucket["resetTime"] as? String).flatMap(DateParsing.iso8601), periodDuration: spec.period, model: name))
+            }
+        }
+        guard !windows.isEmpty else { throw ProviderError.parse(L("Antigravity reported no quota buckets")) }
+        return UsageReading(tool: .antigravity, windows: unmeteredIfUntouched(windows), plan: plan, fetchedAt: now, observedAt: nil)
+    }
+
+    /// "Gemini Models" → "Gemini", "Claude and GPT models" → "Claude and GPT": the group's name without the word
+    /// every group carries, so the window reads "Gemini Session" rather than "Gemini Models Session".
+    static func groupName(_ displayName: String?) -> String {
+        let trimmed = (displayName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "Models" }
+        for suffix in [" models", " Models"] where trimmed.hasSuffix(suffix) && trimmed.count > suffix.count {
+            return String(trimmed.dropLast(suffix.count))
+        }
+        return trimmed
+    }
+
+    /// `remainingFraction` where the bucket carries it, else under `remaining` as the proto-JSON forms nest it.
+    static func remainingFraction(of bucket: [String: Any]) -> Double? {
+        if let direct = JSON.number(bucket["remainingFraction"]) { return direct }
+        guard let nested = bucket["remaining"] as? [String: Any] else { return nil }
+        if let fraction = JSON.number(nested["remainingFraction"]) { return fraction }
+        if (nested["case"] as? String) == "remainingFraction" { return JSON.number(nested["value"]) }
+        return nil
+    }
+
+    /// Every window with a figure reads untouched and they all reset at one instant: the answer a host gives for
+    /// an account it is not metering, indistinguishable by value from a quota nobody has used. Two or more such
+    /// windows lose their figure and say why; a lone untouched window is left as it is.
+    static func unmeteredIfUntouched(_ windows: [LimitWindow]) -> [LimitWindow] {
+        let figured = windows.filter { $0.usedFraction != nil }
+        guard figured.count >= 2, figured.allSatisfy({ ($0.usedFraction ?? 1) <= 0.001 }) else { return windows }
+        let resets = figured.compactMap(\.resetsAt)
+        guard resets.count == figured.count, let first = resets.first,
+              resets.allSatisfy({ abs($0.timeIntervalSince(first)) < 60 }) else { return windows }
+        let note = L("Reads untouched on every model, which this host also answers when it is not the one metering you")
+        return windows.map { window in
+            guard window.usedFraction != nil else { return window }
+            return LimitWindow(id: window.id, label: window.name, usedFraction: nil, resetsAt: window.resetsAt, note: note,
+                               periodDuration: window.periodDuration, model: window.model, source: window.source, hiddenByDefault: window.hiddenByDefault)
+        }
+    }
+
+    /// Whether a reading carries a figure worth believing over the other host's: any window with something used,
+    /// or any reset that is not the placeholder "five hours from now" an unmetering host answers with.
+    static func looksMetered(_ reading: UsageReading, now: Date) -> Bool {
+        if reading.windows.contains(where: { ($0.usedFraction ?? 0) > 0.001 }) { return true }
+        let placeholder = now.addingTimeInterval(Period.fiveHours)
+        return reading.windows.contains { window in
+            guard window.usedFraction != nil, let resetsAt = window.resetsAt else { return false }
+            return abs(resetsAt.timeIntervalSince(placeholder)) > placeholderResetTolerance
+        }
+    }
+
+    /// The Code Assist host Antigravity's own CLI last logged (`~/.gemini/antigravity-cli/cli.log` names the
+    /// deployment every call went to), which is the deployment the account is metered on; nil without a log or a
+    /// host in it. Only a `cloudcode-pa.googleapis.com` host is accepted, so a stray URL in a log line cannot
+    /// redirect the token anywhere else.
+    static func loggedHost(in log: URL) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: log) else { return nil }
+        defer { try? handle.close() }
+        // The last 64 KiB is enough: the log is appended to and the newest lines name the host in use now.
+        let size = (try? handle.seekToEnd()) ?? 0
+        let tail: UInt64 = 65_536
+        try? handle.seek(toOffset: size > tail ? size - tail : 0)
+        guard let data = try? handle.readToEnd(), let text = String(data: data, encoding: .utf8) else { return nil }
+        return loggedHost(inText: text)
+    }
+
+    static func loggedHost(inText text: String) -> String? {
+        let pattern = #"https://([a-z0-9.-]*cloudcode-pa\.googleapis\.com)(?=[/:\s"']|$)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        guard let match = regex.matches(in: text, range: range).last, let hostRange = Range(match.range(at: 1), in: text) else { return nil }
+        return text[hostRange].lowercased()
     }
 
     /// Gemini models share their tier's pool; anything else is its own.
@@ -225,7 +419,8 @@ actor AntigravityProvider: UsageProvider {
 
     private struct Bucket {
         let modelID: String
-        let remaining: Double
+        /// nil when Google sent no fraction: unknown, not untouched.
+        let remaining: Double?
         let resetsAt: Date?
         let remainingAmount: Int?
     }
@@ -237,20 +432,71 @@ actor AntigravityProvider: UsageProvider {
         let order: Int
         var buckets: [Bucket]
 
-        /// The tightest bucket sets the figure; the note names the models sharing it, or the count left when Google
-        /// sends one.
+        /// The tightest bucket with a figure sets the figure; the note names the models sharing it, or the count
+        /// left when Google sends one. A pool whose buckets carry no fraction is a window with no figure.
         var window: LimitWindow {
-            let tightest = buckets.min { $0.remaining < $1.remaining } ?? buckets[0]
+            let figured = buckets.filter { $0.remaining != nil }
+            let tightest = figured.min { ($0.remaining ?? 1) < ($1.remaining ?? 1) } ?? buckets[0]
             let note: String?
             if buckets.count > 1 {
                 note = buckets.map { ModelNames.display($0.modelID) }.joined(separator: " · ")
-            } else if let left = tightest.remainingAmount, tightest.remaining > 0 {
-                note = L("%1$ld of %2$ld left", left, Int((Double(left) / tightest.remaining).rounded()))
+            } else if let left = tightest.remainingAmount, let remaining = tightest.remaining, remaining > 0 {
+                note = L("%1$ld of %2$ld left", left, Int((Double(left) / remaining).rounded()))
             } else {
                 note = nil
             }
-            return LimitWindow(id: id, label: .vendor(label), usedFraction: 1 - tightest.remaining, resetsAt: tightest.resetsAt, note: note, model: label)
+            return LimitWindow(id: id, label: .vendor(label), usedFraction: tightest.remaining.map { 1 - $0 }, resetsAt: tightest.resetsAt, note: note, model: label)
         }
+    }
+}
+
+/// A host that is not the one metering an account answers every bucket untouched, and the whole-payload test in
+/// `unmeteredIfUntouched` catches that only when every bucket agrees. One window pinned at untouched across poll
+/// after poll while the tool was demonstrably in use is the same fault one window at a time, and it cannot be told
+/// from a fresh quota by value, so it is told by history: after three consecutive reads at exactly 0 % used, with
+/// a hook having reported Antigravity's or Gemini CLI's turn since the first of them, the window loses its figure
+/// and says it is unverified. The count restarts the moment the figure moves, so a meter that starts counting
+/// comes straight back. The store keeps the counts in memory only; a relaunch starts them again, which is the
+/// cautious direction.
+enum AntigravityStaleness {
+    /// How many consecutive reads at untouched it takes, with activity in between, to stop believing the figure.
+    static let readsBeforeUnverified = 3
+
+    /// One window's run of untouched reads: how many, and when the run began.
+    struct Run: Equatable, Sendable {
+        var count: Int
+        var since: Date
+    }
+
+    /// The runs after this reading: a window read at exactly 0 % extends its run or starts one; any other figure,
+    /// or none, ends it.
+    static func runs(after reading: UsageReading, previous: [String: Run], now: Date) -> [String: Run] {
+        guard reading.tool == .antigravity else { return previous }
+        var runs: [String: Run] = [:]
+        for window in reading.windows {
+            guard let used = window.usedFraction, used <= 0.001 else { continue }
+            if let run = previous[window.id] {
+                runs[window.id] = Run(count: run.count + 1, since: run.since)
+            } else {
+                runs[window.id] = Run(count: 1, since: now)
+            }
+        }
+        return runs
+    }
+
+    /// The reading with every window whose run has reached the threshold, while the tool was seen working after
+    /// the run began, marked unverified: no figure, a note saying so, and the local-estimate tag.
+    static func unverified(_ reading: UsageReading, runs: [String: Run], activeSince: Date?) -> UsageReading {
+        guard reading.tool == .antigravity, let activeSince else { return reading }
+        let windows = reading.windows.map { window -> LimitWindow in
+            guard let run = runs[window.id], run.count >= readsBeforeUnverified, activeSince > run.since,
+                  let used = window.usedFraction, used <= 0.001 else { return window }
+            let note = L("Unverified: read untouched across %ld polls while the tool was in use", run.count)
+            return LimitWindow(id: window.id, label: window.name, usedFraction: nil, resetsAt: window.resetsAt,
+                               note: window.note.map { "\($0) · \(note)" } ?? note, periodDuration: window.periodDuration, model: window.model,
+                               source: .localEstimate, hiddenByDefault: window.hiddenByDefault)
+        }
+        return reading.with(windows: windows)
     }
 }
 

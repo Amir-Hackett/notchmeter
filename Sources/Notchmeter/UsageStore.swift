@@ -108,6 +108,10 @@ final class UsageStore {
     private(set) var keepingAwake = false
     /// What Cursor's usage export last answered, so the Cost card can say why Cursor has no figure of its own.
     private(set) var cursorExport: CursorExportRead?
+    /// What GitHub last said about the Copilot seat's AI credits, for the same line on the card.
+    private(set) var copilotCredits: CopilotCreditsRead?
+    /// How many polls in a row each Antigravity window has read untouched, for the staleness guard.
+    @ObservationIgnored private var antigravityRuns: [String: AntigravityStaleness.Run] = [:]
     /// The range the Cost card on the open panel is showing. It lived in the card as `@State` until 0.6.0, which
     /// left every other render of the card guessing: "Copy as image" on the whole panel rebuilt NotchExpandedView
     /// for the pasteboard, and the fresh card inside it opened on Today whatever the panel said, so a user reading
@@ -210,6 +214,7 @@ final class UsageStore {
             extraUsageMemory = try? JSONDecoder().decode(ExtraUsageMemory.self, from: data)
         }
         cursorExport = CursorExportRead.load(from: defaults)
+        copilotCredits = CopilotCreditsRead.load(from: defaults)
         let cached = cache.load()
         for tool in ToolID.allCases {
             statuses[tool] = initialStatus(for: tool, cached: cached[tool])
@@ -232,7 +237,7 @@ final class UsageStore {
         guard cost != nil else { return [] }
         let carried = visibleTools.filter { prefs.costCardTools.contains($0) }
         return CostAbsence.gaps(carried: carried, reporting: Set(costSelection.providers.map(\.tool)),
-                                cursorUsageEvents: prefs.cursorUsageEvents, cursorExport: cursorExport,
+                                cursorUsageEvents: prefs.cursorUsageEvents, cursorExport: cursorExport, copilotCredits: copilotCredits,
                                 problems: carried.reduce(into: [:]) { $0[$1] = status($1).problem },
                                 nothingLocal: Set(carried.filter { status($0).hasNothingYet }))
     }
@@ -532,6 +537,7 @@ final class UsageStore {
                                             sessionResetsAt: session?.resetsAt, sessionUsed: session?.usedFraction, meteringSince: meteringSince())
         cost = summary
         cursorExport = CursorExportRead.load(from: defaults)
+        copilotCredits = CopilotCreditsRead.load(from: defaults)
         costScanning = false
         evaluateAlerts()
         writeReportIfDue()
@@ -579,6 +585,14 @@ final class UsageStore {
         defer { inflight[tool] = nil }
         if tool == .claude, let reading = statuslineReading() {
             adopt(reading)
+            return
+        }
+        // With the endpoint switched off, the status line is the whole Claude source: a fresh one was adopted
+        // above, a stale one leaves the last reading standing, and with none at all the card says calmly why.
+        if tool == .claude, !prefs.pollClaudeEndpoint {
+            if statuses[.claude]?.reading == nil {
+                statuses[.claude] = .idle(L("Claude's usage endpoint is not polled; install the status line and run a turn for a reading"))
+            }
             return
         }
         lastFetch[tool] = Date()
@@ -643,6 +657,10 @@ final class UsageStore {
         if reading.tool == .antigravity {
             let resets = drainSamples.filter { $0.key.tool == .antigravity }.reduce(into: [String: [Date]]()) { $0[$1.key.window] = $1.value.compactMap(\.resetsAt) }
             reading = AntigravityPeriods.apply(reading, resets: resets, now: now)
+            // The run is counted from the figure as read, before the guard strips it, so a pinned meter keeps
+            // counting rather than restarting the moment it is first doubted (AntigravityStaleness).
+            antigravityRuns = AntigravityStaleness.runs(after: reading, previous: antigravityRuns, now: now)
+            reading = AntigravityStaleness.unverified(reading, runs: antigravityRuns, activeSince: lastActivity[.antigravity])
         }
         if reading.tool == .claude { noteExtraUsage(reading, now: now) }
         statuses[reading.tool] = .ready(reading)

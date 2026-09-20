@@ -30,6 +30,24 @@ struct CursorCostReader: Sendable {
     }
 }
 
+/// GitHub Copilot's AI credits as GitHub counts them. `CopilotProvider` reads the month's `credits_used` on its
+/// own loop and folds each rise, a cent a credit, into the daily-totals file on the day it was seen; this reads
+/// that file back. The count and the rate are GitHub's; the day is this Mac's observation (docs/accuracy.md).
+struct CopilotCostReader: Sendable {
+    let history: CostHistory
+
+    init(history: CostHistory = CostHistory(tool: .copilot)) {
+        self.history = history
+    }
+
+    func read(now: Date, daysBack: Int, weekStart: Date, calendar: Calendar, state: ProviderReadState) -> ProviderCost? {
+        let days = history.load(calendar: calendar)
+        guard !days.isEmpty else { return nil }
+        return ProviderCost.build(tool: .copilot, source: .vendorCredits, days: days, now: now, daysBack: daysBack,
+                                  weekStart: weekStart, calendar: calendar, scannedAt: state.readAt ?? now, problem: state.problem)
+    }
+}
+
 /// Runs every tool's cost scanner and assembles one summary.
 ///
 /// The scanners are independent by construction: each reads its own source in its own child task and answers with
@@ -39,12 +57,14 @@ struct CostEngine: Sendable {
     let claude: ClaudeCostScanner
     let codex: CodexCostScanner
     let cursor: CursorCostReader
+    let copilot: CopilotCostReader
 
     init(claude: ClaudeCostScanner = ClaudeCostScanner(), codex: CodexCostScanner = CodexCostScanner(),
-         cursor: CursorCostReader = CursorCostReader()) {
+         cursor: CursorCostReader = CursorCostReader(), copilot: CopilotCostReader = CopilotCostReader()) {
         self.claude = claude
         self.codex = codex
         self.cursor = cursor
+        self.copilot = copilot
     }
 
     /// The week every tool's spend is measured against: where the live Claude weekly window started, else the
@@ -77,8 +97,11 @@ struct CostEngine: Sendable {
         let cursorCost = tools.contains(.cursor)
             ? cursor.read(now: now, daysBack: daysBack, weekStart: week, calendar: calendar, state: reads[.cursor] ?? ProviderReadState())
             : nil
+        let copilotCost = tools.contains(.copilot)
+            ? copilot.read(now: now, daysBack: daysBack, weekStart: week, calendar: calendar, state: reads[.copilot] ?? ProviderReadState())
+            : nil
         let summary = await claudeSummary ?? CostSummary.empty.with(scannedAt: now)
-        return summary.adding([await codexCost, cursorCost].compactMap { $0 })
+        return summary.adding([await codexCost, cursorCost, copilotCost].compactMap { $0 })
     }
 
     private func claudeCost(tools: Set<ToolID>, now: Date, daysBack: Int, weeklyResetsAt: Date?, weeklyUsed: Double?,
