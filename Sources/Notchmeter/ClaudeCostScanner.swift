@@ -504,10 +504,14 @@ actor ClaudeCostScanner {
     /// "-Users-amir-Developer-notchmeter" is Claude Code's encoding of the working directory: the last segment is
     /// the folder name (a name with a hyphen in it comes out as its last piece, which the line's `cwd` corrects).
     /// A worktree Claude Code cut encodes as "-Users-amir-Developer-notchmeter--claude-worktrees-wf_1", and is
-    /// folded onto the segment before "claude-worktrees", as `ProjectName` folds the path itself (0.6.0).
+    /// folded onto the segment before "claude-worktrees", as `ProjectName` folds the path itself (0.6.0). The
+    /// double hyphen is the mark: it is the dot of ".claude" encoded, so only a real `.claude/worktrees` folder
+    /// carries "--claude-worktrees-", while a project that merely has those words in its name
+    /// ("my-claude-worktrees-tool") does not, and keeps its own last piece. Splitting alone lost that distinction.
     static func projectName(fromFolder folder: String) -> String? {
         let parts = folder.split(separator: "-", omittingEmptySubsequences: true)
-        if let at = parts.indices.dropLast(2).first(where: { parts[$0] == "claude" && parts[$0 + 1] == "worktrees" }), at >= 1 {
+        if folder.contains("--claude-worktrees-"),
+           let at = parts.indices.dropLast(2).first(where: { parts[$0] == "claude" && parts[$0 + 1] == "worktrees" }), at >= 1 {
             return String(parts[at - 1])
         }
         guard let last = parts.last, !last.isEmpty else { return nil }

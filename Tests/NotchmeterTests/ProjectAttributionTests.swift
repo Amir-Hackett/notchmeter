@@ -93,6 +93,10 @@ import Testing
         #expect(ClaudeCostScanner.projectName(fromFolder: "-Users-amirhackett--pixel-agents-doer-worktrees-20260821") == "20260821",
                 "another tool's worktree folder is not the shape and is left as it was")
         #expect(ClaudeCostScanner.projectName(fromFolder: "-claude-worktrees-x") == "x", "nothing before the shape to fold onto")
+        // A project whose own name carries the words is not a worktree: the encoded ".claude" is what marks one, as a
+        // double hyphen, and a single one between "my" and "claude" is just the name's own separator.
+        let tool = "tool"
+        #expect(ClaudeCostScanner.projectName(fromFolder: "-Users-amir-my-claude-worktrees-tool") == tool)
     }
 
     @Test func everyScannerAndHookFoldsTheWorktreeTheSameWay() throws {

@@ -313,7 +313,10 @@ enum HookSocket {
         /// How long a peer that connected may take to finish its line before it is dropped unread.
         static let readBudget: TimeInterval = 1
 
-        init(path: URL = Paths.hookSocket, peerCheck: @escaping PeerCheck = Peer.verify(pid:), deliver: @escaping Deliver) {
+        // The default is spelled as a closure rather than `Peer.verify(pid:)` itself: `PeerCheck` is `@Sendable`, and
+        // handing a plain static function where one is expected is a conversion the compiler warns about, and CI
+        // treats a warning under Sources/ as a failed build (ci.yml).
+        init(path: URL = Paths.hookSocket, peerCheck: @escaping PeerCheck = { @Sendable pid in Peer.verify(pid: pid) }, deliver: @escaping Deliver) {
             self.path = path
             self.peerCheck = peerCheck
             self.deliver = deliver
