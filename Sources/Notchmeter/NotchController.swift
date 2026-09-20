@@ -7,6 +7,8 @@ import SwiftUI
 final class NotchActions {
     var refresh: () -> Void = {}
     var openSettings: () -> Void = {}
+    /// Settings open on a named pane: the panel's "Add a tool" row lands on Assistants.
+    var openSettingsPane: (SettingsPane) -> Void = { _ in }
     var openDashboard: () -> Void = {}
     var showOptions: () -> Void = {}
     var applyLayout: () -> Void = {}
@@ -116,7 +118,7 @@ struct PanelReporter {
 /// and a window coming up while a request is showing still wins, because a panel the user cannot see behind
 /// Settings is no place to answer from.
 struct PanelHolds {
-    enum Reason { case settings, dashboard, update, alert, prompt }
+    enum Reason { case settings, dashboard, update, alert, prompt, welcome }
 
     private var reasons: Set<Reason> = []
 

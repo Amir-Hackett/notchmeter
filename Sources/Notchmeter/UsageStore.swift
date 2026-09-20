@@ -221,8 +221,31 @@ final class UsageStore {
         }
     }
 
-    /// The tools on screen, in the user's order (Preferences.toolOrder).
-    var visibleTools: [ToolID] { prefs.toolOrder.filter(isShown) }
+    /// The tools on screen, in the user's order (Preferences.toolOrder), less the ones with nothing to show while
+    /// `Preferences.hideEmptyTools` is on. Filtered here rather than in a view, because the panel's cards, the
+    /// compact strip (`compactTools`), the footer, the presence rule and the Cost card's order check all read this
+    /// one list and have to agree. The floor is WindowFloor's: a rule that hides everything shows the first one.
+    var visibleTools: [ToolID] {
+        let shown = prefs.toolOrder.filter(isShown)
+        guard prefs.hideEmptyTools else { return shown }
+        let kept = shown.filter { !isEmpty($0) }
+        return kept.isEmpty ? Array(shown.prefix(1)) : kept
+    }
+
+    /// The tools `visibleTools` left out for having nothing to show, in the same order; empty while the setting is
+    /// off. The panel's "Add a tool" row names them.
+    var hiddenEmptyTools: [ToolID] {
+        let visible = Set(visibleTools)
+        return prefs.toolOrder.filter { isShown($0) && !visible.contains($0) }
+    }
+
+    /// Switched on and installed, and with nothing yet to put on a card: no reading at all (`ToolStatus.idle` — a
+    /// tool set up with nothing to show, which is not a fault), no spend the cost scan found, and no session its
+    /// hook has reported. A tool still waiting on its first read, or one with a problem to report, is not empty:
+    /// there is something coming, or something to say.
+    func isEmpty(_ tool: ToolID) -> Bool {
+        status(tool).hasNothingYet && cost?.provider(tool) == nil && (sessions.knownCount(of: tool) ?? 0) == 0
+    }
 
     /// The assistants the Cost card carries, in the user's order, less any the card is set to leave out. The card
     /// draws this, the self check prints it and the oracle reports it, so a tester who cannot see the card reads
@@ -747,11 +770,17 @@ final class UsageStore {
     /// wants and the first of which would reach the network from a command whose whole promise is that it does
     /// not. `DemoFixtures` builds the tracker by feeding `SessionTracker.apply` the same messages a hook would
     /// send, so the state in the pictures is still the state machine's own answer rather than a hand-set field.
-    func seed(readings: [UsageReading], cost: CostSummary, nextUpdate: Date, sessions: SessionTracker = SessionTracker(), now: Date = Date()) {
+    /// `nothingYet` seeds a tool as set up with nothing to show (`ToolStatus.idle`, keyed by its message), the
+    /// state `hideEmptyTools` acts on, which a fixture reading cannot express.
+    func seed(readings: [UsageReading], cost: CostSummary, nextUpdate: Date, sessions: SessionTracker = SessionTracker(),
+              nothingYet: [ToolID: String] = [:], now: Date = Date()) {
         for reading in readings {
             statuses[reading.tool] = .ready(reading)
             nextRefresh[reading.tool] = nextUpdate
             lastActivity[reading.tool] = now
+        }
+        for (tool, message) in nothingYet {
+            statuses[tool] = .idle(message)
         }
         self.sessions = sessions
         self.cost = cost

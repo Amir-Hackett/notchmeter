@@ -36,6 +36,13 @@ enum Palette {
     static let calm = Color(hex: 0x0072B2)    // #0072B2 blue: needs you, not running out
     static let warn = Color(hex: 0xE69F00)    // #E69F00 orange: on track, nearly full, needs attention
     static let danger = Color(hex: 0xD55E00)  // #D55E00 vermillion: behind pace, out
+    /// The brand terracotta, the icon's colour (scripts/make-icon.swift) and Claude Code's identity colour on
+    /// the rings. Not a status colour: it is the app's own accent, on the Cost card's range control and on the
+    /// card's "Waiting for your answer" line, where the system's blue would have been. 5.7:1 against the panel's
+    /// black, 3.7:1 under white, so a selected segment carries black text on it rather than white.
+    static let accent = Color(red: 0.85, green: 0.47, blue: 0.34)
+    /// The accent under Increase Contrast: the same hue lifted so black text on it clears 7:1.
+    static let accentContrast = Color(hex: 0xE8A084)
     /// Not a status colour and never on a reading: the neutral chrome tile behind a white glyph (the Settings
     /// sidebar). 6.45:1 against white in both appearances, where `.gray` is 3.26 light and 2.87 dark.
     static let pine = Color(hex: 0x1D7A5F)    // #1D7A5F green: the Dashboard tile in Settings, 5.4:1 under white
@@ -399,6 +406,9 @@ struct CompactNumbers: View {
     var badges = false
     var signal: ToolSignal? = nil
     var presence: PresenceLevel = .legible
+    /// Whether the quiet level dims the digits as it dims the rings. The primary figure beside plain rings
+    /// (Preferences.compactPrimary) keeps full opacity: the rings say quiet, the number stays readable.
+    var quietDims = true
     /// One figure a line, for the side edges. A notch is a shallow shape — the hardware one is 185 across and 38
     /// deep — and the depth of a side notch is set by nothing but the width of the widest thing in it. Laid out
     /// the way the top strip lays them out, "100% · 50%" made the shape 76 points deep against a 181 point run:
@@ -435,7 +445,7 @@ struct CompactNumbers: View {
             }
             .font(.system(size: stacked ? 9.5 : 11, weight: .semibold, design: .rounded))
             .monospacedDigit()
-            .opacity(presence.readoutOpacity)
+            .opacity(quietDims ? presence.readoutOpacity : 1)
             .overlay(alignment: .topTrailing) {
                 if badges, let signal {
                     SignalMark(signal: signal).offset(x: 4, y: -4)
@@ -599,6 +609,9 @@ struct CompactReadout: View {
     var signalColours = true
     var contextUsed: Double? = nil
     var countdown = false
+    /// The outer window's figure beside plain rings (Preferences.compactPrimary); nothing at the other styles,
+    /// which draw their digits anyway.
+    var primary = false
     var hideFigures = false
     var presence: PresenceLevel = .legible
     var axis: Axis = .horizontal
@@ -629,7 +642,8 @@ struct CompactReadout: View {
     }
 
     @ViewBuilder private var parts: some View {
-        let showNumbers = style.showsNumbers && !hideFigures && presence != .hidden
+        let drawn = CompactLabel.figures(style: style, primary: primary, fit: figures)
+        let showNumbers = drawn != nil && !hideFigures && presence != .hidden
         if let apiKeyCost {
             if showNumbers {
                 // Claude Code on an API key draws no ring, which left the assistant whose hook reports the most of
@@ -656,8 +670,8 @@ struct CompactReadout: View {
                              contextUsed: contextUsed, presence: presence)
             }
             if showNumbers {
-                CompactNumbers(tool: tool, status: status, windows: windows, display: display, figures: figures, countdown: countdown,
-                               badges: !style.showsRings, signal: signal, presence: presence, stacked: axis == .vertical)
+                CompactNumbers(tool: tool, status: status, windows: windows, display: display, figures: drawn ?? .all, countdown: countdown,
+                               badges: !style.showsRings, signal: signal, presence: presence, quietDims: style.showsNumbers, stacked: axis == .vertical)
             }
         }
     }
@@ -688,13 +702,14 @@ private extension UsageStore {
         let apiKeyCost = tool == .claude && claudeOnAPIKey ? Money.dollars(cost?.totals(.month).cost ?? 0, cents: false) : nil
         return CompactReadout(tool: tool, status: status, style: style, figures: figures, display: prefs.usageDisplay,
                               windows: status.reading.map(prefs.ringWindows) ?? [], signal: signal(tool), signalColours: prefs.signalRings,
-                              contextUsed: tool == .claude ? contextUsed : nil, countdown: prefs.showResetCountdown, hideFigures: hidesFigures,
-                              presence: presence, axis: axis, apiKeyCost: apiKeyCost)
+                              contextUsed: tool == .claude ? contextUsed : nil, countdown: prefs.showResetCountdown, primary: prefs.compactPrimary,
+                              hideFigures: hidesFigures, presence: presence, axis: axis, apiKeyCost: apiKeyCost)
     }
 
-    /// The tools with a compact readout: Claude on an API key has nothing to draw unless the digits are shown.
+    /// The tools with a compact readout: Claude on an API key has nothing to draw unless a figure is shown, which
+    /// the digits styles always do and plain rings do while the primary figure is on.
     func compactTools(style: CompactStyle) -> [ToolID] {
-        visibleTools.filter { !($0 == .claude && claudeOnAPIKey && !style.showsNumbers) }
+        visibleTools.filter { !($0 == .claude && claudeOnAPIKey && CompactLabel.figures(style: style, primary: prefs.compactPrimary) == nil) }
     }
 }
 
@@ -913,6 +928,9 @@ struct NotchExpandedView: View {
             ForEach(tools, id: \.self) { tool in
                 ToolCard(tool: tool, status: store.status(tool), store: store, prefs: prefs, actions: actions)
             }
+            if !store.hiddenEmptyTools.isEmpty {
+                AddToolRow(hidden: store.hiddenEmptyTools, actions: actions)
+            }
             FooterView(store: store, actions: actions)
         }
         .padding(.horizontal, Self.contentHorizontalPadding)
@@ -1004,18 +1022,19 @@ struct SegmentedBar<Value: Hashable>: View {
                 // The column is fixed, so a title too long for it shrinks rather than widening the bar. Long
                 // enough to matter only outside English; at the Standard width the shipped titles all fit whole.
                 .minimumScaleFactor(0.6)
-                // Selected: AppKit's own text colour for an emphasised selection, which is what the accent
-                // fill under it is. The pill is `Color.accentColor` and the accent is the user's, not the
-                // app's, so white is not the app's to assume -- macOS ships a yellow one. (Not
-                // `selectedControlTextColor`: that is the pair for an *un*emphasised selection, and is dark.)
+                // Selected: the app's own terracotta (Palette.accent) rather than `Color.accentColor`, which is
+                // the user's system accent and read as a stray piece of blue on a panel that is otherwise the
+                // app's own colours. The title on it is black: the accent is 5.7:1 under black and 3.7:1 under
+                // white, and a caption at this size is text, not a control, so it owes 4.5:1. Increase Contrast
+                // lightens the pill so the same black clears 7:1.
                 // Unselected: `.foreground` and not `.primary`, because the panel paints its content white
                 // over black whatever appearance the window carries, and `.primary` would resolve to that
                 // appearance's label colour and turn the title black on the trough.
-                .foregroundStyle(selected ? AnyShapeStyle(Color(nsColor: .alternateSelectedControlTextColor)) : AnyShapeStyle(.foreground))
+                .foregroundStyle(selected ? AnyShapeStyle(Color.black) : AnyShapeStyle(.foreground))
                 .padding(.vertical, 3)
                 .padding(.horizontal, 4)
                 .frame(maxWidth: .infinity)
-                .background(selected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.clear),
+                .background(selected ? AnyShapeStyle(AccessibilityDisplay.shared.contrast ? Palette.accentContrast : Palette.accent) : AnyShapeStyle(.clear),
                             in: RoundedRectangle(cornerRadius: Self.pillRadius, style: .continuous))
                 .contentShape(Rectangle())
         }
@@ -1485,10 +1504,13 @@ struct ToolCard: View {
                 }
                 // The rings recolour because they have no room for anything else. A card has room for words, so it
                 // says which state it is in rather than leaving the reader to learn a hue.
+                // In the app's accent rather than Palette.calm: the calm blue stays on the rings and the marks,
+                // where it is the "needs you" colour a reader learns; on the card the words already say it, and
+                // the blue beside them read as the system's link colour.
                 if let signal = store.signal(tool) {
                     Label(signal.cardText, systemImage: signal.symbolName)
                         .font(.caption)
-                        .foregroundStyle(Palette.calm)
+                        .foregroundStyle(Palette.accent)
                         .accessibilityLabel(signal.cardText)
                 }
                 Spacer()
@@ -1888,6 +1910,39 @@ struct DrainSparkline: View {
     }
 }
 
+/// The one row that stands for the assistants `Preferences.hideEmptyTools` keeps off the panel: signed in but with
+/// no reading, no spend and no session yet. Not a card — a card for what is not there is what the setting removed —
+/// but a quiet line at the foot of the cards that names them and opens Settings › Assistants, where each one's row
+/// says what it is waiting for. It carries the cards' inner padding so it ends on the same margins as they do.
+struct AddToolRow: View {
+    let hidden: [ToolID]
+    let actions: NotchActions
+    @Environment(\.density) private var density
+
+    var body: some View {
+        Button {
+            actions.openSettingsPane(.assistants)
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "plus.circle").font(.caption.weight(.semibold))
+                Text(L("Add a tool")).font(.caption)
+                Text(verbatim: hidden.map(\.displayName).joined(separator: ", "))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .foregroundStyle(.secondary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(L("Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for."))
+        .accessibilityLabel(L("Add a tool"))
+        .accessibilityValue(hidden.map(\.displayName).joined(separator: ", "))
+        .padding(.horizontal, density.cardPadding)
+    }
+}
+
 struct FooterView: View {
     let store: UsageStore
     let actions: NotchActions
@@ -1897,22 +1952,20 @@ struct FooterView: View {
         TimelineView(.periodic(from: .now, by: 10)) { context in
             let next = nextUpdate(now: context.date)
             HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(verbatim: "\(AppInfo.name) \(AppInfo.versionWithBuild)").monospacedDigit()
-                    Button {
-                        actions.refresh()
-                    } label: {
-                        Text(next).monospacedDigit()
-                    }
-                    .buttonStyle(.plain)
-                    .keyboardShortcut("r", modifiers: .command)
-                    .help(L("Refresh now (⌘R)"))
+                // The refresh line alone: the version and build that stood above it until 0.7.0 are in
+                // Settings › About, where someone filing a bug looks, and were a line of the panel nobody
+                // opened it for. VoiceOver reads the line itself, which is what the version used to label.
+                Button {
+                    actions.refresh()
+                } label: {
+                    Text(next).monospacedDigit()
                 }
+                .buttonStyle(.plain)
+                .keyboardShortcut("r", modifiers: .command)
+                .help(L("Refresh now (⌘R)"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(AppInfo.name) \(AppInfo.versionWithBuild)")
-                .accessibilityValue(Spoken.phrase(next))
+                .accessibilityLabel(Spoken.phrase(next))
                 .accessibilityAction(named: L("Refresh now")) { actions.refresh() }
                 Spacer()
                 Button {

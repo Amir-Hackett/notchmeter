@@ -450,6 +450,17 @@ final class Preferences {
     var showResetCountdown: Bool {
         didSet { defaults.set(showResetCountdown, forKey: Keys.resetCountdown); report(Keys.resetCountdown, showResetCountdown, changed: showResetCountdown != oldValue) }
     }
+    /// At plain rings, the outer ring's window as a figure beside the nest (CompactLabel.figures): the one number
+    /// most people open the panel for, without giving up the rings for the digits style. On by default; the quiet
+    /// dimming stays on the rings and leaves the figure legible.
+    var compactPrimary: Bool {
+        didSet { defaults.set(compactPrimary, forKey: Keys.compactPrimary); report(Keys.compactPrimary, compactPrimary, changed: compactPrimary != oldValue) }
+    }
+    /// An assistant that is switched on and installed but has nothing to show — no reading, no spend, no session —
+    /// stays off the panel and the strip until it has (UsageStore.visibleTools). The last visible one is never hidden.
+    var hideEmptyTools: Bool {
+        didSet { defaults.set(hideEmptyTools, forKey: Keys.hideEmptyTools); report(Keys.hideEmptyTools, hideEmptyTools, changed: hideEmptyTools != oldValue) }
+    }
     /// Secondary figures (session block, tokens, cache writes, top projects, Cursor spend, the sparklines).
     /// Off by default so the panel fits the screen without scrolling.
     var showDetails: Bool {
@@ -855,6 +866,11 @@ final class Preferences {
     var hookOfferShown: Bool {
         didSet { defaults.set(hookOfferShown, forKey: Keys.hookOffer); report(Keys.hookOffer, hookOfferShown, changed: hookOfferShown != oldValue) }
     }
+    /// The first-launch Welcome window has been shown, or a copy set up before it existed was found; either way it
+    /// is never shown again (WelcomeWindow).
+    var welcomed: Bool {
+        didSet { defaults.set(welcomed, forKey: Keys.welcomed); report(Keys.welcomed, welcomed, changed: welcomed != oldValue) }
+    }
     /// The code signature Accessibility was last seen granted under (CodeSignature.runningIdentity). macOS ties the
     /// grant to the copy it was given to and leaves the switch on when that copy is replaced, so this is the only
     /// way to tell a permission that was never given from one the running copy has been quietly refused.
@@ -891,6 +907,8 @@ final class Preferences {
         static let hotkeyFullScreen = "hotkeyShowOverFullScreen"
         static let compactStyle = "compactStyle"
         static let resetCountdown = "showResetCountdown"
+        static let compactPrimary = "compactPrimary"
+        static let hideEmptyTools = "hideEmptyTools"
         static let showSpend = "showSpend"
         static let showDetails = "showDetails"
         static let compactSide = "compactSide"
@@ -966,6 +984,7 @@ final class Preferences {
         static let hotkeyToggle = "hotkeyTogglePanel"
         static let hotkeySettings = "hotkeyOpenSettings"
         static let hookOffer = "hookOfferShown"
+        static let welcomed = "welcomed"
         static let accessibilityGrant = "accessibilityGrantedTo"
         static let accessibilityAsked = "accessibilityAskedFor"
         static let launchAtLogin = "launchAtLogin"
@@ -988,6 +1007,8 @@ final class Preferences {
         fullScreenExceptions = defaults.stringArray(forKey: Keys.fullScreenExceptions) ?? []
         compactStyle = CompactStyle(rawValue: defaults.string(forKey: Keys.compactStyle) ?? "") ?? .rings
         showResetCountdown = defaults.bool(forKey: Keys.resetCountdown)
+        compactPrimary = defaults.object(forKey: Keys.compactPrimary) as? Bool ?? true
+        hideEmptyTools = defaults.object(forKey: Keys.hideEmptyTools) as? Bool ?? true
         showSpend = defaults.object(forKey: Keys.showSpend) as? Bool ?? true
         showDetails = defaults.object(forKey: Keys.showDetails) as? Bool ?? false
         compactSide = CompactSide(rawValue: defaults.string(forKey: Keys.compactSide) ?? "") ?? .split
@@ -1076,6 +1097,7 @@ final class Preferences {
         openSettingsHotkey = Self.codable(defaults, Keys.hotkeySettings)
         showOverFullScreenHotkey = Self.codable(defaults, Keys.hotkeyFullScreen)
         hookOfferShown = defaults.bool(forKey: Keys.hookOffer)
+        welcomed = defaults.bool(forKey: Keys.welcomed)
         accessibilityGrantedTo = defaults.string(forKey: Keys.accessibilityGrant)
         accessibilityAskedFor = defaults.string(forKey: Keys.accessibilityAsked)
         let status = SMAppService.mainApp.status

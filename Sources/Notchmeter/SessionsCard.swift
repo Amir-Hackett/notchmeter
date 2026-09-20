@@ -172,9 +172,11 @@ private struct SessionRow: View {
         }
     }
 
+    /// The waiting line is a link, so it takes the app's accent like the tool card's own "Waiting for your answer"
+    /// (Palette.accent); the row's dot and symbol keep Palette.calm, the semantic "needs you" colour on signals.
     private func noteColour(_ note: SessionsCard.Row.Note) -> Color {
         switch note {
-        case .waitingForAnswer: Palette.calm
+        case .waitingForAnswer: Palette.accent
         case .doneJump, .justFinished: Palette.pine
         }
     }
