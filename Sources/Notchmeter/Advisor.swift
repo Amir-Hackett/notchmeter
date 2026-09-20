@@ -84,6 +84,8 @@ enum Advisor {
         /// Tools whose endpoint is answering server errors, so the wait line points at the status page.
         var serverTrouble: [ToolID: Int] = [:]
         var metering: MeteringRatio? = nil
+        /// The Claude sessions' prompt-cache figures over the current 5-hour block (PromptCache.summary).
+        var promptCache: PromptCacheSummary? = nil
         var now: Date = Date()
         var calendar: Calendar = .current
 
@@ -116,6 +118,9 @@ enum Advisor {
     /// Today's 1-hour cache-write share this far under the 30-day norm is a TTL shift.
     static let cacheShiftMargin = 0.25
     static let cacheShiftMinimumWrites = 100_000
+    /// Prompt-cache misses in the current 5-hour block worth a line, or rewritten tokens worth one on their own.
+    static let promptCacheMisses = 3
+    static let promptCacheRewrittenTokens = 200_000
 
     static func advise(_ context: Context) -> [Advice] {
         let runOuts = runOut(context)
@@ -131,6 +136,7 @@ enum Advisor {
             + burn(context)
             + [metering(context)].compactMap { $0 }
             + [cacheShift(context.cost)].compactMap { $0 }
+            + [promptCache(context)].compactMap { $0 }
             + serverTrouble(context)
             + peak(context)
             + crossProvider(context).filter { $0.tool.map { !alreadyRouted.contains($0) } ?? true }
@@ -390,6 +396,20 @@ enum Advisor {
         return Advice(id: "cache-ttl", tool: .claude, priority: .warn, symbol: "clock.badge.exclamationmark",
                       text: L("Cache writes today are %1$ld%% 1-hour against a 30-day norm of %2$ld%%: the 5-minute tier re-caches more often and costs more quota per turn.",
                               percent(shift.today), percent(shift.norm)))
+    }
+
+    /// Claude Code's prompt cache kept missing this block: the misses and the tokens they wrote back, priced,
+    /// with the cause Claude Code diagnosed and, for a changing tool list, what to look at. Claude Code's count,
+    /// never Notchmeter's inference (docs/accuracy.md, "The prompt cache").
+    static func promptCache(_ context: Context) -> Advice? {
+        guard let cache = context.promptCache, cache.misses >= promptCacheMisses || cache.rewrittenTokens >= promptCacheRewrittenTokens else { return nil }
+        var text = L("Your prompt cache missed %1$ld times — %2$@ rewritten.", cache.misses,
+                     PromptCache.rewrittenText(tokens: cache.rewrittenTokens, usd: cache.rewrittenUSD))
+        if let cause = cache.lastCause {
+            text += " " + L("Cause: %@.", PromptCache.causeText(cause))
+            if let hint = PromptCache.hint(for: cause) { text += " " + hint }
+        }
+        return Advice(id: "prompt-cache", tool: .claude, priority: .warn, symbol: "arrow.trianglehead.2.clockwise.rotate.90.circle", text: text)
     }
 
     /// A vendor answering server errors: the reading is stale through no fault of the login; the status page says why.

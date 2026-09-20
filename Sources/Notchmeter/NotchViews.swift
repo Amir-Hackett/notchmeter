@@ -1145,7 +1145,8 @@ struct SpendCard: View {
     /// The detail block describes the assistant at the top of the card's order, not the blend: one tool's own
     /// last hour, tokens, cache tiers and folders, with any line its source cannot answer simply absent.
     private var detail: CostDetail? {
-        selection.providers.first.map { CostDetail(provider: $0, range: range.costRange, claude: store.cost, timeFormat: store.prefs.timeFormat, mode: mode) }
+        selection.providers.first.map { CostDetail(provider: $0, range: range.costRange, claude: store.cost, timeFormat: store.prefs.timeFormat,
+                                                   mode: mode, promptCache: store.promptCacheToday) }
     }
 
     private var burnLine: String? { detail?.burn }

@@ -753,3 +753,19 @@
 "Today's spend" = "Chi tiêu hôm nay";
 "%1$@ of a usual %2$@ day" = "%1$@ so với mức %2$@ của một ngày thường";
 "Heading for ~%ld%% today" = "Hôm nay đang hướng tới ~%ld%%";
+
+/* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
+"%1$@ (~%2$@)" = "%1$@ (~%2$@)";
+"%ld misses" = "%ld lần trượt";
+"1 miss" = "1 lần trượt";
+"5-minute cache expired" = "bộ nhớ đệm 5 phút đã hết hạn";
+"cause: %@" = "nguyên nhân: %@";
+"Cause: %@." = "Nguyên nhân: %@.";
+"likely server-side" = "có thể từ phía máy chủ";
+"Once a day when Claude Code's status line counts three prompt-cache misses in the current session block, or 200K tokens rewritten, with the cause Claude Code diagnosed." = "Mỗi ngày một lần khi dòng trạng thái của Claude Code đếm được ba lần trượt bộ nhớ đệm prompt trong khối phiên hiện tại, hoặc 200K token bị ghi lại, kèm nguyên nhân Claude Code chẩn đoán.";
+"Prompt cache: %1$@ today · %2$@ rewritten" = "Bộ nhớ đệm prompt: %1$@ hôm nay · %2$@ ghi lại";
+"system prompt changed" = "system prompt đã thay đổi";
+"tools changed" = "công cụ đã thay đổi";
+"When the prompt cache keeps missing" = "Khi bộ nhớ đệm prompt liên tục trượt";
+"Your MCP server list is changing mid-session." = "Danh sách máy chủ MCP của bạn đang thay đổi giữa phiên.";
+"Your prompt cache missed %1$ld times — %2$@ rewritten." = "Bộ nhớ đệm prompt của bạn đã trượt %1$ld lần — %2$@ bị ghi lại.";

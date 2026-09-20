@@ -203,6 +203,14 @@ import Testing
         #expect(ratio.tokensPerPercent == 100_000)
         #expect(ratio.median == 350_000)
         #expect(ClaudeCostScanner.metering(blockTokens: nil, sessionUsed: 0.5, history: history, today: today) == nil)
+        // A drain-log boundary floors the median: the days before the vendor changed the window are no norm for
+        // the days after it. Five days on from the floor the median is theirs alone; four, and there is none yet.
+        let fiveDaysBack = utc.date(byAdding: .day, value: -5, to: today)!
+        let floored = try #require(ClaudeCostScanner.metering(blockTokens: 500_000, sessionUsed: 0.05, history: history, today: today, since: fiveDaysBack))
+        #expect(floored.median == 300_000)
+        let fourDaysBack = utc.date(byAdding: .day, value: -4, to: today)!
+        let tooFew = try #require(ClaudeCostScanner.metering(blockTokens: 500_000, sessionUsed: 0.05, history: history, today: today, since: fourDaysBack))
+        #expect(tooFew.median == nil)
 
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-metering-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }

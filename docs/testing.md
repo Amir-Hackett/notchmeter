@@ -77,7 +77,7 @@ Every line carries `"t"` (ISO 8601 with milliseconds, UTC) and `"event"`; keys a
 | `jump` | a session row was clicked ([docs/hooks.md](hooks.md#jumping-to-the-terminal)): once when the strategy is chosen and once when it has run | `session`, `strategy` (`url`, `applescript`, `command`, `tmux`, `activate`, `none`), `ok` on the second line; never the tty, the id or the script |
 | `advice` | the advice strip's lines changed | `titles` |
 | `screens` | launch, and every `NSApplication.didChangeScreenParametersNotification` (a display plugged in or out, the lid, mirroring) | `screens`: per screen `name`, `frame`, `visibleFrame`, `safeAreaTop`, `notch`, `isMain`, `isPrimary` |
-| `statusline` | a Claude Code status-line payload arrived | `context` (0…1 or null), `windows` (ids), `session`, `model` |
+| `statusline` | a Claude Code status-line payload arrived | `context` (0…1 or null), `windows` (ids), `session`, `model`, `branch`, `cacheMisses` (Claude Code's count, or null); never the session's name |
 | `privacy` | the screen-capture probe changed its answer | `captured` |
 | `hotkey` | a global shortcut fired | `id` |
 | `clipboard` | a card or the panel was copied as an image | `kind`, `width`, `height` |
@@ -124,7 +124,8 @@ The first prints every provider's parsed reading, the cost summary (ranges, bloc
             "week": { "start": "…", "cost": 42.73, "perPercentOfWeekly": 1.58 }, "block": { "start": "…", "end": "…", "cost": 3.2, "tokens": 120000, "tokensPerMinute": 1200 },
             "ranges": { "today": { "cost": 118.31, "tokens": 7400000, "cacheReadShare": 0.71, "byModel": [{ "name": "claude-fable-5-1", "cost": 118.31 }], "byProject": [{ "name": "notchmeter", "cost": 118.31 }] }, "…": {} } },
   "advice": [{ "id": "burn", "priority": "warn", "tool": "claude", "text": "This hour burned $31.20 — 3.2x your 30-day average." }],
-  "sessions": [{ "id": "…", "tool": "claude", "project": "notchmeter", "state": "working", "stateSeconds": 130 }]
+  "sessions": [{ "id": "…", "tool": "claude", "project": "notchmeter", "state": "working", "stateSeconds": 130 }],
+  "promptCache": { "misses": 4, "requests": 32, "missShare": 0.125, "rewrittenTokens": 310400, "rewrittenUSD": 0.93, "lastCause": "tools_changed", "sessions": 2 }
 }
 ```
 

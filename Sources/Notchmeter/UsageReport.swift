@@ -5,7 +5,8 @@ import Foundation
 /// Additive keys since the first version: `source` per window (WindowSource), `runOut` (the interval's two edges),
 /// `hiddenByDefault`, `rawUsedPercent`, `amountUSD`; `agents`, `branch`, `pr`, `permissionMode` and `host` per
 /// session; the five `tokenBuckets` and `cacheWrite1hShare` per cost range, `metering`, `cursor` in the cost
-/// object; `history` (the daily rows) when asked; `pid`, the writing process. Exit codes mirror
+/// object; `history` (the daily rows) when asked; `pid`, the writing process; `promptCache` (today's misses,
+/// requests, miss share, rewritten tokens and their price, the last cause, the sessions counted). Exit codes mirror
 /// Claude-Code-Usage-Monitor's: 0 fine, 10 near a limit, 11 a limit hit, 20 no session (nothing used), 30 no data.
 struct UsageReport {
     static let schema = "notchmeter.limits.v1"
@@ -26,13 +27,15 @@ struct UsageReport {
     let runOuts: [DrainLog.Key: RunOutInterval]
     let sessions: [AgentSession]
     let history: [Date: CostHistory.Record]?
+    /// Today's prompt-cache figures from Claude Code's status line (0.7.0): `promptCache` in the object.
+    let promptCache: PromptCacheSummary?
     let now: Date
     /// A report read back from its JSON (the report file, the local API), served verbatim.
     let raw: [String: Any]?
 
     init(tools: [ToolID: ToolStatus], order: [ToolID] = ToolID.allCases, cost: CostSummary?, advice: [Advice],
          drains: [DrainLog.Key: Drain] = [:], runOuts: [DrainLog.Key: RunOutInterval] = [:], sessions: [AgentSession] = [],
-         history: [Date: CostHistory.Record]? = nil, now: Date = Date()) {
+         history: [Date: CostHistory.Record]? = nil, promptCache: PromptCacheSummary? = nil, now: Date = Date()) {
         self.tools = tools
         self.order = order
         self.cost = cost
@@ -41,6 +44,7 @@ struct UsageReport {
         self.runOuts = runOuts
         self.sessions = sessions
         self.history = history
+        self.promptCache = promptCache
         self.now = now
         self.raw = nil
     }
@@ -54,6 +58,7 @@ struct UsageReport {
         self.runOuts = [:]
         self.sessions = []
         self.history = nil
+        self.promptCache = nil
         self.now = (raw["generatedAt"] as? String).flatMap(DateParsing.iso8601) ?? Date()
         self.raw = raw
     }
@@ -108,6 +113,11 @@ struct UsageReport {
         ]
         if let cost { root["cost"] = costObject(cost) }
         if let history { root["history"] = Self.historyRows(history) }
+        if let promptCache {
+            root["promptCache"] = ["misses": promptCache.misses, "requests": promptCache.requests, "missShare": promptCache.missShare.map(Oracle.fraction) as Any,
+                                   "rewrittenTokens": promptCache.rewrittenTokens, "rewrittenUSD": promptCache.rewrittenUSD.map(Self.money) as Any,
+                                   "lastCause": promptCache.lastCause as Any, "sessions": promptCache.sessions]
+        }
         return root
     }
 

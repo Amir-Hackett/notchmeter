@@ -137,6 +137,9 @@ final class UsageStore {
     @ObservationIgnored private var activity: AgentActivity
     @ObservationIgnored private let drainLog: DrainLog?
     @ObservationIgnored private(set) var drainSamples: [DrainLog.Key: [DrainSample]] = [:]
+    /// The drain log's boundary rows (DrainLog.Boundary), read once at launch; the newest Claude one floors the
+    /// metering median (`meteringSince`).
+    @ObservationIgnored private(set) var drainBoundaries: [DrainLog.Boundary] = []
     @ObservationIgnored private var tick: Task<Void, Never>?
     @ObservationIgnored private var resetTimer: Task<Void, Never>?
     /// Releases a waiting or finished ring the moment its own clock runs out (armSignalRelease).
@@ -403,6 +406,8 @@ final class UsageStore {
         context.limitHitTools = sessions.limitHitTools(now: now).filter(isShown)
         context.serverTrouble = serverTrouble.filter { isShown($0.key) }
         context.metering = prefs.showSpend ? cost?.sessionMetering : nil
+        // The current 5-hour block: the cost scan's block when it has one, else the five hours behind now.
+        context.promptCache = promptCache(since: cost?.block?.start ?? now.addingTimeInterval(-Period.fiveHours))
         return context
     }
 
@@ -434,7 +439,7 @@ final class UsageStore {
     /// Everything the app knows, for `--probe --json`, the local API and the oracle.
     func report(now: Date = Date(), history: Bool = false) -> UsageReport {
         UsageReport(tools: statuses, order: prefs.toolOrder, cost: prefs.showSpend ? cost : nil, advice: advice, drains: drains, runOuts: runOuts,
-                    sessions: sessions.all, history: history ? costEngine.claude.history?.load() : nil, now: now)
+                    sessions: sessions.all, history: history ? costEngine.claude.history?.load() : nil, promptCache: promptCacheToday, now: now)
     }
 
     func start() {
@@ -524,7 +529,7 @@ final class UsageStore {
             reads[tool] = ProviderReadState(readAt: status(tool).reading?.fetchedAt, problem: status(tool).problem)
         }
         let summary = await costEngine.scan(tools: tools, reads: reads, weeklyResetsAt: weekly?.resetsAt, weeklyUsed: weekly?.usedFraction,
-                                            sessionResetsAt: session?.resetsAt, sessionUsed: session?.usedFraction)
+                                            sessionResetsAt: session?.resetsAt, sessionUsed: session?.usedFraction, meteringSince: meteringSince())
         cost = summary
         cursorExport = CursorExportRead.load(from: defaults)
         costScanning = false
@@ -753,14 +758,34 @@ final class UsageStore {
         let log = drainLog
         Task.detached(priority: .utility) {
             let samples = log.load(now: now)
+            // The 2026-09-14 weekly-cap boundary, once; `appendBoundary` is idempotent, so every launch may ask.
+            log.appendBoundary(tool: .claude, window: "seven_day", at: DrainLog.weeklyDenominatorChangedAt, note: "weekly cap changed")
+            let boundaries = log.loadBoundaries()
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 // The loops start the moment this task is spawned, and a reading can be adopted before the file
                 // comes back, so what the store holds by now is not empty: fold the file into it rather than over it.
                 drainSamples = DrainLog.merged(samples, with: drainSamples)
+                drainBoundaries = boundaries
                 recomputeDrains(now: now)
             }
         }
+    }
+
+    /// The newest Claude boundary on file, the floor under the metering median (ClaudeCostScanner.metering).
+    func meteringSince(now: Date = Date()) -> Date? {
+        DrainLog.latestBoundary(drainBoundaries, tool: .claude, now: now)
+    }
+
+    /// The Claude sessions' prompt-cache figures over today, for the Cost card and the report; nil while no session
+    /// has reported a status line with `prompt_cache`, or while Claude is not shown.
+    var promptCacheToday: PromptCacheSummary? {
+        promptCache(since: Calendar.current.startOfDay(for: Date()))
+    }
+
+    func promptCache(since: Date) -> PromptCacheSummary? {
+        guard isShown(.claude) else { return nil }
+        return PromptCache.summary(sessions: sessions.all, since: since)
     }
 
     /// Internal rather than private so `DrainLogRules` can pin the statement order below, which is the whole bug.
@@ -842,6 +867,7 @@ final class UsageStore {
             if line.id.hasPrefix("extra/") { return prefs.notifyExtraUsage ? (line.id == "extra/room" ? 3600 : 30 * 86400) : nil }
             if line.id == "cache-ttl" { return prefs.notifyCacheShift ? 86400 : nil }
             if line.id == "metering" { return prefs.notifyCacheShift ? 86400 : nil }
+            if line.id == "prompt-cache" { return prefs.notifyPromptCache ? 86400 : nil }
             return nil
         }
         remember(lines.memory)
@@ -1382,12 +1408,18 @@ final class UsageStore {
     /// The status line's windows replace the endpoint's for as long as they keep arriving; the context fill and the
     /// session cost go to the Claude card.
     func statuslineReceived(_ message: Statusline.Message, now: Date = Date()) {
+        // The figures, never the session's name: it is a title the user typed or Claude Code wrote.
         Oracle.shared.emit("statusline", ["context": message.contextUsed.map(Oracle.fraction) as Any, "windows": message.windows.map(\.id),
-                                          "session": message.sessionID as Any, "model": message.model as Any, "branch": message.branch as Any])
+                                          "session": message.sessionID as Any, "model": message.model as Any, "branch": message.branch as Any,
+                                          "cacheMisses": message.promptCache?.misses as Any])
         statusline = message
         lastHook[.claude] = now
         lastActivity[.claude] = now
-        sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL, model: message.model, now: now)
+        // The session's name is shown under the same setting as the prompt title (hookReceived drops that one).
+        sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL,
+                            model: message.model, sessionName: prefs.sessionTitles ? message.sessionName : nil,
+                            linesAdded: message.linesAdded, linesRemoved: message.linesRemoved,
+                            promptCache: message.promptCache, now: now)
         guard isShown(.claude) else { return }
         if let reading = statuslineReading(now: now) {
             adopt(reading, now: now)

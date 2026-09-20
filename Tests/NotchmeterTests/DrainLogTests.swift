@@ -167,6 +167,48 @@ import Testing
         #expect(appendedInPlace.hasPrefix(asCompacted))
     }
 
+    /// A boundary row marks a moment after which a window's figures mean something else (Anthropic's weekly-cap
+    /// change of 2026-09-14). It is written once however many launches ask for it, the utilization parse never
+    /// sees it, and the daily compaction keeps it whole however old it is, since the rows either side of it are
+    /// not comparable and the marker is the only thing that says so.
+    @Test func aBoundaryIsWrittenOnceIgnoredByTheParseAndKeptThroughCompaction() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-drain-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let log = DrainLog(url: dir.appendingPathComponent("drain.jsonl"))
+        let changed = DrainLog.weeklyDenominatorChangedAt
+        #expect(changed == DateParsing.iso8601("2026-09-14T00:00:00Z"))
+        let nowAfter = changed.addingTimeInterval(10 * 86400)
+        #expect(log.appendBoundary(tool: .claude, window: "seven_day", at: changed, note: "weekly cap changed"))
+        DrainLog.flush()
+        #expect(!log.appendBoundary(tool: .claude, window: "seven_day", at: changed, note: "weekly cap changed"))
+        #expect(log.appendBoundary(tool: .claude, window: "five_hour", at: changed))
+        DrainLog.flush()
+        let boundaries = log.loadBoundaries()
+        #expect(boundaries.map(\.window) == ["seven_day", "five_hour"])
+        #expect(boundaries.first?.note == "weekly cap changed")
+        #expect(boundaries.first?.tool == .claude)
+        #expect(boundaries.first?.t == changed)
+        #expect(DrainLog.latestBoundary(boundaries, tool: .claude, now: nowAfter) == changed)
+        #expect(DrainLog.latestBoundary(boundaries, tool: .codex, now: nowAfter) == nil)
+        #expect(DrainLog.latestBoundary(boundaries, tool: .claude, now: changed.addingTimeInterval(-1)) == nil)
+        // No utilization sample comes out of a boundary row, and the extra-usage reader does not take it either.
+        #expect(log.load(now: nowAfter).isEmpty)
+        #expect(log.loadExtraUsage().isEmpty)
+        // Ten days on, past the keep window, a compaction drops the old utilization row and keeps both boundaries.
+        let reading = UsageReading(tool: .claude, windows: [
+            LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.2, resetsAt: nil, periodDuration: Period.week),
+        ], plan: nil, fetchedAt: changed, observedAt: nil)
+        log.append(reading, previous: [:], now: changed)
+        DrainLog.flush()
+        let compacted = DrainLog.compacted(try Data(contentsOf: log.url), now: nowAfter)
+        #expect(DrainLog.parseBoundaries(compacted).map(\.window) == ["seven_day", "five_hour"])
+        #expect(DrainLog.parse(compacted, now: nowAfter).isEmpty)
+        let twoBoundaryRowsOnly = 2
+        #expect(compacted.split(separator: 0x0A).count == twoBoundaryRowsOnly)
+        let text = try String(contentsOf: log.url, encoding: .utf8)
+        #expect(!text.contains("token"))
+    }
+
     /// `flush` is what `applicationWillTerminate` calls: the appends are asynchronous on the serial queue, and GCD
     /// does not run a queue's pending blocks when the process exits, so a row enqueued in the last milliseconds
     /// before quit was lost until 0.6.0. A held block stands in for whatever the queue is busy with: `flush` must

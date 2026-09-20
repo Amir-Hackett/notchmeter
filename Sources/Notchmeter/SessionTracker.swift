@@ -173,8 +173,17 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     var terminal: TerminalRef?
     /// The decision the assistant is holding this session for, while its hook waits on the socket for it.
     var pending: PendingRequest?
-    /// The model the status line last named for this session.
+    // From Claude Code's status line (0.7.0), so every one is nil for a session only the hook reports.
+    /// The model's display name as the status line carries it ("Opus").
     var model: String?
+    /// `session_name`: the name set with `--name` or `/rename`, else Claude Code's own title for the session;
+    /// never the default `my-app-3f` display name. Shown only under the same setting as the prompt title
+    /// (UsageStore.statuslineReceived drops it when Preferences.sessionTitles is off, as hookReceived drops `title`).
+    var sessionName: String?
+    var linesAdded: Int?
+    var linesRemoved: Int?
+    /// Claude Code's account of this session's prompt cache, priced (PromptCache.swift).
+    var promptCache: PromptCacheStats?
 
     init(id: String, tool: ToolID = .claude, project: String?, state: State, started: Date, lastEvent: Date, turnStarted: Date?, branch: String? = nil,
          prURL: String? = nil, permissionMode: String? = nil, host: String? = nil) {
@@ -208,6 +217,15 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     func finish(now: Date) -> ToolSignal.Finish? {
         guard case .idle = state, let finished, now.timeIntervalSince(finished.at) < SessionTracker.finishedHold else { return nil }
         return finished
+    }
+
+    /// What a row calls the session: the prompt's first line when the hook sent one, else the name Claude Code's
+    /// status line carries (`--name`, `/rename` or its own title). Both are held only while Preferences.sessionTitles
+    /// is on, so a nil here is either "nothing said yet" or "the user asked not to show it".
+    var displayTitle: String? {
+        if let title, !title.isEmpty { return title }
+        if let sessionName, !sessionName.isEmpty { return sessionName }
+        return nil
     }
 
     /// "notchmeter", or "notchmeter@devbox" for a remote session.
@@ -520,14 +538,23 @@ struct SessionTracker: Equatable, Sendable {
 
     /// A status-line update is proof the session is alive; its project, branch and pull request are taken. Only
     /// Claude Code has a status line, and its key is the bare id, so no `key(tool:session:host:)` is needed here.
-    mutating func statusline(sessionID: String?, project: String?, branch: String? = nil, prURL: String? = nil, model: String? = nil, now: Date) {
+    /// The status line's per-session figures. The model, the name and the line counts are Claude Code's running
+    /// values and replace what was held; the prompt-cache object is priced here at the session model's
+    /// cache-write rate (`PromptCacheStats`), so the tracker holds a figure the card can show without pricing.
+    mutating func statusline(sessionID: String?, project: String?, branch: String? = nil, prURL: String? = nil, model: String? = nil,
+                             sessionName: String? = nil, linesAdded: Int? = nil, linesRemoved: Int? = nil,
+                             promptCache: Statusline.PromptCache? = nil, now: Date) {
         guard let sessionID else { return }
         expire(now: now)
         var session = sessions[sessionID] ?? AgentSession(id: sessionID, project: project, state: .idle, started: now, lastEvent: now, turnStarted: nil)
         if session.project == nil { session.project = project }
         if let branch { session.branch = branch }
-        if let model { session.model = model }
         session.prURL = prURL ?? session.prURL
+        if let model { session.model = model }
+        if let sessionName { session.sessionName = sessionName }
+        if let linesAdded { session.linesAdded = linesAdded }
+        if let linesRemoved { session.linesRemoved = linesRemoved }
+        if let promptCache { session.promptCache = PromptCacheStats(promptCache, model: model ?? session.model) }
         session.lastEvent = now
         sessions[sessionID] = session
     }

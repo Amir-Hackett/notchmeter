@@ -50,6 +50,8 @@ Update this table at each stage's commit: `ls Sources/Notchmeter/*.swift | wc -l
 | The `notchmeter` command-line tool over the running app's report file and local API; `--mcp` server; `--history` | shipped | `CommandLineTool.swift`, `MCPServer.swift`, `Paths.reportFile` |
 | Hooks from another machine over the local API (`POST /v1/hook`), subagent counting, the branch and permission mode | shipped | `LocalAPI.swift`, `Hook.swift`, `SessionTracker.agents`; docs/hooks.md |
 | Status line: the spend limit as a third window (kept past 100 %), effort, today and block from the report file, pace colours | shipped | `Statusline.swift` |
+| Prompt-cache diagnostics from the status line's `prompt_cache` (Claude Code's own miss count and causes, the rewrite priced at the session model's cache-write rate): a Cost card caption, a `prompt-cache` advice line at three misses in the block or 200K tokens rewritten with a once-a-day notification, `promptCache` in the report and MCP, `cache 14% miss` in Claude Code's bar; plus fast mode, thinking, the agent's and session's names, lines added/removed, API time and the repository on the wire | shipped (0.7.0) | `PromptCache.swift`, `Statusline.PromptCache`, `Advisor.promptCache`, `CostDetail.promptCacheLine`; accuracy doc "The prompt cache" |
+| Drain-log boundary rows (`kind: "boundary"`) for a moment a window changed its meaning; one written for Claude's weekly window at 2026-09-14T00:00Z, kept through every compaction, flooring the session-metering median | shipped (0.7.0) | `DrainLog.Boundary`, `DrainLog.appendBoundary`, `ClaudeCostScanner.metering(since:)`; accuracy doc "The weekly-cap boundary" |
 
 ### Wedge 2: correctness as a published, tested guarantee
 

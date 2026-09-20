@@ -65,13 +65,14 @@ struct CostEngine: Sendable {
 
     func scan(tools: Set<ToolID> = Set(ToolID.allCases), reads: [ToolID: ProviderReadState] = [:], now: Date = Date(), daysBack: Int = 30,
               weeklyResetsAt: Date? = nil, weeklyUsed: Double? = nil, sessionResetsAt: Date? = nil, sessionUsed: Double? = nil,
-              calendar: Calendar = .current) async -> CostSummary {
+              meteringSince: Date? = nil, calendar: Calendar = .current) async -> CostSummary {
         let week = Self.weekStart(weeklyResetsAt: weeklyResetsAt, now: now, calendar: calendar)
         // A used fraction whose reset has passed belongs to last week; set against this week's spend it would price
         // one per cent of the window at a fraction of a cent, so it is left out until the live reading lands.
         let weeklyUsed = weeklyResetsAt.map { $0 > now } ?? true ? weeklyUsed : nil
         async let claudeSummary = claudeCost(tools: tools, now: now, daysBack: daysBack, weeklyResetsAt: weeklyResetsAt,
-                                             weeklyUsed: weeklyUsed, sessionResetsAt: sessionResetsAt, sessionUsed: sessionUsed, calendar: calendar)
+                                             weeklyUsed: weeklyUsed, sessionResetsAt: sessionResetsAt, sessionUsed: sessionUsed,
+                                             meteringSince: meteringSince, calendar: calendar)
         async let codexCost = codexCost(tools: tools, now: now, daysBack: daysBack, weekStart: week, calendar: calendar)
         let cursorCost = tools.contains(.cursor)
             ? cursor.read(now: now, daysBack: daysBack, weekStart: week, calendar: calendar, state: reads[.cursor] ?? ProviderReadState())
@@ -81,10 +82,10 @@ struct CostEngine: Sendable {
     }
 
     private func claudeCost(tools: Set<ToolID>, now: Date, daysBack: Int, weeklyResetsAt: Date?, weeklyUsed: Double?,
-                            sessionResetsAt: Date?, sessionUsed: Double?, calendar: Calendar) async -> CostSummary? {
+                            sessionResetsAt: Date?, sessionUsed: Double?, meteringSince: Date?, calendar: Calendar) async -> CostSummary? {
         guard tools.contains(.claude) else { return nil }
         return await claude.scan(now: now, daysBack: daysBack, weeklyResetsAt: weeklyResetsAt, weeklyUsed: weeklyUsed,
-                                 sessionResetsAt: sessionResetsAt, sessionUsed: sessionUsed, calendar: calendar)
+                                 sessionResetsAt: sessionResetsAt, sessionUsed: sessionUsed, meteringSince: meteringSince, calendar: calendar)
     }
 
     private func codexCost(tools: Set<ToolID>, now: Date, daysBack: Int, weekStart: Date, calendar: Calendar) async -> ProviderCost? {

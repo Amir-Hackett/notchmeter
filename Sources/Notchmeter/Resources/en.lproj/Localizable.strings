@@ -769,3 +769,19 @@
 "Today's spend" = "Today's spend";
 "%1$@ of a usual %2$@ day" = "%1$@ of a usual %2$@ day";
 "Heading for ~%ld%% today" = "Heading for ~%ld%% today";
+
+/* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
+"%1$@ (~%2$@)" = "%1$@ (~%2$@)";
+"%ld misses" = "%ld misses";
+"1 miss" = "1 miss";
+"5-minute cache expired" = "5-minute cache expired";
+"cause: %@" = "cause: %@";
+"Cause: %@." = "Cause: %@.";
+"likely server-side" = "likely server-side";
+"Once a day when Claude Code's status line counts three prompt-cache misses in the current session block, or 200K tokens rewritten, with the cause Claude Code diagnosed." = "Once a day when Claude Code's status line counts three prompt-cache misses in the current session block, or 200K tokens rewritten, with the cause Claude Code diagnosed.";
+"Prompt cache: %1$@ today · %2$@ rewritten" = "Prompt cache: %1$@ today · %2$@ rewritten";
+"system prompt changed" = "system prompt changed";
+"tools changed" = "tools changed";
+"When the prompt cache keeps missing" = "When the prompt cache keeps missing";
+"Your MCP server list is changing mid-session." = "Your MCP server list is changing mid-session.";
+"Your prompt cache missed %1$ld times — %2$@ rewritten." = "Your prompt cache missed %1$ld times — %2$@ rewritten.";

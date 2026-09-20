@@ -753,3 +753,19 @@
 "Today's spend" = "오늘 지출";
 "%1$@ of a usual %2$@ day" = "평소 하루 %2$@ 중 %1$@";
 "Heading for ~%ld%% today" = "오늘 약 %ld%% 페이스";
+
+/* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
+"%1$@ (~%2$@)" = "%1$@ (약 %2$@)";
+"%ld misses" = "%ld회 미스";
+"1 miss" = "1회 미스";
+"5-minute cache expired" = "5분 캐시 만료";
+"cause: %@" = "원인: %@";
+"Cause: %@." = "원인: %@.";
+"likely server-side" = "서버 측일 가능성";
+"Once a day when Claude Code's status line counts three prompt-cache misses in the current session block, or 200K tokens rewritten, with the cause Claude Code diagnosed." = "Claude Code 상태 표시줄이 현재 세션 블록에서 프롬프트 캐시 미스를 세 번 세거나 200K 토큰이 다시 쓰였을 때, Claude Code가 진단한 원인과 함께 하루에 한 번 알립니다.";
+"Prompt cache: %1$@ today · %2$@ rewritten" = "프롬프트 캐시: 오늘 %1$@ · %2$@ 다시 씀";
+"system prompt changed" = "시스템 프롬프트 변경됨";
+"tools changed" = "도구 변경됨";
+"When the prompt cache keeps missing" = "프롬프트 캐시 미스가 계속될 때";
+"Your MCP server list is changing mid-session." = "MCP 서버 목록이 세션 도중에 바뀌고 있습니다.";
+"Your prompt cache missed %1$ld times — %2$@ rewritten." = "프롬프트 캐시가 %1$ld회 미스했습니다 — %2$@ 다시 씀.";

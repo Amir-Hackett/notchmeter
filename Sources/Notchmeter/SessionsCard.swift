@@ -55,10 +55,10 @@ struct SessionsCard: View {
         return (rows, max(0, sessions.count - rowCap))
     }
 
-    /// The prompt's first line when the hook sent one and the screen is not shared; else "project · branch",
-    /// else the project (or host); else the assistant's name, so a row is never blank.
+    /// The prompt's first line when the hook sent one (else the status line's session name) and the screen is not
+    /// shared; else "project · branch", else the project (or host); else the assistant's name, so a row is never blank.
     static func title(of session: AgentSession, hideTitles: Bool) -> String {
-        if !hideTitles, let title = session.title, !title.isEmpty { return title }
+        if !hideTitles, let title = session.displayTitle { return title }
         var parts: [String] = []
         if let name = session.displayName { parts.append(name) }
         if let branch = session.branch { parts.append(branch) }
