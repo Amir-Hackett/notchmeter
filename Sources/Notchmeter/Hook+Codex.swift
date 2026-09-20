@@ -53,19 +53,29 @@ extension Hook {
         /// agent is dropped rather than the oldest. `permission_mode` uses the vocabulary `permissionBadge`
         /// already renders (`default`, `acceptEdits`, `plan`, `dontAsk`, `bypassPermissions`); SessionEnd's
         /// payload does not carry it, and the field is simply nil there.
-        static func message(event: String, object: [String: Any], branch: (String) -> String?) -> Message {
+        ///
+        /// Since 0.7.0 two more fields are read, both bounded before they leave the process (Hook+Decision.swift):
+        /// `prompt` on the user's own `UserPromptSubmit`, kept as its first line for the session's title, and on
+        /// `PermissionRequest` `tool_name` and `tool_input` (`command` and `description`, which Codex documents
+        /// for Bash and apply_patch), reduced to the one-line summary and bounded excerpt the notch shows while
+        /// the command holds the socket for the answer. `permission_suggestions` is not a Codex field.
+        static func message(event: String, object: [String: Any], branch: (String) -> String?, requestID: String) -> Message {
             let cwd = nonEmpty(object["cwd"])
             let agentID = nonEmpty(object["agent_id"])
-            return Message(event: event == "UserPromptSubmit" && agentID != nil ? subagentPromptEvent : canonicalEvent(event),
-                           needsInput: event == "PermissionRequest",
-                           sessionID: nonEmpty(object["session_id"]),
-                           project: cwd.flatMap(ProjectName.ofPath),
-                           notificationType: nil,
-                           branch: cwd.flatMap(branch),
-                           permissionMode: nonEmpty(object["permission_mode"]),
-                           agentID: agentID,
-                           failure: event == "Interrupt" ? "interrupted" : nil,
-                           host: nil, tool: .codex)
+            let request = event == "PermissionRequest" ? Hook.request(event: event, object: object, id: requestID) : nil
+            var message = Message(event: event == "UserPromptSubmit" && agentID != nil ? subagentPromptEvent : canonicalEvent(event),
+                                  needsInput: event == "PermissionRequest",
+                                  sessionID: nonEmpty(object["session_id"]),
+                                  project: cwd.flatMap(ProjectName.ofPath),
+                                  notificationType: nil,
+                                  branch: cwd.flatMap(branch),
+                                  permissionMode: nonEmpty(object["permission_mode"]),
+                                  agentID: agentID,
+                                  failure: event == "Interrupt" ? "interrupted" : nil,
+                                  host: nil, tool: .codex)
+            message.title = event == "UserPromptSubmit" && agentID == nil ? Hook.title(fromPrompt: object["prompt"]) : nil
+            message.request = request
+            return message
         }
 
         private static func nonEmpty(_ value: Any?) -> String? {

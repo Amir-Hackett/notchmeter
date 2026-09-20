@@ -31,6 +31,10 @@ final class HoverDriver {
     var perform: (HoverIntent.Output, PanelCause) -> Void = { _, _ in }
     /// True while a menu owns the pointer; samples are skipped so an open Options menu cannot close the panel.
     var isPaused: () -> Bool = { false }
+    /// True while a request holds the open panel open (PanelHolds.prompt): a click outside is then ignored, so a
+    /// click into the terminal, or on anything else, cannot take the card down from under its reader. Escape and
+    /// the buttons on the card are the ways out; a lock or a Space change still collapse it.
+    var holdsOpen: () -> Bool = { false }
     /// True while the presenter's window is not on the active Space (a full-screen app's, with "Show over
     /// full-screen apps" off): the machine idles, so a pointer parked at the top of that Space opens nothing.
     var isOffScreen: () -> Bool = { false }
@@ -154,8 +158,13 @@ final class HoverDriver {
             act(intent.clickInside(at: now), cause: .click)
             return
         }
-        guard regions.isOutsidePanel(point) else { return }
+        guard regions.isOutsidePanel(point), !holdsOpen() else { return }
         act(intent.clickOutside(at: now), cause: .clickOutside)
+    }
+
+    /// Closes the panel now, for the app's own reasons (a request answered on a panel that was opened for it).
+    func dismiss(cause: PanelCause) {
+        act(intent.escape(at: now), cause: cause)
     }
 
     func swiped(_ swipe: HoverIntent.Swipe, at point: CGPoint) {

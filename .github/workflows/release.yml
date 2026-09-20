@@ -27,11 +27,16 @@ jobs:
           fetch-depth: 0
 
       - name: Toolchain
+        # An Xcode 26 by preference: its actool is what compiles packaging/AppIcon.icon, the Liquid Glass icon for
+        # macOS 26, into the bundle (scripts/build.sh; docs/release.md, "The icon"). The newest stable Xcode of any
+        # major otherwise, and the image's default if there is none; the build itself needs no Xcode at all.
         run: |
-          xcode="$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -viE 'beta|rc' | sort -V | tail -n 1 || true)"
+          xcode="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -viE 'beta|rc' | sort -V | tail -n 1 || true)"
+          [ -n "$xcode" ] || xcode="$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -viE 'beta|rc' | sort -V | tail -n 1 || true)"
           if [ -n "$xcode" ]; then sudo xcode-select -s "$xcode"; fi
           xcode-select -p
           swift --version
+          xcrun --find actool || echo "no actool: the Tahoe icon will not be compiled into this build"
 
       - name: Build (release)
         # CI's gate, repeated here so the release path carries it on its own: a warning from anything
@@ -124,12 +129,25 @@ jobs:
               || { echo "::error title=PROVISION_PROFILE_BASE64 is not a provisioning profile::The secret decoded to something \`security cms\` cannot read. Re-run the base64 line in docs/release.md against the .provisionprofile Apple gave you, and check the filename matched."; exit 1; }
             export PROVISION_PROFILE="$RUNNER_TEMP/embedded.provisionprofile"
           fi
+          # The release notes Sparkle shows in the update alert, embedded in the appcast item from the file
+          # tracked for this version (docs/release.md, "Release notes"). Guarded so a tag whose notes were
+          # never written still ships, with the link to the release page alone, rather than failing after
+          # notarisation has been spent.
+          notes="docs/release-notes/${TAG#v}.md"
+          if [ -s "$notes" ]; then
+            export RELEASE_NOTES="$notes"
+          else
+            echo "::warning::$notes is missing or empty; the appcast item carries only the link to the release page"
+          fi
           VERSION="${TAG#v}" PREVIOUS_APPCAST=previous/appcast.xml scripts/release.sh
           rm -f "$RUNNER_TEMP/embedded.provisionprofile"
 
       - name: Build unsigned (signing secrets missing)
         if: steps.mode.outputs.signed != 'true'
-        run: VERSION="${TAG#v}" scripts/release.sh --dry-run
+        run: |
+          notes="docs/release-notes/${TAG#v}.md"
+          if [ -s "$notes" ]; then export RELEASE_NOTES="$notes"; fi
+          VERSION="${TAG#v}" scripts/release.sh --dry-run
 
       - name: Publish to the GitHub release
         id: publish

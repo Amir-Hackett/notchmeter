@@ -65,15 +65,20 @@ extension Hook {
         static func message(event: String, object: [String: Any], environment: [String: String], branch: (String) -> String?) -> Message {
             let root = root(of: object, environment: environment)
             let waitingType = event == "Notification" ? nonEmpty(object["notification_type"]).flatMap { waitingNotificationTypes.contains($0) ? $0 : nil } : nil
-            return Message(event: canonicalEvent(event), needsInput: waitingType != nil,
-                           sessionID: nonEmpty(object["session_id"]) ?? nonEmpty(environment["GEMINI_SESSION_ID"]),
-                           project: root.flatMap(ProjectName.ofPath),
-                           notificationType: waitingType,
-                           branch: root.flatMap(branch),
-                           permissionMode: nil,
-                           agentID: nil,
-                           failure: nil,
-                           host: nil, tool: .antigravity)
+            let canonical = canonicalEvent(event)
+            var message = Message(event: canonical, needsInput: waitingType != nil,
+                                  sessionID: nonEmpty(object["session_id"]) ?? nonEmpty(environment["GEMINI_SESSION_ID"]),
+                                  project: root.flatMap(ProjectName.ofPath),
+                                  notificationType: waitingType,
+                                  branch: root.flatMap(branch),
+                                  permissionMode: nil,
+                                  agentID: nil,
+                                  failure: nil,
+                                  host: nil, tool: .antigravity)
+            // Since 0.7.0 the prompt's first line rides along on BeforeAgent as the session's title
+            // (Hook.title(fromPrompt:)); the response and the alert's details stay unread.
+            message.title = canonical == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
+            return message
         }
 
         private static func nonEmpty(_ value: Any?) -> String? {

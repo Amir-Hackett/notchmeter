@@ -134,6 +134,15 @@ enum CompactLabel {
         }
     }
 
+    /// Which of a readout's figures a style draws, once the primary-number setting (Preferences.compactPrimary) is
+    /// in: the fit's own answer wherever the style shows numbers, and at plain rings the outer figure alone while
+    /// the setting is on — the same rung Auto's ladder thins to, so it never carries a countdown or a second
+    /// figure — or nothing at all. Nil is "no digits", which is what plain rings meant before the setting existed.
+    static func figures(style: CompactStyle, primary: Bool, fit: CompactFit.Figures = .all) -> CompactFit.Figures? {
+        if style.showsNumbers { return fit }
+        return primary ? .outer : nil
+    }
+
     static func text(for reading: UsageReading?, display: UsageDisplay, countdown: Bool = false, now: Date = Date()) -> String {
         segments(for: reading, display: display, countdown: countdown, now: now).map(\.text).joined(separator: " \(separator) ")
     }

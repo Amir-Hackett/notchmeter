@@ -46,8 +46,13 @@
          has, the second is the whole pitch. Rendered identically they read as
          one slab with nowhere for the eye to land, so the setup steps back a
          tone and the payoff keeps full strength. -->
-    <h1><span class="h1-setup">Your menu bar ran out of room three apps ago.</span><br>This one doesn't take any.</h1>
-    <p class="lede">Usage meters for AI coding tools, living in the MacBook notch — or on any screen edge you prefer. Small rings sit beside the notch all the time; hover and it opens into the full readout.</p>
+    <!-- The README's first screen, mirrored: the accuracy line leads, the document it names is one click
+         away, the menu-bar line follows, then the two-way line. A test (ReleasePackagingTests, SiteParity)
+         holds the three sentences identical in both files. -->
+    <h1><span class="h1-setup">Every figure on this panel is sourced, dated and tested.</span><br>And it says what to do next.</h1>
+    <p class="lede" style="margin-bottom:14px">Usage meters for Claude Code, Codex, Cursor, Antigravity and Copilot, living in the MacBook notch — or on any screen edge you prefer. The rule behind every number, with its source and its date, is written down in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>; hover the rings and the panel says what to do about them.</p>
+    <p class="lede" style="margin-bottom:14px">Your menu bar ran out of room three apps ago. This one doesn't take any.</p>
+    <p class="lede">Answer Claude Code from the notch: approve or deny a permission request, pick the answer to a question, and jump back to the terminal it came from. Each part has its own switch in Settings; <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">docs/hooks.md</a> says what the hook sends and how it fails open.</p>
     <div class="cta-row">
       <a class="btn btn-primary" href="#install">Download for macOS</a>
       <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter">View the source</a>
@@ -168,15 +173,15 @@
       </div>
       <div class="tool">
         <h3><span class="ring" style="color:#a68cfa"></span>Cursor</h3>
-        <p>Included plan usage and on-demand spend for the current billing cycle, read the way cursor.com's own dashboard reads it. On a seat billed on-demand with no included allowance, today's spend against your usual day.</p>
+        <p>Included plan usage and on-demand spend for the current billing cycle, read the way cursor.com's own dashboard reads it, plus the Grok Bot weekly allowance where a seat has one. On a seat billed on-demand, the dashboard's own cycle figures fill the ring; with none, today's spend against your usual day.</p>
       </div>
       <div class="tool">
         <h3><span class="ring" style="color:#56B4E9"></span>Antigravity / Gemini CLI</h3>
-        <p>The per-model quota Google meters — Gemini Pro, Flash, Flash Lite, and any Claude or GPT model the plan covers — from the same Code Assist endpoint Gemini CLI's <code>/stats</code> reads.</p>
+        <p>The session and weekly quota Antigravity's own panel shows for its model groups, or the per-model quota Google meters for Gemini CLI — Gemini Pro, Flash, Flash Lite, and any Claude or GPT model the plan covers — from the same Code Assist endpoints Antigravity and Gemini CLI's <code>/stats</code> read.</p>
       </div>
       <div class="tool">
         <h3><span class="ring" style="color:#F0E442"></span>GitHub Copilot</h3>
-        <p>The premium-request allowance for the month, and the chat and completion quotas when a plan meters them, from the endpoint Copilot's own editor plugin asks.</p>
+        <p>The AI-credit allowance for the month on a seat GitHub bills by usage (the premium-request allowance on a legacy one), and the chat and completion quotas when a plan meters them, from the endpoint Copilot's own editor plugin asks; the credits used, a cent each, join the Cost card.</p>
       </div>
       <div class="tool">
         <h3><span class="ring" style="color:#0072B2"></span>Your own sessions</h3>

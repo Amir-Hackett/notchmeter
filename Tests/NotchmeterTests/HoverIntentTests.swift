@@ -412,6 +412,12 @@ import Testing
         #expect(!PanelKeyPolicy.takesKeyboard(.dwell))
         #expect(!PanelKeyPolicy.takesKeyboard(.glance))
         #expect(!PanelKeyPolicy.takesKeyboard(.always))
+        // A request on the panel is the one thing that lets a hover-opened panel take the keyboard: ⌘Y, ⌘N and
+        // ⌘1…⌘9 are the point of it, and its hold keeps the panel open until it is answered.
+        #expect(PanelKeyPolicy.takesKeyboard(.dwell, pendingRequest: true))
+        #expect(PanelKeyPolicy.takesKeyboard(.glance, pendingRequest: true))
+        #expect(PanelKeyPolicy.takesKeyboard(.always, pendingRequest: true))
+        #expect(!PanelKeyPolicy.takesKeyboard(.dwell, pendingRequest: false))
         #expect(intent.escape(at: 1) == .collapse)
         #expect(intent.state == .compact)
         var swiped = HoverIntent(mode: .onHover)

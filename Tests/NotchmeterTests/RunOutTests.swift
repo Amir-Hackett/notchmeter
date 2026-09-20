@@ -53,8 +53,10 @@ import Testing
         #expect(text.hasPrefix("Runs out from 14:"))
         let inTwentyHours = now.addingTimeInterval(20 * 3600)
         let sooner = try #require(RunOutInterval.estimate(samples: rows, usedFraction: 0.7, resetsAt: inTwentyHours, now: now))
+        // 2.5 h to 15 h from midday straddles midnight, so each edge carries its day.
         let soonerText = sooner.text(now: now, resetsAt: inTwentyHours, format: .twentyFourHour, calendar: utc)
-        #expect(soonerText?.hasPrefix("Runs out 14:") == true)
+        #expect(soonerText?.hasPrefix("Runs out between today at 14:") == true)
+        #expect(soonerText?.contains(" and tomorrow at 0") == true)
         let session = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.7, resetsAt: reset, periodDuration: Period.fiveHours)
         #expect(NotificationScheduler.stage(for: session, now: now, runOut: interval) == .behind)
     }
@@ -93,6 +95,29 @@ import Testing
         let straddling = RunOutInterval(earliest: 4 * hour - 240, latest: 4 * hour + 600, sampleCount: 8)
         #expect(straddling.presentation(now: now, resetsAt: reset) == nil)
         #expect(straddling.text(now: now, resetsAt: reset, format: .twentyFourHour) == nil)
+    }
+
+    /// Two bare clock times across midnight ("Runs out 23:50–00:30") read backwards, so an edge on another day
+    /// than today carries its day, and a range whose edges fall on different days names both.
+    @Test func aRangeAcrossMidnightNamesBothDaysOnTheCard() {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let lateNow = DateParsing.iso8601("2026-09-01T23:00:00Z")!
+        let reset = lateNow.addingTimeInterval(4 * 3600)
+        let straddling = RunOutInterval(earliest: 50 * 60, latest: 90 * 60, sampleCount: 8)
+        #expect(straddling.text(now: lateNow, resetsAt: reset, format: .twentyFourHour, calendar: utc) == "Runs out between today at 23:50 and tomorrow at 00:30")
+        // Both edges on one day that is not today: the day once, on the near edge.
+        let pastMidnight = RunOutInterval(earliest: 70 * 60, latest: 110 * 60, sampleCount: 8)
+        #expect(pastMidnight.text(now: lateNow, resetsAt: reset, format: .twentyFourHour, calendar: utc) == "Runs out tomorrow at 00:10–00:50")
+        // The open range names its near edge with a day only once that edge is not today.
+        let openToday = RunOutInterval(earliest: 50 * 60, latest: 5 * 3600, sampleCount: 8)
+        #expect(openToday.text(now: lateNow, resetsAt: reset, format: .twentyFourHour, calendar: utc) == "Runs out from 23:50, or lasts to the reset")
+        let openTomorrow = RunOutInterval(earliest: 70 * 60, latest: 5 * 3600, sampleCount: 8)
+        #expect(openTomorrow.text(now: lateNow, resetsAt: reset, format: .twentyFourHour, calendar: utc) == "Runs out from tomorrow at 00:10, or lasts to the reset")
+        // A narrow interval is a countdown and needs no day; the same wide one at midday keeps the short form.
+        let narrow = RunOutInterval(earliest: 70 * 60, latest: 74 * 60, sampleCount: 8)
+        #expect(narrow.text(now: lateNow, resetsAt: reset, format: .twentyFourHour, calendar: utc) == "Runs out in 1h 12m")
+        #expect(straddling.text(now: now, resetsAt: now.addingTimeInterval(4 * 3600), format: .twentyFourHour, calendar: utc) == "Runs out 12:50–13:30")
     }
 
     @Test func tooFewRatesOrARunOutPastTheResetGiveNothing() {
@@ -178,6 +203,14 @@ import Testing
         #expect(ratio.tokensPerPercent == 100_000)
         #expect(ratio.median == 350_000)
         #expect(ClaudeCostScanner.metering(blockTokens: nil, sessionUsed: 0.5, history: history, today: today) == nil)
+        // A drain-log boundary floors the median: the days before the vendor changed the window are no norm for
+        // the days after it. Five days on from the floor the median is theirs alone; four, and there is none yet.
+        let fiveDaysBack = utc.date(byAdding: .day, value: -5, to: today)!
+        let floored = try #require(ClaudeCostScanner.metering(blockTokens: 500_000, sessionUsed: 0.05, history: history, today: today, since: fiveDaysBack))
+        #expect(floored.median == 300_000)
+        let fourDaysBack = utc.date(byAdding: .day, value: -4, to: today)!
+        let tooFew = try #require(ClaudeCostScanner.metering(blockTokens: 500_000, sessionUsed: 0.05, history: history, today: today, since: fourDaysBack))
+        #expect(tooFew.median == nil)
 
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-metering-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: dir) }

@@ -40,6 +40,8 @@ struct DrainLog: Sendable {
         var amount: Double?
         /// The plan windows' used fractions at that moment, by window id.
         var plan: [String: Double]?
+        /// What a boundary row marks, in a few words.
+        var note: String?
     }
 
     /// One extra-usage transition: the credits rose, from what to what, with the plan windows at that moment.
@@ -49,6 +51,22 @@ struct DrainLog: Sendable {
         let previousUSD: Double?
         let planWindows: [String: Double]
     }
+
+    /// A moment after which a window's figures are not comparable with those before it: the vendor changed what
+    /// the window measures (a cap, a denominator) while the used percentage went on reading the same. Rows
+    /// either side of a boundary describe different quantities, so the metering median is floored at the newest
+    /// one (`ClaudeCostScanner.metering(since:)`) and the boundary is kept whole through every compaction.
+    struct Boundary: Equatable, Sendable {
+        let t: Date
+        let tool: ToolID
+        let window: String
+        let note: String?
+    }
+
+    /// Anthropic's weekly-cap change of 2026-09-14 (00:00 UTC): the weekly window's denominator moved while its
+    /// percentage did not. Written once for Claude's `seven_day` on the first launch after the upgrade
+    /// (`UsageStore.loadDrains`), and idempotent, so the row is there whether the app ran on the day or not.
+    static let weeklyDenominatorChangedAt = Date(timeIntervalSince1970: 1_789_344_000)
 
     let url: URL
     static let keepFor: TimeInterval = 7 * 86400
@@ -190,6 +208,41 @@ struct DrainLog: Sendable {
         }.sorted { $0.t < $1.t }
     }
 
+    /// Appends a boundary row (`kind: "boundary"`) for the window at `at`, unless one for that tool, window and
+    /// moment is on file already, so a launch can write the same marker every time and the file holds it once.
+    /// Returns whether a row was written.
+    @discardableResult
+    func appendBoundary(tool: ToolID, window: String, at: Date, note: String? = nil) -> Bool {
+        let existing = loadBoundaries()
+        guard !existing.contains(where: { $0.tool == tool && $0.window == window && abs($0.t.timeIntervalSince(at)) < 1 }) else { return false }
+        var line = Line(t: at, tool: tool.rawValue, window: window, used: 0, resetsAt: nil)
+        line.kind = "boundary"
+        line.note = note
+        guard let encoded = try? Self.encoder.encode(line) else { return false }
+        Self.io.async { [url, encoded] in
+            Self.write(encoded + Data([0x0A]), to: url)
+        }
+        return true
+    }
+
+    /// The boundaries on file, oldest first.
+    func loadBoundaries() -> [Boundary] {
+        guard let data = Self.io.sync(execute: { try? Data(contentsOf: url) }) else { return [] }
+        return Self.parseBoundaries(data)
+    }
+
+    static func parseBoundaries(_ data: Data) -> [Boundary] {
+        data.split(separator: 0x0A).compactMap { row in
+            guard let line = try? decoder.decode(Line.self, from: row), line.kind == "boundary", let tool = ToolID(rawValue: line.tool) else { return nil }
+            return Boundary(t: line.t, tool: tool, window: line.window, note: line.note)
+        }.sorted { $0.t < $1.t }
+    }
+
+    /// The newest boundary for the tool at or before `now`, any window; nil without one.
+    static func latestBoundary(_ boundaries: [Boundary], tool: ToolID, now: Date) -> Date? {
+        boundaries.filter { $0.tool == tool && $0.t <= now }.map(\.t).max()
+    }
+
     /// Everything within the keep window, oldest first per window; rows older than that are dropped from the file
     /// once it has grown past a few thousand lines (and once a day while the app stays up: `compactEvery`).
     func load(now: Date = Date()) -> [Key: [DrainSample]] {
@@ -204,12 +257,21 @@ struct DrainLog: Sendable {
         }
     }
 
-    /// The file's content with every utilization row older than the keep window dropped: the extra-usage
-    /// transitions first, every one of them (the record of when real money flowed is kept whole), then each
-    /// window's surviving rows oldest first. Pure, so the launch compaction and the daily one share it and a test
-    /// can pin what survives.
+    /// The file's content with every utilization row older than the keep window dropped: the boundaries and the
+    /// extra-usage transitions first, every one of them (the record of when a window changed its meaning, and of
+    /// when real money flowed, is kept whole), then each window's surviving rows oldest first. Pure, so the launch
+    /// compaction and the daily one share it and a test can pin what survives.
     static func compacted(_ data: Data, now: Date) -> Data {
         var whole = Data()
+        for boundary in parseBoundaries(data) {
+            var line = Line(t: boundary.t, tool: boundary.tool.rawValue, window: boundary.window, used: 0, resetsAt: nil)
+            line.kind = "boundary"
+            line.note = boundary.note
+            if let encoded = try? encoder.encode(line) {
+                whole.append(encoded)
+                whole.append(0x0A)
+            }
+        }
         for extra in parseExtraUsage(data) {
             var line = Line(t: extra.t, tool: ToolID.claude.rawValue, window: "extra_usage", used: extra.previousUSD ?? 0, resetsAt: nil)
             line.kind = "extra"

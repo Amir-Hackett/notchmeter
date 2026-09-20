@@ -30,13 +30,14 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
     }
 
     /// Whether this tool's spend can be derived from something it publishes: Claude Code's transcripts, Codex's
-    /// session rollouts, Cursor's priced usage-events export. GitHub Copilot bills a flat seat with no per-request
-    /// price and Antigravity meters quota rather than money, so neither can produce a dollar figure and neither
-    /// appears on the Cost card at all (docs/accuracy.md).
+    /// session rollouts, Cursor's priced usage-events export, and since GitHub's June 2026 move to usage-based
+    /// billing the AI credit count on a Copilot seat, a cent a credit at GitHub's published rate (a seat GitHub
+    /// does not meter in credits still produces no figure and no row). Antigravity meters quota rather than money,
+    /// so it cannot produce a dollar figure and never appears on the Cost card (docs/accuracy.md).
     var reportsCost: Bool {
         switch self {
-        case .claude, .codex, .cursor: true
-        case .antigravity, .copilot: false
+        case .claude, .codex, .cursor, .copilot: true
+        case .antigravity: false
         }
     }
 }
@@ -300,6 +301,15 @@ struct UsageReading: Codable, Equatable, Sendable {
     let fetchedAt: Date
     /// When the tool itself produced the numbers. Codex writes snapshots to disk, so this can trail fetchedAt.
     let observedAt: Date?
+
+    /// Whether the plan is one the user pays for, which is what makes its room worth routing work to: a free
+    /// tier's window is small and has no overage behind it. The only hard signal is the plan's own name — Codex's
+    /// "free" slug, Copilot's free SKU, a Claude "free" subscription — so a reading that names no plan at all, or
+    /// one this cannot read, counts as paid rather than silencing the advice for every vendor that omits it.
+    var isPaid: Bool {
+        guard let plan = plan?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !plan.isEmpty else { return true }
+        return plan != "free" && !plan.hasPrefix("free ")
+    }
 
     /// The same reading with some of its windows swapped for newer ones (the Claude Code status line replaces the
     /// session and weekly figures while a session runs; everything else is kept).

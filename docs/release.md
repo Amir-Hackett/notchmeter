@@ -17,7 +17,29 @@ Both files are hosted as GitHub Release assets. The app's feed is
 `appcast.xml` of the newest non-prerelease release, so every release uploads the whole feed and each item inside it
 points at that version's own `Notchmeter.dmg`.
 
-Nothing here needs Xcode; the Command Line Tools carry `codesign`, `notarytool`, `stapler`, `hdiutil` and `lipo`.
+Nothing here needs Xcode; the Command Line Tools carry `codesign`, `notarytool`, `stapler`, `hdiutil` and `lipo`. The
+one optional thing that does is the Liquid Glass icon for macOS 26, which CI compiles when its runner has an Xcode 26
+and every other build leaves out ([The icon](#the-icon)).
+
+## Release notes
+
+Sparkle shows an update's release notes in its alert, and since 0.7.0 they ride inside the appcast item rather than
+behind a link. Write them as Markdown in `docs/release-notes/<version>.md` before tagging: `release.yml` exports
+`RELEASE_NOTES=docs/release-notes/<version>.md` when that file exists and is not empty, and `scripts/release.sh`
+copies it beside the DMG as `dist/Notchmeter.md` (generate_appcast matches notes to an archive by basename; any
+`Notchmeter.html`, `.txt`, `.md` or `.markdown` left in `dist/` by an earlier run is removed first so it cannot win),
+passes `--embed-release-notes`, and then asserts that this build's `<item>` carries a `<description
+sparkle:format="markdown">`; `scripts/appcast-check.swift verify … --notes markdown` checks the same from the parsed
+XML, on the enclosure's own item, and that the description is not empty. A `.html` fragment or a `.txt` file works
+the same way (`sparkle:format` absent or `plain-text`). Unset, the item carries only the link to the GitHub release
+page, and the script fails if a `<description>` turned up anyway, which would mean a stray notes file.
+
+What Sparkle renders (2.9, macOS 12 and later, so on the app's macOS 14 floor): headings, paragraphs, bullet and
+numbered lists, block quotes and code blocks. Tables and images are not drawn, so keep them out; links render but the
+alert is not a browser. The file is also a good body for the GitHub release, which the workflow otherwise fills with
+`--generate-notes`. A missing file does not fail a release, on purpose: the guard in `release.yml` warns and ships
+without notes rather than failing after notarisation has been spent. `.claude/skills/release/SKILL.md` checks for the
+file in its preflight, so a tag cut through it never ships without them.
 
 ## Try it now: the dry run
 
@@ -158,7 +180,9 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
 
 ## Each release
 
-1. Bump `CFBundleShortVersionString` in `scripts/Info.plist` and commit. The release refuses to build if the tag and
+1. Bump `CFBundleShortVersionString` in `scripts/Info.plist`, and `version` in `.claude-plugin/plugin.json` to the
+   same string (`ReleasePackagingTests` holds the two equal), write `docs/release-notes/<version>.md`
+   ([Release notes](#release-notes)), and commit. The release refuses to build if the tag and
    the plist disagree. `CFBundleVersion`, which Sparkle compares, is stamped from `git rev-list --count HEAD`, so it
    only grows and is the same number locally and in CI for the same commit. Build from the commit you tag: v0.1.0 was
    built from a branch three commits past its tag, which is why it shipped as build 89 while the tag counts 86.
@@ -169,8 +193,9 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
    DEVELOPER_ID_APP="Developer ID Application: Your Name (TEAMID)" NOTARY_PROFILE=notchmeter PREVIOUS_APPCAST=previous-appcast.xml scripts/release.sh
    ```
 
-   `SPARKLE_KEY_PATH=~/sparkle-private-key.txt` uses the exported key instead of the keychain. `RELEASE_NOTES=notes.html`
-   embeds an HTML fragment as the update's release notes. Notarisation usually takes one to five minutes; the script
+   `SPARKLE_KEY_PATH=~/sparkle-private-key.txt` uses the exported key instead of the keychain.
+   `RELEASE_NOTES=docs/release-notes/<version>.md` embeds the notes in the appcast item ([Release notes](#release-notes));
+   the workflow sets it by itself from the tag. Notarisation usually takes one to five minutes; the script
    waits and fails loudly with the `notarytool log` command if Apple rejects the build.
 
    **A beta** is the hand path only; the workflow ignores a tag with a hyphen in it. Set `CFBundleShortVersionString`
@@ -242,6 +267,39 @@ The gate the app applies before starting Sparkle is in `Sources/Notchmeter/Updat
 `SUPublicEDKey` that decodes to 32 bytes, and a code signature that names a certificate (read with
 `SecCodeCopySigningInformation`; the ad-hoc signature of a local build names none). `/usr/bin/log show --predicate
 'subsystem == "com.amirhackett.notchmeter" and category == "updater"' --last 10m` shows the verdict of a normal launch.
+
+## The icon
+
+Two icons, one source of truth each. The classic one is drawn by `scripts/make-icon.swift` at build time into
+`build/AppIcon.iconset`, folded by `iconutil` into `AppIcon.icns`, copied into `Contents/Resources` and named by
+`CFBundleIconFile` in `scripts/Info.plist`; it is what every macOS before 26 shows, what `scripts/site-assets.sh`
+copies to the site, and what a macOS 26 Mac falls back to. It needs nothing but the Command Line Tools.
+
+The Liquid Glass one for macOS 26 (Tahoe) is an Icon Composer document, `packaging/AppIcon.icon`, exported from Icon
+Composer, which ships with Xcode 26. Only Xcode 26's `actool` can compile it, into `Contents/Resources/Assets.car`
+(an icon stack plus a flattened fallback), and the Command Line Tools have no `actool` at all: `xcrun --find actool`
+exits 72 on such a Mac. So `scripts/build.sh` runs that step only when both the document and the tool exist, and
+then adds `CFBundleIconName` = `AppIcon` to the bundle's `Info.plist`, never to `scripts/Info.plist`, so the plist
+never names an asset the bundle does not hold. `release.yml` selects an Xcode 26 on the runner when the image has one
+(and says so if it has not), which is where the shipped icon is compiled; a developer build without Xcode is exactly
+the build it was before, `.icns` only. The flattened `AppIcon.icns` actool writes beside the car is not copied, since
+the hand-drawn one under `CFBundleIconFile` is the better fallback.
+
+There is no `packaging/AppIcon.icon` in the repository until one is exported from Icon Composer: the document is a
+folder of layers and a JSON manifest that only that app writes, and nothing here fabricates one. Until it exists the
+build is unchanged on every machine, including CI. To add it: open Icon Composer, build the icon from the same shapes
+as `make-icon.swift`, export it as `AppIcon.icon` (the name is the asset name, and must stay `AppIcon` to match
+`CFBundleIconName` and `--app-icon`), and commit the folder under `packaging/`. After the first CI build with it:
+
+```bash
+assetutil --info build/Notchmeter.app/Contents/Resources/Assets.car | grep -iE 'iconstack|MultiSized'
+plutil -p build/Notchmeter.app/Contents/Info.plist | grep CFBundleIcon      # both CFBundleIconFile and CFBundleIconName
+codesign --verify --deep --strict build/Notchmeter.app                       # the car is inside the sealed resources
+```
+
+and look at the result on a macOS 26 Mac (the glass icon) and a macOS 15 one (the `.icns`). The deployment target
+stays 14.0: `--minimum-deployment-target` is read from `LSMinimumSystemVersion`, and generate_appcast copies that
+into `sparkle:minimumSystemVersion`, so a Tahoe icon never narrows who is offered the update.
 
 ## Homebrew
 

@@ -450,6 +450,17 @@ final class Preferences {
     var showResetCountdown: Bool {
         didSet { defaults.set(showResetCountdown, forKey: Keys.resetCountdown); report(Keys.resetCountdown, showResetCountdown, changed: showResetCountdown != oldValue) }
     }
+    /// At plain rings, the outer ring's window as a figure beside the nest (CompactLabel.figures): the one number
+    /// most people open the panel for, without giving up the rings for the digits style. On by default; the quiet
+    /// dimming stays on the rings and leaves the figure legible.
+    var compactPrimary: Bool {
+        didSet { defaults.set(compactPrimary, forKey: Keys.compactPrimary); report(Keys.compactPrimary, compactPrimary, changed: compactPrimary != oldValue) }
+    }
+    /// An assistant that is switched on and installed but has nothing to show — no reading, no spend, no session —
+    /// stays off the panel and the strip until it has (UsageStore.visibleTools). The last visible one is never hidden.
+    var hideEmptyTools: Bool {
+        didSet { defaults.set(hideEmptyTools, forKey: Keys.hideEmptyTools); report(Keys.hideEmptyTools, hideEmptyTools, changed: hideEmptyTools != oldValue) }
+    }
     /// Secondary figures (session block, tokens, cache writes, top projects, Cursor spend, the sparklines).
     /// Off by default so the panel fits the screen without scrolling.
     var showDetails: Bool {
@@ -653,6 +664,10 @@ final class Preferences {
     var notifyCacheShift: Bool {
         didSet { defaults.set(notifyCacheShift, forKey: Keys.notifyCacheShift); report(Keys.notifyCacheShift, notifyCacheShift, changed: notifyCacheShift != oldValue) }
     }
+    /// When Claude Code's prompt cache kept missing in the current session block (Advisor.promptCache), once a day.
+    var notifyPromptCache: Bool {
+        didSet { defaults.set(notifyPromptCache, forKey: Keys.notifyPromptCache); report(Keys.notifyPromptCache, notifyPromptCache, changed: notifyPromptCache != oldValue) }
+    }
     /// What the notch itself does when an assistant waits or a long turn finishes.
     var sessionAttention: SessionAttention {
         didSet { defaults.set(sessionAttention.rawValue, forKey: Keys.sessionAttention); report(Keys.sessionAttention, sessionAttention.rawValue, changed: sessionAttention != oldValue) }
@@ -724,6 +739,11 @@ final class Preferences {
     var copilotOrgBilling: Bool {
         didSet { defaults.set(copilotOrgBilling, forKey: Keys.copilotOrg); report(Keys.copilotOrg, copilotOrgBilling, changed: copilotOrgBilling != oldValue) }
     }
+    /// Whether Anthropic's usage endpoint is read at all for Claude Code. Off leaves the status line, the channel
+    /// Anthropic documents, as the only Claude source; the status line is preferred whenever it is fresh either way.
+    var pollClaudeEndpoint: Bool {
+        didSet { defaults.set(pollClaudeEndpoint, forKey: Keys.pollClaude); report(Keys.pollClaude, pollClaudeEndpoint, changed: pollClaudeEndpoint != oldValue) }
+    }
     /// When the Keychain dialog for Claude Code's login may appear.
     var keychainPrompts: KeychainPromptPolicy {
         didSet {
@@ -744,6 +764,40 @@ final class Preferences {
     var autoRepairHooks: Bool {
         didSet { defaults.set(autoRepairHooks, forKey: Keys.autoRepair); report(Keys.autoRepair, autoRepairHooks, changed: autoRepairHooks != oldValue) }
     }
+    /// The Sessions card on the panel: one row per session the hooks report.
+    var sessionsCard: Bool {
+        didSet { defaults.set(sessionsCard, forKey: Keys.sessionsCard); report(Keys.sessionsCard, sessionsCard, changed: sessionsCard != oldValue) }
+    }
+    /// Whether a prompt's first line is kept as the session's title. Off, the store drops the title before it
+    /// reaches the tracker (UsageStore.hookReceived), so nothing of the prompt is held anywhere in the app.
+    var sessionTitles: Bool {
+        didSet { defaults.set(sessionTitles, forKey: Keys.sessionTitles); report(Keys.sessionTitles, sessionTitles, changed: sessionTitles != oldValue) }
+    }
+    /// Whether a permission request or a question is answered from the notch. Off, the store answers the hook
+    /// nothing at once, so the terminal asks as it always has, and the panel shows only the wait.
+    var answerFromNotch: Bool {
+        didSet { defaults.set(answerFromNotch, forKey: Keys.answerFromNotch); report(Keys.answerFromNotch, answerFromNotch, changed: answerFromNotch != oldValue) }
+    }
+    /// Whether clicking a session row activates the terminal it runs in (TerminalJump).
+    var jumpToTerminal: Bool {
+        didSet { defaults.set(jumpToTerminal, forKey: Keys.jumpToTerminal); report(Keys.jumpToTerminal, jumpToTerminal, changed: jumpToTerminal != oldValue) }
+    }
+    /// How long the app holds a request before handing it back to the terminal, 15 s to 9 min. The socket's own
+    /// cap (HookSocket.Listener.holdCap), the command's wait and the entries' timeouts are all ten minutes, and
+    /// the vendor's clock starts before the command has even connected, so the range stops a minute short of
+    /// them: the app's hold is what ends a request, never a vendor killing the command under a card still
+    /// showing (HookDecisionTests pins the order).
+    var promptHoldSeconds: Int {
+        didSet {
+            // Same shape as finishedAfterMinutes above: the clamp writes back only when it changes the value.
+            let clamped = min(Self.promptHoldRange.upperBound, max(Self.promptHoldRange.lowerBound, promptHoldSeconds))
+            if clamped != promptHoldSeconds { promptHoldSeconds = clamped; return }
+            defaults.set(promptHoldSeconds, forKey: Keys.promptHold)
+            report(Keys.promptHold, promptHoldSeconds, changed: promptHoldSeconds != oldValue)
+        }
+    }
+    static let promptHoldRange = 15...540
+    static let promptHoldDefault = 120
     /// "http://host:port" or "socks5://host:port"; empty follows the system proxy.
     var proxyURL: String {
         didSet {
@@ -814,6 +868,11 @@ final class Preferences {
     var hookOfferShown: Bool {
         didSet { defaults.set(hookOfferShown, forKey: Keys.hookOffer); report(Keys.hookOffer, hookOfferShown, changed: hookOfferShown != oldValue) }
     }
+    /// The first-launch Welcome window has been shown, or a copy set up before it existed was found; either way it
+    /// is never shown again (WelcomeWindow).
+    var welcomed: Bool {
+        didSet { defaults.set(welcomed, forKey: Keys.welcomed); report(Keys.welcomed, welcomed, changed: welcomed != oldValue) }
+    }
     /// The code signature Accessibility was last seen granted under (CodeSignature.runningIdentity). macOS ties the
     /// grant to the copy it was given to and leaves the switch on when that copy is replaced, so this is the only
     /// way to tell a permission that was never given from one the running copy has been quietly refused.
@@ -850,6 +909,8 @@ final class Preferences {
         static let hotkeyFullScreen = "hotkeyShowOverFullScreen"
         static let compactStyle = "compactStyle"
         static let resetCountdown = "showResetCountdown"
+        static let compactPrimary = "compactPrimary"
+        static let hideEmptyTools = "hideEmptyTools"
         static let showSpend = "showSpend"
         static let showDetails = "showDetails"
         static let compactSide = "compactSide"
@@ -890,6 +951,7 @@ final class Preferences {
         static let finishedAfter = "finishedAfterMinutes"
         static let notifyExtraUsage = "notifyExtraUsage"
         static let notifyCacheShift = "notifyCacheShift"
+        static let notifyPromptCache = "notifyPromptCache"
         static let sessionAttention = "sessionAttention"
         static let signalRings = "signalRings"
         static let notificationSound = "notificationSound"
@@ -908,9 +970,15 @@ final class Preferences {
         static let cursorEvents = ProviderOptIn.cursorUsageEvents.key
         static let copilotOrg = ProviderOptIn.copilotOrgBilling.key
         static let keychainPrompts = "keychainPrompts"
+        static let pollClaude = "pollClaudeEndpoint"
         static let keepAwake = "keepAwake"
         static let keepAwakeBattery = "keepAwakeOnBattery"
         static let autoRepair = "autoRepairHooks"
+        static let sessionsCard = "sessionsCard"
+        static let sessionTitles = "sessionTitles"
+        static let answerFromNotch = "answerFromNotch"
+        static let jumpToTerminal = "jumpToTerminal"
+        static let promptHold = "promptHoldSeconds"
         static let proxy = "proxyURL"
         static let debugLogging = "debugLogging"
         static let betaUpdates = "betaUpdates"
@@ -918,6 +986,7 @@ final class Preferences {
         static let hotkeyToggle = "hotkeyTogglePanel"
         static let hotkeySettings = "hotkeyOpenSettings"
         static let hookOffer = "hookOfferShown"
+        static let welcomed = "welcomed"
         static let accessibilityGrant = "accessibilityGrantedTo"
         static let accessibilityAsked = "accessibilityAskedFor"
         static let launchAtLogin = "launchAtLogin"
@@ -940,6 +1009,8 @@ final class Preferences {
         fullScreenExceptions = defaults.stringArray(forKey: Keys.fullScreenExceptions) ?? []
         compactStyle = CompactStyle(rawValue: defaults.string(forKey: Keys.compactStyle) ?? "") ?? .rings
         showResetCountdown = defaults.bool(forKey: Keys.resetCountdown)
+        compactPrimary = defaults.object(forKey: Keys.compactPrimary) as? Bool ?? true
+        hideEmptyTools = defaults.object(forKey: Keys.hideEmptyTools) as? Bool ?? true
         showSpend = defaults.object(forKey: Keys.showSpend) as? Bool ?? true
         showDetails = defaults.object(forKey: Keys.showDetails) as? Bool ?? false
         compactSide = CompactSide(rawValue: defaults.string(forKey: Keys.compactSide) ?? "") ?? .split
@@ -984,6 +1055,7 @@ final class Preferences {
         finishedAfterMinutes = defaults.object(forKey: Keys.finishedAfter) as? Int ?? 2
         notifyExtraUsage = defaults.object(forKey: Keys.notifyExtraUsage) as? Bool ?? true
         notifyCacheShift = defaults.bool(forKey: Keys.notifyCacheShift)
+        notifyPromptCache = defaults.object(forKey: Keys.notifyPromptCache) as? Bool ?? true
         sessionAttention = SessionAttention(rawValue: defaults.string(forKey: Keys.sessionAttention) ?? "") ?? .nothing
         signalRings = defaults.object(forKey: Keys.signalRings) as? Bool ?? true
         notificationSound = defaults.object(forKey: Keys.notificationSound) as? Bool ?? true
@@ -1010,9 +1082,15 @@ final class Preferences {
         cursorUsageEvents = ProviderOptIn.cursorUsageEvents.value(defaults)
         copilotOrgBilling = ProviderOptIn.copilotOrgBilling.value(defaults)
         keychainPrompts = KeychainPromptPolicy(rawValue: defaults.string(forKey: Keys.keychainPrompts) ?? "") ?? .refreshOnly
+        pollClaudeEndpoint = defaults.object(forKey: Keys.pollClaude) as? Bool ?? true
         keepAwake = defaults.bool(forKey: Keys.keepAwake)
         keepAwakeOnBattery = defaults.bool(forKey: Keys.keepAwakeBattery)
         autoRepairHooks = defaults.object(forKey: Keys.autoRepair) as? Bool ?? true
+        sessionsCard = defaults.object(forKey: Keys.sessionsCard) as? Bool ?? true
+        sessionTitles = defaults.object(forKey: Keys.sessionTitles) as? Bool ?? true
+        answerFromNotch = defaults.object(forKey: Keys.answerFromNotch) as? Bool ?? true
+        jumpToTerminal = defaults.object(forKey: Keys.jumpToTerminal) as? Bool ?? true
+        promptHoldSeconds = min(Self.promptHoldRange.upperBound, max(Self.promptHoldRange.lowerBound, defaults.object(forKey: Keys.promptHold) as? Int ?? Self.promptHoldDefault))
         proxyURL = defaults.string(forKey: Keys.proxy) ?? ""
         debugLogging = defaults.bool(forKey: Keys.debugLogging)
         betaUpdates = defaults.bool(forKey: Keys.betaUpdates)
@@ -1021,6 +1099,7 @@ final class Preferences {
         openSettingsHotkey = Self.codable(defaults, Keys.hotkeySettings)
         showOverFullScreenHotkey = Self.codable(defaults, Keys.hotkeyFullScreen)
         hookOfferShown = defaults.bool(forKey: Keys.hookOffer)
+        welcomed = defaults.bool(forKey: Keys.welcomed)
         accessibilityGrantedTo = defaults.string(forKey: Keys.accessibilityGrant)
         accessibilityAskedFor = defaults.string(forKey: Keys.accessibilityAsked)
         let status = SMAppService.mainApp.status

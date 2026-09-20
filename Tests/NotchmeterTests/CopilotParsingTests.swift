@@ -61,6 +61,95 @@ import Testing
         #expect(throws: ProviderError.self) { try CopilotProvider.parseUser(Data("{}".utf8)) }
     }
 
+    /// The paid metered seat after GitHub's June 2026 change (openusage's live fixture): the `-1` sentinel means
+    /// no limit, `unlimited` with zero placeholders means the same, and the extra usage counts as before.
+    @Test func aMeteredSeatAfterJuneReadsItsSentinelsAsNoLimit() throws {
+        let json = """
+        {"copilot_plan":"pro","quota_reset_date":"2099-01-15T00:00:00Z",
+         "quota_snapshots":{"premium_interactions":{"entitlement":300,"remaining":123,"percent_remaining":41,"quota_id":"premium","overage_permitted":true,"overage_count":36},
+                            "chat":{"entitlement":-1,"remaining":-1},
+                            "completions":{"unlimited":true,"entitlement":0,"remaining":0}}}
+        """
+        let reading = try CopilotProvider.parseUser(Data(json.utf8))
+        #expect(reading.plan == "Pro")
+        #expect(reading.windows.map(\.id) == ["premium"])
+        #expect(reading.windows[0].usedFraction == 0.59)
+        #expect(reading.windows[0].note == "123 of 300 left · 36 extra this month")
+        #expect(reading.windows[0].amountUSD == nil)
+        // An ISO instant is a reset too, and the window is the month's.
+        #expect(reading.windows[0].resetsAt == DateParsing.iso8601("2099-01-15T00:00:00Z"))
+        #expect(reading.windows[0].periodDuration == Period.month)
+
+        // One request into overage: `remaining` reads -1 beside a metered entitlement, which is the count (the
+        // clamp already allowed for a negative one), not the sentinel; the sentinel is the entitlement's.
+        let overage = """
+        {"copilot_plan":"pro","quota_reset_date":"2099-01-15T00:00:00Z",
+         "quota_snapshots":{"premium_interactions":{"entitlement":300,"remaining":-1,"percent_remaining":0,"quota_id":"premium","overage_permitted":true,"overage_count":1}}}
+        """
+        let over = try CopilotProvider.parseUser(Data(overage.utf8))
+        #expect(over.windows.map(\.id) == ["premium"], "a metered seat one request over stays a metered window")
+        #expect(over.windows[0].usedFraction == 1)
+        #expect(over.windows[0].note == "0 of 300 left · 1 extra this month")
+    }
+
+    /// The org-managed Business seat on AI credits (CodexBar's live-validated fixture): every snapshot a zero
+    /// placeholder, which used to draw a 0 % bar, beside a `credits_used` count that is the only figure there is.
+    /// A credit is a cent, so the window carries its dollars and the Cost card can show them.
+    @Test func aTokenBilledSeatKeepsOnlyItsCreditsAndNeverAZeroBar() throws {
+        let json = """
+        {"copilot_plan":"business","token_based_billing":true,"quota_reset_date":"2026-09-01",
+         "quota_snapshots":{"premium_interactions":{"entitlement":0,"remaining":0,"percent_remaining":100,"quota_id":"premium_interactions","credits_used":"31"},
+                            "chat":{"entitlement":0,"remaining":0,"percent_remaining":100,"quota_id":"chat","credits_used":0}}}
+        """
+        let reading = try CopilotProvider.parseUser(Data(json.utf8))
+        #expect(reading.windows.map(\.id) == ["credits"])
+        #expect(reading.windows[0].label == "AI credits")
+        #expect(reading.windows[0].usedFraction == nil)
+        #expect(reading.windows[0].note == "31 credits used")
+        let thirtyOneCents = 0.31
+        #expect(abs((reading.windows[0].amountUSD ?? 0) - thirtyOneCents) < 1e-9)
+        #expect(reading.windows[0].resetsAt == CopilotProvider.resetDate("2026-09-01"))
+        #expect(CopilotProvider.creditsUsed(Data(json.utf8)) == 31)
+        // The same seat with an entitlement is a credits window with a bar, its dollars the credits spent.
+        let entitled = json.replacingOccurrences(of: #""entitlement":0,"remaining":0,"percent_remaining":100,"quota_id":"premium_interactions""#,
+                                                 with: #""entitlement":1900,"remaining":1869,"quota_id":"premium_interactions""#)
+        let bar = try CopilotProvider.parseUser(Data(entitled.utf8))
+        #expect(bar.windows[0].id == "credits")
+        #expect(bar.windows[0].note == "1869 of 1900 credits left")
+        let usedShare = 31.0 / 1900
+        #expect(abs((bar.windows[0].usedFraction ?? 0) - usedShare) < 1e-9)
+        #expect(abs((bar.windows[0].amountUSD ?? 0) - thirtyOneCents) < 1e-9)
+        // No credit spent yet is a figure of its own, not "no quota".
+        let fresh = try CopilotProvider.parseUser(Data(#"{"copilot_plan":"business","token_based_billing":true,"quota_snapshots":{"premium_interactions":{"entitlement":0,"remaining":0,"credits_used":0}}}"#.utf8))
+        #expect(fresh.windows.map(\.id) == ["credits"])
+        #expect(fresh.windows[0].note == "No credits used this month yet")
+        #expect(fresh.windows[0].amountUSD == 0)
+        #expect(CopilotProvider.creditsUsed(Data(#"{"copilot_plan":"pro","quota_snapshots":{"chat":{"entitlement":50}}}"#.utf8)) == nil)
+    }
+
+    /// The free individual as GitHub answers it today (openusage's live fixture): a premium placeholder under
+    /// `percent_remaining: 0`, which is not a full bar, beside the two quotas that are metered. The counts arrive
+    /// as strings on some seats, and `quota_reset_date_utc` is a reset too.
+    @Test func aFreeIndividualsPlaceholderIsNotAFullBar() throws {
+        let json = """
+        {"copilot_plan":"individual","access_type_sku":"free_limited_copilot","token_based_billing":true,"quota_reset_date_utc":"2099-07-01",
+         "quota_snapshots":{"chat":{"entitlement":"200","remaining":"182","overage_permitted":false},
+                            "completions":{"entitlement":2000,"remaining":1989,"percent_remaining":99.4},
+                            "premium_interactions":{"entitlement":0,"remaining":0,"percent_remaining":0.0}}}
+        """
+        let reading = try CopilotProvider.parseUser(Data(json.utf8))
+        #expect(reading.windows.map(\.id) == ["chat", "completions"])
+        #expect(abs((reading.windows[0].usedFraction ?? 0) - 0.09) < 1e-9)
+        #expect(reading.windows[0].note == "182 of 200 left")
+        let completionsUsed = 0.006
+        #expect(abs((reading.windows[1].usedFraction ?? 0) - completionsUsed) < 1e-9)
+        #expect(reading.windows[0].resetsAt == CopilotProvider.resetDate("2099-07-01"))
+        #expect(reading.windows[0].amountUSD == nil)
+        #expect(CopilotProvider.count("31") == 31)
+        #expect(CopilotProvider.count(31.5) == 31.5)
+        #expect(CopilotProvider.count("many") == nil)
+    }
+
     @Test func tokenComesFromAppsJSONThenHostsThenGh() throws {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent("notchmeter-copilot-\(UUID().uuidString)")
@@ -197,6 +286,10 @@ import Testing
         try Data(#"{"github.com:Iv1.old":{"oauth_token":"gho_stale"}}"#.utf8).write(to: config.appendingPathComponent("apps.json"))
         try Data("github.com:\n    oauth_token: gho_live\n".utf8).write(to: gh)
         try fm.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -86400)], ofItemAtPath: gh.path)
+        let suite = "NotchmeterTests.CopilotLive"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
         let answers = Answers()
         let user = try JSONSerialization.data(withJSONObject: ["copilot_plan": "individual", "quota_reset_date": "2026-10-01",
                                                                 "quota_snapshots": ["premium_interactions": ["entitlement": 300, "remaining": 100, "unlimited": false]]])
@@ -204,8 +297,10 @@ import Testing
         StubProtocol.answers = answers
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubProtocol.self]
-        let provider = CopilotProvider(session: URLSession(configuration: configuration), configRoot: config, ghHosts: gh)
+        let provider = CopilotProvider(session: URLSession(configuration: configuration), configRoot: config, ghHosts: gh, defaults: defaults, history: nil)
         let reading = try await provider.fetch()
+        // A seat with no credits field is written down as not metered in credits, for the Cost card's line.
+        #expect(CopilotCreditsRead.load(from: defaults)?.metered == false)
         // 100 of 300 premium requests left, so two thirds of them are spent.
         let twoThirds = 2.0 / 3
         let drift = abs((reading.windows[0].usedFraction ?? 0) - twoThirds)
@@ -219,7 +314,7 @@ import Testing
         refused.status = { _, _ in (401, Data()) }
         StubProtocol.answers = refused
         do {
-            _ = try await CopilotProvider(session: URLSession(configuration: configuration), configRoot: config, ghHosts: gh).fetch()
+            _ = try await CopilotProvider(session: URLSession(configuration: configuration), configRoot: config, ghHosts: gh, defaults: defaults, history: nil).fetch()
             Issue.record("expected a refusal")
         } catch let error as ProviderError {
             #expect(error.needsAttention)
@@ -227,6 +322,68 @@ import Testing
             #expect(error.message.contains("hosts.yml"))
         }
         #expect(refused.tokens.count == 2)
+    }
+
+    /// The quota endpoint is asked with the client identity it answers to, and the credits it reports are folded
+    /// into the daily history a cent a credit: the first read sets the baseline, each rise lands on the day it was
+    /// seen, and a fall is the month's reset. The org billing read keeps the app's own identity.
+    @Test func creditsRiseIntoTheDailyHistoryAndTheHeadersNameTheClient() async throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("notchmeter-copilot-credits-\(UUID().uuidString)")
+        let config = dir.appendingPathComponent("github-copilot")
+        try fm.createDirectory(at: config, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+        try Data(#"{"github.com":{"oauth_token":"gho_live"}}"#.utf8).write(to: config.appendingPathComponent("hosts.json"))
+        let suite = "NotchmeterTests.CopilotCredits"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let history = CostHistory(url: dir.appendingPathComponent("daily.jsonl"), tool: .copilot)
+        let answers = Answers()
+        final class Seen: @unchecked Sendable {
+            var credits = 31
+            var headers: [String: String] = [:]
+            let lock = NSLock()
+        }
+        let seen = Seen()
+        answers.status = { _, url in
+            seen.lock.lock()
+            defer { seen.lock.unlock() }
+            guard url == CopilotProvider.userURL else { return (404, Data()) }
+            let body = #"{"copilot_plan":"business","token_based_billing":true,"quota_snapshots":{"premium_interactions":{"entitlement":0,"remaining":0,"credits_used":\#(seen.credits)},"chat":{"entitlement":0,"remaining":0,"credits_used":0}}}"#
+            return (200, Data(body.utf8))
+        }
+        StubProtocol.answers = answers
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubProtocol.self]
+        let provider = CopilotProvider(session: URLSession(configuration: configuration), configRoot: config, ghHosts: dir.appendingPathComponent("none.yml"),
+                                       defaults: defaults, history: history)
+        // First read: the baseline. The 31 credits already spent this month are not charged to today.
+        let first = try await provider.fetch()
+        #expect(first.windows[0].note == "31 credits used")
+        #expect(history.load().isEmpty)
+        #expect(CopilotCreditsRead.load(from: defaults)?.credits == 31)
+        // A rise of 12 credits is twelve cents on today.
+        seen.lock.lock(); seen.credits = 43; seen.lock.unlock()
+        _ = try await provider.fetch()
+        let today = Calendar.current.startOfDay(for: Date())
+        let twelveCents = 0.12
+        #expect(abs((history.load()[today]?.cost ?? 0) - twelveCents) < 1e-9)
+        // The month resets: the count falls to 5, which is five credits since the reset, on top of the twelve.
+        seen.lock.lock(); seen.credits = 5; seen.lock.unlock()
+        _ = try await provider.fetch()
+        let seventeenCents = 0.17
+        #expect(abs((history.load()[today]?.cost ?? 0) - seventeenCents) < 1e-9)
+        #expect(CopilotCreditsRead.load(from: defaults)?.credits == 5)
+        // The same rise does not count twice.
+        _ = try await provider.fetch()
+        #expect(abs((history.load()[today]?.cost ?? 0) - seventeenCents) < 1e-9)
+        #expect(CopilotProvider.editorVersion == "vscode/1.96.2")
+        #expect(CopilotProvider.pluginVersion == "copilot-chat/0.26.7")
+        #expect(CopilotProvider.copilotUserAgent == "GitHubCopilotChat/0.26.7")
+        #expect(CopilotProvider.copilotAPIVersion == "2025-04-01")
+        #expect(CopilotProvider.apiVersion == "2022-11-28")
+        #expect(CopilotProvider.creditUSD == 0.01)
     }
 
     @Test func organisationBillingBecomesHiddenWindows() throws {

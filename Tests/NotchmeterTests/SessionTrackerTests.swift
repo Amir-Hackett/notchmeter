@@ -297,7 +297,10 @@ import Testing
             LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.5, resetsAt: t0.addingTimeInterval(3 * 86400), periodDuration: Period.week),
         ], plan: nil, fetchedAt: t0, observedAt: nil)], now: t0)
         context.limitHitTools = [.claude]
-        #expect(Advisor.limitHit(context).map(\.text) == ["Claude Code hit its limit; session resets in 2h 10m."])
+        // The session was the window hit and the week has room, so the quieter /limit-reset offer (a rule of its
+        // own since it needs no hook) follows the line.
+        #expect((Advisor.limitHit(context) + Advisor.limitReset(context)).map(\.text) == ["Claude Code hit its limit; session resets in 2h 10m.",
+                                                                                          "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."])
         #expect(Advisor.waitForReset(context).isEmpty)
         context.readings = []
         #expect(Advisor.limitHit(context).isEmpty)
@@ -399,5 +402,180 @@ import Testing
         #expect(acted == ["raise a"])
         store.hookReceived(message("Notification", type: "permission_prompt"), now: t0.addingTimeInterval(601))
         #expect(acted == ["raise a", "withdraw session/a/waiting", "raise a"])
+    }
+}
+
+/// The 0.7.0 fields: a request the hook is holding the session for, the title a prompt leaves, the terminal that
+/// merges across events, and the model the status line names; each with the end that arrives without another event.
+@Suite struct SessionTrackingRequests {
+    let t0 = DateParsing.iso8601("2026-09-01T12:00:00Z")!
+
+    func request(_ id: String, session: String = "a", kind: PendingRequest.Kind = .permission(tool: "Bash", summary: "ls", detail: nil, suggestions: [])) -> Hook.Message {
+        var message = Hook.Message(event: "PermissionRequest", needsInput: true, sessionID: session, project: "notchmeter")
+        message.request = Hook.Request(id: id, kind: kind)
+        return message
+    }
+
+    func message(_ event: String, session: String = "a", type: String? = nil, agent: String? = nil, title: String? = nil, terminal: TerminalRef? = nil) -> Hook.Message {
+        var message = Hook.Message(event: event, needsInput: Hook.needsInput(event: event, notificationType: type), sessionID: session, project: "notchmeter",
+                                   notificationType: type, agentID: agent)
+        message.title = title
+        message.terminal = terminal
+        return message
+    }
+
+    @Test func aRequestHoldsTheSessionAndIsReportedOnce() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit"), now: t0)
+        let outcome = tracker.apply(request("r1"), now: t0.addingTimeInterval(5))
+        #expect(outcome.startedWaiting?.id == "a")
+        #expect(outcome.requested?.session.id == "a")
+        #expect(outcome.requested?.request == PendingRequest(id: "r1", kind: .permission(tool: "Bash", summary: "ls", detail: nil, suggestions: []), since: t0.addingTimeInterval(5)))
+        #expect(outcome.requestsEnded.isEmpty)
+        #expect(tracker.waiting.map(\.id) == ["a"])
+        #expect(tracker.all.first?.pending?.id == "r1")
+        #expect(tracker.pending(now: t0.addingTimeInterval(6)).map(\.request.id) == ["r1"])
+
+        // A second request on the same session replaces the first, which is reported ended.
+        let replaced = tracker.apply(request("r2"), now: t0.addingTimeInterval(10))
+        #expect(replaced.requested?.request.id == "r2")
+        #expect(replaced.requestsEnded == [SessionTracker.EndedRequest(sessionID: "a", requestID: "r1")])
+        #expect(replaced.startedWaiting == nil, "already waiting")
+        #expect(tracker.pending(now: t0.addingTimeInterval(11)).map(\.request.id) == ["r2"])
+
+        // Newest first across sessions.
+        tracker.apply(request("r3", session: "b"), now: t0.addingTimeInterval(20))
+        #expect(tracker.pending(now: t0.addingTimeInterval(21)).map(\.request.id) == ["r3", "r2"])
+    }
+
+    @Test func aQuestionIsAWaitWhateverTheEventSaid() {
+        var tracker = SessionTracker()
+        var question = Hook.Message(event: "PreToolUse", needsInput: true, sessionID: "a")
+        question.request = Hook.Request(id: "q1", kind: .question([PendingRequest.Question(text: "Which?", options: [PendingRequest.Option(label: "A")])]))
+        let outcome = tracker.apply(question, now: t0)
+        #expect(outcome.startedWaiting?.id == "a")
+        #expect(outcome.requested?.request.kindName == "question")
+        #expect(tracker.all.first?.isWaiting == true)
+        let plain = tracker.apply(Hook.Message(event: "PreToolUse", needsInput: false, sessionID: "a"), now: t0.addingTimeInterval(1))
+        #expect(plain.requested == nil)
+        #expect(tracker.all.first?.pending?.id == "q1", "an ordinary tool call neither starts nor ends a request")
+    }
+
+    @Test func theSameEventsThatEndAWaitEndTheRequest() {
+        for (event, agent) in [("UserPromptSubmit", nil), ("Stop", nil), ("StopFailure", nil), ("SessionStart", nil), ("SubagentStart", "a1")] {
+            var tracker = SessionTracker()
+            tracker.apply(request("r1"), now: t0)
+            let outcome = tracker.apply(message(event, agent: agent), now: t0.addingTimeInterval(5))
+            #expect(outcome.requestsEnded == [SessionTracker.EndedRequest(sessionID: "a", requestID: "r1")], "\(event)")
+            #expect(tracker.all.first?.pending == nil, "\(event)")
+        }
+        var tracker = SessionTracker()
+        tracker.apply(request("r1"), now: t0)
+        let completed = tracker.apply(message("Notification", type: "agent_completed"), now: t0.addingTimeInterval(5))
+        #expect(completed.requestsEnded.map(\.requestID) == ["r1"], "a completion notification ends it too")
+        tracker.apply(request("r2"), now: t0.addingTimeInterval(10))
+        let prompt = tracker.apply(message("Notification", type: "permission_prompt"), now: t0.addingTimeInterval(16))
+        #expect(prompt.requestsEnded.isEmpty, "the six-second permission_prompt is the same wait, not the end of it")
+        #expect(tracker.all.first?.pending?.id == "r2")
+        let ended = tracker.apply(message("SessionEnd"), now: t0.addingTimeInterval(20))
+        #expect(ended.requestsEnded == [SessionTracker.EndedRequest(sessionID: "a", requestID: "r2")])
+        #expect(ended.stoppedWaiting == ["a"])
+        #expect(tracker.count == 0)
+    }
+
+    @Test func resolveEndsTheRequestTheAppAnswered() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit"), now: t0)
+        tracker.apply(request("r1"), now: t0.addingTimeInterval(5))
+        #expect(tracker.resolve(requestID: "nobody", resumes: true, now: t0.addingTimeInterval(6)) == nil)
+        #expect(tracker.all.first?.pending?.id == "r1", "an unknown id changes nothing")
+        let allowed = tracker.resolve(requestID: "r1", resumes: true, now: t0.addingTimeInterval(7))
+        #expect(allowed?.id == "a")
+        #expect(allowed?.pending == nil)
+        #expect(tracker.all.first?.isWorking == true, "a decision the assistant acts on puts the session back to work")
+        #expect(tracker.all.first?.stateDuration(now: t0.addingTimeInterval(17)) == 10)
+        #expect(tracker.pending(now: t0.addingTimeInterval(8)).isEmpty)
+
+        tracker.apply(request("r2"), now: t0.addingTimeInterval(20))
+        let passed = tracker.resolve(requestID: "r2", resumes: false, now: t0.addingTimeInterval(21))
+        #expect(passed?.pending == nil)
+        #expect(tracker.all.first?.isWaiting == true, "a pass leaves the terminal asking")
+        #expect(tracker.resolve(requestID: "r2", resumes: true, now: t0.addingTimeInterval(22)) == nil, "resolved once")
+    }
+
+    @Test func aRequestExpiresWithTheHoldCapAndAWaitOnItsOwnClock() {
+        var tracker = SessionTracker()
+        tracker.apply(request("r1"), now: t0)
+        #expect(SessionTracker.pendingTimeout == HookSocket.Listener.holdCap)
+        #expect(tracker.pending(now: t0.addingTimeInterval(SessionTracker.pendingTimeout - 1)).count == 1)
+        #expect(tracker.pending(now: t0.addingTimeInterval(SessionTracker.pendingTimeout)).isEmpty, "read against the clock before the sweep gets there")
+        tracker.expire(now: t0.addingTimeInterval(SessionTracker.pendingTimeout))
+        #expect(tracker.all.first?.pending == nil)
+        #expect(tracker.all.first?.isWaiting == false, "the wait's own timeout is the same figure and fell at the same moment")
+    }
+
+    /// *Show what a session is working on* turned off drops every title and session name already held, and the
+    /// sessions themselves stay.
+    @Test func titlesOffClearsWhatIsHeld() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit", title: "fix the tests"), now: t0)
+        tracker.statusline(sessionID: "b", project: nil, sessionName: "named", now: t0)
+        #expect(tracker.all.compactMap(\.displayTitle).sorted() == ["fix the tests", "named"])
+        tracker.clearTitles()
+        #expect(tracker.all.allSatisfy { $0.title == nil && $0.sessionName == nil })
+        #expect(tracker.all.count == 2, "the sessions themselves stay")
+    }
+
+    /// A second line under a request id already standing is a replay (the ids are UUIDs the hook generated):
+    /// the first keeps its place and its clock and nothing is reported, on this session or another, so the store
+    /// releases the second's connection at once; the line still lands as the display-only wait.
+    @Test func aReplayedRequestIDKeepsTheFirstAndReportsNothing() {
+        var tracker = SessionTracker()
+        let first = tracker.apply(request("r1"), now: t0)
+        #expect(first.requested?.request.id == "r1")
+        let replay = tracker.apply(request("r1"), now: t0.addingTimeInterval(1))
+        #expect(replay.requested == nil)
+        #expect(replay.requestsEnded.isEmpty)
+        #expect(tracker.pending(now: t0.addingTimeInterval(1)).map(\.request.since) == [t0], "the first keeps its place and its clock")
+        let elsewhere = tracker.apply(request("r1", session: "b"), now: t0.addingTimeInterval(2))
+        #expect(elsewhere.requested == nil)
+        #expect(elsewhere.startedWaiting?.id == "b", "the line still lands as the display-only wait")
+        #expect(tracker.pending(now: t0.addingTimeInterval(2)).map(\.session.id) == ["a"])
+        #expect(tracker.all.first { $0.id == "b" }?.pending == nil)
+    }
+
+    @Test func theTitleTheTerminalAndTheModelLiveOnTheSession() {
+        var tracker = SessionTracker()
+        let iterm = TerminalRef(program: "iTerm.app", bundleID: "com.googlecode.iterm2", sessionID: "w0t0p0:X")
+        tracker.apply(message("SessionStart", terminal: iterm), now: t0)
+        #expect(tracker.all.first?.terminal == iterm)
+        #expect(tracker.all.first?.title == nil)
+        tracker.apply(message("UserPromptSubmit", title: "fix the tests", terminal: TerminalRef(tty: "/dev/ttys003")), now: t0.addingTimeInterval(1))
+        #expect(tracker.all.first?.title == "fix the tests")
+        #expect(tracker.all.first?.terminal == TerminalRef(program: "iTerm.app", bundleID: "com.googlecode.iterm2", tty: "/dev/ttys003", sessionID: "w0t0p0:X"),
+                "each event adds what it could read and erases nothing")
+        tracker.apply(message("Stop"), now: t0.addingTimeInterval(2))
+        #expect(tracker.all.first?.title == "fix the tests", "the title stands until the next prompt")
+        tracker.apply(message("UserPromptSubmit"), now: t0.addingTimeInterval(3))
+        #expect(tracker.all.first?.title == nil, "a prompt the hook sent no title for clears it: titles off is titles gone")
+        tracker.apply(message("Stop", terminal: TerminalRef()), now: t0.addingTimeInterval(4))
+        #expect(tracker.all.first?.terminal?.tty == "/dev/ttys003", "an empty reference changes nothing")
+        tracker.statusline(sessionID: "a", project: nil, model: "Opus", now: t0.addingTimeInterval(5))
+        #expect(tracker.all.first?.model == "Opus")
+        tracker.statusline(sessionID: "a", project: nil, now: t0.addingTimeInterval(6))
+        #expect(tracker.all.first?.model == "Opus", "a status line naming no model keeps the last one")
+    }
+
+    @Test func theReportCarriesNoneOfIt() throws {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit", title: "the secret plan", terminal: TerminalRef(program: "iTerm.app", tty: "/dev/ttys003")), now: t0)
+        tracker.apply(request("r1", kind: .permission(tool: "Bash", summary: "rm -rf secret", detail: "rm -rf secret", suggestions: [])), now: t0.addingTimeInterval(1))
+        let report = UsageReport(tools: [:], cost: nil, advice: [], sessions: tracker.all, now: t0.addingTimeInterval(2))
+        let text = String(decoding: report.json, as: UTF8.self)
+        for secret in ["secret", "ttys003", "iTerm", "r1", "title", "terminal", "pending"] {
+            #expect(!text.contains(secret), "\(secret) must not reach the report, the local API, --json or MCP")
+        }
+        let sessions = try #require((try JSONSerialization.jsonObject(with: report.json) as? [String: Any])?["sessions"] as? [[String: Any]])
+        #expect(sessions.first?["state"] as? String == "waiting")
     }
 }

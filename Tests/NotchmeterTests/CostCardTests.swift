@@ -172,13 +172,14 @@ import Testing
         let prefs = Preferences(defaults: defaults)
         let everyToolThatReportsCost = Set(ToolID.allCases.filter(\.reportsCost))
         #expect(prefs.costCardTools == everyToolThatReportsCost)
-        #expect(!prefs.costCardTools.contains(.copilot))
+        #expect(prefs.costCardTools.contains(.copilot))
+        #expect(!prefs.costCardTools.contains(.antigravity))
         prefs.costCardTools = [.claude]
         let stored = defaults.array(forKey: "costCardTools") as? [String]
         #expect(stored == ["claude"])
         #expect(Preferences(defaults: defaults).costCardTools == [.claude])
-        // Copilot publishes nothing a dollar figure could come from, so a stored list naming it loses it.
-        defaults.set(["claude", "copilot"], forKey: "costCardTools")
+        // Antigravity publishes nothing a dollar figure could come from, so a stored list naming it loses it.
+        defaults.set(["claude", "antigravity"], forKey: "costCardTools")
         #expect(Preferences(defaults: defaults).costCardTools == [.claude])
     }
 }
@@ -223,10 +224,27 @@ import Testing
                     firstUse: today, sinceFirstUse: 41_300)
     }
 
-    func detail(_ order: [ToolID], range: CostRange = .today) throws -> CostDetail {
+    func detail(_ order: [ToolID], range: CostRange = .today, promptCache: PromptCacheSummary? = nil) throws -> CostDetail {
         let selection = CostSelection(all: [claude, cursor], order: order, carried: [.claude, .cursor])
         return CostDetail(provider: try #require(selection.providers.first), range: range, claude: summary, now: now, calendar: utc,
-                          timeFormat: .twelveHour)
+                          timeFormat: .twelveHour, promptCache: promptCache)
+    }
+
+    /// The prompt-cache caption is Claude Code's own count from its status line, so it follows Claude the way the
+    /// cache tiers do: under Claude it sits between the tiers and the folders; under Cursor it is absent, and an
+    /// empty count draws no line.
+    @Test func thePromptCacheCaptionFollowsClaudeAndSitsAmongTheCaptions() throws {
+        let cache = PromptCacheSummary(misses: 4, requests: 31, rewrittenTokens: 310_400, rewrittenUSD: 0.93, lastCause: "tools_changed", sessions: 2)
+        let claudeLeads = try detail([.claude, .cursor], promptCache: cache)
+        #expect(claudeLeads.promptCacheLine == "Prompt cache: 4 misses today · 310K tokens (~$0.93) rewritten · cause: tools changed")
+        #expect(claudeLeads.detailCaptions == ["Claude used 10M tokens · 79% cache reads", "cache writes 80% 1-hour · 20% 5-minute",
+                                               "Prompt cache: 4 misses today · 310K tokens (~$0.93) rewritten · cause: tools changed",
+                                               "Top: notchmeter $30 · scout $10"])
+        #expect(try detail([.cursor, .claude], promptCache: cache).promptCacheLine == nil)
+        #expect(try detail([.cursor, .claude], promptCache: cache).detailCaptions == ["Cursor used 1.1M tokens · 67% cache reads"])
+        let quiet = PromptCacheSummary(misses: 0, requests: 9, rewrittenTokens: 0, rewrittenUSD: nil, lastCause: nil, sessions: 1)
+        #expect(try detail([.claude, .cursor], promptCache: quiet).promptCacheLine == nil)
+        #expect(try detail([.claude, .cursor]).promptCacheLine == nil)
     }
 
     @Test func withCursorAtTheTopTheBlockIsCursors() throws {
@@ -262,6 +280,29 @@ import Testing
         // Both are range-scoped as they always were: the week's line only under Week, "since" only under 90d.
         #expect(try detail([.claude, .cursor]).week == nil)
         #expect(try detail([.claude, .cursor]).since == nil)
+    }
+
+    /// Under $/MTok a range that mixes models across Anthropic's 4.6/4.7 tokenizer line gets one quiet caption
+    /// naming the costliest model on the newer side: a million of its tokens is less text than a million of the
+    /// others'. Under the other units, or with every model on one side, the caption is absent.
+    @Test func theRatePerMillionSaysWhenTheRangeMixesTokenizers() throws {
+        func detail(byModel: [String: Double], mode: CostCardMode) throws -> CostDetail {
+            let tokens = TokenBreakdown(input: 1_000_000, output: 100_000)
+            let record = CostHistory.Record(cost: byModel.values.reduce(0, +), tokens: tokens, byModel: byModel, byProject: [:])
+            let provider = try #require(ProviderCost.build(tool: .claude, source: .localTranscripts, days: [today: record], now: now, weekStart: today,
+                                                            calendar: utc, scannedAt: now))
+            return CostDetail(provider: provider, range: .today, claude: summary, now: now, calendar: utc, timeFormat: .twelveHour, mode: mode)
+        }
+        let mixed = ["claude-sonnet-4-5": 30.0, "claude-fable-5-1": 10.0]
+        #expect(try detail(byModel: mixed, mode: .perMillionTokens).tokenizerNote == "Mixed tokenizers: Claude Fable 5.1 counts about 30% more tokens for the same text.")
+        #expect(try detail(byModel: mixed, mode: .cost).tokenizerNote == nil)
+        #expect(try detail(byModel: mixed, mode: .tokens).tokenizerNote == nil)
+        #expect(try detail(byModel: ["claude-sonnet-4-5": 30, "claude-opus-4-6": 10], mode: .perMillionTokens).tokenizerNote == nil)
+        #expect(try detail(byModel: ["claude-fable-5-1": 30, "claude-sonnet-4-7": 10], mode: .perMillionTokens).tokenizerNote == nil)
+        // The fixture's single model gives none, and the caption is not one of the Show-details captions.
+        let single = try self.detail([.claude, .cursor])
+        #expect(single.tokenizerNote == nil)
+        #expect(!(try detail(byModel: mixed, mode: .perMillionTokens).detailCaptions.contains { $0.hasPrefix("Mixed tokenizers") }))
     }
 
     /// A range the leader spent nothing in has no tokens, no folders and no cache split to report.
@@ -305,10 +346,26 @@ import Testing
         #expect(CostAbsence.gaps(carried: [.claude, .codex], reporting: [.claude, .codex], cursorUsageEvents: true,
                                  problems: [:], nothingLocal: []).isEmpty)
         // A tool that can never report spend was never a row, so it is not a gap either (docs/accuracy.md).
-        #expect(CostAbsence.gaps(carried: [.copilot, .antigravity], reporting: [], cursorUsageEvents: true,
+        #expect(CostAbsence.gaps(carried: [.antigravity], reporting: [], cursorUsageEvents: true,
                                  problems: [:], nothingLocal: []).isEmpty)
         // With nothing else known the line says exactly that rather than guessing at a cause.
         #expect(CostAbsence.reason(for: .claude, cursorUsageEvents: true, problem: nil, nothingLocal: false) == .notReadYet)
+    }
+
+    /// Copilot's gap names what GitHub said about the seat's credits: not metered in credits at all, or metered
+    /// and not yet risen since the count began; and before any read, only that nothing was read.
+    @Test func copilotSaysWhatGitHubSaidAboutItsCredits() {
+        let now = Date()
+        #expect(CostAbsence.reason(for: .copilot, cursorUsageEvents: true, copilotCredits: nil, problem: nil, nothingLocal: false) == .notReadYet)
+        let unmetered = CopilotCreditsRead(readAt: now, credits: nil)
+        #expect(CostAbsence.reason(for: .copilot, cursorUsageEvents: true, copilotCredits: unmetered, problem: nil, nothingLocal: false) == .noCredits)
+        let metered = CopilotCreditsRead(readAt: now, credits: 31)
+        #expect(CostAbsence.reason(for: .copilot, cursorUsageEvents: true, copilotCredits: metered, problem: nil, nothingLocal: false) == .noCreditsCounted)
+        let gaps = CostAbsence.gaps(carried: [.copilot], reporting: [], cursorUsageEvents: true, copilotCredits: unmetered, problems: [:], nothingLocal: [])
+        #expect(gaps.map(\.text) == ["Copilot: GitHub reports no AI credits for this seat"])
+        #expect(CostAbsence.noCreditsCounted.text == "no AI credits used since Notchmeter began counting")
+        // A read that failed outranks what an earlier one said.
+        #expect(CostAbsence.reason(for: .copilot, cursorUsageEvents: true, copilotCredits: metered, problem: "refused", nothingLocal: false) == .problem("refused"))
     }
 }
 

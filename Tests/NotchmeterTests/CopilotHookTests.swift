@@ -149,7 +149,6 @@ import Testing
         // permissionRequest fires "before the permission service runs (rules engine, session approvals,
         // auto-allow/auto-deny, and user prompting)", so it fires for calls the user is never asked about.
         for (event, payload) in [("permissionRequest", #"{"sessionId":"s","cwd":"/Users/x/proj","toolName":"bash","toolInput":{"command":"ls"}}"#),
-                                 ("PermissionRequest", #"{"hook_event_name":"PermissionRequest","session_id":"s","cwd":"/Users/x/proj","tool_name":"Bash"}"#),
                                  ("errorOccurred", #"{"sessionId":"s","cwd":"/Users/x/proj","error":{"message":"boom","name":"Error"},"errorContext":"model_call","recoverable":true}"#),
                                  ("preToolUse", #"{"sessionId":"s","cwd":"/Users/x/proj","toolName":"ask_user","toolArgs":"{}"}"#)] {
             let message = try #require(parse(payload, tool: .copilot, event: event), "\(event)")
@@ -161,6 +160,21 @@ import Testing
         }
         let claude = try #require(parse(#"{"hook_event_name":"PermissionRequest","session_id":"s","tool_name":"Bash"}"#))
         #expect(claude.needsInput, "Claude Code's PermissionRequest is still its documented wait; the flag is what hands the same name to Copilot's rule")
+        // The PascalCase PermissionRequest, registered under `--event PermissionRequest` since 0.7.0, is the one
+        // Copilot event the notch can answer: it documents Claude Code's decision shape. Best-effort, because it
+        // fires before Copilot's own permission service, so it can ask for a call Copilot would have allowed.
+        let pascal = try #require(parse(#"{"hook_event_name":"PermissionRequest","session_id":"s","cwd":"/Users/x/proj","tool_name":"bash","tool_input":{"command":"ls -la"}}"#,
+                                        tool: .copilot, event: "PermissionRequest"))
+        #expect(pascal.needsInput)
+        #expect(pascal.event == "PermissionRequest")
+        #expect(pascal.tool == .copilot)
+        #expect(pascal.request?.kind == .permission(tool: "bash", summary: "ls -la", detail: "ls -la", suggestions: []))
+        let camelInput = try #require(parse(#"{"hook_event_name":"PermissionRequest","sessionId":"s","toolName":"bash","toolInput":{"command":"pwd"}}"#,
+                                            tool: .copilot, event: "PermissionRequest"))
+        #expect(camelInput.request?.kind == .permission(tool: "bash", summary: "pwd", detail: "pwd", suggestions: []), "the camelCase spelling of the input is read too")
+        let nameless = try #require(parse(#"{"hook_event_name":"PermissionRequest","session_id":"s"}"#, tool: .copilot, event: "PermissionRequest"))
+        #expect(!nameless.needsInput, "without a tool there is nothing to decide, and nothing documents a wait")
+        #expect(nameless.request == nil)
     }
 
     @Test func noEventWithoutArgumentOrNameYieldsNil() {
@@ -267,8 +281,8 @@ import Testing
         #expect(Set(root.keys) == ["version", "hooks"])
         let hooks = try #require(root["hooks"] as? [String: Any])
         #expect(Set(hooks.keys) == Set(HookVendor.copilot.events))
-        #expect(HookVendor.copilot.events.count == 7)
-        #expect(HookVendor.copilot.events == ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "sessionEnd"])
+        #expect(HookVendor.copilot.events.count == 8)
+        #expect(HookVendor.copilot.events == ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "sessionEnd"])
         for event in HookVendor.copilot.events {
             let entries = try #require(hooks[event] as? [[String: Any]], "\(event)")
             #expect(entries.count == 1, "\(event)")
@@ -276,7 +290,8 @@ import Testing
             #expect(entry["type"] as? String == "command", "\(event)")
             #expect(entry["command"] as? String == "'/Users/me/My Apps/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool copilot --event \(event)",
                     "\(event): the payload names no event, so the command does")
-            #expect(entry["timeoutSec"] as? Int == 5, "\(event): Copilot's unit is timeoutSec, and every event but notification waits for the command")
+            let timeout = event == "PermissionRequest" ? HookVendor.decisionTimeout : 5
+            #expect(entry["timeoutSec"] as? Int == timeout, "\(event): Copilot's unit is timeoutSec; every event waits for the command, and the deciding one waits for the user")
             #expect(entry["async"] == nil, "\(event): Copilot documents no async field")
             #expect(entry["timeout"] == nil, "\(event): the alias is not written beside the real key")
             #expect(entry["hooks"] == nil, "\(event): Copilot's entries are flat")
@@ -413,7 +428,7 @@ import Testing
             ],
         ]
         let merged = HookSettings.merge(into: edited, vendor: .copilot, executable: executable)
-        #expect(merged.added == ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification"])
+        #expect(merged.added == ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest"])
         #expect(merged.present == ["sessionEnd"], "a value that is not an array is left alone rather than replaced")
         #expect(merged.settings["version"] as? Int == 2, "an existing version is never overwritten")
         #expect(merged.settings["disableAllHooks"] as? Bool == false)
@@ -445,7 +460,7 @@ import Testing
         #expect(Set(written.keys) == ["version", "hooks"], "the file is Notchmeter's own and carries nothing else")
         let hooks = try #require(written["hooks"] as? [String: Any])
         #expect(Set(hooks.keys) == Set(HookVendor.copilot.events))
-        #expect(hooks.count == 7)
+        #expect(hooks.count == 8)
         for event in HookVendor.copilot.events {
             let entries = try #require(hooks[event] as? [[String: Any]], "\(event)")
             #expect(entries.first?["command"] as? String == expected(event), "\(event): every entry carries its own --event")

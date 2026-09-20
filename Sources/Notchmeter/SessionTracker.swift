@@ -1,5 +1,134 @@
 import Foundation
 
+/// Where a session's terminal is, as the hook process saw it from its own environment and process ancestry
+/// (TerminalIdentity.swift): the terminal app, its tab or pane, the controlling tty, and the multiplexer in
+/// between, each only when the hook could read it. Nothing here is inspected from the app's side; it is what the
+/// session volunteered, and it is what a jump back to the terminal is resolved from. Never reported, logged or
+/// exported: it is the app's alone.
+struct TerminalRef: Equatable, Sendable, Codable {
+    /// `TERM_PROGRAM`: iTerm.app, Apple_Terminal, WarpTerminal, ghostty, WezTerm, vscode…
+    var program: String?
+    /// `__CFBundleIdentifier`, else the bundle id of the nearest ancestor process the system knows as an app.
+    var bundleID: String?
+    /// `/dev/ttys003`: the controlling tty of the nearest ancestor that has one (the hook itself has none).
+    var tty: String?
+    /// The terminal's own id for the tab or pane: `ITERM_SESSION_ID`, else `TERM_SESSION_ID`, else `WEZTERM_PANE`,
+    /// else `KITTY_WINDOW_ID`, else `ZELLIJ_PANE_ID`.
+    var sessionID: String?
+    /// Warp's `WARP_FOCUS_URL`, kept only when it is shaped like one.
+    var focusURL: String?
+    /// `TMUX` (the socket path, the server's pid and the session index) and `TMUX_PANE`.
+    var tmux: String?
+    var tmuxPane: String?
+    /// `KITTY_LISTEN_ON`, the socket `kitten @` reaches the running kitty over.
+    var kittySocket: String?
+    /// Whether `GHOSTTY_RESOURCES_DIR` was set.
+    var ghostty = false
+
+    init(program: String? = nil, bundleID: String? = nil, tty: String? = nil, sessionID: String? = nil, focusURL: String? = nil,
+         tmux: String? = nil, tmuxPane: String? = nil, kittySocket: String? = nil, ghostty: Bool = false) {
+        self.program = program
+        self.bundleID = bundleID
+        self.tty = tty
+        self.sessionID = sessionID
+        self.focusURL = focusURL
+        self.tmux = tmux
+        self.tmuxPane = tmuxPane
+        self.kittySocket = kittySocket
+        self.ghostty = ghostty
+    }
+
+    /// True when nothing at all was read.
+    var isEmpty: Bool {
+        program == nil && bundleID == nil && tty == nil && sessionID == nil && focusURL == nil && tmux == nil && tmuxPane == nil
+            && kittySocket == nil && !ghostty
+    }
+
+    /// This reference with every field the newer one carries taken from it; a field the newer one lacks is kept,
+    /// so a later event that could read less does not erase what an earlier one knew.
+    func merging(_ newer: TerminalRef) -> TerminalRef {
+        TerminalRef(program: newer.program ?? program, bundleID: newer.bundleID ?? bundleID, tty: newer.tty ?? tty,
+                    sessionID: newer.sessionID ?? sessionID, focusURL: newer.focusURL ?? focusURL, tmux: newer.tmux ?? tmux,
+                    tmuxPane: newer.tmuxPane ?? tmuxPane, kittySocket: newer.kittySocket ?? kittySocket, ghostty: newer.ghostty || ghostty)
+    }
+}
+
+/// A decision the assistant is holding a session for, as the hook described it: a permission to grant or refuse,
+/// or a question to answer. Carries a display summary only, never the tool's raw input (Hook+Decision.swift);
+/// `id` is the nonce the hook generated for this one request, and the only thing a decision can be addressed to.
+struct PendingRequest: Equatable, Sendable, Identifiable {
+    struct Option: Equatable, Sendable {
+        var label: String
+        var description: String?
+
+        init(label: String, description: String? = nil) {
+            self.label = label
+            self.description = description
+        }
+    }
+
+    struct Question: Equatable, Sendable {
+        var text: String
+        var header: String
+        var options: [Option]
+        var multiSelect: Bool
+
+        init(text: String, header: String = "", options: [Option], multiSelect: Bool = false) {
+            self.text = text
+            self.header = header
+            self.options = options
+            self.multiSelect = multiSelect
+        }
+    }
+
+    enum Kind: Equatable, Sendable {
+        /// `tool` is the tool's name (Bash, Edit, an MCP tool's), `summary` one line of what it wants to do,
+        /// `detail` a bounded excerpt of it, `suggestions` the permission rules the assistant proposed.
+        case permission(tool: String, summary: String, detail: String?, suggestions: [String])
+        case question([Question])
+
+        /// "permission" or "question": the word the oracle and the log use, never the content.
+        var name: String {
+            switch self {
+            case .permission: "permission"
+            case .question: "question"
+            }
+        }
+    }
+
+    let id: String
+    let kind: Kind
+    let since: Date
+
+    init(id: String, kind: Kind, since: Date) {
+        self.id = id
+        self.kind = kind
+        self.since = since
+    }
+
+    var kindName: String { kind.name }
+}
+
+/// What the user chose for a pending request. `pass` hands the request back to the terminal, which then asks as
+/// it always has; it is also what a request that timed out, or that the app could not answer, amounts to.
+enum Decision: Equatable, Sendable {
+    case allow
+    case deny(message: String?)
+    /// Question text → the chosen option's label (labels of a multi-select joined with ", ").
+    case answers([String: String])
+    case pass
+
+    /// The word the oracle records: allow, deny, answers or pass.
+    var behavior: String {
+        switch self {
+        case .allow: "allow"
+        case .deny: "deny"
+        case .answers: "answers"
+        case .pass: "pass"
+        }
+    }
+}
+
 /// One assistant session a hook has reported: which project it runs in and whether it is mid-turn, idle between
 /// turns, or waiting for the user; plus what the hook and status line know about where it runs.
 struct AgentSession: Equatable, Sendable, Identifiable {
@@ -37,6 +166,24 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// the store because that is the only place it cannot outlive its evidence: a session dropped for staleness or
     /// ended by `SessionEnd` takes its finish with it, and two sessions of one tool cannot borrow each other's.
     var finished: ToolSignal.Finish?
+    /// The first line of the prompt that started the current turn, when the hook was allowed to send it
+    /// (Preferences.sessionTitles); nil otherwise, and nil again for every session at launch.
+    var title: String?
+    /// Where the session's terminal is, merged from every event that carried one.
+    var terminal: TerminalRef?
+    /// The decision the assistant is holding this session for, while its hook waits on the socket for it.
+    var pending: PendingRequest?
+    // From Claude Code's status line (0.7.0), so every one is nil for a session only the hook reports.
+    /// The model's display name as the status line carries it ("Opus").
+    var model: String?
+    /// `session_name`: the name set with `--name` or `/rename`, else Claude Code's own title for the session;
+    /// never the default `my-app-3f` display name. Shown only under the same setting as the prompt title
+    /// (UsageStore.statuslineReceived drops it when Preferences.sessionTitles is off, as hookReceived drops `title`).
+    var sessionName: String?
+    var linesAdded: Int?
+    var linesRemoved: Int?
+    /// Claude Code's account of this session's prompt cache, priced (PromptCache.swift).
+    var promptCache: PromptCacheStats?
 
     init(id: String, tool: ToolID = .claude, project: String?, state: State, started: Date, lastEvent: Date, turnStarted: Date?, branch: String? = nil,
          prURL: String? = nil, permissionMode: String? = nil, host: String? = nil) {
@@ -70,6 +217,15 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     func finish(now: Date) -> ToolSignal.Finish? {
         guard case .idle = state, let finished, now.timeIntervalSince(finished.at) < SessionTracker.finishedHold else { return nil }
         return finished
+    }
+
+    /// What a row calls the session: the prompt's first line when the hook sent one, else the name Claude Code's
+    /// status line carries (`--name`, `/rename` or its own title). Both are held only while Preferences.sessionTitles
+    /// is on, so a nil here is either "nothing said yet" or "the user asked not to show it".
+    var displayTitle: String? {
+        if let title, !title.isEmpty { return title }
+        if let sessionName, !sessionName.isEmpty { return sessionName }
+        return nil
     }
 
     /// "notchmeter", or "notchmeter@devbox" for a remote session.
@@ -128,14 +284,32 @@ struct SessionTracker: Equatable, Sendable {
         var limitHit: AgentSession?
         /// Claude Code resumed from its own quota wait, so the meter is worth a fresh read.
         var quotaResumed = false
+        /// A session began holding for a decision its hook is waiting on: the store keeps the reply and the
+        /// panel shows the request.
+        var requested: (session: AgentSession, request: PendingRequest)?
+        /// Requests that ended without a decision from the app (the session moved on or ended), by session and
+        /// request id, so their parked replies can be released and the panel told.
+        var requestsEnded: [EndedRequest] = []
 
         static func == (lhs: Outcome, rhs: Outcome) -> Bool {
             lhs.finished?.session == rhs.finished?.session && lhs.finished?.turn == rhs.finished?.turn && lhs.startedWaiting == rhs.startedWaiting
                 && lhs.stoppedWaiting == rhs.stoppedWaiting && lhs.limitHit == rhs.limitHit && lhs.quotaResumed == rhs.quotaResumed
+                && lhs.requested?.session == rhs.requested?.session && lhs.requested?.request == rhs.requested?.request
+                && lhs.requestsEnded == rhs.requestsEnded
         }
     }
 
+    struct EndedRequest: Equatable, Sendable {
+        let sessionID: String
+        let requestID: String
+    }
+
     static let waitingTimeout: TimeInterval = 600
+    /// How long a pending request may stand before `expire` drops it: the socket's own hold cap
+    /// (`HookSocket.Listener.holdCap`), since a request the app has stopped holding a reply for is one the
+    /// terminal has already taken back. The app's own, shorter hold (Preferences.promptHoldSeconds) is what ends
+    /// a request in practice; this is the backstop for one the store never got to answer.
+    static let pendingTimeout: TimeInterval = 600
     /// `ToolSignal.heldFor`, named here so `expire` and the tests read one constant rather than reaching across
     /// files for it.
     static let finishedHold = ToolSignal.heldFor
@@ -250,6 +424,7 @@ struct SessionTracker: Equatable, Sendable {
         let id = Self.key(tool: message.tool, session: message.sessionID, host: message.host)
         if message.event == "SessionEnd" {
             if sessions[id]?.isWaiting == true { outcome.stoppedWaiting.append(id) }
+            if let pending = sessions[id]?.pending { outcome.requestsEnded.append(EndedRequest(sessionID: id, requestID: pending.id)) }
             sessions[id] = nil
             return outcome
         }
@@ -258,15 +433,21 @@ struct SessionTracker: Equatable, Sendable {
         if let project = message.project { session.project = project }
         if let branch = message.branch { session.branch = branch }
         if let mode = message.permissionMode { session.permissionMode = mode }
+        if let terminal = message.terminal, !terminal.isEmpty { session.terminal = session.terminal?.merging(terminal) ?? terminal }
         session.lastEvent = now
         let wasWaiting = session.isWaiting
+        let hadPending = session.pending
         switch message.event {
+        case "SessionStart":
+            session.pending = nil
         case "UserPromptSubmit":
             session.state = .working(since: now)
             session.turnStarted = now
             session.quotaWait = false
             session.limitHitAt = nil
             session.finished = nil
+            session.pending = nil
+            session.title = message.title
         case "Stop", "StopFailure":
             // The mark is set inside the state machine and above the notification's gate, so `notifyFinished` and
             // its minutes cannot silently decide what the rings show. A StopFailure is deliberately not a finish:
@@ -279,6 +460,7 @@ struct SessionTracker: Equatable, Sendable {
             session.state = .idle
             session.turnStarted = nil
             session.agents = [:]
+            session.pending = nil
             if message.hitRateLimit {
                 session.limitHitAt = now
                 outcome.limitHit = session
@@ -292,6 +474,7 @@ struct SessionTracker: Equatable, Sendable {
             // A SubagentStop is deliberately not the same proof: a background agent can finish while the main
             // loop is genuinely held at a prompt.
             if session.isWaiting { session.state = .working(since: now) }
+            session.pending = nil
         case "SubagentStop":
             if let agentID = message.agentID, session.agents[agentID] != nil {
                 session.agents[agentID] = nil
@@ -305,27 +488,89 @@ struct SessionTracker: Equatable, Sendable {
             } else if message.clearsWaiting, session.isWaiting {
                 session.state = .working(since: now)
             }
+            if message.clearsWaiting { session.pending = nil }
             if message.waitsOnQuota { session.quotaWait = true }
             if message.resumesFromQuota {
                 session.quotaWait = false
                 session.limitHitAt = nil
                 outcome.quotaResumed = true
             }
+            // A request the hook is holding the session for. It replaces whatever request stood before it (the
+            // hook process behind that one is gone, or is about to be answered nothing), and it is a wait
+            // whatever the vendor's `needsInput` said, because the assistant cannot go on until it is answered.
+            // A request whose id is already standing, on this session or another, is a replayed line (ids are
+            // UUIDs the hook generated): the first keeps its place and its `since`, and this one is reported as
+            // nothing, so the store releases its connection at once and it lands as the display-only wait.
+            if let request = message.request {
+                if !session.isWaiting { outcome.startedWaiting = session }
+                session.state = .waiting(since: now)
+                let standing = session.pending?.id == request.id || sessions.values.contains { $0.pending?.id == request.id }
+                if !standing {
+                    let pending = PendingRequest(id: request.id, kind: request.kind, since: now)
+                    session.pending = pending
+                    outcome.requested = (session, pending)
+                }
+            }
+        }
+        if let hadPending, session.pending?.id != hadPending.id {
+            outcome.requestsEnded.append(EndedRequest(sessionID: id, requestID: hadPending.id))
         }
         if wasWaiting, !session.isWaiting { outcome.stoppedWaiting.append(id) }
         sessions[id] = session
         return outcome
     }
 
+    /// Every request still standing, with the session it stands on, newest first.
+    func pending(now: Date) -> [(session: AgentSession, request: PendingRequest)] {
+        sessions.values.compactMap { session in session.pending.map { (session, $0) } }
+            .filter { now.timeIntervalSince($0.request.since) < Self.pendingTimeout }
+            .sorted { $0.request.since > $1.request.since }
+    }
+
+    /// Ends the request `requestID`, because the app answered it or handed it back to the terminal. A decision
+    /// the assistant acts on puts the session back to work, since nothing else will say so until its next event;
+    /// a pass leaves it waiting, because the terminal is now asking. Returns the session the request stood on, or
+    /// nil when no session holds that id: a decision can only land on a request the tracker is showing.
+    @discardableResult
+    mutating func resolve(requestID: String, resumes: Bool, now: Date) -> AgentSession? {
+        guard let entry = sessions.first(where: { $0.value.pending?.id == requestID }) else { return nil }
+        var session = entry.value
+        session.pending = nil
+        if resumes, session.isWaiting { session.state = .working(since: now) }
+        session.lastEvent = now
+        sessions[entry.key] = session
+        return session
+    }
+
+    /// Drops every title and session name held: *Show what a session is working on* was turned off, and with it
+    /// off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only nothing new.
+    mutating func clearTitles() {
+        for (id, var session) in sessions where session.title != nil || session.sessionName != nil {
+            session.title = nil
+            session.sessionName = nil
+            sessions[id] = session
+        }
+    }
+
     /// A status-line update is proof the session is alive; its project, branch and pull request are taken. Only
     /// Claude Code has a status line, and its key is the bare id, so no `key(tool:session:host:)` is needed here.
-    mutating func statusline(sessionID: String?, project: String?, branch: String? = nil, prURL: String? = nil, now: Date) {
+    /// The status line's per-session figures. The model, the name and the line counts are Claude Code's running
+    /// values and replace what was held; the prompt-cache object is priced here at the session model's
+    /// cache-write rate (`PromptCacheStats`), so the tracker holds a figure the card can show without pricing.
+    mutating func statusline(sessionID: String?, project: String?, branch: String? = nil, prURL: String? = nil, model: String? = nil,
+                             sessionName: String? = nil, linesAdded: Int? = nil, linesRemoved: Int? = nil,
+                             promptCache: Statusline.PromptCache? = nil, now: Date) {
         guard let sessionID else { return }
         expire(now: now)
         var session = sessions[sessionID] ?? AgentSession(id: sessionID, project: project, state: .idle, started: now, lastEvent: now, turnStarted: nil)
         if session.project == nil { session.project = project }
         if let branch { session.branch = branch }
         session.prURL = prURL ?? session.prURL
+        if let model { session.model = model }
+        if let sessionName { session.sessionName = sessionName }
+        if let linesAdded { session.linesAdded = linesAdded }
+        if let linesRemoved { session.linesRemoved = linesRemoved }
+        if let promptCache { session.promptCache = PromptCacheStats(promptCache, model: model ?? session.model) }
         session.lastEvent = now
         sessions[sessionID] = session
     }
@@ -349,6 +594,9 @@ struct SessionTracker: Equatable, Sendable {
             if case .waiting(let since) = session.state, now.timeIntervalSince(since) >= Self.waitingTimeout {
                 session.state = .idle
                 stoppedWaiting.append(id)
+            }
+            if let pending = session.pending, now.timeIntervalSince(pending.since) >= Self.pendingTimeout {
+                session.pending = nil
             }
             if let finished = session.finished, now.timeIntervalSince(finished.at) >= Self.finishedHold {
                 session.finished = nil

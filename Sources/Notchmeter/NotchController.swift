@@ -7,6 +7,8 @@ import SwiftUI
 final class NotchActions {
     var refresh: () -> Void = {}
     var openSettings: () -> Void = {}
+    /// Settings open on a named pane: the panel's "Add a tool" row lands on Assistants.
+    var openSettingsPane: (SettingsPane) -> Void = { _ in }
     var openDashboard: () -> Void = {}
     var showOptions: () -> Void = {}
     var applyLayout: () -> Void = {}
@@ -27,6 +29,18 @@ final class NotchActions {
     var fixAccessibility: () -> Void = {}
     /// The apps full-screen on the display under the pointer, so the Options menu can offer to stay over them.
     var fullScreenApps: () -> [String] = { [] }
+    /// A session began holding for a decision (UsageStore.promptRequested): the panel opens on the request with
+    /// key focus and holds itself open until `promptEnded`. Wired by the app delegate; a no-op until the prompt
+    /// card is in, so the store and the hook wire compile and run without the UI.
+    var showPrompt: (AgentSession, PendingRequest) -> Void = { _, _ in }
+    /// The request ended, answered or not, so the panel may let go of its hold.
+    var promptEnded: (String) -> Void = { _ in }
+    /// Escape on a panel holding a request: every request shown is handed back to the terminal (`Decision.pass`)
+    /// before the panel closes, so a key the user pressed to be rid of the card never leaves the hook waiting.
+    var passPrompt: () -> Void = {}
+    /// A click on a session row: jump to the terminal the session's hook reported (TerminalJump.swift). Wired by
+    /// the app delegate, which owns the executor; the view never activates another app itself.
+    var jump: (AgentSession) -> Void = { _ in }
 }
 
 /// One on-screen presentation of the readings: the hardware notch, a notch of the same shape cut into a side
@@ -65,6 +79,10 @@ protocol PanelPresenting: AnyObject {
     /// Opens a closed panel for a few seconds (SessionAttention.glance); the pointer coming in keeps it open,
     /// and it settles by itself if nothing does — the only opening that needs no event to close it again.
     func glance(for duration: TimeInterval)
+    /// Keeps an open panel open while a request is on it (PanelHolds.prompt): the pointer leaving, a click
+    /// outside and the dwell are ignored until it is released, so a card that takes a moment to read is not
+    /// closed from under the reader. Escape still closes it, and passes the request first (NotchActions.passPrompt).
+    func holdOpen(_ held: Bool)
 }
 
 extension PanelPresenting {
@@ -93,20 +111,39 @@ struct PanelReporter {
 /// Which of the app's own windows want the panel closed. The panel draws above every other window, so anything the
 /// app puts on screen — its Settings window, one of Sparkle's, one of its own alerts — holds it compact for as long
 /// as that window is up, and it opens again only once the last of them has gone.
+///
+/// `.prompt` is the one reason that pulls the other way: a request an assistant is holding a session for wants
+/// the panel *open*, and open it stays until the request is answered, passed back or ends. It is kept in the same
+/// set so the two cannot disagree about who is holding what: `isHeld` never counts it, `holdsOpen` counts only it,
+/// and a window coming up while a request is showing still wins, because a panel the user cannot see behind
+/// Settings is no place to answer from.
 struct PanelHolds {
-    enum Reason { case settings, dashboard, update, alert }
+    enum Reason { case settings, dashboard, update, alert, prompt, welcome }
 
     private var reasons: Set<Reason> = []
 
-    var isHeld: Bool { !reasons.isEmpty }
+    /// A window of the app's own is up.
+    var isHeld: Bool { !reasons.subtracting([.prompt]).isEmpty }
+    /// A request is showing.
+    var holdsOpen: Bool { reasons.contains(.prompt) }
 
     func contains(_ reason: Reason) -> Bool { reasons.contains(reason) }
 
-    /// Records one window's answer; returns whether it changed whether the panel is held at all.
+    /// Records one answer; returns whether it changed whether the panel is held closed, or, for `.prompt`,
+    /// whether it is held open.
     mutating func set(_ reason: Reason, _ held: Bool) -> Bool {
-        let before = isHeld
+        let before = reason == .prompt ? holdsOpen : isHeld
         if held { reasons.insert(reason) } else { reasons.remove(reason) }
-        return before != isHeld
+        return before != (reason == .prompt ? holdsOpen : isHeld)
+    }
+
+    /// Whether a presenter's hover machine sits still: while its menu is up, while a window holds it closed, and
+    /// while a request holds it open — but that last one only once the panel *is* open. The open-hold means
+    /// "ignore the pointer leaving, the dwell and a click outside while a card is showing"; on a panel still
+    /// compact (a second display, one behind Settings when the request came, one off-screen under a full-screen
+    /// app) it must not mean "ignore the pointer coming in", or the card would be there and unreachable.
+    static func pausesHover(menuOpen: Bool, held: Bool, promptHeld: Bool, expanded: Bool) -> Bool {
+        menuOpen || held || (promptHeld && expanded)
     }
 }
 
@@ -324,6 +361,8 @@ final class NotchController: NSObject, PanelPresenting {
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     private var transitionSerial = 0
     private var held = false
+    /// A request is on the panel, so the hover machine leaves it open (PanelHolds.prompt).
+    private var promptHeld = false
     /// Which window holds the panel closed, for the oracle's cause.
     private var holdCause: PanelCause = .settings
     private var reporter = PanelReporter()
@@ -358,7 +397,10 @@ final class NotchController: NSObject, PanelPresenting {
         applyWindowBehaviour()
         configureTransition(closing: false)
         hover.perform = { [weak self] output, cause in self?.act(output, cause: cause) }
-        hover.isPaused = { [weak self] in self.map { $0.menu.isOpen || $0.held } ?? false }
+        hover.isPaused = { [weak self] in
+            self.map { PanelHolds.pausesHover(menuOpen: $0.menu.isOpen, held: $0.held, promptHeld: $0.promptHeld, expanded: $0.hover.state == .expanded) } ?? false
+        }
+        hover.holdsOpen = { [weak self] in self.map { $0.promptHeld && $0.hover.state == .expanded } ?? false }
         hover.isOffScreen = { [weak self] in
             guard let self, let window = self.notch.windowController?.window, window.isVisible else { return false }
             return !window.isOnActiveSpace
@@ -390,6 +432,9 @@ final class NotchController: NSObject, PanelPresenting {
             let escape = event.keyCode == 53
             let handled = MainActor.assumeIsolated {
                 guard escape, let self, let window = self.notch.windowController?.window, event.window === window, self.hover.state == .expanded else { return false }
+                // The request goes back to the terminal before the panel goes: Escape on the card means "not
+                // here", and the hook behind it must not be left waiting on a card nobody can see.
+                if self.promptHeld { self.actions.passPrompt() }
                 self.hover.escape()
                 return true
             }
@@ -460,6 +505,13 @@ final class NotchController: NSObject, PanelPresenting {
     func remeasure() {
         refreshRegions()
     }
+
+    func holdOpen(_ held: Bool) {
+        promptHeld = held
+    }
+
+    /// A request is showing, so a panel opened by the pointer takes the keyboard too (PanelKeyPolicy).
+    private var hasPendingRequest: Bool { !store.sessions.pending(now: Date()).isEmpty }
 
     /// The apps the readouts are currently making way for, or would be; empty when none is full-screen.
     var fullScreenApps: [String] { fullScreenWatch?.verdict.apps ?? [] }
@@ -554,13 +606,14 @@ final class NotchController: NSObject, PanelPresenting {
         reporter.report(.expanded, cause: cause)
         let serial = beginTransition()
         await notch.expand(on: screen)
-        if PanelKeyPolicy.takesKeyboard(cause) { window?.makeKey() }
+        if PanelKeyPolicy.takesKeyboard(cause, pendingRequest: hasPendingRequest) { window?.makeKey() }
         endTransition(serial)
     }
 
     private func compact(cause: PanelCause) async {
         configureTransition(closing: true)
         hover.adopt(.compact)
+        store.panelOpenedForPrompt = false
         reporter.report(.compact, cause: cause)
         if let window, window.isKeyWindow { window.resignKey() }
         let serial = beginTransition()
@@ -653,7 +706,7 @@ final class NotchController: NSObject, PanelPresenting {
                  prefs.showSpend, prefs.signalRings, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
-                 prefs.monthlyBudgetUSD, prefs.compactSide, prefs.autoCompactFit)
+                 prefs.monthlyBudgetUSD, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal)
             refreshRegions()
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced

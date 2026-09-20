@@ -287,17 +287,142 @@ import Testing
         #expect(advice.map(\.priority) == [.attention, .danger, .danger])
         #expect(advice[0].text == "Claude Code is waiting for your input.")
         #expect(advice[0].symbol == "hand.raised.fill")
+        // Both run-outs point at Cursor; the strip says so once, on the first, and the second keeps its own sentence.
         #expect(advice[1].text == "At this rate you hit the Codex weekly cap tomorrow at 01:20, 1d 10h before reset. Cursor included usage is at 10%.")
-        #expect(advice[2].text == "At this rate you hit the Claude weekly cap Sep 3 at 12:00, 2d before reset. Cursor included usage is at 10%.")
+        #expect(advice[2].text == "At this rate you hit the Claude weekly cap Sep 3 at 12:00, 2d before reset.")
+        #expect(advice[1].headroom == " Cursor included usage is at 10%.")
+        #expect(advice[2].headroom.isEmpty)
 
         let calmer = Advisor.advise(context([claude, cursor], awaiting: [.claude], cost: cost(burn: 6)))
         #expect(calmer.map(\.priority) == [.attention, .danger, .warn])
         #expect(calmer[2].text.hasPrefix("Claude Code burned"))
     }
 
+    /// The headroom clause is one fact, so it is said once per strip; but only a repeat is dropped. Two run-outs
+    /// that each point at a different tool both keep theirs, and a notification body, built alone, always does.
+    @Test func theHeadroomClauseIsSaidOncePerStripAndKeptWhereItIsNews() {
+        // Claude 45 % three days in projects to 1.05 (behind) with 55 % left; Cursor 50 % ten days into thirty
+        // projects to 1.5 (behind) with 50 % left: each is the other's room.
+        let claude = reading(.claude, [window("seven_day", label: "Weekly", used: 0.45, elapsed: 3 * 86400)])
+        let cursor = reading(.cursor, [window("included", label: "Included usage", used: 0.5, elapsed: 10 * 86400, period: 30 * 86400)])
+        let each = Advisor.advise(context([claude, cursor]))
+        #expect(each.count == 2)
+        #expect(each[0].text.hasSuffix(" Cursor included usage is at 50%."))
+        #expect(each[1].text.hasSuffix(" Claude weekly is at 45%."))
+
+        // The strip drops the repeat; the same lines out of `runOut` alone, which the notifications read, keep it.
+        let codex = reading(.codex, [window("weekly", label: "Weekly", used: 0.9, elapsed: 5 * 86400)])
+        let roomy = reading(.cursor, [window("included", label: "Included usage", used: 0.1, elapsed: 10 * 86400, period: 30 * 86400)])
+        let strip = Advisor.advise(context([claude, codex, roomy]))
+        #expect(strip.map { $0.text.hasSuffix(" Cursor included usage is at 10%.") } == [true, false])
+        #expect(Advisor.runOut(context([claude, codex, roomy])).map { $0.text.hasSuffix(" Cursor included usage is at 10%.") } == [true, true])
+        let alert = PaceAlert(tool: .claude, window: claude.windows[0], stage: .behind)
+        #expect(Advisor.alertBody(alert, context: context([claude, codex, roomy])).hasSuffix(" Cursor included usage is at 10%."))
+        // A line whose text does not end with its clause is left alone rather than cut short.
+        let odd = Advice(id: "x", tool: nil, priority: .info, symbol: "circle", text: "Plain.", headroom: " Missing.")
+        #expect(odd.withoutHeadroom().text == "Plain.")
+    }
+
+    /// A free plan's window is not room worth routing a paid tool's work to, so it is named neither in the
+    /// headroom clause nor on the room-elsewhere line. A reading that names no plan counts as paid: most of the
+    /// fixtures here, and the sample notification, name none.
+    @Test func aFreePlanIsNeverTheRoomToRouteTo() {
+        let claude = reading(.claude, [window("seven_day", label: "Weekly", used: 0.6, elapsed: 3 * 86400)])
+        func codex(plan: String?) -> UsageReading {
+            UsageReading(tool: .codex, windows: [window("weekly", label: "Weekly", used: 0.22, elapsed: 3 * 86400)], plan: plan, fetchedAt: now, observedAt: nil)
+        }
+        #expect(codex(plan: nil).isPaid)
+        #expect(codex(plan: "Plus").isPaid)
+        #expect(codex(plan: "Max 5x").isPaid)
+        #expect(!codex(plan: "Free").isPaid)
+        #expect(!codex(plan: "free").isPaid)
+        #expect(!codex(plan: "Free Limited").isPaid)
+        #expect(!UsageReading(tool: .copilot, windows: [], plan: "Free", fetchedAt: now, observedAt: nil).isPaid)
+        #expect(Advisor.advise(context([claude, codex(plan: "Plus")])).map(\.text) == ["At this rate you hit the Claude weekly cap Sep 3 at 12:00, 2d before reset. Codex weekly is at 22%."])
+        #expect(Advisor.advise(context([claude, codex(plan: "Free")])).map(\.text) == ["At this rate you hit the Claude weekly cap Sep 3 at 12:00, 2d before reset."])
+        #expect(Advisor.crossProvider(context([claudeAhead, codex(plan: "Free")])).isEmpty)
+        #expect(Advisor.headroom(besides: .claude, in: context([claudeAhead, codex(plan: "Free")])) == nil)
+        // With no paid room elsewhere, the wait line is free to speak.
+        let soon = reading(.claude, [window("five_hour", label: "Session", used: 1, elapsed: 4.5 * 3600, period: Period.fiveHours)])
+        #expect(Advisor.waitForReset(context([soon, codex(plan: "Free")])).map(\.text) == ["Claude session resets in 30m; wait rather than switch."])
+        #expect(Advisor.waitForReset(context([soon, codex(plan: "Plus")])).isEmpty)
+    }
+
+    /// `/limit-reset` is community lore, not documentation, so it is an `.info` line that says "may", offered only
+    /// where it would do anything: the session was the window hit, and the week still has room to spend after it.
+    @Test func limitResetIsOfferedWhenTheSessionIsHitAndTheWeekHasRoom() {
+        func claude(session: Double, weekly: Double) -> UsageReading {
+            reading(.claude, [window("five_hour", label: "Session", used: session, elapsed: 3 * 3600, period: Period.fiveHours),
+                              window("seven_day", label: "Weekly", used: weekly, elapsed: 3 * 86400)])
+        }
+        func limitLines(_ context: Advisor.Context) -> [Advice] { Advisor.limitHit(context) + Advisor.limitReset(context) }
+        var hit = context([claude(session: 1, weekly: 0.3)])
+        hit.limitHitTools = [.claude]
+        let lines = limitLines(hit)
+        #expect(lines.map(\.text) == ["Claude Code hit its limit; session resets in 2h.",
+                                      "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."])
+        #expect(lines.map(\.priority) == [.warn, .info])
+        #expect(lines[1].id == "limit-reset")
+        #expect(lines[1].tool == .claude)
+        #expect(Advisor.advise(hit).map(\.id) == ["limit/claude/five_hour", "limit-reset"])
+
+        // The week nearly spent: clearing the session would buy nothing.
+        hit.readings = [claude(session: 1, weekly: 0.7)]
+        #expect(limitLines(hit).map(\.id) == ["limit/claude/five_hour"])
+        // The weekly was the window hit: /limit-reset does not touch it.
+        hit.readings = [claude(session: 0.2, weekly: 0.95)]
+        #expect(limitLines(hit).map(\.id) == ["limit/claude/seven_day"])
+        // The hook recorded a rate limit no window at its limit accounts for (the reading trails the hook): the
+        // session is the likeliest, so the offer stands beside the generic line.
+        hit.readings = [claude(session: 0.5, weekly: 0.3)]
+        #expect(limitLines(hit).map(\.text) == ["Claude Code hit its rate limit; wait for the reset.",
+                                                "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."])
+        // Without the hook's word the generic line is gone, and the offer is keyed on the reading alone: a session
+        // window at its limit is what the status line or the endpoint see between prompts on a Mac with no hook
+        // installed, and it is offered the command; one with room, and no hit recorded, is not.
+        hit.limitHitTools = []
+        #expect(Advisor.limitHit(hit).isEmpty)
+        #expect(Advisor.limitReset(hit).isEmpty, "session at 50 % and nothing recorded: nothing to clear")
+        hit.readings = [claude(session: 1, weekly: 0.3)]
+        #expect(Advisor.limitReset(hit).map(\.id) == ["limit-reset"])
+        #expect(Advisor.advise(hit).map(\.id).contains("limit-reset"))
+        hit.readings = [claude(session: 1, weekly: 0.7)]
+        #expect(Advisor.limitReset(hit).isEmpty, "the week is what is short")
+        // Never for another tool.
+        var codexHit = context([reading(.codex, [window("session", label: "Session", used: 1, elapsed: 3 * 3600, period: Period.fiveHours),
+                                                 window("weekly", label: "Weekly", used: 0.3, elapsed: 3 * 86400)])])
+        codexHit.limitHitTools = [.codex]
+        #expect(limitLines(codexHit).map(\.id) == ["limit/codex/session"])
+    }
+
+    /// Claude 4.7 and later, and Mythos/Fable, count about 30 % more tokens than 4.6 and earlier for the same
+    /// text, so a switch across that line is not the even trade the sentence makes it sound: the clause names
+    /// the model on the newer side, whichever way the switch runs, and says nothing when a name cannot be placed.
+    @Test func theSwitchModelsLineSaysWhenTheTokenizersDiffer() {
+        func claude(hot: String, other: String) -> UsageReading {
+            reading(.claude, [window("seven_day", label: "Weekly", used: 0.34, elapsed: 3 * 86400),
+                              window("scoped_hot", label: .vendor(hot), used: 0.91, elapsed: 6.5 * 86400, model: hot),
+                              window("scoped_other", label: .vendor(other), used: 0.34, elapsed: 6.5 * 86400, model: other)])
+        }
+        #expect(Advisor.modelRouting(context([claude(hot: "Fable", other: "Sonnet 4.6")])).map(\.text)
+                == ["Fable weekly is 91%. Sonnet 4.6 is 34%. Switch models, not tools. Fable counts about 30% more tokens for the same text."])
+        #expect(Advisor.modelRouting(context([claude(hot: "Opus 4.6", other: "Sonnet 4.7")])).map(\.text)
+                == ["Opus 4.6 weekly is 91%. Sonnet 4.7 is 34%. Switch models, not tools. Sonnet 4.7 counts about 30% more tokens for the same text."])
+        // Same side, or a bare label with no version to place: the sentence as it was.
+        #expect(Advisor.modelRouting(context([claude(hot: "Opus 4.6", other: "Sonnet 4.5")])).map(\.text) == ["Opus 4.6 weekly is 91%. Sonnet 4.5 is 34%. Switch models, not tools."])
+        #expect(Advisor.modelRouting(context([claude(hot: "Fable", other: "Sonnet")])).map(\.text) == ["Fable weekly is 91%. Sonnet is 34%. Switch models, not tools."])
+        // The overall window has no model, and another vendor's models are not Claude's.
+        let overall = reading(.claude, [window("seven_day", label: "Weekly", used: 0.34, elapsed: 3 * 86400),
+                                        window("scoped_fable", label: "Fable", used: 0.91, elapsed: 6.5 * 86400, model: "Fable")])
+        #expect(Advisor.modelRouting(context([overall])).map(\.text) == ["Fable weekly is 91%. Overall weekly is 34%. Switch models, not tools."])
+        #expect(Advisor.tokenizerCaveat(between: "Gemini Pro", and: "Gemini Flash").isEmpty)
+        #expect(Advisor.tokenizerCaveat(between: "Fable", and: nil).isEmpty)
+    }
+
     @Test func spokenCopyReadsTheDashAndTheUnits() {
         #expect(Spoken.phrase("This hour burned $8.40 — 6x your 30-day average.") == "This hour burned $8.40, 6 times your 30-day average.")
         #expect(Spoken.phrase("At this rate you hit the Claude weekly cap Sep 3 at 12:00, 2d before reset.") == "At this rate you hit the Claude weekly cap Sep 3 at 12:00, 2 days before reset.")
+        #expect(Spoken.phrase("Fable counts about 30% more tokens for the same text.") == "Fable counts about 30 percent more tokens for the same text.")
     }
 }
 
@@ -463,5 +588,75 @@ import Testing
         #expect(openCard == expectedOpenCard)
         let openAdvice = try #require(Advisor.runOut(context).first?.text)
         #expect(openAdvice.contains("today at \(from), "))
+    }
+
+    /// Until 0.7.0 the range form printed one day for both edges, so an interval that straddled midnight read
+    /// "today between 23:50 and 00:30", a range that runs backwards. Edges on different days now each carry
+    /// theirs, on the card and in the advice alike; edges on one day keep the shorter sentence.
+    @Test func aRunOutIntervalAcrossMidnightNamesBothDays() throws {
+        let lateNow = DateParsing.iso8601("2026-09-01T23:00:00Z")!
+        let reset = lateNow.addingTimeInterval(4 * 3600)
+        let session = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.5, resetsAt: reset, periodDuration: Period.fiveHours)
+        var context = Advisor.Context(readings: [UsageReading(tool: .claude, windows: [session], plan: nil, fetchedAt: lateNow, observedAt: nil)],
+                                      timeFormat: .twentyFourHour, now: lateNow, calendar: utc)
+        let straddling = RunOutInterval(earliest: 50 * 60, latest: 90 * 60, sampleCount: 8)
+        context.runOuts = ["claude/five_hour": straddling]
+        #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap between today at 23:50 and tomorrow at 00:30."])
+        #expect(straddling.text(now: lateNow, resetsAt: reset, format: .twentyFourHour, calendar: utc) == "Runs out between today at 23:50 and tomorrow at 00:30")
+        // The notification body is the same sentence, with the room elsewhere on the end.
+        let codex = UsageReading(tool: .codex, windows: [LimitWindow(id: "weekly", label: "Weekly", usedFraction: 0.22, resetsAt: reset, periodDuration: Period.week)],
+                                 plan: nil, fetchedAt: lateNow, observedAt: nil)
+        context.readings.append(codex)
+        #expect(Advisor.alertBody(PaceAlert(tool: .claude, window: session, stage: .behind), context: context)
+                == "At this rate you hit the Claude session cap between today at 23:50 and tomorrow at 00:30. Codex weekly is at 22%.")
+        context.readings.removeLast()
+
+        // Both edges past midnight: both say tomorrow, because "tomorrow between" would be read from today.
+        context.runOuts = ["claude/five_hour": RunOutInterval(earliest: 70 * 60, latest: 110 * 60, sampleCount: 8)]
+        #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap tomorrow between 00:10 and 00:50."])
+        // A single time past midnight, and the near edge of an open range, carry the day as they always did.
+        context.runOuts = ["claude/five_hour": RunOutInterval(earliest: 70 * 60, latest: 74 * 60, sampleCount: 8)]
+        #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap tomorrow at 00:12, 2h 48m before reset."])
+        let open = RunOutInterval(earliest: 70 * 60, latest: 5 * 3600, sampleCount: 8)
+        context.runOuts = ["claude/five_hour": open]
+        #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap tomorrow at 00:10, 2h 50m before reset."])
+        #expect(open.text(now: lateNow, resetsAt: reset, format: .twentyFourHour, calendar: utc) == "Runs out from tomorrow at 00:10, or lasts to the reset")
+        // And the same interval at midday keeps the one-day sentence.
+        context.now = now
+        context.readings = [UsageReading(tool: .claude, windows: [LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.5, resetsAt: now.addingTimeInterval(4 * 3600), periodDuration: Period.fiveHours)],
+                                         plan: nil, fetchedAt: now, observedAt: nil)]
+        context.runOuts = ["claude/five_hour": straddling]
+        #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap today between 12:50 and 13:30."])
+    }
+
+    /// The strip drops a repeated headroom clause by cutting it off the end of the line, which holds only while
+    /// every language keeps the clause's placeholder last. Each table is checked on each of the three sentences
+    /// that carry one.
+    @Test func everyLanguagePutsTheHeadroomClauseLast() {
+        defer { Localization.use(language: "en") }
+        let reset = now.addingTimeInterval(4 * 3600)
+        let session = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.5, resetsAt: reset, periodDuration: Period.fiveHours)
+        let codex = LimitWindow(id: "weekly", label: "Weekly", usedFraction: 0.22, resetsAt: now.addingTimeInterval(4 * 86400), periodDuration: Period.week)
+        let lateNow = DateParsing.iso8601("2026-09-01T23:00:00Z")!
+        let forms: [(start: Date, interval: RunOutInterval?)] = [
+            (now, nil),
+            (now, RunOutInterval(earliest: 70 * 60, latest: 160 * 60, sampleCount: 8)),
+            (lateNow, RunOutInterval(earliest: 50 * 60, latest: 90 * 60, sampleCount: 8)),
+        ]
+        for language in Localization.languages {
+            Localization.use(language: language)
+            for form in forms {
+                let window = LimitWindow(id: session.id, label: "Session", usedFraction: 0.5, resetsAt: form.start.addingTimeInterval(4 * 3600), periodDuration: Period.fiveHours)
+                var context = Advisor.Context(readings: [UsageReading(tool: .claude, windows: [window], plan: nil, fetchedAt: form.start, observedAt: nil),
+                                                         UsageReading(tool: .codex, windows: [codex], plan: nil, fetchedAt: form.start, observedAt: nil)],
+                                              timeFormat: .twentyFourHour, now: form.start, calendar: utc)
+                if let interval = form.interval { context.runOuts = ["claude/five_hour": interval] }
+                let clause = Advisor.headroomSuffix(besides: .claude, in: context)
+                #expect(!clause.isEmpty, "\(language)")
+                let line = Advisor.runOut(context).first
+                #expect(line?.headroom == clause, "\(language)")
+                #expect(line?.text.hasSuffix(clause) == true, "\(language): \(line?.text ?? "")")
+            }
+        }
     }
 }

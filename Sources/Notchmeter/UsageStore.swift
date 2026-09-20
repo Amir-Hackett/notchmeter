@@ -108,6 +108,10 @@ final class UsageStore {
     private(set) var keepingAwake = false
     /// What Cursor's usage export last answered, so the Cost card can say why Cursor has no figure of its own.
     private(set) var cursorExport: CursorExportRead?
+    /// What GitHub last said about the Copilot seat's AI credits, for the same line on the card.
+    private(set) var copilotCredits: CopilotCreditsRead?
+    /// How many polls in a row each Antigravity window has read untouched, for the staleness guard.
+    @ObservationIgnored private var antigravityRuns: [String: AntigravityStaleness.Run] = [:]
     /// The range the Cost card on the open panel is showing. It lived in the card as `@State` until 0.6.0, which
     /// left every other render of the card guessing: "Copy as image" on the whole panel rebuilt NotchExpandedView
     /// for the pasteboard, and the fresh card inside it opened on Today whatever the panel said, so a user reading
@@ -137,6 +141,9 @@ final class UsageStore {
     @ObservationIgnored private var activity: AgentActivity
     @ObservationIgnored private let drainLog: DrainLog?
     @ObservationIgnored private(set) var drainSamples: [DrainLog.Key: [DrainSample]] = [:]
+    /// The drain log's boundary rows (DrainLog.Boundary), read once at launch; the newest Claude one floors the
+    /// metering median (`meteringSince`).
+    @ObservationIgnored private(set) var drainBoundaries: [DrainLog.Boundary] = []
     @ObservationIgnored private var tick: Task<Void, Never>?
     @ObservationIgnored private var resetTimer: Task<Void, Never>?
     /// Releases a waiting or finished ring the moment its own clock runs out (armSignalRelease).
@@ -169,6 +176,21 @@ final class UsageStore {
     @ObservationIgnored var deliverSessionEvent: (Notifier.SessionEvent, AgentSession) -> Void = { _, _ in }
     /// Notices whose state has passed, to withdraw from Notification Center.
     @ObservationIgnored var removeNotifications: ([String]) -> Void = { _ in }
+    /// True while the panel is open because a request opened it (App.promptRequested on a compact panel): the
+    /// panel then draws the request's card alone, and closes again when the request ends. A panel the pointer
+    /// had already opened keeps everything and takes the card on top. Cleared by every collapse, and by the
+    /// card's own *Show the whole panel*.
+    var panelOpenedForPrompt = false
+    /// A session began holding for a decision its hook is waiting on; wired to NotchActions.showPrompt by the app
+    /// delegate, so the panel can open on the request.
+    @ObservationIgnored var promptRequested: (AgentSession, PendingRequest) -> Void = { _, _ in }
+    /// A request ended (answered, passed back, overtaken or timed out), by id; wired to NotchActions.promptEnded.
+    @ObservationIgnored var promptEnded: (String) -> Void = { _ in }
+    /// The socket replies parked on a decision, by request id. Only `decide` writes to one, which is what makes
+    /// the request id a nonce: a line on the socket can start a request but never settle one (HookSocket.swift).
+    @ObservationIgnored private var pendingReplies: [String: HookSocket.Reply] = [:]
+    /// The app-side hold per request (Preferences.promptHoldSeconds), after which the request is passed back.
+    @ObservationIgnored private var promptHolds: [String: Task<Void, Never>] = [:]
     /// The working-session count changed, or the power source did; the app applies the awake assertion.
     @ObservationIgnored var awakeChanged: (Bool) -> Void = { _ in }
 
@@ -197,14 +219,40 @@ final class UsageStore {
             extraUsageMemory = try? JSONDecoder().decode(ExtraUsageMemory.self, from: data)
         }
         cursorExport = CursorExportRead.load(from: defaults)
+        copilotCredits = CopilotCreditsRead.load(from: defaults)
         let cached = cache.load()
         for tool in ToolID.allCases {
             statuses[tool] = initialStatus(for: tool, cached: cached[tool])
         }
+        // Armed here rather than in `start`: the setting governs what the tracker holds whether or not the loops run.
+        observeSessionTitles()
     }
 
-    /// The tools on screen, in the user's order (Preferences.toolOrder).
-    var visibleTools: [ToolID] { prefs.toolOrder.filter(isShown) }
+    /// The tools on screen, in the user's order (Preferences.toolOrder), less the ones with nothing to show while
+    /// `Preferences.hideEmptyTools` is on. Filtered here rather than in a view, because the panel's cards, the
+    /// compact strip (`compactTools`), the footer, the presence rule and the Cost card's order check all read this
+    /// one list and have to agree. The floor is WindowFloor's: a rule that hides everything shows the first one.
+    var visibleTools: [ToolID] {
+        let shown = prefs.toolOrder.filter(isShown)
+        guard prefs.hideEmptyTools else { return shown }
+        let kept = shown.filter { !isEmpty($0) }
+        return kept.isEmpty ? Array(shown.prefix(1)) : kept
+    }
+
+    /// The tools `visibleTools` left out for having nothing to show, in the same order; empty while the setting is
+    /// off. The panel's "Add a tool" row names them.
+    var hiddenEmptyTools: [ToolID] {
+        let visible = Set(visibleTools)
+        return prefs.toolOrder.filter { isShown($0) && !visible.contains($0) }
+    }
+
+    /// Switched on and installed, and with nothing yet to put on a card: no reading at all (`ToolStatus.idle` — a
+    /// tool set up with nothing to show, which is not a fault), no spend the cost scan found, and no session its
+    /// hook has reported. A tool still waiting on its first read, or one with a problem to report, is not empty:
+    /// there is something coming, or something to say.
+    func isEmpty(_ tool: ToolID) -> Bool {
+        status(tool).hasNothingYet && cost?.provider(tool) == nil && (sessions.knownCount(of: tool) ?? 0) == 0
+    }
 
     /// The assistants the Cost card carries, in the user's order, less any the card is set to leave out. The card
     /// draws this, the self check prints it and the oracle reports it, so a tester who cannot see the card reads
@@ -219,7 +267,7 @@ final class UsageStore {
         guard cost != nil else { return [] }
         let carried = visibleTools.filter { prefs.costCardTools.contains($0) }
         return CostAbsence.gaps(carried: carried, reporting: Set(costSelection.providers.map(\.tool)),
-                                cursorUsageEvents: prefs.cursorUsageEvents, cursorExport: cursorExport,
+                                cursorUsageEvents: prefs.cursorUsageEvents, cursorExport: cursorExport, copilotCredits: copilotCredits,
                                 problems: carried.reduce(into: [:]) { $0[$1] = status($1).problem },
                                 nothingLocal: Set(carried.filter { status($0).hasNothingYet }))
     }
@@ -393,6 +441,8 @@ final class UsageStore {
         context.limitHitTools = sessions.limitHitTools(now: now).filter(isShown)
         context.serverTrouble = serverTrouble.filter { isShown($0.key) }
         context.metering = prefs.showSpend ? cost?.sessionMetering : nil
+        // The current 5-hour block: the cost scan's block when it has one, else the five hours behind now.
+        context.promptCache = promptCache(since: cost?.block?.start ?? now.addingTimeInterval(-Period.fiveHours))
         return context
     }
 
@@ -424,7 +474,7 @@ final class UsageStore {
     /// Everything the app knows, for `--probe --json`, the local API and the oracle.
     func report(now: Date = Date(), history: Bool = false) -> UsageReport {
         UsageReport(tools: statuses, order: prefs.toolOrder, cost: prefs.showSpend ? cost : nil, advice: advice, drains: drains, runOuts: runOuts,
-                    sessions: sessions.all, history: history ? costEngine.claude.history?.load() : nil, now: now)
+                    sessions: sessions.all, history: history ? costEngine.claude.history?.load() : nil, promptCache: promptCacheToday, now: now)
     }
 
     func start() {
@@ -443,6 +493,20 @@ final class UsageStore {
         startTick()
         startResetTimer()
         observeEnvironment()
+    }
+
+    /// Titles off is titles gone: the titles and session names the tracker already holds are cleared the moment
+    /// *Show what a session is working on* turns off, not at each session's next event, which for an idle
+    /// session may never come (docs/hooks.md: with the setting off nothing of a prompt is held anywhere). The
+    /// tracking is one-shot, so it re-arms; the preference alone is read inside it, so a hook event does not
+    /// re-arm it.
+    private func observeSessionTitles() {
+        let titles = withObservationTracking {
+            prefs.sessionTitles
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeSessionTitles() }
+        }
+        if !titles { sessions.clearTitles() }
     }
 
     /// Reports the advice strip to the oracle whenever its lines change; the tracking is one-shot, so it re-arms.
@@ -514,9 +578,10 @@ final class UsageStore {
             reads[tool] = ProviderReadState(readAt: status(tool).reading?.fetchedAt, problem: status(tool).problem)
         }
         let summary = await costEngine.scan(tools: tools, reads: reads, weeklyResetsAt: weekly?.resetsAt, weeklyUsed: weekly?.usedFraction,
-                                            sessionResetsAt: session?.resetsAt, sessionUsed: session?.usedFraction)
+                                            sessionResetsAt: session?.resetsAt, sessionUsed: session?.usedFraction, meteringSince: meteringSince())
         cost = summary
         cursorExport = CursorExportRead.load(from: defaults)
+        copilotCredits = CopilotCreditsRead.load(from: defaults)
         costScanning = false
         evaluateAlerts()
         writeReportIfDue()
@@ -564,6 +629,14 @@ final class UsageStore {
         defer { inflight[tool] = nil }
         if tool == .claude, let reading = statuslineReading() {
             adopt(reading)
+            return
+        }
+        // With the endpoint switched off, the status line is the whole Claude source: a fresh one was adopted
+        // above, a stale one leaves the last reading standing, and with none at all the card says calmly why.
+        if tool == .claude, !prefs.pollClaudeEndpoint {
+            if statuses[.claude]?.reading == nil {
+                statuses[.claude] = .idle(L("Claude's usage endpoint is not polled; install the status line and run a turn for a reading"))
+            }
             return
         }
         lastFetch[tool] = Date()
@@ -628,6 +701,10 @@ final class UsageStore {
         if reading.tool == .antigravity {
             let resets = drainSamples.filter { $0.key.tool == .antigravity }.reduce(into: [String: [Date]]()) { $0[$1.key.window] = $1.value.compactMap(\.resetsAt) }
             reading = AntigravityPeriods.apply(reading, resets: resets, now: now)
+            // The run is counted from the figure as read, before the guard strips it, so a pinned meter keeps
+            // counting rather than restarting the moment it is first doubted (AntigravityStaleness).
+            antigravityRuns = AntigravityStaleness.runs(after: reading, previous: antigravityRuns, now: now)
+            reading = AntigravityStaleness.unverified(reading, runs: antigravityRuns, activeSince: lastActivity[.antigravity])
         }
         if reading.tool == .claude { noteExtraUsage(reading, now: now) }
         statuses[reading.tool] = .ready(reading)
@@ -714,11 +791,17 @@ final class UsageStore {
     /// wants and the first of which would reach the network from a command whose whole promise is that it does
     /// not. `DemoFixtures` builds the tracker by feeding `SessionTracker.apply` the same messages a hook would
     /// send, so the state in the pictures is still the state machine's own answer rather than a hand-set field.
-    func seed(readings: [UsageReading], cost: CostSummary, nextUpdate: Date, sessions: SessionTracker = SessionTracker(), now: Date = Date()) {
+    /// `nothingYet` seeds a tool as set up with nothing to show (`ToolStatus.idle`, keyed by its message), the
+    /// state `hideEmptyTools` acts on, which a fixture reading cannot express.
+    func seed(readings: [UsageReading], cost: CostSummary, nextUpdate: Date, sessions: SessionTracker = SessionTracker(),
+              nothingYet: [ToolID: String] = [:], now: Date = Date()) {
         for reading in readings {
             statuses[reading.tool] = .ready(reading)
             nextRefresh[reading.tool] = nextUpdate
             lastActivity[reading.tool] = now
+        }
+        for (tool, message) in nothingYet {
+            statuses[tool] = .idle(message)
         }
         self.sessions = sessions
         self.cost = cost
@@ -743,14 +826,34 @@ final class UsageStore {
         let log = drainLog
         Task.detached(priority: .utility) {
             let samples = log.load(now: now)
+            // The 2026-09-14 weekly-cap boundary, once; `appendBoundary` is idempotent, so every launch may ask.
+            log.appendBoundary(tool: .claude, window: "seven_day", at: DrainLog.weeklyDenominatorChangedAt, note: "weekly cap changed")
+            let boundaries = log.loadBoundaries()
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 // The loops start the moment this task is spawned, and a reading can be adopted before the file
                 // comes back, so what the store holds by now is not empty: fold the file into it rather than over it.
                 drainSamples = DrainLog.merged(samples, with: drainSamples)
+                drainBoundaries = boundaries
                 recomputeDrains(now: now)
             }
         }
+    }
+
+    /// The newest Claude boundary on file, the floor under the metering median (ClaudeCostScanner.metering).
+    func meteringSince(now: Date = Date()) -> Date? {
+        DrainLog.latestBoundary(drainBoundaries, tool: .claude, now: now)
+    }
+
+    /// The Claude sessions' prompt-cache figures over today, for the Cost card and the report; nil while no session
+    /// has reported a status line with `prompt_cache`, or while Claude is not shown.
+    var promptCacheToday: PromptCacheSummary? {
+        promptCache(since: Calendar.current.startOfDay(for: Date()))
+    }
+
+    func promptCache(since: Date) -> PromptCacheSummary? {
+        guard isShown(.claude) else { return nil }
+        return PromptCache.summary(sessions: sessions.all, since: since)
     }
 
     /// Internal rather than private so `DrainLogRules` can pin the statement order below, which is the whole bug.
@@ -832,6 +935,7 @@ final class UsageStore {
             if line.id.hasPrefix("extra/") { return prefs.notifyExtraUsage ? (line.id == "extra/room" ? 3600 : 30 * 86400) : nil }
             if line.id == "cache-ttl" { return prefs.notifyCacheShift ? 86400 : nil }
             if line.id == "metering" { return prefs.notifyCacheShift ? 86400 : nil }
+            if line.id == "prompt-cache" { return prefs.notifyPromptCache ? 86400 : nil }
             return nil
         }
         remember(lines.memory)
@@ -1125,11 +1229,17 @@ final class UsageStore {
     /// listens. Delivery is on a background queue and hops to the main actor, as the observers did.
     private func listenForHooks(arguments: [String] = CommandLine.arguments) {
         guard hookSocket == nil, !SingleInstance.isSidecar(arguments: arguments) else { return }
-        let listener = HookSocket.Listener { [weak self] message in
+        let listener = HookSocket.Listener { [weak self] message, reply in
             Task { @MainActor in
+                guard let self else {
+                    reply.answer(nil)
+                    return
+                }
                 switch message {
-                case .hook(let hook): self?.hookReceived(hook)
-                case .statusline(let line): self?.statuslineReceived(line)
+                case .hook(let hook): self.hookReceived(hook, reply: reply)
+                case .statusline(let line):
+                    reply.answer(nil)
+                    self.statuslineReceived(line)
                 }
             }
         }
@@ -1253,14 +1363,20 @@ final class UsageStore {
     /// Every event is activity for the tool that sent it; that tool's meter refreshes at most once every 30 s, and
     /// the session tracker keeps who is working, idle or waiting for the user. A remote host's event arrives here
     /// through the local API. The log line and the oracle name the tool only when it is not Claude Code, so
-    /// Claude's output reads exactly as it always has.
-    func hookReceived(_ message: Hook.Message, now: Date = Date()) {
+    /// Claude's output reads exactly as it always has. `reply` is the socket's end of a local event, parked while
+    /// the message awaits a decision: it is kept under the request's id for `decide`, or answered nothing at once
+    /// when the request is not going to be shown (answering from the notch is off, or the tracker did not take
+    /// it). The title, the summary and the terminal never reach the log or the oracle (`hookFacts`).
+    func hookReceived(_ message: Hook.Message, now: Date = Date(), reply: HookSocket.Reply? = nil) {
+        var message = message
+        if !prefs.sessionTitles { message.title = nil }
+        if message.request != nil, !prefs.answerFromNotch {
+            reply?.answer(nil)
+            message.request = nil
+        }
         let tool = message.tool
-        log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
-        var facts: [String: Any] = ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any,
-                                    "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any]
-        if tool != .claude { facts["tool"] = tool.rawValue }
-        Oracle.shared.emit("hook", facts)
+        log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.request.map { " (\($0.kind.name) request)" } ?? "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
+        Oracle.shared.emit("hook", Self.hookFacts(message))
         lastHook[tool] = now
         lastActivity[tool] = now
         wokeAt = now
@@ -1274,6 +1390,22 @@ final class UsageStore {
         // banner nobody saw. Withdrawn first, the notice standing for the wait that expired goes, and the new one
         // is what is left.
         withdrawWaiting(outcome.stoppedWaiting)
+        for ended in outcome.requestsEnded { endRequest(ended.requestID) }
+        if let requested = outcome.requested {
+            let requestID = requested.request.id
+            if let reply {
+                // A Reply already parked under this id (a replayed line; the tracker refuses the duplicate, so
+                // this is belt and braces) is released rather than left holding a slot for the whole cap.
+                pendingReplies.updateValue(reply, forKey: requestID)?.answer(nil)
+                reply.whenPeerCloses { [weak self] in
+                    Task { @MainActor in self?.requestPeerGone(requestID) }
+                }
+            }
+            holdPrompt(requestID)
+            promptRequested(requested.session, requested.request)
+        } else {
+            reply?.answer(nil)
+        }
         if let waiting = outcome.startedWaiting, prefs.notifyWaiting {
             deliverSessionEvent(.waiting(blocking: message.blocksSession), waiting)
         }
@@ -1299,15 +1431,90 @@ final class UsageStore {
         }
     }
 
+    /// What the oracle records for a hook event: the event's name and shape, never the title, the summary, the
+    /// detail, a question or the terminal. Static and pure so a test can pin the key set.
+    nonisolated static func hookFacts(_ message: Hook.Message) -> [String: Any] {
+        var facts: [String: Any] = ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any,
+                                    "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any]
+        if message.tool != .claude { facts["tool"] = message.tool.rawValue }
+        if let request = message.request { facts["request"] = request.kind.name }
+        return facts
+    }
+
+    /// The user's answer to the request `requestID`, from the panel (or the hold running out, as a pass): the
+    /// reply line goes to the hook's socket (`Hook.Answer.line`), the request leaves the session, the wait notice
+    /// comes down, and the oracle records what was decided and never what about. Nothing happens for an id the
+    /// app is not showing: that is the whole of the security model, since the id is a nonce the hook generated
+    /// and a decision reaches the socket from here alone.
+    func decide(_ requestID: String, _ decision: Decision, now: Date = Date()) {
+        let kind = sessions.pending(now: now).first { $0.request.id == requestID }?.request.kindName
+        let reply = pendingReplies.removeValue(forKey: requestID)
+        promptHolds.removeValue(forKey: requestID)?.cancel()
+        guard reply != nil || kind != nil else { return }
+        // A line the socket could not take whole (the hook process went away between the worker's last look at
+        // it and now) is a decision the assistant will never see: it is recorded as lost, and the session is left
+        // waiting as for a pass, because the terminal is asking or has moved on, not acting on this.
+        let delivered = reply.map { $0.answer(Hook.Answer.line(for: decision)) } ?? true
+        let behavior = delivered ? decision.behavior : "lost"
+        let session = sessions.resolve(requestID: requestID, resumes: delivered && decision != .pass, now: now)
+        log.info("decision \(behavior, privacy: .public) for a \(kind ?? "gone", privacy: .public) request")
+        Oracle.shared.emit("decision", ["request": requestID, "kind": kind as Any, "behavior": behavior, "session": session?.id as Any])
+        if let session { withdrawWaiting([session.id]) }
+        applyAwake()
+        armSignalRelease(now: now)
+        promptEnded(requestID)
+    }
+
+    /// The hook process behind `requestID` went away before the app answered (the socket's worker saw its
+    /// connection go: the vendor cancelled the command, the turn was interrupted, an out-of-date entry's five
+    /// seconds ran out): the card comes down, the hold is dropped and the session is left waiting, as after a
+    /// pass, because the terminal is asking or has already gone on. Nothing for an id no longer parked.
+    private func requestPeerGone(_ requestID: String, now: Date = Date()) {
+        guard pendingReplies.removeValue(forKey: requestID) != nil else { return }
+        let kind = sessions.pending(now: now).first { $0.request.id == requestID }?.request.kindName
+        promptHolds.removeValue(forKey: requestID)?.cancel()
+        let session = sessions.resolve(requestID: requestID, resumes: false, now: now)
+        log.info("decision gone for a \(kind ?? "gone", privacy: .public) request: its hook went away unanswered")
+        Oracle.shared.emit("decision", ["request": requestID, "kind": kind as Any, "behavior": "gone", "session": session?.id as Any])
+        armSignalRelease(now: now)
+        promptEnded(requestID)
+    }
+
+    /// A request that ended without the app deciding it: its parked reply is released with nothing, so the
+    /// terminal asks, and the panel is told.
+    private func endRequest(_ requestID: String) {
+        pendingReplies.removeValue(forKey: requestID)?.answer(nil)
+        promptHolds.removeValue(forKey: requestID)?.cancel()
+        promptEnded(requestID)
+    }
+
+    /// Starts the app-side hold on a request: after `promptHoldSeconds` it is passed back to the terminal, well
+    /// inside the socket's cap and the entries' timeouts.
+    private func holdPrompt(_ requestID: String) {
+        promptHolds[requestID]?.cancel()
+        let seconds = TimeInterval(prefs.promptHoldSeconds)
+        promptHolds[requestID] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            self?.decide(requestID, .pass)
+        }
+    }
+
     /// The status line's windows replace the endpoint's for as long as they keep arriving; the context fill and the
     /// session cost go to the Claude card.
     func statuslineReceived(_ message: Statusline.Message, now: Date = Date()) {
+        // The figures, never the session's name: it is a title the user typed or Claude Code wrote.
         Oracle.shared.emit("statusline", ["context": message.contextUsed.map(Oracle.fraction) as Any, "windows": message.windows.map(\.id),
-                                          "session": message.sessionID as Any, "model": message.model as Any, "branch": message.branch as Any])
+                                          "session": message.sessionID as Any, "model": message.model as Any, "branch": message.branch as Any,
+                                          "cacheMisses": message.promptCache?.misses as Any])
         statusline = message
         lastHook[.claude] = now
         lastActivity[.claude] = now
-        sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL, now: now)
+        // The session's name is shown under the same setting as the prompt title (hookReceived drops that one).
+        sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL,
+                            model: message.model, sessionName: prefs.sessionTitles ? message.sessionName : nil,
+                            linesAdded: message.linesAdded, linesRemoved: message.linesRemoved,
+                            promptCache: message.promptCache, now: now)
         guard isShown(.claude) else { return }
         if let reading = statuslineReading(now: now) {
             adopt(reading, now: now)

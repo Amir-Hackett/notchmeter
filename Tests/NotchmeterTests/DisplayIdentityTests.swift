@@ -61,6 +61,7 @@ import Testing
             func toggle(cause: PanelCause) {}
             func expandNow(cause: PanelCause) {}
             func glance(for duration: TimeInterval) {}
+            func holdOpen(_ held: Bool) {}
         }
         let screens = NSScreen.screens
         let presenters: [any PanelPresenting] = screens.map { Stub(screen: $0) }

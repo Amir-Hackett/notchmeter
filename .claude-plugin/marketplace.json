@@ -1,0 +1,22 @@
+{
+  "name": "notchmeter",
+  "owner": {
+    "name": "Amir Hackett",
+    "url": "https://github.com/Amir-Hackett"
+  },
+  "description": "Notchmeter's Claude Code plugin: the notchmeter skill and the get_limits MCP tool, from the repository that ships the app.",
+  "plugins": [
+    {
+      "name": "notchmeter",
+      "displayName": "Notchmeter",
+      "source": "./",
+      "description": "Read this Mac's AI usage windows, the local cost estimate and Notchmeter's advice before long work, from the notchmeter command-line tool and the running app's MCP server.",
+      "author": { "name": "Amir Hackett", "url": "https://github.com/Amir-Hackett" },
+      "homepage": "https://www.notchmeter.com",
+      "repository": "https://github.com/Amir-Hackett/notchmeter",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["usage", "rate-limits", "claude-code", "macos"]
+    }
+  ]
+}

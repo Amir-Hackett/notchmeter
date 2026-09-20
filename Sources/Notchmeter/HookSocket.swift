@@ -70,6 +70,22 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "hoo
 /// absent or refuses means the app is not running, and the command exits 0 silently, as it always has: every
 /// vendor's hook is fail-open and the command's silence is what keeps the assistant from seeing a decision.
 ///
+/// Since 0.7.0 one kind of line is answered rather than merely hung up on: a request awaiting a decision
+/// (`Hook.Message.awaitsDecision`, a permission request or a question). The listener parks that connection
+/// instead of closing it, hands the store a `Reply` alongside the message, and the store's `decide`, and nothing
+/// else, writes the app's one reply line to it before hanging up; the command reads the line and prints the
+/// vendor's decision. What that adds to the threat model above, and what it does not: a same-user process that
+/// can already have a line accepted can now put a request in front of the user that no assistant made, and it
+/// still cannot have anything approved, because approval originates in the app's own UI, is addressed to a
+/// request id the app is showing, and is written only to the connection that asked. A parked connection is held
+/// at most `Listener.holdCap`, and at most `Listener.parkedCap` are parked at once, so a flood of requests cannot
+/// pin every worker; everything past either cap is answered nothing, which is the terminal asking as before.
+/// The command behind a deciding line keeps its write side open (an ordinary line half-closes), so the worker
+/// parked on it can tell the peer going away — its vendor cancelled the command, the turn was interrupted, an
+/// out-of-date entry's five seconds ran out — from a peer still waiting: the descriptor turns readable with
+/// nothing to read, and the request is ended at once (`Reply.whenPeerCloses`) rather than shown for the whole
+/// hold to a terminal that has already moved on.
+///
 /// The command checks nothing about the listener in turn: it writes to whatever holds the path. A same-user
 /// process that unlinks the file and binds its own there receives the lines, and the app cannot tell:
 /// `Listener.isListening` tests the app's own descriptor and `describe` only finds a socket standing at the path,
@@ -128,8 +144,10 @@ enum HookSocket {
 
     enum SendResult: Equatable, Sendable {
         /// The line went out and the app closed the connection: it was read, or the peer was refused, which the
-        /// command has no need to tell apart because it does the same either way, exit 0 and say nothing.
-        case sent
+        /// command has no need to tell apart because it does the same either way, exit 0 and say nothing. `reply`
+        /// is whatever the app wrote back before it hung up: nil for every event but a request awaiting a
+        /// decision, and for one of those that the app passed back to the terminal, or held past the timeout.
+        case sent(reply: Data?)
         /// No app is listening: no socket file, or one that refused every try. The everyday case when Notchmeter is
         /// not running.
         case noListener
@@ -179,11 +197,14 @@ enum HookSocket {
         }
     }
 
-    /// Connects, writes the one line, half-closes and waits for the app to hang up. `timeout` bounds every step
-    /// (the connect cannot block on a Unix socket, and is tried again briefly when the app's accept queue was
-    /// full; the write can only block if the app's buffer is full, and the wait for the hang-up is what keeps
-    /// this process alive through the app's check of it), so the command is back within the budget whatever the
-    /// app is doing.
+    /// Connects, writes the one line, half-closes and waits for the app to hang up, keeping whatever it wrote
+    /// back first. `timeout` bounds every step (the connect cannot block on a Unix socket, and is tried again
+    /// briefly when the app's accept queue was full; the write can only block if the app's buffer is full, and
+    /// the wait for the hang-up is what keeps this process alive through the app's check of it), so the command
+    /// is back within the budget whatever the app is doing. One second for every event but a request awaiting a
+    /// decision, which passes `Hook.decisionWait` and is held by the app until the user answers or its hold
+    /// runs out. A deciding line is not half-closed: the app reads to the newline, never to the end of the
+    /// stream, and the write side staying open is how its worker tells this process dying from it waiting.
     @discardableResult
     static func send(_ kind: Kind, _ payload: [String: Any], to path: String = Paths.hookSocket.path, timeout: TimeInterval = 1) -> SendResult {
         guard let line = encode(kind, payload) else { return .failed("payload is not JSON") }
@@ -201,19 +222,26 @@ enum HookSocket {
             guard count > 0 else { return .failed("write: \(String(cString: strerror(errno)))") }
             written += count
         }
-        awaitHangUp(fd)
-        return .sent
+        let deciding = kind == .hook && payload[Hook.awaitsDecisionKey] as? Bool == true
+        let reply = awaitHangUp(fd, halfClose: !deciding)
+        return .sent(reply: reply.isEmpty ? nil : reply)
     }
 
-    /// Half-closes and waits for the app to hang up, which it does once the peer is checked and its line read; the
-    /// app writes nothing back, so the read returns 0 when it closes, or -1 when the budget runs out. The wait
+    /// Half-closes (unless told not to) and waits for the app to hang up, which it does once the peer is checked
+    /// and its line read; the read returns 0 when it closes, or -1 when the budget runs out. The app writes
+    /// nothing back for any event but a request awaiting a decision, whose one reply line is returned. The wait
     /// matters twice over: the peer must still be alive when the app resolves its code object, and a peer that
     /// closes before it is even accepted leaves the kernel nothing to name it by (`LOCAL_PEERPID` answers ENOTCONN
     /// once the other end has gone), so the app would log it as a peer whose pid could not be read.
-    private static func awaitHangUp(_ fd: Int32) {
-        shutdown(fd, SHUT_WR)
-        var scratch = [UInt8](repeating: 0, count: 64)
-        while read(fd, &scratch, scratch.count) > 0 {}
+    private static func awaitHangUp(_ fd: Int32, halfClose: Bool = true) -> Data {
+        if halfClose { shutdown(fd, SHUT_WR) }
+        var reply = Data()
+        var scratch = [UInt8](repeating: 0, count: 1024)
+        while true {
+            let count = read(fd, &scratch, scratch.count)
+            guard count > 0 else { return reply }
+            if reply.count < maximumLine { reply.append(scratch, count: count) }
+        }
     }
 
     // MARK: - The peer check
@@ -289,38 +317,129 @@ enum HookSocket {
             return errno == ECONNREFUSED ? "socket \(path) stale (nobody listening; a relaunch replaces it)"
                                          : "socket \(path) present (connect: \(String(cString: strerror(errno))))"
         }
-        awaitHangUp(fd)
+        _ = awaitHangUp(fd)
         close(fd)
         return "socket \(path) present (listening)"
+    }
+
+    /// The app's end of one connection: the one object that can write the app's answer to the peer and hang up.
+    /// `answer` is idempotent, so the store's decision, the hold running out and the serving thread's own release
+    /// can each call it and the first one wins; a reply is written only from the app's own `decide`, never from
+    /// anything the wire said (HookSocket's file comment on the threat model, docs/hooks.md).
+    final class Reply: @unchecked Sendable {
+        private struct State {
+            var fd: Int32
+            /// The peer went away before the app answered (the serving worker saw its descriptor turn readable).
+            var peerClosed = false
+            var onPeerClosed: (@Sendable () -> Void)?
+        }
+
+        private let state: OSAllocatedUnfairLock<State>
+
+        init(fd: Int32) {
+            state = OSAllocatedUnfairLock(initialState: State(fd: fd))
+        }
+
+        /// Writes `line` (if any) and closes the connection; nothing happens on a second call. Returns whether the
+        /// whole line reached the socket: false when there was nothing left to write to (the connection was
+        /// already answered or the peer had gone, so a write met EPIPE), which is a decision the assistant will
+        /// never see and the store records as such rather than as delivered.
+        @discardableResult
+        func answer(_ line: Data?) -> Bool {
+            let fd = state.withLock { current in
+                defer { current.fd = -1 }
+                return current.fd
+            }
+            guard fd >= 0 else { return false }
+            defer { close(fd) }
+            guard let line, !line.isEmpty else { return true }
+            var written = 0
+            while written < line.count {
+                let count = line.withUnsafeBytes { write(fd, $0.baseAddress! + written, line.count - written) }
+                guard count > 0 else { return false }
+                written += count
+            }
+            return true
+        }
+
+        var isAnswered: Bool { state.withLock { $0.fd < 0 } }
+
+        /// The peer went away before the app answered.
+        var isPeerClosed: Bool { state.withLock { $0.peerClosed } }
+
+        /// Runs `action` once, when the serving worker finds the peer gone before the app answered — at once if
+        /// it already has. The store hangs the end of the request on it, so a card whose hook process died is
+        /// taken down instead of standing for the whole hold.
+        func whenPeerCloses(_ action: @escaping @Sendable () -> Void) {
+            let now = state.withLock { current -> Bool in
+                if current.peerClosed { return true }
+                current.onPeerClosed = action
+                return false
+            }
+            if now { action() }
+        }
+
+        /// The serving worker's word that the peer hung up (or spoke again, which the protocol never does) before
+        /// the app answered: the connection is closed, and whatever `whenPeerCloses` registered runs. Nothing
+        /// happens on a Reply already answered. Internal so a test can stand in for the worker.
+        func peerClosed() {
+            let action = state.withLock { current -> (@Sendable () -> Void)? in
+                guard current.fd >= 0, !current.peerClosed else { return nil }
+                current.peerClosed = true
+                defer { current.onPeerClosed = nil }
+                return current.onPeerClosed
+            }
+            answer(nil)
+            action?()
+        }
+
+        /// The descriptor to watch while parked, or -1 once answered.
+        fileprivate var descriptor: Int32 { state.withLock { $0.fd } }
     }
 
     /// The listening end, owned by the store for the life of the app. Connections are accepted on a queue of its
     /// own and each one is checked and read on a concurrent queue, so a peer that connects and then says nothing
     /// holds its own worker for a second and nobody else's; the decoded message is handed to `deliver` on the
-    /// caller's terms (the store hops to the main actor). `peerCheck` is the code-signature check by default and a
-    /// closure in the tests, which is how a round trip can be pinned on a temporary path without a signed peer.
+    /// caller's terms (the store hops to the main actor) together with the `Reply` that answers it. For every
+    /// event but a request awaiting a decision the connection is closed the moment `deliver` returns, as it always
+    /// was; for one of those the worker parks on the Reply until the store answers it or `holdCap` passes, and at
+    /// most `parkedCap` are parked at once, so a flood of requests cannot pin every worker. `peerCheck` is the
+    /// code-signature check by default and a closure in the tests, which is how a round trip can be pinned on a
+    /// temporary path without a signed peer.
     final class Listener: @unchecked Sendable {
         typealias PeerCheck = @Sendable (pid_t) -> Peer.Verdict
-        typealias Deliver = @Sendable (Message) -> Void
+        typealias Deliver = @Sendable (Message, Reply) -> Void
 
         let path: URL
         private let peerCheck: PeerCheck
         private let deliver: Deliver
+        private let holdCap: TimeInterval
         private let acceptQueue = DispatchQueue(label: "com.amirhackett.notchmeter.hook-socket.accept")
         private let workQueue = DispatchQueue(label: "com.amirhackett.notchmeter.hook-socket.peers", attributes: .concurrent)
         private let state = OSAllocatedUnfairLock<(fd: Int32, source: DispatchSourceRead?)>(uncheckedState: (-1, nil))
+        private let parked = OSAllocatedUnfairLock(initialState: 0)
 
         /// How long a peer that connected may take to finish its line before it is dropped unread.
         static let readBudget: TimeInterval = 1
+        /// How long a connection awaiting a decision is held open at most, whatever the store does: the socket's
+        /// ceiling, matched by `Hook.decisionWait` on the command's side. The store's own hold is shorter.
+        static let holdCap: TimeInterval = 600
+        /// How many connections may be parked on a decision at once; one past that is answered nothing at once.
+        static let parkedCap = 16
 
         // The default is spelled as a closure rather than `Peer.verify(pid:)` itself: `PeerCheck` is `@Sendable`, and
         // handing a plain static function where one is expected is a conversion the compiler warns about, and CI
         // treats a warning under Sources/ as a failed build (ci.yml).
-        init(path: URL = Paths.hookSocket, peerCheck: @escaping PeerCheck = { @Sendable pid in Peer.verify(pid: pid) }, deliver: @escaping Deliver) {
+        init(path: URL = Paths.hookSocket, peerCheck: @escaping PeerCheck = { @Sendable pid in Peer.verify(pid: pid) },
+             holdCap: TimeInterval = Listener.holdCap, deliver: @escaping Deliver) {
             self.path = path
             self.peerCheck = peerCheck
+            self.holdCap = holdCap
             self.deliver = deliver
         }
+
+        /// How many connections are parked on a decision right now.
+        var parkedCount: Int { parked.withLock { $0 } }
 
         var isListening: Bool { state.withLock { $0.fd >= 0 } }
 
@@ -398,14 +517,20 @@ enum HookSocket {
 
         /// The order is the point: the peer's identity is settled before a byte of its line is read, so a peer that
         /// fails the check is never parsed, whatever it sent. Passing proves only that a Notchmeter image held the
-        /// connection at that moment (the file comment's exec caveat); the line is then read on that word.
+        /// connection at that moment (the file comment's exec caveat); the line is then read on that word. The
+        /// connection is closed here on every early exit and, once a line is delivered, by its `Reply`.
         private func serve(_ client: Int32) {
-            defer { close(client) }
+            var handedOver = false
+            defer { if !handedOver { close(client) } }
             // On macOS accept() copies the listener's O_NONBLOCK onto the peer (BSD semantics; Linux does not), and
             // a non-blocking read ignores SO_RCVTIMEO: it answers EAGAIN the moment the peer's bytes have not landed,
             // which the loop below would take for the end of the line. Blocking again is what makes readBudget the
             // bound the class comment promises, rather than a race the peer's write usually, and not always, wins.
             _ = fcntl(client, F_SETFL, fcntl(client, F_GETFL) & ~O_NONBLOCK)
+            // A reply written to a peer that has already gone (its vendor cancelled the command) must fail with
+            // EPIPE, not kill the app.
+            var on: Int32 = 1
+            setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
             var budget = timeval(tv_sec: Int(Self.readBudget), tv_usec: 0)
             setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &budget, socklen_t(MemoryLayout<timeval>.size))
             var pid: pid_t = 0
@@ -439,11 +564,67 @@ enum HookSocket {
                 }
                 return
             }
-            guard let message = HookSocket.decode(line[..<newline]) else {
+            guard var message = HookSocket.decode(line[..<newline]) else {
                 log.notice("hook socket: pid \(pid) sent a line that is neither a hook nor a status line")
                 return
             }
-            deliver(message)
+            handedOver = true
+            let reply = Reply(fd: client)
+            guard case .hook(var hook) = message, hook.awaitsDecision else {
+                deliver(message, reply)
+                reply.answer(nil)
+                return
+            }
+            // A request past the cap on parked connections is delivered as the display-only wait it would have
+            // been in 0.6.0 and answered nothing at once, so its command returns and the terminal asks.
+            let admitted = parked.withLock { count in
+                guard count < Self.parkedCap else { return false }
+                count += 1
+                return true
+            }
+            guard admitted else {
+                hook.request = nil
+                message = .hook(hook)
+                deliver(message, reply)
+                reply.answer(nil)
+                return
+            }
+            defer { parked.withLock { $0 -= 1 } }
+            deliver(message, reply)
+            switch park(reply, until: Date().addingTimeInterval(holdCap)) {
+            case .answered:
+                break
+            case .capped:
+                log.notice("hook socket: pid \(pid) held past the cap, answered nothing")
+                reply.answer(nil)
+            case .peerGone:
+                log.notice("hook socket: pid \(pid) went away before its request was answered")
+                reply.peerClosed()
+            }
+        }
+
+        enum Park: Equatable { case answered, capped, peerGone }
+
+        /// How often a parked worker looks at its peer between checks of the Reply.
+        static let peerPoll: TimeInterval = 0.25
+
+        /// Waits for the store to answer `reply`, watching the peer meanwhile: the command keeps its write side
+        /// open for a deciding line, so its descriptor turning readable — nothing to read once the process is
+        /// gone, or bytes the protocol never sends — means the peer is gone. The Reply is looked at again after
+        /// every poll before the poll's result is believed, because `answer` closes the descriptor and a number
+        /// closed here can be handed to the next accepted connection; a result on an answered Reply is about that
+        /// other connection, not this one.
+        private func park(_ reply: Reply, until deadline: Date) -> Park {
+            while true {
+                if reply.isAnswered { return .answered }
+                let remaining = deadline.timeIntervalSinceNow
+                guard remaining > 0 else { return .capped }
+                var watched = pollfd(fd: reply.descriptor, events: Int16(POLLIN), revents: 0)
+                let ready = poll(&watched, 1, Int32(min(remaining, Self.peerPoll) * 1000))
+                if reply.isAnswered { return .answered }
+                if ready > 0 { return .peerGone }
+                if ready < 0, errno != EINTR, errno != EAGAIN { return .peerGone }
+            }
         }
     }
 }

@@ -17,15 +17,22 @@ struct CostDetail {
     let calendar: Calendar
     /// For the block line's start, which is a clock time rather than a day.
     let timeFormat: TimeFormatPreference
+    /// The card's unit, which decides whether the tokenizer caption applies.
+    let mode: CostCardMode
+    /// Today's prompt-cache figures from Claude Code's status line (PromptCache.summary), which only Claude Code
+    /// reports; nil under any other leader for the same reason as `claude`.
+    let promptCache: PromptCacheSummary?
 
     init(provider: ProviderCost, range: CostRange, claude: CostSummary? = nil, now: Date = Date(), calendar: Calendar = .current,
-         timeFormat: TimeFormatPreference = .auto) {
+         timeFormat: TimeFormatPreference = .auto, mode: CostCardMode = .cost, promptCache: PromptCacheSummary? = nil) {
         self.provider = provider
         self.range = range
         self.claude = provider.tool == .claude ? claude : nil
         self.now = now
         self.calendar = calendar
         self.timeFormat = timeFormat
+        self.mode = mode
+        self.promptCache = provider.tool == .claude ? promptCache : nil
     }
 
     private var name: String { provider.tool.displayName }
@@ -53,6 +60,14 @@ struct CostDetail {
     var cacheWrites: String? {
         guard provider.tool == .claude, let share = CacheTTL.oneHourShare(totals.tokens) else { return nil }
         return L("cache writes %1$ld%% 1-hour · %2$ld%% 5-minute", Int((share * 100).rounded()), Int(((1 - share) * 100).rounded()))
+    }
+
+    /// Claude Code's own count of the prompt cache's misses today, the tokens they wrote back priced at the
+    /// session model's cache-write rate, and the cause it diagnosed for the last one. Nothing is inferred from a
+    /// transcript, so the line exists only while the status line reports and only under Claude.
+    var promptCacheLine: String? {
+        guard let promptCache, promptCache.misses > 0 || promptCache.rewrittenTokens > 0 else { return nil }
+        return PromptCache.caption(promptCache)
     }
 
     /// The folders this assistant's spend ran in. Cursor's export carries no folder, so Cursor has no such line.
@@ -90,15 +105,20 @@ struct CostDetail {
 
     /// What kind of number the block above is. The legend tags each row with its own source in a word; this says
     /// it in full for the leader, whose figures these are.
-    var source: String {
-        provider.source.isEstimate
-            ? L("%@ priced here from local files at published list rates", name)
-            : L("%@ as the vendor's own usage export priced it", name)
+    var source: String { provider.source.provenance(of: provider.tool) }
+
+    /// Under $/MTok, when the range mixes models that count with different vocabularies (`Tokenizer`): a million
+    /// tokens is not one unit across that line, so the blended rate above is a blend of two rulers. Names the
+    /// costliest model on the newer side. Under the other units, and where every placed model is on one side,
+    /// nothing: the count is exact for the model that made it.
+    var tokenizerNote: String? {
+        guard mode == .perMillionTokens, let newer = Tokenizer.newerLeader(in: totals.byModel) else { return nil }
+        return L("Mixed tokenizers: %@ counts about 30%% more tokens for the same text.", ModelNames.display(newer))
     }
 
     /// The leader's lines the card keeps behind Show details, in the order it draws them.
     var detailLines: [String] { [week, since, block].compactMap { $0 } }
 
     /// The same, in the card's quieter caption style.
-    var detailCaptions: [String] { [tokens, cacheWrites, projects].compactMap { $0 } }
+    var detailCaptions: [String] { [tokens, cacheWrites, promptCacheLine, projects].compactMap { $0 } }
 }
