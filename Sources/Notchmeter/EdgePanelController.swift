@@ -72,6 +72,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         hover.isPaused = { [weak self] in
             self.map { PanelHolds.pausesHover(menuOpen: $0.menu.isOpen, held: $0.held, promptHeld: $0.promptHeld, expanded: $0.expanded) } ?? false
         }
+        hover.holdsOpen = { [weak self] in self.map { $0.promptHeld && $0.expanded } ?? false }
         hover.isOffScreen = { [weak self] in self.map { $0.panel.isVisible && !$0.panel.isOnActiveSpace } ?? false }
         hover.pointerEnteredCompact = { [weak self] in self?.store.wakeFromIdle() }
         clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown, .leftMouseDown]) { [weak self] event in
@@ -236,6 +237,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
             if !hover.isOffScreen() { store.refreshAll(force: false) }
         case .collapse:
             expanded = false
+            store.panelOpenedForPrompt = false
         case .none:
             return
         }
@@ -529,7 +531,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
                  prefs.showSpend, prefs.signalRings, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
-                 prefs.monthlyBudgetUSD, prefs.sessionsCard, prefs.jumpToTerminal)
+                 prefs.monthlyBudgetUSD, prefs.sessionsCard, prefs.jumpToTerminal, store.panelOpenedForPrompt)
             layout(animated: false)
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced

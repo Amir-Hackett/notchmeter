@@ -616,6 +616,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if presenter.hover.state == .expanded {
             presenter.window?.makeKey()
         } else {
+            // A request opens the panel on its card alone (UsageStore.panelOpenedForPrompt): an approval is a
+            // moment's decision, not a reason to put the whole panel on screen.
+            store.panelOpenedForPrompt = true
             presenter.expandNow(cause: .notification)
         }
     }
@@ -633,6 +636,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func promptEnded(_ requestID: String) {
         guard store.sessions.pending(now: Date()).isEmpty else { return }
         hold(.prompt, false)
+        // A panel that was opened for the request closes with it; one the pointer had opened stays.
+        guard store.panelOpenedForPrompt else { return }
+        store.panelOpenedForPrompt = false
+        for presenter in presenters where presenter.hover.state == .expanded { presenter.hover.dismiss(cause: .notification) }
     }
 
     /// Escape on a panel with requests on it: every one goes back to its terminal (`Decision.pass`).

@@ -261,6 +261,7 @@
 "billing export" = "청구 내보내기";
 "Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "둘 다 해당 어시스턴트의 훅이 필요하며, 위 알림과 같은 규칙을 따릅니다. 맨 앞 터미널 설정과 방해 금지 시간입니다. 이 설정은 패널이 무엇을 할지 정하고, 링이 무엇을 할지는 위의 토글이 정하며, 둘 중 하나만 꺼 둘 수도 있습니다. 잠깐 보기는 패널을 세션 줄과 함께 몇 초 열었다가 포인터가 들어오지 않으면 다시 닫습니다. 동작 줄이기에서는 애니메이션 없이 열리고 조금 더 머뭅니다. \"대기 중\" 알림은 응답하면 철회됩니다. 서명되지 않은 빌드에서는 어떤 알림도 집중 모드나 방해금지를 뚫지 못하고, 서명된 릴리스에서는 시간 민감 알림(소진 임박, 대기 중)이 뚫습니다.";
 "Show the main figure beside the rings" = "링 옆에 주요 숫자 표시";
+"Show the whole panel" = "전체 패널 보기";
 "Show what a session is working on" = "세션이 하고 있는 일 표시";
 "Skip" = "건너뛰기";
 "Stay quiet while a terminal or editor is in front" = "터미널이나 편집기가 맨 앞일 때 조용히 하기";

@@ -900,13 +900,27 @@ struct NotchExpandedView: View {
         let tools = store.visibleTools
         let advice = store.advice
         let pending = store.sessions.pending(now: Date())
+        let promptOnly = store.panelOpenedForPrompt
         return VStack(alignment: .leading, spacing: prefs.density.cardSpacing) {
             // A request the assistant is holding a session for outranks the cost and the advice: it is the one
             // thing on the panel that is waiting on the reader. Only the newest is drawn; the rest queue behind it.
+            // A panel the request itself opened carries the card and nothing else (UsageStore.panelOpenedForPrompt),
+            // with one link to the rest; a panel already open takes the card on top of everything.
             if let newest = pending.first {
                 PromptCard(session: newest.session, request: newest.request, hideFigures: store.hidesFigures,
                            decide: { store.decide($0, $1) })
+                if promptOnly {
+                    Button { store.panelOpenedForPrompt = false } label: {
+                        Text(L("Show the whole panel")).font(.caption).foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, prefs.density.cardPadding)
+                }
             }
+            if promptOnly {
+                // The request has just ended and the panel is on its way closed: nothing else appears for the frame.
+                EmptyView()
+            } else {
             if let spendCard {
                 spendCard
             }
@@ -932,6 +946,7 @@ struct NotchExpandedView: View {
                 AddToolRow(hidden: store.hiddenEmptyTools, actions: actions)
             }
             FooterView(store: store, actions: actions)
+            }
         }
         .padding(.horizontal, Self.contentHorizontalPadding)
         .padding(.top, Self.contentTopPadding)

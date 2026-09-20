@@ -400,6 +400,7 @@ final class NotchController: NSObject, PanelPresenting {
         hover.isPaused = { [weak self] in
             self.map { PanelHolds.pausesHover(menuOpen: $0.menu.isOpen, held: $0.held, promptHeld: $0.promptHeld, expanded: $0.hover.state == .expanded) } ?? false
         }
+        hover.holdsOpen = { [weak self] in self.map { $0.promptHeld && $0.hover.state == .expanded } ?? false }
         hover.isOffScreen = { [weak self] in
             guard let self, let window = self.notch.windowController?.window, window.isVisible else { return false }
             return !window.isOnActiveSpace
@@ -612,6 +613,7 @@ final class NotchController: NSObject, PanelPresenting {
     private func compact(cause: PanelCause) async {
         configureTransition(closing: true)
         hover.adopt(.compact)
+        store.panelOpenedForPrompt = false
         reporter.report(.compact, cause: cause)
         if let window, window.isKeyWindow { window.resignKey() }
         let serial = beginTransition()

@@ -38,7 +38,7 @@ extension Hook {
         switch event {
         case "PermissionRequest":
             guard let toolName, !toolName.isEmpty else { return nil }
-            let (summary, detail) = ToolSummary.describe(tool: toolName, input: toolInput)
+            let (summary, detail) = ToolSummary.describe(tool: toolName, input: toolInput, cwd: object["cwd"] as? String)
             return Request(id: id, kind: .permission(tool: toolName, summary: summary, detail: detail,
                                                       suggestions: suggestions(from: object["permission_suggestions"])))
         case "PreToolUse":
@@ -92,8 +92,10 @@ extension Hook {
     /// the first forty lines of the content; an MCP tool's name alone. Anything else names the tool and shows
     /// whichever of a few well-known input fields it carries.
     enum ToolSummary {
-        static func describe(tool: String, input: [String: Any]) -> (summary: String, detail: String?) {
-            let path = string(input["file_path"]) ?? string(input["notebook_path"]) ?? string(input["path"])
+        static func describe(tool: String, input: [String: Any], cwd: String? = nil,
+                             home: String = NSHomeDirectory()) -> (summary: String, detail: String?) {
+            let path = (string(input["file_path"]) ?? string(input["notebook_path"]) ?? string(input["path"]))
+                .map { shortened($0, cwd: cwd, home: home) }
             switch tool {
             case "Edit", "MultiEdit":
                 let old = string(input["old_string"]) ?? ""
@@ -118,6 +120,22 @@ extension Hook {
                 }
                 return (tool, nil)
             }
+        }
+
+        /// A path as the card names it: relative to the session's working directory when it is under it (the
+        /// project is already a chip on the card), else with the home folder as `~`, else as it came. The full
+        /// path is what the tool gets; only the summary is shortened.
+        static func shortened(_ path: String, cwd: String?, home: String) -> String {
+            if let cwd, !cwd.isEmpty {
+                let base = cwd.hasSuffix("/") ? cwd : cwd + "/"
+                if path.hasPrefix(base), path.count > base.count { return String(path.dropFirst(base.count)) }
+                if path == cwd { return "." }
+            }
+            if !home.isEmpty {
+                let base = home.hasSuffix("/") ? home : home + "/"
+                if path.hasPrefix(base) { return "~/" + path.dropFirst(base.count) }
+            }
+            return path
         }
 
         private static func string(_ value: Any?) -> String? {

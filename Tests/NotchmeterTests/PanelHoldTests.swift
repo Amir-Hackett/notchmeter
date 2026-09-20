@@ -19,6 +19,29 @@ import Testing
     /// The open-hold pauses the hover machine only on a panel that is open. On one still compact — a second
     /// display's, one behind Settings when the request came, one under a full-screen app — the pointer must still
     /// open it, or the card is there and unreachable for the whole hold.
+    /// A click outside the open panel is what closes it for the pointer; while a request holds it open the click
+    /// is ignored (a click into the terminal must not take the card down), and `dismiss` is the app's own way to
+    /// close it once the request has ended.
+    @Test @MainActor func aClickOutsideIsIgnoredWhileARequestHoldsThePanelOpen() {
+        let hover = HoverDriver(mode: .onHover)
+        hover.regions = HoverRegions(compact: CGRect(x: 100, y: 900, width: 200, height: 30), expanded: CGRect(x: 50, y: 0, width: 300, height: 800))
+        var outputs: [(HoverIntent.Output, PanelCause)] = []
+        hover.perform = { outputs.append(($0, $1)) }
+        hover.adopt(.expanded)
+        var holding = true
+        hover.holdsOpen = { holding }
+        hover.clicked(at: CGPoint(x: 900, y: 500))
+        #expect(outputs.isEmpty, "held open: the click outside does nothing")
+        hover.dismiss(cause: .notification)
+        #expect(outputs.map(\.0) == [.collapse])
+        #expect(outputs.map(\.1) == [.notification])
+        hover.adopt(.expanded)
+        holding = false
+        hover.clicked(at: CGPoint(x: 900, y: 500))
+        #expect(outputs.map(\.0) == [.collapse, .collapse], "released: a click outside closes the panel as ever")
+        #expect(outputs.last?.1 == .clickOutside)
+    }
+
     @Test func theOpenHoldPausesHoverOnlyOnceThePanelIsOpen() {
         #expect(PanelHolds.pausesHover(menuOpen: false, held: false, promptHeld: true, expanded: true))
         #expect(!PanelHolds.pausesHover(menuOpen: false, held: false, promptHeld: true, expanded: false), "a compact panel with a request on it opens by hover")

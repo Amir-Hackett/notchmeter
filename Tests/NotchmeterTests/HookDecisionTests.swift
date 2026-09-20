@@ -75,6 +75,21 @@ import Testing
                 "without awaitsDecision and an id nothing is a request")
     }
 
+    /// The summary names a file the way the card reads best: relative to the session's working directory when it is
+    /// under it (the project is a chip on the card already), with the home folder as `~` otherwise, and as it came
+    /// when it is neither. The tool still gets the full path; only the card's line is shortened.
+    @Test func aFilePathIsNamedRelativeToTheProject() throws {
+        let short = { (path: String) in Hook.ToolSummary.shortened(path, cwd: "/Users/me/proj", home: "/Users/me") }
+        #expect(short("/Users/me/proj/src/a.swift") == "src/a.swift")
+        #expect(short("/Users/me/proj") == ".")
+        #expect(short("/Users/me/other/b.swift") == "~/other/b.swift")
+        #expect(short("/tmp/x.txt") == "/tmp/x.txt")
+        #expect(Hook.ToolSummary.shortened("/Users/me/proj/a", cwd: nil, home: "/Users/me") == "~/proj/a")
+        #expect(Hook.ToolSummary.shortened("/Users/me/proj/a", cwd: "", home: "") == "/Users/me/proj/a")
+        let message = try #require(parse(#"{"hook_event_name":"PermissionRequest","cwd":"/Users/me/proj","tool_name":"Write","tool_input":{"file_path":"/Users/me/proj/hello.txt","content":"hi"}}"#))
+        #expect(message.request?.kind == .permission(tool: "Write", summary: "hello.txt", detail: "hi", suggestions: []))
+    }
+
     @Test func eachToolIsSummarisedByWhatItWantsToDo() throws {
         func kind(_ tool: String, _ input: String) throws -> PendingRequest.Kind {
             let message = try #require(parse(#"{"hook_event_name":"PermissionRequest","tool_name":"\#(tool)","tool_input":\#(input)}"#))

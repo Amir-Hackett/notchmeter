@@ -176,6 +176,11 @@ final class UsageStore {
     @ObservationIgnored var deliverSessionEvent: (Notifier.SessionEvent, AgentSession) -> Void = { _, _ in }
     /// Notices whose state has passed, to withdraw from Notification Center.
     @ObservationIgnored var removeNotifications: ([String]) -> Void = { _ in }
+    /// True while the panel is open because a request opened it (App.promptRequested on a compact panel): the
+    /// panel then draws the request's card alone, and closes again when the request ends. A panel the pointer
+    /// had already opened keeps everything and takes the card on top. Cleared by every collapse, and by the
+    /// card's own *Show the whole panel*.
+    var panelOpenedForPrompt = false
     /// A session began holding for a decision its hook is waiting on; wired to NotchActions.showPrompt by the app
     /// delegate, so the panel can open on the request.
     @ObservationIgnored var promptRequested: (AgentSession, PendingRequest) -> Void = { _, _ in }
