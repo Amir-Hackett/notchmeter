@@ -197,6 +197,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         store.deliverSessionEvent = { [weak self] event, session in self?.sessionEvent(event, session: session) }
         store.removeNotifications = { [weak self] identifiers in self?.notifier.remove(identifiers: identifiers) }
+        store.promptRequested = { [weak self] session, request in self?.actions.showPrompt(session, request) }
+        store.promptEnded = { [weak self] requestID in self?.actions.promptEnded(requestID) }
         store.awakeChanged = { [weak self] hold in
             self?.awake.apply(hold: hold)
             self?.refreshFooterNote()

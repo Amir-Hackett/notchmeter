@@ -7,8 +7,10 @@ import Foundation
 /// for all of them. This writes only on a Settings button or the launch repair, after a backup, and only JSON: a
 /// file that is not strict JSON (Gemini CLI's settings.json may carry comments) is refused rather than flattened.
 enum HookSettings {
-    /// SubagentStart, SubagentStop and StopFailure joined in round 2; Repair adds them to an older install.
-    static let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Notification", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd"]
+    /// SubagentStart, SubagentStop and StopFailure joined in round 2, PreToolUse (matched to AskUserQuestion) in
+    /// 0.7.0; Repair adds them to an older install, and brings a 0.6.0 PermissionRequest entry to the synchronous
+    /// shape the decision channel needs (HookVendor.isCurrent).
+    static let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "PreToolUse", "Notification", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd"]
 
     struct Installed: Equatable {
         let backup: URL?
@@ -135,9 +137,10 @@ enum HookSettings {
             let handler = render(handler: vendor.handler(command: command(executable: executable, flag: vendor.flag(for: event)), event: event))
             switch vendor.shape {
             case .nestedGroups:
+                let matcher = vendor.matcher(for: event).map { "\"matcher\": \(render(value: $0)), " } ?? ""
                 return """
                     "\(event)": [
-                      { "hooks": [ \(handler) ] }
+                      { \(matcher)"hooks": [ \(handler) ] }
                     ]
                 """
             case .flatCommands:
@@ -194,7 +197,7 @@ enum HookSettings {
                 present.append(event)
             } else {
                 let expected = command(executable: executable, flag: vendor.flag(for: event))
-                elements.append(vendor.shape.entry(handler: vendor.handler(command: expected, event: event)))
+                elements.append(vendor.shape.entry(handler: vendor.handler(command: expected, event: event), matcher: vendor.matcher(for: event)))
                 hooks[event] = elements
                 added.append(event)
             }
@@ -209,9 +212,12 @@ enum HookSettings {
     /// Rewrites every Notchmeter handler in the file, under any event, to the vendor's current command for the given
     /// executable and that event, then adds the events that lack one; every other hook is untouched, and so is
     /// every other key of a handler of ours (`async`, `timeout`, `timeoutSec`, `name`, `matcher` stay as they
-    /// are). This is what re-points a moved app, what turns a Cursor entry still on a plain `--hook` into
-    /// `--hook --tool cursor`, and what gives a Copilot entry lacking `--event`, or carrying another event's, its
-    /// own. Returns the events whose command changed, in the vendor's order.
+    /// are) except under a deciding event, where the shape is the contract (HookVendor.bringingCurrent): `async`
+    /// goes, a timeout under 600 s becomes 600, and Claude Code's `PreToolUse` group gains its `AskUserQuestion`
+    /// matcher. This is what re-points a moved app, what turns a Cursor entry still on a plain `--hook` into
+    /// `--hook --tool cursor`, what gives a Copilot entry lacking `--event`, or carrying another event's, its own,
+    /// and what upgrades a 0.6.0 install to the two-way hook. Returns the events whose entry changed, in the
+    /// vendor's order.
     static func repair(_ settings: [String: Any], vendor: HookVendor = .claude, executable: String) -> (settings: [String: Any], repaired: [String], added: [String]) {
         var repaired: [String] = []
         var result = settings
@@ -223,12 +229,21 @@ enum HookSettings {
             for index in elements.indices {
                 var handlers = vendor.shape.handlers(in: elements[index])
                 var touched = false
-                for position in handlers.indices where isNotchmeterHook(handlers[position]) && handlers[position]["command"] as? String != expected {
-                    handlers[position]["command"] = expected
-                    touched = true
+                var ours = false
+                for position in handlers.indices where isNotchmeterHook(handlers[position]) {
+                    ours = true
+                    let current = vendor.bringingCurrent(handlers[position], event: event, command: expected)
+                    if NSDictionary(dictionary: current) != NSDictionary(dictionary: handlers[position]) {
+                        handlers[position] = current
+                        touched = true
+                    }
                 }
                 if touched {
                     elements[index] = vendor.shape.settingHandlers(handlers, in: elements[index])
+                    changed = true
+                }
+                if ours, let matcher = vendor.matcher(for: event), (elements[index]["matcher"] as? String)?.contains(matcher) != true {
+                    elements[index]["matcher"] = matcher
                     changed = true
                 }
             }
@@ -255,22 +270,31 @@ enum HookSettings {
     /// already demands, so its rule is what it has always been; for the others the flag names the tool, and for
     /// Copilot the event too, so the plain `--hook` an earlier install wrote, or a Copilot entry without its
     /// `--event` (which the hook command could not read, its payload naming no event), is what reads as out of date.
+    /// The one shape that is judged is a deciding event's (HookVendor.isCurrent): an `async` entry, or one whose
+    /// timeout is under the decision wait, or a `PreToolUse` group without its matcher, cannot carry an answer
+    /// back, and reads as out of date so the launch repair upgrades it.
     static func status(settings: [String: Any], vendor: HookVendor = .claude, executable: String) -> Status {
         guard let hooks = settings["hooks"] as? [String: Any] else { return .notInstalled }
         var paths: [String] = []
         var commands: [(event: String, command: String)] = []
         var covered = 0
+        var current = true
         for event in vendor.events {
             guard let elements = hooks[event] as? [[String: Any]] else { continue }
-            let handlers = elements.flatMap(vendor.shape.handlers(in:)).filter(isNotchmeterHook)
-            if !handlers.isEmpty { covered += 1 }
-            let found = handlers.compactMap { $0["command"] as? String }
+            var found: [String] = []
+            for element in elements {
+                for handler in vendor.shape.handlers(in: element) where isNotchmeterHook(handler) {
+                    if let command = handler["command"] as? String { found.append(command) }
+                    if !vendor.isCurrent(handler: handler, element: element, event: event) { current = false }
+                }
+            }
+            if !found.isEmpty { covered += 1 }
             commands.append(contentsOf: found.map { (event, $0) })
             paths.append(contentsOf: found.compactMap(self.executable(in:)))
         }
         guard covered > 0 else { return .notInstalled }
         if let other = paths.first(where: { $0 != executable }) { return .stale(path: other) }
-        if covered == vendor.events.count, commands.allSatisfy({ $0.command.contains(vendor.flag(for: $0.event)) }) { return .installed(path: executable) }
+        if covered == vendor.events.count, current, commands.allSatisfy({ $0.command.contains(vendor.flag(for: $0.event)) }) { return .installed(path: executable) }
         return .partial(path: executable)
     }
 

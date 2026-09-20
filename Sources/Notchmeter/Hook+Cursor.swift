@@ -60,15 +60,20 @@ extension Hook {
             let isStop = event == "stop" || event == "Stop"
             let root = root(of: object, environment: environment)
             let sessionID = nonEmpty(object["parent_conversation_id"]) ?? nonEmpty(object["conversation_id"]) ?? nonEmpty(object["session_id"])
-            return Message(event: canonicalEvent(event, status: status), needsInput: false,
-                           sessionID: sessionID,
-                           project: root.flatMap(ProjectName.ofPath),
-                           notificationType: nil,
-                           branch: root.flatMap(branch),
-                           permissionMode: nil,
-                           agentID: nonEmpty(object["subagent_id"]),
-                           failure: isStop && status != "completed" ? status : nil,
-                           host: nil, tool: .cursor)
+            let canonical = canonicalEvent(event, status: status)
+            var message = Message(event: canonical, needsInput: false,
+                                  sessionID: sessionID,
+                                  project: root.flatMap(ProjectName.ofPath),
+                                  notificationType: nil,
+                                  branch: root.flatMap(branch),
+                                  permissionMode: nil,
+                                  agentID: nonEmpty(object["subagent_id"]),
+                                  failure: isStop && status != "completed" ? status : nil,
+                                  host: nil, tool: .cursor)
+            // Since 0.7.0 the prompt's first line rides along on beforeSubmitPrompt as the session's title
+            // (Hook.title(fromPrompt:)); the attachments and the rest of the prompt stay unread.
+            message.title = canonical == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
+            return message
         }
 
         private static func nonEmpty(_ value: Any?) -> String? {

@@ -78,10 +78,14 @@ import Testing
         let stop = try #require(Hook.message(from: Data(#"{"hook_event_name":"Stop","session_id":"s","transcript_path":"/x","cwd":"/Users/me/y"}"#.utf8)))
         #expect(stop.tool == .claude)
         #expect(Set(stop.userInfo.keys) == ["hook_event_name", "needsInput", "session_id", "project"])
-        let permission = try #require(Hook.message(from: Data(#"{"hook_event_name":"PermissionRequest","tool_name":"Bash"}"#.utf8)))
+        let permission = try #require(Hook.message(from: Data(#"{"hook_event_name":"PermissionRequest","tool_name":"Bash"}"#.utf8), requestID: "r1"))
         #expect(permission.tool == .claude)
-        #expect(Set(permission.userInfo.keys) == ["hook_event_name", "needsInput"])
+        // Since 0.7.0 a permission request that names its tool is a deciding event, and carries the request keys
+        // beside the two it always had; the tool key is still absent.
+        #expect(Set(permission.userInfo.keys) == ["hook_event_name", "needsInput", "awaitsDecision", "requestID", "toolName", "toolSummary"])
         #expect(permission.userInfo[Hook.toolKey] == nil, "the one hook that ships says nothing here, and its absence already says Claude")
+        let bare = try #require(Hook.message(from: Data(#"{"hook_event_name":"PermissionRequest"}"#.utf8)))
+        #expect(Set(bare.userInfo.keys) == ["hook_event_name", "needsInput"], "a permission request naming no tool is the display-only wait it always was")
     }
 
     @Test func theFlagOutranksTheShape() throws {
@@ -183,7 +187,12 @@ import Testing
         let start = try #require(hooks["SessionStart"] as? [[String: Any]])
         #expect(start[0]["matcher"] as? String == "startup|resume")
         #expect(start.count == 2)
-        #expect((hooks["PreToolUse"] as? [[String: Any]])?.count == 1)
+        // PreToolUse is ours since 0.7.0 (for AskUserQuestion): the user's Bash guard stays first and untouched,
+        // and ours joins it under its own matcher.
+        let preToolUse = try #require(hooks["PreToolUse"] as? [[String: Any]])
+        #expect(preToolUse.count == 2)
+        #expect(preToolUse[0]["matcher"] as? String == "Bash")
+        #expect(preToolUse[1]["matcher"] as? String == "AskUserQuestion")
 
         let second = HookSettings.merge(into: first.settings, executable: "/somewhere/else/Notchmeter")
         #expect(second.added.isEmpty)
@@ -239,7 +248,11 @@ import Testing
     @Test func aHandWrittenEntryAtTheRightPathIsInstalledAndNotRepairedAtLaunch() {
         for command in ["\(executable) --hook", "'\(executable)' --hook 2>/dev/null", "'\(executable)' --hook || true"] {
             var hooks: [String: Any] = [:]
-            for event in HookSettings.events { hooks[event] = [["hooks": [["type": "command", "command": command]]]] }
+            // No `timeout` is Claude Code's default of 600 s, which a deciding entry accepts; the PreToolUse group
+            // needs its matcher, since one without it would launch the command on every tool call.
+            for event in HookSettings.events {
+                hooks[event] = [HookVendor.claude.shape.entry(handler: ["type": "command", "command": command], matcher: HookVendor.claude.matcher(for: event))]
+            }
             let status = HookSettings.status(settings: ["hooks": hooks], executable: executable)
             #expect(status == .installed(path: executable), "\(command): the path and the flag are what count")
             #expect(!status.needsRepair, "\(command): nothing for the launch repair to rewrite")

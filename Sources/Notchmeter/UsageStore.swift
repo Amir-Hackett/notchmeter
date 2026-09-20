@@ -169,6 +169,16 @@ final class UsageStore {
     @ObservationIgnored var deliverSessionEvent: (Notifier.SessionEvent, AgentSession) -> Void = { _, _ in }
     /// Notices whose state has passed, to withdraw from Notification Center.
     @ObservationIgnored var removeNotifications: ([String]) -> Void = { _ in }
+    /// A session began holding for a decision its hook is waiting on; wired to NotchActions.showPrompt by the app
+    /// delegate, so the panel can open on the request.
+    @ObservationIgnored var promptRequested: (AgentSession, PendingRequest) -> Void = { _, _ in }
+    /// A request ended (answered, passed back, overtaken or timed out), by id; wired to NotchActions.promptEnded.
+    @ObservationIgnored var promptEnded: (String) -> Void = { _ in }
+    /// The socket replies parked on a decision, by request id. Only `decide` writes to one, which is what makes
+    /// the request id a nonce: a line on the socket can start a request but never settle one (HookSocket.swift).
+    @ObservationIgnored private var pendingReplies: [String: HookSocket.Reply] = [:]
+    /// The app-side hold per request (Preferences.promptHoldSeconds), after which the request is passed back.
+    @ObservationIgnored private var promptHolds: [String: Task<Void, Never>] = [:]
     /// The working-session count changed, or the power source did; the app applies the awake assertion.
     @ObservationIgnored var awakeChanged: (Bool) -> Void = { _ in }
 
@@ -1125,11 +1135,17 @@ final class UsageStore {
     /// listens. Delivery is on a background queue and hops to the main actor, as the observers did.
     private func listenForHooks(arguments: [String] = CommandLine.arguments) {
         guard hookSocket == nil, !SingleInstance.isSidecar(arguments: arguments) else { return }
-        let listener = HookSocket.Listener { [weak self] message in
+        let listener = HookSocket.Listener { [weak self] message, reply in
             Task { @MainActor in
+                guard let self else {
+                    reply.answer(nil)
+                    return
+                }
                 switch message {
-                case .hook(let hook): self?.hookReceived(hook)
-                case .statusline(let line): self?.statuslineReceived(line)
+                case .hook(let hook): self.hookReceived(hook, reply: reply)
+                case .statusline(let line):
+                    reply.answer(nil)
+                    self.statuslineReceived(line)
                 }
             }
         }
@@ -1253,14 +1269,20 @@ final class UsageStore {
     /// Every event is activity for the tool that sent it; that tool's meter refreshes at most once every 30 s, and
     /// the session tracker keeps who is working, idle or waiting for the user. A remote host's event arrives here
     /// through the local API. The log line and the oracle name the tool only when it is not Claude Code, so
-    /// Claude's output reads exactly as it always has.
-    func hookReceived(_ message: Hook.Message, now: Date = Date()) {
+    /// Claude's output reads exactly as it always has. `reply` is the socket's end of a local event, parked while
+    /// the message awaits a decision: it is kept under the request's id for `decide`, or answered nothing at once
+    /// when the request is not going to be shown (answering from the notch is off, or the tracker did not take
+    /// it). The title, the summary and the terminal never reach the log or the oracle (`hookFacts`).
+    func hookReceived(_ message: Hook.Message, now: Date = Date(), reply: HookSocket.Reply? = nil) {
+        var message = message
+        if !prefs.sessionTitles { message.title = nil }
+        if message.request != nil, !prefs.answerFromNotch {
+            reply?.answer(nil)
+            message.request = nil
+        }
         let tool = message.tool
-        log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
-        var facts: [String: Any] = ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any,
-                                    "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any]
-        if tool != .claude { facts["tool"] = tool.rawValue }
-        Oracle.shared.emit("hook", facts)
+        log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.request.map { " (\($0.kind.name) request)" } ?? "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
+        Oracle.shared.emit("hook", Self.hookFacts(message))
         lastHook[tool] = now
         lastActivity[tool] = now
         wokeAt = now
@@ -1274,6 +1296,14 @@ final class UsageStore {
         // banner nobody saw. Withdrawn first, the notice standing for the wait that expired goes, and the new one
         // is what is left.
         withdrawWaiting(outcome.stoppedWaiting)
+        for ended in outcome.requestsEnded { endRequest(ended.requestID) }
+        if let requested = outcome.requested {
+            if let reply { pendingReplies[requested.request.id] = reply }
+            holdPrompt(requested.request.id)
+            promptRequested(requested.session, requested.request)
+        } else {
+            reply?.answer(nil)
+        }
         if let waiting = outcome.startedWaiting, prefs.notifyWaiting {
             deliverSessionEvent(.waiting(blocking: message.blocksSession), waiting)
         }
@@ -1299,6 +1329,56 @@ final class UsageStore {
         }
     }
 
+    /// What the oracle records for a hook event: the event's name and shape, never the title, the summary, the
+    /// detail, a question or the terminal. Static and pure so a test can pin the key set.
+    nonisolated static func hookFacts(_ message: Hook.Message) -> [String: Any] {
+        var facts: [String: Any] = ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any,
+                                    "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any]
+        if message.tool != .claude { facts["tool"] = message.tool.rawValue }
+        if let request = message.request { facts["request"] = request.kind.name }
+        return facts
+    }
+
+    /// The user's answer to the request `requestID`, from the panel (or the hold running out, as a pass): the
+    /// reply line goes to the hook's socket (`Hook.Answer.line`), the request leaves the session, the wait notice
+    /// comes down, and the oracle records what was decided and never what about. Nothing happens for an id the
+    /// app is not showing: that is the whole of the security model, since the id is a nonce the hook generated
+    /// and a decision reaches the socket from here alone.
+    func decide(_ requestID: String, _ decision: Decision, now: Date = Date()) {
+        let kind = sessions.pending(now: now).first { $0.request.id == requestID }?.request.kindName
+        let reply = pendingReplies.removeValue(forKey: requestID)
+        promptHolds.removeValue(forKey: requestID)?.cancel()
+        guard reply != nil || kind != nil else { return }
+        reply?.answer(Hook.Answer.line(for: decision))
+        let session = sessions.resolve(requestID: requestID, resumes: decision != .pass, now: now)
+        log.info("decision \(decision.behavior, privacy: .public) for a \(kind ?? "gone", privacy: .public) request")
+        Oracle.shared.emit("decision", ["request": requestID, "kind": kind as Any, "behavior": decision.behavior, "session": session?.id as Any])
+        if let session { withdrawWaiting([session.id]) }
+        applyAwake()
+        armSignalRelease(now: now)
+        promptEnded(requestID)
+    }
+
+    /// A request that ended without the app deciding it: its parked reply is released with nothing, so the
+    /// terminal asks, and the panel is told.
+    private func endRequest(_ requestID: String) {
+        pendingReplies.removeValue(forKey: requestID)?.answer(nil)
+        promptHolds.removeValue(forKey: requestID)?.cancel()
+        promptEnded(requestID)
+    }
+
+    /// Starts the app-side hold on a request: after `promptHoldSeconds` it is passed back to the terminal, well
+    /// inside the socket's cap and the entries' timeouts.
+    private func holdPrompt(_ requestID: String) {
+        promptHolds[requestID]?.cancel()
+        let seconds = TimeInterval(prefs.promptHoldSeconds)
+        promptHolds[requestID] = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            self?.decide(requestID, .pass)
+        }
+    }
+
     /// The status line's windows replace the endpoint's for as long as they keep arriving; the context fill and the
     /// session cost go to the Claude card.
     func statuslineReceived(_ message: Statusline.Message, now: Date = Date()) {
@@ -1307,7 +1387,7 @@ final class UsageStore {
         statusline = message
         lastHook[.claude] = now
         lastActivity[.claude] = now
-        sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL, now: now)
+        sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL, model: message.model, now: now)
         guard isShown(.claude) else { return }
         if let reading = statuslineReading(now: now) {
             adopt(reading, now: now)

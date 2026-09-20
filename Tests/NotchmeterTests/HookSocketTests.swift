@@ -33,7 +33,7 @@ import os
         HookSocket.Listener(path: url, peerCheck: { pid in
             seen.saw(pid)
             return verdict
-        }, deliver: { seen.deliver($0) })
+        }, deliver: { message, _ in seen.deliver(message) })
     }
 
     @Test func aHookLineRoundTripsAndThePeerIsTheProcessThatWroteIt() throws {
@@ -49,7 +49,7 @@ import os
 
         let message = Hook.Message(event: "PermissionRequest", needsInput: true, sessionID: "abc", project: "notchmeter", branch: "main",
                                    permissionMode: "plan", agentID: "a1", tool: .codex)
-        #expect(HookSocket.send(.hook, message.userInfo, to: url.path) == .sent)
+        #expect(HookSocket.send(.hook, message.userInfo, to: url.path) == .sent(reply: nil))
         #expect(seen.delivered.wait(timeout: .now() + 2) == .success, "the line must reach the listener")
         #expect(seen.messages == [.hook(message)])
         // LOCAL_PEERPID is the kernel's word on who connected, and the command is this process here. The smoke
@@ -84,7 +84,7 @@ import os
          "worktree":{"branch":"feat/socket"},"pr":{"url":"https://github.com/a/b/pull/12"}}
         """
         let message = try #require(Statusline.message(from: Data(payload.utf8), now: now))
-        #expect(HookSocket.send(.statusline, message.userInfo, to: url.path) == .sent)
+        #expect(HookSocket.send(.statusline, message.userInfo, to: url.path) == .sent(reply: nil))
         #expect(seen.delivered.wait(timeout: .now() + 2) == .success)
         #expect(seen.messages == [.statusline(message)])
     }
@@ -102,7 +102,7 @@ import os
         let result = HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false).userInfo, to: url.path)
         // The app hangs up on a refused peer as it does on an accepted one, so the command is back at once and has
         // nothing to tell the assistant either way.
-        #expect(result == .sent)
+        #expect(result == .sent(reply: nil))
         #expect(Date().timeIntervalSince(started) < 1)
         #expect(seen.delivered.wait(timeout: .now() + 0.3) == .timedOut, "a refused peer's line is never parsed, let alone delivered")
         let ourPid = getpid()
@@ -123,14 +123,14 @@ import os
         let listener = HookSocket.Listener(path: url, peerCheck: { _ in
             Thread.sleep(forTimeInterval: 2)
             return .accepted
-        }, deliver: { seen.deliver($0) })
+        }, deliver: { message, _ in seen.deliver(message) })
         #expect(listener.start())
         defer { listener.stop() }
 
         let started = Date()
         let result = HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false, sessionID: "cap").userInfo, to: url.path)
         let elapsed = Date().timeIntervalSince(started)
-        #expect(result == .sent)
+        #expect(result == .sent(reply: nil))
         #expect(elapsed >= 0.9, "the command must wait for the app's hang-up, not give up early: \(elapsed) s")
         #expect(elapsed < 1.5, "the wait is capped at one second, the figure the docs give: \(elapsed) s")
         // The line was in the kernel's buffer all along, so the app reads it once its check returns.
@@ -200,7 +200,7 @@ import os
         let total = 500
         let payload = Hook.Message(event: "SubagentStop", needsInput: false, sessionID: "swarm").userInfo
         var sent = 0
-        for _ in 0..<total where HookSocket.send(.hook, payload, to: url.path) == .sent { sent += 1 }
+        for _ in 0..<total where HookSocket.send(.hook, payload, to: url.path) == .sent(reply: nil) { sent += 1 }
         #expect(sent == total, "every command must see the app hang up on it")
         let delivered = Self.count(seen.delivered, upTo: total)
         #expect(delivered == total, "delivered \(delivered) of \(total)")
@@ -269,7 +269,7 @@ import os
 
         let started = Date()
         let result = HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false).userInfo, to: url.path)
-        #expect(result == .sent, "a refusal from a full backlog is a reason to try again, not a missing app")
+        #expect(result == .sent(reply: nil), "a refusal from a full backlog is a reason to try again, not a missing app")
         #expect(Date().timeIntervalSince(started) < 1)
     }
 
@@ -322,7 +322,7 @@ import os
         let listener = Self.listener(at: url, verdict: .accepted, seen: seen)
         #expect(listener.start(), "a leftover socket file must not stop the app from listening")
         let message = Hook.Message(event: "Stop", needsInput: false, sessionID: "s")
-        #expect(HookSocket.send(.hook, message.userInfo, to: url.path) == .sent)
+        #expect(HookSocket.send(.hook, message.userInfo, to: url.path) == .sent(reply: nil))
         #expect(seen.delivered.wait(timeout: .now() + 2) == .success)
         #expect(seen.messages == [.hook(message)])
 
@@ -360,7 +360,7 @@ import os
         let long = "/tmp/" + String(repeating: "x", count: 120) + "/hook.sock"
         #expect(!HookSocket.fits(long))
         #expect(HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false).userInfo, to: long) == .failed("socket path too long: \(long)"))
-        let listener = HookSocket.Listener(path: URL(fileURLWithPath: long), peerCheck: { _ in .accepted }, deliver: { _ in })
+        let listener = HookSocket.Listener(path: URL(fileURLWithPath: long), peerCheck: { _ in .accepted }, deliver: { _, _ in })
         #expect(!listener.start())
     }
 

@@ -27,6 +27,12 @@ final class NotchActions {
     var fixAccessibility: () -> Void = {}
     /// The apps full-screen on the display under the pointer, so the Options menu can offer to stay over them.
     var fullScreenApps: () -> [String] = { [] }
+    /// A session began holding for a decision (UsageStore.promptRequested): the panel opens on the request with
+    /// key focus and holds itself open until `promptEnded`. Wired by the app delegate; a no-op until the prompt
+    /// card is in, so the store and the hook wire compile and run without the UI.
+    var showPrompt: (AgentSession, PendingRequest) -> Void = { _, _ in }
+    /// The request ended, answered or not, so the panel may let go of its hold.
+    var promptEnded: (String) -> Void = { _ in }
 }
 
 /// One on-screen presentation of the readings: the hardware notch, a notch of the same shape cut into a side

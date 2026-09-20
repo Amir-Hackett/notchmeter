@@ -271,8 +271,8 @@ import Testing
                 #expect(Set(handler.keys) == ["type", "command", "timeout"], "\(event) always runs synchronously, so async would be a lie")
                 #expect(handler["timeout"] as? Int == 3, "\(event): the documented cap is 3 s")
             case "PermissionRequest":
-                #expect(Set(handler.keys) == ["type", "command", "timeout"], "\(event) stays synchronous: an async hook's output lands at the next safe point, which may be after the prompt is drawn")
-                #expect(handler["timeout"] as? Int == 5, "\(event)")
+                #expect(Set(handler.keys) == ["type", "command", "timeout"], "\(event) is synchronous: the command holds the socket for the answer, and an async hook's output cannot decide anything")
+                #expect(handler["timeout"] as? Int == HookVendor.decisionTimeout, "\(event): the socket's own ceiling, so Codex never cancels the command before it gives up")
             default:
                 #expect(Set(handler.keys) == ["type", "command", "async", "timeout"], "\(event)")
                 #expect(handler["async"] as? Bool == true, "\(event)")

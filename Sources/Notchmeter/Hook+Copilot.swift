@@ -23,6 +23,10 @@ extension Hook {
             "subagentStop": "SubagentStop", "SubagentStop": "SubagentStop",
             "notification": "Notification", "Notification": "Notification",
             "sessionEnd": "SessionEnd", "SessionEnd": "SessionEnd",
+            // PascalCase only: the camelCase permissionRequest is not registered and passes through, since it
+            // fires for calls that never prompt; the PascalCase event, registered under `--event`, is the one
+            // whose decision output Copilot documents in Claude Code's shape.
+            "PermissionRequest": "PermissionRequest",
         ]
 
         /// The two notification types the reference documents as the agent asking the user, and the only ones that
@@ -69,19 +73,31 @@ extension Hook {
         /// common `sessionId`, which the reference gives no parent field beside, so it is read as the parent's;
         /// subagentStop's `agentId` is not read because subagentStart documents none, and an id on the stop with
         /// none on the start would never match — the tracker drops its oldest agent instead, which keeps the count.
-        static func message(event: String, object: [String: Any], branch: (String) -> String?) -> Message {
+        ///
+        /// Since 0.7.0 two more fields are read, both bounded before they leave the process (Hook+Decision.swift):
+        /// `prompt` on `userPromptSubmitted`, kept as its first line for the session's title, and on the PascalCase
+        /// `PermissionRequest` the tool's name and input (`tool_name`/`tool_input`, or the camelCase `toolName`/
+        /// `toolInput`), reduced to the one-line summary and bounded excerpt the notch shows while the command
+        /// holds the socket for the answer. That event is best-effort: Copilot documents it as firing "before the
+        /// permission service runs", so it can fire for a call Copilot would have allowed on its own, and the
+        /// notch then asks where the terminal would not have; docs/hooks.md says so.
+        static func message(event: String, object: [String: Any], branch: (String) -> String?, requestID: String) -> Message {
             let canonical = canonicalEvent(event)
             let type = canonical == "Notification" ? nonEmpty(object["notification_type"]).flatMap { waitingNotificationTypes.contains($0) ? $0 : nil } : nil
             let cwd = nonEmpty(object["cwd"])
-            return Message(event: canonical, needsInput: type != nil,
-                           sessionID: nonEmpty(object["sessionId"]) ?? nonEmpty(object["session_id"]),
-                           project: cwd.flatMap(ProjectName.ofPath),
-                           notificationType: type,
-                           branch: cwd.flatMap(branch),
-                           permissionMode: nil,
-                           agentID: nil,
-                           failure: nil,
-                           host: nil, tool: .copilot)
+            let request = canonical == "PermissionRequest" ? Hook.request(event: canonical, object: object, id: requestID) : nil
+            var message = Message(event: canonical, needsInput: type != nil || request != nil,
+                                  sessionID: nonEmpty(object["sessionId"]) ?? nonEmpty(object["session_id"]),
+                                  project: cwd.flatMap(ProjectName.ofPath),
+                                  notificationType: type,
+                                  branch: cwd.flatMap(branch),
+                                  permissionMode: nil,
+                                  agentID: nil,
+                                  failure: nil,
+                                  host: nil, tool: .copilot)
+            message.title = canonical == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
+            message.request = request
+            return message
         }
 
         private static func nonEmpty(_ value: Any?) -> String? {
