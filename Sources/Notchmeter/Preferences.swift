@@ -724,6 +724,11 @@ final class Preferences {
     var copilotOrgBilling: Bool {
         didSet { defaults.set(copilotOrgBilling, forKey: Keys.copilotOrg); report(Keys.copilotOrg, copilotOrgBilling, changed: copilotOrgBilling != oldValue) }
     }
+    /// Whether Anthropic's usage endpoint is read at all for Claude Code. Off leaves the status line, the channel
+    /// Anthropic documents, as the only Claude source; the status line is preferred whenever it is fresh either way.
+    var pollClaudeEndpoint: Bool {
+        didSet { defaults.set(pollClaudeEndpoint, forKey: Keys.pollClaude); report(Keys.pollClaude, pollClaudeEndpoint, changed: pollClaudeEndpoint != oldValue) }
+    }
     /// When the Keychain dialog for Claude Code's login may appear.
     var keychainPrompts: KeychainPromptPolicy {
         didSet {
@@ -908,6 +913,7 @@ final class Preferences {
         static let cursorEvents = ProviderOptIn.cursorUsageEvents.key
         static let copilotOrg = ProviderOptIn.copilotOrgBilling.key
         static let keychainPrompts = "keychainPrompts"
+        static let pollClaude = "pollClaudeEndpoint"
         static let keepAwake = "keepAwake"
         static let keepAwakeBattery = "keepAwakeOnBattery"
         static let autoRepair = "autoRepairHooks"
@@ -1010,6 +1016,7 @@ final class Preferences {
         cursorUsageEvents = ProviderOptIn.cursorUsageEvents.value(defaults)
         copilotOrgBilling = ProviderOptIn.copilotOrgBilling.value(defaults)
         keychainPrompts = KeychainPromptPolicy(rawValue: defaults.string(forKey: Keys.keychainPrompts) ?? "") ?? .refreshOnly
+        pollClaudeEndpoint = defaults.object(forKey: Keys.pollClaude) as? Bool ?? true
         keepAwake = defaults.bool(forKey: Keys.keepAwake)
         keepAwakeOnBattery = defaults.bool(forKey: Keys.keepAwakeBattery)
         autoRepairHooks = defaults.object(forKey: Keys.autoRepair) as? Bool ?? true

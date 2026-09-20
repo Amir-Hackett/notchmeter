@@ -347,6 +347,89 @@ import Testing
     }
 }
 
+/// The dashboard's own cycle figures (`get-current-period-usage`) and the Grok Bot allowance (`get-sand-usage-status`).
+@Suite struct CursorCycleFigures {
+    init() { Localization.use(language: "en") }
+
+    /// The Pro answer verbatim from forum thread 168210 (August 2026): cents, and `includedSpend / limit` is the
+    /// 64 % the dashboard's own sentence prints, while `totalPercentUsed` is 3.7 and not a spend fraction at all.
+    @Test func theCycleFiguresAreCentsAndTheIncludedSpendIsTheFraction() throws {
+        let json = """
+        {"planUsage":{"totalSpend":1288,"includedSpend":1288,"remaining":712,"limit":2000,"remainingBonus":false,"bonusTooltip":"We work with model providers...",
+                      "autoPercentUsed":3.8966666666666665,"apiPercentUsed":2.6444444444444444,"totalPercentUsed":3.733333333333334},
+         "spendLimitUsage":{"limitType":"user"},"displayThreshold":200,"enabled":true,"billingCycleStart":"1770000000000","billingCycleEnd":1772592000000,
+         "displayMessage":"You've used 64% of your included usage"}
+        """
+        let period = try #require(CursorProvider.parsePeriodUsage(Data(json.utf8)))
+        #expect(period.includedSpendCents == 1288)
+        #expect(period.limitCents == 2000)
+        #expect(period.chargedCents == 1288)
+        #expect(period.cycleStart == Date(timeIntervalSince1970: 1_770_000_000))
+        #expect(period.cycleEnd == Date(timeIntervalSince1970: 1_772_592_000))
+        let unmetered = LimitWindow(id: "included", label: .key("Included usage"), usedFraction: nil, resetsAt: nil, note: "Pro plan has nothing for Cursor to meter yet")
+        let filled = CursorProvider.applying(period, to: [unmetered])
+        #expect(filled[0].usedFraction == 0.644)
+        #expect(filled[0].note == "$12.88 of $20")
+        #expect(filled[0].amountUSD == 12.88)
+        #expect(filled[0].resetsAt == period.cycleEnd)
+        #expect(filled[0].periodDuration == 2_592_000)
+        // The Ultra shape from paseo #4997: bonus usage is not charged against the limit, so the fraction is the
+        // included $400 of $400 and not the 160 % that totalSpend / limit would give.
+        let ultra = try #require(CursorProvider.parsePeriodUsage(Data(#"{"planUsage":{"totalSpend":64201,"includedSpend":40000,"bonusSpend":24201,"limit":40000,"remainingBonus":false}}"#.utf8)))
+        #expect(CursorProvider.applying(ultra, to: [unmetered])[0].usedFraction == 1)
+        let noIncluded = try #require(CursorProvider.parsePeriodUsage(Data(#"{"planUsage":{"totalSpend":64201,"bonusSpend":24201,"limit":40000}}"#.utf8)))
+        #expect(noIncluded.chargedCents == 40000)
+        // A summary figure that already reads further along is kept; one that reads lower takes the cycle's.
+        let ahead = LimitWindow(id: "included", label: .key("Included usage"), usedFraction: 0.9, resetsAt: nil, note: "$18 of $20")
+        #expect(CursorProvider.applying(period, to: [ahead])[0].note == "$18 of $20")
+        let behind = LimitWindow(id: "included", label: .key("Included usage"), usedFraction: 0.1, resetsAt: nil, note: "$2 of $20")
+        #expect(CursorProvider.applying(period, to: [behind])[0].usedFraction == 0.644)
+        // No limit, no change; and a body that is not the endpoint's answer is nothing at all.
+        let enterprise = try #require(CursorProvider.parsePeriodUsage(Data(#"{"spendLimitUsage":{"limitType":"user","individualUsed":16474,"totalSpend":16474}}"#.utf8)))
+        #expect(enterprise.limitCents == nil)
+        #expect(enterprise.individualUsedCents == 16474)
+        #expect(CursorProvider.applying(enterprise, to: [behind]) == [behind])
+        #expect(CursorProvider.parsePeriodUsage(Data("{}".utf8)) == nil)
+        #expect(CursorProvider.parsePeriodUsage(Data("<html>".utf8)) == nil)
+        #expect(CursorProvider.epochMillis("1770000000") == Date(timeIntervalSince1970: 1_770_000_000))
+        #expect(CursorProvider.epochMillis("soon") == nil)
+    }
+
+    /// Grok Bot is a window only where the seat has one: a paid weekly allowance, or a trial still running.
+    @Test func grokBotIsAWindowOnlyWhereTheSeatHasOne() throws {
+        let now = DateParsing.iso8601("2026-09-20T12:00:00Z")!
+        let paid = """
+        {"currentPeriodStart":"2026-09-15T00:00:00Z","nextResetTimestampUtc":"2026-09-22T00:00:00Z","usagePercent":42.5,
+         "hasAvailableUsage":true,"hasNonZeroIncludedLimit":true,"includedLimitZero":false}
+        """
+        let window = try #require(CursorProvider.parseSandUsage(Data(paid.utf8), now: now))
+        #expect(window.id == "grok_bot")
+        #expect(window.label == "Grok Bot")
+        #expect(window.usedFraction == 0.425)
+        #expect(window.resetsAt == DateParsing.iso8601("2026-09-22T00:00:00Z"))
+        #expect(window.periodDuration == Period.week)
+        #expect(window.note == nil)
+        let none = paid.replacingOccurrences(of: #""hasNonZeroIncludedLimit":true,"includedLimitZero":false"#, with: #""hasNonZeroIncludedLimit":false,"includedLimitZero":true"#)
+        #expect(CursorProvider.parseSandUsage(Data(none.utf8), now: now) == nil)
+        // The newer flag wins over the older one when both are present.
+        let contradictory = paid.replacingOccurrences(of: #""includedLimitZero":false"#, with: #""includedLimitZero":true"#)
+        #expect(CursorProvider.parseSandUsage(Data(contradictory.utf8), now: now) == nil)
+        let older = paid.replacingOccurrences(of: #","includedLimitZero":false"#, with: "")
+        #expect(CursorProvider.parseSandUsage(Data(older.utf8), now: now)?.usedFraction == 0.425)
+        // A trial has no recurring reset and no length; an expired one grants nothing.
+        let trial = #"{"usagePercent":10,"includedLimitZero":true,"sandTrialExpiresAt":"2026-09-25T00:00:00Z","nextResetTimestampUtc":"2026-09-22T00:00:00Z"}"#
+        let trialWindow = try #require(CursorProvider.parseSandUsage(Data(trial.utf8), now: now))
+        #expect(trialWindow.usedFraction == 0.1)
+        #expect(trialWindow.resetsAt == nil)
+        #expect(trialWindow.periodDuration == nil)
+        #expect(trialWindow.note == "On a trial")
+        let expired = trial.replacingOccurrences(of: "2026-09-25", with: "2026-09-19")
+        #expect(CursorProvider.parseSandUsage(Data(expired.utf8), now: now) == nil)
+        #expect(CursorProvider.parseSandUsage(Data(#"{"includedLimitZero":false}"#.utf8), now: now) == nil, "no percentage, no window")
+        #expect(CursorProvider.parseSandUsage(Data("nope".utf8), now: now) == nil)
+    }
+}
+
 private extension Data {
     /// The same summary as an individual account: `limitType` flipped to user.
     func replacingTeam() -> Data {

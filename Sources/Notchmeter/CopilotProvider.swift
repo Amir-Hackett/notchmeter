@@ -17,9 +17,16 @@ actor CopilotProvider: UsageProvider {
 
     static let userURL = URL(string: "https://api.github.com/copilot_internal/user")!
     static let orgsURL = URL(string: "https://api.github.com/user/orgs")!
-    static let editorVersion = "vscode/1.104.0"
-    static let pluginVersion = "copilot-chat/0.31.0"
+    /// The client identity the quota endpoint answers to, the one both live-validated trackers send since the
+    /// June 2026 billing change (CodexBar PR #2613, openusage): the endpoint is undocumented and keyed on these.
+    static let editorVersion = "vscode/1.96.2"
+    static let pluginVersion = "copilot-chat/0.26.7"
+    static let copilotUserAgent = "GitHubCopilotChat/0.26.7"
+    static let copilotAPIVersion = "2025-04-01"
+    /// The documented REST API version, for the organisation billing endpoints, which are public API.
     static let apiVersion = "2022-11-28"
+    /// GitHub's published rate: one AI credit is one US cent (docs.github.com, billing for individuals, 2026-09-20).
+    static let creditUSD = 0.01
 
     struct TokenCandidate: Equatable, Sendable {
         let token: String
@@ -30,15 +37,21 @@ actor CopilotProvider: UsageProvider {
     private let session: URLSession?
     private let readOrgBilling: @Sendable () -> Bool
     private var working: TokenCandidate?
+    private let history: CostHistory?
+    /// Where the last credits reading is written down (CopilotCreditsRead), for the delta and the Cost card.
+    private let defaults: UserDefaults
 
     init(session: URLSession? = nil,
          configRoot: URL = Paths.home.appendingPathComponent(".config/github-copilot"),
          ghHosts: URL = Paths.home.appendingPathComponent(".config/gh/hosts.yml"),
-         defaults: UserDefaults = .standard, readOrgBilling: (@Sendable () -> Bool)? = nil) {
+         defaults: UserDefaults = .standard, readOrgBilling: (@Sendable () -> Bool)? = nil,
+         history: CostHistory? = CostHistory(tool: .copilot)) {
         self.session = session
         self.configRoot = configRoot
         self.ghHosts = ghHosts
+        self.defaults = defaults
         self.readOrgBilling = readOrgBilling ?? ProviderOptIn.copilotOrgBilling.reader(defaults)
+        self.history = history
     }
 
     nonisolated func isInstalled() -> Bool {
@@ -62,6 +75,7 @@ actor CopilotProvider: UsageProvider {
             case 200:
                 working = candidate
                 var reading = try Self.parseUser(data)
+                recordCredits(Self.creditsUsed(data))
                 if readOrgBilling() {
                     reading = reading.with(windows: reading.windows + (await orgWindows(token: candidate.token)))
                 }
@@ -87,11 +101,13 @@ actor CopilotProvider: UsageProvider {
         request.timeoutInterval = 20
         request.setValue("token \(token)", forHTTPHeaderField: "Authorization")
         request.setValue(copilotHeaders ? "application/json" : "application/vnd.github+json", forHTTPHeaderField: "Accept")
-        request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
         if copilotHeaders {
+            request.setValue(Self.copilotUserAgent, forHTTPHeaderField: "User-Agent")
             request.setValue(Self.editorVersion, forHTTPHeaderField: "Editor-Version")
             request.setValue(Self.pluginVersion, forHTTPHeaderField: "Editor-Plugin-Version")
+            request.setValue(Self.copilotAPIVersion, forHTTPHeaderField: "X-Github-Api-Version")
         } else {
+            request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
             request.setValue(Self.apiVersion, forHTTPHeaderField: "X-GitHub-Api-Version")
         }
         let (data, response) = try await (session ?? NetworkSession.shared).data(for: request)
@@ -168,14 +184,28 @@ actor CopilotProvider: UsageProvider {
     // MARK: - Parsing
 
     /// `quota_snapshots.premium_interactions` carries the metered window: `entitlement`, `remaining`,
-    /// `percent_remaining`, `unlimited`, `overage_permitted`, `overage_count`; `chat` and `completions` are usually
-    /// unlimited; `quota_reset_date` (yyyy-MM-dd, UTC) is when the month's allowance returns; `copilot_plan` names it.
+    /// `percent_remaining`, `unlimited`, `overage_permitted`, `overage_count` and, since GitHub moved to usage-based
+    /// billing on 2026-06-01, `credits_used`; `chat` and `completions` are usually unlimited; `quota_reset_date`
+    /// (yyyy-MM-dd or an ISO instant, UTC; `quota_reset_date_utc` and the free tier's `limited_user_reset_date`
+    /// are read too) is when the month's allowance returns; `copilot_plan` names it; `token_based_billing` says
+    /// the seat is on AI credits.
+    ///
+    /// Three shapes have been seen since June and each is pinned in CopilotParsingTests: a metered seat with an
+    /// entitlement and a remainder; an org-managed token-billed seat whose snapshots are `entitlement: 0,
+    /// remaining: 0` placeholders beside a live `credits_used` count; and a free individual whose premium snapshot
+    /// is the same placeholder under `percent_remaining: 0`. The rules: `unlimited`, or a `-1` in either count,
+    /// means no limit; an entitlement of 0 is a placeholder and never a 0 % (or 100 %) bar, and only its
+    /// `credits_used` survives, as a plain count; a count may arrive as a number or a string; without
+    /// `percent_remaining` the fraction is `remaining / entitlement`. On a token-billed seat the counts are AI
+    /// credits, a cent each at GitHub's published rate, so the window carries its dollars and the Cost card can
+    /// show them (docs/accuracy.md).
     static func parseUser(_ data: Data, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ProviderError.parse(L("GitHub Copilot's usage response unreadable"))
         }
         let plan = (root["copilot_plan"] as? String).map(Naming.plan)
-        let resetsAt = (root["quota_reset_date"] as? String).flatMap(resetDate)
+        let tokenBilled = (root["token_based_billing"] as? Bool) ?? false
+        let resetsAt = resetDate(root["quota_reset_date"]) ?? resetDate(root["quota_reset_date_utc"]) ?? resetDate(root["limited_user_reset_date"])
         let snapshots = root["quota_snapshots"] as? [String: Any] ?? [:]
         var windows: [LimitWindow] = []
         let specs: [(key: String, id: String, label: WindowLabel)] = [
@@ -185,41 +215,59 @@ actor CopilotProvider: UsageProvider {
         ]
         for spec in specs {
             guard let snapshot = snapshots[spec.key] as? [String: Any] else { continue }
-            let unlimited = (snapshot["unlimited"] as? Bool) ?? false
-            let entitlement = JSON.number(snapshot["entitlement"])
-            let remaining = JSON.number(snapshot["remaining"])
-            let percentRemaining = JSON.number(snapshot["percent_remaining"])
+            let entitlement = count(snapshot["entitlement"])
+            let remaining = count(snapshot["remaining"])
+            let credits = count(snapshot["credits_used"])
+            let percentRemaining = count(snapshot["percent_remaining"])
+            let unlimited = (snapshot["unlimited"] as? Bool) ?? false || entitlement == -1 || remaining == -1
             if unlimited {
                 if spec.id == "premium" {
                     windows.append(LimitWindow(id: spec.id, label: spec.label, usedFraction: nil, resetsAt: resetsAt, note: L("Unlimited on the %@ plan", plan ?? L("current"))))
                 }
                 continue
             }
+            // The credits behind a premium snapshot are the seat's AI credits; on the other snapshots they are a
+            // count of a quota that has no dollar meaning.
+            let inCredits = tokenBilled && spec.id == "premium"
+            let creditsNote = credits.flatMap { $0 > 0 ? L("%ld credits used", Int($0)) : nil }
+            guard let entitlement, entitlement > 0 else {
+                // A placeholder: nothing to fill a bar with, whatever `percent_remaining` says beside it.
+                guard let creditsNote, let credits, inCredits else { continue }
+                windows.append(LimitWindow(id: "credits", label: .key("AI credits"), usedFraction: nil, resetsAt: resetsAt, note: creditsNote,
+                                           periodDuration: resetsAt.map { _ in Period.month }, amountUSD: credits * Self.creditUSD))
+                continue
+            }
             var used: Double?
             if let percentRemaining { used = JSON.fraction(100 - percentRemaining) }
-            else if let entitlement, entitlement > 0, let remaining { used = min(max(1 - remaining / entitlement, 0), 1) }
+            else if let remaining { used = min(max(1 - remaining / entitlement, 0), 1) }
             var note: String?
-            if let entitlement, let remaining {
-                note = L("%1$ld of %2$ld left", Int(max(0, remaining)), Int(entitlement))
+            if let remaining {
+                note = inCredits ? L("%1$ld of %2$ld credits left", Int(max(0, remaining)), Int(entitlement))
+                                 : L("%1$ld of %2$ld left", Int(max(0, remaining)), Int(entitlement))
             }
-            let overage = JSON.number(snapshot["overage_count"]) ?? 0
+            let overage = count(snapshot["overage_count"]) ?? 0
             if overage > 0 {
                 let extra = L("%ld extra this month", Int(overage))
                 note = note.map { "\($0) · \(extra)" } ?? extra
             } else if (snapshot["overage_permitted"] as? Bool) == true, used.map({ $0 >= 1 }) == true {
                 note = note.map { "\($0) · \(L("extra usage on"))" } ?? L("extra usage on")
             }
-            windows.append(LimitWindow(id: spec.id, label: spec.label, usedFraction: used, resetsAt: resetsAt, note: note,
-                                       periodDuration: resetsAt.map { _ in Period.month }))
+            if !inCredits, let creditsNote {
+                note = note.map { "\($0) · \(creditsNote)" } ?? creditsNote
+            }
+            let spent = credits ?? remaining.map { max(0, entitlement - $0) }
+            windows.append(LimitWindow(id: inCredits ? "credits" : spec.id, label: inCredits ? .key("AI credits") : spec.label, usedFraction: used,
+                                       resetsAt: resetsAt, note: note, periodDuration: resetsAt.map { _ in Period.month },
+                                       amountUSD: inCredits ? spent.map { $0 * Self.creditUSD } : nil))
         }
         // Copilot Free answers without snapshots: `monthly_quotas` is the allowance and `limited_user_quotas` what
         // is left of it, reset on `limited_user_reset_date`.
         if windows.isEmpty, let allowance = root["monthly_quotas"] as? [String: Any] {
             let left = root["limited_user_quotas"] as? [String: Any] ?? [:]
-            let freeReset = (root["limited_user_reset_date"] as? String).flatMap(resetDate) ?? resetsAt
+            let freeReset = resetDate(root["limited_user_reset_date"]) ?? resetsAt
             for (key, id, label) in [("chat", "chat", WindowLabel.key("Chat")), ("completions", "completions", WindowLabel.key("Completions"))] {
-                guard let total = JSON.number(allowance[key]), total > 0 else { continue }
-                let remaining = JSON.number(left[key]) ?? total
+                guard let total = count(allowance[key]), total > 0 else { continue }
+                let remaining = count(left[key]) ?? total
                 windows.append(LimitWindow(id: id, label: label, usedFraction: min(max(1 - remaining / total, 0), 1), resetsAt: freeReset,
                                            note: L("%1$ld of %2$ld left", Int(max(0, remaining)), Int(total)),
                                            periodDuration: freeReset.map { _ in Period.month }))
@@ -229,19 +277,69 @@ actor CopilotProvider: UsageProvider {
         // if current. A body with no plan either is not an account's answer at all.
         guard !windows.isEmpty || root["copilot_plan"] != nil else { throw ProviderError.parse(L("GitHub Copilot reported no quota")) }
         if windows.isEmpty {
-            windows.append(LimitWindow(id: "premium", label: .key("Premium requests"), usedFraction: nil, resetsAt: resetsAt,
-                                       note: L("GitHub Copilot reported no quota")))
+            // A token-billed seat with every snapshot a placeholder and no credit spent yet is a seat on credits
+            // that has used none, which is a figure of a kind; anything else reported no quota at all.
+            windows.append(tokenBilled
+                ? LimitWindow(id: "credits", label: .key("AI credits"), usedFraction: nil, resetsAt: resetsAt, note: L("No credits used this month yet"),
+                              periodDuration: resetsAt.map { _ in Period.month }, amountUSD: 0)
+                : LimitWindow(id: "premium", label: .key("Premium requests"), usedFraction: nil, resetsAt: resetsAt, note: L("GitHub Copilot reported no quota")))
         }
         return UsageReading(tool: .copilot, windows: windows, plan: plan, fetchedAt: now, observedAt: nil)
     }
 
-    /// "2026-10-01" is midnight UTC of that day.
+    /// The AI credits the seat has used this month, every snapshot's `credits_used` added up; nil when no snapshot
+    /// carries the field, which is a seat that is not metered in credits rather than one that used none.
+    static func creditsUsed(_ data: Data) -> Double? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let snapshots = root["quota_snapshots"] as? [String: Any] else { return nil }
+        let counts = snapshots.values.compactMap { count(($0 as? [String: Any])?["credits_used"]) }
+        return counts.isEmpty ? nil : counts.reduce(0, +)
+    }
+
+    /// A count as GitHub sends it: a number, or the same digits as a string.
+    static func count(_ value: Any?) -> Double? {
+        JSON.number(value) ?? (value as? String).flatMap(Double.init)
+    }
+
+    /// "2026-10-01" is midnight UTC of that day; an ISO instant is read as it is.
+    static func resetDate(_ value: Any?) -> Date? {
+        guard let text = value as? String, !text.isEmpty else { return nil }
+        return resetDate(text)
+    }
+
     static func resetDate(_ text: String) -> Date? {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.date(from: text) ?? DateParsing.iso8601(text)
+    }
+
+    // MARK: - AI credits on the Cost card
+
+    /// The month's credits, as GitHub counts them, folded into the daily-totals file as a Copilot series: each
+    /// read's rise over the last is a cent a credit, on the day it was seen. The month's running total is the
+    /// only figure GitHub publishes, so the day series is what this Mac observed between polls, and the first
+    /// read of a month sets the baseline rather than charging the whole count to one day (docs/accuracy.md). A
+    /// fall in the count is the month's reset and starts the count again. Nothing is priced: the rate is
+    /// GitHub's own, the count is GitHub's own, and a seat whose snapshots carry no `credits_used` writes nothing.
+    private func recordCredits(_ credits: Double?, now: Date = Date()) {
+        let previous = CopilotCreditsRead.load(from: defaults)
+        guard let credits else {
+            CopilotCreditsRead(readAt: now, credits: nil).save(to: defaults)
+            return
+        }
+        defer { CopilotCreditsRead(readAt: now, credits: credits).save(to: defaults) }
+        guard let history, let last = previous?.credits else { return }
+        let rise = credits >= last ? credits - last : credits
+        guard rise > 0 else { return }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        let existing = history.load(calendar: calendar)
+        var record = existing[today] ?? CostHistory.Record(cost: 0, tokens: TokenBreakdown(), byModel: [:], byProject: [:])
+        record.cost += rise * Self.creditUSD
+        history.record([today: record], existing: existing, calendar: calendar)
+        log.notice("Copilot credits: \(Int(rise)) more since the last read, \(Int(credits)) this month")
     }
 
     // MARK: - Organisation billing

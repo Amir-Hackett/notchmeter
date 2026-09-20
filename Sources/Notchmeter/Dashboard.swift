@@ -470,9 +470,9 @@ struct DashboardView: View {
     private func sourcesFootnote(_ model: DashboardModel) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             ForEach(model.sources, id: \.tool) { entry in
-                Text(entry.source.isEstimate
-                     ? L("%@ priced here from local files at published list rates", entry.tool.displayName)
-                     : L("%@ as billed, from its usage export", entry.tool.displayName))
+                Text(entry.source == .billingExport
+                     ? L("%@ as billed, from its usage export", entry.tool.displayName)
+                     : entry.source.provenance(of: entry.tool))
             }
         }
         .font(.caption2)

@@ -16,6 +16,11 @@ actor CursorProvider: UsageProvider {
     static let legacyUsageURL = URL(string: "https://cursor.com/api/usage")!
     static let usageEventsURL = URL(string: "https://cursor.com/api/dashboard/get-filtered-usage-events")!
     static let teamsURL = URL(string: "https://cursor.com/api/dashboard/teams")!
+    /// The dashboard's own cycle figures in cents (`planUsage`), read when the summary meters nothing so an
+    /// Enterprise on-demand seat gets its included figure from the endpoint that still carries one.
+    static let periodUsageURL = URL(string: "https://cursor.com/api/dashboard/get-current-period-usage")!
+    /// The Grok Bot weekly allowance ("Sand" internally), an optional window a seat may not have.
+    static let sandUsageURL = URL(string: "https://cursor.com/api/dashboard/get-sand-usage-status")!
     static let origin = "https://cursor.com"
     /// One page of the export, and the most pages one read will ask for: an account with more than these events
     /// in the window would be understated, so the cap is loud rather than silent.
@@ -68,13 +73,28 @@ actor CursorProvider: UsageProvider {
         let (data, response) = try await send(Self.summaryURL, cookie: cookie)
         switch response?.statusCode ?? 0 {
         case 200:
-            let reading = try Self.parseSummary(data)
+            var reading = try Self.parseSummary(data)
+            // Two more dashboard reads on the same cookie, each fail-soft: whatever they answer, the summary's
+            // windows stand. The cycle figures are asked for only where the summary meters nothing, which is the
+            // seat they exist for (Enterprise billed on-demand, 2026-09-18); the Grok Bot window is asked for on
+            // every seat and simply absent where the seat has none.
+            if !Self.headlineMetered(reading.windows),
+               let (periodData, periodResponse) = try? await send(Self.periodUsageURL, cookie: cookie, body: Data("{}".utf8)),
+               periodResponse?.statusCode == 200, let period = Self.parsePeriodUsage(periodData) {
+                reading = reading.with(windows: Self.applying(period, to: reading.windows))
+            }
+            if let (sandData, sandResponse) = try? await send(Self.sandUsageURL, cookie: cookie, body: Data("{}".utf8)),
+               sandResponse?.statusCode == 200, let sand = Self.parseSandUsage(sandData) {
+                reading = reading.with(windows: reading.windows + [sand])
+            }
             guard readUsageEvents() else { return reading }
             // A seat with no included allowance (Enterprise billed on-demand, 2026-09-18) reads 0 % on every
             // window however much it spends, so the export's own dollars become the ring: today against a usual day.
             // Only after today's export was actually read: a refused or failed read leaves today's line unwritten
-            // or stale, and the ring would read $0 against a usual day.
-            guard await recordUsageEvents(cookie: cookie), !reading.windows.contains(where: { ["included", "team_pooled"].contains($0.id) && $0.usedFraction != nil }),
+            // or stale, and the ring would read $0 against a usual day. A seat whose cycle figures carried a real
+            // included fraction fails the second test by itself, so the vendor's figure leads and the usual-day
+            // heuristic stays for seats nothing else meters (pinned in CursorSpendTests).
+            guard await recordUsageEvents(cookie: cookie), !Self.headlineMetered(reading.windows),
                   let history, let spend = Self.spendToday(history.load(calendar: .current))
             else { return reading }
             return UsageReading(tool: .cursor, windows: [spend] + Self.withoutDeadSplits(reading.windows), plan: reading.plan,
@@ -230,9 +250,11 @@ actor CursorProvider: UsageProvider {
                 periodDuration: cycle, amountUSD: planUsed.map { $0 / 100 }
             ))
         } else {
+            // The cycle is known even with nothing metered, and travels with the window so that a figure the cycle
+            // endpoint fills in afterwards (`applying`) paces against the summary's own cycle.
             windows.append(LimitWindow(
                 id: "included", label: .key("Included usage"), usedFraction: nil, resetsAt: cycleEnd,
-                note: L("%@ plan has nothing for Cursor to meter yet", planName ?? L("This"))
+                note: L("%@ plan has nothing for Cursor to meter yet", planName ?? L("This")), periodDuration: cycle
             ))
         }
 
@@ -303,6 +325,100 @@ actor CursorProvider: UsageProvider {
             note: limit.map { L("%1$ld of %2$ld requests", Int(used), Int($0)) }
         )
         return UsageReading(tool: .cursor, windows: [window], plan: nil, fetchedAt: now, observedAt: nil)
+    }
+
+    // MARK: - Current period usage
+
+    /// Whether an included or team-pooled window carries a figure: the test that decides whether the cycle
+    /// endpoint is asked and whether *Today's spend* leads.
+    static func headlineMetered(_ windows: [LimitWindow]) -> Bool {
+        windows.contains { ["included", "team_pooled"].contains($0.id) && $0.usedFraction != nil }
+    }
+
+    /// `POST /api/dashboard/get-current-period-usage` (`{}`): the dashboard's cycle figures, every amount in
+    /// cents. `planUsage.includedSpend` is what counts against `limit`; `bonusSpend` is provider-granted usage
+    /// that is never charged to the allowance, and `totalSpend` is the two added up (an Ultra seat read $642 of
+    /// total against a $400 limit, which is not 160 % of anything). `totalPercentUsed`, `autoPercentUsed` and
+    /// `apiPercentUsed` are deliberately not read as spend fractions: Cursor staff said they "reflect a different
+    /// internal metric" (forum 168210, 2026-08-13), and the same fields froze backend-side for a week that August
+    /// while the cents kept counting. The cycle bounds arrive as epoch milliseconds, as a number or a string.
+    struct PeriodUsage: Equatable, Sendable {
+        var includedSpendCents: Double?
+        var bonusSpendCents: Double?
+        var totalSpendCents: Double?
+        var remainingCents: Double?
+        var limitCents: Double?
+        var cycleStart: Date?
+        var cycleEnd: Date?
+        /// `spendLimitUsage.individualUsed` / `individualLimit`: the seat's own spend limit where the team sets one.
+        var individualUsedCents: Double?
+        var individualLimitCents: Double?
+
+        /// The cents that count against the allowance: `includedSpend`, else the total less the bonus.
+        var chargedCents: Double? {
+            includedSpendCents ?? totalSpendCents.map { $0 - (bonusSpendCents ?? 0) }
+        }
+    }
+
+    /// nil for a body that is not the endpoint's answer (no `planUsage` and no `spendLimitUsage`), so a login page
+    /// or an error object never becomes a reading of nothing.
+    static func parsePeriodUsage(_ data: Data) -> PeriodUsage? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        let plan = root["planUsage"] as? [String: Any]
+        let spendLimit = root["spendLimitUsage"] as? [String: Any]
+        guard plan != nil || spendLimit != nil else { return nil }
+        var usage = PeriodUsage()
+        usage.includedSpendCents = number(plan?["includedSpend"])
+        usage.bonusSpendCents = number(plan?["bonusSpend"])
+        usage.totalSpendCents = number(plan?["totalSpend"])
+        usage.remainingCents = number(plan?["remaining"])
+        usage.limitCents = number(plan?["limit"])
+        usage.cycleStart = epochMillis(root["billingCycleStart"])
+        usage.cycleEnd = epochMillis(root["billingCycleEnd"])
+        usage.individualUsedCents = number(spendLimit?["individualUsed"])
+        usage.individualLimitCents = number(spendLimit?["individualLimit"])
+        return usage
+    }
+
+    /// The summary's windows with the cycle figures filled in where the summary had none: an `included` window
+    /// with no figure takes `includedSpend / limit`, and one whose figure reads lower than the cycle's takes the
+    /// cycle's, by the same rule `share` applies (the furthest-along vendor figure wins, because under-reporting
+    /// hides a meter that is charging). A seat with no `limit` is left exactly as it was.
+    static func applying(_ period: PeriodUsage, to windows: [LimitWindow]) -> [LimitWindow] {
+        guard let limit = period.limitCents, limit > 0, let charged = period.chargedCents else { return windows }
+        let fraction = share(percent: nil, used: charged, limit: limit)
+        let cycle: TimeInterval? = if let start = period.cycleStart, let end = period.cycleEnd, end > start { end.timeIntervalSince(start) } else { nil }
+        return windows.map { window in
+            guard window.id == "included", (window.usedFraction ?? -1) < fraction else { return window }
+            return LimitWindow(id: window.id, label: window.name, usedFraction: fraction, resetsAt: window.resetsAt ?? period.cycleEnd,
+                               note: L("%1$@ of %2$@", dollars(charged), dollars(limit)), periodDuration: window.periodDuration ?? cycle,
+                               model: window.model, source: window.source, hiddenByDefault: window.hiddenByDefault, amountUSD: charged / 100)
+        }
+    }
+
+    /// `POST /api/dashboard/get-sand-usage-status` (`{}`): the Grok Bot weekly allowance. A window only where the
+    /// seat has one — `includedLimitZero` false (or the older `hasNonZeroIncludedLimit`), or a trial that has not
+    /// expired; nil otherwise, and nil for anything unreadable, so a seat without it is not a seat with an empty
+    /// bar. `usagePercent` is a percentage; the period is `nextResetTimestampUtc` less `currentPeriodStart` (seven
+    /// days on a paid seat), and a trial with no recurring reset carries neither.
+    static func parseSandUsage(_ data: Data, now: Date = Date()) -> LimitWindow? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let percent = number(root["usagePercent"]) else { return nil }
+        let trialEnds = (root["sandTrialExpiresAt"] as? String).flatMap(DateParsing.iso8601)
+        let onTrial = trialEnds.map { $0 > now } ?? false
+        let included: Bool = if let zero = root["includedLimitZero"] as? Bool { !zero } else { (root["hasNonZeroIncludedLimit"] as? Bool) ?? false }
+        guard included || onTrial else { return nil }
+        let resets = (root["nextResetTimestampUtc"] as? String).flatMap(DateParsing.iso8601)
+        let start = (root["currentPeriodStart"] as? String).flatMap(DateParsing.iso8601)
+        let period: TimeInterval? = if included, let start, let resets, resets > start { resets.timeIntervalSince(start) } else { nil }
+        return LimitWindow(id: "grok_bot", label: .key("Grok Bot"), usedFraction: JSON.fraction(percent), resetsAt: included ? resets : nil,
+                           note: included ? nil : L("On a trial"), periodDuration: period)
+    }
+
+    /// Epoch milliseconds as the dashboard sends them, a number or a string of digits; seconds are accepted too.
+    static func epochMillis(_ value: Any?) -> Date? {
+        guard let stamp = (value as? String).flatMap(Double.init) ?? number(value), stamp > 0 else { return nil }
+        return Date(timeIntervalSince1970: stamp > 1e11 ? stamp / 1000 : stamp)
     }
 
     // MARK: - Usage events

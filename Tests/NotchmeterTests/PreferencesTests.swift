@@ -30,6 +30,17 @@ import Testing
         }
     }
 
+    /// Anthropic's usage endpoint is polled unless switched off; off persists and is the status line alone.
+    @Test func theClaudeEndpointIsPolledUnlessSwitchedOff() {
+        withSuite("claude-endpoint") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            #expect(prefs.pollClaudeEndpoint)
+            prefs.pollClaudeEndpoint = false
+            #expect(defaults.object(forKey: "pollClaudeEndpoint") as? Bool == false)
+            #expect(!Preferences(defaults: defaults).pollClaudeEndpoint)
+        }
+    }
+
     @Test func theHoverDelaySettlesOnATwentiethOfASecond() {
         withSuite("hover") { defaults in
             let prefs = Preferences(defaults: defaults)

@@ -9,12 +9,17 @@ enum CostSource: String, Codable, Equatable, Sendable {
     case localSessions
     /// The vendor's own per-request costs, read from its usage export (Cursor).
     case billingExport
+    /// The vendor's own running count of credits, converted at the vendor's published rate and laid on the day
+    /// each rise was observed (GitHub Copilot's AI credits, a cent each). The count is the vendor's; the day it
+    /// lands on is this Mac's observation, so it stays an estimate rather than borrowing the export's standing.
+    case vendorCredits
 
     var label: String {
         switch self {
         case .localTranscripts: L("local transcripts")
         case .localSessions: L("local sessions")
         case .billingExport: L("billing export")
+        case .vendorCredits: L("AI credits")
         }
     }
 
@@ -25,19 +30,30 @@ enum CostSource: String, Codable, Equatable, Sendable {
         case .localTranscripts: L("transcripts")
         case .localSessions: L("sessions")
         case .billingExport: L("export")
+        case .vendorCredits: L("credits")
         }
     }
 
     /// True where the dollars are this Mac's arithmetic over published rates rather than a figure the vendor sent.
     var isEstimate: Bool { self != .billingExport }
+
+    /// The full sentence under the card and the dashboard naming what kind of number a tool's figures are.
+    func provenance(of tool: ToolID) -> String {
+        switch self {
+        case .localTranscripts, .localSessions: L("%@ priced here from local files at published list rates", tool.displayName)
+        case .billingExport: L("%@ as the vendor's own usage export priced it", tool.displayName)
+        case .vendorCredits: L("%@ from GitHub's own credit count at a cent a credit, on the day each rise was seen", tool.displayName)
+        }
+    }
 }
 
 /// One tool's spend: the ranges the Cost card offers, a daily series, the per-model shares of each range, the
 /// source the figures came from, when they were read and what went wrong if anything did.
 ///
-/// A tool whose spend cannot be derived from a source it publishes has no `ProviderCost` at all. GitHub Copilot
-/// (a flat seat with no per-request price) and Antigravity (quota, no dollars) never build one, so the card shows
-/// nothing for them rather than a zero that would read as "you spent nothing". docs/accuracy.md says why.
+/// A tool whose spend cannot be derived from a source it publishes has no `ProviderCost` at all. Antigravity
+/// (quota, no dollars) never builds one, and GitHub Copilot builds one only on a seat GitHub meters in AI credits,
+/// so the card shows nothing for them otherwise rather than a zero that would read as "you spent nothing".
+/// docs/accuracy.md says why.
 struct ProviderCost: Equatable, Sendable, Identifiable {
     let tool: ToolID
     let source: CostSource

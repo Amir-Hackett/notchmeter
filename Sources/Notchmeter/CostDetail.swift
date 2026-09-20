@@ -90,11 +90,7 @@ struct CostDetail {
 
     /// What kind of number the block above is. The legend tags each row with its own source in a word; this says
     /// it in full for the leader, whose figures these are.
-    var source: String {
-        provider.source.isEstimate
-            ? L("%@ priced here from local files at published list rates", name)
-            : L("%@ as the vendor's own usage export priced it", name)
-    }
+    var source: String { provider.source.provenance(of: provider.tool) }
 
     /// The leader's lines the card keeps behind Show details, in the order it draws them.
     var detailLines: [String] { [week, since, block].compactMap { $0 } }

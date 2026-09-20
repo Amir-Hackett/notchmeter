@@ -21,18 +21,22 @@ import Testing
     {"type":"assistant","timestamp":"2026-09-01T13:30:00.000Z","requestId":"req_b","message":{"id":"msg_b","model":"claude-sonnet-5","usage":{"input_tokens":1000,"output_tokens":200,"cache_read_input_tokens":40000,"cache_creation":{"ephemeral_5m_input_tokens":3000,"ephemeral_1h_input_tokens":2000},"inference_geo":"global"}}}
     """#
 
-    /// A scratch home with a Claude transcript, no Codex sessions, and a Cursor history file that may be empty.
-    func makeEngine(cursorDays: [Date: CostHistory.Record] = [:]) throws -> (engine: CostEngine, home: URL) {
+    /// A scratch home with a Claude transcript, no Codex sessions, and Cursor and Copilot history files that may be
+    /// empty. Every reader points into the scratch home, so a real history under Application Support never leaks in.
+    func makeEngine(cursorDays: [Date: CostHistory.Record] = [:], copilotDays: [Date: CostHistory.Record] = [:]) throws -> (engine: CostEngine, home: URL) {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-engine-\(UUID().uuidString)")
         let project = home.appendingPathComponent("claude/projects/-Users-someone-notchmeter")
         try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
         try Data(Self.claudeLine.utf8).write(to: project.appendingPathComponent("session.jsonl"))
         let cursorHistory = CostHistory(url: home.appendingPathComponent("cursor.jsonl"), tool: .cursor)
         if !cursorDays.isEmpty { cursorHistory.record(cursorDays, existing: [:], calendar: utc) }
+        let copilotHistory = CostHistory(url: home.appendingPathComponent("copilot.jsonl"), tool: .copilot)
+        if !copilotDays.isEmpty { copilotHistory.record(copilotDays, existing: [:], calendar: utc) }
         let engine = CostEngine(
             claude: ClaudeCostScanner(roots: [home.appendingPathComponent("claude")], cacheURL: nil, history: nil),
             codex: CodexCostScanner(root: home.appendingPathComponent("no-codex-here"), history: nil),
-            cursor: CursorCostReader(history: cursorHistory))
+            cursor: CursorCostReader(history: cursorHistory),
+            copilot: CopilotCostReader(history: copilotHistory))
         return (engine, home)
     }
 
@@ -98,12 +102,36 @@ import Testing
         #expect(none.scannedAt == now)
     }
 
-    /// The tools that publish no per-request price never reach the engine at all.
-    @Test func onlyThreeToolsCanReportSpend() {
+    /// The tool that publishes neither a price nor a priced count never reaches the engine at all. Copilot joined
+    /// the four with GitHub's June 2026 move to AI credits, a cent a credit at GitHub's published rate.
+    @Test func onlyFourToolsCanReportSpend() {
         let reportingCost = ToolID.allCases.filter(\.reportsCost)
-        #expect(reportingCost == [.claude, .codex, .cursor])
-        #expect(ToolID.copilot.reportsCost == false)
+        #expect(reportingCost == [.claude, .codex, .cursor, .copilot])
+        #expect(ToolID.copilot.reportsCost == true)
         #expect(ToolID.antigravity.reportsCost == false)
+    }
+
+    /// Copilot's row is the credits the provider folded into the daily history, a cent a credit, tagged as the
+    /// vendor's own count rather than an export: the day is this Mac's observation.
+    @Test func copilotCreditsAreAVendorCountRow() async throws {
+        let day = utc.startOfDay(for: now)
+        let copilotDays = [day: CostHistory.Record(cost: 0.31, tokens: TokenBreakdown(), byModel: [:], byProject: [:])]
+        let (engine, home) = try makeEngine(copilotDays: copilotDays)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let summary = await engine.scan(reads: [.copilot: ProviderReadState(readAt: now.addingTimeInterval(-60))], now: now, calendar: utc)
+        let scanned = summary.providers.map(\.tool)
+        #expect(scanned == [.claude, .copilot])
+        let copilot = try #require(summary.provider(.copilot))
+        #expect(copilot.source == .vendorCredits)
+        #expect(copilot.source.isEstimate)
+        #expect(copilot.source.shortLabel == "credits")
+        #expect(copilot.source.provenance(of: .copilot) == "Copilot from GitHub's own credit count at a cent a credit, on the day each rise was seen")
+        #expect(abs(copilot.totals(.today).cost - 0.31) < 1e-9)
+        #expect(copilot.lastHour == nil)
+        #expect(copilot.scannedAt == now.addingTimeInterval(-60))
+        // A seat with no credits written down has no row rather than a zero one.
+        let none = await engine.scan(tools: [.copilot], now: now.addingTimeInterval(-40 * 86400), calendar: utc)
+        #expect(none.providers.isEmpty)
     }
 
     /// A tool whose vendor read failed keeps its last figures and carries the failure, rather than reading as fresh.

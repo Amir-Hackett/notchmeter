@@ -851,6 +851,8 @@ struct SettingsView: View {
         ))
         switch tool {
         case .claude:
+            Toggle(L("Also poll Claude's usage endpoint"), isOn: Binding(get: { prefs.pollClaudeEndpoint }, set: { prefs.pollClaudeEndpoint = $0; store.refreshAll() }))
+                .help(L("On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked."))
             Toggle(L("Keep the Mac awake while an assistant is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
                 .help(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held."))
             if prefs.keepAwake {

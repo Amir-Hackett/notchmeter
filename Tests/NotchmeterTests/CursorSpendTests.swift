@@ -212,6 +212,62 @@ import Testing
         }
     }
 
+    /// The same seat once the cycle endpoint carries a real included figure for it: the vendor's figure leads,
+    /// *Today's spend* yields by the existing gate without any other change, the two model meters keep their 0 %
+    /// (nothing is flowing past a metered window), and the Grok Bot window joins when the seat has one. Every one
+    /// of these reads is fail-soft: with the two endpoints refusing, the reading is exactly the one above.
+    @Test func aSeatTheCycleEndpointMetersLeadsWithTheVendorsFigureAndTodaysSpendYields() async throws {
+        let enterprise = Data(#"""
+        {"billingCycleStart":"2026-09-18T00:00:00.000Z","billingCycleEnd":"2026-10-18T00:00:00.000Z",
+         "membershipType":"enterprise","limitType":"team","isUnlimited":false,
+         "autoModelSelectedDisplayMessage":"You've used 0% of your included total usage",
+         "namedModelSelectedDisplayMessage":"You've used 0% of your included API usage",
+         "individualUsage":{"overall":{"enabled":false,"used":0,"limit":null,"remaining":null}},
+         "teamUsage":{"onDemand":{"enabled":true,"used":876,"limit":null,"remaining":null}}}
+        """#.utf8)
+        let period = Data(#"{"planUsage":{"totalSpend":1288,"includedSpend":1288,"remaining":712,"limit":2000,"totalPercentUsed":3.7},"billingCycleEnd":"1776470400000"}"#.utf8)
+        let sand = Data(#"{"currentPeriodStart":"2026-09-15T00:00:00Z","nextResetTimestampUtc":"2026-09-22T00:00:00Z","usagePercent":12,"includedLimitZero":false}"#.utf8)
+        let export = Self.events([(offset: -3600, cents: 876, model: "composer-2.5"), (offset: -3 * 86_400.0, cents: 5000, model: "composer-2.5")])
+        let answer: @Sendable (URL, Int) -> (Int, Data) = { url, _ in
+            switch url {
+            case CursorProvider.summaryURL: (200, enterprise)
+            case CursorProvider.periodUsageURL: (200, period)
+            case CursorProvider.sandUsageURL: (200, sand)
+            case CursorProvider.teamsURL: (200, Data("{}".utf8))
+            case CursorProvider.usageEventsURL: (200, export)
+            default: (404, Data())
+            }
+        }
+        try await withCursor("cycle-metered", answer: answer) { provider, _, _, exchange in
+            let reading = try await provider.fetch()
+            #expect(reading.windows.map(\.id) == ["included", "cursor_models", "other_models", "team_on_demand", "grok_bot"])
+            #expect(reading.windows[0].usedFraction == 0.644)
+            #expect(reading.windows[0].note == "$12.88 of $20")
+            #expect(reading.windows[0].resetsAt == DateParsing.iso8601("2026-10-18T00:00:00.000Z"), "the summary's own cycle end is kept")
+            #expect(reading.windows[1].usedFraction == 0 && reading.windows[2].usedFraction == 0)
+            #expect(reading.windows[4].usedFraction == 0.12)
+            // Both dashboard POSTs carry the CSRF Origin like the export does.
+            #expect(exchange.ask(CursorProvider.periodUsageURL)?.origin == CursorProvider.origin)
+            #expect(exchange.ask(CursorProvider.sandUsageURL)?.origin == CursorProvider.origin)
+            #expect(Advisor.mainWindow(of: reading)?.id == "included")
+        }
+        let refusing: @Sendable (URL, Int) -> (Int, Data) = { url, page in
+            url == CursorProvider.periodUsageURL || url == CursorProvider.sandUsageURL ? (403, Data()) : answer(url, page)
+        }
+        try await withCursor("cycle-refused", answer: refusing) { provider, _, _, exchange in
+            let reading = try await provider.fetch()
+            #expect(reading.windows.map(\.id) == ["spend_today", "included", "cursor_models", "other_models", "team_on_demand"])
+            #expect(exchange.ask(CursorProvider.periodUsageURL) != nil)
+        }
+        // A seat the summary already meters never asks for the cycle figures at all.
+        try await withCursor("cycle-unasked", answer: { url, page in url == CursorProvider.summaryURL ? (200, Self.summary) : answer(url, page) }) { provider, _, _, exchange in
+            let reading = try await provider.fetch()
+            #expect(reading.windows.first?.usedFraction == 0.125)
+            #expect(exchange.ask(CursorProvider.periodUsageURL) == nil)
+            #expect(reading.windows.map(\.id).contains("grok_bot"))
+        }
+    }
+
     /// An account that was read and billed nothing is not an account nobody read.
     @Test func anEmptyExportSaysSoRatherThanClaimingNothingWasRead() async throws {
         try await withCursor("empty", answer: Self.answering { _ in (200, Data(#"{"usageEventsDisplay":[]}"#.utf8)) }) { provider, history, defaults, _ in

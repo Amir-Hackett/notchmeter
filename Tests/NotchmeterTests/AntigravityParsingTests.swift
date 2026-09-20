@@ -24,20 +24,109 @@ import Testing
         let labels = reading.windows.map(\.label)
         let ids = reading.windows.map(\.id)
         let models = reading.windows.map(\.model)
-        #expect(labels == ["Gemini Pro", "Gemini Flash", "Gemini Flash Lite", "Claude Sonnet 4.5"])
-        #expect(ids == ["gemini_pro", "gemini_flash", "gemini_flash_lite", "model_claude-sonnet-4-5"])
+        #expect(labels == ["Gemini Pro", "Gemini Flash", "Gemini Flash Lite", "Claude Sonnet 4.5", "Claude Opus 4.1"])
+        #expect(ids == ["gemini_pro", "gemini_flash", "gemini_flash_lite", "model_claude-sonnet-4-5", "model_claude-opus-4-1"])
         #expect(models == labels)
         let used = reading.windows.map { $0.usedFraction ?? -1 }
         #expect(abs(used[0] - 0.4) < 1e-9)
         #expect(abs(used[1] - 0.1) < 1e-9)
         #expect(abs(used[2] - 0.2) < 1e-9)
         #expect(used[3] == 0.75)
+        // A bucket Google sent no fraction for is a window with no figure and its reset, never one at 100 % left.
+        #expect(used[4] == -1)
+        #expect(reading.windows[4].resetsAt == DateParsing.iso8601("2026-09-01T17:00:00Z"))
         #expect(reading.windows[0].resetsAt == DateParsing.iso8601(resetsAt))
         #expect(reading.windows[3].resetsAt == DateParsing.iso8601("2026-09-01T17:00:00Z"))
         #expect(reading.windows[0].note == "Gemini 2.5 Pro · Gemini 3 Pro Preview")
         #expect(reading.windows[1].note == "1350 of 1500 left")
         #expect(reading.windows[2].note == nil)
         #expect(reading.windows.allSatisfy { $0.periodDuration == nil })
+    }
+
+    /// An explicit 0 is exhausted; an absent fraction is unknown; and a payload whose every figured bucket reads
+    /// untouched at one identical reset is the answer of a host that is not metering the account, so it draws no
+    /// ring (antigravity-cli #387). One untouched window alone is left as it is.
+    @Test func zeroIsExhaustedAbsentIsUnknownAndAllUntouchedIsUnmetered() throws {
+        let mixed = """
+        {"buckets":[{"modelId":"gemini-2.5-pro","remainingFraction":0,"resetTime":"\(resetsAt)"},
+                    {"modelId":"claude-sonnet-4-5","resetTime":"\(resetsAt)"}]}
+        """
+        let reading = try AntigravityProvider.parseQuota(Data(mixed.utf8), plan: nil)
+        #expect(reading.windows.map(\.usedFraction) == [1, nil])
+        #expect(reading.windows[1].resetsAt == DateParsing.iso8601(resetsAt))
+
+        let untouched = """
+        {"buckets":[{"modelId":"gemini-2.5-pro","remainingFraction":1,"resetTime":"\(resetsAt)"},
+                    {"modelId":"gemini-2.5-flash","remainingFraction":1,"resetTime":"\(resetsAt)"},
+                    {"modelId":"claude-sonnet-4-5","remainingFraction":1,"resetTime":"2026-09-02T07:00:30Z"}]}
+        """
+        let unmetered = try AntigravityProvider.parseQuota(Data(untouched.utf8), plan: nil)
+        #expect(unmetered.windows.map(\.usedFraction) == [nil, nil, nil])
+        #expect(unmetered.windows[0].note == "Reads untouched on every model, which this host also answers when it is not the one metering you")
+        #expect(unmetered.windows[0].resetsAt == DateParsing.iso8601(resetsAt), "the reset is kept")
+        let now = DateParsing.iso8601("2026-09-02T02:00:00Z")!
+        #expect(!AntigravityProvider.looksMetered(unmetered, now: now))
+
+        let alone = try AntigravityProvider.parseQuota(Data(#"{"buckets":[{"modelId":"gemini-2.5-pro","remainingFraction":1,"resetTime":"\#(resetsAt)"}]}"#.utf8), plan: nil)
+        #expect(alone.windows[0].usedFraction == 0)
+        let staggered = untouched.replacingOccurrences(of: "2026-09-02T07:00:30Z", with: "2026-09-05T07:00:00Z")
+        #expect(try AntigravityProvider.parseQuota(Data(staggered.utf8), plan: nil).windows[0].usedFraction == 0, "different resets are a real quota")
+
+        // Liveness: something used, or a reset that is not the placeholder five hours from now.
+        let placeholder = now.addingTimeInterval(Period.fiveHours)
+        let fresh = UsageReading(tool: .antigravity, windows: [LimitWindow(id: "gemini_pro", label: "Gemini Pro", usedFraction: 0, resetsAt: placeholder)],
+                                 plan: nil, fetchedAt: now, observedAt: nil)
+        #expect(!AntigravityProvider.looksMetered(fresh, now: now))
+        let used = fresh.with(windows: [LimitWindow(id: "gemini_pro", label: "Gemini Pro", usedFraction: 0.02, resetsAt: placeholder)])
+        #expect(AntigravityProvider.looksMetered(used, now: now))
+        let realReset = fresh.with(windows: [LimitWindow(id: "gemini_pro", label: "Gemini Pro", usedFraction: 0, resetsAt: placeholder.addingTimeInterval(-1800))])
+        #expect(AntigravityProvider.looksMetered(realReset, now: now))
+    }
+
+    /// `:retrieveUserQuotaSummary`: the groups Antigravity's own panel shows, with the window length declared, in
+    /// either spelling of the remaining fraction; the group's "models" is dropped from the window's name.
+    @Test func theSummaryGroupsBecomeSessionAndWeeklyWindows() throws {
+        let json = """
+        {"groups":[{"displayName":"Gemini Models","buckets":[
+                      {"bucketId":"gemini-5h","displayName":"Session Limit","window":"5h","resetTime":"2026-09-01T17:00:00Z","remainingFraction":0.5},
+                      {"bucketId":"gemini-weekly","displayName":"Weekly Limit","window":"weekly","resetTime":"\(resetsAt)","remaining":{"remainingFraction":0.75}}]},
+                   {"displayName":"Claude and GPT models","buckets":[
+                      {"bucketId":"claude-5h","window":"5h","resetTime":"2026-09-01T17:00:00Z","remaining":{"case":"remainingFraction","value":0.25}},
+                      {"bucketId":"claude-daily","window":"daily","resetTime":"2026-09-02T00:00:00Z"}]}]}
+        """
+        let reading = try AntigravityProvider.parseQuotaSummary(Data(json.utf8), plan: "Ultra", now: Date(timeIntervalSince1970: 0))
+        #expect(reading.plan == "Ultra")
+        #expect(reading.windows.map(\.id) == ["gemini_session", "gemini_weekly", "claude_and_gpt_session", "claude_and_gpt_daily"])
+        #expect(reading.windows.map(\.label) == ["Gemini Session", "Gemini Weekly", "Claude and GPT Session", "Claude and GPT Daily"])
+        #expect(reading.windows.map(\.model) == ["Gemini", "Gemini", "Claude and GPT", "Claude and GPT"])
+        #expect(reading.windows.map(\.usedFraction) == [0.5, 0.25, 0.75, nil])
+        #expect(reading.windows.map(\.periodDuration) == [Period.fiveHours, Period.week, Period.fiveHours, Period.day])
+        #expect(reading.windows[1].resetsAt == DateParsing.iso8601(resetsAt))
+        #expect(reading.windows.allSatisfy { $0.source == .vendorEndpoint })
+        // Declared lengths are not inferred over.
+        let applied = AntigravityPeriods.apply(reading, resets: [:], now: Date(timeIntervalSince1970: 0))
+        #expect(applied.windows[0].note == nil)
+        #expect(throws: ProviderError.self) { try AntigravityProvider.parseQuotaSummary(Data("{}".utf8), plan: nil) }
+        #expect(throws: ProviderError.self) { try AntigravityProvider.parseQuotaSummary(Data(#"{"groups":[{"displayName":"x","buckets":[]}]}"#.utf8), plan: nil) }
+        #expect(AntigravityProvider.groupName(nil) == "Models")
+        #expect(AntigravityProvider.groupName("Models") == "Models")
+    }
+
+    /// The host Antigravity's own CLI logged is the one the account is metered on; anything that is not a Code
+    /// Assist host is ignored, and the newest mention wins.
+    @Test func theLoggedHostIsReadFromTheCLILog() {
+        let text = """
+        [info] POST https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist 200
+        [info] GET https://example.com/cloudcode-pa.googleapis.com.evil/ 200
+        [info] POST https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent 200
+        """
+        #expect(AntigravityProvider.loggedHost(inText: text) == AntigravityProvider.dailyHost)
+        #expect(AntigravityProvider.loggedHost(inText: "nothing here") == nil)
+        #expect(AntigravityProvider.loggedHost(inText: "https://notcloudcode-pa.googleapis.com.example.org/") == nil)
+        #expect(AntigravityProvider.loggedHost(in: URL(fileURLWithPath: "/nonexistent/cli.log")) == nil)
+        #expect(AntigravityProvider.hostsToTry == [AntigravityProvider.dailyHost, AntigravityProvider.productionHost])
+        #expect(AntigravityProvider.url(host: AntigravityProvider.dailyHost, method: "retrieveUserQuota").absoluteString
+            == "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota")
     }
 
     @Test func theTightestBucketOfATierSetsItsFigure() throws {
@@ -247,12 +336,18 @@ import Testing
         #expect(labels == ["Gemini Pro"])
         #expect(reading.windows[0].usedFraction == 0.25)
 
+        // With no log naming a host, the daily deployment is asked first; its live figure is believed and the
+        // production host is never asked. The summary is tried before the buckets; a Gemini CLI login keeps Gemini
+        // CLI's own identity.
         let seen = exchange.seen
         let calledInTurn = seen.map { $0.request.url }
-        #expect(calledInTurn == [AntigravityProvider.codeAssistURL, AntigravityProvider.quotaURL])
+        let daily = AntigravityProvider.dailyHost
+        #expect(calledInTurn == [AntigravityProvider.url(host: daily, method: "loadCodeAssist"), AntigravityProvider.url(host: daily, method: "retrieveUserQuotaSummary"),
+                                 AntigravityProvider.url(host: daily, method: "retrieveUserQuota")])
         let bodies = seen.map { $0.body as NSDictionary }
         let expectedBodies: [NSDictionary] = [
             ["metadata": ["ideType": "GEMINI_CLI", "platform": "PLATFORM_UNSPECIFIED", "pluginType": "GEMINI"]] as NSDictionary,
+            [:] as NSDictionary,
             ["project": "managed-project-123"] as NSDictionary,
         ]
         #expect(bodies == expectedBodies)
@@ -261,7 +356,83 @@ import Testing
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer ya29.live")
             #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
             #expect(request.value(forHTTPHeaderField: "User-Agent") == AppInfo.userAgent)
+            #expect(request.value(forHTTPHeaderField: "Client-Metadata") == nil)
         }
+    }
+
+    /// An Antigravity login (its CLI folder is here, and its log names the production host): only that host is
+    /// asked, every call carries Antigravity's identity, and a project-scoped refusal is retried project-less
+    /// before it counts as a refusal (termhub #14: the licence is the user's, not a project's).
+    @Test func anAntigravityLoginUsesItsLoggedHostItsIdentityAndRetriesProjectless() async throws {
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let cli = scratch.appendingPathComponent(".gemini/antigravity-cli")
+        try FileManager.default.createDirectory(at: cli, withIntermediateDirectories: true)
+        try Data("[info] POST https://cloudcode-pa.googleapis.com/v1internal:generateContent 200\n".utf8).write(to: cli.appendingPathComponent("cli.log"))
+        let account = json(["currentTier": ["id": "standard-tier"], "cloudaicompanionProject": "p-1"])
+        let refusal = json(["error": ["code": 403, "message": "You do not have a valid license of this product.", "status": "PERMISSION_DENIED"]])
+        let quota = json(["buckets": [["modelId": "gemini-2.5-pro", "remainingFraction": 0.4, "resetTime": "2026-09-02T07:00:00Z"]]])
+        let exchange = self.exchange
+        exchange.answer = { url in
+            guard url.host == AntigravityProvider.productionHost else { return (500, Data()) }
+            switch url.path {
+            case "/v1internal:loadCodeAssist": return (200, account)
+            case "/v1internal:retrieveUserQuota":
+                let projectScoped = exchange.seen.last?.body["project"] != nil
+                return projectScoped ? (403, refusal) : (200, quota)
+            default: return (404, Data())
+            }
+        }
+        let reading = try await provider.fetch()
+        #expect(reading.windows[0].usedFraction == 0.6)
+        let seen = exchange.seen
+        #expect(seen.map { $0.request.url?.host } == Array(repeating: AntigravityProvider.productionHost, count: 4))
+        #expect(seen.map { $0.request.url?.path } == ["/v1internal:loadCodeAssist", "/v1internal:retrieveUserQuotaSummary", "/v1internal:retrieveUserQuota", "/v1internal:retrieveUserQuota"])
+        let bodies = seen.map { $0.body as NSDictionary }
+        let expectedBodies: [NSDictionary] = [
+            ["metadata": ["ideType": "ANTIGRAVITY", "platform": "PLATFORM_UNSPECIFIED", "pluginType": "GEMINI"]] as NSDictionary,
+            [:] as NSDictionary, ["project": "p-1"] as NSDictionary, [:] as NSDictionary,
+        ]
+        #expect(bodies == expectedBodies)
+        for (request, _) in seen {
+            #expect(request.value(forHTTPHeaderField: "User-Agent") == "antigravity")
+            #expect(request.value(forHTTPHeaderField: "Client-Metadata") == #"{"ideType":"ANTIGRAVITY","platform":"MACOS","pluginType":"GEMINI"}"#)
+        }
+    }
+
+    /// The daily host answers a production-metered account with every bucket untouched and a reset five hours
+    /// from now; that answer is declined and the production host's live figure is believed (token-monitor #722).
+    /// When both hosts answer that way, the untouched reading is shown with no figure rather than as 100 % left.
+    @Test func anUntouchedAnswerYieldsToTheOtherHostsLiveFigure() async throws {
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let account = json(["currentTier": ["id": "standard-tier"]])
+        let placeholder = ISO8601DateFormatter().string(from: Date().addingTimeInterval(Period.fiveHours))
+        let untouched = json(["buckets": [["modelId": "gemini-2.5-pro", "remainingFraction": 1, "resetTime": placeholder],
+                                          ["modelId": "gemini-2.5-flash", "remainingFraction": 1, "resetTime": placeholder]]])
+        let live = json(["buckets": [["modelId": "gemini-2.5-pro", "remainingFraction": 0.7, "resetTime": "2026-09-02T07:00:00Z"]]])
+        exchange.answer = { url in
+            switch url.path {
+            case "/v1internal:loadCodeAssist": (200, account)
+            case "/v1internal:retrieveUserQuota": url.host == AntigravityProvider.dailyHost ? (200, untouched) : (200, live)
+            default: (404, Data())
+            }
+        }
+        let reading = try await provider.fetch()
+        let thirtyPercent = 0.3
+        #expect(abs((reading.windows[0].usedFraction ?? 0) - thirtyPercent) < 1e-9)
+        let hosts = exchange.seen.map { $0.request.url?.host }
+        #expect(hosts.first == AntigravityProvider.dailyHost)
+        #expect(hosts.last == AntigravityProvider.productionHost)
+
+        exchange.answer = { url in
+            switch url.path {
+            case "/v1internal:loadCodeAssist": (200, account)
+            case "/v1internal:retrieveUserQuota": (200, untouched)
+            default: (404, Data())
+            }
+        }
+        let unmetered = try await provider.fetch()
+        #expect(unmetered.windows.map(\.usedFraction) == [nil, nil])
+        #expect(unmetered.windows[0].note?.hasPrefix("Reads untouched") == true)
     }
 
     @Test func aPersonalAccountIsToldAboutTheShutdownWithoutAQuotaCall() async throws {
@@ -269,8 +440,9 @@ import Testing
         let unsupported = json(["ineligibleTiers": [["reasonCode": "UNSUPPORTED_CLIENT", "tierId": "free-tier"]]])
         exchange.answer = { url in url.path == "/v1internal:loadCodeAssist" ? (200, unsupported) : (500, Data()) }
         #expect(await failure(of: provider) == .unavailable)
+        // Both hosts are asked who the account is, and only then is the shutdown reported; no quota call is made.
         let calledInTurn = exchange.seen.map { $0.request.url }
-        #expect(calledInTurn == [AntigravityProvider.codeAssistURL])
+        #expect(calledInTurn == [AntigravityProvider.url(host: AntigravityProvider.dailyHost, method: "loadCodeAssist"), AntigravityProvider.codeAssistURL])
     }
 
     @Test func refusalsAreMappedToTheirCauses() async throws {
@@ -371,5 +543,43 @@ func failure(of provider: AntigravityProvider) async -> ProviderFailure? {
         #expect(confirmed.windows[1].periodDuration == nil)
         let other = AntigravityPeriods.apply(UsageReading(tool: .codex, windows: reading.windows, plan: nil, fetchedAt: now, observedAt: nil), resets: [:], now: now)
         #expect(other.windows[0].note == nil)
+    }
+
+    /// A window pinned at untouched across three polls while a hook reported the tool working is unverified: it
+    /// loses its figure and says so. The count is by history, never by value, so a first read cannot fire it, a
+    /// quiet Mac cannot fire it, and a meter that moves starts the count again.
+    @Test func aMeterPinnedAtUntouchedWhileTheToolWorkedIsUnverified() throws {
+        func reading(_ used: Double?, at time: Date) -> UsageReading {
+            UsageReading(tool: .antigravity, windows: [LimitWindow(id: "gemini_pro", label: "Gemini Pro", usedFraction: used, resetsAt: time.addingTimeInterval(3600), note: "a")],
+                         plan: nil, fetchedAt: time, observedAt: nil)
+        }
+        let minute = 300.0
+        var runs: [String: AntigravityStaleness.Run] = [:]
+        for poll in 0..<3 {
+            let at = now.addingTimeInterval(Double(poll) * minute)
+            runs = AntigravityStaleness.runs(after: reading(0, at: at), previous: runs, now: at)
+            #expect(runs["gemini_pro"]?.count == poll + 1)
+            #expect(runs["gemini_pro"]?.since == now)
+        }
+        let third = reading(0, at: now.addingTimeInterval(2 * minute))
+        // Nothing worked, or the work predates the run: the figure stands.
+        #expect(AntigravityStaleness.unverified(third, runs: runs, activeSince: nil).windows[0].usedFraction == 0)
+        #expect(AntigravityStaleness.unverified(third, runs: runs, activeSince: now.addingTimeInterval(-60)).windows[0].usedFraction == 0)
+        // The tool worked after the run began: unverified.
+        let flagged = AntigravityStaleness.unverified(third, runs: runs, activeSince: now.addingTimeInterval(minute))
+        #expect(flagged.windows[0].usedFraction == nil)
+        #expect(flagged.windows[0].note == "a · Unverified: read untouched across 3 polls while the tool was in use")
+        #expect(flagged.windows[0].source == .localEstimate)
+        #expect(flagged.windows[0].resetsAt == third.windows[0].resetsAt)
+        // Two polls are not enough, and a figure that moves ends the run.
+        let twoPolls = ["gemini_pro": AntigravityStaleness.Run(count: 2, since: now)]
+        #expect(AntigravityStaleness.unverified(third, runs: twoPolls, activeSince: now.addingTimeInterval(minute)).windows[0].usedFraction == 0)
+        let moved = AntigravityStaleness.runs(after: reading(0.1, at: now), previous: runs, now: now)
+        #expect(moved["gemini_pro"] == nil)
+        #expect(AntigravityStaleness.runs(after: reading(nil, at: now), previous: runs, now: now).isEmpty)
+        let codex = UsageReading(tool: .codex, windows: third.windows, plan: nil, fetchedAt: now, observedAt: nil)
+        #expect(AntigravityStaleness.runs(after: codex, previous: runs, now: now) == runs)
+        #expect(AntigravityStaleness.unverified(codex, runs: runs, activeSince: now.addingTimeInterval(minute)).windows[0].usedFraction == 0)
+        #expect(AntigravityStaleness.readsBeforeUnverified == 3)
     }
 }

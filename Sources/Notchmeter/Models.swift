@@ -30,13 +30,14 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
     }
 
     /// Whether this tool's spend can be derived from something it publishes: Claude Code's transcripts, Codex's
-    /// session rollouts, Cursor's priced usage-events export. GitHub Copilot bills a flat seat with no per-request
-    /// price and Antigravity meters quota rather than money, so neither can produce a dollar figure and neither
-    /// appears on the Cost card at all (docs/accuracy.md).
+    /// session rollouts, Cursor's priced usage-events export, and since GitHub's June 2026 move to usage-based
+    /// billing the AI credit count on a Copilot seat, a cent a credit at GitHub's published rate (a seat GitHub
+    /// does not meter in credits still produces no figure and no row). Antigravity meters quota rather than money,
+    /// so it cannot produce a dollar figure and never appears on the Cost card (docs/accuracy.md).
     var reportsCost: Bool {
         switch self {
-        case .claude, .codex, .cursor: true
-        case .antigravity, .copilot: false
+        case .claude, .codex, .cursor, .copilot: true
+        case .antigravity: false
         }
     }
 }
