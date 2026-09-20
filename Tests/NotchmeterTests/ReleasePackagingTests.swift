@@ -107,8 +107,10 @@ import Testing
             #expect(readme.contains(quote), "README: \(quote.prefix(40))…")
             #expect(terms.contains(quote), "site/terms.html: \(quote.prefix(40))…")
         }
-        // The reading the quotes are given: no login, no routing, no credential kept, and the switch that stops the poll.
-        for claim in ["Also poll Claude's usage endpoint", "User-Agent: Notchmeter/"] {
+        // The reading the quotes are given: no login, no routing, no credential kept, the switch that stops the poll,
+        // the user agent every request to Anthropic carries, and the two vendor reads that carry another.
+        for claim in ["Also poll Claude's usage endpoint", "every request to Anthropic names itself", "User-Agent: Notchmeter/",
+                      "under those clients' own identity"] {
             #expect(readme.contains(claim), "README: \(claim)")
             #expect(terms.contains(claim), "site/terms.html: \(claim)")
         }

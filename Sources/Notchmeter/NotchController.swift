@@ -136,6 +136,15 @@ struct PanelHolds {
         if held { reasons.insert(reason) } else { reasons.remove(reason) }
         return before != (reason == .prompt ? holdsOpen : isHeld)
     }
+
+    /// Whether a presenter's hover machine sits still: while its menu is up, while a window holds it closed, and
+    /// while a request holds it open — but that last one only once the panel *is* open. The open-hold means
+    /// "ignore the pointer leaving, the dwell and a click outside while a card is showing"; on a panel still
+    /// compact (a second display, one behind Settings when the request came, one off-screen under a full-screen
+    /// app) it must not mean "ignore the pointer coming in", or the card would be there and unreachable.
+    static func pausesHover(menuOpen: Bool, held: Bool, promptHeld: Bool, expanded: Bool) -> Bool {
+        menuOpen || held || (promptHeld && expanded)
+    }
 }
 
 /// The right-click / Options menu shared by every panel style and the menu bar item.
@@ -388,7 +397,9 @@ final class NotchController: NSObject, PanelPresenting {
         applyWindowBehaviour()
         configureTransition(closing: false)
         hover.perform = { [weak self] output, cause in self?.act(output, cause: cause) }
-        hover.isPaused = { [weak self] in self.map { $0.menu.isOpen || $0.held || $0.promptHeld } ?? false }
+        hover.isPaused = { [weak self] in
+            self.map { PanelHolds.pausesHover(menuOpen: $0.menu.isOpen, held: $0.held, promptHeld: $0.promptHeld, expanded: $0.hover.state == .expanded) } ?? false
+        }
         hover.isOffScreen = { [weak self] in
             guard let self, let window = self.notch.windowController?.window, window.isVisible else { return false }
             return !window.isOnActiveSpace

@@ -129,6 +129,7 @@ enum Advisor {
             + extraUsage(context)
             + runOuts
             + limitHit(context)
+            + limitReset(context)
             + budget(context)
             + modelRouting(context)
             + waitForReset(context)
@@ -207,8 +208,7 @@ enum Advisor {
     }
 
     /// The hook says a session stopped on a rate limit or waits on quota: name the reset, whatever else has room.
-    /// For Claude Code, when the hit is the session's and the week still has room, a second, quieter line offers
-    /// `/limit-reset`.
+    /// The quieter `/limit-reset` offer is `limitReset`, a rule of its own so it does not need the hook's word.
     static func limitHit(_ context: Context) -> [Advice] {
         context.readings.flatMap { reading -> [Advice] in
             guard context.limitHitTools.contains(reading.tool) else { return [] }
@@ -225,23 +225,32 @@ enum Advisor {
                 line = Advice(id: "limit/\(reading.tool.rawValue)", tool: reading.tool, priority: .warn, symbol: "clock.arrow.circlepath",
                               text: L("%@ hit its rate limit; wait for the reset.", reading.tool.productName))
             }
-            return [line] + limitReset(reading, hit: hit, context: context)
+            return [line]
         }
     }
 
     /// Claude Code's `/limit-reset`, which users report as a once-a-week command that clears the 5-hour window
     /// and leaves the weekly cap where it was. The rule is community-sourced: as of 2026-09-20 Anthropic's
     /// documentation does not describe the command, so the line says "may have" and is `.info`, never louder.
-    /// Offered only where it would help: the hit is the session's (the session window at its limit, or a rate
-    /// limit the hook recorded that no window at its limit accounts for) and the weekly still has room to spend.
-    private static func limitReset(_ reading: UsageReading, hit: LimitWindow?, context: Context) -> [Advice] {
-        guard reading.tool == .claude,
-              let session = reading.windows.first(where: { $0.id == "five_hour" }),
-              let weekly = reading.windows.first(where: { $0.id == "seven_day" }), left(of: weekly) >= limitResetHeadroom,
-              (session.usedFraction ?? 0) >= atLimit || hit == nil
-        else { return [] }
-        return [Advice(id: "limit-reset", tool: .claude, priority: .info, symbol: "arrow.counterclockwise.circle",
-                       text: L("Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."))]
+    /// A rule of its own, keyed on the Claude reading rather than on the hook: it is offered whenever the
+    /// session window reads at its limit, whether or not a hook is installed to say a turn stopped on it (the
+    /// status line and the endpoint alone see the window full between prompts), or when the hook recorded a rate
+    /// limit that no window at its limit accounts for (the reading trails the hook, and the session is the
+    /// likeliest) — and only while the weekly still has room to spend, since clearing the session buys nothing
+    /// when the week is what is short.
+    static func limitReset(_ context: Context) -> [Advice] {
+        context.readings.flatMap { reading -> [Advice] in
+            guard reading.tool == .claude,
+                  let session = reading.windows.first(where: { $0.id == "five_hour" }),
+                  let weekly = reading.windows.first(where: { $0.id == "seven_day" }), left(of: weekly) >= limitResetHeadroom
+            else { return [] }
+            let sessionFull = (session.usedFraction ?? 0) >= atLimit
+            let hookSaysHit = context.limitHitTools.contains(.claude)
+                && !reading.windows.contains { ($0.usedFraction ?? 0) >= atLimit && ($0.resetsAt ?? .distantPast) > context.now }
+            guard sessionFull || hookSaysHit else { return [] }
+            return [Advice(id: "limit-reset", tool: .claude, priority: .info, symbol: "arrow.counterclockwise.circle",
+                           text: L("Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."))]
+        }
     }
 
     /// The month (or the week since the weekly window started) projected against the budget. The budget is one

@@ -276,6 +276,11 @@ import Testing
             let exchange = Self.exchange
             exchange.record(request, body: Self.body(of: request))
             let (status, data) = exchange.answer(request.url!)
+            // A status below zero is the network failing the request: the host resolving nowhere, or a timeout.
+            guard status > 0 else {
+                client?.urlProtocol(self, didFailWithError: URLError(.cannotFindHost))
+                return
+            }
             let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: data)
@@ -433,6 +438,34 @@ import Testing
         let unmetered = try await provider.fetch()
         #expect(unmetered.windows.map(\.usedFraction) == [nil, nil])
         #expect(unmetered.windows[0].note?.hasPrefix("Reads untouched") == true)
+    }
+
+    /// The daily alias is the first host tried since 0.7.0, and a Mac that cannot reach it (DNS, a timeout) must
+    /// not lose the reading the production host would give: the account load fails inside the same net as the
+    /// quota call, so the host is passed over, not the reading.
+    @Test func aHostTheNetworkCannotReachIsPassedOverForTheNext() async throws {
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let account = json(["currentTier": ["id": "standard-tier"]])
+        let live = json(["buckets": [["modelId": "gemini-2.5-pro", "remainingFraction": 0.7, "resetTime": "2026-09-02T07:00:00Z"]]])
+        exchange.answer = { url in
+            guard url.host == AntigravityProvider.productionHost else { return (-1, Data()) }
+            switch url.path {
+            case "/v1internal:loadCodeAssist": return (200, account)
+            case "/v1internal:retrieveUserQuota": return (200, live)
+            default: return (404, Data())
+            }
+        }
+        let reading = try await provider.fetch()
+        let thirtyPercent = 0.3
+        #expect(abs((reading.windows[0].usedFraction ?? 0) - thirtyPercent) < 1e-9)
+        let hosts = exchange.seen.map { $0.request.url?.host }
+        #expect(hosts.first == AntigravityProvider.dailyHost, "the daily host was tried, and failed")
+        #expect(hosts.last == AntigravityProvider.productionHost, "and the production host was still given its turn")
+
+        // Neither reachable: the transport error is what is reported, so the footer says offline and the cached
+        // reading stays, as for every other tool.
+        exchange.answer = { _ in (-1, Data()) }
+        await #expect(throws: (any Error).self) { try await provider.fetch() }
     }
 
     @Test func aPersonalAccountIsToldAboutTheShutdownWithoutAQuotaCall() async throws {

@@ -154,3 +154,30 @@ import Testing
         #expect(TerminalJump.Executor.locate("no-such-tool-\(UUID().uuidString)") == nil)
     }
 }
+
+/// The executor's tool runner: a tool that exits before the launch has returned is still read at once (the
+/// termination handler is installed before the process starts; assigned after, a sub-millisecond exit was never
+/// seen and the jump cost the whole deadline), a failing or missing tool is nil, and a tool that says more than a
+/// pipe holds is drained rather than deadlocked against the wait for its exit.
+@Suite struct TerminalJumpExecution {
+    @Test func aToolThatExitsAtOnceIsReadAtOnce() {
+        let started = Date()
+        for _ in 0..<10 {
+            #expect(TerminalJump.Executor.output(of: "/bin/echo", ["hi"]) == "hi\n")
+        }
+        let tenRuns = Date().timeIntervalSince(started)
+        let budget = 3.0
+        #expect(tenRuns < budget, "ten runs of echo took \(tenRuns) s: a missed exit costs the whole deadline")
+        #expect(TerminalJump.Executor.output(of: "/usr/bin/false", []) == nil)
+        #expect(TerminalJump.Executor.output(of: "/nonexistent/tool", []) == nil)
+    }
+
+    @Test func aTalkativeToolIsDrainedNotDeadlocked() throws {
+        let started = Date()
+        let size = 300_000
+        let output = try #require(TerminalJump.Executor.output(of: "/bin/sh", ["-c", "head -c \(size) /dev/zero | tr '\\0' x"]))
+        #expect(output.utf8.count == size)
+        let budget = 3.0
+        #expect(Date().timeIntervalSince(started) < budget)
+    }
+}

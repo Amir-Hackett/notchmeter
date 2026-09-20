@@ -498,12 +498,18 @@ struct SessionTracker: Equatable, Sendable {
             // A request the hook is holding the session for. It replaces whatever request stood before it (the
             // hook process behind that one is gone, or is about to be answered nothing), and it is a wait
             // whatever the vendor's `needsInput` said, because the assistant cannot go on until it is answered.
+            // A request whose id is already standing, on this session or another, is a replayed line (ids are
+            // UUIDs the hook generated): the first keeps its place and its `since`, and this one is reported as
+            // nothing, so the store releases its connection at once and it lands as the display-only wait.
             if let request = message.request {
-                let pending = PendingRequest(id: request.id, kind: request.kind, since: now)
                 if !session.isWaiting { outcome.startedWaiting = session }
                 session.state = .waiting(since: now)
-                session.pending = pending
-                outcome.requested = (session, pending)
+                let standing = session.pending?.id == request.id || sessions.values.contains { $0.pending?.id == request.id }
+                if !standing {
+                    let pending = PendingRequest(id: request.id, kind: request.kind, since: now)
+                    session.pending = pending
+                    outcome.requested = (session, pending)
+                }
             }
         }
         if let hadPending, session.pending?.id != hadPending.id {
@@ -534,6 +540,16 @@ struct SessionTracker: Equatable, Sendable {
         session.lastEvent = now
         sessions[entry.key] = session
         return session
+    }
+
+    /// Drops every title and session name held: *Show what a session is working on* was turned off, and with it
+    /// off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only nothing new.
+    mutating func clearTitles() {
+        for (id, var session) in sessions where session.title != nil || session.sessionName != nil {
+            session.title = nil
+            session.sessionName = nil
+            sessions[id] = session
+        }
     }
 
     /// A status-line update is proof the session is alive; its project, branch and pull request are taken. Only

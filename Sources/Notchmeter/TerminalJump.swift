@@ -404,24 +404,42 @@ enum TerminalJump {
             output(of: path, arguments) != nil
         }
 
-        /// Runs a tool and returns its standard output, or nil on a non-zero exit, a launch failure or five seconds.
-        nonisolated private static func output(of path: String, _ arguments: [String]) -> String? {
+        /// How long a tool may run before it is terminated and read as a failure.
+        nonisolated static let commandDeadline: TimeInterval = 5
+
+        /// Runs a tool and returns its standard output, or nil on a non-zero exit, a launch failure or
+        /// `commandDeadline`. The termination handler is installed before the process is started: these tools
+        /// (`tmux select-pane`, `kitten @ focus-window`, `wezterm cli activate-pane`) exit in milliseconds, and a
+        /// handler assigned after the exit never fires, which cost every jump the whole deadline and reported it
+        /// failed. The output is drained on a queue of its own so a tool that says more than a pipe's buffer
+        /// cannot block against the wait for its exit.
+        nonisolated static func output(of path: String, _ arguments: [String]) -> String? {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: path)
             process.arguments = arguments
             let pipe = Pipe()
             process.standardOutput = pipe
             process.standardError = FileHandle.nullDevice
-            do { try process.run() } catch { return nil }
-            let deadline = DispatchTime.now() + 5
             let done = DispatchSemaphore(value: 0)
             process.terminationHandler = { _ in done.signal() }
-            if done.wait(timeout: deadline) == .timedOut {
+            do { try process.run() } catch { return nil }
+            let drained = DispatchSemaphore(value: 0)
+            let output = OSAllocatedUnfairLock(initialState: Data())
+            let reading = pipe.fileHandleForReading
+            DispatchQueue.global(qos: .userInitiated).async {
+                let data = reading.readDataToEndOfFile()
+                output.withLock { $0 = data }
+                drained.signal()
+            }
+            if done.wait(timeout: .now() + commandDeadline) == .timedOut {
                 process.terminate()
+                _ = drained.wait(timeout: .now() + 1)
                 return nil
             }
             guard process.terminationStatus == 0 else { return nil }
-            return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
+            // The pipe's write end closes with the process; a grandchild that inherited it is not waited on.
+            _ = drained.wait(timeout: .now() + 1)
+            return String(data: output.withLock { $0 }, encoding: .utf8)
         }
     }
 }

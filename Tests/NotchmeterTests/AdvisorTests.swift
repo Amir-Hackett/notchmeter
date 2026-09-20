@@ -355,9 +355,10 @@ import Testing
             reading(.claude, [window("five_hour", label: "Session", used: session, elapsed: 3 * 3600, period: Period.fiveHours),
                               window("seven_day", label: "Weekly", used: weekly, elapsed: 3 * 86400)])
         }
+        func limitLines(_ context: Advisor.Context) -> [Advice] { Advisor.limitHit(context) + Advisor.limitReset(context) }
         var hit = context([claude(session: 1, weekly: 0.3)])
         hit.limitHitTools = [.claude]
-        let lines = Advisor.limitHit(hit)
+        let lines = limitLines(hit)
         #expect(lines.map(\.text) == ["Claude Code hit its limit; session resets in 2h.",
                                       "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."])
         #expect(lines.map(\.priority) == [.warn, .info])
@@ -367,22 +368,31 @@ import Testing
 
         // The week nearly spent: clearing the session would buy nothing.
         hit.readings = [claude(session: 1, weekly: 0.7)]
-        #expect(Advisor.limitHit(hit).map(\.id) == ["limit/claude/five_hour"])
+        #expect(limitLines(hit).map(\.id) == ["limit/claude/five_hour"])
         // The weekly was the window hit: /limit-reset does not touch it.
         hit.readings = [claude(session: 0.2, weekly: 0.95)]
-        #expect(Advisor.limitHit(hit).map(\.id) == ["limit/claude/seven_day"])
+        #expect(limitLines(hit).map(\.id) == ["limit/claude/seven_day"])
         // The hook recorded a rate limit no window at its limit accounts for (the reading trails the hook): the
         // session is the likeliest, so the offer stands beside the generic line.
         hit.readings = [claude(session: 0.5, weekly: 0.3)]
-        #expect(Advisor.limitHit(hit).map(\.text) == ["Claude Code hit its rate limit; wait for the reset.",
-                                                     "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."])
-        // Not without the hook's word, and never for another tool.
+        #expect(limitLines(hit).map(\.text) == ["Claude Code hit its rate limit; wait for the reset.",
+                                                "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."])
+        // Without the hook's word the generic line is gone, and the offer is keyed on the reading alone: a session
+        // window at its limit is what the status line or the endpoint see between prompts on a Mac with no hook
+        // installed, and it is offered the command; one with room, and no hit recorded, is not.
         hit.limitHitTools = []
         #expect(Advisor.limitHit(hit).isEmpty)
+        #expect(Advisor.limitReset(hit).isEmpty, "session at 50 % and nothing recorded: nothing to clear")
+        hit.readings = [claude(session: 1, weekly: 0.3)]
+        #expect(Advisor.limitReset(hit).map(\.id) == ["limit-reset"])
+        #expect(Advisor.advise(hit).map(\.id).contains("limit-reset"))
+        hit.readings = [claude(session: 1, weekly: 0.7)]
+        #expect(Advisor.limitReset(hit).isEmpty, "the week is what is short")
+        // Never for another tool.
         var codexHit = context([reading(.codex, [window("session", label: "Session", used: 1, elapsed: 3 * 3600, period: Period.fiveHours),
                                                  window("weekly", label: "Weekly", used: 0.3, elapsed: 3 * 86400)])])
         codexHit.limitHitTools = [.codex]
-        #expect(Advisor.limitHit(codexHit).map(\.id) == ["limit/codex/session"])
+        #expect(limitLines(codexHit).map(\.id) == ["limit/codex/session"])
     }
 
     /// Claude 4.7 and later, and Mythos/Fable, count about 30 % more tokens than 4.6 and earlier for the same

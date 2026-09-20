@@ -69,7 +69,9 @@ final class EdgePanelController: NSObject, PanelPresenting {
 
         hover.watch(panel)
         hover.perform = { [weak self] output, cause in self?.act(output, cause: cause) }
-        hover.isPaused = { [weak self] in self.map { $0.menu.isOpen || $0.held || $0.promptHeld } ?? false }
+        hover.isPaused = { [weak self] in
+            self.map { PanelHolds.pausesHover(menuOpen: $0.menu.isOpen, held: $0.held, promptHeld: $0.promptHeld, expanded: $0.expanded) } ?? false
+        }
         hover.isOffScreen = { [weak self] in self.map { $0.panel.isVisible && !$0.panel.isOnActiveSpace } ?? false }
         hover.pointerEnteredCompact = { [weak self] in self?.store.wakeFromIdle() }
         clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown, .leftMouseDown]) { [weak self] event in

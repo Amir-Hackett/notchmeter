@@ -16,6 +16,18 @@ import Testing
         #expect(holds.isHeld == false)
     }
 
+    /// The open-hold pauses the hover machine only on a panel that is open. On one still compact — a second
+    /// display's, one behind Settings when the request came, one under a full-screen app — the pointer must still
+    /// open it, or the card is there and unreachable for the whole hold.
+    @Test func theOpenHoldPausesHoverOnlyOnceThePanelIsOpen() {
+        #expect(PanelHolds.pausesHover(menuOpen: false, held: false, promptHeld: true, expanded: true))
+        #expect(!PanelHolds.pausesHover(menuOpen: false, held: false, promptHeld: true, expanded: false), "a compact panel with a request on it opens by hover")
+        #expect(PanelHolds.pausesHover(menuOpen: true, held: false, promptHeld: false, expanded: false))
+        #expect(PanelHolds.pausesHover(menuOpen: false, held: true, promptHeld: false, expanded: true))
+        #expect(!PanelHolds.pausesHover(menuOpen: false, held: false, promptHeld: false, expanded: true))
+        #expect(!PanelHolds.pausesHover(menuOpen: false, held: false, promptHeld: false, expanded: false))
+    }
+
     @Test func onlyTheFirstHoldAndTheLastReleaseChangeAnything() {
         var holds = PanelHolds()
         var changed = holds.set(.settings, true)

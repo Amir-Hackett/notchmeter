@@ -219,6 +219,8 @@ final class UsageStore {
         for tool in ToolID.allCases {
             statuses[tool] = initialStatus(for: tool, cached: cached[tool])
         }
+        // Armed here rather than in `start`: the setting governs what the tracker holds whether or not the loops run.
+        observeSessionTitles()
     }
 
     /// The tools on screen, in the user's order (Preferences.toolOrder), less the ones with nothing to show while
@@ -486,6 +488,20 @@ final class UsageStore {
         startTick()
         startResetTimer()
         observeEnvironment()
+    }
+
+    /// Titles off is titles gone: the titles and session names the tracker already holds are cleared the moment
+    /// *Show what a session is working on* turns off, not at each session's next event, which for an idle
+    /// session may never come (docs/hooks.md: with the setting off nothing of a prompt is held anywhere). The
+    /// tracking is one-shot, so it re-arms; the preference alone is read inside it, so a hook event does not
+    /// re-arm it.
+    private func observeSessionTitles() {
+        let titles = withObservationTracking {
+            prefs.sessionTitles
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeSessionTitles() }
+        }
+        if !titles { sessions.clearTitles() }
     }
 
     /// Reports the advice strip to the oracle whenever its lines change; the tracking is one-shot, so it re-arms.
@@ -1371,8 +1387,16 @@ final class UsageStore {
         withdrawWaiting(outcome.stoppedWaiting)
         for ended in outcome.requestsEnded { endRequest(ended.requestID) }
         if let requested = outcome.requested {
-            if let reply { pendingReplies[requested.request.id] = reply }
-            holdPrompt(requested.request.id)
+            let requestID = requested.request.id
+            if let reply {
+                // A Reply already parked under this id (a replayed line; the tracker refuses the duplicate, so
+                // this is belt and braces) is released rather than left holding a slot for the whole cap.
+                pendingReplies.updateValue(reply, forKey: requestID)?.answer(nil)
+                reply.whenPeerCloses { [weak self] in
+                    Task { @MainActor in self?.requestPeerGone(requestID) }
+                }
+            }
+            holdPrompt(requestID)
             promptRequested(requested.session, requested.request)
         } else {
             reply?.answer(nil)
@@ -1422,12 +1446,31 @@ final class UsageStore {
         let reply = pendingReplies.removeValue(forKey: requestID)
         promptHolds.removeValue(forKey: requestID)?.cancel()
         guard reply != nil || kind != nil else { return }
-        reply?.answer(Hook.Answer.line(for: decision))
-        let session = sessions.resolve(requestID: requestID, resumes: decision != .pass, now: now)
-        log.info("decision \(decision.behavior, privacy: .public) for a \(kind ?? "gone", privacy: .public) request")
-        Oracle.shared.emit("decision", ["request": requestID, "kind": kind as Any, "behavior": decision.behavior, "session": session?.id as Any])
+        // A line the socket could not take whole (the hook process went away between the worker's last look at
+        // it and now) is a decision the assistant will never see: it is recorded as lost, and the session is left
+        // waiting as for a pass, because the terminal is asking or has moved on, not acting on this.
+        let delivered = reply.map { $0.answer(Hook.Answer.line(for: decision)) } ?? true
+        let behavior = delivered ? decision.behavior : "lost"
+        let session = sessions.resolve(requestID: requestID, resumes: delivered && decision != .pass, now: now)
+        log.info("decision \(behavior, privacy: .public) for a \(kind ?? "gone", privacy: .public) request")
+        Oracle.shared.emit("decision", ["request": requestID, "kind": kind as Any, "behavior": behavior, "session": session?.id as Any])
         if let session { withdrawWaiting([session.id]) }
         applyAwake()
+        armSignalRelease(now: now)
+        promptEnded(requestID)
+    }
+
+    /// The hook process behind `requestID` went away before the app answered (the socket's worker saw its
+    /// connection go: the vendor cancelled the command, the turn was interrupted, an out-of-date entry's five
+    /// seconds ran out): the card comes down, the hold is dropped and the session is left waiting, as after a
+    /// pass, because the terminal is asking or has already gone on. Nothing for an id no longer parked.
+    private func requestPeerGone(_ requestID: String, now: Date = Date()) {
+        guard pendingReplies.removeValue(forKey: requestID) != nil else { return }
+        let kind = sessions.pending(now: now).first { $0.request.id == requestID }?.request.kindName
+        promptHolds.removeValue(forKey: requestID)?.cancel()
+        let session = sessions.resolve(requestID: requestID, resumes: false, now: now)
+        log.info("decision gone for a \(kind ?? "gone", privacy: .public) request: its hook went away unanswered")
+        Oracle.shared.emit("decision", ["request": requestID, "kind": kind as Any, "behavior": "gone", "session": session?.id as Any])
         armSignalRelease(now: now)
         promptEnded(requestID)
     }

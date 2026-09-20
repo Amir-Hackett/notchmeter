@@ -297,9 +297,10 @@ import Testing
             LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.5, resetsAt: t0.addingTimeInterval(3 * 86400), periodDuration: Period.week),
         ], plan: nil, fetchedAt: t0, observedAt: nil)], now: t0)
         context.limitHitTools = [.claude]
-        // The session was the window hit and the week has room, so the quieter /limit-reset offer follows the line.
-        #expect(Advisor.limitHit(context).map(\.text) == ["Claude Code hit its limit; session resets in 2h 10m.",
-                                                          "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."])
+        // The session was the window hit and the week has room, so the quieter /limit-reset offer (a rule of its
+        // own since it needs no hook) follows the line.
+        #expect((Advisor.limitHit(context) + Advisor.limitReset(context)).map(\.text) == ["Claude Code hit its limit; session resets in 2h 10m.",
+                                                                                          "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap."])
         #expect(Advisor.waitForReset(context).isEmpty)
         context.readings = []
         #expect(Advisor.limitHit(context).isEmpty)
@@ -511,6 +512,36 @@ import Testing
         tracker.expire(now: t0.addingTimeInterval(SessionTracker.pendingTimeout))
         #expect(tracker.all.first?.pending == nil)
         #expect(tracker.all.first?.isWaiting == false, "the wait's own timeout is the same figure and fell at the same moment")
+    }
+
+    /// *Show what a session is working on* turned off drops every title and session name already held, and the
+    /// sessions themselves stay.
+    @Test func titlesOffClearsWhatIsHeld() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit", title: "fix the tests"), now: t0)
+        tracker.statusline(sessionID: "b", project: nil, sessionName: "named", now: t0)
+        #expect(tracker.all.compactMap(\.displayTitle).sorted() == ["fix the tests", "named"])
+        tracker.clearTitles()
+        #expect(tracker.all.allSatisfy { $0.title == nil && $0.sessionName == nil })
+        #expect(tracker.all.count == 2, "the sessions themselves stay")
+    }
+
+    /// A second line under a request id already standing is a replay (the ids are UUIDs the hook generated):
+    /// the first keeps its place and its clock and nothing is reported, on this session or another, so the store
+    /// releases the second's connection at once; the line still lands as the display-only wait.
+    @Test func aReplayedRequestIDKeepsTheFirstAndReportsNothing() {
+        var tracker = SessionTracker()
+        let first = tracker.apply(request("r1"), now: t0)
+        #expect(first.requested?.request.id == "r1")
+        let replay = tracker.apply(request("r1"), now: t0.addingTimeInterval(1))
+        #expect(replay.requested == nil)
+        #expect(replay.requestsEnded.isEmpty)
+        #expect(tracker.pending(now: t0.addingTimeInterval(1)).map(\.request.since) == [t0], "the first keeps its place and its clock")
+        let elsewhere = tracker.apply(request("r1", session: "b"), now: t0.addingTimeInterval(2))
+        #expect(elsewhere.requested == nil)
+        #expect(elsewhere.startedWaiting?.id == "b", "the line still lands as the display-only wait")
+        #expect(tracker.pending(now: t0.addingTimeInterval(2)).map(\.session.id) == ["a"])
+        #expect(tracker.all.first { $0.id == "b" }?.pending == nil)
     }
 
     @Test func theTitleTheTerminalAndTheModelLiveOnTheSession() {

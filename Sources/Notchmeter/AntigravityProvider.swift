@@ -133,23 +133,31 @@ actor AntigravityProvider: UsageProvider {
         var unmetered: UsageReading?
         var shutdown = false
         var lastError: ProviderError?
+        var transportError: Error?
+        // Every host is tried before anything is given up on: the account load is inside the catch with the
+        // quota call, so a host the network cannot reach (the daily alias resolving nowhere, a timeout) is a host
+        // passed over, not a failed reading, and the production host still gets its turn.
         for host in hosts {
-            let account = try await loadAccount(host: host, token: credentials.accessToken, antigravity: antigravity)
-            if account.unsupported {
-                shutdown = true
-                continue
-            }
             do {
+                let account = try await loadAccount(host: host, token: credentials.accessToken, antigravity: antigravity)
+                if account.unsupported {
+                    shutdown = true
+                    continue
+                }
                 let reading = try await quota(host: host, token: credentials.accessToken, account: account, antigravity: antigravity, now: now)
                 if Self.looksMetered(reading, now: now) { return reading }
                 unmetered = unmetered ?? reading
             } catch let error as ProviderError {
                 if case .unavailable = error { shutdown = true } else { lastError = error }
+            } catch {
+                transportError = error
             }
         }
         if let unmetered { return unmetered }
         if shutdown { throw ProviderError.unavailable(Self.shutdownMessage) }
-        throw lastError ?? ProviderError.unavailable(Self.shutdownMessage)
+        if let lastError { throw lastError }
+        if let transportError { throw transportError }
+        throw ProviderError.unavailable(Self.shutdownMessage)
     }
 
     /// The reading from one host: the summary's groups first, else the per-model buckets, with a project-scoped

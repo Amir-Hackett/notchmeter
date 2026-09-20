@@ -447,6 +447,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ColourWell.closePanel()
         hold(.settings, false)
         Oracle.shared.emit("settings", settingsFields(action: "hidden"))
+        reopenPendingPrompt()
     }
 
     // MARK: - Welcome
@@ -472,6 +473,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let welcomeObserver { NotificationCenter.default.removeObserver(welcomeObserver) }
         welcomeObserver = nil
         welcome = nil
+        reopenPendingPrompt()
     }
 
     /// What the Welcome's install button asks for: the hook offer sheet where the hook is not installed, and the
@@ -497,6 +499,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     Task { @MainActor in
                         self?.hold(.dashboard, false)
                         Oracle.shared.emit("dashboard", ["action": "hidden"])
+                        self?.reopenPendingPrompt()
                     }
                 }
             }
@@ -615,6 +618,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             presenter.expandNow(cause: .notification)
         }
+    }
+
+    /// One of the app's own windows went while a request was showing: `promptRequested` declined to open over it,
+    /// so the card is opened now, on the newest request, the way it would have been had the window not been up.
+    /// Nothing happens while another window still holds the panel, or when no request is left.
+    private func reopenPendingPrompt() {
+        guard !holds.isHeld, let pending = store.sessions.pending(now: Date()).first else { return }
+        promptRequested(pending.session, pending.request)
     }
 
     /// A request ended (answered, passed, overtaken or timed out): the open-hold goes once none is left, and the

@@ -197,6 +197,12 @@ import Testing
         #expect(Hook.decidingPayloadLimit == HookSocket.maximumLine, "a deciding payload may be as large as one line on the wire")
         #expect(Hook.decisionWait == 600)
         #expect(Hook.decisionWait == HookSocket.Listener.holdCap, "the command's wait and the app's cap are one figure")
+        #expect(HookVendor.decisionTimeout == Int(HookSocket.Listener.holdCap), "and the entries' timeout is that figure too")
+        // The app's own hold is what ends a request, so it stops short of every other clock: the vendor's starts
+        // before the command has connected, and a card must never outlive the command under it.
+        #expect(Preferences.promptHoldRange.upperBound < Int(HookSocket.Listener.holdCap))
+        #expect(Preferences.promptHoldRange.upperBound < Int(SessionTracker.pendingTimeout))
+        #expect(SessionTracker.pendingTimeout == HookSocket.Listener.holdCap)
     }
 
     @Test func aRemotePostKeepsTheTitleAndDropsWhatItCannotUse() throws {
@@ -356,7 +362,81 @@ import Testing
         #expect(Hook.Answer.decision(from: reply) == .deny(message: "Denied from Notchmeter"), "the first answer wins; the second is a no-op")
         #expect(elapsed >= 0.15, "the command waited for the answer: \(elapsed) s")
         #expect(elapsed < 2.5, "and returned as soon as it came, well inside the cap: \(elapsed) s")
-        #expect(listener.parkedCount == 0)
+        // The worker notices the answer at its next look at the peer (Listener.peerPoll), so the slot is given
+        // back within a poll of the command returning, not in the same instant.
+        #expect(Self.settles { listener.parkedCount == 0 })
+    }
+
+    /// Dials `url` the way the command does for a deciding line: connect and keep the write side open. The
+    /// caller writes the line and, later, closes the descriptor, which is the hook process going away.
+    static func dial(_ url: URL) -> Int32 {
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return -1 }
+        var address = sockaddr_un()
+        address.sun_family = sa_family_t(AF_UNIX)
+        address.sun_len = UInt8(MemoryLayout<sockaddr_un>.size)
+        let capacity = MemoryLayout.size(ofValue: address.sun_path)
+        let path = url.path
+        withUnsafeMutablePointer(to: &address.sun_path) {
+            $0.withMemoryRebound(to: CChar.self, capacity: capacity) { buffer in
+                _ = path.withCString { strlcpy(buffer, $0, capacity) }
+            }
+        }
+        let connected = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+        }
+        guard connected == 0 else {
+            close(fd)
+            return -1
+        }
+        return fd
+    }
+
+    /// Polls `condition` every 20 ms for up to `deadline` seconds.
+    static func settles(within deadline: TimeInterval = 2, _ condition: () -> Bool) -> Bool {
+        let until = Date().addingTimeInterval(deadline)
+        while Date() < until {
+            if condition() { return true }
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        return condition()
+    }
+
+    /// The command behind a deciding line keeps its write side open, and that is what lets the parked worker tell
+    /// the hook process going away (its vendor cancelled it, the turn was interrupted, a 0.6.0 entry's five
+    /// seconds ran out) from one still waiting: the connection turns readable with nothing on it, the request is
+    /// ended through `whenPeerCloses` well inside the cap, and the slot is given back.
+    @Test func aPeerThatGoesAwayReleasesItsRequestAtOnce() throws {
+        let url = HookSocketTransport.scratch("gone")
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let gone = DispatchSemaphore(value: 0)
+        let replies = OSAllocatedUnfairLockBox<[HookSocket.Reply]>([])
+        let listener = HookSocket.Listener(path: url, peerCheck: { _ in .accepted }, holdCap: 5) { _, reply in
+            replies.set(replies.get() + [reply])
+            // The store hangs the end of the request on this, as UsageStore.hookReceived does.
+            reply.whenPeerCloses { gone.signal() }
+        }
+        #expect(listener.start())
+        defer { listener.stop() }
+
+        let line = try #require(HookSocket.encode(.hook, Self.request("r1").userInfo))
+        let fd = Self.dial(url)
+        try #require(fd >= 0)
+        #expect(line.withUnsafeBytes { write(fd, $0.baseAddress!, line.count) } == line.count)
+        #expect(Self.settles { listener.parkedCount == 1 }, "the line was taken and the connection parked")
+        Thread.sleep(forTimeInterval: 0.4)
+        #expect(replies.get().first?.isAnswered == false, "a peer that is merely quiet is not a peer that is gone")
+        #expect(replies.get().first?.isPeerClosed == false)
+
+        let closed = Date()
+        close(fd)
+        #expect(gone.wait(timeout: .now() + 2) == .success, "the peer going ends the request")
+        let noticed = Date().timeIntervalSince(closed)
+        #expect(noticed < 1, "and is noticed within a poll or two, not at the cap: \(noticed) s")
+        #expect(replies.get().first?.isPeerClosed == true)
+        #expect(replies.get().first?.isAnswered == true)
+        #expect(Self.settles { listener.parkedCount == 0 }, "the slot is given back")
     }
 
     @Test func noAnswerInsideTheHoldCapIsNothing() throws {
@@ -432,7 +512,7 @@ import Testing
         #expect(hook.request == nil, "as the display-only wait it would have been in 0.6.0")
         #expect(hook.needsInput)
         #expect(finished.wait(timeout: .now() + 5) == .success, "the parked ones are released at the cap")
-        #expect(listener.parkedCount == 0)
+        #expect(Self.settles { listener.parkedCount == 0 })
     }
 }
 
@@ -445,6 +525,9 @@ import Testing
     static func pair() throws -> (reply: HookSocket.Reply, peer: Int32) {
         var fds: [Int32] = [-1, -1]
         try #require(socketpair(AF_UNIX, SOCK_STREAM, 0, &fds) == 0)
+        // As the listener sets on every accepted connection: a write to a peer that has gone is EPIPE, not a signal.
+        var on: Int32 = 1
+        setsockopt(fds[0], SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
         return (HookSocket.Reply(fd: fds[0]), fds[1])
     }
 
@@ -572,7 +655,7 @@ import Testing
         store.prefs.promptHoldSeconds = 1
         #expect(store.prefs.promptHoldSeconds == 15, "clamped, not taken")
         store.prefs.promptHoldSeconds = 9000
-        #expect(store.prefs.promptHoldSeconds == 600)
+        #expect(store.prefs.promptHoldSeconds == 540, "the ceiling stops a minute short of the socket's cap and the entries' timeouts")
         #expect(Preferences.promptHoldDefault == 120)
         // The hold itself is a Task on the preference's seconds; fifteen is the shortest it can be, so the timer
         // is not waited for here: what is pinned is that the request stands until something ends it.
@@ -583,6 +666,95 @@ import Testing
         #expect(!reply.isAnswered)
         store.decide("r1", .pass)
         #expect(reply.isAnswered)
+    }
+
+    /// The socket's worker saw the hook process go (the vendor cancelled the command, the turn was interrupted):
+    /// the card comes down at once and the hold with it, the session is left waiting as after a pass, and a
+    /// decision on the gone request is nothing.
+    @MainActor @Test func aRequestWhoseHookWentAwayComesDownAtOnce() async throws {
+        let suite = "NotchmeterTests.peerGone"
+        let (store, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var ended: [String] = []
+        store.promptEnded = { ended.append($0) }
+        let (reply, peer) = try Self.pair()
+        defer { close(peer) }
+        store.hookReceived(HookSocketDecisions.request("r1"), now: t0, reply: reply)
+        #expect(!reply.isAnswered)
+        reply.peerClosed()
+        #expect(reply.isAnswered)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(store.sessions.pending(now: t0.addingTimeInterval(1)).isEmpty, "the card is down")
+        #expect(ended == ["r1"])
+        #expect(store.sessions.all.first?.isWaiting == true, "the terminal is asking, or has gone on; nothing here says which")
+        store.decide("r1", .allow, now: t0.addingTimeInterval(2))
+        #expect(ended == ["r1"], "a decision on the gone request is nothing")
+        #expect(store.sessions.all.first?.isWaiting == true)
+    }
+
+    /// The hook process died in the instant between the worker's last look and the click: the line cannot be
+    /// written, so the decision is recorded as lost and the session is not marked working on an allow nothing
+    /// received.
+    @MainActor @Test func aDecisionTheSocketCannotTakeIsLostNotDelivered() throws {
+        let suite = "NotchmeterTests.lost"
+        let (store, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var ended: [String] = []
+        store.promptEnded = { ended.append($0) }
+        let (reply, peer) = try Self.pair()
+        store.hookReceived(HookSocketDecisions.request("r1"), now: t0, reply: reply)
+        close(peer)
+        store.decide("r1", .allow, now: t0.addingTimeInterval(1))
+        #expect(reply.isAnswered)
+        #expect(store.sessions.pending(now: t0.addingTimeInterval(1)).isEmpty)
+        #expect(ended == ["r1"])
+        #expect(store.sessions.all.first?.isWaiting == true, "nothing received the allow, so the session is not put back to work on it")
+    }
+
+    /// A second line under an id already standing is a replay (the ids are UUIDs the hook generated): the first
+    /// keeps its place and its clock, the second's connection is released at once rather than parked for the
+    /// cap, and the decision goes to the first.
+    @MainActor @Test func aSecondLineUnderAStandingRequestIDIsReleasedAtOnce() throws {
+        let suite = "NotchmeterTests.replay"
+        let (store, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var prompted: [String] = []
+        store.promptRequested = { _, request in prompted.append(request.id) }
+        let first = try Self.pair()
+        defer { close(first.peer) }
+        let second = try Self.pair()
+        defer { close(second.peer) }
+        store.hookReceived(HookSocketDecisions.request("r1"), now: t0, reply: first.reply)
+        store.hookReceived(HookSocketDecisions.request("r1"), now: t0.addingTimeInterval(1), reply: second.reply)
+        #expect(!first.reply.isAnswered, "the first keeps its place")
+        #expect(second.reply.isAnswered, "the replay is released, so its connection holds no slot")
+        #expect(Self.read(second.peer).isEmpty)
+        #expect(prompted == ["r1"])
+        #expect(store.sessions.pending(now: t0.addingTimeInterval(1)).map(\.request.since) == [t0])
+        store.decide("r1", .allow, now: t0.addingTimeInterval(2))
+        #expect(String(decoding: Self.read(first.peer), as: UTF8.self) == "{\"decision\":{\"behavior\":\"allow\"}}\n")
+        #expect(store.sessions.pending(now: t0.addingTimeInterval(2)).isEmpty)
+    }
+
+    /// Turning *Show what a session is working on* off drops the titles already held, not only the ones to come:
+    /// an idle session's next prompt may never arrive, and docs/hooks.md promises nothing of a prompt is held
+    /// anywhere with the setting off.
+    @MainActor @Test func titlesOffClearsTheTitlesAlreadyHeld() async throws {
+        let suite = "NotchmeterTests.titlesOff"
+        let (store, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var prompt = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s")
+        prompt.title = "the secret plan"
+        store.hookReceived(prompt, now: t0)
+        #expect(store.sessions.all.first?.title == "the secret plan")
+        store.prefs.sessionTitles = false
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(store.sessions.all.first?.title == nil, "off drops what was held, not only what comes next")
+        #expect(store.sessions.all.count == 1, "the session itself stays")
+        store.prefs.sessionTitles = true
+        try await Task.sleep(for: .milliseconds(100))
+        store.hookReceived(prompt, now: t0.addingTimeInterval(1))
+        #expect(store.sessions.all.first?.title == "the secret plan", "and on again takes titles as before")
     }
 
     @Test func theOracleHearsTheShapeOfARequestAndNeverItsContent() throws {

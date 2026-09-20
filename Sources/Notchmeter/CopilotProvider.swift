@@ -223,7 +223,9 @@ actor CopilotProvider: UsageProvider {
             let remaining = count(snapshot["remaining"])
             let credits = count(snapshot["credits_used"])
             let percentRemaining = count(snapshot["percent_remaining"])
-            let unlimited = (snapshot["unlimited"] as? Bool) ?? false || entitlement == -1 || remaining == -1
+            // The sentinel is the entitlement's: a seat with `overage_permitted` counts `remaining` below zero
+            // once it is into overage, and `-1` there on a metered entitlement is one request over, not no limit.
+            let unlimited = (snapshot["unlimited"] as? Bool) ?? false || entitlement == -1 || (remaining == -1 && (entitlement ?? 0) <= 0)
             if unlimited {
                 if spec.id == "premium" {
                     windows.append(LimitWindow(id: spec.id, label: spec.label, usedFraction: nil, resetsAt: resetsAt, note: L("Unlimited on the %@ plan", plan ?? L("current"))))

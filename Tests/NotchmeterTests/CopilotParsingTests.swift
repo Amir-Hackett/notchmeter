@@ -79,6 +79,17 @@ import Testing
         // An ISO instant is a reset too, and the window is the month's.
         #expect(reading.windows[0].resetsAt == DateParsing.iso8601("2099-01-15T00:00:00Z"))
         #expect(reading.windows[0].periodDuration == Period.month)
+
+        // One request into overage: `remaining` reads -1 beside a metered entitlement, which is the count (the
+        // clamp already allowed for a negative one), not the sentinel; the sentinel is the entitlement's.
+        let overage = """
+        {"copilot_plan":"pro","quota_reset_date":"2099-01-15T00:00:00Z",
+         "quota_snapshots":{"premium_interactions":{"entitlement":300,"remaining":-1,"percent_remaining":0,"quota_id":"premium","overage_permitted":true,"overage_count":1}}}
+        """
+        let over = try CopilotProvider.parseUser(Data(overage.utf8))
+        #expect(over.windows.map(\.id) == ["premium"], "a metered seat one request over stays a metered window")
+        #expect(over.windows[0].usedFraction == 1)
+        #expect(over.windows[0].note == "0 of 300 left · 1 extra this month")
     }
 
     /// The org-managed Business seat on AI credits (CodexBar's live-validated fixture): every snapshot a zero

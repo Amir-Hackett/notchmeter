@@ -782,9 +782,11 @@ final class Preferences {
     var jumpToTerminal: Bool {
         didSet { defaults.set(jumpToTerminal, forKey: Keys.jumpToTerminal); report(Keys.jumpToTerminal, jumpToTerminal, changed: jumpToTerminal != oldValue) }
     }
-    /// How long the app holds a request before handing it back to the terminal, 15 s to 10 min. The socket's own
-    /// cap (HookSocket.Listener.holdCap) and the entries' timeouts sit at the top of that range, so the terminal
-    /// is never held longer than this by the app.
+    /// How long the app holds a request before handing it back to the terminal, 15 s to 9 min. The socket's own
+    /// cap (HookSocket.Listener.holdCap), the command's wait and the entries' timeouts are all ten minutes, and
+    /// the vendor's clock starts before the command has even connected, so the range stops a minute short of
+    /// them: the app's hold is what ends a request, never a vendor killing the command under a card still
+    /// showing (HookDecisionTests pins the order).
     var promptHoldSeconds: Int {
         didSet {
             // Same shape as finishedAfterMinutes above: the clamp writes back only when it changes the value.
@@ -794,7 +796,7 @@ final class Preferences {
             report(Keys.promptHold, promptHoldSeconds, changed: promptHoldSeconds != oldValue)
         }
     }
-    static let promptHoldRange = 15...600
+    static let promptHoldRange = 15...540
     static let promptHoldDefault = 120
     /// "http://host:port" or "socks5://host:port"; empty follows the system proxy.
     var proxyURL: String {

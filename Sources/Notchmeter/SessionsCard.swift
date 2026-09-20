@@ -44,7 +44,9 @@ struct SessionsCard: View {
         let rows = sessions.prefix(rowCap).map { session -> Row in
             let finished = session.finish(now: now) != nil
             let status: Row.Status = session.isWaiting ? .waiting : session.isWorking ? .working : finished ? .finished : .idle
-            let canJump = jump && session.host == nil && session.terminal != nil
+            // A row is a button only where the resolver has somewhere to go: a reference that names a program and
+            // nothing else (`TERM_PROGRAM=vscode` with no bundle id) is a reference, and not a jump.
+            let canJump = jump && session.host == nil && session.terminal.map { TerminalJump.resolve($0) != .none } == true
             let note: Row.Note? = session.pending != nil ? .waitingForAnswer : finished ? (canJump ? .doneJump : .justFinished) : nil
             var chips = [session.tool.displayName]
             if let terminal = TerminalJump.displayName(bundleID: session.terminal?.bundleID) { chips.append(terminal) }
@@ -68,7 +70,9 @@ struct SessionsCard: View {
     var body: some View {
         let sessions = store.sessions
         TimelineView(.periodic(from: .now, by: sessions.working.isEmpty && sessions.waiting.isEmpty ? 60 : 1)) { context in
-            let (rows, more) = Self.rows(sessions.all, hideTitles: store.hidesFigures, jump: prefs.jumpToTerminal, now: context.date)
+            // Titles off hides them here too, whatever the tracker still holds (the store clears it, but a value can
+            // never be drawn under a setting that says not to).
+            let (rows, more) = Self.rows(sessions.all, hideTitles: store.hidesFigures || !prefs.sessionTitles, jump: prefs.jumpToTerminal, now: context.date)
             VStack(alignment: .leading, spacing: density.rowSpacing) {
                 HStack(spacing: 6) {
                     Image(systemName: "terminal").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)

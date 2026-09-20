@@ -128,6 +128,18 @@ import Testing
         #expect(noTerminal.chips == ["Claude"])
     }
 
+    /// A reference is not a jump: `TERM_PROGRAM=vscode` with no bundle id and no app ancestor is a reference the
+    /// resolver answers nothing for, and a row with nowhere to go is a row and not a button.
+    @Test func aReferenceTheResolverCannotUseIsARowAndNotAButton() {
+        let now = t0.addingTimeInterval(130)
+        let programOnly = TerminalRef(program: "vscode")
+        #expect(TerminalJump.resolve(programOnly) == .none)
+        let row = SessionsCard.rows([make("v", terminal: programOnly, finished: ToolSignal.Finish(turn: 60, at: t0.addingTimeInterval(120)))],
+                                    hideTitles: false, jump: true, now: now).rows[0]
+        #expect(row.canJump == false)
+        #expect(row.note == .justFinished, "the finish is reported without inviting a click that would do nothing")
+    }
+
     @Test func sixRowsAndThenACount() {
         let sessions = (0..<9).map { make("s\($0)", lastEvent: t0.addingTimeInterval(TimeInterval($0))) }
         let (rows, more) = SessionsCard.rows(sessions, hideTitles: false, jump: true, now: t0)
