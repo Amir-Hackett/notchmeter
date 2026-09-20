@@ -6,5 +6,12 @@
 	     also be enabled on the App ID in the developer account (docs/release.md), which this file cannot do. -->
 	<key>com.apple.developer.usernotifications.time-sensitive</key>
 	<true/>
+	<!-- Lets a hardened-runtime build send Apple events to iTerm2, Terminal and Ghostty for the jump to a session's
+	     terminal (TerminalJump.swift). A hardened-runtime exception under com.apple.security.*, not a restricted
+	     entitlement: no profile has to grant it (scripts/release.sh's claimed-vs-granted check leaves the
+	     com.apple.security.* namespace out for exactly this reason), and macOS still asks the user per target app
+	     the first time (docs/permissions.md). -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
 </dict>
 </plist>

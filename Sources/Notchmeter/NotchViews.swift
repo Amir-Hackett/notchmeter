@@ -156,7 +156,7 @@ private extension Advice.Priority {
 /// Captions are secondary on black by default and primary under Increase Contrast. Tertiary was tried first and
 /// on the black panel it blended in: the lines it carried ("$108.76 of a usual $107 day", "no spend read yet") could
 /// not be read at a glance, which is the only way the panel is read.
-private struct Caption: ViewModifier {
+struct Caption: ViewModifier {
     @MainActor
     static var style: AnyShapeStyle {
         AccessibilityDisplay.shared.contrast ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)
@@ -167,7 +167,7 @@ private struct Caption: ViewModifier {
     }
 }
 
-private struct CardBackground: ViewModifier {
+struct CardBackground: ViewModifier {
     @Environment(\.density) private var density
 
     func body(content: Content) -> some View {
@@ -884,12 +884,22 @@ struct NotchExpandedView: View {
     private var content: some View {
         let tools = store.visibleTools
         let advice = store.advice
+        let pending = store.sessions.pending(now: Date())
         return VStack(alignment: .leading, spacing: prefs.density.cardSpacing) {
+            // A request the assistant is holding a session for outranks the cost and the advice: it is the one
+            // thing on the panel that is waiting on the reader. Only the newest is drawn; the rest queue behind it.
+            if let newest = pending.first {
+                PromptCard(session: newest.session, request: newest.request, hideFigures: store.hidesFigures,
+                           decide: { store.decide($0, $1) })
+            }
             if let spendCard {
                 spendCard
             }
             if !advice.isEmpty {
                 AdviceStrip(advice: advice, open: actions.open)
+            }
+            if prefs.sessionsCard, store.sessions.count > 0 {
+                SessionsCard(store: store, prefs: prefs, actions: actions)
             }
             if tools.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {

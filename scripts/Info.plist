@@ -35,6 +35,8 @@
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Notchmeter brings a session's terminal tab forward when you click it on the panel. It sends iTerm2, Terminal or Ghostty one instruction to select that tab and reads nothing from them.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

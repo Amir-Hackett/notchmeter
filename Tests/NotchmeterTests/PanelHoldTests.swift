@@ -30,6 +30,30 @@ import Testing
         #expect(holds.isHeld == false)
     }
 
+    /// A request on the panel holds it open, which is the other way round from every window's hold, and the two
+    /// never count each other: Settings coming up still holds the panel closed while a request is showing, and
+    /// the request's hold is still there when Settings goes.
+    @Test func aRequestHoldsThePanelOpenAndNeverClosed() {
+        var holds = PanelHolds()
+        var changed = holds.set(.prompt, true)
+        #expect(changed)
+        #expect(holds.holdsOpen)
+        #expect(holds.isHeld == false, "a request never holds the panel closed")
+        changed = holds.set(.prompt, true)
+        #expect(changed == false)
+        changed = holds.set(.settings, true)
+        #expect(changed, "Settings still changes the closed hold with a request showing")
+        #expect(holds.isHeld)
+        #expect(holds.holdsOpen)
+        changed = holds.set(.settings, false)
+        #expect(changed)
+        #expect(holds.holdsOpen, "Settings going does not release the request's hold")
+        changed = holds.set(.prompt, false)
+        #expect(changed)
+        #expect(holds.holdsOpen == false)
+        #expect(holds.isHeld == false)
+    }
+
     @Test func repeatedAnswersFromOneWindowSayNothingNew() {
         var holds = PanelHolds()
         var changed = holds.set(.update, true)

@@ -130,6 +130,9 @@ struct SettingsView: View {
     @State private var weeklyBudgetText = ""
     @State private var proxyText = ""
     @State private var accessibilityTrusted = MenuBarExtent.isTrusted
+    /// Where the Automation grant stands for each terminal a jump drives by AppleScript, read in `onAppear` and
+    /// on Check again, never at layout; fixed under `--render-assets` so the pictures do not read this machine.
+    @State private var automation: [(name: String, status: TerminalJump.AutomationStatus)] = []
     @State private var colourWell = ColourWell()
     @State private var originText = ""
     @State private var fullScreenExceptionText = ""
@@ -190,6 +193,7 @@ struct SettingsView: View {
             proxyText = prefs.proxyURL
             accessibilityTrusted = MenuBarExtent.isTrusted
             refreshHookStatus()
+            refreshAutomation()
             // The window can be built with the offer already raised; the onChange below catches it being raised
             // while the window is open.
             if requests.hookOffer { pane = .integrations }
@@ -288,6 +292,7 @@ struct SettingsView: View {
             shortcutsSection
         case .assistants:
             assistantsSection
+            sessionsSection
             transcriptsSection
         case .notifications:
             notificationsSection
@@ -867,6 +872,67 @@ struct SettingsView: View {
                 .help(L("One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month."))
         case .antigravity:
             EmptyView()
+        }
+    }
+
+    /// The 0.7.0 two-way features: the Sessions card, the titles it shows, answering a request from the notch
+    /// and the hold before it goes back to the terminal, and the jump to a session's terminal with the
+    /// Automation grant it may need (docs/hooks.md, docs/permissions.md).
+    private var sessionsSection: some View {
+        Section {
+            Toggle(L("Show a Sessions card on the panel"), isOn: Binding(get: { prefs.sessionsCard }, set: { prefs.sessionsCard = $0 }))
+                .help(L("One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest."))
+            Toggle(L("Show what a session is working on"), isOn: Binding(get: { prefs.sessionTitles }, set: { prefs.sessionTitles = $0 }))
+                .help(L("The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says."))
+            Toggle(L("Answer from the notch"), isOn: Binding(get: { prefs.answerFromNotch }, set: { prefs.answerFromNotch = $0 }))
+                .help(L("A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered."))
+            if prefs.answerFromNotch {
+                Stepper(value: Binding(get: { prefs.promptHoldSeconds }, set: { prefs.promptHoldSeconds = $0 }), in: Preferences.promptHoldRange, step: 15) {
+                    HStack {
+                        Text(L("Hand a request back to the terminal after"))
+                        Spacer()
+                        Text(L("%ld s", prefs.promptHoldSeconds)).foregroundStyle(.secondary).monospacedDigit()
+                    }
+                }
+                .help(L("A request nobody has answered in this long goes back to the terminal, which asks as usual; the hook's own ceiling is ten minutes, and the assistant sees no decision either way."))
+            }
+            Toggle(L("Jump to the terminal on click"), isOn: Binding(get: { prefs.jumpToTerminal }, set: { prefs.jumpToTerminal = $0 }))
+                .help(L("A click on a session row brings its terminal tab or pane forward, from what the hook read in its own environment: Warp by its focus link, iTerm2, Terminal and Ghostty by AppleScript, kitty and WezTerm by their own command, a tmux pane on its socket, anything else by raising the app. It never launches a terminal that is not running, and a session on another Mac has nothing to jump to."))
+            if !claudeHookIsCurrent {
+                paragraph(L("Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them."))
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L("Automation")).font(.subheadline.weight(.semibold))
+                    .help(L("macOS asks once, the first time a jump drives iTerm2, Terminal or Ghostty by AppleScript, and keeps the answer under Privacy & Security › Automation. Warp, kitty, WezTerm and tmux need no permission. A terminal that is not running cannot be asked about."))
+                ForEach(automation, id: \.name) { row in
+                    HStack {
+                        Text(verbatim: row.name)
+                        Spacer()
+                        Text(row.status.text).foregroundStyle(row.status == .denied ? Palette.warn : .secondary)
+                    }
+                    .font(.caption)
+                }
+                HStack {
+                    Button(L("Open Automation settings…")) { actions.open(TerminalJump.automationSettingsURL) }
+                    Button(L("Check again")) { refreshAutomation() }
+                }
+            }
+        } header: {
+            Text(L("Sessions"))
+                .help(L("What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)."))
+        }
+    }
+
+    /// Claude Code's hook carries the deciding entries: `.installed` only; a stale or partial one (a 0.6.0 install)
+    /// shows Repair under Integrations, which the copy above points at.
+    private var claudeHookIsCurrent: Bool {
+        if case .installed = hookStatus[.claude] ?? .notInstalled { return true }
+        return false
+    }
+
+    private func refreshAutomation() {
+        automation = TerminalJump.scriptedApps.map { app in
+            (app.name, requests.renderedHookStatus == nil ? TerminalJump.automationStatus(bundleID: app.bundleID) : .notAsked)
         }
     }
 

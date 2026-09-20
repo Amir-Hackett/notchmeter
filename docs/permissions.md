@@ -1,7 +1,8 @@
 # Permissions
 
-One optional setting asks for one permission. A copy that has never had Auto picked is never asked anything, at
-launch or otherwise.
+Two optional features ask for a permission each: *Readouts › Auto* for Accessibility, and a click on a session row
+for Automation of that session's terminal. A copy that has never had Auto picked and never had a row clicked is
+never asked anything, at launch or otherwise.
 
 ## Accessibility, only for *Readouts › Auto*
 
@@ -37,8 +38,32 @@ menu-heavy app (Chrome, Xcode) would run into them.
   ([docs/testing.md](testing.md#seeing-what-auto-measured)). It reads nothing the feature does not already read.
 
 No other part of Notchmeter uses the Accessibility API. It never asks for Screen Recording, the microphone, the
-camera, Full Disk Access, Contacts, Calendars, Location or Automation; the screen-share check is a yes/no from the
-window server that needs no permission.
+camera, Full Disk Access, Contacts, Calendars or Location; the screen-share check is a yes/no from the window
+server that needs no permission. The one other permission it can ask for is Automation, below.
+
+## Automation, only for the jump to a terminal
+
+A click on a row of the panel's Sessions card (*Settings › Assistants › Sessions › Jump to the terminal on click*,
+on by default) brings that session's terminal tab or pane forward. For iTerm2, Terminal and Ghostty that is one
+Apple event each, and macOS gates Apple events per target app ([docs/hooks.md](hooks.md#jumping-to-the-terminal)
+has the full ladder).
+
+- **What it sends.** One instruction to the terminal named by the session's own hook: select the tab or session
+  whose id or tty matches, and come to the front. It reads nothing back but whether the script ran; the tab is
+  matched by the `unique id` or `tty` the hook already knew, never by a title. The code is
+  [`TerminalJump.swift`](../Sources/Notchmeter/TerminalJump.swift).
+- **When it asks.** The first time a jump drives each of the three, macOS shows its own *"Notchmeter" wants access
+  to control "iTerm2"* dialog and keeps the answer under System Settings › Privacy & Security › Automation. Nothing
+  is asked at launch, when the setting is turned on, or when Settings is opened: Settings reads where the grant
+  stands (`AEDeterminePermissionToAutomateTarget`, without prompting) and shows *Granted*, *Denied*, *Not asked
+  yet* or *Not running* per app, with a button to the Automation pane.
+- **Without it.** A denied or never-granted app is raised as an app rather than to the exact tab, and the log says
+  so. Warp (a URL), kitty and WezTerm (their own command-line tools over their own sockets) and tmux need no
+  permission at all; VS Code, Cursor and any terminal the ladder does not know are raised as apps and never asked.
+- **The entitlement.** The release build claims `com.apple.security.automation.apple-events`, a hardened-runtime
+  exception and not a restricted entitlement, so no provisioning profile has to grant it and
+  `scripts/release.sh`'s claimed-versus-granted check leaves the `com.apple.security.*` namespace out for exactly
+  this reason; `NSAppleEventsUsageDescription` in `scripts/Info.plist` is the sentence the dialog shows.
 
 ## Why the grants keep disappearing
 
