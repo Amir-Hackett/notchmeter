@@ -164,16 +164,53 @@ enum NotificationScheduler {
         }
     }
 
+    /// The one instant a window's current period is known by, for every notification built from it.
+    ///
+    /// Every identifier a notification carries embeds its window's reset (`PaceAlert.identifier`), and a reset is
+    /// not a fixed instant on the wire: a Codex snapshot's is measured from when the snapshot was written, so it
+    /// moves by a few seconds on every read, and Claude's wanders inside a two-second band (docs/accuracy.md).
+    /// 0.5.0 pinned the watched reset to the first one seen, which held the reminder and the reset notice steady,
+    /// but `plan` still built the pace notices from the reading as it came: a "behind" sent after the reset had
+    /// moved by seven seconds carried an instant the withdrawal at the reset, rebuilt from the pinned window, never
+    /// matched, and it stayed in Notification Center after the window it warned about was gone. So from 0.6.0 the
+    /// period's instant is resolved once, here, and the same Date goes into `plan`, the watched set and the memory.
+    ///
+    /// The instant already remembered for the period wins, in this order: the escalation memory's, which is the
+    /// one that survives a relaunch; the watched reset's; the one a reminder was sent for. Each is taken only when
+    /// `ResetPeriod.same` says it is this period; a reading whose reset is genuinely new keeps its own.
+    static func canonicalReset(tool: ToolID, window: LimitWindow, memory: AlertMemory, watched: [String: WatchedReset]) -> Date? {
+        guard let resetsAt = window.resetsAt else { return nil }
+        let key = AlertMemory.key(tool, window)
+        let known = [memory.entries[key]?.resetsAt, watched[key]?.window.resetsAt, memory.reminders[key]]
+        return known.compactMap { $0 }.first { ResetPeriod.same($0, resetsAt) } ?? resetsAt
+    }
+
+    /// The reading with every window's reset resolved through `canonicalReset`; the store hands this, never the
+    /// reading as it came, to `plan`, `planLimitHit` and `WatchedReset.watch`.
+    static func pinned(_ reading: UsageReading, memory: AlertMemory, watched: [String: WatchedReset]) -> UsageReading {
+        let windows = reading.windows.map { window -> LimitWindow in
+            guard let canonical = canonicalReset(tool: reading.tool, window: window, memory: memory, watched: watched), canonical != window.resetsAt else { return window }
+            return window.pinningReset(to: canonical)
+        }
+        return reading.replacing(windows: windows, fetchedAt: reading.fetchedAt)
+    }
+
     static func plan(memory: AlertMemory, readings: [UsageReading], now: Date, options: Options = .all,
                      rates: [String: Double] = [:], runOuts: [String: RunOutInterval] = [:]) -> (alerts: [PaceAlert], memory: AlertMemory) {
         var memory = memory
         var alerts: [PaceAlert] = []
         for reading in readings {
-            for window in reading.windows where !window.isComparison {
-                guard let resetsAt = window.resetsAt else { continue }
+            for var window in reading.windows where !window.isComparison {
+                guard var resetsAt = window.resetsAt else { continue }
                 let key = AlertMemory.key(reading.tool, window)
                 let previous = memory.entries[key]
-                let samePeriod = previous.map { abs($0.resetsAt.timeIntervalSince(resetsAt)) < samePeriodTolerance } ?? false
+                let samePeriod = ResetPeriod.same(previous?.resetsAt, resetsAt)
+                // The memory's instant is the period's, whatever the reading says this time (`canonicalReset`):
+                // the entry keeps it and every escalation of the period is identified by it.
+                if samePeriod, let previous, previous.resetsAt != resetsAt {
+                    resetsAt = previous.resetsAt
+                    window = window.pinningReset(to: resetsAt)
+                }
                 guard let stage = stage(for: window, now: now, rate: rates[key], runOut: runOuts[key]) else {
                     if !samePeriod { memory.entries[key] = nil }
                     continue
@@ -228,11 +265,14 @@ enum NotificationScheduler {
         func rank(_ window: LimitWindow) -> (Double, Double) {
             (window.usedFraction ?? 0, -(window.resetsAt?.timeIntervalSince1970 ?? 0))
         }
-        guard let window = candidates.max(by: { rank($0) < rank($1) }), let resetsAt = window.resetsAt else { return ([], memory) }
+        guard var window = candidates.max(by: { rank($0) < rank($1) }), var resetsAt = window.resetsAt else { return ([], memory) }
         let key = AlertMemory.key(tool, window)
         let hitStage: PaceAlert.Stage = .limitHit
-        if let previous = memory.entries[key], abs(previous.resetsAt.timeIntervalSince(resetsAt)) < samePeriodTolerance, previous.stage >= hitStage {
-            return ([], memory)
+        if let previous = memory.entries[key], ResetPeriod.same(previous.resetsAt, resetsAt) {
+            if previous.stage >= hitStage { return ([], memory) }
+            // The period's instant is the memory's, as in `plan`, so the withdrawal at the reset matches this notice too.
+            resetsAt = previous.resetsAt
+            window = window.pinningReset(to: resetsAt)
         }
         memory.entries[key] = AlertMemory.Entry(resetsAt: resetsAt, stage: .limitHit)
         return (options.wants(.limitHit) ? [PaceAlert(tool: tool, window: window, stage: .limitHit)] : [], memory)

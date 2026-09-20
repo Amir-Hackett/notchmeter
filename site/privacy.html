@@ -97,7 +97,7 @@ table.dtable code { font-size: 12.4px; }
     <div class="legal">
 
       <div class="meta-strip">
-        <span>Effective 7 September 2026</span>
+        <span>Effective 19 September 2026</span>
         <span>Hackett Labs LLC</span>
         <span>notchmeter.com and Notchmeter for macOS</span>
       </div>
@@ -264,6 +264,7 @@ table.dtable code { font-size: 12.4px; }
             <tr><td><code>~/Library/Application Support/Notchmeter/daily-history-v1.jsonl</code></td><td>Daily cost totals that outlive your transcripts, one line per day per tool, broken down by model and by folder name, with a small <code>.lock</code> file beside it. Builds before 0.5.0 kept this file in <code>~/Library/Caches/Notchmeter/</code>; whichever 0.5.0 process reads the history first &mdash; the app, the command line tool, the status line or the MCP server &mdash; moves it here. Never a token, a prompt or a full path.</td></tr>
             <tr><td><code>~/Library/Application Support/Notchmeter/drain-log-v1.jsonl</code></td><td>One line per successful usage read: time, tool, window, fraction used, reset time. Trimmed to the last 7 days. Never a token.</td></tr>
             <tr><td><code>~/Library/Application Support/Notchmeter/report-v1.json</code></td><td>The current full readout, rewritten about every 30 seconds so the command line tool and the status line can read it. This is the richest file on disk: it holds session ids, folder names and cost figures. It is protected by ordinary macOS home folder permissions and nothing more.</td></tr>
+            <tr><td><code>~/Library/Application Support/Notchmeter/hook.sock</code></td><td>The socket the hook and status line commands connect to (4.4). It is not a data file and holds nothing: it is created when the app launches and removed when it quits.</td></tr>
             <tr><td>macOS unified log</td><td>Request outcomes as a status code and a byte count. Never a token, a header or a body.</td></tr>
           </tbody>
         </table>
@@ -272,7 +273,7 @@ table.dtable code { font-size: 12.4px; }
 
       <h3>4.4 Two local things worth knowing about</h3>
       <p><strong>The local API.</strong> If you switch on Settings, Local API, the app listens on <code>127.0.0.1</code> so tools on the same Mac, such as the command line tool, a status line script or a widget, can read your usage. It refuses any request that is not from the loopback address, so it is not reachable from your network or from the internet. <strong>It has no authentication</strong>, which means any program already running on your Mac can read your usage figures through it while it is on. It is off by default.</p>
-      <p><strong>Local notifications between apps.</strong> Hook and status line events are broadcast on a macOS notification channel that any other program in your login session can listen to. The payload includes a session id, a folder name, a git branch, a model name, context fill, session cost and an open pull request URL. None of this leaves your Mac, but it is readable locally by other software you have installed.</p>
+      <p><strong>The hook socket.</strong> If you install the optional hooks, <code>Notchmeter --hook</code> and <code>Notchmeter --statusline</code> hand each event to the running app over a Unix-domain socket at <code>~/Library/Application Support/Notchmeter/hook.sock</code>. Nothing is broadcast: the folder is created with permissions <code>0700</code> and the socket with <code>0600</code>, so no other user on the Mac can reach it, and a line goes to the one process holding the socket rather than to anyone listening. The app accepts a line only from a process whose code signature is Notchmeter's own; a refused connection is closed unread and one line naming the refusing process is written to the macOS unified log (category <code>hook-socket</code>). That check names the program, not who ran it: any program running as you can run <code>Notchmeter --hook</code> itself, so software you have installed could still hand the app a made-up event, which can light a ring or raise a banner and nothing more (a pull request link is checked before it is ever opened). The payload is the one listed in 4.2 plus an open pull request URL when Claude Code sends one. None of it leaves your Mac. Builds before 0.6.0 sent these events as a macOS notification that any program in your login session could read; 0.6.0 replaced that hop outright.</p>
 
       <h3>4.5 Copy diagnostics</h3>
       <p>Settings has a Copy diagnostics button. It reads the app's own last ten minutes of log lines, replaces your home folder path with <code>~</code>, and puts the text on your clipboard. <strong>Nothing is transmitted.</strong> If you paste it into a bug report, you are the one sending it, and you can read it first.</p>
@@ -416,7 +417,7 @@ table.dtable code { font-size: 12.4px; }
         <li>Email: <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a></li>
         <li>Public issue tracker: <a href="https://github.com/Amir-Hackett/notchmeter/issues">github.com/Amir-Hackett/notchmeter/issues</a></li>
       </ul>
-      <p style="margin-top:26px">Effective 7 September 2026. See also the <a href="terms.html">terms of use</a>.</p>
+      <p style="margin-top:26px">Effective 19 September 2026. See also the <a href="terms.html">terms of use</a>.</p>
 
     </div>
   </div>

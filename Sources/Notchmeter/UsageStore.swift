@@ -108,6 +108,14 @@ final class UsageStore {
     private(set) var keepingAwake = false
     /// What Cursor's usage export last answered, so the Cost card can say why Cursor has no figure of its own.
     private(set) var cursorExport: CursorExportRead?
+    /// The range the Cost card on the open panel is showing. It lived in the card as `@State` until 0.6.0, which
+    /// left every other render of the card guessing: "Copy as image" on the whole panel rebuilt NotchExpandedView
+    /// for the pasteboard, and the fresh card inside it opened on Today whatever the panel said, so a user reading
+    /// $6,412 on 90d pasted a panel saying $118. The per-card copy was seeded by hand in 0.5.0; the panel copy
+    /// could not be, because the action in App.swift cannot see a card's state. Held here, the live card writes
+    /// it and every card built with no range of its own reads it, so a whole-panel render matches the panel
+    /// without being told. Not a preference: it is not saved, and a launch starts on Today.
+    var spendRange: SpendCard.Range = .today
     let prefs: Preferences
 
     @ObservationIgnored private let providers: [ToolID: any UsageProvider]
@@ -120,6 +128,9 @@ final class UsageStore {
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    /// The socket the hook and status-line commands write to (HookSocket.swift); nil until `start`, and in a
+    /// sidecar run, which must never take the running app's socket from under it.
+    @ObservationIgnored private var hookSocket: HookSocket.Listener?
     /// IOKit's mains/battery transition source (PowerSource.observeTransitions), held so it is not collected.
     @ObservationIgnored private var powerSourceWatch: CFRunLoopSource?
     @ObservationIgnored private var costEngine: CostEngine
@@ -460,6 +471,12 @@ final class UsageStore {
             stopLoop(tool)
             statuses[tool] = .off
             cache.remove(tool)
+            // The watched resets went with nothing until 0.6.0, so a tool switched off at 90 % still announced its
+            // reset from the thirty-second timer, and one switched back on after the reset announced a period that
+            // had ended while it was off. The tool's pace notices go with the watch: the reset that would have
+            // withdrawn them is no longer announced. The drop lives here rather than in `stopLoop`, which
+            // `startLoop` calls on every restart and which must not lose a watch to a wake or a settings change.
+            dropWatches { $0.tool == tool }
         }
     }
 
@@ -618,17 +635,16 @@ final class UsageStore {
         cache.store(reading)
         lastUpdated = now
         recordDrain(reading, now: now)
-        for var window in reading.windows {
+        // The notification pipeline sees one instant per period for each window, not the reset as this read
+        // reported it (`NotificationScheduler.canonicalReset`). Every notification embeds its window's reset in its
+        // identifier, and a Codex snapshot's reset is measured from when the snapshot was written, so it moves by
+        // a few seconds on every read. 0.5.0 pinned only the watched reset, and only against itself: the reminder
+        // and the reset notice held steady, but the pace notices `evaluateAlerts` planned from the reading as it
+        // came carried the moved instant, and `checkResets`, withdrawing by the pinned window's identifiers at the
+        // reset, left them standing. The reading on the ring and in the cache stays as the vendor gave it; only
+        // what is planned, watched and remembered from it is pinned.
+        for window in NotificationScheduler.pinned(reading, memory: alertMemory, watched: watchedResets).windows {
             let key = AlertMemory.key(reading.tool, window)
-            // A watched window keeps the reset it was first watched with for as long as the readings stay in the
-            // same period. Every notification built from it embeds that instant in its identifier
-            // (`PaceAlert.identifier`), and a Codex snapshot's reset is measured from when the snapshot was
-            // written, so it moves by a few seconds on every read: taken as it came, each reminder replaced
-            // nothing and stacked beside the last, and the identifiers `checkResets` withdraws at the reset,
-            // rebuilt from the window then current, matched none of the ones that had been sent.
-            if let existing = watchedResets[key], let pinned = existing.window.resetsAt, ResetPeriod.same(pinned, window.resetsAt) {
-                window = window.pinningReset(to: pinned)
-            }
             if let watch = WatchedReset.watch(reading.tool, window, now: now) {
                 watchedResets[key] = watch
             } else if let existing = watchedResets[key], !ResetPeriod.same(existing.window.resetsAt, window.resetsAt) {
@@ -805,7 +821,7 @@ final class UsageStore {
     /// window of its own, and advice lines worth a banner go out here too.
     private func evaluateAlerts(now: Date = Date()) {
         guard prefs.notificationsEnabled else { return }
-        var readings = readyReadings
+        var readings = readyReadings.map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
         if let budget = NotificationScheduler.budgetReading(cost: prefs.showSpend ? cost : nil, monthlyUSD: prefs.monthlyBudgetUSD, weeklyUSD: prefs.weeklyBudgetUSD, now: now) {
             readings.append(budget)
         }
@@ -826,9 +842,15 @@ final class UsageStore {
     }
 
     /// The timer's half: resets and reminders for windows that were nearly gone when last seen; the pace notices
-    /// of a window that has reset are withdrawn.
-    private func checkResets(now: Date = Date()) {
-        guard prefs.notificationsEnabled, !watchedResets.isEmpty else { return }
+    /// of a window that has reset are withdrawn. Only the tools on screen are checked: a watch belonging to a tool
+    /// that is off or no longer installed is dropped here rather than kept, because a watch kept through an
+    /// absence would announce, the moment the tool came back, a reset that passed while nobody was metering it.
+    /// The next reading re-watches whatever is still worth watching. Internal, not private, so a test can drive
+    /// the clock past a reset without the thirty-second timer.
+    func checkResets(now: Date = Date()) {
+        guard prefs.notificationsEnabled else { return }
+        dropWatches { !isShown($0.tool) }
+        guard !watchedResets.isEmpty else { return }
         let plan = NotificationScheduler.planResets(memory: alertMemory, watched: Array(watchedResets.values), now: now, options: alertOptions)
         watchedResets = plan.watched.reduce(into: [:]) { $0[AlertMemory.key($1.tool, $1.window)] = $1 }
         remember(plan.memory)
@@ -837,6 +859,19 @@ final class UsageStore {
         if !passed.isEmpty {
             removeNotifications(passed.flatMap { PaceAlert.identifiers(tool: $0.tool, window: $0.window) })
         }
+    }
+
+    /// Drops every watch that `dropped` selects and takes its period's pace notices down with it. A watch is the
+    /// only thing that withdraws a window's notices (`checkResets`, once the reset has passed), so a watch dropped
+    /// early, for a tool switched off or no longer installed, would otherwise leave a "running out" or "limit hit"
+    /// banner in Notification Center for good: the tool's next period builds identifiers from its own reset and
+    /// never matches the old ones. Until 0.6.0 the withdrawal rode on the reset announcement that a dropped watch
+    /// wrongly kept making; now it happens at the drop, whether or not resets are announced at all.
+    private func dropWatches(where dropped: (WatchedReset) -> Bool) {
+        let gone = watchedResets.values.filter(dropped)
+        guard !gone.isEmpty else { return }
+        watchedResets = watchedResets.filter { !dropped($0.value) }
+        removeNotifications(gone.flatMap { PaceAlert.identifiers(tool: $0.tool, window: $0.window) })
     }
 
     /// Takes down the "is waiting" notices of sessions that have stopped waiting, however they stopped: answered,
@@ -1079,14 +1114,33 @@ final class UsageStore {
         powerSourceWatch = PowerSource.observeTransitions { [weak self] in
             Task { @MainActor in self?.setOnBattery(PowerSource.onBattery()) }
         }
-        observers.append(distributed.addObserver(forName: Hook.notificationName, object: nil, queue: .main) { [weak self] note in
-            guard let message = Hook.Message(userInfo: note.userInfo) else { return }
-            Task { @MainActor in self?.hookReceived(message) }
-        })
-        observers.append(distributed.addObserver(forName: Statusline.notificationName, object: nil, queue: .main) { [weak self] note in
-            guard let message = Statusline.Message(userInfo: note.userInfo) else { return }
-            Task { @MainActor in self?.statuslineReceived(message) }
-        })
+        listenForHooks()
+    }
+
+    /// The hook and status-line commands reach the store over a socket only this app's own signature may write to
+    /// (HookSocket.swift). Until 0.6.0 they were two distributed notifications, which any process of the same
+    /// user could read as they went by and post in an assistant's name. The listener is the app's alone: a
+    /// `--smoke` or `--probe` run beside the installed copy goes through this same `start`, and binding here would
+    /// unlink the running app's socket and leave its hooks talking to a process about to exit, so a sidecar never
+    /// listens. Delivery is on a background queue and hops to the main actor, as the observers did.
+    private func listenForHooks(arguments: [String] = CommandLine.arguments) {
+        guard hookSocket == nil, !SingleInstance.isSidecar(arguments: arguments) else { return }
+        let listener = HookSocket.Listener { [weak self] message in
+            Task { @MainActor in
+                switch message {
+                case .hook(let hook): self?.hookReceived(hook)
+                case .statusline(let line): self?.statuslineReceived(line)
+                }
+            }
+        }
+        listener.start()
+        hookSocket = listener
+    }
+
+    /// Removes the socket at quit, so a hook that fires afterwards finds nothing rather than a file that refuses it.
+    func stopListeningForHooks() {
+        hookSocket?.stop()
+        hookSocket = nil
     }
 
     private func setAsleep(_ value: Bool) {
@@ -1228,7 +1282,8 @@ final class UsageStore {
         }
         guard isShown(tool) else { return }
         if outcome.limitHit != nil, prefs.notificationsEnabled {
-            let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: tool, reading: status(tool).reading, now: now, options: alertOptions)
+            let reading = status(tool).reading.map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
+            let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: tool, reading: reading, now: now, options: alertOptions)
             remember(plan.memory)
             send(plan.alerts)
         }

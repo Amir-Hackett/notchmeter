@@ -3,12 +3,13 @@ import Foundation
 /// The `--statusline` command: Claude Code hands its status-line script a JSON object after every turn, carrying
 /// the context window's fill, the official five-hour and seven-day rate limits (Pro and Max plans) and, behind a
 /// Claude apps gateway, a spend limit; the session's cost, the model and its effort level; the git branch and the
-/// open pull request. The command forwards those to the running app over the same distributed notification path
-/// as the hook, then prints one line for Claude Code's own bar, or runs the status-line command that was configured
-/// before (`--then '<command>'`) with the same JSON so nothing the user had is lost.
-/// Never forwarded: the transcript path, the working directory beyond its basename, the prompt.
+/// open pull request. The command forwards those to the running app over the same socket as the hook
+/// (HookSocket.swift; a distributed notification until 0.6.0), then prints one line for Claude Code's own bar, or
+/// runs the status-line command that was configured before (`--then '<command>'`) with the same JSON so nothing
+/// the user had is lost.
+/// Never forwarded: the transcript path, the working directory beyond its project name (ProjectName.ofPath: the
+/// repository a worktree was cut from, else the basename), the prompt.
 enum Statusline {
-    static let notificationName = Notification.Name("com.amirhackett.notchmeter.statusline")
     static let readBudget: TimeInterval = 0.2
 
     struct Message: Equatable, Sendable {
@@ -55,7 +56,8 @@ enum Statusline {
             self.receivedAt = receivedAt
         }
 
-        /// The distributed notification's payload: flat, property-list values only.
+        /// The payload as it crosses to the app: flat, property-list values only, which is also what one JSON line
+        /// can carry. The shape has not changed with the transport.
         var userInfo: [String: Any] {
             var info: [String: Any] = ["receivedAt": receivedAt.timeIntervalSince1970]
             if let sessionID { info["session_id"] = sessionID }
@@ -115,7 +117,8 @@ enum Statusline {
                            periodDuration: spec.period, source: .statusline, rawUsedPercent: percent > 100 ? percent : nil)
     }
 
-    /// The fields read from Claude Code's JSON: `session_id`, the basename of `cwd`, `model.display_name`,
+    /// The fields read from Claude Code's JSON: `session_id`, the project name of `cwd` (ProjectName.ofPath: the
+    /// repository a worktree was cut from, else the basename), `model.display_name`,
     /// `effort.level`, `context_window.used_percentage` (or its token counts), `cost.total_cost_usd`,
     /// `rate_limits.<window>`'s `used_percentage` and `resets_at` (epoch seconds), `worktree.branch` (else the
     /// basename of `workspace.git_worktree`) and `pr.url`. Any of them may be missing.
@@ -241,13 +244,15 @@ enum Statusline {
         return parts.joined(separator: " · ")
     }
 
-    /// `Notchmeter --statusline [--then '<command>']`: read the JSON, post it, print the line (or run the previous
-    /// command with the same JSON on its standard input and pass its output through), exit 0.
+    /// `Notchmeter --statusline [--then '<command>']`: read the JSON, hand it to the running app over its socket,
+    /// print the line (or run the previous command with the same JSON on its standard input and pass its output
+    /// through), exit 0. As with the hook, the socket's answer is not looked at: the line is printed whether or
+    /// not an app was there to take the payload.
     static func runCommand(arguments: [String]) -> Never {
         let payload = Hook.readStandardInput(within: readBudget, limit: 256 * 1024)
         let message = message(from: payload)
         if let message {
-            DistributedNotificationCenter.default().postNotificationName(notificationName, object: nil, userInfo: message.userInfo, deliverImmediately: true)
+            HookSocket.send(.statusline, message.userInfo)
         }
         if let index = arguments.firstIndex(of: "--then"), index + 1 < arguments.count {
             let process = Process()

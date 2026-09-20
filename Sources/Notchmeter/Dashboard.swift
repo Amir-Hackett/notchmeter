@@ -224,16 +224,18 @@ struct DashboardLimit: Identifiable, Equatable {
         return unit == .day ? L("About %@%% a day lasts to the reset", figure) : L("About %@%% an hour lasts to the reset", figure)
     }
 
-    /// Every window with a published fraction on the tools shown, in their order, less the ones hidden in Settings.
+    /// Every window with a published fraction on the tools shown, in their order, less the ones hidden in Settings,
+    /// floor included (WindowFloor): the set is `Preferences.shownWindows(of:)`, the same one the card, the rings
+    /// and the menu bar draw from, so a preference that hides every window of a tool lists its first window here
+    /// as it does there, rather than a tool with no limits at all.
     @MainActor
     static func all(store: UsageStore, now: Date = Date()) -> [DashboardLimit] {
         store.visibleTools.flatMap { tool -> [DashboardLimit] in
             let status = store.status(tool)
             guard let reading = status.reading else { return [] }
-            return reading.windows.compactMap { window in
-                guard !store.prefs.isHidden(window, of: tool) else { return nil }
-                return DashboardLimit(tool: tool, window: window, runOut: store.runOut(for: tool, window: window),
-                                      format: store.prefs.timeFormat, staleSince: status.staleReading?.fetchedAt, now: now)
+            return store.prefs.shownWindows(of: reading).compactMap { window in
+                DashboardLimit(tool: tool, window: window, runOut: store.runOut(for: tool, window: window),
+                               format: store.prefs.timeFormat, staleSince: status.staleReading?.fetchedAt, now: now)
             }
         }
     }

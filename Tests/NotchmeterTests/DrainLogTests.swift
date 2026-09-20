@@ -107,6 +107,100 @@ import Testing
         #expect(loaded[DrainLog.Key(tool: .claude, window: "five_hour")]?.map(\.used) == [0.2])
     }
 
+    /// The file is compacted once a day while the app stays up, not only at launch (0.6.0). The marker is the
+    /// file's creation date, which an append leaves alone and an atomic rewrite refreshes, so the test ages the
+    /// file by setting it back rather than waiting. The append that finds it a day old drops the rows past the
+    /// keep window and keeps every window's rows inside it, oldest first, and every extra-usage transition; the
+    /// append after that finds a fresh birth time and leaves the file alone.
+    @Test func anAppendCompactsTheFileOnceADay() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-drain-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let log = DrainLog(url: dir.appendingPathComponent("drain.jsonl"))
+        let reset = now.addingTimeInterval(3600)
+        func reading(_ used: Double) -> UsageReading {
+            UsageReading(tool: .claude, windows: [
+                LimitWindow(id: "five_hour", label: "Session", usedFraction: used, resetsAt: reset, periodDuration: Period.fiveHours),
+                LimitWindow(id: "seven_day", label: "Weekly", usedFraction: used, resetsAt: reset, periodDuration: Period.week),
+            ], plan: nil, fetchedAt: now, observedAt: nil)
+        }
+        func lines() throws -> Int {
+            try String(contentsOf: log.url, encoding: .utf8).split(separator: "\n").count
+        }
+        // Two rows past the keep window, one extra-usage transition older still, two rows an hour old.
+        log.appendExtraUsage(tool: .claude, amountUSD: 4, previousUSD: nil, planWindows: [], now: now.addingTimeInterval(-9 * 86400))
+        log.append(reading(0.2), previous: [:], now: now.addingTimeInterval(-8 * 86400))
+        log.append(reading(0.3), previous: [:], now: now.addingTimeInterval(-3600))
+        DrainLog.flush()
+        let beforeAnyCompaction = 5
+        #expect(try lines() == beforeAnyCompaction)
+        // Age the file: born a little over a day before the append that follows.
+        try FileManager.default.setAttributes([.creationDate: now.addingTimeInterval(-DrainLog.compactEvery - 60)], ofItemAtPath: log.url.path)
+
+        log.append(reading(0.5), previous: log.load(now: now), now: now)
+        DrainLog.flush()
+        // The transition, and two rows per window: the stale pair left, the fresh pair arrived.
+        let afterTheDailyCompaction = 5
+        #expect(try lines() == afterTheDailyCompaction)
+        let loaded = log.load(now: now)
+        let keptOldestFirst = [0.3, 0.5]
+        #expect(loaded[DrainLog.Key(tool: .claude, window: "five_hour")]?.map(\.used) == keptOldestFirst)
+        #expect(loaded[DrainLog.Key(tool: .claude, window: "seven_day")]?.map(\.used) == keptOldestFirst)
+        #expect(log.loadExtraUsage().map(\.amountUSD) == [4])
+
+        // The rewrite refreshed the birth time, so the next append is an append and nothing more. A line count
+        // cannot tell the two apart: every surviving row is inside the keep window, so a second rewrite would
+        // also leave seven lines. What an append leaves is the birth time as the rewrite set it and the
+        // compacted text intact at the head of the file, where a rewrite regroups the rows per window and
+        // moves the new pair in among them.
+        func born() throws -> Date? {
+            try FileManager.default.attributesOfItem(atPath: log.url.path)[.creationDate] as? Date
+        }
+        let bornAtTheRewrite = try #require(try born())
+        #expect(now.timeIntervalSince(bornAtTheRewrite) < DrainLog.compactEvery)
+        let asCompacted = try String(contentsOf: log.url, encoding: .utf8)
+        log.append(reading(0.6), previous: loaded, now: now.addingTimeInterval(60))
+        DrainLog.flush()
+        let oneMoreRowPerWindow = 7
+        #expect(try lines() == oneMoreRowPerWindow)
+        #expect(try born() == bornAtTheRewrite)
+        let appendedInPlace = try String(contentsOf: log.url, encoding: .utf8)
+        #expect(appendedInPlace.hasPrefix(asCompacted))
+    }
+
+    /// `flush` is what `applicationWillTerminate` calls: the appends are asynchronous on the serial queue, and GCD
+    /// does not run a queue's pending blocks when the process exits, so a row enqueued in the last milliseconds
+    /// before quit was lost until 0.6.0. A held block stands in for whatever the queue is busy with: `flush` must
+    /// come back only once the row behind it is on disk, read here without the queue's help, and it must give up
+    /// at its bound rather than hang a quit behind a compaction.
+    @Test func flushReturnsOnceAPendingAppendIsOnDiskAndGivesUpAtItsBound() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-drain-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let log = DrainLog(url: dir.appendingPathComponent("drain.jsonl"))
+        let reading = UsageReading(tool: .claude, windows: [
+            LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.2, resetsAt: nil, periodDuration: Period.fiveHours),
+        ], plan: nil, fetchedAt: now, observedAt: nil)
+
+        let busy = DispatchSemaphore(value: 0)
+        DrainLog.io.async { busy.wait() }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.3) { busy.signal() }
+        log.append(reading, previous: [:], now: now)
+        let began = Date()
+        let drained = DrainLog.flush()
+        let waited = Date().timeIntervalSince(began)
+        #expect(drained)
+        let atLeastTheHeldBlock = 0.25
+        #expect(waited >= atLeastTheHeldBlock, "flush came back after \(waited)s, before the queue was free")
+        let onDisk = try Data(contentsOf: log.url)
+        #expect(DrainLog.parse(onDisk, now: now)[DrainLog.Key(tool: .claude, window: "five_hour")]?.map(\.used) == [0.2])
+
+        let stuck = DispatchSemaphore(value: 0)
+        DrainLog.io.async { stuck.wait() }
+        let gaveUp = DrainLog.flush(within: 0.2)
+        stuck.signal()
+        #expect(!gaveUp)
+        #expect(DrainLog.flush())
+    }
+
     /// The wiring rather than the file format. The log skips a window that has not moved since its last row, so the
     /// store must hand it the samples as they stood *before* the reading being recorded. Handing over the dictionary
     /// it had just written to made every window its own predecessor: every row was skipped as unchanged, the file

@@ -57,7 +57,8 @@ extension Hook {
         /// errorOccurred, the tool events) passes through verbatim for the tracker to ignore.
         static func canonicalEvent(_ event: String) -> String { events[event] ?? event }
 
-        /// Only the event name, `sessionId` (or `session_id`), the basename of `cwd` and — on a notification that
+        /// Only the event name, `sessionId` (or `session_id`), the project name of `cwd` (its folder's, or the
+        /// repository's for a git worktree: ProjectName) and — on a notification that
         /// documents a wait — `notification_type` are read; the timestamp, transcript path, prompt, stop reason,
         /// response, agent name and type, title, message, trace headers, reason and source are not.
         ///

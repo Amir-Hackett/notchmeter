@@ -1,16 +1,17 @@
 import Foundation
 
 /// The `--hook` half of the assistant integrations: a hook command that turns one Claude Code, Codex, Cursor,
-/// Gemini CLI or GitHub Copilot event into one distributed notification carrying the event name, whether the
-/// assistant is waiting on the user, the session id, the last path component of the working directory, the git
-/// branch checked out there, the permission mode, the subagent id, a stop failure's kind and — only when it is not
+/// Gemini CLI or GitHub Copilot event into one line on the running app's socket carrying the event name, whether the
+/// assistant is waiting on the user, the session id, the folder name of the working directory (or of the
+/// repository, when the working directory is a git worktree: ProjectName in ProviderCost.swift), the git branch
+/// checked out there, the permission mode, the subagent id, a stop failure's kind and — only when it is not
 /// Claude Code — which assistant sent it, nothing else. Claude Code's command sends no tool; every other
 /// installer sends `--tool <id>` and each ToolID has a parser of its own (Hook+Codex.swift, Hook+Cursor.swift,
 /// Hook+Gemini.swift, Hook+Copilot.swift); failing the flag, a payload whose shape only one vendor produces is
-/// recognised by it. The running app listens in UsageStore; a remote host's hook posts the same fields to the
-/// local API instead (docs/hooks.md).
+/// recognised by it. The running app listens in UsageStore, over the socket HookSocket.swift describes (until
+/// 0.6.0 it was a distributed notification, which any local process could read or forge); a remote host's hook
+/// posts the same fields to the local API instead (docs/hooks.md).
 enum Hook {
-    static let notificationName = Notification.Name("com.amirhackett.notchmeter.hook")
     static let eventKey = "hook_event_name"
     static let needsInputKey = "needsInput"
     static let sessionKey = "session_id"
@@ -30,7 +31,7 @@ enum Hook {
         let event: String
         let needsInput: Bool
         let sessionID: String?
-        /// The basename of `cwd`, never the path.
+        /// The folder name of `cwd`, or of the repository when `cwd` is a git worktree (ProjectName); never the path.
         let project: String?
         let notificationType: String?
         /// Whether a wait this message begins has stopped the session, as against merely reporting that the user
@@ -205,8 +206,9 @@ enum Hook {
     /// Claude Code's payload (docs/hooks.md). `needsInput(event:notificationType:)` is Claude Code's vocabulary
     /// and is called only from here; the other parsers derive the wait from their own documented signal.
     enum Claude {
-        /// Only the event name, the notification type, the session id, the basename of `cwd`, the permission mode,
-        /// the agent id and a stop failure's kind are read from the payload; the branch is read from `cwd`'s `.git`.
+        /// Only the event name, the notification type, the session id, the folder name of `cwd` (or of the repository
+        /// when `cwd` is a git worktree: ProjectName), the permission mode, the agent id and a stop failure's kind
+        /// are read from the payload; the branch is read from `cwd`'s `.git`.
         /// Claude Code names no tool, so its events read as Claude's, which is what they have always been.
         static func message(event: String, object: [String: Any], tool: ToolID, branch: (String) -> String?) -> Message {
             let type = object["notification_type"] as? String
@@ -233,8 +235,8 @@ enum Hook {
     }
 
     /// What `git symbolic-ref --short HEAD` would print for `cwd`, read from `.git/HEAD` (following a worktree's
-    /// `gitdir:` file) rather than by forking git, so it costs a file read inside the 50 ms budget; nil when `cwd` is
-    /// not a checkout or HEAD is detached.
+    /// `gitdir:` file) rather than by forking git, so it costs a file read and not a process launch inside a command
+    /// that is back in milliseconds; nil when `cwd` is not a checkout or HEAD is detached.
     static func gitBranch(cwd: String) -> String? {
         let fm = FileManager.default
         var dotGit = URL(fileURLWithPath: cwd).appendingPathComponent(".git")
@@ -252,15 +254,17 @@ enum Hook {
         return name.isEmpty ? nil : name
     }
 
-    /// `Notchmeter --hook [--tool <id>] [--event <name>]`: read what the assistant pipes in, post it, exit 0. The
-    /// whole run must fit in 50 ms including launch, so the read gives up after 25 ms and an empty or unreadable
-    /// payload is not an error. The tool flag names the sender before a byte of payload is read; without it the
-    /// payload's shape decides. The event flag names the event for a payload that does not (Copilot's).
+    /// `Notchmeter --hook [--tool <id>] [--event <name>]`: read what the assistant pipes in, hand it to the running
+    /// app, exit 0. The whole run is milliseconds in the ordinary case and one second at most when the app is
+    /// stopped or starved (`HookSocket.send`'s timeout; docs/hooks.md gives the figures), so the read gives up after
+    /// 25 ms and an empty or unreadable payload is not an error. The tool flag names the sender before a byte of payload is read;
+    /// without it the payload's shape decides. The event flag names the event for a payload that does not
+    /// (Copilot's). The hand-over is one line on the app's socket (HookSocket.send), and its answer is not looked
+    /// at: no app listening is the everyday case of Notchmeter not running, and a refusal is the app's to log, so
+    /// the command has nothing to say to the assistant either way and exits 0 silently.
     static func runCommand(arguments: [String] = CommandLine.arguments) -> Never {
         if let message = message(from: readStandardInput(within: 0.025), tool: tool(in: arguments), event: event(in: arguments)) {
-            DistributedNotificationCenter.default().postNotificationName(
-                notificationName, object: nil, userInfo: message.userInfo, deliverImmediately: true
-            )
+            HookSocket.send(.hook, message.userInfo)
         }
         exit(0)
     }

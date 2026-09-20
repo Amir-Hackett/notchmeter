@@ -317,7 +317,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         HotkeyCenter.shared.unregisterAll()
         localAPI?.stop()
+        store.stopListeningForHooks()
         awake.apply(hold: false)
+        // The drain log's appends are asynchronous on its serial queue, and GCD does not run what is still queued
+        // when the process exits, so the row for a reading adopted in the last moments before quit was lost until
+        // 0.6.0. Bounded, so a quit never hangs behind a compaction.
+        DrainLog.flush()
     }
 
     // MARK: - Hooks
@@ -780,6 +785,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// The whole panel, rebuilt for the pasteboard at its natural height. The rebuild carries the density through
+    /// NotchExpandedView's own environment, and its Cost card reads the range from the store
+    /// (`UsageStore.spendRange`), so the copy shows the range on screen; until 0.6.0 the card kept its range as
+    /// `@State` and this fresh panel pasted Today's figure under a 90d reading.
     private func copyPanelImage() {
         CardImage.copy(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000), width: prefs.panelWidth.points + 24)
     }
@@ -920,7 +929,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("notifications: \(prefs.notificationsEnabled ? "on" : "off") in settings, \(notifier.isAvailable ? "available" : "no-op in this run"); session attention: \(prefs.sessionAttention.rawValue); keychain prompts: \(prefs.keychainPrompts.rawValue)")
         Probe.emit("updater: \(updaterGate.summary); never started under --smoke")
         Probe.emit("menu bar item: \(menuBarItem == nil ? "off" : "on") style=\(prefs.menuBarStyle.rawValue); local API: \(localAPI?.isRunning == true ? "on" : "off"); privacy probe: \(ScreenCapture.probeName) captured=\(ScreenCapture.isCaptured()); proxy: \(prefs.proxyURL.isEmpty ? "system" : prefs.proxyURL)")
-        Probe.emit("hooks: " + HookVendor.allCases.map { "\($0.rawValue): \(HookSettings.status(vendor: $0).text)" }.joined(separator: "; ") + "; status line: \(HookSettings.statuslineStatus().text); auto-repair: \(prefs.autoRepairHooks) (never under --smoke); command line tool: \(CommandLineTool.installedLink().map { "\($0.link.path) → \($0.destination)" } ?? "not installed")")
+        Probe.emit("hooks: " + HookVendor.allCases.map { "\($0.rawValue): \(HookSettings.status(vendor: $0).text)" }.joined(separator: "; ") + "; status line: \(HookSettings.statuslineStatus().text); auto-repair: \(prefs.autoRepairHooks) (never under --smoke); command line tool: \(CommandLineTool.installedLink().map { "\($0.link.path) → \($0.destination)" } ?? "not installed"); transport: \(HookSocket.describe())")
         Probe.emit("main menu: \(MainMenu.describe())")
         Probe.emit("readouts: \(autoSide.description)")
         Probe.emit("full screen: \(FullScreen.describe(on: .panelScreen))")

@@ -1090,9 +1090,20 @@ final class Preferences {
         }
     }
 
-    /// The reading's windows in the order the card shows them, hidden ones left out.
+    /// The reading's windows in the order the card shows them, hidden ones left out, and never empty while the
+    /// reading has a window: a preference that hides every one reads as "show the first" (WindowFloor).
     func shownWindows(of reading: UsageReading) -> [LimitWindow] {
-        reading.windows.filter { !isHidden($0, of: reading.tool) }
+        WindowFloor.shown(reading.windows) { isHidden($0, of: reading.tool) }
+    }
+
+    /// The Hide checkbox's write. Before it applies, a window the floor is showing against its stored preference
+    /// (every window hidden by a build before 0.6.0) is unhidden in the preference too, so that revealing a second
+    /// window does not make the first one vanish: without this the card would show A on the floor's say-so, the
+    /// user would reveal B, and A would drop out because the preference still said hidden. The Hide toggles then
+    /// say what the card shows, which is the only state a checkbox can honestly hold.
+    func setHidden(_ hidden: Bool, window: LimitWindow, in reading: UsageReading) {
+        for shown in shownWindows(of: reading) where isHidden(shown, of: reading.tool) { setHidden(false, window: shown, of: reading.tool) }
+        setHidden(hidden, window: window, of: reading.tool)
     }
 
     /// The derived "All models" window, when the windows on show have two or more model-scoped figures to combine
@@ -1108,9 +1119,30 @@ final class Preferences {
         return [combined] + shownWindows(of: reading)
     }
 
-    /// The windows the rings show: the chosen ids when they exist in the reading, else the first two shown.
+    /// The windows the rings show: the chosen ids when they exist in the reading, else the first two shown. The
+    /// hidden set is what `shownWindows(of:)` leaves out, floor included, so the rings are never empty for a tool
+    /// that has a window.
     func ringWindows(of reading: UsageReading) -> [LimitWindow] {
-        RingSelection.windows(of: reading, chosen: ringWindows[reading.tool] ?? [], hidden: Set(reading.windows.filter { isHidden($0, of: reading.tool) }.map(\.id)))
+        let shown = Set(shownWindows(of: reading).map(\.id))
+        return RingSelection.windows(of: reading, chosen: ringWindows[reading.tool] ?? [], hidden: Set(reading.windows.map(\.id)).subtracting(shown))
+    }
+
+    /// A ring picker's write: `id` for the ring at `index` (outermost first), "" for none. Choosing a window for a
+    /// ring asks to see it: a hidden one would be filtered out of the rings and the picker would snap back to what
+    /// it showed before, with no word about the Hide box behind it. The reveal goes through the reading like the
+    /// Hide checkbox does (`setHidden(_:window:in:)`), not the raw preference: with a pre-0.6.0 dictionary that
+    /// hides every window, the floor is showing the first one, and a raw reveal of the pick would leave that
+    /// stored "hidden" in force, so the floored window dropped off the card and the outer ring snapped onto the
+    /// pick, as if the choice had landed on the wrong ring. Emptying a ring closes the gap: the rings are drawn
+    /// outermost first, so a chosen third with no second would otherwise be stored as a second anyway.
+    func setRingWindow(at index: Int, to id: String, in reading: UsageReading) {
+        if let window = reading.windows.first(where: { $0.id == id }), isHidden(window, of: reading.tool) {
+            setHidden(false, window: window, in: reading)
+        }
+        let ring = ringWindows(of: reading)
+        var ids = (0..<RingSelection.maximum).map { ring.indices.contains($0) ? ring[$0].id : "" }
+        ids[index] = id
+        ringWindows[reading.tool] = ids.filter { !$0.isEmpty }
     }
 
     func resetLine(for window: LimitWindow, stale: Bool = false, now: Date = Date()) -> String {
@@ -1204,6 +1236,30 @@ enum RingSelection {
             result.append(window)
         }
         return Array(result.prefix(maximum))
+    }
+}
+
+/// A tool's last shown window cannot be hidden. Until 0.6.0 the Hide checkboxes had no floor: hiding every window
+/// of a tool emptied its card and its rings, and until 0.5.0 blanked its menu bar item to a clickable gap
+/// (MenuBarItem.glyph). The gauge fallback there treated the symptom; this is the root. Two rules, both pure so
+/// they are testable without a Preferences or a view: which windows are shown given the preference, and whether a
+/// given window's checkbox may still hide it.
+enum WindowFloor {
+    /// The windows the preference leaves visible, in the reading's order. When it leaves none and there are
+    /// windows, the first one the vendor meant to be seen (not `hiddenByDefault`) is shown anyway, falling back
+    /// to the first of all when the reading has only default-hidden windows. A preference written by an older
+    /// build with every window hidden therefore reads as "show the first" rather than nothing, whatever way it
+    /// got there.
+    static func shown(_ windows: [LimitWindow], hidden: (LimitWindow) -> Bool) -> [LimitWindow] {
+        let shown = windows.filter { !hidden($0) }
+        if !shown.isEmpty || windows.isEmpty { return shown }
+        return [windows.first { !$0.hiddenByDefault } ?? windows[0]]
+    }
+
+    /// Whether the Hide checkbox for `window` is allowed to hide it: not when it is the one window shown. A window
+    /// already hidden can always be revealed, so its checkbox stays live.
+    static func canHide(_ window: LimitWindow, shown: [LimitWindow]) -> Bool {
+        !(shown.count == 1 && shown[0].id == window.id)
     }
 }
 

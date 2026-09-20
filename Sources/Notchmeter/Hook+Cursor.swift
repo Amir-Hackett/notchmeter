@@ -3,7 +3,8 @@ import Foundation
 extension Hook {
     /// Cursor's hooks (cursor.com/docs/agent/hooks) read onto the same Message the Claude Code hook fills. The
     /// event name is put onto Claude Code's vocabulary so the session tracker needs no second grammar; the session
-    /// is the conversation; the project is the first workspace root's basename; the branch is read from that root.
+    /// is the conversation; the project is the first workspace root's name (the repository's when the root is a git
+    /// worktree: ProjectName); the branch is read from that root.
     /// Cursor has no event that says "waiting for you", so needsInput is always false here — a hand lit on
     /// beforeShellExecution would claim a wait Cursor may never ask for.
     enum Cursor {
@@ -47,7 +48,7 @@ extension Hook {
         }
 
         /// Only the event name, `status`, `parent_conversation_id` (or `conversation_id`, or `session_id`), the
-        /// workspace root's basename and `subagent_id` are read; the prompt, attachments, transcript path, email,
+        /// workspace root's project name (ProjectName) and `subagent_id` are read; the prompt, attachments, transcript path, email,
         /// model and timings are not.
         ///
         /// The session is the conversation the user is in, so `subagentStart`'s `parent_conversation_id` outranks

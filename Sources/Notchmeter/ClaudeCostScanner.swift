@@ -12,7 +12,8 @@ struct UsageEntry: Codable, Equatable, Sendable {
     let dedupeKey: String?
     /// `usage.inference_geo`; "us" is billed at 1.1x list.
     let inferenceGeo: String?
-    /// The last path component of the line's `cwd`, else of the transcript's project folder.
+    /// The project name of the line's `cwd` (ProjectName: the repository a worktree was cut from, else the last path
+    /// component), else of the transcript's project folder.
     let project: String?
     let sessionID: String?
     /// `usage.server_tool_use.web_search_requests`, a per-request fee.
@@ -339,9 +340,10 @@ actor ClaudeCostScanner {
 
     static let cachePrefix = "claude-usage-cache"
 
-    /// Versioned: entries parsed by an older rule set must not be reused.
+    /// Versioned: entries parsed by an older rule set must not be reused. v4 (0.6.0) folds a worktree's spend onto
+    /// its repository, which changes the per-project digest of every file a worktree wrote.
     static func defaultCacheURL() -> URL? {
-        Paths.caches.appendingPathComponent("\(cachePrefix)-v3.json")
+        Paths.caches.appendingPathComponent("\(cachePrefix)-v4.json")
     }
 
     private func loadCacheIfNeeded() {
@@ -418,6 +420,7 @@ actor ClaudeCostScanner {
         var digests: [FileDigest] = []
         var fine: [UsageEntry] = []
         var changed = false
+        let projects = ProjectName.Resolver()
         for (url, project) in files {
             let path = url.path
             let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
@@ -430,7 +433,7 @@ actor ClaudeCostScanner {
             if let hit = cache[path], hit.size == size, hit.modified == modified, hit.pricing == pricing, hit.entries != nil || !needsEntries {
                 cached = hit
             } else {
-                let entries = Self.dedupe((try? Data(contentsOf: url)).map { Self.parseFile($0, project: project) } ?? [])
+                let entries = Self.dedupe((try? Data(contentsOf: url)).map { Self.parseFile($0, project: project, projects: projects) } ?? [])
                 cached = CachedFile(size: size, modified: modified, pricing: pricing, entries: entries, digest: FileDigest.build(entries))
                 cache[path] = cached
                 changed = true
@@ -500,8 +503,17 @@ actor ClaudeCostScanner {
 
     /// "-Users-amir-Developer-notchmeter" is Claude Code's encoding of the working directory: the last segment is
     /// the folder name (a name with a hyphen in it comes out as its last piece, which the line's `cwd` corrects).
+    /// A worktree Claude Code cut encodes as "-Users-amir-Developer-notchmeter--claude-worktrees-wf_1", and is
+    /// folded onto the segment before "claude-worktrees", as `ProjectName` folds the path itself (0.6.0). The
+    /// double hyphen is the mark: it is the dot of ".claude" encoded, so only a real `.claude/worktrees` folder
+    /// carries "--claude-worktrees-", while a project that merely has those words in its name
+    /// ("my-claude-worktrees-tool") does not, and keeps its own last piece. Splitting alone lost that distinction.
     static func projectName(fromFolder folder: String) -> String? {
         let parts = folder.split(separator: "-", omittingEmptySubsequences: true)
+        if folder.contains("--claude-worktrees-"),
+           let at = parts.indices.dropLast(2).first(where: { parts[$0] == "claude" && parts[$0 + 1] == "worktrees" }), at >= 1 {
+            return String(parts[at - 1])
+        }
         guard let last = parts.last, !last.isEmpty else { return nil }
         return String(last)
     }
@@ -510,14 +522,16 @@ actor ClaudeCostScanner {
         ProjectName.ofPath(path)
     }
 
-    static func parseFile(_ data: Data, project: String? = nil) -> [UsageEntry] {
+    /// `projects` is the scan's resolver, so a worktree's `.git` is read once per scan rather than once per line;
+    /// a caller parsing one file makes do with a fresh one.
+    static func parseFile(_ data: Data, project: String? = nil, projects: ProjectName.Resolver = ProjectName.Resolver()) -> [UsageEntry] {
         let marker = Data("\"usage\":{".utf8)
         var entries: [UsageEntry] = []
         var start = data.startIndex
         while start < data.endIndex {
             let end = data[start...].firstIndex(of: 0x0A) ?? data.endIndex
             let line = data[start..<end]
-            if line.range(of: marker) != nil, let entry = parseLine(line, project: project) {
+            if line.range(of: marker) != nil, let entry = parseLine(line, project: project, projects: projects) {
                 entries.append(entry)
             }
             start = end < data.endIndex ? data.index(after: end) : data.endIndex
@@ -525,7 +539,7 @@ actor ClaudeCostScanner {
         return entries
     }
 
-    static func parseLine(_ line: Data, project: String? = nil) -> UsageEntry? {
+    static func parseLine(_ line: Data, project: String? = nil, projects: ProjectName.Resolver = ProjectName.Resolver()) -> UsageEntry? {
         guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
               let stamp = object["timestamp"] as? String,
               let timestamp = DateParsing.iso8601(stamp),
@@ -559,7 +573,7 @@ actor ClaudeCostScanner {
             costUSD: (usage["costUSD"] as? Double) ?? (object["costUSD"] as? Double),
             dedupeKey: key,
             inferenceGeo: usage["inference_geo"] as? String,
-            project: (object["cwd"] as? String).flatMap(projectName(fromPath:)) ?? project,
+            project: (object["cwd"] as? String).flatMap(projects.name(ofPath:)) ?? project,
             sessionID: object["sessionId"] as? String,
             webSearches: (serverTools?["web_search_requests"] as? Int) ?? 0,
             speed: usage["speed"] as? String

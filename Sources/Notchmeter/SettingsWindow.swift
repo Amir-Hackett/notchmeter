@@ -1292,24 +1292,30 @@ private struct WindowChoices: View {
         // rendered as empty boxes with no way back. The derived "All models" window joins them when the card is
         // showing the model windows it combines.
         let choices = reading.windows + [prefs.combinedWindow(of: reading)].compactMap { $0 }
-        Picker(L("Outer ring"), selection: Binding(get: { ring.first?.id ?? "" }, set: { set(at: 0, $0, ring: ring) })) {
+        Picker(L("Outer ring"), selection: Binding(get: { ring.first?.id ?? "" }, set: { set(at: 0, $0) })) {
             ForEach(choices) { window in Text(window.label).tag(window.id) }
         }
         .disabled(choices.isEmpty)
-        Picker(L("Inner ring"), selection: Binding(get: { id(of: ring, at: 1) }, set: { set(at: 1, $0, ring: ring) })) {
+        Picker(L("Inner ring"), selection: Binding(get: { id(of: ring, at: 1) }, set: { set(at: 1, $0) })) {
             Text(L("None")).tag("")
             ForEach(choices) { window in Text(window.label).tag(window.id) }
         }
         .disabled(choices.isEmpty)
-        Picker(L("Third ring"), selection: Binding(get: { id(of: ring, at: 2) }, set: { set(at: 2, $0, ring: ring) })) {
+        Picker(L("Third ring"), selection: Binding(get: { id(of: ring, at: 2) }, set: { set(at: 2, $0) })) {
             Text(L("None")).tag("")
             ForEach(choices) { window in Text(window.label).tag(window.id) }
         }
         .disabled(choices.isEmpty)
+        // The checkboxes read from the shown set rather than the raw preference, so a window the floor is showing
+        // against a stale preference reads as shown; the one window left is disabled, with the help saying why.
+        let shown = prefs.shownWindows(of: reading)
         LabeledContent(L("Hide")) {
             ForEach(reading.windows) { window in
-                Toggle(window.label, isOn: Binding(get: { prefs.isHidden(window, of: tool) }, set: { prefs.setHidden($0, window: window, of: tool) }))
+                let last = !WindowFloor.canHide(window, shown: shown)
+                Toggle(window.label, isOn: Binding(get: { !shown.contains { $0.id == window.id } }, set: { prefs.setHidden($0, window: window, in: reading) }))
                     .toggleStyle(.checkbox).controlSize(.small)
+                    .disabled(last)
+                    .help(last ? L("The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one.") : "")
             }
         }
     }
@@ -1318,17 +1324,10 @@ private struct WindowChoices: View {
         ring.indices.contains(index) ? ring[index].id : ""
     }
 
-    /// Emptying a ring closes the gap: the rings are drawn outermost first, so a chosen third with no second
-    /// would otherwise be stored as a second anyway.
-    private func set(at index: Int, _ id: String, ring: [LimitWindow]) {
-        // Choosing a window for a ring asks to see it: a hidden one would be filtered out of the rings and the
-        // picker would snap back to what it showed before, with no word about the Hide box behind it.
-        if let window = reading.windows.first(where: { $0.id == id }), prefs.isHidden(window, of: tool) {
-            prefs.setHidden(false, window: window, of: tool)
-        }
-        var ids = (0..<RingSelection.maximum).map { self.id(of: ring, at: $0) }
-        ids[index] = id
-        prefs.ringWindows[tool] = ids.filter { !$0.isEmpty }
+    /// The write is the preference's (Preferences.setRingWindow), where the reveal of a hidden pick goes through
+    /// the floor the same way the Hide checkboxes' does, so the two rows cannot disagree about what a reveal keeps.
+    private func set(at index: Int, _ id: String) {
+        prefs.setRingWindow(at: index, to: id, in: reading)
     }
 }
 

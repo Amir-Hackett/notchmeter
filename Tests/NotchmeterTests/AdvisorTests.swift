@@ -399,8 +399,9 @@ import Testing
         #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap today at 13:00, 3h before reset."])
         context.runOuts = ["claude/five_hour": RunOutInterval(earliest: 70 * 60, latest: 160 * 60, sampleCount: 8)]
         #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap today between 13:10 and 14:40."])
-        context.runOuts = ["claude/five_hour": RunOutInterval(earliest: 70 * 60, latest: 75 * 60, sampleCount: 8)]
-        #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap today at 13:10, 2h 50m before reset."])
+        // Narrow: one time at the midpoint (72 minutes from 12:00), with the margin measured from the same time.
+        context.runOuts = ["claude/five_hour": RunOutInterval(earliest: 70 * 60, latest: 74 * 60, sampleCount: 8)]
+        #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap today at 13:12, 2h 48m before reset."])
         context.runOuts = ["claude/five_hour": RunOutInterval(earliest: 5 * 3600, latest: 6 * 3600, sampleCount: 8)]
         #expect(Advisor.runOut(context).map(\.text) == ["At this rate you hit the Claude session cap today at 13:00, 3h before reset."])
         let note = MeterRow.paceNote(window: session, runOut: RunOutInterval(earliest: 70 * 60, latest: 160 * 60, sampleCount: 8), format: .twentyFourHour, now: now)
@@ -411,5 +412,56 @@ import Testing
         let window = ((object["tools"] as? [[String: Any]])?.first?["windows"] as? [[String: Any]])?.first
         #expect((window?["runOut"] as? [String: Any])?["earliestAt"] as? String == Oracle.timestamp(now.addingTimeInterval(70 * 60)))
         #expect(window?["source"] as? String == "vendorEndpoint")
+    }
+
+    /// Until 0.6.0 the card printed the midpoint of a narrow interval while the advice under it quoted the earliest
+    /// edge, so the panel named two times for one event. Both now read `RunOutInterval.presentation`: the same
+    /// interval gives the same time out of both paths, a range from both when it is wide.
+    @Test func theCardAndTheAdviceNameTheSameRunOutTime() throws {
+        let reset = now.addingTimeInterval(4 * 3600)
+        let session = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.5, resetsAt: reset, periodDuration: Period.fiveHours)
+        var context = Advisor.Context(readings: [UsageReading(tool: .claude, windows: [session], plan: nil, fetchedAt: now, observedAt: nil)], timeFormat: .twentyFourHour, now: now, calendar: utc)
+
+        // Narrow, 70 to 74 minutes from now: one time, the midpoint, and the earliest edge appears nowhere.
+        let narrow = RunOutInterval(earliest: 70 * 60, latest: 74 * 60, sampleCount: 8)
+        context.runOuts = ["claude/five_hour": narrow]
+        let midpoint: TimeInterval = 72 * 60
+        let midpointAt = now.addingTimeInterval(midpoint)
+        #expect(narrow.presentation(now: now, resetsAt: reset) == .single(at: midpointAt))
+        let card = try #require(MeterRow.paceNote(window: session, runOut: narrow, format: .twentyFourHour, now: now))
+        let expectedCard = "Runs out in \(ResetText.duration(midpoint))"
+        #expect(card.text == expectedCard)
+        #expect(card.status == .behind)
+        let advice = try #require(Advisor.runOut(context).first?.text)
+        let shown = ResetText.time(midpointAt, format: .twentyFourHour, calendar: utc)
+        let earliestShown = ResetText.time(now.addingTimeInterval(narrow.earliest), format: .twentyFourHour, calendar: utc)
+        #expect(advice.contains("today at \(shown), "))
+        #expect(!advice.contains(earliestShown))
+        let expectedMargin = ResetText.duration(reset.timeIntervalSince(midpointAt))
+        #expect(advice.hasSuffix(", \(expectedMargin) before reset."))
+
+        // Wide, 70 to 160 minutes: a range with the same two edges out of both paths.
+        let wide = RunOutInterval(earliest: 70 * 60, latest: 160 * 60, sampleCount: 8)
+        context.runOuts = ["claude/five_hour": wide]
+        let fromAt = now.addingTimeInterval(wide.earliest)
+        let toAt = now.addingTimeInterval(wide.latest)
+        #expect(wide.presentation(now: now, resetsAt: reset) == .range(from: fromAt, to: toAt))
+        let from = ResetText.time(fromAt, format: .twentyFourHour, calendar: utc)
+        let to = ResetText.time(toAt, format: .twentyFourHour, calendar: utc)
+        let wideCard = try #require(wide.text(now: now, resetsAt: reset, format: .twentyFourHour, calendar: utc))
+        let expectedWideCard = "Runs out \(from)–\(to)"
+        #expect(wideCard == expectedWideCard)
+        let wideAdvice = try #require(Advisor.runOut(context).first?.text)
+        #expect(wideAdvice.contains("between \(from) and \(to)"))
+
+        // Wide with the slow edge past the reset: both name the fast edge; the card adds that the window may last.
+        let open = RunOutInterval(earliest: 70 * 60, latest: 5 * 3600, sampleCount: 8)
+        context.runOuts = ["claude/five_hour": open]
+        #expect(open.presentation(now: now, resetsAt: reset) == .rangeToReset(from: fromAt))
+        let openCard = try #require(open.text(now: now, resetsAt: reset, format: .twentyFourHour, calendar: utc))
+        let expectedOpenCard = "Runs out from \(from), or lasts to the reset"
+        #expect(openCard == expectedOpenCard)
+        let openAdvice = try #require(Advisor.runOut(context).first?.text)
+        #expect(openAdvice.contains("today at \(from), "))
     }
 }
