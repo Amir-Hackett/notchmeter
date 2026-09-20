@@ -204,7 +204,7 @@ import Testing
         #expect(Hook.Answer.output(event: "PreToolUse", reply: answers, payload: Data("broken".utf8)) == nil)
     }
 
-    @Test func theHeadOfALargePayloadSaysWhetherToReadOn() {
+    @Test @MainActor func theHeadOfALargePayloadSaysWhetherToReadOn() {
         #expect(Hook.looksDeciding(Data(#"{"hook_event_name":"PermissionRequest","tool_name":"Write","tool_input":{"content":""#.utf8)))
         #expect(Hook.looksDeciding(Data(#"{"session_id":"s","hook_event_name":"PreToolUse","tool_name":"AskUserQuestion""#.utf8)))
         #expect(!Hook.looksDeciding(Data(#"{"hook_event_name":"Stop","session_id":"s"}"#.utf8)))

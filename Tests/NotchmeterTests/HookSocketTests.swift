@@ -249,8 +249,13 @@ import os
         // The acceptor: after 10 ms it takes every connection, reads it to its end and hangs up, as the app does.
         let stop = OSAllocatedUnfairLock(initialState: false)
         let drained = DispatchSemaphore(value: 0)
+        // The acceptor says when it is running before it sleeps: a CI runner can take longer than the whole
+        // retry ladder (5, 10 and 20 ms) to schedule a new thread, and a send made before it exists finds every
+        // retry refused, which is a slow runner and not a missing retry.
+        let ready = DispatchSemaphore(value: 0)
         Thread.detachNewThread {
-            usleep(10_000)
+            ready.signal()
+            usleep(5_000)
             var waiting = pollfd(fd: listenFD, events: Int16(POLLIN), revents: 0)
             var scratch = [UInt8](repeating: 0, count: 256)
             while !stop.withLock({ $0 }) {
@@ -267,6 +272,7 @@ import os
             drained.wait()
         }
 
+        ready.wait()
         let started = Date()
         let result = HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false).userInfo, to: url.path)
         #expect(result == .sent(reply: nil), "a refusal from a full backlog is a reason to try again, not a missing app")

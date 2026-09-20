@@ -509,7 +509,7 @@ import Testing
         #expect(try String(contentsOf: url, encoding: .utf8) == commented, "the bytes are exactly what they were: no comment lost, no key reordered")
         #expect(try fm.contentsOfDirectory(atPath: dir.path) == ["settings.json"], "nothing was written, so nothing was backed up")
         do {
-            try HookSettings.install(vendor: .antigravity, at: url, executable: executable, now: now)
+            _ = try HookSettings.install(vendor: .antigravity, at: url, executable: executable, now: now)
         } catch let failure as HookSettings.Failure {
             #expect(failure.errorDescription == "\(url.path) is not a JSON object, so it was left untouched")
         }
