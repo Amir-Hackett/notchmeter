@@ -1,0 +1,608 @@
+import Darwin
+import Foundation
+import Testing
+@testable import Notchmeter
+
+/// The two-way hook: what a deciding event carries (and, more to the point, what it does not), the title a
+/// prompt leaves, the wire shape, and what the command prints back for each answer.
+@Suite struct HookDecisions {
+    func parse(_ json: String, tool: ToolID? = nil, event: String? = nil) -> Hook.Message? {
+        Hook.message(from: Data(json.utf8), tool: tool, event: event, environment: [:], branch: { _ in nil }, requestID: "r1")
+    }
+
+    @Test func aPromptLeavesItsFirstLineAsTheTitle() throws {
+        #expect(Hook.title(fromPrompt: "  fix   the\ttests\nand then some") == "fix the tests")
+        #expect(Hook.title(fromPrompt: "\n\nsecond line first?") == "second line first?", "leading blank lines are skipped: the first line with words on it is the title")
+        #expect(Hook.title(fromPrompt: "   ") == nil)
+        #expect(Hook.title(fromPrompt: 42) == nil)
+        let long = String(repeating: "word ", count: 40)
+        let title = try #require(Hook.title(fromPrompt: long))
+        #expect(title.hasSuffix("…"))
+        #expect(title.count == Hook.titleLimit + 1)
+        let message = try #require(parse(#"{"hook_event_name":"UserPromptSubmit","session_id":"s","prompt":"Refactor the parser\n\nDetails follow"}"#))
+        #expect(message.title == "Refactor the parser")
+        #expect(message.userInfo["title"] as? String == "Refactor the parser")
+        #expect(message.userInfo["prompt"] == nil, "the prompt itself never leaves the process")
+        #expect(Hook.Message(userInfo: message.userInfo) == message)
+        let stop = try #require(parse(#"{"hook_event_name":"Stop","session_id":"s","prompt":"not read here"}"#))
+        #expect(stop.title == nil, "only a prompt submission carries a title")
+        let start = try #require(parse(#"{"hook_event_name":"SessionStart","session_id":"s","prompt":"x"}"#))
+        #expect(start.title == nil)
+    }
+
+    @Test func everyVendorsPromptLeavesATitle() throws {
+        let codex = try #require(parse(#"{"hook_event_name":"UserPromptSubmit","session_id":"s","prompt":"codex task"}"#, tool: .codex))
+        #expect(codex.title == "codex task")
+        let subagent = try #require(parse(#"{"hook_event_name":"UserPromptSubmit","session_id":"s","agent_id":"a","prompt":"sub task"}"#, tool: .codex))
+        #expect(subagent.title == nil, "a subagent's submission is not the session's title")
+        let cursor = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c","prompt":"cursor task","attachments":[{"type":"file"}]}"#))
+        #expect(cursor.title == "cursor task")
+        #expect(cursor.userInfo["attachments"] == nil)
+        let gemini = try #require(parse(#"{"hook_event_name":"BeforeAgent","session_id":"g","prompt":"gemini task"}"#))
+        #expect(gemini.title == "gemini task")
+        let copilot = try #require(parse(#"{"sessionId":"p","prompt":"copilot task"}"#, tool: .copilot, event: "userPromptSubmitted"))
+        #expect(copilot.title == "copilot task")
+    }
+
+    @Test func aPermissionRequestCarriesASummaryAndNeverTheInput() throws {
+        let json = #"""
+        {"hook_event_name":"PermissionRequest","session_id":"s","cwd":"/Users/me/proj","permission_mode":"default",
+         "tool_name":"Bash","tool_input":{"command":"rm -rf node_modules\nnpm install","description":"Reinstall"},
+         "permission_suggestions":[{"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"rm -rf node_modules"},{"toolName":"Bash","ruleContent":"npm install:*"}],"behavior":"allow","destination":"localSettings"},
+                                   {"type":"setMode","mode":"acceptEdits","destination":"session"},
+                                   {"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"rm -rf node_modules"}]}]}
+        """#
+        let message = try #require(parse(json))
+        #expect(message.needsInput)
+        #expect(message.awaitsDecision)
+        let request = try #require(message.request)
+        #expect(request.id == "r1")
+        #expect(request.kind == .permission(tool: "Bash", summary: "rm -rf node_modules", detail: "rm -rf node_modules\nnpm install",
+                                            suggestions: ["rm -rf node_modules", "npm install:*"]))
+        let info = message.userInfo
+        #expect(Set(info.keys) == ["hook_event_name", "needsInput", "session_id", "project", "permission_mode",
+                                   "awaitsDecision", "requestID", "toolName", "toolSummary", "toolDetail", "suggestions"])
+        #expect(info["tool_input"] == nil)
+        #expect(info["tool_name"] == nil)
+        #expect(info["permission_suggestions"] == nil)
+        #expect(info["cwd"] == nil)
+        #expect(Hook.Message(userInfo: info) == message, "the request survives the wire")
+        let line = try #require(HookSocket.encode(.hook, info))
+        #expect(HookSocket.decode(line) == .hook(message))
+        // A line that claims a decision but names no tool and no question is the display-only wait it always was.
+        #expect(Hook.Message(userInfo: ["hook_event_name": "PermissionRequest", "needsInput": true, "awaitsDecision": true, "requestID": "x"])?.request == nil)
+        #expect(Hook.Message(userInfo: ["hook_event_name": "PermissionRequest", "needsInput": true, "toolName": "Bash", "toolSummary": "ls"])?.request == nil,
+                "without awaitsDecision and an id nothing is a request")
+    }
+
+    @Test func eachToolIsSummarisedByWhatItWantsToDo() throws {
+        func kind(_ tool: String, _ input: String) throws -> PendingRequest.Kind {
+            let message = try #require(parse(#"{"hook_event_name":"PermissionRequest","tool_name":"\#(tool)","tool_input":\#(input)}"#))
+            return try #require(message.request?.kind)
+        }
+        #expect(try kind("Edit", #"{"file_path":"/Users/me/proj/a.swift","old_string":"let a = 1\nlet b = 2","new_string":"let a = 2"}"#)
+                == .permission(tool: "Edit", summary: "/Users/me/proj/a.swift", detail: "- let a = 1\n- let b = 2\n+ let a = 2", suggestions: []))
+        let content = (1...45).map { "line \($0)" }.joined(separator: "\n")
+        let write = try kind("Write", #"{"file_path":"/tmp/x.txt","content":"\#(content.replacingOccurrences(of: "\n", with: "\\n"))"}"#)
+        guard case .permission(_, let summary, let detail?, _) = write else {
+            Issue.record("a Write is a permission with a detail")
+            return
+        }
+        #expect(summary == "/tmp/x.txt")
+        #expect(detail.hasPrefix("line 1\nline 2\n"))
+        #expect(detail.hasSuffix("line 40\n… (5 more lines)"))
+        #expect(!detail.contains("line 41"))
+        #expect(try kind("Read", #"{"file_path":"/etc/hosts"}"#) == .permission(tool: "Read", summary: "/etc/hosts", detail: nil, suggestions: []))
+        #expect(try kind("NotebookEdit", #"{"notebook_path":"/n.ipynb","new_source":"x"}"#) == .permission(tool: "NotebookEdit", summary: "/n.ipynb", detail: nil, suggestions: []))
+        #expect(try kind("mcp__github__create_issue", #"{"title":"Bug","body":"secret body"}"#)
+                == .permission(tool: "mcp__github__create_issue", summary: "mcp__github__create_issue", detail: nil, suggestions: []),
+                "an MCP tool's arguments are not summarised: the name is all that is shown")
+        #expect(try kind("WebFetch", #"{"url":"https://example.com/x","prompt":"summarise"}"#) == .permission(tool: "WebFetch", summary: "https://example.com/x", detail: nil, suggestions: []))
+        #expect(try kind("Grep", #"{"pattern":"TODO","path":"/src"}"#) == .permission(tool: "Grep", summary: "/src", detail: nil, suggestions: []))
+        #expect(try kind("SomethingNew", #"{"x":1}"#) == .permission(tool: "SomethingNew", summary: "SomethingNew", detail: nil, suggestions: []))
+        #expect(try kind("Bash", #"{}"#) == .permission(tool: "Bash", summary: "Bash", detail: nil, suggestions: []))
+        // Codex: the same shape under its own flag, with the description Codex documents left to the detail's owner.
+        let codex = try #require(parse(#"{"hook_event_name":"PermissionRequest","session_id":"s","tool_name":"Bash","tool_input":{"command":"git push --force","description":"Push"}}"#, tool: .codex))
+        #expect(codex.request?.kind == .permission(tool: "Bash", summary: "git push --force", detail: "git push --force", suggestions: []))
+        #expect(codex.userInfo["tool_input"] == nil)
+    }
+
+    @Test func theDetailIsBoundedAndCutOnACharacterBoundary() throws {
+        let long = String(repeating: "é", count: 3000) // 6000 bytes
+        let bounded = Hook.ToolSummary.bounded(long)
+        #expect(bounded.hasSuffix("…"))
+        #expect(bounded.utf8.count <= Hook.detailLimit + "…".utf8.count)
+        #expect(bounded.dropLast().allSatisfy { $0 == "é" }, "no character is cut in half")
+        let message = try #require(parse(#"{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"\#(String(repeating: "x", count: 5000))"}}"#))
+        guard case .permission(_, _, let detail?, _) = try #require(message.request?.kind) else {
+            Issue.record("a command has a detail")
+            return
+        }
+        #expect(detail.utf8.count <= Hook.detailLimit + 3)
+        #expect(Hook.ToolSummary.bounded("short") == "short")
+    }
+
+    @Test func aQuestionCarriesItsOptionsAndAnyOtherPreToolUseIsNotARequest() throws {
+        let json = #"""
+        {"hook_event_name":"PreToolUse","session_id":"s","tool_name":"AskUserQuestion","tool_use_id":"t1",
+         "tool_input":{"questions":[{"question":"Which framework?","header":"Framework","options":[{"label":"React","description":"The usual"},{"label":"Vue"}],"multiSelect":false},
+                                    {"question":"Which extras?","header":"Extras","options":[{"label":"Lint"},{"label":"Tests"}],"multiSelect":true},
+                                    {"question":"No options","header":"x","options":[]}]}}
+        """#
+        let message = try #require(parse(json))
+        #expect(message.needsInput, "a question holds the session as surely as a permission does")
+        let request = try #require(message.request)
+        #expect(request.kind == .question([
+            PendingRequest.Question(text: "Which framework?", header: "Framework", options: [PendingRequest.Option(label: "React", description: "The usual"), PendingRequest.Option(label: "Vue")]),
+            PendingRequest.Question(text: "Which extras?", header: "Extras", options: [PendingRequest.Option(label: "Lint"), PendingRequest.Option(label: "Tests")], multiSelect: true),
+        ]))
+        let info = message.userInfo
+        #expect(Set(info.keys) == ["hook_event_name", "needsInput", "session_id", "awaitsDecision", "requestID", "questions"])
+        #expect(info["tool_input"] == nil)
+        #expect(Hook.Message(userInfo: info) == message)
+        let line = try #require(HookSocket.encode(.hook, info))
+        #expect(HookSocket.decode(line) == .hook(message), "a nested array is fine on the wire")
+
+        let bash = try #require(parse(#"{"hook_event_name":"PreToolUse","session_id":"s","tool_name":"Bash","tool_input":{"command":"ls"}}"#))
+        #expect(bash.request == nil)
+        #expect(!bash.needsInput, "a tool call about to run is not a wait")
+        #expect(bash.event == "PreToolUse")
+        #expect(Set(bash.userInfo.keys) == ["hook_event_name", "needsInput", "session_id"])
+        let empty = try #require(parse(#"{"hook_event_name":"PreToolUse","session_id":"s","tool_name":"AskUserQuestion","tool_input":{"questions":[]}}"#))
+        #expect(empty.request == nil)
+    }
+
+    @Test func theCommandPrintsTheVendorsDecisionForTheAppsReply() throws {
+        let allow = try #require(Hook.Answer.line(for: .allow))
+        #expect(String(decoding: allow, as: UTF8.self) == "{\"decision\":{\"behavior\":\"allow\"}}\n")
+        #expect(Hook.Answer.decision(from: allow) == .allow)
+        let deny = try #require(Hook.Answer.line(for: .deny(message: nil)))
+        #expect(Hook.Answer.decision(from: deny) == .deny(message: "Denied from Notchmeter"))
+        let answers = try #require(Hook.Answer.line(for: .answers(["Which framework?": "React", "Which extras?": "Lint, Tests"])))
+        #expect(Hook.Answer.decision(from: answers) == .answers(["Which framework?": "React", "Which extras?": "Lint, Tests"]))
+        #expect(Hook.Answer.line(for: .pass) == nil, "a pass is answered with nothing but the hang-up")
+        #expect(Hook.Answer.decision(from: Data()) == nil)
+        #expect(Hook.Answer.decision(from: Data("{\"decision\":{\"behavior\":\"maybe\"}}".utf8)) == nil)
+        #expect(Hook.Answer.decision(from: Data("not json".utf8)) == nil)
+
+        let permission = Data(#"{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"ls"}}"#.utf8)
+        #expect(Hook.Answer.output(event: "PermissionRequest", reply: allow, payload: permission)
+                == #"{"hookSpecificOutput":{"decision":{"behavior":"allow"},"hookEventName":"PermissionRequest"}}"#)
+        #expect(Hook.Answer.output(event: "PermissionRequest", reply: deny, payload: permission)
+                == #"{"hookSpecificOutput":{"decision":{"behavior":"deny","message":"Denied from Notchmeter"},"hookEventName":"PermissionRequest"}}"#)
+        #expect(Hook.Answer.output(event: "PermissionRequest", reply: Data(), payload: permission) == nil, "no reply prints nothing")
+        #expect(Hook.Answer.output(event: "PermissionRequest", reply: answers, payload: permission) == nil, "an answer to a permission is no decision")
+
+        let question = Data(#"{"hook_event_name":"PreToolUse","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Which framework?","header":"Framework","options":[{"label":"React"},{"label":"Vue"}],"multiSelect":false}]}}"#.utf8)
+        let printed = try #require(Hook.Answer.output(event: "PreToolUse", reply: answers, payload: question))
+        let object = try #require(try JSONSerialization.jsonObject(with: Data(printed.utf8)) as? [String: Any])
+        let specific = try #require(object["hookSpecificOutput"] as? [String: Any])
+        #expect(specific["hookEventName"] as? String == "PreToolUse")
+        #expect(specific["permissionDecision"] as? String == "allow")
+        let updated = try #require(specific["updatedInput"] as? [String: Any])
+        #expect(updated["answers"] as? [String: String] == ["Which framework?": "React", "Which extras?": "Lint, Tests"])
+        let questions = try #require(updated["questions"] as? [[String: Any]])
+        #expect(questions.count == 1)
+        #expect(questions.first?["question"] as? String == "Which framework?", "the tool's input is echoed back unchanged beside the answers")
+        #expect(!printed.contains("\n"), "one line")
+        #expect(Hook.Answer.output(event: "PreToolUse", reply: allow, payload: question) == nil, "allow alone is not enough for a question, so it is not printed")
+        #expect(Hook.Answer.output(event: "PreToolUse", reply: answers, payload: Data("broken".utf8)) == nil)
+    }
+
+    @Test func theHeadOfALargePayloadSaysWhetherToReadOn() {
+        #expect(Hook.looksDeciding(Data(#"{"hook_event_name":"PermissionRequest","tool_name":"Write","tool_input":{"content":""#.utf8)))
+        #expect(Hook.looksDeciding(Data(#"{"session_id":"s","hook_event_name":"PreToolUse","tool_name":"AskUserQuestion""#.utf8)))
+        #expect(!Hook.looksDeciding(Data(#"{"hook_event_name":"Stop","session_id":"s"}"#.utf8)))
+        #expect(Hook.quickPayloadLimit == 64 * 1024)
+        #expect(Hook.decidingPayloadLimit == HookSocket.maximumLine, "a deciding payload may be as large as one line on the wire")
+        #expect(Hook.decisionWait == 600)
+        #expect(Hook.decisionWait == HookSocket.Listener.holdCap, "the command's wait and the app's cap are one figure")
+    }
+
+    @Test func aRemotePostKeepsTheTitleAndDropsWhatItCannotUse() throws {
+        let body = Data(#"{"hook_event_name":"UserPromptSubmit","session_id":"s","cwd":"/x/proj","branch":"main","host":"vps","prompt":"remote task","terminal_program":"iTerm.app"}"#.utf8)
+        let message = try #require(LocalAPI.hookMessage(from: body))
+        #expect(message.title == "remote task")
+        #expect(message.terminal == nil, "a remote terminal's ids name windows on another machine")
+        let permission = Data(#"{"hook_event_name":"PermissionRequest","session_id":"s","host":"vps","tool_name":"Bash","tool_input":{"command":"ls"}}"#.utf8)
+        let posted = try #require(LocalAPI.hookMessage(from: permission))
+        #expect(posted.needsInput, "the wait shows")
+        #expect(posted.request == nil, "but nothing can be decided over a route that answers 202")
+    }
+}
+
+/// The hooks files: the deciding entries are synchronous with the decision timeout, Claude Code's PreToolUse is
+/// matched to AskUserQuestion, a 0.6.0 install reads as out of date and the launch repair upgrades it.
+@Suite struct HookDecisionSettings {
+    let executable = "/Applications/Notchmeter.app/Contents/MacOS/Notchmeter"
+
+    @Test func theSnippetMakesTheDecidingEntriesSynchronous() throws {
+        let snippet = HookSettings.snippet(executable: executable)
+        let root = try #require(try JSONSerialization.jsonObject(with: Data(snippet.utf8)) as? [String: Any])
+        let hooks = try #require(root["hooks"] as? [String: Any])
+        #expect(HookSettings.events.contains("PreToolUse"))
+        for event in HookSettings.events {
+            let group = try #require((hooks[event] as? [[String: Any]])?.first, "\(event)")
+            let handler = try #require((group["hooks"] as? [[String: Any]])?.first, "\(event)")
+            if HookVendor.claude.decidingEvents.contains(event) {
+                #expect(Set(handler.keys) == ["type", "command", "timeout"], "\(event): no async, or the answer could decide nothing")
+                #expect(handler["timeout"] as? Int == 600, "\(event)")
+            } else {
+                #expect(handler["async"] as? Bool == true, "\(event)")
+                #expect(handler["timeout"] as? Int == 5, "\(event)")
+            }
+            #expect(group["matcher"] as? String == (event == "PreToolUse" ? "AskUserQuestion" : nil), "\(event)")
+        }
+        #expect(snippet.contains("\"PreToolUse\": [\n      { \"matcher\": \"AskUserQuestion\", \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"timeout\": 600 } ] }"))
+        #expect(snippet.contains("\"PermissionRequest\": [\n      { \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"timeout\": 600 } ] }"))
+    }
+
+    @Test func aSixPointZeroInstallIsPartialAndRepairUpgradesItOnce() throws {
+        // What 0.6.0 wrote: every event async with a five-second timeout, and no PreToolUse.
+        var hooks: [String: Any] = [:]
+        for event in HookSettings.events where event != "PreToolUse" {
+            hooks[event] = [["hooks": [["type": "command", "command": "'\(executable)' --hook", "async": true, "timeout": 5]]]]
+        }
+        let older: [String: Any] = ["hooks": hooks, "model": "opus"]
+        let status = HookSettings.status(settings: older, executable: executable)
+        #expect(status == .partial(path: executable), "the path is right; the PermissionRequest entry cannot carry an answer back")
+        #expect(status.needsRepair)
+
+        let repaired = HookSettings.repair(older, executable: executable)
+        #expect(repaired.added == ["PreToolUse"])
+        #expect(repaired.repaired == ["PermissionRequest"], "only the deciding entry changes shape; the others are byte for byte what they were")
+        #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
+        let written = try #require(repaired.settings["hooks"] as? [String: Any])
+        let permission = try #require(((written["PermissionRequest"] as? [[String: Any]])?.first?["hooks"] as? [[String: Any]])?.first)
+        #expect(NSDictionary(dictionary: permission) == NSDictionary(dictionary: ["type": "command", "command": "'\(executable)' --hook", "timeout": 600]))
+        let stop = try #require(((written["Stop"] as? [[String: Any]])?.first?["hooks"] as? [[String: Any]])?.first)
+        #expect(stop["async"] as? Bool == true)
+        #expect(stop["timeout"] as? Int == 5)
+        let question = try #require((written["PreToolUse"] as? [[String: Any]])?.first)
+        #expect(question["matcher"] as? String == "AskUserQuestion")
+        #expect(repaired.settings["model"] as? String == "opus")
+
+        let again = HookSettings.repair(repaired.settings, executable: executable)
+        #expect(again.added.isEmpty)
+        #expect(again.repaired.isEmpty)
+        #expect(NSDictionary(dictionary: again.settings) == NSDictionary(dictionary: repaired.settings))
+    }
+
+    @Test func aPreToolUseGroupWithoutItsMatcherIsPartialAndATimeoutTheUserRaisedIsKept() throws {
+        var current = HookSettings.merge(into: [:], executable: executable).settings
+        var hooks = try #require(current["hooks"] as? [String: Any])
+        hooks["PreToolUse"] = [["hooks": [["type": "command", "command": "'\(executable)' --hook", "timeout": 600]]]]
+        hooks["PermissionRequest"] = [["hooks": [["type": "command", "command": "'\(executable)' --hook", "timeout": 900]]]]
+        current["hooks"] = hooks
+        #expect(HookSettings.status(settings: current, executable: executable) == .partial(path: executable),
+                "a PreToolUse group of ours with no matcher would launch the command on every tool call")
+        let repaired = HookSettings.repair(current, executable: executable)
+        #expect(repaired.repaired == ["PreToolUse"])
+        let written = try #require(repaired.settings["hooks"] as? [String: Any])
+        #expect((written["PreToolUse"] as? [[String: Any]])?.first?["matcher"] as? String == "AskUserQuestion")
+        let permission = try #require(((written["PermissionRequest"] as? [[String: Any]])?.first?["hooks"] as? [[String: Any]])?.first)
+        #expect(permission["timeout"] as? Int == 900, "a longer timeout is the user's")
+        #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
+
+        var wider = repaired.settings
+        var widened = try #require(wider["hooks"] as? [String: Any])
+        widened["PreToolUse"] = [["matcher": "AskUserQuestion|ExitPlanMode", "hooks": [["type": "command", "command": "'\(executable)' --hook", "timeout": 600]]]]
+        wider["hooks"] = widened
+        #expect(HookSettings.status(settings: wider, executable: executable) == .installed(path: executable), "a matcher that still covers the question is the user's")
+    }
+
+    @Test func codexAndCopilotDecidingEntriesFollowTheSameRule() throws {
+        var codex = HookSettings.merge(into: [:], vendor: .codex, executable: executable).settings
+        #expect(HookSettings.status(settings: codex, vendor: .codex, executable: executable) == .installed(path: executable))
+        var hooks = try #require(codex["hooks"] as? [String: Any])
+        hooks["PermissionRequest"] = [["hooks": [["type": "command", "command": "'\(executable)' --hook --tool codex", "timeout": 5]]]]
+        codex["hooks"] = hooks
+        #expect(HookSettings.status(settings: codex, vendor: .codex, executable: executable) == .partial(path: executable), "0.6.0's five-second entry")
+        let repaired = HookSettings.repair(codex, vendor: .codex, executable: executable)
+        #expect(repaired.repaired == ["PermissionRequest"])
+        let handler = try #require((((repaired.settings["hooks"] as? [String: Any])?["PermissionRequest"] as? [[String: Any]])?.first?["hooks"] as? [[String: Any]])?.first)
+        #expect(NSDictionary(dictionary: handler) == NSDictionary(dictionary: ["type": "command", "command": "'\(executable)' --hook --tool codex", "timeout": 600]))
+
+        let copilot = HookVendor.copilot.handler(command: "'\(executable)' --hook --tool copilot --event PermissionRequest", event: "PermissionRequest")
+        #expect(NSDictionary(dictionary: copilot) == NSDictionary(dictionary: ["type": "command", "command": "'\(executable)' --hook --tool copilot --event PermissionRequest", "timeoutSec": 600]))
+        var older = HookSettings.merge(into: [:], vendor: .copilot, executable: executable).settings
+        var entries = try #require(older["hooks"] as? [String: Any])
+        entries["PermissionRequest"] = nil
+        older["hooks"] = entries
+        #expect(HookSettings.status(settings: older, vendor: .copilot, executable: executable) == .partial(path: executable), "a 0.6.0 file has no PermissionRequest entry")
+        #expect(HookSettings.repair(older, vendor: .copilot, executable: executable).added == ["PermissionRequest"])
+        let untimed: [String: Any] = ["type": "command", "command": "'\(executable)' --hook --tool copilot --event PermissionRequest"]
+        #expect(!HookVendor.copilot.isCurrent(handler: untimed, element: untimed, event: "PermissionRequest"), "Copilot's default is 30 s, which would cancel the command before the user answers")
+        #expect(HookVendor.cursor.decidingEvents.isEmpty)
+        #expect(HookVendor.antigravity.decidingEvents.isEmpty)
+    }
+}
+
+/// The socket carrying an answer back: the command holds the connection, the app writes one line and hangs up,
+/// and every way that can fail leaves the command with nothing, promptly.
+@Suite struct HookSocketDecisions {
+    static func request(_ id: String = "r1") -> Hook.Message {
+        var message = Hook.Message(event: "PermissionRequest", needsInput: true, sessionID: "s")
+        message.request = Hook.Request(id: id, kind: .permission(tool: "Bash", summary: "ls", detail: nil, suggestions: []))
+        return message
+    }
+
+    @Test func aDecisionRoundTripsOnTheSameConnection() throws {
+        let url = HookSocketTransport.scratch("decide")
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let listener = HookSocket.Listener(path: url, peerCheck: { _ in .accepted }, holdCap: 5) { message, reply in
+            guard case .hook(let hook) = message, hook.awaitsDecision else {
+                reply.answer(nil)
+                return
+            }
+            // The app, answering from its UI two hundred milliseconds later.
+            Thread.detachNewThread {
+                Thread.sleep(forTimeInterval: 0.2)
+                reply.answer(Hook.Answer.line(for: .deny(message: nil)))
+                reply.answer(Hook.Answer.line(for: .allow))
+            }
+        }
+        #expect(listener.start())
+        defer { listener.stop() }
+
+        let started = Date()
+        let result = HookSocket.send(.hook, Self.request().userInfo, to: url.path, timeout: 5)
+        let elapsed = Date().timeIntervalSince(started)
+        guard case .sent(let reply?) = result else {
+            Issue.record("the command must get the app's line back: \(result)")
+            return
+        }
+        #expect(Hook.Answer.decision(from: reply) == .deny(message: "Denied from Notchmeter"), "the first answer wins; the second is a no-op")
+        #expect(elapsed >= 0.15, "the command waited for the answer: \(elapsed) s")
+        #expect(elapsed < 2.5, "and returned as soon as it came, well inside the cap: \(elapsed) s")
+        #expect(listener.parkedCount == 0)
+    }
+
+    @Test func noAnswerInsideTheHoldCapIsNothing() throws {
+        let url = HookSocketTransport.scratch("hold")
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let listener = HookSocket.Listener(path: url, peerCheck: { _ in .accepted }, holdCap: 0.5) { _, _ in }
+        #expect(listener.start())
+        defer { listener.stop() }
+
+        let started = Date()
+        let result = HookSocket.send(.hook, Self.request().userInfo, to: url.path, timeout: 5)
+        let elapsed = Date().timeIntervalSince(started)
+        #expect(result == .sent(reply: nil), "a hold that ran out prints nothing, so the terminal asks")
+        #expect(elapsed >= 0.4, "the connection was held for the cap: \(elapsed) s")
+        #expect(elapsed < 2, "and no longer: \(elapsed) s")
+    }
+
+    @Test func anOrdinaryEventIsStillAnsweredAtOnce() throws {
+        let url = HookSocketTransport.scratch("ordinary")
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let seen = HookSocketTransport.Seen()
+        let replies = OSAllocatedUnfairLockBox<[HookSocket.Reply]>([])
+        let listener = HookSocket.Listener(path: url, peerCheck: { _ in .accepted }, holdCap: 5) { message, reply in
+            replies.set(replies.get() + [reply])
+            seen.deliver(message)
+        }
+        #expect(listener.start())
+        defer { listener.stop() }
+
+        let started = Date()
+        #expect(HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false, sessionID: "s").userInfo, to: url.path) == .sent(reply: nil))
+        let promptly = 0.5
+        #expect(Date().timeIntervalSince(started) < promptly, "nothing about the ordinary hop changed")
+        #expect(seen.delivered.wait(timeout: .now() + 2) == .success)
+        #expect(replies.get().first?.isAnswered == true, "the listener closed it the moment delivery returned")
+        #expect(listener.parkedCount == 0)
+    }
+
+    @Test func pastTheParkedCapARequestIsDeliveredWithoutItsRequestAndAnsweredAtOnce() throws {
+        let url = HookSocketTransport.scratch("parked")
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let seen = HookSocketTransport.Seen()
+        let listener = HookSocket.Listener(path: url, peerCheck: { _ in .accepted }, holdCap: 1.5) { message, _ in seen.deliver(message) }
+        #expect(listener.start())
+        defer { listener.stop() }
+
+        // Fill the cap with commands nobody answers, then one more.
+        let cap = HookSocket.Listener.parkedCap
+        let finished = DispatchGroup()
+        for index in 0..<cap {
+            finished.enter()
+            Thread.detachNewThread {
+                defer { finished.leave() }
+                _ = HookSocket.send(.hook, Self.request("r\(index)").userInfo, to: url.path, timeout: 5)
+            }
+        }
+        #expect(HookSocketTransport.count(seen.delivered, upTo: cap) == cap)
+        #expect(listener.parkedCount == cap)
+        let started = Date()
+        let result = HookSocket.send(.hook, Self.request("overflow").userInfo, to: url.path, timeout: 5)
+        let elapsed = Date().timeIntervalSince(started)
+        #expect(result == .sent(reply: nil))
+        #expect(elapsed < 0.75, "the one past the cap is answered at once: \(elapsed) s")
+        #expect(seen.delivered.wait(timeout: .now() + 2) == .success)
+        let overflow = seen.messages.last
+        guard case .hook(let hook)? = overflow else {
+            Issue.record("the request past the cap is still delivered")
+            return
+        }
+        #expect(hook.request == nil, "as the display-only wait it would have been in 0.6.0")
+        #expect(hook.needsInput)
+        #expect(finished.wait(timeout: .now() + 5) == .success, "the parked ones are released at the cap")
+        #expect(listener.parkedCount == 0)
+    }
+}
+
+/// The store's end: the reply is kept under the request's id, `decide` alone writes to it, the settings that
+/// turn titles and answers off hold, and nothing of the request reaches the oracle.
+@Suite struct StoreDecisions {
+    let t0 = DateParsing.iso8601("2026-09-01T12:00:00Z")!
+
+    /// A connected pair: the store answers on one end, the test reads the other.
+    static func pair() throws -> (reply: HookSocket.Reply, peer: Int32) {
+        var fds: [Int32] = [-1, -1]
+        try #require(socketpair(AF_UNIX, SOCK_STREAM, 0, &fds) == 0)
+        return (HookSocket.Reply(fd: fds[0]), fds[1])
+    }
+
+    static func read(_ fd: Int32) -> Data {
+        var data = Data()
+        var scratch = [UInt8](repeating: 0, count: 256)
+        while true {
+            let count = Darwin.read(fd, &scratch, scratch.count)
+            guard count > 0 else { return data }
+            data.append(scratch, count: count)
+        }
+    }
+
+    @MainActor
+    func store(_ suite: String, configure: (Preferences) -> Void = { _ in }) -> (UsageStore, UserDefaults) {
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let prefs = Preferences(defaults: defaults)
+        prefs.notifyWaiting = true
+        configure(prefs)
+        let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
+        return (store, defaults)
+    }
+
+    @MainActor @Test func aDecisionIsWrittenToTheParkedReplyAndClearsTheRequest() throws {
+        let suite = "NotchmeterTests.decide"
+        let (store, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var acted: [String] = []
+        store.deliverSessionEvent = { _, session in acted.append("raise \(session.id)") }
+        store.removeNotifications = { acted.append("withdraw \($0.joined(separator: ","))") }
+        store.promptRequested = { session, request in acted.append("prompt \(session.id) \(request.id)") }
+        store.promptEnded = { acted.append("ended \($0)") }
+
+        let (reply, peer) = try Self.pair()
+        defer { close(peer) }
+        store.hookReceived(HookSocketDecisions.request("r1"), now: t0, reply: reply)
+        #expect(acted == ["prompt s r1", "raise s"])
+        #expect(store.sessions.pending(now: t0).map(\.request.id) == ["r1"])
+        #expect(store.sessions.all.first?.isWaiting == true)
+        #expect(!reply.isAnswered, "the reply is parked until the app decides")
+
+        store.decide("nobody", .allow, now: t0.addingTimeInterval(1))
+        #expect(!reply.isAnswered, "an id the app is not showing decides nothing")
+        #expect(acted.count == 2)
+
+        store.decide("r1", .allow, now: t0.addingTimeInterval(2))
+        #expect(reply.isAnswered)
+        #expect(String(decoding: Self.read(peer), as: UTF8.self) == "{\"decision\":{\"behavior\":\"allow\"}}\n")
+        #expect(store.sessions.pending(now: t0.addingTimeInterval(2)).isEmpty)
+        #expect(store.sessions.all.first?.isWorking == true, "an allowed session is running again until its next event says otherwise")
+        #expect(acted == ["prompt s r1", "raise s", "withdraw session/s/waiting", "ended r1"])
+        store.decide("r1", .deny(message: nil), now: t0.addingTimeInterval(3))
+        #expect(acted.count == 4, "a second decision on the same id is nothing")
+    }
+
+    @MainActor @Test func aPassLeavesTheSessionWaitingAndANewRequestReleasesTheOld() throws {
+        let suite = "NotchmeterTests.pass"
+        let (store, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var ended: [String] = []
+        store.promptEnded = { ended.append($0) }
+
+        let first = try Self.pair()
+        defer { close(first.peer) }
+        store.hookReceived(HookSocketDecisions.request("r1"), now: t0, reply: first.reply)
+        store.decide("r1", .pass, now: t0.addingTimeInterval(1))
+        #expect(first.reply.isAnswered)
+        #expect(Self.read(first.peer).isEmpty, "a pass is the hang-up alone")
+        #expect(store.sessions.all.first?.isWaiting == true, "the terminal is asking now")
+        #expect(store.sessions.pending(now: t0.addingTimeInterval(1)).isEmpty)
+        #expect(ended == ["r1"])
+
+        let second = try Self.pair()
+        defer { close(second.peer) }
+        let third = try Self.pair()
+        defer { close(third.peer) }
+        store.hookReceived(HookSocketDecisions.request("r2"), now: t0.addingTimeInterval(2), reply: second.reply)
+        store.hookReceived(HookSocketDecisions.request("r3"), now: t0.addingTimeInterval(3), reply: third.reply)
+        #expect(second.reply.isAnswered, "a request overtaken on the same session is released with nothing")
+        #expect(!third.reply.isAnswered)
+        #expect(ended == ["r1", "r2"])
+        store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s"), now: t0.addingTimeInterval(4))
+        #expect(third.reply.isAnswered, "the session moving on releases its request")
+        #expect(ended == ["r1", "r2", "r3"])
+        store.decide("r3", .answers(["q": "a"]), now: t0.addingTimeInterval(5))
+        #expect(Self.read(third.peer).isEmpty)
+    }
+
+    @MainActor @Test func answeringFromTheNotchOffAnswersNothingAtOnceAndTitlesOffDropsTheTitle() throws {
+        let suite = "NotchmeterTests.answerOff"
+        let (store, defaults) = store(suite) { prefs in
+            prefs.answerFromNotch = false
+            prefs.sessionTitles = false
+        }
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var prompted = 0
+        store.promptRequested = { _, _ in prompted += 1 }
+        let (reply, peer) = try Self.pair()
+        defer { close(peer) }
+        store.hookReceived(HookSocketDecisions.request("r1"), now: t0, reply: reply)
+        #expect(reply.isAnswered, "the terminal asks")
+        #expect(Self.read(peer).isEmpty)
+        #expect(prompted == 0)
+        #expect(store.sessions.all.first?.isWaiting == true, "the wait still shows")
+        #expect(store.sessions.pending(now: t0).isEmpty)
+
+        var prompt = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s")
+        prompt.title = "the secret plan"
+        store.hookReceived(prompt, now: t0.addingTimeInterval(1))
+        #expect(store.sessions.all.first?.title == nil, "nothing of the prompt is held anywhere")
+
+        let on = "NotchmeterTests.titlesOn"
+        let (open, openDefaults) = self.store(on)
+        defer { openDefaults.removePersistentDomain(forName: on) }
+        open.hookReceived(prompt, now: t0)
+        #expect(open.sessions.all.first?.title == "the secret plan")
+    }
+
+    @MainActor @Test func theHoldPassesTheRequestBackAfterThePreferenceSeconds() async throws {
+        let suite = "NotchmeterTests.hold"
+        let (store, defaults) = store(suite) { $0.promptHoldSeconds = 15 }
+        defer { defaults.removePersistentDomain(forName: suite) }
+        #expect(store.prefs.promptHoldSeconds == 15, "the floor of the range")
+        store.prefs.promptHoldSeconds = 1
+        #expect(store.prefs.promptHoldSeconds == 15, "clamped, not taken")
+        store.prefs.promptHoldSeconds = 9000
+        #expect(store.prefs.promptHoldSeconds == 600)
+        #expect(Preferences.promptHoldDefault == 120)
+        // The hold itself is a Task on the preference's seconds; fifteen is the shortest it can be, so the timer
+        // is not waited for here: what is pinned is that the request stands until something ends it.
+        let (reply, peer) = try Self.pair()
+        defer { close(peer) }
+        store.hookReceived(HookSocketDecisions.request("r1"), now: t0, reply: reply)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(!reply.isAnswered)
+        store.decide("r1", .pass)
+        #expect(reply.isAnswered)
+    }
+
+    @Test func theOracleHearsTheShapeOfARequestAndNeverItsContent() throws {
+        var message = Hook.Message(event: "PermissionRequest", needsInput: true, sessionID: "s", project: "proj")
+        message.request = Hook.Request(id: "r1", kind: .permission(tool: "Bash", summary: "rm -rf secret", detail: "rm -rf secret\necho token", suggestions: ["rm:*"]))
+        message.title = "the secret plan"
+        message.terminal = TerminalRef(program: "iTerm.app", bundleID: "com.googlecode.iterm2", tty: "/dev/ttys003", sessionID: "w0t0p0:X")
+        let facts = UsageStore.hookFacts(message)
+        #expect(Set(facts.keys) == ["name", "needsInput", "session", "project", "host", "branch", "agent", "failure", "request"])
+        #expect(facts["request"] as? String == "permission")
+        for key in ["title", "toolName", "toolSummary", "toolDetail", "suggestions", "questions", "terminal", "terminal_tty", "terminal_program", "requestID"] {
+            #expect(facts[key] == nil, "\(key)")
+        }
+        let line = try #require(Oracle.line(event: "hook", fields: facts, at: t0, home: "/Users/me"))
+        for secret in ["secret", "token", "rm:*", "ttys003", "iTerm", "w0t0p0", "r1"] {
+            #expect(!line.contains(secret), "\(secret) must not reach the oracle")
+        }
+        var question = Hook.Message(event: "PreToolUse", needsInput: true, sessionID: "s")
+        question.request = Hook.Request(id: "r2", kind: .question([PendingRequest.Question(text: "Which secret?", options: [PendingRequest.Option(label: "A")])]))
+        #expect(UsageStore.hookFacts(question)["request"] as? String == "question")
+        #expect(UsageStore.hookFacts(Hook.Message(event: "Stop", needsInput: false)).keys.contains("request") == false)
+    }
+}

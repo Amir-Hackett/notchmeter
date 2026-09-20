@@ -163,14 +163,19 @@ final class LocalAPI {
     /// The hook payload a remote machine posts: Claude Code's or Cursor's own event JSON (as `--hook` reads it) plus
     /// `host`; the branch is taken from the payload since the checkout is not on this Mac. `Hook.message(from:)`
     /// tags a Cursor payload by its shape, or by a `"tool": "cursor"` key, so the session is keyed
-    /// `cursor:<conversation_id>@<host>` and lights the Cursor ring.
+    /// `cursor:<conversation_id>@<host>` and lights the Cursor ring. The title rides along; a request does not,
+    /// because this route answers 202 and cannot hand a decision back to the poster (the remote terminal asks as
+    /// it always has, and the event lands as the display-only wait it was), and neither does a terminal, whose
+    /// ids name windows on another machine.
     nonisolated static func hookMessage(from body: Data) -> Hook.Message? {
         guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else { return nil }
         guard let base = Hook.message(from: body, branch: { _ in (object["branch"] as? String).flatMap { $0.isEmpty ? nil : $0 } }) else { return nil }
         let host = (object["host"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-        return Hook.Message(event: base.event, needsInput: base.needsInput, sessionID: base.sessionID, project: base.project,
-                            notificationType: base.notificationType, branch: base.branch, permissionMode: base.permissionMode,
-                            agentID: base.agentID, failure: base.failure, host: host, tool: base.tool)
+        var message = Hook.Message(event: base.event, needsInput: base.needsInput, sessionID: base.sessionID, project: base.project,
+                                   notificationType: base.notificationType, branch: base.branch, permissionMode: base.permissionMode,
+                                   agentID: base.agentID, failure: base.failure, host: host, tool: base.tool)
+        message.title = base.title
+        return message
     }
 
     nonisolated static func response(status: Int, body: Data) -> Data {

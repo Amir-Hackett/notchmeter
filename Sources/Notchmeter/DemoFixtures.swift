@@ -20,6 +20,11 @@ enum DemoFixtures {
         case waiting
         /// A turn has just ended inside the ninety-second hold: the ring takes the colour and the tick.
         case justFinished
+        /// A permission request the hook is holding the session for (0.7.0): the panel opens on the PromptCard
+        /// with Allow and Deny. The ring reads as `.waiting` does.
+        case permissionRequest
+        /// A question with options, the same way.
+        case question
     }
 
     @MainActor
@@ -52,32 +57,65 @@ enum DemoFixtures {
     /// own turn ended six minutes ago, far outside the hold, so it adds nothing to the ring in either moment.
     static func sessions(now: Date, moment: Moment) -> SessionTracker {
         var tracker = SessionTracker()
-        func send(_ event: String, _ ago: TimeInterval, session: String, project: String, branch: String, type: String? = nil) {
-            tracker.apply(Hook.Message(event: event, needsInput: Hook.needsInput(event: event, notificationType: type),
-                                       sessionID: session, project: project, notificationType: type, branch: branch),
-                          now: now.addingTimeInterval(-ago))
+        func send(_ event: String, _ ago: TimeInterval, session: String, project: String, branch: String, type: String? = nil, title: String? = nil) {
+            var message = Hook.Message(event: event, needsInput: Hook.needsInput(event: event, notificationType: type),
+                                       sessionID: session, project: project, notificationType: type, branch: branch)
+            message.title = title
+            // The terminal every fixture session runs in, so the Sessions card's chip and the jump have a target;
+            // it is what iTerm2 puts in the environment of a shell it opens (docs/hooks.md).
+            if event == "SessionStart" {
+                message.terminal = TerminalRef(program: "iTerm.app", bundleID: "com.googlecode.iterm2", tty: session == "scout" ? "/dev/ttys002" : "/dev/ttys004",
+                                               sessionID: session == "scout" ? "w0t1p0:2F1A0C44-5D2B-4E6A-9C3D-1B2A3C4D5E6F" : "w0t0p0:ABA06F98-9094-4382-953B-E41AFAC97761")
+            }
+            tracker.apply(message, now: now.addingTimeInterval(-ago))
+        }
+        func request(_ ago: TimeInterval, session: String, project: String, branch: String, kind: PendingRequest.Kind) {
+            var message = Hook.Message(event: "PermissionRequest", needsInput: true, sessionID: session, project: project, branch: branch, permissionMode: "default")
+            message.request = Hook.Request(id: requestID, kind: kind)
+            tracker.apply(message, now: now.addingTimeInterval(-ago))
         }
         // Ascending in time: `apply` expires against the clock it is handed, so an event out of order would age
         // the state the one before it had just set. That is why scout's turn ends inside each branch below rather
         // than above them: it stopped six minutes ago, which in either moment falls after the notchmeter session
         // opened and took its prompt and before the event that moment turns on.
         send("SessionStart", 22 * 60, session: "scout", project: "scout", branch: "main")
-        send("UserPromptSubmit", 19 * 60, session: "scout", project: "scout", branch: "main")
+        send("UserPromptSubmit", 19 * 60, session: "scout", project: "scout", branch: "main", title: scoutTitle)
         send("SessionStart", 14 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
         switch moment {
         case .waiting:
-            send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
+            send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
             send("Notification", 35, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", type: "permission_prompt")
         case .justFinished:
             // Eight minutes and forty seconds, twenty-six times `ToolSignal.finishedAfter` and so a turn the ring
             // is meant to report rather than one the user watched end.
-            send("UserPromptSubmit", 8 * 60 + 52, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
+            send("UserPromptSubmit", 8 * 60 + 52, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
             send("Stop", 12, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
+        case .permissionRequest:
+            send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
+            send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            request(35, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch",
+                    kind: .permission(tool: "Bash", summary: "swift build -c release", detail: "swift build -c release 2>&1 | grep -E 'warning:'",
+                                      suggestions: ["swift build:*"]))
+        case .question:
+            send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
+            send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            request(35, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch",
+                    kind: .question([PendingRequest.Question(text: "Where should the Sessions card sit?", header: "Layout", options: [
+                        PendingRequest.Option(label: "Under the advice", description: "Between the Advice strip and the tool cards"),
+                        PendingRequest.Option(label: "Above the cost", description: "First card on the panel"),
+                        PendingRequest.Option(label: "Inside each tool card", description: "One block per assistant"),
+                    ])]))
         }
         return tracker
     }
+
+    /// The request id the two request moments carry, so a test or a renderer can address it.
+    static let requestID = "demo-request"
+    static let notchmeterTitle = "Add a Sessions card between the advice and the tool cards"
+    static let scoutTitle = "Draft the Friday sports recap"
+
 
     /// Claude on Max 5x a third of the way into a quiet session, Codex on a free plan with an untouched monthly
     /// window, Cursor on a free plan with nothing to meter: every ring under 40 % and on pace.

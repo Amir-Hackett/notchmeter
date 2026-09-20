@@ -30,6 +30,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
     private var storedScreen: NSScreen
     private var expanded = false
     private var held = false
+    /// A request is on the panel, so the hover machine leaves it open (PanelHolds.prompt).
+    private var promptHeld = false
     /// Which window holds the panel closed, for the oracle's cause.
     private var holdCause: PanelCause = .settings
     private var reporter = PanelReporter()
@@ -67,7 +69,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
 
         hover.watch(panel)
         hover.perform = { [weak self] output, cause in self?.act(output, cause: cause) }
-        hover.isPaused = { [weak self] in self.map { $0.menu.isOpen || $0.held } ?? false }
+        hover.isPaused = { [weak self] in self.map { $0.menu.isOpen || $0.held || $0.promptHeld } ?? false }
         hover.isOffScreen = { [weak self] in self.map { $0.panel.isVisible && !$0.panel.isOnActiveSpace } ?? false }
         hover.pointerEnteredCompact = { [weak self] in self?.store.wakeFromIdle() }
         clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown, .leftMouseDown]) { [weak self] event in
@@ -83,6 +85,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
             let escape = event.keyCode == 53
             let handled = MainActor.assumeIsolated {
                 guard escape, let self, event.window === self.panel, self.expanded else { return false }
+                // See NotchController: the request goes back to the terminal before the panel goes.
+                if self.promptHeld { self.actions.passPrompt() }
                 self.hover.escape()
                 return true
             }
@@ -179,6 +183,13 @@ final class EdgePanelController: NSObject, PanelPresenting {
         layout(animated: false)
     }
 
+    func holdOpen(_ held: Bool) {
+        promptHeld = held
+    }
+
+    /// A request is showing, so a panel opened by the pointer takes the keyboard too (PanelKeyPolicy).
+    private var hasPendingRequest: Bool { !store.sessions.pending(now: Date()).isEmpty }
+
     func applyWindowBehaviour() {
         // See NotchController: no window-list scan on a path the readings drive.
         panel.collectionBehavior = Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen)
@@ -230,7 +241,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         transitionSerial += 1
         let serial = transitionSerial
         let duration = layout(animated: true)
-        if expanded, PanelKeyPolicy.takesKeyboard(cause) {
+        if expanded, PanelKeyPolicy.takesKeyboard(cause, pendingRequest: hasPendingRequest) {
             panel.makeKey()
         } else if !expanded, panel.isKeyWindow {
             panel.resignKey()
@@ -516,7 +527,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
                  prefs.showSpend, prefs.signalRings, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
-                 prefs.monthlyBudgetUSD)
+                 prefs.monthlyBudgetUSD, prefs.sessionsCard, prefs.jumpToTerminal)
             layout(animated: false)
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced
@@ -528,12 +539,14 @@ final class EdgePanelController: NSObject, PanelPresenting {
 }
 
 /// Which opens give the panel the keyboard: a deliberate click, swipe, shortcut or notification; never a hover
-/// or a glance, which must not take the keyboard from the user's app.
+/// or a glance, which must not take the keyboard from the user's app — unless a request is on the panel, whose
+/// ⌘Y, ⌘N and ⌘1…⌘9 are the point of opening it, and whose hold keeps it open until it is answered.
 enum PanelKeyPolicy {
-    static func takesKeyboard(_ cause: PanelCause) -> Bool {
+    static func takesKeyboard(_ cause: PanelCause, pendingRequest: Bool = false) -> Bool {
+        if pendingRequest { return true }
         switch cause {
-        case .click, .swipe, .hotkey, .notification: true
-        default: false
+        case .click, .swipe, .hotkey, .notification: return true
+        default: return false
         }
     }
 }

@@ -744,6 +744,38 @@ final class Preferences {
     var autoRepairHooks: Bool {
         didSet { defaults.set(autoRepairHooks, forKey: Keys.autoRepair); report(Keys.autoRepair, autoRepairHooks, changed: autoRepairHooks != oldValue) }
     }
+    /// The Sessions card on the panel: one row per session the hooks report.
+    var sessionsCard: Bool {
+        didSet { defaults.set(sessionsCard, forKey: Keys.sessionsCard); report(Keys.sessionsCard, sessionsCard, changed: sessionsCard != oldValue) }
+    }
+    /// Whether a prompt's first line is kept as the session's title. Off, the store drops the title before it
+    /// reaches the tracker (UsageStore.hookReceived), so nothing of the prompt is held anywhere in the app.
+    var sessionTitles: Bool {
+        didSet { defaults.set(sessionTitles, forKey: Keys.sessionTitles); report(Keys.sessionTitles, sessionTitles, changed: sessionTitles != oldValue) }
+    }
+    /// Whether a permission request or a question is answered from the notch. Off, the store answers the hook
+    /// nothing at once, so the terminal asks as it always has, and the panel shows only the wait.
+    var answerFromNotch: Bool {
+        didSet { defaults.set(answerFromNotch, forKey: Keys.answerFromNotch); report(Keys.answerFromNotch, answerFromNotch, changed: answerFromNotch != oldValue) }
+    }
+    /// Whether clicking a session row activates the terminal it runs in (TerminalJump).
+    var jumpToTerminal: Bool {
+        didSet { defaults.set(jumpToTerminal, forKey: Keys.jumpToTerminal); report(Keys.jumpToTerminal, jumpToTerminal, changed: jumpToTerminal != oldValue) }
+    }
+    /// How long the app holds a request before handing it back to the terminal, 15 s to 10 min. The socket's own
+    /// cap (HookSocket.Listener.holdCap) and the entries' timeouts sit at the top of that range, so the terminal
+    /// is never held longer than this by the app.
+    var promptHoldSeconds: Int {
+        didSet {
+            // Same shape as finishedAfterMinutes above: the clamp writes back only when it changes the value.
+            let clamped = min(Self.promptHoldRange.upperBound, max(Self.promptHoldRange.lowerBound, promptHoldSeconds))
+            if clamped != promptHoldSeconds { promptHoldSeconds = clamped; return }
+            defaults.set(promptHoldSeconds, forKey: Keys.promptHold)
+            report(Keys.promptHold, promptHoldSeconds, changed: promptHoldSeconds != oldValue)
+        }
+    }
+    static let promptHoldRange = 15...600
+    static let promptHoldDefault = 120
     /// "http://host:port" or "socks5://host:port"; empty follows the system proxy.
     var proxyURL: String {
         didSet {
@@ -911,6 +943,11 @@ final class Preferences {
         static let keepAwake = "keepAwake"
         static let keepAwakeBattery = "keepAwakeOnBattery"
         static let autoRepair = "autoRepairHooks"
+        static let sessionsCard = "sessionsCard"
+        static let sessionTitles = "sessionTitles"
+        static let answerFromNotch = "answerFromNotch"
+        static let jumpToTerminal = "jumpToTerminal"
+        static let promptHold = "promptHoldSeconds"
         static let proxy = "proxyURL"
         static let debugLogging = "debugLogging"
         static let betaUpdates = "betaUpdates"
@@ -1013,6 +1050,11 @@ final class Preferences {
         keepAwake = defaults.bool(forKey: Keys.keepAwake)
         keepAwakeOnBattery = defaults.bool(forKey: Keys.keepAwakeBattery)
         autoRepairHooks = defaults.object(forKey: Keys.autoRepair) as? Bool ?? true
+        sessionsCard = defaults.object(forKey: Keys.sessionsCard) as? Bool ?? true
+        sessionTitles = defaults.object(forKey: Keys.sessionTitles) as? Bool ?? true
+        answerFromNotch = defaults.object(forKey: Keys.answerFromNotch) as? Bool ?? true
+        jumpToTerminal = defaults.object(forKey: Keys.jumpToTerminal) as? Bool ?? true
+        promptHoldSeconds = min(Self.promptHoldRange.upperBound, max(Self.promptHoldRange.lowerBound, defaults.object(forKey: Keys.promptHold) as? Int ?? Self.promptHoldDefault))
         proxyURL = defaults.string(forKey: Keys.proxy) ?? ""
         debugLogging = defaults.bool(forKey: Keys.debugLogging)
         betaUpdates = defaults.bool(forKey: Keys.betaUpdates)

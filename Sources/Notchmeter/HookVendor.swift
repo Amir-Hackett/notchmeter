@@ -87,9 +87,36 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         case .codex: ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop", "Interrupt", "SubagentStart", "SubagentStop", "SessionEnd"]
         case .cursor: ["sessionStart", "beforeSubmitPrompt", "stop", "subagentStart", "subagentStop", "sessionEnd"]
         case .antigravity: ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "SessionEnd"]
-        case .copilot: ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "sessionEnd"]
+        case .copilot: ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "sessionEnd"]
         }
     }
+
+    /// The events on which the command holds the socket for the app's answer (Hook+Decision.swift), and whose
+    /// entries are therefore synchronous with a timeout of `decisionTimeout`: Claude Code's `PermissionRequest`
+    /// and its `PreToolUse` matched to `AskUserQuestion`; Codex's `PermissionRequest`; Copilot's PascalCase
+    /// `PermissionRequest`, which documents the same decision shape. Cursor has no event that waits for the user
+    /// and Gemini CLI's hook is observability only, so neither has one.
+    var decidingEvents: Set<String> {
+        switch self {
+        case .claude: ["PermissionRequest", "PreToolUse"]
+        case .codex, .copilot: ["PermissionRequest"]
+        case .cursor, .antigravity: []
+        }
+    }
+
+    /// The `timeout` (Copilot: `timeoutSec`) a deciding entry carries, in seconds: `Hook.decisionWait`, so the
+    /// vendor never cancels the command before the socket itself gives up.
+    static let decisionTimeout = Int(Hook.decisionWait)
+
+    /// The matcher a group of ours must carry for one event: Claude Code's `PreToolUse` is registered for
+    /// `AskUserQuestion` alone, since the command has nothing to say to any other tool call and would only cost
+    /// a launch per call. Every other entry is unmatched.
+    func matcher(for event: String) -> String? {
+        self == .claude && event == "PreToolUse" ? Hook.askUserQuestionTool : nil
+    }
+
+    /// The key the vendor's timeout is written under.
+    var timeoutKey: String { self == .copilot ? "timeoutSec" : "timeout" }
 
     /// What follows the executable in the command: the base flag, for the copy and for `isNotchmeterHook`. Claude
     /// Code's payload needs no tag; every other vendor names itself so the app never has to guess from the
@@ -110,29 +137,62 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         self == .copilot ? "\(flag) --event \(event)" : flag
     }
 
-    /// The handler dictionary the vendor's file wants for one event. Only documented keys are written. Claude
-    /// Code's and Cursor's are what they have always been, byte for byte. Codex's `timeout` is in seconds;
+    /// The handler dictionary the vendor's file wants for one event. Only documented keys are written. A deciding
+    /// event's entry (`decidingEvents`) is synchronous with `"timeout": 600` (Copilot: `timeoutSec`) for every
+    /// vendor that has one, because the command holds the socket for the user's answer and an `async` hook's
+    /// output "has no effect" on the action it would have decided. Cursor's entries are what they have always
+    /// been, byte for byte, and so is every non-deciding Claude Code entry. Codex's `timeout` is in seconds;
     /// SessionEnd is documented as always synchronous, and Interrupt shares its 1 s default and 3 s cap, which is why
-    /// both entries omit `async` and carry `"timeout": 3`. PermissionRequest stays synchronous too, because an async hook's output lands "at the next safe point", which may be after the
-    /// prompt is drawn. Gemini CLI's `timeout` is in milliseconds and it has no `async` field; the `name` is what
-    /// its /hooks panel lists. Copilot's `timeoutSec` is its own unit, and its notification entry is matched to the
-    /// two types that document a wait so the other four never cost a launch.
+    /// both entries omit `async` and carry `"timeout": 3`. Gemini CLI's `timeout` is in milliseconds and it has no
+    /// `async` field; the `name` is what its /hooks panel lists. Copilot's `timeoutSec` is its own unit, and its
+    /// notification entry is matched to the two types that document a wait so the other four never cost a launch.
     func handler(command: String, event: String) -> [String: Any] {
+        if decidingEvents.contains(event) {
+            return ["type": "command", "command": command, timeoutKey: Self.decisionTimeout]
+        }
         switch self {
-        case .claude: HookSettings.handler(command: command)
-        case .cursor: ["command": command]
+        case .claude: return HookSettings.handler(command: command)
+        case .cursor: return ["command": command]
         case .codex:
             switch event {
-            case "SessionEnd", "Interrupt": ["type": "command", "command": command, "timeout": 3]
-            case "PermissionRequest": ["type": "command", "command": command, "timeout": 5]
-            default: ["type": "command", "command": command, "async": true, "timeout": 5]
+            case "SessionEnd", "Interrupt": return ["type": "command", "command": command, "timeout": 3]
+            default: return ["type": "command", "command": command, "async": true, "timeout": 5]
             }
-        case .antigravity: ["name": "notchmeter", "type": "command", "command": command, "timeout": 5000]
+        case .antigravity: return ["name": "notchmeter", "type": "command", "command": command, "timeout": 5000]
         case .copilot:
-            event == "notification"
+            return event == "notification"
                 ? ["type": "command", "command": command, "matcher": "permission_prompt|elicitation_dialog", "timeoutSec": 5]
                 : ["type": "command", "command": command, "timeoutSec": 5]
         }
+    }
+
+    /// Whether a handler of ours under `event` (with the element it sits in, for the matcher) is in the shape the
+    /// current version writes. Only a deciding event has a shape to check: its handler must not be `async`, its
+    /// timeout must be at least `decisionTimeout` (absent counts as the vendor's default, which is 600 s for
+    /// Claude Code and Codex and 30 s for Copilot), and Claude Code's `PreToolUse` group must be matched to
+    /// `AskUserQuestion`. A 0.6.0 entry (`async: true, timeout: 5`) fails this and reads as `.partial`, so the
+    /// launch repair upgrades it after its backup. A user who raised the timeout further keeps it.
+    func isCurrent(handler: [String: Any], element: [String: Any], event: String) -> Bool {
+        guard decidingEvents.contains(event) else { return true }
+        if handler["async"] as? Bool == true { return false }
+        if let timeout = (handler[timeoutKey] as? NSNumber)?.intValue {
+            if timeout < Self.decisionTimeout { return false }
+        } else if self == .copilot {
+            return false
+        }
+        if let matcher = matcher(for: event), (element["matcher"] as? String)?.contains(matcher) != true { return false }
+        return true
+    }
+
+    /// `handler` brought to the current shape for `event`: the command set, and for a deciding event `async`
+    /// dropped and the timeout raised to `decisionTimeout` unless already higher. Every other key is the user's.
+    func bringingCurrent(_ handler: [String: Any], event: String, command: String) -> [String: Any] {
+        var updated = handler
+        updated["command"] = command
+        guard decidingEvents.contains(event) else { return updated }
+        updated["async"] = nil
+        if ((updated[timeoutKey] as? NSNumber)?.intValue ?? 0) < Self.decisionTimeout { updated[timeoutKey] = Self.decisionTimeout }
+        return updated
     }
 
     /// Whether the vendor picks a saved file up without a restart; drives the note after Add and Repair. Cursor
@@ -154,11 +214,16 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
 enum HookFileShape: Equatable, Sendable {
     case nestedGroups, flatCommands
 
-    /// The element appended under an event on install: the vendor's handler, wrapped in a group for the nested shape.
-    func entry(handler: [String: Any]) -> [String: Any] {
+    /// The element appended under an event on install: the vendor's handler, wrapped in a group for the nested
+    /// shape, with the group's `matcher` when the event wants one (HookVendor.matcher(for:)).
+    func entry(handler: [String: Any], matcher: String? = nil) -> [String: Any] {
         switch self {
-        case .nestedGroups: ["hooks": [handler]]
-        case .flatCommands: handler
+        case .nestedGroups:
+            var group: [String: Any] = ["hooks": [handler]]
+            if let matcher { group["matcher"] = matcher }
+            return group
+        case .flatCommands:
+            return handler
         }
     }
 

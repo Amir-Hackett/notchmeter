@@ -103,6 +103,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pointerMonitor: Any?
     private var pointerSettle: Task<Void, Never>?
     private let awake = AwakeKeeper()
+    /// The one jump at a time back to a session's terminal (TerminalJump.swift).
+    private let jumper = TerminalJump.Executor()
     private lazy var autoSideProbe = CompactStripProbe(store: store)
     /// Auto's watcher: idle unless the readouts are set to Auto, and never a timer (MenuBarExtent).
     private lazy var autoSide = AutoSideWatcher(prefs: prefs) { [weak self] in
@@ -197,6 +199,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         store.deliverSessionEvent = { [weak self] event, session in self?.sessionEvent(event, session: session) }
         store.removeNotifications = { [weak self] identifiers in self?.notifier.remove(identifiers: identifiers) }
+        store.promptRequested = { [weak self] session, request in self?.actions.showPrompt(session, request) }
+        store.promptEnded = { [weak self] requestID in self?.actions.promptEnded(requestID) }
         store.awakeChanged = { [weak self] hold in
             self?.awake.apply(hold: hold)
             self?.refreshFooterNote()
@@ -226,6 +230,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.chooseCompactSide = { [weak self] side in
             guard let self, case .stale(_, let replaced) = self.autoSide.sideChosen(side) else { return }
             self.offerAccessibilityReset(replaced: replaced)
+        }
+        actions.showPrompt = { [weak self] session, request in self?.promptRequested(session, request) }
+        actions.promptEnded = { [weak self] requestID in self?.promptEnded(requestID) }
+        actions.passPrompt = { [weak self] in self?.passPrompts() }
+        actions.jump = { [weak self] session in
+            guard let self, self.prefs.jumpToTerminal else { return }
+            self.jumper.jump(session)
         }
         requests.rootsChanged = { [weak self] in self?.store.reloadRoots() }
         requests.menuBarChanged = { [weak self] in self?.applyMenuBarItem() }
@@ -526,10 +537,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Holds the panel closed for one of the app's own windows, or releases that hold. The presenters hear only
     /// about the change from held to free and back, never about which window asked: an update session that ends
-    /// while Settings is still up must not open the panel over it.
+    /// while Settings is still up must not open the panel over it. `.prompt` is the hold the other way (PanelHolds).
     private func hold(_ reason: PanelHolds.Reason, _ held: Bool) {
         guard holds.set(reason, held) else { return }
-        for presenter in presenters { presenter.holdCompact(holds.isHeld, cause: holdCause) }
+        if reason == .prompt {
+            for presenter in presenters { presenter.holdOpen(holds.holdsOpen) }
+        } else {
+            for presenter in presenters { presenter.holdCompact(holds.isHeld, cause: holdCause) }
+        }
+    }
+
+    /// A request arrived (UsageStore.promptRequested): the panel is held open on it and opened with the
+    /// keyboard, so ⌘Y, ⌘N and ⌘1…⌘9 land on the card. A panel already open by the pointer takes the keyboard
+    /// without reopening. While one of the app's own windows holds the panel closed nothing opens: the card is
+    /// there when the window goes, and the store's own hold hands the request back in time either way.
+    private func promptRequested(_ session: AgentSession, _ request: PendingRequest) {
+        hold(.prompt, true)
+        guard !holds.isHeld, let presenter = pointerPresenter, !presenter.hover.isOffScreen() else { return }
+        if presenter.hover.state == .expanded {
+            presenter.window?.makeKey()
+        } else {
+            presenter.expandNow(cause: .notification)
+        }
+    }
+
+    /// A request ended (answered, passed, overtaken or timed out): the open-hold goes once none is left, and the
+    /// hover machine takes the panel back from there.
+    private func promptEnded(_ requestID: String) {
+        guard store.sessions.pending(now: Date()).isEmpty else { return }
+        hold(.prompt, false)
+    }
+
+    /// Escape on a panel with requests on it: every one goes back to its terminal (`Decision.pass`).
+    private func passPrompts() {
+        for pending in store.sessions.pending(now: Date()) { store.decide(pending.request.id, .pass) }
     }
 
     /// The oracle's name for what holds the panel: the dashboard when it alone does, else Settings, which also
@@ -628,6 +669,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 presenter.show()
             }
+            if holds.holdsOpen { presenter.holdOpen(true) }
         }
         Oracle.shared.emit("presenters", ["screens": presenters.map(\.screen.localizedName), "generation": rebuildGeneration])
     }
@@ -930,6 +972,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("updater: \(updaterGate.summary); never started under --smoke")
         Probe.emit("menu bar item: \(menuBarItem == nil ? "off" : "on") style=\(prefs.menuBarStyle.rawValue); local API: \(localAPI?.isRunning == true ? "on" : "off"); privacy probe: \(ScreenCapture.probeName) captured=\(ScreenCapture.isCaptured()); proxy: \(prefs.proxyURL.isEmpty ? "system" : prefs.proxyURL)")
         Probe.emit("hooks: " + HookVendor.allCases.map { "\($0.rawValue): \(HookSettings.status(vendor: $0).text)" }.joined(separator: "; ") + "; status line: \(HookSettings.statuslineStatus().text); auto-repair: \(prefs.autoRepairHooks) (never under --smoke); command line tool: \(CommandLineTool.installedLink().map { "\($0.link.path) → \($0.destination)" } ?? "not installed"); transport: \(HookSocket.describe())")
+        Probe.emit("prompts: pending=\(store.sessions.pending(now: Date()).count); answer from the notch=\(prefs.answerFromNotch ? "on" : "off") hold=\(prefs.promptHoldSeconds)s; sessions card=\(prefs.sessionsCard ? "on" : "off") titles=\(prefs.sessionTitles ? "on" : "off"); jump=\(prefs.jumpToTerminal ? "on" : "off") automation: "
+                   + TerminalJump.scriptedApps.map { "\($0.name)=\(TerminalJump.automationStatus(bundleID: $0.bundleID).word)" }.joined(separator: " "))
         Probe.emit("main menu: \(MainMenu.describe())")
         Probe.emit("readouts: \(autoSide.description)")
         Probe.emit("full screen: \(FullScreen.describe(on: .panelScreen))")
