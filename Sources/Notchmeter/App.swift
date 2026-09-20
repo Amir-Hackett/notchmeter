@@ -83,6 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var presenters: [any PanelPresenting] = []
     private var settings: SettingsWindowController?
     private var settingsObserver: NSObjectProtocol?
+    /// The first-launch Welcome (WelcomeWindow), kept only while it is up.
+    private var welcome: WelcomeWindowController?
+    private var welcomeObserver: NSObjectProtocol?
     private var dashboard: DashboardWindowController?
     private var dashboardObserver: NSObjectProtocol?
     private var snapshotObserver: NSObjectProtocol?
@@ -208,6 +211,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.start()
         actions.refresh = { [weak self] in self?.store.refreshAll(interactive: true) }
         actions.openSettings = { [weak self] in self?.showSettings() }
+        actions.openSettingsPane = { [weak self] pane in self?.showSettings(pane: pane) }
         actions.openDashboard = { [weak self] in self?.showDashboard() }
         actions.showOptions = { [weak self] in self?.pointerPresenter?.showOptions() }
         actions.applyLayout = { [weak self] in self?.applyLayout() }
@@ -303,6 +307,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     Translocation.offerMove()
                     self.hold(.alert, false)
                 }
+            } else if !prefs.welcomed, !prefs.hookOfferShown {
+                // A copy that has seen neither: the Welcome, whose last step is the hook offer with the status
+                // line beside it, so the offer's own branch below never fires on top of it.
+                prefs.welcomed = true
+                prefs.hookOfferShown = true
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(2))
+                    self.showWelcome()
+                }
             } else if !prefs.hookOfferShown, store.isShown(.claude), HookSettings.status() == .notInstalled {
                 prefs.hookOfferShown = true
                 Task { @MainActor in
@@ -310,6 +323,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self.requests.hookOffer = true
                     self.showSettings()
                 }
+            } else if !prefs.welcomed {
+                // Set up before the Welcome existed: it has been through the offer, so there is nothing to show.
+                prefs.welcomed = true
             }
         }
     }
@@ -394,15 +410,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Collapses the panel first and holds it closed for as long as the window is up: the panel window spans the
     /// screen's height at a level above every other window, so Settings would otherwise open behind it. Opens on
     /// the screen the pointer is on.
-    func showSettings() {
+    /// `pane` puts a particular sidebar row on screen: the window is built on it, or, once up, asked for it
+    /// through `SettingsRequests.showPane`.
+    func showSettings(pane: SettingsPane? = nil) {
         if settings == nil {
-            let controller = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: notifier, requests: requests)
+            let controller = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: notifier, requests: requests,
+                                                      pane: pane ?? .general)
             settings = controller
             if let window = controller.window {
                 settingsObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
                     Task { @MainActor in self?.settingsDidClose() }
                 }
             }
+        } else if let pane {
+            requests.showPane = pane
         }
         hold(.settings, true)
         prefs.refreshLaunchAtLogin()
@@ -415,6 +436,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ColourWell.closePanel()
         hold(.settings, false)
         Oracle.shared.emit("settings", settingsFields(action: "hidden"))
+    }
+
+    // MARK: - Welcome
+
+    /// The first-launch Welcome, held open the way Settings is. Its install button closes it and opens Settings
+    /// on Integrations with the hook offer and the status line queued (`offerClaudeSetup`).
+    private func showWelcome() {
+        let controller = WelcomeWindowController(install: { [weak self] in self?.offerClaudeSetup() },
+                                                 finish: { [weak self] in self?.welcome?.close() })
+        welcome = controller
+        if let window = controller.window {
+            welcomeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.welcomeDidClose() }
+            }
+        }
+        hold(.welcome, true)
+        controller.present(on: .pointerScreen)
+        Oracle.shared.emit("settings", ["action": "welcome"])
+    }
+
+    private func welcomeDidClose() {
+        hold(.welcome, false)
+        if let welcomeObserver { NotificationCenter.default.removeObserver(welcomeObserver) }
+        welcomeObserver = nil
+        welcome = nil
+    }
+
+    /// What the Welcome's install button asks for: the hook offer sheet where the hook is not installed, and the
+    /// status line install once that sheet is answered — or at once when the hook is already there. Both run in
+    /// the Settings window, which is the one installer (SettingsView.installHook, installStatusline).
+    private func offerClaudeSetup() {
+        welcome?.close()
+        if case .installed = HookSettings.statuslineStatus() {} else { requests.statuslineOffer = true }
+        if case .installed = HookSettings.status() {} else { requests.hookOffer = true }
+        showSettings(pane: .integrations)
     }
 
     // MARK: - Dashboard
@@ -1067,9 +1123,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let presenter else { return }
         let current = prefs.compactStyle
         let countdown = prefs.showResetCountdown
+        let primary = prefs.compactPrimary
         for style in CompactStyle.allCases {
             prefs.compactStyle = style
             prefs.showResetCountdown = false
+            prefs.compactPrimary = primary
             presenter.remeasure()
             let compact = presenter.hover.regions.compact
             Probe.emit("compact style \(style.rawValue): compact region \(Int(compact.width.rounded())) × \(Int(compact.height.rounded())) pt at (\(Int(compact.minX)), \(Int(compact.minY)))")
@@ -1078,10 +1136,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 presenter.remeasure()
                 let widened = presenter.hover.regions.compact
                 Probe.emit("compact style \(style.rawValue) + countdown: compact region \(Int(widened.width.rounded())) × \(Int(widened.height.rounded())) pt")
+            } else {
+                // Plain rings carry the outer figure by default since 0.7.0 (Preferences.compactPrimary), so the
+                // bare nest is measured as well: that is the footprint the fit falls back to, and the line that
+                // reads the same as it did before the figure arrived.
+                prefs.compactPrimary = !primary
+                presenter.remeasure()
+                let other = presenter.hover.regions.compact
+                Probe.emit("compact style \(style.rawValue) \(primary ? "without" : "with") the main figure: compact region \(Int(other.width.rounded())) × \(Int(other.height.rounded())) pt")
             }
         }
         prefs.compactStyle = current
         prefs.showResetCountdown = countdown
+        prefs.compactPrimary = primary
         presenter.remeasure()
     }
 

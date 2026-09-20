@@ -7,6 +7,8 @@ import SwiftUI
 final class NotchActions {
     var refresh: () -> Void = {}
     var openSettings: () -> Void = {}
+    /// Settings open on a named pane: the panel's "Add a tool" row lands on Assistants.
+    var openSettingsPane: (SettingsPane) -> Void = { _ in }
     var openDashboard: () -> Void = {}
     var showOptions: () -> Void = {}
     var applyLayout: () -> Void = {}
@@ -94,7 +96,7 @@ struct PanelReporter {
 /// app puts on screen — its Settings window, one of Sparkle's, one of its own alerts — holds it compact for as long
 /// as that window is up, and it opens again only once the last of them has gone.
 struct PanelHolds {
-    enum Reason { case settings, dashboard, update, alert }
+    enum Reason { case settings, dashboard, update, alert, welcome }
 
     private var reasons: Set<Reason> = []
 

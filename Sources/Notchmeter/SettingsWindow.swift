@@ -22,6 +22,12 @@ final class SettingsRequests {
     /// here can redirect the Add and Repair buttons at a file of the renderer's choosing; those keep reading and
     /// writing each vendor's own file alone.
     var renderedHookStatus: (hook: [HookVendor: HookSettings.Status], statusline: HookSettings.Status)?
+    /// The Welcome window's install button: put the status line in after the hook offer above is answered, or
+    /// at once when the hook is already there. Cleared by whichever of the two runs it.
+    var statuslineOffer = false
+    /// A pane the app wants on screen in a window that is already up (the panel's "Add a tool" row lands on
+    /// Assistants); the view takes it and clears it.
+    var showPane: SettingsPane?
     /// The outcome of the last "Install command line tool…" press.
     var commandLineToolMessage: String?
     var rootsChanged: () -> Void = {}
@@ -133,6 +139,11 @@ struct SettingsView: View {
     @State private var colourWell = ColourWell()
     @State private var originText = ""
     @State private var fullScreenExceptionText = ""
+    /// The search field's text (SettingsSearch). Not `.searchable`: that renders into a toolbar, and this window
+    /// is a toolbar-less panel that cannot show one.
+    @State private var query = ""
+    /// The Diagnostics disclosure in Advanced; closed until opened, or until a search lands inside it.
+    @State private var diagnosticsExpanded = false
 
     /// Which pane the sidebar is on. Not optional: a nil selection would leave the detail side blank, and this
     /// window has no empty state to show there. Seeded through `init` rather than defaulted here, so a caller
@@ -179,7 +190,8 @@ struct SettingsView: View {
                             snippet: MCPServer.snippet(executable: HookSettings.executablePath))
         }
         .sheet(isPresented: Binding(get: { requests.hookOffer }, set: { requests.hookOffer = $0 })) {
-            HookOfferView(install: { requests.hookOffer = false; installHook() }, later: { requests.hookOffer = false })
+            HookOfferView(install: { requests.hookOffer = false; installHook() },
+                          later: { requests.hookOffer = false; requests.statuslineOffer = false })
         }
         .onAppear {
             prefs.refreshLaunchAtLogin()
@@ -193,6 +205,17 @@ struct SettingsView: View {
             // The window can be built with the offer already raised; the onChange below catches it being raised
             // while the window is open.
             if requests.hookOffer { pane = .integrations }
+            takeRequestedPane()
+            runStatuslineOffer()
+        }
+        .onChange(of: requests.showPane) { _, _ in takeRequestedPane() }
+        .onChange(of: requests.statuslineOffer) { _, _ in runStatuslineOffer() }
+        // Typing pulls the window to the first pane with a match — unless the pane on screen has one — and opens
+        // the Diagnostics disclosure when the match is inside it; the sections without one dim (`searchOpacity`).
+        .onChange(of: query) { _, text in
+            guard let hit = SettingsSearch.hit(for: text, current: pane) else { return }
+            if hit.pane != pane { pane = hit.pane }
+            if hit.sections.contains(.diagnostics) { diagnosticsExpanded = true }
         }
         .onChange(of: requests.hookSheetDryRun) { _, url in
             guard let url else { return }
@@ -260,12 +283,26 @@ struct SettingsView: View {
 
     private var formDetail: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(pane.title)
-                .font(.largeTitle.weight(.semibold))
-                .accessibilityAddTraits(.isHeader)
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, -4)
+            HStack(alignment: .firstTextBaseline) {
+                Text(pane.title)
+                    .font(.largeTitle.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                // In the header rather than the toolbar the window has not got. A plain field: it filters the
+                // static index in SettingsSearch, and the rows themselves are never rebuilt.
+                VStack(alignment: .trailing, spacing: 2) {
+                    TextField(text: $query, prompt: Text(L("Search settings"))) { Text(L("Search settings")) }
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 180)
+                    if searchMisses {
+                        Text(L("No matches")).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, -4)
             Form {
                 paneContent
             }
@@ -274,29 +311,65 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    /// The sections the current query touches; every section while there is no query.
+    private var searchedSections: Set<SettingsSection>? {
+        guard !SettingsSearch.normalized(query).isEmpty else { return nil }
+        return SettingsSearch.sections(matching: query)
+    }
+
+    /// A query is typed and nothing answers it: nothing is dimmed, and the header says so.
+    private var searchMisses: Bool {
+        searchedSections?.isEmpty ?? false
+    }
+
+    /// How a block is drawn against the query: dimmed while another block holds the match, whole otherwise.
+    /// Dimmed rather than hidden, so the page keeps its shape and a row a reader half-remembers is still there to
+    /// be found by eye. Several sections at once for a `Section` that holds more than one block — Advanced holds
+    /// the Diagnostics disclosure — so that a match inside the disclosure keeps the section it sits in whole.
+    private func searchOpacity(_ sections: SettingsSection...) -> Double {
+        guard let searched = searchedSections, !searched.isEmpty, searched.isDisjoint(with: sections) else { return 1 }
+        return 0.35
+    }
+
+    /// The pane the app asked for after the window was up.
+    private func takeRequestedPane() {
+        guard let requested = requests.showPane else { return }
+        pane = requested
+        requests.showPane = nil
+    }
+
+    /// The Welcome window's second install, once the hook offer is out of the way (or was never raised because
+    /// the hook is already there).
+    private func runStatuslineOffer() {
+        guard requests.statuslineOffer, !requests.hookOffer else { return }
+        requests.statuslineOffer = false
+        pane = .integrations
+        installStatusline()
+    }
+
     @ViewBuilder private var paneContent: some View {
         switch pane {
         case .general:
-            generalSection
-            updatesSection
-            aboutSection
+            generalSection.opacity(searchOpacity(.general))
+            updatesSection.opacity(searchOpacity(.updates))
+            aboutSection.opacity(searchOpacity(.about))
         case .dashboard:
             EmptyView()
         case .appearance:
-            panelSection
-            usageSection
-            shortcutsSection
+            panelSection.opacity(searchOpacity(.panel))
+            usageSection.opacity(searchOpacity(.usage))
+            shortcutsSection.opacity(searchOpacity(.shortcuts))
         case .assistants:
-            assistantsSection
-            transcriptsSection
+            assistantsSection.opacity(searchOpacity(.assistants))
+            transcriptsSection.opacity(searchOpacity(.transcripts))
         case .notifications:
-            notificationsSection
+            notificationsSection.opacity(searchOpacity(.notifications))
         case .integrations:
-            hookSection
-            integrationsSection
+            hookSection.opacity(searchOpacity(.hooks))
+            integrationsSection.opacity(searchOpacity(.otherTools))
         case .advanced:
-            privacySection
-            advancedSection
+            privacySection.opacity(searchOpacity(.privacy))
+            advancedSection.opacity(searchOpacity(.advanced, .diagnostics))
         }
     }
 
@@ -545,6 +618,9 @@ struct SettingsView: View {
             }
             if prefs.compactStyle.showsNumbers {
                 Toggle(L("Show reset countdown beside the figures"), isOn: Binding(get: { prefs.showResetCountdown }, set: { prefs.showResetCountdown = $0 }))
+            } else {
+                Toggle(L("Show the main figure beside the rings"), isOn: Binding(get: { prefs.compactPrimary }, set: { prefs.compactPrimary = $0 }))
+                    .help(L("The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible."))
             }
             Picker(L("Density"), selection: Binding(get: { prefs.density }, set: { prefs.density = $0 })) {
                 ForEach(Density.allCases, id: \.self) { Text($0.title).tag($0) }
@@ -614,12 +690,11 @@ struct SettingsView: View {
             LabeledContent(L("Show costs in")) {
                 field($currencyText, prompt: Self.currencyPlaceholder, label: L("Currency code"))
                     .onSubmit { applyCurrency() }
-            }
-            LabeledContent(L("Rate per dollar")) {
-                field($rateText, prompt: Self.ratePlaceholder, label: L("Rate per dollar"))
-                    .onSubmit { applyCurrency() }
                 Button(L("Apply")) { applyCurrency() }
             }
+            // The rate the code converts at is under Advanced › Diagnostics with its own Apply: a number set once
+            // and rarely, beside the other rarely-touched fields, where it no longer makes the currency row look
+            // like something everyone has to fill in.
             paragraph(L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours."))
             LabeledContent(L("Monthly budget")) {
                 field($monthlyBudgetText, prompt: Money.code, label: L("Monthly budget"))
@@ -771,6 +846,8 @@ struct SettingsView: View {
                         .padding(.leading, 22)
                 }
             }
+            Toggle(L("Hide assistants with nothing to show"), isOn: Binding(get: { prefs.hideEmptyTools }, set: { prefs.hideEmptyTools = $0 }))
+                .help(L("An assistant that is on and installed but has no reading, no spend and no session yet stays off the panel and the rings until it has one; the last visible assistant is never hidden. While one is hidden the panel ends with an Add a tool row that opens this pane."))
             Button(L("Refresh now")) { store.refreshAll(interactive: true) }
         } header: {
             Text(L("Assistants"))
@@ -1024,35 +1101,58 @@ struct SettingsView: View {
 
     private var advancedSection: some View {
         Section(L("Advanced")) {
-            PeakHoursEditor(prefs: prefs)
-            LabeledContent(L("Route requests through")) {
-                field($proxyText, prompt: L("System (default)"), label: L("Route requests through"), width: 1.5 * Self.fieldWidth)
-                    .onSubmit { applyProxy() }
-                Button(L("Apply")) { applyProxy() }
-            }
-            .help(L("Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on."))
-            Toggle(L("Debug logging"), isOn: Binding(get: { prefs.debugLogging }, set: { prefs.debugLogging = $0 }))
-                .help(L("Writes each vendor request's outcome (status code and size, never a token or a body) to the unified log at info level, where Copy diagnostics and `log show --info` pick it up."))
-            HStack {
-                Button(L("Copy diagnostics")) {
-                    let text = requests.diagnostics()
-                    Diagnostics.copy(text)
-                    diagnosticsMessage = L("Copied %ld lines.", text.split(separator: "\n").count)
-                }
-                .help(L("The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token."))
-                if let diagnosticsMessage {
-                    Text(diagnosticsMessage).font(.caption).foregroundStyle(.secondary)
+            Group {
+                PeakHoursEditor(prefs: prefs)
+                HStack {
+                    Button(L("Export history…")) { exportHistory() }
+                        .help(L("The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost."))
+                    if let exportMessage {
+                        Text(exportMessage).font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
-            HStack {
-                Button(L("Export history…")) { exportHistory() }
-                    .help(L("The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost."))
-                if let exportMessage {
-                    Text(exportMessage).font(.caption).foregroundStyle(.secondary)
+            .opacity(searchOpacity(.advanced))
+            // The rows nobody touches twice a year, folded away: the proxy, the log level, the diagnostics copy
+            // and the currency rate. A search that lands on one of them opens the group (`onChange(of: query)`).
+            DisclosureGroup(isExpanded: $diagnosticsExpanded) {
+                Group {
+                    LabeledContent(L("Route requests through")) {
+                        field($proxyText, prompt: L("System (default)"), label: L("Route requests through"), width: 1.5 * Self.fieldWidth)
+                            .onSubmit { applyProxy() }
+                        Button(L("Apply")) { applyProxy() }
+                    }
+                    .help(L("Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on."))
+                    Toggle(L("Debug logging"), isOn: Binding(get: { prefs.debugLogging }, set: { prefs.debugLogging = $0 }))
+                        .help(L("Writes each vendor request's outcome (status code and size, never a token or a body) to the unified log at info level, where Copy diagnostics and `log show --info` pick it up."))
+                    HStack {
+                        Button(L("Copy diagnostics")) {
+                            let text = requests.diagnostics()
+                            Diagnostics.copy(text)
+                            diagnosticsMessage = L("Copied %ld lines.", text.split(separator: "\n").count)
+                        }
+                        .help(L("The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token."))
+                        if let diagnosticsMessage {
+                            Text(diagnosticsMessage).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    // A disclosure's rows are not stretched the way a section's are, so the button would sit
+                    // centred under the labelled rows above it.
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    LabeledContent(L("Rate per dollar")) {
+                        field($rateText, prompt: Self.ratePlaceholder, label: L("Rate per dollar"))
+                            .onSubmit { applyRate() }
+                        Button(L("Apply")) { applyRate() }
+                    }
+                    .help(L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours."))
                 }
+                .opacity(searchOpacity(.diagnostics))
+            } label: {
+                Text(L("Diagnostics")).opacity(searchOpacity(.diagnostics))
             }
+            .accessibilityLabel(L("Diagnostics"))
             Button(L("Reset All Settings…")) { resetAll() }
                 .help(L("Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept."))
+                .opacity(searchOpacity(.advanced))
         }
     }
 
@@ -1105,8 +1205,12 @@ struct SettingsView: View {
     private func applyCurrency() {
         let code = currencyText.trimmingCharacters(in: .whitespaces).uppercased()
         prefs.currencyCode = code.count == 3 ? code : "USD"
-        prefs.currencyRate = Double(rateText.replacingOccurrences(of: ",", with: ".")) ?? 1
         currencyText = prefs.currencyCode
+    }
+
+    /// The rate has its own Apply under Diagnostics since 0.7.0; until then it shared the currency row's.
+    private func applyRate() {
+        prefs.currencyRate = Double(rateText.replacingOccurrences(of: ",", with: ".")) ?? 1
         rateText = prefs.currencyRate == 1 ? "1" : String(prefs.currencyRate)
     }
 
@@ -1201,6 +1305,14 @@ struct SettingsView: View {
                 hookMessage[vendor] = error.localizedDescription
             }
             if !dryRun { refreshHookStatus() }
+            // The Welcome window asked for the status line as well: its sheet goes up once this one is down,
+            // which the completion is called slightly ahead of.
+            if requests.statuslineOffer, !dryRun {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(350))
+                    runStatuslineOffer()
+                }
+            }
         }
         if let window = hostWindow() {
             alert.beginSheetModal(for: window) { response in Task { @MainActor in finish(response) } }
