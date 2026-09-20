@@ -159,6 +159,7 @@
 "Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "让 Claude Code、Codex、Cursor、Gemini CLI 和 GitHub Copilot 在会话开始或结束、发送提示、一轮停止以及子代理运行时告知刘海：仪表立即刷新，卡片统计会话与代理数。Claude Code、Codex、Gemini CLI 和 Copilot 还会报告它们停下来向你提问的时刻；Cursor 没有这种事件，因此它的圆环只显示完成的勾号，绝不会显示等待的手形。Claude Code 和 Codex 会报告其权限模式；只有 Claude Code 会报告因速率限制而停止。";
 "Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "将其合并到 %1$@，或使用“添加到 %2$@…”自动合并。每个条目运行 %3$@ %4$@，它会把事件名称发送给正在运行的应用后退出。";
 "Metered apart from the included total" = "与套餐内总量分开计量";
+"Reads 0% on this seat however much it spends; Today's spend carries the reading" = "此席位无论用量多少都读作 0%，由“今日支出”代为显示";
 "a session" = "某个会话";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "仅当钩子报告的会话处于一轮之中时持有防休眠断言，在其 Stop 时释放，因此从手机或通过 SSH 启动的会话在接通电源合盖时仍能继续。持有期间页脚显示“保持唤醒 · 2 个会话”。";
 "about " = "约";

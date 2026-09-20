@@ -180,6 +180,38 @@ import Testing
         }
     }
 
+    /// The seat that reads 0 % on every meter, through the provider as the app builds it: the export gives it a
+    /// usual day, Today's spend leads the reading, and the two model meters behind it lose their 0 % so rings
+    /// chosen for them move to the spend window without the choice being touched.
+    @Test func aSeatMeteredNowhereLeadsWithTodaysSpendAndItsZeroMetersYield() async throws {
+        let enterprise = Data(#"""
+        {"billingCycleStart":"2026-09-18T00:00:00.000Z","billingCycleEnd":"2026-10-18T00:00:00.000Z",
+         "membershipType":"enterprise","limitType":"team","isUnlimited":false,
+         "autoModelSelectedDisplayMessage":"You've used 0% of your included total usage",
+         "namedModelSelectedDisplayMessage":"You've used 0% of your included API usage",
+         "individualUsage":{"overall":{"enabled":false,"used":0,"limit":null,"remaining":null}},
+         "teamUsage":{"onDemand":{"enabled":true,"used":876,"limit":null,"remaining":null}}}
+        """#.utf8)
+        let export = Self.events([(offset: -3600, cents: 876, model: "composer-2.5"), (offset: -3 * 86_400.0, cents: 5000, model: "composer-2.5")])
+        let answer: @Sendable (URL, Int) -> (Int, Data) = { url, _ in
+            switch url {
+            case CursorProvider.summaryURL: (200, enterprise)
+            case CursorProvider.teamsURL: (200, Data("{}".utf8))
+            case CursorProvider.usageEventsURL: (200, export)
+            default: (404, Data())
+            }
+        }
+        try await withCursor("dead-meters", answer: answer) { provider, _, _, _ in
+            let reading = try await provider.fetch()
+            #expect(reading.windows.map(\.id) == ["spend_today", "included", "cursor_models", "other_models", "team_on_demand"])
+            let spentToday = reading.windows[0].usedFraction ?? 0
+            #expect(spentToday > 0)
+            #expect(reading.windows[2].usedFraction == nil && reading.windows[3].usedFraction == nil)
+            #expect(reading.windows[2].note == "Reads 0% on this seat however much it spends; Today's spend carries the reading")
+            #expect(RingSelection.windows(of: reading, chosen: ["cursor_models", CombinedWindow.id], hidden: []).map(\.id) == ["spend_today", "included"])
+        }
+    }
+
     /// An account that was read and billed nothing is not an account nobody read.
     @Test func anEmptyExportSaysSoRatherThanClaimingNothingWasRead() async throws {
         try await withCursor("empty", answer: Self.answering { _ in (200, Data(#"{"usageEventsDisplay":[]}"#.utf8)) }) { provider, history, defaults, _ in

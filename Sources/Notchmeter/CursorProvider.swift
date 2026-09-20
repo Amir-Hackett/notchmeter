@@ -77,8 +77,8 @@ actor CursorProvider: UsageProvider {
             guard await recordUsageEvents(cookie: cookie), !reading.windows.contains(where: { ["included", "team_pooled"].contains($0.id) && $0.usedFraction != nil }),
                   let history, let spend = Self.spendToday(history.load(calendar: .current))
             else { return reading }
-            return UsageReading(tool: .cursor, windows: [spend] + reading.windows, plan: reading.plan, fetchedAt: reading.fetchedAt,
-                                observedAt: reading.observedAt)
+            return UsageReading(tool: .cursor, windows: [spend] + Self.withoutDeadSplits(reading.windows), plan: reading.plan,
+                                fetchedAt: reading.fetchedAt, observedAt: reading.observedAt)
         case 401, 403:
             throw ProviderError.notSignedIn(L("Cursor's login was refused. Sign in to Cursor in the editor again"))
         case 404:
@@ -403,6 +403,23 @@ actor CursorProvider: UsageProvider {
             note: L("%1$@ of a usual %2$@ day", Money.dollars(spent), Money.dollars(usual, cents: false)),
             periodDuration: tomorrow.timeIntervalSince(today), source: .localEstimate, rawUsedPercent: percent > 100 ? percent : nil, amountUSD: spent
         )
+    }
+
+    /// The two model meters on a seat whose summary meters nothing. Cursor keeps answering them for such a seat,
+    /// and they read 0 % all cycle however much the export shows it spending (an Enterprise seat on 2026-09-20:
+    /// $8.76 of export that day against "Cursor models 0 %"). A 0 that money is flowing past is not a figure, so
+    /// once the spend window exists (thirty days of export dollars with nothing metered) a split that still reads
+    /// exactly 0 loses its fraction and says why. One that reads anything above 0 is alive and is left alone, so a
+    /// meter that starts counting comes straight back. The choice in Settings is never rewritten to follow this:
+    /// RingSelection yields a choice with no figure to the windows that have one and returns to it by itself.
+    static func withoutDeadSplits(_ windows: [LimitWindow]) -> [LimitWindow] {
+        windows.map { window in
+            guard ["cursor_models", "other_models"].contains(window.id), window.usedFraction == 0 else { return window }
+            return LimitWindow(id: window.id, label: window.name, usedFraction: nil, resetsAt: window.resetsAt,
+                               note: L("Reads 0% on this seat however much it spends; Today's spend carries the reading"),
+                               periodDuration: window.periodDuration, model: window.model, source: window.source,
+                               hiddenByDefault: window.hiddenByDefault)
+        }
     }
 
     /// How much of a window is spent, 0...1: whichever of Cursor's two answers reads further along.
