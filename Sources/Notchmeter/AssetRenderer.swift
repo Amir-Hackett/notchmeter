@@ -45,6 +45,17 @@ enum AssetRenderer {
             let (finished, finishedPrefs) = DemoFixtures.store(now: now, moment: .justFinished)
             try write(signalRings(waiting: stage, finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
                       png: directory.appendingPathComponent("signal-rings.png"))
+            // The two requests, each drawn the way a request actually arrives: the panel opened on the card alone
+            // (UsageStore.panelOpenedForPrompt), which is what the reader will see and not a panel with a card on
+            // top of the meters. A state the fixture machine cannot reach cannot be drawn, so both come from real
+            // hook events replayed by DemoFixtures.
+            for (moment, name) in [(DemoFixtures.Moment.permissionRequest, "permission"), (.question, "question")] {
+                let (asking, askingPrefs) = DemoFixtures.store(now: now, moment: moment)
+                asking.panelOpenedForPrompt = true
+                let card = try Stage(store: asking, prefs: askingPrefs, actions: actions)
+                try write(card.image(.expanded, canvas: card.panelCanvas, pixelScale: scale),
+                          png: directory.appendingPathComponent("\(name).png"))
+            }
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
