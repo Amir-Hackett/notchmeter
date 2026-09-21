@@ -145,18 +145,24 @@ enum PanelWidth: String, CaseIterable, Codable {
 }
 
 /// What the notch does when an assistant waits for the user or a turn ends: nothing beyond the dot and the
-/// notification, a card for that session alone that settles by itself (NoticeCard, since 0.7.4), a glance (the
-/// whole panel opens for a few seconds and settles), or the panel opening.
+/// notification, a glance, or the panel opening. A glance is the session's own card (NoticeCard), settling by
+/// itself. Until 0.7.5 it was the whole panel for a few seconds, and 0.7.4 added the card as a fourth choice
+/// beside it; the whole panel crossing the screen for a finished turn was the thing nobody wanted, so the glance
+/// became the card and the fourth choice folded into it (`stored(_:)` reads a stored "card" as `.glance`).
 enum SessionAttention: String, CaseIterable, Codable {
-    case nothing, card, glance, openPanel
+    case nothing, glance, openPanel
 
     var title: String {
         switch self {
         case .nothing: L("Do nothing")
-        case .card: L("Show a card (closes by itself)")
-        case .glance: L("Glance (open for a few seconds)")
+        case .glance: L("Glance (a card for a few seconds)")
         case .openPanel: L("Open the panel")
         }
+    }
+
+    /// The stored value, with 0.7.4's "card" read as the glance it became.
+    static func stored(_ raw: String?) -> SessionAttention {
+        raw == "card" ? .glance : SessionAttention(rawValue: raw ?? "") ?? .nothing
     }
 }
 
@@ -295,12 +301,10 @@ enum ToolOrder {
 /// on dark whatever is chosen. A notch cut into a side edge forces dark inside its own shape for the sister
 /// reason — it is claiming to be screen the Mac does not have, and screen the Mac does not have is dark.
 ///
-/// That leaves one combination this setting reaches only halfway, and it is known rather than ruled out: from
-/// macOS 26 the edge card's surface is `glassEffect` applied outside the content's forced-dark environment, so the
-/// surface alone reads the ambient scheme. Light therefore puts that white text over light glass in every edge
-/// layout; only the notch layout, which draws no card, is out of its reach. It is the behaviour that shipped, and
-/// `docs/roadmap.md` reserves the judgement about the edge card's glass for a person sitting at a macOS 26
-/// screen — so this is written down rather than argued away.
+/// Until 0.7.5 one combination reached only halfway: from macOS 26 the edge card's surface was `glassEffect`
+/// applied outside the content's forced-dark environment, so under Light it put that white text over light glass
+/// in every edge layout. Seen on a macOS 26 screen (2026-09-21), the card's glass is now dark whatever is chosen
+/// (EdgePanelCard); the pill still follows this setting.
 enum AppearanceChoice: String, CaseIterable, Codable {
     case system, light, dark
 
@@ -1058,7 +1062,7 @@ final class Preferences {
         notifyExtraUsage = defaults.object(forKey: Keys.notifyExtraUsage) as? Bool ?? true
         notifyCacheShift = defaults.bool(forKey: Keys.notifyCacheShift)
         notifyPromptCache = defaults.object(forKey: Keys.notifyPromptCache) as? Bool ?? true
-        sessionAttention = SessionAttention(rawValue: defaults.string(forKey: Keys.sessionAttention) ?? "") ?? .nothing
+        sessionAttention = SessionAttention.stored(defaults.string(forKey: Keys.sessionAttention))
         signalRings = defaults.object(forKey: Keys.signalRings) as? Bool ?? true
         notificationSound = defaults.object(forKey: Keys.notificationSound) as? Bool ?? true
         soundPace = defaults.string(forKey: Keys.soundPace) ?? NotificationSound.defaultChoice

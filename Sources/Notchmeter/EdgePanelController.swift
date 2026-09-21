@@ -625,6 +625,11 @@ struct EdgePanelCard: View {
         NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen)
             .padding(.vertical, 6)
             .modifier(PanelSurface(shape: RoundedRectangle(cornerRadius: 22, style: .continuous)))
+            // The card's text is white in every appearance (NotchExpandedView), so its glass is dark in every
+            // appearance too. Under Light the surface read the ambient scheme and drew that white text on light
+            // glass (AppearanceChoice's note, 0.7.5). The pill beside it still follows the setting: its figures are
+            // drawn in colours that read on either.
+            .environment(\.colorScheme, .dark)
             .padding(4)
             .fixedSize()
     }
