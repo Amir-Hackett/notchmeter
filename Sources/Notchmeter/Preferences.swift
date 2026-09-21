@@ -1191,6 +1191,14 @@ final class Preferences {
         CombinedWindow.of(windows: shownWindows(of: reading))
     }
 
+    /// What a ring picker lists: every window, not only the shown ones (hiding them all once left the pickers
+    /// empty), and the derived "All models" whenever the reading has model figures to combine, shown or not. Before
+    /// 0.7.3 it was offered only while the card showed the model windows, and Cursor hides those by default when
+    /// its included total is metered, so the one choice that covers both models was two Hide boxes away.
+    func ringChoices(of reading: UsageReading) -> [LimitWindow] {
+        reading.windows + [CombinedWindow.of(reading: reading)].compactMap { $0 }
+    }
+
     /// What the panel's window list draws: the shown windows, with the derived combined window at the top when
     /// one exists, so its caption reads onto the windows it was combined from.
     func panelWindows(of reading: UsageReading) -> [LimitWindow] {
@@ -1217,6 +1225,13 @@ final class Preferences {
     func setRingWindow(at index: Int, to id: String, in reading: UsageReading) {
         if let window = reading.windows.first(where: { $0.id == id }), isHidden(window, of: reading.tool) {
             setHidden(false, window: window, in: reading)
+        }
+        // "All models" is combined from the shown windows only, so choosing it shows the model windows it stands
+        // for: a combined ring over windows the card hides would describe figures the card does not.
+        if id == CombinedWindow.id {
+            for window in reading.windows where window.model != nil && window.usedFraction != nil && isHidden(window, of: reading.tool) {
+                setHidden(false, window: window, in: reading)
+            }
         }
         let ring = ringWindows(of: reading)
         var ids = (0..<RingSelection.maximum).map { ring.indices.contains($0) ? ring[$0].id : "" }

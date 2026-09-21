@@ -101,6 +101,38 @@ import Testing
         }
     }
 
+    /// Cursor with its included total metered hides both model meters by default. "All models" is still a ring
+    /// choice, and choosing it shows the two windows it combines, so the ring and the card agree.
+    @Test func allModelsIsOfferedOverHiddenModelWindowsAndShowsThemWhenChosen() {
+        withSuite("allModels") { defaults in
+            let reset = Date().addingTimeInterval(86_400 * 10)
+            let included = LimitWindow(id: "included", label: .key("Included usage"), usedFraction: 0.6, resetsAt: reset, periodDuration: 86_400 * 30)
+            func split(_ id: String, _ used: Double) -> LimitWindow {
+                LimitWindow(id: id, label: .vendor(id), usedFraction: used, resetsAt: reset, periodDuration: 86_400 * 30, model: id, hiddenByDefault: true)
+            }
+            let reading = UsageReading(tool: .cursor, windows: [included, split("cursor_models", 0.44), split("other_models", 0.18)],
+                                       plan: nil, fetchedAt: Date(), observedAt: nil)
+            let prefs = Preferences(defaults: defaults)
+            #expect(prefs.shownWindows(of: reading).map(\.id) == ["included"])
+            #expect(prefs.combinedWindow(of: reading) == nil, "the card still combines only what it shows")
+            #expect(prefs.ringChoices(of: reading).map(\.id).contains(CombinedWindow.id))
+            prefs.setRingWindow(at: 0, to: CombinedWindow.id, in: reading)
+            #expect(prefs.shownWindows(of: reading).map(\.id) == ["included", "cursor_models", "other_models"])
+            #expect(prefs.ringWindows(of: reading).first?.id == CombinedWindow.id)
+        }
+    }
+
+    /// Two dead meters (no figure) combine into nothing, so the picker offers no "All models" over them.
+    @Test func deadModelMetersOfferNoAllModels() {
+        let dead = ["cursor_models", "other_models"].map {
+            LimitWindow(id: $0, label: .vendor($0), usedFraction: nil, resetsAt: nil, model: $0, hiddenByDefault: true)
+        }
+        let reading = UsageReading(tool: .cursor, windows: [Self.session] + dead, plan: nil, fetchedAt: Date(), observedAt: nil)
+        withSuite("deadModels") { defaults in
+            #expect(!Preferences(defaults: defaults).ringChoices(of: reading).map(\.id).contains(CombinedWindow.id))
+        }
+    }
+
     /// The dashboard lists the same windows the card shows: with every window of the tool hidden in the
     /// preference, its floored first window has a row rather than the tool having no limits at all.
     @Test func theDashboardListsTheFlooredWindow() {
