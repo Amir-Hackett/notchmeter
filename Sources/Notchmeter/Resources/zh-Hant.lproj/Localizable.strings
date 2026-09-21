@@ -812,3 +812,6 @@
 "When the prompt cache keeps missing" = "提示快取持續未命中時";
 "Your MCP server list is changing mid-session." = "你的 MCP 伺服器清單在工作階段中途發生了變更。";
 "Your prompt cache missed %1$ld times — %2$@ rewritten." = "你的提示快取未命中 %1$ld 次 — 重寫了 %2$@。";
+"Remove from the list" = "從清單中移除";
+"Remove all idle sessions" = "移除所有閒置的工作階段";
+"Remove from the list; it comes back if the session does anything" = "從清單中移除；工作階段有任何動作時會再出現";

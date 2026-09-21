@@ -812,3 +812,6 @@
 "When the prompt cache keeps missing" = "프롬프트 캐시 미스가 계속될 때";
 "Your MCP server list is changing mid-session." = "MCP 서버 목록이 세션 도중에 바뀌고 있습니다.";
 "Your prompt cache missed %1$ld times — %2$@ rewritten." = "프롬프트 캐시가 %1$ld회 미스했습니다 — %2$@ 다시 씀.";
+"Remove from the list" = "목록에서 제거";
+"Remove all idle sessions" = "유휴 세션 모두 제거";
+"Remove from the list; it comes back if the session does anything" = "목록에서 제거합니다. 세션에 움직임이 있으면 다시 나타납니다";

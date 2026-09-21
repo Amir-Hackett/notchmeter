@@ -812,3 +812,6 @@
 "When the prompt cache keeps missing" = "Khi bộ nhớ đệm prompt liên tục trượt";
 "Your MCP server list is changing mid-session." = "Danh sách máy chủ MCP của bạn đang thay đổi giữa phiên.";
 "Your prompt cache missed %1$ld times — %2$@ rewritten." = "Bộ nhớ đệm prompt của bạn đã trượt %1$ld lần — %2$@ bị ghi lại.";
+"Remove from the list" = "Xóa khỏi danh sách";
+"Remove all idle sessions" = "Xóa mọi phiên đang rảnh";
+"Remove from the list; it comes back if the session does anything" = "Xóa khỏi danh sách; nó quay lại nếu phiên có hoạt động";
