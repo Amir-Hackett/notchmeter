@@ -11,15 +11,54 @@ concurrency:
   group: release-${{ github.ref }}
 
 jobs:
+  icon:
+    name: Tahoe icon
+    # Xcode 26's actool is the only thing that compiles packaging/AppIcon.icon, and it crashes when it runs on
+    # macOS 15: the asset agent dies with IBPlatformToolFailureException however sound the document, which was
+    # proved by compiling the same document on both runners (docs/release.md, "The icon"). So the icon is compiled
+    # here, on a macOS 26 runner, and handed to the release job as an artifact; the release itself stays where it
+    # has always been. A failure leaves the release to carry the hand-drawn .icns alone rather than stopping it.
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: macos-26
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile it
+        run: |
+          [ -d packaging/AppIcon.icon ] || { echo "no icon document in this tree"; exit 0; }
+          xcode="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -viE 'beta|rc' | sort -V | tail -n 1 || true)"
+          if [ -n "$xcode" ]; then sudo xcode-select -s "$xcode"; fi
+          xcode-select -p
+          out=build/icon-compile
+          mkdir -p "$out"
+          min="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' scripts/Info.plist)"
+          xcrun actool packaging/AppIcon.icon --compile "$out" \
+            --output-format human-readable-text --notices --warnings --errors \
+            --output-partial-info-plist "$out/AppIcon-partial.plist" \
+            --app-icon AppIcon --include-all-app-icons \
+            --enable-on-demand-resources NO --development-region en \
+            --target-device mac --platform macosx --minimum-deployment-target "$min"
+          ls -la "$out"
+          test -f "$out/Assets.car"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tahoe-icon
+          path: build/icon-compile/Assets.car
+          if-no-files-found: warn
+
   release:
     name: ${{ github.ref_name }}
     # Stable tags only. A beta (v0.2.0-beta.1) is published by hand, docs/release.md "Each release", because its
     # appcast item has to be merged into the current stable release's feed, which this job does not do.
     if: ${{ !contains(github.ref_name, '-') }}
     runs-on: macos-15
+    needs: icon
     env:
       TAG: ${{ github.ref_name }}
       GH_TOKEN: ${{ github.token }}
+      # The car the macOS 26 job compiled, when it got one. scripts/build.sh ignores a path with nothing at it, so
+      # a skipped or failed icon job leaves the release carrying the hand-drawn .icns alone.
+      ICON_ASSETS_CAR: ${{ github.workspace }}/build/icon-prebuilt/Assets.car
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,6 +76,15 @@ jobs:
           xcode-select -p
           swift --version
           xcrun --find actool || echo "no actool: the Tahoe icon will not be compiled into this build"
+
+      - name: Take the Tahoe icon the macOS 26 job compiled
+        # Its absence is not a failure: the release then carries the hand-drawn .icns alone, which is what every
+        # macOS before 26 shows anyway. ICON_ASSETS_CAR is what scripts/build.sh reads.
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: tahoe-icon
+          path: build/icon-prebuilt
 
       - name: Build (release)
         # CI's gate, repeated here so the release path carries it on its own: a warning from anything
