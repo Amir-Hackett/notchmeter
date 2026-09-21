@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-15, macos-26]
+        os: [macos-26]
     runs-on: ${{ matrix.os }}
     continue-on-error: true
     steps:
@@ -31,3 +31,7 @@ jobs:
           out2="$RUNNER_TEMP/control"; mkdir -p "$out2"
           xcrun actool "$ctl" --compile "$out2" --app-icon Control --output-partial-info-plist "$out2/partial.plist" --output-format human-readable-text --notices --warnings --errors --include-all-app-icons --enable-on-demand-resources NO --development-region en --target-device mac --platform macosx --minimum-deployment-target 14.0 2>&1 | grep -v '^dyld\[' | tail -25
           echo "== control exit ${PIPESTATUS[0]} =="; ls -la "$out2"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tahoe-icon-${{ matrix.os }}
+          path: ${{ runner.temp }}/ours
