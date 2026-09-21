@@ -410,6 +410,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard prefs.sessionAttention != .nothing, !suppressed,
               !isSettingsVisible, !isDashboardVisible, let presenter = pointerPresenter else { return }
         switch prefs.sessionAttention {
+        case .card:
+            // A panel already open is already being read: the session's row and the advice line say it there.
+            guard presenter.hover.state != .expanded else { break }
+            store.attentionNotice = AttentionNotice(session: session, event: event)
+            presenter.glance(for: NoticeCard.duration)
         case .glance: presenter.glance()
         case .openPanel: presenter.expandNow(cause: .notification)
         case .nothing: break

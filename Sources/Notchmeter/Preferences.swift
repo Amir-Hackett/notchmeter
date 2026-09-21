@@ -145,13 +145,15 @@ enum PanelWidth: String, CaseIterable, Codable {
 }
 
 /// What the notch does when an assistant waits for the user or a turn ends: nothing beyond the dot and the
-/// notification, a glance (the panel opens for a few seconds and settles), or the panel opening.
+/// notification, a card for that session alone that settles by itself (NoticeCard, since 0.7.4), a glance (the
+/// whole panel opens for a few seconds and settles), or the panel opening.
 enum SessionAttention: String, CaseIterable, Codable {
-    case nothing, glance, openPanel
+    case nothing, card, glance, openPanel
 
     var title: String {
         switch self {
         case .nothing: L("Do nothing")
+        case .card: L("Show a card (closes by itself)")
         case .glance: L("Glance (open for a few seconds)")
         case .openPanel: L("Open the panel")
         }

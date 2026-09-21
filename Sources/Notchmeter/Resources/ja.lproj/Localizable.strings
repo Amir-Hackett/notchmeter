@@ -380,6 +380,7 @@
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "GitHub Copilot のログインが拒否されました（%@ のトークン）。エディタでサインインし直すか `gh auth login` を実行してください";
 "GitHub Copilot's usage response unreadable" = "GitHub Copilot の利用状況の応答を読み取れません";
 "GitHub's Copilot endpoint answered" = "GitHub の Copilot エンドポイントの応答エラー";
+"Show a card (closes by itself)" = "カードを表示（自動で閉じる）";
 "Glance (open for a few seconds)" = "ちら見（数秒だけ開く）";
 "Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard." = "グローバル: どのアプリからでも動作します。「すべてのディスプレイ」では、ポインタのあるディスプレイのパネルが応答します。クリック、スワイプ、ショートカット、通知で開いたときのパネル自身のキー: Escape で閉じる、⌘R で更新、⌘, で設定、⌘Q で終了。ホバーで開いたパネルはキーボードを奪いません。";
 "Google refused the quota read for this account" = "Google はこのアカウントのクォータ読み取りを拒否しました";

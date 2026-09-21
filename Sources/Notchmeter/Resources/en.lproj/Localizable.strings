@@ -396,6 +396,7 @@
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`";
 "GitHub Copilot's usage response unreadable" = "GitHub Copilot's usage response unreadable";
 "GitHub's Copilot endpoint answered" = "GitHub's Copilot endpoint answered";
+"Show a card (closes by itself)" = "Show a card (closes by itself)";
 "Glance (open for a few seconds)" = "Glance (open for a few seconds)";
 "Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard." = "Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard.";
 "Google refused the quota read for this account" = "Google refused the quota read for this account";

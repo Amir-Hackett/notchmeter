@@ -614,6 +614,7 @@ final class NotchController: NSObject, PanelPresenting {
         configureTransition(closing: true)
         hover.adopt(.compact)
         store.panelOpenedForPrompt = false
+        store.attentionNotice = nil
         reporter.report(.compact, cause: cause)
         if let window, window.isKeyWindow { window.resignKey() }
         let serial = beginTransition()

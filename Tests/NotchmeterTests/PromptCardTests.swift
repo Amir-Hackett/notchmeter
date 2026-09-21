@@ -220,3 +220,41 @@ import Testing
         #expect(prefs.sessionsCard && prefs.answerFromNotch && prefs.jumpToTerminal && prefs.sessionTitles)
     }
 }
+
+/// *Show a card* (SessionAttention.card, 0.7.4): the option sits between Do nothing and the glance, the card says
+/// what the banner says, and its jump follows the Sessions card's rule.
+@MainActor @Suite struct AttentionNoticeCard {
+    let t0 = Date(timeIntervalSince1970: 1_790_000_000)
+
+    @Test func theOptionIsStoredAsCardAndListedSecond() {
+        #expect(SessionAttention.allCases == [.nothing, .card, .glance, .openPanel])
+        #expect(SessionAttention(rawValue: "card") == .card)
+        #expect(SessionAttention.card.title == "Show a card (closes by itself)")
+    }
+
+    @Test func theCardJumpsOnlyWhereARowWould() {
+        var local = AgentSession(id: "a", tool: .claude, project: "notchmeter", state: .idle, started: t0, lastEvent: t0, turnStarted: nil)
+        #expect(!NoticeCard.canJump(local, enabled: true), "no terminal, nowhere to go")
+        local.terminal = TerminalRef(bundleID: "com.googlecode.iterm2")
+        #expect(NoticeCard.canJump(local, enabled: true))
+        #expect(!NoticeCard.canJump(local, enabled: false), "the jump setting off")
+        var remote = local
+        remote.host = "devbox"
+        #expect(!NoticeCard.canJump(remote, enabled: true), "a session on another Mac")
+    }
+
+    @Test func theCardDrawsWithAndWithoutItsJump() {
+        var session = AgentSession(id: "a", tool: .claude, project: "notchmeter", state: .idle, started: t0, lastEvent: t0, turnStarted: nil)
+        session.terminal = TerminalRef(bundleID: "com.googlecode.iterm2")
+        let finished = AttentionNotice(session: session, event: .finished(turn: 125))
+        func height(_ card: NoticeCard) -> CGFloat {
+            let renderer = ImageRenderer(content: card.frame(width: 360).environment(\.colorScheme, .dark))
+            return renderer.nsImage?.size.height ?? 0
+        }
+        let bare = height(NoticeCard(notice: finished))
+        let withJump = height(NoticeCard(notice: finished, canJump: true))
+        #expect(bare > 0)
+        #expect(withJump > bare, "the jump button adds a row")
+        #expect(Notifier.copy(for: .finished(turn: 125), session: session).body.contains("notchmeter"))
+    }
+}

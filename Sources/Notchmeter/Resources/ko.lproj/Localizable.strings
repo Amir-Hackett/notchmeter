@@ -380,6 +380,7 @@
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "GitHub Copilot 로그인이 거부되었습니다(%@의 토큰). 편집기에서 다시 로그인하거나 `gh auth login`을 실행하세요";
 "GitHub Copilot's usage response unreadable" = "GitHub Copilot 사용량 응답을 읽을 수 없습니다";
 "GitHub's Copilot endpoint answered" = "GitHub Copilot 엔드포인트 응답 오류";
+"Show a card (closes by itself)" = "카드 표시(자동으로 닫힘)";
 "Glance (open for a few seconds)" = "잠깐 보기(몇 초 열기)";
 "Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard." = "전역: 어느 앱에서나 동작합니다. 모든 디스플레이에서는 포인터가 있는 디스플레이의 패널이 응답합니다. 클릭, 스와이프, 단축키, 알림으로 열렸을 때 패널 자체의 키: Escape 닫기, ⌘R 새로 고침, ⌘, 설정 열기, ⌘Q 종료. 호버로 열린 패널은 키보드를 가져가지 않습니다.";
 "Google refused the quota read for this account" = "Google이 이 계정의 할당량 읽기를 거부했습니다";

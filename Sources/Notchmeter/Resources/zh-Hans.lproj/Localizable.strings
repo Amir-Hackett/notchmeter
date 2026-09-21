@@ -396,6 +396,7 @@
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "GitHub Copilot 的登录被拒绝（%@ 中的令牌）。请在编辑器中重新登录或运行 `gh auth login`";
 "GitHub Copilot's usage response unreadable" = "GitHub Copilot 用量响应无法解析";
 "GitHub's Copilot endpoint answered" = "GitHub 的 Copilot 接口响应异常";
+"Show a card (closes by itself)" = "显示卡片（自动关闭）";
 "Glance (open for a few seconds)" = "一瞥（打开几秒）";
 "Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard." = "全局：在任何应用中都有效；选择“所有显示器”时，由指针所在显示器上的面板响应。面板自身的按键（当它由点击、轻扫、快捷键或通知打开时）：Escape 关闭，⌘R 刷新，⌘, 打开设置，⌘Q 退出。悬停打开的面板绝不占用键盘。";
 "Google refused the quota read for this account" = "Google 拒绝了此账户的配额读取";
