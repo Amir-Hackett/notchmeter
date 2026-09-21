@@ -1,7 +1,7 @@
 {
   "name": "notchmeter",
   "displayName": "Notchmeter",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Read this Mac's AI usage windows (Claude Code session, weekly and per-model; Codex; Cursor; Gemini CLI; Copilot), the local cost estimate and Notchmeter's advice before long work: the notchmeter skill over the command-line tool, and the get_limits MCP tool from the running app.",
   "author": {
     "name": "Amir Hackett",
@@ -10,9 +10,25 @@
   "homepage": "https://www.notchmeter.com",
   "repository": "https://github.com/Amir-Hackett/notchmeter",
   "license": "MIT",
-  "keywords": ["usage", "rate-limits", "quota", "claude-code", "codex", "cursor", "gemini-cli", "copilot", "macos", "notch"],
+  "keywords": [
+    "usage",
+    "rate-limits",
+    "quota",
+    "claude-code",
+    "codex",
+    "cursor",
+    "gemini-cli",
+    "copilot",
+    "macos",
+    "notch"
+  ],
   "skills": "./skills/",
   "mcpServers": {
-    "notchmeter": { "command": "notchmeter", "args": ["--mcp"] }
+    "notchmeter": {
+      "command": "notchmeter",
+      "args": [
+        "--mcp"
+      ]
+    }
   }
 }
