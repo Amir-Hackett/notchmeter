@@ -19,45 +19,30 @@ jobs:
           sw_vers
           ls -d /Applications/Xcode_*.app 2>/dev/null || true
           xcode="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -viE 'beta|rc' | sort -V | tail -n 1 || true)"
-          [ -n "$xcode" ] && sudo xcode-select -s "$xcode"
+          if [ -n "$xcode" ]; then sudo xcode-select -s "$xcode"; fi
           xcode-select -p
           xcrun --find actool
-          "$(xcrun --find actool)" --version | head -20
-      - name: Compile the repository's document
+      - name: Compile the repository document
         run: |
           set +e
-          out=$(mktemp -d)
-          xcrun actool "$PWD/packaging/AppIcon.icon" --compile "$out" \
-            --output-format human-readable-text --notices --warnings --errors \
-            --output-partial-info-plist "$out/partial.plist" \
-            --app-icon AppIcon --include-all-app-icons \
-            --enable-on-demand-resources NO --development-region en \
-            --target-device mac --platform macosx --minimum-deployment-target 14.0 2>&1
-          echo "== exit $? =="
+          out="$RUNNER_TEMP/ours"; mkdir -p "$out"
+          xcrun actool "$PWD/packaging/AppIcon.icon" --compile "$out" --output-format human-readable-text --notices --warnings --errors --app-icon AppIcon --include-all-app-icons --enable-on-demand-resources NO --development-region en --target-device mac --platform macosx --minimum-deployment-target 14.0 2>&1 | grep -v "^dyld\[" | tail -30
+          echo "== ours exit ${PIPESTATUS[0]} =="
           ls -la "$out"
-      - name: Compile a control document in the shipping minimal shape
+      - name: Compile a control document in the minimal shipping shape
         run: |
           set +e
-          ctl="$RUNNER_TEMP/Control.icon"
-          mkdir -p "$ctl/Assets"
+          ctl="$RUNNER_TEMP/Control.icon"; mkdir -p "$ctl/Assets"
           cp packaging/AppIcon.icon/Assets/arc.png "$ctl/Assets/arc.png"
-          cat > "$ctl/icon.json" <<'JSON'
-          {
-            "fill" : { "solid" : "srgb:0.08000,0.08000,0.08000,1.00000" },
-            "groups" : [ { "layers" : [ { "glass" : true, "hidden" : false, "image-name" : "arc.png", "name" : "arc",
-                  "position" : { "scale" : 1, "translation-in-points" : [ 0, 0 ] } } ],
-                "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
-                "translucency" : { "enabled" : true, "value" : 0.5 } } ],
-            "supported-platforms" : { "circles" : [ "watchOS" ], "squares" : "shared" }
-          }
-JSON
-          sed -i '' 's/^          //' "$ctl/icon.json" 2>/dev/null || sed -i 's/^          //' "$ctl/icon.json"
-          cat "$ctl/icon.json"
-          out=$(mktemp -d)
-          xcrun actool "$ctl" --compile "$out" \
-            --output-format human-readable-text --notices --warnings --errors \
-            --app-icon Control --include-all-app-icons \
-            --enable-on-demand-resources NO --development-region en \
-            --target-device mac --platform macosx --minimum-deployment-target 14.0 2>&1
-          echo "== exit $? =="
+          printf '%s' '{
+  "fill" : { "solid" : "srgb:0.08000,0.08000,0.08000,1.00000" },
+  "groups" : [ { "layers" : [ { "glass" : true, "hidden" : false, "image-name" : "arc.png", "name" : "arc",
+        "position" : { "scale" : 1, "translation-in-points" : [ 0, 0 ] } } ],
+      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "translucency" : { "enabled" : true, "value" : 0.5 } } ],
+  "supported-platforms" : { "circles" : [ "watchOS" ], "squares" : "shared" }
+}' > "$ctl/icon.json"
+          out="$RUNNER_TEMP/control"; mkdir -p "$out"
+          xcrun actool "$ctl" --compile "$out" --output-format human-readable-text --notices --warnings --errors --app-icon Control --include-all-app-icons --enable-on-demand-resources NO --development-region en --target-device mac --platform macosx --minimum-deployment-target 14.0 2>&1 | grep -v "^dyld\[" | tail -30
+          echo "== control exit ${PIPESTATUS[0]} =="
           ls -la "$out"
