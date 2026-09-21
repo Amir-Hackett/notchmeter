@@ -579,3 +579,56 @@ import Testing
         #expect(sessions.first?["state"] as? String == "waiting")
     }
 }
+
+/// The quiet-turn nudge (0.7.6): Cursor never says it is waiting for an approval, so a working turn that goes quiet
+/// with nothing running, on an install that sends heartbeats, becomes a possible wait once per turn.
+@Suite struct QuietTurnNudge {
+    let t0 = Date(timeIntervalSince1970: 1_790_000_000)
+    func cursor(_ event: String) -> Hook.Message { Hook.Message(event: event, needsInput: false, sessionID: "c1", project: "p", tool: .cursor) }
+
+    @Test func aQuietTurnWithNothingRunningIsNudgedOnce() throws {
+        var tracker = SessionTracker()
+        tracker.apply(cursor("UserPromptSubmit"), now: t0)
+        tracker.apply(cursor("afterAgentThought"), now: t0.addingTimeInterval(5))
+        #expect(tracker.nextRelease(now: t0.addingTimeInterval(6)) == t0.addingTimeInterval(5 + SessionTracker.quietAfter))
+        #expect(tracker.quietNudges(now: t0.addingTimeInterval(30)).isEmpty, "not quiet long enough")
+        let nudged = tracker.quietNudges(now: t0.addingTimeInterval(51))
+        #expect(nudged.map(\.id) == ["cursor:c1"])
+        let session = try #require(tracker.sessions["cursor:c1"])
+        #expect(session.isWaiting && session.quietNudge)
+        #expect(Notifier.copy(for: .waiting(blocking: false), session: session).title == "Cursor may be waiting")
+        #expect(tracker.quietNudges(now: t0.addingTimeInterval(500)).isEmpty, "once per turn")
+    }
+
+    @Test func theNextSignOfLifeEndsTheWaitAndANewTurnRearms() throws {
+        var tracker = SessionTracker()
+        tracker.apply(cursor("UserPromptSubmit"), now: t0)
+        tracker.apply(cursor("afterAgentResponse"), now: t0.addingTimeInterval(1))
+        _ = tracker.quietNudges(now: t0.addingTimeInterval(60))
+        let outcome = tracker.apply(cursor("beforeShellExecution"), now: t0.addingTimeInterval(70))
+        #expect(outcome.stoppedWaiting == ["cursor:c1"], "the approval was given: the command is running")
+        #expect(tracker.sessions["cursor:c1"]?.isWorking == true)
+        tracker.apply(cursor("Stop"), now: t0.addingTimeInterval(80))
+        tracker.apply(cursor("UserPromptSubmit"), now: t0.addingTimeInterval(90))
+        tracker.apply(cursor("afterFileEdit"), now: t0.addingTimeInterval(91))
+        #expect(tracker.quietNudges(now: t0.addingTimeInterval(140)).count == 1, "a new turn can be nudged again")
+    }
+
+    @Test func aRunningCommandNoHeartbeatsOrAnotherToolIsNeverNudged() {
+        var running = SessionTracker()
+        running.apply(cursor("UserPromptSubmit"), now: t0)
+        running.apply(cursor("beforeShellExecution"), now: t0.addingTimeInterval(1))
+        #expect(running.quietNudges(now: t0.addingTimeInterval(600)).isEmpty, "a long build is busy, not waiting")
+        running.apply(cursor("afterShellExecution"), now: t0.addingTimeInterval(700))
+        #expect(running.quietNudges(now: t0.addingTimeInterval(760)).count == 1)
+
+        var old = SessionTracker()
+        old.apply(cursor("UserPromptSubmit"), now: t0)
+        #expect(old.quietNudges(now: t0.addingTimeInterval(600)).isEmpty, "an install without heartbeats says nothing by its silence")
+
+        var claude = SessionTracker()
+        claude.apply(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s"), now: t0)
+        claude.apply(Hook.Message(event: "afterAgentThought", needsInput: false, sessionID: "s"), now: t0.addingTimeInterval(1))
+        #expect(claude.quietNudges(now: t0.addingTimeInterval(600)).isEmpty, "Claude Code says when it waits")
+    }
+}

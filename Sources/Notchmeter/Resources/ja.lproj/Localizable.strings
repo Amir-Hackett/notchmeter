@@ -59,6 +59,8 @@
 "%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ は通知センターが再生できない形式のため、ファイルをもう一度選んで変換するまでデフォルトが鳴ります。";
 "%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ は ~/Library/Sounds になくなったため、別の音を選ぶまでデフォルトが鳴ります。";
 "%@ is not a JSON object, so it was left untouched" = "%@ は JSON オブジェクトではないため変更しませんでした";
+"%@ may be waiting" = "%@ が待っているかもしれません";
+"%1$@ has gone quiet in %2$@ with nothing running. It may be waiting for your approval." = "%1$@ は %2$@ で何も実行せずに静かになっています。承認を待っているかもしれません。";
 "%@ is waiting" = "%@ が待機中";
 "%@ is waiting for your input." = "%@ が入力を待っています。";
 "%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet." = "%@ はサインインしません。この Mac で既にサインイン済みのツールから利用状況を読み、トークンは保持しません。macOS はツールごとに一度、保存されたログインの読み取り許可を確認します。「常に許可」を選ぶと以後は表示されません。";

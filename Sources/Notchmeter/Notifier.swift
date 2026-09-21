@@ -208,6 +208,8 @@ final class Notifier {
         let name = session.tool.productName
         let project = (hidingFigures ? nil : session.displayName) ?? L("a session")
         return switch event {
+        case .waiting where session.quietNudge:
+            (L("%@ may be waiting", name), L("%1$@ has gone quiet in %2$@ with nothing running. It may be waiting for your approval.", name, project))
         case .waiting:
             (L("%@ is waiting", name), L("%1$@ is waiting in %2$@.", name, project))
         case .finished(let turn):

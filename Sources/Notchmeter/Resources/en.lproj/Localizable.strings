@@ -75,6 +75,8 @@
 "%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it.";
 "%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ is no longer in ~/Library/Sounds, so Default plays until you choose another.";
 "%@ is not a JSON object, so it was left untouched" = "%@ is not a JSON object, so it was left untouched";
+"%@ may be waiting" = "%@ may be waiting";
+"%1$@ has gone quiet in %2$@ with nothing running. It may be waiting for your approval." = "%1$@ has gone quiet in %2$@ with nothing running. It may be waiting for your approval.";
 "%@ is waiting" = "%@ is waiting";
 "%@ is waiting for your input." = "%@ is waiting for your input.";
 "%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet." = "%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.";

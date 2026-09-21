@@ -190,6 +190,16 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     var linesRemoved: Int?
     /// Claude Code's account of this session's prompt cache, priced (PromptCache.swift).
     var promptCache: PromptCacheStats?
+    // The quiet-turn nudge (0.7.6), for an assistant that never says it is waiting: Cursor asks for a command's
+    // approval in its own window and sends no hook for it (`SessionTracker.quietNudges`).
+    /// Shell and MCP calls begun and not yet ended: a turn with one running is busy, not waiting.
+    var commandsInFlight = 0
+    /// Whether this session has sent any in-turn activity (`SessionTracker.heartbeatEvents`). Without it a long
+    /// silence says nothing: an install from before 0.7.6 sends only the prompt and the stop.
+    var heartbeats = false
+    /// This turn went quiet with nothing running and is shown as a possible wait. Set once per turn, cleared by the
+    /// next prompt; the wait itself ends with the next activity.
+    var quietNudge = false
 
     init(id: String, tool: ToolID = .claude, project: String?, state: State, started: Date, lastEvent: Date, turnStarted: Date?, branch: String? = nil,
          prURL: String? = nil, permissionMode: String? = nil, host: String? = nil) {
@@ -411,7 +421,9 @@ struct SessionTracker: Equatable, Sendable {
         var soonest: Date?
         for session in sessions.values {
             var due: Date?
-            if case .waiting(let since) = session.state {
+            if let quiet = Self.quietDue(session) {
+                due = quiet
+            } else if case .waiting(let since) = session.state {
                 due = since.addingTimeInterval(Self.waitingTimeout)
             } else if let finished = session.finished {
                 due = finished.at.addingTimeInterval(Self.finishedHold)
@@ -420,6 +432,38 @@ struct SessionTracker: Equatable, Sendable {
             soonest = soonest.map { Swift.min($0, due) } ?? due
         }
         return soonest
+    }
+
+    /// Cursor's in-turn events Notchmeter registers since 0.7.6 (HookVendor), read only as signs of life. Cursor
+    /// runs `beforeShellExecution` as it executes a command, after any approval, so a command between its before
+    /// and after is running rather than waiting.
+    static let heartbeatEvents: Set<String> = ["beforeShellExecution", "afterShellExecution", "beforeMCPExecution", "afterMCPExecution",
+                                               "afterFileEdit", "afterAgentThought", "afterAgentResponse"]
+
+    /// How long a turn may go without a sign of life, with nothing running, before it is shown as a possible wait.
+    /// Long enough for a slow model step, short enough to be worth it for a command waiting on a click.
+    static let quietAfter: TimeInterval = 45
+
+    /// When `session` becomes a possible wait, if it can: a working turn of an assistant that sends heartbeats and
+    /// no waits of its own, with nothing running and not already nudged this turn.
+    static func quietDue(_ session: AgentSession) -> Date? {
+        guard session.tool == .cursor, session.heartbeats, session.commandsInFlight == 0, !session.quietNudge,
+              session.turnStarted != nil, case .working = session.state else { return nil }
+        return session.lastEvent.addingTimeInterval(quietAfter)
+    }
+
+    /// The turns that have gone quiet (`quietDue`) by `now`, each moved to a wait marked as a nudge, so the
+    /// ring, the card and the notification can say it may be waiting. Returns the sessions just nudged.
+    mutating func quietNudges(now: Date) -> [AgentSession] {
+        var nudged: [AgentSession] = []
+        for (id, var session) in sessions {
+            guard let due = Self.quietDue(session), due <= now else { continue }
+            session.quietNudge = true
+            session.state = .waiting(since: now)
+            sessions[id] = session
+            nudged.append(session)
+        }
+        return nudged
     }
 
     @discardableResult
@@ -449,6 +493,8 @@ struct SessionTracker: Equatable, Sendable {
         case "UserPromptSubmit":
             session.state = .working(since: now)
             session.turnStarted = now
+            session.commandsInFlight = 0
+            session.quietNudge = false
             session.quotaWait = false
             session.limitHitAt = nil
             session.finished = nil
@@ -466,6 +512,7 @@ struct SessionTracker: Equatable, Sendable {
             session.state = .idle
             session.turnStarted = nil
             session.agents = [:]
+            session.commandsInFlight = 0
             session.pending = nil
             if message.hitRateLimit {
                 session.limitHitAt = now
@@ -487,6 +534,15 @@ struct SessionTracker: Equatable, Sendable {
             } else if let oldest = session.agents.min(by: { $0.value < $1.value }) {
                 session.agents[oldest.key] = nil
             }
+        case _ where Self.heartbeatEvents.contains(message.event):
+            // In-turn activity: a turn shown as a possible wait was not waiting after all, or has been answered.
+            session.heartbeats = true
+            if message.event == "beforeShellExecution" || message.event == "beforeMCPExecution" {
+                session.commandsInFlight += 1
+            } else if message.event == "afterShellExecution" || message.event == "afterMCPExecution" {
+                session.commandsInFlight = Swift.max(0, session.commandsInFlight - 1)
+            }
+            if session.quietNudge, session.isWaiting { session.state = .working(since: now) }
         default:
             if message.needsInput {
                 if !session.isWaiting { outcome.startedWaiting = session }
