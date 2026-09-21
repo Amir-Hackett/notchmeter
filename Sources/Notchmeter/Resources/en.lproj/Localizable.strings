@@ -828,3 +828,6 @@
 "When the prompt cache keeps missing" = "When the prompt cache keeps missing";
 "Your MCP server list is changing mid-session." = "Your MCP server list is changing mid-session.";
 "Your prompt cache missed %1$ld times — %2$@ rewritten." = "Your prompt cache missed %1$ld times — %2$@ rewritten.";
+"Remove from the list" = "Remove from the list";
+"Remove all idle sessions" = "Remove all idle sessions";
+"Remove from the list; it comes back if the session does anything" = "Remove from the list; it comes back if the session does anything";

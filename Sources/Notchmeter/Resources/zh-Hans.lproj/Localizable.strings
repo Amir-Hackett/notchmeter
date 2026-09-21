@@ -828,3 +828,6 @@
 "When the prompt cache keeps missing" = "提示缓存持续未命中时";
 "Your MCP server list is changing mid-session." = "你的 MCP 服务器列表在会话中途发生了变化。";
 "Your prompt cache missed %1$ld times — %2$@ rewritten." = "你的提示缓存未命中 %1$ld 次 — 重写了 %2$@。";
+"Remove from the list" = "从列表中移除";
+"Remove all idle sessions" = "移除所有空闲的会话";
+"Remove from the list; it comes back if the session does anything" = "从列表中移除；会话有任何动作时会再出现";

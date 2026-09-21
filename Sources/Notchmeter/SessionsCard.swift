@@ -83,7 +83,8 @@ struct SessionsCard: View {
                         .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 }
                 ForEach(rows, id: \.id) { row in
-                    SessionRow(row: row, now: context.date, jump: { actions.jump($0) }, session: sessions.all.first { $0.id == row.id })
+                    SessionRow(row: row, now: context.date, jump: { actions.jump($0) }, session: sessions.all.first { $0.id == row.id },
+                               remove: { store.dismissSession(row.id) }, removeIdle: { store.dismissIdleSessions() })
                 }
                 if more > 0 {
                     Text(L("+%ld more", more)).modifier(Caption())
@@ -100,15 +101,68 @@ private struct SessionRow: View {
     let now: Date
     let jump: (AgentSession) -> Void
     let session: AgentSession?
+    /// Takes the row off the list until the session sends another event (UsageStore.dismissSession, 0.7.7): a
+    /// conversation closed in Cursor never says it ended, so it would otherwise stay for hours.
+    var remove: () -> Void = {}
+    var removeIdle: () -> Void = {}
+    @State private var hovering = false
+    /// Bumped on every hover change, so a pending "left" only lands if nothing came after it.
+    @State private var hoverGeneration = 0
+
+    /// A row holding a request keeps it: the request is answered from its own card.
+    private var removable: Bool { session?.pending == nil }
 
     var body: some View {
-        if row.canJump, let session {
-            Button { jump(session) } label: { content }
-                .buttonStyle(.plain)
-                .help(L("Jump to the terminal"))
-                .accessibilityAction(named: L("Jump to the terminal")) { jump(session) }
+        // The remove control sits beside the jump button, not inside it: a button in another button's label loses
+        // its clicks to the outer one.
+        HStack(alignment: .top, spacing: 6) {
+            if row.canJump, let session {
+                Button { jump(session) } label: { content }
+                    .buttonStyle(.plain)
+                    .help(L("Jump to the terminal"))
+                    .accessibilityAction(named: L("Jump to the terminal")) { jump(session) }
+            } else {
+                content
+            }
+            trailing
+        }
+        .onHover { inside in
+            // An exit is honoured a moment late. The first click on a panel that is not key makes it key, which
+            // resets its tracking areas and reports the pointer gone for an instant; taken at once, that took the
+            // remove button away between the mouse going down and coming up, and the first click did nothing.
+            hoverGeneration += 1
+            let generation = hoverGeneration
+            if inside {
+                hovering = true
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    if hoverGeneration == generation { hovering = false }
+                }
+            }
+        }
+        .contextMenu {
+            if removable { Button(L("Remove from the list"), action: remove) }
+            Button(L("Remove all idle sessions"), action: removeIdle)
+        }
+        .accessibilityAction(named: L("Remove from the list")) { if removable { remove() } }
+    }
+
+    /// The turn's clock, or while the pointer is on the row, the control that removes it (the hover's exit is
+    /// debounced above, so a click that makes the panel key cannot take the button away mid-click).
+    @ViewBuilder
+    private var trailing: some View {
+        if hovering, removable {
+            Button(action: remove) {
+                Image(systemName: "xmark.circle.fill").font(.caption).foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(L("Remove from the list; it comes back if the session does anything"))
+            .accessibilityLabel(L("Remove from the list"))
         } else {
-            content
+            // Already spoken as part of the row's own value (`content`), so VoiceOver does not read it twice.
+            Text(ResetText.duration(max(0, now.timeIntervalSince(row.since))))
+                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                .accessibilityHidden(true)
         }
     }
 
@@ -128,9 +182,7 @@ private struct SessionRow: View {
                     Text(noteText(note)).font(.caption2).foregroundStyle(noteColour(note))
                 }
             }
-            Spacer(minLength: 6)
-            Text(ResetText.duration(max(0, now.timeIntervalSince(row.since))))
-                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())

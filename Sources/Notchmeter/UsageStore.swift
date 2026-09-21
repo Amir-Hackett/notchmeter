@@ -1154,6 +1154,29 @@ final class UsageStore {
     /// the life of the process, to arrive at the frame it already had. Both clocks that retire sessions, the sweep
     /// and `armSignalRelease`, come through here so neither can drift back to the in-place call. The awake
     /// assertion is re-applied on a change because a session dropped for silence may have been the last one working.
+    /// The Sessions card's Remove (SessionTracker.dismiss): the row goes until the session sends another event.
+    func dismissSession(_ id: String) {
+        var tracker = sessions
+        let result = tracker.dismiss(id)
+        guard result.removed else { return }
+        sessions = tracker
+        if attentionNotice?.session.id == id { attentionNotice = nil }
+        if result.wasWaiting { withdrawWaiting([id]) }
+        applyAwake()
+        Oracle.shared.emit("session", ["action": "dismissed", "session": id])
+    }
+
+    /// *Remove all idle sessions* from the card's menu.
+    func dismissIdleSessions() {
+        var tracker = sessions
+        let removed = tracker.dismissIdle()
+        guard !removed.isEmpty else { return }
+        sessions = tracker
+        if let notice = attentionNotice, removed.contains(notice.session.id) { attentionNotice = nil }
+        applyAwake()
+        Oracle.shared.emit("session", ["action": "dismissedIdle", "count": removed.count])
+    }
+
     func sweepSessions(now: Date = Date()) {
         var expired = sessions
         let stopped = expired.expire(now: now)

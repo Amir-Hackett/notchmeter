@@ -632,3 +632,38 @@ import Testing
         #expect(claude.quietNudges(now: t0.addingTimeInterval(600)).isEmpty, "Claude Code says when it waits")
     }
 }
+
+/// Removing a session from the list (0.7.7): gone from every count and row, back as it was on its next event.
+@Suite struct DismissedSessions {
+    let t0 = Date(timeIntervalSince1970: 1_790_000_000)
+    func cursor(_ event: String, _ id: String = "c1") -> Hook.Message { Hook.Message(event: event, needsInput: false, sessionID: id, project: "p", tool: .cursor) }
+
+    @Test func aRemovedSessionLeavesEveryCountAndComesBackWhole() throws {
+        var tracker = SessionTracker()
+        tracker.apply(cursor("UserPromptSubmit"), now: t0)
+        tracker.apply(cursor("UserPromptSubmit", "c2"), now: t0)
+        #expect(tracker.dismiss("cursor:c1") == (true, false))
+        #expect(tracker.count == 1)
+        #expect(tracker.all.map(\.id) == ["cursor:c2"])
+        #expect(tracker.working.count == 1, "a removed working session stops counting as working")
+        #expect(tracker.dismissed["cursor:c1"] != nil)
+        // It speaks again: back with its turn intact, so its stop is still a finish.
+        let outcome = tracker.apply(cursor("Stop"), now: t0.addingTimeInterval(120))
+        #expect(tracker.count == 2)
+        #expect(tracker.dismissed.isEmpty)
+        #expect(outcome.finished?.turn == 120, "the turn it had when removed is the turn that finished")
+    }
+
+    @Test func aRequestIsNeverRemovedAndIdleGoAtOnce() {
+        var tracker = SessionTracker()
+        tracker.apply(cursor("UserPromptSubmit", "working"), now: t0)
+        tracker.apply(cursor("SessionStart", "idle1"), now: t0)
+        tracker.apply(cursor("SessionStart", "idle2"), now: t0)
+        #expect(Set(tracker.dismissIdle()) == ["cursor:idle1", "cursor:idle2"])
+        #expect(tracker.all.map(\.id) == ["cursor:working"])
+        #expect(tracker.dismiss("cursor:nope") == (false, false))
+        // Removed sessions age out like live ones.
+        _ = tracker.expire(now: t0.addingTimeInterval(SessionTracker.staleAfter + 1))
+        #expect(tracker.dismissed.isEmpty)
+    }
+}

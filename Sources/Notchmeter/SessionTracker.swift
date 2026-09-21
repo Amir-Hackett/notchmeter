@@ -334,6 +334,10 @@ struct SessionTracker: Equatable, Sendable {
     static let unknownSession = "unknown"
 
     private(set) var sessions: [String: AgentSession] = [:]
+    /// Sessions the user removed from the list (`dismiss`, 0.7.7): out of every count, ring and row, but kept whole
+    /// so the next event from one puts it back exactly as it was, turn and all. A conversation closed in Cursor
+    /// sends no end, so without this it sat on the card for the four hours `staleAfter` allows.
+    private(set) var dismissed: [String: AgentSession] = [:]
     /// The tools whose hook has ever reported. Kept per tool because a hook is proof about its own tool only: a
     /// Cursor event says nothing about how many Claude Code sessions there are, and a Claude ring told "zero
     /// sessions" on Cursor's word would go quiet on a window that is being spent.
@@ -466,12 +470,32 @@ struct SessionTracker: Equatable, Sendable {
         return nudged
     }
 
+    /// Takes a session off the list until it next sends an event. A session holding a request is not removed: the
+    /// request is on the panel and has an answer of its own. Returns whether it was waiting, so its notice can go.
+    @discardableResult
+    mutating func dismiss(_ id: String) -> (removed: Bool, wasWaiting: Bool) {
+        guard let session = sessions[id], session.pending == nil else { return (false, false) }
+        sessions[id] = nil
+        dismissed[id] = session
+        return (true, session.isWaiting)
+    }
+
+    /// Every idle session off the list at once: the ones not working, not waiting and not holding a request.
+    @discardableResult
+    mutating func dismissIdle() -> [String] {
+        let idle = sessions.values.filter { !$0.isWorking && !$0.isWaiting && $0.pending == nil }.map(\.id)
+        for id in idle { dismiss(id) }
+        return idle
+    }
+
     @discardableResult
     mutating func apply(_ message: Hook.Message, now: Date) -> Outcome {
         hooksSeen.insert(message.tool)
         var outcome = Outcome()
         outcome.stoppedWaiting = expire(now: now)
         let id = Self.key(tool: message.tool, session: message.sessionID, host: message.host)
+        // A removed session that speaks again comes back as it was, and this event applies to it as usual.
+        if let returning = dismissed.removeValue(forKey: id) { sessions[id] = returning }
         if message.event == "SessionEnd" {
             if sessions[id]?.isWaiting == true { outcome.stoppedWaiting.append(id) }
             if let pending = sessions[id]?.pending { outcome.requestsEnded.append(EndedRequest(sessionID: id, requestID: pending.id)) }
@@ -647,6 +671,7 @@ struct SessionTracker: Equatable, Sendable {
     @discardableResult
     mutating func expire(now: Date) -> [String] {
         var stoppedWaiting: [String] = []
+        dismissed = dismissed.filter { now.timeIntervalSince($0.value.lastEvent) < Self.staleAfter }
         for (id, var session) in sessions {
             if now.timeIntervalSince(session.lastEvent) >= Self.staleAfter {
                 if session.isWaiting { stoppedWaiting.append(id) }
