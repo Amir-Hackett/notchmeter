@@ -917,7 +917,19 @@ struct NotchExpandedView: View {
                     .padding(.leading, prefs.density.cardPadding)
                 }
             }
-            if promptOnly {
+            // A card the attention setting opened (SessionAttention.card) is drawn the same way, alone with the one
+            // link, unless a request is on the panel, which outranks it.
+            if !promptOnly, pending.isEmpty, let notice = store.attentionNotice {
+                NoticeCard(notice: notice, hideFigures: store.hidesFigures, hideTitle: !prefs.sessionTitles,
+                           canJump: NoticeCard.canJump(notice.session, enabled: prefs.jumpToTerminal),
+                           jump: { actions.jump(notice.session) })
+                Button { store.attentionNotice = nil } label: {
+                    Text(L("Show the whole panel")).font(.caption).foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, prefs.density.cardPadding)
+            }
+            if promptOnly || (pending.isEmpty && store.attentionNotice != nil) {
                 // The request has just ended and the panel is on its way closed: nothing else appears for the frame.
                 EmptyView()
             } else {

@@ -380,6 +380,7 @@
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "Đăng nhập GitHub Copilot bị từ chối (token trong %@). Đăng nhập lại trong trình soạn thảo hoặc chạy `gh auth login`";
 "GitHub Copilot's usage response unreadable" = "không đọc được phản hồi mức dùng của GitHub Copilot";
 "GitHub's Copilot endpoint answered" = "điểm cuối Copilot của GitHub trả lời lỗi";
+"Show a card (closes by itself)" = "Hiện thẻ (tự đóng)";
 "Glance (open for a few seconds)" = "Liếc (mở vài giây)";
 "Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard." = "Toàn cục: hoạt động từ mọi ứng dụng; với Tất cả màn hình, bảng trên màn hình có con trỏ trả lời. Phím riêng của bảng khi được mở bằng nhấp, vuốt, phím tắt hoặc thông báo: Escape đóng, ⌘R làm mới, ⌘, mở Cài đặt, ⌘Q thoát. Bảng mở bằng di chuột không bao giờ chiếm bàn phím.";
 "Google refused the quota read for this account" = "Google từ chối đọc hạn mức cho tài khoản này";

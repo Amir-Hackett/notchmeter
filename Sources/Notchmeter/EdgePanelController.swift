@@ -238,6 +238,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         case .collapse:
             expanded = false
             store.panelOpenedForPrompt = false
+            store.attentionNotice = nil
         case .none:
             return
         }
@@ -531,7 +532,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
                  prefs.showSpend, prefs.signalRings, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
-                 prefs.monthlyBudgetUSD, prefs.sessionsCard, prefs.jumpToTerminal, store.panelOpenedForPrompt)
+                 prefs.monthlyBudgetUSD, prefs.sessionsCard, prefs.jumpToTerminal, store.panelOpenedForPrompt,
+                 store.attentionNotice?.session.id)
             layout(animated: false)
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced
