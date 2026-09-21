@@ -1470,10 +1470,7 @@ private struct WindowChoices: View {
 
     var body: some View {
         let ring = prefs.ringWindows(of: reading)
-        // Every window, not only the shown ones: hiding them all left the pickers with nothing to list, so they
-        // rendered as empty boxes with no way back. The derived "All models" window joins them when the card is
-        // showing the model windows it combines.
-        let choices = reading.windows + [prefs.combinedWindow(of: reading)].compactMap { $0 }
+        let choices = prefs.ringChoices(of: reading)
         Picker(L("Outer ring"), selection: Binding(get: { ring.first?.id ?? "" }, set: { set(at: 0, $0) })) {
             ForEach(choices) { window in Text(window.label).tag(window.id) }
         }
