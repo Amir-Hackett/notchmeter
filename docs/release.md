@@ -285,11 +285,7 @@ never names an asset the bundle does not hold. `release.yml` selects an Xcode 26
 the build it was before, `.icns` only. The flattened `AppIcon.icns` actool writes beside the car is not copied, since
 the hand-drawn one under `CFBundleIconFile` is the better fallback.
 
-There is no `packaging/AppIcon.icon` in the repository until one is exported from Icon Composer: the document is a
-folder of layers and a JSON manifest that only that app writes, and nothing here fabricates one. Until it exists the
-build is unchanged on every machine, including CI. To add it: open Icon Composer, build the icon from the same shapes
-as `make-icon.swift`, export it as `AppIcon.icon` (the name is the asset name, and must stay `AppIcon` to match
-`CFBundleIconName` and `--app-icon`), and commit the folder under `packaging/`. After the first CI build with it:
+`packaging/AppIcon.icon` is written by hand rather than by Icon Composer: the document is a folder holding `icon.json` and an `Assets/` folder of layer images, the same shape every shipping app's document has, so nothing about it needs the app. `scripts/make-icon-layers.swift` draws the layers from the same geometry as `make-icon.swift` — the notch, the ring's track and its arc, each a 1024-pixel PNG with alpha, and the track and arc again in white for the tinted appearances — and `icon.json` names them: a dark solid fill for the tile (transparent under the tinted appearance, which is how those icons show the wallpaper through), one group, glass on the two terracotta layers and not on the notch, the track at 22 % opacity, `supported-platforms` with squares only since there is no watch face. Re-render the layers with `swift scripts/make-icon-layers.swift packaging/AppIcon.icon/Assets` after changing the geometry; edit `icon.json` by hand for anything else (Icon Composer opens it too, and saves the same file). `ReleasePackagingTests` pins that every image the document names exists, is a 1024-pixel PNG with alpha, and that nothing else sits in `Assets/`. The name is the asset name and must stay `AppIcon` to match `CFBundleIconName` and `--app-icon`. After a CI build with it:
 
 ```bash
 assetutil --info build/Notchmeter.app/Contents/Resources/Assets.car | grep -iE 'iconstack|MultiSized'

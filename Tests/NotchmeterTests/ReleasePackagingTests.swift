@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 @testable import Notchmeter
@@ -116,5 +117,61 @@ import Testing
         }
         #expect(!readme.contains("grey area"), "Anthropic's position is quoted, not called a grey area")
         #expect(!terms.contains("grey area"))
+    }
+}
+
+/// The Icon Composer document under `packaging/AppIcon.icon`: written by hand (scripts/make-icon-layers.swift draws the
+/// layers, icon.json is authored in the repository), compiled only by CI's actool. Nothing here can run actool, so the
+/// check is the one a hand-authored document most needs: that every image it names is in `Assets/`, that the layer
+/// images are the 1024-pixel PNGs Apple asks for, and that the shape of the file is the one shipping apps' documents
+/// share. A typo in an image name would otherwise surface as a failed release build after notarisation.
+@Suite struct TahoeIconDocument {
+    static let document = ClaudeCodePlugin.root.appendingPathComponent("packaging/AppIcon.icon")
+
+    @Test func everyLayerImageTheDocumentNamesExists() throws {
+        let icon = try ClaudeCodePlugin.object("packaging/AppIcon.icon/icon.json")
+        let groups = try #require(icon["groups"] as? [[String: Any]])
+        #expect((1...4).contains(groups.count), "Icon Composer allows one to four groups")
+        var named: [String] = []
+        for group in groups {
+            let layers = try #require(group["layers"] as? [[String: Any]])
+            for layer in layers {
+                named.append(try #require(layer["image-name"] as? String))
+                for special in layer["image-name-specializations"] as? [[String: Any]] ?? [] {
+                    named.append(try #require(special["value"] as? String))
+                }
+            }
+        }
+        #expect(!named.isEmpty)
+        let assets = Self.document.appendingPathComponent("Assets")
+        for name in named {
+            let file = assets.appendingPathComponent(name)
+            #expect(FileManager.default.fileExists(atPath: file.path), "\(name) is named by icon.json and missing from Assets/")
+            #expect(name.hasSuffix(".png"), "\(name): the layers are PNGs, since an SVG layer gets no glass material")
+        }
+        let shipped = try FileManager.default.contentsOfDirectory(atPath: assets.path).filter { !$0.hasPrefix(".") }
+        #expect(Set(shipped) == Set(named), "every file in Assets/ is a layer the document names, and the other way round")
+    }
+
+    @Test func theLayersAreSquare1024PixelImagesWithAlpha() throws {
+        let assets = Self.document.appendingPathComponent("Assets")
+        for name in try FileManager.default.contentsOfDirectory(atPath: assets.path) where name.hasSuffix(".png") {
+            let image = try #require(NSImage(contentsOf: assets.appendingPathComponent(name)), "\(name) decodes")
+            let rep = try #require(image.representations.first as? NSBitmapImageRep, "\(name) is a bitmap")
+            let side = 1024
+            #expect(rep.pixelsWide == side && rep.pixelsHigh == side, "\(name) is \(rep.pixelsWide)×\(rep.pixelsHigh), not \(side)×\(side)")
+            #expect(rep.hasAlpha, "\(name) has an alpha channel: the tile is the document's fill, not the layer's")
+        }
+    }
+
+    @Test func theDocumentIsMacOSOnlyAndNamedForTheAsset() throws {
+        let icon = try ClaudeCodePlugin.object("packaging/AppIcon.icon/icon.json")
+        let platforms = try #require(icon["supported-platforms"] as? [String: Any])
+        #expect(platforms["squares"] as? String == "shared")
+        #expect(platforms["circles"] == nil, "no watch face for a Mac app")
+        #expect(icon["fill"] != nil, "the tile is the fill; without one the icon has no background")
+        // build.sh compiles it with `--app-icon AppIcon` and names CFBundleIconName the same; the document's name is
+        // the asset's name, so it has to be AppIcon.icon.
+        #expect(Self.document.lastPathComponent == "AppIcon.icon")
     }
 }
