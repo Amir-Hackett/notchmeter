@@ -30,9 +30,13 @@ enum DemoFixtures {
     @MainActor
     static func store(now: Date = Date(), moment: Moment = .waiting) -> (store: UsageStore, prefs: Preferences) {
         // A suite nothing writes to. The registration domain lives in memory only, so the countdown style the
-        // pictures rely on is neither read from nor written to the user's own preferences.
+        // pictures rely on is neither read from nor written to the user's own preferences. Peak hours are off: the
+        // window is read against the wall clock, so a render during it grew an advice line and a footer word that
+        // one an hour later did not. The suite is emptied first, since a registered default is only a fallback and
+        // a value an earlier render left behind would outrank it.
+        UserDefaults.standard.removePersistentDomain(forName: suiteName)
         let defaults = UserDefaults(suiteName: suiteName) ?? .standard
-        defaults.register(defaults: ["resetDisplay": ResetDisplay.countdown.rawValue])
+        defaults.register(defaults: ["resetDisplay": ResetDisplay.countdown.rawValue, "peakHoursTools": [String]()])
         let prefs = Preferences(defaults: defaults)
         let readings = readings(now: now)
         let store = UsageStore(prefs: prefs, providers: readings.map { FixtureProvider(reading: $0) },

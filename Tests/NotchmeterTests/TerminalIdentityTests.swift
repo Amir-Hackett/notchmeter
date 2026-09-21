@@ -128,6 +128,13 @@ import Testing
         #expect(Hook.Message(userInfo: ["hook_event_name": "Stop", "terminal_focus_url": "javascript:x"])?.terminal == nil,
                 "a focus URL is checked on the way in as well as on the way out")
         #expect(Hook.Message(userInfo: ["hook_event_name": "Stop", "terminal_ghostty": "1"])?.terminal == TerminalRef(ghostty: true))
+        #expect(Hook.Message(userInfo: ["hook_event_name": "Stop", "terminal_bundle": "com.microsoft.VSCode", "terminal_workspace": "/Users/me/x"])?.terminal
+                == TerminalRef(bundleID: "com.microsoft.VSCode", workspace: "/Users/me/x"))
+        #expect(Hook.Message(userInfo: ["hook_event_name": "Stop", "terminal_bundle": "com.microsoft.VSCode", "terminal_workspace": "x/../y"])?.terminal
+                == TerminalRef(bundleID: "com.microsoft.VSCode"), "a folder is checked on the way in as well")
+        #expect(Hook.folder(in: Data(#"{"workspace_roots":["","/Users/me/a"],"cwd":"/Users/me/b"}"#.utf8)) == "/Users/me/a", "Cursor's root outranks cwd")
+        #expect(Hook.folder(in: Data(#"{"cwd":"/Users/me/b"}"#.utf8)) == "/Users/me/b")
+        #expect(Hook.folder(in: Data(#"{"cwd":"b"}"#.utf8)) == nil)
 
         let older = TerminalRef(program: "iTerm.app", bundleID: "com.googlecode.iterm2", tty: "/dev/ttys001", sessionID: "w0t0p0:A")
         let newer = TerminalRef(program: nil, bundleID: nil, tty: "/dev/ttys002", sessionID: nil)

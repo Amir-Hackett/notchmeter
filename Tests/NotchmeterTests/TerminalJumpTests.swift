@@ -106,6 +106,22 @@ import Testing
         #expect(TerminalJump.resolve(TerminalRef(program: "unknown-terminal")) == .none)
     }
 
+    /// Two Cursor windows are told apart by the folder each has open: the editor is handed the session's folder
+    /// and brings forward the window already showing it. Without a folder it is only raised.
+    @Test func anEditorIsHandedTheSessionsFolderAndElseRaised() {
+        let cursor = "com.todesktop.230313mzl4w4u92"
+        #expect(TerminalJump.resolve(TerminalRef(program: "vscode", bundleID: cursor, workspace: "/Users/me/enrollhere"))
+                == .openFolder("/Users/me/enrollhere", bundleID: cursor))
+        #expect(TerminalJump.resolve(TerminalRef(bundleID: "com.microsoft.VSCode", workspace: "/Users/me/x")) == .openFolder("/Users/me/x", bundleID: "com.microsoft.VSCode"))
+        #expect(TerminalJump.resolve(TerminalRef(bundleID: cursor, workspace: "relative/path")) == .activate(bundleID: cursor), "only an absolute path is opened")
+        #expect(TerminalJump.resolve(TerminalRef(bundleID: cursor, workspace: "/Users/me/../../etc")) == .activate(bundleID: cursor))
+        #expect(TerminalJump.resolve(TerminalRef(bundleID: "io.alacritty", workspace: "/Users/me/x")) == .activate(bundleID: "io.alacritty"),
+                "a terminal that does not route folders to windows is only raised")
+        #expect(TerminalJump.opensFolders(cursor))
+        #expect(!TerminalJump.opensFolders("com.googlecode.iterm2"))
+        #expect(!TerminalJump.opensFolders(nil))
+    }
+
     @Test func onlyAWellFormedTTYGoesInsideAScript() {
         #expect(TerminalJump.validTTY("/dev/ttys003") == "/dev/ttys003")
         #expect(TerminalJump.validTTY("/dev/ttys0031") == "/dev/ttys0031")

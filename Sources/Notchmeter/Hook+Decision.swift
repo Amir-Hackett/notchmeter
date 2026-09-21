@@ -203,6 +203,7 @@ extension Hook {
         if let tmuxPane = terminal.tmuxPane { info[terminalTmuxPaneKey] = tmuxPane }
         if let kittySocket = terminal.kittySocket { info[terminalKittySocketKey] = kittySocket }
         if terminal.ghostty { info[terminalGhosttyKey] = "1" }
+        if let workspace = terminal.workspace { info[terminalWorkspaceKey] = workspace }
         return info
     }
 
@@ -213,7 +214,8 @@ extension Hook {
         let terminal = TerminalRef(program: field(terminalProgramKey), bundleID: field(terminalBundleKey), tty: field(terminalTTYKey),
                                    sessionID: field(terminalSessionKey), focusURL: field(terminalFocusURLKey).flatMap(TerminalIdentity.focusURL),
                                    tmux: field(terminalTmuxKey), tmuxPane: field(terminalTmuxPaneKey), kittySocket: field(terminalKittySocketKey),
-                                   ghostty: field(terminalGhosttyKey) == "1")
+                                   ghostty: field(terminalGhosttyKey) == "1",
+                                   workspace: field(terminalWorkspaceKey).flatMap(TerminalJump.validWorkspace))
         return terminal.isEmpty ? nil : terminal
     }
 

@@ -126,6 +126,8 @@ import Testing
         let noTerminal = SessionsCard.rows([make("t", state: .working(since: t0))], hideTitles: false, jump: true, now: now).rows[0]
         #expect(noTerminal.canJump == false, "a hook that named no terminal gives the row nowhere to go")
         #expect(noTerminal.chips == ["Claude"])
+        let inCursor = make("c", tool: .cursor, terminal: TerminalRef(bundleID: "com.todesktop.230313mzl4w4u92"), state: .working(since: t0))
+        #expect(SessionsCard.rows([inCursor], hideTitles: false, jump: true, now: now).rows[0].chips == ["Cursor"], "Cursor's agent in Cursor is one chip, not two")
     }
 
     /// A reference is not a jump: `TERM_PROGRAM=vscode` with no bundle id and no app ancestor is a reference the
