@@ -56,6 +56,7 @@ enum Hook {
     static let terminalTmuxPaneKey = "terminal_tmux_pane"
     static let terminalKittySocketKey = "terminal_kitty_socket"
     static let terminalGhosttyKey = "terminal_ghostty"
+    static let terminalWorkspaceKey = "terminal_workspace"
 
     /// How long the command waits for the app's answer to a deciding event. The app's own hold
     /// (Preferences.promptHoldSeconds, two minutes by default) is what ends the wait in practice; this is the
@@ -343,6 +344,7 @@ enum Hook {
         let payload = readPayload()
         guard var message = message(from: payload, tool: tool(in: arguments), event: event(in: arguments)) else { exit(0) }
         message.terminal = TerminalIdentity.capture()
+        if TerminalJump.opensFolders(message.terminal?.bundleID) { message.terminal?.workspace = folder(in: payload) }
         if message.request != nil {
             if case .sent(let reply?) = HookSocket.send(.hook, message.userInfo, timeout: decisionWait),
                let output = Answer.output(event: message.event, reply: reply, payload: payload) {
@@ -352,6 +354,15 @@ enum Hook {
             HookSocket.send(.hook, message.userInfo)
         }
         exit(0)
+    }
+
+    /// The folder the session runs in, for a jump back to the editor window showing it (`TerminalRef.workspace`):
+    /// Cursor's first workspace root, else the `cwd` every other assistant sends. Read only when the terminal is
+    /// such an editor, and sent only as that field.
+    static func folder(in payload: Data) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: payload) as? [String: Any] else { return nil }
+        let root = (object["workspace_roots"] as? [String])?.first { !$0.isEmpty } ?? (object["cwd"] as? String)
+        return TerminalJump.validWorkspace(root)
     }
 
     /// The payload, read within the 25 ms and 64 KB the command has always allowed itself; a payload that filled

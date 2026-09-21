@@ -49,7 +49,8 @@ struct SessionsCard: View {
             let canJump = jump && session.host == nil && session.terminal.map { TerminalJump.resolve($0) != .none } == true
             let note: Row.Note? = session.pending != nil ? .waitingForAnswer : finished ? (canJump ? .doneJump : .justFinished) : nil
             var chips = [session.tool.displayName]
-            if let terminal = TerminalJump.displayName(bundleID: session.terminal?.bundleID) { chips.append(terminal) }
+            // Cursor's own agent runs in Cursor: one chip says it, not two.
+            if let terminal = TerminalJump.displayName(bundleID: session.terminal?.bundleID), terminal != chips[0] { chips.append(terminal) }
             if let host = session.host { chips.append("@\(host)") }
             return Row(id: session.id, tool: session.tool, title: title(of: session, hideTitles: hideTitles), chips: chips,
                        since: session.turnStarted ?? session.started, status: status, note: note, canJump: canJump)

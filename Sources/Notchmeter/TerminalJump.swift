@@ -14,7 +14,8 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "jum
 /// (docs/permissions.md); Ghostty's AppleScript names a terminal's tty from 1.4.0 and only its working directory
 /// before, so its script tries the tty and settles for raising the app; kitty and WezTerm take a focus command on
 /// their own socket; a session inside tmux first selects its pane, then raises whichever terminal the most
-/// recent tmux client is attached from; anything else is raised as an app. A session with nothing to go on
+/// recent tmux client is attached from; Cursor and VS Code are handed the session's folder, which they answer by
+/// bringing forward the window that already has it open; anything else is raised as an app. A session with nothing to go on
 /// resolves to `none`, and a session on another Mac is never a jump at all.
 ///
 /// The executor runs one jump at a time on a serial queue, never launches an app that is not running (an
@@ -33,6 +34,8 @@ enum TerminalJump {
         /// A tmux pane to select on its socket, then the terminal the client is attached from, resolved again
         /// from the client's tty (`outer` is the reference with the pane's tty removed).
         case tmux(socket: String, pane: String?, outer: TerminalRef)
+        /// Open the session's folder with a running editor, which raises the window already showing it.
+        case openFolder(String, bundleID: String)
         /// Bring the app to the front and nothing more.
         case activate(bundleID: String)
         case none
@@ -44,6 +47,7 @@ enum TerminalJump {
             case .appleScript: "applescript"
             case .command: "command"
             case .tmux: "tmux"
+            case .openFolder: "folder"
             case .activate: "activate"
             case .none: "none"
             }
@@ -81,6 +85,19 @@ enum TerminalJump {
         case "com.anthropic.claudefordesktop": return "Claude"
         default: return nil
         }
+    }
+
+    /// The editors that answer a folder they are asked to open by focusing the window that already has it, and
+    /// open a new one only when none does: VS Code and its forks. These are the only terminals a hook keeps the
+    /// session's folder for (`TerminalRef.workspace`).
+    static let folderEditors: Set<String> = ["com.todesktop.230313mzl4w4u92", "com.microsoft.VSCode", "com.microsoft.VSCodeInsiders"]
+
+    static func opensFolders(_ bundleID: String?) -> Bool { bundleID.map(folderEditors.contains) ?? false }
+
+    /// A folder a jump will open: an absolute path with no parent steps, since it came over the socket.
+    static func validWorkspace(_ path: String?) -> String? {
+        guard let path, path.hasPrefix("/"), !path.split(separator: "/").contains("..") else { return nil }
+        return path
     }
 
     /// Which terminal a reference names, by bundle id first and `TERM_PROGRAM` second.
@@ -126,6 +143,9 @@ enum TerminalJump {
                 return .command(executable: "wezterm", arguments: ["cli", "activate-pane", "--pane-id", pane], activate: BundleID.wezterm)
             }
             return .activate(bundleID: BundleID.wezterm)
+        }
+        if let bundleID = ref.bundleID, opensFolders(bundleID), let folder = validWorkspace(ref.workspace) {
+            return .openFolder(folder, bundleID: bundleID)
         }
         if let bundleID = ref.bundleID, !bundleID.isEmpty { return .activate(bundleID: bundleID) }
         return .none
@@ -353,6 +373,14 @@ enum TerminalJump {
                 let next = TerminalJump.resolve(outer)
                 if case .tmux = next { return false }
                 return run(next)
+            case .openFolder(let path, let bundleID):
+                var isDirectory: ObjCBool = false
+                guard let appURL = running(bundleID)?.bundleURL,
+                      FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue else { return activate(bundleID) }
+                let configuration = NSWorkspace.OpenConfiguration()
+                configuration.activates = true
+                NSWorkspace.shared.open([URL(fileURLWithPath: path, isDirectory: true)], withApplicationAt: appURL, configuration: configuration)
+                return true
             case .activate(let bundleID):
                 return activate(bundleID)
             case .none:
@@ -364,11 +392,16 @@ enum TerminalJump {
             NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first
         }
 
-        /// Raises a running app and never launches one. macOS 14 makes activation cooperative, so from an app that
-        /// is never frontmost this is best effort, which is why every path above it is preferred.
+        /// Raises a running app and never launches one. macOS 14 makes `NSRunningApplication.activate` cooperative,
+        /// and from an app that is never frontmost it was often refused outright, so the app is reopened through
+        /// LaunchServices instead, which is what a click on its Dock icon does and brings its windows forward.
+        /// Every path above it is still preferred: this raises the app, not the session's window.
         nonisolated private static func activate(_ bundleID: String) -> Bool {
-            guard let app = running(bundleID) else { return false }
-            return app.activate(options: [.activateAllWindows])
+            guard let app = running(bundleID), let appURL = app.bundleURL else { return false }
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+            NSWorkspace.shared.openApplication(at: appURL, configuration: configuration)
+            return true
         }
 
         /// Where the terminals' own command-line tools live: the app bundles first, then the usual prefixes. The

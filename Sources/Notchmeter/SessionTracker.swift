@@ -24,9 +24,13 @@ struct TerminalRef: Equatable, Sendable, Codable {
     var kittySocket: String?
     /// Whether `GHOSTTY_RESOURCES_DIR` was set.
     var ghostty = false
+    /// The folder the session runs in, kept only when the terminal is an editor that brings forward the window
+    /// already showing a folder it is asked to open (`TerminalJump.opensFolders`): the one way to tell two of its
+    /// windows apart without reading a title.
+    var workspace: String?
 
     init(program: String? = nil, bundleID: String? = nil, tty: String? = nil, sessionID: String? = nil, focusURL: String? = nil,
-         tmux: String? = nil, tmuxPane: String? = nil, kittySocket: String? = nil, ghostty: Bool = false) {
+         tmux: String? = nil, tmuxPane: String? = nil, kittySocket: String? = nil, ghostty: Bool = false, workspace: String? = nil) {
         self.program = program
         self.bundleID = bundleID
         self.tty = tty
@@ -36,12 +40,13 @@ struct TerminalRef: Equatable, Sendable, Codable {
         self.tmuxPane = tmuxPane
         self.kittySocket = kittySocket
         self.ghostty = ghostty
+        self.workspace = workspace
     }
 
     /// True when nothing at all was read.
     var isEmpty: Bool {
         program == nil && bundleID == nil && tty == nil && sessionID == nil && focusURL == nil && tmux == nil && tmuxPane == nil
-            && kittySocket == nil && !ghostty
+            && kittySocket == nil && !ghostty && workspace == nil
     }
 
     /// This reference with every field the newer one carries taken from it; a field the newer one lacks is kept,
@@ -49,7 +54,8 @@ struct TerminalRef: Equatable, Sendable, Codable {
     func merging(_ newer: TerminalRef) -> TerminalRef {
         TerminalRef(program: newer.program ?? program, bundleID: newer.bundleID ?? bundleID, tty: newer.tty ?? tty,
                     sessionID: newer.sessionID ?? sessionID, focusURL: newer.focusURL ?? focusURL, tmux: newer.tmux ?? tmux,
-                    tmuxPane: newer.tmuxPane ?? tmuxPane, kittySocket: newer.kittySocket ?? kittySocket, ghostty: newer.ghostty || ghostty)
+                    tmuxPane: newer.tmuxPane ?? tmuxPane, kittySocket: newer.kittySocket ?? kittySocket, ghostty: newer.ghostty || ghostty,
+                    workspace: newer.workspace ?? workspace)
     }
 }
 
