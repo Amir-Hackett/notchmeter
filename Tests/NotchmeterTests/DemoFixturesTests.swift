@@ -51,6 +51,13 @@ import Testing
         }
     }
 
+    /// Peak hours are read against the wall clock, so the pictures render with them off, whatever an earlier
+    /// render left in the fixtures' suite.
+    @MainActor @Test func peakHoursAreOffEvenOverAStaleSuite() {
+        UserDefaults(suiteName: DemoFixtures.suiteName)?.set(["claude"], forKey: "peakHoursTools")
+        #expect(DemoFixtures.store().prefs.peakHoursTools.isEmpty)
+    }
+
     @MainActor @Test func seedsAStoreWithoutAProviderRead() {
         let now = Date()
         let (store, prefs) = DemoFixtures.store(now: now)
