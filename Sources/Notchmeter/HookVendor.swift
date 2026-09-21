@@ -85,7 +85,12 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         switch self {
         case .claude: HookSettings.events
         case .codex: ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Stop", "Interrupt", "SubagentStart", "SubagentStop", "SessionEnd"]
-        case .cursor: ["sessionStart", "beforeSubmitPrompt", "stop", "subagentStart", "subagentStop", "sessionEnd"]
+        // The last seven are signs of life for the quiet-turn nudge (SessionTracker.heartbeatEvents, 0.7.6):
+        // Cursor never says it is waiting for an approval, so a turn that goes quiet with nothing running is the
+        // only way to tell. A process launch per shell command, file edit and model step is the price.
+        case .cursor: ["sessionStart", "beforeSubmitPrompt", "stop", "subagentStart", "subagentStop", "sessionEnd",
+                       "beforeShellExecution", "afterShellExecution", "beforeMCPExecution", "afterMCPExecution",
+                       "afterFileEdit", "afterAgentThought", "afterAgentResponse"]
         case .antigravity: ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "SessionEnd"]
         case .copilot: ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "sessionEnd"]
         }

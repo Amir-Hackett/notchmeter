@@ -59,6 +59,8 @@
 "%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ ở định dạng Trung tâm thông báo không phát được, nên âm mặc định sẽ phát cho đến khi bạn chọn lại tệp để chuyển đổi.";
 "%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ không còn trong ~/Library/Sounds nên âm mặc định sẽ phát cho đến khi bạn chọn âm khác.";
 "%@ is not a JSON object, so it was left untouched" = "%@ không phải đối tượng JSON nên được giữ nguyên";
+"%@ may be waiting" = "%@ có thể đang chờ";
+"%1$@ has gone quiet in %2$@ with nothing running. It may be waiting for your approval." = "%1$@ đã im lặng trong %2$@ mà không chạy gì. Có thể nó đang chờ bạn phê duyệt.";
 "%@ is waiting" = "%@ đang chờ";
 "%@ is waiting for your input." = "%@ đang chờ bạn nhập.";
 "%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet." = "%@ không bao giờ đăng nhập. Nó đọc mức dùng từ các công cụ đã đăng nhập trên máy Mac này và không giữ token nào. macOS hỏi một lần cho mỗi công cụ để cho phép đọc đăng nhập đã lưu; chọn Luôn cho phép để không bị hỏi lại.";

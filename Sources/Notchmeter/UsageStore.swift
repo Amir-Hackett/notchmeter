@@ -1157,11 +1157,19 @@ final class UsageStore {
     func sweepSessions(now: Date = Date()) {
         var expired = sessions
         let stopped = expired.expire(now: now)
+        let nudged = expired.quietNudges(now: now)
         if expired != sessions {
             sessions = expired
             applyAwake()
         }
         withdrawWaiting(stopped)
+        // A quiet Cursor turn (SessionTracker.quietNudges) is reported as a wait that may be one, through the same
+        // notice, rules and attention setting as a wait a hook announced. As a blocking one: what it stands for is
+        // an approval the turn has stopped for, and a non-blocking wait is held back while an editor is in front,
+        // which for Cursor is exactly when it asks (the ten-minute ceiling on blocking banners still applies).
+        if prefs.notifyWaiting {
+            for session in nudged { deliverSessionEvent(.waiting(blocking: true), session) }
+        }
     }
 
     private func sampleEnvironment() async {

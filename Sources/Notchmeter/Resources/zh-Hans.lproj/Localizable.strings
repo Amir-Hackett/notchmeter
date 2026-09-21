@@ -75,6 +75,8 @@
 "%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ 的格式通知中心无法播放，在你重新选择该文件将其转换之前将播放默认声音。";
 "%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ 已不在 ~/Library/Sounds 中，在你选择其他声音之前将播放默认声音。";
 "%@ is not a JSON object, so it was left untouched" = "%@ 不是 JSON 对象，因此未作改动";
+"%@ may be waiting" = "%@ 可能在等待";
+"%1$@ has gone quiet in %2$@ with nothing running. It may be waiting for your approval." = "%1$@ 在 %2$@ 中已安静下来且没有运行任何内容，可能在等待你的批准。";
 "%@ is waiting" = "%@ 正在等待";
 "%@ is waiting for your input." = "%@ 正在等待你的输入。";
 "%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet." = "%@ 从不自行登录。它读取这台 Mac 上已登录工具的用量，不保存任何令牌。macOS 会为每个工具询问一次是否允许读取其已保存的登录信息；选择“始终允许”后就不会再打扰你。";

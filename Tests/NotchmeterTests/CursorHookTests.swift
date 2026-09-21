@@ -167,11 +167,11 @@ import Testing
                 "stop": [["command": "/usr/local/bin/worklog.sh", "matcher": "*", "timeout": 15]],
                 "beforeSubmitPrompt": [["type": "prompt", "prompt": "Is this safe?"]],
                 "sessionEnd": "not an array",
-                "beforeShellExecution": [["command": "/usr/local/bin/guard.sh"]],
+                "beforeReadFile": [["command": "/usr/local/bin/guard.sh"]],
             ],
         ]
         let first = HookSettings.merge(into: existing, vendor: .cursor, executable: executable)
-        #expect(first.added == ["sessionStart", "beforeSubmitPrompt", "stop", "subagentStart", "subagentStop"])
+        #expect(first.added == HookVendor.cursor.events.filter { $0 != "sessionEnd" })
         #expect(first.present == ["sessionEnd"], "a value that is not an array is left alone rather than replaced")
         #expect(first.settings["version"] as? Int == 2, "an existing version is never overwritten")
         let hooks = try #require(first.settings["hooks"] as? [String: Any])
@@ -185,7 +185,7 @@ import Testing
         #expect(prompt.count == 2)
         #expect(prompt[0]["type"] as? String == "prompt", "a prompt-type entry is never ours and is never touched")
         #expect(hooks["sessionEnd"] as? String == "not an array")
-        #expect((hooks["beforeShellExecution"] as? [[String: Any]])?.count == 1, "events Notchmeter does not register are not visited")
+        #expect((hooks["beforeReadFile"] as? [[String: Any]])?.count == 1, "events Notchmeter does not register are not visited")
 
         let second = HookSettings.merge(into: first.settings, vendor: .cursor, executable: "/somewhere/else/Notchmeter")
         #expect(second.added.isEmpty)
@@ -201,7 +201,7 @@ import Testing
 
     @Test func statusTellsMissingFromMovedFromOutOfDate() {
         #expect(HookSettings.status(settings: [:], vendor: .cursor, executable: executable) == .notInstalled)
-        #expect(HookSettings.status(settings: ["hooks": ["beforeShellExecution": [["command": expected]]]], vendor: .cursor, executable: executable) == .notInstalled,
+        #expect(HookSettings.status(settings: ["hooks": ["beforeReadFile": [["command": expected]]]], vendor: .cursor, executable: executable) == .notInstalled,
                 "an entry under an event Notchmeter does not register does not count")
         #expect(HookSettings.status(settings: file(command: expected), vendor: .cursor, executable: executable) == .installed(path: executable))
         #expect(!HookSettings.status(settings: file(command: expected), vendor: .cursor, executable: executable).needsRepair)
@@ -228,7 +228,7 @@ import Testing
         hooks["stop"] = [foreign, ["command": "'\(executable)' --hook"]]
         settings["hooks"] = hooks
         let repaired = HookSettings.repair(settings, vendor: .cursor, executable: executable)
-        #expect(repaired.repaired == ["sessionStart", "beforeSubmitPrompt", "stop", "subagentStart", "sessionEnd"])
+        #expect(repaired.repaired == HookVendor.cursor.events.filter { $0 != "subagentStop" })
         #expect(repaired.added == ["subagentStop"])
         #expect(HookSettings.status(settings: repaired.settings, vendor: .cursor, executable: executable) == .installed(path: executable))
         let written = try #require(repaired.settings["hooks"] as? [String: Any])
@@ -242,7 +242,7 @@ import Testing
         }
 
         let six = HookSettings.repair(file(command: "'\(executable)' --hook"), vendor: .cursor, executable: executable)
-        #expect(six.repaired.count == 6, "every plain entry at the right path is rewritten to carry the flag")
+        #expect(six.repaired.count == HookVendor.cursor.events.count, "every plain entry at the right path is rewritten to carry the flag")
         #expect(six.added.isEmpty)
         let again = HookSettings.repair(six.settings, vendor: .cursor, executable: executable)
         #expect(again.repaired.isEmpty)
@@ -293,7 +293,7 @@ import Testing
         #expect(HookSettings.status(vendor: .cursor, at: url, executable: executable) == .partial(path: executable))
         let repaired = try HookSettings.repairInstall(vendor: .cursor, at: url, executable: executable, now: now.addingTimeInterval(120))
         #expect(repaired.backup != nil)
-        #expect(repaired.added.count == 6)
+        #expect(repaired.added.count == HookVendor.cursor.events.count)
         #expect(HookSettings.status(vendor: .cursor, at: url, executable: executable) == .installed(path: executable))
         #expect(try HookSettings.repairInstall(vendor: .cursor, at: url, executable: executable, now: now.addingTimeInterval(180)).backup == nil)
         #expect(try fm.contentsOfDirectory(atPath: dir.path).filter { $0.contains(".bak-") }.count == 2)
