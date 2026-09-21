@@ -221,15 +221,20 @@ import Testing
     }
 }
 
-/// *Show a card* (SessionAttention.card, 0.7.4): the option sits between Do nothing and the glance, the card says
+/// The glance card (SessionAttention.glance, since 0.7.5; 0.7.4 called it *Show a card*): the card says
 /// what the banner says, and its jump follows the Sessions card's rule.
 @MainActor @Suite struct AttentionNoticeCard {
     let t0 = Date(timeIntervalSince1970: 1_790_000_000)
 
-    @Test func theOptionIsStoredAsCardAndListedSecond() {
-        #expect(SessionAttention.allCases == [.nothing, .card, .glance, .openPanel])
-        #expect(SessionAttention(rawValue: "card") == .card)
-        #expect(SessionAttention.card.title == "Show a card (closes by itself)")
+    /// Since 0.7.5 the glance is the card: 0.7.4's separate "card" choice reads back as the glance.
+    @Test func theGlanceIsTheCardAndAStoredCardReadsAsIt() {
+        #expect(SessionAttention.allCases == [.nothing, .glance, .openPanel])
+        #expect(SessionAttention.glance.title == "Glance (a card for a few seconds)")
+        #expect(SessionAttention.stored("card") == .glance)
+        #expect(SessionAttention.stored("glance") == .glance)
+        #expect(SessionAttention.stored("openPanel") == .openPanel)
+        #expect(SessionAttention.stored(nil) == .nothing)
+        #expect(SessionAttention.stored("bogus") == .nothing)
     }
 
     @Test func theCardJumpsOnlyWhereARowWould() {

@@ -259,7 +259,7 @@
 "Beside the notch" = "瀏海旁";
 "Beta updates" = "測試版更新";
 "billing export" = "帳單匯出";
-"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "兩者都需要該助手的掛鉤，並遵循與上述通知相同的規則：終端機在最前時保持安靜的設定，以及勿擾時段。這裡選擇面板的行為；圓環的行為由上面的開關決定，兩者可以分別關閉。「一瞥」會將面板連同工作階段行開啟幾秒後再收起，除非指標移入；開啟「減少動態效果」時無動畫開啟並停留稍久。你回覆後「等待中」通知會被撤回。未簽署的組建中任何通知都無法突破專注模式或勿擾模式；簽署版本中的時效性通知（即將用盡、等待你）可以。";
+"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "兩者都需要該助手的掛鉤，並遵循與上述通知相同的規則：終端機在最前時保持安靜的設定，以及勿擾時段。這裡選擇面板的行為；圓環的行為由上面的開關決定，兩者可以分別關閉。「一瞥」會開啟只屬於該工作階段的卡片（附跳回按鈕）幾秒後再收起，除非指標移入；開啟「減少動態效果」時無動畫開啟並停留稍久。你回覆後「等待中」通知會被撤回。未簽署的組建中任何通知都無法突破專注模式或勿擾模式；簽署版本中的時效性通知（即將用盡、等待你）可以。";
 "Show the main figure beside the rings" = "在圓環旁顯示主要數字";
 "Show the whole panel" = "顯示整個面板";
 "Show what a session is working on" = "顯示工作階段正在做什麼";
@@ -380,8 +380,7 @@
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "GitHub Copilot 的登入被拒絕（%@ 中的權杖）。請在編輯器中重新登入或執行 `gh auth login`";
 "GitHub Copilot's usage response unreadable" = "無法解析 GitHub Copilot 用量回應";
 "GitHub's Copilot endpoint answered" = "GitHub 的 Copilot 端點回應異常";
-"Show a card (closes by itself)" = "顯示卡片（自動關閉）";
-"Glance (open for a few seconds)" = "一瞥（開啟幾秒）";
+"Glance (a card for a few seconds)" = "一瞥（顯示卡片幾秒）";
 "Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard." = "全域：在任何應用程式中都有效；選擇「所有顯示器」時，由指標所在顯示器上的面板回應。面板自身的按鍵（當它由點擊、滑動、快速鍵或通知開啟時）：Escape 關閉，⌘R 重新整理，⌘, 開啟設定，⌘Q 結束。停留開啟的面板絕不佔用鍵盤。";
 "Google refused the quota read for this account" = "Google 拒絕讀取此帳號的配額";
 "Google stopped serving Gemini CLI quota to personal accounts in June 2026; Code Assist Standard and Enterprise accounts still report it" = "Google 已於 2026 年 6 月停止向個人帳號提供 Gemini CLI 配額；Code Assist Standard 與 Enterprise 帳號仍可回報";

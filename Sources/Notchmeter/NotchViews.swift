@@ -917,7 +917,7 @@ struct NotchExpandedView: View {
                     .padding(.leading, prefs.density.cardPadding)
                 }
             }
-            // A card the attention setting opened (SessionAttention.card) is drawn the same way, alone with the one
+            // A card the attention setting opened (SessionAttention.glance) is drawn the same way, alone with the one
             // link, unless a request is on the panel, which outranks it.
             if !promptOnly, pending.isEmpty, let notice = store.attentionNotice {
                 NoticeCard(notice: notice, hideFigures: store.hidesFigures, hideTitle: !prefs.sessionTitles,

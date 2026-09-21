@@ -259,7 +259,7 @@
 "Beside the notch" = "노치 옆";
 "Beta updates" = "베타 업데이트";
 "billing export" = "청구 내보내기";
-"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "둘 다 해당 어시스턴트의 훅이 필요하며, 위 알림과 같은 규칙을 따릅니다. 맨 앞 터미널 설정과 방해 금지 시간입니다. 이 설정은 패널이 무엇을 할지 정하고, 링이 무엇을 할지는 위의 토글이 정하며, 둘 중 하나만 꺼 둘 수도 있습니다. 잠깐 보기는 패널을 세션 줄과 함께 몇 초 열었다가 포인터가 들어오지 않으면 다시 닫습니다. 동작 줄이기에서는 애니메이션 없이 열리고 조금 더 머뭅니다. \"대기 중\" 알림은 응답하면 철회됩니다. 서명되지 않은 빌드에서는 어떤 알림도 집중 모드나 방해금지를 뚫지 못하고, 서명된 릴리스에서는 시간 민감 알림(소진 임박, 대기 중)이 뚫습니다.";
+"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "둘 다 해당 어시스턴트의 훅이 필요하며, 위 알림과 같은 규칙을 따릅니다. 맨 앞 터미널 설정과 방해 금지 시간입니다. 이 설정은 패널이 무엇을 할지 정하고, 링이 무엇을 할지는 위의 토글이 정하며, 둘 중 하나만 꺼 둘 수도 있습니다. 잠깐 보기는 그 세션만의 카드를 돌아가기 버튼과 함께 몇 초 열었다가 포인터가 들어오지 않으면 다시 닫습니다. 동작 줄이기에서는 애니메이션 없이 열리고 조금 더 머뭅니다. \"대기 중\" 알림은 응답하면 철회됩니다. 서명되지 않은 빌드에서는 어떤 알림도 집중 모드나 방해금지를 뚫지 못하고, 서명된 릴리스에서는 시간 민감 알림(소진 임박, 대기 중)이 뚫습니다.";
 "Show the main figure beside the rings" = "링 옆에 주요 숫자 표시";
 "Show the whole panel" = "전체 패널 보기";
 "Show what a session is working on" = "세션이 하고 있는 일 표시";
@@ -380,8 +380,7 @@
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "GitHub Copilot 로그인이 거부되었습니다(%@의 토큰). 편집기에서 다시 로그인하거나 `gh auth login`을 실행하세요";
 "GitHub Copilot's usage response unreadable" = "GitHub Copilot 사용량 응답을 읽을 수 없습니다";
 "GitHub's Copilot endpoint answered" = "GitHub Copilot 엔드포인트 응답 오류";
-"Show a card (closes by itself)" = "카드 표시(자동으로 닫힘)";
-"Glance (open for a few seconds)" = "잠깐 보기(몇 초 열기)";
+"Glance (a card for a few seconds)" = "잠깐 보기(몇 초간 카드 표시)";
 "Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard." = "전역: 어느 앱에서나 동작합니다. 모든 디스플레이에서는 포인터가 있는 디스플레이의 패널이 응답합니다. 클릭, 스와이프, 단축키, 알림으로 열렸을 때 패널 자체의 키: Escape 닫기, ⌘R 새로 고침, ⌘, 설정 열기, ⌘Q 종료. 호버로 열린 패널은 키보드를 가져가지 않습니다.";
 "Google refused the quota read for this account" = "Google이 이 계정의 할당량 읽기를 거부했습니다";
 "Google stopped serving Gemini CLI quota to personal accounts in June 2026; Code Assist Standard and Enterprise accounts still report it" = "Google은 2026년 6월에 개인 계정에 대한 Gemini CLI 할당량 제공을 중단했습니다. Code Assist Standard 및 Enterprise 계정은 계속 보고됩니다";

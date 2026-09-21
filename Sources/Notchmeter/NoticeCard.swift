@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// What *Show a card* (`SessionAttention.card`) puts in the notch when an assistant waits for the user or a turn
+/// What a glance (`SessionAttention.glance`) puts in the notch when an assistant waits for the user or a turn
 /// ends: the one session and what happened to it, and nothing else. The panel opens on this card alone the way a
 /// permission request opens on its own (`UsageStore.attentionNotice`, `UsageStore.panelOpenedForPrompt`), and it
 /// closes by itself like a glance, so the news arrives without the whole panel crossing the screen.

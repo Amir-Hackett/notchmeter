@@ -181,7 +181,7 @@ final class UsageStore {
     /// had already opened keeps everything and takes the card on top. Cleared by every collapse, and by the
     /// card's own *Show the whole panel*.
     var panelOpenedForPrompt = false
-    /// The session a *Show a card* opening is about (SessionAttention.card): while set, the panel draws its
+    /// The session a glance is about (SessionAttention.glance): while set, the panel draws its
     /// NoticeCard alone, the way `panelOpenedForPrompt` draws a request's. Cleared by every collapse and by the
     /// card's own *Show the whole panel*.
     var attentionNotice: AttentionNotice?

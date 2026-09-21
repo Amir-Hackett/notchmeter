@@ -259,7 +259,7 @@
 "Beside the notch" = "ノッチの横";
 "Beta updates" = "ベータ版アップデート";
 "billing export" = "請求データ";
-"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens the panel for a few seconds with the session line and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらもそのアシスタントのフックが必要で、上の通知と同じ規則に従います。ターミナルが最前面のときの設定と、「おやすみ時間」です。ここではパネルの動作を選びます。リングの動作は上のトグルが決め、どちらか一方だけをオフにできます。「ちら見」はパネルをセッション行とともに数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
+"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "どちらもそのアシスタントのフックが必要で、上の通知と同じ規則に従います。ターミナルが最前面のときの設定と、「おやすみ時間」です。ここではパネルの動作を選びます。リングの動作は上のトグルが決め、どちらか一方だけをオフにできます。「ちら見」はそのセッションだけのカードを戻り先へのジャンプ付きで数秒開き、ポインタが入らなければ閉じます。「視差効果を減らす」ではアニメーションなしで開き、少し長く留まります。「待機中」の通知は応答すると取り下げられます。未署名ビルドでは通知は集中モードやおやすみモードを通過できません。署名済みリリースでは時間依存の通知（枯渇間近、待機中）が通過します。";
 "Show the main figure beside the rings" = "リングの横にメインの数字を表示";
 "Show the whole panel" = "パネル全体を表示";
 "Show what a session is working on" = "セッションの作業内容を表示する";
@@ -380,8 +380,7 @@
 "GitHub Copilot's login was refused (the token in %@). Sign in again in your editor or run `gh auth login`" = "GitHub Copilot のログインが拒否されました（%@ のトークン）。エディタでサインインし直すか `gh auth login` を実行してください";
 "GitHub Copilot's usage response unreadable" = "GitHub Copilot の利用状況の応答を読み取れません";
 "GitHub's Copilot endpoint answered" = "GitHub の Copilot エンドポイントの応答エラー";
-"Show a card (closes by itself)" = "カードを表示（自動で閉じる）";
-"Glance (open for a few seconds)" = "ちら見（数秒だけ開く）";
+"Glance (a card for a few seconds)" = "ちら見（数秒だけカードを表示）";
 "Global: they work from any app; with All displays, the panel on the display under the pointer answers. The panel's own keys, when it was opened by a click, a swipe, the shortcut or a notification: Escape closes it, ⌘R refreshes, ⌘, opens Settings, ⌘Q quits. A hover-opened panel never takes the keyboard." = "グローバル: どのアプリからでも動作します。「すべてのディスプレイ」では、ポインタのあるディスプレイのパネルが応答します。クリック、スワイプ、ショートカット、通知で開いたときのパネル自身のキー: Escape で閉じる、⌘R で更新、⌘, で設定、⌘Q で終了。ホバーで開いたパネルはキーボードを奪いません。";
 "Google refused the quota read for this account" = "Google はこのアカウントのクォータ読み取りを拒否しました";
 "Google stopped serving Gemini CLI quota to personal accounts in June 2026; Code Assist Standard and Enterprise accounts still report it" = "Google は 2026 年 6 月に個人アカウントへの Gemini CLI クォータ提供を停止しました。Code Assist Standard および Enterprise アカウントでは引き続き報告されます";

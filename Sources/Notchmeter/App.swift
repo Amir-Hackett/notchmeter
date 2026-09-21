@@ -410,12 +410,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard prefs.sessionAttention != .nothing, !suppressed,
               !isSettingsVisible, !isDashboardVisible, let presenter = pointerPresenter else { return }
         switch prefs.sessionAttention {
-        case .card:
-            // A panel already open is already being read: the session's row and the advice line say it there.
+        case .glance:
+            // The session's card alone (NoticeCard), not the whole panel. A panel already open is already being
+            // read: the session's row and the advice line say it there.
             guard presenter.hover.state != .expanded else { break }
             store.attentionNotice = AttentionNotice(session: session, event: event)
             presenter.glance(for: NoticeCard.duration)
-        case .glance: presenter.glance()
         case .openPanel: presenter.expandNow(cause: .notification)
         case .nothing: break
         }
@@ -565,7 +565,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // The offer is made here, so it is remembered here (AutoSideWatcher.rememberAsked): a launch that reported
         // the stale entry but was quit before this line kept its turn. The rehearsal leaves the marker alone.
         if !simulated { autoSide.rememberAsked() }
-        let response = alert.runModal()
+        // Shown as a window, never run modally: `runModal` holds the main run loop in its own mode, and the hook
+        // socket's lines are delivered on the main actor, so every event queued behind the alert for as long as it
+        // stood — a permission request among them, sitting unanswerable in the notch (0.7.5).
+        accessibilityAlertAnswer = { [weak self] response in
+            self?.answerAccessibilityReset(response, replaced: replaced, simulated: simulated)
+        }
+        for (index, button) in alert.buttons.enumerated() {
+            button.tag = NSApplication.ModalResponse.alertFirstButtonReturn.rawValue + index
+            button.target = self
+            button.action = #selector(accessibilityAlertButton(_:))
+        }
+        accessibilityAlert = alert
+        alert.layout()
+        alert.window.level = .floating
+        alert.window.center()
+        alert.window.makeKeyAndOrderFront(nil)
+    }
+
+    /// The stale-entry alert on screen, and what its answer does; both cleared as it closes.
+    private var accessibilityAlert: NSAlert?
+    private var accessibilityAlertAnswer: ((NSApplication.ModalResponse) -> Void)?
+
+    @objc private func accessibilityAlertButton(_ sender: NSButton) {
+        accessibilityAlert?.window.orderOut(nil)
+        accessibilityAlert = nil
+        let answer = accessibilityAlertAnswer
+        accessibilityAlertAnswer = nil
+        answer?(NSApplication.ModalResponse(rawValue: sender.tag))
+    }
+
+    private func answerAccessibilityReset(_ response: NSApplication.ModalResponse, replaced: Bool, simulated: Bool) {
         settings?.standAside(false)
         dashboard?.standAside(false)
         hold(.alert, false)
