@@ -23,11 +23,11 @@ jobs:
           xcode-select -p; xcrun --find actool || exit 0
           set +e
           out="$RUNNER_TEMP/ours"; mkdir -p "$out"
-          xcrun actool "$PWD/packaging/AppIcon.icon" --compile "$out" --app-icon AppIcon --output-format human-readable-text --notices --warnings --errors --include-all-app-icons --enable-on-demand-resources NO --development-region en --target-device mac --platform macosx --minimum-deployment-target 14.0 2>&1 | grep -v '^dyld\[' | tail -25
+          xcrun actool "$PWD/packaging/AppIcon.icon" --compile "$out" --app-icon AppIcon --output-partial-info-plist "$out/partial.plist" --output-format human-readable-text --notices --warnings --errors --include-all-app-icons --enable-on-demand-resources NO --development-region en --target-device mac --platform macosx --minimum-deployment-target 14.0 2>&1 | grep -v '^dyld\[' | tail -25
           echo "== ours exit ${PIPESTATUS[0]} =="; ls -la "$out"
           ctl="$RUNNER_TEMP/Control.icon"; mkdir -p "$ctl/Assets"
           cp packaging/AppIcon.icon/Assets/arc.png "$ctl/Assets/arc.png"
           printf '%s' '{"fill":{"solid":"srgb:0.08000,0.08000,0.08000,1.00000"},"groups":[{"layers":[{"glass":true,"hidden":false,"image-name":"arc.png","name":"arc","position":{"scale":1,"translation-in-points":[0,0]}}],"shadow":{"kind":"neutral","opacity":0.5},"translucency":{"enabled":true,"value":0.5}}],"supported-platforms":{"circles":["watchOS"],"squares":"shared"}}' > "$ctl/icon.json"
           out2="$RUNNER_TEMP/control"; mkdir -p "$out2"
-          xcrun actool "$ctl" --compile "$out2" --app-icon Control --output-format human-readable-text --notices --warnings --errors --include-all-app-icons --enable-on-demand-resources NO --development-region en --target-device mac --platform macosx --minimum-deployment-target 14.0 2>&1 | grep -v '^dyld\[' | tail -25
+          xcrun actool "$ctl" --compile "$out2" --app-icon Control --output-partial-info-plist "$out2/partial.plist" --output-format human-readable-text --notices --warnings --errors --include-all-app-icons --enable-on-demand-resources NO --development-region en --target-device mac --platform macosx --minimum-deployment-target 14.0 2>&1 | grep -v '^dyld\[' | tail -25
           echo "== control exit ${PIPESTATUS[0]} =="; ls -la "$out2"
