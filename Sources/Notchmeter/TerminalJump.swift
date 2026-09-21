@@ -34,7 +34,8 @@ enum TerminalJump {
         /// A tmux pane to select on its socket, then the terminal the client is attached from, resolved again
         /// from the client's tty (`outer` is the reference with the pane's tty removed).
         case tmux(socket: String, pane: String?, outer: TerminalRef)
-        /// Open the session's folder with a running editor, which raises the window already showing it.
+        /// Open the session's folder with a running editor, which raises the window already showing it (Cursor 3
+        /// raises its Agents window for a folder no editor window has open).
         case openFolder(String, bundleID: String)
         /// Bring the app to the front and nothing more.
         case activate(bundleID: String)
