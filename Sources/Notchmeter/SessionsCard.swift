@@ -159,8 +159,10 @@ private struct SessionRow: View {
             .help(L("Remove from the list; it comes back if the session does anything"))
             .accessibilityLabel(L("Remove from the list"))
         } else {
+            // Already spoken as part of the row's own value (`content`), so VoiceOver does not read it twice.
             Text(ResetText.duration(max(0, now.timeIntervalSince(row.since))))
                 .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                .accessibilityHidden(true)
         }
     }
 

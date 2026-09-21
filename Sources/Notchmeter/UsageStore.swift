@@ -1172,6 +1172,7 @@ final class UsageStore {
         let removed = tracker.dismissIdle()
         guard !removed.isEmpty else { return }
         sessions = tracker
+        if let notice = attentionNotice, removed.contains(notice.session.id) { attentionNotice = nil }
         applyAwake()
         Oracle.shared.emit("session", ["action": "dismissedIdle", "count": removed.count])
     }
