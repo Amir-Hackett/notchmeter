@@ -60,17 +60,28 @@ if [ ! -f build/AppIcon.icns ]; then
 fi
 [ -f build/AppIcon.icns ] && cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
-# The Liquid Glass icon for macOS 26 (Tahoe). packaging/AppIcon.icon is an Icon Composer document, which only
-# Xcode 26's actool can compile, into an Assets.car that CFBundleIconName points at; the Command Line Tools this
-# script otherwise needs have no actool (`xcrun --find actool` exits 72 on such a Mac). So the step runs only when
-# both the document and the tool exist, which is CI's runner with an Xcode 26 selected (release.yml), and a
-# developer build without either is exactly the build it was before: the make-icon.swift .icns above, under
+# The Liquid Glass icon for macOS 26 (Tahoe). packaging/AppIcon.icon is an Icon Composer document (written by hand;
+# docs/release.md, "The icon") and only Xcode 26's actool compiles it, into an Assets.car that CFBundleIconName
+# points at. Two ways in, in this order:
+#
+#   ICON_ASSETS_CAR   a car compiled elsewhere, which is how a release gets one: Xcode 26's actool crashes when it
+#                     runs on macOS 15 (the asset agent dies with IBPlatformToolFailureException, however sound the
+#                     document — proved by compiling the same document on both runners), so release.yml compiles it
+#                     in a job on a macOS 26 runner and hands the car to this script.
+#   actool            when the selected developer directory has one, which is a Mac with Xcode 26 and never the
+#                     Command Line Tools this script otherwise needs (`xcrun --find actool` exits 72 there).
+#
+# With neither, the build is exactly the build it was before: the make-icon.swift .icns above, under
 # CFBundleIconFile, is what every macOS before 26 shows and what a Tahoe Mac falls back to. actool also writes its
-# own flattened AppIcon.icns beside the car; it is not copied, because the hand-drawn one is the better fallback
-# and CFBundleIconFile already names it. CFBundleIconName is added to the bundle's plist only when the car was
-# produced, so scripts/Info.plist never promises an asset the bundle does not hold. docs/release.md, "The icon".
+# own flattened AppIcon.icns beside the car; it is not copied, because the hand-drawn one is the better fallback and
+# CFBundleIconFile already names it. CFBundleIconName is added to the bundle's plist only when a car was actually
+# copied in, so scripts/Info.plist never promises an asset the bundle does not hold.
 ICON_DOCUMENT=packaging/AppIcon.icon
-if [ -d "$ICON_DOCUMENT" ] && ACTOOL="$(xcrun --find actool 2>/dev/null)"; then
+ICON_CAR=""
+if [ -n "${ICON_ASSETS_CAR:-}" ] && [ -f "$ICON_ASSETS_CAR" ]; then
+  ICON_CAR="$ICON_ASSETS_CAR"
+  echo "using the icon compiled at $ICON_ASSETS_CAR"
+elif [ -d "$ICON_DOCUMENT" ] && ACTOOL="$(xcrun --find actool 2>/dev/null)"; then
   ICON_OUT=build/icon-compile
   rm -rf "$ICON_OUT"
   mkdir -p "$ICON_OUT"
@@ -82,15 +93,19 @@ if [ -d "$ICON_DOCUMENT" ] && ACTOOL="$(xcrun --find actool 2>/dev/null)"; then
        --enable-on-demand-resources NO --development-region en \
        --target-device mac --platform macosx --minimum-deployment-target "$MIN_OS" \
      && [ -f "$ICON_OUT/Assets.car" ]; then
-    cp "$ICON_OUT/Assets.car" "$APP/Contents/Resources/Assets.car"
-    /usr/libexec/PlistBuddy -c 'Add :CFBundleIconName string AppIcon' "$APP/Contents/Info.plist" 2>/dev/null \
-      || /usr/libexec/PlistBuddy -c 'Set :CFBundleIconName AppIcon' "$APP/Contents/Info.plist"
-    echo "compiled $ICON_DOCUMENT into Contents/Resources/Assets.car (CFBundleIconName AppIcon)"
+    ICON_CAR="$ICON_OUT/Assets.car"
+    echo "compiled $ICON_DOCUMENT"
   else
-    echo "actool could not compile $ICON_DOCUMENT; continuing with the .icns alone"
+    echo "actool could not compile $ICON_DOCUMENT here; continuing with the .icns alone"
   fi
 elif [ -d "$ICON_DOCUMENT" ]; then
   echo "no actool in the selected developer directory; the Tahoe icon is compiled in CI, this build carries the .icns alone"
+fi
+if [ -n "$ICON_CAR" ]; then
+  cp "$ICON_CAR" "$APP/Contents/Resources/Assets.car"
+  /usr/libexec/PlistBuddy -c 'Add :CFBundleIconName string AppIcon' "$APP/Contents/Info.plist" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c 'Set :CFBundleIconName AppIcon' "$APP/Contents/Info.plist"
+  echo "carried the Tahoe icon into Contents/Resources/Assets.car (CFBundleIconName AppIcon)"
 fi
 
 # Sign with the local identity when it is usable, else ad hoc. macOS ties the Accessibility and Keychain grants

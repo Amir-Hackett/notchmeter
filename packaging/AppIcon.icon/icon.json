@@ -1,0 +1,74 @@
+{
+  "fill" : {
+    "solid" : "srgb:0.08000,0.08000,0.08000,1.00000"
+  },
+  "fill-specializations" : [
+    {
+      "appearance" : "tinted",
+      "value" : {
+        "solid" : "srgb:0.50000,0.50000,0.50000,0.00000"
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "arc.png",
+          "image-name-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : "arc-mono.png"
+            }
+          ],
+          "name" : "arc",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [ 0, 0 ]
+          }
+        },
+        {
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "track.png",
+          "image-name-specializations" : [
+            {
+              "appearance" : "tinted",
+              "value" : "track-mono.png"
+            }
+          ],
+          "name" : "track",
+          "opacity" : 0.22,
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [ 0, 0 ]
+          }
+        },
+        {
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "notch.png",
+          "name" : "notch",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [ 0, 0 ]
+          }
+        }
+      ],
+      "name" : "meter",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}
