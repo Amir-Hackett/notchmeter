@@ -181,11 +181,12 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
     /// The row asks something of the reader: the calm wash and the bar down its leading edge (SessionsCard's).
     var needsYou = false
     /// Under Gauges (UsageStyle), the assistant's windows as a small dial before the figure: the same rings, in the
-    /// same order, as the card's dial and the nest beside the notch. The figure stays beside it; the dial is a
-    /// picture of all the windows, the figure the one that matters most.
+    /// same order, as the card's dial and the nest beside the notch (`UsageDial.rowRings`, which leaves the dial
+    /// out while every ring would be empty). The figure stays beside it; the dial is a picture of all the windows,
+    /// the figure the one that matters most. No hour clock here: the row names no reset for a clock to stand
+    /// beside, and a clock next to "14%" reads as a second picture of the usage; the clock is on the card the row
+    /// opens onto, beside the reset it draws.
     var dial: (tool: ToolID, windows: [LimitWindow])? = nil
-    /// The time left before the figure's window resets, as the hour clock draws it (HourClock), beside the caption.
-    var clock: Double? = nil
     /// What VoiceOver reads after the title, in words rather than the drawn abbreviations.
     var spoken: String? = nil
     let open: Bool
@@ -212,10 +213,7 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                         Text(title).font(.body.weight(.semibold)).lineLimit(1)
                         Spacer(minLength: 8)
                         if let caption {
-                            HStack(spacing: 4) {
-                                if let clock { ClockFace(remaining: clock) }
-                                Text(caption).font(.caption).foregroundStyle(Caption.style).lineLimit(1).fixedSize()
-                            }
+                            Text(caption).font(.caption).foregroundStyle(Caption.style).lineLimit(1).fixedSize()
                         }
                         if let dial, !dial.windows.isEmpty {
                             UsageDialView(tool: dial.tool, windows: dial.windows, size: Self.dialSize, showsCentre: false)
@@ -329,9 +327,7 @@ struct SimpleToolRow: View {
         SimpleRow(title: tool.displayName, line: line, figure: text?.figure, caption: text?.caption,
                   urgency: store.hidesFigures ? .calm : urgency,
                   needsYou: Self.needsYou(status: status, advice: advice),
-                  dial: look.usageStyle == .gauges ? status.reading.map { (tool, UsageDial.split(prefs.panelWindows(of: $0)).rings) } : nil,
-                  // Only beside a caption: a clock with no window named beside it would be a clock of nothing.
-                  clock: look.hourClock && text != nil ? window.flatMap { HourClock.remaining($0) } : nil,
+                  dial: look.usageStyle == .gauges ? status.reading.map { (tool, UsageDial.rowRings(prefs.panelWindows(of: $0))) } : nil,
                   spoken: Spoken.line(window.flatMap { w in prefs.usageLine(for: w).map { "\(w.label) \($0)" } }.flatMap { store.hidesFigures ? nil : $0 },
                                       line.map { Spoken.phrase($0.text) }),
                   open: open, toggle: { NotchExpandedView.toggleRow(key, store: store) }) {

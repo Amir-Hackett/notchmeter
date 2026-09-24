@@ -56,7 +56,7 @@ enum SettingsSearch {
         add(.updates, L("Updates"), L("Check for updates automatically"), L("Download updates automatically"), L("Beta updates"),
             L("Check for Updates…"))
         add(.about, L("Version %@", AppInfo.version), L("Support %@…", AppInfo.name))
-        add(.theme, L("Theme"), L("Colour"), L("Material"), L("Accent"), L("Usage style"), L("Draw hour limits on a clock"))
+        add(.theme, L("Theme"), L("Surface"), L("Material"), L("Accent"), L("Usage style"), L("Draw hour limits on a clock"))
         add(.panel, L("Appearance"), L("Panel"), L("Readouts"), L("When crowded"), L("Show details"), L("Position"), L("Display"),
             L("Show"), L("Hover delay"), L("Show reset countdown beside the figures"), L("Show the main figure beside the rings"),
             L("Show assistant symbols in the rings"), L("Panel layout"), L("Density"), L("Panel width"), L("Show over full-screen apps"), L("Gestures: swipe down to open, swipe up to close"),

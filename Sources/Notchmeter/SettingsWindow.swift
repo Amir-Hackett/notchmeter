@@ -544,8 +544,10 @@ struct SettingsView: View {
         let look = PanelLook.current(prefs, edgeCard: edgeCard)
         let forcedSolid = AccessibilityDisplay.shared.reduceTransparency || AccessibilityDisplay.shared.contrast
         return Section(L("Theme")) {
-            ThemePreview(look: look)
-            Picker(L("Colour"), selection: Binding(get: { prefs.panelTheme }, set: { prefs.panelTheme = $0 })) {
+            ThemePreview(look: look, width: prefs.panelWidth.points)
+            // "Surface", not "Colour": the colour a reader looks for is the accent two rows down, and the menu bar
+            // icon's own row is already called Colour.
+            Picker(L("Surface"), selection: Binding(get: { prefs.panelTheme }, set: { prefs.panelTheme = $0 })) {
                 ForEach(PanelTheme.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
@@ -565,16 +567,12 @@ struct SettingsView: View {
             } else if forcedSolid {
                 paragraph(L("Solid while Reduce Transparency or Increase Contrast is on, as macOS draws its own panels."))
             }
-            LabeledContent(L("Accent")) {
-                // At its own size, with a point either side, so the outer chips' rings are not shaved by the row.
-                HStack(spacing: 6) {
-                    ForEach(PanelAccent.allCases, id: \.self) { accent in
-                        AccentChoice(accent: accent, selected: prefs.panelAccent == accent) { prefs.panelAccent = accent }
-                    }
-                }
-                .padding(.horizontal, 2)
-                .fixedSize()
+            // A radio group, as the other choices here are pickers: one control with its options, not three buttons.
+            Picker(L("Accent"), selection: Binding(get: { prefs.panelAccent }, set: { prefs.panelAccent = $0 })) {
+                ForEach(PanelAccent.allCases, id: \.self) { AccentLabel(accent: $0).tag($0) }
             }
+            .pickerStyle(.radioGroup)
+            .horizontalRadioGroupLayout()
             .help(L("The app's own colour on the panel: the chosen range on the Cost card, a session waiting for your answer, Clear. Each reads on the panel in every theme and stays apart from the warning colours for colour-blind eyes."))
             Picker(L("Usage style"), selection: Binding(get: { prefs.usageStyle }, set: { prefs.usageStyle = $0 })) {
                 ForEach(UsageStyle.allCases, id: \.self) { Text($0.title).tag($0) }

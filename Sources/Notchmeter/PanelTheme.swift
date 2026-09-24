@@ -72,6 +72,10 @@ enum PanelMaterial: String, CaseIterable, Codable, Sendable {
 /// which is why a colour-blind reader is better served by either of the others. An accent is chrome, never a ring,
 /// a meter or a legend dot, so it may sit near an identity colour — teal near Codex's green, lilac near Cursor's
 /// violet — as terracotta has always been Claude's own.
+///
+/// Under Increase Contrast the accent moves so that the text on its pill clears 7:1 rather than 4.5:1: lifted on
+/// the black panel, where the text is black, and darkened on Paper, where the text is the paper. The audit holds
+/// both (`PanelLook.audit`).
 enum PanelAccent: String, CaseIterable, Codable, Sendable {
     case terracotta, teal, lilac
 
@@ -107,6 +111,16 @@ enum PanelAccent: String, CaseIterable, Codable, Sendable {
         case .terracotta: RGB(hex: 0x9E4323)
         case .teal: RGB(hex: 0x136B64)
         case .lilac: RGB(hex: 0x5B45B5)
+        }
+    }
+
+    /// Darkened for Increase Contrast on Paper, so the paper's own colour as text on the selected pill clears 7:1
+    /// (8.1:1, 7.6:1 and 7.9:1 against #F4F1EA), as black text on `onBlackContrast` does on the black panel.
+    var onPaperContrast: RGB {
+        switch self {
+        case .terracotta: RGB(hex: 0x7A3219)
+        case .teal: RGB(hex: 0x0F5650)
+        case .lilac: RGB(hex: 0x4A37A0)
         }
     }
 }
@@ -280,7 +294,7 @@ enum PanelInk: Hashable, Sendable {
         case .warn: RGB(hex: 0x8A5A00)
         case .danger: RGB(hex: 0xB23A00)
         case .accent: PanelAccent.terracotta.onPaper
-        case .accentContrast: PanelAccent.terracotta.onPaper
+        case .accentContrast: PanelAccent.terracotta.onPaperContrast
         case .pine: RGB(hex: 0x1A6B53)
         case .tool(let tool):
             switch tool {
@@ -484,7 +498,7 @@ struct PanelLook: Equatable, Sendable {
         let base = { (name: PanelInk) -> RGB in
             switch name {
             case .accent: self.theme == .paper ? self.accent.onPaper : self.accent.onBlack
-            case .accentContrast: self.theme == .paper ? self.accent.onPaper : self.accent.onBlackContrast
+            case .accentContrast: self.theme == .paper ? self.accent.onPaperContrast : self.accent.onBlackContrast
             default: self.theme == .paper ? name.onPaper : name.onBlack
             }
         }
@@ -555,9 +569,10 @@ struct PanelLook: Equatable, Sendable {
 
     /// Every pairing the panel can draw on this look, measured: each text colour and ink level against the sheet,
     /// the box and the wash at 4.5:1; each mark against the sheet and the box at 3:1; the words on the selected
-    /// pill and on a filled button at 4.5:1; the dial's and the meter's fill against their track at 3:1 on Paper,
-    /// whose track is ink rather than light. Empty is a look every element of which passes. `ThemeContrastTests`
-    /// holds every combination to it, and the renderer prints the worst pairing of each look it draws.
+    /// pill at 4.5:1, and at 7:1 on the pill Increase Contrast draws, which is the promise that setting makes on
+    /// both faces; the words on a filled button at 4.5:1. Empty is a look every element of which passes.
+    /// `ThemeContrastTests` holds every combination to it, and the renderer prints the worst pairing of each look
+    /// it draws.
     func audit() -> [Finding] {
         let palette = self.palette
         let grounds: [(String, RGB)] = [("sheet", sheet), ("box", box), ("wash", wash)]
@@ -584,11 +599,12 @@ struct PanelLook: Equatable, Sendable {
             check("\(name) text", palette.text[name] ?? name.onBlack, grounds, 4.5)
             check("\(name) mark", palette.mark[name] ?? name.onBlack, Array(grounds.prefix(2)), 3)
         }
-        // The selected range: the ground's colour (black on the black panel, paper on Paper) on the accent.
+        // The selected range: the ground's colour (black on the black panel, paper on Paper) on the accent. The
+        // contrast accent is only ever drawn under Increase Contrast, so it owes 7:1 on every look.
         let pillText = theme == .paper ? ground : RGB.black
-        for name in [PanelInk.accent, .accentContrast] {
+        for (name, target) in [(PanelInk.accent, 4.5), (.accentContrast, 7)] {
             let pill = palette.mark[name] ?? name.onBlack
-            check("text on the \(name) pill", pillText, [("\(name) pill", pill)], 4.5)
+            check("text on the \(name) pill", pillText, [("\(name) pill", pill)], target)
         }
         // Allow, Send and Jump: the ground's colour on a filled ink button.
         check("text on a filled button", ground, [("filled button", ink)], 4.5)

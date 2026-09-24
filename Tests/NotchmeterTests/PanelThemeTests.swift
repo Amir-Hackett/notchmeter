@@ -292,6 +292,23 @@ import Testing
         }
     }
 
+    /// Increase Contrast promises 7:1 for the text on the selected pill on both faces: black text on the lifted
+    /// accent, paper text on the darkened one. The darkened one is what a Paper look under contrast draws, and
+    /// the audit holds every look's contrast pill to 7:1 (`everyPairingOnEveryLookPasses` runs it).
+    @Test func theContrastAccentCarriesItsTextAtSevenToOneOnBothFaces() {
+        for accent in PanelAccent.allCases {
+            #expect(RGB.black.contrast(accent.onBlackContrast) >= 7, "\(accent) on black")
+            #expect(PanelLook.paper.contrast(accent.onPaperContrast) >= 7, "\(accent) on paper")
+            #expect(accent.onPaperContrast.luminance < accent.onPaper.luminance, "\(accent) is not darker for contrast")
+            let paper = PanelLook.resolve(theme: .paper, material: nil, accent: accent, usageStyle: .bars, hourClock: false, edgeCard: false,
+                                          liquidGlass: false, increaseContrast: true, reduceTransparency: false)
+            #expect(paper.rgb(.accentContrast, role: .mark) == accent.onPaperContrast, "\(accent) was moved on Paper")
+            #expect(paper.audit().isEmpty, "\(paper.summary): \(paper.audit().map(\.description))")
+        }
+        // The ordinary Paper accent does not reach 7:1, which is why the darker one exists.
+        #expect(PanelLook.paper.contrast(PanelAccent.terracotta.onPaper) < 7)
+    }
+
     @Test func eachNewAccentStaysApartFromTheStatusColoursForColourBlindEyes() {
         for accent in [PanelAccent.teal, .lilac] {
             for status in [PanelInk.warn, .danger, .calm] {
@@ -310,7 +327,7 @@ import Testing
 }
 
 /// The hour clock (HourClock): drawn for a window shorter than a day, from its reset and its period, full for one
-/// that reports nothing used and no reset, and never guessed.
+/// that reports nothing used and no reset, withheld for a reset already past, and never guessed.
 @Suite struct HourClockTests {
     let now = Date(timeIntervalSince1970: 1_790_000_000)
 
@@ -323,8 +340,22 @@ import Testing
         let remaining = HourClock.remaining(window(used: 0.14, resetsIn: 3 * 3600, period: five), now: now)
         let expected = 0.6
         #expect(abs((remaining ?? 0) - expected) < 0.0001)
-        #expect(HourClock.remaining(window(used: 0.9, resetsIn: -60, period: five), now: now) == 0)
         #expect(HourClock.remaining(window(used: 0.1, resetsIn: 7 * 3600, period: five), now: now) == 1)
+    }
+
+    /// A reset already gone by is a window that has started over without the app being told: a Codex snapshot
+    /// written before its reset, a Claude reading cached across one. The tick draws nothing for it
+    /// (Pace.elapsedFraction), so the clock draws nothing either, rather than an empty face that says "no time left".
+    @Test func aResetAlreadyPastDrawsNoClockAsItDrawsNoTick() {
+        let past = window(used: 0.9, resetsIn: -60, period: Period.fiveHours)
+        #expect(HourClock.remaining(past, now: now) == nil)
+        #expect(Pace.elapsedFraction(resetsAt: past.resetsAt!, period: Period.fiveHours, now: now) == nil)
+        // The instant itself is past too: no clock at zero.
+        #expect(HourClock.remaining(window(used: 0.9, resetsIn: 0, period: Period.fiveHours), now: now) == nil)
+        // A Codex snapshot's own telling of it: the fraction zeroed, the reset left in the past, a note instead.
+        let snapshot = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0, resetsAt: now.addingTimeInterval(-600),
+                                   note: "Reset since Codex last reported", periodDuration: Period.fiveHours, source: .localSnapshot)
+        #expect(HourClock.remaining(snapshot, now: now) == nil)
     }
 
     @Test func aWindowThatHasNotStartedIsAFullClockAndOneWithNoResetIsNone() {
@@ -389,6 +420,30 @@ import Testing
         #expect(UsageDial.colour(behind, tool: .claude, index: 1, now: now) == Palette.danger)
         #expect(UsageDial.colour(calm, tool: .claude, index: 0, now: now) == ToolID.claude.color)
         #expect(UsageDial.colour(calm, tool: .claude, index: 2, now: now) == ToolID.claude.ringColor(at: 2))
+    }
+
+    /// The pace tick is drawn only on a dial wide enough to carry one: the card's 84 and 72, not the Simple row's
+    /// 20, where a tick across a 2-point ring reads as a line struck through the dial.
+    @Test func aSmallDialCarriesNoTick() {
+        #expect(UsageDial.drawsTicks(size: 84))
+        #expect(UsageDial.drawsTicks(size: 72))
+        #expect(UsageDial.drawsTicks(size: UsageDial.smallestTickedSize))
+        #expect(!UsageDial.drawsTicks(size: 20))
+        #expect(!UsageDial.drawsTicks(size: UsageDial.smallestTickedSize - 1))
+        // Under Dynamic Type the row's dial grows; the card's dial stays ticked at every size.
+        #expect(UsageDial.geometry(count: 3, size: 20).allSatisfy { $0.lineWidth == 2 })
+    }
+
+    /// The Simple row's dial is the card's rings, unless every one of them stands at nothing used, when a bare grey
+    /// track beside "0%" would read as a spinner; the row's own figure says it instead.
+    @Test func aRowDialWithNothingFilledIsLeftOut() {
+        let filled = [window("a", used: 0.1), window("b", used: 0), window("c", used: nil), window("d", used: 0.3)]
+        #expect(UsageDial.rowRings(filled).map(\.id) == ["a", "b", "d"])
+        #expect(UsageDial.rowRings([window("a", used: 0), window("b", used: 0)]).isEmpty)
+        #expect(UsageDial.rowRings([window("a", used: nil)]).isEmpty)
+        #expect(UsageDial.rowRings([]).isEmpty)
+        // A single window barely used is still a dial: only nothing at all is nothing to draw.
+        #expect(UsageDial.rowRings([window("a", used: 0.004)]).count == 1)
     }
 }
 

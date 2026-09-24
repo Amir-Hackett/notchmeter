@@ -1480,7 +1480,8 @@ struct SegmentedBar<Value: Hashable>: View {
                 // panel that is otherwise the app's own colours. The title on it is the panel's ground colour —
                 // black on the black panel, paper on Paper: terracotta is 5.7:1 under black and 3.7:1 under white,
                 // and a caption at this size is text, not a control, so it owes 4.5:1 (PanelLook.audit holds every
-                // accent to it). Increase Contrast lightens the pill so the same black clears 7:1.
+                // accent to it). Increase Contrast lightens the pill on the black panel and darkens it on Paper, so
+                // the same text clears 7:1 on either face (PanelAccent.onBlackContrast, onPaperContrast).
                 // Unselected: `.foreground` and not `.primary`, because the panel paints its content in its own
                 // ink whatever appearance the window carries, and `.primary` would resolve to that appearance's
                 // label colour and turn the title black on the black panel's trough.

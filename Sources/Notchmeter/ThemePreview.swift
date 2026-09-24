@@ -7,19 +7,25 @@ import SwiftUI
 /// against (PanelMaterial). It is a picture: it takes no clicks, and VoiceOver reads it as one item naming the look.
 struct ThemePreview: View {
     let look: PanelLook
+    /// The live panel's width (Preferences.panelWidth), so the sample rows wrap and truncate exactly where the
+    /// panel's own would: at a narrower width a Russian pace note was cut short in the preview and whole on the
+    /// panel. Narrowed to the pane where the pane is narrower, rather than cut off at the sides.
+    let width: CGFloat
     /// The sample store, built when the preview first appears rather than with every rebuild of the form, and
     /// afresh each time the pane is opened, so its clock is never hours old.
     @State private var sample: UsageStore?
 
-    static let panelWidth: CGFloat = 300
     static let height: CGFloat = 206
 
     var body: some View {
         ZStack(alignment: .top) {
             PreviewDesktop()
             if let sample {
-                PreviewPanel(store: sample, look: look)
-                    .frame(width: Self.panelWidth)
+                GeometryReader { proxy in
+                    PreviewPanel(store: sample, look: look)
+                        .frame(width: min(width, proxy.size.width))
+                        .frame(maxWidth: .infinity, alignment: .top)
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -107,32 +113,21 @@ private struct PreviewPanel: View {
     }
 }
 
-/// One accent in Settings › Appearance › Theme: its swatch and its name, and when chosen a tick, a heavier name and
-/// a stronger outline, so the choice never rests on the colour alone. A 24-point target the whole width of the chip.
-struct AccentChoice: View {
+/// One accent's label in Settings › Appearance › Theme's radio group: its swatch and its name. The group is a
+/// `Picker` in the radio style rather than a row of buttons, so it is the same control as the Surface, Material
+/// and Usage style pickers around it: VoiceOver reads it as one group with "2 of 3", the arrow keys move between
+/// the options, and Full Keyboard Access lands on it as one control. The radio itself marks the choice, so the
+/// choice never rests on the colour alone.
+struct AccentLabel: View {
     let accent: PanelAccent
-    let selected: Bool
-    let choose: () -> Void
 
     var body: some View {
-        Button(action: choose) {
-            HStack(spacing: 5) {
-                // On the black it is drawn on in the default theme, so the swatch is the colour as the panel shows it.
-                Circle().fill(Color.black).frame(width: 16, height: 16)
-                    .overlay(Circle().fill(accent.onBlack.color).padding(3))
-                Text(accent.title).fontWeight(selected ? .semibold : .regular)
-                if selected {
-                    Image(systemName: "checkmark").font(.caption.weight(.bold))
-                }
-            }
-            .padding(.horizontal, 8)
-            .frame(minHeight: 24)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(selected ? Color.primary.opacity(0.1) : .clear))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.primary.opacity(selected ? 0.55 : 0.2), lineWidth: selected ? 1.5 : 1))
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        HStack(spacing: 5) {
+            // On the black it is drawn on in the default theme, so the swatch is the colour as the panel shows it.
+            Circle().fill(Color.black).frame(width: 16, height: 16)
+                .overlay(Circle().fill(accent.onBlack.color).padding(3))
+                .accessibilityHidden(true)
+            Text(accent.title)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(accent.title)
-        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 }

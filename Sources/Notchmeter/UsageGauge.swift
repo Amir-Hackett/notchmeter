@@ -8,10 +8,14 @@ import SwiftUI
 ///
 /// It is a picture of the reset line beside it and nothing more, so it is held to the reset line's sources
 /// (docs/accuracy.md, *The hour clock*): the vendor's reset instant and the window's period, the same two figures
-/// the pace tick is drawn from. Nothing is drawn where either is missing, with one exception the vendor states
-/// outright: a window that reports nothing used and no reset has not started, and its whole period is ahead of it,
-/// so its clock is full. A window of a day or longer keeps its words: a clock face says "hours", and a week drawn
-/// on one would be a week read as hours.
+/// the pace tick is drawn from, and it is withheld exactly where the tick is. A reset already gone by is one the
+/// app has not been told the successor of — a Codex snapshot written before its reset, a Claude reading cached
+/// across one — and the tick draws nothing for it (Pace.elapsedFraction), so the clock draws nothing either: an
+/// empty face would say "no time left" of a window that has in fact started over. One case is drawn with no reset
+/// at all, and it is the case the reset line beside it already spells out as *Not started* (ResetText.line): a
+/// window that reports nothing used and no reset, whose whole period is ahead of it, so its clock is full. A
+/// window of a day or longer keeps its words: a clock face says "hours", and a week drawn on one would be a week
+/// read as hours.
 enum HourClock {
     /// The longest window drawn on a clock. Strictly shorter than a day: the five-hour session is the case in point.
     static let longestPeriod: TimeInterval = 24 * 3600
@@ -21,28 +25,31 @@ enum HourClock {
         return period > 0 && period < longestPeriod
     }
 
-    /// The share of the window's time still to run, 0…1, or nil where no clock is drawn. A reset already past reads
-    /// empty rather than being guessed at, and a reset further away than the period (a reading whose period was
-    /// inferred shorter than the vendor's) reads full rather than more than full.
+    /// The share of the window's time still to run, 0…1, or nil where no clock is drawn: a reset already past is
+    /// unknown rather than zero, and gets no clock, as it gets no tick. A reset further away than the period (a
+    /// reading whose period was inferred shorter than the vendor's) reads full rather than more than full.
     static func remaining(_ window: LimitWindow, now: Date = Date()) -> Double? {
         guard isHourly(window), let period = window.periodDuration else { return nil }
         guard let resetsAt = window.resetsAt else { return window.usedFraction == 0 ? 1 : nil }
-        return min(1, max(0, resetsAt.timeIntervalSince(now) / period))
+        guard resetsAt > now else { return nil }
+        return min(1, resetsAt.timeIntervalSince(now) / period)
     }
 }
 
 /// The clock face itself: a ring, the time still to run filled from the hand round to twelve, in the secondary
-/// ink. Decoration for VoiceOver, which reads the reset line it stands beside.
+/// ink. Decoration for VoiceOver, which reads the reset line it stands beside. Sized relative to the caption it
+/// sits in (`@ScaledMetric`), so it keeps its proportion to the reset line at whatever size the text is drawn.
 struct ClockFace: View {
     let remaining: Double
     var size: CGFloat = 11
+    @ScaledMetric(relativeTo: .caption) private var scale: CGFloat = 1
 
     var body: some View {
         ZStack {
             Circle().strokeBorder(Ink.secondary, lineWidth: 1)
             ClockSector(remaining: remaining).fill(Ink.secondary).padding(2)
         }
-        .frame(width: size, height: size)
+        .frame(width: size * scale, height: size * scale)
         .environment(\.layoutDirection, .leftToRight)
         .accessibilityHidden(true)
     }
@@ -95,6 +102,23 @@ enum UsageDial {
         return (0 ..< max(0, count)).map { index in (size - 2 * CGFloat(index) * (line + gap), line) }
     }
 
+    /// The smallest dial whose rings carry the pace tick. Under this the rings are 2-point lines a point apart,
+    /// and a 1.5-point tick across each of them reads as a line struck through the dial rather than as a mark on a
+    /// ring; the Simple row's 20-point dial is the case. The tick is a picture of the pace, and the pace is still
+    /// in the row's own words and colour (SimpleUrgency), so the small dial loses a decoration and no fact.
+    static let smallestTickedSize: CGFloat = 40
+
+    static func drawsTicks(size: CGFloat) -> Bool { size >= smallestTickedSize }
+
+    /// The rings a Simple row's small dial draws: the same rings as the card's, or none while every one of them
+    /// stands at nothing used. A dial with nothing filled is a bare grey track, which beside a figure of "0%" and at
+    /// row size reads as a spinner that never settles rather than as a window with nothing in it; the row's figure
+    /// and caption already say what the empty dial would.
+    static func rowRings(_ windows: [LimitWindow]) -> [LimitWindow] {
+        let rings = split(windows).rings
+        return rings.contains { ($0.usedFraction ?? 0) > 0 } ? rings : []
+    }
+
     /// The figure in the middle: the window the Simple row would name, the most urgent and then the most used.
     static func centre(_ rings: [LimitWindow], now: Date = Date()) -> LimitWindow? {
         SimpleFigure.window(of: rings, now: now)
@@ -107,7 +131,10 @@ enum UsageDial {
     }
 }
 
-/// The dial: its rings, each with the tick where an even burn would be, and optionally the centre figure.
+/// The dial: its rings, each with the tick where an even burn would be (on a dial large enough to carry one,
+/// `UsageDial.drawsTicks`), and optionally the centre figure. `size` is the dial's size at the default text size;
+/// it is scaled relative to the body text (`@ScaledMetric`, the rows' own text style), so the dial keeps its
+/// proportion to the rows beside it at whatever size their text is drawn.
 struct UsageDialView: View {
     let tool: ToolID
     /// The rings, outermost first (`UsageDial.split`).
@@ -117,21 +144,25 @@ struct UsageDialView: View {
     /// The figure in the middle; off on the Simple row's small dial, whose row carries the figure beside it, and
     /// while the screen is shared.
     var showsCentre = true
+    @ScaledMetric(relativeTo: .body) private var scale: CGFloat = 1
 
     var body: some View {
+        let size = self.size * scale
         let geometry = UsageDial.geometry(count: windows.count, size: size)
+        let ticked = UsageDial.drawsTicks(size: size)
         ZStack {
             ForEach(Array(zip(windows, geometry).enumerated()), id: \.offset) { index, pair in
                 GaugeRing(fraction: pair.0.usedFraction ?? 0,
-                          tick: pair.0.resetsAt.flatMap { resetsAt in pair.0.periodDuration.flatMap { Pace.elapsedFraction(resetsAt: resetsAt, period: $0) } },
+                          tick: ticked ? pair.0.resetsAt.flatMap { resetsAt in pair.0.periodDuration.flatMap { Pace.elapsedFraction(resetsAt: resetsAt, period: $0) } } : nil,
                           colour: UsageDial.colour(pair.0, tool: tool, index: index), lineWidth: pair.1.lineWidth)
                     .frame(width: pair.1.diameter, height: pair.1.diameter)
             }
             if showsCentre, let centre = UsageDial.centre(windows), let text = SimpleFigure.text(centre, display: display) {
                 let hole = (geometry.last?.diameter ?? size) - 2 * (geometry.last?.lineWidth ?? 0) - 4
                 Text(verbatim: text.figure)
-                    // A third of the hole, between 9 and 18 points: one ring leaves a hole a figure would shout in.
-                    .font(.system(size: min(18, max(9, hole * 0.34)), weight: .bold, design: .rounded))
+                    // A third of the hole, between 9 and 18 points at the default text size: one ring leaves a hole
+                    // a figure would shout in. The hole has already grown with the text, so the bounds grow with it.
+                    .font(.system(size: min(18 * scale, max(9 * scale, hole * 0.34)), weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
@@ -196,12 +227,14 @@ private struct GaugeTick: Shape {
 
 /// Which ring of the dial a legend row is: a small nest of the same number of rings with this row's drawn in its
 /// ring's colour and the rest faint. Position says it as well as colour does, so a reader who cannot tell the
-/// companions apart, or a ring turned orange for its pace, still finds the row's ring.
+/// companions apart, or a ring turned orange for its pace, still finds the row's ring. Sized relative to the row's
+/// title (`@ScaledMetric`), so it keeps its proportion to the title at whatever size the text is drawn.
 struct DialSwatch: View {
     let index: Int
     let count: Int
     let colour: Color
     static let size: CGFloat = 13
+    @ScaledMetric(relativeTo: .subheadline) private var scale: CGFloat = 1
 
     /// The nest's diameters, outermost first: evenly spaced from the whole swatch down to a third of it.
     static func diameters(count: Int) -> [CGFloat] {
@@ -217,10 +250,10 @@ struct DialSwatch: View {
                 Circle()
                     .inset(by: 0.75)
                     .stroke(ring == index ? Themed(colour) : Themed(.white, opacity: 0.3), lineWidth: ring == index ? 1.5 : 0.75)
-                    .frame(width: diameter, height: diameter)
+                    .frame(width: diameter * scale, height: diameter * scale)
             }
         }
-        .frame(width: Self.size, height: Self.size)
+        .frame(width: Self.size * scale, height: Self.size * scale)
         .accessibilityHidden(true)
     }
 }

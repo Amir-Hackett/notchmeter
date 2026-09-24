@@ -12,6 +12,16 @@ struct NotchView<Expanded, CompactLeading, CompactTrailing>: View where Expanded
     @State private var compactLeadingWidth: CGFloat = 0
     @State private var compactTrailingWidth: CGFloat = 0
     private let safeAreaInset: CGFloat = 15
+    /// Notchmeter: whether the blur behind a translucent panel is in the hierarchy. Only while it can be seen. The
+    /// compact strip is opaque black over it for nearly all of the panel's life, and WindowServer composites a
+    /// behind-window blur on every frame the desktop under it changes whether or not something opaque covers it,
+    /// so a blur left mounted under the strip would be paid for on every menu-bar redraw and every window dragged
+    /// under the notch, for nothing anyone sees. It goes in as the panel opens and comes out once the black has
+    /// faded back over it, so the close still crossfades; `GlassBackdrop` below is gated the same way.
+    @State private var backdropMounted = false
+    /// The body's black fading out over the blur as the panel opens, and back in, quicker, as it closes.
+    private let backdropFadeIn: Double = 0.22
+    private let backdropFadeOut: Double = 0.15
 
     init(dynamicNotch: DynamicNotch<Expanded, CompactLeading, CompactTrailing>) {
         self.dynamicNotch = dynamicNotch
@@ -58,20 +68,23 @@ struct NotchView<Expanded, CompactLeading, CompactTrailing>: View where Expanded
             .background {
                 ZStack(alignment: .top) {
                     if let tint = dynamicNotch.expandedTint {
-                        // Notchmeter: a translucent panel. The blur and its tint under everything; the body's black
-                        // over them fades out as the panel opens (and back in, quicker, as it closes), so the compact
-                        // strip is never translucent; the band the hardware notch sits in stays black throughout.
-                        ZStack {
-                            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow, appearance: NSAppearance(named: .darkAqua))
-                            Rectangle().foregroundStyle(.black.opacity(tint))
+                        // Notchmeter: a translucent panel. The blur and its tint under everything, there only while
+                        // the panel is open (`backdropMounted`); the body's black over them fades out as the panel
+                        // opens (and back in, quicker, as it closes), so the compact strip is never translucent; the
+                        // band the hardware notch sits in stays black throughout.
+                        if backdropMounted {
+                            ZStack {
+                                VisualEffectView(material: .hudWindow, blendingMode: .behindWindow, appearance: NSAppearance(named: .darkAqua))
+                                Rectangle().foregroundStyle(.black.opacity(tint))
+                            }
+                            .padding(-50)
                         }
-                        .padding(-50)
                         Rectangle()
                             .foregroundStyle(.black)
                             .opacity(dynamicNotch.state == .expanded ? 0 : 1)
                             .padding(-50)
                             .animation(dynamicNotch.reduceMotion ? nil
-                                       : dynamicNotch.state == .expanded ? .easeOut(duration: 0.22) : .easeIn(duration: 0.15),
+                                       : dynamicNotch.state == .expanded ? .easeOut(duration: backdropFadeIn) : .easeIn(duration: backdropFadeOut),
                                        value: dynamicNotch.state)
                         Rectangle()
                             .foregroundStyle(.black)
@@ -105,6 +118,22 @@ struct NotchView<Expanded, CompactLeading, CompactTrailing>: View where Expanded
             .offset(x: xOffset)
             // Notchmeter: no slide under Reduce Motion (DynamicNotch.reduceMotion).
             .animation(dynamicNotch.reduceMotion ? nil : .smooth, value: [compactLeadingWidth, compactTrailingWidth])
+            .onAppear { backdropMounted = dynamicNotch.state == .expanded }
+            .onChange(of: dynamicNotch.state) { _, state in mountBackdrop(for: state) }
+    }
+
+    /// Notchmeter: the blur goes in the moment the panel opens and comes out once the close fade has covered it —
+    /// at once under Reduce Motion, where there is no fade. A panel reopened inside the fade keeps its blur.
+    private func mountBackdrop(for state: DynamicNotchState) {
+        if state == .expanded {
+            backdropMounted = true
+        } else if dynamicNotch.reduceMotion {
+            backdropMounted = false
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + backdropFadeOut) {
+                if dynamicNotch.state != .expanded { backdropMounted = false }
+            }
+        }
     }
 
     private func notchContent() -> some View {
