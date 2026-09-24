@@ -97,13 +97,14 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     }
 
     /// The events on which the command holds the socket for the app's answer (Hook+Decision.swift), and whose
-    /// entries are therefore synchronous with a timeout of `decisionTimeout`: Claude Code's `PermissionRequest`
-    /// and its `PreToolUse` matched to `AskUserQuestion`; Codex's `PermissionRequest`; Copilot's PascalCase
-    /// `PermissionRequest`, which documents the same decision shape. Cursor has no event that waits for the user
-    /// and Gemini CLI's hook is observability only, so neither has one.
+    /// entries are therefore synchronous with a timeout of `decisionTimeout`: Claude Code's `PermissionRequest`,
+    /// its `PreToolUse` matched to `AskUserQuestion` and (since 0.11) its `Elicitation`, whose form the notch
+    /// answers when a click can (Hook+Elicitation.swift) and hands to the terminal at once when it cannot; Codex's
+    /// `PermissionRequest`; Copilot's PascalCase `PermissionRequest`, which documents the same decision shape.
+    /// Cursor has no event that waits for the user and Gemini CLI's hook is observability only, so neither has one.
     var decidingEvents: Set<String> {
         switch self {
-        case .claude: ["PermissionRequest", "PreToolUse"]
+        case .claude: ["PermissionRequest", "PreToolUse", "Elicitation"]
         case .codex, .copilot: ["PermissionRequest"]
         case .cursor, .antigravity: []
         }

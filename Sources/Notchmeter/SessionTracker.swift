@@ -127,12 +127,15 @@ struct PendingRequest: Equatable, Sendable, Identifiable {
         /// `detail` a bounded excerpt of it, `suggestions` the permission updates the assistant proposed.
         case permission(tool: String, summary: String, detail: String?, suggestions: [Suggestion])
         case question([Question])
+        /// An MCP server's form that a click can answer (Hook+Elicitation.swift).
+        case elicitation(Elicitation)
 
-        /// "permission" or "question": the word the oracle and the log use, never the content.
+        /// "permission", "question" or "elicitation": the word the oracle and the log use, never the content.
         var name: String {
             switch self {
             case .permission: "permission"
             case .question: "question"
+            case .elicitation: "elicitation"
             }
         }
     }
@@ -160,15 +163,19 @@ enum Decision: Equatable, Sendable {
     case deny(message: String?)
     /// Question text → the chosen option's label (labels of a multi-select joined with ", ").
     case answers([String: String])
+    /// An MCP server's form accepted with the values chosen, or declined.
+    case elicitation(ElicitationAnswer)
     case pass
 
-    /// The word the oracle records: allow, deny, answers or pass. *Allow always* is an allow, since this call
-    /// goes ahead either way; `addsRule` says the rest.
+    /// The word the oracle records: allow, deny, answers, accept, decline or pass. *Allow always* is an allow,
+    /// since this call goes ahead either way; `addsRule` says the rest.
     var behavior: String {
         switch self {
         case .allow, .allowAlways: "allow"
         case .deny: "deny"
         case .answers: "answers"
+        case .elicitation(.accept): "accept"
+        case .elicitation(.decline): "decline"
         case .pass: "pass"
         }
     }
@@ -356,6 +363,35 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// This turn went quiet with nothing running and is shown as a possible wait. Set once per turn, cleared by the
     /// next prompt; the wait itself ends with the next activity.
     var quietNudge = false
+    // What Claude Code's 0.11 events report (Hook+Events.swift). Each is a fact a hook stated, kept only as long
+    // as it stays true, and none of it is ever inferred from a file.
+    /// A compaction begun (`PreCompact`) and not yet done (`PostCompact`), with its trigger when the hook named one.
+    var compacting: Stamped<Compaction.Trigger?>?
+    /// How many compactions finished while the app watched, and the last of them.
+    var compactions = 0
+    var lastCompaction: Stamped<Compaction.Trigger?>?
+    /// The switches `PostModelSwitch` reported, oldest first, at most `SessionTracker.switchLimit`; the newest
+    /// one's target is also what `model` says until the status line next names it.
+    var modelSwitches: [Stamped<ModelSwitch>] = []
+    /// Teammates of an agent team that went idle (`TeammateIdle`), oldest first, one entry per teammate.
+    var idleTeammates: [Stamped<Teammate>] = []
+    /// Tool calls that failed in a row (`PostToolUseFailure`), per agent: the main loop's under "", each subagent's
+    /// under its `agent_id`. A batch in which not every call failed puts an agent's count back to nothing.
+    var failureStreaks: [String: Int] = [:]
+    /// The failures heard since each agent's last batch boundary, which the next `PostToolBatch` is weighed against.
+    var failuresSinceBatch: [String: Int] = [:]
+    /// The tool that failed last, and when.
+    var lastFailure: Stamped<String>?
+    /// Whether this session reports batch boundaries (`PostToolBatch`). Without them a run of failures cannot be
+    /// told from failures with successes between them, so a session that has sent none is never called stuck.
+    var batches = false
+    /// Tool calls auto mode denied in this turn (`PermissionDenied`), oldest first, at most `SessionTracker.denialLimit`.
+    var denials: [Stamped<Denial>] = []
+    /// Whether the wait standing is an MCP server's request for input (`Elicitation`), and which server's.
+    var waitsOnMCP = false
+    var mcpServer: String?
+    /// Whether the session's working directory is a git worktree, as its last event with a directory said.
+    var worktree = false
 
     init(id: String, tool: ToolID = .claude, project: String?, state: State, started: Date, lastEvent: Date, turnStarted: Date?, branch: String? = nil,
          prURL: String? = nil, permissionMode: String? = nil, host: String? = nil) {
@@ -381,6 +417,22 @@ struct AgentSession: Equatable, Sendable, Identifiable {
         if case .working = state { return true }
         return false
     }
+
+    /// The longest run of failed tool calls among the session's agents.
+    var failureStreak: Int { failureStreaks.values.max() ?? 0 }
+
+    /// Whether the session may be stuck: it is mid-turn, it reports batch boundaries, `SessionTracker.stuckAfter`
+    /// tool calls or more have failed in a row with none succeeding between them, and the last of them failed
+    /// inside `SessionTracker.stuckFor`. "May", because an agent working through a stubborn failure looks the same
+    /// from here as one going round in a circle; the row and the notice both say so.
+    func mayBeStuck(now: Date) -> Bool {
+        guard batches, isWorking, failureStreak >= SessionTracker.stuckAfter, let lastFailure else { return false }
+        return now.timeIntervalSince(lastFailure.at) < SessionTracker.stuckFor
+    }
+
+    /// The newest model switch, when Claude Code made it by itself (a fallback), which is the one a reader did not
+    /// ask for.
+    var fellBack: Bool { modelSwitches.last?.value.isFallback == true }
 
     /// The finish this session is still entitled to claim, or nil. Guarding on `.idle` is what stops a mark left by
     /// an earlier turn being read as the present one; reading it against the clock rather than latching it is what
@@ -462,12 +514,17 @@ struct SessionTracker: Equatable, Sendable {
         /// Requests that ended without a decision from the app (the session moved on or ended), by session and
         /// request id, so their parked replies can be released and the panel told.
         var requestsEnded: [EndedRequest] = []
+        /// Something the session ran into that is worth a notice without being a wait (SessionTrouble): a
+        /// compaction Claude Code began by itself, a run of failures reaching `stuckAfter`, or the turn's first
+        /// auto-mode denial.
+        var trouble: (session: AgentSession, trouble: SessionTrouble)?
 
         static func == (lhs: Outcome, rhs: Outcome) -> Bool {
             lhs.finished?.session == rhs.finished?.session && lhs.finished?.turn == rhs.finished?.turn && lhs.startedWaiting == rhs.startedWaiting
                 && lhs.stoppedWaiting == rhs.stoppedWaiting && lhs.limitHit == rhs.limitHit && lhs.quotaResumed == rhs.quotaResumed
                 && lhs.requested?.session == rhs.requested?.session && lhs.requested?.request == rhs.requested?.request
                 && lhs.requestsEnded == rhs.requestsEnded
+                && lhs.trouble?.session == rhs.trouble?.session && lhs.trouble?.trouble == rhs.trouble?.trouble
         }
     }
 
@@ -492,6 +549,19 @@ struct SessionTracker: Equatable, Sendable {
     /// like this, and four hours of rows for them was clutter. It comes back whole with its next event.
     static let idleAfter: TimeInterval = 30 * 60
     static let unknownSession = "unknown"
+    /// How many tool calls must fail in a row, none succeeding between them, before a session is called one that
+    /// may be stuck. One failure is a test the agent is fixing; two or three are an agent trying variations; five
+    /// with nothing working between them is a loop worth a look. Measured as calls rather than batches, so five
+    /// parallel calls that all fail in one step count the same as five steps that each fail once.
+    static let stuckAfter = 5
+    /// How long after its last failure a streak still says "may be stuck": a turn that has gone quiet since is
+    /// doing something else, or waiting, and the flag would be stale.
+    static let stuckFor: TimeInterval = 600
+    /// The most model switches, idle teammates and denials a session keeps: a row lists them, and a list longer
+    /// than a notch can show says nothing the first few do not.
+    static let switchLimit = 8
+    static let teammateLimit = 16
+    static let denialLimit = 20
 
     private(set) var sessions: [String: AgentSession] = [:]
     /// Sessions the user removed from the list (`dismiss`, 0.7.7): out of every count, ring and row, but kept whole
@@ -664,7 +734,11 @@ struct SessionTracker: Equatable, Sendable {
         }
         var session = sessions[id] ?? AgentSession(id: id, tool: message.tool, project: message.project, state: .idle, started: now, lastEvent: now,
                                                    turnStarted: nil, host: message.host)
-        if let project = message.project { session.project = project }
+        if let project = message.project {
+            session.project = project
+            // Read from the same directory as the project, so a message that names the one says the other.
+            session.worktree = message.worktree
+        }
         if let branch = message.branch { session.branch = branch }
         if let mode = message.permissionMode { session.permissionMode = mode }
         if let terminal = message.terminal, !terminal.isEmpty { session.terminal = session.terminal?.merging(terminal) ?? terminal }
@@ -681,9 +755,12 @@ struct SessionTracker: Equatable, Sendable {
         session.lastEvent = now
         let wasWaiting = session.isWaiting
         let hadPending = session.pending
+        let wasStuck = session.mayBeStuck(now: now)
         switch message.event {
         case "SessionStart":
             session.pending = nil
+            session.failureStreaks = [:]
+            session.failuresSinceBatch = [:]
         case "UserPromptSubmit":
             session.state = .working(since: now)
             session.turnStarted = now
@@ -694,6 +771,13 @@ struct SessionTracker: Equatable, Sendable {
             session.finished = nil
             session.pending = nil
             session.title = message.title
+            // A new turn: the last one's denials and failures are the last one's, and a new instruction to the
+            // lead of a team is the lead's cue to set its idle teammates going again.
+            session.denials = []
+            session.failureStreaks = [:]
+            session.failuresSinceBatch = [:]
+            session.waitsOnMCP = false
+            if message.agentID == nil { session.idleTeammates = [] }
         case "Stop", "StopFailure":
             // The mark is set inside the state machine and above the notification's gate, so `notifyFinished` and
             // its minutes cannot silently decide what the rings show. A StopFailure is deliberately not a finish:
@@ -708,6 +792,11 @@ struct SessionTracker: Equatable, Sendable {
             session.agents = [:]
             session.commandsInFlight = 0
             session.pending = nil
+            // A compaction that never reported its end did not outlive the turn it ran in.
+            session.compacting = nil
+            session.failureStreaks = [:]
+            session.failuresSinceBatch = [:]
+            session.waitsOnMCP = false
             if message.hitRateLimit {
                 session.limitHitAt = now
                 outcome.limitHit = session
@@ -732,7 +821,77 @@ struct SessionTracker: Equatable, Sendable {
             // Registered for the task tools alone (HookVendor.matcher(for:)), and read for the task list only (above).
             // It is not taken as proof that a wait is over: Claude Code runs a batch of tool calls together, and a
             // task call, which never asks permission, can finish while another call in the same batch is held at a
-            // prompt, so ending the wait here would drop the hand from a session that is still waiting.
+            // prompt, so ending the wait here would drop the hand from a session that is still waiting. The batch
+            // boundary below is that proof.
+            break
+        case "PreCompact":
+            session.compacting = Stamped(value: message.compaction, at: now)
+            // Only a compaction Claude Code began by itself is news: `/compact` is the user's own doing. The fill
+            // the status line last reported goes with it, since that is the gauge the compaction is about to empty.
+            if message.compaction == .auto { outcome.trouble = (session, .compacting(context: session.contextUsed)) }
+        case "PostCompact":
+            session.compacting = nil
+            session.compactions += 1
+            session.lastCompaction = Stamped(value: message.compaction, at: now)
+            // The fill the status line last reported describes the conversation before it was summarised, so it is
+            // no longer this session's figure; the next status line says what is left. Never estimated meanwhile.
+            session.contextUsed = nil
+        case "PostModelSwitch":
+            if let change = message.modelSwitch {
+                session.model = Hook.modelDisplayName(change.to)
+                // A resume restoring the model it had, or a switch to the model already running, changes nothing
+                // worth a line in the record.
+                if change.from != change.to {
+                    session.modelSwitches.append(Stamped(value: change, at: now))
+                    if session.modelSwitches.count > Self.switchLimit { session.modelSwitches.removeFirst(session.modelSwitches.count - Self.switchLimit) }
+                }
+            }
+        case "TeammateIdle":
+            let teammate = message.teammate ?? Teammate(key: "", name: nil)
+            session.idleTeammates.removeAll { $0.value.key == teammate.key }
+            session.idleTeammates.append(Stamped(value: teammate, at: now))
+            if session.idleTeammates.count > Self.teammateLimit { session.idleTeammates.removeFirst(session.idleTeammates.count - Self.teammateLimit) }
+        case "PostToolUseFailure":
+            // An abort is something that happened to the agent rather than something it tried, so it is not
+            // counted towards a run of failures.
+            if let failure = message.toolFailure, !failure.interrupt {
+                let agent = message.agentID ?? ""
+                session.failureStreaks[agent, default: 0] += 1
+                session.failuresSinceBatch[agent, default: 0] += 1
+                session.lastFailure = Stamped(value: failure.tool, at: now)
+            }
+        case Hook.batchEvent:
+            // Every call in the batch has resolved. For the agent it belongs to, a batch in which not every call
+            // failed is progress, and its run of failures starts again; a batch whose size is unknown (a payload
+            // too large to read whole, which a batch of failures rarely is) counts as progress too, so an unknown
+            // is never what makes a session look stuck.
+            session.batches = true
+            let agent = message.agentID ?? ""
+            let failed = session.failuresSinceBatch.removeValue(forKey: agent) ?? 0
+            if !(message.batchSize.map { $0 > 0 && failed >= $0 } ?? false) { session.failureStreaks[agent] = nil }
+            // And a permission prompt raised by a call in the main loop's batch has been answered, since the batch
+            // could not resolve without it: the one proof of an answered prompt besides a subagent starting (above).
+            // A request the notch is holding cannot be answered this way (its batch waits on it), and a subagent's
+            // batch says nothing about the main loop's prompt.
+            if message.agentID == nil, session.isWaiting, session.pending == nil, !session.waitsOnMCP, !session.quietNudge {
+                session.state = .working(since: now)
+            }
+        case "PermissionDenied":
+            if let denial = message.denial {
+                if session.denials.isEmpty { outcome.trouble = (session, .blocked(tool: denial.tool)) }
+                session.denials.append(Stamped(value: denial, at: now))
+                if session.denials.count > Self.denialLimit { session.denials.removeFirst(session.denials.count - Self.denialLimit) }
+            }
+        case "ElicitationResult":
+            // The user answered an MCP server: the wait its request began is over. A request of another kind
+            // standing on the session is a wait of its own and stays.
+            if session.pending == nil || session.pending?.kind.isElicitation == true {
+                if session.isWaiting { session.state = .working(since: now) }
+                session.pending = nil
+            }
+            session.waitsOnMCP = false
+        case "CwdChanged":
+            // The project, branch and worktree the new directory gives were taken above.
             break
         case _ where Self.heartbeatEvents.contains(message.event):
             // In-turn activity: a turn shown as a possible wait was not waiting after all, or has been answered.
@@ -747,6 +906,18 @@ struct SessionTracker: Equatable, Sendable {
             if message.needsInput {
                 if !session.isWaiting { outcome.startedWaiting = session }
                 session.state = .waiting(since: now)
+                // An MCP server asking for input is named on the row for as long as its wait stands. The dialog's
+                // own notification follows the event a few seconds later and is the same wait (and, from an install
+                // without the event, the only word of it, naming no server); any other wait is not this one.
+                if message.event == "Elicitation" {
+                    session.waitsOnMCP = true
+                    session.mcpServer = message.mcpServer
+                } else if message.notificationType.map(Hook.elicitationNotificationTypes.contains) ?? false {
+                    if !session.waitsOnMCP { session.mcpServer = nil }
+                    session.waitsOnMCP = true
+                } else {
+                    session.waitsOnMCP = false
+                }
             } else if message.clearsWaiting, session.isWaiting {
                 session.state = .working(since: now)
             }
@@ -781,8 +952,35 @@ struct SessionTracker: Equatable, Sendable {
             outcome.requestsEnded.append(EndedRequest(sessionID: id, requestID: hadPending.id))
         }
         if wasWaiting, !session.isWaiting { outcome.stoppedWaiting.append(id) }
+        if !session.isWaiting { session.waitsOnMCP = false }
+        // A run of failures reaching the threshold is news once, the moment it does; the flag then stays on the row
+        // until a call succeeds, the turn ends or the last failure is `stuckFor` old.
+        if !wasStuck, session.mayBeStuck(now: now), outcome.trouble == nil {
+            outcome.trouble = (session, .stuck(failures: session.failureStreak))
+        }
         sessions[id] = session
         return outcome
+    }
+
+    /// Whether this tracker says anything `other` does not, once each session's `lastEvent` moving by less than
+    /// `slack` is set aside: what the store asks before it publishes a batch boundary, which arrives once per model
+    /// step and usually changes nothing but that clock (UsageStore.hookReceived). Every other field counts, so a
+    /// boundary that ends a wait, clears a run of failures or first says the session reports batches is published
+    /// at once.
+    func differs(from other: SessionTracker, slack: TimeInterval) -> Bool {
+        guard hooksSeen == other.hooksSeen, dismissed == other.dismissed, Set(sessions.keys) == Set(other.sessions.keys) else { return true }
+        for (id, session) in sessions {
+            guard var old = other.sessions[id] else { return true }
+            if abs(session.lastEvent.timeIntervalSince(old.lastEvent)) < slack { old.lastEvent = session.lastEvent }
+            if old != session { return true }
+        }
+        return false
+    }
+
+    /// The sessions that may be stuck at `now` (`AgentSession.mayBeStuck`), by id: what the store compares before
+    /// and after a change, so a "may be stuck" notice comes down the moment its streak ends, however it ends.
+    func stuck(now: Date) -> Set<String> {
+        Set(sessions.values.filter { $0.mayBeStuck(now: now) }.map(\.id))
     }
 
     /// Every request still standing, with the session it stands on, newest first.
@@ -802,6 +1000,7 @@ struct SessionTracker: Equatable, Sendable {
         var session = entry.value
         session.pending = nil
         if resumes, session.isWaiting { session.state = .working(since: now) }
+        if !session.isWaiting { session.waitsOnMCP = false }
         session.lastEvent = now
         sessions[entry.key] = session
         return session
@@ -814,10 +1013,11 @@ struct SessionTracker: Equatable, Sendable {
         if sessions[id] != nil { sessions[id]?.sessionName = name } else if dismissed[id] != nil { dismissed[id]?.sessionName = name }
     }
 
-    /// Drops every title, session name and task-list text held: *Show what a session is working on* was turned off,
-    /// and with it off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only nothing new.
-    /// Set-aside sessions too: one that comes back must not bring a title the setting has since forbidden. A task
-    /// list keeps its statuses, which are counts and not words.
+    /// Drops every title, session name, task-list text and teammate name held: *Show what a session is working on*
+    /// was turned off, and with it off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only
+    /// nothing new. Set-aside sessions too: one that comes back must not bring a title the setting has since
+    /// forbidden. A task list keeps its statuses, which are counts and not words, and an idle teammate its opaque
+    /// key, so the count of them stays right.
     mutating func clearTitles() {
         func cleared(_ table: [String: AgentSession]) -> [String: AgentSession] {
             table.mapValues { session in
@@ -825,6 +1025,10 @@ struct SessionTracker: Equatable, Sendable {
                 session.title = nil
                 session.sessionName = nil
                 session.todos = session.todos?.withoutContent()
+                session.idleTeammates = session.idleTeammates.map { entry in
+                    guard let name = entry.value.name else { return entry }
+                    return Stamped(value: Teammate(key: Teammate.opaqueKey(for: name), name: nil), at: entry.at)
+                }
                 return session
             }
         }
@@ -889,6 +1093,10 @@ struct SessionTracker: Equatable, Sendable {
                 session.finished = nil
             }
             session.agents = session.agents.filter { now.timeIntervalSince($0.value) < Self.agentTimeout }
+            // A compaction that never reported its end, and idle teammates nothing has been heard of for as long as
+            // an idle session is kept, are retired the same way.
+            if let compacting = session.compacting, now.timeIntervalSince(compacting.at) >= Self.waitingTimeout { session.compacting = nil }
+            session.idleTeammates = session.idleTeammates.filter { now.timeIntervalSince($0.at) < Self.idleAfter }
             // Checked after the wait's own timeout above, so a wait nobody answered goes idle and then ages out.
             if case .idle = session.state, session.pending == nil, now.timeIntervalSince(session.lastEvent) >= Self.idleAfter {
                 sessions[id] = nil

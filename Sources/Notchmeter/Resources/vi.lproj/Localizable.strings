@@ -123,7 +123,6 @@
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "Màn hình được chọn theo tên được ghi nhớ bằng định danh phần cứng, nên hai màn hình cùng mẫu vẫn phân biệt được và đổi tên không làm mất.";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "Một notch khoét vào cạnh trái, bảng mở ra ngay bên cạnh. Nó nhường chỗ cho Dock hoặc dải Stage Manager ở phía đó.";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "Một notch khoét vào cạnh phải, bảng mở ra ngay bên cạnh. Nó nhường chỗ cho Dock ở phía đó.";
-"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "Một yêu cầu cấp quyền hoặc câu hỏi từ Claude Code, Codex hay Copilot sẽ mở bảng với Cho phép và Từ chối (⌘Y, ⌘N) hoặc các lựa chọn (⌘1…⌘9), và trợ lý chờ câu trả lời của bạn; Escape trả nó về terminal. Khi tắt, terminal hỏi như xưa nay và bảng chỉ hiển thị trạng thái chờ. Cursor và Gemini CLI không có sự kiện nào có thể trả lời.";
 "A request nobody has answered in this long goes back to the terminal, which asks as usual; the hook's own ceiling is ten minutes, and the assistant sees no decision either way." = "Một yêu cầu không ai trả lời trong khoảng thời gian này sẽ trở về terminal, nơi hỏi như thường lệ; trần của chính hook là mười phút, và trợ lý không thấy quyết định nào trong cả hai trường hợp.";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "Một lần đọc thứ hai từ chatgpt.com với cùng đăng nhập, hiện tín dụng có thể đặt lại một cửa sổ và thời điểm hết hạn. Việc nhận vẫn diễn ra trong Codex.";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "Đọc cursor.com thêm một lần với cùng cookie phiên: 30 ngày sự kiện dùng gần nhất, tính giá theo chi phí xuất ra, gộp vào tệp tổng ngày dưới dạng chuỗi Cursor (Hôm nay, 30 ngày và xu hướng).";
@@ -143,7 +142,6 @@
 "Automation" = "Tự động hoá";
 "Check again" = "Kiểm tra lại";
 "Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them." = "Claude Code chỉ trả lời từ notch khi có các mục hook 0.7.0: dòng Hooks trong Tích hợp hiển thị Sửa (hoặc Thêm) cho đến khi có chúng.";
-"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code báo phiên bắt đầu và kết thúc, prompt được gửi, chờ bạn nhập, dừng và dừng lỗi, và tác tử con bắt đầu và dừng.";
 "Claude's usage endpoint is not polled; install the status line and run a turn for a reading" = "Không thăm dò điểm cuối dùng của Claude; cài dòng trạng thái và chạy một lượt để có số đọc";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex báo phiên bắt đầu và kết thúc, prompt được gửi, dừng, lượt bị ngắt, tác tử con bắt đầu và dừng, và thời điểm nó sắp hỏi bạn phê duyệt. Lời hỏi phê duyệt đó là lần chờ duy nhất của nó: vòng Codex hiện bàn tay chờ cho việc đó và buông ra ở prompt, lần dừng hay tác tử con kế tiếp, hoặc sau mười phút. Codex không có sự kiện cho câu hỏi hay giới hạn tốc độ, nên chạm giới hạn phải chờ lần thăm dò kế tiếp. Codex bỏ qua hook mới hoặc đã đổi cho tới khi bạn mở /hooks trong Codex và tin cậy nó, và phiên đang chạy giữ các hook nó đã khởi động cùng.";
 "Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex bỏ qua hook chưa được cho nó xem: mở /hooks trong Codex và tin cậy mục mới. Các phiên đang chạy giữ các hook chúng đã khởi động cùng.";
@@ -872,7 +870,6 @@
 "Show assistant symbols in the rings" = "Hiện biểu tượng trợ lý trong các vòng";
 "Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "Biểu tượng của mỗi trợ lý, cái trên thẻ của nó, vẽ nhỏ ở giữa các vòng, hoặc ở góc khi ba vòng để lại quá ít chỗ, dành cho khi khó phân biệt màu của các trợ lý.";
 "Show news in the notch" = "Hiện tin trong notch";
-"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Khi một phiên bắt đầu chờ bạn hoặc xong một lượt, dải cạnh notch hiện tên dự án và lý do trong bốn giây, trong khoảng trống thanh menu để lại. Bấm vào để mở bảng ở phiên đó. Khi màn hình đang được chia sẻ, tên dự án được ẩn.";
 "Glow under the notch for news" = "Phát sáng dưới notch khi có tin";
 "A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Một vệt sáng dưới notch cho cùng tin đó: xanh dương khi chờ, trắng khi xong, mờ dần sau ba giây; một màu xanh nhạt còn lại khi một phiên vẫn đang chờ. Khi bật Giảm chuyển động, đó là một sắc màu tĩnh.";
 
@@ -902,3 +899,73 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Đưa cửa sổ Cursor của dự án này lên trước (không thể yêu cầu Cursor mở một cuộc trò chuyện cụ thể)";
 "First seen %@" = "Thấy lần đầu lúc %@";
+
+/* Claude Code's 0.11 hook events: compaction, model switches, MCP input, idle teammates, failed and refused tool calls
+   (Hook+Events.swift, Hook+Elicitation.swift, SessionsCard, PromptCard, NotchNews, Notifier, Settings) */
+"%@ is compacting" = "%@ đang nén";
+"%1$@ is compacting its context in %2$@ by itself, at %3$ld%% full: the conversation so far is being replaced by a summary." = "%1$@ đang tự nén ngữ cảnh trong %2$@, khi đã đầy %3$ld%%: cuộc trò chuyện đến giờ đang được thay bằng một bản tóm tắt.";
+"%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary." = "%1$@ đang tự nén ngữ cảnh trong %2$@: cuộc trò chuyện đến giờ đang được thay bằng một bản tóm tắt.";
+"%@ may be stuck" = "%@ có thể đang bị kẹt";
+"%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them." = "%1$@ đã có %2$ld lần gọi công cụ thất bại liên tiếp trong %3$@, không lần nào thành công xen giữa.";
+"%@ was blocked" = "%@ đã bị chặn";
+"Auto mode refused a %1$@ call in %2$@. The session goes on without it." = "Chế độ tự động đã từ chối một lần gọi %1$@ trong %2$@. Phiên tiếp tục mà không có nó.";
+"Needs input" = "Cần nhập liệu";
+"Compacting" = "Đang nén";
+"May be stuck" = "Có thể bị kẹt";
+"Blocked" = "Bị chặn";
+"%@ asks for input" = "%@ yêu cầu nhập liệu";
+"An MCP server asks for input" = "Một máy chủ MCP yêu cầu nhập liệu";
+"optional" = "không bắt buộc";
+"Yes" = "Có";
+"No" = "Không";
+"Decline" = "Từ chối";
+"Decline (⌘N)" = "Từ chối (⌘N)";
+"Tells the server no, and the tool call goes on without the input." = "Báo từ chối cho máy chủ, và lần gọi công cụ tiếp tục mà không có dữ liệu nhập.";
+"Accept" = "Chấp nhận";
+"Accept (⌘Y)" = "Chấp nhận (⌘Y)";
+"worktree" = "worktree";
+"%@ asks for input: answer in the terminal" = "%@ yêu cầu nhập liệu: trả lời trong terminal";
+"An MCP server asks for input: answer in the terminal" = "Một máy chủ MCP yêu cầu nhập liệu: trả lời trong terminal";
+"May be stuck: %ld tool calls failed in a row" = "Có thể bị kẹt: %ld lần gọi công cụ thất bại liên tiếp";
+"Model" = "Mô hình";
+"%@, fell back by itself" = "%@, tự chuyển dự phòng";
+"The model this session runs on" = "Mô hình mà phiên này đang chạy";
+"The model this session runs on; click to list how it got there" = "Mô hình mà phiên này đang chạy; bấm để xem vì sao thành như vậy";
+"1 switch" = "1 lần chuyển";
+"%ld switches" = "%ld lần chuyển";
+"%ld idle" = "%ld rảnh";
+"Idle teammates" = "Đồng đội đang rảnh";
+"1 teammate idle" = "1 đồng đội đang rảnh";
+"%ld teammates idle" = "%ld đồng đội đang rảnh";
+"Teammates of this session's agent team that finished their turn and went idle; click to list them" = "Các đồng đội trong nhóm tác tử của phiên này đã xong lượt và đang rảnh; bấm để xem danh sách";
+"Refused by auto mode" = "Bị chế độ tự động từ chối";
+"1 tool call" = "1 lần gọi công cụ";
+"%ld tool calls" = "%ld lần gọi công cụ";
+"Tool calls auto mode refused in this turn; click to list them" = "Các lần gọi công cụ bị chế độ tự động từ chối trong lượt này; bấm để xem danh sách";
+"%1$@ to %2$@" = "%1$@ sang %2$@";
+"%@ ago" = "%@ trước";
+"Teammate %ld" = "Đồng đội %ld";
+"by /model" = "bằng /model";
+"from the picker" = "từ bộ chọn";
+"by a client" = "bởi một client";
+"fell back by itself" = "tự chuyển dự phòng";
+"restored on resume" = "khôi phục khi tiếp tục";
+"matched a rule" = "khớp một quy tắc";
+"could not be judged" = "không thể đánh giá";
+"classifier unavailable" = "bộ phân loại không khả dụng";
+"refused" = "bị từ chối";
+"Compacted" = "Đã nén";
+"Claude Code is compacting this session's context by itself: the conversation so far is being replaced by a summary" = "Claude Code đang tự nén ngữ cảnh của phiên này: cuộc trò chuyện đến giờ đang được thay bằng một bản tóm tắt";
+"This session's context is being compacted, as /compact asked" = "Ngữ cảnh của phiên này đang được nén theo yêu cầu của /compact";
+"by itself" = "tự động";
+"as /compact asked" = "theo yêu cầu của /compact";
+"Compacted once while the app watched, %@ ago" = "Đã nén một lần khi ứng dụng theo dõi, %@ trước";
+"Compacted %1$ld times while the app watched, last %2$@ ago" = "Đã nén %1$ld lần khi ứng dụng theo dõi, lần gần nhất %2$@ trước";
+"once" = "một lần";
+"%ld times" = "%ld lần";
+"last %@ ago" = "lần gần nhất %@ trước";
+"Notify when a session compacts, may be stuck or is refused" = "Thông báo khi một phiên nén, có thể bị kẹt hoặc bị từ chối";
+"Claude Code's hook only: once when a session starts compacting its context by itself, once when five tool calls in a row have failed with none succeeding between them, and the first time in a turn auto mode refuses a tool. Each arrives without a sound, stays in the background while a terminal or editor is in front, and follows the quiet hours. The session's row and the word beside the notch say all three without it." = "Chỉ với hook của Claude Code: một lần khi một phiên tự bắt đầu nén ngữ cảnh, một lần khi năm lần gọi công cụ liên tiếp thất bại mà không lần nào thành công xen giữa, và lần đầu trong một lượt chế độ tự động từ chối một công cụ. Mỗi thông báo đến không có âm thanh, ở chế độ nền khi terminal hay trình soạn thảo đang ở phía trước, và tuân theo giờ yên tĩnh. Hàng của phiên và dòng chữ cạnh notch vẫn cho biết cả ba khi không có nó.";
+"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, subagent starts and stops, compactions, model switches, an MCP server asking for input and its answer, teammates going idle, failed and auto-refused tool calls, each finished batch of tool calls and a change of directory. It is never registered for WorktreeCreate, WorktreeRemove or PreModelSwitch, which would put the app in the way of worktrees and model switches." = "Claude Code báo phiên bắt đầu và kết thúc, prompt được gửi, chờ bạn nhập, dừng và dừng lỗi, tác tử con bắt đầu và dừng, việc nén ngữ cảnh, đổi mô hình, yêu cầu nhập liệu của một máy chủ MCP và câu trả lời, đồng đội chuyển sang rảnh, các lần gọi công cụ thất bại hoặc bị chế độ tự động từ chối, mỗi loạt gọi công cụ đã xong và việc đổi thư mục. Nó không bao giờ được đăng ký cho WorktreeCreate, WorktreeRemove hay PreModelSwitch, vì như vậy ứng dụng sẽ cản đường worktree và việc đổi mô hình.";
+"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. So does a Claude Code MCP server's request for input when every field is a choice; one that wants text or a sign-in goes straight to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "Một yêu cầu cấp quyền hoặc câu hỏi từ Claude Code, Codex hay Copilot sẽ mở bảng với Cho phép và Từ chối (⌘Y, ⌘N) hoặc các lựa chọn (⌘1…⌘9), và trợ lý chờ câu trả lời của bạn; Escape trả nó về terminal. Yêu cầu nhập liệu của một máy chủ MCP trong Claude Code cũng vậy khi mọi trường đều là lựa chọn; yêu cầu cần văn bản hay đăng nhập thì đi thẳng tới terminal. Khi tắt, terminal hỏi như xưa nay và bảng chỉ hiển thị trạng thái chờ. Cursor và Gemini CLI không có sự kiện nào có thể trả lời.";
+"When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Khi một phiên bắt đầu chờ bạn, xong một lượt, tự bắt đầu nén, có thể bị kẹt hoặc bị chế độ tự động từ chối, dải cạnh notch hiện tên dự án và lý do trong bốn giây, trong khoảng trống thanh menu để lại. Bấm vào để mở bảng ở phiên đó. Khi màn hình đang được chia sẻ, tên dự án được ẩn.";

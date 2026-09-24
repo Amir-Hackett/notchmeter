@@ -383,9 +383,12 @@ final class UsageStore {
         return found.first(where: { $0.signal.isWaiting }) ?? found.first
     }
 
-    /// The context window's fill from the status line, while its report is fresh.
+    /// The context window's fill from the status line, while its report is fresh, and until its session reports a
+    /// compaction after it (`PostCompact`): the figure then describes a conversation that has since been summarised,
+    /// and the arc waits for the next status line rather than show it.
     var contextUsed: Double? {
         guard let statusline, Date().timeIntervalSince(statusline.receivedAt) < PollingPolicy.statuslineFreshFor * 4 else { return nil }
+        if let id = statusline.sessionID, let compacted = sessions.sessions[id]?.lastCompaction?.at, compacted > statusline.receivedAt { return nil }
         return statusline.contextUsed
     }
 
@@ -1304,6 +1307,7 @@ final class UsageStore {
 
     func sweepSessions(now: Date = Date()) {
         var expired = sessions
+        let stuckBefore = sessions.stuck(now: now)
         let stopped = expired.expire(now: now)
         let nudged = expired.quietNudges(now: now)
         if expired != sessions {
@@ -1312,6 +1316,10 @@ final class UsageStore {
             applyAwake()
         }
         withdrawWaiting(stopped)
+        // A run of failures whose last one is now `SessionTracker.stuckFor` old says "may be stuck" no longer, and
+        // neither does a session that went: the clock ends it here.
+        let recovered = stuckBefore.subtracting(sessions.stuck(now: now))
+        if !recovered.isEmpty { removeNotifications(recovered.map { Notifier.identifier(session: $0, kind: SessionTrouble.stuck(failures: 0).name) }) }
         // A quiet Cursor turn (SessionTracker.quietNudges) is reported as a wait that may be one, through the same
         // notice, rules and attention setting as a wait a hook announced. As a blocking one: what it stands for is
         // an approval the turn has stopped for, and a non-blocking wait is held back while an editor is in front,
@@ -1528,12 +1536,21 @@ final class UsageStore {
     /// the message awaits a decision: it is kept under the request's id for `decide`, or answered nothing at once
     /// when the request is not going to be shown (answering from the notch is off, or the tracker did not take
     /// it). The title, the summary and the terminal never reach the log or the oracle (`hookFacts`).
+    ///
+    /// Since 0.11 the in-turn events (`Hook.quietEvents`) take a quieter path through the same steps. None of them
+    /// asks for a meter read, and a batch boundary, which arrives once per model step, is published to the views
+    /// only when it changes something beyond the session's clock (`SessionTracker.differs`), logs at debug, and
+    /// moves the activity the polling policy reads at most once a minute: the batch boundary is where a turn's state
+    /// settles, not a reason to redraw the notch or read the vendor's endpoint every few seconds.
     func hookReceived(_ message: Hook.Message, now: Date = Date(), reply: HookSocket.Reply? = nil) {
         var message = message
         if !prefs.sessionTitles {
             message.title = nil
             message.todos = message.todos?.withoutContent()
             message.task?.subject = nil
+            // A teammate's name is the lead's word for the work, so it goes with the titles; an opaque key keeps
+            // two teammates apart without it.
+            if let name = message.teammate?.name { message.teammate = Teammate(key: Teammate.opaqueKey(for: name), name: nil) }
         }
         // Settled before the request can be dropped below: with answering from the notch off, the request is the
         // only thing that says a permission is a plan's, and the sound for it should not depend on that setting.
@@ -1543,16 +1560,29 @@ final class UsageStore {
             message.request = nil
         }
         let tool = message.tool
-        log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.request.map { " (\($0.kind.name) request)" } ?? "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
+        let quiet = Hook.quietEvents.contains(message.event)
+        let batch = message.event == Hook.batchEvent
+        let line = "hook \(message.event)\(tool == .claude ? "" : " (\(tool.rawValue))")\(message.needsInput ? " (needs input)" : "")\(message.request.map { " (\($0.kind.name) request)" } ?? "")\(message.host.map { " from \($0)" } ?? "")"
+        if batch { log.debug("\(line, privacy: .public)") } else { log.info("\(line, privacy: .public)") }
         emitHookFacts(Self.hookFacts(message, wait: waitKind))
+        let heardBefore = lastHook[tool]
         lastHook[tool] = now
-        lastActivity[tool] = now
+        if !batch || lastActivity[tool].map({ now.timeIntervalSince($0) >= Hook.batchSlack }) ?? true { lastActivity[tool] = now }
         wokeAt = now
-        let outcome = sessions.apply(message, now: now)
+        let stuckBefore = sessions.stuck(now: now)
+        var tracker = sessions
+        let outcome = tracker.apply(message, now: now)
+        let publish = !batch || tracker.differs(from: sessions, slack: Hook.batchSlack)
+        if publish { sessions = tracker }
         if tool == .cursor { lookUpCursorNames(now: now) }
-        pruneOpenSessionLists()
-        applyAwake()
-        armSignalRelease(now: now)
+        if publish {
+            pruneOpenSessionLists()
+            applyAwake()
+            armSignalRelease(now: now)
+        }
+        // A "may be stuck" notice comes down the moment its streak ends, however it ends.
+        let recovered = stuckBefore.subtracting(sessions.stuck(now: now))
+        if !recovered.isEmpty { removeNotifications(recovered.map { Notifier.identifier(session: $0, kind: SessionTrouble.stuck(failures: 0).name) }) }
         // The withdrawal goes first because one message can end a wait and start another for the same session:
         // `apply` seeds stoppedWaiting from `expire`, so a needsInput arriving after its own wait timed out is
         // demoted and re-raised inside the one call, and both lists name it. Delivered first, the withdrawal took
@@ -1582,6 +1612,9 @@ final class UsageStore {
         if let finished = outcome.finished, prefs.notifyFinished, finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
         }
+        if let trouble = outcome.trouble, prefs.notifySessionTrouble {
+            deliverSessionEvent(.trouble(trouble.trouble), trouble.session)
+        }
         guard isShown(tool) else { return }
         if let news = NotchNews.from(message, outcome: outcome, now: now) { announce(news, now: now) }
         if outcome.limitHit != nil, prefs.notificationsEnabled {
@@ -1589,6 +1622,12 @@ final class UsageStore {
             let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: tool, reading: reading, now: now, options: alertOptions)
             remember(plan.memory)
             send(plan.alerts)
+        }
+        // The quiet events never ask for a read, and reschedule the loops only when the tool's hook had gone quiet
+        // long enough for the polling policy's answer to change.
+        if quiet {
+            if heardBefore.map({ now.timeIntervalSince($0) >= Hook.batchSlack }) ?? true { reschedule() }
+            return
         }
         let urgent = outcome.limitHit != nil || outcome.quotaResumed
         if urgent || (lastHookRefresh[tool].map({ now.timeIntervalSince($0) >= Self.hookRefreshSpacing }) ?? true) {
@@ -1659,6 +1698,25 @@ final class UsageStore {
         if let todos = message.todos { facts["todos"] = ["done": todos.done, "total": todos.total] }
         if let task = message.task { facts["task"] = ["kind": task.kind.rawValue, "status": task.deleted ? "deleted" : task.status?.rawValue as Any] }
         if message.needsInput || message.request != nil { facts["wait"] = (wait ?? message.waitKind).rawValue }
+        // The 0.11 events: a trigger, a model id and its source, the MCP server's name, a tool's name, the kind of
+        // a denial, a batch's size. A teammate is reported as there being one, never by name.
+        if let compaction = message.compaction { facts["compaction"] = compaction.rawValue }
+        if let change = message.modelSwitch {
+            facts["model"] = change.to
+            facts["modelSource"] = change.source?.rawValue as Any
+        }
+        if let server = message.mcpServer { facts["mcpServer"] = server }
+        if message.teammate != nil { facts["teammate"] = true }
+        if let failure = message.toolFailure {
+            facts["failedTool"] = failure.tool
+            facts["interrupt"] = failure.interrupt
+        }
+        if let denial = message.denial {
+            facts["deniedTool"] = denial.tool
+            facts["denial"] = denial.kind.rawValue
+        }
+        if message.event == Hook.batchEvent { facts["batch"] = message.batchSize as Any }
+        if message.worktree { facts["worktree"] = true }
         return facts
     }
 

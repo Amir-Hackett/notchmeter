@@ -59,13 +59,17 @@ struct NoticeCard: View {
         switch notice.event {
         case .waiting: "hand.raised.fill"
         case .finished: "checkmark.circle.fill"
+        case .trouble(let trouble): NotchNews.Reason(trouble).symbolName
         }
     }
 
+    /// A trouble takes the warning orange, which reads 9:1 on the card and is the colour a row's "may be stuck"
+    /// line uses; the symbol and the sentence say which trouble it is.
     private var colour: Color {
         switch notice.event {
         case .waiting: Palette.calm
         case .finished: Palette.pine
+        case .trouble: Palette.warn
         }
     }
 

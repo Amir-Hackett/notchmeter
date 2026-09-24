@@ -33,6 +33,15 @@ enum DemoFixtures {
         /// it explains the rings before it explains the marks, and a dot it has not yet named would be a question
         /// the page cannot answer.
         case working
+        /// What Claude Code's 0.11 events put on the Sessions card (Hook+Events.swift), across three sessions: the
+        /// notchmeter session in a worktree, compacting by itself at 94 %, fallen back from Opus to Sonnet and
+        /// twice refused by auto mode; scout, whose last five tool calls failed in a row, with two teammates idle;
+        /// and atlas, waiting on an MCP server's sign-in that only the terminal can answer. For review
+        /// (`hook-events.png`); nothing in the README uses it.
+        case hookEvents
+        /// An MCP server's form a click can answer, held for the notch like a permission request
+        /// (`elicitation.png`, for review).
+        case elicitation
     }
 
     @MainActor
@@ -73,6 +82,11 @@ enum DemoFixtures {
     /// own turn ended six minutes ago, far outside the hold, so it adds nothing to the ring in either moment.
     static func sessions(now: Date, moment: Moment) -> SessionTracker {
         var tracker = SessionTracker()
+        // The hook-events moment is three sessions of its own, replayed whole (`hookEvents`).
+        if moment == .hookEvents {
+            hookEvents(&tracker, now: now)
+            return tracker
+        }
         func send(_ event: String, _ ago: TimeInterval, session: String, project: String, branch: String, type: String? = nil, title: String? = nil) {
             var message = Hook.Message(event: event, needsInput: Hook.needsInput(event: event, notificationType: type),
                                        sessionID: session, project: project, notificationType: type, branch: branch)
@@ -155,8 +169,86 @@ enum DemoFixtures {
         case .working:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+        case .hookEvents:
+            break
+        case .elicitation:
+            send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
+            send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            busy()
+            var message = Hook.Message(event: "Elicitation", needsInput: true, sessionID: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
+            message.mcpServer = "deploybot"
+            message.request = Hook.Request(id: requestID, kind: .elicitation(elicitationForm))
+            tracker.apply(message, now: now.addingTimeInterval(-35))
         }
         return tracker
+    }
+
+    /// The form the elicitation moment holds: a choice and a yes-or-no, the kind a click can answer.
+    static let elicitationForm = PendingRequest.Elicitation(
+        server: "deploybot", message: "Where should the preview build go?",
+        fields: [
+            .init(key: "environment", title: "Environment", detail: nil, kind: .choice([
+                .init(value: "staging", label: "Staging"), .init(value: "preview", label: "Preview"), .init(value: "production", label: "Production"),
+            ]), required: true),
+            .init(key: "notify", title: "Tell the channel", detail: "Posts the link in #releases", kind: .toggle, required: false),
+        ])
+
+    /// The hook-events moment's three sessions, replayed as Claude Code's hook and status line send them. Each event
+    /// is laid down with its age and the whole list played oldest first, across the three sessions, because `apply`
+    /// expires against the clock it is handed (the note above `sessions`).
+    private static func hookEvents(_ tracker: inout SessionTracker, now: Date) {
+        var events: [(ago: TimeInterval, play: (inout SessionTracker, Date) -> Void)] = []
+        func send(_ ago: TimeInterval, _ event: String, _ session: String, branch: String = "main", worktree: Bool = false,
+                  _ configure: (inout Hook.Message) -> Void = { _ in }) {
+            var message = Hook.Message(event: event, needsInput: Hook.needsInput(event: event, notificationType: nil), sessionID: session,
+                                       project: session, branch: branch)
+            message.worktree = worktree
+            configure(&message)
+            let built = message
+            events.append((ago, { tracker, date in tracker.apply(built, now: date) }))
+        }
+        let notchmeter = (branch: "feat/hook-events", worktree: true)
+        send(20 * 60, "SessionStart", "notchmeter", branch: notchmeter.branch, worktree: notchmeter.worktree) {
+            $0.terminal = TerminalRef(program: "iTerm.app", bundleID: "com.googlecode.iterm2", tty: "/dev/ttys004")
+        }
+        send(12 * 60, "UserPromptSubmit", "notchmeter", branch: notchmeter.branch, worktree: notchmeter.worktree) {
+            $0.title = "Subscribe to the hook events nobody is using"
+        }
+        send(9 * 60, "PostModelSwitch", "notchmeter", branch: notchmeter.branch, worktree: notchmeter.worktree) {
+            $0.modelSwitch = ModelSwitch(from: "claude-opus-5", to: "claude-sonnet-5", source: .auto)
+        }
+        for (tool, ago) in [("Bash", 7.0 * 60), ("WebFetch", 4.0 * 60)] {
+            send(ago, "PermissionDenied", "notchmeter", branch: notchmeter.branch, worktree: notchmeter.worktree) { $0.denial = Denial(tool: tool, kind: .rule) }
+        }
+        events.append((80, { tracker, date in tracker.statusline(sessionID: "notchmeter", project: "notchmeter", contextUsed: 0.94, now: date) }))
+        send(20, "PreCompact", "notchmeter", branch: notchmeter.branch, worktree: notchmeter.worktree) { $0.compaction = .auto }
+
+        send(18 * 60, "SessionStart", "scout") {
+            $0.terminal = TerminalRef(program: "iTerm.app", bundleID: "com.googlecode.iterm2", tty: "/dev/ttys002")
+        }
+        send(10 * 60, "UserPromptSubmit", "scout") { $0.title = scoutTitle }
+        send(6 * 60, "TeammateIdle", "scout") { $0.teammate = Teammate(key: "researcher", name: "researcher") }
+        send(3 * 60, "TeammateIdle", "scout") { $0.teammate = Teammate(key: "fact-checker", name: "fact-checker") }
+        // Five failed calls across three batches, none of which succeeded: the run that makes a session look stuck.
+        var ago = 150.0
+        for calls in [2, 2, 1] {
+            for _ in 0..<calls {
+                send(ago, "PostToolUseFailure", "scout") { $0.toolFailure = ToolFailure(tool: "Bash", interrupt: false) }
+                ago -= 10
+            }
+            send(ago, Hook.batchEvent, "scout") { $0.batchSize = calls }
+            ago -= 10
+        }
+
+        send(9 * 60, "SessionStart", "atlas") {
+            $0.terminal = TerminalRef(program: "Apple_Terminal", bundleID: "com.apple.Terminal", tty: "/dev/ttys006")
+        }
+        send(5 * 60, "UserPromptSubmit", "atlas") { $0.title = "File the release checklist in Linear" }
+        send(15, "Elicitation", "atlas") { $0.mcpServer = "linear" }
+
+        for event in events.sorted(by: { $0.ago > $1.ago }) {
+            event.play(&tracker, now.addingTimeInterval(-event.ago))
+        }
     }
 
     /// The news the moment's last hook event raises (NotchNews.from), for the notch's peek and glow: the
@@ -172,6 +264,8 @@ enum DemoFixtures {
         case .question: reason = .question
         case .justFinished: reason = .finished
         case .working: return nil
+        case .hookEvents: reason = .compacting
+        case .elicitation: reason = .input
         }
         return NotchNews(reason: reason, sessionID: session.id, tool: session.tool, project: session.project, at: now)
     }

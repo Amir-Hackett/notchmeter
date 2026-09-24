@@ -123,7 +123,6 @@
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "指定的顯示器按硬體識別記憶，同型號的兩台顯示器可區分，重新命名也不會遺失。";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "在左側邊緣切出的瀏海，面板在它旁邊開啟。該側有 Dock 或幕前調度側欄時會讓開。";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "在右側邊緣切出的瀏海，面板在它旁邊開啟。該側有 Dock 時會讓開。";
-"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "來自 Claude Code、Codex 或 Copilot 的權限請求或提問會打開面板，顯示允許和拒絕（⌘Y、⌘N）或選項（⌘1…⌘9），助理會等待你的回答；按 Escape 交還給終端機。關閉後，終端機照常詢問，面板只顯示等待狀態。Cursor 和 Gemini CLI 沒有可以回答的事件。";
 "A request nobody has answered in this long goes back to the terminal, which asks as usual; the hook's own ceiling is ten minutes, and the assistant sees no decision either way." = "在這段時間內無人回答的請求會交還給終端機，由終端機照常詢問；hook 本身的上限是十分鐘，無論哪種情況助理都看不到任何決定。";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "以同一登入對 chatgpt.com 的第二次讀取，顯示可重設視窗的額度及其到期時間。領取仍需在 Codex 中進行。";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "使用同一工作階段 cookie 再讀取一次 cursor.com：最近 30 天的用量事件，按匯出的費用計價，折算進每日總計檔案作為 Cursor 序列（今日、30 天和趨勢）。";
@@ -143,7 +142,6 @@
 "Automation" = "自動化";
 "Check again" = "重新檢查";
 "Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them." = "只有裝了 0.7.0 的 hook 項目，Claude Code 才能從瀏海處回答：在裝好之前，整合裡的 Hooks 列會顯示修復（或加入）。";
-"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code 回報工作階段的開始與結束、提示的送出、等待你的輸入、停止與停止失敗，以及子代理的啟動與停止。";
 "Claude's usage endpoint is not polled; install the status line and run a turn for a reading" = "未輪詢 Claude 的用量端點；安裝狀態列並執行一輪以取得讀數";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex 回報工作階段的開始與結束、提示的送出、停止、被中斷的一輪、子代理的啟動與停止，以及它即將請求你核准的時刻。那個核准提示是它唯一的等待：Codex 圓環為此顯示等待的手形，並在下一次提示、停止或子代理時，或十分鐘後放開。Codex 沒有提問或速率限制的事件，因此觸及限制要等到下一次輪詢。Codex 會略過新增或變更的掛鉤，直到你在 Codex 內開啟 /hooks 並信任它；執行中的工作階段保留它啟動時的掛鉤。";
 "Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex 會略過尚未向它顯示的掛鉤：在 Codex 中開啟 /hooks 並信任新項目。已在執行的工作階段保留它們啟動時的掛鉤。";
@@ -872,7 +870,6 @@
 "Show assistant symbols in the rings" = "在圓環中顯示助手符號";
 "Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "每個助手的符號（即其卡片上的符號）以小尺寸畫在圓環中央；三個圓環留下的空間不夠時畫在圓環的角上。適用於難以分辨各助手顏色的情況。";
 "Show news in the notch" = "在瀏海處顯示動態";
-"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "當工作階段開始等待你或完成一輪時，瀏海旁的條帶會在選單列留出的空間內顯示專案和原因，持續四秒。點按即可在該工作階段上打開面板。分享螢幕時不顯示專案。";
 "Glow under the notch for news" = "有動態時在瀏海下方發光";
 "A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "為同樣的動態在瀏海下方亮起光暈：等待為藍色，完成為白色，三秒後漸隱；工作階段仍在等待時保留淡淡的藍色。開啟「減少動態效果」時為靜止的色調。";
 
@@ -902,3 +899,73 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "將此專案的 Cursor 視窗移到前面（無法要求 Cursor 開啟某一個對話）";
 "First seen %@" = "首次發現於 %@";
+
+/* Claude Code's 0.11 hook events: compaction, model switches, MCP input, idle teammates, failed and refused tool calls
+   (Hook+Events.swift, Hook+Elicitation.swift, SessionsCard, PromptCard, NotchNews, Notifier, Settings) */
+"%@ is compacting" = "%@ 正在壓縮";
+"%1$@ is compacting its context in %2$@ by itself, at %3$ld%% full: the conversation so far is being replaced by a summary." = "%1$@ 正在自行壓縮 %2$@ 中的上下文（已用 %3$ld%%）：到目前為止的對話將被一份摘要取代。";
+"%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary." = "%1$@ 正在自行壓縮 %2$@ 中的上下文：到目前為止的對話將被一份摘要取代。";
+"%@ may be stuck" = "%@ 可能卡住了";
+"%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them." = "%1$@ 在 %3$@ 中連續 %2$ld 次工具呼叫失敗，其間沒有一次成功。";
+"%@ was blocked" = "%@ 被攔下了";
+"Auto mode refused a %1$@ call in %2$@. The session goes on without it." = "自動模式拒絕了 %2$@ 中的一次 %1$@ 呼叫。工作階段會在沒有它的情況下繼續。";
+"Needs input" = "需要輸入";
+"Compacting" = "壓縮中";
+"May be stuck" = "可能卡住";
+"Blocked" = "已攔下";
+"%@ asks for input" = "%@ 請求輸入";
+"An MCP server asks for input" = "MCP 伺服器請求輸入";
+"optional" = "選填";
+"Yes" = "是";
+"No" = "否";
+"Decline" = "謝絕";
+"Decline (⌘N)" = "謝絕（⌘N）";
+"Tells the server no, and the tool call goes on without the input." = "告訴伺服器不提供，工具呼叫會在沒有輸入的情況下繼續。";
+"Accept" = "接受";
+"Accept (⌘Y)" = "接受（⌘Y）";
+"worktree" = "工作樹";
+"%@ asks for input: answer in the terminal" = "%@ 請求輸入：請在終端機中回答";
+"An MCP server asks for input: answer in the terminal" = "MCP 伺服器請求輸入：請在終端機中回答";
+"May be stuck: %ld tool calls failed in a row" = "可能卡住：連續 %ld 次工具呼叫失敗";
+"Model" = "模型";
+"%@, fell back by itself" = "%@，自動回退";
+"The model this session runs on" = "此工作階段執行所用的模型";
+"The model this session runs on; click to list how it got there" = "此工作階段執行所用的模型；點按以列出切換經過";
+"1 switch" = "1 次切換";
+"%ld switches" = "%ld 次切換";
+"%ld idle" = "%ld 個閒置";
+"Idle teammates" = "閒置的隊友";
+"1 teammate idle" = "1 位隊友閒置";
+"%ld teammates idle" = "%ld 位隊友閒置";
+"Teammates of this session's agent team that finished their turn and went idle; click to list them" = "此工作階段代理團隊中已完成本輪並轉為閒置的隊友；點按以列出";
+"Refused by auto mode" = "被自動模式拒絕";
+"1 tool call" = "1 次工具呼叫";
+"%ld tool calls" = "%ld 次工具呼叫";
+"Tool calls auto mode refused in this turn; click to list them" = "本輪中被自動模式拒絕的工具呼叫；點按以列出";
+"%1$@ to %2$@" = "%1$@ 改為 %2$@";
+"%@ ago" = "%@前";
+"Teammate %ld" = "隊友 %ld";
+"by /model" = "透過 /model";
+"from the picker" = "透過選擇器";
+"by a client" = "由用戶端";
+"fell back by itself" = "自動回退";
+"restored on resume" = "恢復工作階段時還原";
+"matched a rule" = "命中規則";
+"could not be judged" = "無法判斷";
+"classifier unavailable" = "分類器無法使用";
+"refused" = "已拒絕";
+"Compacted" = "已壓縮";
+"Claude Code is compacting this session's context by itself: the conversation so far is being replaced by a summary" = "Claude Code 正在自行壓縮此工作階段的上下文：到目前為止的對話將被一份摘要取代";
+"This session's context is being compacted, as /compact asked" = "正按 /compact 的要求壓縮此工作階段的上下文";
+"by itself" = "自行";
+"as /compact asked" = "按 /compact 的要求";
+"Compacted once while the app watched, %@ ago" = "App 觀察期間壓縮了一次，在 %@前";
+"Compacted %1$ld times while the app watched, last %2$@ ago" = "App 觀察期間壓縮了 %1$ld 次，最近一次在 %2$@前";
+"once" = "一次";
+"%ld times" = "%ld 次";
+"last %@ ago" = "最近一次在 %@前";
+"Notify when a session compacts, may be stuck or is refused" = "工作階段壓縮、可能卡住或被拒絕時通知";
+"Claude Code's hook only: once when a session starts compacting its context by itself, once when five tool calls in a row have failed with none succeeding between them, and the first time in a turn auto mode refuses a tool. Each arrives without a sound, stays in the background while a terminal or editor is in front, and follows the quiet hours. The session's row and the word beside the notch say all three without it." = "僅限 Claude Code 的掛鉤：工作階段自行開始壓縮上下文時一次，連續五次工具呼叫失敗且其間沒有成功時一次，以及一輪中自動模式首次拒絕某個工具時。每則通知都不帶聲音，終端機或編輯器在最前時留在背景，並遵守勿擾時段。沒有通知時，工作階段的列和瀏海旁的文字也會說明這三種情況。";
+"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, subagent starts and stops, compactions, model switches, an MCP server asking for input and its answer, teammates going idle, failed and auto-refused tool calls, each finished batch of tool calls and a change of directory. It is never registered for WorktreeCreate, WorktreeRemove or PreModelSwitch, which would put the app in the way of worktrees and model switches." = "Claude Code 回報工作階段的開始與結束、提示的送出、等待你的輸入、停止與停止失敗、子代理的啟動與停止、上下文壓縮、模型切換、MCP 伺服器的輸入請求及其回答、隊友轉為閒置、失敗或被自動模式拒絕的工具呼叫、每批完成的工具呼叫，以及目錄的切換。它從不註冊 WorktreeCreate、WorktreeRemove 或 PreModelSwitch，否則 App 會擋住工作樹和模型切換。";
+"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. So does a Claude Code MCP server's request for input when every field is a choice; one that wants text or a sign-in goes straight to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "來自 Claude Code、Codex 或 Copilot 的權限請求或提問會打開面板，顯示允許和拒絕（⌘Y、⌘N）或選項（⌘1…⌘9），助理會等待你的回答；按 Escape 交還給終端機。Claude Code 中 MCP 伺服器的輸入請求在每個欄位都是選項時也是如此；需要文字或登入的請求會直接交給終端機。關閉後，終端機照常詢問，面板只顯示等待狀態。Cursor 和 Gemini CLI 沒有可以回答的事件。";
+"When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "當工作階段開始等待你、完成一輪、自行開始壓縮、可能卡住或被自動模式拒絕時，瀏海旁的條帶會在選單列留出的空間內顯示專案和原因，持續四秒。點按即可在該工作階段上打開面板。分享螢幕時不顯示專案。";

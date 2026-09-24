@@ -8,13 +8,40 @@ import Foundation
 /// It is built from what the hook already told the session tracker, never from a file's modification time, for
 /// the reason ToolSignal gives: a line in the strip asserting a wait has to be a wait some hook said began.
 struct NotchNews: Equatable, Sendable {
-    /// Why the session wants the user. The two kinds of wait an assistant can name are kept apart, because "go
-    /// and approve something" and "go and answer something" are different errands; a wait it does not name is
-    /// just a wait.
+    /// Why the session wants the user. The kinds of wait an assistant can name are kept apart, because "go and
+    /// approve something", "go and answer something" and "an MCP server needs something from you" are different
+    /// errands; a wait it does not name is just a wait. Since 0.11 three reasons are not waits at all but trouble a
+    /// working session ran into (SessionTrouble): they are news, and like a finish they never replace a wait.
     enum Reason: String, Equatable, Sendable {
-        case approval, question, waiting, finished
+        case approval, question, input, waiting, finished
+        case compacting, stuck, blocked
 
-        var isWait: Bool { self != .finished }
+        var isWait: Bool {
+            switch self {
+            case .approval, .question, .input, .waiting: true
+            case .finished, .compacting, .stuck, .blocked: false
+            }
+        }
+
+        /// The reason for one trouble.
+        init(_ trouble: SessionTrouble) {
+            switch trouble {
+            case .compacting: self = .compacting
+            case .stuck: self = .stuck
+            case .blocked: self = .blocked
+            }
+        }
+
+        /// The trouble this reason stands for on `session`, rebuilt from what the session holds, for the card a
+        /// click on the peek opens (NoticeCard); nil for a reason that is no trouble.
+        func trouble(of session: AgentSession) -> SessionTrouble? {
+            switch self {
+            case .compacting: .compacting(context: session.contextUsed)
+            case .stuck: .stuck(failures: session.failureStreak)
+            case .blocked: session.denials.last.map { .blocked(tool: $0.value.tool) }
+            case .approval, .question, .input, .waiting, .finished: nil
+            }
+        }
 
         /// The words beside the notch. Short on purpose: they share the menu bar's height with nothing else and
         /// a narrow gap beside the notch with the menus.
@@ -22,18 +49,27 @@ struct NotchNews: Equatable, Sendable {
             switch self {
             case .approval: L("Needs approval")
             case .question: L("Question")
+            case .input: L("Needs input")
             case .waiting: L("Waiting for you")
             case .finished: L("Finished")
+            case .compacting: L("Compacting")
+            case .stuck: L("May be stuck")
+            case .blocked: L("Blocked")
             }
         }
 
         /// The symbol in front of the words, so the reason is never carried by the glow's colour alone. The wait
-        /// and the finish reuse the card's symbols (ToolSignal.symbolName) so the strip and the panel agree.
+        /// and the finish reuse the card's symbols (ToolSignal.symbolName) so the strip and the panel agree, and
+        /// the three troubles the symbols of their marks on the session's row.
         var symbolName: String {
             switch self {
             case .approval, .waiting: "hand.raised.fill"
             case .question: "questionmark.bubble.fill"
+            case .input: "rectangle.and.pencil.and.ellipsis"
             case .finished: "checkmark.circle.fill"
+            case .compacting: "arrow.down.right.and.arrow.up.left"
+            case .stuck: "exclamationmark.arrow.triangle.2.circlepath"
+            case .blocked: "hand.raised.slash.fill"
             }
         }
     }
@@ -65,24 +101,30 @@ struct NotchNews: Equatable, Sendable {
         switch request {
         case .permission: return .approval
         case .question: return .question
+        case .elicitation: return .input
         case nil: break
         }
         if notificationType == Hook.idleNotificationType { return nil }
         switch (event, notificationType) {
         case ("PermissionRequest", _), (_, "permission_prompt"), (_, "ToolPermission"): return .approval
-        case ("Elicitation", _), (_, "elicitation_dialog"), (_, "elicitation_url_dialog"), (_, "agent_needs_input"): return .question
+        case ("Elicitation", _), (_, "elicitation_dialog"), (_, "elicitation_url_dialog"): return .input
+        case (_, "agent_needs_input"): return .question
         default: return .waiting
         }
     }
 
-    /// What one hook message makes news of, if anything: a wait it began, else a turn it ended. A finish shorter
-    /// than `ToolSignal.finishedAfter` ended while the user was watching it, which is the rule the ring keeps; a
-    /// session with no id cannot be focused and is not announced.
+    /// What one hook message makes news of, if anything: a wait it began, else trouble the session ran into, else a
+    /// turn it ended. A finish shorter than `ToolSignal.finishedAfter` ended while the user was watching it, which is
+    /// the rule the ring keeps; a session with no id cannot be focused and is not announced.
     static func from(_ message: Hook.Message, outcome: SessionTracker.Outcome, now: Date) -> NotchNews? {
         if let waiting = outcome.startedWaiting,
            let reason = reason(event: message.event, notificationType: message.notificationType,
                                request: outcome.requested?.request.kind ?? message.request?.kind) {
             return NotchNews(reason: reason, sessionID: waiting.id, tool: waiting.tool, project: waiting.project, at: now)
+        }
+        if let trouble = outcome.trouble {
+            return NotchNews(reason: Reason(trouble.trouble), sessionID: trouble.session.id, tool: trouble.session.tool,
+                             project: trouble.session.project, at: now)
         }
         if let finished = outcome.finished, finished.turn >= ToolSignal.finishedAfter {
             return NotchNews(reason: .finished, sessionID: finished.session.id, tool: finished.session.tool,

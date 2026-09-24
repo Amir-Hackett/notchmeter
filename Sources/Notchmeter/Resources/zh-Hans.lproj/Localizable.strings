@@ -140,7 +140,6 @@
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "指定的显示器按硬件标识记忆，同型号的两台显示器可区分，重命名也不会丢失。";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "在左侧边缘切出的刘海，面板在它旁边打开。该侧有程序坞或台前调度边栏时会让开。";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "在右侧边缘切出的刘海，面板在它旁边打开。该侧有程序坞时会让开。";
-"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "来自 Claude Code、Codex 或 Copilot 的权限请求或提问会打开面板，显示允许和拒绝（⌘Y、⌘N）或选项（⌘1…⌘9），助手会等待你的回答；按 Escape 交还给终端。关闭后，终端照常询问，面板只显示等待状态。Cursor 和 Gemini CLI 没有可以回答的事件。";
 "A request nobody has answered in this long goes back to the terminal, which asks as usual; the hook's own ceiling is ten minutes, and the assistant sees no decision either way." = "在这段时间内无人回答的请求会交还给终端，由终端照常询问；钩子自身的上限是十分钟，无论哪种情况助手都看不到任何决定。";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "使用同一登录对 chatgpt.com 的第二次读取，显示可重置窗口的额度及其到期时间。领取仍需在 Codex 中进行。";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "使用同一会话 cookie 再读取一次 cursor.com：最近 30 天的用量事件，按导出的费用计价，折算进每日总计文件作为 Cursor 序列（今日、30 天和趋势）。";
@@ -160,7 +159,6 @@
 "Automation" = "自动化";
 "Check again" = "重新检查";
 "Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them." = "只有装了 0.7.0 的钩子条目，Claude Code 才能从刘海处回答：在装好之前，集成里的钩子行会显示修复（或添加）。";
-"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code 报告会话的开始与结束、提示的发送、等待你的输入、停止与停止失败，以及子代理的启动与停止。";
 "Claude's usage endpoint is not polled; install the status line and run a turn for a reading" = "未轮询 Claude 的用量端点；安装状态行并运行一轮以获得读数";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex 报告会话的开始与结束、提示的发送、停止、被中断的一轮、子代理的启动与停止，以及它即将请求你批准的时刻。那个批准提示是它唯一的等待：Codex 圆环为此显示等待的手形，并在下一次提示、停止或子代理时，或十分钟后放开。Codex 没有提问或速率限制的事件，因此触及限制要等到下一次轮询。Codex 会跳过新增或更改的钩子，直到你在 Codex 内打开 /hooks 并信任它；正在运行的会话保留它启动时的钩子。";
 "Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex 会跳过尚未向它展示的钩子：在 Codex 中打开 /hooks 并信任新条目。已在运行的会话保留它们启动时的钩子。";
@@ -889,7 +887,6 @@
 "Show assistant symbols in the rings" = "在圆环中显示助手符号";
 "Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "每个助手的符号（即其卡片上的符号）以小尺寸画在圆环中央；三个圆环留下的空间不够时画在圆环的角上。适用于难以分辨各助手颜色的情况。";
 "Show news in the notch" = "在刘海处显示动态";
-"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "当会话开始等待你或完成一轮时，刘海旁的条带会在菜单栏留出的空间内显示项目和原因，持续四秒。点按即可在该会话上打开面板。共享屏幕时不显示项目。";
 "Glow under the notch for news" = "有动态时在刘海下方发光";
 "A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "为同样的动态在刘海下方亮起光晕：等待为蓝色，完成为白色，三秒后渐隐；会话仍在等待时保留淡淡的蓝色。开启“减弱动态效果”时为静止的色调。";
 
@@ -919,3 +916,73 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "将此项目的 Cursor 窗口移到前面（无法让 Cursor 打开某一个对话）";
 "First seen %@" = "首次发现于 %@";
+
+/* Claude Code's 0.11 hook events: compaction, model switches, MCP input, idle teammates, failed and refused tool calls
+   (Hook+Events.swift, Hook+Elicitation.swift, SessionsCard, PromptCard, NotchNews, Notifier, Settings) */
+"%@ is compacting" = "%@ 正在压缩";
+"%1$@ is compacting its context in %2$@ by itself, at %3$ld%% full: the conversation so far is being replaced by a summary." = "%1$@ 正在自行压缩 %2$@ 中的上下文（已用 %3$ld%%）：到目前为止的对话将被一份摘要替代。";
+"%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary." = "%1$@ 正在自行压缩 %2$@ 中的上下文：到目前为止的对话将被一份摘要替代。";
+"%@ may be stuck" = "%@ 可能卡住了";
+"%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them." = "%1$@ 在 %3$@ 中连续 %2$ld 次工具调用失败，其间没有一次成功。";
+"%@ was blocked" = "%@ 被拦下了";
+"Auto mode refused a %1$@ call in %2$@. The session goes on without it." = "自动模式拒绝了 %2$@ 中的一次 %1$@ 调用。会话会在没有它的情况下继续。";
+"Needs input" = "需要输入";
+"Compacting" = "压缩中";
+"May be stuck" = "可能卡住";
+"Blocked" = "已拦下";
+"%@ asks for input" = "%@ 请求输入";
+"An MCP server asks for input" = "MCP 服务器请求输入";
+"optional" = "可选";
+"Yes" = "是";
+"No" = "否";
+"Decline" = "谢绝";
+"Decline (⌘N)" = "谢绝（⌘N）";
+"Tells the server no, and the tool call goes on without the input." = "告诉服务器不提供，工具调用会在没有输入的情况下继续。";
+"Accept" = "接受";
+"Accept (⌘Y)" = "接受（⌘Y）";
+"worktree" = "工作树";
+"%@ asks for input: answer in the terminal" = "%@ 请求输入：请在终端中回答";
+"An MCP server asks for input: answer in the terminal" = "MCP 服务器请求输入：请在终端中回答";
+"May be stuck: %ld tool calls failed in a row" = "可能卡住：连续 %ld 次工具调用失败";
+"Model" = "模型";
+"%@, fell back by itself" = "%@，自动回退";
+"The model this session runs on" = "此会话运行所用的模型";
+"The model this session runs on; click to list how it got there" = "此会话运行所用的模型；点按以列出切换经过";
+"1 switch" = "1 次切换";
+"%ld switches" = "%ld 次切换";
+"%ld idle" = "%ld 个空闲";
+"Idle teammates" = "空闲的队友";
+"1 teammate idle" = "1 个队友空闲";
+"%ld teammates idle" = "%ld 个队友空闲";
+"Teammates of this session's agent team that finished their turn and went idle; click to list them" = "此会话代理团队中已完成本轮并转为空闲的队友；点按以列出";
+"Refused by auto mode" = "被自动模式拒绝";
+"1 tool call" = "1 次工具调用";
+"%ld tool calls" = "%ld 次工具调用";
+"Tool calls auto mode refused in this turn; click to list them" = "本轮中被自动模式拒绝的工具调用；点按以列出";
+"%1$@ to %2$@" = "%1$@ 改为 %2$@";
+"%@ ago" = "%@前";
+"Teammate %ld" = "队友 %ld";
+"by /model" = "通过 /model";
+"from the picker" = "通过选择器";
+"by a client" = "由客户端";
+"fell back by itself" = "自动回退";
+"restored on resume" = "恢复会话时还原";
+"matched a rule" = "命中规则";
+"could not be judged" = "无法判断";
+"classifier unavailable" = "分类器不可用";
+"refused" = "已拒绝";
+"Compacted" = "已压缩";
+"Claude Code is compacting this session's context by itself: the conversation so far is being replaced by a summary" = "Claude Code 正在自行压缩此会话的上下文：到目前为止的对话将被一份摘要替代";
+"This session's context is being compacted, as /compact asked" = "正按 /compact 的要求压缩此会话的上下文";
+"by itself" = "自行";
+"as /compact asked" = "按 /compact 的要求";
+"Compacted once while the app watched, %@ ago" = "应用观察期间压缩了一次，在 %@前";
+"Compacted %1$ld times while the app watched, last %2$@ ago" = "应用观察期间压缩了 %1$ld 次，最近一次在 %2$@前";
+"once" = "一次";
+"%ld times" = "%ld 次";
+"last %@ ago" = "最近一次在 %@前";
+"Notify when a session compacts, may be stuck or is refused" = "会话压缩、可能卡住或被拒绝时通知";
+"Claude Code's hook only: once when a session starts compacting its context by itself, once when five tool calls in a row have failed with none succeeding between them, and the first time in a turn auto mode refuses a tool. Each arrives without a sound, stays in the background while a terminal or editor is in front, and follows the quiet hours. The session's row and the word beside the notch say all three without it." = "仅限 Claude Code 的钩子：会话自行开始压缩上下文时一次，连续五次工具调用失败且其间没有成功时一次，以及一轮中自动模式首次拒绝某个工具时。每条通知都不带声音，终端或编辑器位于最前时留在后台，并遵守免打扰时段。没有通知时，会话的行和刘海旁的文字也会说明这三种情况。";
+"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, subagent starts and stops, compactions, model switches, an MCP server asking for input and its answer, teammates going idle, failed and auto-refused tool calls, each finished batch of tool calls and a change of directory. It is never registered for WorktreeCreate, WorktreeRemove or PreModelSwitch, which would put the app in the way of worktrees and model switches." = "Claude Code 报告会话的开始与结束、提示的发送、等待你的输入、停止与停止失败、子代理的启动与停止、上下文压缩、模型切换、MCP 服务器的输入请求及其回答、队友转为空闲、失败或被自动模式拒绝的工具调用、每批完成的工具调用，以及目录的切换。它从不注册 WorktreeCreate、WorktreeRemove 或 PreModelSwitch，否则应用会挡住工作树和模型切换。";
+"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. So does a Claude Code MCP server's request for input when every field is a choice; one that wants text or a sign-in goes straight to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "来自 Claude Code、Codex 或 Copilot 的权限请求或提问会打开面板，显示允许和拒绝（⌘Y、⌘N）或选项（⌘1…⌘9），助手会等待你的回答；按 Escape 交还给终端。Claude Code 中 MCP 服务器的输入请求在每个字段都是选项时也是如此；需要文本或登录的请求会直接交给终端。关闭后，终端照常询问，面板只显示等待状态。Cursor 和 Gemini CLI 没有可以回答的事件。";
+"When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "当会话开始等待你、完成一轮、自行开始压缩、可能卡住或被自动模式拒绝时，刘海旁的条带会在菜单栏留出的空间内显示项目和原因，持续四秒。点按即可在该会话上打开面板。共享屏幕时不显示项目。";

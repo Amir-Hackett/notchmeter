@@ -670,6 +670,13 @@ final class Preferences {
     var notifyFinished: Bool {
         didSet { defaults.set(notifyFinished, forKey: Keys.notifyFinished); report(Keys.notifyFinished, notifyFinished, changed: notifyFinished != oldValue) }
     }
+    /// A notice when a Claude Code session runs into something without stopping for it (SessionTrouble): it starts
+    /// compacting its context by itself, `SessionTracker.stuckAfter` tool calls fail in a row, or auto mode refuses a
+    /// tool for the first time in a turn. Off by default like the two above: the row and the word beside the notch
+    /// say all three without a banner, which is the interruption this opts into.
+    var notifySessionTrouble: Bool {
+        didSet { defaults.set(notifySessionTrouble, forKey: Keys.notifySessionTrouble); report(Keys.notifySessionTrouble, notifySessionTrouble, changed: notifySessionTrouble != oldValue) }
+    }
     /// Whether a terminal or editor in front holds a session notice back. On, because for the person with one
     /// terminal and one session it is right; off for the person whose session is in some other tab, where the
     /// app cannot tell the two apart without reading window titles, which it will not do (MenuBarExtent.swift).
@@ -1009,6 +1016,7 @@ final class Preferences {
         static let resetReminder = "resetReminder"
         static let notifyWaiting = "notifyWaiting"
         static let notifyFinished = "notifyFinished"
+        static let notifySessionTrouble = "notifySessionTrouble"
         static let quietWhileTerminal = "quietWhileTerminalFrontmost"
         static let finishedAfter = "finishedAfterMinutes"
         static let notifyExtraUsage = "notifyExtraUsage"
@@ -1122,6 +1130,7 @@ final class Preferences {
         resetReminder = ResetReminder(rawValue: defaults.string(forKey: Keys.resetReminder) ?? "") ?? .off
         notifyWaiting = defaults.bool(forKey: Keys.notifyWaiting)
         notifyFinished = defaults.bool(forKey: Keys.notifyFinished)
+        notifySessionTrouble = defaults.bool(forKey: Keys.notifySessionTrouble)
         quietWhileTerminalFrontmost = defaults.object(forKey: Keys.quietWhileTerminal) as? Bool ?? true
         finishedAfterMinutes = defaults.object(forKey: Keys.finishedAfter) as? Int ?? 2
         notifyExtraUsage = defaults.object(forKey: Keys.notifyExtraUsage) as? Bool ?? true

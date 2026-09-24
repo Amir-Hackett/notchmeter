@@ -123,7 +123,6 @@
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "名前で選んだディスプレイはハードウェア ID で記憶されるため、同じ機種の 2 台も区別でき、名前が変わっても失われません。";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "左端に切り込まれたノッチ。パネルはその横に開きます。同じ側に Dock やステージマネージャの帯があるときは譲ります。";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "右端に切り込まれたノッチ。パネルはその横に開きます。同じ側に Dock があるときは譲ります。";
-"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "Claude Code、Codex、Copilot からの許可リクエストや質問でパネルが開き、許可と拒否（⌘Y、⌘N）または選択肢（⌘1…⌘9）が表示され、アシスタントはあなたの回答を待ちます。Escape でターミナルに戻します。オフにすると従来どおりターミナルが尋ね、パネルは待機中と表示するだけです。Cursor と Gemini CLI には回答できるイベントがありません。";
 "A request nobody has answered in this long goes back to the terminal, which asks as usual; the hook's own ceiling is ten minutes, and the assistant sees no decision either way." = "この時間内に誰も回答しなかったリクエストはターミナルに戻り、従来どおり尋ねられます。フック自体の上限は 10 分で、どちらの場合もアシスタントには決定が伝わりません。";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "同じログインで chatgpt.com をもう一度読み、ウィンドウをリセットできるクレジットとその期限を表示します。受け取りは Codex 側で行います。";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "同じセッション Cookie で cursor.com をもう一度読みます。直近 30 日の使用イベントをエクスポートされたコストで価格付けし、日次合計ファイルに Cursor の系列（本日、30 日、トレンド）として加えます。";
@@ -143,7 +142,6 @@
 "Automation" = "オートメーション";
 "Check again" = "再確認";
 "Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them." = "Claude Code がノッチから回答できるのは 0.7.0 のフック項目がある場合だけです。それまで、統合の Hooks 行には修復（または追加）が表示されます。";
-"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code はセッションの開始と終了、プロンプトの送信、入力待ち、停止と停止の失敗、サブエージェントの開始と停止を報告します。";
 "Claude's usage endpoint is not polled; install the status line and run a turn for a reading" = "Claude の使用量エンドポイントは問い合わせていません。ステータスラインを入れて 1 ターン実行すると読み取れます";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex はセッションの開始と終了、プロンプトの送信、停止、中断されたターン、サブエージェントの開始と停止、そして承認を求めようとする瞬間を報告します。その承認プロンプトが唯一の待機です。Codex のリングはそのとき待機の手を示し、次のプロンプト、停止、サブエージェント、または 10 分後に下ろします。Codex には質問やレート制限のイベントがないため、制限到達は次のポーリングまで待ちます。Codex は新規または変更されたフックを、Codex 内で /hooks を開いて信頼するまで無視し、実行中のセッションは開始時のフックを使い続けます。";
 "Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with." = "Codex はまだ提示されていないフックを無視します。Codex で /hooks を開き、新しい項目を信頼してください。実行中のセッションは開始時のフックを使い続けます。";
@@ -872,7 +870,6 @@
 "Show assistant symbols in the rings" = "リングにアシスタントのシンボルを表示";
 "Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "各アシスタントのシンボル（カードにあるもの）をリングの中央に小さく描きます。リングが3本で余裕がないときはリングの角に描きます。アシスタントの色を見分けにくいときのための設定です。";
 "Show news in the notch" = "ノッチにお知らせを表示";
-"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "セッションがあなたを待ち始めたときやターンを終えたとき、ノッチの横の帯にプロジェクトと理由を4秒間表示します。表示はメニューバーが空けている範囲に収まります。クリックするとそのセッションでパネルが開きます。画面共有中はプロジェクト名を表示しません。";
 "Glow under the notch for news" = "お知らせのときにノッチの下を光らせる";
 "A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "同じお知らせのためにノッチの下に光を灯します。待機は青、完了は白で、3秒後に消えます。セッションが待っている間は淡い青が残ります。「視差効果を減らす」がオンのときは動かない色になります。";
 
@@ -902,3 +899,73 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "このプロジェクトの Cursor ウインドウを前面に出します（Cursor に特定のチャットを開かせることはできません）";
 "First seen %@" = "最初に検出：%@";
+
+/* Claude Code's 0.11 hook events: compaction, model switches, MCP input, idle teammates, failed and refused tool calls
+   (Hook+Events.swift, Hook+Elicitation.swift, SessionsCard, PromptCard, NotchNews, Notifier, Settings) */
+"%@ is compacting" = "%@ が圧縮中";
+"%1$@ is compacting its context in %2$@ by itself, at %3$ld%% full: the conversation so far is being replaced by a summary." = "%1$@ が %2$@ のコンテキストを自動で圧縮しています（使用率 %3$ld%%）。ここまでの会話は要約に置き換えられます。";
+"%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary." = "%1$@ が %2$@ のコンテキストを自動で圧縮しています。ここまでの会話は要約に置き換えられます。";
+"%@ may be stuck" = "%@ が行き詰まっているかもしれません";
+"%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them." = "%3$@ の %1$@ で、ツール呼び出しが %2$ld 回連続で失敗しました。その間に成功したものはありません。";
+"%@ was blocked" = "%@ がブロックされました";
+"Auto mode refused a %1$@ call in %2$@. The session goes on without it." = "自動モードが %2$@ で %1$@ の呼び出しを拒否しました。セッションはそれなしで続行します。";
+"Needs input" = "入力が必要";
+"Compacting" = "圧縮中";
+"May be stuck" = "停滞の可能性";
+"Blocked" = "ブロック";
+"%@ asks for input" = "%@ が入力を求めています";
+"An MCP server asks for input" = "MCP サーバーが入力を求めています";
+"optional" = "任意";
+"Yes" = "はい";
+"No" = "いいえ";
+"Decline" = "辞退";
+"Decline (⌘N)" = "辞退（⌘N）";
+"Tells the server no, and the tool call goes on without the input." = "サーバーに断りを伝え、ツール呼び出しは入力なしで続きます。";
+"Accept" = "承諾";
+"Accept (⌘Y)" = "承諾（⌘Y）";
+"worktree" = "ワークツリー";
+"%@ asks for input: answer in the terminal" = "%@ が入力を求めています：ターミナルで回答してください";
+"An MCP server asks for input: answer in the terminal" = "MCP サーバーが入力を求めています：ターミナルで回答してください";
+"May be stuck: %ld tool calls failed in a row" = "停滞の可能性：ツール呼び出しが %ld 回連続で失敗";
+"Model" = "モデル";
+"%@, fell back by itself" = "%@（自動で切り替え）";
+"The model this session runs on" = "このセッションが使っているモデル";
+"The model this session runs on; click to list how it got there" = "このセッションが使っているモデル。クリックで切り替えの経緯を表示";
+"1 switch" = "1 回の切り替え";
+"%ld switches" = "%ld 回の切り替え";
+"%ld idle" = "待機 %ld";
+"Idle teammates" = "待機中のチームメイト";
+"1 teammate idle" = "待機中のチームメイト 1 人";
+"%ld teammates idle" = "待機中のチームメイト %ld 人";
+"Teammates of this session's agent team that finished their turn and went idle; click to list them" = "このセッションのエージェントチームで、ターンを終えて待機中のチームメイト。クリックで一覧表示";
+"Refused by auto mode" = "自動モードが拒否";
+"1 tool call" = "ツール呼び出し 1 件";
+"%ld tool calls" = "ツール呼び出し %ld 件";
+"Tool calls auto mode refused in this turn; click to list them" = "このターンで自動モードが拒否したツール呼び出し。クリックで一覧表示";
+"%1$@ to %2$@" = "%1$@ から %2$@";
+"%@ ago" = "%@前";
+"Teammate %ld" = "チームメイト %ld";
+"by /model" = "/model で";
+"from the picker" = "ピッカーから";
+"by a client" = "クライアントから";
+"fell back by itself" = "自動で切り替え";
+"restored on resume" = "再開時に復元";
+"matched a rule" = "ルールに該当";
+"could not be judged" = "判断できず";
+"classifier unavailable" = "分類器が利用不可";
+"refused" = "拒否";
+"Compacted" = "圧縮済み";
+"Claude Code is compacting this session's context by itself: the conversation so far is being replaced by a summary" = "Claude Code がこのセッションのコンテキストを自動で圧縮しています。ここまでの会話は要約に置き換えられます";
+"This session's context is being compacted, as /compact asked" = "/compact の指示でこのセッションのコンテキストを圧縮しています";
+"by itself" = "自動で";
+"as /compact asked" = "/compact の指示で";
+"Compacted once while the app watched, %@ ago" = "アプリが見ている間に1回圧縮、%@前";
+"Compacted %1$ld times while the app watched, last %2$@ ago" = "アプリが見ている間に %1$ld 回圧縮、最後は %2$@前";
+"once" = "1回";
+"%ld times" = "%ld 回";
+"last %@ ago" = "最後は %@前";
+"Notify when a session compacts, may be stuck or is refused" = "セッションの圧縮・停滞の可能性・拒否を通知";
+"Claude Code's hook only: once when a session starts compacting its context by itself, once when five tool calls in a row have failed with none succeeding between them, and the first time in a turn auto mode refuses a tool. Each arrives without a sound, stays in the background while a terminal or editor is in front, and follows the quiet hours. The session's row and the word beside the notch say all three without it." = "Claude Code のフックのみ：セッションが自動でコンテキストの圧縮を始めたときに1回、ツール呼び出しが間に成功なく5回続けて失敗したときに1回、ターン内で自動モードが初めてツールを拒否したときに通知します。どれも音は鳴らず、ターミナルやエディタが前面にある間は控えめにし、おやすみ時間に従います。通知がなくても、セッションの行とノッチ横の表示が3つとも伝えます。";
+"Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, subagent starts and stops, compactions, model switches, an MCP server asking for input and its answer, teammates going idle, failed and auto-refused tool calls, each finished batch of tool calls and a change of directory. It is never registered for WorktreeCreate, WorktreeRemove or PreModelSwitch, which would put the app in the way of worktrees and model switches." = "Claude Code はセッションの開始と終了、プロンプトの送信、入力待ち、停止と停止の失敗、サブエージェントの開始と停止、コンテキストの圧縮、モデルの切り替え、MCP サーバーからの入力要求とその回答、チームメイトの待機、失敗したツール呼び出しと自動モードに拒否されたツール呼び出し、ツール呼び出しのバッチの完了、ディレクトリの変更を報告します。WorktreeCreate、WorktreeRemove、PreModelSwitch には登録しません。登録するとワークツリーやモデルの切り替えの邪魔になるためです。";
+"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. So does a Claude Code MCP server's request for input when every field is a choice; one that wants text or a sign-in goes straight to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "Claude Code、Codex、Copilot からの許可リクエストや質問でパネルが開き、許可と拒否（⌘Y、⌘N）または選択肢（⌘1…⌘9）が表示され、アシスタントはあなたの回答を待ちます。Escape でターミナルに戻します。Claude Code の MCP サーバーからの入力要求も、すべての項目が選択式なら同様です。テキストやサインインを求めるものは直接ターミナルに回ります。オフにすると従来どおりターミナルが尋ね、パネルは待機中と表示するだけです。Cursor と Gemini CLI には回答できるイベントがありません。";
+"When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "セッションがあなたを待ち始めたとき、ターンを終えたとき、自動で圧縮を始めたとき、行き詰まっている可能性があるとき、自動モードに拒否されたとき、ノッチの横の帯にプロジェクトと理由を4秒間表示します。表示はメニューバーが空けている範囲に収まります。クリックするとそのセッションでパネルが開きます。画面共有中はプロジェクト名を表示しません。";

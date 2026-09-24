@@ -177,6 +177,15 @@ final class LocalAPI {
         message.title = base.title
         message.todos = base.todos
         message.task = base.task
+        // The 0.11 events' fields ride along too; an MCP form does not, for the reason a request does not. The
+        // worktree flag is left behind: it was read from a directory on this Mac, not the remote one.
+        message.compaction = base.compaction
+        message.modelSwitch = base.modelSwitch
+        message.mcpServer = base.mcpServer
+        message.teammate = base.teammate
+        message.toolFailure = base.toolFailure
+        message.denial = base.denial
+        message.batchSize = base.batchSize
         return message
     }
 

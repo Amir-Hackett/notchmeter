@@ -730,7 +730,8 @@ final class NotchController: NSObject, PanelPresenting {
             store.panelOpenedForPrompt = true
         case .notice:
             guard let session else { return }
-            let event: Notifier.SessionEvent = news.reason.isWait ? .waiting(blocking: true) : .finished(turn: session.finished?.turn ?? 0)
+            let event: Notifier.SessionEvent = news.reason.isWait ? .waiting(blocking: true)
+                : news.reason.trouble(of: session).map(Notifier.SessionEvent.trouble) ?? .finished(turn: session.finished?.turn ?? 0)
             store.promptFocus = news.sessionID
             store.attentionNotice = AttentionNotice(session: session, event: event)
         case .whole:

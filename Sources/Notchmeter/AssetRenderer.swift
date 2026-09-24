@@ -57,6 +57,28 @@ enum AssetRenderer {
                 try write(card.image(.expanded, canvas: card.panelCanvas, pixelScale: scale),
                           png: directory.appendingPathComponent("\(name).png"))
             }
+            // Claude Code's 0.11 hook events (DemoFixtures.Moment.hookEvents), for review: the Sessions card with a
+            // compaction, a fallback, auto-mode refusals, idle teammates, a session that may be stuck and an MCP
+            // wait, with their lists open; the peek the compaction raises; and an MCP server's form held for the notch.
+            let (events, eventsPrefs) = DemoFixtures.store(now: now, moment: .hookEvents)
+            events.openSessionLists = [SessionsCard.listKey("notchmeter", .models), SessionsCard.listKey("notchmeter", .denials),
+                                       SessionsCard.listKey("scout", .teammates)]
+            let eventsStage = try Stage(store: events, prefs: eventsPrefs, actions: actions)
+            try write(eventsStage.image(.expanded, canvas: eventsStage.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("hook-events.png"))
+            eventsPrefs.panelMode = .detailed
+            let eventsDetailed = try Stage(store: events, prefs: eventsPrefs, actions: actions)
+            try write(eventsDetailed.image(.expanded, canvas: eventsDetailed.panelCanvas, pixelScale: scale),
+                      png: directory.appendingPathComponent("hook-events-detailed.png"))
+            eventsPrefs.panelMode = .simple
+            events.seed(news: DemoFixtures.news(in: events, moment: .hookEvents, now: now))
+            let peek = try Stage(store: events, prefs: eventsPrefs, actions: actions, drawsGlow: true)
+            try write(peek.image(.compact, canvas: CGSize(width: peek.compactExtent + 2 * NotchGlowView.spread + 80,
+                                                          height: notch.height + NotchGlowView.depth + 8), pixelScale: scale),
+                      png: directory.appendingPathComponent("hook-events-peek.png"))
+            let (form, formPrefs) = DemoFixtures.store(now: now, moment: .elicitation)
+            form.panelOpenedForPrompt = true
+            let formStage = try Stage(store: form, prefs: formPrefs, actions: actions)
+            try write(formStage.image(.expanded, canvas: formStage.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("elicitation.png"))
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
             try write(welcome(now: now), png: directory.appendingPathComponent("welcome.png"))
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
@@ -76,6 +98,9 @@ enum AssetRenderer {
             defer { AccessibilityDisplay.shared.force(contrast: nil) }
             let contrast = try Stage(store: store, prefs: prefs, actions: actions)
             try write(contrast.image(.expanded, canvas: contrast.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-contrast.png"))
+            let eventsContrast = try Stage(store: events, prefs: eventsPrefs, actions: actions)
+            try write(eventsContrast.image(.expanded, canvas: eventsContrast.panelCanvas, pixelScale: scale),
+                      png: directory.appendingPathComponent("hook-events-contrast.png"))
             return true
         } catch {
             Probe.emit("render-assets: \(error)")
