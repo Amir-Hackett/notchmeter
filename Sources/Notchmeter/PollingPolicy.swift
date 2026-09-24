@@ -92,13 +92,21 @@ enum PollingPolicy {
     /// hour, a sixth of its own cadence, and only while the last reading holds a figure it alone supplied. An
     /// account whose endpoint says nothing the status line does not is never read while the status line is fresh.
     /// With no endpoint figure on record and no read yet this run, one read learns which kind of account it is;
-    /// after that read the answer stands until the next launch.
+    /// after that read the answer stands until the next launch. A reset on an endpoint-only window brings the read
+    /// forward to the reset.
     static func endpointDue(besideStatusline carried: [LimitWindow], reading: UsageReading?, lastEndpointRead: Date?, now: Date) -> Date? {
         let fromEndpoint = (reading?.windows ?? []).filter { $0.source == .vendorEndpoint || $0.source == .rateLimitHeaders }
         guard !fromEndpoint.isEmpty else { return lastEndpointRead == nil ? now : nil }
         let ids = Set(carried.map(\.id))
-        guard fromEndpoint.contains(where: { !ids.contains($0.id) }) else { return nil }
-        return (lastEndpointRead ?? .distantPast).addingTimeInterval(endpointBesideStatusline)
+        let endpointOnly = fromEndpoint.filter { !ids.contains($0.id) }
+        guard !endpointOnly.isEmpty else { return nil }
+        let lastRead = lastEndpointRead ?? .distantPast
+        // A reset on a window only the endpoint carries is due at once: the status line cannot say it happened, so
+        // without this the reset refresh took the status line's reading and carried the used-up figure past it.
+        let resets = endpointOnly.compactMap(\.resetsAt).filter { $0 > lastRead }
+        if resets.contains(where: { $0 <= now }) { return now }
+        let cadence = lastRead.addingTimeInterval(endpointBesideStatusline)
+        return resets.min().map { min($0, cadence) } ?? cadence
     }
 
     /// The main window is used up and its reset is still ahead.

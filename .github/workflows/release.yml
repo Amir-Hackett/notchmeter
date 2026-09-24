@@ -52,6 +52,9 @@ jobs:
     # appcast item has to be merged into the current stable release's feed, which this job does not do.
     if: ${{ !contains(github.ref_name, '-') }}
     runs-on: macos-15
+    # A normal run takes about twelve minutes, notarisation included; this only stops a stalled step holding the
+    # runner for GitHub's six hours.
+    timeout-minutes: 60
     needs: icon
     env:
       TAG: ${{ github.ref_name }}

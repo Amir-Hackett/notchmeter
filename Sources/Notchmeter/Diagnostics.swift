@@ -98,11 +98,14 @@ enum CrashReports {
         entries.filter { isReport($0.url.lastPathComponent, app: app) }.max { $0.modified < $1.modified }
     }
 
-    /// The newest report in the folder, or nil when there is none or the folder cannot be listed. Blocking disk
-    /// IO: call it off the main thread.
+    /// The newest report in the folder or its `Retired` subfolder, or nil when there is none or neither can be
+    /// listed. macOS moves a report into `Retired` within a day or so of writing it, so the top level alone was
+    /// usually empty by the time anyone went looking. Blocking disk IO: call it off the main thread.
     static func newest(in folder: URL = folder) -> Report? {
         let keys: Set<URLResourceKey> = [.contentModificationDateKey, .isRegularFileKey]
-        guard let urls = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles]) else { return nil }
+        let urls = [folder, folder.appendingPathComponent("Retired")].flatMap { directory in
+            (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles])) ?? []
+        }
         let entries = urls.compactMap { url -> Report? in
             guard isReport(url.lastPathComponent), let values = try? url.resourceValues(forKeys: keys),
                   values.isRegularFile == true, let modified = values.contentModificationDate else { return nil }
@@ -112,17 +115,22 @@ enum CrashReports {
     }
 
     /// The report's first `limit` bytes as text, scrubbed of the home folder the way Copy diagnostics is, with a
-    /// last line saying so when it was cut. Nil when the file cannot be read. Blocking disk IO: call it off the
-    /// main thread.
+    /// last line saying so when it was cut. The scrub runs before the cut, over enough extra bytes to hold a path
+    /// in its longer escaped spelling, so a cut can never leave half a home folder behind for the scrub to miss.
+    /// Nil when the file cannot be read. Blocking disk IO: call it off the main thread.
     static func text(of url: URL, limit: Int = readLimit, home: String = Paths.home.path) -> String? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
-        guard let data = try? handle.read(upToCount: limit + 1) else { return nil }
-        var text = String(decoding: data.prefix(limit), as: UTF8.self)
-        if data.count > limit { text += "\n[cut at \(limit / 1024) KB]" }
+        let margin = home.utf8.count * 2
+        guard let data = try? handle.read(upToCount: limit + margin + 1) else { return nil }
+        var text = String(decoding: data, as: UTF8.self)
         // An `.ips` body is JSON, which may write the path with escaped slashes; scrub that spelling too.
-        guard !home.isEmpty else { return text }
-        return text.replacingOccurrences(of: home, with: "~")
-            .replacingOccurrences(of: home.replacingOccurrences(of: "/", with: "\\/"), with: "~")
+        if !home.isEmpty {
+            text = text.replacingOccurrences(of: home, with: "~")
+                .replacingOccurrences(of: home.replacingOccurrences(of: "/", with: "\\/"), with: "~")
+        }
+        let scrubbed = Data(text.utf8)
+        guard scrubbed.count > limit || data.count > limit + margin else { return text }
+        return String(decoding: scrubbed.prefix(limit), as: UTF8.self) + "\n[cut at \(limit / 1024) KB]"
     }
 }

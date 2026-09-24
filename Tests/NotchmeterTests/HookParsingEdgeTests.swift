@@ -381,4 +381,10 @@ import Testing
         #expect(!Hook.Gemini.recognises(event: "Notification", object: ["notification_type": "permission_prompt"], environment: [:]))
         #expect(!Hook.Gemini.recognises(event: "BeforeTool2", object: [:], environment: [:]))
     }
+
+    /// An empty `cwd` is no folder: Cursor's own project directory is used, as an empty workspace root already was.
+    @Test func anEmptyCursorCwdFallsBackToTheProjectDirectory() {
+        #expect(Hook.Cursor.root(of: ["cwd": ""], environment: ["CURSOR_PROJECT_DIR": "/Users/x/proj"]) == "/Users/x/proj")
+        #expect(Hook.Cursor.root(of: ["cwd": ""], environment: [:]) == nil)
+    }
 }

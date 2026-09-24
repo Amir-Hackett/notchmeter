@@ -132,6 +132,24 @@ import Testing
         // A payload without the weekly window leaves the endpoint's weekly as something only it supplies.
         #expect(PollingPolicy.endpointDue(besideStatusline: Array(carried.prefix(1)), reading: plain, lastEndpointRead: read, now: now) != nil)
     }
+
+    /// A reset on a window only the endpoint carries brings the read forward to it: the status line cannot say the
+    /// per-model weekly reset, so the used-up figure would otherwise ride past its reset for up to half an hour.
+    @Test func aResetOnAnEndpointOnlyWindowIsDueAtOnce() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let carried = Self.statusline(receivedAt: now).windows
+        let read = now.addingTimeInterval(-600)
+        func reading(resetsAt: Date) -> UsageReading {
+            let opus = LimitWindow(id: "scoped_opus", label: .key("Weekly"), usedFraction: 1, resetsAt: resetsAt, periodDuration: Period.week)
+            return UsageReading(tool: .claude, windows: Self.endpointWindows(extra: false) + [opus], plan: nil, fetchedAt: now, observedAt: nil)
+        }
+        #expect(PollingPolicy.endpointDue(besideStatusline: carried, reading: reading(resetsAt: now.addingTimeInterval(-5)), lastEndpointRead: read, now: now) == now)
+        let soon = now.addingTimeInterval(120)
+        #expect(PollingPolicy.endpointDue(besideStatusline: carried, reading: reading(resetsAt: soon), lastEndpointRead: read, now: now) == soon)
+        // A reset the last read already saw past is not due again.
+        #expect(PollingPolicy.endpointDue(besideStatusline: carried, reading: reading(resetsAt: read.addingTimeInterval(-60)), lastEndpointRead: read, now: now)
+            == read.addingTimeInterval(PollingPolicy.endpointBesideStatusline))
+    }
 }
 
 /// Installed, answers at once, and remembers each read and whether the user asked for it.

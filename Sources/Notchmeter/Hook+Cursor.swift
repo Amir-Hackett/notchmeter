@@ -39,12 +39,12 @@ extension Hook {
         }
 
         /// The folder the conversation runs in: the first non-empty workspace root (a multi-root workspace names its
-        /// first), else `cwd` (sent on tool events, not on session, prompt or stop events), else the environment
+        /// first), else a non-empty `cwd` (sent on tool events, not on session, prompt or stop events), else the environment
         /// Cursor gives its hook processes.
         static func root(of object: [String: Any], environment: [String: String]) -> String? {
             (object["workspace_roots"] as? [String])?.first(where: { !$0.isEmpty })
-                ?? (object["cwd"] as? String)
-                ?? environment["CURSOR_PROJECT_DIR"]
+                ?? (object["cwd"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                ?? environment["CURSOR_PROJECT_DIR"].flatMap { $0.isEmpty ? nil : $0 }
         }
 
         /// Only the event name, `status`, `parent_conversation_id` (or `conversation_id`, or `session_id`), the

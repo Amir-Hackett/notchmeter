@@ -70,7 +70,8 @@ has the full ladder).
 *Settings › Advanced › Diagnostics › Last crash report* shows the date of the newest report macOS wrote for
 Notchmeter, with *Copy crash report* and *Show in Finder*. It needs no permission: the folder is your own.
 
-- **What it reads.** The file names and modification dates in `~/Library/Logs/DiagnosticReports`, keeping only
+- **What it reads.** The file names and modification dates in `~/Library/Logs/DiagnosticReports` and its `Retired`
+  subfolder (where macOS moves a report within a day or so), keeping only
   `Notchmeter-….ips` and `Notchmeter_….crash`; and, on *Copy crash report* alone, the first 256 KB of the newest
   one. The code is `CrashReports` in [`Diagnostics.swift`](../Sources/Notchmeter/Diagnostics.swift).
 - **When it reads.** Each time the Diagnostics disclosure opens, off the main thread; never at launch.
