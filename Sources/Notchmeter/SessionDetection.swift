@@ -214,7 +214,9 @@ enum SessionDetection {
     /// Names a session file can carry that nobody chose.
     static let generatedNameSources: Set<String> = ["derived", "default", "auto", "generated"]
 
-    static func claudeFile(from data: Data) -> ClaudeFile? {
+    /// `titles` is whether the session's name may be read at all (Preferences.sessionTitles, and never while the
+    /// screen is shared): off, the `name` key is not looked at, so nothing of it is held even for the scan's length.
+    static func claudeFile(from data: Data, titles: Bool = true) -> ClaudeFile? {
         guard data.count <= claudeFileLimit, let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let pid = JSON.number(object["pid"]).map({ Int32(clamping: Int($0)) }), pid > 0,
               let session = (object["sessionId"] as? String).flatMap({ $0.isEmpty ? nil : $0 }) else { return nil }
@@ -222,7 +224,7 @@ enum SessionDetection {
             JSON.number(object[key]).flatMap { $0 > 0 ? Date(timeIntervalSince1970: $0 / 1000) : nil }
         }
         let status = object["status"] as? String
-        let source = object["nameSource"] as? String
+        let source = titles ? object["nameSource"] as? String : nil
         let name = source.flatMap { generatedNameSources.contains($0) ? nil : Hook.title(fromPrompt: object["name"]) }
         return ClaudeFile(pid: pid, sessionID: session, cwd: (object["cwd"] as? String).flatMap { $0.isEmpty ? nil : $0 },
                           started: date("startedAt"), kind: object["kind"] as? String,
@@ -261,21 +263,24 @@ enum SessionDetection {
     /// Reads the tail newest line first and stops once it has everything. The first line of a tail read from the
     /// middle of a file is a fragment; it fails to parse and is skipped like any other line that does. A line is
     /// parsed only when its bytes carry a key worth parsing it for, so a megabyte of tool output costs a search for
-    /// a few bytes and not a JSON parse.
-    static func transcriptFacts(tail: Data) -> TranscriptFacts {
+    /// a few bytes and not a JSON parse. With `titles` off (Preferences.sessionTitles, or the screen shared) the two
+    /// title lines are not among the keys worth parsing: a `/rename` is the user's own words and an `ai-title`
+    /// Claude's summary of them, and with the setting off neither is parsed, let alone held (docs/privacy.md).
+    static func transcriptFacts(tail: Data, titles: Bool = true) -> TranscriptFacts {
         var facts = TranscriptFacts()
-        let markers = [Data(#""type":"custom-title""#.utf8), Data(#""type":"ai-title""#.utf8), Data(#""type":"assistant""#.utf8), Data(#""gitBranch":""#.utf8)]
+        var markers = [Data(#""type":"assistant""#.utf8), Data(#""gitBranch":""#.utf8)]
+        if titles { markers += [Data(#""type":"custom-title""#.utf8), Data(#""type":"ai-title""#.utf8)] }
         var end = tail.endIndex
-        while end > tail.startIndex, facts.customTitle == nil || facts.aiTitle == nil || facts.model == nil || facts.branch == nil {
+        while end > tail.startIndex, (titles && (facts.customTitle == nil || facts.aiTitle == nil)) || facts.model == nil || facts.branch == nil {
             let start = tail[..<end].lastIndex(of: 0x0A).map { tail.index(after: $0) } ?? tail.startIndex
             let line = tail[start..<end]
             end = start > tail.startIndex ? tail.index(before: start) : tail.startIndex
             guard !line.isEmpty, markers.contains(where: { line.range(of: $0) != nil }),
                   let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
             switch object["type"] as? String {
-            case "custom-title":
+            case "custom-title" where titles:
                 if facts.customTitle == nil { facts.customTitle = Hook.title(fromPrompt: object["customTitle"] ?? object["title"]) }
-            case "ai-title":
+            case "ai-title" where titles:
                 if facts.aiTitle == nil { facts.aiTitle = Hook.title(fromPrompt: object["aiTitle"] ?? object["title"]) }
             case "assistant":
                 if facts.model == nil, let model = (object["message"] as? [String: Any])?["model"] as? String, !model.isEmpty, !model.hasPrefix("<") {

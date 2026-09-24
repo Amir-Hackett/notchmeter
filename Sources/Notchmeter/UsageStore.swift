@@ -1631,7 +1631,7 @@ final class UsageStore {
         // A row the scan found that this event took over, by id or as its project's twin (SessionTracker.detected).
         let adopted = scannedBefore.subtracting(sessions.scanned)
         if !adopted.isEmpty {
-            Oracle.shared.emit("detection", Self.detectionFields(working: sessions.all.filter { $0.source == .detected && $0.isWorking }.map(\.id).sorted(),
+            Oracle.shared.emit("detection", Self.detectionFields(working: sessions.all.filter { $0.isDetected && $0.isWorking }.map(\.id).sorted(),
                                                                  adopted: adopted.sorted()))
         }
         if tool == .cursor { lookUpCursorNames(now: now) }

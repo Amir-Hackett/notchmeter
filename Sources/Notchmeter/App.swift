@@ -1115,7 +1115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         Probe.emit("tool order: \(prefs.toolOrder.map(\.rawValue).joined(separator: ", ")); visible: \(store.visibleTools.map(\.rawValue).joined(separator: ", "))")
         Probe.emit("polling: \(store.scheduleDescription())")
-        Probe.emit("presence: \(store.presence); sessions: \(store.sessions.count) (\(store.sessions.agentCount) agents, \(store.sessions.all.filter { $0.source == .detected }.count) detected without the hook; scan \(prefs.detectSessions ? store.detectionInterval().map { "every \(Int($0)) s" } ?? "paused" : "off")); reduce motion: \(AccessibilityDisplay.shared.motionReduced); keep awake: \(prefs.keepAwake) holding=\(store.keepingAwake)")
+        Probe.emit("presence: \(store.presence); sessions: \(store.sessions.count) (\(store.sessions.agentCount) agents, \(store.sessions.all.filter(\.isDetected).count) detected without the hook; scan \(prefs.detectSessions ? store.detectionInterval().map { "every \(Int($0)) s" } ?? "paused" : "off")); reduce motion: \(AccessibilityDisplay.shared.motionReduced); keep awake: \(prefs.keepAwake) holding=\(store.keepingAwake)")
         let signals = ToolID.allCases.compactMap { tool in store.signal(tool).map { "\(tool.rawValue) \($0)" } }
         Probe.emit("signals: \(signals.isEmpty ? "none" : signals.joined(separator: ", ")); ring colouring: \(prefs.signalRings ? "on" : "off"); finished held \(Int(ToolSignal.heldFor))s over \(Int(ToolSignal.finishedAfter))s")
         if let cost = store.cost {

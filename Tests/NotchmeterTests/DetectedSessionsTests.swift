@@ -92,21 +92,89 @@ import Testing
         #expect(tracker.sessions["s1"] != nil)
     }
 
-    /// A session the hook reported before the scan found it is the hook's; so is one only the status line made,
-    /// which is Notchmeter's own entry in the same settings file.
-    @Test func aSessionTheHookOrStatusLineAlreadyHasIsNotTheScans() {
+    /// A session the hook reported before the scan found it is the hook's, whatever the scan says of it.
+    @Test func aSessionTheHookAlreadyHasIsNotTheScans() {
         var tracker = SessionTracker()
         tracker.apply(hook("UserPromptSubmit", session: "s1"), now: t0)
-        tracker.statusline(sessionID: "s2", project: "notchmeter", model: "Opus", now: t0)
-        let change = tracker.detected([found("s1"), found("s2", busy: true, model: "Opus 5.5")], now: t0.addingTimeInterval(3))
+        let change = tracker.detected([found("s1")], now: t0.addingTimeInterval(3))
         #expect(change.isEmpty)
         #expect(tracker.sessions["s1"]?.isWorking == true)
-        #expect(tracker.sessions["s2"]?.model == "Opus", "the status line's session keeps its own figures")
-        #expect(tracker.sessions["s2"]?.source == .hook)
+        #expect(tracker.sessions["s1"]?.source == .hook)
         // Set aside, the hook's session is still the hook's: the scan does not put a detected copy in its place.
         tracker.dismiss("s1")
         #expect(tracker.detected([found("s1", busy: true)], now: t0.addingTimeInterval(6)).isEmpty)
         #expect(tracker.sessions["s1"] == nil)
+    }
+
+    /// A session only the status line made (the Welcome flow installs it even when the hook is declined) keeps the
+    /// status line's figures and takes the scan's working or idle, since the status line never reports a turn; the
+    /// card marks it and offers the hook as for a detected row, and the hook's first event makes it the hook's.
+    @Test func aStatusLineRowTakesTheScansStateUntilTheHookSpeaks() throws {
+        var tracker = SessionTracker()
+        tracker.statusline(sessionID: "s1", project: "notchmeter", model: "Opus", sessionName: "named by Claude", contextUsed: 0.4, now: t0)
+        #expect(tracker.sessions["s1"]?.source == .statusline)
+        #expect(tracker.sessions["s1"]?.isDetected == true)
+        let change = tracker.detected([found("s1", busy: true, busySince: t0.addingTimeInterval(-20), name: "from the transcript", model: "Opus 5.5")],
+                                      now: t0.addingTimeInterval(3))
+        #expect(change.working == ["s1"] && change.added.isEmpty, "the row was already there; it is working now")
+        let session = try #require(tracker.sessions["s1"])
+        #expect(session.isWorking && session.turnStarted == t0.addingTimeInterval(-20))
+        #expect(session.model == "Opus" && session.contextUsed == 0.4 && session.sessionName == "named by Claude", "the status line's own figures stand")
+        #expect(session.source == .statusline)
+        #expect(tracker.hookWorking.isEmpty, "a guess does not keep the Mac awake")
+        let (rows, _) = SessionsCard.rows(tracker.all, hideTitles: false, jump: false, now: t0.addingTimeInterval(3))
+        #expect(rows.first?.detected == true)
+        #expect(SessionsCard.upgradeTool(rows, installed: []) == .claude)
+        // The hook's first event takes it over, ending the turn the scan saw start.
+        let outcome = tracker.apply(hook("Stop", session: "s1"), now: t0.addingTimeInterval(10))
+        #expect(tracker.sessions["s1"]?.source == .hook)
+        #expect(outcome.finished?.turn == 30)
+        #expect(tracker.detected([found("s1", busy: true)], now: t0.addingTimeInterval(13)).isEmpty)
+        #expect(tracker.sessions["s1"]?.state == .idle, "from here on the hook's word stands")
+        // A status line's row the scan matched to its process goes with the process, like a detected row.
+        var lone = SessionTracker()
+        lone.statusline(sessionID: "s2", project: "notchmeter", now: t0)
+        lone.detected([found("s2", busy: true)], now: t0.addingTimeInterval(3))
+        #expect(lone.detected([], now: t0.addingTimeInterval(6)).removed == ["s2"])
+    }
+
+    /// Claude Code sends `SessionEnd` while its process and session file are still there, so a scan inside that
+    /// window finds the ended session again; it is left alone for `endedGrace`, unless a session file started
+    /// after the end says a new session has the same id.
+    @Test func aSessionEndIsNotUndoneByTheNextScan() {
+        var tracker = SessionTracker()
+        tracker.apply(hook("UserPromptSubmit", session: "s1"), now: t0)
+        tracker.apply(hook("SessionEnd", session: "s1"), now: t0.addingTimeInterval(10))
+        #expect(tracker.count == 0)
+        #expect(tracker.detected([found("s1", busy: true)], now: t0.addingTimeInterval(11)).isEmpty, "the process on its way out is not a new row")
+        #expect(tracker.sessions["s1"] == nil)
+        let resumed = DetectedSession(key: "s1", tool: .claude, exact: true, project: "notchmeter", started: t0.addingTimeInterval(12),
+                                      lastActivity: t0.addingTimeInterval(13), busy: true)
+        #expect(tracker.detected([resumed], now: t0.addingTimeInterval(13)).added == ["s1"], "a file started after the end is a new session")
+        var later = SessionTracker()
+        later.apply(hook("SessionEnd", session: "s2"), now: t0)
+        later.expire(now: t0.addingTimeInterval(SessionTracker.endedGrace))
+        #expect(later.ended.isEmpty, "the grace is pruned with the rest")
+        #expect(later.detected([found("s2", busy: true)], now: t0.addingTimeInterval(SessionTracker.endedGrace)).added == ["s2"])
+    }
+
+    /// A hook session set aside by the clock is proof of nothing: Cursor and Codex send no end when a chat is
+    /// closed, and a dead one that still accounted for a process hid a live cursor-agent in the same project for
+    /// four hours. One set aside by the user, or working, still accounts for its process inside `idleAfter`.
+    @Test func aHookSessionSetAsideByTheClockNoLongerAccountsForAProcess() {
+        var tracker = SessionTracker()
+        tracker.apply(hook("Stop", session: "conv-1", tool: .cursor), now: t0)
+        let process = found("cursor:detected-9-1", tool: .cursor, exact: false, busy: true)
+        #expect(tracker.detected([process], now: t0.addingTimeInterval(3)).isEmpty, "the live hook session accounts for the process")
+        tracker.expire(now: t0.addingTimeInterval(SessionTracker.idleAfter))
+        #expect(tracker.sessions["cursor:conv-1"] == nil && tracker.dismissed["cursor:conv-1"] != nil)
+        #expect(tracker.detected([process], now: t0.addingTimeInterval(SessionTracker.idleAfter + 3)).added == ["cursor:detected-9-1"])
+        // Removed by hand while working, a hook session still accounts for its process: the row does not come back
+        // as a detected twin the moment it is removed.
+        var removed = SessionTracker()
+        removed.apply(hook("UserPromptSubmit", session: "conv-2", tool: .cursor), now: t0)
+        removed.dismiss("cursor:conv-2")
+        #expect(removed.detected([process], now: t0.addingTimeInterval(3)).isEmpty)
     }
 
     /// A process-keyed row cannot be matched by id, so each hook session of the same assistant and project accounts
@@ -302,15 +370,22 @@ import Testing
         #expect(SessionsCard.upgradeTool(rows, installed: []) == .claude)
         #expect(SessionsCard.upgradeTool(rows, installed: [.claude]) == nil, "a hook already in the file needs no offer")
         #expect(SessionsCard.upgradeTool(rows.filter { !$0.detected }, installed: []) == nil)
+        // A status line's row is marked like a detected one, and the oracle says which it is.
+        tracker.statusline(sessionID: "lined", project: "scout", now: t0)
+        let (withLined, _) = SessionsCard.rows(tracker.all, hideTitles: false, jump: false, now: t0)
+        #expect(withLined.first { $0.id == "lined" }?.detected == true)
+        let lined = SessionsCard.oracleRows(SessionsCard.groups(withLined, sessions: tracker.all)).first { $0["id"] as? String == "lined" }
+        #expect(lined?["source"] as? String == "statusline")
     }
 
     @Test func theReportSaysWhereEachSessionCameFrom() throws {
         var tracker = SessionTracker()
         tracker.detected([found("s1")], now: t0)
         tracker.apply(Hook.Message(event: "SessionStart", needsInput: false, sessionID: "hooked", project: "scout"), now: t0)
+        tracker.statusline(sessionID: "lined", project: "scout", now: t0)
         let report = UsageReport(tools: [:], order: ToolID.allCases, cost: nil, advice: [], sessions: tracker.all, now: t0)
         let sessions = try #require(report.object["sessions"] as? [[String: Any]])
-        #expect(Set(sessions.compactMap { $0["source"] as? String }) == ["hook", "detected"])
+        #expect(Set(sessions.compactMap { $0["source"] as? String }) == ["hook", "detected", "statusline"])
     }
 
     /// A detected Cursor row is keyed by its process, which names no conversation to look a chat name up by.

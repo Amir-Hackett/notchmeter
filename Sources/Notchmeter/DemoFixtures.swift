@@ -168,13 +168,21 @@ enum DemoFixtures {
         return tracker
     }
 
-    /// Two sessions a first launch finds without any hook, fed through `SessionTracker.detected` as a scan hands
-    /// them over rather than set field by field, so the picture is a state the merge can reach: Claude Code working
-    /// in notchmeter under its own session id, with the title and model its transcript carries, and Codex idle in
-    /// scout under its process, with nothing read of its files. Both in a terminal the jump can reach.
+    /// Three sessions a first launch finds without any hook, fed through `SessionTracker.statusline` and
+    /// `SessionTracker.detected` as the status line and a scan hand them over rather than set field by field, so
+    /// the picture is a state the merge can reach: Claude Code working in notchmeter under its own session id, with
+    /// the title and model its transcript carries; Codex idle in scout under its process, with nothing read of its
+    /// files; and a second Claude Code in scout that only the status line has reported (the Welcome flow installs
+    /// the status line even when the hook is declined), idle by the scan's guess, with the context fill and model
+    /// the status line gave it. All in a terminal the jump can reach.
     static func detectedSessions(now: Date) -> SessionTracker {
         var tracker = SessionTracker()
+        tracker.statusline(sessionID: statuslineSessionID, project: "scout", branch: "main", model: "Opus", contextUsed: 0.31,
+                           now: now.addingTimeInterval(-(2 * 60 + 5)))
         tracker.detected([
+            DetectedSession(key: statuslineSessionID, tool: .claude, exact: true, project: "scout", branch: "main", model: "Opus 5.5",
+                            started: now.addingTimeInterval(-25 * 60), lastActivity: now.addingTimeInterval(-(2 * 60 + 5)), busy: false,
+                            terminal: TerminalRef(bundleID: "com.apple.Terminal", tty: "/dev/ttys005")),
             DetectedSession(key: "5f0c1e2a-7b3d-4c8e-9a61-0d2f4b6c8e10", tool: .claude, exact: true, project: "notchmeter", branch: "feat/zero-config",
                             model: "Opus 5.5", name: detectedTitle, started: now.addingTimeInterval(-41 * 60), lastActivity: now, busy: true,
                             busySince: now.addingTimeInterval(-(3 * 60 + 12)),
@@ -210,6 +218,8 @@ enum DemoFixtures {
     static let scoutTitle = "Draft the Friday sports recap"
     /// Claude Code's own title for the first launch's session, as its transcript carries it.
     static let detectedTitle = "Find sessions without the hook"
+    /// The first launch's session that only the status line has reported.
+    static let statuslineSessionID = "9b4d7a3e-2c1f-4e6a-8d05-3f7b9c1e2a44"
     /// The notchmeter session's task list, as Claude Code's Task tools would leave it partway through the turn.
     static let todoItems = [
         TodoPlan.Item(content: "Read the Sessions card and its tests", status: .completed),

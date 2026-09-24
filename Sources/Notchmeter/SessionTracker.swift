@@ -297,15 +297,23 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// Where the session's state comes from. `.hook` once any hook event has been applied to it: its turns start,
     /// end and wait on the assistant's own word. `.detected` while only the scan has seen it: working or idle is a
     /// guess from the process and its files, it never waits, and a turn's end is not an event (docs/accuracy.md,
-    /// *Sessions found without the hook*). The card marks a detected row as such, and the hook's first event for
-    /// the session makes it `.hook` for good. A session the status line alone created counts as the hook's, as it
-    /// always has: the status line is Notchmeter's own entry in the same settings file, and the scan leaves it be.
+    /// *Sessions found without the hook*). `.statusline` while only Claude Code's status line has reported it: its
+    /// figures (the model, the name, the context fill, the line counts) are Claude Code's own and stand, but the
+    /// status line says nothing of a turn's start or end, so its working or idle is the scan's guess as for a
+    /// detected row. The Welcome flow installs the status line even when the hook is declined, so this is the
+    /// common half-set-up session, and until 0.9.0 it sat idle with no mark and no offer of the hook. The card
+    /// marks both kinds as found without the hook (`isDetected`), and the hook's first event for the session makes
+    /// it `.hook` for good.
     enum Source: String, Equatable, Sendable {
-        case hook, detected
+        case hook, detected, statusline
     }
 
     let id: String
     var source: Source = .hook
+
+    /// Found without the hook, by the scan or by the status line: its working is a guess, it never waits, never
+    /// lights a finish and never holds the Mac awake, and the card marks it so and offers the hook.
+    var isDetected: Bool { source != .hook }
     /// Which assistant this session belongs to. Claude Code's and Cursor's hooks both report, and each one's
     /// sessions light its own ring; the field is the typed home of that fact, so no view has to ask "is this
     /// Claude?" in order to know what a session means, and a third hook lights the same lamps without a change
@@ -507,6 +515,14 @@ struct SessionTracker: Equatable, Sendable {
     /// removal would (`dismissed`): a terminal left open and a Cursor conversation closed without a word both look
     /// like this, and four hours of rows for them was clutter. It comes back whole with its next event.
     static let idleAfter: TimeInterval = 30 * 60
+    /// How long after a hook's `SessionEnd` the scan leaves that session id alone (`ended`). Claude Code runs the
+    /// hook on its way out, while its process is still there and before its `sessions/<pid>.json` goes ("removed
+    /// when its session exits", the Claude directory page, read 2026-09-24), so a scan inside that window still
+    /// finds the session and put a fresh detected row where the ended one had been, for the one scan until the
+    /// next took it off again: a flicker on the card and an added/removed pair in the oracle. Fifteen seconds is
+    /// several scans at the running pace (3 s) and far past any teardown; a session file started after the end is
+    /// a new session under a reused id (`claude --resume`) and is taken whatever the clock says.
+    static let endedGrace: TimeInterval = 15
     static let unknownSession = "unknown"
 
     private(set) var sessions: [String: AgentSession] = [:]
@@ -517,6 +533,8 @@ struct SessionTracker: Equatable, Sendable {
     /// The detected sessions the last scan kept, on the list or set aside (`detected`): the ones the next scan
     /// takes off again when their process is gone. A hook's event takes its session out of here for good.
     private(set) var scanned: Set<String> = []
+    /// When a hook's `SessionEnd` last ended each session, for `endedGrace`; pruned by `expire`.
+    private(set) var ended: [String: Date] = [:]
     /// The tools whose hook has ever reported. Kept per tool because a hook is proof about its own tool only: a
     /// Cursor event says nothing about how many Claude Code sessions there are, and a Claude ring told "zero
     /// sessions" on Cursor's word would go quiet on a window that is being spent.
@@ -528,8 +546,9 @@ struct SessionTracker: Equatable, Sendable {
     var waiting: [AgentSession] { all.filter(\.isWaiting) }
     var working: [AgentSession] { all.filter(\.isWorking) }
     /// The sessions working on the hook's word, which is what the awake assertion holds the Mac for: a detected
-    /// session's working is a guess that can outlast its turn, and a guess does not keep a Mac out of sleep.
-    var hookWorking: [AgentSession] { working.filter { $0.source == .hook } }
+    /// session's working, and a status line's row's, is a guess that can outlast its turn, and a guess does not
+    /// keep a Mac out of sleep.
+    var hookWorking: [AgentSession] { working.filter { !$0.isDetected } }
     var quotaWaiting: [AgentSession] { all.filter(\.quotaWait) }
     var count: Int { sessions.count }
     /// Subagents running under every session.
@@ -685,8 +704,11 @@ struct SessionTracker: Equatable, Sendable {
             if sessions[id]?.isWaiting == true { outcome.stoppedWaiting.append(id) }
             if let pending = sessions[id]?.pending { outcome.requestsEnded.append(EndedRequest(sessionID: id, requestID: pending.id)) }
             sessions[id] = nil
+            // The process is still going as this arrives; the scan leaves the id alone for `endedGrace`.
+            ended[id] = now
             return outcome
         }
+        ended[id] = nil
         if sessions[id] == nil, message.host == nil { absorbDetected(tool: message.tool, project: message.project) }
         var session = sessions[id] ?? AgentSession(id: id, tool: message.tool, project: message.project, state: .idle, started: now, lastEvent: now,
                                                    turnStarted: nil, host: message.host)
@@ -873,7 +895,16 @@ struct SessionTracker: Equatable, Sendable {
         // A removed or aged-out session that redraws its status line is back, as `apply` brings one back: made anew
         // here, it lost its title and figures, and the set-aside copy overwrote it at the next hook event.
         if let returning = dismissed.removeValue(forKey: sessionID) { sessions[sessionID] = returning }
-        var session = sessions[sessionID] ?? AgentSession(id: sessionID, project: project, state: .idle, started: now, lastEvent: now, turnStarted: nil)
+        var session: AgentSession
+        if let existing = sessions[sessionID] {
+            session = existing
+        } else {
+            // Made by the status line alone: its figures are Claude Code's own, but nothing here says when a turn
+            // starts or ends, so the scan says whether it is working (`detected`) and the card marks it as found
+            // without the hook until a hook event makes it the hook's (AgentSession.Source.statusline).
+            session = AgentSession(id: sessionID, project: project, state: .idle, started: now, lastEvent: now, turnStarted: nil)
+            session.source = .statusline
+        }
         if session.project == nil { session.project = project }
         if let branch { session.branch = branch }
         session.prURL = prURL ?? session.prURL
@@ -920,17 +951,27 @@ struct SessionTracker: Equatable, Sendable {
     /// Takes one scan's rows (SessionDetector). The hook always wins:
     ///
     /// - A row under an id the hook has reported (on the list or set aside) is not the scan's: the hook's session
-    ///   stands, however much more the scan knows about it.
+    ///   stands, however much more the scan knows about it. A row the status line alone made (`Source.statusline`)
+    ///   is the scan's for its state: the status line reports figures and never a turn, so the scan's working or
+    ///   idle goes onto it as onto a detected row, while the model, the name and the context fill the status line
+    ///   gave it stand.
+    /// - An id the hook ended inside `endedGrace` is left alone: Claude Code sends `SessionEnd` while its process
+    ///   and session file are still there, and a scan in that window would put the row straight back. A session
+    ///   file started after the end is a new session under a reused id, and is taken.
     /// - A process-keyed row (`DetectedSession.exact` false) cannot be matched by id, so the hook's sessions of the
     ///   same assistant and project on this Mac account for that many of its processes, busiest first, and only the
     ///   rest are rows. Two Codex sessions in one repository with one of them reporting through the hook are one
-    ///   hook row and one detected row, never three.
+    ///   hook row and one detected row, never three. A hook session set aside still accounts for its process while
+    ///   it is working or has spoken inside `idleAfter`, so removing a hook row does not conjure a detected twin;
+    ///   older than that it accounts for nothing: Cursor and Codex send no end when a chat is closed, and a dead
+    ///   session set aside by the clock would otherwise hide a live process of the same assistant and project for
+    ///   the four hours `staleAfter` keeps it.
     /// - A detected row is added only while it is working or was active inside `idleAfter`, which is the age an
     ///   idle hook session is set aside at: a terminal left open all day with an assistant idle in it is not news
     ///   at launch. One the user removed (`dismiss`) or that aged out comes back only when it has done something
     ///   since.
-    /// - A row whose process has gone is taken off, on the list or set aside. A session the scan did not add (the
-    ///   hook's, or the status line's) is never taken off by it.
+    /// - A row whose process has gone is taken off, on the list or set aside: a detected row, or a status line's
+    ///   row the scan had matched to its process. A hook's session is never taken off by the scan.
     ///
     /// A busy row stays working from the first scan that saw it busy (or from Claude Code's own `statusUpdatedAt`)
     /// until a scan sees it idle, and its `lastEvent` moves at most once a minute while it works, so a working row
@@ -938,17 +979,19 @@ struct SessionTracker: Equatable, Sendable {
     @discardableResult
     mutating func detected(_ found: [DetectedSession], now: Date) -> DetectionChange {
         var change = DetectionChange()
-        let workingBefore = Set(sessions.values.filter { $0.source == .detected && $0.isWorking }.map(\.id))
+        let workingBefore = Set(sessions.values.filter { $0.isDetected && $0.isWorking }.map(\.id))
         let named = Set(found.filter(\.exact).map(\.key))
         var accounted: [Slot: Int] = [:]
-        for session in Array(sessions.values) + Array(dismissed.values)
-        where session.source == .hook && session.host == nil && !named.contains(session.id) {
+        let setAsideRecently = dismissed.values.filter { $0.isWorking || now.timeIntervalSince($0.lastEvent) < Self.idleAfter }
+        for session in Array(sessions.values) + setAsideRecently
+        where session.source != .detected && session.host == nil && !named.contains(session.id) {
             accounted[Slot(tool: session.tool, project: session.project), default: 0] += 1
         }
         var kept: [DetectedSession] = []
         for entry in found.sorted(by: Self.busiestFirst) {
             if entry.exact {
                 if (sessions[entry.key] ?? dismissed[entry.key])?.source == .hook { continue }
+                if let endedAt = ended[entry.key], now.timeIntervalSince(endedAt) < Self.endedGrace, entry.started <= endedAt { continue }
             } else {
                 let slot = Slot(tool: entry.tool, project: entry.project)
                 if let count = accounted[slot], count > 0 {
@@ -960,11 +1003,11 @@ struct SessionTracker: Equatable, Sendable {
         }
         let keys = Set(kept.map(\.key))
         for key in scanned.sorted() where !keys.contains(key) {
-            if sessions[key]?.source == .detected {
+            if sessions[key]?.isDetected == true {
                 sessions[key] = nil
                 change.removed.append(key)
             }
-            if dismissed[key]?.source == .detected { dismissed[key] = nil }
+            if dismissed[key]?.isDetected == true { dismissed[key] = nil }
         }
         var managed: Set<String> = []
         for entry in kept {
@@ -1001,7 +1044,8 @@ struct SessionTracker: Equatable, Sendable {
             if let project = entry.project { session.project = project }
             if let branch = entry.branch { session.branch = branch }
             if let model = entry.model, !session.modelFromStatusline { session.model = model }
-            if let name = entry.name { session.sessionName = name }
+            // The status line's name is Claude Code's own word for the same thing, and stands while it has one.
+            if let name = entry.name, session.source != .statusline || session.sessionName == nil { session.sessionName = name }
             if let terminal = entry.terminal { session.terminal = session.terminal?.merging(terminal) ?? terminal }
             if entry.busy {
                 if !session.isWorking {
@@ -1021,7 +1065,7 @@ struct SessionTracker: Equatable, Sendable {
         }
         scanned = managed
         change.added.sort()
-        change.working = sessions.values.filter { $0.source == .detected && $0.isWorking }.map(\.id).sorted()
+        change.working = sessions.values.filter { $0.isDetected && $0.isWorking }.map(\.id).sorted()
         change.workingChanged = Set(change.working) != workingBefore
         return change
     }
@@ -1050,6 +1094,7 @@ struct SessionTracker: Equatable, Sendable {
     mutating func expire(now: Date) -> [String] {
         var stoppedWaiting: [String] = []
         dismissed = dismissed.filter { now.timeIntervalSince($0.value.lastEvent) < Self.staleAfter }
+        ended = ended.filter { now.timeIntervalSince($0.value) < Self.endedGrace }
         for (id, var session) in sessions {
             if now.timeIntervalSince(session.lastEvent) >= Self.staleAfter {
                 if session.isWaiting { stoppedWaiting.append(id) }

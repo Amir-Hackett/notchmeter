@@ -21,9 +21,10 @@ import SwiftUI
 /// yet the card stays, with one quiet line, so an empty list reads as "nothing running" and not as "not set up".
 ///
 /// The card asserts only what a hook said: a title is the prompt's first line the hook sent and the store kept,
-/// a terminal is the one the hook's own environment named, and the clock is the turn's own start. A row the scan
-/// found without the hook says so: a quiet *detected* mark beside the assistant's chip, whose help and spoken value
-/// say its working is a guess and a wait is never shown; and while any such row's assistant has no hook, the card
+/// a terminal is the one the hook's own environment named, and the clock is the turn's own start. A row found
+/// without the hook, by the scan or by Claude Code's status line alone (AgentSession.isDetected), says so: a quiet
+/// *detected* mark beside the assistant's chip, whose help, and the row's spoken value and hint, say its working is
+/// a guess and a wait is never shown; and while any such row's assistant has no hook, the card
 /// ends on one line saying what the hook adds, with a button that opens its install flow (`HookUpgradeLine`). One
 /// `TimelineView` drives every row, at a second while anything is working or waiting and a minute otherwise,
 /// because a second timeline per row is a redraw per row per second for as long as the panel is open. Titles and
@@ -76,10 +77,14 @@ struct SessionsCard: View {
         let contextUsed: Double?
         /// Claude Code's task list; its text is gone when titles are hidden, and the counts stay.
         let todos: TodoPlan?
-        /// Found without the hook (AgentSession.Source.detected): its working is a guess and it never waits.
-        let detected: Bool
+        /// Where the session's state comes from (AgentSession.Source), for the oracle's snapshot.
+        let source: AgentSession.Source
 
         enum Note: Equatable, Sendable { case waitingForAnswer, doneJump, justFinished }
+
+        /// Found without the hook, by the scan or by the status line alone (AgentSession.isDetected): its working
+        /// is a guess and it never waits, so the row wears the mark and the card may offer the hook.
+        var detected: Bool { source != .hook }
 
         /// The row asks something of the reader: it takes the tinted wash and the accent bar.
         var needsYou: Bool { status == .waiting || note == .waitingForAnswer }
@@ -122,7 +127,7 @@ struct SessionsCard: View {
                        branch: lines.branch, place: lines.place, model: session.model, host: lines.host, group: groupName(of: session),
                        since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
                        status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
-                       todos: hideTitles ? session.todos?.withoutContent() : session.todos, detected: session.source == .detected)
+                       todos: hideTitles ? session.todos?.withoutContent() : session.todos, source: session.source)
         }
         return (rows, max(0, sessions.count - rowCap))
     }
@@ -227,12 +232,12 @@ struct SessionsCard: View {
     }
 
     /// What the oracle's snapshot says of the card: the rows as drawn, in order, with their group, status, source
-    /// (`hook` or `detected`) and the counts they carry, never a title or a task's text (docs/testing.md).
+    /// (`hook`, `detected` or `statusline`) and the counts they carry, never a title or a task's text (docs/testing.md).
     static func oracleRows(_ groups: [Group]) -> [[String: Any]] {
         groups.flatMap { group in
             group.rows.map { row -> [String: Any] in
                 ["id": row.id, "group": group.name as Any, "status": row.status.oracleName, "agents": row.agents.count,
-                 "source": row.detected ? AgentSession.Source.detected.rawValue : AgentSession.Source.hook.rawValue,
+                 "source": row.source.rawValue,
                  "context": row.contextUsed.map(Oracle.fraction) as Any,
                  "todos": row.todos.map { ["done": $0.done, "total": $0.total] } as Any]
             }
@@ -527,6 +532,9 @@ private struct SessionRow: View {
                                         row.branch, placeParts.joined(separator: ", "),
                                         ResetText.duration(max(0, now.timeIntervalSince(row.since))), row.note.map(noteText),
                                         advice.isEmpty ? nil : advice.map(Spoken.phrase).joined(separator: " ")))
+        // What the detected mark's tooltip says, for a reader who cannot hover: the spoken waiting state is what
+        // such a reader relies on, and this row will never speak one.
+        .accessibilityHint(row.detected ? L("Working is a guess, and a wait for your answer is not shown without the hook.") : "")
     }
 
     // MARK: The extras line
@@ -788,10 +796,11 @@ private struct StatusMark: View {
     }
 }
 
-/// The quiet mark on a row found without the hook (AgentSession.Source.detected): the word in the caption's colour
-/// inside a dashed outline, so it reads as a note about the row rather than a second chip, and says what it says in
-/// words and not by a colour. Its help is what the scan cannot know; VoiceOver hears the same in the row's value
-/// (`SessionRow.content`), so the mark itself is not a second stop.
+/// The quiet mark on a row found without the hook (AgentSession.isDetected: the scan's rows, and the status line's):
+/// the word in the caption's colour inside a dashed outline, so it reads as a note about the row rather than a
+/// second chip, and says what it says in words and not by a colour. Its help is what the scan cannot know;
+/// VoiceOver hears the same in the row's value and hint (`SessionRow.content`), so the mark itself is not a second
+/// stop.
 private struct DetectedMark: View {
     var body: some View {
         Text(L("detected"))

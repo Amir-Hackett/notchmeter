@@ -46,7 +46,8 @@ import Testing
     }
 
     /// `KERN_PROCARGS2` is the count, the executable's path, padding, the arguments and then the environment; the
-    /// parse stops at the second argument and never reaches the environment.
+    /// parse stops at the second argument, and at the count whatever the limit, so it never reaches the
+    /// environment: the buffer's count of 3 is what keeps `SECRET=hunter2` out, not the limit.
     @Test func theArgumentParseStopsBeforeTheEnvironment() {
         var buffer: [UInt8] = withUnsafeBytes(of: Int32(3)) { Array($0) }
         let padding: [UInt8] = [0, 0, 0]
@@ -61,7 +62,63 @@ import Testing
         #expect(parsed == ["node", "/opt/homebrew/bin/gemini"])
         #expect(!parsed.joined().contains("SECRET"))
         #expect(SessionDetector.parseArguments(buffer, limit: 1) == ["node"])
+        #expect(SessionDetector.parseArguments(buffer, limit: 10) == ["node", "/opt/homebrew/bin/gemini", "--yolo"],
+                "a limit past the count still stops at the count, before the environment")
         #expect(SessionDetector.parseArguments([1, 0]).isEmpty, "too short to hold a count")
+    }
+}
+
+/// The detector's cache of transcript facts under *Show what a session is working on* (SessionDetector.allowTitles):
+/// with titles off nothing of a title is parsed or held, whatever the transcript says, and what was held goes the
+/// moment the setting turns off; read through a fixture root, so no process of this Mac is scanned.
+@Suite struct SessionDetectorTitleCache {
+    let t0 = DateParsing.iso8601("2026-09-24T12:00:00Z")!
+
+    /// A configuration root with one transcript in it, shaped as Claude Code lays them out.
+    func fixtureRoot(lines: [String]) throws -> (root: URL, cwd: String) {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("NotchmeterTests.detector-\(UUID().uuidString)")
+        let cwd = "/Users/x/proj"
+        let folder = root.appendingPathComponent("projects").appendingPathComponent(SessionDetection.transcriptFolder(cwd: cwd))
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data(lines.joined(separator: "\n").utf8).write(to: folder.appendingPathComponent("s.jsonl"))
+        return (root, cwd)
+    }
+
+    let lines = [
+        #"{"type":"custom-title","customTitle":"Renamed by me","sessionId":"s"}"#,
+        #"{"type":"ai-title","aiTitle":"Claude's own title","sessionId":"s"}"#,
+        #"{"type":"assistant","gitBranch":"feat/x","message":{"model":"claude-opus-5-5","content":[]}}"#,
+    ]
+
+    @Test func withTitlesOffNoTitleIsParsedOrHeld() async throws {
+        let (root, cwd) = try fixtureRoot(lines: lines)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let detector = SessionDetector(configDirs: [root])
+        await detector.allowTitles(false)
+        let facts = try #require(await detector.transcript(session: "s", cwd: cwd, root: root, titles: false, now: t0)).facts
+        #expect(facts.customTitle == nil && facts.aiTitle == nil)
+        #expect(facts.model == "claude-opus-5-5" && facts.branch == "feat/x", "the model and the branch are not a prompt's words")
+        #expect(await detector.heldTitles().isEmpty)
+    }
+
+    /// Titles on, the transcript's titles are read and held; the setting turning off drops them from the cache at
+    /// once, and a later read with it still off holds none; on again, the next read brings them back.
+    @Test func turningTitlesOffDropsWhatWasHeldAndOnReadsItAgain() async throws {
+        let (root, cwd) = try fixtureRoot(lines: lines)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let detector = SessionDetector(configDirs: [root])
+        let held = try #require(await detector.transcript(session: "s", cwd: cwd, root: root, titles: true, now: t0)).facts
+        #expect(held.customTitle == "Renamed by me" && held.aiTitle == "Claude's own title")
+        #expect(await detector.heldTitles() == ["s": ["Renamed by me", "Claude's own title"]])
+        await detector.allowTitles(false)
+        #expect(await detector.heldTitles().isEmpty, "the cache holds nothing of a prompt the moment the setting is off")
+        let off = try #require(await detector.transcript(session: "s", cwd: cwd, root: root, titles: false, now: t0.addingTimeInterval(20))).facts
+        #expect(off.customTitle == nil && off.aiTitle == nil)
+        #expect(off.model == "claude-opus-5-5")
+        #expect(await detector.heldTitles().isEmpty)
+        await detector.allowTitles(true)
+        let on = try #require(await detector.transcript(session: "s", cwd: cwd, root: root, titles: true, now: t0.addingTimeInterval(40))).facts
+        #expect(on.customTitle == "Renamed by me", "on again, the unchanged file is read once more for the title")
     }
 }
 
@@ -92,6 +149,7 @@ import Testing
         let file = try #require(SessionDetection.claudeFile(from: Data(named.utf8)))
         #expect(file.name == "Refactor the card", "cleaned as a prompt's first line is")
         #expect(file.busy == false)
+        #expect(try #require(SessionDetection.claudeFile(from: Data(named.utf8), titles: false)).name == nil, "titles off, the name is not read")
         let odd = #"{"pid":7,"sessionId":"s","status":"thinking-hard"}"#
         #expect(try #require(SessionDetection.claudeFile(from: Data(odd.utf8))).busy == nil, "a status nobody documents is not guessed at")
         let print = #"{"pid":7,"sessionId":"s","kind":"print"}"#
@@ -134,6 +192,9 @@ import Testing
         #expect(facts.model == "claude-opus-5-5", "a synthetic model is not a model")
         #expect(facts.branch == "feat/zero-config", "the newest line's branch")
         #expect(SessionDetection.transcriptFacts(tail: Data()) == SessionDetection.TranscriptFacts())
+        // Titles off: the title lines are not parsed at all, and the rest is read as before.
+        let untitled = SessionDetection.transcriptFacts(tail: Data(lines.joined(separator: "\n").utf8), titles: false)
+        #expect(untitled == SessionDetection.TranscriptFacts(model: "claude-opus-5-5", branch: "feat/zero-config"))
     }
 
     @Test func aModelIdReadsAsItsFamilyAndVersion() {

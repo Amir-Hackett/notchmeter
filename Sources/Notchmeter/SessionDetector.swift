@@ -4,8 +4,11 @@ import Foundation
 /// The live half of SessionDetection: one scan of this user's processes and of Claude Code's session files, off
 /// the main thread, turned into the rows the tracker takes (`SessionTracker.detected`). An actor, because it keeps
 /// what one scan needs from the last: each process's CPU time (the busy guess is a difference), when it was last
-/// seen busy, the transcript facts already read, and the terminal and project already resolved for a process or a
-/// folder, so a scan of an unchanged Mac is a process listing and a few `stat`s.
+/// seen busy, the transcript facts already read, and the terminal already resolved for a process (the walk asks
+/// LaunchServices about each ancestor), so a scan of an unchanged Mac is a process listing and a few `stat`s. The
+/// project and the branch are read afresh on every scan: a folder becomes a checkout or a worktree while its
+/// assistant runs (`git init`, `git worktree add`), and a name kept for the actor's lifetime said the old thing
+/// until the app was relaunched, while a hook row for the same folder said the new one.
 ///
 /// Every read is of this user's own processes and files, and none of it is written anywhere: the process table
 /// through libproc (no permission is needed for one's own processes, and another user's are never asked about),
@@ -13,7 +16,10 @@ import Foundation
 /// opened), and at most `SessionDetection.transcriptTail` bytes of a transcript's end, no more often than
 /// `SessionDetection.transcriptRereadAfter` and only once it has changed. A process's arguments are read only for
 /// a candidate (`SessionDetection.isCandidate`), and only the first two; its environment, which the same sysctl
-/// returns after them, is never parsed.
+/// returns after them, is never parsed. A session's title (a `/rename`, a `--name`, Claude Code's own) is read
+/// only while `scan(titles:)` allows it, and the moment it stops being allowed every title already read is dropped
+/// from the cache here (`allowTitles`): with *Show what a session is working on* off, or the screen shared, nothing
+/// of a prompt is held anywhere in the app (docs/privacy.md), this actor's memory included.
 actor SessionDetector {
     /// What one scan found: the rows, and whether any assistant process is running at all, which sets the cadence.
     struct Scan: Sendable {
@@ -27,7 +33,9 @@ actor SessionDetector {
         let started: TimeInterval
     }
 
-    private struct Transcript {
+    /// One transcript across scans. Not private only because `transcript(session:cwd:root:titles:now:)` hands it
+    /// to a test; nothing outside this actor keeps one.
+    struct Transcript {
         let url: URL
         /// The newest modification time seen, which the busy guess reads.
         var modified: Date?
@@ -36,6 +44,23 @@ actor SessionDetector {
         var readSize = -1
         var facts = SessionDetection.TranscriptFacts()
         var readAt = Date.distantPast
+
+        /// Whether a title is held.
+        var hasTitle: Bool { facts.customTitle != nil || facts.aiTitle != nil }
+
+        /// The same facts with both titles gone.
+        mutating func dropTitles() {
+            facts.customTitle = nil
+            facts.aiTitle = nil
+        }
+
+        /// Makes the next read due whether or not the file changed (still no sooner than
+        /// `SessionDetection.transcriptRereadAfter`): what titles allowed again needs, since the titles were
+        /// dropped from the facts and the file may not change for a while.
+        mutating func forgetRead() {
+            readModified = nil
+            readSize = -1
+        }
     }
 
     private let configDirs: [URL]
@@ -47,7 +72,8 @@ actor SessionDetector {
     /// Transcripts by Claude Code session id; a miss is remembered with the time it was looked for.
     private var transcripts: [String: Transcript] = [:]
     private var misses: [String: Date] = [:]
-    private let projects = ProjectName.Resolver()
+    /// What the last scan was allowed (`allowTitles`), so the change of it is acted on once.
+    private var titlesAllowed = true
     private let timebase: Double
 
     /// `configDirs` are Claude Code's configuration folders as ClaudeCostScanner finds them (`$CLAUDE_CONFIG_DIR`,
@@ -70,10 +96,14 @@ actor SessionDetector {
     }
 
     /// One scan. `titles` is whether a session's name may be read at all (Preferences.sessionTitles, and not while
-    /// the screen is shared): with it off no title is taken from a transcript or a session file.
+    /// the screen is shared): with it off no title is taken from a transcript or a session file, and none is kept
+    /// from before. The project resolver is the scan's own, as the cost scanner's is (ProjectName.Resolver: one per
+    /// scan); the walk is a few `stat`s per folder, and a name that could go stale is not worth them.
     func scan(titles: Bool, now: Date = Date()) -> Scan {
+        allowTitles(titles)
+        let projects = ProjectName.Resolver()
         let matched = assistants()
-        let files = matched.contains { $0.tool == .claude } ? claudeFiles() : []
+        let files = matched.contains { $0.tool == .claude } ? claudeFiles(titles: titles) : []
         let planned = SessionDetection.plan(matched, claudeFiles: files.map(\.file))
         var sessions: [DetectedSession] = []
         var seen: Set<Identity> = []
@@ -86,7 +116,7 @@ actor SessionDetector {
             var facts: SessionDetection.TranscriptFacts?
             var modified: Date?
             if let file = entry.claude, let root = files.first(where: { $0.file.sessionID == file.sessionID })?.root {
-                let transcript = transcript(session: file.sessionID, cwd: entry.cwd, root: root, now: now)
+                let transcript = transcript(session: file.sessionID, cwd: entry.cwd, root: root, titles: titles, now: now)
                 facts = transcript?.facts
                 modified = transcript?.modified
             }
@@ -105,6 +135,26 @@ actor SessionDetector {
         transcripts = transcripts.filter { live.contains($0.key) }
         misses = misses.filter { now.timeIntervalSince($0.value) < 60 }
         return Scan(sessions: sessions, running: !matched.isEmpty)
+    }
+
+    /// Whether titles may be read from here on. Turned off, every title already read goes from the cache at once,
+    /// not at each transcript's next read, which for an idle session may be hours away; turned on again, every
+    /// transcript is read again at its next chance (`Transcript.forgetRead`), since the facts held for it have no
+    /// title and the file may not change for a while. `scan(titles:)` calls this first; a test calls it directly.
+    func allowTitles(_ allowed: Bool) {
+        guard allowed != titlesAllowed else { return }
+        titlesAllowed = allowed
+        transcripts = transcripts.mapValues { transcript in
+            var transcript = transcript
+            if allowed { transcript.forgetRead() } else { transcript.dropTitles() }
+            return transcript
+        }
+    }
+
+    /// The titles the cache holds, by session, for the test that pins `allowTitles` and the read under it: the
+    /// answer with titles off is an empty table, whatever the transcripts say.
+    func heldTitles() -> [String: [String]] {
+        transcripts.filter(\.value.hasTitle).mapValues { [$0.facts.customTitle, $0.facts.aiTitle].compactMap { $0 } }
     }
 
     // MARK: - The process table
@@ -224,8 +274,9 @@ actor SessionDetector {
     // MARK: - Claude Code's files
 
     /// Every `sessions/<pid>.json` under the configuration folders, with the folder it was found in. Only names
-    /// that are a pid and `.json`: the `<pid>.<hash>.key` beside each is a secret and is never opened.
-    private func claudeFiles() -> [(file: SessionDetection.ClaudeFile, root: URL)] {
+    /// that are a pid and `.json`: the `<pid>.<hash>.key` beside each is a secret and is never opened. The file's
+    /// `name` is read only while `titles` allows it.
+    private func claudeFiles(titles: Bool) -> [(file: SessionDetection.ClaudeFile, root: URL)] {
         var result: [(SessionDetection.ClaudeFile, URL)] = []
         for root in configDirs {
             let folder = root.appendingPathComponent("sessions")
@@ -233,7 +284,7 @@ actor SessionDetector {
             for name in names where name.hasSuffix(".json") && name.dropLast(5).allSatisfy(\.isNumber) && name.count > 5 {
                 let url = folder.appendingPathComponent(name)
                 guard let values = try? url.resourceValues(forKeys: [.fileSizeKey]), (values.fileSize ?? 0) <= SessionDetection.claudeFileLimit,
-                      let data = try? Data(contentsOf: url), let file = SessionDetection.claudeFile(from: data) else { continue }
+                      let data = try? Data(contentsOf: url), let file = SessionDetection.claudeFile(from: data, titles: titles) else { continue }
                 result.append((file, root))
             }
         }
@@ -244,8 +295,10 @@ actor SessionDetector {
     /// `transcriptRereadAfter`. The file is `projects/<folder>/<session>.jsonl` under the root its session file
     /// came from, where the folder is the working directory's (`SessionDetection.transcriptFolder`); Claude Code
     /// shortens a very long folder name, so a miss looks through the folders once, and a second miss is not
-    /// looked for again for a minute.
-    private func transcript(session: String, cwd: String?, root: URL, now: Date) -> Transcript? {
+    /// looked for again for a minute. With `titles` off the title lines are not parsed and the facts kept hold no
+    /// title (`allowTitles` has already dropped any read before). Not private, so a test can read a fixture root
+    /// through it without a scan of this Mac's processes.
+    func transcript(session: String, cwd: String?, root: URL, titles: Bool, now: Date) -> Transcript? {
         let fm = FileManager.default
         var known = transcripts[session]
         if known == nil {
@@ -274,10 +327,11 @@ actor SessionDetector {
         if modified != transcript.readModified || size != transcript.readSize,
            now.timeIntervalSince(transcript.readAt) >= SessionDetection.transcriptRereadAfter,
            let tail = Self.tail(of: transcript.url, size: size) {
-            let facts = SessionDetection.transcriptFacts(tail: tail)
-            // A tail with no title in it keeps the one read before: an older part of the file still has it.
-            transcript.facts = SessionDetection.TranscriptFacts(customTitle: facts.customTitle ?? transcript.facts.customTitle,
-                                                                aiTitle: facts.aiTitle ?? transcript.facts.aiTitle,
+            let facts = SessionDetection.transcriptFacts(tail: tail, titles: titles)
+            // A tail with no title in it keeps the one read before: an older part of the file still has it. With
+            // titles off there is none to keep, and none is taken.
+            transcript.facts = SessionDetection.TranscriptFacts(customTitle: titles ? facts.customTitle ?? transcript.facts.customTitle : nil,
+                                                                aiTitle: titles ? facts.aiTitle ?? transcript.facts.aiTitle : nil,
                                                                 model: facts.model ?? transcript.facts.model,
                                                                 branch: facts.branch ?? transcript.facts.branch)
             transcript.readModified = modified

@@ -191,7 +191,7 @@
 "On a trial" = "トライアル中";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "オンのとき、新しいステータスラインが代わりにない間は 5 分ごとに Claude Code 自身のログインで api.anthropic.com の使用量エンドポイントを読み取ります。オフのときは Anthropic が文書化した経路であるステータスラインだけに頼ります。Claude のリングは Claude Code のターンの後にのみ埋まり、エンドポイントは一切問い合わせません。";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later." = "~/.claude/settings.json の一項目で、セッションの開始、ターンの終了、あなたを待っているときに Claude Code がノッチへ知らせ、ステータスラインは毎ターン後にコンテキストの使用率と公式の上限を渡します。どちらも先にバックアップされ、「設定 › 連携」から後で修復や削除ができます。";
-"One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "フックが報告したセッションごとに 1 行、新しい順に表示します。何に取り組んでいるか、どのアシスタントとどのターミナルで動いているか、ターンの経過時間、あなたを待っているかどうか。6 行まで表示し、残りは件数で示します。";
+"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "セッションごとに 1 行、フックが報告したものもフックなしで見つけたものも、新しい順に表示します。何に取り組んでいるか、どのアシスタントとどのターミナルで動いているか、ターンの経過時間、あなたを待っているかどうか。6 行まで表示し、残りは件数で示します。";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "「表示 › 自動」を選んだときだけ。最前面のアプリのメニュータイトルを避けて表示をずらすためで、メニューバーの位置と大きさ以外は何も読みません。";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "セッションのターミナルウインドウへ移動するときだけ、その最初の一回。アプリの他の部分が別のアプリを操作することはありません。";
 "Open Automation settings…" = "オートメーション設定を開く…";
@@ -909,6 +909,7 @@
 "detected" = "検出";
 "Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly." = "フックなしで、実行中のプロセスとそのファイルから見つけたセッションです。作業中かどうかは推測で、ターンより数秒遅れることがあり、回答待ちは表示されません。フックなら両方を正確に報告します。";
 "Found without the hook" = "フックなしで検出";
+"Working is a guess, and a wait for your answer is not shown without the hook." = "「作業中」は推測であり、フックがなければ回答待ちは表示されません。";
 "%@, as far as the running process and its files show" = "%@（実行中のプロセスとそのファイルからわかる範囲）";
 "Install the hook for exact turn ends and answering from the notch." = "フックをインストールすると、ターンの終わりが正確にわかり、ノッチから回答できます。";
 "Install the hook for exact turn ends." = "フックをインストールすると、ターンの終わりが正確にわかります。";

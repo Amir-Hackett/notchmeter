@@ -150,13 +150,16 @@ import Testing
     }
 
     /// The first launch (`expanded-detected.png`, `sessions-detected.png`): no hook anywhere, two sessions the scan
-    /// found, one working under Claude Code's own id and one idle under its process, no mark on any ring (a
-    /// detected session never waits and no finish is seen), and the card's upgrade line offering Claude Code's hook.
+    /// found, one working under Claude Code's own id and one idle under its process, one the status line alone
+    /// reported, idle by the scan's guess and marked like the others, no mark on any ring (a detected session never
+    /// waits and no finish is seen), and the card's upgrade line offering Claude Code's hook.
     @MainActor @Test func theFirstLaunchShowsDetectedSessionsAndOffersTheHook() {
         let (store, _) = DemoFixtures.store(now: now, moment: .firstLaunch)
         #expect(!store.hooksInstalled)
-        #expect(store.sessions.all.count == 2)
-        #expect(store.sessions.all.allSatisfy { $0.source == .detected })
+        #expect(store.sessions.all.count == 3)
+        #expect(store.sessions.all.allSatisfy { $0.isDetected })
+        #expect(store.sessions.sessions[DemoFixtures.statuslineSessionID]?.source == .statusline)
+        #expect(store.sessions.sessions[DemoFixtures.statuslineSessionID]?.contextUsed == 0.31, "the status line's own figure stays")
         #expect(store.sessions.working.map(\.tool) == [.claude])
         #expect(store.sessions.knownCount == nil, "nothing the hook said")
         for tool in ToolID.allCases {
