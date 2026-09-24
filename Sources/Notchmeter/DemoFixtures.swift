@@ -33,6 +33,10 @@ enum DemoFixtures {
         /// it explains the rings before it explains the marks, and a dot it has not yet named would be a question
         /// the page cannot answer.
         case working
+        /// The first launch, before any hook is installed (0.9.0): the sessions the scan found running without one
+        /// (SessionDetection), each marked detected, and the card's line offering the hook. A detected session
+        /// never waits and no turn's end is seen, so no ring carries a mark.
+        case firstLaunch
     }
 
     @MainActor
@@ -51,10 +55,12 @@ enum DemoFixtures {
                                cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
         store.seed(readings: readings, cost: cost(now: now), nextUpdate: now.addingTimeInterval(2 * 60 + 40),
                    sessions: sessions(now: now, moment: moment), now: now)
-        // The afternoon has the Claude Code hook installed, which is what keeps the Sessions card on the panel.
-        store.hooksInstalled = true
+        // The afternoon has the Claude Code hook installed, which is what keeps the Sessions card on the panel; the
+        // first launch has none, and the card is there for the sessions the scan found.
+        store.hooksInstalled = moment != .firstLaunch
+        store.hookInstalledTools = moment == .firstLaunch ? [] : [.claude]
         // The task list open on the notchmeter row, so the pictures show the checklist and not only its count.
-        store.openSessionLists = [SessionsCard.listKey("notchmeter", .todos)]
+        store.openSessionLists = moment == .firstLaunch ? [] : [SessionsCard.listKey("notchmeter", .todos)]
         return (store, prefs)
     }
 
@@ -72,6 +78,7 @@ enum DemoFixtures {
     /// waiting in notchmeter" rather than "1 session", which is the count the README claims the hook keeps; its
     /// own turn ended six minutes ago, far outside the hold, so it adds nothing to the ring in either moment.
     static func sessions(now: Date, moment: Moment) -> SessionTracker {
+        if moment == .firstLaunch { return detectedSessions(now: now) }
         var tracker = SessionTracker()
         func send(_ event: String, _ ago: TimeInterval, session: String, project: String, branch: String, type: String? = nil, title: String? = nil) {
             var message = Hook.Message(event: event, needsInput: Hook.needsInput(event: event, notificationType: type),
@@ -155,7 +162,28 @@ enum DemoFixtures {
         case .working:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+        case .firstLaunch:
+            break
         }
+        return tracker
+    }
+
+    /// Two sessions a first launch finds without any hook, fed through `SessionTracker.detected` as a scan hands
+    /// them over rather than set field by field, so the picture is a state the merge can reach: Claude Code working
+    /// in notchmeter under its own session id, with the title and model its transcript carries, and Codex idle in
+    /// scout under its process, with nothing read of its files. Both in a terminal the jump can reach.
+    static func detectedSessions(now: Date) -> SessionTracker {
+        var tracker = SessionTracker()
+        tracker.detected([
+            DetectedSession(key: "5f0c1e2a-7b3d-4c8e-9a61-0d2f4b6c8e10", tool: .claude, exact: true, project: "notchmeter", branch: "feat/zero-config",
+                            model: "Opus 5.5", name: detectedTitle, started: now.addingTimeInterval(-41 * 60), lastActivity: now, busy: true,
+                            busySince: now.addingTimeInterval(-(3 * 60 + 12)),
+                            terminal: TerminalRef(bundleID: "com.googlecode.iterm2", tty: "/dev/ttys006")),
+            DetectedSession(key: SessionTracker.key(tool: .codex, session: "\(SessionDetection.processKeyMarker)4211-1790240000", host: nil),
+                            tool: .codex, exact: false, project: "scout", branch: "main", started: now.addingTimeInterval(-2 * 3600),
+                            lastActivity: now.addingTimeInterval(-(7 * 60 + 30)), busy: false,
+                            terminal: TerminalRef(bundleID: "com.apple.Terminal", tty: "/dev/ttys003")),
+        ], now: now)
         return tracker
     }
 
@@ -171,7 +199,7 @@ enum DemoFixtures {
         case .waiting, .permissionRequest: reason = .approval
         case .question: reason = .question
         case .justFinished: reason = .finished
-        case .working: return nil
+        case .working, .firstLaunch: return nil
         }
         return NotchNews(reason: reason, sessionID: session.id, tool: session.tool, project: session.project, at: now)
     }
@@ -180,6 +208,8 @@ enum DemoFixtures {
     static let requestID = "demo-request"
     static let notchmeterTitle = "Add a Sessions card between the advice and the tool cards"
     static let scoutTitle = "Draft the Friday sports recap"
+    /// Claude Code's own title for the first launch's session, as its transcript carries it.
+    static let detectedTitle = "Find sessions without the hook"
     /// The notchmeter session's task list, as Claude Code's Task tools would leave it partway through the turn.
     static let todoItems = [
         TodoPlan.Item(content: "Read the Sessions card and its tests", status: .completed),

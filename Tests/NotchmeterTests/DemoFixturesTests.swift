@@ -149,6 +149,26 @@ import Testing
                 "the wait is added to the strip rather than pushed onto it: the burn line the panel picture has always shown must survive")
     }
 
+    /// The first launch (`expanded-detected.png`, `sessions-detected.png`): no hook anywhere, two sessions the scan
+    /// found, one working under Claude Code's own id and one idle under its process, no mark on any ring (a
+    /// detected session never waits and no finish is seen), and the card's upgrade line offering Claude Code's hook.
+    @MainActor @Test func theFirstLaunchShowsDetectedSessionsAndOffersTheHook() {
+        let (store, _) = DemoFixtures.store(now: now, moment: .firstLaunch)
+        #expect(!store.hooksInstalled)
+        #expect(store.sessions.all.count == 2)
+        #expect(store.sessions.all.allSatisfy { $0.source == .detected })
+        #expect(store.sessions.working.map(\.tool) == [.claude])
+        #expect(store.sessions.knownCount == nil, "nothing the hook said")
+        for tool in ToolID.allCases {
+            #expect(store.signal(tool, now: now) == nil)
+        }
+        let (rows, _) = SessionsCard.rows(store.sessions.all, hideTitles: false, jump: true, now: now)
+        #expect(rows.allSatisfy { $0.detected })
+        #expect(rows.allSatisfy { $0.canJump }, "each runs in a terminal the jump can reach")
+        #expect(rows.first?.title == DemoFixtures.detectedTitle)
+        #expect(SessionsCard.upgradeTool(rows, installed: store.hookInstalledTools) == .claude)
+    }
+
     @MainActor @Test func theSeededStoreShowsTheFinishedTurnInTheOtherMoment() {
         let (store, _) = DemoFixtures.store(now: now, moment: .justFinished)
         #expect(store.signal(.claude, now: now) == .finished(turn: turn))

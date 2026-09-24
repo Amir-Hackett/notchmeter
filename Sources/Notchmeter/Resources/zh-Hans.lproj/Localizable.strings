@@ -732,7 +732,7 @@
 "Weekly budget" = "每周预算";
 "Welcome to %@" = "欢迎使用 %@";
 "What %@ reads" = "%@ 读取什么";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "面板对钩子报告的每个会话显示什么，以及你可以在那里对它做什么。这一切都需要助手的钩子（集成）。";
+"What the panel shows of each session, and what you can do to it from there. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook (Integrations)." = "面板对每个会话显示什么，以及你可以在那里对它做什么。即使没有钩子也能找到会话；准确的每轮结束、等待、回答和任务列表需要助手的钩子（集成）。";
 "When crowded" = "空间不足时";
 "When a window resets" = "窗口重置时";
 "When an assistant waits for you, or a turn finishes" = "当助手等待你，或一轮结束时";
@@ -919,3 +919,15 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "将此项目的 Cursor 窗口移到前面（无法让 Cursor 打开某一个对话）";
 "First seen %@" = "首次发现于 %@";
+
+/* Sessions found without the hook: the setting, the detected mark and the card's upgrade line (SessionDetection, SessionsCard) */
+"Find sessions without the hook" = "无需钩子也查找会话";
+"Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's." = "在安装任何钩子之前，就列出终端中正在运行的 Claude Code、Codex、Cursor、Gemini CLI 和 Copilot 会话，依据是进程、其文件夹、Claude Code 自己的会话文件及其记录的末尾；全部只读，从不写入。这样的行会标为“已检测”：是否在工作只是推测，可能比这一轮晚几秒，也从不显示等待你回应的状态。钩子报告的会话始终以钩子为准。";
+"detected" = "已检测";
+"Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly." = "未经钩子，从正在运行的进程及其文件中找到。是否在工作只是推测，可能比这一轮晚几秒，且不会显示等待你回应的状态。钩子会准确报告这两者。";
+"Found without the hook" = "未经钩子找到";
+"%@, as far as the running process and its files show" = "%@（根据正在运行的进程及其文件判断）";
+"Install the hook for exact turn ends and answering from the notch." = "安装钩子，即可准确知道每轮何时结束，并从刘海处回答。";
+"Install the hook for exact turn ends." = "安装钩子，即可准确知道每轮何时结束。";
+"Install the hook…" = "安装钩子…";
+"Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first." = "在“设置 › 集成”中打开 %@ 钩子。在你在那里选择“添加”之前不会写入任何内容，并且会先备份该文件。";

@@ -4,6 +4,11 @@ Two optional features ask for a permission each: *Readouts › Auto* for Accessi
 for Automation of that session's terminal. A copy that has never had Auto picked and never had a row clicked is
 never asked anything, at launch or otherwise.
 
+Finding sessions without the hook (0.9.0, [docs/hooks.md](hooks.md#sessions-found-without-the-hook)) asks for nothing: it
+reads this user's own processes through libproc, the parent and tty of each process above them through `sysctl`, and
+Claude Code's files in the user's home folder, none of which needs a permission. A click on a row it found asks for
+Automation exactly as a hook row's does.
+
 ## Accessibility, only for *Readouts › Auto*
 
 *Readouts › Auto* (Settings › Appearance › Panel, or the Options menu) shifts the readouts clear of the frontmost app's menu

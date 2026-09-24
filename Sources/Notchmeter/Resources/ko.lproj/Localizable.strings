@@ -715,7 +715,7 @@
 "Weekly budget" = "주 예산";
 "Welcome to %@" = "%@에 오신 것을 환영합니다";
 "What %@ reads" = "%@이(가) 읽는 것";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "훅이 보고한 각 세션에 대해 패널이 무엇을 보여 주고, 거기서 무엇을 할 수 있는지. 모두 어시스턴트의 훅이 필요합니다(통합).";
+"What the panel shows of each session, and what you can do to it from there. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook (Integrations)." = "패널이 각 세션에 대해 무엇을 보여 주고, 거기서 무엇을 할 수 있는지. 세션은 훅 없이도 찾습니다. 정확한 턴 종료, 대기, 답변, 작업 목록에는 어시스턴트의 훅이 필요합니다(연동).";
 "When crowded" = "공간이 부족할 때";
 "When a window resets" = "창이 초기화될 때";
 "When an assistant waits for you, or a turn finishes" = "어시스턴트가 대기하거나 턴이 끝날 때";
@@ -902,3 +902,15 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "이 프로젝트의 Cursor 창을 앞으로 가져옵니다(Cursor에 특정 채팅을 열도록 요청할 수는 없습니다)";
 "First seen %@" = "처음 확인: %@";
+
+/* Sessions found without the hook: the setting, the detected mark and the card's upgrade line (SessionDetection, SessionsCard) */
+"Find sessions without the hook" = "훅 없이 세션 찾기";
+"Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's." = "훅을 설치하기 전에도 터미널에서 실행 중인 Claude Code, Codex, Cursor, Gemini CLI, Copilot 세션을 프로세스, 그 폴더, Claude Code 자체 세션 파일, 트랜스크립트의 끝에서 찾아 나열합니다. 모두 읽기만 하고 쓰지 않습니다. 이런 행에는 감지됨 표시가 붙습니다. 작업 중인지는 추정이라 턴보다 몇 초 늦을 수 있고, 답변을 기다리는 상태는 표시되지 않습니다. 훅이 보고하는 세션은 항상 훅의 것입니다.";
+"detected" = "감지됨";
+"Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly." = "훅 없이 실행 중인 프로세스와 그 파일에서 찾은 세션입니다. 작업 중인지는 추정이라 턴보다 몇 초 늦을 수 있고, 답변을 기다리는 상태는 표시되지 않습니다. 훅은 둘 다 정확히 알려 줍니다.";
+"Found without the hook" = "훅 없이 찾음";
+"%@, as far as the running process and its files show" = "%@ (실행 중인 프로세스와 그 파일로 알 수 있는 범위)";
+"Install the hook for exact turn ends and answering from the notch." = "훅을 설치하면 턴이 끝나는 때를 정확히 알 수 있고 노치에서 답할 수 있습니다.";
+"Install the hook for exact turn ends." = "훅을 설치하면 턴이 끝나는 때를 정확히 알 수 있습니다.";
+"Install the hook…" = "훅 설치…";
+"Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first." = "설정 › 연동에서 %@ 훅을 엽니다. 거기서 추가를 선택하기 전에는 아무것도 기록되지 않으며, 파일은 먼저 백업됩니다.";

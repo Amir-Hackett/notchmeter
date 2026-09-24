@@ -715,7 +715,7 @@
 "Weekly budget" = "Ngân sách tuần";
 "Welcome to %@" = "Chào mừng đến với %@";
 "What %@ reads" = "%@ đọc những gì";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "Bảng hiển thị gì về mỗi phiên do hook báo cáo, và bạn có thể làm gì với nó từ đó. Tất cả đều cần hook của trợ lý (Tích hợp).";
+"What the panel shows of each session, and what you can do to it from there. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook (Integrations)." = "Bảng hiển thị gì về mỗi phiên, và bạn có thể làm gì với nó từ đó. Phiên cũng được tìm thấy mà không cần hook; thời điểm kết thúc lượt chính xác, việc chờ, việc trả lời và danh sách việc cần hook của trợ lý (Tích hợp).";
 "When crowded" = "Khi chật chỗ";
 "When a window resets" = "Khi một cửa sổ đặt lại";
 "When an assistant waits for you, or a turn finishes" = "Khi một trợ lý chờ bạn, hoặc một lượt xong";
@@ -902,3 +902,15 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Đưa cửa sổ Cursor của dự án này lên trước (không thể yêu cầu Cursor mở một cuộc trò chuyện cụ thể)";
 "First seen %@" = "Thấy lần đầu lúc %@";
+
+/* Sessions found without the hook: the setting, the detected mark and the card's upgrade line (SessionDetection, SessionsCard) */
+"Find sessions without the hook" = "Tìm phiên mà không cần hook";
+"Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's." = "Liệt kê các phiên Claude Code, Codex, Cursor, Gemini CLI và Copilot đang chạy trong terminal trước khi cài bất kỳ hook nào, từ tiến trình, thư mục của nó, các tệp phiên riêng của Claude Code và phần cuối bản ghi của nó; tất cả chỉ được đọc, không bao giờ ghi. Dòng như vậy được đánh dấu là phát hiện: việc nó có đang làm việc hay không chỉ là ước đoán, có thể chậm hơn lượt vài giây, và nó không bao giờ hiển thị việc chờ bạn trả lời. Phiên do hook báo luôn thuộc về hook.";
+"detected" = "phát hiện";
+"Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly." = "Tìm thấy mà không cần hook, từ tiến trình đang chạy và các tệp của nó. Việc phiên có đang làm việc hay không chỉ là ước đoán, có thể chậm hơn lượt vài giây, và việc chờ bạn trả lời không được hiển thị. Hook báo chính xác cả hai.";
+"Found without the hook" = "Tìm thấy mà không cần hook";
+"%@, as far as the running process and its files show" = "%@, theo những gì tiến trình đang chạy và các tệp của nó cho thấy";
+"Install the hook for exact turn ends and answering from the notch." = "Cài hook để biết chính xác khi nào lượt kết thúc và trả lời từ notch.";
+"Install the hook for exact turn ends." = "Cài hook để biết chính xác khi nào lượt kết thúc.";
+"Install the hook…" = "Cài hook…";
+"Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first." = "Mở hook %@ trong Cài đặt › Tích hợp. Không có gì được ghi cho đến khi bạn chọn Thêm ở đó, và tệp được sao lưu trước.";

@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Every session the hooks know about, one row each (Preferences.sessionsCard): at the top of the panel while any
+/// Every session the hooks know about, and every one found running without them (SessionDetection), one row each
+/// (Preferences.sessionsCard): at the top of the panel while any
 /// of them is working, waiting or holding a request, and between the Advice strip and the tool cards otherwise
 /// (PanelLayout.sessionsLead). How many there are is the panel header's to say (PanelHeader), directly above
 /// the card whenever it leads, so the card's own title line no longer repeats it. A row says what its session is
@@ -20,7 +21,10 @@ import SwiftUI
 /// yet the card stays, with one quiet line, so an empty list reads as "nothing running" and not as "not set up".
 ///
 /// The card asserts only what a hook said: a title is the prompt's first line the hook sent and the store kept,
-/// a terminal is the one the hook's own environment named, and the clock is the turn's own start. One
+/// a terminal is the one the hook's own environment named, and the clock is the turn's own start. A row the scan
+/// found without the hook says so: a quiet *detected* mark beside the assistant's chip, whose help and spoken value
+/// say its working is a guess and a wait is never shown; and while any such row's assistant has no hook, the card
+/// ends on one line saying what the hook adds, with a button that opens its install flow (`HookUpgradeLine`). One
 /// `TimelineView` drives every row, at a second while anything is working or waiting and a minute otherwise,
 /// because a second timeline per row is a redraw per row per second for as long as the panel is open. Titles and
 /// task text go while the screen is shared (`UsageStore.hidesFigures`): they are the user's own words, or the
@@ -53,9 +57,11 @@ struct SessionsCard: View {
         let title: String
         /// The assistant's name: the one chip on the title line.
         let chips: [String]
-        /// The second line: the branch, the terminal or editor's short name, and the host for a remote session.
+        /// The second line: the branch, the terminal or editor's short name, the model when something reported it
+        /// (the status line, or a detected session's transcript), and the host for a remote session.
         let branch: String?
         let place: String?
+        let model: String?
         let host: String?
         /// The project header the row sits under when the card groups ("notchmeter", "notchmeter@devbox").
         let group: String
@@ -70,6 +76,8 @@ struct SessionsCard: View {
         let contextUsed: Double?
         /// Claude Code's task list; its text is gone when titles are hidden, and the counts stay.
         let todos: TodoPlan?
+        /// Found without the hook (AgentSession.Source.detected): its working is a guess and it never waits.
+        let detected: Bool
 
         enum Note: Equatable, Sendable { case waitingForAnswer, doneJump, justFinished }
 
@@ -111,12 +119,20 @@ struct SessionsCard: View {
                 .map { Row.Agent(id: $0.key, since: $0.value) }
             let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped, alike: alike.contains(session.id))
             return Row(id: session.id, tool: session.tool, title: lines.title, chips: [session.tool.displayName],
-                       branch: lines.branch, place: lines.place, host: lines.host, group: groupName(of: session),
+                       branch: lines.branch, place: lines.place, model: session.model, host: lines.host, group: groupName(of: session),
                        since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
                        status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
-                       todos: hideTitles ? session.todos?.withoutContent() : session.todos)
+                       todos: hideTitles ? session.todos?.withoutContent() : session.todos, detected: session.source == .detected)
         }
         return (rows, max(0, sessions.count - rowCap))
+    }
+
+    /// The assistant the card's upgrade line offers the hook for: the first drawn row found without the hook whose
+    /// assistant has no hook of ours in its file (UsageStore.hookInstalledTools). Nil when there is none, and then
+    /// the line is not drawn: a detected row whose assistant already has the hook is a session idle since before the
+    /// app started, and its next event makes it the hook's.
+    static func upgradeTool(_ rows: [Row], installed: Set<ToolID>) -> ToolID? {
+        rows.first { $0.detected && !installed.contains($0.tool) }?.tool
     }
 
     /// The rows in project groups. One project, one headerless group. More than one, a group per project in the
@@ -210,12 +226,13 @@ struct SessionsCard: View {
         }
     }
 
-    /// What the oracle's snapshot says of the card: the rows as drawn, in order, with their group, status and the
-    /// counts they carry, never a title or a task's text (docs/testing.md).
+    /// What the oracle's snapshot says of the card: the rows as drawn, in order, with their group, status, source
+    /// (`hook` or `detected`) and the counts they carry, never a title or a task's text (docs/testing.md).
     static func oracleRows(_ groups: [Group]) -> [[String: Any]] {
         groups.flatMap { group in
             group.rows.map { row -> [String: Any] in
                 ["id": row.id, "group": group.name as Any, "status": row.status.oracleName, "agents": row.agents.count,
+                 "source": row.detected ? AgentSession.Source.detected.rawValue : AgentSession.Source.hook.rawValue,
                  "context": row.contextUsed.map(Oracle.fraction) as Any,
                  "todos": row.todos.map { ["done": $0.done, "total": $0.total] } as Any]
             }
@@ -266,6 +283,9 @@ struct SessionsCard: View {
                 }
                 if more > 0 {
                     Text(L("+%ld more", more)).modifier(Caption())
+                }
+                if let tool = Self.upgradeTool(rows, installed: store.hookInstalledTools) {
+                    HookUpgradeLine(tool: tool, offer: actions.offerHook)
                 }
             }
         }
@@ -461,21 +481,24 @@ private struct SessionRow: View {
         return row.status == .idle ? L("idle %@", duration) : duration
     }
 
-    /// "feat/side-notch · iTerm · @devbox": whichever of the three the hook reported.
-    private var placeParts: [String] { [row.place, row.host].compactMap { $0 } }
+    /// "feat/side-notch · iTerm · Opus 5.5 · @devbox": whichever of them something reported.
+    private var placeParts: [String] { [row.place, row.model, row.host].compactMap { $0 } }
 
     private var content: some View {
         HStack(alignment: .top, spacing: 7) {
             StatusMark(status: row.status, symbol: symbol, colour: colour)
                 .frame(width: 13, alignment: .center)
                 .padding(.top, 3)
-                .help(statusText)
+                .help(row.detected ? L("%@, as far as the running process and its files show", statusText) : statusText)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
                     // On the Simple sheet the title matches its sibling rows' (SimpleRow): one title size a sheet.
                     Text(verbatim: row.title).font((embedded ? Font.body : .callout).weight(.semibold)).lineLimit(1).truncationMode(.tail)
                         .foregroundStyle(row.status == .idle ? Caption.style : AnyShapeStyle(.primary))
                     ForEach(row.chips, id: \.self) { Chip(text: $0).help(L("The assistant running this session")) }
+                    if row.detected {
+                        DetectedMark()
+                    }
                 }
                 if row.branch != nil || !placeParts.isEmpty {
                     HStack(spacing: 4) {
@@ -500,7 +523,8 @@ private struct SessionRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(row.title)
-        .accessibilityValue(Spoken.line(statusText, row.chips.joined(separator: ", "), row.branch, placeParts.joined(separator: ", "),
+        .accessibilityValue(Spoken.line(statusText, row.chips.joined(separator: ", "), row.detected ? L("Found without the hook") : nil,
+                                        row.branch, placeParts.joined(separator: ", "),
                                         ResetText.duration(max(0, now.timeIntervalSince(row.since))), row.note.map(noteText),
                                         advice.isEmpty ? nil : advice.map(Spoken.phrase).joined(separator: " ")))
     }
@@ -761,5 +785,57 @@ private struct StatusMark: View {
         } else {
             image
         }
+    }
+}
+
+/// The quiet mark on a row found without the hook (AgentSession.Source.detected): the word in the caption's colour
+/// inside a dashed outline, so it reads as a note about the row rather than a second chip, and says what it says in
+/// words and not by a colour. Its help is what the scan cannot know; VoiceOver hears the same in the row's value
+/// (`SessionRow.content`), so the mark itself is not a second stop.
+private struct DetectedMark: View {
+    var body: some View {
+        Text(L("detected"))
+            .font(.system(size: 9, weight: .medium))
+            .lineLimit(1)
+            .foregroundStyle(Caption.style)
+            .padding(.horizontal, 5).padding(.vertical, 1.5)
+            .overlay(Capsule().strokeBorder(Caption.style, style: StrokeStyle(lineWidth: 1, dash: [2, 2])))
+            .help(L("Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly."))
+            .accessibilityHidden(true)
+    }
+}
+
+/// The line a card with a detected row ends on while that row's assistant has no hook of ours
+/// (SessionsCard.upgradeTool): what the hook adds, and a button that opens the hook's install flow in Settings
+/// (NotchActions.offerHook). The button writes nothing: the assistant's file changes only on Add there, after its
+/// backup, which is the consent the app has always asked for. Cursor and Gemini CLI have no event an answer can go
+/// back through, so their line leaves answering out rather than promise it. Always drawn, never on hover, and the
+/// button is the whole line's height of 24 points.
+private struct HookUpgradeLine: View {
+    let tool: ToolID
+    let offer: (ToolID) -> Void
+
+    /// Whether this assistant's hook carries a decision back (HookVendor.decidingEvents).
+    private var answers: Bool { HookVendor.vendor(for: tool).map { !$0.decidingEvents.isEmpty } ?? false }
+
+    var body: some View {
+        let contrast = AccessibilityDisplay.shared.contrast
+        VStack(alignment: .leading, spacing: 2) {
+            Text(answers ? L("Install the hook for exact turn ends and answering from the notch.") : L("Install the hook for exact turn ends."))
+                .font(.caption)
+                .foregroundStyle(Caption.style)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { offer(tool) } label: {
+                Label(L("Install the hook…"), systemImage: "arrow.down.circle")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(contrast ? Palette.accentContrast : Palette.accent)
+                    .frame(minHeight: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(L("Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first.",
+                    HookVendor.vendor(for: tool)?.displayName ?? tool.productName))
+        }
+        .padding(.top, 2)
     }
 }

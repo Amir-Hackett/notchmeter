@@ -284,8 +284,9 @@ struct TaskChange: Equatable, Sendable {
     var deleted = false
 }
 
-/// One assistant session a hook has reported: which project it runs in and whether it is mid-turn, idle between
-/// turns, or waiting for the user; plus what the hook and status line know about where it runs.
+/// One assistant session a hook has reported, or one found running without it (SessionDetection): which project it
+/// runs in and whether it is mid-turn, idle between turns, or waiting for the user; plus what the hook, the status
+/// line or the scan know about where it runs.
 struct AgentSession: Equatable, Sendable, Identifiable {
     enum State: Equatable, Sendable {
         case idle
@@ -293,7 +294,18 @@ struct AgentSession: Equatable, Sendable, Identifiable {
         case waiting(since: Date)
     }
 
+    /// Where the session's state comes from. `.hook` once any hook event has been applied to it: its turns start,
+    /// end and wait on the assistant's own word. `.detected` while only the scan has seen it: working or idle is a
+    /// guess from the process and its files, it never waits, and a turn's end is not an event (docs/accuracy.md,
+    /// *Sessions found without the hook*). The card marks a detected row as such, and the hook's first event for
+    /// the session makes it `.hook` for good. A session the status line alone created counts as the hook's, as it
+    /// always has: the status line is Notchmeter's own entry in the same settings file, and the scan leaves it be.
+    enum Source: String, Equatable, Sendable {
+        case hook, detected
+    }
+
     let id: String
+    var source: Source = .hook
     /// Which assistant this session belongs to. Claude Code's and Cursor's hooks both report, and each one's
     /// sessions light its own ring; the field is the typed home of that fact, so no view has to ask "is this
     /// Claude?" in order to know what a session means, and a third hook lights the same lamps without a change
@@ -329,8 +341,12 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// The decision the assistant is holding this session for, while its hook waits on the socket for it.
     var pending: PendingRequest?
     // From Claude Code's status line (0.7.0), so every one is nil for a session only the hook reports.
-    /// The model's display name as the status line carries it ("Opus").
+    /// The model's display name as the status line carries it ("Opus"), or for a detected session the short name
+    /// of its transcript's newest model ("Opus 5.5", SessionDetection.modelName).
     var model: String?
+    /// The status line has named the model: its word is Claude Code's own, so the scan no longer writes over it
+    /// (`detected`), and the row does not flick between two spellings of one model at every turn.
+    var modelFromStatusline = false
     /// `session_name`: the name set with `--name` or `/rename`, else Claude Code's own title for the session;
     /// never the default `my-app-3f` display name. For a Cursor chat, Cursor's own name for it (CursorChatNames). Shown only under the same setting as the prompt title
     /// (UsageStore.statuslineReceived drops it when Preferences.sessionTitles is off, as hookReceived drops `title`).
@@ -498,6 +514,9 @@ struct SessionTracker: Equatable, Sendable {
     /// so the next event from one puts it back exactly as it was, turn and all. A conversation closed in Cursor
     /// sends no end, so without this it sat on the card for the four hours `staleAfter` allows.
     private(set) var dismissed: [String: AgentSession] = [:]
+    /// The detected sessions the last scan kept, on the list or set aside (`detected`): the ones the next scan
+    /// takes off again when their process is gone. A hook's event takes its session out of here for good.
+    private(set) var scanned: Set<String> = []
     /// The tools whose hook has ever reported. Kept per tool because a hook is proof about its own tool only: a
     /// Cursor event says nothing about how many Claude Code sessions there are, and a Claude ring told "zero
     /// sessions" on Cursor's word would go quiet on a window that is being spent.
@@ -508,6 +527,9 @@ struct SessionTracker: Equatable, Sendable {
     var all: [AgentSession] { sessions.values.sorted { $0.lastEvent > $1.lastEvent } }
     var waiting: [AgentSession] { all.filter(\.isWaiting) }
     var working: [AgentSession] { all.filter(\.isWorking) }
+    /// The sessions working on the hook's word, which is what the awake assertion holds the Mac for: a detected
+    /// session's working is a guess that can outlast its turn, and a guess does not keep a Mac out of sleep.
+    var hookWorking: [AgentSession] { working.filter { $0.source == .hook } }
     var quotaWaiting: [AgentSession] { all.filter(\.quotaWait) }
     var count: Int { sessions.count }
     /// Subagents running under every session.
@@ -656,14 +678,19 @@ struct SessionTracker: Equatable, Sendable {
         let id = Self.key(tool: message.tool, session: message.sessionID, host: message.host)
         // A removed session that speaks again comes back as it was, and this event applies to it as usual.
         if let returning = dismissed.removeValue(forKey: id) { sessions[id] = returning }
+        // The hook's word is the session's from here on: a row the scan found under the same id is taken over whole,
+        // its start and any turn it saw running kept, and the scan never touches it again (`detected`).
+        scanned.remove(id)
         if message.event == "SessionEnd" {
             if sessions[id]?.isWaiting == true { outcome.stoppedWaiting.append(id) }
             if let pending = sessions[id]?.pending { outcome.requestsEnded.append(EndedRequest(sessionID: id, requestID: pending.id)) }
             sessions[id] = nil
             return outcome
         }
+        if sessions[id] == nil, message.host == nil { absorbDetected(tool: message.tool, project: message.project) }
         var session = sessions[id] ?? AgentSession(id: id, tool: message.tool, project: message.project, state: .idle, started: now, lastEvent: now,
                                                    turnStarted: nil, host: message.host)
+        session.source = .hook
         if let project = message.project { session.project = project }
         if let branch = message.branch { session.branch = branch }
         if let mode = message.permissionMode { session.permissionMode = mode }
@@ -850,7 +877,10 @@ struct SessionTracker: Equatable, Sendable {
         if session.project == nil { session.project = project }
         if let branch { session.branch = branch }
         session.prURL = prURL ?? session.prURL
-        if let model { session.model = model }
+        if let model {
+            session.model = model
+            session.modelFromStatusline = true
+        }
         if let sessionName { session.sessionName = sessionName }
         if let linesAdded { session.linesAdded = linesAdded }
         if let linesRemoved { session.linesRemoved = linesRemoved }
@@ -858,6 +888,154 @@ struct SessionTracker: Equatable, Sendable {
         if let promptCache { session.promptCache = PromptCacheStats(promptCache, model: model ?? session.model) }
         session.lastEvent = now
         sessions[sessionID] = session
+    }
+
+    // MARK: - Sessions found without the hook
+
+    /// What one scan changed, for the oracle's `detection` line (docs/testing.md): the rows it put on the list and
+    /// took off, and the detected rows working now.
+    struct DetectionChange: Equatable, Sendable {
+        var added: [String] = []
+        var removed: [String] = []
+        var working: [String] = []
+        var workingChanged = false
+
+        var isEmpty: Bool { added.isEmpty && removed.isEmpty && !workingChanged }
+    }
+
+    /// An assistant and a project on this Mac: what a process-keyed row and a hook's session are matched on.
+    private struct Slot: Hashable {
+        let tool: ToolID
+        let project: String?
+    }
+
+    /// Busy first, then the most recently active: the order a hook's session accounts for the processes of its
+    /// project in, since the one the hook is hearing from is the one doing something.
+    private static func busiestFirst(_ a: DetectedSession, _ b: DetectedSession) -> Bool {
+        if a.busy != b.busy { return a.busy }
+        if a.lastActivity != b.lastActivity { return a.lastActivity > b.lastActivity }
+        return a.key < b.key
+    }
+
+    /// Takes one scan's rows (SessionDetector). The hook always wins:
+    ///
+    /// - A row under an id the hook has reported (on the list or set aside) is not the scan's: the hook's session
+    ///   stands, however much more the scan knows about it.
+    /// - A process-keyed row (`DetectedSession.exact` false) cannot be matched by id, so the hook's sessions of the
+    ///   same assistant and project on this Mac account for that many of its processes, busiest first, and only the
+    ///   rest are rows. Two Codex sessions in one repository with one of them reporting through the hook are one
+    ///   hook row and one detected row, never three.
+    /// - A detected row is added only while it is working or was active inside `idleAfter`, which is the age an
+    ///   idle hook session is set aside at: a terminal left open all day with an assistant idle in it is not news
+    ///   at launch. One the user removed (`dismiss`) or that aged out comes back only when it has done something
+    ///   since.
+    /// - A row whose process has gone is taken off, on the list or set aside. A session the scan did not add (the
+    ///   hook's, or the status line's) is never taken off by it.
+    ///
+    /// A busy row stays working from the first scan that saw it busy (or from Claude Code's own `statusUpdatedAt`)
+    /// until a scan sees it idle, and its `lastEvent` moves at most once a minute while it works, so a working row
+    /// does not republish the tracker, and redraw every panel, on every scan.
+    @discardableResult
+    mutating func detected(_ found: [DetectedSession], now: Date) -> DetectionChange {
+        var change = DetectionChange()
+        let workingBefore = Set(sessions.values.filter { $0.source == .detected && $0.isWorking }.map(\.id))
+        let named = Set(found.filter(\.exact).map(\.key))
+        var accounted: [Slot: Int] = [:]
+        for session in Array(sessions.values) + Array(dismissed.values)
+        where session.source == .hook && session.host == nil && !named.contains(session.id) {
+            accounted[Slot(tool: session.tool, project: session.project), default: 0] += 1
+        }
+        var kept: [DetectedSession] = []
+        for entry in found.sorted(by: Self.busiestFirst) {
+            if entry.exact {
+                if (sessions[entry.key] ?? dismissed[entry.key])?.source == .hook { continue }
+            } else {
+                let slot = Slot(tool: entry.tool, project: entry.project)
+                if let count = accounted[slot], count > 0 {
+                    accounted[slot] = count - 1
+                    continue
+                }
+            }
+            kept.append(entry)
+        }
+        let keys = Set(kept.map(\.key))
+        for key in scanned.sorted() where !keys.contains(key) {
+            if sessions[key]?.source == .detected {
+                sessions[key] = nil
+                change.removed.append(key)
+            }
+            if dismissed[key]?.source == .detected { dismissed[key] = nil }
+        }
+        var managed: Set<String> = []
+        for entry in kept {
+            if var setAside = dismissed[entry.key] {
+                managed.insert(entry.key)
+                // Set aside mid-turn, it stays aside for the rest of that turn and comes back with the next one, the
+                // way a removed hook session comes back with its next event; set aside idle, it comes back on any
+                // sign of life since.
+                let returns = entry.busy ? !setAside.isWorking : !setAside.isWorking && entry.lastActivity > setAside.lastEvent
+                guard returns else {
+                    if !entry.busy, setAside.isWorking {
+                        setAside.state = .idle
+                        setAside.turnStarted = nil
+                        setAside.lastEvent = entry.lastActivity
+                        dismissed[entry.key] = setAside
+                    }
+                    continue
+                }
+                dismissed[entry.key] = nil
+                sessions[entry.key] = setAside
+                change.added.append(entry.key)
+            }
+            var session: AgentSession
+            if let existing = sessions[entry.key] {
+                session = existing
+            } else {
+                guard entry.busy || now.timeIntervalSince(entry.lastActivity) < Self.idleAfter else { continue }
+                session = AgentSession(id: entry.key, tool: entry.tool, project: entry.project, state: .idle, started: entry.started,
+                                       lastEvent: entry.lastActivity, turnStarted: nil)
+                session.source = .detected
+                change.added.append(entry.key)
+            }
+            managed.insert(entry.key)
+            if let project = entry.project { session.project = project }
+            if let branch = entry.branch { session.branch = branch }
+            if let model = entry.model, !session.modelFromStatusline { session.model = model }
+            if let name = entry.name { session.sessionName = name }
+            if let terminal = entry.terminal { session.terminal = session.terminal?.merging(terminal) ?? terminal }
+            if entry.busy {
+                if !session.isWorking {
+                    let since = entry.busySince ?? now
+                    session.state = .working(since: since)
+                    session.turnStarted = since
+                    session.lastEvent = now
+                } else if now.timeIntervalSince(session.lastEvent) >= 60 {
+                    session.lastEvent = now
+                }
+            } else {
+                session.state = .idle
+                session.turnStarted = nil
+                session.lastEvent = entry.lastActivity
+            }
+            sessions[entry.key] = session
+        }
+        scanned = managed
+        change.added.sort()
+        change.working = sessions.values.filter { $0.source == .detected && $0.isWorking }.map(\.id).sorted()
+        change.workingChanged = Set(change.working) != workingBefore
+        return change
+    }
+
+    /// A new hook session on this Mac accounts at once for one process-keyed row of its assistant and project, the
+    /// busiest, rather than leaving both on the card until the next scan (`detected` pairs them the same way).
+    private mutating func absorbDetected(tool: ToolID, project: String?) {
+        let twins = (Array(sessions.values) + Array(dismissed.values)).filter {
+            $0.source == .detected && $0.tool == tool && $0.project == project && SessionDetection.isProcessKey($0.id)
+        }
+        guard let twin = twins.max(by: { ($0.isWorking ? 1 : 0, $0.lastEvent, $1.id) < ($1.isWorking ? 1 : 0, $1.lastEvent, $0.id) }) else { return }
+        sessions[twin.id] = nil
+        dismissed[twin.id] = nil
+        scanned.remove(twin.id)
     }
 
     /// Waits older than ten minutes fall back to idle, a finished turn's mark is dropped once its ninety seconds

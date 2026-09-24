@@ -233,6 +233,24 @@ A budget is one number over every tool, so the spend it is measured against is t
 
 A monthly or weekly budget (Settings › Appearance › Usage display, in the currency shown) is treated as one more window: the month's spend over the budget is the used fraction, the calendar month (or the week from its start) is the period, the same pace tick applies, and the on-track, behind and run-out notifications fire for it with the month as their once-per-period memory. Its `source` is `localEstimate`, because both sides of the fraction are this Mac's arithmetic. The extra-usage notice ("Extra usage rose $4.20 in 1h while your plan has 87% left") reads the vendor's own extra-usage figure from the usage endpoint and says it once a month, louder while the plan still has room.
 
+## Sessions found without the hook
+
+The Sessions card lists sessions the hook never reported (0.9.0; [docs/hooks.md](hooks.md#sessions-found-without-the-hook) has what is read and how the hook takes a row over). Each such session carries `source: detected` (`AgentSession.Source`), in the report as on the card, where the row wears a *detected* mark whose help says what follows. Everything on such a row is either read from a file or a process, or a guess stated as one:
+
+| On the row | Where it comes from | Kind |
+|---|---|---|
+| That the session exists | a process of this user's in a terminal, named like an assistant (`SessionDetection.tool`) | read |
+| Project and branch | the process's working directory, reduced as the hook reduces it; `.git/HEAD` | read |
+| Claude Code's session id, start, busy or idle | `~/.claude/sessions/<pid>.json`: `sessionId`, `startedAt`, `status`, `statusUpdatedAt`. The file's existence is documented ("one small file per running session", [Claude directory](https://code.claude.com/docs/en/claude-directory), read 2026-09-24); its fields are not, and were read off Claude Code 2.1.281 on 2026-09-24, so each is optional and an unknown `status` is no status | read, undocumented |
+| Claude Code's model and title | the last 256 KB of the session's transcript: the newest reply's `message.model`, a `custom-title` line (`/rename`), an `ai-title` line (Claude Code's own) | read |
+| Working or idle, for the other assistants, or a Claude Code whose file has no status | a transcript written in the last 30 s; else the process's CPU time since the previous scan, working above 2 % of one core (a working Claude Code measured 10 to 16 %, an idle Node process 0.0 %, 2026-09-24) | **guess** |
+| How long the turn has run | Claude Code's `statusUpdatedAt` when its file says busy; otherwise the first scan that saw it working | read, or a guess to within a scan |
+| How long it has been idle | the newest of the status change, the transcript's last write and the last scan that saw it busy; the process's start when none | read, or a guess to within a scan |
+
+**What detection cannot know.** Whether an assistant is holding a prompt open for you: a process at a permission prompt is still drawing its spinner, so the row says *working* through it, and a detected session never shows the waiting hand, never raises a waiting notification or news in the notch, and never answers anything. The exact end of a turn: it lands on the next scan or two, a few seconds late, and it lights no *just finished* tick and sends no *turn finished* notification, because a guess at a moment is not the moment. And a detected session's working never holds the Mac awake. The hook reports all of these exactly, which is what the card's upgrade line says; the moment it reports a session, the row is the hook's.
+
+**What it never does.** It estimates no figure: the scan puts no context fill on a row (one comes only from Claude Code's own status line, when that reports the same session), no subagents and no task list; and it does not turn a session count into a fact the calm rule may act on: until an assistant's hook has reported, that assistant's count stays unknown whatever the scan finds (`SessionTracker.knownCount`). Pinned by `SessionDetectionTests` and `DetectedSessionsTests`.
+
 ## Codex sessions
 
 Codex writes one JSONL rollout per session under `$CODEX_HOME/sessions` (`~/.codex/sessions`, in dated folders). Every line is a `RolloutLine`: a `timestamp`, a `type` and a `payload`. Four types are read and the rest of the file — the conversation itself — is never parsed. The shapes below were read from the codex-rs source on 2026-09-02, at [`codex-rs/protocol/src/protocol.rs`](https://raw.githubusercontent.com/openai/codex/main/codex-rs/protocol/src/protocol.rs), [`codex-rs/history/src/rollout_payload.rs`](https://raw.githubusercontent.com/openai/codex/main/codex-rs/history/src/rollout_payload.rs) and [`codex-rs/history/src/lib.rs`](https://raw.githubusercontent.com/openai/codex/main/codex-rs/history/src/lib.rs):

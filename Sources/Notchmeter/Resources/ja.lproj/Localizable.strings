@@ -715,7 +715,7 @@
 "Weekly budget" = "週次予算";
 "Welcome to %@" = "%@ へようこそ";
 "What %@ reads" = "%@ が読むもの";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "フックが報告した各セッションについてパネルが何を表示し、そこから何ができるか。すべてアシスタントのフックが必要です（統合）。";
+"What the panel shows of each session, and what you can do to it from there. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook (Integrations)." = "パネルが各セッションについて何を表示し、そこから何ができるか。セッションはフックなしでも見つかります。ターンの正確な終わり、回答待ち、回答、タスクリストにはアシスタントのフックが必要です（連携）。";
 "When crowded" = "余白が足りないとき";
 "When a window resets" = "ウィンドウがリセットされたとき";
 "When an assistant waits for you, or a turn finishes" = "アシスタントが待機したとき、またはターンが終わったとき";
@@ -902,3 +902,15 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "このプロジェクトの Cursor ウインドウを前面に出します（Cursor に特定のチャットを開かせることはできません）";
 "First seen %@" = "最初に検出：%@";
+
+/* Sessions found without the hook: the setting, the detected mark and the card's upgrade line (SessionDetection, SessionsCard) */
+"Find sessions without the hook" = "フックなしでセッションを見つける";
+"Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's." = "フックをインストールする前から、ターミナルで実行中の Claude Code、Codex、Cursor、Gemini CLI、Copilot のセッションを、プロセス、そのフォルダ、Claude Code 自身のセッションファイル、トランスクリプトの末尾から一覧にします。読み取るだけで、書き込むことはありません。こうした行には「検出」の印が付きます。作業中かどうかは推測で、ターンより数秒遅れることがあり、回答待ちは表示されません。フックが報告するセッションは常にフックのものです。";
+"detected" = "検出";
+"Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly." = "フックなしで、実行中のプロセスとそのファイルから見つけたセッションです。作業中かどうかは推測で、ターンより数秒遅れることがあり、回答待ちは表示されません。フックなら両方を正確に報告します。";
+"Found without the hook" = "フックなしで検出";
+"%@, as far as the running process and its files show" = "%@（実行中のプロセスとそのファイルからわかる範囲）";
+"Install the hook for exact turn ends and answering from the notch." = "フックをインストールすると、ターンの終わりが正確にわかり、ノッチから回答できます。";
+"Install the hook for exact turn ends." = "フックをインストールすると、ターンの終わりが正確にわかります。";
+"Install the hook…" = "フックをインストール…";
+"Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first." = "設定 › 連携 で %@ のフックを開きます。そこで「追加」を選ぶまで何も書き込まれず、ファイルは先にバックアップされます。";

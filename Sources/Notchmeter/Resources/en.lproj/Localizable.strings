@@ -732,7 +732,7 @@
 "Weekly budget" = "Weekly budget";
 "Welcome to %@" = "Welcome to %@";
 "What %@ reads" = "What %@ reads";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations).";
+"What the panel shows of each session, and what you can do to it from there. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook (Integrations)." = "What the panel shows of each session, and what you can do to it from there. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook (Integrations).";
 "When crowded" = "When crowded";
 "When a window resets" = "When a window resets";
 "When an assistant waits for you, or a turn finishes" = "When an assistant waits for you, or a turn finishes";
@@ -919,3 +919,15 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)";
 "First seen %@" = "First seen %@";
+
+/* Sessions found without the hook: the setting, the detected mark and the card's upgrade line (SessionDetection, SessionsCard) */
+"Find sessions without the hook" = "Find sessions without the hook";
+"Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's." = "Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's.";
+"detected" = "detected";
+"Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly." = "Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly.";
+"Found without the hook" = "Found without the hook";
+"%@, as far as the running process and its files show" = "%@, as far as the running process and its files show";
+"Install the hook for exact turn ends and answering from the notch." = "Install the hook for exact turn ends and answering from the notch.";
+"Install the hook for exact turn ends." = "Install the hook for exact turn ends.";
+"Install the hook…" = "Install the hook…";
+"Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first." = "Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first.";
