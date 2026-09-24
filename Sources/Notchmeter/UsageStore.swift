@@ -188,6 +188,20 @@ final class UsageStore {
     /// had already opened keeps everything and takes the card on top. Cleared by every collapse, and by the
     /// card's own *Show the whole panel*.
     var panelOpenedForPrompt = false
+    /// The requests whose *Allow always* has its other suggestions unfolded (PromptCard), by id. Kept here and not
+    /// in the card's own state so the controllers see it: the edge layout measures a fresh card to size its window
+    /// (`EdgePanelController.arrangements`) and refits only when something it observes changes, so an unfold the
+    /// card kept to itself would be clipped to the folded height. An id leaves with its request.
+    var unfoldedSuggestions: Set<String> = []
+
+    /// Unfolds or folds *Allow always*'s other suggestions on a request; ids of requests no longer pending are
+    /// dropped on the way, so the set never outgrows the requests on screen.
+    func unfoldSuggestions(_ requestID: String, _ unfolded: Bool, now: Date = Date()) {
+        let pending = Set(sessions.pending(now: now).map(\.request.id))
+        var ids = unfoldedSuggestions.intersection(pending)
+        if unfolded, pending.contains(requestID) { ids.insert(requestID) } else { ids.remove(requestID) }
+        unfoldedSuggestions = ids
+    }
     /// The session a glance is about (SessionAttention.glance): while set, the panel draws its
     /// NoticeCard alone, the way `panelOpenedForPrompt` draws a request's. Cleared by every collapse and by the
     /// card's own *Show the whole panel*.
@@ -1643,11 +1657,23 @@ final class UsageStore {
         let behavior = delivered ? decision.behavior : "lost"
         let session = sessions.resolve(requestID: requestID, resumes: delivered && decision != .pass, now: now)
         log.info("decision \(behavior, privacy: .public) for a \(kind ?? "gone", privacy: .public) request")
-        Oracle.shared.emit("decision", ["request": requestID, "kind": kind as Any, "behavior": behavior, "session": session?.id as Any])
+        Oracle.shared.emit("decision", Self.decisionFields(request: requestID, kind: kind, behavior: behavior, session: session?.id,
+                                                           asksRule: delivered && decision.addsRule))
         if let session { withdrawWaiting([session.id]) }
+        unfoldedSuggestions.remove(requestID)
         applyAwake()
         armSignalRelease(now: now)
         promptEnded(requestID)
+    }
+
+    /// The oracle's `decision` fields. An allow also says whether the app asked for one of the assistant's
+    /// suggested rules (*Allow always*), as `ruleRequested`, and never which rule: the rule is a command's text,
+    /// which the oracle does not carry. Asked, not added: the hook can still settle for a plain allow (an index
+    /// out of range, an entry it will not echo, a payload it cannot read), and the app never sees what it printed.
+    nonisolated static func decisionFields(request: String, kind: String?, behavior: String, session: String?, asksRule: Bool) -> [String: Any] {
+        var fields: [String: Any] = ["request": request, "kind": kind as Any, "behavior": behavior, "session": session as Any]
+        if behavior == "allow" { fields["ruleRequested"] = asksRule }
+        return fields
     }
 
     /// The hook process behind `requestID` went away before the app answered (the socket's worker saw its
@@ -1661,6 +1687,7 @@ final class UsageStore {
         let session = sessions.resolve(requestID: requestID, resumes: false, now: now)
         log.info("decision gone for a \(kind ?? "gone", privacy: .public) request: its hook went away unanswered")
         Oracle.shared.emit("decision", ["request": requestID, "kind": kind as Any, "behavior": "gone", "session": session?.id as Any])
+        unfoldedSuggestions.remove(requestID)
         armSignalRelease(now: now)
         promptEnded(requestID)
     }
@@ -1670,6 +1697,7 @@ final class UsageStore {
     private func endRequest(_ requestID: String) {
         pendingReplies.removeValue(forKey: requestID)?.answer(nil)
         promptHolds.removeValue(forKey: requestID)?.cancel()
+        unfoldedSuggestions.remove(requestID)
         promptEnded(requestID)
     }
 

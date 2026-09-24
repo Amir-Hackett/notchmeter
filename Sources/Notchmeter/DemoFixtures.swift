@@ -130,7 +130,10 @@ enum DemoFixtures {
             busy()
             request(35, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch",
                     kind: .permission(tool: "Bash", summary: "swift build -c release", detail: "swift build -c release 2>&1 | grep -E 'warning:'",
-                                      suggestions: ["swift build:*"]))
+                                      suggestions: [
+                                          PendingRequest.Suggestion(index: 0, grant: .rules(["Bash(swift build:*)"]), place: .localSettings),
+                                          PendingRequest.Suggestion(index: 1, grant: .rules(["Bash(swift build:*)"]), place: .session),
+                                      ]))
         case .question:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")

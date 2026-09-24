@@ -26,6 +26,28 @@ import Testing
         #expect(PromptCard.detailFrameHeight == 120)
     }
 
+    /// *Allow always* says what it saves and where, with the rule quoted as the settings file will hold it.
+    @Test func aSuggestionIsSaidInPlainWords() {
+        typealias S = PendingRequest.Suggestion
+        let rule = S.Grant.rules(["Bash(npm test:*)"])
+        #expect(PromptCard.phrase(S(index: 0, grant: rule, place: .localSettings)) == L("Always allow %@ in this project", "Bash(npm test:*)"))
+        #expect(PromptCard.phrase(S(index: 0, grant: rule, place: .projectSettings)) == L("Always allow %@ in this project, for everyone", "Bash(npm test:*)"))
+        #expect(PromptCard.phrase(S(index: 0, grant: rule, place: .userSettings)) == L("Always allow %@ in every project", "Bash(npm test:*)"))
+        #expect(PromptCard.phrase(S(index: 0, grant: rule, place: .session)) == L("Allow %@ for the rest of this session", "Bash(npm test:*)"))
+        #expect(PromptCard.phrase(S(index: 0, grant: rule, place: nil)) == L("Always allow %@", "Bash(npm test:*)"), "an unknown destination is not guessed at")
+        #expect(PromptCard.phrase(S(index: 0, grant: .rules(["Read", "Bash(ls:*)"]), place: nil)) == L("Always allow %@", "Read, Bash(ls:*)"))
+        #expect(PromptCard.phrase(S(index: 0, grant: .directories(["~/src", "lib"]), place: .session))
+                == L("Allow %@ for the rest of this session", L("files in %@", "~/src, lib")))
+        #expect(PromptCard.phrase(S(index: 0, grant: .acceptEdits, place: .session)) == L("Allow %@ for the rest of this session", L("every file edit")))
+        #expect(PromptCard.phrase(S(index: 0, grant: rule, place: .localSettings)).contains("Bash(npm test:*)"), "every language keeps the rule verbatim")
+    }
+
+    @Test func theCardOffersAtMostFourSuggestionsInTheirOrder() {
+        let many = (0..<6).map { PendingRequest.Suggestion(index: $0 * 2, grant: .rules(["Bash(\($0))"]), place: .session) }
+        #expect(PromptCard.offered(many).map(\.index) == [0, 2, 4, 6])
+        #expect(PromptCard.offered([]).isEmpty)
+    }
+
     @Test func theAnswerNamesEachQuestionByItsTextAndJoinsAMultiSelect() {
         let questions = [
             PendingRequest.Question(text: "Which layout?", header: "Layout", options: [.init(label: "Rows"), .init(label: "Grid")]),
@@ -41,7 +63,10 @@ import Testing
     /// permission with a long excerpt and for a question; a long excerpt scrolls inside its frame rather than
     /// growing the card past the panel's cap.
     @MainActor @Test func theCardFitsTheColumnAndALongExcerptIsHeldToItsFrame() {
-        let short = PendingRequest(id: "r1", kind: .permission(tool: "Bash", summary: "swift build", detail: "swift build", suggestions: ["swift build:*"]), since: t0)
+        let short = PendingRequest(id: "r1", kind: .permission(tool: "Bash", summary: "swift build", detail: "swift build", suggestions: [
+            .init(index: 0, grant: .rules(["Bash(swift build:*)", "Bash(swift test --parallel --filter SomeVeryLongSuiteName:*)"]), place: .projectSettings),
+            .init(index: 1, grant: .acceptEdits, place: .session),
+        ]), since: t0)
         let long = PendingRequest(id: "r2", kind: .permission(tool: "Write", summary: "/tmp/x.swift", detail: (1...60).map { "+ line \($0)" }.joined(separator: "\n"), suggestions: []), since: t0)
         let question = PendingRequest(id: "r3", kind: .question([
             PendingRequest.Question(text: "Where should the card go?", header: "Layout", options: [
@@ -63,8 +88,22 @@ import Testing
         }
     }
 
-    @MainActor private func size(of request: PendingRequest, width: CGFloat) -> CGSize {
-        let host = NSHostingView(rootView: PromptCard(session: session(request), request: request)
+    /// The unfold is an input, not the card's own state, so a fresh card measured unfolded (as the edge layout's
+    /// probe measures one) comes out taller by the rows it shows.
+    @MainActor @Test func anUnfoldedCardMeasuresTallerThanAFoldedOne() {
+        let request = PendingRequest(id: "r", kind: .permission(tool: "Bash", summary: "swift build", detail: nil, suggestions: [
+            .init(index: 0, grant: .rules(["Bash(swift build:*)"]), place: .localSettings),
+            .init(index: 1, grant: .acceptEdits, place: .session),
+            .init(index: 2, grant: .directories(["~/src"]), place: .session),
+        ]), since: t0)
+        let width = PanelWidth.standard.points - 2 * NotchExpandedView.contentHorizontalPadding
+        let folded = size(of: request, width: width)
+        let unfolded = size(of: request, width: width, unfolded: true)
+        #expect(unfolded.height > folded.height + 40, "two more rows are laid out")
+    }
+
+    @MainActor private func size(of request: PendingRequest, width: CGFloat, unfolded: Bool = false) -> CGSize {
+        let host = NSHostingView(rootView: PromptCard(session: session(request), request: request, unfolded: unfolded)
             .frame(width: width)
             .environment(\.density, .comfortable))
         host.layoutSubtreeIfNeeded()
@@ -347,7 +386,9 @@ import Testing
         }
         #expect(tool == "Bash")
         #expect(summary == "swift build -c release")
-        #expect(suggestions == ["swift build:*"])
+        #expect(suggestions.map(\.grant) == [.rules(["Bash(swift build:*)"]), .rules(["Bash(swift build:*)"])],
+                "two suggestions, so the render shows the split button's chevron")
+        #expect(suggestions.map(\.place) == [.localSettings, .session])
         #expect(first.session.isWaiting)
         #expect(first.session.title == DemoFixtures.notchmeterTitle)
         #expect(first.session.terminal?.bundleID == "com.googlecode.iterm2")

@@ -540,7 +540,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
                  prefs.monthlyBudgetUSD, prefs.sessionsCard, prefs.jumpToTerminal, store.panelOpenedForPrompt,
-                 store.attentionNotice?.session.id, store.hooksInstalled, store.openSessionLists, store.promptFocus)
+                 store.attentionNotice?.session.id, store.hooksInstalled, store.openSessionLists, store.promptFocus,
+                 store.unfoldedSuggestions)
             layout(animated: false)
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced

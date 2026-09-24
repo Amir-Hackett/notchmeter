@@ -808,7 +808,7 @@ final class NotchController: NSObject, PanelPresenting {
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
                  prefs.monthlyBudgetUSD, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal, store.hooksInstalled,
                  store.openSessionLists, store.peek, store.glowNews, prefs.notchNews, prefs.notchGlow, prefs.ringSymbols,
-                 prefs.autoCompactRoom)
+                 prefs.autoCompactRoom, store.unfoldedSuggestions)
             refreshRegions()
             refreshGlow()
             hover.dwell = prefs.hoverDelay

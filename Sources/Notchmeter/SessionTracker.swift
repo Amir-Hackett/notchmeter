@@ -87,10 +87,42 @@ struct PendingRequest: Equatable, Sendable, Identifiable {
         }
     }
 
+    /// One of the permission updates Claude Code proposed with a request (`permission_suggestions`), reduced to
+    /// what the card needs to say it in plain words: what it would allow from now on, and where the change would
+    /// be written. Only updates that widen what is allowed are kept (`Hook.suggestions(from:)`), since the card
+    /// offers them as *Allow always*. `index` is the entry's position in the payload's array and is all the app
+    /// sends back, so the hook echoes Claude Code's own entry and the app never has to build one.
+    struct Suggestion: Equatable, Sendable {
+        enum Grant: Equatable, Sendable {
+            /// Allow rules as Claude Code writes them in settings: `Bash(npm test:*)`, or a tool's name alone.
+            case rules([String])
+            /// Working directories to add, each shortened as the summary's paths are.
+            case directories([String])
+            /// Accept every file edit without asking (`setMode` to `acceptEdits`), the one mode the card offers.
+            case acceptEdits
+        }
+
+        /// Claude Code's `destination`: where the update is written. Nil for a destination this build does not
+        /// know, which the card then does not guess at.
+        enum Place: String, Equatable, Sendable {
+            case session, localSettings, projectSettings, userSettings
+        }
+
+        let index: Int
+        let grant: Grant
+        let place: Place?
+
+        init(index: Int, grant: Grant, place: Place?) {
+            self.index = index
+            self.grant = grant
+            self.place = place
+        }
+    }
+
     enum Kind: Equatable, Sendable {
         /// `tool` is the tool's name (Bash, Edit, an MCP tool's), `summary` one line of what it wants to do,
-        /// `detail` a bounded excerpt of it, `suggestions` the permission rules the assistant proposed.
-        case permission(tool: String, summary: String, detail: String?, suggestions: [String])
+        /// `detail` a bounded excerpt of it, `suggestions` the permission updates the assistant proposed.
+        case permission(tool: String, summary: String, detail: String?, suggestions: [Suggestion])
         case question([Question])
 
         /// "permission" or "question": the word the oracle and the log use, never the content.
@@ -119,19 +151,29 @@ struct PendingRequest: Equatable, Sendable, Identifiable {
 /// it always has; it is also what a request that timed out, or that the app could not answer, amounts to.
 enum Decision: Equatable, Sendable {
     case allow
+    /// Allow, and apply the permission update at `suggestion` (`PendingRequest.Suggestion.index`), so the
+    /// assistant stops asking for calls of this kind.
+    case allowAlways(suggestion: Int)
     case deny(message: String?)
     /// Question text → the chosen option's label (labels of a multi-select joined with ", ").
     case answers([String: String])
     case pass
 
-    /// The word the oracle records: allow, deny, answers or pass.
+    /// The word the oracle records: allow, deny, answers or pass. *Allow always* is an allow, since this call
+    /// goes ahead either way; `addsRule` says the rest.
     var behavior: String {
         switch self {
-        case .allow: "allow"
+        case .allow, .allowAlways: "allow"
         case .deny: "deny"
         case .answers: "answers"
         case .pass: "pass"
         }
+    }
+
+    /// Whether the answer also changes the assistant's permissions from now on.
+    var addsRule: Bool {
+        if case .allowAlways = self { return true }
+        return false
     }
 }
 

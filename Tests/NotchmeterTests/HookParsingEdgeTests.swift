@@ -58,18 +58,51 @@ import Testing
         #expect(suggestions.kind == .permission(tool: "Bash", summary: "Bash", detail: nil, suggestions: []))
     }
 
-    @Test func suggestionsAreTheRuleStringsAndNothingElse() {
+    @Test func suggestionsAreOnlyTheUpdatesThatAllowMore() {
+        typealias S = PendingRequest.Suggestion
         #expect(Hook.suggestions(from: nil) == [])
         #expect(Hook.suggestions(from: "rm -rf /") == [])
         #expect(Hook.suggestions(from: ["type": "addRules"]) == [], "one entry that is not in an array is not Claude Code's shape")
-        #expect(Hook.suggestions(from: ["npm test"]) == [], "a bare string in the array is not a rule")
-        let entries: [[String: Any]] = [
-            ["type": "setMode", "mode": "acceptEdits"],
-            ["type": "addRules", "rules": "npm test"],
-            ["type": "addRules", "rules": [["toolName": "Bash"], ["ruleContent": ""], ["ruleContent": 3], ["ruleContent": "b"]]],
-            ["type": "addRules", "rules": [["ruleContent": "a"], ["ruleContent": "b"]]],
+        #expect(Hook.suggestions(from: ["npm test"]) == [], "a bare string in the array is not an update")
+        let entries: [Any] = [
+            "npm test",
+            ["type": "setMode", "mode": "acceptEdits", "destination": "session"],
+            ["type": "addRules", "rules": "npm test", "behavior": "allow"],
+            ["type": "addRules", "rules": [["ruleContent": "a"], ["toolName": "Bash"], ["toolName": "Bash", "ruleContent": ""], ["toolName": "Bash", "ruleContent": "b"]],
+             "behavior": "allow", "destination": "localSettings"],
+            ["type": "addRules", "rules": [["toolName": "Bash", "ruleContent": "rm -rf /"]], "behavior": "deny", "destination": "localSettings"],
+            ["type": "addRules", "rules": [["toolName": "Bash", "ruleContent": "x"]], "destination": "localSettings"],
+            ["type": "replaceRules", "rules": [["toolName": "Bash"]], "behavior": "allow", "destination": "userSettings"],
+            ["type": "setMode", "mode": "bypassPermissions", "destination": "session"],
+            ["type": "addDirectories", "directories": ["/Users/me/proj/sub", "", 4, "/Users/me/other"], "destination": "somewhereNew"],
+            ["type": "addDirectories", "directories": []],
+            ["type": "setMode", "mode": "acceptEdits", "destination": "session"],
         ]
-        #expect(Hook.suggestions(from: entries) == ["b", "a"], "first appearance wins the order, a repeat is dropped, and a rule without content is skipped")
+        #expect(Hook.suggestions(from: entries, cwd: "/Users/me/proj", home: "/Users/me") == [
+            S(index: 1, grant: .acceptEdits, place: .session),
+            S(index: 3, grant: .rules(["Bash", "Bash(b)"]), place: .localSettings),
+            S(index: 8, grant: .directories(["sub", "~/other"]), place: nil),
+        ], """
+        each keeps its position in the array; a rule is Tool(content) or the tool alone, and one without a tool is \
+        skipped; deny, behaviourless, replace and bypass entries are not offered; an unknown destination is nil; \
+        a repeat is dropped
+        """)
+    }
+
+    @Test func aSuggestionSurvivesTheWireAndAnOldLineReadsAsNone() {
+        typealias S = PendingRequest.Suggestion
+        let all = [S(index: 0, grant: .rules(["Bash(npm test:*)"]), place: .projectSettings),
+                   S(index: 2, grant: .directories(["~/src"]), place: .userSettings),
+                   S(index: 5, grant: .acceptEdits, place: nil)]
+        for suggestion in all {
+            #expect(Hook.suggestion(wire: Hook.wire(suggestion: suggestion)) == suggestion)
+        }
+        #expect(Hook.wire(suggestion: all[2])["destination"] == nil, "no destination writes no key")
+        #expect(Hook.suggestion(wire: "npm test:*") == nil, "0.7.x sent the bare rule strings")
+        #expect(Hook.suggestion(wire: ["rules": ["Bash"]]) == nil, "no index is nothing to answer with")
+        #expect(Hook.suggestion(wire: ["index": -1, "rules": ["Bash"]]) == nil)
+        #expect(Hook.suggestion(wire: ["index": 0, "mode": "bypassPermissions"]) == nil, "the only mode is acceptEdits")
+        #expect(Hook.suggestion(wire: ["index": 0, "rules": [""]]) == nil)
     }
 
     @Test func aQuestionWithoutTextOrAnOptionIsDropped() {

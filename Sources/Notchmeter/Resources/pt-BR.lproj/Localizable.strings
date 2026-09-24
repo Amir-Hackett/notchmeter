@@ -532,6 +532,20 @@
 "Pace crossing" = "Cruzamento de ritmo";
 "Step %1$ld of %2$ld" = "Passo %1$ld de %2$ld";
 "Suggested rules" = "Regras sugeridas";
+
+"Allow %@ for the rest of this session" = "Permitir %@ pelo resto desta sessão";
+"Always allow %@ in this project" = "Sempre permitir %@ neste projeto";
+"Always allow %@ in this project, for everyone" = "Sempre permitir %@ neste projeto, para todos";
+"Always allow %@ in every project" = "Sempre permitir %@ em todos os projetos";
+"Always allow %@" = "Sempre permitir %@";
+"files in %@" = "arquivos em %@";
+"every file edit" = "qualquer edição de arquivo";
+"Other rules to always allow (⌥⌘↓)" = "Outras regras para sempre permitir (⌥⌘↓)";
+"Shown" = "Visíveis";
+"Hidden" = "Ocultas";
+"Allows this request and saves the rule, so it is not asked again." = "Permite esta solicitação e salva a regra para não perguntar de novo.";
+"%1$@ (%2$@)" = "%1$@ (%2$@)";
+"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "A primeira linha de cada prompt, com no máximo 96 caracteres, que o hook envia e só o app em execução guarda. Desativado, o app a descarta antes que fique guardada em qualquer lugar e a linha mostra o projeto e o branch. Os títulos ficam ocultos enquanto a tela é compartilhada, seja qual for este ajuste.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "A janela do anel externo como um único número ao lado dos anéis, no sentido Usado ou Restante escolhido em Exibição do uso e sem a contagem regressiva da renovação. Os anéis ainda se aquietam abaixo de 40%; o número continua legível.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Para ler o login salvo do Claude Code, uma vez. Escolha Permitir Sempre para que não pergunte de novo; as leituras programadas nunca abrem o diálogo.";
 "Unknown" = "Desconhecido";

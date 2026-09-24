@@ -532,6 +532,20 @@
 "Pace crossing" = "进度越界";
 "Step %1$ld of %2$ld" = "第 %1$ld 步，共 %2$ld 步";
 "Suggested rules" = "建议的规则";
+
+"Allow %@ for the rest of this session" = "在本次会话剩余时间内允许 %@";
+"Always allow %@ in this project" = "在此项目中始终允许 %@";
+"Always allow %@ in this project, for everyone" = "在此项目中为所有人始终允许 %@";
+"Always allow %@ in every project" = "在所有项目中始终允许 %@";
+"Always allow %@" = "始终允许 %@";
+"files in %@" = "%@ 中的文件";
+"every file edit" = "所有文件编辑";
+"Other rules to always allow (⌥⌘↓)" = "其他可始终允许的规则（⌥⌘↓）";
+"Shown" = "已显示";
+"Hidden" = "已隐藏";
+"Allows this request and saves the rule, so it is not asked again." = "允许此请求并保存规则，以后不再询问。";
+"%1$@ (%2$@)" = "%1$@（%2$@）";
+"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "每条提示的第一行，最多 96 个字符，由钩子发送，仅保存在运行中的应用里。关闭后，应用会在保存之前丢弃它，该行改为显示项目和分支。无论此项如何设置，共享屏幕时标题都会隐藏。";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "外环所属窗口以一个数字显示在圆环旁，按“用量显示”中所选的已用或剩余口径，不带重置倒计时。低于 40 % 时圆环仍会变淡；数字保持清晰。";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "用于读取 Claude Code 保存的登录信息，仅一次。选择“始终允许”即可不再打扰；定时读取绝不会弹出对话框。";
 "Unknown" = "未知";

@@ -515,6 +515,20 @@
 "Pace crossing" = "속도 교차";
 "Step %1$ld of %2$ld" = "%2$ld단계 중 %1$ld단계";
 "Suggested rules" = "제안된 규칙";
+
+"Allow %@ for the rest of this session" = "이 세션이 끝날 때까지 %@ 허용";
+"Always allow %@ in this project" = "이 프로젝트에서 %@ 항상 허용";
+"Always allow %@ in this project, for everyone" = "이 프로젝트에서 모두에게 %@ 항상 허용";
+"Always allow %@ in every project" = "모든 프로젝트에서 %@ 항상 허용";
+"Always allow %@" = "%@ 항상 허용";
+"files in %@" = "%@의 파일";
+"every file edit" = "모든 파일 편집";
+"Other rules to always allow (⌥⌘↓)" = "항상 허용할 다른 규칙 (⌥⌘↓)";
+"Shown" = "표시됨";
+"Hidden" = "숨겨짐";
+"Allows this request and saves the rule, so it is not asked again." = "이 요청을 허용하고 규칙을 저장해 다시 묻지 않습니다.";
+"%1$@ (%2$@)" = "%1$@ (%2$@)";
+"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "각 프롬프트의 첫 줄(최대 96자)로, 훅이 보내고 실행 중인 앱만 보관합니다. 끄면 앱은 어디에도 보관하기 전에 버리고 행에는 프로젝트와 브랜치를 대신 표시합니다. 이 설정과 상관없이 화면을 공유하는 동안에는 제목을 숨깁니다.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "바깥 링의 창을 사용량 표시에서 고른 사용 또는 남음 기준으로, 재설정 카운트다운 없이 링 옆에 숫자 하나로 표시합니다. 40 % 미만이면 링은 여전히 흐려지지만 숫자는 읽을 수 있게 유지됩니다.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Claude Code의 저장된 로그인을 읽기 위해 한 번. 항상 허용을 선택하면 조용히 유지됩니다. 정기 읽기는 대화상자를 띄우지 않습니다.";
 "Unknown" = "알 수 없음";
