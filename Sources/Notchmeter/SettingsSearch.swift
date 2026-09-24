@@ -74,8 +74,9 @@ enum SettingsSearch {
             L("Remind me before a reset"), L("When you start paying (extra usage rises)"), L("When the cache tier or the metering shifts"),
             L("Notify when an assistant waits for you"), L("Notify when a turn finishes"), L("Only turns longer than"),
             L("Stay quiet while a terminal or editor is in front"), L("Colour the rings when an assistant waits or finishes"),
-            L("Show news in the notch"), L("Glow under the notch for news"), L("When an assistant waits for you, or a turn finishes"), L("Sound"), L("Pace crossing"), L("Waiting for you"),
-            L("Turn finished"), L("Quiet hours"), L("Test notification"))
+            L("Show news in the notch"), L("Glow under the notch for news"), L("When an assistant waits for you, or a turn finishes"),
+            L("Sound"), L("Pace crossing"), L("Permission request"), L("Question"), L("Plan ready to approve"), L("Turn finished"),
+            L("Quiet hours"), L("Test notification"))
         add(.hooks, L("Integrations"), L("Hooks"), L("Repair a hook that points at an old copy at launch"), L("Claude Code status line"),
             L("Install status line…"))
         add(.otherTools, L("Other tools"), L("MCP server"), L("Remote Claude Code over SSH"))

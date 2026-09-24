@@ -346,6 +346,7 @@
 "Dark" = "ダーク";
 "Debug logging" = "デバッグログ";
 "Default" = "デフォルト";
+"Default (%@)" = "デフォルト（%@）";
 "Density" = "密度";
 "Display" = "ディスプレイ";
 "Display with the pointer" = "ポインタのあるディスプレイ";
@@ -697,7 +698,11 @@
 "Waiting for permission." = "許可を待っています。";
 "Waiting for the first reading" = "最初の読み取りを待機中";
 "waiting for the first reading" = "最初の読み取りを待機中";
-"Waiting for you" = "あなたを待機中";
+"Question" = "質問";
+"Plan ready to approve" = "承認待ちのプラン";
+"Preview the %@ sound" = "%@ のサウンドを試聴";
+"Choose a file for the %@ sound" = "%@ のサウンドにするファイルを選択";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "プランを区別できるのは、Claude Code がフックを通じて承認を求めたときだけです。何を求めているかを示さない待機では、許可リクエストのサウンドが鳴ります。";
 "Waiting for your answer" = "回答を待っています";
 "Waiting for your approval in System Settings › General › Login Items." = "システム設定 › 一般 › ログイン項目での承認を待っています。";
 "waiting for your input" = "入力を待っています";

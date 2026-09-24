@@ -53,6 +53,43 @@ extension Hook {
     }
 
     static let askUserQuestionTool = "AskUserQuestion"
+    /// The tool Claude Code calls to leave plan mode. Its approval dialog is an ordinary permission prompt, so it
+    /// arrives as a `PermissionRequest` whose `tool_name` is this, and that name is the whole of what tells a
+    /// plan waiting for a yes from any other permission.
+    static let exitPlanModeTool = "ExitPlanMode"
+
+    /// What a wait is asking of the user, so each can sound different (Preferences.sound(for:)). Three and not
+    /// more because those are the three a hook can tell apart: a request names its tool or carries questions, and
+    /// a notification says only its type.
+    enum WaitKind: String, CaseIterable, Sendable {
+        /// A tool wants to run. Also everything that does not say otherwise: a `permission_prompt`, Gemini CLI's
+        /// `ToolPermission`, Claude Code's idle nudge (whose banner says it may be waiting for your approval) and
+        /// a quiet Cursor turn.
+        case permission
+        /// `AskUserQuestion`, and the waits that are the same thing asked another way: an MCP server's
+        /// elicitation, and an agent asking for input.
+        case question
+        /// `ExitPlanMode`: a plan is written and waits for approval.
+        case plan
+    }
+
+    /// The notification types that ask the user something rather than asking leave to run a tool.
+    static let questionNotificationTypes: Set<String> = ["elicitation_dialog", "elicitation_url_dialog", "agent_needs_input"]
+
+    /// Which kind of wait a message begins. The request decides when there is one, since it is the only place the
+    /// tool's name survives the hook; failing that, an `Elicitation` event or a questioning notification type is a
+    /// question, and anything else is a permission, which is what every wait was before the kinds were told apart.
+    static func waitKind(event: String, notificationType: String?, request: Request?) -> WaitKind {
+        switch request?.kind {
+        case .question?: return .question
+        case .permission(let tool, _, _, _)? where tool == exitPlanModeTool: return .plan
+        case .permission?: return .permission
+        case nil: break
+        }
+        if event == "Elicitation" { return .question }
+        if let notificationType, questionNotificationTypes.contains(notificationType) { return .question }
+        return .permission
+    }
 
     /// The entries of `permission_suggestions` the card can offer as *Allow always*, in order, a repeat dropped.
     /// The array's shape is Claude Code's (docs/hooks.md, "Permission update entries"): each entry a `type` with

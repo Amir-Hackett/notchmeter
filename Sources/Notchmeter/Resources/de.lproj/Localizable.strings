@@ -364,6 +364,7 @@
 "Dark" = "Dunkel";
 "Debug logging" = "Debug-Protokollierung";
 "Default" = "Standard";
+"Default (%@)" = "Standard (%@)";
 "Density" = "Dichte";
 "Display" = "Bildschirm";
 "Display with the pointer" = "Bildschirm mit dem Zeiger";
@@ -715,7 +716,11 @@
 "Waiting for permission." = "Wartet auf Erlaubnis.";
 "Waiting for the first reading" = "Wartet auf den ersten Messwert";
 "waiting for the first reading" = "wartet auf den ersten Messwert";
-"Waiting for you" = "Wartet auf dich";
+"Question" = "Frage";
+"Plan ready to approve" = "Plan zur Freigabe bereit";
+"Preview the %@ sound" = "Ton für %@ anhören";
+"Choose a file for the %@ sound" = "Eine Datei als Ton für %@ auswählen";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "Ein Plan wird nur erkannt, wenn Claude Code über den Hook um seine Freigabe bittet; ein Warten, das nicht sagt, worum es geht, spielt den Ton für Berechtigungsanfragen.";
 "Waiting for your answer" = "Wartet auf deine Antwort";
 "Waiting for your approval in System Settings › General › Login Items." = "Wartet auf deine Genehmigung in Systemeinstellungen › Allgemein › Anmeldeobjekte.";
 "waiting for your input" = "wartet auf deine Eingabe";
