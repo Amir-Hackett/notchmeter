@@ -230,7 +230,10 @@ final class HoverDriver {
         }
     }
 
-    private func handle(_ event: PointerEvent) {
+    /// One reduced event from either monitor; the tests feed it directly, since no monitor runs without a
+    /// window server. A scroll is offered to the readout under the pointer first (`retargetRing`), and only one
+    /// it did not claim goes on to the swipe, so a sideways gesture over a ring never also opens the panel.
+    func handle(_ event: PointerEvent) {
         switch event.kind {
         case .click:
             clicked(at: pointerLocation())

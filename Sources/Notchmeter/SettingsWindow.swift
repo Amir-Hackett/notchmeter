@@ -506,11 +506,15 @@ struct SettingsView: View {
 
     /// Help text, the lightest of the form's four levels and never more than two lines of it: what does not fit
     /// is in the tooltip, which carries the whole thing in every language.
-    private func paragraph(_ text: String) -> some View {
+    /// An explanatory line under a control. Two lines by default, the rest in the tooltip; `lines: nil` for a
+    /// paragraph that carries a rule the reader has to have whole (a switch that cannot be turned off, a choice
+    /// shared with another pane), which German and Russian run past two lines and an ellipsis would hand to the
+    /// pointer alone.
+    private func paragraph(_ text: String, lines: Int? = 2) -> some View {
         Text(text)
             .font(.caption)
             .foregroundStyle(.tertiary)
-            .lineLimit(2)
+            .lineLimit(lines)
             .help(text)
     }
 
@@ -646,7 +650,7 @@ struct SettingsView: View {
                 Toggle(L("Show assistant symbols in the rings"), isOn: Binding(get: { prefs.ringSymbols }, set: { prefs.ringSymbols = $0 }))
                     .help(L("Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart."))
             }
-            paragraph(L("Scroll over a ring, sideways with two fingers or with a mouse wheel, to change the window it watches; the choice is kept, and each assistant's Options under Assistants holds the same choice."))
+            paragraph(L("Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants."), lines: nil)
             // The notch layout's alone, so only where a display has a notch for it: an edge or the pill with nothing
             // in it would be a stray capsule on the desktop.
             if prefs.edge == .top, NSScreen.screens.contains(where: { $0.safeAreaInsets.top > 0 }) {
@@ -708,7 +712,10 @@ struct SettingsView: View {
     }
 
     /// A switch per connected display under Chosen displays (DisplaySwitches), each by the name the Display
-    /// picker gives it; the last one on cannot be switched off, so the app is never left with nowhere to be.
+    /// picker gives it; the last one on cannot be switched off, so the app is never left with nowhere to be, and
+    /// the paragraph says so, since a lone greyed switch with the reason only in its tooltip explained nothing to
+    /// a reader who never hovers. A display the app is on because every chosen one is unplugged keeps its switch
+    /// off and says under it that the app is here meanwhile (DisplaySwitches.standsIn).
     private var displaySwitches: some View {
         let screens = NSScreen.screens
         let infos = screens.map(\.info)
@@ -717,14 +724,17 @@ struct SettingsView: View {
             Text(L("Show on these displays")).font(.subheadline.weight(.semibold))
             ForEach(Array(infos.enumerated()), id: \.element.key) { index, info in
                 let on = DisplaySwitches.isOn(info, in: infos, switches: prefs.displaySwitches)
+                let locked = on && !DisplaySwitches.canSwitchOff(info, in: infos, switches: prefs.displaySwitches)
                 Toggle(isOn: Binding(get: { on }, set: { prefs.displaySwitches[info.key] = $0; actions.applyLayout() })) {
                     Text(verbatim: titles[index])
                 }
-                .disabled(on && !DisplaySwitches.canSwitchOff(info, in: infos, switches: prefs.displaySwitches))
-                .help(on && !DisplaySwitches.canSwitchOff(info, in: infos, switches: prefs.displaySwitches)
-                      ? L("At least one display stays on.") : titles[index])
+                .disabled(locked)
+                .help(locked ? L("At least one display stays on.") : titles[index])
+                if DisplaySwitches.standsIn(info, in: infos, switches: prefs.displaySwitches) {
+                    Text(L("Shown here while no chosen display is connected.")).font(.caption).foregroundStyle(.secondary)
+                }
             }
-            paragraph(L("A display you have not switched is on when it has a notch. Each switch is remembered by the display's hardware identity, so it holds when the display is plugged in again."))
+            paragraph(L("A display you have not switched is on when it has a notch. The last display on cannot be switched off."), lines: nil)
         }
     }
 

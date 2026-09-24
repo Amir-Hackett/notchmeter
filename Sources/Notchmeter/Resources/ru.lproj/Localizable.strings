@@ -924,8 +924,9 @@
 "Chosen displays" = "Выбранные дисплеи";
 "Show on these displays" = "Показывать на этих дисплеях";
 "At least one display stays on." = "Хотя бы один дисплей остаётся включённым.";
-"A display you have not switched is on when it has a notch. Each switch is remembered by the display's hardware identity, so it holds when the display is plugged in again." = "Дисплей, который вы не переключали, включён, если у него есть вырез. Каждый переключатель запоминается по аппаратному идентификатору дисплея, поэтому сохраняется при повторном подключении.";
-"Scroll over a ring, sideways with two fingers or with a mouse wheel, to change the window it watches; the choice is kept, and each assistant's Options under Assistants holds the same choice." = "Прокрутите над кольцом — двумя пальцами вбок или колёсиком мыши, — чтобы сменить окно, которое оно показывает; выбор сохраняется, и тот же выбор есть в «Параметрах» каждого ассистента в разделе «Ассистенты».";
+"A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "Дисплей, который вы не переключали, включён, если у него есть вырез. Последний включённый дисплей выключить нельзя.";
+"Shown here while no chosen display is connected." = "Показывается здесь, пока не подключён ни один выбранный дисплей.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Прокрутите над кольцом вбок — двумя пальцами или колёсиком мыши, — чтобы сменить окно, которое оно показывает. Выбор сохраняется и совпадает с «Параметрами» ассистента в разделе «Ассистенты».";
 "While an assistant works" = "Пока работает ассистент";
 "When nothing is running" = "Когда ничего не запущено";
 "Rings or numbers" = "Кольца или цифры";

@@ -463,8 +463,9 @@ enum AssetRenderer {
 
     /// The closed notch while a session works (`DemoFixtures.Moment.working`), one row per mode it can be set to
     /// show (ClosedNotchMode): the readouts, the assistants' symbols with the working bar under Claude Code's, and
-    /// nothing but the notch. A last row is the readouts a moment after a scroll moved Claude's outer ring onto the
-    /// next window, with the label that names it drawn where RingLabel puts it, under the readout and clear of the
+    /// nothing but the notch; then the symbols while nothing runs, the hollow ring under Claude Code's for its idle
+    /// sessions. A last row is the readouts a moment after a scroll moved Claude's outer ring onto the next
+    /// window, with the label that names it drawn where RingLabel puts it, under the readout and clear of the
     /// band. Each row is its own store, as the signal pictures are, since a picture is one instant.
     @MainActor
     static func closedNotch(now: Date, actions: NotchActions) throws -> CGImage {
@@ -474,6 +475,12 @@ enum AssetRenderer {
             prefs.closedWhileWorking = mode
             stages.append(try Stage(store: store, prefs: prefs, actions: actions))
         }
+        // The symbols while nothing runs (`DemoFixtures.Moment.idle`): Claude Code's sessions idle, so its symbol
+        // keeps its colour with the hollow ring under it, beside the grey symbols of the assistants with no session;
+        // the shape is what tells the two apart, so the row exists to be looked at for that.
+        let (quiet, quietPrefs) = DemoFixtures.store(now: now, moment: .idle)
+        quietPrefs.closedWhenQuiet = .agents
+        stages.append(try Stage(store: quiet, prefs: quietPrefs, actions: actions))
         let (store, prefs) = DemoFixtures.store(now: now, moment: .working)
         guard let window = store.cycleRing(.claude, by: 1, cause: .scroll) else { throw Failure.snapshot("a ring moved onto its next window") }
         let model = RingLabelModel()

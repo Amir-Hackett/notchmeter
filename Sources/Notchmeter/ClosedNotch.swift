@@ -115,14 +115,30 @@ enum AgentGlyphState: Equatable, Sendable {
         case .working, .idle, .none: nil
         }
     }
+
+    /// What is drawn under the symbol: a bar while a session works, a small hollow ring while sessions idle (the
+    /// Sessions card's idle mark in miniature), nothing otherwise. The ring is what tells idle from no session
+    /// at all for a reader who cannot tell the assistant's colour from the caption's grey; without it the two
+    /// differed by colour alone.
+    enum UnderMark: Equatable, Sendable {
+        case bar, ring
+    }
+
+    var underMark: UnderMark? {
+        switch self {
+        case .working: .bar
+        case .idle: .ring
+        case .waiting, .finished, .none: nil
+        }
+    }
 }
 
 /// An assistant's symbol for the closed notch (ClosedNotchMode.agents), in the same 18 pt box as its rings so
 /// the strip keeps its height and the fit its measure. The state is told by shape as well as colour: a working
-/// session puts a bar under the symbol; a wait or a finish puts the rings' own mark on its corner (SignalMark); an
-/// assistant with no session is drawn in the caption's grey rather than its own colour, and one that has sessions
-/// idling keeps its colour with neither bar nor mark. The mark sits outside the quiet dimming, for the reason
-/// CompactRings gives.
+/// session puts a bar under the symbol, sessions idling put a hollow ring there (AgentGlyphState.underMark); a
+/// wait or a finish puts the rings' own mark on its corner (SignalMark); an assistant with no session is drawn
+/// in the caption's grey rather than its own colour, with nothing under it. The mark sits outside the quiet
+/// dimming, for the reason CompactRings gives.
 ///
 /// Nothing here moves. The Sessions card's working dot breathes, but that card is on screen only while the panel
 /// is open; this strip is on screen all day, and an animation that never ends redraws it every frame for as long
@@ -133,8 +149,11 @@ struct AgentGlyph: View {
     let state: AgentGlyphState
     var presence: PresenceLevel = .legible
 
-    /// The symbol's point size inside the 18 pt box, leaving room below it for the working bar.
+    /// The symbol's point size inside the 18 pt box, leaving room below it for the mark under it.
     static let symbolSize: CGFloat = 11
+    /// The mark's row under the symbol: the bar is 2 pt tall in it, the hollow ring fills it, since a ring
+    /// smaller than 4 pt is a dot on a 1x display and the hole is the whole of what it says.
+    static let underMarkHeight: CGFloat = 4
 
     var body: some View {
         ZStack {
@@ -142,11 +161,9 @@ struct AgentGlyph: View {
                 Image(systemName: tool.symbolName)
                     .font(.system(size: Self.symbolSize, weight: .semibold))
                     .foregroundStyle(state == .none ? AnyShapeStyle(Caption.style) : AnyShapeStyle(tool.color))
-                    .frame(height: Self.symbolSize + 2)
-                Capsule()
-                    .fill(tool.color)
-                    .frame(width: 10, height: 2)
-                    .opacity(state == .working ? 1 : 0)
+                    .frame(height: Self.symbolSize + 1)
+                underMark
+                    .frame(width: 10, height: Self.underMarkHeight)
             }
             .opacity(presence.readoutOpacity)
             if let signal = state.signal {
@@ -157,5 +174,17 @@ struct AgentGlyph: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(tool.displayName)
         .accessibilityValue(state.spoken)
+    }
+
+    /// The row under the symbol always takes its height, so the symbol sits at one place in every state.
+    @ViewBuilder private var underMark: some View {
+        switch state.underMark {
+        case .bar:
+            Capsule().fill(tool.color).frame(height: 2)
+        case .ring:
+            Circle().strokeBorder(tool.color, lineWidth: 1).frame(width: Self.underMarkHeight, height: Self.underMarkHeight)
+        case nil:
+            Color.clear
+        }
     }
 }

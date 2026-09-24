@@ -183,6 +183,60 @@ private func session(_ id: String, project: String? = "notchmeter", branch: Stri
         #expect(AgentGlyphState.working.signal == nil, "working is the bar, not a mark")
     }
 
+    @Test func idleAndNoSessionDifferByShapeNotColourAlone() {
+        #expect(AgentGlyphState.working.underMark == .bar)
+        #expect(AgentGlyphState.idle.underMark == .ring, "the Sessions card's hollow idle mark, in miniature")
+        #expect(AgentGlyphState.none.underMark == nil, "grey with nothing under it")
+        #expect(AgentGlyphState.waiting(count: 1).underMark == nil, "a wait is the corner mark's")
+        #expect(AgentGlyphState.finished.underMark == nil)
+    }
+
+    /// The store's seam: a hook event puts the notch to work, a stop starts the hold, the hold's own booked look
+    /// ends it with nothing else changing, and what the notch shows follows the phase.
+    @MainActor @Test func aHookEventPutsTheNotchToWorkAndTheHoldEndsIt() async throws {
+        let suite = "NotchmeterTests.PanelControls.closedStore"
+        defer { UserDefaults.standard.removePersistentDomain(forName: suite) }
+        // A minute in the wall clock's past: the hold's booked look sleeps until the hold ends and then reads the
+        // real clock, so a hold that began back then is over the moment the look runs.
+        let start = Date().addingTimeInterval(-60)
+        let (store, prefs) = DemoFixtures.store(now: start, moment: .idle, suite: suite)
+        prefs.closedWhileWorking = .agents
+        prefs.closedWhenQuiet = .readouts
+        #expect(store.closedNotchPhase == .quiet, "every session idle, nothing lit")
+        #expect(store.closedNotchShows == .readouts)
+        #expect(store.agentGlyphState(.claude, now: start) == .idle)
+        let prompt = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s", project: "notchmeter")
+        let stop = Hook.Message(event: "Stop", needsInput: false, sessionID: "s", project: "notchmeter")
+        store.hookReceived(prompt, now: start)
+        #expect(store.closedNotchPhase == .work)
+        #expect(store.closedNotchShows == .agents)
+        #expect(store.agentGlyphState(.claude, now: start) == .working)
+        // A ten-second turn: too short for the finished tick (ToolSignal.finishedAfter), so only the hold keeps
+        // the phase once it stops.
+        let stopped = start.addingTimeInterval(10)
+        store.hookReceived(stop, now: stopped)
+        #expect(store.closedNotchPhase == .work, "the hold")
+        #expect(store.agentGlyphState(.claude, now: stopped) == .idle)
+        store.updateClosedNotch(now: stopped.addingTimeInterval(ClosedNotchClock.hold - 1))
+        #expect(store.closedNotchPhase == .work, "a look inside the hold")
+        store.updateClosedNotch(now: stopped.addingTimeInterval(ClosedNotchClock.hold))
+        #expect(store.closedNotchPhase == .quiet)
+        #expect(store.closedNotchShows == .readouts)
+        // Again, and this time nothing looks until the hold's own booked look does: the look is booked for the
+        // hold's end, a tenth of a second on from the last look here, and reads the wall clock when it runs.
+        let again = stopped.addingTimeInterval(20)
+        store.hookReceived(prompt, now: again)
+        store.hookReceived(stop, now: again.addingTimeInterval(1))
+        #expect(store.closedNotchPhase == .work)
+        store.updateClosedNotch(now: again.addingTimeInterval(1 + ClosedNotchClock.hold - 0.1))
+        #expect(store.closedNotchPhase == .work)
+        let deadline = Date().addingTimeInterval(3)
+        while store.closedNotchPhase == .work, Date() < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(store.closedNotchPhase == .quiet, "the booked look ended the hold by itself")
+    }
+
     @MainActor @Test func theModesAreKeptAndDefaultToTheReadouts() {
         let suite = "NotchmeterTests.PanelControls.closed"
         let defaults = UserDefaults(suiteName: suite)!
@@ -297,6 +351,70 @@ private func session(_ id: String, project: String? = "notchmeter", branch: Stri
     }
 }
 
+/// The driver's seam between a scroll over a readout and the panel's swipe: the readout is offered the scroll
+/// first, and a scroll it claims never also feeds the swipe, while one it does not still opens the panel.
+@Suite struct RingScrollDriverRules {
+    func scroll(_ deltaX: CGFloat, _ deltaY: CGFloat, _ phase: NSEvent.Phase, fingersDown: Bool = true) -> PointerEvent {
+        let ringPhase: RingScroll.Phase = phase.contains(.began) ? .began : phase.contains(.ended) ? .ended : phase.isEmpty ? .none : .changed
+        return PointerEvent(kind: .scroll(PointerEvent.Scroll(deltaY: deltaY, fingersDown: fingersDown, phase: phase,
+                                                              ring: RingScroll.Input(deltaX: deltaX, deltaY: deltaY, phase: ringPhase, momentum: false))))
+    }
+
+    @MainActor
+    func driver(ring: ToolID?) -> (hover: HoverDriver, steps: () -> [Int], outputs: () -> [HoverIntent.Output]) {
+        let hover = HoverDriver(mode: .onHover)
+        hover.haptics = false
+        hover.regions = HoverRegions(compact: CGRect(x: 100, y: 900, width: 200, height: 30), expanded: CGRect(x: 50, y: 0, width: 300, height: 800))
+        hover.pointerLocation = { CGPoint(x: 150, y: 915) }
+        hover.ringAt = { _ in ring }
+        var steps: [Int] = []
+        hover.ringScrolled = { _, step in steps.append(step) }
+        var outputs: [HoverIntent.Output] = []
+        hover.perform = { output, _ in outputs.append(output) }
+        return (hover, { steps }, { outputs })
+    }
+
+    @MainActor @Test func aSidewaysGestureOverAReadoutStepsTheRingAndNoneOfItsTravelOpensThePanel() {
+        let (hover, steps, outputs) = driver(ring: .claude)
+        // Thirty points of vertical travel inside a sideways gesture: enough for the swipe, had it been fed.
+        hover.handle(scroll(-20, 10, .began))
+        hover.handle(scroll(-20, 10, .changed))
+        hover.handle(scroll(-20, 10, .changed))
+        hover.handle(scroll(0, 0, .ended))
+        #expect(steps() == [1], "one step a gesture")
+        #expect(outputs().isEmpty, "the gesture was the readout's")
+        #expect(hover.state == .compact)
+    }
+
+    @MainActor @Test func aVerticalSwipeOverAReadoutStillOpensThePanel() {
+        let (hover, steps, outputs) = driver(ring: .claude)
+        hover.handle(scroll(0, 30, .began))
+        #expect(outputs() == [.expand])
+        #expect(steps().isEmpty, "the swipe is not a step")
+    }
+
+    @MainActor @Test func withSwipesOffAVerticalScrollOverAReadoutIsTheRings() {
+        let (hover, steps, outputs) = driver(ring: .claude)
+        hover.gestures = false
+        hover.handle(scroll(0, -30, .began))
+        #expect(steps() == [1])
+        #expect(outputs().isEmpty)
+    }
+
+    @MainActor @Test func aScrollAwayFromTheReadoutsOrOverAnOpenPanelIsNeverTheRings() {
+        let (away, awaySteps, awayOutputs) = driver(ring: nil)
+        away.handle(scroll(-30, 0, .began))
+        #expect(awaySteps().isEmpty, "nothing under the pointer to retarget")
+        away.handle(scroll(0, 30, .changed))
+        #expect(awayOutputs() == [.expand], "and the swipe is still the swipe")
+        let (open, openSteps, openOutputs) = driver(ring: .claude)
+        open.adopt(.expanded)
+        open.handle(scroll(0, -1, []))
+        #expect(openSteps().isEmpty, "a wheel over the readout with the panel open is the panel's")
+        #expect(openOutputs().isEmpty)
+    }
+}
+
 @Suite struct RingTargetAndLabelPlacement {
     @Test func theReadoutUnderThePointerWinsWithAFewPointsOfSlop() {
         let rects: [(tool: ToolID, rect: CGRect)] = [(.claude, CGRect(x: 100, y: 950, width: 18, height: 18)),
@@ -358,6 +476,23 @@ private func session(_ id: String, project: String? = "notchmeter", branch: Stri
         #expect(DisplaySwitches.canSwitchOff(dell, in: screens, switches: ["dell": true]))
         // Every switched-on display unplugged: the built-in display, as a named display that is gone.
         #expect(ScreenSelection.indices(for: .selected, screens: screens, pointer: .zero, switches: ["builtin": false, "gone": true]) == [0])
+    }
+
+    /// Every switched-on display unplugged: the app is on the built-in display with its switch off, and Settings
+    /// says it stands in rather than showing a switch that reads off on the one display the notch is on.
+    @Test func theDisplayTheAppFellBackToStandsInWhileItsSwitchStaysOff() {
+        let alone = [builtIn]
+        let switches = ["builtin": false, "dell": true]
+        #expect(ScreenSelection.indices(for: .selected, screens: alone, pointer: .zero, switches: switches) == [0])
+        #expect(!DisplaySwitches.isOn(builtIn, in: alone, switches: switches), "the switch reads as it was left")
+        #expect(DisplaySwitches.standsIn(builtIn, in: alone, switches: switches))
+        #expect(!DisplaySwitches.standsIn(builtIn, in: alone, switches: [:]), "on by its notch, not standing in")
+        #expect(!DisplaySwitches.standsIn(builtIn, in: [builtIn, dell], switches: switches), "the Dell is here and on")
+        let desk = [dell, lg]
+        let allOff = ["dell": false, "lg": false, "gone": true]
+        #expect(DisplaySwitches.standsIn(dell, in: desk, switches: allOff), "no notch anywhere: the first display")
+        #expect(!DisplaySwitches.standsIn(lg, in: desk, switches: allOff))
+        #expect(ScreenSelection.fallback([]) == nil)
     }
 
     @Test func theChoiceRoundTripsAndIsOffered() {
@@ -447,5 +582,18 @@ private func session(_ id: String, project: String? = "notchmeter", branch: Stri
         #expect(week.value(today, mode: .tokens) == Double(7_400_000))
         #expect(week.value(today, mode: .perMillionTokens) == 7400, "a rate has no height; the bars fall back to dollars")
         #expect(WeekSpend.figure(cost: 0, tokens: 7_400_000, mode: .tokens) == "7.4M")
+    }
+
+    /// The bars' token figure is the bare compact count, one width in every language; the sentence form beside
+    /// it on the row is the translated one.
+    @Test func theTokenFigureIsTheSameInEveryLanguage() throws {
+        Localization.use(language: "de")
+        defer { Localization.use(language: "en") }
+        #expect(Money.tokens(7_400_000) == "7.4 Mio. Tokens", "the row's own figure is translated")
+        #expect(WeekSpend.figure(cost: 0, tokens: 7_400_000, mode: .tokens) == "7.4M")
+        #expect(WeekSpend.figure(cost: 0, tokens: 20_000, mode: .tokens) == "20K")
+        let claude = provider(.claude, now: t0) { $0 == 0 ? 7400 : 1000 }
+        let week = try #require(WeekSpend.of(CostSelection(providers: [claude]), now: t0, calendar: utc))
+        #expect(week.headline(mode: .tokens) == "Heute 7.4M · 7 Tage 13M")
     }
 }

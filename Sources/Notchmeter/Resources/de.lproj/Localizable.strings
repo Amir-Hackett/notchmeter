@@ -925,8 +925,9 @@
 "Chosen displays" = "Ausgewählte Bildschirme";
 "Show on these displays" = "Auf diesen Bildschirmen zeigen";
 "At least one display stays on." = "Mindestens ein Bildschirm bleibt eingeschaltet.";
-"A display you have not switched is on when it has a notch. Each switch is remembered by the display's hardware identity, so it holds when the display is plugged in again." = "Ein Bildschirm, den du nicht umgeschaltet hast, ist eingeschaltet, wenn er eine Notch hat. Jeder Schalter wird an der Hardware-Kennung des Bildschirms erkannt und gilt deshalb wieder, wenn der Bildschirm erneut angeschlossen wird.";
-"Scroll over a ring, sideways with two fingers or with a mouse wheel, to change the window it watches; the choice is kept, and each assistant's Options under Assistants holds the same choice." = "Scrolle über einem Ring, mit zwei Fingern seitwärts oder mit dem Mausrad, um das Fenster zu wechseln, das er zeigt; die Wahl bleibt gespeichert, und die Optionen jedes Assistenten unter Assistenten bieten dieselbe Wahl.";
+"A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "Ein Bildschirm, den du nicht umgeschaltet hast, ist eingeschaltet, wenn er eine Notch hat. Der letzte eingeschaltete Bildschirm lässt sich nicht ausschalten.";
+"Shown here while no chosen display is connected." = "Wird hier gezeigt, solange kein gewählter Bildschirm angeschlossen ist.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Scrolle seitwärts über einem Ring, mit zwei Fingern oder dem Mausrad, um das Fenster zu wechseln, das er zeigt. Die Wahl bleibt gespeichert und gilt auch in den Optionen des Assistenten unter Assistenten.";
 "While an assistant works" = "Während ein Assistent arbeitet";
 "When nothing is running" = "Wenn nichts läuft";
 "Rings or numbers" = "Ringe oder Zahlen";

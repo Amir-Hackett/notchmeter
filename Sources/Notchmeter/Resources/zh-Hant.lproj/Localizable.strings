@@ -907,8 +907,9 @@
 "Chosen displays" = "所選顯示器";
 "Show on these displays" = "在這些顯示器上顯示";
 "At least one display stays on." = "至少保留一台顯示器開啟。";
-"A display you have not switched is on when it has a notch. Each switch is remembered by the display's hardware identity, so it holds when the display is plugged in again." = "未手動切換過的顯示器，有瀏海時預設開啟。每個開關按顯示器的硬體識別記憶，重新連接後依然有效。";
-"Scroll over a ring, sideways with two fingers or with a mouse wheel, to change the window it watches; the choice is kept, and each assistant's Options under Assistants holds the same choice." = "在圓環上捲動（雙指橫向滑動或使用滑鼠滾輪）可切換它顯示的視窗；選擇會被保留，「助理」中各助理的「選項」也提供同樣的選擇。";
+"A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "未手動切換過的顯示器，有瀏海時預設開啟。最後一台開啟的顯示器無法關閉。";
+"Shown here while no chosen display is connected." = "在沒有已選顯示器連接時，顯示於此。";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "在圓環上橫向捲動（雙指或滑鼠滾輪）可切換它顯示的視窗。選擇會被保留，並與「助理」中該助理的「選項」一致。";
 "While an assistant works" = "助理工作時";
 "When nothing is running" = "沒有任務執行時";
 "Rings or numbers" = "圓環或數字";

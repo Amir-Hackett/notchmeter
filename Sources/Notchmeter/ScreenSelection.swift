@@ -24,11 +24,17 @@ struct ScreenInfo: Equatable, Sendable {
 /// the pointer's display is the one under it, else the main one. A named choice stored by an earlier version is a
 /// localizedName; it still matches on the name until the preference is written again with the identity key.
 enum ScreenSelection {
+    /// The display a choice falls back to when it names none that is connected: the first with a notch, else the
+    /// main one. Nil only with no screens at all.
+    static func fallback(_ screens: [ScreenInfo]) -> Int? {
+        guard !screens.isEmpty else { return nil }
+        return screens.firstIndex(where: \.hasNotch) ?? screens.firstIndex(where: \.isMain) ?? 0
+    }
+
     /// `switches` is `Preferences.displaySwitches`, read only under `.selected`.
     static func indices(for choice: DisplayChoice, screens: [ScreenInfo], pointer: CGPoint, switches: [String: Bool] = [:]) -> [Int] {
-        guard !screens.isEmpty else { return [] }
+        guard let builtIn = fallback(screens) else { return [] }
         let main = screens.firstIndex(where: \.isMain) ?? 0
-        let builtIn = screens.firstIndex(where: \.hasNotch) ?? main
         switch choice {
         case .builtIn:
             return [builtIn]
@@ -73,6 +79,15 @@ enum DisplaySwitches {
     static func canSwitchOff(_ screen: ScreenInfo, in screens: [ScreenInfo], switches: [String: Bool]) -> Bool {
         let on = indices(screens: screens, switches: switches)
         return !(on.count == 1 && screens[on[0]].key == screen.key)
+    }
+
+    /// Whether the app is on this display although its switch is off: every switched-on display is unplugged, so
+    /// `ScreenSelection` fell back to this one. The switch stays off, since off is what the reader chose and what
+    /// comes back when a chosen display is plugged in again; Settings says under it that the app is here meanwhile,
+    /// so a switch reading off on the one display the notch is on is not a contradiction left unexplained.
+    static func standsIn(_ screen: ScreenInfo, in screens: [ScreenInfo], switches: [String: Bool]) -> Bool {
+        guard indices(screens: screens, switches: switches).isEmpty, let fallback = ScreenSelection.fallback(screens) else { return false }
+        return screens[fallback].key == screen.key
     }
 }
 

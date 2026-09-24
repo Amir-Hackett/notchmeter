@@ -73,9 +73,11 @@ struct WeekSpend: Equatable, Sendable {
         max(days.map { value($0, mode: mode) }.max() ?? 0, 0.0001)
     }
 
-    /// A figure in the bars' unit: "$118" or "7.4M".
+    /// A figure in the bars' unit: "$118" or "7.4M". The token count is the bare compact form (Money.compactCount)
+    /// rather than the sentence form with its unit stripped, which only strips in English: German's is "Mio.
+    /// Tokens", Russian's "токенов", and a headline of them ran past the line the chart gives it.
     static func figure(cost: Double, tokens: Int, mode: CostCardMode) -> String {
-        mode == .tokens ? Money.tokens(tokens).replacingOccurrences(of: " tokens", with: "") : Money.dollars(cost, cents: false)
+        mode == .tokens ? Money.compactCount(tokens) : Money.dollars(cost, cents: false)
     }
 
     /// "Today $118 · 7 days $1,420", the line over the chart and the first line of the tooltip.
@@ -107,9 +109,11 @@ struct WeekSpend: Equatable, Sendable {
 }
 
 /// The seven bars beside the Cost row's figure: one per day, oldest on the left, today's brightest. Drawn in the
-/// caption's grey rather than the assistants' colours, which at this size would be a smear; the split is in the
-/// opened chart. An empty day is a one-point baseline, so the strip always shows seven days rather than fewer.
-/// Pinned left to right like every other time axis on the panel.
+/// panel's own ink at the caption's weight rather than the assistants' colours, which at this size would be a
+/// smear; the split is in the opened chart. The ink is `.primary`, never white: the panel is black today, and a
+/// bar that stayed white on a light panel would vanish with its figure beside it. An empty day is a one-point
+/// baseline, so the strip always shows seven days rather than fewer. Pinned left to right like every other time
+/// axis on the panel.
 struct WeekSpendStrip: View {
     let week: WeekSpend
     let mode: CostCardMode
@@ -123,7 +127,7 @@ struct WeekSpendStrip: View {
             ForEach(week.days) { day in
                 let isToday = day.id == week.today?.id
                 RoundedRectangle(cornerRadius: 1)
-                    .fill(.white.opacity(isToday ? 0.95 : contrast ? 0.75 : 0.5))
+                    .fill(.primary.opacity(isToday ? 0.95 : contrast ? 0.75 : 0.5))
                     .frame(width: 3, height: max(1, Self.size.height * CGFloat(week.value(day, mode: mode) / peak)))
             }
         }
@@ -175,14 +179,14 @@ struct WeekSpendChart: View {
     }
 
     /// One day's bar, its assistants stacked in the card's order from the bottom, with a hairline between two so
-    /// neighbouring colours stay apart; an empty day is a baseline, grey enough to clear 3:1 on the black panel
-    /// (white at 0.4 is about 3.6:1), since it is the day's only mark.
+    /// neighbouring colours stay apart; an empty day is a baseline in the panel's ink, strong enough to clear 3:1
+    /// against the panel (white at 0.4 on black is about 3.6:1), since it is the day's only mark.
     private func column(_ day: WeekSpend.Day, peak: Double) -> some View {
         let total = week.value(day, mode: mode)
         let height = Self.height * CGFloat(total / peak)
         return VStack(spacing: 1) {
             if total <= 0 {
-                Capsule().fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.6 : 0.4)).frame(height: 2)
+                Capsule().fill(.primary.opacity(AccessibilityDisplay.shared.contrast ? 0.6 : 0.4)).frame(height: 2)
             } else {
                 ForEach(Array(day.parts.reversed().enumerated()), id: \.offset) { _, part in
                     Rectangle()

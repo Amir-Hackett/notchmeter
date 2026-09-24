@@ -33,6 +33,10 @@ enum DemoFixtures {
         /// it explains the rings before it explains the marks, and a dot it has not yet named would be a question
         /// the page cannot answer.
         case working
+        /// Both turns over, the notchmeter one three minutes ago: twice `ToolSignal.heldFor` past its finish, so
+        /// nothing is lit and every session idles. The closed notch's quiet phase, for the symbols mode while
+        /// nothing runs, where the hollow ring under an idle assistant is the picture.
+        case idle
     }
 
     @MainActor
@@ -155,6 +159,10 @@ enum DemoFixtures {
         case .working:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+        case .idle:
+            send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
+            send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            send("Stop", 3 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
         }
         return tracker
     }
@@ -171,7 +179,7 @@ enum DemoFixtures {
         case .waiting, .permissionRequest: reason = .approval
         case .question: reason = .question
         case .justFinished: reason = .finished
-        case .working: return nil
+        case .working, .idle: return nil
         }
         return NotchNews(reason: reason, sessionID: session.id, tool: session.tool, project: session.project, at: now)
     }

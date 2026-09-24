@@ -907,8 +907,9 @@
 "Chosen displays" = "Màn hình đã chọn";
 "Show on these displays" = "Hiện trên các màn hình này";
 "At least one display stays on." = "Luôn giữ bật ít nhất một màn hình.";
-"A display you have not switched is on when it has a notch. Each switch is remembered by the display's hardware identity, so it holds when the display is plugged in again." = "Màn hình bạn chưa bật tắt sẽ được bật nếu có tai thỏ. Mỗi công tắc được ghi nhớ bằng định danh phần cứng của màn hình, nên vẫn giữ khi cắm lại màn hình.";
-"Scroll over a ring, sideways with two fingers or with a mouse wheel, to change the window it watches; the choice is kept, and each assistant's Options under Assistants holds the same choice." = "Cuộn trên một vòng, vuốt ngang bằng hai ngón hoặc bằng con lăn chuột, để đổi cửa sổ mà vòng theo dõi; lựa chọn được giữ lại, và Tùy chọn của mỗi trợ lý trong mục Trợ lý có cùng lựa chọn đó.";
+"A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "Màn hình bạn chưa bật tắt sẽ được bật nếu có tai thỏ. Màn hình cuối cùng còn bật không thể tắt.";
+"Shown here while no chosen display is connected." = "Hiển thị ở đây khi không có màn hình đã chọn nào được kết nối.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Cuộn ngang trên một vòng, bằng hai ngón hoặc con lăn chuột, để đổi cửa sổ mà vòng theo dõi. Lựa chọn được giữ lại và dùng chung với Tùy chọn của trợ lý trong mục Trợ lý.";
 "While an assistant works" = "Khi một trợ lý đang làm việc";
 "When nothing is running" = "Khi không có gì chạy";
 "Rings or numbers" = "Vòng hoặc số";

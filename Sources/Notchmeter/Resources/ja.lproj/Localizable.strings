@@ -907,8 +907,9 @@
 "Chosen displays" = "選んだディスプレイ";
 "Show on these displays" = "表示するディスプレイ";
 "At least one display stays on." = "少なくとも 1 台のディスプレイはオンのままです。";
-"A display you have not switched is on when it has a notch. Each switch is remembered by the display's hardware identity, so it holds when the display is plugged in again." = "切り替えていないディスプレイは、ノッチがあればオンになります。各スイッチはディスプレイのハードウェア ID で記憶されるため、つなぎ直しても保たれます。";
-"Scroll over a ring, sideways with two fingers or with a mouse wheel, to change the window it watches; the choice is kept, and each assistant's Options under Assistants holds the same choice." = "リングの上で 2 本指で横に、またはマウスホイールでスクロールすると、リングが表示するウィンドウを切り替えられます。選択は保持され、「アシスタント」にある各アシスタントの「オプション」でも同じ選択ができます。";
+"A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "切り替えていないディスプレイは、ノッチがあればオンになります。最後にオンのままのディスプレイはオフにできません。";
+"Shown here while no chosen display is connected." = "選んだディスプレイが接続されていない間は、ここに表示されます。";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "リングの上で横にスクロール（2 本指またはマウスホイール）すると、リングが表示するウィンドウを切り替えられます。選択は保持され、「アシスタント」にあるそのアシスタントの「オプション」と共通です。";
 "While an assistant works" = "アシスタントの作業中";
 "When nothing is running" = "何も動いていないとき";
 "Rings or numbers" = "リングまたは数値";
