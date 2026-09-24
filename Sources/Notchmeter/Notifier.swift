@@ -62,22 +62,48 @@ struct WaitBannerMemory: Equatable, Sendable {
 /// a sound each, one event became a chord, or a sound the user heard twice and looked round for twice. So a
 /// banner that would sound inside `interval` of the last one that did is delivered silent, and nothing else about
 /// it changes (the banner, its level, its place in Notification Center): the sound that did play has already
-/// turned the user round, and the banner is there to be read. A value type with an injected clock for the reason
-/// `WaitBannerMemory` is one: `deliver` cannot be reached from a test.
+/// turned the user round, and the banner is there to be read.
+///
+/// Unless it outranks the sound that played (`rank`). Session A's turn finishing at t must not silence session
+/// B's permission prompt at t+1: the prompt is the sound the docs say is answered by reflex, and a banner for a
+/// blocking wait spends that session's ten-minute allowance (`Notifier.blockingWaitInterval`) whether or not it
+/// sounded, so a prompt held here would not be heard from again for that session. A value type with an injected
+/// clock for the reason `WaitBannerMemory` is one: `deliver` cannot be reached from a test.
 struct SoundSpacing: Equatable, Sendable {
     /// Two seconds: longer than any of the system alert sounds lasts, shorter than the gap between two things a
     /// person would want to hear as two.
     static let interval: TimeInterval = 2
 
-    /// When a sound last played. Read by the tests.
-    private(set) var last: Date?
+    /// The sound that last played: when, and under which category.
+    struct Played: Equatable, Sendable {
+        let at: Date
+        let category: SoundCategory
+    }
 
-    /// Whether a sound may play at `now`, stamping it when it may. A stamp in the future is a clock stepped
-    /// backwards and holds nothing, as in `Notifier.within`, or an NTP correction would mute every banner until
-    /// the clock caught up.
-    mutating func admit(at now: Date) -> Bool {
-        if let last, (0 ..< Self.interval).contains(now.timeIntervalSince(last)) { return false }
-        last = now
+    /// When a sound last played, and what it was. Read by the tests.
+    private(set) var last: Played?
+
+    /// How far a sound cuts into a burst. Two tiers: a wait the session has stopped for and a limit reached are
+    /// what the user has to act on, so each sounds even on the heels of a finished turn or the reminder, and
+    /// starts a burst of its own; a finished turn and the reminder are news to be read, and are held by anything.
+    /// Within a tier the earlier sound wins, so two prompts in a second are still one sound and not the chord this
+    /// exists to stop. The tiers are the categories', not the banners' interruption levels: the reminder is
+    /// delivered time-sensitive like every wait (`Notifier.level(for:)`), and is still only a reminder.
+    static func rank(_ category: SoundCategory) -> Int {
+        switch category {
+        case .completion, .waiting: 0
+        case .permission, .question, .plan, .limit: 1
+        }
+    }
+
+    /// Whether `category` may sound at `now`, stamping it when it may. Inside `interval` of the last sound it may
+    /// only if it outranks that sound. A stamp in the future is a clock stepped backwards and holds nothing, as in
+    /// `Notifier.within`, or an NTP correction would mute every banner until the clock caught up.
+    mutating func admit(_ category: SoundCategory, at now: Date) -> Bool {
+        if let last, (0 ..< Self.interval).contains(now.timeIntervalSince(last.at)), Self.rank(category) <= Self.rank(last.category) {
+            return false
+        }
+        last = Played(at: now, category: category)
         return true
     }
 }
@@ -422,21 +448,32 @@ final class Notifier {
         return Advisor.runOutText(tool: .claude, window: claude, context: context) ?? ""
     }
 
+    /// What a banner sounds: the sound `choice` names for its category, or nothing, the category `SoundSpacing`
+    /// held back, and the spacing as it stands afterwards. Pure, with the spacing passed in and handed back, for
+    /// the reason `WaitBannerMemory.verdict` is: `deliver` cannot be reached from a test, and the order of its
+    /// rules is the part that can be got wrong. A banner with no category (a quiet hour, a stage that never
+    /// sounds) or a silenced one neither stamps the burst nor is held by it — a silenced question at t must not
+    /// mute a finished turn at t+1. With `spaced` false, the Test button's case, the sound plays whatever the
+    /// burst and does not stretch it: a sound the user has just asked for is not part of one. And a held banner
+    /// names its category, so the oracle can say what it would have played.
+    nonisolated static func soundToPlay(category: SoundCategory?, choice: (SoundCategory) -> String, spaced: Bool,
+                                        spacing: SoundSpacing, now: Date) -> (sound: UNNotificationSound?, held: SoundCategory?, spacing: SoundSpacing) {
+        guard let category, let sound = NotificationSound.unSound(for: choice(category)) else { return (nil, nil, spacing) }
+        guard spaced else { return (sound, nil, spacing) }
+        var spacing = spacing
+        return spacing.admit(category, at: now) ? (sound, nil, spacing) : (nil, category, spacing)
+    }
+
     /// `category` is the sound the banner is entitled to, nil for one that arrives silently (a quiet hour, a
     /// stage that never sounds). It goes to the oracle as `sound` when a sound plays, so a test can tell a plan's
     /// banner from a permission's without listening for it. A banner whose category is silenced carries no
     /// `sound`; one whose sound `SoundSpacing` held back carries none either, and names the category it would
-    /// have played as `soundSpaced`. `spaced` is false for the Test button alone: a sound the user has just
-    /// asked for is not part of a burst.
+    /// have played as `soundSpaced`. `spaced` is false for the Test button alone (`soundToPlay`).
     private func deliver(identifier: String, thread: String, tool: ToolID?, title: String, body: String,
                          level: UNNotificationInterruptionLevel, sound category: SoundCategory?, spaced: Bool = true, now: Date = Date()) {
         guard let center else { return }
-        var played = category.flatMap { NotificationSound.unSound(for: sound($0)) }
-        var held: SoundCategory?
-        if played != nil, spaced, !soundSpacing.admit(at: now) {
-            played = nil
-            held = category
-        }
+        let (played, held, spacing) = Self.soundToPlay(category: category, choice: sound, spaced: spaced, spacing: soundSpacing, now: now)
+        soundSpacing = spacing
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body

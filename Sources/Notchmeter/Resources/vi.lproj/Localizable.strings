@@ -702,7 +702,7 @@
 /* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
 "Sounds" = "Âm thanh";
 "Play sounds" = "Phát âm thanh";
-"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them." = "Mỗi loại thông báo có âm thanh riêng và ô Tắt tiếng riêng ở bên dưới. Trung tâm thông báo phát chúng, nên Focus tắt tiếng chúng như với mọi ứng dụng, và giờ yên tĩnh cũng vậy; hai thông báo trong vòng hai giây chỉ phát một âm thanh.";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder." = "Mỗi loại thông báo có âm thanh riêng và ô Tắt tiếng riêng ở bên dưới. Trung tâm thông báo phát chúng, nên Focus tắt tiếng chúng như với mọi ứng dụng, và giờ yên tĩnh cũng vậy; hai thông báo trong vòng hai giây chỉ phát một âm thanh, trừ yêu cầu hoặc cảnh báo giới hạn, vẫn phát ngay sau một lượt xong hay một lời nhắc.";
 "Waiting reminder" = "Nhắc khi chờ";
 "Limit alert" = "Cảnh báo giới hạn";
 "Silence" = "Tắt tiếng";

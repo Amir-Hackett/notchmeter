@@ -720,7 +720,7 @@
 /* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
 "Sounds" = "Töne";
 "Play sounds" = "Töne abspielen";
-"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them." = "Jede Art von Mitteilung hat unten ihren eigenen Ton und ihr eigenes Feld „Stumm“. Die Mitteilungszentrale spielt sie ab, daher schaltet Fokus sie stumm wie bei jeder App, ebenso die Ruhezeiten; zwei Mitteilungen innerhalb von zwei Sekunden ergeben zusammen einen einzigen Ton.";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder." = "Jede Art von Mitteilung hat unten ihren eigenen Ton und ihr eigenes Feld „Stumm“. Die Mitteilungszentrale spielt sie ab, daher schaltet Fokus sie stumm wie bei jeder App, ebenso die Ruhezeiten; zwei Mitteilungen innerhalb von zwei Sekunden ergeben zusammen einen einzigen Ton, nur eine Anfrage oder eine Limitwarnung erklingt auch nach einem beendeten Durchgang oder einer Erinnerung.";
 "Waiting reminder" = "Warteerinnerung";
 "Limit alert" = "Limitwarnung";
 "Silence" = "Stumm";

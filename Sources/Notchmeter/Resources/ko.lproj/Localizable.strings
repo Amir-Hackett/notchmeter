@@ -702,7 +702,7 @@
 /* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
 "Sounds" = "소리";
 "Play sounds" = "소리 재생";
-"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them." = "알림 종류마다 아래에서 소리와 '무음' 확인란을 따로 정할 수 있습니다. 소리는 알림 센터가 재생하므로 집중 모드에서는 다른 앱처럼 무음이 되고, 방해 금지 시간에도 마찬가지입니다. 2초 안에 온 알림 두 개는 소리가 한 번만 납니다.";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder." = "알림 종류마다 아래에서 소리와 '무음' 확인란을 따로 정할 수 있습니다. 소리는 알림 센터가 재생하므로 집중 모드에서는 다른 앱처럼 무음이 되고, 방해 금지 시간에도 마찬가지입니다. 2초 안에 온 알림 두 개는 소리가 한 번만 나지만, 요청이나 한도 경고는 턴 완료나 대기 알림 직후에도 소리가 납니다.";
 "Waiting reminder" = "대기 알림";
 "Limit alert" = "한도 경고";
 "Silence" = "무음";

@@ -702,7 +702,7 @@
 /* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
 "Sounds" = "サウンド";
 "Play sounds" = "サウンドを再生";
-"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them." = "通知の種類ごとに、下で個別のサウンドと「消音」チェックボックスを設定できます。再生するのは通知センターなので、集中モードでは他のアプリと同様に消音され、おやすみ時間も同様です。2 秒以内に届いた 2 つの通知はまとめて 1 回だけ鳴ります。";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder." = "通知の種類ごとに、下で個別のサウンドと「消音」チェックボックスを設定できます。再生するのは通知センターなので、集中モードでは他のアプリと同様に消音され、おやすみ時間も同様です。2 秒以内に届いた 2 つの通知はまとめて 1 回だけ鳴りますが、リクエストや上限アラートはターン完了やリマインダーの直後でも鳴ります。";
 "Waiting reminder" = "待機リマインダー";
 "Limit alert" = "上限アラート";
 "Silence" = "消音";

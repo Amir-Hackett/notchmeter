@@ -719,7 +719,7 @@
 /* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
 "Sounds" = "Sons";
 "Play sounds" = "Tocar sons";
-"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them." = "Cada tipo de aviso tem seu próprio som e sua própria caixa Silenciar abaixo. Quem toca é a Central de Notificações, então o Foco os silencia como os de qualquer app, e o horário de silêncio também; dois avisos com menos de dois segundos entre si fazem um só som.";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder." = "Cada tipo de aviso tem seu próprio som e sua própria caixa Silenciar abaixo. Quem toca é a Central de Notificações, então o Foco os silencia como os de qualquer app, e o horário de silêncio também; dois avisos com menos de dois segundos entre si fazem um só som, exceto que um pedido ou um alerta de limite ainda toca depois de um turno concluído ou de um lembrete.";
 "Waiting reminder" = "Lembrete de espera";
 "Limit alert" = "Alerta de limite";
 "Silence" = "Silenciar";

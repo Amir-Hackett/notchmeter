@@ -231,20 +231,95 @@ import Testing
     @Test func aBurstMakesOneSound() {
         var spacing = SoundSpacing()
         let offsets: [TimeInterval] = [0, 0.2, 1.9, SoundSpacing.interval, SoundSpacing.interval + 1]
-        let admitted = offsets.map { spacing.admit(at: t0.addingTimeInterval($0)) }
+        let admitted = offsets.map { spacing.admit(.completion, at: t0.addingTimeInterval($0)) }
         // The first sounds; a second banner in the same refresh, and one just inside two seconds, are silent and
         // do not stretch the burst; two seconds after the first, a sound again, which starts a burst of its own.
         let expected = [true, false, false, true, false]
         #expect(admitted == expected)
-        #expect(spacing.last == t0.addingTimeInterval(SoundSpacing.interval))
+        #expect(spacing.last == SoundSpacing.Played(at: t0.addingTimeInterval(SoundSpacing.interval), category: .completion))
+    }
+
+    /// Session A's turn finishes and session B raises a permission prompt a second later: B is heard, and its
+    /// prompt starts a burst of its own, so what follows on the prompt's heels is what is held — the reminder, a
+    /// finished turn, and a second request or a limit, which are the chord this exists to stop.
+    @Test func aRequestOrALimitCutsIntoABurstAFinishedTurnStarted() {
+        // Bound before `#expect`: the macro hands the receiver to a closure as a constant, and `admit` mutates.
+        var spacing = SoundSpacing()
+        let finished = spacing.admit(.completion, at: t0)
+        let prompt = spacing.admit(.permission, at: t0.addingTimeInterval(1))
+        let reminder = spacing.admit(.waiting, at: t0.addingTimeInterval(1.5))
+        let question = spacing.admit(.question, at: t0.addingTimeInterval(2))
+        let another = spacing.admit(.completion, at: t0.addingTimeInterval(2.5))
+        let limit = spacing.admit(.limit, at: t0.addingTimeInterval(2.9))
+        #expect(finished)
+        #expect(prompt, "the prompt sounds")
+        #expect(!reminder, "the reminder is held behind the prompt")
+        #expect(!question, "a request inside a request's burst is held")
+        #expect(!another, "the prompt restamped the burst")
+        #expect(!limit)
+        #expect(spacing.last == SoundSpacing.Played(at: t0.addingTimeInterval(1), category: .permission), "nothing held stamps")
+        let plan = spacing.admit(.plan, at: t0.addingTimeInterval(3))
+        #expect(plan, "two seconds after the prompt, a sound again")
+        for category in [SoundCategory.permission, .question, .plan, .limit] {
+            var fresh = SoundSpacing()
+            _ = fresh.admit(.waiting, at: t0)
+            let cuts = fresh.admit(category, at: t0.addingTimeInterval(0.1))
+            #expect(cuts, "\(category) outranks the reminder")
+        }
+        for category in [SoundCategory.completion, .waiting] {
+            var fresh = SoundSpacing()
+            _ = fresh.admit(.limit, at: t0)
+            let held = !fresh.admit(category, at: t0.addingTimeInterval(0.1))
+            #expect(held, "\(category) is held behind a limit")
+        }
     }
 
     @Test func aClockSteppedBackwardsHoldsNothing() {
         var spacing = SoundSpacing()
-        let first = spacing.admit(at: t0)
-        let backwards = spacing.admit(at: t0.addingTimeInterval(-30))
+        let first = spacing.admit(.completion, at: t0)
+        let backwards = spacing.admit(.completion, at: t0.addingTimeInterval(-30))
         #expect(first)
         #expect(backwards, "a stamp in the future is not a sound a moment ago")
+    }
+
+    // MARK: - What deliver plays (Notifier.soundToPlay)
+
+    /// A silenced category, or a banner with no category at all, is silent rather than held, and starts no burst:
+    /// a silenced question at t does not mute a finished turn at t+1.
+    @Test func aSilencedBannerNeitherStampsTheBurstNorIsHeldByIt() {
+        let silenced = Notifier.soundToPlay(category: .question, choice: { _ in NotificationSound.none }, spaced: true, spacing: SoundSpacing(), now: t0)
+        #expect(silenced.sound == nil)
+        #expect(silenced.held == nil, "silent is not held")
+        #expect(silenced.spacing.last == nil, "and starts no burst")
+        let finished = Notifier.soundToPlay(category: .completion, choice: { _ in "system:Glass" }, spaced: true,
+                                            spacing: silenced.spacing, now: t0.addingTimeInterval(1))
+        #expect(finished.sound != nil, "so a finished turn a second later chimes")
+        #expect(finished.held == nil)
+        let hushed = Notifier.soundToPlay(category: nil, choice: { _ in "system:Glass" }, spaced: true,
+                                          spacing: finished.spacing, now: t0.addingTimeInterval(1.5))
+        #expect(hushed.sound == nil && hushed.held == nil, "a banner that never sounds (a quiet hour) is neither")
+        #expect(hushed.spacing == finished.spacing)
+    }
+
+    @Test func theTestButtonNeitherHoldsNorIsHeld() {
+        var spacing = SoundSpacing()
+        _ = spacing.admit(.completion, at: t0)
+        let test = Notifier.soundToPlay(category: .limit, choice: { _ in "system:Basso" }, spaced: false, spacing: spacing, now: t0.addingTimeInterval(0.5))
+        #expect(test.sound != nil, "a sound the user just asked for plays inside a burst")
+        #expect(test.held == nil)
+        #expect(test.spacing == spacing, "and does not stretch it")
+    }
+
+    @Test func aHeldBannerNamesTheCategoryItWouldHavePlayed() {
+        let first = Notifier.soundToPlay(category: .completion, choice: { _ in "system:Glass" }, spaced: true, spacing: SoundSpacing(), now: t0)
+        #expect(first.sound != nil)
+        #expect(first.held == nil)
+        let second = Notifier.soundToPlay(category: .waiting, choice: { _ in "system:Purr" }, spaced: true,
+                                          spacing: first.spacing, now: t0.addingTimeInterval(0.5))
+        #expect(second.sound == nil)
+        #expect(second.held == .waiting)
+        #expect(second.spacing == first.spacing, "a held banner does not stamp")
+        #expect(second.spacing.last?.category == .completion)
     }
 
     // MARK: - Settings

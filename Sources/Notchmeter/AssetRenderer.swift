@@ -545,6 +545,12 @@ enum AssetRenderer {
         window.minSize = .zero
         window.setContentSize(NSSize(width: width, height: 9000))
         window.contentView?.layoutSubtreeIfNeeded()
+        // The Sounds block lays itself out once to measure its rows and again on what it measured
+        // (SettingsView.soundRowsTwoLine), and the second pass lands on the run loop's next turn, as the Welcome
+        // previews' scaling does (`welcome`); a picture taken before it shows the rows as they were first guessed,
+        // and a height measured before it is a line short per row.
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        window.contentView?.layoutSubtreeIfNeeded()
         if let content = window.contentView, let form = formScroll(in: content), let document = form.documentView {
             let header = content.frame.height - form.frame.height
             let height = max(ceil(document.bounds.height + header), SettingsWindowController.minSize.height)

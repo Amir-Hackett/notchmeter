@@ -702,7 +702,7 @@
 /* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
 "Sounds" = "聲音";
 "Play sounds" = "播放聲音";
-"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them." = "每種通知在下方都有自己的聲音和「靜音」核取方塊。聲音由通知中心播放，因此專注模式會像對待任何 App 一樣將其靜音，勿擾時段也是如此；兩秒內的兩則通知只響一次。";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder." = "每種通知在下方都有自己的聲音和「靜音」核取方塊。聲音由通知中心播放，因此專注模式會像對待任何 App 一樣將其靜音，勿擾時段也是如此；兩秒內的兩則通知只響一次，但請求或上限警示在一輪結束或等待提醒之後仍會響。";
 "Waiting reminder" = "等待提醒";
 "Limit alert" = "上限警示";
 "Silence" = "靜音";
