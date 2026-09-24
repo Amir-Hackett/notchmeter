@@ -939,7 +939,9 @@ struct NotchExpandedView: View {
             if !advice.isEmpty {
                 AdviceStrip(advice: advice, open: actions.open)
             }
-            if prefs.sessionsCard, store.sessions.count > 0 {
+            // With a hook installed the card stays when nothing is running, saying so in one line, so an empty list
+            // is not mistaken for a setup that never worked (UsageStore.hooksInstalled).
+            if prefs.sessionsCard, store.sessions.count > 0 || store.hooksInstalled {
                 SessionsCard(store: store, prefs: prefs, actions: actions)
             }
             if tools.isEmpty {

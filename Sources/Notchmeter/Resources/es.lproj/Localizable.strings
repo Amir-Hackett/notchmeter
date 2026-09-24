@@ -532,7 +532,6 @@
 "Pace crossing" = "Cambio de ritmo";
 "Step %1$ld of %2$ld" = "Paso %1$ld de %2$ld";
 "Suggested rules" = "Reglas sugeridas";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "La primera línea de cada prompt, de 96 caracteres como máximo, que envía el hook y solo guarda la app en marcha. Desactivado, la app la descarta antes de guardarla en ningún sitio y la fila muestra el proyecto y la rama. Los títulos se ocultan mientras se comparte la pantalla, diga lo que diga este ajuste.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "La ventana del anillo exterior como una cifra junto a los anillos, en el sentido Usado o Restante elegido en Visualización del uso y sin la cuenta atrás del restablecimiento. Los anillos se siguen atenuando por debajo del 40 %; la cifra sigue siendo legible.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Para leer el inicio de sesión guardado de Claude Code, una vez. Elige Permitir siempre para que no vuelva a preguntar; las lecturas programadas nunca muestran el diálogo.";
 "Unknown" = "Desconocido";
@@ -839,3 +838,20 @@
 "Show in Finder" = "Mostrar en el Finder";
 "The crash report could not be read." = "No se ha podido leer el informe de fallo.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "El informe más reciente que escribió macOS cuando %@ falló, de ~/Library/Logs/DiagnosticReports. Se queda en este Mac: Copiar lo pone en el portapapeles, sin rastro de tu carpeta de inicio, para que lo pegues en un informe de error.";
+
+/* The Sessions card: grouped rows, context gauge, subagents and the task list */
+"No sessions right now" = "No hay sesiones ahora mismo";
+"How long since this session last did anything" = "Cuánto hace que esta sesión no hace nada";
+"How long this turn has run" = "Cuánto lleva este turno";
+"The assistant running this session" = "El asistente que ejecuta esta sesión";
+"Subagents" = "Subagentes";
+"The subagents this session is running; click to list them" = "Los subagentes que ejecuta esta sesión; haz clic para verlos";
+"%1$ld of %2$ld done" = "%1$ld de %2$ld hechas";
+"Task list" = "Lista de tareas";
+"Claude Code's task list for this session; click to show it" = "La lista de tareas de Claude Code para esta sesión; haz clic para mostrarla";
+"Claude Code's task list for this session" = "La lista de tareas de Claude Code para esta sesión";
+"Subagent %ld" = "Subagente %ld";
+"How full this session's context window is, from its status line" = "Cuánto se ha llenado la ventana de contexto de esta sesión, según su línea de estado";
+"In progress" = "En curso";
+"Completed" = "Completada";
+"The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "La primera línea de cada prompt, de 96 caracteres como máximo, y el texto de la lista de tareas de Claude Code, que envía el hook y solo guarda la app en marcha. Desactivado, la app descarta ambos antes de guardarlos en ningún sitio: la fila muestra el proyecto y la lista de tareas solo su recuento. Ambos se ocultan mientras se comparte la pantalla, diga lo que diga este ajuste.";

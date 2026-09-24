@@ -43,6 +43,10 @@ enum DemoFixtures {
                                cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
         store.seed(readings: readings, cost: cost(now: now), nextUpdate: now.addingTimeInterval(2 * 60 + 40),
                    sessions: sessions(now: now, moment: moment), now: now)
+        // The afternoon has the Claude Code hook installed, which is what keeps the Sessions card on the panel.
+        store.hooksInstalled = true
+        // The task list open on the notchmeter row, so the pictures show the checklist and not only its count.
+        store.openSessionLists = [SessionsCard.listKey("notchmeter", .todos)]
         return (store, prefs)
     }
 
@@ -78,6 +82,22 @@ enum DemoFixtures {
             message.request = Hook.Request(id: requestID, kind: kind)
             tracker.apply(message, now: now.addingTimeInterval(-ago))
         }
+        // What the notchmeter session carries while its turn runs, for the Sessions card's extras line: two
+        // subagents, a task list two-thirds done, and the status line's context fill for each session. Replayed as
+        // the hook and the status line send them, between scout's stop and the event each moment turns on, and
+        // every one of them older than that event so the order stays ascending.
+        func busy() {
+            for (agent, ago) in [("agent-explore", 4.0 * 60), ("agent-review", 2.0 * 60 + 30)] {
+                let message = Hook.Message(event: "SubagentStart", needsInput: false, sessionID: "notchmeter", project: "notchmeter",
+                                           branch: "feat/side-notch", agentID: agent)
+                tracker.apply(message, now: now.addingTimeInterval(-ago))
+            }
+            var todo = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
+            todo.todos = TodoPlan(items: todoItems)
+            tracker.apply(todo, now: now.addingTimeInterval(-100))
+            tracker.statusline(sessionID: "scout", project: "scout", contextUsed: 0.31, now: now.addingTimeInterval(-90))
+            tracker.statusline(sessionID: "notchmeter", project: "notchmeter", contextUsed: 0.78, now: now.addingTimeInterval(-60))
+        }
         // Ascending in time: `apply` expires against the clock it is handed, so an event out of order would age
         // the state the one before it had just set. That is why scout's turn ends inside each branch below rather
         // than above them: it stopped six minutes ago, which in either moment falls after the notchmeter session
@@ -89,22 +109,26 @@ enum DemoFixtures {
         case .waiting:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            busy()
             send("Notification", 35, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", type: "permission_prompt")
         case .justFinished:
             // Eight minutes and forty seconds, twenty-six times `ToolSignal.finishedAfter` and so a turn the ring
             // is meant to report rather than one the user watched end.
             send("UserPromptSubmit", 8 * 60 + 52, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            busy()
             send("Stop", 12, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
         case .permissionRequest:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            busy()
             request(35, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch",
                     kind: .permission(tool: "Bash", summary: "swift build -c release", detail: "swift build -c release 2>&1 | grep -E 'warning:'",
                                       suggestions: ["swift build:*"]))
         case .question:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            busy()
             request(35, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch",
                     kind: .question([PendingRequest.Question(text: "Where should the Sessions card sit?", header: "Layout", options: [
                         PendingRequest.Option(label: "Under the advice", description: "Between the Advice strip and the tool cards"),
@@ -119,6 +143,12 @@ enum DemoFixtures {
     static let requestID = "demo-request"
     static let notchmeterTitle = "Add a Sessions card between the advice and the tool cards"
     static let scoutTitle = "Draft the Friday sports recap"
+    /// The notchmeter session's task list, as Claude Code's TodoWrite would leave it partway through the turn.
+    static let todoItems = [
+        TodoPlan.Item(content: "Read the Sessions card and its tests", status: .completed),
+        TodoPlan.Item(content: "Group the rows by project", status: .completed),
+        TodoPlan.Item(content: "Draw the context gauge on each row", status: .inProgress),
+    ]
 
 
     /// Claude on Max 5x a third of the way into a quiet session, Codex on a free plan with an untouched monthly

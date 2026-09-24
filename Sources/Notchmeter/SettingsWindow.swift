@@ -968,7 +968,7 @@ struct SettingsView: View {
             Toggle(L("Show a Sessions card on the panel"), isOn: Binding(get: { prefs.sessionsCard }, set: { prefs.sessionsCard = $0 }))
                 .help(L("One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest."))
             Toggle(L("Show what a session is working on"), isOn: Binding(get: { prefs.sessionTitles }, set: { prefs.sessionTitles = $0 }))
-                .help(L("The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says."))
+                .help(L("The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says."))
             Toggle(L("Answer from the notch"), isOn: Binding(get: { prefs.answerFromNotch }, set: { prefs.answerFromNotch = $0 }))
                 .help(L("A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered."))
             if prefs.answerFromNotch {
@@ -1319,6 +1319,8 @@ struct SettingsView: View {
             hookStatus[vendor] = requests.renderedHookStatus?.hook[vendor] ?? HookSettings.status(vendor: vendor)
         }
         statuslineStatus = requests.renderedHookStatus?.statusline ?? HookSettings.statuslineStatus()
+        // What the Sessions card's empty state reads, kept current by the one place the user installs a hook.
+        store.hooksInstalled = hookStatus.values.contains { $0 != .notInstalled }
     }
 
     private func subtitle(for tool: ToolID) -> String {

@@ -135,6 +135,43 @@ enum Decision: Equatable, Sendable {
     }
 }
 
+/// The task list Claude Code keeps with its `TodoWrite` tool, as the hook forwarded it (Hook.todos(from:)): each
+/// item's status, and its text while *Show what a session is working on* is on. The text is the user's plan in the
+/// assistant's words, so it is held under the same setting as a prompt's first line and dropped the same way
+/// (`withoutContent`); the statuses alone are counts, and are what the row's "2/3" is made of.
+struct TodoPlan: Equatable, Sendable {
+    enum Status: String, Equatable, Sendable {
+        case pending
+        case inProgress = "in_progress"
+        case completed
+    }
+
+    struct Item: Equatable, Sendable {
+        /// One line, at most `Hook.titleLimit` characters; nil when the setting is off or the hook sent none.
+        var content: String?
+        var status: Status
+
+        init(content: String?, status: Status) {
+            self.content = content
+            self.status = status
+        }
+    }
+
+    var items: [Item]
+
+    init(items: [Item]) {
+        self.items = items
+    }
+
+    var done: Int { items.count { $0.status == .completed } }
+    var total: Int { items.count }
+
+    /// The same plan with every item's text gone and its status kept.
+    func withoutContent() -> TodoPlan {
+        TodoPlan(items: items.map { Item(content: nil, status: $0.status) })
+    }
+}
+
 /// One assistant session a hook has reported: which project it runs in and whether it is mid-turn, idle between
 /// turns, or waiting for the user; plus what the hook and status line know about where it runs.
 struct AgentSession: Equatable, Sendable, Identifiable {
@@ -190,6 +227,12 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     var linesRemoved: Int?
     /// Claude Code's account of this session's prompt cache, priced (PromptCache.swift).
     var promptCache: PromptCacheStats?
+    /// How full the session's context window is, 0…1, as its own status line last said
+    /// (`context_window.used_percentage`). Never estimated: a session the status line has not reported has none.
+    var contextUsed: Double?
+    /// The task list from Claude Code's `TodoWrite` (its PostToolUse), until the next one replaces it. Claude Code
+    /// keeps the list across turns, so a new prompt does not clear it; an empty list does.
+    var todos: TodoPlan?
     // The quiet-turn nudge (0.7.6), for an assistant that never says it is waiting: Cursor asks for a command's
     // approval in its own window and sends no hook for it (`SessionTracker.quietNudges`).
     /// Shell and MCP calls begun and not yet ended: a turn with one running is busy, not waiting.
@@ -512,6 +555,7 @@ struct SessionTracker: Equatable, Sendable {
         if let branch = message.branch { session.branch = branch }
         if let mode = message.permissionMode { session.permissionMode = mode }
         if let terminal = message.terminal, !terminal.isEmpty { session.terminal = session.terminal?.merging(terminal) ?? terminal }
+        if let todos = message.todos { session.todos = todos.total > 0 ? todos : nil }
         session.lastEvent = now
         let wasWaiting = session.isWaiting
         let hadPending = session.pending
@@ -562,6 +606,12 @@ struct SessionTracker: Equatable, Sendable {
             } else if let oldest = session.agents.min(by: { $0.value < $1.value }) {
                 session.agents[oldest.key] = nil
             }
+        case "PostToolUse":
+            // Registered for `TodoWrite` alone (HookVendor.matcher(for:)), and read for its task list only (above).
+            // It is not taken as proof that a wait is over: Claude Code runs a batch of tool calls together, and a
+            // TodoWrite, which never asks permission, can finish while another call in the same batch is held at a
+            // prompt, so ending the wait here would drop the hand from a session that is still waiting.
+            break
         case _ where Self.heartbeatEvents.contains(message.event):
             // In-turn activity: a turn shown as a possible wait was not waiting after all, or has been answered.
             session.heartbeats = true
@@ -632,15 +682,17 @@ struct SessionTracker: Equatable, Sendable {
         return session
     }
 
-    /// Drops every title and session name held: *Show what a session is working on* was turned off, and with it
-    /// off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only nothing new. Set-aside sessions
-    /// too: one that comes back must not bring a title the setting has since forbidden.
+    /// Drops every title, session name and task-list text held: *Show what a session is working on* was turned off,
+    /// and with it off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only nothing new.
+    /// Set-aside sessions too: one that comes back must not bring a title the setting has since forbidden. A task
+    /// list keeps its statuses, which are counts and not words.
     mutating func clearTitles() {
         func cleared(_ table: [String: AgentSession]) -> [String: AgentSession] {
             table.mapValues { session in
                 var session = session
                 session.title = nil
                 session.sessionName = nil
+                session.todos = session.todos?.withoutContent()
                 return session
             }
         }
@@ -652,10 +704,11 @@ struct SessionTracker: Equatable, Sendable {
     /// Claude Code has a status line, and its key is the bare id, so no `key(tool:session:host:)` is needed here.
     /// The status line's per-session figures. The model, the name and the line counts are Claude Code's running
     /// values and replace what was held; the prompt-cache object is priced here at the session model's
-    /// cache-write rate (`PromptCacheStats`), so the tracker holds a figure the card can show without pricing.
+    /// cache-write rate (`PromptCacheStats`), so the tracker holds a figure the card can show without pricing. The
+    /// context fill is the session's own, for the gauge on its row; a payload without one keeps the last one held.
     mutating func statusline(sessionID: String?, project: String?, branch: String? = nil, prURL: String? = nil, model: String? = nil,
                              sessionName: String? = nil, linesAdded: Int? = nil, linesRemoved: Int? = nil,
-                             promptCache: Statusline.PromptCache? = nil, now: Date) {
+                             promptCache: Statusline.PromptCache? = nil, contextUsed: Double? = nil, now: Date) {
         guard let sessionID else { return }
         expire(now: now)
         // A removed or aged-out session that redraws its status line is back, as `apply` brings one back: made anew
@@ -669,6 +722,7 @@ struct SessionTracker: Equatable, Sendable {
         if let sessionName { session.sessionName = sessionName }
         if let linesAdded { session.linesAdded = linesAdded }
         if let linesRemoved { session.linesRemoved = linesRemoved }
+        if let contextUsed, contextUsed.isFinite { session.contextUsed = Swift.min(1, Swift.max(0, contextUsed)) }
         if let promptCache { session.promptCache = PromptCacheStats(promptCache, model: model ?? session.model) }
         session.lastEvent = now
         sessions[sessionID] = session

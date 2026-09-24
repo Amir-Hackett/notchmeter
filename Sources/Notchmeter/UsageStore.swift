@@ -98,6 +98,10 @@ final class UsageStore {
     private(set) var simulatedIdle: TimeInterval?
     /// Something is capturing the screen (ScreenCaptureMonitor); with the privacy setting on, figures are hidden.
     private(set) var screenCaptured = false
+    /// Whether any assistant's hooks file carries Notchmeter's entry, read once the launch repair has run (and
+    /// again whenever Settings looks), so the Sessions card can say "no sessions" rather than vanish before the
+    /// first event arrives. A cached answer, because the view must not read files as it draws.
+    var hooksInstalled = false
     /// One line the footer shows beside the schedule: a hook repaired at launch, the awake assertion held.
     private(set) var footerNote: String?
     /// Extra-usage credits rose since the last reading (kept for an hour, for the advice strip).
@@ -188,6 +192,11 @@ final class UsageStore {
     /// NoticeCard alone, the way `panelOpenedForPrompt` draws a request's. Cleared by every collapse and by the
     /// card's own *Show the whole panel*.
     var attentionNotice: AttentionNotice?
+    /// The Sessions card's open lists, as "<session id>/agents" or "<session id>/todos" (SessionsCard.listKey).
+    /// Held here and not as a row's own state because the panel is sized from a separate measuring copy of its
+    /// content (NotchController.expandedContentSize): a list opened in view state alone grew the drawn card and
+    /// not the window, and the footer was cut off under it. Here the measure sees it and the observation re-sizes.
+    var openSessionLists: Set<String> = []
     /// A session began holding for a decision its hook is waiting on; wired to NotchActions.showPrompt by the app
     /// delegate, so the panel can open on the request.
     @ObservationIgnored var promptRequested: (AgentSession, PendingRequest) -> Void = { _, _ in }
@@ -1444,7 +1453,10 @@ final class UsageStore {
     /// it). The title, the summary and the terminal never reach the log or the oracle (`hookFacts`).
     func hookReceived(_ message: Hook.Message, now: Date = Date(), reply: HookSocket.Reply? = nil) {
         var message = message
-        if !prefs.sessionTitles { message.title = nil }
+        if !prefs.sessionTitles {
+            message.title = nil
+            message.todos = message.todos?.withoutContent()
+        }
         if message.request != nil, !prefs.answerFromNotch {
             reply?.answer(nil)
             message.request = nil
@@ -1513,6 +1525,8 @@ final class UsageStore {
                                     "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any]
         if message.tool != .claude { facts["tool"] = message.tool.rawValue }
         if let request = message.request { facts["request"] = request.kind.name }
+        // A task list is reported by its counts, never its words.
+        if let todos = message.todos { facts["todos"] = ["done": todos.done, "total": todos.total] }
         return facts
     }
 
@@ -1589,7 +1603,7 @@ final class UsageStore {
         sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL,
                             model: message.model, sessionName: prefs.sessionTitles ? message.sessionName : nil,
                             linesAdded: message.linesAdded, linesRemoved: message.linesRemoved,
-                            promptCache: message.promptCache, now: now)
+                            promptCache: message.promptCache, contextUsed: message.contextUsed, now: now)
         guard isShown(.claude) else { return }
         if let reading = statuslineReading(now: now) {
             adopt(reading, now: now)

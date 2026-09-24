@@ -46,6 +46,8 @@ enum Hook {
     static let toolDetailKey = "toolDetail"
     static let suggestionsKey = "suggestions"
     static let questionsKey = "questions"
+    /// Claude Code's task list, on a `PostToolUse` for `TodoWrite` only (`todos(from:)`).
+    static let todosKey = "todos"
     /// The terminal keys, each written only when the hook could read it (TerminalIdentity.swift).
     static let terminalProgramKey = "terminal_program"
     static let terminalBundleKey = "terminal_bundle"
@@ -112,6 +114,9 @@ enum Hook {
         var request: Request?
         /// Where the hook process's terminal is; absent for a remote post, whose terminal is on another machine.
         var terminal: TerminalRef?
+        /// The task list on a `PostToolUse` for `TodoWrite` (`Hook.todos(from:)`); nil on every other event. Its
+        /// text is dropped by the store when *Show what a session is working on* is off, as the title is.
+        var todos: TodoPlan?
 
         /// Whether the command holds the socket for the app's answer.
         var awaitsDecision: Bool { request != nil }
@@ -147,6 +152,8 @@ enum Hook {
             title = (userInfo?[Hook.titleKey] as? String).flatMap { $0.isEmpty ? nil : $0 }
             request = Hook.request(userInfo: userInfo)
             terminal = Hook.terminal(userInfo: userInfo)
+            // Read back under the command's own limits, since a line on the socket may not be the command's.
+            todos = Hook.todos(from: userInfo?[Hook.todosKey])
         }
 
         var userInfo: [String: Any] {
@@ -168,6 +175,7 @@ enum Hook {
             if let title { info[Hook.titleKey] = title }
             if let request { info.merge(Hook.userInfo(request: request)) { _, new in new } }
             if let terminal { info.merge(Hook.userInfo(terminal: terminal)) { _, new in new } }
+            if let todos { info[Hook.todosKey] = Hook.userInfo(todos: todos) }
             return info
         }
 
@@ -279,7 +287,8 @@ enum Hook {
         /// are read from the payload; the branch is read from `cwd`'s `.git`. Since 0.7.0 also: `prompt` on
         /// `UserPromptSubmit`, kept as its first line; and on `PermissionRequest` `tool_name`, `tool_input` and
         /// `permission_suggestions`, and on a `PreToolUse` for `AskUserQuestion` the `questions`, each reduced to
-        /// the display summary Hook+Decision.swift describes before it leaves the process.
+        /// the display summary Hook+Decision.swift describes before it leaves the process. And on a `PostToolUse`
+        /// for `TodoWrite`, `tool_input.todos` reduced to each item's status and one line of its text (`todos(from:)`).
         /// Claude Code names no tool, so its events read as Claude's, which is what they have always been.
         static func message(event: String, object: [String: Any], tool: ToolID, branch: (String) -> String?, requestID: String) -> Message {
             let type = object["notification_type"] as? String
@@ -297,7 +306,38 @@ enum Hook {
                                   tool: tool)
             message.title = event == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
             message.request = request
+            if event == "PostToolUse", object["tool_name"] as? String == todoWriteTool {
+                message.todos = Hook.todos(from: (object["tool_input"] as? [String: Any])?["todos"])
+            }
             return message
+        }
+    }
+
+    static let todoWriteTool = "TodoWrite"
+    /// The most items a forwarded task list carries; a plan longer than this is a plan nobody reads in a notch.
+    static let todoLimit = 50
+
+    /// `TodoWrite`'s `todos` array (`[{content, status, activeForm}]`, as Claude Code documents it) reduced to what
+    /// the row shows: each item's status and the first line of its `content`, collapsed and cut to `titleLimit`
+    /// characters like a title. `activeForm` and anything else an item carries is left in the payload. An item with
+    /// a status Claude Code does not document is dropped rather than guessed at; nil when the value is not an
+    /// array at all, and an empty plan for an empty one, which is the list being cleared.
+    static func todos(from value: Any?) -> TodoPlan? {
+        guard let entries = value as? [[String: Any]] else { return nil }
+        let items = entries.prefix(todoLimit).compactMap { entry -> TodoPlan.Item? in
+            guard let status = (entry["status"] as? String).flatMap(TodoPlan.Status.init(rawValue:)) else { return nil }
+            return TodoPlan.Item(content: title(fromPrompt: entry["content"]), status: status)
+        }
+        return TodoPlan(items: items)
+    }
+
+    /// The task list as the socket line carries it: one `{status, content}` object per item, `content` only when
+    /// there is text to send.
+    static func userInfo(todos: TodoPlan) -> [[String: String]] {
+        todos.items.map { item in
+            var entry = ["status": item.status.rawValue]
+            if let content = item.content { entry["content"] = content }
+            return entry
         }
     }
 

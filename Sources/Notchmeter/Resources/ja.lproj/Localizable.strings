@@ -516,7 +516,6 @@
 "Pace crossing" = "ペース超過";
 "Step %1$ld of %2$ld" = "ステップ %1$ld / %2$ld";
 "Suggested rules" = "提案されたルール";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "各プロンプトの 1 行目（最大 96 文字）で、フックが送信し、実行中のアプリだけが保持します。オフにすると、アプリはどこにも保持する前に破棄し、行にはプロジェクトとブランチが表示されます。この設定にかかわらず、画面共有中はタイトルを隠します。";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "外側のリングのウインドウを、「利用状況の表示」で選んだ使用済みまたは残りの意味で、リセットのカウントダウンなしに一つの数字としてリングの横に表示します。40 % 未満ではリングは引き続き控えめになりますが、数字は読めるままです。";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Claude Code の保存済みログインを読むため、一度だけ。「常に許可」を選べば静かなままです。定期的な読み取りがダイアログを出すことはありません。";
 "Unknown" = "不明";
@@ -823,3 +822,20 @@
 "Show in Finder" = "Finder に表示";
 "The crash report could not be read." = "クラッシュレポートを読み込めませんでした。";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ がクラッシュしたときに macOS が ~/Library/Logs/DiagnosticReports に書いた最新のレポートです。この Mac の外には出ません。「コピー」はホームフォルダのパスを伏せてクリップボードに入れるので、バグ報告に貼り付けてください。";
+
+/* The Sessions card: grouped rows, context gauge, subagents and the task list */
+"No sessions right now" = "現在セッションはありません";
+"How long since this session last did anything" = "このセッションが最後に動いてからの時間";
+"How long this turn has run" = "このターンが続いている時間";
+"The assistant running this session" = "このセッションを実行しているアシスタント";
+"Subagents" = "サブエージェント";
+"The subagents this session is running; click to list them" = "このセッションが実行中のサブエージェント。クリックで一覧表示";
+"%1$ld of %2$ld done" = "%2$ld 件中 %1$ld 件完了";
+"Task list" = "タスクリスト";
+"Claude Code's task list for this session; click to show it" = "このセッションの Claude Code のタスクリスト。クリックで表示";
+"Claude Code's task list for this session" = "このセッションの Claude Code のタスクリスト";
+"Subagent %ld" = "サブエージェント %ld";
+"How full this session's context window is, from its status line" = "このセッションのコンテキストウインドウの使用率（ステータスラインから）";
+"In progress" = "進行中";
+"Completed" = "完了済み";
+"The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "各プロンプトの 1 行目（最大 96 文字）と Claude Code のタスクリストのテキストで、フックが送信し、実行中のアプリだけが保持します。オフにすると、アプリはどちらもどこにも保持する前に破棄し、行にはプロジェクトが、タスクリストには件数だけが表示されます。この設定にかかわらず、画面共有中はどちらも隠します。";

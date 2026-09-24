@@ -532,7 +532,6 @@
 "Pace crossing" = "进度越界";
 "Step %1$ld of %2$ld" = "第 %1$ld 步，共 %2$ld 步";
 "Suggested rules" = "建议的规则";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "每条提示的第一行，最多 96 个字符，由钩子发送，仅保存在运行中的应用里。关闭后，应用会在保存之前丢弃它，该行改为显示项目和分支。无论此项如何设置，共享屏幕时标题都会隐藏。";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "外环所属窗口以一个数字显示在圆环旁，按“用量显示”中所选的已用或剩余口径，不带重置倒计时。低于 40 % 时圆环仍会变淡；数字保持清晰。";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "用于读取 Claude Code 保存的登录信息，仅一次。选择“始终允许”即可不再打扰；定时读取绝不会弹出对话框。";
 "Unknown" = "未知";
@@ -839,3 +838,20 @@
 "Show in Finder" = "在访达中显示";
 "The crash report could not be read." = "无法读取崩溃报告。";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ 崩溃时 macOS 写入 ~/Library/Logs/DiagnosticReports 的最新报告。它只留在这台 Mac 上：“复制”会把它放到剪贴板，并隐去你的个人文件夹路径，供你粘贴到错误报告中。";
+
+/* The Sessions card: grouped rows, context gauge, subagents and the task list */
+"No sessions right now" = "当前没有会话";
+"How long since this session last did anything" = "此会话上次活动至今的时长";
+"How long this turn has run" = "本轮已运行的时长";
+"The assistant running this session" = "运行此会话的助手";
+"Subagents" = "子代理";
+"The subagents this session is running; click to list them" = "此会话正在运行的子代理；点击列出";
+"%1$ld of %2$ld done" = "已完成 %1$ld/%2$ld";
+"Task list" = "任务列表";
+"Claude Code's task list for this session; click to show it" = "此会话的 Claude Code 任务列表；点击显示";
+"Claude Code's task list for this session" = "此会话的 Claude Code 任务列表";
+"Subagent %ld" = "子代理 %ld";
+"How full this session's context window is, from its status line" = "此会话上下文窗口的占用比例，来自其状态栏";
+"In progress" = "进行中";
+"Completed" = "已完成";
+"The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "每条提示的第一行（最多 96 个字符）以及 Claude Code 任务列表的文字，由钩子发送，仅保存在运行中的应用里。关闭后，应用会在保存之前丢弃两者：该行改为显示项目，任务列表只显示数量。无论此项如何设置，共享屏幕时两者都会隐藏。";

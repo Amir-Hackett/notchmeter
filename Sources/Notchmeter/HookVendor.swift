@@ -114,10 +114,15 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     static let decisionTimeout = Int(Hook.decisionWait)
 
     /// The matcher a group of ours must carry for one event: Claude Code's `PreToolUse` is registered for
-    /// `AskUserQuestion` alone, since the command has nothing to say to any other tool call and would only cost
-    /// a launch per call. Every other entry is unmatched.
+    /// `AskUserQuestion` alone and its `PostToolUse` for `TodoWrite` alone, since the command has nothing to say
+    /// to any other tool call and would only cost a launch per call. Every other entry is unmatched.
     func matcher(for event: String) -> String? {
-        self == .claude && event == "PreToolUse" ? Hook.askUserQuestionTool : nil
+        guard self == .claude else { return nil }
+        return switch event {
+        case "PreToolUse": Hook.askUserQuestionTool
+        case "PostToolUse": Hook.todoWriteTool
+        default: nil
+        }
     }
 
     /// The key the vendor's timeout is written under.
@@ -172,12 +177,15 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     }
 
     /// Whether a handler of ours under `event` (with the element it sits in, for the matcher) is in the shape the
-    /// current version writes. Only a deciding event has a shape to check: its handler must not be `async`, its
-    /// timeout must be at least `decisionTimeout` (absent counts as the vendor's default, which is 600 s for
-    /// Claude Code and Codex and 30 s for Copilot), and Claude Code's `PreToolUse` group must be matched to
-    /// `AskUserQuestion`. A 0.6.0 entry (`async: true, timeout: 5`) fails this and reads as `.partial`, so the
+    /// current version writes. A group whose event has a matcher (`matcher(for:)`) must carry it; beyond that only
+    /// a deciding event has a shape to check: its handler must not be `async` and its timeout must be at least
+    /// `decisionTimeout` (absent counts as the vendor's default, which is 600 s for Claude Code and Codex and 30 s
+    /// for Copilot). A 0.6.0 entry (`async: true, timeout: 5`) fails this and reads as `.partial`, so the
     /// launch repair upgrades it after its backup. A user who raised the timeout further keeps it.
     func isCurrent(handler: [String: Any], element: [String: Any], event: String) -> Bool {
+        // Checked for every event that has a matcher, not only the deciding ones: an unmatched `PostToolUse` of
+        // ours would launch the command on every tool call.
+        if let matcher = matcher(for: event), (element["matcher"] as? String)?.contains(matcher) != true { return false }
         guard decidingEvents.contains(event) else { return true }
         if handler["async"] as? Bool == true { return false }
         if let timeout = (handler[timeoutKey] as? NSNumber)?.intValue {
@@ -185,7 +193,6 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         } else if self == .copilot {
             return false
         }
-        if let matcher = matcher(for: event), (element["matcher"] as? String)?.contains(matcher) != true { return false }
         return true
     }
 
