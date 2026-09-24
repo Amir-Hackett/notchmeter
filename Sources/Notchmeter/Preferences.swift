@@ -131,6 +131,21 @@ enum Density: String, CaseIterable, Codable {
     var costRing: CGFloat { self == .compact ? 72 : 92 }
 }
 
+/// How the open panel is laid out. Simple is one sheet with a row per assistant, the cost and the sessions, each
+/// row carrying one figure and opening in place onto the detail (SimplePanel.swift); Detailed is the card per
+/// assistant the panel was until 0.8.0. Simple is the default for new installs and for everyone who never chose,
+/// because the panel is read at a glance and one figure a row is what a glance takes in.
+enum PanelMode: String, CaseIterable, Codable {
+    case simple, detailed
+
+    var title: String {
+        switch self {
+        case .simple: L("Simple")
+        case .detailed: L("Detailed")
+        }
+    }
+}
+
 enum PanelWidth: String, CaseIterable, Codable {
     case standard, wide
 
@@ -462,6 +477,12 @@ final class Preferences {
     var compactPrimary: Bool {
         didSet { defaults.set(compactPrimary, forKey: Keys.compactPrimary); report(Keys.compactPrimary, compactPrimary, changed: compactPrimary != oldValue) }
     }
+    /// Each assistant's symbol (ToolID.symbolName, the one on its card) drawn small in the middle of its rings, for
+    /// a reader who cannot tell the identity colours apart: position in the strip says which tool a ring is only
+    /// to someone who remembers the order. Off by default, since at this size it is a mark to learn, not a label.
+    var ringSymbols: Bool {
+        didSet { defaults.set(ringSymbols, forKey: Keys.ringSymbols); report(Keys.ringSymbols, ringSymbols, changed: ringSymbols != oldValue) }
+    }
     /// An assistant that is switched on and installed but has nothing to show — no reading, no spend, no session —
     /// stays off the panel and the strip until it has (UsageStore.visibleTools). The last visible one is never hidden.
     var hideEmptyTools: Bool {
@@ -492,6 +513,14 @@ final class Preferences {
     }
     /// What Auto has made of the menu bar (AutoSideWatcher); nil until it has looked.
     var autoCompactFit: CompactFit?
+    /// The room Auto last measured either side of the notch (AutoSideWatcher), which a news peek (NotchPeek) is
+    /// laid out in; nil until it has looked. Not saved, like the fit beside it.
+    var autoCompactRoom: NotchPeek.Room?
+    /// The room a peek may take: what Auto measured, or nothing measured under a fixed side, where the readouts
+    /// themselves are drawn without a measurement either.
+    var peekRoom: NotchPeek.Room {
+        compactSide == .auto ? autoCompactRoom ?? .unmeasured : .unmeasured
+    }
     /// The fit the readouts are actually drawn at. A fixed side keeps every tool at the chosen style; Auto uses
     /// what it last measured, and until it has measured anything it sits centred on the notch — the arrangement
     /// it returns to whenever there is room, so the strip starts where it spends most of its life.
@@ -526,6 +555,9 @@ final class Preferences {
     }
     var density: Density {
         didSet { defaults.set(density.rawValue, forKey: Keys.density); report(Keys.density, density.rawValue, changed: density != oldValue) }
+    }
+    var panelMode: PanelMode {
+        didSet { defaults.set(panelMode.rawValue, forKey: Keys.panelMode); report(Keys.panelMode, panelMode.rawValue, changed: panelMode != oldValue) }
     }
     var panelWidth: PanelWidth {
         didSet { defaults.set(panelWidth.rawValue, forKey: Keys.panelWidth); report(Keys.panelWidth, panelWidth.rawValue, changed: panelWidth != oldValue) }
@@ -688,15 +720,37 @@ final class Preferences {
     var signalRings: Bool {
         didSet { defaults.set(signalRings, forKey: Keys.signalRings); report(Keys.signalRings, signalRings, changed: signalRings != oldValue) }
     }
+    /// The collapsed strip names the session and the reason for a few seconds when one starts waiting or finishes
+    /// a turn (NotchNews): the rings say that something happened, and this says where and what, without opening
+    /// the panel. On by default for the reason `signalRings` is: the strip has no other channel for it. Not tied to
+    /// the notification settings either — a banner interrupts, a few words beside the notch do not.
+    var notchNews: Bool {
+        didSet { defaults.set(notchNews, forKey: Keys.notchNews); report(Keys.notchNews, notchNews, changed: notchNews != oldValue) }
+    }
+    /// A soft light under the notch for the same news (NotchGlow): blue for a wait, white for a finish, fading after
+    /// a few seconds, with a faint blue kept while anything still waits. Separate from `notchNews` because the two
+    /// cost different things: the words cover the menu bar for four seconds, the light covers nothing.
+    var notchGlow: Bool {
+        didSet { defaults.set(notchGlow, forKey: Keys.notchGlow); report(Keys.notchGlow, notchGlow, changed: notchGlow != oldValue) }
+    }
     var notificationSound: Bool {
         didSet { defaults.set(notificationSound, forKey: Keys.notificationSound); report(Keys.notificationSound, notificationSound, changed: notificationSound != oldValue) }
     }
-    /// The sound per event class (NotificationSound): a pace crossing, Claude Code waiting, a turn finishing.
+    /// The sound per event class (NotificationSound): a pace crossing, each kind of wait (Hook.WaitKind), a turn
+    /// finishing.
     var soundPace: String {
         didSet { defaults.set(soundPace, forKey: Keys.soundPace); report(Keys.soundPace, soundPace, changed: soundPace != oldValue) }
     }
-    var soundWaiting: String {
-        didSet { defaults.set(soundWaiting, forKey: Keys.soundWaiting); report(Keys.soundWaiting, soundWaiting, changed: soundWaiting != oldValue) }
+    /// Through 0.7.9 the three waits shared one sound, stored under `soundWaiting`; `storedWaitSound` carries that
+    /// choice over to each of them until the user picks one of its own.
+    var soundPermission: String {
+        didSet { defaults.set(soundPermission, forKey: Keys.soundPermission); report(Keys.soundPermission, soundPermission, changed: soundPermission != oldValue) }
+    }
+    var soundQuestion: String {
+        didSet { defaults.set(soundQuestion, forKey: Keys.soundQuestion); report(Keys.soundQuestion, soundQuestion, changed: soundQuestion != oldValue) }
+    }
+    var soundPlan: String {
+        didSet { defaults.set(soundPlan, forKey: Keys.soundPlan); report(Keys.soundPlan, soundPlan, changed: soundPlan != oldValue) }
     }
     var soundFinished: String {
         didSet { defaults.set(soundFinished, forKey: Keys.soundFinished); report(Keys.soundFinished, soundFinished, changed: soundFinished != oldValue) }
@@ -916,6 +970,7 @@ final class Preferences {
         static let compactStyle = "compactStyle"
         static let resetCountdown = "showResetCountdown"
         static let compactPrimary = "compactPrimary"
+        static let ringSymbols = "ringSymbols"
         static let hideEmptyTools = "hideEmptyTools"
         static let showSpend = "showSpend"
         static let showDetails = "showDetails"
@@ -927,6 +982,7 @@ final class Preferences {
         static let timeFormat = "timeFormat"
         static let density = "density"
         static let panelWidth = "panelWidth"
+        static let panelMode = "panelMode"
         static let gestures = "gesturesEnabled"
         static let reduceAnimations = "reduceAnimations"
         static let menuBarItem = "showMenuBarItem"
@@ -960,9 +1016,16 @@ final class Preferences {
         static let notifyPromptCache = "notifyPromptCache"
         static let sessionAttention = "sessionAttention"
         static let signalRings = "signalRings"
+        static let notchNews = "notchNews"
+        static let notchGlow = "notchGlow"
         static let notificationSound = "notificationSound"
         static let soundPace = "soundPace"
+        /// The one waiting sound through 0.7.9. Read, never written: `storedWaitSound` falls back to it, and it is
+        /// left in place so an earlier build run again still finds the choice it made.
         static let soundWaiting = "soundWaiting"
+        static let soundPermission = "soundPermission"
+        static let soundQuestion = "soundQuestion"
+        static let soundPlan = "soundPlan"
         static let soundFinished = "soundFinished"
         static let quietHours = "quietHoursEnabled"
         static let quietStart = "quietHoursStart"
@@ -1016,6 +1079,7 @@ final class Preferences {
         compactStyle = CompactStyle(rawValue: defaults.string(forKey: Keys.compactStyle) ?? "") ?? .rings
         showResetCountdown = defaults.bool(forKey: Keys.resetCountdown)
         compactPrimary = defaults.object(forKey: Keys.compactPrimary) as? Bool ?? true
+        ringSymbols = defaults.bool(forKey: Keys.ringSymbols)
         hideEmptyTools = defaults.object(forKey: Keys.hideEmptyTools) as? Bool ?? true
         showSpend = defaults.object(forKey: Keys.showSpend) as? Bool ?? true
         showDetails = defaults.object(forKey: Keys.showDetails) as? Bool ?? false
@@ -1027,6 +1091,7 @@ final class Preferences {
         timeFormat = TimeFormatPreference(rawValue: defaults.string(forKey: Keys.timeFormat) ?? "") ?? .auto
         density = Density(rawValue: defaults.string(forKey: Keys.density) ?? "") ?? .comfortable
         panelWidth = PanelWidth(rawValue: defaults.string(forKey: Keys.panelWidth) ?? "") ?? .standard
+        panelMode = PanelMode(rawValue: defaults.string(forKey: Keys.panelMode) ?? "") ?? .simple
         gesturesEnabled = defaults.object(forKey: Keys.gestures) as? Bool ?? true
         reduceAnimations = defaults.bool(forKey: Keys.reduceAnimations)
         showMenuBarItem = defaults.object(forKey: Keys.menuBarItem) as? Bool
@@ -1064,9 +1129,13 @@ final class Preferences {
         notifyPromptCache = defaults.object(forKey: Keys.notifyPromptCache) as? Bool ?? true
         sessionAttention = SessionAttention.stored(defaults.string(forKey: Keys.sessionAttention))
         signalRings = defaults.object(forKey: Keys.signalRings) as? Bool ?? true
+        notchNews = defaults.object(forKey: Keys.notchNews) as? Bool ?? true
+        notchGlow = defaults.object(forKey: Keys.notchGlow) as? Bool ?? true
         notificationSound = defaults.object(forKey: Keys.notificationSound) as? Bool ?? true
         soundPace = defaults.string(forKey: Keys.soundPace) ?? NotificationSound.defaultChoice
-        soundWaiting = defaults.string(forKey: Keys.soundWaiting) ?? NotificationSound.defaultChoice
+        soundPermission = Self.storedWaitSound(.permission, defaults: defaults)
+        soundQuestion = Self.storedWaitSound(.question, defaults: defaults)
+        soundPlan = Self.storedWaitSound(.plan, defaults: defaults)
         soundFinished = defaults.string(forKey: Keys.soundFinished) ?? NotificationSound.defaultChoice
         quietHoursEnabled = defaults.bool(forKey: Keys.quietHours)
         quietHoursStart = defaults.object(forKey: Keys.quietStart) as? Int ?? 22 * 60
@@ -1275,9 +1344,31 @@ final class Preferences {
         guard notificationSound else { return NotificationSound.none }
         switch event {
         case .pace: return soundPace
-        case .waiting: return soundWaiting
+        case .waiting(.permission): return soundPermission
+        case .waiting(.question): return soundQuestion
+        case .waiting(.plan): return soundPlan
         case .finished: return soundFinished
         }
+    }
+
+    /// The key each kind of wait keeps its sound under.
+    static func soundKey(for kind: Hook.WaitKind) -> String {
+        switch kind {
+        case .permission: Keys.soundPermission
+        case .question: Keys.soundQuestion
+        case .plan: Keys.soundPlan
+        }
+    }
+
+    /// A wait's sound as stored: its own choice once it has one; otherwise whatever the single waiting sound
+    /// was set to before the kinds were split, so someone who chose Glass for every wait still hears Glass for
+    /// each of them after the update; and only for someone who never chose at all, the kind's own default
+    /// (`NotificationSound.defaultChoice(for:)`), which is where the three first sound different. The old key is
+    /// consulted rather than copied: a user who later picks a sound for one kind changes that one alone, and the
+    /// other two keep following the choice they were migrated from.
+    static func storedWaitSound(_ kind: Hook.WaitKind, defaults: UserDefaults, installed: [String] = NotificationSound.systemSounds()) -> String {
+        defaults.string(forKey: soundKey(for: kind)) ?? defaults.string(forKey: Keys.soundWaiting)
+            ?? NotificationSound.defaultChoice(for: kind, installed: installed)
     }
 
     /// Empties this app's defaults domain; the caller relaunches, so nothing here needs to be re-read.

@@ -45,6 +45,7 @@ enum AssetRenderer {
             let (finished, finishedPrefs) = DemoFixtures.store(now: now, moment: .justFinished)
             try write(signalRings(waiting: stage, finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
                       png: directory.appendingPathComponent("signal-rings.png"))
+            try write(notchNews(now: now, actions: actions), png: directory.appendingPathComponent("notch-news.png"))
             // The two requests, each drawn the way a request actually arrives: the panel opened on the card alone
             // (UsageStore.panelOpenedForPrompt), which is what the reader will see and not a panel with a card on
             // top of the meters. A state the fixture machine cannot reach cannot be drawn, so both come from real
@@ -57,7 +58,19 @@ enum AssetRenderer {
                           png: directory.appendingPathComponent("\(name).png"))
             }
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
+            try write(welcome(now: now), png: directory.appendingPathComponent("welcome.png"))
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
+            // The same moment on the Detailed panel (PanelMode): every card open, as the panel was before 0.8.0.
+            prefs.panelMode = .detailed
+            let detailed = try Stage(store: store, prefs: prefs, actions: actions)
+            try write(detailed.image(.expanded, canvas: detailed.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-detailed.png"))
+            prefs.panelMode = .simple
+            // The Simple panel with two rows opened in place, for review: the tool's card and the Cost card drawn
+            // under their rows without a box.
+            store.openPanelRows = [AdvicePlacement.Slot.tool(.claude).key, AdvicePlacement.Slot.cost.key]
+            let opened = try Stage(store: store, prefs: prefs, actions: actions)
+            try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-open.png"))
+            store.openPanelRows = []
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
             AccessibilityDisplay.shared.force(contrast: true)
             defer { AccessibilityDisplay.shared.force(contrast: nil) }
@@ -407,6 +420,41 @@ enum AssetRenderer {
         }
     }
 
+    /// The collapsed notch announcing news (NotchNews), three rows at three moments: a permission prompt just
+    /// raised, with its words beside the notch and the blue bloom under it; a long turn just finished, with the
+    /// white one; and the plain strip with the assistants' symbols in their rings (Preferences.ringSymbols). Each
+    /// row is its own store, the news seeded as `announce` would have raised it for the fixture's last hook
+    /// event, and the glow drawn from the real view the glow window hosts. The finish is laid out in the room of
+    /// a menu bar whose menus reach close to the notch (70 pt left of it, 300 right), so the picture shows the
+    /// session's long title moving to the side with room rather than cut to a few letters on the cramped one.
+    @MainActor
+    static func notchNews(now: Date, actions: NotchActions) throws -> CGImage {
+        var stages: [Stage] = []
+        for moment in [DemoFixtures.Moment.waiting, .justFinished] {
+            let (store, prefs) = DemoFixtures.store(now: now, moment: moment)
+            if moment == .justFinished {
+                prefs.compactSide = .auto
+                prefs.autoCompactRoom = NotchPeek.Room(leading: 70, trailing: 300)
+            }
+            store.seed(news: DemoFixtures.news(in: store, moment: moment, now: now))
+            stages.append(try Stage(store: store, prefs: prefs, actions: actions, drawsGlow: true))
+        }
+        let (plain, plainPrefs) = DemoFixtures.store(now: now, moment: .justFinished)
+        plainPrefs.ringSymbols = true
+        stages.append(try Stage(store: plain, prefs: plainPrefs, actions: actions))
+        let width = (stages.map(\.compactExtent).max() ?? 0) + 2 * NotchGlowView.spread + 80
+        let row = CGSize(width: width, height: notch.height + NotchGlowView.depth + 8)
+        let gap: CGFloat = 14
+        let rows = try stages.map { try $0.image(.compact, canvas: row, pixelScale: scale) }
+        let canvas = CGSize(width: width, height: CGFloat(rows.count) * row.height + CGFloat(rows.count - 1) * gap)
+        return try bitmap(canvas, pixelScale: scale) { ctx in
+            wallpaper(in: ctx, canvas: canvas)
+            for (index, image) in rows.enumerated() {
+                draw(image, in: CGRect(x: 0, y: CGFloat(index) * (row.height + gap), width: row.width, height: row.height), alpha: 1, into: ctx)
+            }
+        }
+    }
+
     /// One or two of the panel's cards in the panel's own container: its width, its horizontal padding, and the
     /// black it is drawn on, at 2 px a point.
     ///
@@ -492,6 +540,33 @@ enum AssetRenderer {
         }
         windows.append(window)
         return try bitmap(of: frame, size: frame.bounds.size, what: "the \(pane.title) pane of the Settings window")
+    }
+
+    /// The Welcome tour, every step one under another, as the window draws it in the dark appearance.
+    ///
+    /// For review: the README does not use it. Each step is its own window opened on that step, because the tour
+    /// builds only the page on screen. The previews scale themselves once they have been measured, and that
+    /// measurement lands on the run loop's next turn rather than inside the first layout, so the run loop is
+    /// turned once before the capture; without it the picture is of the previews at their own size, overflowing
+    /// the stage.
+    @MainActor
+    static func welcome(now: Date) throws -> CGImage {
+        let previews = WelcomePreviews(now: now)
+        let size = WelcomeWindowController.contentSize
+        var pages: [CGImage] = []
+        for step in WelcomeStep.allCases {
+            let host = NSHostingView(rootView: WelcomeView(start: step, previews: previews, install: {}, finish: {}))
+            let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: .borderless, backing: .buffered, defer: false)
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.backgroundColor = .windowBackgroundColor
+            window.contentView = host
+            host.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            host.layoutSubtreeIfNeeded()
+            windows.append(window)
+            pages.append(try bitmap(of: host, size: size, what: "the \(step.name) step of the Welcome tour"))
+        }
+        return try stack(pages, gutter: 24)
     }
 
     /// Images one under another, left-aligned, on the same ground the sheet's gutters use.
@@ -688,12 +763,25 @@ enum AssetRenderer {
         let content: Snapshot
         let leading: Snapshot
         let trailing: Snapshot
+        /// The light under the collapsed shape (NotchGlow), when the stage was asked to draw it and there is one.
+        /// Off for the README's pictures, which are of the readouts and not of a moment's news.
+        let glow: Snapshot?
 
         @MainActor
-        init(store: UsageStore, prefs: Preferences, actions: NotchActions) throws {
+        init(store: UsageStore, prefs: Preferences, actions: NotchActions, drawsGlow: Bool = false) throws {
             content = try snapshot(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000), what: "the panel")
             leading = try snapshot(NotchCompactView(store: store, side: .leading), what: "the leading rings")
             trailing = try snapshot(NotchCompactView(store: store, side: .trailing), what: "the trailing rings")
+            let waiting = !store.awaitingInput.filter(store.isShown).isEmpty
+            if drawsGlow, let state = NotchGlow.state(news: store.glowNews, waiting: waiting, enabled: prefs.notchGlow, now: store.glowNews?.at ?? Date()) {
+                let model = NotchGlowModel()
+                model.state = state
+                model.width = leading.size.width + trailing.size.width + notch.width + 2 * ringInset + 2 * compactRadii.top
+                glow = try snapshot(NotchGlowView(model: model).frame(width: model.width + 2 * NotchGlowView.spread, height: NotchGlowView.depth),
+                                    what: "the glow")
+            } else {
+                glow = nil
+            }
         }
 
         var panelSize: CGSize {
@@ -703,6 +791,14 @@ enum AssetRenderer {
         var compactSize: CGSize {
             CGSize(width: leading.size.width + trailing.size.width + notch.width + 2 * ringInset + 2 * compactRadii.top, height: notch.height)
         }
+
+        /// How far the compact shape's centre sits right of the notch's. DynamicNotchKit keeps the notch over the
+        /// camera and lets each half take its own width, so halves of unequal width (a peek on one side, readouts
+        /// on the other) move the shape towards the wider one (NotchView's offset, half their difference).
+        var compactOffset: CGFloat { (trailing.size.width - leading.size.width) / 2 }
+
+        /// The width a canvas centred on the notch needs to hold the compact shape whichever way it leans.
+        var compactExtent: CGFloat { compactSize.width + 2 * abs(compactOffset) }
 
         /// The open panel with enough desktop around it to read as a screenshot.
         var panelCanvas: CGSize {
@@ -753,9 +849,15 @@ enum AssetRenderer {
             ctx.addPath(notchPath(CGRect(x: centerX - notch.width / 2, y: 0, width: notch.width, height: notch.height), top: 0, bottom: 10))
             ctx.fillPath()
 
+            if let glow, pose.ringsAlpha > 0 {
+                // Under the shape, from its bottom edge down, as the glow window sits under the notch panel.
+                draw(glow.image, in: CGRect(x: centerX + compactOffset - glow.size.width / 2, y: notch.height, width: glow.size.width, height: glow.size.height),
+                     alpha: pose.ringsAlpha, into: ctx)
+            }
             let width = lerp(compactSize.width, panelSize.width, pose.shape)
             let height = lerp(compactSize.height, panelSize.height, pose.shape)
-            let shape = notchPath(CGRect(x: centerX - width / 2, y: 0, width: width, height: height),
+            let offset = lerp(compactOffset, 0, pose.shape)
+            let shape = notchPath(CGRect(x: centerX + offset - width / 2, y: 0, width: width, height: height),
                                   top: lerp(compactRadii.top, expandedRadii.top, pose.shape), bottom: lerp(compactRadii.bottom, expandedRadii.bottom, pose.shape))
             ctx.saveGState()
             let lift = min(1, max(0, pose.shape))

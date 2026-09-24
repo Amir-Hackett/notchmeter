@@ -41,6 +41,12 @@ struct Advice: Identifiable, Equatable, Sendable {
         guard !headroom.isEmpty, text.hasSuffix(headroom) else { return self }
         return Advice(id: id, tool: tool, priority: priority, symbol: symbol, text: String(text.dropLast(headroom.count)), url: url)
     }
+
+    /// The sentence has a figure in it: a digit in any script's decimal digits, or a currency sign. What
+    /// screen-share privacy (UsageStore.hidesFigures) keeps off the panel.
+    var carriesFigure: Bool {
+        text.unicodeScalars.contains { CharacterSet.decimalDigits.contains($0) || $0.properties.generalCategory == .currencySymbol }
+    }
 }
 
 /// Extra-usage credits rose since the last reading: by how much, over how long, and whether the plan windows
@@ -86,6 +92,10 @@ enum Advisor {
         var metering: MeteringRatio? = nil
         /// The Claude sessions' prompt-cache figures over the current 5-hour block (PromptCache.summary).
         var promptCache: PromptCacheSummary? = nil
+        /// The screen is shared and the privacy setting is on (UsageStore.hidesFigures): no line may carry money
+        /// or a figure. The store also leaves the spend, the budgets and the project names out of the context;
+        /// this drops what the readings still put in a sentence (a percentage, a run-out time).
+        var hidesFigures = false
         var now: Date = Date()
         var calendar: Calendar = .current
 
@@ -141,7 +151,9 @@ enum Advisor {
             + serverTrouble(context)
             + peak(context)
             + crossProvider(context).filter { $0.tool.map { !alreadyRouted.contains($0) } ?? true }
-        return withoutRepeatedHeadroom(Array(all.enumerated()
+        // Before the cap, so a line withheld for its figures leaves room for one that has none.
+        let shown = context.hidesFigures ? all.map { $0.withoutHeadroom() }.filter { !$0.carriesFigure } : all
+        return withoutRepeatedHeadroom(Array(shown.enumerated()
             .sorted { ($0.element.priority.rawValue, $0.offset) < ($1.element.priority.rawValue, $1.offset) }
             .map(\.element)
             .prefix(limit)))

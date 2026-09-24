@@ -204,6 +204,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.removeNotifications = { [weak self] identifiers in self?.notifier.remove(identifiers: identifiers) }
         store.promptRequested = { [weak self] session, request in self?.actions.showPrompt(session, request) }
         store.promptEnded = { [weak self] requestID in self?.actions.promptEnded(requestID) }
+        // The news peek is drawn by the notch strips alone (NotchController); the edge pills keep their readouts.
+        store.canPeek = { [weak self] in
+            self?.presenters.contains { ($0 as? NotchController)?.canShowPeek ?? false } ?? false
+        }
+        store.announceNews = { words in NotchNewsAnnouncer.post(words) }
         store.awakeChanged = { [weak self] hold in
             self?.awake.apply(hold: hold)
             self?.refreshFooterNote()
@@ -238,6 +243,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.showPrompt = { [weak self] session, request in self?.promptRequested(session, request) }
         actions.promptEnded = { [weak self] requestID in self?.promptEnded(requestID) }
         actions.passPrompt = { [weak self] in self?.passPrompts() }
+        actions.openNews = { [weak self] news in
+            guard let self else { return }
+            let strips = self.presenters.compactMap { $0 as? NotchController }
+            (strips.first { $0 === self.pointerPresenter } ?? strips.first { $0.canShowPeek })?.open(on: news)
+        }
         actions.jump = { [weak self] session in
             guard let self, self.prefs.jumpToTerminal else { return }
             self.jumper.jump(session)
@@ -250,6 +260,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         requests.awakeChanged = { [weak self] in self?.store.applyAwake() }
         requests.diagnostics = { [weak self] in self?.diagnostics() ?? "" }
         requests.installCommandLineTool = { [weak self] in self?.installCommandLineTool() }
+        requests.showWelcomeTour = { [weak self] in self?.showWelcomeTour() }
         requests.updater = { [weak self] in self?.updater }
         buildPresenters()
         // The app's own menu bar icon is one of the status items Auto measures against, so it exists before the
@@ -311,6 +322,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 actions.checkForUpdates = { updater.checkForUpdates() }
             }
             autoRepairHooks()
+            store.hooksInstalled = HookSettings.anyInstalled()
             if Translocation.shouldOffer(bundlePath: Bundle.main.bundlePath) {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(1))
@@ -458,9 +470,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Welcome
 
     /// The first-launch Welcome, held open the way Settings is. Its install button closes it and opens Settings
-    /// on Integrations with the hook offer and the status line queued (`offerClaudeSetup`).
+    /// on Integrations with the hook offer and the status line queued (`offerClaudeSetup`). A second ask while it
+    /// is up brings the one already open forward rather than stacking another.
     private func showWelcome() {
-        let controller = WelcomeWindowController(install: { [weak self] in self?.offerClaudeSetup() },
+        if let welcome {
+            welcome.present(on: .pointerScreen)
+            return
+        }
+        let connected = WelcomeWindowController.connected(hook: HookSettings.status(), statusline: HookSettings.statuslineStatus())
+        let controller = WelcomeWindowController(connected: connected, panelMode: store.prefs.panelMode, install: { [weak self] in self?.offerClaudeSetup() },
                                                  finish: { [weak self] in self?.welcome?.close() })
         welcome = controller
         if let window = controller.window {
@@ -471,6 +489,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hold(.welcome, true)
         controller.present(on: .pointerScreen)
         Oracle.shared.emit("settings", ["action": "welcome"])
+    }
+
+    /// Settings › General › "Show the welcome tour again". Settings steps aside first: it sits above the tour's
+    /// level, and the tour's last step sends the reader back into it anyway.
+    private func showWelcomeTour() {
+        settings?.close()
+        showWelcome()
     }
 
     private func welcomeDidClose() {
@@ -975,6 +1000,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Oracle
 
+    /// The Sessions card as it would draw now: whether it is on the panel, and its rows in order with their group,
+    /// status and counts (SessionsCard.oracleRows), so grouping, the gauge and the chips can be checked without a
+    /// screenshot. An empty `rows` with `shown` true is the card's empty state.
+    private func sessionsCardFields() -> [String: Any] {
+        let all = store.sessions.all
+        let rows = SessionsCard.rows(all, hideTitles: true, jump: prefs.jumpToTerminal, now: Date())
+        return ["shown": prefs.sessionsCard && (store.sessions.count > 0 || store.hooksInstalled),
+                "rows": SessionsCard.oracleRows(SessionsCard.groups(rows.rows, sessions: all)), "more": rows.more]
+    }
+
     /// Everything a tester could otherwise only see, in one line, on the distributed notification
     /// com.amirhackett.notchmeter.oracle.snapshot.
     private func emitSnapshot() {
@@ -987,6 +1022,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                          "leads": store.costSelection.providers.first?.tool.rawValue as Any,
                          "gaps": store.costGaps.map { ["tool": $0.tool.rawValue, "reason": $0.text] }],
             "awaitingInput": store.awaitingInput.map(\.rawValue).sorted(), "sessions": store.sessions.count,
+            "sessionsCard": sessionsCardFields(),
             "signals": ToolID.allCases.compactMap { tool in store.signal(tool).map { "\(tool.rawValue):\(String(describing: $0))" } },
             "readings": ToolID.allCases.map { Oracle.fields($0, store.status($0)) },
             "advice": store.advice.map(\.text),

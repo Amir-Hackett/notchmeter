@@ -1,6 +1,5 @@
 /* Notchmeter、日本語。キーは英語の原文。LocalizationTests が en 表とのキーと書式指定子の一致を検証する。製品名とツール名（Notchmeter、Claude Code、Codex、Cursor、Gemini CLI、Antigravity、GitHub Copilot）はそのまま。ネイティブレビュー前の下訳。 */
 
-
 /* 第 2 ラウンドの補完: セッション、予算、ピーク時間、出所タグ、コマンドラインツール、MCP、キーチェーン方針、ディスプレイ、診断 */
 
 /* 表示しきれなかったツール、最後の読み取りの後ろに（NotchViews） */
@@ -151,7 +150,6 @@
 "Collapsed" = "折りたたみ";
 "Colour the rings when an assistant waits or finishes" = "アシスタントが待機中または完了したときにリングに色を付ける";
 "Connect Claude Code" = "Claude Code を接続";
-"Continue" = "続ける";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI は起動時にフックを読み込みます。再起動すると /env にそのファイルが並びます。";
 "credits" = "クレジット";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor は会話の開始と終了、プロンプトの送信、ターンの停止、サブエージェントの開始と停止を報告します。承認待ちやレート制限のイベントはないため、Cursor のリングは完了のチェックを示し、待機の手は決して示しません。中断またはエラーで終わったターンにはチェックが付きません。Cursor は hooks.json を保存するとすぐ再読み込みします。";
@@ -176,6 +174,7 @@
 "Hooks" = "フック";
 "Idle" = "アイドル";
 "Install the hook and status line…" = "フックとステータスラインをインストール…";
+"Open Integrations…" = "連携を開く…";
 "Installed, but an entry is out of date: Repair updates it" = "インストール済みですが、古い項目があります。「修復」で更新します";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "各アシスタントがこの Mac にすでに保存している利用状況（Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot）を読み、そのツールが保存したログインで各ベンダーの利用状況エンドポイントに問い合わせます。サインインすることも、トークンを保持することも、他のどこかへ送ることもありません。アカウントも解析もありません。";
 "Jump to the terminal" = "ターミナルへジャンプ";
@@ -347,6 +346,7 @@
 "Dark" = "ダーク";
 "Debug logging" = "デバッグログ";
 "Default" = "デフォルト";
+"Default (%@)" = "デフォルト（%@）";
 "Density" = "密度";
 "Display" = "ディスプレイ";
 "Display with the pointer" = "ポインタのあるディスプレイ";
@@ -515,8 +515,19 @@
 "Overall %@" = "全体の%@";
 "Pace crossing" = "ペース超過";
 "Step %1$ld of %2$ld" = "ステップ %1$ld / %2$ld";
-"Suggested rules" = "提案されたルール";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "各プロンプトの 1 行目（最大 96 文字）で、フックが送信し、実行中のアプリだけが保持します。オフにすると、アプリはどこにも保持する前に破棄し、行にはプロジェクトとブランチが表示されます。この設定にかかわらず、画面共有中はタイトルを隠します。";
+
+"Allow %@ for the rest of this session" = "このセッションの残りの間 %@ を許可";
+"Always allow %@ in this project" = "このプロジェクトで %@ を常に許可";
+"Always allow %@ in this project, for everyone" = "このプロジェクトで全員に %@ を常に許可";
+"Always allow %@ in every project" = "すべてのプロジェクトで %@ を常に許可";
+"Always allow %@" = "%@ を常に許可";
+"files in %@" = "%@ 内のファイル";
+"every file edit" = "すべてのファイル編集";
+"Other rules to always allow (⌥⌘↓)" = "常に許可できるほかのルール（⌥⌘↓）";
+"Shown" = "表示中";
+"Hidden" = "非表示";
+"Allows this request and saves the rule, so it is not asked again." = "このリクエストを許可し、ルールを保存して次回から確認しないようにします。";
+"%1$@ (%2$@)" = "%1$@（%2$@）";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "外側のリングのウインドウを、「利用状況の表示」で選んだ使用済みまたは残りの意味で、リセットのカウントダウンなしに一つの数字としてリングの横に表示します。40 % 未満ではリングは引き続き控えめになりますが、数字は読めるままです。";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Claude Code の保存済みログインを読むため、一度だけ。「常に許可」を選べば静かなままです。定期的な読み取りがダイアログを出すことはありません。";
 "Unknown" = "不明";
@@ -685,6 +696,11 @@
 "Waiting for permission." = "許可を待っています。";
 "Waiting for the first reading" = "最初の読み取りを待機中";
 "waiting for the first reading" = "最初の読み取りを待機中";
+"Question" = "質問";
+"Plan ready to approve" = "承認待ちのプラン";
+"Preview the %@ sound" = "%@ のサウンドを試聴";
+"Choose a file for the %@ sound" = "%@ のサウンドにするファイルを選択";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "プランを区別できるのは、Claude Code がフックを通じて承認を求めたときだけです。何を求めているかを示さない待機では、許可リクエストのサウンドが鳴ります。";
 "Waiting for you" = "あなたを待機中";
 "Waiting for your answer" = "回答を待っています";
 "Waiting for your approval in System Settings › General › Login Items." = "システム設定 › 一般 › ログイン項目での承認を待っています。";
@@ -699,7 +715,6 @@
 "Weekly budget" = "週次予算";
 "Welcome to %@" = "%@ へようこそ";
 "What %@ reads" = "%@ が読むもの";
-"What it may ask for" = "求められることのある許可";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "フックが報告した各セッションについてパネルが何を表示し、そこから何ができるか。すべてアシスタントのフックが必要です（統合）。";
 "When crowded" = "余白が足りないとき";
 "When a window resets" = "ウィンドウがリセットされたとき";
@@ -823,3 +838,67 @@
 "Show in Finder" = "Finder に表示";
 "The crash report could not be read." = "クラッシュレポートを読み込めませんでした。";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ がクラッシュしたときに macOS が ~/Library/Logs/DiagnosticReports に書いた最新のレポートです。この Mac の外には出ません。「コピー」はホームフォルダのパスを伏せてクリップボードに入れるので、バグ報告に貼り付けてください。";
+
+/* The panel header: its three buttons (PanelHeader) */
+"Usage Dashboard" = "使用状況ダッシュボード";
+"Settings" = "設定";
+"Open the Usage Dashboard (⌘U)" = "使用状況ダッシュボードを開く（⌘U）";
+"Open Settings (⌘,)" = "設定を開く（⌘,）";
+"How the panel opens, its layout, refreshing and quitting" = "パネルの開き方、レイアウト、更新、終了";
+"Opens a menu" = "メニューを開きます";
+
+/* The Sessions card: grouped rows, context gauge, subagents and the task list */
+"No sessions right now" = "現在セッションはありません";
+"How long since this session last did anything" = "このセッションが最後に動いてからの時間";
+"How long this turn has run" = "このターンが続いている時間";
+"The assistant running this session" = "このセッションを実行しているアシスタント";
+"Subagents" = "サブエージェント";
+"The subagents this session is running; click to list them" = "このセッションが実行中のサブエージェント。クリックで一覧表示";
+"%1$ld of %2$ld done" = "%2$ld 件中 %1$ld 件完了";
+"Task list" = "タスクリスト";
+"Untitled task" = "無題のタスク";
+"Claude Code's task list for this session; click to show it" = "このセッションの Claude Code のタスクリスト。クリックで表示";
+"Claude Code's task list for this session" = "このセッションの Claude Code のタスクリスト";
+"Subagent %ld" = "サブエージェント %ld";
+"How full this session's context window is, from its status line" = "このセッションのコンテキストウインドウの使用率（ステータスラインから）";
+"In progress" = "進行中";
+"Completed" = "完了済み";
+"The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "各プロンプトの 1 行目（最大 96 文字）と Claude Code のタスクリストのテキストで、フックが送信し、実行中のアプリだけが保持します。オフにすると、アプリはどちらもどこにも保持する前に破棄し、行にはプロジェクトが、タスクリストには件数だけが表示されます。この設定にかかわらず、画面共有中はどちらも隠します。";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "承認が必要";
+"Finished" = "完了";
+"Opens the panel on this session" = "このセッションでパネルを開きます";
+"Show assistant symbols in the rings" = "リングにアシスタントのシンボルを表示";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "各アシスタントのシンボル（カードにあるもの）をリングの中央に小さく描きます。リングが3本で余裕がないときはリングの角に描きます。アシスタントの色を見分けにくいときのための設定です。";
+"Show news in the notch" = "ノッチにお知らせを表示";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "セッションがあなたを待ち始めたときやターンを終えたとき、ノッチの横の帯にプロジェクトと理由を4秒間表示します。表示はメニューバーが空けている範囲に収まります。クリックするとそのセッションでパネルが開きます。画面共有中はプロジェクト名を表示しません。";
+"Glow under the notch for news" = "お知らせのときにノッチの下を光らせる";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "同じお知らせのためにノッチの下に光を灯します。待機は青、完了は白で、3秒後に消えます。セッションが待っている間は淡い青が残ります。「視差効果を減らす」がオンのときは動かない色になります。";
+
+"The rings beside the notch" = "ノッチ横のリング";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "アシスタントごとに固有の色のリングが重なっています。外側のリングがメインの上限、内側のリングがその他のウインドウで、ウインドウを使うにつれて各弧が満ちていきます。破線のリングはまだ読み取るものがありません。リングにポインタを置くとパネルが開きます。";
+"The panel, and pace" = "パネルとペース";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "パネルにはアシスタントごとにカードがあり、各ウインドウ、リセットの時期、かかったコストを表示します。ペースはウインドウの消費速度を残り時間と比べるので、ウインドウが満杯になるずっと前、まだ控える余裕があるうちに警告が届きます。";
+"The panel has a row for each assistant with its most urgent figure; click a row for every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "パネルにはアシスタントごとに1行があり、いちばん差し迫った数値を表示します。行をクリックすると、各ウインドウ、リセットの時期、かかったコストが開きます。ペースはウインドウの消費速度を残り時間と比べるので、ウインドウが満杯になるずっと前、まだ控える余裕があるうちに警告が届きます。";
+"Sessions, answered from the notch" = "セッションにノッチから応答";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "フックを入れると、パネルに Claude Code のセッションと各セッションの作業内容が並びます。許可を求められたり質問されたりしたらここで答えられます。放っておけばターミナルに戻ります。";
+"Back" = "戻る";
+"Next" = "次へ";
+"Sample data" = "サンプルデータ";
+"The hook and the status line are both installed." = "フックとステータスラインはどちらもインストール済みです。";
+"Show the welcome tour again" = "ようこそツアーをもう一度表示";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "リング、パネルとペース、セッション、Claude Code のフックを、サンプルデータのプレビューで紹介します。";
+
+/* The Simple panel (SimplePanel.swift) and its setting */
+"Simple" = "シンプル";
+"Detailed" = "詳細";
+"Panel layout" = "パネルのレイアウト";
+"Simple shows one row per assistant with its most urgent figure; click a row for everything else. Detailed shows every assistant's card open." = "シンプルはアシスタントごとに最も急ぎの数値を1行で表示し、行をクリックするとそれ以外のすべてを表示します。詳細は各アシスタントのカードを開いた状態で表示します。";
+"Notes" = "メモ";
+"%@ left" = "%@ 残り";
+"Opens or closes the detail" = "詳細を開くか閉じます";
+
+/* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
+"Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "このプロジェクトの Cursor ウインドウを前面に出します（Cursor に特定のチャットを開かせることはできません）";
+"First seen %@" = "最初に検出：%@";

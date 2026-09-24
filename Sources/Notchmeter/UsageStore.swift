@@ -98,6 +98,10 @@ final class UsageStore {
     private(set) var simulatedIdle: TimeInterval?
     /// Something is capturing the screen (ScreenCaptureMonitor); with the privacy setting on, figures are hidden.
     private(set) var screenCaptured = false
+    /// Whether any assistant's hooks file carries Notchmeter's entry, read once the launch repair has run (and
+    /// again whenever Settings looks), so the Sessions card can say "no sessions" rather than vanish before the
+    /// first event arrives. A cached answer, because the view must not read files as it draws.
+    var hooksInstalled = false
     /// One line the footer shows beside the schedule: a hook repaired at launch, the awake assertion held.
     private(set) var footerNote: String?
     /// Extra-usage credits rose since the last reading (kept for an hour, for the advice strip).
@@ -129,6 +133,11 @@ final class UsageStore {
     /// The read in progress for each tool, so a second one can wait for it rather than run beside it or be lost.
     @ObservationIgnored private var inflight: [ToolID: Task<Void, Never>] = [:]
     @ObservationIgnored private var backoff: [ToolID: TimeInterval] = [:]
+    /// Cursor's chat names (CursorChatNames): when each conversation id was last read for, the read in flight, and
+    /// the follow-up armed for a chat Cursor may name after its turn has ended.
+    @ObservationIgnored private var cursorNamesTried: [String: Date] = [:]
+    @ObservationIgnored private var cursorNameRead: Task<Void, Never>?
+    @ObservationIgnored private var cursorNameFollowUp: Task<Void, Never>?
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -177,6 +186,8 @@ final class UsageStore {
     /// A session (any assistant's) began waiting, or finished a turn; wired to the Notifier by the app
     /// delegate, which names the session's tool.
     @ObservationIgnored var deliverSessionEvent: (Notifier.SessionEvent, AgentSession) -> Void = { _, _ in }
+    /// Where the oracle line for each hook event goes (`hookFacts`); a test swaps it to read the line back.
+    @ObservationIgnored var emitHookFacts: ([String: Any]) -> Void = { Oracle.shared.emit("hook", $0) }
     /// Notices whose state has passed, to withdraw from Notification Center.
     @ObservationIgnored var removeNotifications: ([String]) -> Void = { _ in }
     /// True while the panel is open because a request opened it (App.promptRequested on a compact panel): the
@@ -184,10 +195,52 @@ final class UsageStore {
     /// had already opened keeps everything and takes the card on top. Cleared by every collapse, and by the
     /// card's own *Show the whole panel*.
     var panelOpenedForPrompt = false
+    /// The requests whose *Allow always* has its other suggestions unfolded (PromptCard), by id. Kept here and not
+    /// in the card's own state so the controllers see it: the edge layout measures a fresh card to size its window
+    /// (`EdgePanelController.arrangements`) and refits only when something it observes changes, so an unfold the
+    /// card kept to itself would be clipped to the folded height. An id leaves with its request.
+    var unfoldedSuggestions: Set<String> = []
+
+    /// Unfolds or folds *Allow always*'s other suggestions on a request; ids of requests no longer pending are
+    /// dropped on the way, so the set never outgrows the requests on screen.
+    func unfoldSuggestions(_ requestID: String, _ unfolded: Bool, now: Date = Date()) {
+        let pending = Set(sessions.pending(now: now).map(\.request.id))
+        var ids = unfoldedSuggestions.intersection(pending)
+        if unfolded, pending.contains(requestID) { ids.insert(requestID) } else { ids.remove(requestID) }
+        unfoldedSuggestions = ids
+    }
     /// The session a glance is about (SessionAttention.glance): while set, the panel draws its
     /// NoticeCard alone, the way `panelOpenedForPrompt` draws a request's. Cleared by every collapse and by the
     /// card's own *Show the whole panel*.
     var attentionNotice: AttentionNotice?
+    /// The Sessions card's open lists, as "<session id>/agents" or "<session id>/todos" (SessionsCard.listKey).
+    /// Held here and not as a row's own state because the panel is sized from a separate measuring copy of its
+    /// content (NotchController.expandedContentSize): a list opened in view state alone grew the drawn card and
+    /// not the window, and the footer was cut off under it. Here the measure sees it and the observation re-sizes.
+    var openSessionLists: Set<String> = []
+    /// The Simple panel's rows open in place ("tool:claude", "cost", "notes"; SimplePanel.swift), held here for the
+    /// same reason as `openSessionLists`: the measuring copy of the panel has to see a row open to size the window.
+    var openPanelRows: Set<String> = []
+    /// The session the panel was opened on from the news peek (NotchController.open(on:)): its request card is the
+    /// one drawn when several sessions hold requests, and its own card outranks another session's request. Nil the
+    /// rest of the time; cleared by every collapse.
+    var promptFocus: String?
+    /// The news the collapsed strip is naming right now (NotchNews, the peek), for `NotchNews.shownFor`; nil the
+    /// rest of the time and always while Preferences.notchNews is off.
+    private(set) var peek: NotchNews?
+    /// The news the glow under the notch is blooming for (NotchGlow), for `NotchGlow.bloomFor`; nil otherwise.
+    /// Separate from `peek` because the two last different times and are switched off separately.
+    private(set) var glowNews: NotchNews?
+    /// The latest news announced, kept after its peek has gone so a repeat inside `NotchNews.repeatAfter` is known.
+    @ObservationIgnored private(set) var latestNews: NotchNews?
+    /// Whether a strip that can show the peek is on screen and collapsed; wired by the app delegate to its notch
+    /// presenters. News that arrives with none of them (the panel open, a full-screen app over the notch, an edge
+    /// layout) still lights the glow and is still announced, but draws no words nobody would see.
+    @ObservationIgnored var canPeek: () -> Bool = { false }
+    /// Posts the news to VoiceOver; wired by the app delegate (NotchNewsAnnouncer).
+    @ObservationIgnored var announceNews: (NotchNews.Words) -> Void = { _ in }
+    @ObservationIgnored private var peekEnd: Task<Void, Never>?
+    @ObservationIgnored private var glowEnd: Task<Void, Never>?
     /// A session began holding for a decision its hook is waiting on; wired to NotchActions.showPrompt by the app
     /// delegate, so the panel can open on the request.
     @ObservationIgnored var promptRequested: (AgentSession, PendingRequest) -> Void = { _, _ in }
@@ -438,18 +491,24 @@ final class UsageStore {
     }
 
     func adviceContext(now: Date = Date()) -> Advisor.Context {
-        var context = Advisor.Context(readings: readyReadings, awaitingInput: awaitingInput.filter(isShown), waitingSessions: sessions.waiting,
-                                      cost: prefs.showSpend ? cost : nil, timeFormat: prefs.timeFormat, toolOrder: prefs.toolOrder, drainRates: drainRates, now: now)
+        // While the screen is shared with the privacy setting on, the advice gets the spend under the same gate as
+        // the Cost card (NotchExpandedView.spendCard), and no project names, as the Sessions rows hide their titles;
+        // `hidesFigures` then keeps any figure the readings put in a sentence off the panel.
+        let hiding = hidesFigures
+        let spend = prefs.showSpend && !hiding
+        var context = Advisor.Context(readings: readyReadings, awaitingInput: awaitingInput.filter(isShown), waitingSessions: hiding ? [] : sessions.waiting,
+                                      cost: spend ? cost : nil, timeFormat: prefs.timeFormat, toolOrder: prefs.toolOrder, drainRates: drainRates, now: now)
         context.runOuts = runOutsByKey
-        context.monthlyBudgetUSD = prefs.showSpend ? prefs.monthlyBudgetUSD : nil
-        context.weeklyBudgetUSD = prefs.showSpend ? prefs.weeklyBudgetUSD : nil
-        context.extraUsageRise = extraUsageRiseAt.map { now.timeIntervalSince($0) < Self.extraUsageRiseShownFor } == true ? extraUsageRise : nil
+        context.monthlyBudgetUSD = spend ? prefs.monthlyBudgetUSD : nil
+        context.weeklyBudgetUSD = spend ? prefs.weeklyBudgetUSD : nil
+        context.extraUsageRise = !hiding && extraUsageRiseAt.map { now.timeIntervalSince($0) < Self.extraUsageRiseShownFor } == true ? extraUsageRise : nil
         context.peakHours = visibleTools.reduce(into: [:]) { $0[$1] = prefs.peakHours(for: $1) }
         context.limitHitTools = sessions.limitHitTools(now: now).filter(isShown)
         context.serverTrouble = serverTrouble.filter { isShown($0.key) }
-        context.metering = prefs.showSpend ? cost?.sessionMetering : nil
+        context.metering = spend ? cost?.sessionMetering : nil
         // The current 5-hour block: the cost scan's block when it has one, else the five hours behind now.
-        context.promptCache = promptCache(since: cost?.block?.start ?? now.addingTimeInterval(-Period.fiveHours))
+        context.promptCache = hiding ? nil : promptCache(since: cost?.block?.start ?? now.addingTimeInterval(-Period.fiveHours))
+        context.hidesFigures = hiding
         return context
     }
 
@@ -513,7 +572,10 @@ final class UsageStore {
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeSessionTitles() }
         }
-        if !titles { sessions.clearTitles() }
+        if !titles {
+            sessions.clearTitles()
+            cursorNamesTried = [:]
+        }
     }
 
     /// Reports the advice strip to the oracle whenever its lines change; the tracking is one-shot, so it re-arms.
@@ -848,6 +910,14 @@ final class UsageStore {
         self.sessions = sessions
         self.cost = cost
         lastUpdated = now
+    }
+
+    /// Puts news on the strip and under it with no clock to take it down, for a still of it (`--render-assets`):
+    /// a picture is one instant, and `announce` would schedule its own end and ask whether a strip is on screen.
+    func seed(news: NotchNews?) {
+        peek = news
+        glowNews = news
+        latestNews = news
     }
 
     /// The report file beside the drain log, for the command-line tool and the status line, at most every 30 s.
@@ -1194,12 +1264,26 @@ final class UsageStore {
     /// the life of the process, to arrive at the frame it already had. Both clocks that retire sessions, the sweep
     /// and `armSignalRelease`, come through here so neither can drift back to the in-place call. The awake
     /// assertion is re-applied on a change because a session dropped for silence may have been the last one working.
+    /// Closes the Sessions card's lists of every session no longer on it: ended, removed, set aside or aged out.
+    /// A session that comes back starts with its lists closed, and the set does not grow for the life of the
+    /// process. Written only on a change, since every write re-sizes the panels (NotchController).
+    func pruneOpenSessionLists() {
+        guard !openSessionLists.isEmpty else { return }
+        let live = Set(sessions.all.map(\.id))
+        let kept = openSessionLists.filter { key in
+            guard let slash = key.range(of: "/", options: .backwards) else { return false }
+            return live.contains(String(key[..<slash.lowerBound]))
+        }
+        if kept != openSessionLists { openSessionLists = kept }
+    }
+
     /// The Sessions card's Remove (SessionTracker.dismiss): the row goes until the session sends another event.
     func dismissSession(_ id: String) {
         var tracker = sessions
         let result = tracker.dismiss(id)
         guard result.removed else { return }
         sessions = tracker
+        pruneOpenSessionLists()
         if attentionNotice?.session.id == id { attentionNotice = nil }
         if result.wasWaiting { withdrawWaiting([id]) }
         applyAwake()
@@ -1212,6 +1296,7 @@ final class UsageStore {
         let removed = tracker.dismissIdle()
         guard !removed.isEmpty else { return }
         sessions = tracker
+        pruneOpenSessionLists()
         if let notice = attentionNotice, removed.contains(notice.session.id) { attentionNotice = nil }
         applyAwake()
         Oracle.shared.emit("session", ["action": "dismissedIdle", "count": removed.count])
@@ -1223,6 +1308,7 @@ final class UsageStore {
         let nudged = expired.quietNudges(now: now)
         if expired != sessions {
             sessions = expired
+            pruneOpenSessionLists()
             applyAwake()
         }
         withdrawWaiting(stopped)
@@ -1231,7 +1317,7 @@ final class UsageStore {
         // an approval the turn has stopped for, and a non-blocking wait is held back while an editor is in front,
         // which for Cursor is exactly when it asks (the ten-minute ceiling on blocking banners still applies).
         if prefs.notifyWaiting {
-            for session in nudged { deliverSessionEvent(.waiting(blocking: true), session) }
+            for session in nudged { deliverSessionEvent(.waiting(blocking: true, kind: .permission), session) }
         }
     }
 
@@ -1444,18 +1530,27 @@ final class UsageStore {
     /// it). The title, the summary and the terminal never reach the log or the oracle (`hookFacts`).
     func hookReceived(_ message: Hook.Message, now: Date = Date(), reply: HookSocket.Reply? = nil) {
         var message = message
-        if !prefs.sessionTitles { message.title = nil }
+        if !prefs.sessionTitles {
+            message.title = nil
+            message.todos = message.todos?.withoutContent()
+            message.task?.subject = nil
+        }
+        // Settled before the request can be dropped below: with answering from the notch off, the request is the
+        // only thing that says a permission is a plan's, and the sound for it should not depend on that setting.
+        let waitKind = message.waitKind
         if message.request != nil, !prefs.answerFromNotch {
             reply?.answer(nil)
             message.request = nil
         }
         let tool = message.tool
         log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.request.map { " (\($0.kind.name) request)" } ?? "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
-        Oracle.shared.emit("hook", Self.hookFacts(message))
+        emitHookFacts(Self.hookFacts(message, wait: waitKind))
         lastHook[tool] = now
         lastActivity[tool] = now
         wokeAt = now
         let outcome = sessions.apply(message, now: now)
+        if tool == .cursor { lookUpCursorNames(now: now) }
+        pruneOpenSessionLists()
         applyAwake()
         armSignalRelease(now: now)
         // The withdrawal goes first because one message can end a wait and start another for the same session:
@@ -1482,12 +1577,13 @@ final class UsageStore {
             reply?.answer(nil)
         }
         if let waiting = outcome.startedWaiting, prefs.notifyWaiting {
-            deliverSessionEvent(.waiting(blocking: message.blocksSession), waiting)
+            deliverSessionEvent(.waiting(blocking: message.blocksSession, kind: waitKind), waiting)
         }
         if let finished = outcome.finished, prefs.notifyFinished, finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
         }
         guard isShown(tool) else { return }
+        if let news = NotchNews.from(message, outcome: outcome, now: now) { announce(news, now: now) }
         if outcome.limitHit != nil, prefs.notificationsEnabled {
             let reading = status(tool).reading.map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
             let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: tool, reading: reading, now: now, options: alertOptions)
@@ -1506,14 +1602,120 @@ final class UsageStore {
         }
     }
 
+    /// Cursor's own name for each Cursor chat that has no title yet (CursorChatNames), read from the running
+    /// user's Cursor state database off the main thread, one read at a time and each id at most every 30 s. Only
+    /// while titles are on and the screen is not shared, checked again when the read comes back; a store with no
+    /// Cursor provider (a test's) has no database to read.
+    func lookUpCursorNames(now: Date = Date()) {
+        guard cursorNameRead == nil, let database = (providers[.cursor] as? CursorProvider)?.stateDatabase else { return }
+        cursorNamesTried = cursorNamesTried.filter { now.timeIntervalSince($0.value) < CursorChatNames.followUpWindow }
+        let due = CursorChatNames.due(sessions.all, tried: cursorNamesTried, titles: prefs.sessionTitles, hidesFigures: hidesFigures, now: now)
+        guard !due.isEmpty else {
+            armCursorNameFollowUp(now: now)
+            return
+        }
+        for id in due.values { cursorNamesTried[id] = now }
+        let ids = Set(due.values)
+        cursorNameRead = Task { [weak self] in
+            let names = await Task.detached(priority: .utility) { CursorChatNames.read(ids: ids, database: database) }.value
+            self?.cursorNamesRead(names, due: due)
+        }
+    }
+
+    private func cursorNamesRead(_ names: [String: String], due: [String: String]) {
+        cursorNameRead = nil
+        guard CursorChatNames.allowed(titles: prefs.sessionTitles, hidesFigures: hidesFigures) else { return }
+        for (key, id) in due {
+            guard let name = names[id] else { continue }
+            sessions.name(key, name)
+        }
+        armCursorNameFollowUp(now: Date())
+    }
+
+    /// One read again in `CursorChatNames.retryAfter`, while a Cursor chat heard from lately still has no name:
+    /// Cursor names a chat after its first reply, which may be after the last hook event of the turn.
+    private func armCursorNameFollowUp(now: Date) {
+        guard cursorNameFollowUp == nil,
+              CursorChatNames.wantsFollowUp(sessions.all, titles: prefs.sessionTitles, hidesFigures: hidesFigures, now: now) else { return }
+        cursorNameFollowUp = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(CursorChatNames.retryAfter))
+            guard !Task.isCancelled else { return }
+            self?.cursorNameFollowUp = nil
+            self?.lookUpCursorNames()
+        }
+    }
+
     /// What the oracle records for a hook event: the event's name and shape, never the title, the summary, the
     /// detail, a question or the terminal. Static and pure so a test can pin the key set.
-    nonisolated static func hookFacts(_ message: Hook.Message) -> [String: Any] {
+    /// `wait` is the kind the store settled before it dropped a request it will not show, so the oracle names a
+    /// plan as a plan whether or not answering from the notch is on; nil reads it off the message. Only the kind:
+    /// the tool's name, which is what tells a plan apart, stays out like the rest of the request.
+    nonisolated static func hookFacts(_ message: Hook.Message, wait: Hook.WaitKind? = nil) -> [String: Any] {
         var facts: [String: Any] = ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any,
                                     "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any]
         if message.tool != .claude { facts["tool"] = message.tool.rawValue }
         if let request = message.request { facts["request"] = request.kind.name }
+        // A task list is reported by its counts, never its words.
+        if let todos = message.todos { facts["todos"] = ["done": todos.done, "total": todos.total] }
+        if let task = message.task { facts["task"] = ["kind": task.kind.rawValue, "status": task.deleted ? "deleted" : task.status?.rawValue as Any] }
+        if message.needsInput || message.request != nil { facts["wait"] = (wait ?? message.waitKind).rawValue }
         return facts
+    }
+
+    /// News for the collapsed notch (NotchNews): the peek names it for four seconds when the setting is on and a
+    /// collapsed strip can show it, the glow blooms for it when that setting is on, and VoiceOver is told either
+    /// way one of them is, since the listener has no other way to catch a light or two words that come and go.
+    /// The oracle records the peek going up and coming down with the reason and the session, never the project.
+    func announce(_ news: NotchNews, now: Date = Date()) {
+        guard prefs.notchNews || prefs.notchGlow,
+              NotchNews.isDue(news, showing: peek, last: latestNews, now: now) else { return }
+        latestNews = news
+        if prefs.notchGlow {
+            glowNews = news
+            glowEnd?.cancel()
+            glowEnd = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(NotchGlow.bloomFor))
+                guard !Task.isCancelled else { return }
+                self?.glowNews = nil
+            }
+        }
+        // A request that opened the panel on its card, or a card the attention setting is opening it on (a glance,
+        // or Open the panel), is already in front of the reader; words beside a notch the panel is growing out of
+        // would only flash on the way. The glow and the announcement still go: neither is drawn by the strip.
+        if prefs.notchNews, !panelOpenedForPrompt, attentionNotice == nil, canPeek() {
+            if let showing = peek { Oracle.shared.emit("peek", Self.peekFacts(showing, action: "hidden")) }
+            peek = news
+            Oracle.shared.emit("peek", Self.peekFacts(news, action: "shown"))
+            peekEnd?.cancel()
+            peekEnd = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(NotchNews.shownFor(motionReduced: AccessibilityDisplay.shared.motionReduced)))
+                guard !Task.isCancelled else { return }
+                self?.endPeek()
+            }
+        }
+        announceNews(news.words(hidesFigures: hidesFigures, title: peekTitle(news)))
+    }
+
+    /// The title the peek may name `news`'s session by: its display title (the prompt's first line, Claude Code's
+    /// session name or Cursor's chat name), only while titles are on and the screen is not shared; nil otherwise,
+    /// and the peek falls back to the project.
+    func peekTitle(_ news: NotchNews) -> String? {
+        guard prefs.sessionTitles, !hidesFigures else { return nil }
+        return sessions.sessions[news.sessionID]?.displayTitle
+    }
+
+    /// Takes the peek down now: its time ran out, or it was clicked and the panel is opening on its session.
+    func endPeek() {
+        peekEnd?.cancel()
+        peekEnd = nil
+        guard let showing = peek else { return }
+        peek = nil
+        Oracle.shared.emit("peek", Self.peekFacts(showing, action: "hidden"))
+    }
+
+    /// What the oracle records for a peek: the reason, the session and the assistant, never the project.
+    nonisolated static func peekFacts(_ news: NotchNews, action: String) -> [String: Any] {
+        ["action": action, "reason": news.reason.rawValue, "session": news.sessionID, "tool": news.tool.rawValue]
     }
 
     /// The user's answer to the request `requestID`, from the panel (or the hold running out, as a pass): the
@@ -1533,11 +1735,23 @@ final class UsageStore {
         let behavior = delivered ? decision.behavior : "lost"
         let session = sessions.resolve(requestID: requestID, resumes: delivered && decision != .pass, now: now)
         log.info("decision \(behavior, privacy: .public) for a \(kind ?? "gone", privacy: .public) request")
-        Oracle.shared.emit("decision", ["request": requestID, "kind": kind as Any, "behavior": behavior, "session": session?.id as Any])
+        Oracle.shared.emit("decision", Self.decisionFields(request: requestID, kind: kind, behavior: behavior, session: session?.id,
+                                                           asksRule: delivered && decision.addsRule))
         if let session { withdrawWaiting([session.id]) }
+        unfoldedSuggestions.remove(requestID)
         applyAwake()
         armSignalRelease(now: now)
         promptEnded(requestID)
+    }
+
+    /// The oracle's `decision` fields. An allow also says whether the app asked for one of the assistant's
+    /// suggested rules (*Allow always*), as `ruleRequested`, and never which rule: the rule is a command's text,
+    /// which the oracle does not carry. Asked, not added: the hook can still settle for a plain allow (an index
+    /// out of range, an entry it will not echo, a payload it cannot read), and the app never sees what it printed.
+    nonisolated static func decisionFields(request: String, kind: String?, behavior: String, session: String?, asksRule: Bool) -> [String: Any] {
+        var fields: [String: Any] = ["request": request, "kind": kind as Any, "behavior": behavior, "session": session as Any]
+        if behavior == "allow" { fields["ruleRequested"] = asksRule }
+        return fields
     }
 
     /// The hook process behind `requestID` went away before the app answered (the socket's worker saw its
@@ -1551,6 +1765,7 @@ final class UsageStore {
         let session = sessions.resolve(requestID: requestID, resumes: false, now: now)
         log.info("decision gone for a \(kind ?? "gone", privacy: .public) request: its hook went away unanswered")
         Oracle.shared.emit("decision", ["request": requestID, "kind": kind as Any, "behavior": "gone", "session": session?.id as Any])
+        unfoldedSuggestions.remove(requestID)
         armSignalRelease(now: now)
         promptEnded(requestID)
     }
@@ -1560,6 +1775,7 @@ final class UsageStore {
     private func endRequest(_ requestID: String) {
         pendingReplies.removeValue(forKey: requestID)?.answer(nil)
         promptHolds.removeValue(forKey: requestID)?.cancel()
+        unfoldedSuggestions.remove(requestID)
         promptEnded(requestID)
     }
 
@@ -1589,7 +1805,7 @@ final class UsageStore {
         sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL,
                             model: message.model, sessionName: prefs.sessionTitles ? message.sessionName : nil,
                             linesAdded: message.linesAdded, linesRemoved: message.linesRemoved,
-                            promptCache: message.promptCache, now: now)
+                            promptCache: message.promptCache, contextUsed: message.contextUsed, now: now)
         guard isShown(.claude) else { return }
         if let reading = statuslineReading(now: now) {
             adopt(reading, now: now)

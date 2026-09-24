@@ -1,6 +1,5 @@
 /* Notchmeter, tiếng Việt. Khóa là nguyên văn tiếng Anh; LocalizationTests kiểm tra bảng này có đúng các khóa và định dạng như bảng en. Tên sản phẩm và công cụ (Notchmeter, Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot) giữ nguyên. Bản dịch nháp, cần người bản ngữ rà soát trước khi phát hành. */
 
-
 /* Bổ sung vòng 2: phiên, ngân sách, giờ cao điểm, nhãn nguồn, công cụ dòng lệnh, MCP, chính sách Keychain, màn hình, chẩn đoán */
 
 /* Các công cụ không vừa, đặt sau chỉ số cuối cùng (NotchViews) */
@@ -151,7 +150,6 @@
 "Collapsed" = "Đã thu gọn";
 "Colour the rings when an assistant waits or finishes" = "Đổi màu vòng khi một trợ lý chờ hoặc hoàn thành";
 "Connect Claude Code" = "Kết nối Claude Code";
-"Continue" = "Tiếp tục";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI đọc hook khi khởi động: khởi động lại nó, rồi /env liệt kê tệp.";
 "credits" = "tín dụng";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor báo khi một cuộc trò chuyện bắt đầu hoặc kết thúc, khi bạn gửi prompt, khi một lượt dừng và khi một tác tử con bắt đầu hoặc dừng. Nó không có sự kiện cho việc chờ bạn phê duyệt hay cho giới hạn tốc độ, nên vòng Cursor hiện dấu tick đã xong và không bao giờ hiện bàn tay chờ, và một lượt bị hủy hay lỗi kết thúc mà không có dấu tick. Cursor tải lại hooks.json ngay khi nó được lưu.";
@@ -176,6 +174,7 @@
 "Hooks" = "Hook";
 "Idle" = "Rảnh";
 "Install the hook and status line…" = "Cài hook và dòng trạng thái…";
+"Open Integrations…" = "Mở Tích hợp…";
 "Installed, but an entry is out of date: Repair updates it" = "Đã cài, nhưng một mục đã cũ: Sửa sẽ cập nhật nó";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "Nó đọc mức dùng mà mỗi trợ lý đã lưu trên máy Mac này — Claude Code, Codex, Cursor, Gemini CLI và GitHub Copilot — và hỏi điểm cuối mức dùng của từng nhà cung cấp bằng đăng nhập mà công cụ đó đã lưu. Nó không bao giờ đăng nhập, không giữ token, và không gửi gì đi nơi khác: không tài khoản, không phân tích.";
 "Jump to the terminal" = "Nhảy tới terminal";
@@ -347,6 +346,7 @@
 "Dark" = "Tối";
 "Debug logging" = "Ghi nhật ký gỡ lỗi";
 "Default" = "Mặc định";
+"Default (%@)" = "Mặc định (%@)";
 "Density" = "Mật độ";
 "Display" = "Màn hình";
 "Display with the pointer" = "Màn hình có con trỏ";
@@ -515,8 +515,19 @@
 "Overall %@" = "Tổng %@";
 "Pace crossing" = "Vượt nhịp";
 "Step %1$ld of %2$ld" = "Bước %1$ld trên %2$ld";
-"Suggested rules" = "Quy tắc gợi ý";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "Dòng đầu của mỗi prompt, tối đa 96 ký tự, do hook gửi và chỉ ứng dụng đang chạy giữ. Khi tắt, ứng dụng bỏ nó trước khi giữ ở bất cứ đâu và dòng hiển thị dự án và nhánh thay vào đó. Tiêu đề bị ẩn khi chia sẻ màn hình dù cài đặt này ra sao.";
+
+"Allow %@ for the rest of this session" = "Cho phép %@ đến hết phiên này";
+"Always allow %@ in this project" = "Luôn cho phép %@ trong dự án này";
+"Always allow %@ in this project, for everyone" = "Luôn cho phép %@ trong dự án này, cho mọi người";
+"Always allow %@ in every project" = "Luôn cho phép %@ trong mọi dự án";
+"Always allow %@" = "Luôn cho phép %@";
+"files in %@" = "các tệp trong %@";
+"every file edit" = "mọi thao tác sửa tệp";
+"Other rules to always allow (⌥⌘↓)" = "Các quy tắc luôn cho phép khác (⌥⌘↓)";
+"Shown" = "Đang hiện";
+"Hidden" = "Đang ẩn";
+"Allows this request and saves the rule, so it is not asked again." = "Cho phép yêu cầu này và lưu quy tắc để không hỏi lại.";
+"%1$@ (%2$@)" = "%1$@ (%2$@)";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "Cửa sổ của vòng ngoài hiện thành một con số bên cạnh các vòng, theo nghĩa Đã dùng hoặc Còn lại đã chọn trong Hiển thị mức dùng, không kèm đếm ngược đặt lại. Dưới 40 % các vòng vẫn mờ đi; con số vẫn đọc được.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Để đọc đăng nhập đã lưu của Claude Code, một lần. Chọn Luôn cho phép để nó im lặng; các lần đọc định kỳ không bao giờ hiện hộp thoại.";
 "Unknown" = "Không rõ";
@@ -685,6 +696,11 @@
 "Waiting for permission." = "Đang chờ cấp quyền.";
 "waiting for the first reading" = "đang chờ lần đọc đầu tiên";
 "Waiting for the first reading" = "Đang chờ lần đọc đầu tiên";
+"Question" = "Câu hỏi";
+"Plan ready to approve" = "Kế hoạch chờ duyệt";
+"Preview the %@ sound" = "Nghe thử âm thanh cho %@";
+"Choose a file for the %@ sound" = "Chọn tệp làm âm thanh cho %@";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "Kế hoạch chỉ được nhận ra khi Claude Code xin duyệt qua hook; lần chờ nào không nói rõ cần gì sẽ phát âm thanh yêu cầu cấp quyền.";
 "Waiting for you" = "Đang chờ bạn";
 "Waiting for your answer" = "Đang chờ bạn trả lời";
 "Waiting for your approval in System Settings › General › Login Items." = "Đang chờ bạn phê duyệt trong Cài đặt hệ thống › Chung › Mục đăng nhập.";
@@ -699,7 +715,6 @@
 "Weekly budget" = "Ngân sách tuần";
 "Welcome to %@" = "Chào mừng đến với %@";
 "What %@ reads" = "%@ đọc những gì";
-"What it may ask for" = "Những quyền nó có thể hỏi";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "Bảng hiển thị gì về mỗi phiên do hook báo cáo, và bạn có thể làm gì với nó từ đó. Tất cả đều cần hook của trợ lý (Tích hợp).";
 "When crowded" = "Khi chật chỗ";
 "When a window resets" = "Khi một cửa sổ đặt lại";
@@ -823,3 +838,67 @@
 "Show in Finder" = "Hiện trong Finder";
 "The crash report could not be read." = "Không đọc được báo cáo sự cố.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Báo cáo mới nhất macOS ghi khi %@ gặp sự cố, lấy từ ~/Library/Logs/DiagnosticReports. Nó ở lại trên máy Mac này: Sao chép đặt nó vào bộ nhớ tạm, đã xoá đường dẫn thư mục người dùng, để bạn dán vào báo cáo lỗi.";
+
+/* The panel header: its three buttons (PanelHeader) */
+"Usage Dashboard" = "Bảng mức dùng";
+"Settings" = "Cài đặt";
+"Open the Usage Dashboard (⌘U)" = "Mở Bảng mức dùng (⌘U)";
+"Open Settings (⌘,)" = "Mở Cài đặt (⌘,)";
+"How the panel opens, its layout, refreshing and quitting" = "Cách bảng mở ra, bố cục, làm mới và thoát";
+"Opens a menu" = "Mở một menu";
+
+/* The Sessions card: grouped rows, context gauge, subagents and the task list */
+"No sessions right now" = "Hiện không có phiên nào";
+"How long since this session last did anything" = "Đã bao lâu phiên này không làm gì";
+"How long this turn has run" = "Lượt này đã chạy bao lâu";
+"The assistant running this session" = "Trợ lý đang chạy phiên này";
+"Subagents" = "Tác tử con";
+"The subagents this session is running; click to list them" = "Các tác tử con phiên này đang chạy; bấm để liệt kê";
+"%1$ld of %2$ld done" = "Xong %1$ld trên %2$ld";
+"Task list" = "Danh sách việc";
+"Untitled task" = "Việc chưa đặt tên";
+"Claude Code's task list for this session; click to show it" = "Danh sách việc của Claude Code cho phiên này; bấm để hiện";
+"Claude Code's task list for this session" = "Danh sách việc của Claude Code cho phiên này";
+"Subagent %ld" = "Tác tử con %ld";
+"How full this session's context window is, from its status line" = "Cửa sổ ngữ cảnh của phiên này đầy bao nhiêu, theo dòng trạng thái của nó";
+"In progress" = "Đang làm";
+"Completed" = "Đã xong";
+"The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "Dòng đầu của mỗi prompt, tối đa 96 ký tự, và nội dung danh sách việc của Claude Code, do hook gửi và chỉ ứng dụng đang chạy giữ. Khi tắt, ứng dụng bỏ cả hai trước khi giữ ở bất cứ đâu: dòng hiển thị dự án thay vào đó, còn danh sách việc chỉ hiện số lượng. Cả hai bị ẩn khi chia sẻ màn hình dù cài đặt này ra sao.";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "Cần phê duyệt";
+"Finished" = "Đã xong";
+"Opens the panel on this session" = "Mở bảng ở phiên này";
+"Show assistant symbols in the rings" = "Hiện biểu tượng trợ lý trong các vòng";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "Biểu tượng của mỗi trợ lý, cái trên thẻ của nó, vẽ nhỏ ở giữa các vòng, hoặc ở góc khi ba vòng để lại quá ít chỗ, dành cho khi khó phân biệt màu của các trợ lý.";
+"Show news in the notch" = "Hiện tin trong notch";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Khi một phiên bắt đầu chờ bạn hoặc xong một lượt, dải cạnh notch hiện tên dự án và lý do trong bốn giây, trong khoảng trống thanh menu để lại. Bấm vào để mở bảng ở phiên đó. Khi màn hình đang được chia sẻ, tên dự án được ẩn.";
+"Glow under the notch for news" = "Phát sáng dưới notch khi có tin";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Một vệt sáng dưới notch cho cùng tin đó: xanh dương khi chờ, trắng khi xong, mờ dần sau ba giây; một màu xanh nhạt còn lại khi một phiên vẫn đang chờ. Khi bật Giảm chuyển động, đó là một sắc màu tĩnh.";
+
+"The rings beside the notch" = "Các vòng cạnh notch";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "Mỗi trợ lý có một cụm vòng mang màu riêng: vòng ngoài là giới hạn chính, các vòng bên trong là những khung thời gian khác, và mỗi cung đầy dần khi khung đó được dùng. Vòng nét đứt là chưa có gì để đọc. Di con trỏ lên các vòng để mở bảng.";
+"The panel, and pace" = "Bảng và nhịp độ";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "Bảng có một thẻ cho mỗi trợ lý với từng khung thời gian, lúc nó đặt lại và chi phí đã tiêu. Nhịp độ so tốc độ dùng một khung với thời gian còn lại, nên cảnh báo đến khi vẫn còn kịp chậm lại, rất lâu trước khi khung đầy.";
+"The panel has a row for each assistant with its most urgent figure; click a row for every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "Bảng có một hàng cho mỗi trợ lý với con số cấp bách nhất; bấm vào hàng để xem từng khung thời gian, lúc nó đặt lại và chi phí đã tiêu. Nhịp độ so tốc độ dùng một khung với thời gian còn lại, nên cảnh báo đến khi vẫn còn kịp chậm lại, rất lâu trước khi khung đầy.";
+"Sessions, answered from the notch" = "Phiên, trả lời ngay từ notch";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "Khi đã cài hook, bảng liệt kê các phiên Claude Code của bạn và việc mỗi phiên đang làm. Khi một phiên xin quyền hoặc hỏi bạn, hãy trả lời ngay tại đây; nếu để đó, yêu cầu sẽ quay về terminal.";
+"Back" = "Quay lại";
+"Next" = "Tiếp";
+"Sample data" = "Dữ liệu mẫu";
+"The hook and the status line are both installed." = "Hook và dòng trạng thái đều đã được cài.";
+"Show the welcome tour again" = "Xem lại tour chào mừng";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "Các vòng, bảng và nhịp độ, các phiên và hook của Claude Code, trên bản xem trước với dữ liệu mẫu.";
+
+/* The Simple panel (SimplePanel.swift) and its setting */
+"Simple" = "Đơn giản";
+"Detailed" = "Chi tiết";
+"Panel layout" = "Bố cục bảng";
+"Simple shows one row per assistant with its most urgent figure; click a row for everything else. Detailed shows every assistant's card open." = "Đơn giản hiện mỗi trợ lý một dòng với con số cấp bách nhất; bấm vào dòng để xem mọi thứ còn lại. Chi tiết hiện thẻ của từng trợ lý ở dạng mở.";
+"Notes" = "Ghi chú";
+"%@ left" = "%@ còn lại";
+"Opens or closes the detail" = "Mở hoặc đóng phần chi tiết";
+
+/* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
+"Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Đưa cửa sổ Cursor của dự án này lên trước (không thể yêu cầu Cursor mở một cuộc trò chuyện cụ thể)";
+"First seen %@" = "Thấy lần đầu lúc %@";

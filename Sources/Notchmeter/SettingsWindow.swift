@@ -38,6 +38,8 @@ final class SettingsRequests {
     var awakeChanged: () -> Void = {}
     var diagnostics: () -> String = { "" }
     var installCommandLineTool: () -> Void = {}
+    /// Settings › General › "Show the welcome tour again" (AppDelegate.showWelcomeTour).
+    var showWelcomeTour: () -> Void = {}
     var updater: () -> Updater? = { nil }
 }
 
@@ -488,6 +490,10 @@ struct SettingsView: View {
             if let message = requests.commandLineToolMessage {
                 Text(message).font(.caption).foregroundStyle(.secondary)
             }
+            // Beside the other one-off actions on General rather than under About: the tour is how the app explains
+            // itself, and the reader who wants it again is looking for the app's basics, not its version line.
+            Button(L("Show the welcome tour again")) { requests.showWelcomeTour() }
+                .help(L("The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data."))
         }
     }
 
@@ -631,6 +637,14 @@ struct SettingsView: View {
                 Toggle(L("Show the main figure beside the rings"), isOn: Binding(get: { prefs.compactPrimary }, set: { prefs.compactPrimary = $0 }))
                     .help(L("The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible."))
             }
+            if prefs.compactStyle.showsRings {
+                Toggle(L("Show assistant symbols in the rings"), isOn: Binding(get: { prefs.ringSymbols }, set: { prefs.ringSymbols = $0 }))
+                    .help(L("Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart."))
+            }
+            Picker(L("Panel layout"), selection: Binding(get: { prefs.panelMode }, set: { prefs.panelMode = $0 })) {
+                ForEach(PanelMode.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .help(L("Simple shows one row per assistant with its most urgent figure; click a row for everything else. Detailed shows every assistant's card open."))
             Picker(L("Density"), selection: Binding(get: { prefs.density }, set: { prefs.density = $0 })) {
                 ForEach(Density.allCases, id: \.self) { Text($0.title).tag($0) }
             }
@@ -818,6 +832,10 @@ struct SettingsView: View {
                 .help(L("On, a notice about a session is held back while a terminal or editor is frontmost, because you are probably looking at the session in it. Off, it arrives anyway — the answer when your sessions sit in tabs you are not looking at, since the app can only see which app is in front and never which window, and never reads a window's title to find out. A wait the session has stopped for, and a session on another Mac, ignore this setting; the quiet hours override it."))
             Toggle(L("Colour the rings when an assistant waits or finishes"), isOn: Binding(get: { prefs.signalRings }, set: { prefs.signalRings = $0 }))
                 .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not."))
+            Toggle(L("Show news in the notch"), isOn: Binding(get: { prefs.notchNews }, set: { prefs.notchNews = $0 }))
+                .help(L("When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out."))
+            Toggle(L("Glow under the notch for news"), isOn: Binding(get: { prefs.notchGlow }, set: { prefs.notchGlow = $0 }))
+                .help(L("A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint."))
             Picker(L("When an assistant waits for you, or a turn finishes"), selection: Binding(get: { prefs.sessionAttention }, set: { prefs.sessionAttention = $0 })) {
                 ForEach(SessionAttention.allCases, id: \.self) { Text($0.title).tag($0) }
             }
@@ -825,7 +843,14 @@ struct SettingsView: View {
             Toggle(L("Sound"), isOn: Binding(get: { prefs.notificationSound }, set: { prefs.notificationSound = $0 }))
             if prefs.notificationSound {
                 SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))
-                SoundPicker(title: L("Waiting for you"), choice: Binding(get: { prefs.soundWaiting }, set: { prefs.soundWaiting = $0 }))
+                SoundPicker(title: L("Permission request"), choice: Binding(get: { prefs.soundPermission }, set: { prefs.soundPermission = $0 }))
+                SoundPicker(title: L("Question"), choice: Binding(get: { prefs.soundQuestion }, set: { prefs.soundQuestion = $0 }),
+                            defaultTag: NotificationSound.defaultChoice(for: .question))
+                // Shown, not only hovered: a plan that plays the permission sound is the one thing here that looks
+                // like a fault, and the reason is a hook entry the user can check.
+                SoundPicker(title: L("Plan ready to approve"), choice: Binding(get: { prefs.soundPlan }, set: { prefs.soundPlan = $0 }),
+                            defaultTag: NotificationSound.defaultChoice(for: .plan),
+                            caption: L("A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound."))
                 SoundPicker(title: L("Turn finished"), choice: Binding(get: { prefs.soundFinished }, set: { prefs.soundFinished = $0 }))
                 paragraph(L("A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name."))
             }
@@ -968,7 +993,7 @@ struct SettingsView: View {
             Toggle(L("Show a Sessions card on the panel"), isOn: Binding(get: { prefs.sessionsCard }, set: { prefs.sessionsCard = $0 }))
                 .help(L("One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest."))
             Toggle(L("Show what a session is working on"), isOn: Binding(get: { prefs.sessionTitles }, set: { prefs.sessionTitles = $0 }))
-                .help(L("The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says."))
+                .help(L("The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says."))
             Toggle(L("Answer from the notch"), isOn: Binding(get: { prefs.answerFromNotch }, set: { prefs.answerFromNotch = $0 }))
                 .help(L("A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered."))
             if prefs.answerFromNotch {
@@ -1319,6 +1344,8 @@ struct SettingsView: View {
             hookStatus[vendor] = requests.renderedHookStatus?.hook[vendor] ?? HookSettings.status(vendor: vendor)
         }
         statuslineStatus = requests.renderedHookStatus?.statusline ?? HookSettings.statuslineStatus()
+        // What the Sessions card's empty state reads, kept current by the one place the user installs a hook.
+        store.hooksInstalled = hookStatus.values.contains { $0 != .notInstalled }
     }
 
     private func subtitle(for tool: ToolID) -> String {
@@ -1576,6 +1603,11 @@ private struct WindowChoices: View {
 private struct SoundPicker: View {
     let title: String
     @Binding var choice: String
+    /// The choice the Default entry stands for: the system alert, or a kind of wait's own sound
+    /// (`NotificationSound.defaultChoice(for:)`), so choosing Default puts the row back where it started.
+    var defaultTag: String = NotificationSound.defaultChoice
+    /// A standing explanation under the row, always shown.
+    var caption: String?
     /// What the last import or fallback has to say, shown under the row; nil when there is nothing to report.
     @State private var note: String?
     /// True from the moment a file is chosen until its import has been applied or refused. The import runs off the
@@ -1587,18 +1619,28 @@ private struct SoundPicker: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Picker(title, selection: $choice) {
-                    Text(L("Default")).tag(NotificationSound.defaultChoice)
+                    Text(NotificationSound.defaultTitle(for: defaultTag)).tag(defaultTag)
                     Text(L("None")).tag(NotificationSound.none)
                     Divider()
-                    ForEach(NotificationSound.systemSounds(), id: \.self) { name in Text(name).tag("system:\(name)") }
+                    // The default's own sound is listed once, as Default: two entries with one tag leave the Picker
+                    // unable to say which is chosen.
+                    ForEach(NotificationSound.systemSounds().filter { "system:\($0)" != defaultTag }, id: \.self) { name in
+                        Text(name).tag("system:\(name)")
+                    }
                     let custom = NotificationSound.customSounds()
                     if !custom.isEmpty {
                         Divider()
                         ForEach(custom, id: \.self) { name in Text((name as NSString).deletingPathExtension).tag("custom:\(name)") }
                     }
                 }
+                // Four rows each carry a Preview and a Choose file…, so VoiceOver hears which row's it is on.
                 Button(L("Preview")) { NotificationSound.preview(choice) }.controlSize(.small)
+                    .accessibilityLabel(L("Preview the %@ sound", title))
                 Button(L("Choose file…")) { chooseFile() }.controlSize(.small).disabled(importing)
+                    .accessibilityLabel(L("Choose a file for the %@ sound", title))
+            }
+            if let caption {
+                Text(caption).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             if let note {
                 Text(note).font(.caption).foregroundStyle(.secondary)
@@ -1617,7 +1659,7 @@ private struct SoundPicker: View {
         let name = String(choice.dropFirst("custom:".count))
         guard !NotificationSound.customSounds().contains(name) else { return }
         let stored = choice
-        choice = NotificationSound.defaultChoice
+        choice = defaultTag
         note = NotificationSound.isUnplayableCustom(stored)
             ? L("%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it.", name)
             : L("%@ is no longer in ~/Library/Sounds, so Default plays until you choose another.", name)

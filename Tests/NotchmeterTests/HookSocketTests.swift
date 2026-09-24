@@ -9,9 +9,18 @@ import os
 /// they do. The code-signature check itself is exercised once, against this process and against a child that is
 /// plainly not it.
 @Suite struct HookSocketTransport {
-    /// A short path: `sun_path` holds 104 bytes and the temporary folder already spends half of them.
+    /// A short path: `sun_path` holds 104 bytes and the temporary folder already spends half of them. Unique to
+    /// this run (the pid and a short random tag), so two checkouts running the suite at once never delete or
+    /// replace each other's socket; with a seven-letter name it comes to about 85 bytes under the usual
+    /// /var/folders temporary folder.
     static func scratch(_ name: String) -> URL {
-        FileManager.default.temporaryDirectory.appendingPathComponent("nm-\(name)").appendingPathComponent("hook.sock")
+        FileManager.default.temporaryDirectory.appendingPathComponent("nm-\(name)-\(run)").appendingPathComponent("hook.sock")
+    }
+
+    static let run = "\(ProcessInfo.processInfo.processIdentifier)-\(UUID().uuidString.prefix(8))"
+
+    @Test func theScratchSocketFitsInSunPath() {
+        #expect(Self.scratch("refused").path.utf8.count < 104)
     }
 
     /// What one listener saw: the pids it was asked about and the messages it delivered, read under a lock because

@@ -357,7 +357,6 @@ import Testing
         }
         #expect(CursorProvider.parseUsageEvents(Data(#"{"totalUsageEventsCount":3}"#.utf8)).recognised == false)
         #expect(CursorProvider.parseUsageEvents(Data(#"{"totalUsageEventsCount":"3"}"#.utf8)).recognised == false, "a count written as a string is still a count")
-        #expect(CursorProvider.parseUsageEvents(Data(#"{"totalUsageEventsCount":"3"}"#.utf8)).recognised == false, "a count written as a string is still a count")
         #expect(CursorProvider.parseUsageEvents(Data(#"{"usageEventRows":[]}"#.utf8)).recognised == false)
         #expect(CursorProvider.parseUsageEvents(Data(#"{"totalUsageEventsCount":"invalid"}"#.utf8)).recognised == false, "a count that does not parse is not a zero")
         #expect(CursorProvider.parseUsageEvents(Data(#"{"totalUsageEventsCount":null}"#.utf8)).recognised == false)

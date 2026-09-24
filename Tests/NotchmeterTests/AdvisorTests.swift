@@ -424,6 +424,46 @@ import Testing
         #expect(Spoken.phrase("At this rate you hit the Claude weekly cap Sep 3 at 12:00, 2d before reset.") == "At this rate you hit the Claude weekly cap Sep 3 at 12:00, 2 days before reset.")
         #expect(Spoken.phrase("Fable counts about 30% more tokens for the same text.") == "Fable counts about 30 percent more tokens for the same text.")
     }
+
+    /// Screen-share privacy (UsageStore.hidesFigures): no line carries money or a figure. The same context with
+    /// the setting off says plenty of both, so the test is not passing on an empty strip.
+    @Test func noLineCarriesAFigureWhileTheScreenIsShared() {
+        let claude = reading(.claude, [window("seven_day", label: "Weekly", used: 0.6, elapsed: 3 * 86400)])
+        let codex = reading(.codex, [window("weekly", label: "Weekly", used: 0.9, elapsed: 5 * 86400)])
+        let cursor = reading(.cursor, [window("included", label: "Included usage", used: 0.1, elapsed: 10 * 86400, period: 30 * 86400)])
+        var context = self.context([claude, codex, cursor], awaiting: [.claude], cost: cost(burn: 6))
+        context.monthlyBudgetUSD = 10
+        context.weeklyBudgetUSD = 5
+        context.extraUsageRise = ExtraUsageRise(amountUSD: 12.5, over: 3600, planUsed: 0.4, firstThisMonth: true)
+        func figure(_ text: String) -> Bool { text.contains(where: \.isNumber) || text.contains("$") }
+        #expect(Advisor.advise(context).contains { figure($0.text) })
+        context.hidesFigures = true
+        let hidden = Advisor.advise(context)
+        #expect(!hidden.isEmpty, "a line with no figure in it still shows")
+        for line in hidden {
+            #expect(!figure(line.text), "\(line.id): \(line.text)")
+        }
+    }
+}
+
+/// The store's side of screen-share privacy: the advice it builds from its own spend, budgets and sessions.
+@MainActor @Suite struct AdvicePrivacy {
+    @Test func theStoresAdviceCarriesNoFigureWhileTheScreenIsShared() {
+        Localization.use(language: "en")
+        let (store, prefs) = DemoFixtures.store(now: Date())
+        prefs.hideFromScreenShare = true
+        prefs.monthlyBudgetUSD = 1
+        prefs.weeklyBudgetUSD = 1
+        store.setScreenCaptured(true)
+        defer { store.setScreenCaptured(false) }
+        #expect(store.hidesFigures)
+        let context = store.adviceContext()
+        #expect(context.cost == nil && context.monthlyBudgetUSD == nil && context.weeklyBudgetUSD == nil)
+        #expect(context.extraUsageRise == nil && context.metering == nil && context.waitingSessions.isEmpty)
+        for line in store.advice {
+            #expect(!(line.text.contains(where: \.isNumber) || line.text.contains("$")), "\(line.id): \(line.text)")
+        }
+    }
 }
 
 @Suite struct PaceAlertCopy {

@@ -167,7 +167,6 @@
 "Collapsed" = "Свёрнуто";
 "Colour the rings when an assistant waits or finishes" = "Окрашивать кольца, когда ассистент ждёт или завершает ход";
 "Connect Claude Code" = "Подключить Claude Code";
-"Continue" = "Продолжить";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI читает хуки при запуске: перезапустите его, и /env покажет файл.";
 "credits" = "кредиты";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor сообщает о начале и завершении разговора, отправке промпта, остановке хода и запуске или остановке субагента. У него нет событий для ожидания вашего подтверждения или лимита запросов, поэтому кольцо Cursor показывает галочку завершения, но никогда не показывает значок руки, а прерванный или завершившийся ошибкой ход заканчивается без галочки. Cursor перечитывает hooks.json сразу после сохранения.";
@@ -192,6 +191,7 @@
 "Hooks" = "Хуки";
 "Idle" = "Бездействует";
 "Install the hook and status line…" = "Установить хук и строку состояния…";
+"Open Integrations…" = "Открыть «Интеграции»…";
 "Installed, but an entry is out of date: Repair updates it" = "Установлено, но одна из записей устарела: «Исправить» обновит её";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "Он читает данные об использовании, которые каждый ассистент уже хранит на этом Mac, — Claude Code, Codex, Cursor, Gemini CLI и GitHub Copilot — и обращается к эндпоинту использования каждого поставщика с учётными данными, сохранёнными этим инструментом. Он никогда не входит в аккаунты, не хранит токены и больше ничего никуда не отправляет: ни аккаунта, ни аналитики.";
 "Jump to the terminal" = "Перейти в терминал";
@@ -363,6 +363,7 @@
 "Dark" = "Тёмное";
 "Debug logging" = "Журнал отладки";
 "Default" = "По умолчанию";
+"Default (%@)" = "По умолчанию (%@)";
 "Density" = "Плотность";
 "Display" = "Дисплей";
 "Display with the pointer" = "Дисплей с указателем";
@@ -531,8 +532,19 @@
 "Overall %@" = "Общий лимит (%@)";
 "Pace crossing" = "Пересечение темпа";
 "Step %1$ld of %2$ld" = "Шаг %1$ld из %2$ld";
-"Suggested rules" = "Предлагаемые правила";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "Первая строка каждого промпта, не длиннее 96 символов: её отправляет хук, и хранит только запущенное приложение. Если выключено, приложение отбрасывает её до того, как она где-либо сохранится, а строка показывает проект и ветку. Во время трансляции экрана заголовки скрыты независимо от этой настройки.";
+
+"Allow %@ for the rest of this session" = "Разрешать %@ до конца этого сеанса";
+"Always allow %@ in this project" = "Всегда разрешать %@ в этом проекте";
+"Always allow %@ in this project, for everyone" = "Всегда разрешать %@ в этом проекте для всех";
+"Always allow %@ in every project" = "Всегда разрешать %@ во всех проектах";
+"Always allow %@" = "Всегда разрешать %@";
+"files in %@" = "файлы в %@";
+"every file edit" = "любое изменение файлов";
+"Other rules to always allow (⌥⌘↓)" = "Другие правила для постоянного разрешения (⌥⌘↓)";
+"Shown" = "Показаны";
+"Hidden" = "Скрыты";
+"Allows this request and saves the rule, so it is not asked again." = "Разрешает этот запрос и сохраняет правило, чтобы больше не спрашивать.";
+"%1$@ (%2$@)" = "%1$@ (%2$@)";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "Окно внешнего кольца одной цифрой рядом с кольцами — «использовано» или «осталось», как выбрано в «Отображении использования», и без отсчёта до сброса. Кольца по-прежнему приглушаются ниже 40 %, а цифра остаётся читаемой.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Чтобы один раз прочитать сохранённые учётные данные Claude Code. Выберите «Разрешать всегда», чтобы запрос больше не появлялся; плановые чтения никогда не вызывают этот диалог.";
 "Unknown" = "Неизвестно";
@@ -701,6 +713,11 @@
 "Waiting for permission." = "Ожидание разрешения.";
 "Waiting for the first reading" = "Ожидание первых данных";
 "waiting for the first reading" = "ожидание первых данных";
+"Question" = "Вопрос";
+"Plan ready to approve" = "План ждёт одобрения";
+"Preview the %@ sound" = "Прослушать звук: %@";
+"Choose a file for the %@ sound" = "Выбрать файл для звука: %@";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "План распознаётся, только когда Claude Code просит одобрить его через хук; ожидание, которое не говорит, что ему нужно, играет звук запроса разрешения.";
 "Waiting for you" = "Ждёт вас";
 "Waiting for your answer" = "Ждёт вашего ответа";
 "Waiting for your approval in System Settings › General › Login Items." = "Ожидание вашего одобрения в Системных настройках › Основные › Объекты входа.";
@@ -715,7 +732,6 @@
 "Weekly budget" = "Бюджет на неделю";
 "Welcome to %@" = "Добро пожаловать в %@";
 "What %@ reads" = "Что читает %@";
-"What it may ask for" = "Что может запросить";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "Что панель показывает о каждой сессии, о которой сообщают хуки, и что с ней можно оттуда сделать. Для всего этого нужен хук ассистента (Интеграции).";
 "When crowded" = "Когда не хватает места";
 "When a window resets" = "Когда окно сбрасывается";
@@ -839,3 +855,67 @@
 "Show in Finder" = "Показать в Finder";
 "The crash report could not be read." = "Не удалось прочитать отчёт о сбое.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Самый свежий отчёт, который macOS записала при сбое %@, из ~/Library/Logs/DiagnosticReports. Он остаётся на этом Mac: «Скопировать» помещает его в буфер обмена без пути к вашей домашней папке, чтобы вы вставили его в отчёт об ошибке.";
+
+/* The panel header: its three buttons (PanelHeader) */
+"Usage Dashboard" = "Сводка использования";
+"Settings" = "Настройки";
+"Open the Usage Dashboard (⌘U)" = "Открыть сводку использования (⌘U)";
+"Open Settings (⌘,)" = "Открыть настройки (⌘,)";
+"How the panel opens, its layout, refreshing and quitting" = "Как открывается панель, её раскладка, обновление и выход";
+"Opens a menu" = "Открывает меню";
+
+/* The Sessions card: grouped rows, context gauge, subagents and the task list */
+"No sessions right now" = "Сейчас нет сессий";
+"How long since this session last did anything" = "Сколько времени эта сессия ничего не делает";
+"How long this turn has run" = "Сколько идёт этот ход";
+"The assistant running this session" = "Ассистент, который ведёт эту сессию";
+"Subagents" = "Субагенты";
+"The subagents this session is running; click to list them" = "Субагенты, запущенные этой сессией; щёлкните, чтобы увидеть список";
+"%1$ld of %2$ld done" = "Сделано %1$ld из %2$ld";
+"Task list" = "Список задач";
+"Untitled task" = "Задача без названия";
+"Claude Code's task list for this session; click to show it" = "Список задач Claude Code для этой сессии; щёлкните, чтобы показать";
+"Claude Code's task list for this session" = "Список задач Claude Code для этой сессии";
+"Subagent %ld" = "Субагент %ld";
+"How full this session's context window is, from its status line" = "Насколько заполнено окно контекста этой сессии, по её строке состояния";
+"In progress" = "В работе";
+"Completed" = "Выполнено";
+"The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "Первая строка каждого промпта, не длиннее 96 символов, и текст списка задач Claude Code: их отправляет хук, и хранит только запущенное приложение. Если выключено, приложение отбрасывает и то и другое до того, как оно где-либо сохранится: строка показывает проект, а список задач только их число. Во время трансляции экрана и то и другое скрыто независимо от этой настройки.";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "Нужно одобрение";
+"Finished" = "Готово";
+"Opens the panel on this session" = "Открывает панель на этой сессии";
+"Show assistant symbols in the rings" = "Показывать значки ассистентов в кольцах";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "Значок каждого ассистента — тот, что на его карточке, — мелко в центре его колец или на их углу, когда при трёх кольцах места слишком мало: на случай, если цвета ассистентов трудно различить.";
+"Show news in the notch" = "Показывать новости в вырезе";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Когда сессия начинает ждать вас или завершает ход, полоса рядом с вырезом на четыре секунды называет проект и причину — в том месте, которое оставляет строка меню. Нажмите на неё, чтобы открыть панель на этой сессии. Пока экран демонстрируется, проект не показывается.";
+"Glow under the notch for news" = "Свечение под вырезом при новостях";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Свет под вырезом для тех же новостей: синий — ожидание, белый — завершение, гаснет через три секунды; слабый синий остаётся, пока сессия ещё ждёт. При «Уменьшении движения» это неподвижный оттенок.";
+
+"The rings beside the notch" = "Кольца рядом с вырезом";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "У каждого ассистента своё гнездо колец своего цвета: внешнее кольцо — основной лимит, внутренние — другие окна, и каждая дуга заполняется по мере расхода окна. Пунктирному кольцу пока нечего показать. Наведите указатель на кольца, чтобы открыть панель.";
+"The panel, and pace" = "Панель и темп";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "На панели у каждого ассистента своя карточка: каждое окно, когда оно сбросится и сколько стоило. Темп сравнивает, как быстро расходуется окно, с оставшимся временем, поэтому предупреждение приходит, пока ещё можно сбавить обороты, задолго до того, как окно заполнится.";
+"The panel has a row for each assistant with its most urgent figure; click a row for every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "На панели у каждого ассистента своя строка с самой срочной цифрой; нажмите на строку, чтобы увидеть каждое окно, когда оно сбросится и сколько стоило. Темп сравнивает, как быстро расходуется окно, с оставшимся временем, поэтому предупреждение приходит, пока ещё можно сбавить обороты, задолго до того, как окно заполнится.";
+"Sessions, answered from the notch" = "Сессии: ответ прямо из выреза";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "С установленным хуком панель показывает ваши сессии Claude Code и чем занята каждая. Если сессия просит разрешения или задаёт вопрос, ответьте здесь; если оставить её, запрос вернётся в терминал.";
+"Back" = "Назад";
+"Next" = "Далее";
+"Sample data" = "Пример данных";
+"The hook and the status line are both installed." = "Хук и строка состояния уже установлены.";
+"Show the welcome tour again" = "Показать приветственный тур снова";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "Кольца, панель и темп, сессии и хук Claude Code — на превью с примером данных.";
+
+/* The Simple panel (SimplePanel.swift) and its setting */
+"Simple" = "Простой";
+"Detailed" = "Подробный";
+"Panel layout" = "Вид панели";
+"Simple shows one row per assistant with its most urgent figure; click a row for everything else. Detailed shows every assistant's card open." = "Простой вид показывает по строке на ассистента с самым срочным показателем; щелчок по строке открывает всё остальное. Подробный показывает карточку каждого ассистента целиком.";
+"Notes" = "Заметки";
+"%@ left" = "%@: осталось";
+"Opens or closes the detail" = "Открывает или закрывает подробности";
+
+/* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
+"Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Выводит на передний план окно Cursor с этим проектом (Cursor нельзя попросить открыть конкретный чат)";
+"First seen %@" = "Впервые замечен в %@";

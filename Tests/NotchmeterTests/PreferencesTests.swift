@@ -204,7 +204,7 @@ import Testing
             prefs.settingsExpandedTools = [.cursor]
             prefs.peakHours.startMinute = 6 * 60
             prefs.costCardMode = .perMillionTokens
-            prefs.soundWaiting = "system:Glass"
+            prefs.soundQuestion = "system:Glass"
             let reloaded = Preferences(defaults: defaults)
             #expect(reloaded.keychainPrompts == .never)
             #expect(reloaded.monthlyBudgetUSD == 200)
@@ -219,9 +219,9 @@ import Testing
             #expect(reloaded.peakHours(for: .cursor) == nil)
             #expect(reloaded.peakHours(for: .claude)?.startMinute == 6 * 60)
             #expect(reloaded.costCardMode == .perMillionTokens)
-            #expect(reloaded.sound(for: .waiting) == "system:Glass")
+            #expect(reloaded.sound(for: .waiting(.question)) == "system:Glass")
             reloaded.notificationSound = false
-            #expect(reloaded.sound(for: .waiting) == NotificationSound.none)
+            #expect(reloaded.sound(for: .waiting(.question)) == NotificationSound.none)
             prefs.keychainPrompts = .refreshOnly
             prefs.proxyURL = ""
         }

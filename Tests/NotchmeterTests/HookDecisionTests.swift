@@ -58,7 +58,10 @@ import Testing
         let request = try #require(message.request)
         #expect(request.id == "r1")
         #expect(request.kind == .permission(tool: "Bash", summary: "rm -rf node_modules", detail: "rm -rf node_modules\nnpm install",
-                                            suggestions: ["rm -rf node_modules", "npm install:*"]))
+                                            suggestions: [
+                                                PendingRequest.Suggestion(index: 0, grant: .rules(["Bash(rm -rf node_modules)", "Bash(npm install:*)"]), place: .localSettings),
+                                                PendingRequest.Suggestion(index: 1, grant: .acceptEdits, place: .session),
+                                            ]))
         let info = message.userInfo
         #expect(Set(info.keys) == ["hook_event_name", "needsInput", "session_id", "project", "permission_mode",
                                    "awaitsDecision", "requestID", "toolName", "toolSummary", "toolDetail", "suggestions"])
@@ -204,6 +207,58 @@ import Testing
         #expect(Hook.Answer.output(event: "PreToolUse", reply: answers, payload: Data("broken".utf8)) == nil)
     }
 
+    @Test func allowAlwaysEchoesTheChosenSuggestionAsUpdatedPermissions() throws {
+        let always = try #require(Hook.Answer.line(for: .allowAlways(suggestion: 2)))
+        #expect(String(decoding: always, as: UTF8.self) == "{\"decision\":{\"behavior\":\"allow\",\"suggestion\":2}}\n",
+                "the app sends the entry's position, never a rule of its own")
+        #expect(Hook.Answer.decision(from: always) == .allowAlways(suggestion: 2))
+        #expect(Hook.Answer.decision(from: Data(#"{"decision":{"behavior":"allow","suggestion":-1}}"#.utf8)) == .allow)
+        #expect(Hook.Answer.decision(from: Data(#"{"decision":{"behavior":"allow","suggestion":"0"}}"#.utf8)) == .allow)
+        #expect(Hook.Answer.decision(from: Data(#"{"decision":{"behavior":"deny","suggestion":0}}"#.utf8)) == .deny(message: nil),
+                "a suggestion only rides on an allow")
+
+        let payload = Data(#"""
+        {"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"npm test"},
+         "permission_suggestions":[{"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"rm -rf /"}],"behavior":"deny","destination":"localSettings"},
+                                   {"type":"setMode","mode":"bypassPermissions","destination":"session"},
+                                   {"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"npm test:*"}],"behavior":"allow","destination":"localSettings"},
+                                   {"type":"addDirectories","directories":["/Users/me/lib"],"destination":"session"}]}
+        """#.utf8)
+        #expect(Hook.Answer.output(event: "PermissionRequest", reply: always, payload: payload) == #"""
+        {"hookSpecificOutput":{"decision":{"behavior":"allow","updatedPermissions":[{"behavior":"allow","destination":"localSettings","rules":[{"ruleContent":"npm test:*","toolName":"Bash"}],"type":"addRules"}]},"hookEventName":"PermissionRequest"}}
+        """#, "Claude Code's own entry, echoed whole as the one update")
+        let directory = try #require(Hook.Answer.line(for: .allowAlways(suggestion: 3)))
+        #expect(Hook.Answer.output(event: "PermissionRequest", reply: directory, payload: payload)
+                == #"{"hookSpecificOutput":{"decision":{"behavior":"allow","updatedPermissions":[{"destination":"session","directories":["/Users/me/lib"],"type":"addDirectories"}]},"hookEventName":"PermissionRequest"}}"#,
+                "the directory goes back as Claude Code sent it, not shortened as the card shows it")
+
+        let plain = #"{"hookSpecificOutput":{"decision":{"behavior":"allow"},"hookEventName":"PermissionRequest"}}"#
+        for index in [0, 1] {
+            let reply = try #require(Hook.Answer.line(for: .allowAlways(suggestion: index)))
+            #expect(Hook.Answer.output(event: "PermissionRequest", reply: reply, payload: payload) == plain,
+                    "entry \(index) is one the card never offers (a deny rule, bypassPermissions), so it is not applied; the call is still allowed")
+        }
+        let beyond = try #require(Hook.Answer.line(for: .allowAlways(suggestion: 9)))
+        #expect(Hook.Answer.output(event: "PermissionRequest", reply: beyond, payload: payload) == plain)
+        #expect(Hook.Answer.output(event: "PermissionRequest", reply: always, payload: Data("broken".utf8)) == plain,
+                "a payload the command cannot read still gets the allow the user gave")
+        #expect(Hook.Answer.output(event: "PreToolUse", reply: always, payload: payload) == nil, "a question is answered, not allowed")
+    }
+
+    @Test func theOracleSaysARuleWasAskedForAndNeverWhichRule() {
+        let always = UsageStore.decisionFields(request: "r", kind: "permission", behavior: Decision.allowAlways(suggestion: 0).behavior,
+                                               session: "s", asksRule: Decision.allowAlways(suggestion: 0).addsRule)
+        #expect(always["behavior"] as? String == "allow")
+        #expect(always["ruleRequested"] as? Bool == true)
+        #expect(Set(always.keys) == ["request", "kind", "behavior", "session", "ruleRequested"])
+        let plain = UsageStore.decisionFields(request: "r", kind: "permission", behavior: "allow", session: nil, asksRule: Decision.allow.addsRule)
+        #expect(plain["ruleRequested"] as? Bool == false)
+        let deny = UsageStore.decisionFields(request: "r", kind: "permission", behavior: "deny", session: nil, asksRule: false)
+        #expect(deny["ruleRequested"] == nil, "only an allow says whether it asked for a rule")
+        let lost = UsageStore.decisionFields(request: "r", kind: "permission", behavior: "lost", session: nil, asksRule: false)
+        #expect(lost["ruleRequested"] == nil)
+    }
+
     @Test @MainActor func theHeadOfALargePayloadSaysWhetherToReadOn() {
         #expect(Hook.looksDeciding(Data(#"{"hook_event_name":"PermissionRequest","tool_name":"Write","tool_input":{"content":""#.utf8)))
         #expect(Hook.looksDeciding(Data(#"{"session_id":"s","hook_event_name":"PreToolUse","tool_name":"AskUserQuestion""#.utf8)))
@@ -252,16 +307,17 @@ import Testing
                 #expect(handler["async"] as? Bool == true, "\(event)")
                 #expect(handler["timeout"] as? Int == 5, "\(event)")
             }
-            #expect(group["matcher"] as? String == (event == "PreToolUse" ? "AskUserQuestion" : nil), "\(event)")
+            #expect(group["matcher"] as? String == HookVendor.claude.matcher(for: event), "\(event)")
         }
         #expect(snippet.contains("\"PreToolUse\": [\n      { \"matcher\": \"AskUserQuestion\", \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"timeout\": 600 } ] }"))
+        #expect(snippet.contains("\"PostToolUse\": [\n      { \"matcher\": \"TodoWrite|TaskCreate|TaskUpdate\", \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"async\": true, \"timeout\": 5 } ] }"))
         #expect(snippet.contains("\"PermissionRequest\": [\n      { \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"timeout\": 600 } ] }"))
     }
 
     @Test func aSixPointZeroInstallIsPartialAndRepairUpgradesItOnce() throws {
-        // What 0.6.0 wrote: every event async with a five-second timeout, and no PreToolUse.
+        // What 0.6.0 wrote: every event async with a five-second timeout, and no PreToolUse or PostToolUse.
         var hooks: [String: Any] = [:]
-        for event in HookSettings.events where event != "PreToolUse" {
+        for event in HookSettings.events where event != "PreToolUse" && event != "PostToolUse" {
             hooks[event] = [["hooks": [["type": "command", "command": "'\(executable)' --hook", "async": true, "timeout": 5]]]]
         }
         let older: [String: Any] = ["hooks": hooks, "model": "opus"]
@@ -270,7 +326,7 @@ import Testing
         #expect(status.needsRepair)
 
         let repaired = HookSettings.repair(older, executable: executable)
-        #expect(repaired.added == ["PreToolUse"])
+        #expect(repaired.added == ["PreToolUse", "PostToolUse"])
         #expect(repaired.repaired == ["PermissionRequest"], "only the deciding entry changes shape; the others are byte for byte what they were")
         #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
         let written = try #require(repaired.settings["hooks"] as? [String: Any])
@@ -287,6 +343,50 @@ import Testing
         #expect(again.added.isEmpty)
         #expect(again.repaired.isEmpty)
         #expect(NSDictionary(dictionary: again.settings) == NSDictionary(dictionary: repaired.settings))
+    }
+
+    /// An unmatched `PostToolUse` of ours would launch the command after every tool call, so it is out of date
+    /// even though the event is not a deciding one, and Repair gives the group its task-tool matcher and nothing else.
+    @Test func anUnmatchedPostToolUseIsPartialAndRepairMatchesItToTheTaskTools() throws {
+        let snippet = HookSettings.snippet(executable: executable)
+        var root = try #require(try JSONSerialization.jsonObject(with: Data(snippet.utf8)) as? [String: Any])
+        var hooks = try #require(root["hooks"] as? [String: Any])
+        hooks["PostToolUse"] = [["hooks": [["type": "command", "command": "'\(executable)' --hook", "async": true, "timeout": 5]]]]
+        root["hooks"] = hooks
+        #expect(HookSettings.status(settings: root, executable: executable) == .partial(path: executable))
+        let repaired = HookSettings.repair(root, executable: executable)
+        #expect(repaired.repaired == ["PostToolUse"])
+        let group = try #require(((repaired.settings["hooks"] as? [String: Any])?["PostToolUse"] as? [[String: Any]])?.first)
+        #expect(group["matcher"] as? String == "TodoWrite|TaskCreate|TaskUpdate")
+        let handler = try #require((group["hooks"] as? [[String: Any]])?.first)
+        #expect(handler["async"] as? Bool == true, "not a deciding event: the handler stays asynchronous")
+        #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
+    }
+
+    /// A group matched to `TodoWrite` alone (what the first build of the task list wrote) misses the Task tools
+    /// current Claude Code uses: it is out of date, and Repair adds the two names and keeps any the user added.
+    @Test func aPostToolUseMatchedToTodoWriteAloneGainsTheTaskTools() throws {
+        let snippet = HookSettings.snippet(executable: executable)
+        var root = try #require(try JSONSerialization.jsonObject(with: Data(snippet.utf8)) as? [String: Any])
+        var hooks = try #require(root["hooks"] as? [String: Any])
+        hooks["PostToolUse"] = [["matcher": "TodoWrite|Bash", "hooks": [["type": "command", "command": "'\(executable)' --hook", "async": true, "timeout": 5]]]]
+        root["hooks"] = hooks
+        #expect(HookSettings.status(settings: root, executable: executable) == .partial(path: executable))
+        let repaired = HookSettings.repair(root, executable: executable)
+        #expect(repaired.repaired == ["PostToolUse"])
+        let group = try #require(((repaired.settings["hooks"] as? [String: Any])?["PostToolUse"] as? [[String: Any]])?.first)
+        #expect(group["matcher"] as? String == "TodoWrite|Bash|TaskCreate|TaskUpdate")
+        #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
+    }
+
+    @Test func aMatcherCoversARequiredListNameByName() {
+        #expect(HookVendor.matcher("AskUserQuestion|Bash", covers: "AskUserQuestion"))
+        #expect(!HookVendor.matcher("TodoWrite", covers: "TodoWrite|TaskCreate|TaskUpdate"))
+        #expect(HookVendor.matcher("TaskUpdate|TodoWrite|TaskCreate", covers: "TodoWrite|TaskCreate|TaskUpdate"), "order does not matter")
+        #expect(!HookVendor.matcher(nil, covers: "AskUserQuestion"))
+        #expect(!HookVendor.matcher("AskUserQuestions", covers: "AskUserQuestion"), "a name, not a substring")
+        #expect(HookVendor.matcher(nil, adding: "A|B") == "A|B")
+        #expect(HookVendor.matcher("B|C", adding: "A|B") == "B|C|A")
     }
 
     @Test func aPreToolUseGroupWithoutItsMatcherIsPartialAndATimeoutTheUserRaisedIsKept() throws {
@@ -599,6 +699,26 @@ import Testing
         #expect(acted.count == 4, "a second decision on the same id is nothing")
     }
 
+    /// *Allow always*'s unfold lives on the store, so the edge layout's probe measures it; it is kept for a
+    /// pending request only and leaves with the request.
+    @MainActor @Test func anUnfoldIsKeptForAPendingRequestAndLeavesWithIt() throws {
+        let suite = "NotchmeterTests.unfold"
+        let (store, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (reply, peer) = try Self.pair()
+        defer { close(peer) }
+        store.hookReceived(HookSocketDecisions.request("r1"), now: t0, reply: reply)
+        store.unfoldSuggestions("nobody", true, now: t0)
+        #expect(store.unfoldedSuggestions.isEmpty, "an id the app is not showing is not unfolded")
+        store.unfoldSuggestions("r1", true, now: t0)
+        #expect(store.unfoldedSuggestions == ["r1"])
+        store.unfoldSuggestions("r1", false, now: t0)
+        #expect(store.unfoldedSuggestions.isEmpty)
+        store.unfoldSuggestions("r1", true, now: t0)
+        store.decide("r1", .allow, now: t0.addingTimeInterval(1))
+        #expect(store.unfoldedSuggestions.isEmpty, "an answered request takes its unfold with it")
+    }
+
     @MainActor @Test func aPassLeavesTheSessionWaitingAndANewRequestReleasesTheOld() throws {
         let suite = "NotchmeterTests.pass"
         let (store, defaults) = store(suite)
@@ -774,11 +894,13 @@ import Testing
 
     @Test func theOracleHearsTheShapeOfARequestAndNeverItsContent() throws {
         var message = Hook.Message(event: "PermissionRequest", needsInput: true, sessionID: "s", project: "proj")
-        message.request = Hook.Request(id: "r1", kind: .permission(tool: "Bash", summary: "rm -rf secret", detail: "rm -rf secret\necho token", suggestions: ["rm:*"]))
+        message.request = Hook.Request(id: "r1", kind: .permission(tool: "Bash", summary: "rm -rf secret", detail: "rm -rf secret\necho token", suggestions: [
+            PendingRequest.Suggestion(index: 0, grant: .rules(["Bash(rm:*)"]), place: .localSettings)]))
         message.title = "the secret plan"
         message.terminal = TerminalRef(program: "iTerm.app", bundleID: "com.googlecode.iterm2", tty: "/dev/ttys003", sessionID: "w0t0p0:X")
         let facts = UsageStore.hookFacts(message)
-        #expect(Set(facts.keys) == ["name", "needsInput", "session", "project", "host", "branch", "agent", "failure", "request"])
+        #expect(Set(facts.keys) == ["name", "needsInput", "session", "project", "host", "branch", "agent", "failure", "request", "wait"])
+        #expect(facts["wait"] as? String == "permission")
         #expect(facts["request"] as? String == "permission")
         for key in ["title", "toolName", "toolSummary", "toolDetail", "suggestions", "questions", "terminal", "terminal_tty", "terminal_program", "requestID"] {
             #expect(facts[key] == nil, "\(key)")

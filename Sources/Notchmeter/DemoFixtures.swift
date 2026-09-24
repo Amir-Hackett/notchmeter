@@ -5,6 +5,9 @@ import Foundation
 /// reaches a provider, the Keychain or the network: the store is seeded and its loops never start.
 enum DemoFixtures {
     static let suiteName = "com.amirhackett.notchmeter.render-assets"
+    /// The Welcome tour's previews, which run inside the app rather than in a render: a suite of their own so a
+    /// tour open while `--render-assets` runs from the same account cannot have its preferences emptied under it.
+    static let previewSuiteName = "com.amirhackett.notchmeter.welcome-preview"
 
     /// What the hook is reporting while a picture is drawn. A tool has one ring and `ToolSignal.resolve` gives a
     /// wait the better claim on it, so the two states cannot both be true of Claude Code at one instant and no
@@ -25,17 +28,22 @@ enum DemoFixtures {
         case permissionRequest
         /// A question with options, the same way.
         case question
+        /// A turn still running: the notchmeter session has its prompt and nothing has stopped it or asked
+        /// anything. The one moment with no mark on any ring, which is what the Welcome tour's first step wants —
+        /// it explains the rings before it explains the marks, and a dot it has not yet named would be a question
+        /// the page cannot answer.
+        case working
     }
 
     @MainActor
-    static func store(now: Date = Date(), moment: Moment = .waiting) -> (store: UsageStore, prefs: Preferences) {
+    static func store(now: Date = Date(), moment: Moment = .waiting, suite: String = suiteName) -> (store: UsageStore, prefs: Preferences) {
         // A suite nothing writes to. The registration domain lives in memory only, so the countdown style the
         // pictures rely on is neither read from nor written to the user's own preferences. Peak hours are off: the
         // window is read against the wall clock, so a render during it grew an advice line and a footer word that
         // one an hour later did not. The suite is emptied first, since a registered default is only a fallback and
         // a value an earlier render left behind would outrank it.
-        UserDefaults.standard.removePersistentDomain(forName: suiteName)
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        UserDefaults.standard.removePersistentDomain(forName: suite)
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.register(defaults: ["resetDisplay": ResetDisplay.countdown.rawValue, "peakHoursTools": [String]()])
         let prefs = Preferences(defaults: defaults)
         let readings = readings(now: now)
@@ -43,6 +51,10 @@ enum DemoFixtures {
                                cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
         store.seed(readings: readings, cost: cost(now: now), nextUpdate: now.addingTimeInterval(2 * 60 + 40),
                    sessions: sessions(now: now, moment: moment), now: now)
+        // The afternoon has the Claude Code hook installed, which is what keeps the Sessions card on the panel.
+        store.hooksInstalled = true
+        // The task list open on the notchmeter row, so the pictures show the checklist and not only its count.
+        store.openSessionLists = [SessionsCard.listKey("notchmeter", .todos)]
         return (store, prefs)
     }
 
@@ -78,6 +90,28 @@ enum DemoFixtures {
             message.request = Hook.Request(id: requestID, kind: kind)
             tracker.apply(message, now: now.addingTimeInterval(-ago))
         }
+        // What the notchmeter session carries while its turn runs, for the Sessions card's extras line: two
+        // subagents, a task list two-thirds done, and the status line's context fill for each session. Replayed as
+        // the hook and the status line send them, between scout's stop and the event each moment turns on, and
+        // every one of them older than that event so the order stays ascending.
+        func busy() {
+            for (agent, ago) in [("agent-explore", 4.0 * 60), ("agent-review", 2.0 * 60 + 30)] {
+                let message = Hook.Message(event: "SubagentStart", needsInput: false, sessionID: "notchmeter", project: "notchmeter",
+                                           branch: "feat/side-notch", agentID: agent)
+                tracker.apply(message, now: now.addingTimeInterval(-ago))
+            }
+            // The way current Claude Code builds it: a TaskCreate per task, then a TaskUpdate per change of status.
+            for (index, item) in todoItems.enumerated() {
+                for change in [TaskChange(kind: .created, id: "\(index + 1)", subject: item.content, status: .pending),
+                               TaskChange(kind: .updated, id: "\(index + 1)", subject: nil, status: item.status)] {
+                    var task = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
+                    task.task = change
+                    tracker.apply(task, now: now.addingTimeInterval(-100))
+                }
+            }
+            tracker.statusline(sessionID: "scout", project: "scout", contextUsed: 0.31, now: now.addingTimeInterval(-90))
+            tracker.statusline(sessionID: "notchmeter", project: "notchmeter", contextUsed: 0.78, now: now.addingTimeInterval(-60))
+        }
         // Ascending in time: `apply` expires against the clock it is handed, so an event out of order would age
         // the state the one before it had just set. That is why scout's turn ends inside each branch below rather
         // than above them: it stopped six minutes ago, which in either moment falls after the notchmeter session
@@ -89,36 +123,69 @@ enum DemoFixtures {
         case .waiting:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            busy()
             send("Notification", 35, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", type: "permission_prompt")
         case .justFinished:
             // Eight minutes and forty seconds, twenty-six times `ToolSignal.finishedAfter` and so a turn the ring
             // is meant to report rather than one the user watched end.
             send("UserPromptSubmit", 8 * 60 + 52, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            busy()
             send("Stop", 12, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
         case .permissionRequest:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            busy()
             request(35, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch",
                     kind: .permission(tool: "Bash", summary: "swift build -c release", detail: "swift build -c release 2>&1 | grep -E 'warning:'",
-                                      suggestions: ["swift build:*"]))
+                                      suggestions: [
+                                          PendingRequest.Suggestion(index: 0, grant: .rules(["Bash(swift build:*)"]), place: .localSettings),
+                                          PendingRequest.Suggestion(index: 1, grant: .rules(["Bash(swift build:*)"]), place: .session),
+                                      ]))
         case .question:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            busy()
             request(35, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch",
                     kind: .question([PendingRequest.Question(text: "Where should the Sessions card sit?", header: "Layout", options: [
                         PendingRequest.Option(label: "Under the advice", description: "Between the Advice strip and the tool cards"),
                         PendingRequest.Option(label: "Above the cost", description: "First card on the panel"),
                         PendingRequest.Option(label: "Inside each tool card", description: "One block per assistant"),
                     ])]))
+        case .working:
+            send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
+            send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
         }
         return tracker
+    }
+
+    /// The news the moment's last hook event raises (NotchNews.from), for the notch's peek and glow: the
+    /// notchmeter session's permission prompt or question, or its long turn ending. Read off the tracker, so the
+    /// project and the assistant are the session's own; nil if the moment's session is somehow not there, and for
+    /// the working moment, where nothing has started waiting and no turn has ended.
+    @MainActor
+    static func news(in store: UsageStore, moment: Moment, now: Date) -> NotchNews? {
+        guard let session = store.sessions.sessions["notchmeter"] else { return nil }
+        let reason: NotchNews.Reason
+        switch moment {
+        case .waiting, .permissionRequest: reason = .approval
+        case .question: reason = .question
+        case .justFinished: reason = .finished
+        case .working: return nil
+        }
+        return NotchNews(reason: reason, sessionID: session.id, tool: session.tool, project: session.project, at: now)
     }
 
     /// The request id the two request moments carry, so a test or a renderer can address it.
     static let requestID = "demo-request"
     static let notchmeterTitle = "Add a Sessions card between the advice and the tool cards"
     static let scoutTitle = "Draft the Friday sports recap"
+    /// The notchmeter session's task list, as Claude Code's Task tools would leave it partway through the turn.
+    static let todoItems = [
+        TodoPlan.Item(content: "Read the Sessions card and its tests", status: .completed),
+        TodoPlan.Item(content: "Group the rows by project", status: .completed),
+        TodoPlan.Item(content: "Draw the context gauge on each row", status: .inProgress),
+    ]
 
 
     /// Claude on Max 5x a third of the way into a quiet session, Codex on a free plan with an untouched monthly

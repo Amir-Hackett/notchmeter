@@ -464,8 +464,7 @@ actor CursorProvider: UsageProvider {
             // events in the last 30 days). That is a month with nothing in it, read correctly; anything else
             // without the list is still a shape this build does not know.
             // The count may come as a number or, protobuf's way for 64-bit integers, as a string.
-            // The count may come as a number or, protobuf's way for 64-bit integers, as a string.
-            let count = JSON.number(root["totalUsageEventsCount"]) ?? (root["totalUsageEventsCount"] as? String).flatMap(Double.init) ?? (root["totalUsageEventsCount"] as? String).flatMap(Double.init)
+            let count = JSON.number(root["totalUsageEventsCount"]) ?? (root["totalUsageEventsCount"] as? String).flatMap(Double.init)
             // `{}`, or a count that parses to zero on its own; a count that does not parse is not a zero.
             let empty = root.isEmpty || (root.count == 1 && count == 0)
             return UsageEventPage(events: [], rows: 0, recognised: empty)
@@ -608,6 +607,24 @@ actor CursorProvider: UsageProvider {
     /// Reads one ItemTable value from a private copy of Cursor's state database, so the editor's open
     /// write-ahead log is never touched and a mid-write never trips the read.
     static func stateValue(forKey key: String, database: URL) throws -> String? {
+        try withStateCopy(of: database) { db in
+            var statement: OpaquePointer?
+            guard sqlite3_prepare_v2(db, "SELECT value FROM ItemTable WHERE key = ?1 LIMIT 1", -1, &statement, nil) == SQLITE_OK, let statement else {
+                throw ProviderError.unavailable(L("Cursor's state database has no ItemTable"))
+            }
+            defer { sqlite3_finalize(statement) }
+            let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+            sqlite3_bind_text(statement, 1, key, -1, transient)
+            guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
+            return columnText(statement, 0)
+        }
+    }
+
+    /// Runs `body` against a read-only connection to a private copy of the state database and its write-ahead
+    /// log, deleted afterwards. Cursor holds the live file open and writes it at any moment; a copy is never
+    /// locked, never checkpointed under it, and cannot be written by a mistake here. Every reader of the file goes
+    /// through this (the session token here, the chats' names in CursorChatNames).
+    static func withStateCopy<T>(of database: URL, _ body: (OpaquePointer) throws -> T) throws -> T {
         let fm = FileManager.default
         let scratch = fm.temporaryDirectory.appendingPathComponent("notchmeter-cursor-\(UUID().uuidString)")
         try fm.createDirectory(at: scratch, withIntermediateDirectories: true)
@@ -624,23 +641,20 @@ actor CursorProvider: UsageProvider {
 
         var db: OpaquePointer?
         guard sqlite3_open_v2(copy.path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let db else {
+            sqlite3_close(db)
             throw ProviderError.unavailable(L("Cursor's state database could not be opened"))
         }
         defer { sqlite3_close(db) }
+        return try body(db)
+    }
 
-        var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(db, "SELECT value FROM ItemTable WHERE key = ?1 LIMIT 1", -1, &statement, nil) == SQLITE_OK, let statement else {
-            throw ProviderError.unavailable(L("Cursor's state database has no ItemTable"))
-        }
-        defer { sqlite3_finalize(statement) }
-        let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-        sqlite3_bind_text(statement, 1, key, -1, transient)
-        guard sqlite3_step(statement) == SQLITE_ROW else { return nil }
-        if let text = sqlite3_column_text(statement, 0) {
+    /// A text or blob column as UTF-8, or nil.
+    static func columnText(_ statement: OpaquePointer, _ column: Int32) -> String? {
+        if let text = sqlite3_column_text(statement, column) {
             return String(cString: text)
         }
-        if let blob = sqlite3_column_blob(statement, 0) {
-            let length = Int(sqlite3_column_bytes(statement, 0))
+        if let blob = sqlite3_column_blob(statement, column) {
+            let length = Int(sqlite3_column_bytes(statement, column))
             return String(data: Data(bytes: blob, count: length), encoding: .utf8)
         }
         return nil
