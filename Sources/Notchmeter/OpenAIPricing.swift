@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// One model id's published row, in dollars per million tokens.
 ///
@@ -98,9 +99,56 @@ enum OpenAIPricing {
         "o4-mini": OpenAIRates(input: 1.1, cachedInput: 0.275, output: 4.4),
     ]
 
+    /// The build's row for an id and the catalog's entries for it (PricingCatalog), either or both.
+    struct Row: Equatable, Sendable {
+        let builtIn: OpenAIRates?
+        let catalog: PricingCatalog.Applied<PricingCatalog.OpenAIEntry>?
+
+        /// Whether any lookup on this row can answer differently from the build alone, on the rule
+        /// ModelPricing.Row.alters states: an entry that repeats the build's row is not an update, but once any
+        /// entry differs every entry of the row counts, since the repeating one is then what ends the update.
+        var alters: Bool {
+            catalog?.entries.contains { $0.rates != builtIn } ?? false
+        }
+    }
+
+    /// The table lookups read: the build's rows, with the applied catalog merged in by exact id. Rebuilt when a
+    /// catalog is applied; the build's alone until then.
+    struct Book: Equatable, Sendable {
+        let rows: [String: Row]
+        /// The catalog entries that can change an answer, as a digest for the fingerprint; empty with none.
+        let digest: String
+
+        static let builtIn = Book(catalog: [:])
+
+        init(catalog: [String: PricingCatalog.Applied<PricingCatalog.OpenAIEntry>]) {
+            var rows = OpenAIPricing.table.mapValues { Row(builtIn: $0, catalog: nil) }
+            for (id, applied) in catalog {
+                rows[id] = Row(builtIn: OpenAIPricing.table[id], catalog: applied)
+            }
+            self.rows = rows
+            digest = PricingCatalog.digest(rows.values.filter(\.alters).flatMap { $0.catalog?.entries.map(\.fingerprint) ?? [] })
+        }
+
+        /// True while no catalog entry can change an answer: the build's table alone, whatever was applied.
+        var isBuiltIn: Bool { digest.isEmpty }
+    }
+
+    private static let bookState = OSAllocatedUnfairLock<Book>(initialState: .builtIn)
+
+    /// The table lookups read. Only PricingCatalog sets it.
+    static var book: Book {
+        get { bookState.withLock { $0 } }
+        set { bookState.withLock { $0 = newValue } }
+    }
+
     /// The snapshot date and a digest of the rows themselves, so cached day records are dropped when a rate is
-    /// edited even if the snapshot date has not moved that day.
-    static var fingerprint: String { "\(snapshotDate)-\(digest(of: table))" }
+    /// edited even if the snapshot date has not moved that day; and the applied catalog's digest when it has any
+    /// entry in force, so a catalog that changes a rate re-prices what was cached under the old one.
+    static var fingerprint: String {
+        let catalog = book.digest
+        return "\(snapshotDate)-\(digest(of: table))" + (catalog.isEmpty ? "" : "-catalog-\(catalog)")
+    }
 
     /// FNV-1a over the rows in id order: same rows, same string, on any run.
     static func digest(of table: [String: OpenAIRates]) -> String {
@@ -113,15 +161,35 @@ enum OpenAIPricing {
         return String(hash, radix: 36)
     }
 
-    static func rates(for model: String) -> OpenAIRates? {
+    /// The rate a turn of `model` at `date` is priced at, and its source: the exact id first, then the id with a
+    /// dated suffix stripped, each through the catalog's entry in force at `date` before the build's own row. A
+    /// catalog entry that updates a build row prices only turns from its effective date on.
+    static func resolve(_ model: String, at date: Date = Date()) -> (rates: OpenAIRates, source: PriceSource)? {
         let name = normalize(model)
-        if let hit = table[name] { return hit }
-        guard let undated = withoutDateSuffix(name) else { return nil }
-        return table[undated]
+        let rows = book.rows
+        for id in [name, withoutDateSuffix(name)].compactMap({ $0 }) {
+            guard let row = rows[id] else { continue }
+            if let entry = row.catalog?.entry(at: date) {
+                // An entry that repeats the build's row is the build's number, and is labelled so (ModelPricing.resolve).
+                return (entry.rates, entry.rates == row.builtIn ? .builtIn(snapshotDate) : .catalog(entry.effective))
+            }
+            if let builtIn = row.builtIn { return (builtIn, .builtIn(snapshotDate)) }
+        }
+        return nil
     }
 
-    static func cost(of tokens: TokenBreakdown, model: String?) -> Double? {
-        guard let model, let rates = rates(for: model) else { return nil }
+    static func rates(for model: String, at date: Date = Date()) -> OpenAIRates? {
+        resolve(model, at: date)?.rates
+    }
+
+    /// Every source that priced `model` over `from...to`, as `ModelPricing.sources` counts them.
+    static func sources(for model: String, from: Date, to: Date) -> Set<PriceSource> {
+        let moments = [from] + book.rows.values.flatMap { $0.catalog?.entries.map(\.start) ?? [] }.filter { $0 > from && $0 <= to }
+        return Set(moments.compactMap { resolve(model, at: $0)?.source })
+    }
+
+    static func cost(of tokens: TokenBreakdown, model: String?, at date: Date = Date()) -> Double? {
+        guard let model, let rates = rates(for: model, at: date) else { return nil }
         return rates.cost(tokens)
     }
 

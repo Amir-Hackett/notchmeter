@@ -804,6 +804,12 @@ final class Preferences {
     var pollClaudeEndpoint: Bool {
         didSet { defaults.set(pollClaudeEndpoint, forKey: Keys.pollClaude); report(Keys.pollClaude, pollClaudeEndpoint, changed: pollClaudeEndpoint != oldValue) }
     }
+    /// Whether Notchmeter's published price catalog is fetched once a day and applied over the build's tables
+    /// (PricingCatalog). On unless switched off: public data, and nothing about the user in the request
+    /// (docs/privacy.md). The command-line tool reads the same key through `PricingCatalog.isEnabled`.
+    var pricingCatalog: Bool {
+        didSet { defaults.set(pricingCatalog, forKey: Keys.pricingCatalog); report(Keys.pricingCatalog, pricingCatalog, changed: pricingCatalog != oldValue) }
+    }
     /// When the Keychain dialog for Claude Code's login may appear.
     var keychainPrompts: KeychainPromptPolicy {
         didSet {
@@ -1040,6 +1046,7 @@ final class Preferences {
         static let copilotOrg = ProviderOptIn.copilotOrgBilling.key
         static let keychainPrompts = "keychainPrompts"
         static let pollClaude = "pollClaudeEndpoint"
+        static let pricingCatalog = PricingCatalog.preferenceKey
         static let keepAwake = "keepAwake"
         static let keepAwakeBattery = "keepAwakeOnBattery"
         static let autoRepair = "autoRepairHooks"
@@ -1158,6 +1165,7 @@ final class Preferences {
         copilotOrgBilling = ProviderOptIn.copilotOrgBilling.value(defaults)
         keychainPrompts = KeychainPromptPolicy(rawValue: defaults.string(forKey: Keys.keychainPrompts) ?? "") ?? .refreshOnly
         pollClaudeEndpoint = defaults.object(forKey: Keys.pollClaude) as? Bool ?? true
+        pricingCatalog = PricingCatalog.isEnabled(defaults)
         keepAwake = defaults.bool(forKey: Keys.keepAwake)
         keepAwakeOnBattery = defaults.bool(forKey: Keys.keepAwakeBattery)
         autoRepairHooks = defaults.object(forKey: Keys.autoRepair) as? Bool ?? true

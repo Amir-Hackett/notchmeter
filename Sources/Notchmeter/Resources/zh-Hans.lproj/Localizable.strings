@@ -919,3 +919,17 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "将此项目的 Cursor 窗口移到前面（无法让 Cursor 打开某一个对话）";
 "First seen %@" = "首次发现于 %@";
+
+/* The pricing catalog: its switch and status line in Settings, and the Cost card's price line (PricingCatalog, PriceSource) */
+"Update model prices from notchmeter's catalog" = "从 notchmeter 的目录更新模型价格";
+"Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used." = "每天一次，以简单的 GET 从本项目的 GitHub 仓库获取 pricing/catalog.json，使版本之间发布的新模型在一天内按公布价格计价。公开数据，请求中不含任何关于你的信息；费用卡片会标明所用的价格。";
+"Off. Prices come from this build (%@) and your own overrides." = "已关闭。价格来自此版本（%@）和你自己的覆盖设置。";
+"Catalog of %1$@ in use, last confirmed %2$@." = "正在使用 %1$@ 的目录，最近一次确认于%2$@。";
+"The catalog could not be used; this build's prices (%@) stand until it can be." = "目录无法使用；在可用之前沿用此版本的价格（%@）。";
+"Not fetched yet; this build's prices (%@) are in use." = "尚未获取；正在使用此版本的价格（%@）。";
+"Prices: %@" = "价格：%@";
+"your pricing-overrides.json" = "你的 pricing-overrides.json";
+"Claude Code's modelPricing" = "Claude Code 的 modelPricing";
+"Notchmeter's catalog of %@" = "Notchmeter %@ 的目录";
+"this build's table of %@" = "此版本 %@ 的价格表";
+"a family guess" = "按模型系列估算";

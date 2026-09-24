@@ -1700,8 +1700,12 @@ struct SpendCard: View {
             lines.append((text: L("Unpriced: %@", selection.unpricedModels.sorted().joined(separator: ", ")), quiet: true))
         }
         if let sourceLine { lines.append((text: sourceLine, quiet: true)) }
+        // Which list prices did the pricing: the build's table, the catalog, an override (docs/accuracy.md).
+        if let pricesLine { lines.append((text: pricesLine, quiet: true)) }
         return lines
     }
+
+    private var pricesLine: String? { PriceSource.line(selection.priceSources) }
 
     /// The legend as one spoken phrase.
     private var providerSpoken: String {
@@ -1825,7 +1829,7 @@ struct SpendCard: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L("Cost, %@", range.title))
             .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, burnLine, problemLines.first, gaps.first?.text,
-                                            store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine))
+                                            store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine, pricesLine))
             if store.prefs.showDetails, let totals, !totals.models.isEmpty, totals.cost > 0 {
                 ModelShares(shares: totals.models, total: totals.cost, byModel: totals.byModel, tokensByModel: nil, mode: mode, rangeTokens: totals.tokens.total)
             }

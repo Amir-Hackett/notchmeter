@@ -38,6 +38,9 @@ final class SettingsRequests {
     var awakeChanged: () -> Void = {}
     var diagnostics: () -> String = { "" }
     var installCommandLineTool: () -> Void = {}
+    /// The catalog fetcher, for the line under *Update model prices from notchmeter's catalog*; nil in a
+    /// process that never fetches (the command-line tool, a render without a seeded one).
+    var pricingCatalog: () -> PricingCatalogFetcher? = { nil }
     /// Settings › General › "Show the welcome tour again" (AppDelegate.showWelcomeTour).
     var showWelcomeTour: () -> Void = {}
     var updater: () -> Updater? = { nil }
@@ -754,6 +757,10 @@ struct SettingsView: View {
                 // silently drop it from the card it comes back to.
                 .help(L("Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card."))
             }
+            Toggle(L("Update model prices from notchmeter's catalog"), isOn: Binding(get: { prefs.pricingCatalog }, set: { prefs.pricingCatalog = $0 }))
+                .help(L("Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used."))
+            // The line says which prices are in use either way, so switching the catalog off is not a silent change.
+            paragraph((requests.pricingCatalog()?.status ?? PricingCatalogFetcher.Status()).settingsLine(enabled: prefs.pricingCatalog))
         }
     }
 

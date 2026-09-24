@@ -194,6 +194,11 @@ struct CostSummary: Equatable, Sendable {
         providers.first { $0.tool == tool }
     }
 
+    /// Every list-price source behind the providers' figures (ProviderCost.priceSources).
+    var priceSources: Set<PriceSource> {
+        providers.reduce(into: Set<PriceSource>()) { $0.formUnion($1.priceSources) }
+    }
+
     /// The same summary with other tools' spend folded in: every top figure becomes the total across the
     /// providers, and each provider keeps its own ranges, series, source and freshness. The Claude-window
     /// figures (the week, the block, the metering, since first use) stay Claude's, because that is what they are.
@@ -605,11 +610,12 @@ actor ClaudeCostScanner {
     }
 
     /// A line's own `costUSD` wins; otherwise tokens at list price (fast-mode rates when the line says so) times the
-    /// residency multiplier, plus the per-request web-search fee, which is never multiplied.
+    /// residency multiplier, plus the per-request web-search fee, which is never multiplied. The list price is the
+    /// one in force when the line was written, which differs from today's only where the catalog updated a rate.
     static func price(_ entry: UsageEntry, unpriced: inout Set<String>) -> Double {
         if let explicit = entry.costUSD { return explicit }
         let searches = Double(entry.webSearches) * ModelPricing.webSearchRequest
-        if let priced = ModelPricing.cost(of: entry.tokens, model: entry.model, inferenceGeo: entry.inferenceGeo, speed: entry.speed) {
+        if let priced = ModelPricing.cost(of: entry.tokens, model: entry.model, inferenceGeo: entry.inferenceGeo, speed: entry.speed, at: entry.timestamp) {
             return priced + searches
         }
         if let model = entry.model { unpriced.insert(model) }
@@ -711,9 +717,13 @@ actor ClaudeCostScanner {
 
         let burn = HourlyBurn(lastHour: lastHour, costByHour: costByHour)
         let firstUse = days.filter { $0.value.cost > 0 }.keys.min()
+        // The list prices behind the window's transcripts: every source that priced a model seen in them over
+        // the window's span. Days older than the transcripts come from the history as they were recorded.
+        let models = live.values.reduce(into: Set<String>()) { $0.formUnion($1.byModel.keys) }
+        let priceSources = models.reduce(into: Set<PriceSource>()) { $0.formUnion(ModelPricing.sources(for: $1, from: windowStart, to: now)) }
         let claude = ProviderCost(tool: .claude, source: .localTranscripts, ranges: ranges, daily: daily, daily90: daily90,
                                   lastHour: burn.lastHour, typicalHourly: burn.typicalHourly, burnMultiple: burn.multiple,
-                                  unpricedModels: unpriced, scannedAt: now)
+                                  unpricedModels: unpriced, priceSources: priceSources, scannedAt: now)
         return CostSummary(
             today: ranges[.today]?.cost ?? 0,
             yesterday: ranges[.yesterday]?.cost ?? 0,

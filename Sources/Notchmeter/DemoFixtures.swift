@@ -224,6 +224,10 @@ enum DemoFixtures {
         ]
     }
 
+    /// The published day of the catalog the pictures show in force: the day the tables were last read from the
+    /// vendors' pages, so the fixture claims no catalog newer than the one in the repository.
+    static let catalogDay = ModelPricing.snapshotDate
+
     /// $6,600 over 30 days of Claude Code with quiet weekends, a heavy $548.76 yesterday and $118.31 so far
     /// today, beside a Cursor export at a ninth of it. The last hour ran at 3.2x the 30-day average active hour,
     /// which is what puts a line in the Advice strip.
@@ -260,9 +264,11 @@ enum DemoFixtures {
                                byModel: ["claude-4.5-sonnet": record.cost * 0.08, "gpt-5.3-codex": record.cost * 0.03], byProject: [:])
         }
         let weekStart = CostEngine.weekStart(weeklyResetsAt: nil, now: now, calendar: calendar)
+        // Priced by the build's table and by the catalog that updated one of its rows, the two sources a month of
+        // transcripts ordinarily meets, so the card's price line is in the pictures.
         let claude = ProviderCost.build(tool: .claude, source: .localTranscripts, days: days, now: now, weekStart: weekStart,
                                         calendar: calendar, hourly: HourlyBurn(lastHour: 31.20, typicalHourly: 9.75, activeHours: 380),
-                                        scannedAt: now)
+                                        priceSources: [.builtIn(ModelPricing.snapshotDate), .catalog(catalogDay)], scannedAt: now)
         let cursor = ProviderCost.build(tool: .cursor, source: .billingExport, days: cursorDays, now: now, weekStart: weekStart,
                                         calendar: calendar, scannedAt: now.addingTimeInterval(-240))
         let base = CostSummary(today: 0, yesterday: 0, last30Days: 0, daily: [], lastHour: 0, typicalHourly: 0, burnMultiple: nil,

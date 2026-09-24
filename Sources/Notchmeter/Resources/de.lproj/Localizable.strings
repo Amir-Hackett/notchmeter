@@ -920,3 +920,17 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Holt Cursors Fenster für dieses Projekt nach vorn (Cursor lässt sich nicht bitten, einen einzelnen Chat zu öffnen)";
 "First seen %@" = "Zuerst gesehen %@";
+
+/* The pricing catalog: its switch and status line in Settings, and the Cost card's price line (PricingCatalog, PriceSource) */
+"Update model prices from notchmeter's catalog" = "Modellpreise aus Notchmeters Katalog aktualisieren";
+"Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used." = "Einmal täglich ein einfacher GET von pricing/catalog.json aus dem GitHub-Repository dieses Projekts, damit ein Modell, das zwischen zwei Versionen erscheint, innerhalb eines Tages zu seinem veröffentlichten Preis berechnet wird. Öffentliche Daten, nichts über dich in der Anfrage; die Kostenkarte nennt die verwendeten Preise.";
+"Off. Prices come from this build (%@) and your own overrides." = "Aus. Die Preise stammen aus diesem Build (%@) und deinen eigenen Überschreibungen.";
+"Catalog of %1$@ in use, last confirmed %2$@." = "Katalog vom %1$@ in Gebrauch, zuletzt bestätigt %2$@.";
+"The catalog could not be used; this build's prices (%@) stand until it can be." = "Der Katalog konnte nicht verwendet werden; die Preise dieses Builds (%@) gelten, bis es geht.";
+"Not fetched yet; this build's prices (%@) are in use." = "Noch nicht abgerufen; die Preise dieses Builds (%@) sind in Gebrauch.";
+"Prices: %@" = "Preise: %@";
+"your pricing-overrides.json" = "deine pricing-overrides.json";
+"Claude Code's modelPricing" = "modelPricing von Claude Code";
+"Notchmeter's catalog of %@" = "Notchmeters Katalog vom %@";
+"this build's table of %@" = "die Tabelle dieses Builds vom %@";
+"a family guess" = "eine Schätzung nach Modellfamilie";

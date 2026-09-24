@@ -57,6 +57,11 @@ struct CostSelection: Equatable, Sendable {
         providers.reduce(into: Set<String>()) { $0.formUnion($1.unpricedModels) }
     }
 
+    /// Every list-price source behind the carried providers' figures, for the card's price line.
+    var priceSources: Set<PriceSource> {
+        providers.reduce(into: Set<PriceSource>()) { $0.formUnion($1.priceSources) }
+    }
+
     /// What sizes each provider's slice, in the mode's own unit: tokens under Tokens, dollars otherwise. A rate
     /// per million tokens cannot be shared out (the shares would not add up to the whole), so $/MTok is sized by
     /// its dollars. A provider with nothing in the range is left out, so no slice is a zero-width sliver.

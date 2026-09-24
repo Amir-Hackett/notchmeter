@@ -227,10 +227,15 @@ table.dtable code { font-size: 12.4px; }
               <td>Your IP address and the updater's user agent, when the app checks whether a newer version exists. No account, no token and no identifier is sent, and the updater's optional anonymous system profile is not switched on.</td>
               <td><strong>Daily by default</strong>, and whenever you choose Check for Updates. Automatic checking can be switched off in Settings.</td>
             </tr>
+            <tr>
+              <td>GitHub<br><code>raw.githubusercontent.com</code><br>(the price catalog)</td>
+              <td>Your IP address and the app's user agent, when the app fetches this project's own list of per-model prices, so a model that launches between releases is priced at its published rate within a day. No account, no token, no usage figure and no identifier is sent; the request carries only the validators of the copy already held, so an unchanged file answers with no body.</td>
+              <td><strong>Daily by default</strong>, at most, and an hour after a failed attempt. It can be switched off in Settings › Appearance › Usage display, and the app then prices everything from the table built into it.</td>
+            </tr>
           </tbody>
         </table>
       </div>
-      <p class="strong-note"><strong>What that means in plain terms.</strong> Each vendor learns your IP address and, from your token, which of their accounts you are. That is exactly what happens when their own tool asks the same question, and no more. It is still a real disclosure to a real third party, and once a request arrives at Anthropic, OpenAI, Cursor, Google or GitHub, that company's privacy policy governs what it does with it, not this one. The update check in particular means <strong>GitHub can see, roughly once a day, that a machine at your IP address is running Notchmeter</strong>, whether or not you ever download anything from them again.</p>
+      <p class="strong-note"><strong>What that means in plain terms.</strong> Each vendor learns your IP address and, from your token, which of their accounts you are. That is exactly what happens when their own tool asks the same question, and no more. It is still a real disclosure to a real third party, and once a request arrives at Anthropic, OpenAI, Cursor, Google or GitHub, that company's privacy policy governs what it does with it, not this one. The update check and the price catalog in particular mean <strong>GitHub can see, roughly once a day, that a machine at your IP address is running Notchmeter</strong>, whether or not you ever download anything from them again.</p>
       <p>The updater is the Sparkle framework, and it only runs in properly signed release builds. What it sends is what Sparkle sends with its system profile feature off, which is how the app configures it. We wrote the configuration, not the updater.</p>
       <p>The app also opens ordinary links in your browser when you click them, such as a vendor's usage page, a status page, or the donation page. Those are handed to your browser with whatever cookies your browser already has. The app makes no request of its own for them.</p>
 
@@ -289,6 +294,7 @@ table.dtable code { font-size: 12.4px; }
             <tr><td>Website server logs</td><td>Serving the site, keeping it up, and dealing with abuse or attacks</td><td>Article 6(1)(f), legitimate interests. Our interest is running a website that works. It is ordinary request metadata, it is not used to build a profile, and it is not combined with anything else.</td></tr>
             <tr><td>A donation, if you choose to make one</td><td>Taking the payment you asked to make</td><td>Article 6(1)(b), the transaction you asked for. Keeping the record afterwards rests on Article 6(1)(f), our interest in holding the accounting and tax records US law requires of us.</td></tr>
             <tr><td>App update check</td><td>Telling you when a fixed or safer version exists</td><td>Article 6(1)(f), legitimate interests in getting security fixes to installed software. You can switch automatic checking off.</td></tr>
+            <tr><td>Price catalog fetch</td><td>Pricing a model that launched after your version was built at its published rate, rather than at a guess</td><td>Article 6(1)(f), legitimate interests in the figures the app shows being right. It is public data and the request identifies nobody; you can switch it off.</td></tr>
             <tr><td>App usage reads to AI vendors</td><td>Showing you your own usage, which is the one thing you installed the app to do</td><td>These run on your machine, at your instruction, with your own credentials, and we receive nothing from them. To the extent a basis applies to us at all it is Article 6(1)(f). Each vendor is its own controller for what it does with the request.</td></tr>
             <tr><td>Everything else the app does</td><td>Showing your usage and cost locally</td><td>No basis is needed, because we do no processing. The data never leaves your Mac and we never see it.</td></tr>
           </tbody>
@@ -357,7 +363,7 @@ table.dtable code { font-size: 12.4px; }
       <ul>
         <li>Website server logs: Vercel.</li>
         <li>Payment details: Stripe. Our copy of the transaction record: us.</li>
-        <li>Downloads, issue comments and update checks: GitHub.</li>
+        <li>Downloads, issue comments, update checks and the price catalog: GitHub.</li>
         <li>Your AI usage and account data: Anthropic, OpenAI, Cursor, Google or GitHub, whichever account it belongs to.</li>
       </ul>
       <p>Email <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a> and we will answer within one month, and help you route a request to the right provider if that is where the data actually is. There is no charge.</p>

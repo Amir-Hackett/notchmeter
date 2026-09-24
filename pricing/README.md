@@ -1,0 +1,5 @@
+# The pricing catalog
+
+`catalog.json` is the price list the app fetches once a day from this branch (`raw.githubusercontent.com/Amir-Hackett/notchmeter/main/pricing/catalog.json`), so a model that launches between releases is priced at its published rate within a day. The rules, the format and the precedence are written out in [docs/accuracy.md](../docs/accuracy.md#the-pricing-catalog); what the request carries is in [docs/privacy.md](../docs/privacy.md).
+
+To change a price or add a model, add an entry with the day the rate took effect (never edit an old entry's rates: earlier lines are priced under it), run `scripts/pricing-check.sh --offline`, and open a pull request. The unit test `PricingCatalogValidation.theCommittedCatalogRepeatsTheBuildsTables` holds the newest entries equal to the tables compiled into the app, so a change here lands with the matching change to `ModelPricing.swift` or `OpenAIPricing.swift`, the snapshot and the accuracy doc, and the app only ever reads a catalog that its own build agrees with at the time of publishing.

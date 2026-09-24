@@ -117,7 +117,10 @@ enum CommandLineTool {
             }
         }
         if let cost = root["cost"] as? [String: Any], let today = JSON.number(cost["today"]) {
-            lines.append("cost: today \(Money.dollars(today)) 30d \(Money.dollars(JSON.number(cost["last30Days"]) ?? 0))")
+            var line = "cost: today \(Money.dollars(today)) 30d \(Money.dollars(JSON.number(cost["last30Days"]) ?? 0))"
+            // Which list prices did the pricing (PriceSource.key), so a figure can be checked against the right table.
+            if let sources = cost["priceSources"] as? [String], !sources.isEmpty { line += " (prices: \(sources.joined(separator: ", ")))" }
+            lines.append(line)
         }
         for advice in root["advice"] as? [[String: Any]] ?? [] {
             if let text = advice["text"] as? String { lines.append("advice: \(text)") }

@@ -70,6 +70,9 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
     let burnMultiple: Double?
     /// Model ids the source named that this build has no published rate for; their tokens contribute nothing.
     let unpricedModels: Set<String>
+    /// Where the list prices that priced the window's files came from (PriceSource): the build's table, the
+    /// catalog, an override. Empty for a source whose dollars are the vendor's own, which has no list price.
+    let priceSources: Set<PriceSource>
     /// When these figures were read from their source, which is not when the app last drew them.
     let scannedAt: Date
     /// Why the figures are missing or older than they should be; nil when the read was clean.
@@ -79,7 +82,7 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
 
     init(tool: ToolID, source: CostSource, ranges: [CostRange: RangeTotals], daily: [DailySpend], daily90: [DailySpend] = [],
          lastHour: Double? = nil, typicalHourly: Double? = nil, burnMultiple: Double? = nil, unpricedModels: Set<String> = [],
-         scannedAt: Date, problem: String? = nil) {
+         priceSources: Set<PriceSource> = [], scannedAt: Date, problem: String? = nil) {
         self.tool = tool
         self.source = source
         self.ranges = ranges
@@ -89,6 +92,7 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
         self.typicalHourly = typicalHourly
         self.burnMultiple = burnMultiple
         self.unpricedModels = unpricedModels
+        self.priceSources = priceSources
         self.scannedAt = scannedAt
         self.problem = problem
     }
@@ -104,7 +108,7 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
     /// nil when the records hold nothing, so an installed tool that has spent nothing shows no cost rather than $0.
     static func build(tool: ToolID, source: CostSource, days: [Date: CostHistory.Record], now: Date, daysBack: Int = 30,
                       weekStart: Date, calendar: Calendar = .current, hourly: HourlyBurn? = nil, unpricedModels: Set<String> = [],
-                      scannedAt: Date, problem: String? = nil) -> ProviderCost? {
+                      priceSources: Set<PriceSource> = [], scannedAt: Date, problem: String? = nil) -> ProviderCost? {
         let today = calendar.startOfDay(for: now)
         guard let windowStart = calendar.date(byAdding: .day, value: -(daysBack - 1), to: today),
               let start90 = calendar.date(byAdding: .day, value: -89, to: today)
@@ -114,7 +118,7 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
         let ranges = RangeTotals.ranges(days: days, daily: daily, daily90: daily90, weekStart: weekStart, now: now, calendar: calendar)
         let cost = ProviderCost(tool: tool, source: source, ranges: ranges, daily: daily, daily90: daily90, lastHour: hourly?.lastHour,
                                 typicalHourly: hourly?.typicalHourly, burnMultiple: hourly?.multiple, unpricedModels: unpricedModels,
-                                scannedAt: scannedAt, problem: problem)
+                                priceSources: priceSources, scannedAt: scannedAt, problem: problem)
         return cost.hasFigures ? cost : nil
     }
 }

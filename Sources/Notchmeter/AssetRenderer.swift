@@ -523,6 +523,11 @@ enum AssetRenderer {
         let installed = "/Applications/\(AppInfo.name).app/Contents/MacOS/\(AppInfo.name)"
         requests.renderedHookStatus = (hook: Dictionary(uniqueKeysWithValues: HookVendor.allCases.map { ($0, HookSettings.Status.installed(path: installed)) }),
                                        statusline: .installed(path: installed))
+        // The catalog line under its switch, as a Mac that fetched it this morning reads; nothing is fetched here.
+        let catalog = PricingCatalogFetcher(prefs: prefs, load: { _ in .failed("rendering") })
+        catalog.seed(published: DemoFixtures.catalogDay, entries: ModelPricing.table.count + OpenAIPricing.table.count,
+                     confirmedAt: Date().addingTimeInterval(-3 * 3600))
+        requests.pricingCatalog = { catalog }
         let controller = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: Notifier(available: false),
                                                   requests: requests, pane: pane)
         guard let window = controller.window, let frame = window.contentView?.superview else { throw Failure.snapshot("the Settings window") }

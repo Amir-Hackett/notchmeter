@@ -70,6 +70,8 @@ struct DashboardModel: Equatable {
     let models: [CostShare]
     let projects: [CostShare]
     let sources: [(tool: ToolID, source: CostSource)]
+    /// The list prices behind the locally priced providers, for the footnote (PriceSource.line).
+    let priceSources: Set<PriceSource>
 
     var bars: [Bar] {
         days.flatMap { day in day.byTool.map { Bar(day: day.day, tool: $0.tool, cost: $0.cost) } }
@@ -81,6 +83,7 @@ struct DashboardModel: Equatable {
         lhs.range == rhs.range && lhs.tools == rhs.tools && lhs.days == rhs.days && lhs.total == rhs.total && lhs.today == rhs.today
             && lhs.dailyAverage == rhs.dailyAverage && lhs.averageSince == rhs.averageSince && lhs.peak == rhs.peak && lhs.models == rhs.models && lhs.projects == rhs.projects
             && lhs.sources.map(\.tool) == rhs.sources.map(\.tool) && lhs.sources.map(\.source) == rhs.sources.map(\.source)
+            && lhs.priceSources == rhs.priceSources
     }
 
     /// `firstRecorded` is the earliest day the durable history holds spend for (CostSummary.firstUse), which can lie
@@ -90,6 +93,7 @@ struct DashboardModel: Equatable {
         self.range = range
         tools = providers.map(\.tool)
         sources = providers.map { (tool: $0.tool, source: $0.source) }
+        priceSources = providers.reduce(into: Set<PriceSource>()) { $0.formUnion($1.priceSources) }
 
         let today = calendar.startOfDay(for: now)
         let first: Date
@@ -473,6 +477,9 @@ struct DashboardView: View {
                 Text(entry.source == .billingExport
                      ? L("%@ as billed, from its usage export", entry.tool.displayName)
                      : entry.source.provenance(of: entry.tool))
+            }
+            if let prices = PriceSource.line(model.priceSources) {
+                Text(prices)
             }
         }
         .font(.caption2)

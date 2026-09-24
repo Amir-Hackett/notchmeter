@@ -61,7 +61,7 @@ enum SettingsSearch {
             L("Show assistant symbols in the rings"), L("Panel layout"), L("Density"), L("Panel width"), L("Show over full-screen apps"), L("Gestures: swipe down to open, swipe up to close"),
             L("Reduce animations"))
         add(.usage, L("Usage display"), L("Show usage as"), L("Reset times"), L("Time format"), L("Show costs in"), L("Monthly budget"),
-            L("Weekly budget"), L("Cost card shows"), L("In the Cost card"))
+            L("Weekly budget"), L("Cost card shows"), L("In the Cost card"), L("Update model prices from notchmeter's catalog"))
         add(.shortcuts, L("Keyboard shortcuts"), L("Toggle the panel"), L("Open Settings"), L("Show over the full-screen app"))
         add(.assistants, L("Assistants"), L("Pin to menu bar"), L("Peak hours"), L("Keep the Mac awake while an assistant is working"),
             L("Also on battery"), L("Also read Codex reset credits"), L("Also read Cursor's usage events"), L("Also read organisation billing"),

@@ -919,3 +919,17 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)";
 "First seen %@" = "First seen %@";
+
+/* The pricing catalog: its switch and status line in Settings, and the Cost card's price line (PricingCatalog, PriceSource) */
+"Update model prices from notchmeter's catalog" = "Update model prices from notchmeter's catalog";
+"Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used." = "Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used.";
+"Off. Prices come from this build (%@) and your own overrides." = "Off. Prices come from this build (%@) and your own overrides.";
+"Catalog of %1$@ in use, last confirmed %2$@." = "Catalog of %1$@ in use, last confirmed %2$@.";
+"The catalog could not be used; this build's prices (%@) stand until it can be." = "The catalog could not be used; this build's prices (%@) stand until it can be.";
+"Not fetched yet; this build's prices (%@) are in use." = "Not fetched yet; this build's prices (%@) are in use.";
+"Prices: %@" = "Prices: %@";
+"your pricing-overrides.json" = "your pricing-overrides.json";
+"Claude Code's modelPricing" = "Claude Code's modelPricing";
+"Notchmeter's catalog of %@" = "Notchmeter's catalog of %@";
+"this build's table of %@" = "this build's table of %@";
+"a family guess" = "a family guess";
