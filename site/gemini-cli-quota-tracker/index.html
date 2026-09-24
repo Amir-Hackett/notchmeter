@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemini CLI quota tracker for Mac · Notchmeter</title>
+<meta name="description" content="Gemini CLI's per-model quota beside the notch, from the Code Assist endpoints its own /stats reads, on the login Gemini CLI already keeps. A personal account gets a sentence, not a wrong number.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../landing.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. The two scripts below are JSON-LD data
+     blocks for search engines; nothing on this page runs. -->
+
+<meta property="og:title" content="A Gemini CLI quota tracker in the MacBook notch">
+<meta property="og:description" content="Gemini CLI's per-model quota beside the notch, grouped the way /stats groups it, from the Code Assist endpoints on the login Gemini CLI already keeps. A personal account gets a sentence, not a wrong number.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/gemini-cli-quota-tracker/">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://www.notchmeter.com/gemini-cli-quota-tracker/">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "Notchmeter",
+ "alternateName": [
+  "Notchmeter for Gemini CLI",
+  "Notchmeter usage tracker"
+ ],
+ "description": "Gemini CLI's per-model quota beside the notch, from the Code Assist endpoints its own /stats reads, on the login Gemini CLI already keeps. A personal account gets a sentence, not a wrong number.",
+ "url": "https://www.notchmeter.com/",
+ "operatingSystem": "macOS 15+",
+ "applicationCategory": "DeveloperApplication",
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "USD"
+ },
+ "isAccessibleForFree": true,
+ "downloadUrl": "https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg",
+ "license": "https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE",
+ "sameAs": [
+  "https://github.com/Amir-Hackett/notchmeter"
+ ],
+ "image": "https://www.notchmeter.com/img/expanded.png"
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Which Google accounts still report Gemini CLI quota?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Code Assist Standard and Enterprise accounts. Since June 2026 Google has not served the quota endpoint to personal accounts, and Notchmeter says so in one sentence rather than showing a stale or invented figure. An API-key or Vertex AI setup has no quota to read at all."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why is there no pace tick on a Gemini CLI meter at first?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Because Google declares no window length for the per-model buckets, only a reset moment, and a pace tick needs a length. Notchmeter infers one only after it has seen two consecutive resets about five hours, a day or a week apart, tags the window as inferred, and only then draws the tick and the projection. A first read notes the likely length and drives nothing."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it show a cost for Gemini CLI?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. Google meters quota, not money: the endpoint returns per-model windows and the fraction of each that is left, no price, and no token count a published rate could be applied to. A Code Assist seat is not billed at Gemini's API rates either, so there is nothing honest to derive, and the Cost card has no row for it rather than a $0."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why did a meter read untouched while I was using it?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter prefers the host Antigravity's CLI last logged, tries both otherwise, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption. If a window still reads untouched across three polls while the hook reports your turns, it loses its figure and says it is unverified."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it need a separate login?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. It reads the Google login Gemini CLI caches in ~/.gemini/oauth_creds.json after you run gemini and choose Login with Google. The token is read, never refreshed or written, and sent only to Google's Code Assist endpoints."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Can it answer Gemini CLI's permission prompts from the notch?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. Gemini CLI's ToolPermission notification is observability only, so Notchmeter shows the wait, the dot on the ring and the notification, and you answer in the terminal. Claude Code, Codex and Copilot CLI document a deciding event and can be answered from the notch; docs/hooks.md says which is which."
+   }
+  }
+ ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="../usage-trackers/" class="hide-sm">Usage trackers</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="lp-hero plain">
+  <div class="wrap">
+    <nav class="lp-crumbs" aria-label="Breadcrumb"><ol><li><a href="../index.html">Notchmeter</a></li><li><a href="../usage-trackers/">Usage trackers</a></li><li aria-current="page">Gemini CLI</li></ol></nav>
+    <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
+    <h1>A Gemini CLI quota tracker in the MacBook notch</h1>
+    <p class="lede">Notchmeter shows the per-model quota Google meters for Gemini CLI, Gemini Pro, Flash and Flash Lite, and any Claude or GPT model the plan covers, beside the notch, from the same Code Assist endpoints Gemini CLI's own <code>/stats</code> reads, on the Google login Gemini CLI already keeps on your Mac. Since June 2026 Google serves that quota only to Code Assist Standard and Enterprise accounts; a personal account gets a sentence saying so, not a wrong number.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#antigravity-quota-and-no-cost">How the quota is read</a>
+    </div>
+    <p class="cta-note">macOS 15 or later · Apple silicon or Intel · no account, ever</p>
+  </div>
+</section>
+
+<section id="shows">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>What Notchmeter shows for Gemini CLI</h2>
+        <p>Gemini CLI and Antigravity meter against the same Google backend, so they share one ring; this page is the Gemini CLI side of it, and the <a href="../antigravity-usage-tracker/">Antigravity page</a> the other.</p>
+        <ul class="lp-points">
+          <li><strong>One window per pool</strong>, grouped the way Gemini CLI's <code>/stats</code> groups them: every Gemini model of a tier sharing one pool, the tightest bucket setting the figure, and the note naming the models that share it or the count left when Google sends one.</li>
+          <li><strong>Unknown is not untouched</strong>: a bucket Google sends no fraction for draws no figure, never 100% left. An explicit 0 is exhausted.</li>
+          <li><strong>The reset</strong> on every window, as a countdown or an exact time. Google declares no window length for the per-model buckets, so at first a window shows its fraction and its reset and no pace tick; once two consecutive resets about five hours, a day or a week apart have been seen, the length is inferred, said to be (“daily window inferred from its resets”), tagged as an estimate, and the pace tick and projection appear.</li>
+          <li><strong>No cost</strong>: Google meters quota, not money, and publishes no price and no token count a rate could be applied to, so the Cost card has no row for it, not a $0.</li>
+          <li><strong>Sessions</strong>: with the Gemini CLI hook, every running session, a tick when a turn ends, and a dot while Gemini CLI waits at a tool permission.</li>
+        </ul>
+      </div>
+      <figure class="lp-figure fit-narrow">
+        <div class="shot"><img src="../img/edge-left.png" alt="The notch cut into the left-hand edge of the screen, with one ring per tool inside the opaque shape." loading="lazy"></div>
+        <figcaption>The same rings on the left edge of the screen, for a Mac without a notch or a desk where the notch is the wrong place; drawn from fixed readings.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <h2>Where each figure comes from</h2>
+    <p class="section-lede">The same internal Code Assist calls Gemini CLI makes at every start, on the login it keeps.</p>
+    <div class="lp-tablewrap" role="region" aria-label="Gemini CLI figures and their sources" tabindex="0">
+      <table class="lp-table">
+        <caption>Read on 2026-09-24 from the code and docs/accuracy.md.</caption>
+        <thead><tr><th scope="col">Figure</th><th scope="col">Source</th><th scope="col">Notes</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">The per-model buckets</th><td><code>POST …/v1internal:loadCodeAssist</code> for the project and tier, then <code>:retrieveUserQuotaSummary</code>, else <code>:retrieveUserQuota</code>, on <code>daily-cloudcode-pa.googleapis.com</code> or <code>cloudcode-pa.googleapis.com</code></td><td>Undocumented internal calls. With a Gemini CLI login the body says <code>ideType: GEMINI_CLI</code> and the request carries <code>User-Agent: Notchmeter/&lt;version&gt;</code>; a project-scoped refusal is retried project-less before it counts.</td></tr>
+          <tr><th scope="row">Which host</th><td>The host Antigravity's CLI last logged, else daily first and then the other, keeping the first answer with a live figure</td><td>The quota is metered on one of Google's two deployments, and the other answers every bucket untouched with a reset five hours off, whatever has been used; such an answer is shown with no figure and a caption, never as an untouched quota.</td></tr>
+          <tr><th scope="row">Window length and pace</th><td>Inferred from two consecutive resets that agree with a five-hour, daily or weekly length; a first read only notes the likely length and drives nothing</td><td>Low confidence by design: Google's own documentation calls these per-day request limits, so even a confirmed length is labelled <em>inferred</em>.</td></tr>
+          <tr><th scope="row">The staleness guard</th><td>A window read untouched across three consecutive polls while the hook reported a Gemini CLI turn loses its figure and says it is unverified</td><td>Judged by history, never by value, so a first read cannot fire it and a quiet Mac cannot either.</td></tr>
+          <tr><th scope="row">Sessions, waits</th><td>Gemini CLI's hooks in <code>~/.gemini/settings.json</code>, through the optional hook command</td><td>Its <code>ToolPermission</code> notification starts a wait; Gemini CLI's alert is observability only, so the wait is shown and cannot be answered from the notch.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="lp-prose">
+      <p>The login is <code>~/.gemini/oauth_creds.json</code>, the Google login Gemini CLI caches after <code>gemini</code> and <em>Login with Google</em>. It is read, never refreshed or written, and sent only to Google as <code>Authorization: Bearer</code>. An API-key or Vertex AI setup has no quota to read, and the card says so.</p>
+      <p>Since June 2026 Google serves this endpoint only to Code Assist Standard and Enterprise accounts. A personal account gets the sentence “Google stopped serving Gemini CLI quota to personal accounts in June 2026; Code Assist Standard and Enterprise accounts still report it”, and it is reported only after both hosts have refused, so a host that is merely the wrong one is never mistaken for the shutdown. Every rule above is pinned by tests and written down in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#antigravity-quota-and-no-cost">Antigravity: quota, and no cost</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section id="advice">
+  <div class="wrap">
+    <h2>What it says to do about it</h2>
+    <p class="section-lede">Gemini CLI publishes only per-model windows, so it has no main window; its lines are about the models.</p>
+    <div class="advice-list">
+      <div class="advice">
+        <div class="tag">Switch models</div>
+        <div class="say"><em>Gemini Pro daily is 91%. Gemini Flash is 34%. Switch models, not tools.</em><span class="when">A per-model window is 85% used and another model has 40% left. A window whose length is not yet known is named “Gemini Pro quota” instead.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Run-out</div>
+        <div class="say"><em>At this rate you hit the Antigravity Gemini Pro daily cap today at 4:10 PM, 2h 20m before reset.</em><span class="when">A window with an inferred length is behind pace and has a run-out time.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Needs you</div>
+        <div class="say"><em>Gemini CLI is waiting in notchmeter.</em><span class="when">The hook reports a tool permission; with a session id the line names the project.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div class="faq">
+      <details open>
+        <summary>Which Google accounts still report Gemini CLI quota?</summary>
+        <p class="a">Code Assist Standard and Enterprise accounts. Since June 2026 Google has not served the quota endpoint to personal accounts, and Notchmeter says so in one sentence rather than showing a stale or invented figure. An API-key or Vertex AI setup has no quota to read at all.</p>
+      </details>
+      <details>
+        <summary>Why is there no pace tick on a Gemini CLI meter at first?</summary>
+        <p class="a">Because Google declares no window length for the per-model buckets, only a reset moment, and a pace tick needs a length. Notchmeter infers one only after it has seen two consecutive resets about five hours, a day or a week apart, tags the window as inferred, and only then draws the tick and the projection. A first read notes the likely length and drives nothing.</p>
+      </details>
+      <details>
+        <summary>Does it show a cost for Gemini CLI?</summary>
+        <p class="a">No. Google meters quota, not money: the endpoint returns per-model windows and the fraction of each that is left, no price, and no token count a published rate could be applied to. A Code Assist seat is not billed at Gemini's API rates either, so there is nothing honest to derive, and the Cost card has no row for it rather than a $0.</p>
+      </details>
+      <details>
+        <summary>Why did a meter read untouched while I was using it?</summary>
+        <p class="a">Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter prefers the host Antigravity's CLI last logged, tries both otherwise, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption. If a window still reads untouched across three polls while the hook reports your turns, it loses its figure and says it is unverified.</p>
+      </details>
+      <details>
+        <summary>Does it need a separate login?</summary>
+        <p class="a">No. It reads the Google login Gemini CLI caches in ~/.gemini/oauth_creds.json after you run gemini and choose Login with Google. The token is read, never refreshed or written, and sent only to Google's Code Assist endpoints.</p>
+      </details>
+      <details>
+        <summary>Can it answer Gemini CLI's permission prompts from the notch?</summary>
+        <p class="a">No. Gemini CLI's ToolPermission notification is observability only, so Notchmeter shows the wait, the dot on the ring and the notification, and you answer in the terminal. Claude Code, Codex and Copilot CLI document a deciding event and can be answered from the notch; <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">docs/hooks.md</a> says which is which.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap centered">
+    <h2>Install it</h2>
+    <p class="section-lede">macOS 15 Sequoia or later, Apple silicon or Intel. Signed, notarised, and it updates itself. Free forever, MIT licensed.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Download the DMG</a>
+      <a class="btn btn-ghost" href="../usage-trackers/">All usage trackers</a>
+    </div>
+    <div class="lp-brew">
+      <div class="code"><span class="p"># or with Homebrew</span>
+brew tap Amir-Hackett/tap
+brew trust --cask Amir-Hackett/tap/notchmeter
+brew install --cask notchmeter</div>
+    </div>
+    <p class="cta-note">Notchmeter is a Mac app. There is no Windows or Linux version; if you want a Windows one, <a href="https://github.com/Amir-Hackett/notchmeter/issues/32">the Windows issue</a> is where to say so. How every figure is built, with its source and its date: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h2>Notchmeter</h2>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h2>Product</h2>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="../usage-trackers/">Usage trackers</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

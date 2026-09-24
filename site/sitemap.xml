@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Every page of the site, at the canonical URL each page names for itself. A page added to site/ is added here
+     too; ReleasePackagingTests (SiteLandingPages) fails when a usage-tracker page is missing from this list or a
+     URL here does not match that page's canonical link. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://www.notchmeter.com/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/pricing.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/privacy.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/terms.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/usage-trackers/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/claude-code-usage-tracker/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/claude-code-rate-limit-reset/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/claude-code-opus-weekly-limit/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/codex-cli-usage-tracker/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/cursor-usage-tracker/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/copilot-usage-tracker/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/gemini-cli-quota-tracker/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/antigravity-usage-tracker/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/ai-usage-tracker-mac/</loc><lastmod>2026-09-24</lastmod></url>
+</urlset>

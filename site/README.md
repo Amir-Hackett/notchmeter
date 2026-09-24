@@ -50,3 +50,26 @@ string, and on Windows shows that notice with the issue as the headline button a
 one, hides the DMG row and the static line, and rewrites the hero's platform line to say there is no Windows or
 Linux version; the check runs in the browser and the result goes nowhere, so the page still makes no request and
 sets nothing.
+
+## The usage-tracker pages
+
+`usage-trackers/` is a hub and the nine folders beside it are one page each, one per tool or question people search
+for (`claude-code-usage-tracker/`, `claude-code-rate-limit-reset/`, `claude-code-opus-weekly-limit/`,
+`codex-cli-usage-tracker/`, `cursor-usage-tracker/`, `copilot-usage-tracker/`, `gemini-cli-quota-tracker/`,
+`antigravity-usage-tracker/`, `ai-usage-tracker-mac/`). Each is a folder with an `index.html` so its URL is the
+folder on any static host, with no rewrite rule: `https://www.notchmeter.com/claude-code-usage-tracker/`. They share
+`landing.css`, loaded after `style.css` and built only from its tokens, so nothing in it can change the other pages.
+
+Each page says what Notchmeter shows for that tool, where every figure comes from (a table naming the endpoint or
+file, the login it uses and what the card labels it), what the Advice strip says about it, and four to six questions
+with answers. Nothing on a page goes past `docs/accuracy.md`, `docs/features.md`, `docs/hooks.md` and the code; a
+rule is quoted with the section it lives in, and the page links that section rather than restating a figure that
+could drift. Each page carries a canonical URL, Open Graph tags and two JSON-LD blocks for search engines: a
+`SoftwareApplication` (this app, free, macOS 15+, with aliases that are its own name and never another product's) and
+a `FAQPage` that repeats the visible questions and answers word for word. No page names a competitor, and none runs a
+script.
+
+`sitemap.xml` lists every page at its canonical URL and `robots.txt` allows everything and names the sitemap. To add
+a page: copy a folder, change its head, add it to the hub, to `sitemap.xml` and to `SiteLandingPages` in
+`Tests/NotchmeterTests/SiteLandingPagesTests.swift`, which holds the head, the JSON-LD against the visible FAQ, the
+links, the images, the heading order and the no-script rule.

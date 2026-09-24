@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI usage tracker for the Mac · Notchmeter</title>
+<meta name="description" content="A free, open-source Mac app metering Claude Code, Codex, Cursor, Antigravity, Gemini CLI and Copilot beside the notch, with pace, projection and reset on every window and advice on what to do next.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../landing.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. The two scripts below are JSON-LD data
+     blocks for search engines; nothing on this page runs. -->
+
+<meta property="og:title" content="An AI usage tracker for the Mac, in the notch">
+<meta property="og:description" content="One free Mac app for five AI coding tools: pace, projection and reset on every window, advice on what to do next, and every figure sourced, dated and tested. It never signs in anywhere.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/ai-usage-tracker-mac/">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://www.notchmeter.com/ai-usage-tracker-mac/">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "Notchmeter",
+ "alternateName": [
+  "Notchmeter for Mac",
+  "Notchmeter AI usage tracker",
+  "Notchmeter usage tracker"
+ ],
+ "description": "A free, open-source Mac app metering Claude Code, Codex, Cursor, Antigravity, Gemini CLI and Copilot beside the notch, with pace, projection and reset on every window and advice on what to do next.",
+ "url": "https://www.notchmeter.com/",
+ "operatingSystem": "macOS 15+",
+ "applicationCategory": "DeveloperApplication",
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "USD"
+ },
+ "isAccessibleForFree": true,
+ "downloadUrl": "https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg",
+ "license": "https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE",
+ "sameAs": [
+  "https://github.com/Amir-Hackett/notchmeter"
+ ],
+ "image": "https://www.notchmeter.com/img/expanded.png"
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Which AI tools does Notchmeter track?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Claude Code, Codex, Cursor, Antigravity and Gemini CLI, and GitHub Copilot: one ring each beside the notch, one card each in the panel, and one page each on this site saying what is shown and where it comes from. Switch off the ones you do not use and the rings give their room to the ones you keep."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Do I need to sign in or create an account?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. Notchmeter never signs in anywhere. Each reading is borrowed from the tool that owns the account, on the login that tool already keeps on this Mac, in the same read-only status request the tool's own app or dashboard makes. It never refreshes or stores a token and has no server of its own."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Which Macs does it run on?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Any Mac on macOS 15 Sequoia or later, Apple silicon or Intel. On a MacBook with a notch the rings sit beside it; on any other Mac, or if you would rather, the same notch shape is cut into the left or right edge of the screen, there is a bar above the Dock, and a pill under the menu bar. There is no Windows or Linux version."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Is it really free?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. The whole app is free, MIT licensed and open source, with no trial, no locked feature and no nag. You can pay what you want towards it, once, and nothing changes in the app either way."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "How accurate are the figures?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "The limits are the vendors' own figures, read from the same endpoints the vendors' own apps read, and every window says whose figure it is. The costs are estimates whose rules are written down with their sources and dates in docs/accuracy.md, pinned by a golden-transcript test suite; a tool whose spend cannot be honestly derived has no cost row rather than a $0. Notchmeter does not show a number it cannot show its work for."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "What does it cost to run?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "On an M5 Pro with a heavy Claude Code job in the background: 1.4% of one core over 60 seconds with the panel closed, 0.0% between cost scans, a 63 MB physical footprint, and nothing at all while the screen is locked, the displays are asleep or the Mac is. The method and the raw numbers are in docs/energy.md."
+   }
+  }
+ ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="../usage-trackers/" class="hide-sm">Usage trackers</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="lp-hero plain">
+  <div class="wrap">
+    <nav class="lp-crumbs" aria-label="Breadcrumb"><ol><li><a href="../index.html">Notchmeter</a></li><li><a href="../usage-trackers/">Usage trackers</a></li><li aria-current="page">AI usage tracker for the Mac</li></ol></nav>
+    <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
+    <h1>An AI usage tracker for the Mac, in the notch</h1>
+    <p class="lede">Notchmeter is a free, open-source Mac app that meters five AI coding tools, Claude Code, Codex, Cursor, Antigravity / Gemini CLI and GitHub Copilot, beside the MacBook notch or on any screen edge. Every meter has a pace tick, a projection and its reset; an Advice strip says what to do about the number; and every figure is sourced, dated and tested, with the rule behind it written down in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>. It never signs in anywhere, never stores a token and keeps no server.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="../usage-trackers/">One page per tool</a>
+    </div>
+    <p class="cta-note">macOS 15 or later · Apple silicon or Intel · no account, ever</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="pillars">
+      <div class="pillar">
+        <div class="big">Five assistants</div>
+        <p>Claude Code, Codex, Cursor, Antigravity / Gemini CLI and Copilot, on one strip.</p>
+      </div>
+      <div class="pillar">
+        <div class="big">Never signs in</div>
+        <p>No account, no token stored, nothing sent to a server of ours.</p>
+      </div>
+      <div class="pillar">
+        <div class="big">1.4% of one core</div>
+        <p>Measured under a heavy job. Nothing at all while the screen is locked.</p>
+      </div>
+      <div class="pillar">
+        <div class="big">Free forever</div>
+        <p>MIT licensed. Build it yourself if you'd rather.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="tools">
+  <div class="wrap">
+    <h2>One meter per tool, read from the tool that owns the account</h2>
+    <p class="section-lede">Each reading is borrowed from the assistant itself, on the login that assistant already keeps on your Mac. Switch accounts in the tool and the notch follows.</p>
+    <div class="tools">
+      <a class="tool" href="../claude-code-usage-tracker/">
+        <h3><span class="ring" style="color:#d97757"></span>Claude Code</h3>
+        <p>The 5-hour session window, the weekly window and the per-model weekly limits, plus what your local sessions would have cost at API list prices.</p>
+        <span class="more">How it meters Claude Code</span>
+      </a>
+      <a class="tool" href="../codex-cli-usage-tracker/">
+        <h3><span class="ring" style="color:#5CD49E"></span>Codex</h3>
+        <p>The session, weekly or monthly windows from the same backend Codex itself asks, and this Mac's sessions priced at OpenAI's published rates.</p>
+        <span class="more">How it meters Codex</span>
+      </a>
+      <a class="tool" href="../cursor-usage-tracker/">
+        <h3><span class="ring" style="color:#a68cfa"></span>Cursor</h3>
+        <p>Included plan usage and on-demand spend for the billing cycle, read the way cursor.com's own dashboard reads it, and the export's own costs.</p>
+        <span class="more">How it meters Cursor</span>
+      </a>
+      <a class="tool" href="../antigravity-usage-tracker/">
+        <h3><span class="ring" style="color:#56B4E9"></span>Antigravity / Gemini CLI</h3>
+        <p>The session and weekly quota Antigravity's own panel shows, or the per-model quota Google meters for Gemini CLI, from the same Code Assist endpoints.</p>
+        <span class="more">How it meters Antigravity and Gemini CLI</span>
+      </a>
+      <a class="tool" href="../copilot-usage-tracker/">
+        <h3><span class="ring" style="color:#F0E442"></span>GitHub Copilot</h3>
+        <p>The month's AI-credit allowance on a seat GitHub bills by usage, or a legacy seat's premium requests, from the endpoint Copilot's own plugin asks.</p>
+        <span class="more">How it meters Copilot</span>
+      </a>
+      <a class="tool" href="../claude-code-rate-limit-reset/">
+        <h3><span class="ring" style="color:#0072B2"></span>When a limit resets</h3>
+        <p>The reset as a countdown or an exact time, whether you will run out before it, and a notification when the window comes back.</p>
+        <span class="more">When the Claude Code limit resets</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section id="panel">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>The whole picture, on hover</h2>
+        <p>Every meter shows a pace tick, where an even burn would be right now, a projection (“~67% left at reset” or “Runs out in 2h”) and the reset as a countdown or an exact time. The Cost card adds what your local Claude Code and Codex sessions would have cost at API list prices, and the dollars Cursor and GitHub Copilot themselves put on the month.</p>
+        <p>The Advice strip under it is worded as an instruction rather than a percentage: <em>Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.</em> The rules are pure functions over every visible tool's live reading, and each is pinned by a test.</p>
+        <p>Press ⌘U for the Usage Dashboard: the week's spend by day and by assistant, every limit with how much a day lasts to its reset, and where the money went by model and by project.</p>
+      </div>
+      <figure class="lp-figure fit-narrow">
+        <div class="shot"><img src="../img/expanded.png" alt="The Simple panel: a row per assistant with its one figure, Claude with a session waiting for your answer, the Cost row with a burn line under it, and the Sessions grouped by project with the waiting one washed blue." loading="lazy"></div>
+        <figcaption>The Simple panel, the default since 0.8.0: one figure per assistant, the cost, the advice and your sessions. Drawn from fixed readings, so it shows nobody's usage.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap">
+    <h2>The privacy model is the product</h2>
+    <p class="section-lede">Notchmeter never signs in anywhere and never stores a token. It reads the login the vendor's own tool already put on this Mac, makes the one status read that tool itself makes, and passes it on to nobody.</p>
+    <div class="gap-grid">
+      <div class="gap-card">
+        <h3 class="who">What it does</h3>
+        <ul>
+          <li>One status read per tool, on that tool's own saved login</li>
+          <li>Reads your local Claude Code transcripts and Codex rollouts for the cost figures</li>
+          <li>Keeps everything on the Mac it runs on</li>
+          <li>Asks for Accessibility only if you choose the Auto layout</li>
+        </ul>
+      </div>
+      <div class="gap-card dim">
+        <h3 class="who">What it never does</h3>
+        <ul>
+          <li>No account, no sign-in, no cloud, no analytics</li>
+          <li>Never stores or forwards a token</li>
+          <li>Never sends a prompt, a transcript or a project path anywhere</li>
+          <li>Never probes an inference endpoint for rate-limit headers</li>
+        </ul>
+      </div>
+    </div>
+    <p style="margin:22px 0 0;color:var(--text-dim)">Every request the app makes, what it names itself as, and where it stands against each vendor's terms: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#who-each-request-says-it-is">Who each request says it is</a>, and the honest rest of it in <a href="../privacy.html">the privacy policy</a>.</p>
+  </div>
+</section>
+
+<section id="energy">
+  <div class="wrap centered">
+    <h2>Small enough to forget it's there</h2>
+    <p class="section-lede">Measured on an M5 Pro running macOS 26 with a heavy Claude Code job in the background; the method and every raw number are in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/energy.md">docs/energy.md</a>.</p>
+    <div class="facts">
+      <div class="fact">
+        <div class="n">1.4%</div>
+        <p>of one core over 60 seconds with the panel closed; 0.0% between cost scans.</p>
+      </div>
+      <div class="fact">
+        <div class="n">63 MB</div>
+        <p>physical footprint, 77 MB at peak, with 3,868 transcripts on disk.</p>
+      </div>
+      <div class="fact">
+        <div class="n">Nothing</div>
+        <p>while the screen is locked, the displays are asleep, or the Mac is.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div class="faq">
+      <details open>
+        <summary>Which AI tools does Notchmeter track?</summary>
+        <p class="a">Claude Code, Codex, Cursor, Antigravity and Gemini CLI, and GitHub Copilot: one ring each beside the notch, one card each in the panel, and one page each on this site saying what is shown and where it comes from. Switch off the ones you do not use and the rings give their room to the ones you keep.</p>
+      </details>
+      <details>
+        <summary>Do I need to sign in or create an account?</summary>
+        <p class="a">No. Notchmeter never signs in anywhere. Each reading is borrowed from the tool that owns the account, on the login that tool already keeps on this Mac, in the same read-only status request the tool's own app or dashboard makes. It never refreshes or stores a token and has no server of its own.</p>
+      </details>
+      <details>
+        <summary>Which Macs does it run on?</summary>
+        <p class="a">Any Mac on macOS 15 Sequoia or later, Apple silicon or Intel. On a MacBook with a notch the rings sit beside it; on any other Mac, or if you would rather, the same notch shape is cut into the left or right edge of the screen, there is a bar above the Dock, and a pill under the menu bar. There is no Windows or Linux version.</p>
+      </details>
+      <details>
+        <summary>Is it really free?</summary>
+        <p class="a">Yes. The whole app is free, MIT licensed and open source, with no trial, no locked feature and no nag. You can pay what you want towards it, once, and nothing changes in the app either way.</p>
+      </details>
+      <details>
+        <summary>How accurate are the figures?</summary>
+        <p class="a">The limits are the vendors' own figures, read from the same endpoints the vendors' own apps read, and every window says whose figure it is. The costs are estimates whose rules are written down with their sources and dates in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>, pinned by a golden-transcript test suite; a tool whose spend cannot be honestly derived has no cost row rather than a $0. Notchmeter does not show a number it cannot show its work for.</p>
+      </details>
+      <details>
+        <summary>What does it cost to run?</summary>
+        <p class="a">On an M5 Pro with a heavy Claude Code job in the background: 1.4% of one core over 60 seconds with the panel closed, 0.0% between cost scans, a 63 MB physical footprint, and nothing at all while the screen is locked, the displays are asleep or the Mac is. The method and the raw numbers are in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/energy.md">docs/energy.md</a>.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap centered">
+    <h2>Install it</h2>
+    <p class="section-lede">macOS 15 Sequoia or later, Apple silicon or Intel. Signed, notarised, and it updates itself. Free forever, MIT licensed.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Download the DMG</a>
+      <a class="btn btn-ghost" href="../usage-trackers/">All usage trackers</a>
+    </div>
+    <div class="lp-brew">
+      <div class="code"><span class="p"># or with Homebrew</span>
+brew tap Amir-Hackett/tap
+brew trust --cask Amir-Hackett/tap/notchmeter
+brew install --cask notchmeter</div>
+    </div>
+    <p class="cta-note">Notchmeter is a Mac app. There is no Windows or Linux version; if you want a Windows one, <a href="https://github.com/Amir-Hackett/notchmeter/issues/32">the Windows issue</a> is where to say so. How every figure is built, with its source and its date: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h2>Notchmeter</h2>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h2>Product</h2>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="../usage-trackers/">Usage trackers</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

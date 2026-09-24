@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Claude Code Opus weekly limit, as its own meter · Notchmeter</title>
+<meta name="description" content="Anthropic meters some plans' weekly usage per model. Notchmeter shows each per-model weekly limit, Opus, Sonnet or Fable, as its own meter and says in one line when to switch models.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../landing.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. The two scripts below are JSON-LD data
+     blocks for search engines; nothing on this page runs. -->
+
+<meta property="og:title" content="Hitting the Opus weekly limit in Claude Code? Meter it on its own">
+<meta property="og:description" content="Each per-model weekly limit Anthropic reports as its own meter, and one line when a model is nearly gone while another has room: Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/claude-code-opus-weekly-limit/">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://www.notchmeter.com/claude-code-opus-weekly-limit/">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "Notchmeter",
+ "alternateName": [
+  "Notchmeter for Claude Code",
+  "Notchmeter usage tracker"
+ ],
+ "description": "Anthropic meters some plans' weekly usage per model. Notchmeter shows each per-model weekly limit, Opus, Sonnet or Fable, as its own meter and says in one line when to switch models.",
+ "url": "https://www.notchmeter.com/",
+ "operatingSystem": "macOS 15+",
+ "applicationCategory": "DeveloperApplication",
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "USD"
+ },
+ "isAccessibleForFree": true,
+ "downloadUrl": "https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg",
+ "license": "https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE",
+ "sameAs": [
+  "https://github.com/Amir-Hackett/notchmeter"
+ ],
+ "image": "https://www.notchmeter.com/img/expanded.png"
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Which per-model limits does Notchmeter show?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Whichever ones Anthropic's usage endpoint reports for your account: the entries of kind weekly_scoped, which today name models such as Opus, Sonnet and Fable, plus the older seven_day_opus and seven_day_sonnet fields where a payload still carries them. An account with no per-model limit has no per-model meter, and an API-key setup has no plan windows at all."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why is the Opus meter not fed by the status line?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Because Claude Code's status line carries only the session and weekly windows. Notchmeter takes those from the status line while it is fresh, and reads the usage endpoint every thirty minutes beside it for the per-model limits and extra usage, laying the answer under the status line's figures rather than over them. Where Claude’s windows come from has the order and the timings."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "When does it tell me to switch models?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "When a per-model window is 85% used and another model, or the overall weekly window, still has 40% left. The line names both figures, so you can judge it yourself: “Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.”"
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does switching models change how many tokens the same work takes?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "It can. Anthropic's pricing page says Claude 4.7 and later, and the Mythos and Fable line, tokenize with a vocabulary that yields about 30% more tokens than Claude 4.6 and earlier for the same text. When the two models an advice line names straddle that line, the line says which one counts more tokens; a model it cannot place is placed on neither side and nothing is claimed."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "How much does one per cent of the weekly limit cost?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "The Cost card's Week range says, for example, “$1.58 per 1% of weekly”: the week's spend from this Mac's transcripts, priced at Anthropic's list rates, divided by the weekly window's used share from the same reading. It is the API-equivalent value of a point of the cap, not a bill, and it covers this Mac's sessions only."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does the Opus limit reset with the weekly window?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Each per-model window carries its own reset moment in Anthropic's reading, and Notchmeter shows that moment on that meter. It does not assume the per-model resets coincide with the weekly one; it shows what Anthropic reports for each."
+   }
+  }
+ ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="../usage-trackers/" class="hide-sm">Usage trackers</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="lp-hero plain">
+  <div class="wrap">
+    <nav class="lp-crumbs" aria-label="Breadcrumb"><ol><li><a href="../index.html">Notchmeter</a></li><li><a href="../usage-trackers/">Usage trackers</a></li><li aria-current="page">The Opus weekly limit</li></ol></nav>
+    <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
+    <h1>Hitting the Opus weekly limit in Claude Code? Meter it on its own</h1>
+    <p class="lede">Anthropic meters some plans' weekly usage per model as well as overall. Notchmeter shows every per-model weekly limit Anthropic reports for your account, Opus, Sonnet, Fable and whatever comes next, as its own meter with a pace tick and its reset, and when one model is nearly gone while another has room it says so in one line: <em>Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.</em></p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#where-claudes-windows-come-from">Where the limits come from</a>
+    </div>
+    <p class="cta-note">macOS 15 or later · Apple silicon or Intel · no account, ever</p>
+  </div>
+</section>
+
+<section id="shows">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>What Notchmeter shows for the per-model limits</h2>
+        <p>The render on the right shows a Fable weekly meter under the Session and Weekly ones; an account with an Opus limit gets an Opus meter in the same place, and a Sonnet one beside it.</p>
+        <ul class="lp-points">
+          <li><strong>One meter per model</strong> Anthropic reports a weekly limit for, named for the model, with the used share, a pace tick, a projection (“~82% left at reset”) and the reset as a countdown or an exact time.</li>
+          <li><strong>All models</strong>: a combined window built from the per-model ones, tagged <em>inferred</em> and captioned “Combined from the windows below”, because no vendor published it. It takes the highest of the model windows, never their mean, and the soonest reset, so it cannot show headroom that does not exist.</li>
+          <li><strong>The week's price</strong>: “$1.58 per 1% of weekly” on the Cost card, the week's spend from this Mac's transcripts divided by the weekly window's used share from the same reading, so you can see what a point of the cap is worth in API terms.</li>
+          <li><strong>Which model spent it</strong>: the range's models ranked by cost, and the Usage Dashboard's “By model” bars.</li>
+          <li><strong>The notifications</strong>: on track, behind, and run-out within an hour, per window, so the Opus meter warns on its own crossing.</li>
+        </ul>
+      </div>
+      <figure class="lp-figure fit-narrow">
+        <div class="shot"><img src="../img/expanded-detailed.png" alt="The Detailed panel: the Sessions card with two Claude Code sessions, one waiting; the Cost card with today's $131 split between Claude and Cursor; the Advice strip; the Claude card with Session, Weekly and Fable meters, each with a pace tick, a projection and its reset; the Codex and Cursor cards on free plans." loading="lazy"></div>
+        <figcaption>The Detailed panel over a fixed set of readings, so it shows nobody's usage: Claude on Max 5x, Codex and Cursor on free plans.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <h2>Where the per-model limits come from</h2>
+    <p class="section-lede">They are Anthropic's own figures, read from the one endpoint that carries them.</p>
+    <div class="lp-tablewrap" role="region" aria-label="Per-model limit figures and their sources" tabindex="0">
+      <table class="lp-table">
+        <caption>Read on 2026-09-24 from the code and docs/accuracy.md.</caption>
+        <thead><tr><th scope="col">Figure</th><th scope="col">Source</th><th scope="col">Notes</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Opus, Sonnet, Fable… weekly</th><td><code>GET https://api.anthropic.com/api/oauth/usage</code>: the <code>limits[]</code> entries of kind <code>weekly_scoped</code>, and the older <code>seven_day_opus</code> and <code>seven_day_sonnet</code> fields</td><td>The status line carries only the session and weekly windows, so beside a fresh status line the endpoint is still read every thirty minutes, for these alone, and its answer is laid under the status line's figures.</td></tr>
+          <tr><th scope="row">All models</th><td>Combined from the per-model windows above: the highest used share, the soonest reset</td><td>The one window in the app no vendor published; tagged <em>inferred</em>. No money is added up across it.</td></tr>
+          <tr><th scope="row">$ per 1% of weekly</th><td>The week's cost from this Mac's transcripts (the week starts where the live weekly window started) over the weekly window's used share from the same reading</td><td>An estimate at API list price, not a bill.</td></tr>
+          <tr><th scope="row">Tokens on each side of the tokenizer line</th><td>Anthropic's pricing page: Claude 4.7 and later, and the Mythos and Fable line, tokenize with a vocabulary that yields about 30% more tokens than Claude 4.6 and earlier for the same text</td><td>A model that cannot be placed, a bare “Opus” with no version, is placed on neither side and nothing is said.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="lp-prose">
+      <p>On 2026-09-14 Anthropic changed what the weekly window measures while its used percentage went on reading the same. Notchmeter records that as a boundary row in its drain log, and the session-metering norm it compares today against is floored at that date, so a week that began under the old rule is never taken as the norm for the weeks after it (<a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#the-weekly-cap-boundary">The weekly-cap boundary</a>).</p>
+      <p>None of this is inferred from cost. A per-model meter exists only where Anthropic reports the limit; an account whose endpoint reports none has none, and the Cost card's by-model breakdown stays a breakdown of spend. Where the figures come from and how they are merged with the status line is in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#where-claudes-windows-come-from">Where Claude’s windows come from</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section id="advice">
+  <div class="wrap">
+    <h2>Switch models, not tools</h2>
+    <p class="section-lede">The Advice strip's lines for a per-model limit, each a pure function pinned by tests.</p>
+    <div class="advice-list">
+      <div class="advice">
+        <div class="tag">Switch models</div>
+        <div class="say"><em>Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.</em><span class="when">A per-model window is 85% used and another model, or the overall window, has 40% left.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Switch models</div>
+        <div class="say"><em>Opus weekly is 91%. Fable is 34%. Switch models, not tools. Fable counts about 30% more tokens for the same text.</em><span class="when">The same rule when the two models sit on different sides of Anthropic's tokenizer line: the clause names the one that counts more tokens, so the room is read in the right units.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Wait</div>
+        <div class="say"><em>Claude session resets in 40m; wait rather than switch.</em><span class="when">A window is out or behind pace, resets within the hour, and no other tool on a paid plan has room.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Room elsewhere</div>
+        <div class="say"><em>Codex has 78% of its weekly left.</em><span class="when">Claude's main window is on track or behind, and another tool on a paid plan has half of its own left. A free tier is never the room named.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div class="faq">
+      <details open>
+        <summary>Which per-model limits does Notchmeter show?</summary>
+        <p class="a">Whichever ones Anthropic's usage endpoint reports for your account: the entries of kind weekly_scoped, which today name models such as Opus, Sonnet and Fable, plus the older seven_day_opus and seven_day_sonnet fields where a payload still carries them. An account with no per-model limit has no per-model meter, and an API-key setup has no plan windows at all.</p>
+      </details>
+      <details>
+        <summary>Why is the Opus meter not fed by the status line?</summary>
+        <p class="a">Because Claude Code's status line carries only the session and weekly windows. Notchmeter takes those from the status line while it is fresh, and reads the usage endpoint every thirty minutes beside it for the per-model limits and extra usage, laying the answer under the status line's figures rather than over them. <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#where-claudes-windows-come-from">Where Claude’s windows come from</a> has the order and the timings.</p>
+      </details>
+      <details>
+        <summary>When does it tell me to switch models?</summary>
+        <p class="a">When a per-model window is 85% used and another model, or the overall weekly window, still has 40% left. The line names both figures, so you can judge it yourself: “Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.”</p>
+      </details>
+      <details>
+        <summary>Does switching models change how many tokens the same work takes?</summary>
+        <p class="a">It can. Anthropic's pricing page says Claude 4.7 and later, and the Mythos and Fable line, tokenize with a vocabulary that yields about 30% more tokens than Claude 4.6 and earlier for the same text. When the two models an advice line names straddle that line, the line says which one counts more tokens; a model it cannot place is placed on neither side and nothing is claimed.</p>
+      </details>
+      <details>
+        <summary>How much does one per cent of the weekly limit cost?</summary>
+        <p class="a">The Cost card's Week range says, for example, “$1.58 per 1% of weekly”: the week's spend from this Mac's transcripts, priced at Anthropic's list rates, divided by the weekly window's used share from the same reading. It is the API-equivalent value of a point of the cap, not a bill, and it covers this Mac's sessions only.</p>
+      </details>
+      <details>
+        <summary>Does the Opus limit reset with the weekly window?</summary>
+        <p class="a">Each per-model window carries its own reset moment in Anthropic's reading, and Notchmeter shows that moment on that meter. It does not assume the per-model resets coincide with the weekly one; it shows what Anthropic reports for each.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap centered">
+    <h2>Install it</h2>
+    <p class="section-lede">macOS 15 Sequoia or later, Apple silicon or Intel. Signed, notarised, and it updates itself. Free forever, MIT licensed.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Download the DMG</a>
+      <a class="btn btn-ghost" href="../usage-trackers/">All usage trackers</a>
+    </div>
+    <div class="lp-brew">
+      <div class="code"><span class="p"># or with Homebrew</span>
+brew tap Amir-Hackett/tap
+brew trust --cask Amir-Hackett/tap/notchmeter
+brew install --cask notchmeter</div>
+    </div>
+    <p class="cta-note">Notchmeter is a Mac app. There is no Windows or Linux version; if you want a Windows one, <a href="https://github.com/Amir-Hackett/notchmeter/issues/32">the Windows issue</a> is where to say so. How every figure is built, with its source and its date: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h2>Notchmeter</h2>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h2>Product</h2>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="../usage-trackers/">Usage trackers</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

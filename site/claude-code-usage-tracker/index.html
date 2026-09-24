@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code usage tracker for Mac · Notchmeter</title>
+<meta name="description" content="Claude Code's session, weekly and per-model limits beside the MacBook notch, with pace, projection and reset, plus what your local sessions would cost at API rates. Never signs in.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../landing.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. The two scripts below are JSON-LD data
+     blocks for search engines; nothing on this page runs. -->
+
+<meta property="og:title" content="A Claude Code usage tracker in the MacBook notch">
+<meta property="og:description" content="Claude Code's session, weekly and per-model limits beside the notch, with pace, projection and reset, from the status line and the login Claude Code already keeps.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/claude-code-usage-tracker/">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://www.notchmeter.com/claude-code-usage-tracker/">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "Notchmeter",
+ "alternateName": [
+  "Notchmeter for Claude Code",
+  "Notchmeter usage tracker"
+ ],
+ "description": "Claude Code's session, weekly and per-model limits beside the MacBook notch, with pace, projection and reset, plus what your local sessions would cost at API rates. Never signs in.",
+ "url": "https://www.notchmeter.com/",
+ "operatingSystem": "macOS 15+",
+ "applicationCategory": "DeveloperApplication",
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "USD"
+ },
+ "isAccessibleForFree": true,
+ "downloadUrl": "https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg",
+ "license": "https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE",
+ "sameAs": [
+  "https://github.com/Amir-Hackett/notchmeter"
+ ],
+ "image": "https://www.notchmeter.com/img/expanded.png"
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Does Notchmeter need my Anthropic login?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. It reads the login Claude Code already keeps on this Mac, the Keychain item or the credentials file, and sends that token only to api.anthropic.com in the same read-only status request. It never signs in, never refreshes the token and never stores it. Switch accounts in Claude Code and the notch follows on its next read."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Is the cost figure my bill?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. On a Pro, Max, Team or Enterprise plan nothing on the card is a bill: the figure is the API-equivalent value of the work your sessions did, at list price, computed from this Mac's transcripts the same way Claude Code's own /usage session figure is. On an API key it is an estimate at list price, and a contracted modelPricing table in Claude Code's settings is honoured. Every rule and every known divergence is in docs/accuracy.md."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why does the cost not match my session and weekly percentages?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Because they measure different things. The session and weekly figures are Anthropic's own, account-wide, from the usage endpoint or the status line, so they match what Claude Code's /usage shows at the same moment. The cost is built from this Mac's transcripts alone: work on another Mac or on claude.ai counts against the window but never appears in the cost."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it work without the status line or the hook?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. Without them the usage endpoint is read every five minutes and the meters show the same session, weekly and per-model figures. The status line makes the session and weekly figures local and instant and adds the context gauge; the hook adds sessions, waits and answering from the notch. Each has its own switch in Settings."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it make inference requests or use up my limit?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. Notchmeter never calls the messages endpoint. Anthropic's rate-limit headers arrive only on inference requests, so it does not read them either; the one request it makes is the usage read, which consumes no model capacity. Why there is no header fallback sets out what was checked and when."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Is reading the usage endpoint allowed by Anthropic's terms?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Anthropic's published policy says consumer OAuth is designed to support ordinary use of Claude Code and other native Anthropic applications, and Notchmeter is neither; it says so plainly, names itself in every request, and never touches an inference endpoint. With Also poll Claude's usage endpoint off the status line is the only source and no request goes to Anthropic at all. The full quotes and the app's reading of them are in docs/privacy.md and on the Terms page."
+   }
+  }
+ ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="../usage-trackers/" class="hide-sm">Usage trackers</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="lp-hero plain">
+  <div class="wrap">
+    <nav class="lp-crumbs" aria-label="Breadcrumb"><ol><li><a href="../index.html">Notchmeter</a></li><li><a href="../usage-trackers/">Usage trackers</a></li><li aria-current="page">Claude Code</li></ol></nav>
+    <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
+    <h1>A Claude Code usage tracker in the MacBook notch</h1>
+    <p class="lede">Notchmeter shows Claude Code's 5-hour session window, its weekly window and the per-model weekly limits Anthropic publishes beside the notch, each with a pace tick, a projection and its reset, and what your local sessions would have cost at API list prices. It reads them from Claude Code's own status line and the login Claude Code already keeps on your Mac. It never signs in and never stores a token.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#where-claudes-windows-come-from">Where the figures come from</a>
+    </div>
+    <p class="cta-note">macOS 15 or later · Apple silicon or Intel · no account, ever</p>
+  </div>
+</section>
+
+<section id="shows">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>What Notchmeter shows for Claude Code</h2>
+        <p>The rings beside the notch carry the figure; hover them and the panel opens on the Claude card.</p>
+        <ul class="lp-points">
+          <li><strong>Session and Weekly</strong>: the 5-hour and 7-day windows as Anthropic reports them, with the used share, a pace tick where an even burn would be right now, a projection (“~58% left at reset” or “Runs out in 2h”), and the reset as a countdown or an exact time.</li>
+          <li><strong>Per-model weekly limits</strong> (Opus, Sonnet, Fable…), each as its own meter, and the <em>All models</em> window combined from them and tagged <em>inferred</em>, because no vendor published it.</li>
+          <li><strong>Extra usage</strong> against its monthly cap, on an account that has it, and a line the first time it rises in a month.</li>
+          <li><strong>Cost</strong>: today, yesterday, the week, the month, 30 and 90 days, by model and by project, from this Mac's own transcripts at Anthropic's published rates; and a burn line when the last hour ran hot.</li>
+          <li><strong>Context</strong>: with the status line installed, a thin arc around the Claude ring shows how full the session's context window is, and the card says “Context 62% · Opus · $1.23 this session”.</li>
+          <li><strong>Sessions</strong>: with the optional hook, every running session with its title, branch and terminal, a dot on the ring while one waits for you, and Allow, Deny or the answer to a question under your thumb.</li>
+          <li><strong>The drain</strong>: “12% → 61% in the last hour” under a meter that moved, from an append-only log of every read, and a 24-hour sparkline.</li>
+        </ul>
+      </div>
+      <figure class="lp-figure fit-narrow">
+        <div class="shot"><img src="../img/expanded-detailed.png" alt="The Detailed panel: the Sessions card with two Claude Code sessions, one waiting; the Cost card with today's $131 split between Claude and Cursor; the Advice strip; the Claude card with Session, Weekly and Fable meters, each with a pace tick, a projection and its reset; the Codex and Cursor cards on free plans." loading="lazy"></div>
+        <figcaption>The Detailed panel over a fixed set of readings, so it shows nobody's usage: Claude on Max 5x, Codex and Cursor on free plans.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <h2>Where each figure comes from</h2>
+    <p class="section-lede">Every window carries its source, and the card names it. Nothing here is computed from a subscription price, a seat count or a guess.</p>
+    <div class="lp-tablewrap" role="region" aria-label="Claude Code figures and their sources" tabindex="0">
+      <table class="lp-table">
+        <caption>Read on 2026-09-24 from the code and docs/accuracy.md.</caption>
+        <thead><tr><th scope="col">Figure</th><th scope="col">Source</th><th scope="col">Notes</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Session, Weekly</th><td>Claude Code's status line (<code>rate_limits.five_hour</code>, <code>seven_day</code>) while its last report is under three minutes old; otherwise <code>GET https://api.anthropic.com/api/oauth/usage</code>, on a five-minute cadence</td><td>The card says <em>From Claude Code's status line</em> when that is the source. The status line is local and costs no request.</td></tr>
+          <tr><th scope="row">Per-model weekly (Opus, Sonnet, Fable…)</th><td>The usage endpoint's <code>limits[]</code> of kind <code>weekly_scoped</code> (older payloads: <code>seven_day_opus</code>, <code>seven_day_sonnet</code>)</td><td>The status line has no field for them, so beside a fresh status line the endpoint is still read every thirty minutes for these alone.</td></tr>
+          <tr><th scope="row">Extra usage</th><td>The usage endpoint</td><td>Shown against the monthly cap the endpoint reports; never inferred.</td></tr>
+          <tr><th scope="row">Cost</th><td>This Mac's transcripts under <code>~/.claude/projects/</code>, priced at the rates on Anthropic's pricing page read 2026-09-01: five token buckets per model, ×1.1 when a response reports <code>inference_geo: "us"</code>, web searches at $0.01 each</td><td>An estimate at list price, and labelled <em>local transcripts</em>. On Pro, Max, Team or Enterprise nothing here is a bill.</td></tr>
+          <tr><th scope="row">Context, session cost, model</th><td>The status line</td><td>Only while Claude Code is sending reports; never estimated.</td></tr>
+          <tr><th scope="row">Sessions, waits</th><td>The optional hook</td><td>Documented events only; a wait is claimed only for an event that means the agent is asking you.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="lp-prose">
+      <p>The login comes from the Keychain item <code>Claude Code-credentials</code> (read with prompts off, then through <code>/usr/bin/security</code>), else <code>~/.claude/.credentials.json</code>, else <code>CLAUDE_CODE_OAUTH_TOKEN</code>. A setup on an API key, Bedrock or Vertex has no plan window, and the card says so rather than drawing an empty bar. The token goes only to <code>api.anthropic.com</code>, as <code>Authorization: Bearer</code> with <code>User-Agent: Notchmeter/&lt;version&gt;</code>, in the one read-only request above; it is never refreshed, stored or forwarded.</p>
+      <p>The usage endpoint is undocumented: the channel Anthropic documents for these figures is the status line. With <em>Also poll Claude's usage endpoint</em> off (Settings › Assistants › Claude Code) the status line is the only source and no request goes to Anthropic at all. Anthropic's rate-limit headers arrive only on inference requests, which Notchmeter never makes, so it does not read them; the reasoning is in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#why-there-is-no-header-fallback">Why there is no header fallback</a>, and the terms question is answered plainly in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/privacy.md">docs/privacy.md</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section id="advice">
+  <div class="wrap">
+    <h2>What it says to do about it</h2>
+    <p class="section-lede">Every other meter tells you how much. The Advice strip under the Cost card is worded as an instruction, and each rule is a pure function pinned by tests.</p>
+    <div class="advice-list">
+      <div class="advice">
+        <div class="tag">Run-out</div>
+        <div class="say"><em>At this rate you hit the Claude weekly cap Thursday at 2:00 PM, 3d 4h before reset. Codex weekly is at 22%.</em><span class="when">A window is behind pace and has a run-out time: from the measured drain of the last hour when the log has one, else the even-burn projection. Another tool on a paid plan with half its main window left is named.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Switch models</div>
+        <div class="say"><em>Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.</em><span class="when">A per-model window is 85% used and another model, or the overall window, has 40% left.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Wait</div>
+        <div class="say"><em>Claude session resets in 40m; wait rather than switch.</em><span class="when">A window is out or behind pace, resets within the hour, and no other tool on a paid plan has room.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Burn</div>
+        <div class="say"><em>Claude Code burned $8.40 this hour — 6x its 30-day average.</em><span class="when">The last hour cost at least three times the mean active hour of the last 30 days; not shown until five active hours exist.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div class="faq">
+      <details open>
+        <summary>Does Notchmeter need my Anthropic login?</summary>
+        <p class="a">No. It reads the login Claude Code already keeps on this Mac, the Keychain item or the credentials file, and sends that token only to api.anthropic.com in the same read-only status request. It never signs in, never refreshes the token and never stores it. Switch accounts in Claude Code and the notch follows on its next read.</p>
+      </details>
+      <details>
+        <summary>Is the cost figure my bill?</summary>
+        <p class="a">No. On a Pro, Max, Team or Enterprise plan nothing on the card is a bill: the figure is the API-equivalent value of the work your sessions did, at list price, computed from this Mac's transcripts the same way Claude Code's own /usage session figure is. On an API key it is an estimate at list price, and a contracted <code>modelPricing</code> table in Claude Code's settings is honoured. Every rule and every known divergence is in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#known-divergences">docs/accuracy.md</a>.</p>
+      </details>
+      <details>
+        <summary>Why does the cost not match my session and weekly percentages?</summary>
+        <p class="a">Because they measure different things. The session and weekly figures are Anthropic's own, account-wide, from the usage endpoint or the status line, so they match what Claude Code's /usage shows at the same moment. The cost is built from this Mac's transcripts alone: work on another Mac or on claude.ai counts against the window but never appears in the cost.</p>
+      </details>
+      <details>
+        <summary>Does it work without the status line or the hook?</summary>
+        <p class="a">Yes. Without them the usage endpoint is read every five minutes and the meters show the same session, weekly and per-model figures. The status line makes the session and weekly figures local and instant and adds the context gauge; the hook adds sessions, waits and answering from the notch. Each has its own switch in Settings.</p>
+      </details>
+      <details>
+        <summary>Does it make inference requests or use up my limit?</summary>
+        <p class="a">No. Notchmeter never calls the messages endpoint. Anthropic's rate-limit headers arrive only on inference requests, so it does not read them either; the one request it makes is the usage read, which consumes no model capacity. <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#why-there-is-no-header-fallback">Why there is no header fallback</a> sets out what was checked and when.</p>
+      </details>
+      <details>
+        <summary>Is reading the usage endpoint allowed by Anthropic's terms?</summary>
+        <p class="a">Anthropic's published policy says consumer OAuth is designed to support ordinary use of Claude Code and other native Anthropic applications, and Notchmeter is neither; it says so plainly, names itself in every request, and never touches an inference endpoint. With <em>Also poll Claude's usage endpoint</em> off the status line is the only source and no request goes to Anthropic at all. The full quotes and the app's reading of them are in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/privacy.md">docs/privacy.md</a> and on the Terms page.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap centered">
+    <h2>Install it</h2>
+    <p class="section-lede">macOS 15 Sequoia or later, Apple silicon or Intel. Signed, notarised, and it updates itself. Free forever, MIT licensed.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Download the DMG</a>
+      <a class="btn btn-ghost" href="../usage-trackers/">All usage trackers</a>
+    </div>
+    <div class="lp-brew">
+      <div class="code"><span class="p"># or with Homebrew</span>
+brew tap Amir-Hackett/tap
+brew trust --cask Amir-Hackett/tap/notchmeter
+brew install --cask notchmeter</div>
+    </div>
+    <p class="cta-note">Notchmeter is a Mac app. There is no Windows or Linux version; if you want a Windows one, <a href="https://github.com/Amir-Hackett/notchmeter/issues/32">the Windows issue</a> is where to say so. How every figure is built, with its source and its date: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h2>Notchmeter</h2>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h2>Product</h2>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="../usage-trackers/">Usage trackers</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

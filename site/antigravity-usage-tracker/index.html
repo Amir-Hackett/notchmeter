@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Antigravity usage tracker for Mac · Notchmeter</title>
+<meta name="description" content="Antigravity's session and weekly quota per model group beside the notch, with pace, projection and reset, from the endpoint Antigravity itself asks. Quota, not money, so no cost is invented.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../landing.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. The two scripts below are JSON-LD data
+     blocks for search engines; nothing on this page runs. -->
+
+<meta property="og:title" content="An Antigravity usage tracker in the MacBook notch">
+<meta property="og:description" content="The session and weekly quota Antigravity's own panel shows, per model group, beside the notch with pace, projection and reset, from the endpoint Antigravity asks under its own identity.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/antigravity-usage-tracker/">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://www.notchmeter.com/antigravity-usage-tracker/">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "Notchmeter",
+ "alternateName": [
+  "Notchmeter for Antigravity",
+  "Notchmeter usage tracker"
+ ],
+ "description": "Antigravity's session and weekly quota per model group beside the notch, with pace, projection and reset, from the endpoint Antigravity itself asks. Quota, not money, so no cost is invented.",
+ "url": "https://www.notchmeter.com/",
+ "operatingSystem": "macOS 15+",
+ "applicationCategory": "DeveloperApplication",
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "USD"
+ },
+ "isAccessibleForFree": true,
+ "downloadUrl": "https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg",
+ "license": "https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE",
+ "sameAs": [
+  "https://github.com/Amir-Hackett/notchmeter"
+ ],
+ "image": "https://www.notchmeter.com/img/expanded.png"
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Why does the Antigravity meter need Gemini CLI's login?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Because it is the only Google login on disk. The Antigravity app and its agy command keep their token in the Keychain and publish quota only through a local server inside the running app, which Notchmeter does not attach to. The login Gemini CLI caches in ~/.gemini/oauth_creds.json after Login with Google is read, never refreshed or written, and sent only to Google's Code Assist endpoints."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Which windows does it show?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "The ones Antigravity's own panel shows: a group for Gemini models and one for Claude and GPT models, each with a session, weekly or daily bucket whose length Google declares, so each has a pace tick and a projection from the first read. When the summary is not answered it falls back to the per-model buckets, grouped by pool, with a length inferred from their resets and labelled as such."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why is there no cost for Antigravity?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Because Antigravity meters quota, not money. The endpoint returns windows and the fraction of each that is used, with no price and no token count a published rate could be applied to, and an Antigravity seat is not billed at Gemini's API rates. Nothing honest can be derived, so the Cost card has no row for it rather than a $0."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why does it send Antigravity's identity to Google?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Because the backend picks which product's licence to check from the caller's identity: the same call under a Gemini CLI identity answers an Antigravity-only account with “no valid license”. When the Antigravity markers are on this Mac, the calls carry Antigravity's user agent and client metadata so the right licence is checked. It is another client's identity, sent because the endpoint answers no other, and it is stated in docs/privacy.md rather than hidden."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why did a meter read untouched, or 100% left, while I was working?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter prefers the host Antigravity's CLI last logged, tries both otherwise, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption saying so. A window still untouched across three polls while the hook reports your turns loses its figure and says it is unverified."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does the June 2026 change to Gemini CLI quota affect Antigravity?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "That change is to what Google serves the Gemini CLI identity: since June 2026 personal accounts get a refusal there. With the Antigravity markers on this Mac the calls carry Antigravity's identity and the backend checks the Antigravity licence instead. The shutdown sentence is shown only after both hosts have refused, so the wrong host is never mistaken for a lost licence."
+   }
+  }
+ ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="../usage-trackers/" class="hide-sm">Usage trackers</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="lp-hero plain">
+  <div class="wrap">
+    <nav class="lp-crumbs" aria-label="Breadcrumb"><ol><li><a href="../index.html">Notchmeter</a></li><li><a href="../usage-trackers/">Usage trackers</a></li><li aria-current="page">Antigravity</li></ol></nav>
+    <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
+    <h1>An Antigravity usage tracker in the MacBook notch</h1>
+    <p class="lede">Notchmeter shows the session and weekly quota Antigravity's own panel shows for its model groups, Gemini models, and Claude and GPT models, beside the notch, each with a pace tick, a projection and its reset, from the same Code Assist endpoint Antigravity asks, under Antigravity's own client identity. It needs one Google sign-in through Gemini CLI, and it shows no cost, because Antigravity meters quota rather than money.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#antigravity-quota-and-no-cost">How the quota is read</a>
+    </div>
+    <p class="cta-note">macOS 15 or later · Apple silicon or Intel · no account, ever</p>
+  </div>
+</section>
+
+<section id="shows">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>What Notchmeter shows for Antigravity</h2>
+        <p>Antigravity and Gemini CLI meter against the same Google backend, so they share one ring; this page is the Antigravity side of it, and the <a href="../gemini-cli-quota-tracker/">Gemini CLI page</a> the other.</p>
+        <ul class="lp-points">
+          <li><strong>The groups Antigravity's panel shows</strong>: <em>Gemini models</em> and <em>Claude and GPT models</em>, each with a session, weekly or daily bucket whose length Google declares, so every one has a pace tick and a projection from the first read.</li>
+          <li><strong>The per-model buckets</strong> as the fallback when the summary is not answered, grouped by pool, with a length inferred from their resets and said to be.</li>
+          <li><strong>Unknown is not untouched</strong>: a bucket with no fraction draws no figure, never 100% left; an explicit 0 is exhausted; and an answer from the host that is not metering you, every bucket untouched at one identical reset, is shown with no figure and a caption rather than as an untouched quota.</li>
+          <li><strong>No cost</strong>: Google meters quota, and publishes no price and no token count, so the Cost card has no Antigravity row, not a $0.</li>
+          <li><strong>Sessions</strong>: with the Gemini CLI hook installed, the ring also counts Gemini CLI's running sessions and shows a tick when a turn ends; Notchmeter installs nothing into Antigravity's own IDE hooks.</li>
+        </ul>
+      </div>
+      <figure class="lp-figure fit-narrow">
+        <div class="shot"><img src="../img/edge-right-panel.png" alt="The notch cut into the right-hand edge of the screen, the readouts inside the opaque shape, and the panel open beside it across a strip of desktop." loading="lazy"></div>
+        <figcaption>The notch on the right edge with the panel open beside it; drawn from fixed readings, so it shows nobody's usage.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <h2>Where each figure comes from</h2>
+    <p class="section-lede">The same internal Code Assist calls Antigravity makes at every start, under the identity the backend checks the licence by.</p>
+    <div class="lp-tablewrap" role="region" aria-label="Antigravity figures and their sources" tabindex="0">
+      <table class="lp-table">
+        <caption>Read on 2026-09-24 from the code and docs/accuracy.md.</caption>
+        <thead><tr><th scope="col">Figure</th><th scope="col">Source</th><th scope="col">Notes</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">The groups</th><td><code>POST …/v1internal:loadCodeAssist</code>, then <code>:retrieveUserQuotaSummary</code> with an empty body, the answer Antigravity's own panel shows</td><td>Asked first, because its windows declare their length and need no inference.</td></tr>
+          <tr><th scope="row">The per-model buckets</th><td><code>POST …/v1internal:retrieveUserQuota</code>, the fallback</td><td>A project-scoped 403 is retried with <code>{}</code> before it counts as a refusal: a licence is held by the user, not a project.</td></tr>
+          <tr><th scope="row">The identity</th><td>With <code>~/.gemini/antigravity-cli</code>, <code>/Applications/Antigravity.app</code> or <code>~/.antigravity</code> present: <code>User-Agent: antigravity</code>, a <code>Client-Metadata</code> naming the IDE, and <code>ideType: ANTIGRAVITY</code></td><td>The backend picks which product's licence to check from the caller's identity, and answers an Antigravity-only account “no valid license” under any other. It is another client's identity, sent because the endpoint answers no other, and said here and in the privacy document.</td></tr>
+          <tr><th scope="row">Which host</th><td>The host logged in <code>~/.gemini/antigravity-cli/cli.log</code>, else <code>daily-cloudcode-pa.googleapis.com</code> then <code>cloudcode-pa.googleapis.com</code>, keeping the first answer with a live figure</td><td>The other deployment answers every bucket untouched with a reset five hours off, whatever has been used.</td></tr>
+          <tr><th scope="row">The staleness guard</th><td>A window read untouched across three consecutive polls while the hook reported an Antigravity or Gemini CLI turn loses its figure and says it is unverified</td><td>Judged by history, never by value.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="lp-prose">
+      <p>The login is <code>~/.gemini/oauth_creds.json</code>, the Google login Gemini CLI caches. The Antigravity app and its <code>agy</code> command keep theirs in the Keychain and publish quota only through a local server inside the running app, which Notchmeter does not attach to, so the Antigravity meter needs one Google sign-in through Gemini CLI (<code>gemini</code>, then <em>Login with Google</em>). The token is read, never refreshed or written, and sent only to Google as <code>Authorization: Bearer</code>.</p>
+      <p>Why there is no cost: the endpoint returns per-group and per-model windows and the fraction of each that is used, no price, and no token count that a published rate could be applied to. Gemini's API rates would not help, because an Antigravity seat is not billed at them. There is nothing to derive a dollar figure from, so none is shown. Every rule on this page is pinned by tests and written down in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#antigravity-quota-and-no-cost">Antigravity: quota, and no cost</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section id="advice">
+  <div class="wrap">
+    <h2>What it says to do about it</h2>
+    <p class="section-lede">The Advice strip's lines for Antigravity's groups and models.</p>
+    <div class="advice-list">
+      <div class="advice">
+        <div class="tag">Switch models</div>
+        <div class="say"><em>Gemini models weekly is 91%. Claude and GPT models is 34%. Switch models, not tools.</em><span class="when">A group's window is 85% used and another group's has 40% left. Antigravity publishes no tool-wide window, so there is no overall figure to name instead.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Run-out</div>
+        <div class="say"><em>At this rate you hit the Antigravity Gemini models session cap today at 4:10 PM, 2h 20m before reset.</em><span class="when">A window is behind pace and has a run-out time: from the measured drain of the last hour when the log has one, else the even-burn projection.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Wait</div>
+        <div class="say"><em>Antigravity Gemini models session resets in 40m; wait rather than switch.</em><span class="when">A window is out or behind pace, resets within the hour, and no other tool on a paid plan has room.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div class="faq">
+      <details open>
+        <summary>Why does the Antigravity meter need Gemini CLI's login?</summary>
+        <p class="a">Because it is the only Google login on disk. The Antigravity app and its agy command keep their token in the Keychain and publish quota only through a local server inside the running app, which Notchmeter does not attach to. The login Gemini CLI caches in ~/.gemini/oauth_creds.json after Login with Google is read, never refreshed or written, and sent only to Google's Code Assist endpoints.</p>
+      </details>
+      <details>
+        <summary>Which windows does it show?</summary>
+        <p class="a">The ones Antigravity's own panel shows: a group for Gemini models and one for Claude and GPT models, each with a session, weekly or daily bucket whose length Google declares, so each has a pace tick and a projection from the first read. When the summary is not answered it falls back to the per-model buckets, grouped by pool, with a length inferred from their resets and labelled as such.</p>
+      </details>
+      <details>
+        <summary>Why is there no cost for Antigravity?</summary>
+        <p class="a">Because Antigravity meters quota, not money. The endpoint returns windows and the fraction of each that is used, with no price and no token count a published rate could be applied to, and an Antigravity seat is not billed at Gemini's API rates. Nothing honest can be derived, so the Cost card has no row for it rather than a $0.</p>
+      </details>
+      <details>
+        <summary>Why does it send Antigravity's identity to Google?</summary>
+        <p class="a">Because the backend picks which product's licence to check from the caller's identity: the same call under a Gemini CLI identity answers an Antigravity-only account with “no valid license”. When the Antigravity markers are on this Mac, the calls carry Antigravity's user agent and client metadata so the right licence is checked. It is another client's identity, sent because the endpoint answers no other, and it is stated in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/privacy.md">docs/privacy.md</a> rather than hidden.</p>
+      </details>
+      <details>
+        <summary>Why did a meter read untouched, or 100% left, while I was working?</summary>
+        <p class="a">Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter prefers the host Antigravity's CLI last logged, tries both otherwise, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption saying so. A window still untouched across three polls while the hook reports your turns loses its figure and says it is unverified.</p>
+      </details>
+      <details>
+        <summary>Does the June 2026 change to Gemini CLI quota affect Antigravity?</summary>
+        <p class="a">That change is to what Google serves the Gemini CLI identity: since June 2026 personal accounts get a refusal there. With the Antigravity markers on this Mac the calls carry Antigravity's identity and the backend checks the Antigravity licence instead. The shutdown sentence is shown only after both hosts have refused, so the wrong host is never mistaken for a lost licence.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap centered">
+    <h2>Install it</h2>
+    <p class="section-lede">macOS 15 Sequoia or later, Apple silicon or Intel. Signed, notarised, and it updates itself. Free forever, MIT licensed.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Download the DMG</a>
+      <a class="btn btn-ghost" href="../usage-trackers/">All usage trackers</a>
+    </div>
+    <div class="lp-brew">
+      <div class="code"><span class="p"># or with Homebrew</span>
+brew tap Amir-Hackett/tap
+brew trust --cask Amir-Hackett/tap/notchmeter
+brew install --cask notchmeter</div>
+    </div>
+    <p class="cta-note">Notchmeter is a Mac app. There is no Windows or Linux version; if you want a Windows one, <a href="https://github.com/Amir-Hackett/notchmeter/issues/32">the Windows issue</a> is where to say so. How every figure is built, with its source and its date: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h2>Notchmeter</h2>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h2>Product</h2>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="../usage-trackers/">Usage trackers</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
