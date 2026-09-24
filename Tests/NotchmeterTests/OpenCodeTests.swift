@@ -199,6 +199,13 @@ private func utc(_ text: String) -> Date { DateParsing.iso8601(text)! }
         #expect(OpenCodeStore.turn(newestFirst: [user], updated: now, now: quiet) == .idle(finishedAt: nil, turnStarted: since, failure: nil),
                 "a turn nothing has written to for half an hour was abandoned, and has no finish to claim")
         #expect(OpenCodeStore.turn(newestFirst: [], updated: now, now: now) == .idle(finishedAt: nil, turnStarted: nil, failure: nil))
+        // Nine steps in, the window holds no user message at all; the prompt's own time, read on its own, still
+        // sets the clock, and the finish still names it as the turn's start.
+        let step = assistant(["time": ["created": started + 9000]])
+        #expect(OpenCodeStore.turn(newestFirst: [step], prompted: since, updated: now, now: now) == .working(since: since))
+        let last = assistant(["time": ["created": started + 9000, "completed": started + 9500], "finish": "stop"])
+        #expect(OpenCodeStore.turn(newestFirst: [last], prompted: since, updated: now, now: now)
+                == .idle(finishedAt: Date(timeIntervalSince1970: 1_790_000_009.5), turnStarted: since, failure: nil))
     }
 
     @Test func openCodesPlaceholderTitlesAreNotTitles() {
@@ -247,10 +254,19 @@ private func utc(_ text: String) -> Date { DateParsing.iso8601(text)! }
     }
 
     static func assistant(_ id: String, session: String, at millis: Int64, model: String = "kimi-k3", cost: Double = 0, input: Int = 1000,
-                          completed: Bool = true) -> String {
+                          completed: Bool = true, finish: String = "stop") -> String {
         let completedField = completed ? #","completed":\#(millis + 1000)"# : ""
-        let data = #"{"id":"\#(id)","sessionID":"\#(session)","role":"assistant","providerID":"opencode-go","modelID":"\#(model)","time":{"created":\#(millis)\#(completedField)},"path":{"cwd":"/Users/x/proj","root":"/Users/x/proj"},"cost":\#(cost),"finish":"stop","tokens":{"input":\#(input),"output":100,"reasoning":0,"cache":{"read":0,"write":0}}}"#
+        let data = #"{"id":"\#(id)","sessionID":"\#(session)","role":"assistant","providerID":"opencode-go","modelID":"\#(model)","time":{"created":\#(millis)\#(completedField)},"path":{"cwd":"/Users/x/proj","root":"/Users/x/proj"},"cost":\#(cost),"finish":"\#(finish)","tokens":{"input":\#(input),"output":100,"reasoning":0,"cache":{"read":0,"write":0}}}"#
         return "INSERT INTO message VALUES ('\(id)', '\(session)', \(millis), \(millis), '\(data)');\n"
+    }
+
+    static func user(_ id: String, session: String, at millis: Int64) -> String {
+        let data = #"{"id":"\#(id)","sessionID":"\#(session)","role":"user","time":{"created":\#(millis)}}"#
+        return "INSERT INTO message VALUES ('\(id)', '\(session)', \(millis), \(millis), '\(data)');\n"
+    }
+
+    static func session(_ id: String, directory: String = "/Users/x/proj", title: String = "t", at millis: Int64) -> String {
+        "INSERT INTO session VALUES ('\(id)', 'p', NULL, 's', '\(directory)', '\(title)', 'v', \(millis), \(millis), NULL);\n"
     }
 
     @Test func turnsAreReadFromEveryDatabaseOnceAndTheFileIsLeftAsItWas() throws {
@@ -343,12 +359,86 @@ private func utc(_ text: String) -> Date { DateParsing.iso8601(text)! }
         #expect(untitled.sessions.allSatisfy { $0.title == nil }, "with titles off the column is never read")
     }
 
+    /// OpenCode bumps a session row's own time only at the prompt, so a turn that has run longer than the read
+    /// window is inside it by its messages: the row is 40 minutes old, its newest step a minute, and the session is
+    /// still working from its prompt, on this read and the next, with no turn's end invented between them.
+    @Test func aTurnLongerThanTheWindowIsFollowedByItsMessages() throws {
+        let data = try Self.folder()
+        defer { try? FileManager.default.removeItem(at: data) }
+        let now = Date()
+        let prompted = Int64(now.timeIntervalSince1970 * 1000) - 40 * 60_000
+        let step = Int64(now.timeIntervalSince1970 * 1000) - 60_000
+        try Self.database(at: data.appendingPathComponent("opencode.db"),
+                          Self.session("ses_long", at: prompted) + Self.user("u1", session: "ses_long", at: prompted)
+                          + Self.assistant("a1", session: "ses_long", at: prompted + 1000, finish: "tool-calls")
+                          + Self.assistant("a2", session: "ses_long", at: step, completed: false))
+        let since = now.addingTimeInterval(-OpenCodeSessions.lookBack)
+        let first = OpenCodeStore.sessions(data: data, environment: [:], since: since, titles: false, now: now)
+        #expect(first.problem == nil)
+        #expect(first.sessions.map(\.id) == ["ses_long"])
+        #expect(first.sessions.first?.turn == .working(since: Date(timeIntervalSince1970: Double(prompted) / 1000)))
+        let seen = OpenCodeSessions.events(previous: nil, current: first.sessions, now: now).seen
+        let again = OpenCodeStore.sessions(data: data, environment: [:], since: since, titles: false, now: now.addingTimeInterval(5))
+        let events = OpenCodeSessions.events(previous: seen, current: again.sessions, now: now.addingTimeInterval(5)).events
+        #expect(events.isEmpty, "a turn still running is not ended because its row is old")
+        // The same session in the event-sourced store alone: session_message rows carry the window too.
+        let v2 = try Self.folder()
+        defer { try? FileManager.default.removeItem(at: v2) }
+        try Self.database(at: v2.appendingPathComponent("opencode.db"), Self.session("ses_v2", at: prompted)
+                          + #"INSERT INTO session_message VALUES ('m1', 'ses_v2', 'user', 1, \#(prompted), \#(prompted), '{"id":"m1","type":"user","time":{"created":\#(prompted)}}');"#
+                          + #"INSERT INTO session_message VALUES ('m2', 'ses_v2', 'assistant', 2, \#(step), \#(step), '{"id":"m2","type":"assistant","time":{"created":\#(step)}}');"#)
+        let event = OpenCodeStore.sessions(data: v2, environment: [:], since: since, titles: false, now: now)
+        #expect(event.sessions.first?.turn == .working(since: Date(timeIntervalSince1970: Double(prompted) / 1000)))
+    }
+
+    /// OpenCode writes one assistant message per step of a turn, so a turn of more than eight steps has no user
+    /// message among the newest eight: the prompt is read on its own, and each new step is a step, not a prompt.
+    @Test func aLongTurnsStepsAreNotNewPrompts() throws {
+        let data = try Self.folder()
+        defer { try? FileManager.default.removeItem(at: data) }
+        let now = Date()
+        let prompted = Int64(now.timeIntervalSince1970 * 1000) - 10 * 60_000
+        var inserts = Self.session("ses_steps", at: prompted) + Self.user("u1", session: "ses_steps", at: prompted)
+        for step in 1...9 { inserts += Self.assistant("a\(step)", session: "ses_steps", at: prompted + Int64(step) * 30_000, finish: "tool-calls") }
+        inserts += Self.assistant("a10", session: "ses_steps", at: prompted + 300_000, completed: false)
+        let url = data.appendingPathComponent("opencode.db")
+        try Self.database(at: url, inserts)
+        let since = now.addingTimeInterval(-OpenCodeSessions.lookBack)
+        let start = Date(timeIntervalSince1970: Double(prompted) / 1000)
+        let first = OpenCodeStore.sessions(data: data, environment: [:], since: since, titles: false, now: now)
+        #expect(first.sessions.first?.turn == .working(since: start), "nine steps in, the clock is still the prompt's")
+        let seen = OpenCodeSessions.events(previous: nil, current: first.sessions, now: now).seen
+        // The tenth step closes on a tool call and an eleventh opens.
+        var db: OpaquePointer?
+        #expect(sqlite3_open(url.path, &db) == SQLITE_OK)
+        defer { sqlite3_close(db) }
+        let more = "UPDATE message SET data = replace(data, '\"created\":\(prompted + 300_000)}', '\"created\":\(prompted + 300_000),\"completed\":\(prompted + 301_000)}') WHERE id = 'a10';\n"
+            + Self.assistant("a11", session: "ses_steps", at: prompted + 330_000, completed: false)
+        #expect(sqlite3_exec(db, more, nil, nil, nil) == SQLITE_OK)
+        let again = OpenCodeStore.sessions(data: data, environment: [:], since: since, titles: false, now: now.addingTimeInterval(5))
+        #expect(again.sessions.first?.turn == .working(since: start))
+        let events = OpenCodeSessions.events(previous: seen, current: again.sessions, now: now.addingTimeInterval(5)).events
+        #expect(events.isEmpty, "a new step of the same turn is no prompt")
+        // A second prompt does move the clock, once.
+        let second = prompted + 400_000
+        #expect(sqlite3_exec(db, Self.user("u2", session: "ses_steps", at: second), nil, nil, nil) == SQLITE_OK)
+        let third = OpenCodeStore.sessions(data: data, environment: [:], since: since, titles: false, now: now.addingTimeInterval(10))
+        #expect(third.sessions.first?.turn == .working(since: Date(timeIntervalSince1970: Double(second) / 1000)))
+        let prompts = OpenCodeSessions.events(previous: OpenCodeSessions.events(previous: seen, current: again.sessions, now: now).seen,
+                                              current: third.sessions, now: now.addingTimeInterval(10)).events
+        #expect(prompts.map(\.message.event) == ["UserPromptSubmit"])
+    }
+
     @Test func anUnreadableDatabaseIsAProblemNotACrash() throws {
         let data = try Self.folder()
         defer { try? FileManager.default.removeItem(at: data) }
         try Data("not a database".utf8).write(to: data.appendingPathComponent("opencode.db"))
         let read = OpenCodeStore.usage(data: data, environment: [:], since: Date().addingTimeInterval(-Period.day))
         #expect(read.usage.isEmpty)
+        #expect(read.problem == "OpenCode's database opencode.db could not be read", "sqlite3_open_v2 reads no header, so the first query is where this is found")
+        let sessions = OpenCodeStore.sessions(data: data, environment: [:], since: Date().addingTimeInterval(-Period.day), titles: false)
+        #expect(sessions.sessions.isEmpty)
+        #expect(sessions.problem != nil)
     }
 }
 
@@ -381,8 +471,10 @@ private func utc(_ text: String) -> Date { DateParsing.iso8601(text)! }
         let weekly = try #require(reading.windows.first { $0.id == "go_weekly" })
         let weeklyExpected = 6.48 / 7.5
         #expect(abs((weekly.usedFraction ?? 0) - weeklyExpected) < 1e-9, "twelve turns against half of $15")
+        #expect(weekly.label == "7-day", "a trailing window is named by its length, not as the calendar unit it is not")
         let monthly = try #require(reading.windows.first { $0.id == "go_monthly" })
         #expect(abs((monthly.usedFraction ?? 0) - 6.48 / 15) < 1e-9)
+        #expect(monthly.label == "31-day")
         #expect(!reading.windows.contains { $0.hiddenByDefault }, "one model needs no per-model windows")
     }
 
@@ -608,6 +700,81 @@ private func utc(_ text: String) -> Date { DateParsing.iso8601(text)! }
     @Test func theComputedSourceSaysWhatItIs() {
         #expect(WindowSource.computedLocally.tag == "computed here")
         #expect(WindowSource.computedLocally.explanation?.contains("Computed on this Mac") == true)
+        #expect(WindowSource.computedLocally.explanation?.contains("never lower") == true,
+                "the one systematic difference from the vendor's figure is on the tag itself")
         #expect(WindowSource.vendorEndpoint.explanation == nil)
+    }
+
+    /// The Assistants pane's subtitle: a login for a reading taken over one, and for the Go meter, which reads
+    /// none, where the figure came from.
+    @Test func theAssistantsPaneNamesTheComputationRatherThanALogin() throws {
+        Localization.use(language: "en")
+        let now = Date()
+        let go = try #require(GoMeter.reading([turn(at: now, input: 1000)], now: now))
+        #expect(SettingsView.readySubtitle(go) == "Go · computed from this Mac's turns")
+        let claude = UsageReading(tool: .claude, windows: [LimitWindow(id: "seven_day", label: "Weekly", usedFraction: 0.1, resetsAt: nil)],
+                                  plan: "Max", fetchedAt: now, observedAt: nil)
+        #expect(SettingsView.readySubtitle(claude) == "Signed in · Max")
+        #expect(SettingsView.readySubtitle(UsageReading(tool: .claude, windows: [], plan: nil, fetchedAt: now, observedAt: nil)) == "Signed in")
+    }
+
+    /// Under rows read from the database the card offers the plugin, or says it takes over at the next start; once
+    /// the plugin has spoken, neither, since the rows still marked *from database* are ones it will never report.
+    @Test func thePluginOfferGoesOnceThePluginHasSpoken() {
+        var tracker = SessionTracker()
+        var read = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s", tool: .opencode)
+        read.source = .localStorage
+        tracker.apply(read, now: now)
+        let rows = SessionsCard.rows(tracker.all, hideTitles: false, jump: false, now: now).rows
+        #expect(rows.first?.fromStorage == true)
+        #expect(SessionsCard.pluginOffer(rows: rows, installed: false, spoke: false) == .add)
+        #expect(SessionsCard.pluginOffer(rows: rows, installed: true, spoke: false) == .nextStart)
+        #expect(SessionsCard.pluginOffer(rows: rows, installed: true, spoke: true) == nil)
+        tracker.apply(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s", tool: .opencode), now: now)
+        let hooked = SessionsCard.rows(tracker.all, hideTitles: false, jump: false, now: now).rows
+        #expect(SessionsCard.pluginOffer(rows: hooked, installed: false, spoke: false) == nil, "no row from the database, nothing to offer")
+    }
+
+    let now = Date(timeIntervalSince1970: 1_790_000_000)
+
+    /// A store reading a real database: a read that fails changes nothing, and the plugin's first event ends the
+    /// turns of the sessions the reading was following, bar the one the event is about.
+    @MainActor @Test func aFailedReadChangesNothingAndThePluginsFirstEventEndsTheTurnsItWasFollowing() async throws {
+        let suite = "NotchmeterTests.OpenCodeStoreReads"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let data = try OpenCodeDatabase.folder()
+        defer { try? FileManager.default.removeItem(at: data) }
+        let url = data.appendingPathComponent("opencode.db")
+        let now = Date()
+        let millis = Int64(now.timeIntervalSince1970 * 1000)
+        try OpenCodeDatabase.database(at: url, OpenCodeDatabase.session("ses_a", at: millis - 120_000) + OpenCodeDatabase.user("ua", session: "ses_a", at: millis - 120_000)
+                                      + OpenCodeDatabase.session("ses_b", directory: "/Users/x/other", at: millis - 90_000) + OpenCodeDatabase.user("ub", session: "ses_b", at: millis - 90_000))
+        let store = UsageStore(prefs: Preferences(defaults: defaults), providers: [OpenCodeProvider(reader: OpenCodeUsageReader(data: data, environment: [:]))],
+                               cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
+        #expect(store.readsOpenCodeSessions)
+        await store.readOpenCodeSessions(now: now)
+        let a = SessionTracker.key(tool: .opencode, session: "ses_a", host: nil)
+        let b = SessionTracker.key(tool: .opencode, session: "ses_b", host: nil)
+        #expect(store.sessions.sessions[a]?.isWorking == true)
+        #expect(store.sessions.sessions[b]?.isWorking == true)
+        #expect(store.sessions.sessions[a]?.source == .localStorage)
+        // The file turns into something that is no database (its fingerprint moves, so it is read): nothing changes.
+        let good = try Data(contentsOf: url)
+        try Data("not a database any more".utf8).write(to: url)
+        await store.readOpenCodeSessions(now: now.addingTimeInterval(5))
+        #expect(store.sessions.sessions[a]?.isWorking == true, "a read that failed is not a read of no sessions")
+        #expect(store.sessions.sessions[b]?.isWorking == true)
+        try good.write(to: url)
+        // The plugin's first event, about ses_b: ses_a ends its turn unseen, ses_b is the plugin's from here on.
+        store.hookReceived(Hook.Message(event: "Stop", needsInput: false, sessionID: "ses_b", tool: .opencode), now: now.addingTimeInterval(10))
+        #expect(store.openCodePluginSpoke)
+        #expect(!store.readsOpenCodeSessions)
+        #expect(store.sessions.sessions[a]?.isWorking == false)
+        #expect(store.sessions.sessions[a]?.finished == nil, "no finish is claimed for a turn nobody saw end")
+        #expect(store.sessions.sessions[a]?.source == .localStorage)
+        #expect(store.sessions.sessions[b]?.source == .hook)
+        #expect(store.sessions.sessions[b]?.finished != nil, "the plugin's own Stop is a finish, with the turn's length from the prompt the database gave")
     }
 }

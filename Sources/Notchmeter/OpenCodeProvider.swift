@@ -68,12 +68,15 @@ enum GoMeter {
             }
         }
 
-        /// Go's own names for its limits; "%ld-hour" and the other two are keys the app already speaks.
+        /// Each window named by its length, the way the app names every window it cannot anchor: Go calls its
+        /// limits 5-hour, weekly and monthly, but what is metered here is the last 5 hours, 7 days and 31 days, and
+        /// "Monthly" would read as a calendar month the figure does not cover. "%ld-hour" and "%ld-day" are keys the
+        /// app already speaks.
         var label: WindowLabel {
             switch self {
             case .fiveHour: .filled("%ld-hour", [.number(5)])
-            case .weekly: .key("Weekly")
-            case .monthly: .key("Monthly")
+            case .weekly: .filled("%ld-day", [.number(7)])
+            case .monthly: .filled("%ld-day", [.number(31)])
             }
         }
     }

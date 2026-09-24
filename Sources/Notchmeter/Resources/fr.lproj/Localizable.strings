@@ -924,11 +924,13 @@
    OpenCodeSessions, OpenCodePlugin, SessionsCard, SettingsWindow, WelcomeWindow) */
 "%1$@ · %2$@ of %3$@" = "%1$@ · %2$@ sur %3$@";
 "%1$@ · %2$@ spent, no published limit" = "%1$@ · %2$@ dépensés, aucune limite publiée";
-"%@ from the cost it recorded for each turn, or priced here at published rates where it recorded none" = "%@ d'après le coût enregistré pour chaque tour, ou calculé ici aux tarifs publics quand aucun n'a été enregistré";
+"%@ at the Go page's rates for Go turns, a subscription's zero at list rate, otherwise the cost it recorded for each turn" = "%@ aux tarifs de la page Go pour les tours Go, le zéro d'un abonnement au tarif public, sinon le coût enregistré pour chaque tour";
 "Add plugin…" = "Ajouter le plugin…";
 "Add the Notchmeter plugin to OpenCode?" = "Ajouter le plugin Notchmeter à OpenCode ?";
 "Add the OpenCode plugin for exact turn ends and waits" = "Ajouter le plugin OpenCode pour des fins de tour et des attentes exactes";
-"Computed on this Mac from your own turns at the vendor's published prices and limits; the vendor sent no figure, and turns on another machine are not counted" = "Calculé sur ce Mac à partir de vos propres tours, aux prix et limites publiés par le fournisseur ; le fournisseur n'a envoyé aucun chiffre, et les tours sur une autre machine ne sont pas comptés";
+"%@ · computed from this Mac's turns" = "%@ · calculé à partir des tours de ce Mac";
+"Computed from this Mac's turns" = "Calculé à partir des tours de ce Mac";
+"Computed on this Mac from your own turns at the vendor's published prices and limits, over a trailing window that holds whichever window the vendor is counting, so it can read higher than the vendor's own figure and never lower; the vendor sent no figure, and turns on another machine are not counted" = "Calculé sur ce Mac à partir de vos propres tours, aux prix et limites publiés par le fournisseur, sur une fenêtre glissante qui contient celle que le fournisseur compte, si bien qu'il peut être plus élevé que le chiffre du fournisseur, jamais plus bas ; le fournisseur n'a envoyé aucun chiffre, et les tours sur une autre machine ne sont pas comptés";
 "No OpenCode Go turns on this Mac in the last 31 days; its spend is on the Cost card" = "Aucun tour OpenCode Go sur ce Mac ces 31 derniers jours ; ses dépenses figurent sur la carte Coût";
 "Notchmeter writes its own plugin at %1$@. A file already there is copied to %2$@.bak-<date> first; nothing else in OpenCode's configuration changes." = "Notchmeter écrit son propre plugin dans %1$@. Un fichier déjà présent est d'abord copié vers %2$@.bak-<date> ; rien d'autre ne change dans la configuration d'OpenCode.";
 "Nothing to install: its sessions, their spend and its Go plan are read from OpenCode's own database on this Mac, never written. Its plugin, under Settings › Integrations, adds each turn's exact end and its waits." = "Rien à installer : ses sessions, leurs dépenses et son forfait Go sont lus dans la base de données d'OpenCode sur ce Mac, sans jamais y écrire. Son plugin, dans Réglages › Intégrations, ajoute la fin exacte de chaque tour et ses attentes.";

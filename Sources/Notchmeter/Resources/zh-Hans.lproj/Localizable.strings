@@ -924,11 +924,13 @@
    OpenCodeSessions, OpenCodePlugin, SessionsCard, SettingsWindow, WelcomeWindow) */
 "%1$@ · %2$@ of %3$@" = "%1$@ · %2$@ / %3$@";
 "%1$@ · %2$@ spent, no published limit" = "%1$@ · 已花费 %2$@，未公布上限";
-"%@ from the cost it recorded for each turn, or priced here at published rates where it recorded none" = "%@ 按其为每一轮记录的费用计算，未记录时由本机按公布价格计算";
+"%@ at the Go page's rates for Go turns, a subscription's zero at list rate, otherwise the cost it recorded for each turn" = "%@ 的 Go 轮次按 Go 页面价格计算，订阅记录的零按标价计算，其余按其为每一轮记录的费用计算";
 "Add plugin…" = "添加插件…";
 "Add the Notchmeter plugin to OpenCode?" = "要将 Notchmeter 插件添加到 OpenCode 吗？";
 "Add the OpenCode plugin for exact turn ends and waits" = "添加 OpenCode 插件，获得准确的每轮结束与等待";
-"Computed on this Mac from your own turns at the vendor's published prices and limits; the vendor sent no figure, and turns on another machine are not counted" = "由这台 Mac 根据你自己的每一轮、按厂商公布的价格与上限计算；厂商并未发送此数字，其他机器上的轮次不计入";
+"%@ · computed from this Mac's turns" = "%@ · 由这台 Mac 的轮次计算";
+"Computed from this Mac's turns" = "由这台 Mac 的轮次计算";
+"Computed on this Mac from your own turns at the vendor's published prices and limits, over a trailing window that holds whichever window the vendor is counting, so it can read higher than the vendor's own figure and never lower; the vendor sent no figure, and turns on another machine are not counted" = "由这台 Mac 根据你自己的每一轮、按厂商公布的价格与上限计算，统计的是包含厂商所计窗口的滚动窗口，因此可能高于厂商自己的数字，但不会更低；厂商并未发送此数字，其他机器上的轮次不计入";
 "No OpenCode Go turns on this Mac in the last 31 days; its spend is on the Cost card" = "过去 31 天这台 Mac 上没有 OpenCode Go 的轮次；其花费在费用卡片上";
 "Notchmeter writes its own plugin at %1$@. A file already there is copied to %2$@.bak-<date> first; nothing else in OpenCode's configuration changes." = "Notchmeter 会在 %1$@ 写入自己的插件。该位置已有的文件会先复制为 %2$@.bak-<日期>；OpenCode 配置的其他部分不会改变。";
 "Nothing to install: its sessions, their spend and its Go plan are read from OpenCode's own database on this Mac, never written. Its plugin, under Settings › Integrations, adds each turn's exact end and its waits." = "无需安装：它的会话、会话花费和 Go 方案都从这台 Mac 上 OpenCode 自己的数据库读取，从不写入。设置 › 集成中的插件会补上每一轮的准确结束与等待。";

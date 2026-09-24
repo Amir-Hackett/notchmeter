@@ -924,11 +924,13 @@
    OpenCodeSessions, OpenCodePlugin, SessionsCard, SettingsWindow, WelcomeWindow) */
 "%1$@ · %2$@ of %3$@" = "%1$@ · %2$@ из %3$@";
 "%1$@ · %2$@ spent, no published limit" = "%1$@ · потрачено %2$@, опубликованного лимита нет";
-"%@ from the cost it recorded for each turn, or priced here at published rates where it recorded none" = "%@: стоимость, записанная для каждого хода, или цена, рассчитанная здесь по опубликованным тарифам, если записи нет";
+"%@ at the Go page's rates for Go turns, a subscription's zero at list rate, otherwise the cost it recorded for each turn" = "%@: ходы Go по тарифам страницы Go, ноль подписки по прейскуранту, иначе стоимость, записанная для каждого хода";
 "Add plugin…" = "Добавить плагин…";
 "Add the Notchmeter plugin to OpenCode?" = "Добавить плагин Notchmeter в OpenCode?";
 "Add the OpenCode plugin for exact turn ends and waits" = "Добавьте плагин OpenCode для точных окончаний ходов и ожиданий";
-"Computed on this Mac from your own turns at the vendor's published prices and limits; the vendor sent no figure, and turns on another machine are not counted" = "Рассчитано на этом Mac по вашим собственным ходам с опубликованными ценами и лимитами поставщика; поставщик эту цифру не присылал, а ходы на другом компьютере не учитываются";
+"%@ · computed from this Mac's turns" = "%@ · рассчитано по ходам на этом Mac";
+"Computed from this Mac's turns" = "Рассчитано по ходам на этом Mac";
+"Computed on this Mac from your own turns at the vendor's published prices and limits, over a trailing window that holds whichever window the vendor is counting, so it can read higher than the vendor's own figure and never lower; the vendor sent no figure, and turns on another machine are not counted" = "Рассчитано на этом Mac по вашим собственным ходам с опубликованными ценами и лимитами поставщика за скользящее окно, которое содержит окно, учитываемое поставщиком, поэтому значение может быть выше цифры поставщика, но никогда ниже; поставщик эту цифру не присылал, а ходы на другом компьютере не учитываются";
 "No OpenCode Go turns on this Mac in the last 31 days; its spend is on the Cost card" = "За последние 31 день на этом Mac не было ходов OpenCode Go; расходы — на карточке «Стоимость»";
 "Notchmeter writes its own plugin at %1$@. A file already there is copied to %2$@.bak-<date> first; nothing else in OpenCode's configuration changes." = "Notchmeter записывает собственный плагин в %1$@. Файл, который уже там есть, сначала копируется в %2$@.bak-<дата>; больше ничего в настройках OpenCode не меняется.";
 "Nothing to install: its sessions, their spend and its Go plan are read from OpenCode's own database on this Mac, never written. Its plugin, under Settings › Integrations, adds each turn's exact end and its waits." = "Ничего устанавливать не нужно: сессии, их расходы и план Go читаются из собственной базы данных OpenCode на этом Mac, в которую ничего не записывается. Плагин в Настройках › Интеграциях добавляет точный конец каждого хода и ожидания.";

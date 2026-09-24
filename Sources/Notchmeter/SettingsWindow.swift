@@ -1371,11 +1371,21 @@ struct SettingsView: View {
         case .off: return L("Off")
         case .waiting: return L("Waiting for the first reading")
         case .idle(let message): return message
-        case .ready(let reading): return reading.plan.map { L("Signed in · %@", $0) } ?? L("Signed in")
+        case .ready(let reading): return Self.readySubtitle(reading)
         case .needsAttention(let message, _), .failed(let message, _), .rateLimited(let message, _): return message
         case .offline: return L("Offline, retrying")
         case .notInstalled: return L("Not installed on this Mac")
         }
+    }
+
+    /// "Signed in · Max" for a reading taken over a login. A reading computed here from the tool's own local
+    /// records (OpenCode Go, every window `computedLocally`) read no login at all, which the Welcome tour and
+    /// docs/privacy.md promise, so the row says where its figure came from rather than claiming one.
+    static func readySubtitle(_ reading: UsageReading) -> String {
+        if !reading.windows.isEmpty, reading.windows.allSatisfy({ $0.source == .computedLocally }) {
+            return reading.plan.map { L("%@ · computed from this Mac's turns", $0) } ?? L("Computed from this Mac's turns")
+        }
+        return reading.plan.map { L("Signed in · %@", $0) } ?? L("Signed in")
     }
 
     private func applyCurrency() {

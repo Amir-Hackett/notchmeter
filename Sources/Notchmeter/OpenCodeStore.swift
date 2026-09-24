@@ -1,5 +1,8 @@
 import Foundation
 import SQLite3
+import os
+
+private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "opencode")
 
 /// Where OpenCode keeps its files, as its own `Global.Path` and `Database.path()` resolve them (anomalyco/opencode,
 /// `packages/core/src/global.ts` and `database/database.ts`, read 2026-09-24): data under `$XDG_DATA_HOME/opencode`,
@@ -116,6 +119,15 @@ enum OpenCodeStore {
         }
     }
 
+    /// A statement SQLite would not prepare or would not run to its end, with what SQLite said. `sqlite3_open_v2`
+    /// reads no header, so a file that is no database, a corrupt one, or one held past the busy timeout while
+    /// OpenCode migrates or checkpoints is first met here; `withDatabase` turns it into `Failure.unreadable`, since
+    /// to the reader a database it cannot query is one it cannot read, and an empty answer would read as no turns
+    /// and no sessions rather than as a problem.
+    struct QueryFailure: Error, Equatable {
+        let message: String
+    }
+
     // MARK: - Parsing, pure
 
     /// A `message.data` object (OpenCode 1.2 onwards) or a legacy `storage/message` file: only an assistant's, and
@@ -181,9 +193,14 @@ enum OpenCodeStore {
     /// newest assistant message is open, or it closed on a tool call and the next step has not begun, and the
     /// turn is working; otherwise it is idle, finished when the assistant's message closed. A working turn with
     /// no write for `abandonedAfter` is idle with no finish: OpenCode was closed mid-turn, and nothing else says so.
-    static func turn(newestFirst messages: [[String: Any]], updated: Date, now: Date) -> OpenCodeSessionState.Turn {
-        let userStarted = messages.first { ($0["role"] as? String ?? $0["type"] as? String) == "user" }
-            .flatMap { date(($0["time"] as? [String: Any])?["created"]) }
+    ///
+    /// The turn's clock is the prompt's: `prompted` is the newest user message's own time, read on its own by the
+    /// caller, because OpenCode writes one assistant message per step of a turn and a turn of more than a few
+    /// steps has no user message among its newest few. Taken from the window alone, a long turn's clock would
+    /// restart at every step and each step would read as a new prompt.
+    static func turn(newestFirst messages: [[String: Any]], prompted: Date? = nil, updated: Date, now: Date) -> OpenCodeSessionState.Turn {
+        let userStarted = prompted ?? messages.first { ($0["role"] as? String ?? $0["type"] as? String) == "user" }
+            .flatMap { promptTime($0) }
         guard let newest = messages.first else { return .idle(finishedAt: nil, turnStarted: nil, failure: nil) }
         let kind = newest["role"] as? String ?? newest["type"] as? String
         let time = newest["time"] as? [String: Any]
@@ -202,6 +219,11 @@ enum OpenCodeStore {
             return .working(since: userStarted ?? created)
         }
         return .idle(finishedAt: kind == "assistant" ? completed ?? updated : nil, turnStarted: userStarted, failure: error.map(failure(of:)))
+    }
+
+    /// When a message was created, which for a user's message is when its prompt was sent.
+    static func promptTime(_ message: [String: Any]) -> Date? {
+        date((message["time"] as? [String: Any])?["created"])
     }
 
     /// The finish reasons an assistant message closes on while its turn goes on: the model asked for a tool, and
@@ -240,11 +262,11 @@ enum OpenCodeStore {
         for url in OpenCodePaths.databases(in: data, environment: environment) {
             do {
                 try withDatabase(url) { db in
-                    let tables = tableNames(db)
-                    let directories = tables.contains("session") ? pairs(db, "SELECT id, directory FROM session") : [:]
+                    let tables = try tableNames(db)
+                    let directories = tables.contains("session") ? try pairs(db, "SELECT id, directory FROM session") : [:]
                     var v1Sessions: Set<String> = []
                     if tables.contains("message") {
-                        for row in rows(db, "SELECT id, session_id, data FROM message WHERE time_created >= ?1", floor) {
+                        for row in try rows(db, "SELECT id, session_id, data FROM message WHERE time_created >= ?1", floor) {
                             guard let object = object(row[2]) else { continue }
                             let session = row[1]
                             let usage = usage(v1: object, id: row[0], session: session, directory: session.flatMap { directories[$0] })
@@ -254,7 +276,7 @@ enum OpenCodeStore {
                     }
                     if tables.contains("session_message") {
                         let query = "SELECT id, session_id, data FROM session_message WHERE type = 'assistant' AND time_created >= ?1"
-                        for row in rows(db, query, floor) {
+                        for row in try rows(db, query, floor) {
                             guard let session = row[1], !v1Sessions.contains(session), let object = object(row[2]) else { continue }
                             keep(usage(v2: object, id: row[0], session: session, directory: directories[session]))
                         }
@@ -294,7 +316,8 @@ enum OpenCodeStore {
     /// The sessions written since `since`, each with the turn its newest messages describe. `titles` decides whether
     /// OpenCode's own title for each is read at all. Sessions from every database; a session id met twice is taken
     /// from the first. Legacy JSON storage is not read here: a build that old predates everything the sessions
-    /// need, and the plugin covers it.
+    /// need, and the plugin covers it. A database that could not be read is the problem, and the sessions are
+    /// whatever the others held; the caller decides what a read with a problem is worth.
     static func sessions(data: URL, environment: [String: String] = ProcessInfo.processInfo.environment, since: Date, titles: Bool,
                          now: Date = Date()) -> (sessions: [OpenCodeSessionState], problem: String?) {
         var found: [String: OpenCodeSessionState] = [:]
@@ -304,35 +327,49 @@ enum OpenCodeStore {
         for url in OpenCodePaths.databases(in: data, environment: environment) {
             do {
                 try withDatabase(url) { db in
-                    let tables = tableNames(db)
+                    let tables = try tableNames(db)
                     guard tables.contains("session") else { return }
-                    let columns = columnNames(db, "session")
+                    let columns = try columnNames(db, "session")
                     let archived = columns.contains("time_archived") ? "time_archived" : "NULL"
                     let title = titles ? "title" : "NULL"
-                    let query = "SELECT id, parent_id, directory, \(title), time_updated, \(archived) FROM session WHERE time_updated >= ?1"
-                    for row in rows(db, query, floor) {
+                    // A session row's own time_updated moves at the prompt (OpenCode's `touch` in
+                    // packages/opencode/src/session/prompt.ts, read 2026-09-24) and not as the turn's messages are
+                    // written, so a turn longer than the window would leave it mid-turn and read as vanished. A
+                    // session is inside the window when it, or any message of its, was written inside it. The
+                    // message tables are each scanned once for the ids rather than once per session row.
+                    var recent = ["time_updated >= ?1"]
+                    if tables.contains("message") { recent.append("id IN (SELECT session_id FROM message WHERE time_updated >= ?1)") }
+                    if tables.contains("session_message") { recent.append("id IN (SELECT session_id FROM session_message WHERE time_updated >= ?1)") }
+                    let query = "SELECT id, parent_id, directory, \(title), time_updated, \(archived) FROM session WHERE \(recent.joined(separator: " OR "))"
+                    for row in try rows(db, query, floor) {
                         guard let id = row[0], found[id] == nil else { continue }
                         var messages: [[String: Any]] = []
                         var newestWrite = 0.0
+                        var prompted: Date?
                         if tables.contains("message") {
-                            for message in rows(db, "SELECT data, time_updated FROM message WHERE session_id = ?1 ORDER BY time_created DESC, id DESC LIMIT 8", id) {
+                            for message in try rows(db, "SELECT data, time_updated FROM message WHERE session_id = ?1 ORDER BY time_created DESC, id DESC LIMIT 8", id) {
                                 if let object = object(message[0]) { messages.append(object) }
                                 newestWrite = max(newestWrite, Double(message[1] ?? "") ?? 0)
                             }
+                            // The newest prompt on its own (see `turn`): the message's own record names its role.
+                            let newest = "SELECT data FROM message WHERE session_id = ?1 AND json_extract(data, '$.role') = 'user' ORDER BY time_created DESC, id DESC LIMIT 1"
+                            prompted = try rows(db, newest, id).first.flatMap { object($0[0]) }.flatMap(promptTime)
                         }
                         if messages.isEmpty, tables.contains("session_message") {
                             let query = "SELECT data, time_updated FROM session_message WHERE session_id = ?1 AND type IN ('user', 'assistant') ORDER BY seq DESC LIMIT 8"
-                            for message in rows(db, query, id) {
+                            for message in try rows(db, query, id) {
                                 if let object = object(message[0]) { messages.append(object) }
                                 newestWrite = max(newestWrite, Double(message[1] ?? "") ?? 0)
                             }
+                            let newest = "SELECT data FROM session_message WHERE session_id = ?1 AND type = 'user' ORDER BY seq DESC LIMIT 1"
+                            prompted = try rows(db, newest, id).first.flatMap { object($0[0]) }.flatMap(promptTime)
                         }
                         let updated = Date(timeIntervalSince1970: max(Double(row[4] ?? "") ?? 0, newestWrite) / 1000)
                         let name = row[3].flatMap { $0.isEmpty || isPlaceholderTitle($0) ? nil : Hook.title(fromPrompt: $0) }
                         found[id] = OpenCodeSessionState(id: id, parentID: row[1].flatMap { $0.isEmpty ? nil : $0 },
                                                          directory: row[2].flatMap { $0.isEmpty ? nil : $0 }, title: name, updated: updated,
                                                          archived: (Double(row[5] ?? "") ?? 0) > 0,
-                                                         turn: turn(newestFirst: messages, updated: updated, now: now))
+                                                         turn: turn(newestFirst: messages, prompted: prompted, updated: updated, now: now))
                         order.append(id)
                     }
                 }
@@ -359,28 +396,38 @@ enum OpenCodeStore {
         defer { sqlite3_close(db) }
         sqlite3_busy_timeout(db, 1000)
         sqlite3_exec(db, "PRAGMA query_only = 1", nil, nil, nil)
-        return try body(db)
+        do {
+            return try body(db)
+        } catch let failure as QueryFailure {
+            log.warning("OpenCode's \(url.lastPathComponent, privacy: .public) could not be queried: \(failure.message, privacy: .public)")
+            throw Failure.unreadable(url.lastPathComponent)
+        }
     }
 
-    static func tableNames(_ db: OpaquePointer) -> Set<String> {
-        Set(rows(db, "SELECT name FROM sqlite_master WHERE type = 'table'").compactMap { $0[0] })
+    static func tableNames(_ db: OpaquePointer) throws -> Set<String> {
+        Set(try rows(db, "SELECT name FROM sqlite_master WHERE type = 'table'").compactMap { $0[0] })
     }
 
-    static func columnNames(_ db: OpaquePointer, _ table: String) -> Set<String> {
+    static func columnNames(_ db: OpaquePointer, _ table: String) throws -> Set<String> {
         // A table name cannot be bound; this one is always a constant of this file.
-        Set(rows(db, "PRAGMA table_info(\(table))").compactMap { $0.count > 1 ? $0[1] : nil })
+        Set(try rows(db, "PRAGMA table_info(\(table))").compactMap { $0.count > 1 ? $0[1] : nil })
     }
 
-    private static func pairs(_ db: OpaquePointer, _ sql: String) -> [String: String] {
-        rows(db, sql).reduce(into: [:]) { result, row in
+    private static func pairs(_ db: OpaquePointer, _ sql: String) throws -> [String: String] {
+        try rows(db, sql).reduce(into: [:]) { result, row in
             if let key = row[0], let value = row[1] { result[key] = value }
         }
     }
 
-    /// Every row of `sql` as text columns, with one parameter bound as an integer or as text.
-    static func rows(_ db: OpaquePointer, _ sql: String, _ parameter: Any? = nil) -> [[String?]] {
+    /// Every row of `sql` as text columns, with one parameter bound as an integer or as text. A statement that
+    /// cannot be prepared, or that stops on anything but its end (busy past the timeout, not a database, corrupt),
+    /// is a `QueryFailure` rather than the rows so far: a partial answer would read as fewer turns and fewer
+    /// sessions than there are.
+    static func rows(_ db: OpaquePointer, _ sql: String, _ parameter: Any? = nil) throws -> [[String?]] {
         var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK, let statement else { return [] }
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK, let statement else {
+            throw QueryFailure(message: String(cString: sqlite3_errmsg(db)))
+        }
         defer { sqlite3_finalize(statement) }
         if let number = parameter as? Int64 {
             sqlite3_bind_int64(statement, 1, number)
@@ -389,11 +436,14 @@ enum OpenCodeStore {
         }
         var result: [[String?]] = []
         let columns = sqlite3_column_count(statement)
-        while sqlite3_step(statement) == SQLITE_ROW {
+        var status = sqlite3_step(statement)
+        while status == SQLITE_ROW {
             result.append((0..<columns).map { column in
                 sqlite3_column_type(statement, column) == SQLITE_NULL ? nil : CursorProvider.columnText(statement, column)
             })
+            status = sqlite3_step(statement)
         }
+        guard status == SQLITE_DONE else { throw QueryFailure(message: String(cString: sqlite3_errmsg(db))) }
         return result
     }
 }

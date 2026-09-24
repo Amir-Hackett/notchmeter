@@ -60,7 +60,9 @@ enum WindowSource: String, Codable, Equatable, Sendable {
     case localEstimate
     /// Worked out on this Mac from the tool's own local records of your turns, at the prices and against the limits
     /// the vendor publishes, because the vendor offers no reading of its own (OpenCode Go). The vendor never saw
-    /// this figure; its rule, sources and dates are in docs/accuracy.md, and it counts only this Mac's turns.
+    /// this figure; its rule, sources and dates are in docs/accuracy.md, it counts only this Mac's turns, and it is
+    /// taken over a trailing window that contains whichever window the vendor is counting, so it can read higher
+    /// than the vendor's own figure and never lower.
     case computedLocally
 
     /// The small tag on the card; nil for the endpoint, which needs no explanation.
@@ -79,7 +81,7 @@ enum WindowSource: String, Codable, Equatable, Sendable {
     /// is; nil where "Source: <tag>" says enough.
     var explanation: String? {
         switch self {
-        case .computedLocally: L("Computed on this Mac from your own turns at the vendor's published prices and limits; the vendor sent no figure, and turns on another machine are not counted")
+        case .computedLocally: L("Computed on this Mac from your own turns at the vendor's published prices and limits, over a trailing window that holds whichever window the vendor is counting, so it can read higher than the vendor's own figure and never lower; the vendor sent no figure, and turns on another machine are not counted")
         default: nil
         }
     }

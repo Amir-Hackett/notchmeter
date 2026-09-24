@@ -6,12 +6,17 @@ import Foundation
 /// and the row says where it came from.
 ///
 /// What this can and cannot know. A session appears when OpenCode writes it, and a turn is working from its prompt
-/// until its answer closes, read from the newest messages' own timestamps, so a turn's clock is the prompt's rather
-/// than the moment the app noticed. It learns of a turn's end on the next read, up to `interval` late (longer on
-/// battery), and it never learns of a wait: a permission request lives in OpenCode's memory, not its database, so a
-/// session read this way is never shown waiting, and a waiting one reads as working. The plugin (Settings ›
-/// Integrations) reports the turn's end as it happens and the wait itself; once it has spoken, this stands down for
-/// the rest of the run, since the two would describe the same session twice.
+/// until its answer closes, read from the messages' own timestamps: the clock is the newest user message's own
+/// time, so it is the prompt's rather than the moment the app noticed, and it does not move as the answer's steps
+/// are written. A session stays in the read while it or any message of its is written to, so a turn longer than
+/// the read window is followed to its end. It learns of a turn's end on the next read, up to `interval` late
+/// (longer on battery), and it never learns of a wait: a permission request lives in OpenCode's memory, not its
+/// database, so a session read this way is never shown waiting, and a waiting one reads as working. A read that
+/// failed (the database held past its busy timeout, or unreadable) says nothing about the sessions and changes
+/// nothing; the last record stands until a read succeeds. The plugin (Settings › Integrations) reports the turn's
+/// end as it happens and the wait itself; once it has spoken, this stands down for the rest of the run, since the
+/// two would describe the same session twice, and every session it was still following ends its turn unseen, as
+/// one that vanished between two reads does (UsageStore.standDownOpenCodeReading).
 enum OpenCodeSessions {
     /// What the last read said of one session.
     struct Seen: Equatable, Sendable {
@@ -87,6 +92,8 @@ enum OpenCodeSessions {
                     emit("SessionStart", state, at: at(finished ?? state.updated))
                 }
             case (.working(let was)?, .working(let since)) where since > was:
+                // `since` is the prompt's own time, so it moves only when a new prompt was sent, never with the
+                // answer's next step.
                 emit("UserPromptSubmit", state, at: at(since))
             case (.working?, .idle(let finished, _, let failure)):
                 emit(failure == nil && finished != nil ? "Stop" : "StopFailure", state, at: at(finished), failure: failure)

@@ -318,18 +318,22 @@ enum Advisor {
     }
 
     /// A per-model window nearly used up while another model, or the overall window, has room: the cheapest move
-    /// there is, so it is said once per tool for the fullest model.
+    /// there is, so it is said once per tool for the fullest model. Like is set against like: a tool that meters
+    /// each model over several windows (OpenCode Go's 5-hour, 7-day and 31-day; Codex Spark's session and weekly)
+    /// has a model's 5-hour share compared with another model's 5-hour share, or with the tool-wide 5-hour window,
+    /// never with a month, since a percentage of one says nothing about the other.
     static func modelRouting(_ context: Context) -> [Advice] {
         context.readings.compactMap { reading in
             let scoped = reading.windows.filter { $0.model != nil && $0.usedFraction != nil }
             guard let hot = scoped.filter({ ($0.usedFraction ?? 0) >= modelNearlyOut }).max(by: { ($0.usedFraction ?? 0) < ($1.usedFraction ?? 0) }),
                   let used = hot.usedFraction
             else { return nil }
+            let alike = scoped.filter { $0.periodDuration == hot.periodDuration }
             let alternative: (name: String, model: String?, used: Double)?
-            if let other = scoped.filter({ $0.model != hot.model && left(of: $0) >= modelHeadroom }).max(by: { left(of: $0) < left(of: $1) }),
+            if let other = alike.filter({ $0.model != hot.model && left(of: $0) >= modelHeadroom }).max(by: { left(of: $0) < left(of: $1) }),
                let otherModel = other.model, let otherUsed = other.usedFraction {
                 alternative = (otherModel, otherModel, otherUsed)
-            } else if let main = mainWindow(of: reading), let mainUsed = main.usedFraction, 1 - mainUsed >= modelHeadroom {
+            } else if let main = overallWindow(of: reading, period: hot.periodDuration), let mainUsed = main.usedFraction, 1 - mainUsed >= modelHeadroom {
                 alternative = (L("Overall %@", name(main)), nil, mainUsed)
             } else {
                 alternative = nil
@@ -586,6 +590,15 @@ enum Advisor {
             .max { ($0.periodDuration ?? 0) < ($1.periodDuration ?? 0) }
     }
 
+    /// The tool-wide window of `period`'s length, the one a per-model window of that length is a share of; with no
+    /// length declared (Antigravity's buckets), the main window.
+    static func overallWindow(of reading: UsageReading, period: TimeInterval?) -> LimitWindow? {
+        guard let period else { return mainWindow(of: reading) }
+        return reading.windows.first {
+            $0.usedFraction != nil && $0.model == nil && $0.periodDuration == period && !$0.id.hasPrefix("budget_") && !$0.isComparison
+        }
+    }
+
     /// The other tool with the most of its main window left, when that is at least the routing headroom; on a tie,
     /// the one the user placed first. A tool on a free plan is never the answer, however empty its window: its
     /// room is not worth routing a paid tool's work to (`UsageReading.isPaid`), so neither the headroom clause
@@ -604,9 +617,12 @@ enum Advisor {
     }
 
     /// "weekly", "session", "included usage"; a per-model window carries its cadence: "Fable weekly", "Gemini Pro
-    /// daily", or "Gemini Pro quota" while the tool declares no window length.
+    /// daily", or "Gemini Pro quota" while the tool declares no window length. A per-model window whose label
+    /// already names its window the way the card does ("Kimi K3 5-hour", "GPT 5.3 Codex Spark Session":
+    /// `WindowLabel.scoped`) is named as the card names it, so the sentence and the card agree.
     static func name(_ window: LimitWindow) -> String {
         guard let model = window.model else { return window.name.inSentence }
+        if case .scoped = window.name { return window.name.inSentence }
         return "\(model) \(cadence(window.periodDuration))"
     }
 

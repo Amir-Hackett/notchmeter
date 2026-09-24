@@ -271,8 +271,8 @@ struct SessionsCard: View {
                 if more > 0 {
                     Text(L("+%ld more", more)).modifier(Caption())
                 }
-                if rows.contains(where: \.fromStorage) {
-                    upgrade
+                if let offer = Self.pluginOffer(rows: rows, installed: store.openCodePluginInstalled, spoke: store.openCodePluginSpoke) {
+                    upgrade(offer)
                 }
             }
         }
@@ -282,12 +282,24 @@ struct SessionsCard: View {
         .padding(.horizontal, embedded ? density.cardPadding : 0)
     }
 
+    /// What the card says under rows read from OpenCode's database: add the plugin, or that it takes over at the
+    /// next start.
+    enum PluginOffer: Equatable, Sendable { case add, nextStart }
+
+    /// The offer under the rows, if any: only under a row read from the database, and never once the plugin has
+    /// spoken, when it has taken over already and the rows still marked *from database* are the ones it will not
+    /// report on (UsageStore.standDownOpenCodeReading), so no start is coming that would change them.
+    static func pluginOffer(rows: [Row], installed: Bool, spoke: Bool) -> PluginOffer? {
+        guard rows.contains(where: \.fromStorage), !spoke else { return nil }
+        return installed ? .nextStart : .add
+    }
+
     /// Under rows read from OpenCode's database, the one thing that would make them exact: the plugin, one click
     /// away in Settings › Integrations; or, with the plugin already in place, that OpenCode loads it when it next
     /// starts. A line rather than a banner, since the rows are right as far as they go.
     @ViewBuilder
-    private var upgrade: some View {
-        if store.openCodePluginInstalled {
+    private func upgrade(_ offer: PluginOffer) -> some View {
+        if offer == .nextStart {
             Text(L("OpenCode switches to its plugin when it next starts")).modifier(Caption())
         } else {
             Button { actions.openSettingsPane(.integrations) } label: {

@@ -907,11 +907,13 @@
    OpenCodeSessions, OpenCodePlugin, SessionsCard, SettingsWindow, WelcomeWindow) */
 "%1$@ · %2$@ of %3$@" = "%1$@ · %2$@ / %3$@";
 "%1$@ · %2$@ spent, no published limit" = "%1$@ · đã tiêu %2$@, không có giới hạn công bố";
-"%@ from the cost it recorded for each turn, or priced here at published rates where it recorded none" = "%@ theo chi phí nó ghi cho mỗi lượt, hoặc được tính tại đây theo giá công bố khi không có ghi";
+"%@ at the Go page's rates for Go turns, a subscription's zero at list rate, otherwise the cost it recorded for each turn" = "%@ theo giá trang Go cho các lượt Go, số 0 của gói thuê bao theo giá niêm yết, còn lại theo chi phí nó ghi cho mỗi lượt";
 "Add plugin…" = "Thêm plugin…";
 "Add the Notchmeter plugin to OpenCode?" = "Thêm plugin Notchmeter vào OpenCode?";
 "Add the OpenCode plugin for exact turn ends and waits" = "Thêm plugin OpenCode để biết chính xác khi nào lượt kết thúc và khi nào đang chờ";
-"Computed on this Mac from your own turns at the vendor's published prices and limits; the vendor sent no figure, and turns on another machine are not counted" = "Được tính trên máy Mac này từ các lượt của chính bạn theo giá và giới hạn nhà cung cấp công bố; nhà cung cấp không gửi con số nào, và các lượt trên máy khác không được tính";
+"%@ · computed from this Mac's turns" = "%@ · tính từ các lượt trên máy Mac này";
+"Computed from this Mac's turns" = "Tính từ các lượt trên máy Mac này";
+"Computed on this Mac from your own turns at the vendor's published prices and limits, over a trailing window that holds whichever window the vendor is counting, so it can read higher than the vendor's own figure and never lower; the vendor sent no figure, and turns on another machine are not counted" = "Được tính trên máy Mac này từ các lượt của chính bạn theo giá và giới hạn nhà cung cấp công bố, trên một cửa sổ trượt chứa cửa sổ mà nhà cung cấp đang đếm, nên có thể cao hơn con số của nhà cung cấp nhưng không bao giờ thấp hơn; nhà cung cấp không gửi con số nào, và các lượt trên máy khác không được tính";
 "No OpenCode Go turns on this Mac in the last 31 days; its spend is on the Cost card" = "Không có lượt OpenCode Go nào trên máy Mac này trong 31 ngày qua; chi tiêu nằm trên thẻ chi phí";
 "Notchmeter writes its own plugin at %1$@. A file already there is copied to %2$@.bak-<date> first; nothing else in OpenCode's configuration changes." = "Notchmeter ghi plugin riêng của nó tại %1$@. Tệp đã có ở đó được sao chép sang %2$@.bak-<ngày> trước; không có gì khác trong cấu hình OpenCode thay đổi.";
 "Nothing to install: its sessions, their spend and its Go plan are read from OpenCode's own database on this Mac, never written. Its plugin, under Settings › Integrations, adds each turn's exact end and its waits." = "Không cần cài gì: các phiên, chi tiêu của chúng và gói Go được đọc từ cơ sở dữ liệu riêng của OpenCode trên máy Mac này, không bao giờ ghi vào. Plugin của nó, trong Cài đặt › Tích hợp, thêm thời điểm kết thúc chính xác của mỗi lượt và các lần chờ.";

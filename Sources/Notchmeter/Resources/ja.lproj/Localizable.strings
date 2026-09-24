@@ -907,11 +907,13 @@
    OpenCodeSessions, OpenCodePlugin, SessionsCard, SettingsWindow, WelcomeWindow) */
 "%1$@ · %2$@ of %3$@" = "%1$@ · %2$@ / %3$@";
 "%1$@ · %2$@ spent, no published limit" = "%1$@ · %2$@ 使用、公開された上限なし";
-"%@ from the cost it recorded for each turn, or priced here at published rates where it recorded none" = "%@ が各ターンに記録したコスト。記録がない場合はここで公表価格から算出";
+"%@ at the Go page's rates for Go turns, a subscription's zero at list rate, otherwise the cost it recorded for each turn" = "%@ は Go のターンを Go ページの料金で、サブスクリプションのゼロは定価で、それ以外は各ターンに記録したコストで算出";
 "Add plugin…" = "プラグインを追加…";
 "Add the Notchmeter plugin to OpenCode?" = "Notchmeter プラグインを OpenCode に追加しますか？";
 "Add the OpenCode plugin for exact turn ends and waits" = "OpenCode プラグインを追加して、ターンの終了と待機を正確に";
-"Computed on this Mac from your own turns at the vendor's published prices and limits; the vendor sent no figure, and turns on another machine are not counted" = "この Mac 上で、あなた自身のターンからベンダーの公表価格と上限で算出しました。ベンダーから届いた数値ではなく、他のマシンでのターンは数えていません";
+"%@ · computed from this Mac's turns" = "%@ · この Mac のターンから算出";
+"Computed from this Mac's turns" = "この Mac のターンから算出";
+"Computed on this Mac from your own turns at the vendor's published prices and limits, over a trailing window that holds whichever window the vendor is counting, so it can read higher than the vendor's own figure and never lower; the vendor sent no figure, and turns on another machine are not counted" = "この Mac 上で、あなた自身のターンからベンダーの公表価格と上限で算出しました。ベンダーが数える期間を含む直近の期間で集計するため、ベンダー自身の数値より高くなることはあっても低くなることはありません。ベンダーから届いた数値ではなく、他のマシンでのターンは数えていません";
 "No OpenCode Go turns on this Mac in the last 31 days; its spend is on the Cost card" = "過去 31 日間、この Mac に OpenCode Go のターンはありません。支出はコストカードにあります";
 "Notchmeter writes its own plugin at %1$@. A file already there is copied to %2$@.bak-<date> first; nothing else in OpenCode's configuration changes." = "Notchmeter は独自のプラグインを %1$@ に書き込みます。そこに既にあるファイルは先に %2$@.bak-<日付> へコピーされます。OpenCode の設定のほかの部分は変わりません。";
 "Nothing to install: its sessions, their spend and its Go plan are read from OpenCode's own database on this Mac, never written. Its plugin, under Settings › Integrations, adds each turn's exact end and its waits." = "インストールは不要です。セッション、その支出、Go プランは、この Mac 上の OpenCode 自身のデータベースから読み取り、書き込むことはありません。設定 › 連携のプラグインを入れると、各ターンの正確な終了と待機が加わります。";

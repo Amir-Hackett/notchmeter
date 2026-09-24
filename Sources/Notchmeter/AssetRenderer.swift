@@ -570,17 +570,17 @@ enum AssetRenderer {
         return try stack(pages, gutter: 24)
     }
 
-    /// OpenCode's pictures, for review (the README does not use them yet): the Simple panel with OpenCode first and
-    /// a session read from its database; the same panel with OpenCode's row and the Cost card opened in place; the
-    /// Detailed panel, where the Go meter's three windows and their "computed here" tags sit on OpenCode's card; the
-    /// Assistants pane with OpenCode's options open; the Integrations pane with its plugin row; and the Welcome
-    /// tour's last step as a Mac with OpenCode on it sees it.
+    /// OpenCode's pictures. docs/features.md shows two: the Simple panel with OpenCode first and a session read from
+    /// its database (`opencode.png`), and the Detailed panel, where the Go meter's three windows and their "computed
+    /// here" tags sit on OpenCode's card (`opencode-detailed.png`). The rest are for review, like `expanded-open.png`
+    /// and `notch-news.png`: the same panel with OpenCode's row and the Cost card opened in place; the Assistants pane
+    /// with OpenCode's options open over the Integrations pane with its plugin row, where the OpenCode row's subtitle
+    /// must not claim a login; and the Welcome tour's last step as a Mac with OpenCode on it sees it.
     @MainActor
     static func openCode(into directory: URL, now: Date, actions: NotchActions) throws {
         let (store, prefs) = DemoFixtures.openCodeStore(now: now)
         let simple = try Stage(store: store, prefs: prefs, actions: actions)
         try write(simple.image(.expanded, canvas: simple.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("opencode.png"))
-        try write(simple.image(.compact, canvas: CGSize(width: 1200, height: 80), pixelScale: scale), png: directory.appendingPathComponent("opencode-compact.png"))
         store.openPanelRows = [AdvicePlacement.Slot.tool(.opencode).key, AdvicePlacement.Slot.cost.key]
         let opened = try Stage(store: store, prefs: prefs, actions: actions)
         try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("opencode-open.png"))

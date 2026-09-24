@@ -21,7 +21,7 @@
 - **Cursor** — included plan usage and on-demand spend for the billing cycle, the way cursor.com's dashboard reads it.
 - **Antigravity / Gemini CLI** — the session and weekly quota Antigravity's panel shows, or Gemini CLI's per-model quota.
 - **GitHub Copilot** — the month's AI-credit allowance, or a legacy seat's premium requests.
-- **OpenCode** — its spend and its sessions, read from OpenCode's own database with nothing to install, and on the Go plan a 5-hour, weekly and monthly meter computed on this Mac from your own turns at the prices and limits Go publishes, because Go offers no reading of its own, and labelled *computed here*.
+- **OpenCode** — its spend and its sessions, read from OpenCode's own database with nothing to install, and on the Go plan a 5-hour, 7-day and 31-day meter computed on this Mac from your own turns at the prices and limits Go publishes, because Go offers no reading of its own, and labelled *computed here*.
 
 Every meter shows a pace tick (where an even burn would be right now), a projection ("~67% left at reset" or "Runs out in 2h") and the reset time. An **Advice** strip and pace notifications say what to do about it — "Opus weekly is 91%. Sonnet is 34%. Switch models, not tools." — and the **Usage Dashboard** (⌘U) lays the week's spend and limits out in one window. With the optional [hooks](docs/hooks.md), the notch refreshes the moment a turn ends, counts your running sessions, and marks an assistant that is waiting for you.
 

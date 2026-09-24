@@ -86,7 +86,7 @@ Every line carries `"t"` (ISO 8601 with milliseconds, UTC) and `"event"`; keys a
 | `privacy` | the screen-capture probe changed its answer | `captured` |
 | `hotkey` | a global shortcut fired | `id` |
 | `clipboard` | a card or the panel was copied as an image | `kind`, `width`, `height` |
-| `session` | the console session went inactive or active (fast user switching) | `inactive` |
+| `session` | the console session went inactive or active (fast user switching); idle sessions were cleared; a read of OpenCode's database for its sessions failed and changed nothing | `inactive`; or `action` (`dismissedIdle` with `count`, `openCodeReadFailed` with `problem`) |
 | `resetRefresh` | a window's reset time passed and the tool was re-read for it | `tool` |
 | `presenters` | the presenters were rebuilt (launch, a display change, a layout or display-choice change) | `screens` (names), `generation` (a counter, so a tester can tell a rebuild from a redraw) |
 | `awake` | the keep-awake assertion was taken or released | `holding` |
