@@ -401,7 +401,7 @@ Each event is written to the unified log as `hook <event>`, with ` (<tool>)` aft
 
 ## Install as a Claude Code plugin
 
-The hook and the status line are Claude Code telling Notchmeter things. The plugin is the other direction: it packages the [`notchmeter` skill](../skills/notchmeter/SKILL.md), so Claude reads the windows and the advice before long work without being asked, and the `get_limits` MCP tool from `notchmeter --mcp`, the same object as `--probe --json`. The manifest is [`.claude-plugin/plugin.json`](../.claude-plugin/plugin.json), listed by [`marketplace.json`](../.claude-plugin/marketplace.json) beside it, so the repository is its own marketplace:
+The hook and the status line are Claude Code telling Notchmeter things. The plugin is the other direction: it packages the [`notchmeter` skill](../plugin/skills/notchmeter/SKILL.md), so Claude reads the windows and the advice before long work without being asked, and the `get_limits` MCP tool from `notchmeter --mcp`, the same object as `--probe --json`. The plugin is the [`plugin/`](../plugin) folder, its manifest [`plugin/.claude-plugin/plugin.json`](../plugin/.claude-plugin/plugin.json), listed by [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json) at the repository root, so the repository is its own marketplace:
 
 ```text
 /plugin marketplace add Amir-Hackett/notchmeter

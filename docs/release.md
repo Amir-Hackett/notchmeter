@@ -214,7 +214,7 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
 
 ## Each release
 
-1. Bump `CFBundleShortVersionString` in `scripts/Info.plist`, and `version` in `.claude-plugin/plugin.json` to the
+1. Bump `CFBundleShortVersionString` in `scripts/Info.plist`, and `version` in `plugin/.claude-plugin/plugin.json` to the
    same string (`ReleasePackagingTests` holds the two equal), write `docs/release-notes/<version>.md`
    ([Release notes](#release-notes)), and commit. The release refuses to build if the tag and
    the plist disagree. `CFBundleVersion`, which Sparkle compares, is stamped from `git rev-list --count HEAD`, so it
@@ -309,6 +309,16 @@ Two icons, one source of truth each. The classic one is drawn by `scripts/make-i
 `build/AppIcon.iconset`, folded by `iconutil` into `AppIcon.icns`, copied into `Contents/Resources` and named by
 `CFBundleIconFile` in `scripts/Info.plist`; it is what every macOS before 26 shows, what `scripts/site-assets.sh`
 copies to the site, and what a macOS 26 Mac falls back to. It needs nothing but the Command Line Tools.
+`docs/media/icon-512.png` and `docs/media/icon-1024.png`, the transparent squares directory listings ask for (at least
+280 pixels, which the site's 256-pixel mark is not), are its `icon_512x512.png` and `icon_512x512@2x.png` read back out
+of that `.icns`:
+
+```bash
+swift scripts/make-icon.swift build/AppIcon.iconset && iconutil -c icns build/AppIcon.iconset -o build/AppIcon.icns
+iconutil -c iconset build/AppIcon.icns -o build/icns-check.iconset
+cp build/icns-check.iconset/icon_512x512.png docs/media/icon-512.png
+cp build/icns-check.iconset/icon_512x512@2x.png docs/media/icon-1024.png
+```
 
 The Liquid Glass one for macOS 26 (Tahoe) is an Icon Composer document, `packaging/AppIcon.icon`, compiled by Xcode 26's `actool` into `Contents/Resources/Assets.car`, which `CFBundleIconName` points at. Two things make that awkward, and both are handled. The Command Line Tools this repository otherwise needs have no `actool` at all (`xcrun --find actool` exits 72), and Xcode 26's `actool` **crashes when it runs on macOS 15**: the asset agent dies with `IBPlatformToolFailureException … (AssetCatalogAgent-AssetRuntime)` however sound the document, which was settled by compiling the same document and a minimal control on both runners — macOS 15 crashed on both, macOS 26 compiled both. So `release.yml` has an `icon` job that runs on a **macOS 26 runner**, compiles the document there and uploads the car; the release job downloads it and hands the path to `scripts/build.sh` as `ICON_ASSETS_CAR`, which is also how you can pass a car compiled anywhere else. `build.sh` falls back to running `actool` itself when the selected developer directory has one, and to nothing at all when it does not: a developer build without Xcode is exactly the build it was before, `.icns` only, and the icon job failing leaves a release carrying the hand-drawn `.icns` rather than stopping it. `CFBundleIconName` is added to the bundle's `Info.plist` only when a car was actually copied in, never to `scripts/Info.plist`, so the plist never names an asset the bundle does not hold. The flattened `AppIcon.icns` `actool` writes beside the car is not copied, since the hand-drawn one under `CFBundleIconFile` is the better fallback.
 

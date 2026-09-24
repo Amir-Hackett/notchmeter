@@ -41,6 +41,8 @@ Notchmeter is a read-only instrument. It never signs in anywhere, never refreshe
 
 Every request names itself with a `User-Agent: Notchmeter/<version>` header, with two exceptions, because those two endpoints answer only the vendor's own client: the Copilot quota read and Antigravity's Code Assist calls are made under those clients' own identity. Each vendor's endpoint, what it is sent and how each request identifies itself is tabled in [docs/accuracy.md](docs/accuracy.md#who-each-request-says-it-is), and if a vendor asks us to stop, [that meter goes](docs/accuracy.md#if-a-vendor-asks-us-to-stop) in the next release.
 
+The one request that is not a meter's is Sparkle's update check: once a day it fetches the release feed from GitHub, with no token, no usage figure and no system profile; Settings › Updates › *Check for updates automatically* turns it off ([docs/privacy.md](docs/privacy.md)).
+
 **Terms.** Anthropic's are the most specific, so they are quoted rather than summarised. Claude Code's [Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance) page (read 2026-09-20): "Moreover, developers may not collect, store, or intermediate Claude.ai credentials or session tokens — sign-in to a Claude account must complete through Anthropic's own flow." The [Consumer Terms of Service](https://www.anthropic.com/legal/consumer-terms), section 3, item 7, forbids using the Services "Except when you are accessing our Services via an Anthropic API Key or where we otherwise explicitly permit it, to access the Services through automated or non-human means, whether through a bot, script, or otherwise." Notchmeter offers no login, routes nothing through the token and keeps no credential; every request to Anthropic names itself, and the usage endpoint is asked at most every five minutes and not at all while a session is running. That poll is still a script making a request, and the app does not pretend otherwise: the channel Anthropic documents is the [status line](docs/hooks.md#the-status-line), and with *Also poll Claude's usage endpoint* off (Settings › Assistants › Claude Code) Notchmeter makes no request to Anthropic whatever. Whether to run it under your account is your decision.
 
 The whole of it — every file read, every host and path asked, what is kept on disk, how often, and the full quotes with the app's reading of them — is in [docs/privacy.md](docs/privacy.md). The two optional macOS permissions are in [docs/permissions.md](docs/permissions.md).
@@ -56,10 +58,10 @@ The whole of it — every file read, every host and path asked, what is kept on 
 - [docs/energy.md](docs/energy.md): CPU and memory, measured, with the commands to reproduce them.
 - [docs/troubleshooting.md](docs/troubleshooting.md): what each message on a card means and what to do about it.
 - [docs/testing.md](docs/testing.md): the unit tests, the `--smoke` self check and its flags, `--probe --json`, the platform matrix, and the `--e2e-oracle` event log an automated tester can read.
-- [skills/notchmeter/SKILL.md](skills/notchmeter/SKILL.md): a Claude Code skill that reads `--probe --json` so Claude can check its own windows and the advice before long work.
+- [plugin/skills/notchmeter/SKILL.md](plugin/skills/notchmeter/SKILL.md): a Claude Code skill that reads `notchmeter --json` so Claude can check its own windows and the advice before long work.
 - [docs/release.md](docs/release.md): the signed, notarised, Sparkle-updated release pipeline and its one-time setup; [docs/release-notes/](docs/release-notes) holds each version's notes, which the update alert shows.
 - [CHANGELOG.md](CHANGELOG.md): every released version, newest first.
-- [.claude-plugin/](.claude-plugin): the Claude Code plugin manifest that packages the skill and the MCP server ([Install as a Claude Code plugin](docs/features.md#install-as-a-claude-code-plugin)).
+- [plugin/](plugin): the Claude Code plugin that packages the skill and the MCP server, listed by [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) ([Install as a Claude Code plugin](docs/features.md#install-as-a-claude-code-plugin)).
 - [docs/roadmap.md](docs/roadmap.md): what is shipped against the plan, what is pending or blocked, the fleet roll-up design sketch, monetisation, the domain check and the open questions.
 
 ## Contributing
