@@ -538,7 +538,7 @@ enum Advisor {
     /// The times are `RunOutInterval.presentation`'s, the rule the card uses, so a narrow interval reads as its
     /// midpoint here as there and the margin is measured from the same time; until 0.6.0 this quoted the earliest
     /// edge while the card above it printed the midpoint. An interval whose slow edge lasts past the reset names
-    /// its near edge as a single time here, the one the card gives as "from": the strings shipped in six languages
+    /// its near edge as a single time here, the one the card gives as "from": the strings shipped in every language
     /// have no third form. The headroom clause is the tool's own; `runOut` passes it in so the strip can drop a
     /// repeat, and a notification body, built here alone, keeps it.
     static func runOutText(tool: ToolID, window: LimitWindow, context: Context) -> String? {

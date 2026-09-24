@@ -6,13 +6,17 @@ import os
 /// key in use.
 enum Localization {
     /// The languages shipped, as .lproj names. CFBundleLocalizations in scripts/Info.plist lists the same ones,
-    /// because a resource bundle takes the language macOS chose for the app, and it chooses from that list.
-    static let languages = ["en", "zh-Hans", "zh-Hant", "ja", "ko", "vi"]
+    /// because a resource bundle takes the language macOS chose for the app, and it chooses from that list. A
+    /// regional code keeps its hyphen, `pt-BR.lproj` and never `pt_BR.lproj`: SwiftPM copies it as `pt-br.lproj`,
+    /// which `table(language:)` and `canonical` match whatever the case, and macOS hands a Portuguese system of
+    /// either region (`pt`, `pt-BR`, `pt-PT`) the Brazilian table, as the only Portuguese one shipped.
+    static let languages = ["en", "zh-Hans", "zh-Hant", "ja", "ko", "vi", "de", "fr", "es", "pt-BR", "ru"]
     static let bundleName = "Notchmeter_Notchmeter.bundle"
 
     /// The name each language gives itself, for the picker.
     static let nativeNames: [String: String] = [
         "en": "English", "zh-Hans": "简体中文", "zh-Hant": "繁體中文", "ja": "日本語", "ko": "한국어", "vi": "Tiếng Việt",
+        "de": "Deutsch", "fr": "Français", "es": "Español", "pt-BR": "Português (Brasil)", "ru": "Русский",
     ]
 
     /// The resource bundle SwiftPM builds. Its own accessor looks beside the executable and at the build path, which

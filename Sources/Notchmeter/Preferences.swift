@@ -43,7 +43,7 @@ enum PanelEdge: String, CaseIterable, Codable {
     /// actually see: rings beside the hardware notch, inside the notch cut into a side edge, or inside the bar on
     /// the bottom. "In the side notch" rather than "In the notch", which at a glance is the top layout's own
     /// label. The bottom keeps its wording: the user asked about the sides, and leaving it alone retires no key
-    /// from six localisation tables.
+    /// from every localisation table.
     var compactStyleTitle: String {
         switch self {
         case .top: L("Beside the notch")

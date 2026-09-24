@@ -180,7 +180,7 @@ import Testing
             prefs.language = "zh-Hans"
             #expect(defaults.persistentDomain(forName: "NotchmeterTests.RoundTwo.language")?["AppleLanguages"] as? [String] == ["zh-Hans"])
             #expect(Preferences(defaults: defaults).language == "zh-Hans")
-            prefs.language = "fr"
+            prefs.language = "it"
             #expect(Preferences(defaults: defaults).language == nil)
             prefs.language = nil
             #expect(defaults.persistentDomain(forName: "NotchmeterTests.RoundTwo.language")?["AppleLanguages"] == nil)

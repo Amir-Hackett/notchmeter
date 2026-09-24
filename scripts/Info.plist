@@ -22,6 +22,11 @@
 		<string>ja</string>
 		<string>ko</string>
 		<string>vi</string>
+		<string>de</string>
+		<string>fr</string>
+		<string>es</string>
+		<string>pt-BR</string>
+		<string>ru</string>
 	</array>
 	<key>CFBundleName</key>
 	<string>Notchmeter</string>
