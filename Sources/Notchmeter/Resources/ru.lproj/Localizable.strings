@@ -25,7 +25,7 @@
 " %1$@ %2$@ is at %3$ld%%." = " У %1$@ (%2$@) использовано %3$ld%%.";
 " %1$@ is %2$@ of it." = " Из них %2$@ приходится на %1$@.";
 " %@ counts about 30%% more tokens for the same text." = " %@ насчитывает примерно на 30%% больше токенов для того же текста.";
-" percent" = " процентов";
+" percent" = "%";
 "$/MTok" = "$/MTok";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ (%2$@): лимит исчерпан. %3$@.%4$@";
 "%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@" = "%1$@ (%2$@) впритык: к сбросу останется ~%3$ld%%.%4$@";
@@ -92,7 +92,7 @@
 "%@ test" = "Тест %@";
 "%@ this session" = "%@ за сессию";
 "%@ today" = "%@ сегодня";
-"%@ window" = "окно %@";
+"%@ window" = "за %@";
 "%@ window inferred from its resets" = "Окно %@ определено по его сбросам";
 "%@M tokens" = "%@M токенов";
 "%@x" = "%@×";
@@ -105,7 +105,7 @@
 "%ld more" = "Ещё %ld";
 "%ld s" = "%ld с";
 "%ld sessions" = "Сессий: %ld";
-"%ld tokens" = "%ld токенов";
+"%ld tokens" = "%ld ток.";
 "%ld usage events in the last 30 days, none of them billed" = "Событий использования за 30 дней: %ld, ни одно не оплачено";
 "%ld%% left" = "%ld%% осталось";
 "%ld%% used" = "%ld%% использовано";
@@ -190,7 +190,7 @@
 "Hide assistants with nothing to show" = "Скрывать ассистентов, которым нечего показать";
 "Hide options" = "Скрыть варианты";
 "Hooks" = "Хуки";
-"Idle" = "Простой";
+"Idle" = "Бездействует";
 "Install the hook and status line…" = "Установить хук и строку состояния…";
 "Installed, but an entry is out of date: Repair updates it" = "Установлено, но одна из записей устарела: «Исправить» обновит её";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "Он читает данные об использовании, которые каждый ассистент уже хранит на этом Mac, — Claude Code, Codex, Cursor, Gemini CLI и GitHub Copilot — и обращается к эндпоинту использования каждого поставщика с учётными данными, сохранёнными этим инструментом. Он никогда не входит в аккаунты, не хранит токены и больше ничего никуда не отправляет: ни аккаунта, ни аналитики.";
@@ -309,7 +309,7 @@
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Для учётных данных Claude Code нужно ваше разрешение: щёлкните кольцо Claude или «Обновить», чтобы разрешить чтение Связки ключей";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Вход в Claude Code отклонён. Запустите Claude Code, чтобы обновить его";
 "Claude reported no usage windows" = "Claude не сообщил ни одного окна использования";
-"Claude since %1$@: %2$@" = "Claude с %1$@: %2$@";
+"Claude since %1$@: %2$@" = "Claude (начало: %1$@): %2$@";
 "Clear" = "Очистить";
 "Click to show %@" = "Щёлкните, чтобы показать: %@";
 "Close" = "Закрыть";
@@ -344,7 +344,7 @@
 "Countdown" = "Обратный отсчёт";
 "Credits" = "Кредиты";
 "Currency code" = "Код валюты";
-"current" = "текущий";
+"Unlimited on the current plan" = "Без ограничений на текущем тарифе";
 "Cursor models" = "Модели Cursor";
 "Cursor session token could not be decoded" = "Не удалось декодировать токен сессии Cursor";
 "Cursor session token has no user id" = "В токене сессии Cursor нет идентификатора пользователя";
@@ -359,7 +359,7 @@
 "cursor.com refused its usage export (HTTP %ld)" = "cursor.com отклонил выгрузку использования (HTTP %ld)";
 "Cut" = "Вырезать";
 "Cutting it close (on track)" = "Впритык (в пределах темпа)";
-"daily" = "день";
+"daily" = "за день";
 "Dark" = "Тёмное";
 "Debug logging" = "Журнал отладки";
 "Default" = "По умолчанию";
@@ -609,9 +609,9 @@
 "Runs out in %@" = "Закончится через %@";
 "Select All" = "Выбрать все";
 "Asking for permission failed: %@" = "Не удалось запросить разрешение: %@";
-"Sent, but quietly: %@ has provisional permission, so notices go straight to Notification Center with no banner. Allow them under Notifications in System Settings." = "Отправлено, но без звука: у %@ временное разрешение, поэтому уведомления попадают сразу в Центр уведомлений без баннера. Разрешите их в разделе «Уведомления» Системных настроек.";
+"Sent, but quietly: %@ has provisional permission, so notices go straight to Notification Center with no banner. Allow them under Notifications in System Settings." = "Отправлено, но незаметно: у %@ временное разрешение, поэтому уведомления попадают сразу в Центр уведомлений без баннера. Разрешите их в разделе «Уведомления» Системных настроек.";
 "Sent." = "Отправлено.";
-"session" = "сессия";
+"session" = "за сессию";
 "Session" = "Сессия";
 "Sessions" = "Сессии";
 "sessions" = "сессии";
@@ -648,7 +648,7 @@
 "System" = "Системный";
 "System (default)" = "Системный (по умолчанию)";
 "Takes effect at relaunch." = "Вступит в силу после перезапуска.";
-"Team on-demand" = "Командный по запросу";
+"Team on-demand" = "По запросу (команда)";
 "Team pooled" = "Общий пул команды";
 "Tells you what to do, not just how much." = "Говорит, что делать, а не только сколько.";
 "Test notification" = "Тестовое уведомление";
@@ -669,7 +669,7 @@
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Кольца сжимаются в точку, когда ни один ассистент не активен 30 минут и все окна спокойны; событие хука, активность файлов, изменение темпа или указатель, задержавшийся на них, возвращают их.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "Сессия расходует лимит интенсивнее обычного (примерно %1$@): %2$@ за 1%% против %3$@.";
 "Third ring" = "Третье кольцо";
-"This" = "текущий";
+"This plan has nothing for Cursor to meter yet" = "На текущем тарифе Cursor пока нечего отслеживать";
 "This GitHub account has no Copilot subscription" = "У этого аккаунта GitHub нет подписки Copilot";
 "This session block %1$@ since %2$@ · %3$@/min" = "Этот блок сессии: %1$@ с %2$@ · %3$@/мин";
 "This session block %1$@ since %2$@" = "Этот блок сессии: %1$@ с %2$@";
@@ -706,12 +706,12 @@
 "Waiting for your approval in System Settings › General › Login Items." = "Ожидание вашего одобрения в Системных настройках › Основные › Объекты входа.";
 "waiting for your input" = "ждёт вашего ввода";
 "waiting in %@" = "ждёт: %@";
-"waiting on quota" = "ждёт квоту";
+"waiting on quota" = "ждёт квоты";
 "week" = "неделю";
 "Week" = "Неделя";
 "Weekdays only" = "Только по будням";
 "Weekly" = "Неделя";
-"weekly" = "неделя";
+"weekly" = "за неделю";
 "Weekly budget" = "Бюджет на неделю";
 "Welcome to %@" = "Добро пожаловать в %@";
 "What %@ reads" = "Что читает %@";
@@ -779,8 +779,8 @@
 "%@ as billed, from its usage export" = "%@ по счетам, из выгрузки использования";
 "30 days" = "30 дней";
 "90 days" = "90 дней";
-"About %@%% a day lasts to the reset" = "Примерно %@%% в день хватит до сброса";
-"About %@%% an hour lasts to the reset" = "Примерно %@%% в час хватит до сброса";
+"About %@%% a day lasts to the reset" = "При ~%@%% в день хватит до сброса";
+"About %@%% an hour lasts to the reset" = "При ~%@%% в час хватит до сброса";
 "Assistant" = "Ассистент";
 "By project" = "По проектам";
 "Daily average" = "В среднем за день";
@@ -810,19 +810,19 @@
 "Dashboard" = "Сводка";
 "%@ so far, no limit set" = "Пока %@, лимит не задан";
 "Today's spend" = "Расходы за сегодня";
-"%1$@ of a usual %2$@ day" = "%1$@ из обычных за день %2$@";
+"%1$@ of a usual %2$@ day" = "%1$@ при обычных %2$@ в день";
 "Heading for ~%ld%% today" = "Прогноз на сегодня: ~%ld%%";
 
 /* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
 "%1$@ (~%2$@)" = "%1$@ (~%2$@)";
-"%ld misses" = "промахов — %ld";
+"%ld misses" = "промахов: %ld";
 "1 miss" = "1 промах";
 "5-minute cache expired" = "5-минутный кэш истёк";
 "cause: %@" = "причина: %@";
 "Cause: %@." = "Причина: %@.";
 "likely server-side" = "вероятно, на стороне сервера";
 "Once a day when Claude Code's status line counts three prompt-cache misses in the current session block, or 200K tokens rewritten, with the cause Claude Code diagnosed." = "Раз в день, когда строка состояния Claude Code насчитывает три промаха кэша промптов в текущем блоке сессии или 200K перезаписанных токенов, с причиной, которую определил Claude Code.";
-"Prompt cache: %1$@ today · %2$@ rewritten" = "Кэш промптов сегодня: %1$@ · перезаписано %2$@";
+"Prompt cache: %1$@ today · %2$@ rewritten" = "Кэш промптов сегодня — %1$@ · перезаписано %2$@";
 "system prompt changed" = "изменился системный промпт";
 "tools changed" = "изменились инструменты";
 "When the prompt cache keeps missing" = "Когда кэш промптов постоянно промахивается";

@@ -93,6 +93,15 @@ import Testing
         #expect(Localization.canonical("it") == nil)
     }
 
+    /// German keeps a window's name capitalised inside a sentence, where the other cased languages lowercase it.
+    @Test func germanKeepsItsNounsCapitalisedInASentence() {
+        Localization.use(language: "de")
+        defer { Localization.use(language: "en") }
+        let session = L("Session")
+        #expect(WindowLabel.key("Session").inSentence == session)
+        #expect(session.first?.isUppercase == true)
+    }
+
     @Test func aMissingKeyReadsAsItself() {
         #expect(L("not a key in any table") == "not a key in any table")
     }
@@ -101,7 +110,7 @@ import Testing
     /// ("Ngân sách tháng" becomes "ngân sách tháng") because English puts "The " in front of it. A translation that
     /// opens with that placeholder therefore starts its sentence in lowercase; 0.5.0's first Vietnamese draft did,
     /// and the specifier check above cannot see it. Only the cased languages can show it: CJK has no case. German
-    /// capitalises its nouns, but `inSentence` lowercases whatever the language, so it is held to the same rule.
+    /// capitalises its nouns and `inSentence` leaves them capitalised there, but it is held to the same rule anyway.
     @Test func aLowercasedWindowNameNeverOpensABudgetBanner() throws {
         let keys = ["The %1$@ is spent. %2$@.", "The %1$@ is close to pace: ~%2$ld%% left at reset."]
         for language in ["en", "vi", "de", "fr", "es", "pt-BR", "ru"] {

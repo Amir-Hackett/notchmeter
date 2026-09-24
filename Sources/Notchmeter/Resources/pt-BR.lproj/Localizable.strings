@@ -30,7 +30,7 @@
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ (%2$@) se esgotou. %3$@.%4$@";
 "%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@" = "%1$@ (%2$@) está perto do ritmo: ~%3$ld%% restantes na renovação.%4$@";
 "%1$@ %2$@ reset — 100%% available." = "%1$@ (%2$@) renovou: 100%% disponível.";
-"%1$@ %2$@ reset — 100%% until it %3$@." = "%1$@ (%2$@) renovou: 100%% até a próxima vez; %3$@.";
+"%1$@ %2$@ reset — 100%% until it %3$@." = "%1$@ (%2$@) renovou: 100%% disponível; %3$@.";
 "%1$@ %2$@ resets in %3$@." = "%1$@ (%2$@) renova em %3$@.";
 "%1$@ %2$@ resets in %3$@; wait rather than switch." = "%1$@ (%2$@) renova em %3$@; melhor esperar do que trocar.";
 "%1$@ %2$@, %3$ld%% of it" = "%1$@ %2$@, %3$ld%% do total";
@@ -79,7 +79,7 @@
 "%1$@ has gone quiet in %2$@ with nothing running. It may be waiting for your approval." = "%1$@ ficou em silêncio em %2$@ sem nada rodando. Pode estar esperando sua aprovação.";
 "%@ is waiting" = "%@ está esperando";
 "%@ is waiting for your input." = "%@ está esperando sua resposta.";
-"%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet." = "%@ nunca inicia sessão. Ele lê o uso das ferramentas que já têm sessão iniciada neste Mac e não guarda nenhum token. O macOS pede permissão uma vez por ferramenta para ler o login salvo; escolha Sempre Permitir para que não pergunte de novo.";
+"%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet." = "%@ nunca inicia sessão. Ele lê o uso das ferramentas que já têm sessão iniciada neste Mac e não guarda nenhum token. O macOS pede permissão uma vez por ferramenta para ler o login salvo; escolha Permitir Sempre para que não pergunte de novo.";
 "%@ org credits" = "Créditos da org %@";
 "%@ org spend" = "Gasto da org %@";
 "%@ per 1%% of session today" = "%@ por 1%% da sessão hoje";
@@ -137,7 +137,7 @@
 "A bar resting on top of the Dock." = "Uma barra apoiada sobre o Dock.";
 "A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name." = "Um arquivo .aiff, .wav ou .caf escolhido é copiado para ~/Library/Sounds como está; qualquer outro formato, um mp3 ou m4a por exemplo, é convertido lá para .caf, pois a Central de Notificações não reproduz mais nada pelo nome.";
 "A click on a session row brings its terminal tab or pane forward, from what the hook read in its own environment: Warp by its focus link, iTerm2, Terminal and Ghostty by AppleScript, kitty and WezTerm by their own command, a tmux pane on its socket, anything else by raising the app. It never launches a terminal that is not running, and a session on another Mac has nothing to jump to." = "Um clique numa linha de sessão traz para a frente a aba ou o painel do terminal dela, a partir do que o hook leu no próprio ambiente: o Warp pelo link de foco, o iTerm2, o Terminal e o Ghostty por AppleScript, o kitty e o WezTerm pelo próprio comando, um painel do tmux pelo socket, e qualquer outro trazendo o app para a frente. Nunca abre um terminal que não esteja rodando, e uma sessão em outro Mac não tem para onde ir.";
-"A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "Uma tela escolhida é lembrada pela identidade do hardware, então dois monitores do mesmo modelo são diferenciados e renomeá-la não a perde.";
+"A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "Uma tela escolhida é lembrada pela identidade do hardware, então dois monitores do mesmo modelo são diferenciados e ela não se perde se for renomeada.";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "Um notch recortado na borda esquerda, com o painel abrindo ao lado. Ele cede lugar ao Dock ou à faixa do Organizador Visual desse lado.";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "Um notch recortado na borda direita, com o painel abrindo ao lado. Ele cede lugar ao Dock desse lado.";
 "A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "Um pedido de permissão ou uma pergunta do Claude Code, Codex ou Copilot abre o painel com Permitir e Negar (⌘Y, ⌘N) ou as opções (⌘1…⌘9), e o assistente espera sua resposta; Esc devolve ao terminal. Desativado, o terminal pergunta como sempre e o painel só mostra a espera. Cursor e Gemini CLI não têm evento que possa ser respondido.";
@@ -209,12 +209,12 @@
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "Ativado, o app lê o endpoint de uso do api.anthropic.com com o próprio login do Claude Code a cada cinco minutos, enquanto nenhuma linha de status recente o substitui. Desativado, depende só da linha de status, o canal que a Anthropic documenta: o anel do Claude então só se enche depois de um turno do Claude Code, e o endpoint nunca é consultado.";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later." = "Uma entrada em ~/.claude/settings.json permite que o Claude Code avise o notch quando uma sessão começa, um turno termina ou ele espera por você, e uma linha de status entrega o preenchimento do contexto e os limites oficiais depois de cada turno. Ambos passam por backup antes; Ajustes › Integrações pode repará-los ou removê-los depois.";
 "One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "Uma linha por sessão informada pelos hooks, da mais recente para a mais antiga: no que ela está trabalhando, qual assistente e em qual terminal roda, há quanto tempo o turno está rodando e se está esperando por você. Seis linhas e depois a contagem do resto.";
-"Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Só se você escolher Leituras › Automático, que afasta as leituras dos títulos de menu do app em primeiro plano. Lê a geometria da barra de menus e nada mais.";
+"Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Só se você escolher Indicadores › Automático, que afasta os indicadores dos títulos de menu do app em primeiro plano. Lê a geometria da barra de menus e nada mais.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Só para ir até a janela do terminal de uma sessão, na primeira vez que você fizer isso. Nada mais no app controla outro app.";
 "Open Automation settings…" = "Abrir ajustes de Automação…";
 "Permission request" = "Pedido de permissão";
 "Question %1$ld of %2$ld" = "Pergunta %1$ld de %2$ld";
-"Reads untouched on every model, which this host also answers when it is not the one metering you" = "Lê como intacto em todos os modelos, que este host também responde quando não é ele que mede o seu uso";
+"Reads untouched on every model, which this host also answers when it is not the one metering you" = "Aparece intacto em todos os modelos, o que este host também informa quando não é ele que mede o seu uso";
 "Search settings" = "Buscar nos ajustes";
 "Selected" = "Selecionado";
 "Send" = "Enviar";
@@ -225,11 +225,11 @@
 "Keep the Mac awake while an assistant is working" = "Manter o Mac ativo enquanto um assistente trabalha";
 "Keep the numbers" = "Manter os números";
 "Keep the tools" = "Manter as ferramentas";
-"Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "Manter as ferramentas abre mão dos números primeiro (todo número além do principal quando há um anel ao lado, depois o principal também) e só deixa de fora os assistentes que você pôs por último quando cada leitura já é só um anel. Manter os números deixa esses assistentes de fora primeiro, e só enxuga o que sobra quando uma única leitura já não cabe.";
+"Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "Manter as ferramentas abre mão dos números primeiro (todo número além do principal quando há um anel ao lado, depois o principal também) e só deixa de fora os assistentes que você pôs por último quando cada indicador já é só um anel. Manter os números deixa esses assistentes de fora primeiro, e só enxuga o que sobra quando um único indicador já não cabe.";
 "Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "Deixe o Claude Code, Codex, Cursor, Gemini CLI e GitHub Copilot avisarem o notch quando uma sessão começa ou termina, um prompt é enviado, um turno para e um subagente roda: o medidor atualiza na hora e o cartão conta sessões e agentes. Claude Code, Codex, Gemini CLI e Copilot também avisam quando param para perguntar algo; o Cursor não tem evento para isso, então o anel dele mostra o sinal de concluído e nunca a mão de espera. Claude Code e Codex informam o modo de permissão; só o Claude Code informa uma parada por limite de taxa.";
 "Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "Mescle isto em %1$@, ou use Adicionar a %2$@… para que seja mesclado por você. Cada entrada executa %3$@ %4$@, que envia o nome do evento ao app em execução e sai.";
 "Metered apart from the included total" = "Medido à parte do total incluído";
-"Reads 0% on this seat however much it spends; Today's spend carries the reading" = "Lê 0% nesta licença, por mais que gaste; o Gasto de hoje traz a leitura";
+"Reads 0% on this seat however much it spends; Today's spend carries the reading" = "Marca 0% nesta licença, por mais que gaste; o Gasto de hoje traz a leitura";
 "a session" = "uma sessão";
 "A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "Uma trava contra o repouso mantida só enquanto uma sessão informada pelo hook está no meio de um turno, liberada no Stop dela, para que uma sessão iniciada pelo celular ou por SSH continue rodando com a tampa fechada na tomada. O rodapé diz \"Mantendo ativo · 2 sessões\" enquanto ela está ativa.";
 "about " = "cerca de ";
@@ -269,15 +269,15 @@
 "At this rate you hit the %1$@ %2$@ cap between %3$@ and %4$@.%5$@" = "Neste ritmo, você atinge o limite do %1$@ (%2$@) entre %3$@ e %4$@.%5$@";
 "At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "Neste ritmo, você ultrapassa o %1$@ %2$@, %3$@ antes da renovação.";
 "another user is logged in" = "outro usuário tem sessão iniciada";
-"auto" = "automático";
+"auto" = "auto";
 "Auto" = "Automático";
-"Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "Automático mede até onde vão os títulos de menu do app em primeiro plano: os dois lados enquanto eles terminam antes das leituras da esquerda, à direita do notch quando esbarrariam nelas. Mede quando um app vem para a frente e se lembra de cada app.";
+"Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "Automático mede até onde vão os títulos de menu do app em primeiro plano: os dois lados enquanto eles terminam antes dos indicadores da esquerda, à direita do notch quando esbarrariam neles. Mede quando um app vem para a frente e se lembra de cada app.";
 "backup at %@" = "backup em %@";
 "Bars" = "Barras";
 "Beside the notch" = "Ao lado do notch";
 "Beta updates" = "Atualizações beta";
 "billing export" = "exportação de faturamento";
-"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Ambos precisam do hook do assistente e seguem as mesmas regras dos avisos acima: o ajuste do terminal em primeiro plano e o horário de silêncio. Isto escolhe o que o painel faz; a opção acima escolhe o que os anéis fazem, e qualquer um pode estar desativado sem o outro. Uma espiada abre um cartão só daquela sessão, com um atalho de volta para ela, e se recolhe de novo a menos que o cursor entre; com Reduzir Movimento ela abre sem animação e fica um pouco mais. Um aviso de \"esperando\" é retirado quando você responde. Numa build não assinada nenhum aviso atravessa o Foco ou o Não Perturbe; os sensíveis ao tempo (esgotando, esperando por você) atravessam na versão assinada.";
+"Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release." = "Ambos precisam do hook do assistente e seguem as mesmas regras dos avisos acima: o ajuste do terminal em primeiro plano e o horário de silêncio. Isto escolhe o que o painel faz; a opção acima escolhe o que os anéis fazem, e qualquer um pode estar desativado sem o outro. Uma espiada abre um cartão só daquela sessão, com um atalho de volta para ela, e se recolhe de novo a menos que o cursor entre; com Reduzir movimento ela abre sem animação e fica um pouco mais. Um aviso de \"esperando\" é retirado quando você responde. Numa build não assinada nenhum aviso atravessa o Foco ou o Não Perturbe; os sensíveis ao tempo (esgotando, esperando por você) atravessam na versão assinada.";
 "Show the main figure beside the rings" = "Mostrar o número principal ao lado dos anéis";
 "Show the whole panel" = "Mostrar o painel inteiro";
 "Show what a session is working on" = "Mostrar no que uma sessão está trabalhando";
@@ -290,7 +290,7 @@
 "Bottom, above the Dock" = "Embaixo, acima do Dock";
 "Built-in display" = "Tela integrada";
 "By model" = "Por modelo";
-"bypass" = "ignorar";
+"bypass" = "bypass";
 "cache writes %1$ld%% 1-hour · %2$ld%% 5-minute" = "gravações no cache: %1$ld%% de 1 hora · %2$ld%% de 5 minutos";
 "Cache writes today are %1$ld%% 1-hour against a 30-day norm of %2$ld%%: the 5-minute tier re-caches more often and costs more quota per turn." = "As gravações no cache hoje são %1$ld%% de 1 hora, contra uma norma de 30 dias de %2$ld%%: o nível de 5 minutos refaz o cache com mais frequência e gasta mais cota por turno.";
 "Cancel" = "Cancelar";
@@ -303,7 +303,7 @@
 "Claude Code has not signed in" = "O Claude Code não iniciou sessão";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "O Claude Code usa uma chave de API: não há janelas de plano para medir; o cartão Custo é o medidor";
 "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap." = "O Claude Code pode ter um /limit-reset esta semana: ele zera a janela de 5 horas, não o limite semanal.";
-"Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "O Claude Code recria o item nas Chaves a cada renovação de token, o que esquece o Sempre Permitir que você deu. Uma leitura programada nunca abre o diálogo: lê o item pela ferramenta security da Apple, com a qual o Claude Code o gravou, depois o arquivo de credenciais, depois a linha de status, e senão mantém a última leitura marcada \"precisa da sua autorização\". Só um clique no anel do Claude, em Atualizar ou na opção em Assistentes pode perguntar, e só com Só ao atualizar.";
+"Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "O Claude Code recria o item nas Chaves a cada renovação de token, o que esquece o Permitir Sempre que você deu. Uma leitura programada nunca abre o diálogo: lê o item pela ferramenta security da Apple, com a qual o Claude Code o gravou, depois o arquivo de credenciais, depois a linha de status, e senão mantém a última leitura marcada \"precisa da sua autorização\". Só um clique no anel do Claude, em Atualizar ou na opção em Assistentes pode perguntar, e só com Só ao atualizar.";
 "Claude Code status line" = "Linha de status do Claude Code";
 "Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "O login do Claude Code expirou. Rode claude num terminal uma vez para que ele se renove; o Notchmeter nunca renova tokens por conta própria.";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "O login do Claude Code precisa da sua autorização: clique no anel do Claude ou em Atualizar para permitir a leitura das Chaves";
@@ -313,7 +313,7 @@
 "Clear" = "Limpar";
 "Click to show %@" = "Clique para mostrar %@";
 "Close" = "Fechar";
-"Codex has not recorded a usage snapshot yet" = "O Codex ainda não registrou um retrato do uso";
+"Codex has not recorded a usage snapshot yet" = "O Codex ainda não registrou um instantâneo do uso";
 "Codex is set up with an API key only; its usage limits need a ChatGPT login (`codex login`)" = "O Codex está configurado só com uma chave de API; os limites de uso precisam de um login do ChatGPT (`codex login`)";
 "Codex reported no usage windows" = "O Codex não informou nenhuma janela de uso";
 "Codex usage endpoint answered" = "O endpoint de uso do Codex respondeu";
@@ -327,7 +327,7 @@
 "Combined from the windows below" = "Combinado das janelas abaixo";
 "Comfortable" = "Confortável";
 "Compact" = "Compacto";
-"Completions" = "Completações";
+"Completions" = "Autocompletar";
 "Connect an assistant to get started" = "Conecte um assistente para começar";
 "Context %ld%%" = "Contexto %ld%%";
 "Copied %ld lines." = "%ld linhas copiadas.";
@@ -344,7 +344,7 @@
 "Countdown" = "Contagem regressiva";
 "Credits" = "Créditos";
 "Currency code" = "Código da moeda";
-"current" = "atual";
+"Unlimited on the current plan" = "Ilimitado no plano atual";
 "Cursor models" = "Modelos do Cursor";
 "Cursor session token could not be decoded" = "Não foi possível decodificar o token de sessão do Cursor";
 "Cursor session token has no user id" = "O token de sessão do Cursor não tem ID de usuário";
@@ -358,7 +358,7 @@
 "Cursor, Codex and Claude Desktop can ask for the limits through the Model Context Protocol: `%@ --mcp` speaks JSON-RPC over stdio with one tool, get_limits." = "Cursor, Codex e Claude Desktop podem pedir os limites pelo Model Context Protocol: `%@ --mcp` fala JSON-RPC por stdio com uma ferramenta, get_limits.";
 "cursor.com refused its usage export (HTTP %ld)" = "O cursor.com recusou a exportação de uso (HTTP %ld)";
 "Cut" = "Recortar";
-"Cutting it close (on track)" = "No limite (perto do ritmo)";
+"Cutting it close (on track)" = "Apertado (perto do ritmo)";
 "daily" = "diário";
 "Dark" = "Escuro";
 "Debug logging" = "Registro de depuração";
@@ -455,7 +455,7 @@
 "local sessions" = "sessões locais";
 "local transcripts" = "transcrições locais";
 "low power mode" = "modo de Pouca Energia";
-"macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "O macOS precisa da sua permissão para ler o login do Claude Code. Escolha Sempre Permitir quando ele perguntar";
+"macOS needs your permission to read Claude Code's login. Choose Always Allow when it asks" = "O macOS precisa da sua permissão para ler o login do Claude Code. Escolha Permitir Sempre quando ele perguntar";
 "Main display (the one with the menu bar)" = "Tela principal (a que tem a barra de menus)";
 "Match system" = "Igual ao sistema";
 "MCP server" = "Servidor MCP";
@@ -497,7 +497,7 @@
 "Numbers" = "Números";
 "Off" = "Desativado";
 "off" = "desativado";
-"Off by default so the menu bar keeps its room; the Options menu is then a right-click on the rings. On, it puts Quit and Settings one click (and VoiceOver's VO-M-M) away, which a Mac without a notch needs." = "Desativado por padrão para a barra de menus manter o espaço; o menu Opções fica então num clique secundário nos anéis. Ativado, deixa Encerrar e Ajustes a um clique (e ao VO-M-M do VoiceOver), o que um Mac sem notch precisa.";
+"Off by default so the menu bar keeps its room; the Options menu is then a right-click on the rings. On, it puts Quit and Settings one click (and VoiceOver's VO-M-M) away, which a Mac without a notch needs." = "Desativado por padrão para a barra de menus manter o espaço; o menu Opções fica então num clique secundário nos anéis. Ativado, deixa Encerrar e Ajustes a um clique (e ao VO-M-M do VoiceOver), do que um Mac sem notch precisa.";
 "Off, the rings and the panel stay off a full-screen app's Space and the hover machine idles there, so a pointer parked at the top of that Space opens nothing." = "Desativado, os anéis e o painel ficam fora do Espaço de um app em tela cheia e a detecção do cursor fica parada lá, então um cursor parado no topo desse Espaço não abre nada.";
 "Off-peak in %@: start the long job then." = "Fora do pico em %@: comece a tarefa longa nesse momento.";
 "Offline, retrying" = "Offline, tentando de novo";
@@ -534,9 +534,9 @@
 "Suggested rules" = "Regras sugeridas";
 "The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "A primeira linha de cada prompt, com no máximo 96 caracteres, que o hook envia e só o app em execução guarda. Desativado, o app a descarta antes que fique guardada em qualquer lugar e a linha mostra o projeto e o branch. Os títulos ficam ocultos enquanto a tela é compartilhada, seja qual for este ajuste.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "A janela do anel externo como um único número ao lado dos anéis, no sentido Usado ou Restante escolhido em Exibição do uso e sem a contagem regressiva da renovação. Os anéis ainda se aquietam abaixo de 40%; o número continua legível.";
-"To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Para ler o login salvo do Claude Code, uma vez. Escolha Sempre Permitir para que não pergunte de novo; as leituras programadas nunca abrem o diálogo.";
+"To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Para ler o login salvo do Claude Code, uma vez. Escolha Permitir Sempre para que não pergunte de novo; as leituras programadas nunca abrem o diálogo.";
 "Unknown" = "Desconhecido";
-"Unverified: read untouched across %ld polls while the tool was in use" = "Não verificado: leu intacto em %ld consultas enquanto a ferramenta estava em uso";
+"Unverified: read untouched across %ld polls while the tool was in use" = "Não verificado: apareceu intacto em %ld consultas enquanto a ferramenta estava em uso";
 "Waiting" = "Esperando";
 "Warns you at pace, not at 90% — while you can still do something about it." = "Avisa pelo ritmo, não aos 90%, enquanto ainda dá para fazer algo a respeito.";
 "Panel" = "Painel";
@@ -561,7 +561,7 @@
 "Premium requests" = "Solicitações premium";
 "Press keys…" = "Pressione as teclas…";
 "Preview" = "Pré-visualização";
-"Pricing local files" = "Calculando preços dos arquivos locais";
+"Pricing local files" = "Calculando custos locais";
 "Privacy" = "Privacidade";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "Volta cada ajuste ao padrão, esquece as leituras em cache e quais notificações foram enviadas, e reabre o app. As transcrições, o cache de custos e o registro de consumo são mantidos.";
 "Quiet hours" = "Horário de silêncio";
@@ -571,8 +571,8 @@
 "Rate limited, backing off" = "Limite de taxa, aguardando";
 "Rate limited, retrying in %lds" = "Limite de taxa, tentando de novo em %lds";
 "Rate per dollar" = "Cotação por dólar";
-"Readings sit beside the notch and open below it." = "As leituras ficam ao lado do notch e abrem abaixo dele.";
-"Readouts" = "Leituras";
+"Readings sit beside the notch and open below it." = "Os indicadores ficam ao lado do notch e abrem abaixo dele.";
+"Readouts" = "Indicadores";
 "Record" = "Gravar";
 "Redo" = "Refazer";
 "Reduce animations" = "Reduzir animações";
@@ -592,7 +592,7 @@
 "Reset and reminder notices cover windows that were at least 80% used or behind pace when last read; a window's pace notices are withdrawn from Notification Center when it resets." = "Os avisos de renovação e de lembrete cobrem janelas que estavam pelo menos 80% usadas ou acima do ritmo na última leitura; os avisos de ritmo de uma janela são retirados da Central de Notificações quando ela renova.";
 "Reset credits" = "Créditos de renovação";
 "Reset passed" = "Renovação já passou";
-"Reset since Codex last reported" = "Renovou desde o último relato do Codex";
+"Reset since Codex last reported" = "Renovou desde a última leitura do Codex";
 "Reset times" = "Horários de renovação";
 "Resets %1$@ at %2$@" = "Renova %1$@ às %2$@";
 "Resets in %@" = "Renova em %@";
@@ -636,7 +636,7 @@
 "Signed in" = "Sessão iniciada";
 "Signed in · %@" = "Sessão iniciada · %@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "Desde março de 2026 a Anthropic aplica limites de sessão de 5 horas mais apertados nos dias úteis, das 5:00 às 11:00 no horário do Pacífico (relatado, não documentado; docs/accuracy.md). Nesse período as dicas dizem quando começa o horário fora do pico, o registro de consumo separa os ritmos de pico e fora do pico, e o rodapé diz \"horário de pico\". Vale para os assistentes marcados em Assistentes.";
-"snapshot" = "retrato";
+"snapshot" = "instantâneo";
 "Sound" = "Som";
 "Source: %@" = "Fonte: %@";
 "Spend" = "Gasto";
@@ -649,7 +649,7 @@
 "System (default)" = "Sistema (padrão)";
 "Takes effect at relaunch." = "Tem efeito ao reabrir.";
 "Team on-demand" = "Sob demanda da equipe";
-"Team pooled" = "Compartilhado da equipe";
+"Team pooled" = "Pool da equipe";
 "Tells you what to do, not just how much." = "Diz o que fazer, não só quanto.";
 "Test notification" = "Notificação de teste";
 "Text" = "Texto";
@@ -667,9 +667,9 @@
 "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "O conteúdo do painel é branco sobre preto seja qual for a escolha, e o mesmo vale para um notch recortado numa borda lateral: os dois precisam parecer parte da tela, e não algo colocado por cima dela. Limitação conhecida: no macOS 26 o vidro atrás do painel numa borda segue a escolha, então Claro ali põe o texto branco sobre vidro claro.";
 "The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "O anel assume o azul que significa \"precisa de você\" em vez de \"esgotando\" enquanto um assistente espera sua permissão ou acabou de terminar um turno, e uma marca ao lado diz qual dos dois. O ritmo mantém a ponta no fim do arco, então uma janela quase esgotada ainda avisa. Todo hook informa um turno concluído; os do Claude Code, Codex, Gemini CLI e Copilot informam uma espera, o do Cursor não.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Os anéis encolhem para um ponto quando nenhum assistente fica ativo por 30 minutos e todas as janelas estão calmas; um evento de hook, atividade em arquivos, uma mudança de ritmo ou o cursor parado sobre eles os traz de volta.";
-"The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "A sessão está medindo cerca de %1$@ mais pesado que o seu normal: %2$@ por 1%% vs. %3$@.";
+"The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "A sessão está consumindo cerca de %1$@ mais que o normal: %2$@ por 1%% vs. %3$@.";
 "Third ring" = "Terceiro anel";
-"This" = "Este";
+"This plan has nothing for Cursor to meter yet" = "O plano atual ainda não tem nada para o Cursor medir";
 "This GitHub account has no Copilot subscription" = "Esta conta do GitHub não tem assinatura do Copilot";
 "This session block %1$@ since %2$@ · %3$@/min" = "Este bloco de sessão: %1$@ desde %2$@ · %3$@/min";
 "This session block %1$@ since %2$@" = "Este bloco de sessão: %1$@ desde %2$@";
@@ -746,7 +746,7 @@
 "Show over the full-screen app" = "Mostrar sobre o app em tela cheia";
 "Always show over %@" = "Sempre mostrar sobre %@";
 "App to stay over, e.g. zoom.us" = "App sobre o qual ficar, ex.: zoom.us";
-"Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "Apps sobre os quais as leituras ficam mesmo assim, pelo nome que a lista de janelas lhes dá: uma reunião em que você quer os medidores ao lado, enquanto o ajuste acima fica desativado para um filme. Não dá para diferenciar dois usos do mesmo app (uma chamada e um filme, ambos num navegador, são o exemplo); o atalho Mostrar sobre o app em tela cheia resolve esse caso, para o app na tela e até ele sair da tela cheia. O menu Opções oferece os dois para o que estiver em tela cheia no momento.";
+"Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "Apps sobre os quais os indicadores ficam mesmo assim, pelo nome que a lista de janelas lhes dá: uma reunião em que você quer os medidores ao lado, enquanto o ajuste acima fica desativado para um filme. Não dá para diferenciar dois usos do mesmo app (uma chamada e um filme, ambos num navegador, são o exemplo); o atalho Mostrar sobre o app em tela cheia resolve esse caso, para o app na tela e até ele sair da tela cheia. O menu Opções oferece os dois para o que estiver em tela cheia no momento.";
 
 /* Uma entrada de Acessibilidade vencida: a permissão foi concedida e não vale mais para a cópia em execução, seja porque uma cópia mais nova substituiu aquela que a recebeu, seja porque a mesma cópia é recusada (MenuBarExtent, App, SettingsWindow) */
 "%@'s Accessibility permission belongs to an older copy" = "A permissão de Acessibilidade do %@ pertence a uma cópia mais antiga";
@@ -830,7 +830,7 @@
 "Your prompt cache missed %1$ld times — %2$@ rewritten." = "Seu cache de prompt falhou %1$ld vezes: %2$@ regravados.";
 "Remove from the list" = "Remover da lista";
 "Remove all idle sessions" = "Remover todas as sessões ociosas";
-"idle %@" = "ociosa %@";
+"idle %@" = "ociosa há %@";
 "Clear the idle sessions; each comes back if it does anything" = "Limpar as sessões ociosas; cada uma volta se fizer alguma coisa";
 "Remove from the list; it comes back if the session does anything" = "Remover da lista; ela volta se a sessão fizer alguma coisa";
 "Last crash report" = "Último relatório de falha";

@@ -240,7 +240,7 @@ actor CursorProvider: UsageProvider {
         if unlimited {
             windows.append(LimitWindow(
                 id: "included", label: .key("Included usage"), usedFraction: nil, resetsAt: cycleEnd,
-                note: L("Unlimited on the %@ plan", planName ?? L("current"))
+                note: planName.map { L("Unlimited on the %@ plan", $0) } ?? L("Unlimited on the current plan")
             ))
         } else if planEnabled, let planLimit, planLimit > 0 {
             let fraction = share(percent: planPercent, used: planUsed, limit: planLimit)
@@ -254,7 +254,7 @@ actor CursorProvider: UsageProvider {
             // endpoint fills in afterwards (`applying`) paces against the summary's own cycle.
             windows.append(LimitWindow(
                 id: "included", label: .key("Included usage"), usedFraction: nil, resetsAt: cycleEnd,
-                note: L("%@ plan has nothing for Cursor to meter yet", planName ?? L("This")), periodDuration: cycle
+                note: planName.map { L("%@ plan has nothing for Cursor to meter yet", $0) } ?? L("This plan has nothing for Cursor to meter yet"), periodDuration: cycle
             ))
         }
 

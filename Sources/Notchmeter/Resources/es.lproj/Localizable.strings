@@ -30,7 +30,7 @@
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ (%2$@) se ha agotado. %3$@.%4$@";
 "%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@" = "%1$@ (%2$@) va al límite del ritmo: ~%3$ld%% restante al restablecerse.%4$@";
 "%1$@ %2$@ reset — 100%% available." = "%1$@ (%2$@) se ha restablecido: 100%% disponible.";
-"%1$@ %2$@ reset — 100%% until it %3$@." = "%1$@ (%2$@) se ha restablecido: 100%% disponible hasta el próximo restablecimiento (%3$@).";
+"%1$@ %2$@ reset — 100%% until it %3$@." = "%1$@ (%2$@) se ha restablecido: 100%% disponible; %3$@.";
 "%1$@ %2$@ resets in %3$@." = "%1$@ (%2$@) se restablece en %3$@.";
 "%1$@ %2$@ resets in %3$@; wait rather than switch." = "%1$@ (%2$@) se restablece en %3$@; mejor esperar que cambiar.";
 "%1$@ %2$@, %3$ld%% of it" = "%1$@ %2$@, el %3$ld%%";
@@ -214,7 +214,7 @@
 "Open Automation settings…" = "Abrir ajustes de Automatización…";
 "Permission request" = "Solicitud de permiso";
 "Question %1$ld of %2$ld" = "Pregunta %1$ld de %2$ld";
-"Reads untouched on every model, which this host also answers when it is not the one metering you" = "Aparece sin usar en todos los modelos, algo que este host también responde cuando no es el que te mide";
+"Reads untouched on every model, which this host also answers when it is not the one metering you" = "Aparece sin usar en todos los modelos, que es lo que este host responde también cuando no es el que te mide";
 "Search settings" = "Buscar en ajustes";
 "Selected" = "Seleccionado";
 "Send" = "Enviar";
@@ -299,7 +299,7 @@
 "Check for Updates…" = "Buscar actualizaciones…";
 "Choose file…" = "Elegir archivo…";
 "Claude %1$@ since %2$@" = "Claude %1$@ desde %2$@";
-"Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %1$@ desde %2$@ · %3$@ por 1%% del semanal";
+"Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %1$@ desde %2$@ · %3$@ por 1%% del límite semanal";
 "Claude Code has not signed in" = "Claude Code no ha iniciado sesión";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code usa una clave de API: no hay ventanas del plan que medir; la tarjeta Coste es el medidor";
 "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap." = "Puede que Claude Code tenga un /limit-reset esta semana: vacía la ventana de 5 horas, no el tope semanal.";
@@ -344,7 +344,7 @@
 "Countdown" = "Cuenta atrás";
 "Credits" = "Créditos";
 "Currency code" = "Código de moneda";
-"current" = "actual";
+"Unlimited on the current plan" = "Ilimitado en el plan actual";
 "Cursor models" = "Modelos de Cursor";
 "Cursor session token could not be decoded" = "No se ha podido descodificar el token de sesión de Cursor";
 "Cursor session token has no user id" = "El token de sesión de Cursor no tiene ID de usuario";
@@ -499,7 +499,7 @@
 "off" = "desactivado";
 "Off by default so the menu bar keeps its room; the Options menu is then a right-click on the rings. On, it puts Quit and Settings one click (and VoiceOver's VO-M-M) away, which a Mac without a notch needs." = "Desactivado por omisión para que la barra de menús conserve su espacio; el menú Opciones queda entonces a un clic secundario en los anillos. Activado, deja Salir y Ajustes a un clic (y al VO-M-M de VoiceOver), algo que necesita un Mac sin muesca.";
 "Off, the rings and the panel stay off a full-screen app's Space and the hover machine idles there, so a pointer parked at the top of that Space opens nothing." = "Desactivado, los anillos y el panel no aparecen en el espacio de una app a pantalla completa y la detección del puntero se queda en reposo allí, así que un puntero en la parte superior de ese espacio no abre nada.";
-"Off-peak in %@: start the long job then." = "Fuera de horas punta en %@: empieza entonces el trabajo largo.";
+"Off-peak in %@: start the long job then." = "Horas valle dentro de %@: empieza entonces el trabajo largo.";
 "Offline, retrying" = "Sin conexión, reintentando";
 "on battery" = "con batería";
 "On Refresh only" = "Solo al actualizar";
@@ -605,7 +605,7 @@
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "Si se ejecuta desde aquí, Abrir al iniciar sesión y las actualizaciones no pueden funcionar. La app se copia a /Applications, se vuelve a abrir desde allí y esta copia se traslada a la Papelera.";
 "Runs out %1$@–%2$@" = "Se agota %1$@–%2$@";
 "Runs out between %1$@ and %2$@" = "Se agota entre %1$@ y %2$@";
-"Runs out from %@, or lasts to the reset" = "Se agota desde %@ o dura hasta el restablecimiento";
+"Runs out from %@, or lasts to the reset" = "Se agota a partir de %@ o dura hasta el restablecimiento";
 "Runs out in %@" = "Se agota en %@";
 "Select All" = "Seleccionar todo";
 "Asking for permission failed: %@" = "Error al pedir permiso: %@";
@@ -667,9 +667,9 @@
 "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "El contenido del panel es blanco sobre negro elijas lo que elijas, y lo mismo una muesca en un borde lateral: ambos tienen que verse como parte de la pantalla y no como algo superpuesto. Limitación conocida: en macOS 26 el cristal detrás del panel en un borde sí sigue la elección, así que Claro pone allí ese texto blanco sobre cristal claro.";
 "The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "El anillo se vuelve azul, que significa que te necesita y no que se agota, mientras un asistente espera tu permiso o acaba de terminar un turno, y una marca a su lado indica cuál de los dos. El ritmo conserva el remate al final del arco, así que una ventana casi agotada lo sigue indicando. Todos los hooks informan de un turno terminado; los de Claude Code, Codex, Gemini CLI y Copilot informan de una espera, el de Cursor no.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Los anillos se reducen a un punto cuando ningún asistente ha estado activo durante 30 minutos y todas las ventanas están tranquilas; un evento de hook, actividad de archivos, un cambio de ritmo o dejar el puntero sobre ellos los recupera.";
-"The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "La sesión consume unas %1$@ más de lo normal: %2$@ por 1%% frente a %3$@.";
+"The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "La sesión consume aproximadamente %1$@ lo habitual: %2$@ por 1%% frente a %3$@.";
 "Third ring" = "Tercer anillo";
-"This" = "Este";
+"This plan has nothing for Cursor to meter yet" = "El plan actual aún no tiene nada que Cursor pueda medir";
 "This GitHub account has no Copilot subscription" = "Esta cuenta de GitHub no tiene suscripción a Copilot";
 "This session block %1$@ since %2$@ · %3$@/min" = "Este bloque de sesión: %1$@ desde las %2$@ · %3$@/min";
 "This session block %1$@ since %2$@" = "Este bloque de sesión: %1$@ desde las %2$@";
@@ -779,8 +779,8 @@
 "%@ as billed, from its usage export" = "%@ según lo facturado, de su exportación de uso";
 "30 days" = "30 días";
 "90 days" = "90 días";
-"About %@%% a day lasts to the reset" = "Unos %@%% al día llegan hasta el restablecimiento";
-"About %@%% an hour lasts to the reset" = "Unos %@%% por hora llegan hasta el restablecimiento";
+"About %@%% a day lasts to the reset" = "Con unos %@%% al día llega hasta el restablecimiento";
+"About %@%% an hour lasts to the reset" = "Con unos %@%% por hora llega hasta el restablecimiento";
 "Assistant" = "Asistente";
 "By project" = "Por proyecto";
 "Daily average" = "Media diaria";

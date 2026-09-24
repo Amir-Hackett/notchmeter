@@ -28,14 +28,14 @@
 " percent" = " pour cent";
 "$/MTok" = "$/MTok";
 "%1$@ %2$@ has run out. %3$@.%4$@" = "Quota %1$@ (%2$@) épuisé. %3$@.%4$@";
-"%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@" = "%1$@ (%2$@) est proche du rythme : ~%3$ld %% restant à la réinitialisation.%4$@";
+"%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@" = "%1$@ (%2$@) est à la limite du rythme : ~%3$ld %% restant à la réinitialisation.%4$@";
 "%1$@ %2$@ reset — 100%% available." = "%1$@ (%2$@) réinitialisé — 100 %% disponible.";
 "%1$@ %2$@ reset — 100%% until it %3$@." = "%1$@ (%2$@) réinitialisé — 100 %% disponible, prochaine %3$@.";
 "%1$@ %2$@ resets in %3$@." = "%1$@ (%2$@) se réinitialise dans %3$@.";
 "%1$@ %2$@ resets in %3$@; wait rather than switch." = "%1$@ (%2$@) se réinitialise dans %3$@ ; mieux vaut attendre que changer.";
 "%1$@ %2$@, %3$ld%% of it" = "%1$@ %2$@, soit %3$ld %%";
 "%1$@ %2$ld percent used" = "%1$@ : %2$ld pour cent utilisés";
-"%1$@ (and %2$ld more)" = "%1$@ (et %2$ld de plus)";
+"%1$@ (and %2$ld more)" = "%1$@ (et %2$ld autres)";
 "%1$@ (HTTP %2$ld)" = "%1$@ (HTTP %2$ld)";
 "%1$@ at %2$@" = "%1$@ à %2$@";
 "%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ a consommé %2$@ cette heure-ci — %3$@ sa moyenne sur 30 jours.";
@@ -93,7 +93,7 @@
 "%@ this session" = "%@ cette session";
 "%@ today" = "%@ aujourd'hui";
 "%@ window" = "fenêtre de %@";
-"%@ window inferred from its resets" = "fenêtre de %@ déduite de ses réinitialisations";
+"%@ window inferred from its resets" = "Fenêtre de %@ déduite de ses réinitialisations";
 "%@M tokens" = "%@M jetons";
 "%@x" = "%@ fois";
 "%ld agents" = "%ld agents";
@@ -116,14 +116,14 @@
 "%ldd ago" = "il y a %ld j";
 "%ldh" = "%ld h";
 "%ldh ago" = "il y a %ld h";
-"%ldK tokens" = "%ldK jetons";
+"%ldK tokens" = "%ld k jetons";
 "%ldm" = "%ld min";
 "%ldm ago" = "il y a %ld min";
 "%lds" = "%ld s";
 "+%ld" = "+%ld";
 "+%ld more" = "+%ld autres";
-", behind pace" = ", au-delà du rythme";
-", close to pace" = ", proche du rythme";
+", behind pace" = ", au-dessus du rythme";
+", close to pace" = ", à la limite du rythme";
 "0.02% of one core on a quiet day, 1.4% under load." = "0,02 % d'un cœur un jour calme, 1,4 % en charge.";
 "1 agent" = "1 agent";
 "1 hour before" = "1 heure avant";
@@ -214,7 +214,7 @@
 "Open Automation settings…" = "Ouvrir les réglages Automatisation…";
 "Permission request" = "Demande d'autorisation";
 "Question %1$ld of %2$ld" = "Question %1$ld sur %2$ld";
-"Reads untouched on every model, which this host also answers when it is not the one metering you" = "Lu intact sur tous les modèles, ce que cet hôte répond aussi quand ce n'est pas lui qui vous mesure";
+"Reads untouched on every model, which this host also answers when it is not the one metering you" = "Aucune utilisation relevée sur aucun modèle, ce que cet hôte renvoie aussi quand ce n'est pas lui qui mesure votre compte";
 "Search settings" = "Rechercher dans les réglages";
 "Selected" = "Sélectionné";
 "Send" = "Envoyer";
@@ -263,7 +263,7 @@
 "As of %@" = "Relevé %@";
 "Ask for Keychain access" = "Demander l'accès au trousseau";
 "Assistants" = "Assistants";
-"At this rate the %1$@ costs %2$@ against a %3$@ budget." = "À ce rythme, la période (%1$@) coûtera %2$@ pour un budget de %3$@.";
+"At this rate the %1$@ costs %2$@ against a %3$@ budget." = "À ce rythme, la dépense sur la période (%1$@) atteindra %2$@, pour un budget de %3$@.";
 "At this rate you hit the %1$@ %2$@ cap %3$@ between %4$@ and %5$@.%6$@" = "À ce rythme, vous atteindrez le plafond %1$@ (%2$@) %3$@ entre %4$@ et %5$@.%6$@";
 "At this rate you hit the %1$@ %2$@ cap %3$@, %4$@ before reset.%5$@" = "À ce rythme, vous atteindrez le plafond %1$@ (%2$@) %3$@, %4$@ avant la réinitialisation.%5$@";
 "At this rate you hit the %1$@ %2$@ cap between %3$@ and %4$@.%5$@" = "À ce rythme, vous atteindrez le plafond %1$@ (%2$@) entre %3$@ et %4$@.%5$@";
@@ -292,14 +292,14 @@
 "By model" = "Par modèle";
 "bypass" = "contournement";
 "cache writes %1$ld%% 1-hour · %2$ld%% 5-minute" = "écritures en cache %1$ld %% 1 h · %2$ld %% 5 min";
-"Cache writes today are %1$ld%% 1-hour against a 30-day norm of %2$ld%%: the 5-minute tier re-caches more often and costs more quota per turn." = "Aujourd'hui, les écritures en cache sont à %1$ld %% d'une heure, contre une norme de %2$ld %% sur 30 jours : le niveau 5 minutes remet en cache plus souvent et coûte plus de quota par tour.";
+"Cache writes today are %1$ld%% 1-hour against a 30-day norm of %2$ld%%: the 5-minute tier re-caches more often and costs more quota per turn." = "Aujourd'hui, %1$ld %% des écritures en cache sont au niveau 1 heure, contre une norme de %2$ld %% sur 30 jours : le niveau 5 minutes remet en cache plus souvent et coûte plus de quota par tour.";
 "Cancel" = "Annuler";
 "Chat" = "Chat";
 "Check for updates automatically" = "Rechercher automatiquement les mises à jour";
 "Check for Updates…" = "Rechercher les mises à jour…";
 "Choose file…" = "Choisir un fichier…";
 "Claude %1$@ since %2$@" = "Claude %1$@ depuis %2$@";
-"Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %1$@ depuis %2$@ · %3$@ par 1 %% de l'hebdomadaire";
+"Claude %1$@ since %2$@ · %3$@ per 1%% of weekly" = "Claude %1$@ depuis %2$@ · %3$@ par 1 %% du quota hebdomadaire";
 "Claude Code has not signed in" = "Claude Code n'est pas connecté";
 "Claude Code is on an API key: no plan windows to meter; the Cost card is the meter" = "Claude Code utilise une clé API : aucune fenêtre de forfait à mesurer ; la carte Coût sert de compteur";
 "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap." = "Claude Code a peut-être un /limit-reset cette semaine : il vide la fenêtre de 5 heures, pas le plafond hebdomadaire.";
@@ -322,8 +322,8 @@
 "Codex's auth.json could not be read. Run `codex login` to sign in again" = "Le fichier auth.json de Codex est illisible. Lancez `codex login` pour vous reconnecter";
 "Codex's login has expired. Run Codex once so it signs back in" = "La connexion de Codex a expiré. Lancez Codex une fois pour qu'il se reconnecte";
 "Codex's login was refused. Run Codex once so it signs back in" = "La connexion de Codex a été refusée. Lancez Codex une fois pour qu'il se reconnecte";
-"Coloured because a window is behind its pace." = "Coloré, car une fenêtre est au-delà de son rythme.";
-"Coloured because a window is close to its pace." = "Coloré, car une fenêtre est proche de son rythme.";
+"Coloured because a window is behind its pace." = "Coloré, car une fenêtre est au-dessus de son rythme.";
+"Coloured because a window is close to its pace." = "Coloré, car une fenêtre est à la limite de son rythme.";
 "Combined from the windows below" = "Combiné à partir des fenêtres ci-dessous";
 "Comfortable" = "Confortable";
 "Compact" = "Compact";
@@ -344,7 +344,7 @@
 "Countdown" = "Compte à rebours";
 "Credits" = "Crédits";
 "Currency code" = "Code de devise";
-"current" = "actuel";
+"Unlimited on the current plan" = "Illimité avec le forfait actuel";
 "Cursor models" = "Modèles Cursor";
 "Cursor session token could not be decoded" = "Le jeton de session Cursor n'a pas pu être décodé";
 "Cursor session token has no user id" = "Le jeton de session Cursor ne contient pas d'identifiant utilisateur";
@@ -414,7 +414,7 @@
 "Icon style" = "Style d'icône";
 "Importing %@…" = "Importation de %@…";
 "In the Cost card" = "Dans la carte Coût";
-"In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "Dans la devise ci-dessus ; laissez vide pour aucun. L'anneau de la carte Coût se remplit par rapport au budget du mois avec le même repère de rythme que les compteurs, la bande Conseils projette le mois par rapport à lui, et les notifications dans les temps, au-delà du rythme et épuisement s'y appliquent avec le mois comme période.";
+"In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "Dans la devise ci-dessus ; laissez vide pour aucun. L'anneau de la carte Coût se remplit par rapport au budget du mois avec le même repère de rythme que les compteurs, la bande Conseils projette le mois par rapport à lui, et les notifications « à la limite », « au-dessus du rythme » et « épuisement » s'y appliquent avec le mois comme période.";
 "In the pill" = "Dans la pastille";
 "In the side notch" = "Dans l'encoche latérale";
 "Included usage" = "Utilisation incluse";
@@ -442,7 +442,7 @@
 "Language" = "Langue";
 "Last 24h" = "Dernières 24 h";
 "Last checked %@" = "Dernière vérification %@";
-"Last reading %@ · may be out of date" = "Dernier relevé %@ · peut-être obsolète";
+"Last reading %@ · may be out of date" = "Dernier relevé : %@ · peut-être obsolète";
 "Left" = "Restant";
 "Left edge" = "Bord gauche";
 "Left of the notch" = "À gauche de l'encoche";
@@ -506,7 +506,7 @@
 "On-demand" = "À la demande";
 "Once a day when today's cache writes moved to the 5-minute tier against the 30-day norm, or the session meters about twice as heavily as usual." = "Une fois par jour quand les écritures en cache du jour sont passées au niveau 5 minutes par rapport à la norme sur 30 jours, ou quand la session consomme environ deux fois plus que d'habitude.";
 "Once a month when Claude's extra-usage credits first rise, and within the hour whenever they rise while the plan windows still have room: the sign that work is being billed instead of drawn from the plan. Every rise is written to the drain log with the plan windows beside it." = "Une fois par mois quand les crédits d'utilisation supplémentaire de Claude augmentent pour la première fois, et dans l'heure chaque fois qu'ils augmentent alors que les fenêtres du forfait ont encore de la marge : le signe que le travail est facturé au lieu d'être pris sur le forfait. Chaque hausse est inscrite dans le journal de consommation avec les fenêtres du forfait en regard.";
-"Once per window and reset period: when its pace first reaches on track or behind, again when it comes within an hour of running out, and once more when it is out. Each one says what to do about it. macOS asks for permission when this is turned on or the first alert is due, never at launch." = "Une fois par fenêtre et par période de réinitialisation : quand son rythme passe pour la première fois dans les temps ou au-delà du rythme, de nouveau quand il reste moins d'une heure avant l'épuisement, et une dernière fois quand elle est épuisée. Chaque notification dit quoi faire. macOS demande l'autorisation quand cette option est activée ou que la première alerte est due, jamais au lancement.";
+"Once per window and reset period: when its pace first reaches on track or behind, again when it comes within an hour of running out, and once more when it is out. Each one says what to do about it. macOS asks for permission when this is turned on or the first alert is due, never at launch." = "Une fois par fenêtre et par période de réinitialisation : quand elle passe pour la première fois à la limite du rythme ou au-dessus, de nouveau quand il lui reste moins d'une heure avant l'épuisement, et une dernière fois quand elle est épuisée. Chaque notification dit quoi faire. macOS demande l'autorisation quand cette option est activée ou que la première alerte est due, jamais au lancement.";
 "One entry in ~/.claude/settings.json makes Claude Code run %@ --hook when a session starts, a turn ends or it waits for you: the meter refreshes at once, the card counts sessions, and a dot shows while Claude waits. The file is backed up first, and you can remove it any time from this section." = "Une entrée dans ~/.claude/settings.json fait exécuter %@ --hook à Claude Code quand une session démarre, qu'un tour se termine ou qu'il vous attend : le compteur s'actualise aussitôt, la carte compte les sessions et un point s'affiche pendant que Claude attend. Le fichier est sauvegardé au préalable, et vous pouvez retirer l'entrée à tout moment depuis cette section.";
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "Un point de terminaison de plus avec le même jeton : chaque organisation dont vous êtes membre et qui répond (propriétaires et gestionnaires de facturation) ajoute des fenêtres Crédits et Dépenses de l'organisation pour le mois, masquées par défaut.";
 "Only turns longer than" = "Seulement les tours de plus de";
@@ -523,12 +523,12 @@
 "Open the panel" = "Ouvrir le panneau";
 "Open the pull request" = "Ouvrir la pull request";
 "Options" = "Options";
-"Other" = "Autre";
+"Other" = "Autres";
 "Other models" = "Autres modèles";
 "Other tools" = "Autres outils";
 "Outer ring" = "Anneau extérieur";
 "over by %ld%%" = "dépassement de %ld %%";
-"Overall %@" = "%@ global";
+"Overall %@" = "Global (%@)";
 "Pace crossing" = "Franchissement du rythme";
 "Step %1$ld of %2$ld" = "Étape %1$ld sur %2$ld";
 "Suggested rules" = "Règles suggérées";
@@ -536,7 +536,7 @@
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "La fenêtre de l'anneau extérieur sous forme d'un chiffre à côté des anneaux, au sens Utilisé ou Restant choisi sous Affichage de l'utilisation et sans le compte à rebours. Les anneaux s'estompent toujours sous 40 % ; le chiffre reste lisible.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Pour lire une fois la connexion enregistrée de Claude Code. Choisissez Toujours autoriser pour ne plus être sollicité ; les lectures programmées n'affichent jamais la fenêtre de dialogue.";
 "Unknown" = "Inconnu";
-"Unverified: read untouched across %ld polls while the tool was in use" = "Non vérifié : lu intact sur %ld relevés pendant que l'outil était utilisé";
+"Unverified: read untouched across %ld polls while the tool was in use" = "Non vérifié : aucune utilisation relevée sur %ld interrogations alors que l'outil était utilisé";
 "Waiting" = "En attente";
 "Warns you at pace, not at 90% — while you can still do something about it." = "Vous prévient selon le rythme, pas à 90 % — tant que vous pouvez encore agir.";
 "Panel" = "Panneau";
@@ -560,7 +560,7 @@
 "PR %@" = "PR %@";
 "Premium requests" = "Requêtes premium";
 "Press keys…" = "Appuyez sur des touches…";
-"Preview" = "Aperçu";
+"Preview" = "Écouter";
 "Pricing local files" = "Tarification des fichiers locaux";
 "Privacy" = "Confidentialité";
 "Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept." = "Rétablit chaque réglage par défaut, oublie les relevés en cache et les notifications déjà envoyées, puis redémarre. Les transcriptions, le cache des coûts et le journal de consommation sont conservés.";
@@ -589,7 +589,7 @@
 "Reset all settings?" = "Réinitialiser tous les réglages ?";
 "Reset All Settings…" = "Réinitialiser tous les réglages…";
 "Reset and Relaunch" = "Réinitialiser et relancer";
-"Reset and reminder notices cover windows that were at least 80% used or behind pace when last read; a window's pace notices are withdrawn from Notification Center when it resets." = "Les avis de réinitialisation et de rappel concernent les fenêtres utilisées à au moins 80 % ou au-delà du rythme au dernier relevé ; les avis de rythme d'une fenêtre sont retirés du Centre de notifications quand elle se réinitialise.";
+"Reset and reminder notices cover windows that were at least 80% used or behind pace when last read; a window's pace notices are withdrawn from Notification Center when it resets." = "Les avis de réinitialisation et de rappel concernent les fenêtres utilisées à au moins 80 % ou au-dessus du rythme au dernier relevé ; les avis de rythme d'une fenêtre sont retirés du Centre de notifications quand elle se réinitialise.";
 "Reset credits" = "Crédits de réinitialisation";
 "Reset passed" = "Réinitialisation passée";
 "Reset since Codex last reported" = "Réinitialisé depuis le dernier relevé de Codex";
@@ -605,7 +605,7 @@
 "Running from here, Open at login and updates cannot work. The app is copied to /Applications, relaunched from there, and this copy is moved to the Trash." = "Depuis cet emplacement, Ouvrir à la connexion et les mises à jour ne peuvent pas fonctionner. L'app est copiée dans /Applications, relancée depuis là, et cette copie est placée dans la Corbeille.";
 "Runs out %1$@–%2$@" = "Épuisement %1$@–%2$@";
 "Runs out between %1$@ and %2$@" = "Épuisement entre %1$@ et %2$@";
-"Runs out from %@, or lasts to the reset" = "Épuisement à partir de %@, ou tient jusqu'à la réinitialisation";
+"Runs out from %@, or lasts to the reset" = "Épuisement au plus tôt %@, sinon tient jusqu'à la réinitialisation";
 "Runs out in %@" = "Épuisement dans %@";
 "Select All" = "Tout sélectionner";
 "Asking for permission failed: %@" = "La demande d'autorisation a échoué : %@";
@@ -635,7 +635,7 @@
 "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage" = "Connectez-vous à GitHub Copilot dans votre éditeur (ou lancez `gh auth login`) pour lire votre utilisation";
 "Signed in" = "Connecté";
 "Signed in · %@" = "Connecté · %@";
-"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "Depuis mars 2026, Anthropic applique en semaine, de 5:00 à 11:00 heure du Pacifique, des limites de session sur 5 heures plus strictes (constaté, non documenté ; docs/accuracy.md). Pendant cette plage, les conseils indiquent quand commencent les heures creuses, le journal de consommation sépare les rythmes de pointe et creux, et le pied de page indique « heures de pointe ». S'applique aux assistants cochés sous Assistants.";
+"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "Depuis mars 2026, Anthropic applique en semaine, de 5 h à 11 h (heure du Pacifique), des limites de session sur 5 heures plus strictes (constaté, non documenté ; docs/accuracy.md). Pendant cette plage, les conseils indiquent quand commencent les heures creuses, le journal de consommation sépare les rythmes de pointe et creux, et le pied de page indique « heures de pointe ». S'applique aux assistants cochés sous Assistants.";
 "snapshot" = "instantané";
 "Sound" = "Son";
 "Source: %@" = "Source : %@";
@@ -653,7 +653,7 @@
 "Tells you what to do, not just how much." = "Vous dit quoi faire, pas seulement combien.";
 "Test notification" = "Notification de test";
 "Text" = "Texte";
-"The %1$@ is close to pace: ~%2$ld%% left at reset." = "Le %1$@ est proche du rythme : ~%2$ld %% restant à la réinitialisation.";
+"The %1$@ is close to pace: ~%2$ld%% left at reset." = "Le %1$@ est à la limite du rythme : ~%2$ld %% restant à la réinitialisation.";
 "The %1$@ is spent. %2$@." = "Le %1$@ est épuisé. %2$@.";
 "The %1$@'s %2$@ is past the %3$@ budget." = "Dépenses de la période (%1$@) : %2$@, au-delà du budget de %3$@.";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "La carte Coût au-delà de son anneau, de sa légende et de sa ligne de consommation (les lignes budget, semaine et modèle), le bloc de session, les jetons, les principaux projets et les mini-graphiques. Désactivé, le panneau reste assez court pour ne pas défiler.";
@@ -669,7 +669,7 @@
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Les anneaux se réduisent à un point dès qu'aucun assistant n'a été actif depuis 30 minutes et que chaque fenêtre est calme ; un événement de hook, une activité de fichier, un changement de rythme ou le pointeur posé dessus les fait revenir.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "La session consomme environ %1$@ plus que d'habitude : %2$@ par 1 %% contre %3$@.";
 "Third ring" = "Troisième anneau";
-"This" = "actuel";
+"This plan has nothing for Cursor to meter yet" = "Le forfait actuel n'a encore rien à mesurer pour Cursor";
 "This GitHub account has no Copilot subscription" = "Ce compte GitHub n'a pas d'abonnement Copilot";
 "This session block %1$@ since %2$@ · %3$@/min" = "Ce bloc de session %1$@ depuis %2$@ · %3$@/min";
 "This session block %1$@ since %2$@" = "Ce bloc de session %1$@ depuis %2$@";
@@ -725,7 +725,7 @@
 "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "Les assistants inclus dans l'anneau, la légende et le total de la carte, dans l'ordre défini sous Assistants. Un assistant qui ne peut pas signaler ses dépenses, ou auquel vous n'êtes pas connecté, n'est jamais proposé ; un assistant exclu affiche toujours ses dépenses sur sa propre carte.";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "Pendant que Zoom, Meet, QuickTime ou Partage d'écran capturent l'écran, les anneaux gardent leur forme mais perdent leurs chiffres, le panneau masque la carte Coût, et une bannière qui s'affiche ne contient ni chiffre ni nom de projet. Vérifié toutes les cinq secondes.";
 "Wide" = "Large";
-"Will run out (behind pace)" = "Sera épuisé (au-delà du rythme)";
+"Will run out (behind pace)" = "Sera épuisé (au-dessus du rythme)";
 "Window" = "Fenêtre";
 "With the local API on, a hook on another machine reaches this notch through `ssh -R %1$ld:127.0.0.1:%1$ld host`: its command is `curl -s -X POST http://127.0.0.1:%1$ld/v1/hook -d @-` with a `host` label; the recipe is in docs/hooks.md." = "Avec l'API locale activée, un hook sur une autre machine atteint cette encoche via `ssh -R %1$ld:127.0.0.1:%1$ld host` : sa commande est `curl -s -X POST http://127.0.0.1:%1$ld/v1/hook -d @-` avec une étiquette `host` ; la marche à suivre est dans docs/hooks.md.";
 "Working" = "En cours";
@@ -769,7 +769,7 @@
 "Icon colour" = "Couleur de l'icône";
 "Colour" = "Couleur";
 "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "Les assistants épinglés se choisissent un par un ci-dessous ; si aucun n'est choisi, c'est le premier visible. Barres dessine chaque fenêtre épinglée sous forme de mini-barre, Anneaux sous la forme placée à côté de l'encoche, Points le rythme seul.";
-"By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "Selon le rythme utilise l'ambre et le vermillon de l'app : l'icône signale ainsi quand une fenêtre est proche de son rythme ou au-delà. Monochrome garde la couleur de la barre des menus quoi qu'il arrive, et reste une icône modèle que macOS peint comme toutes les autres. Une couleur personnalisée garde les chiffres mais renonce à l'avertissement.";
+"By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "Selon le rythme utilise l'ambre et le vermillon de l'app : l'icône signale ainsi quand une fenêtre est à la limite de son rythme ou au-dessus. Monochrome garde la couleur de la barre des menus quoi qu'il arrive, et reste une icône modèle que macOS peint comme toutes les autres. Une couleur personnalisée garde les chiffres mais renonce à l'avertissement.";
 
 /* The peak window read on the reader's own clock, when their zone is not the window's (PeakHours, SettingsWindow) */
 "(%1$@–%2$@ your time)" = "(%1$@–%2$@ à votre heure)";
@@ -779,8 +779,8 @@
 "%@ as billed, from its usage export" = "%@ tel que facturé, d'après son export d'utilisation";
 "30 days" = "30 jours";
 "90 days" = "90 jours";
-"About %@%% a day lasts to the reset" = "Environ %@ %% par jour tient jusqu'à la réinitialisation";
-"About %@%% an hour lasts to the reset" = "Environ %@ %% par heure tient jusqu'à la réinitialisation";
+"About %@%% a day lasts to the reset" = "Environ %@ %% par jour pour tenir jusqu'à la réinitialisation";
+"About %@%% an hour lasts to the reset" = "Environ %@ %% par heure pour tenir jusqu'à la réinitialisation";
 "Assistant" = "Assistant";
 "By project" = "Par projet";
 "Daily average" = "Moyenne quotidienne";
@@ -793,13 +793,13 @@
 "Reading this account's usage…" = "Lecture de l'utilisation de ce compte…";
 "Spend and limits appear here once an assistant on this account has been used." = "Les dépenses et les limites apparaissent ici dès qu'un assistant de ce compte a été utilisé.";
 "The tick marks an even pace: %ld%% of the window has passed" = "Le repère indique un rythme régulier : %ld %% de la fenêtre est écoulé";
-"This account only · updated %@" = "Ce compte uniquement · actualisé %@";
+"This account only · updated %@" = "Ce compte uniquement · actualisé à %@";
 "This week" = "Cette semaine";
 "Total" = "Total";
 "Usage" = "Utilisation";
 "Usage Dashboard…" = "Tableau de bord d'utilisation…";
 "Used up until the reset" = "Épuisé jusqu'à la réinitialisation";
-"Where it went" = "Où c'est parti";
+"Where it went" = "Répartition";
 "avg %@" = "moy. %@";
 "per calendar day" = "par jour calendaire";
 "No project" = "Aucun projet";
@@ -811,7 +811,7 @@
 "%@ so far, no limit set" = "%@ pour l'instant, aucune limite définie";
 "Today's spend" = "Dépenses du jour";
 "%1$@ of a usual %2$@ day" = "%1$@ sur une journée habituelle de %2$@";
-"Heading for ~%ld%% today" = "En route vers ~%ld %% aujourd'hui";
+"Heading for ~%ld%% today" = "Projection : ~%ld %% aujourd'hui";
 
 /* The prompt cache from Claude Code's status line: the Cost card caption, the advice line, the Settings toggle (PromptCache, Advisor, CostDetail, SettingsWindow) */
 "%1$@ (~%2$@)" = "%1$@ (~%2$@)";

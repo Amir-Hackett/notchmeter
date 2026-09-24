@@ -344,7 +344,7 @@
 "Countdown" = "Countdown";
 "Credits" = "Credits";
 "Currency code" = "Currency code";
-"current" = "current";
+"Unlimited on the current plan" = "Unlimited on the current plan";
 "Cursor models" = "Cursor models";
 "Cursor session token could not be decoded" = "Cursor session token could not be decoded";
 "Cursor session token has no user id" = "Cursor session token has no user id";
@@ -669,7 +669,7 @@
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@.";
 "Third ring" = "Third ring";
-"This" = "This";
+"This plan has nothing for Cursor to meter yet" = "This plan has nothing for Cursor to meter yet";
 "This GitHub account has no Copilot subscription" = "This GitHub account has no Copilot subscription";
 "This session block %1$@ since %2$@ · %3$@/min" = "This session block %1$@ since %2$@ · %3$@/min";
 "This session block %1$@ since %2$@" = "This session block %1$@ since %2$@";

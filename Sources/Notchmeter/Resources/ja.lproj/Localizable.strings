@@ -328,7 +328,7 @@
 "Countdown" = "カウントダウン";
 "Credits" = "クレジット";
 "Currency code" = "通貨コード";
-"current" = "現在の";
+"Unlimited on the current plan" = "現在のプランでは無制限";
 "Cursor models" = "Cursor モデル";
 "Cursor session token could not be decoded" = "Cursor のセッショントークンをデコードできません";
 "Cursor session token has no user id" = "Cursor のセッショントークンにユーザー ID がありません";
@@ -653,7 +653,7 @@
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "30 分間どのアシスタントも活動せず、すべてのウィンドウが静かなときリングはドットに縮みます。フックイベント、ファイルの活動、ペースの変化、リングにポインタを置くと元に戻ります。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "セッションの計測が平常より約 %1$@ 重くなっています: 1%% あたり %2$@（平常 %3$@）。";
 "Third ring" = "3 番目のリング";
-"This" = "この";
+"This plan has nothing for Cursor to meter yet" = "このプランには Cursor が計測できる項目がまだありません";
 "This GitHub account has no Copilot subscription" = "この GitHub アカウントには Copilot のサブスクリプションがありません";
 "This session block %1$@ since %2$@ · %3$@/min" = "このセッション枠 %2$@から %1$@ · 毎分 %3$@";
 "This session block %1$@ since %2$@" = "このセッション枠 %2$@から %1$@";

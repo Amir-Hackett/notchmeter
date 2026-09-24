@@ -35,6 +35,7 @@ import Testing
         #expect(CommandLineTool.isInvokedAsTool(arguments: ["/Users/me/.local/bin/notchmeter"]))
         #expect(CommandLineTool.isInvokedAsTool(arguments: ["/Applications/Notchmeter.app/Contents/MacOS/Notchmeter", "--cli"]))
         #expect(!CommandLineTool.isInvokedAsTool(arguments: ["/Applications/Notchmeter.app/Contents/MacOS/Notchmeter", "--probe"]))
+        #expect(!CommandLineTool.isInvokedAsTool(arguments: ["/Users/me/.local/bin/notchmeter", "--mcp"]), "the plugin's MCP server runs through the link")
         #expect(CommandLineTool.isOnPath(URL(fileURLWithPath: "/Users/me/.local/bin"), path: "/usr/bin:/Users/me/.local/bin"))
         #expect(!CommandLineTool.isOnPath(URL(fileURLWithPath: "/Users/me/.local/bin"), path: "/usr/bin"))
     }

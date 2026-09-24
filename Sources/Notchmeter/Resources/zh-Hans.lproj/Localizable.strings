@@ -344,7 +344,7 @@
 "Countdown" = "倒计时";
 "Credits" = "余额";
 "Currency code" = "货币代码";
-"current" = "当前";
+"Unlimited on the current plan" = "当前套餐不限量";
 "Cursor models" = "Cursor 模型";
 "Cursor session token could not be decoded" = "无法解码 Cursor 会话令牌";
 "Cursor session token has no user id" = "Cursor 会话令牌中没有用户 ID";
@@ -669,7 +669,7 @@
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "当 30 分钟内没有助手活动且所有窗口都很安静时，圆环会缩成一个圆点；钩子事件、文件活动、节奏变化或把指针停在上面都会让它们恢复。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "会话计量约为你常态的 %1$@：每 1%% 消耗 %2$@，常态为 %3$@。";
 "Third ring" = "第三环";
-"This" = "当前";
+"This plan has nothing for Cursor to meter yet" = "当前套餐暂无可供 Cursor 计量的额度";
 "This GitHub account has no Copilot subscription" = "此 GitHub 账户没有 Copilot 订阅";
 "This session block %1$@ since %2$@ · %3$@/min" = "本会话时段自%2$@起 %1$@ · 每分钟 %3$@";
 "This session block %1$@ since %2$@" = "本会话时段自%2$@起 %1$@";

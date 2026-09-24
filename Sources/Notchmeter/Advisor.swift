@@ -486,7 +486,7 @@ enum Advisor {
                                    now: context.now, calendar: context.calendar)
                 }
             }
-            if let next { return L("%1$@ %2$@ reset — 100%% until it %3$@.", alert.tool.displayName, name(window, of: alert.tool), next.prefix(1).lowercased() + next.dropFirst()) }
+            if let next { return L("%1$@ %2$@ reset — 100%% until it %3$@.", alert.tool.displayName, name(window, of: alert.tool), Localization.capitalisesNouns ? next : next.prefix(1).lowercased() + next.dropFirst()) }
             return L("%1$@ %2$@ reset — 100%% available.", alert.tool.displayName, name(window, of: alert.tool))
         }
     }

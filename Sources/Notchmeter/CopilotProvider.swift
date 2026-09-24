@@ -228,7 +228,7 @@ actor CopilotProvider: UsageProvider {
             let unlimited = (snapshot["unlimited"] as? Bool) ?? false || entitlement == -1 || (remaining == -1 && (entitlement ?? 0) <= 0)
             if unlimited {
                 if spec.id == "premium" {
-                    windows.append(LimitWindow(id: spec.id, label: spec.label, usedFraction: nil, resetsAt: resetsAt, note: L("Unlimited on the %@ plan", plan ?? L("current"))))
+                    windows.append(LimitWindow(id: spec.id, label: spec.label, usedFraction: nil, resetsAt: resetsAt, note: plan.map { L("Unlimited on the %@ plan", $0) } ?? L("Unlimited on the current plan")))
                 }
                 continue
             }

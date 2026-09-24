@@ -31,7 +31,7 @@
 "%1$@ %2$@ has run out. %3$@.%4$@" = "%1$@ (%2$@) ist aufgebraucht. %3$@.%4$@";
 "%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@" = "%1$@ (%2$@) wird knapp: ~%3$ld%% übrig beim Reset.%4$@";
 "%1$@ %2$@ reset — 100%% available." = "%1$@ (%2$@) zurückgesetzt – 100%% verfügbar.";
-"%1$@ %2$@ reset — 100%% until it %3$@." = "%1$@ (%2$@) zurückgesetzt – 100%% verfügbar (%3$@).";
+"%1$@ %2$@ reset — 100%% until it %3$@." = "%1$@ (%2$@) zurückgesetzt – 100%% verfügbar. Nächster %3$@.";
 "%1$@ %2$@ resets in %3$@." = "%1$@ (%2$@) wird in %3$@ zurückgesetzt.";
 "%1$@ %2$@ resets in %3$@; wait rather than switch." = "%1$@ (%2$@) wird in %3$@ zurückgesetzt – lieber warten als wechseln.";
 "%1$@ %2$@, %3$ld%% of it" = "%1$@ %2$@, %3$ld%% davon";
@@ -39,7 +39,7 @@
 "%1$@ (and %2$ld more)" = "%1$@ (und %2$ld weitere)";
 "%1$@ (HTTP %2$ld)" = "%1$@ (HTTP %2$ld)";
 "%1$@ at %2$@" = "%1$@ um %2$@";
-"%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ hat in dieser Stunde %2$@ verbraucht – %3$@ des 30-Tage-Schnitts.";
+"%1$@ burned %2$@ this hour — %3$@ its 30-day average." = "%1$@ hat in dieser Stunde %2$@ verbraucht – %3$@ gegenüber dem 30-Tage-Schnitt.";
 "%1$@ covered by the allowance · %2$ld requests this month" = "%1$@ vom Kontingent gedeckt · %2$ld Anfragen diesen Monat";
 "%1$@ credit expires in %2$@ — claim it in Codex" = "%1$@-Credit läuft in %2$@ ab – in Codex einlösen";
 "%1$@ finished a %2$@ turn in %3$@." = "%1$@ hat in %3$@ einen Durchgang von %2$@ beendet.";
@@ -49,7 +49,7 @@
 "%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools." = "%1$@ steht bei %2$ld%%, %3$@ bei %4$ld%%. Wechsle das Modell, nicht das Tool.";
 "%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@." = "%1$@ wird zuerst nach %2$@.bak-<Datum> kopiert. Vorhandene Hooks bleiben erhalten; der Eintrag von Notchmeter wird unter %3$@ angehängt.";
 "%1$@ is waiting in %2$@." = "%1$@ wartet in %2$@.";
-"%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ letzte Stunde %2$@ · %3$@ des 30-Tage-Schnitts";
+"%1$@ last hour %2$@ · %3$@ its 30-day average" = "%1$@ letzte Stunde %2$@ · %3$@ ggü. 30-Tage-Schnitt";
 "%1$@ of %2$@" = "%1$@ von %2$@";
 "%1$@ per 1%% of session today vs %2$@ 30-day median" = "%1$@ pro 1%% Sitzung heute vs. %2$@ im 30-Tage-Median";
 "%1$@ today · %2$@ over 30 days · %3$@" = "%1$@ heute · %2$@ in 30 Tagen · %3$@";
@@ -71,7 +71,7 @@
 "%@ finished" = "%@ ist fertig";
 "%@ from GitHub's own credit count at a cent a credit, on the day each rise was seen" = "%@ aus GitHubs eigener Credit-Zählung, ein Cent pro Credit, am Tag jedes beobachteten Anstiegs";
 "%@ hit its rate limit; wait for the reset." = "%@ hat sein Ratenlimit erreicht; warte auf den Reset.";
-"%@ hook" = "%@-Hook";
+"%@ hook" = "Hook für %@";
 "%@ is copied to settings.json.bak-<date> first. A status line already there keeps running after Notchmeter's, with the same JSON." = "%@ wird zuerst nach settings.json.bak-<Datum> kopiert. Eine bereits vorhandene Statuszeile läuft nach der von Notchmeter weiter, mit demselben JSON.";
 "%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it." = "%@ liegt in einem Format vor, das die Mitteilungszentrale nicht abspielen kann. Bis du die Datei erneut auswählst und sie dabei konvertiert wird, ertönt „Standard“.";
 "%@ is no longer in ~/Library/Sounds, so Default plays until you choose another." = "%@ liegt nicht mehr in ~/Library/Sounds, daher ertönt „Standard“, bis du einen anderen Ton auswählst.";
@@ -84,7 +84,7 @@
 "%@ org credits" = "%@ Org-Credits";
 "%@ org spend" = "%@ Org-Ausgaben";
 "%@ per 1%% of session today" = "%@ pro 1%% Sitzung heute";
-"%@ plan has nothing for Cursor to meter yet" = "%@ Tarif bietet Cursor noch nichts zu messen";
+"%@ plan has nothing for Cursor to meter yet" = "%@-Tarif bietet Cursor noch nichts zu messen";
 "%@ priced here from local files at published list rates" = "%@, hier aus lokalen Dateien zu veröffentlichten Listenpreisen berechnet";
 "%@ remaining" = "%@ übrig";
 "%@ s" = "%@ s";
@@ -130,8 +130,8 @@
 "1 hour before" = "1 Stunde vorher";
 "1 session" = "1 Sitzung";
 "10 minutes before" = "10 Minuten vorher";
-"12-hour" = "12-Stunden";
-"24-hour" = "24-Stunden";
+"12-hour" = "12 Stunden";
+"24-hour" = "24 Stunden";
 "30d" = "30 Tg.";
 "90d" = "90 Tg.";
 "A %1$@ reset credit expires in %2$@. Claim it in %1$@." = "Ein Reset-Credit für %1$@ läuft in %2$@ ab. Löse ihn in %1$@ ein.";
@@ -270,7 +270,7 @@
 "At this rate you hit the %1$@ %2$@ cap between %3$@ and %4$@.%5$@" = "Bei diesem Tempo erreichst du das Limit von %1$@ (%2$@) zwischen %3$@ und %4$@.%5$@";
 "At this rate you pass the %1$@ %2$@, %3$@ before it resets." = "Bei diesem Tempo überschreitest du das %1$@ %2$@, %3$@ vor dem Reset.";
 "another user is logged in" = "ein anderer Benutzer ist angemeldet";
-"auto" = "automatisch";
+"auto" = "Auto";
 "Auto" = "Automatisch";
 "Auto measures how far the frontmost app's menu titles reach: both sides while they end clear of the left-hand readouts, right of the notch while they would run into them. It measures when an app comes forward and remembers each app." = "„Automatisch“ misst, wie weit die Menütitel der vordersten App reichen: beide Seiten, solange sie vor den linken Anzeigen enden, rechts der Notch, sobald sie hineinlaufen würden. Gemessen wird, wenn eine App nach vorn kommt, und das Ergebnis wird pro App gemerkt.";
 "backup at %@" = "Backup unter %@";
@@ -291,7 +291,7 @@
 "Bottom, above the Dock" = "Unten, über dem Dock";
 "Built-in display" = "Integrierter Bildschirm";
 "By model" = "Nach Modell";
-"bypass" = "umgehen";
+"bypass" = "Bypass";
 "cache writes %1$ld%% 1-hour · %2$ld%% 5-minute" = "Cache-Schreibvorgänge %1$ld%% 1 Std. · %2$ld%% 5 Min.";
 "Cache writes today are %1$ld%% 1-hour against a 30-day norm of %2$ld%%: the 5-minute tier re-caches more often and costs more quota per turn." = "Cache-Schreibvorgänge heute: %1$ld%% mit 1 Std. Laufzeit gegenüber üblichen %2$ld%% in 30 Tagen. Die 5-Minuten-Stufe cacht öfter neu und kostet pro Durchgang mehr Kontingent.";
 "Cancel" = "Abbrechen";
@@ -345,7 +345,7 @@
 "Countdown" = "Countdown";
 "Credits" = "Guthaben";
 "Currency code" = "Währungscode";
-"current" = "aktuellen";
+"Unlimited on the current plan" = "Unbegrenzt im aktuellen Tarif";
 "Cursor models" = "Cursor-Modelle";
 "Cursor session token could not be decoded" = "Cursor-Sitzungstoken konnte nicht dekodiert werden";
 "Cursor session token has no user id" = "Cursor-Sitzungstoken enthält keine Benutzer-ID";
@@ -376,7 +376,7 @@
 "Empty follows the proxy in Network settings; `http://host:port` or `socks5://host:port` routes only this app's vendor requests through it, from the next request on." = "Leer folgt dem Proxy in den Netzwerkeinstellungen; `http://host:port` oder `socks5://host:port` leitet ab der nächsten Anfrage nur die Anbieteranfragen dieser App darüber.";
 "Every number shows its work." = "Jede Zahl zeigt ihren Rechenweg.";
 "Every setting returns to its default and %@ relaunches. This cannot be undone." = "Alle Einstellungen werden auf den Standard zurückgesetzt, und %@ startet neu. Das kann nicht widerrufen werden.";
-"Every tool together burned %1$@ this hour — %2$@ your 30-day average." = "Alle Tools zusammen haben in dieser Stunde %1$@ verbraucht – %2$@ deines 30-Tage-Schnitts.";
+"Every tool together burned %1$@ this hour — %2$@ your 30-day average." = "Alle Tools zusammen haben in dieser Stunde %1$@ verbraucht – %2$@ gegenüber deinem 30-Tage-Schnitt.";
 "Exact time" = "Genaue Uhrzeit";
 "export" = "Export";
 "Export history…" = "Verlauf exportieren …";
@@ -416,7 +416,7 @@
 "Importing %@…" = "%@ wird importiert …";
 "In the Cost card" = "In der Kostenkarte";
 "In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period." = "In der Währung oben; leer lassen für kein Budget. Der Ring der Kostenkarte füllt sich gegen das Monatsbudget, mit derselben Soll-Markierung wie die Anzeigen, die Hinweisleiste rechnet den Monat dagegen hoch, und die Mitteilungen für knapp, über dem Soll und aufgebraucht gelten dafür mit dem Monat als Zeitraum.";
-"In the pill" = "In der Pille";
+"In the pill" = "In der Leiste";
 "In the side notch" = "In der seitlichen Notch";
 "Included usage" = "Enthaltene Nutzung";
 "inferred" = "abgeleitet";
@@ -556,7 +556,7 @@
 "permission mode %@" = "Berechtigungsmodus %@";
 "Pin figures beside the icon" = "Zahlen neben dem Symbol anheften";
 "Pin to menu bar" = "In der Menüleiste anheften";
-"plan" = "planen";
+"plan" = "Plan";
 "Position" = "Position";
 "PR %@" = "PR %@";
 "Premium requests" = "Premium-Anfragen";
@@ -619,7 +619,7 @@
 "Set the Notchmeter status line in settings.json?" = "Notchmeter-Statuszeile in settings.json setzen?";
 "Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar." = "Setze dies als statusLine in %1$@ oder lass es über „Statuszeile installieren …“ für dich eintragen. Claude Code führt nach jedem Durchgang %2$@ --statusline aus; das leitet Kontextbelegung, Ratenlimits und Sitzungskosten an die App weiter und gibt eine Zeile für die eigene Leiste von Claude Code aus.";
 "Settings…" = "Einstellungen …";
-"Show" = "Anzeigen";
+"Show" = "Sichtbarkeit";
 "Show %@" = "%@ anzeigen";
 "Show costs in" = "Kosten anzeigen in";
 "Show details" = "Details anzeigen";
@@ -670,10 +670,10 @@
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Die Ringe schrumpfen zu einem Punkt, wenn 30 Minuten lang kein Assistent aktiv war und jedes Fenster ruhig ist; ein Hook-Ereignis, Dateiaktivität, eine Soll-Änderung oder der Zeiger darauf holt sie zurück.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "Die Sitzung zählt etwa %1$@ so stark wie üblich: %2$@ pro 1%% vs. %3$@.";
 "Third ring" = "Dritter Ring";
-"This" = "Dieser";
+"This plan has nothing for Cursor to meter yet" = "Dieser Tarif bietet Cursor noch nichts zu messen";
 "This GitHub account has no Copilot subscription" = "Dieser GitHub-Account hat kein Copilot-Abo";
-"This session block %1$@ since %2$@ · %3$@/min" = "Dieser Sitzungsblock %1$@ seit %2$@ · %3$@/Min.";
-"This session block %1$@ since %2$@" = "Dieser Sitzungsblock %1$@ seit %2$@";
+"This session block %1$@ since %2$@ · %3$@/min" = "Dieser Sitzungsblock: %1$@ seit %2$@ · %3$@/Min.";
+"This session block %1$@ since %2$@" = "Dieser Sitzungsblock: %1$@ seit %2$@";
 "Time format" = "Zeitformat";
 "To" = "Bis";
 "Today" = "Heute";
@@ -689,7 +689,7 @@
 "Turn finished" = "Durchgang beendet";
 "Turn on Pin figures beside the icon to use this." = "Schalte „Zahlen neben dem Symbol anheften“ ein, um dies zu nutzen.";
 "Undo" = "Widerrufen";
-"Unlimited on the %@ plan" = "Unbegrenzt im %@ Tarif";
+"Unlimited on the %@ plan" = "Unbegrenzt im %@-Tarif";
 "Unpriced: %@" = "Ohne Preis: %@";
 "Updates" = "Updates";
 "Updating…" = "Wird aktualisiert …";
@@ -746,7 +746,7 @@
 "An optional pay-what-you-want page. Nothing in the app is held back, and nothing changes after you pay." = "Eine freiwillige Seite, auf der du zahlst, was du möchtest. Nichts in der App wird zurückgehalten, und nach dem Bezahlen ändert sich nichts.";
 "Show over the full-screen app" = "Über der Vollbild-App anzeigen";
 "Always show over %@" = "Immer über %@ anzeigen";
-"App to stay over, e.g. zoom.us" = "App, über der es bleibt, z. B. zoom.us";
+"App to stay over, e.g. zoom.us" = "App, über der die Anzeigen bleiben, z. B. zoom.us";
 "Apps the readouts stay over anyway, by the name the window list gives them: a meeting you want the meters beside, where the setting above is off for a film. It cannot tell two uses of one app apart, a call and a film both in a browser being the case in point; the Show over the full-screen app shortcut answers that one, for the app on screen and until it leaves full screen. The Options menu offers both for whatever is full-screen at the time." = "Apps, über denen die Anzeigen trotzdem bleiben, mit dem Namen aus der Fensterliste: ein Meeting, neben dem du die Anzeigen haben willst, während die Einstellung oben für einen Film aus ist. Zwei Verwendungen derselben App lassen sich nicht unterscheiden, etwa ein Anruf und ein Film im selben Browser; dafür gibt es den Kurzbefehl „Über der Vollbild-App anzeigen“, für die App auf dem Bildschirm und bis sie den Vollbildmodus verlässt. Das Menü „Optionen“ bietet beides für die jeweils aktuelle Vollbild-App an.";
 
 /* A stale Accessibility entry: the permission was granted and no longer applies to the running copy, whether a newer copy replaced the one it was granted to or the same copy is refused (MenuBarExtent, App, SettingsWindow) */
@@ -826,9 +826,9 @@
 "Prompt cache: %1$@ today · %2$@ rewritten" = "Prompt-Cache: %1$@ heute · %2$@ neu geschrieben";
 "system prompt changed" = "System-Prompt geändert";
 "tools changed" = "Tools geändert";
-"When the prompt cache keeps missing" = "Wenn der Prompt-Cache wiederholt verfehlt";
+"When the prompt cache keeps missing" = "Wenn der Prompt-Cache ständig Fehltreffer hat";
 "Your MCP server list is changing mid-session." = "Deine MCP-Serverliste ändert sich mitten in der Sitzung.";
-"Your prompt cache missed %1$ld times — %2$@ rewritten." = "Dein Prompt-Cache hat %1$ld-mal verfehlt – %2$@ neu geschrieben.";
+"Your prompt cache missed %1$ld times — %2$@ rewritten." = "Dein Prompt-Cache hatte %1$ld Fehltreffer – %2$@ neu geschrieben.";
 "Remove from the list" = "Aus der Liste entfernen";
 "Remove all idle sessions" = "Alle inaktiven Sitzungen entfernen";
 "idle %@" = "inaktiv seit %@";
