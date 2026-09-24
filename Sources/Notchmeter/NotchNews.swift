@@ -48,6 +48,10 @@ struct NotchNews: Equatable, Sendable {
     /// How long the peek stays beside the notch: long enough to read two words at a glance, short enough that the
     /// readouts it displaced are back before anyone goes looking for them.
     static let shownFor: TimeInterval = 4
+
+    /// How long the peek stays up: a second longer under Reduce Motion, where it arrives without the slide that
+    /// draws the eye to it.
+    static func shownFor(motionReduced: Bool) -> TimeInterval { shownFor + (motionReduced ? 1 : 0) }
     /// The same session with the same reason inside this is not news again. A run of permission prompts from one
     /// session arrives a few seconds apart, and a strip that flickered the same words at each would be read as
     /// noise; the rings and the prompt card still carry every one of them.
@@ -96,6 +100,25 @@ struct NotchNews: Equatable, Sendable {
         if let last, last.sessionID == candidate.sessionID, last.reason == candidate.reason,
            now.timeIntervalSince(last.at) < repeatAfter { return false }
         return true
+    }
+
+    /// The ways into the panel that come through the peek itself: the pointer resting on it (the dwell under On
+    /// hover), a click on it, or a swipe down on it. A panel opened any of these ways while the peek is up opens on
+    /// its session; a hotkey, a banner or a glance was not aimed at the words and opens the way it always has.
+    static func opensOnSession(_ cause: PanelCause) -> Bool {
+        switch cause {
+        case .dwell, .click, .swipe: true
+        default: false
+        }
+    }
+
+    /// What the panel opens on for news about `sessionID`: the session's own request card when it is holding for
+    /// one, the session's card alone when it is still known, and the whole panel when it has gone in the meantime.
+    enum Opening: Equatable { case request, notice, whole }
+
+    static func opening(for sessionID: String, pendingSessions: [String], known: Bool) -> Opening {
+        if pendingSessions.contains(sessionID) { return .request }
+        return known ? .notice : .whole
     }
 
     /// The text the peek draws and VoiceOver announces. While the screen is shared the project name goes, as it
@@ -150,6 +173,11 @@ enum NotchPeek {
         var leadingWidth: CGFloat
         var trailingWidth: CGFloat
     }
+
+    /// Whether the half drawing `parts` is the one VoiceOver meets: the half with the reason, which is the whole of
+    /// the peek's meaning. The other half, the tool and the name, is hidden from it, since the spoken line on the
+    /// reason's half already says both.
+    static func speaks(_ parts: [Part]) -> Bool { parts.contains(.reason) }
 
     /// The name goes left of the notch and the reason right of it, the way a sentence reads across it. A side too
     /// narrow for words gives its words to the other; with no room for the reason on either side there is no

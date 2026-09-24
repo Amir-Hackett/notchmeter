@@ -343,23 +343,35 @@ struct CompactRings: View {
         return [(outer, quiet ? 2 : 2.5), (quiet ? 8 : 10, quiet ? 1.5 : 2)]
     }
 
-    /// Where the assistant's symbol goes. In the middle of the nest when the innermost ring leaves a hole a glyph
-    /// can be read in — one ring, or two — and otherwise as a small badge on the nest's lower-left corner, the one
-    /// no mark uses: a three-ring nest leaves a four-point hole, and a symbol that size is a dot, which tells no
-    /// one anything colour did not.
+    /// Where the assistant's symbol goes: in the middle of the nest when the innermost ring leaves a hole a glyph
+    /// can be read in, and otherwise beside the nest, never over it. Anywhere over the rings would hide an arc's
+    /// end or the pace cap for the windows whose fill has reached it, and those are the shape channel for on track,
+    /// behind and nearly gone. The place is fixed by the number of rings alone, worked out on the quiet nest (the
+    /// smaller hole), so the symbol does not jump as the strip goes quiet or wakes: it is a mark learnt by where it
+    /// is as much as by its shape. One ring holds it in the middle; two leave a hole under six points and three a
+    /// dot's worth, so they carry it beside.
     enum Glyph: Equatable {
         case centre(CGFloat)
-        case corner(CGFloat)
+        case beside(CGFloat)
     }
 
-    /// The smallest glyph worth drawing in the middle; below it the badge is used.
+    /// The smallest glyph worth drawing in the middle; below it the symbol goes beside the nest.
     static let smallestCentreGlyph: CGFloat = 6
+    /// The symbol's size beside the nest, and the gap between them.
+    static let besideGlyph: CGFloat = 8
+    static let besideGap: CGFloat = 2
 
-    static func glyph(rings: Int, quiet: Bool) -> Glyph {
-        let nest = nest(count: rings, quiet: quiet)
+    static func glyph(rings: Int) -> Glyph {
+        let nest = nest(count: rings, quiet: true)
         let innermost = nest[max(0, min(rings, nest.count) - 1)]
         let hole = innermost.diameter - innermost.lineWidth - 1
-        return hole >= smallestCentreGlyph ? .centre(min(hole, 9)) : .corner(7)
+        return hole >= smallestCentreGlyph ? .centre(min(hole, 9)) : .beside(besideGlyph)
+    }
+
+    /// The width the readout takes: the 18 pt box, and the symbol beside it when that is where it goes.
+    static func width(rings: Int, symbol: Bool) -> CGFloat {
+        guard symbol, case .beside(let size) = glyph(rings: rings) else { return side }
+        return side + besideGap + size + 2
     }
 
     var body: some View {
@@ -390,22 +402,27 @@ struct CompactRings: View {
                     if status.problem != nil {
                         ProblemMark()
                     }
-                    if symbol, status.problem == nil, case .centre(let size) = Self.glyph(rings: windows.count, quiet: quiet) {
+                    if symbol, status.problem == nil, case .centre(let size) = Self.glyph(rings: windows.count) {
                         ToolGlyph(tool: tool, size: size)
                     }
                 }
             }
             .opacity(presence.readoutOpacity)
-            // Outside the dimming, like the signal mark, and on the corner that mark never takes.
-            if symbol, presence != .hidden, case .corner(let size) = Self.glyph(rings: windows.count, quiet: quiet) {
-                ToolGlyph(tool: tool, size: size, badge: true)
-                    .offset(x: -(Self.side - size - 2) / 2, y: (Self.side - size - 2) / 2)
-            }
             if presence != .hidden, let signal {
                 SignalMark(signal: signal).offset(SignalMark.cornerOffset(of: signal, in: Self.side))
             }
         }
         .frame(width: Self.side, height: Self.side)
+        .overlay(alignment: .leading) {
+            // Beside the nest, in room of its own the fit measures (`width`), so it covers no arc and no cap. Kept,
+            // invisible, while the rings are a dot, so the strip's width does not move with the presence.
+            if symbol, case .beside(let size) = Self.glyph(rings: windows.count) {
+                ToolGlyph(tool: tool, size: size)
+                    .opacity(presence == .hidden ? 0 : presence.readoutOpacity)
+                    .offset(x: Self.side + Self.besideGap)
+            }
+        }
+        .frame(width: Self.width(rings: windows.count, symbol: symbol), height: Self.side, alignment: .leading)
         .opacity(status.reading == nil && status.problem == nil ? 0.5 : 1)
         .animation(AccessibilityDisplay.shared.motionReduced ? nil : .snappy(duration: 0.4), value: presence)
     }
@@ -413,20 +430,16 @@ struct CompactRings: View {
 
 /// An assistant's symbol (ToolID.symbolName, the one on its card) at ring size. White, for the reason the signal
 /// marks are: it has to read on any of the identity colours and on the black notch, and the shape is the point
-/// of it. As a badge it sits on a black disc so the ring under it cannot run into its outline.
+/// of it. It never sits over a ring, so it needs no backing to keep an arc out of its outline.
 private struct ToolGlyph: View {
     let tool: ToolID
     let size: CGFloat
-    var badge = false
 
     var body: some View {
         Image(systemName: tool.symbolName)
             .font(.system(size: size, weight: .bold))
             .foregroundStyle(.white)
             .frame(width: size + 2, height: size + 2)
-            .background {
-                if badge { Circle().fill(.black) }
-            }
             .accessibilityHidden(true)
     }
 }
@@ -804,34 +817,45 @@ struct NotchCompactView: View {
 
     /// The news this side names, and how: nil when there is no peek, when it is switched off, when this view was
     /// handed a run to measure (CompactStripProbe asks for readouts, never for a peek), or when the layout gives
-    /// this side nothing, in which case it keeps its readouts.
-    private var peek: (news: NotchNews, words: NotchNews.Words, parts: [NotchPeek.Part], room: CGFloat)? {
+    /// this side nothing, in which case it keeps its readouts. `speaks` is whether this side is the one VoiceOver
+    /// meets: the side holding the reason, so a peek split across the notch is one button, not two alike.
+    private var peek: (news: NotchNews, words: NotchNews.Words, parts: [NotchPeek.Part], room: CGFloat, speaks: Bool)? {
         guard run == nil, store.prefs.notchNews, let news = store.peek else { return nil }
         let words = news.words(hidesFigures: store.hidesFigures)
         guard let layout = NotchPeek.layout(room: store.prefs.peekRoom, hasName: words.name != nil) else { return nil }
         let parts = side == .leading ? layout.leading : layout.trailing
         guard !parts.isEmpty else { return nil }
-        return (news, words, parts, side == .leading ? layout.leadingWidth : layout.trailingWidth)
+        return (news, words, parts, side == .leading ? layout.leadingWidth : layout.trailingWidth, NotchPeek.speaks(parts))
+    }
+
+    /// The peek's motion: in over 250 ms easing out, away over 180 ms easing in, the quicker exit so the readouts
+    /// it displaced are back without a wait. It is only a crossfade (the shape's width follows at once under
+    /// Reduce Motion, DynamicNotch.reduceMotion), so Reduce Motion keeps it.
+    static func peekAnimation(appearing: Bool) -> Animation {
+        appearing ? .easeOut(duration: 0.25) : .easeIn(duration: 0.18)
     }
 
     var body: some View {
-        let reduceMotion = AccessibilityDisplay.shared.motionReduced
         ZStack {
             if let peek {
-                NotchPeekHalf(news: peek.news, words: peek.words, parts: peek.parts, room: peek.room, side: side)
-                    .transition(.opacity)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(peek.words.spoken)
-                    .accessibilityHint(L("Opens the panel on this session"))
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityAction { openNews?(peek.news) }
+                if peek.speaks {
+                    NotchPeekHalf(news: peek.news, words: peek.words, parts: peek.parts, room: peek.room, side: side)
+                        .transition(.opacity)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(peek.words.spoken)
+                        .accessibilityHint(L("Opens the panel on this session"))
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction { openNews?(peek.news) }
+                } else {
+                    NotchPeekHalf(news: peek.news, words: peek.words, parts: peek.parts, room: peek.room, side: side)
+                        .transition(.opacity)
+                        .accessibilityHidden(true)
+                }
             } else {
                 readouts.transition(.opacity)
             }
         }
-        // A crossfade either way. Under Reduce Motion it is the only movement: the shape's width follows at once
-        // (DynamicNotch.reduceMotion) rather than sliding.
-        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.35), value: store.peek)
+        .animation(Self.peekAnimation(appearing: store.peek != nil), value: store.peek)
     }
 
     private var readouts: some View {
@@ -886,6 +910,25 @@ struct EdgeCompactView: View {
 private struct PanelContentHeight: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+/// What leads the panel: which session's request card is drawn when several hold one, and whether the attention
+/// card outranks it. Normally the newest request, and the attention card only with no request on the panel. A panel
+/// opened from the news peek names its session (UsageStore.promptFocus): that session's request is drawn in place
+/// of the newest, and that session's own card stands in front of another session's request. Pure, so it is tested
+/// without a panel.
+enum PanelLead {
+    /// The index into `pendingSessions` (newest first) of the request to draw, or nil for none.
+    static func request(pendingSessions: [String], focus: String?) -> Int? {
+        guard !pendingSessions.isEmpty else { return nil }
+        return focus.flatMap { pendingSessions.firstIndex(of: $0) } ?? 0
+    }
+
+    /// Whether the attention card is drawn alone, with the link to the rest.
+    static func noticeLeads(notice: String?, pendingSessions: [String], promptOnly: Bool, focus: String?) -> Bool {
+        guard let notice, !promptOnly else { return false }
+        return pendingSessions.isEmpty || notice == focus
+    }
 }
 
 /// The panel's content, never taller than the screen's usable height: past that it scrolls, with no scroller and
@@ -987,13 +1030,18 @@ struct NotchExpandedView: View {
         let tools = store.visibleTools
         let advice = store.advice
         let pending = store.sessions.pending(now: Date())
+        let pendingSessions = pending.map(\.session.id)
         let promptOnly = store.panelOpenedForPrompt
+        let noticeLeads = PanelLead.noticeLeads(notice: store.attentionNotice?.session.id, pendingSessions: pendingSessions,
+                                                promptOnly: promptOnly, focus: store.promptFocus)
+        let lead = noticeLeads ? nil : PanelLead.request(pendingSessions: pendingSessions, focus: store.promptFocus).map { pending[$0] }
         return VStack(alignment: .leading, spacing: prefs.density.cardSpacing) {
             // A request the assistant is holding a session for outranks the cost and the advice: it is the one
-            // thing on the panel that is waiting on the reader. Only the newest is drawn; the rest queue behind it.
-            // A panel the request itself opened carries the card and nothing else (UsageStore.panelOpenedForPrompt),
-            // with one link to the rest; a panel already open takes the card on top of everything.
-            if let newest = pending.first {
+            // thing on the panel that is waiting on the reader. Only one is drawn, the newest unless the peek opened
+            // the panel on another (PanelLead); the rest queue behind it. A panel the request itself opened carries
+            // the card and nothing else (UsageStore.panelOpenedForPrompt), with one link to the rest; a panel already
+            // open takes the card on top of everything.
+            if let newest = lead {
                 PromptCard(session: newest.session, request: newest.request, hideFigures: store.hidesFigures,
                            decide: { store.decide($0, $1) })
                 if promptOnly {
@@ -1005,8 +1053,9 @@ struct NotchExpandedView: View {
                 }
             }
             // A card the attention setting opened (SessionAttention.glance) is drawn the same way, alone with the one
-            // link, unless a request is on the panel, which outranks it.
-            if !promptOnly, pending.isEmpty, let notice = store.attentionNotice {
+            // link, unless a request is on the panel, which outranks it; a card the peek opened on its own session
+            // outranks another session's request (PanelLead).
+            if noticeLeads, let notice = store.attentionNotice {
                 NoticeCard(notice: notice, hideFigures: store.hidesFigures, hideTitle: !prefs.sessionTitles,
                            canJump: NoticeCard.canJump(notice.session, enabled: prefs.jumpToTerminal),
                            jump: { actions.jump(notice.session) })
@@ -1016,7 +1065,7 @@ struct NotchExpandedView: View {
                 .buttonStyle(.plain)
                 .padding(.leading, prefs.density.cardPadding)
             }
-            if promptOnly || (pending.isEmpty && store.attentionNotice != nil) {
+            if promptOnly || noticeLeads {
                 // The request has just ended and the panel is on its way closed: nothing else appears for the frame.
                 EmptyView()
             } else {

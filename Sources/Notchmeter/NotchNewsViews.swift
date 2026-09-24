@@ -139,9 +139,17 @@ struct NotchGlowView: View {
                 .position(x: geometry.size.width / 2, y: 0)
         }
         .opacity(state == nil ? 0 : 1)
-        .animation(reduce ? nil : .easeOut(duration: blooming ? 0.35 : 1.2), value: state)
+        .animation(reduce ? nil : Self.animation(from: state), value: state)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    /// The light's motion, by where it is going: a bloom comes in over 250 ms easing out, and the step down to
+    /// the ember or out altogether takes 200 ms easing in, quicker than it came, so it never lingers past the
+    /// news it stood for.
+    static func animation(from state: NotchGlow?) -> Animation {
+        if case .bloom = state { return .easeOut(duration: 0.25) }
+        return .easeIn(duration: 0.2)
     }
 
     static func tint(_ state: NotchGlow?) -> Color {

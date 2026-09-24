@@ -188,6 +188,10 @@ final class UsageStore {
     /// NoticeCard alone, the way `panelOpenedForPrompt` draws a request's. Cleared by every collapse and by the
     /// card's own *Show the whole panel*.
     var attentionNotice: AttentionNotice?
+    /// The session the panel was opened on from the news peek (NotchController.open(on:)): its request card is the
+    /// one drawn when several sessions hold requests, and its own card outranks another session's request. Nil the
+    /// rest of the time; cleared by every collapse.
+    var promptFocus: String?
     /// The news the collapsed strip is naming right now (NotchNews, the peek), for `NotchNews.shownFor`; nil the
     /// rest of the time and always while Preferences.notchNews is off.
     private(set) var peek: NotchNews?
@@ -1558,15 +1562,16 @@ final class UsageStore {
                 self?.glowNews = nil
             }
         }
-        // A request that opened the panel on its card is already in front of the reader; words beside a notch the
-        // panel is growing out of would only flash on the way.
-        if prefs.notchNews, !panelOpenedForPrompt, canPeek() {
+        // A request that opened the panel on its card, or a card the attention setting is opening it on (a glance,
+        // or Open the panel), is already in front of the reader; words beside a notch the panel is growing out of
+        // would only flash on the way. The glow and the announcement still go: neither is drawn by the strip.
+        if prefs.notchNews, !panelOpenedForPrompt, attentionNotice == nil, canPeek() {
             if let showing = peek { Oracle.shared.emit("peek", Self.peekFacts(showing, action: "hidden")) }
             peek = news
             Oracle.shared.emit("peek", Self.peekFacts(news, action: "shown"))
             peekEnd?.cancel()
             peekEnd = Task { [weak self] in
-                try? await Task.sleep(for: .seconds(NotchNews.shownFor + (AccessibilityDisplay.shared.motionReduced ? 1 : 0)))
+                try? await Task.sleep(for: .seconds(NotchNews.shownFor(motionReduced: AccessibilityDisplay.shared.motionReduced)))
                 guard !Task.isCancelled else { return }
                 self?.endPeek()
             }

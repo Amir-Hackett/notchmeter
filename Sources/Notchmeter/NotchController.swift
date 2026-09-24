@@ -372,6 +372,8 @@ final class NotchController: NSObject, PanelPresenting {
     private var reporter = PanelReporter()
     /// The light under the collapsed notch (NotchGlow), in a click-through window of its own.
     private let glow = NotchGlowPresenter()
+    /// The hover machine has decided to open and the transition has not yet adopted it (`act`, `expand`).
+    private var expanding = false
 
     /// DynamicNotchKit's insets around the expanded content: 15 pt at the sides and bottom, the notch on top.
     static let panelInset: CGFloat = 15
@@ -421,7 +423,11 @@ final class NotchController: NSObject, PanelPresenting {
             }
         }))
         observers.append((.default, NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.refreshRegions() }
+            // The glow's window is placed from the regions, and nothing it observes changes with the screen.
+            Task { @MainActor in
+                self?.refreshRegions()
+                self?.refreshGlow()
+            }
         }))
         // Local monitors run on the main thread. assumeIsolated must return something Sendable, which NSEvent is not,
         // so the closure reports whether it handled the event and the event is passed on outside it. A control-click
@@ -511,6 +517,7 @@ final class NotchController: NSObject, PanelPresenting {
 
     func remeasure() {
         refreshRegions()
+        refreshGlow()
     }
 
     func holdOpen(_ held: Bool) {
@@ -600,6 +607,9 @@ final class NotchController: NSObject, PanelPresenting {
         switch output {
         case .expand:
             if !hover.isOffScreen() { store.refreshAll(force: false) }
+            // The machine adopts the open state inside the task; until then news arriving in the same turn (a glance
+            // or Open the panel for the very message that made it) must not put up a peek the panel then covers.
+            expanding = true
             Task { await self.expand(cause: cause) }
         case .collapse:
             Task { await self.compact(cause: cause) }
@@ -611,7 +621,11 @@ final class NotchController: NSObject, PanelPresenting {
     private func expand(cause: PanelCause) async {
         refreshRegions()
         configureTransition(closing: false)
+        // Reaching the peek with the pointer is reaching for its session: under On hover the dwell opens the panel
+        // before any click can land, so it opens on the session the way the click does (NotchNews.opensOnSession).
+        if prefs.notchNews, let news = store.peek, NotchNews.opensOnSession(cause) { focus(on: news) }
         hover.adopt(.expanded)
+        expanding = false
         reporter.report(.expanded, cause: cause)
         // The panel covers the strip the words were in and the edge the light spilled from.
         store.endPeek()
@@ -627,6 +641,7 @@ final class NotchController: NSObject, PanelPresenting {
         hover.adopt(.compact)
         store.panelOpenedForPrompt = false
         store.attentionNotice = nil
+        store.promptFocus = nil
         reporter.report(.compact, cause: cause)
         if let window, window.isKeyWindow { window.resignKey() }
         let serial = beginTransition()
@@ -666,7 +681,7 @@ final class NotchController: NSObject, PanelPresenting {
 
     /// Whether this strip can show the news peek now: on screen, collapsed, and not stood aside for a full-screen app.
     var canShowPeek: Bool {
-        isVisible && hover.state == .compact && !suppressedForFullScreen && !hover.isOffScreen()
+        isVisible && hover.state == .compact && !expanding && !suppressedForFullScreen && !hover.isOffScreen()
     }
 
     /// A click on the collapsed strip while it is naming a session opens the panel on that session rather than
@@ -683,15 +698,28 @@ final class NotchController: NSObject, PanelPresenting {
     /// does (UsageStore.attentionNotice), with the link to the whole panel under it. A session that has gone in
     /// the meantime opens the whole panel.
     func open(on news: NotchNews) {
+        focus(on: news)
         store.endPeek()
-        let now = Date()
-        if store.sessions.pending(now: now).contains(where: { $0.session.id == news.sessionID }) {
-            store.panelOpenedForPrompt = true
-        } else if let session = store.sessions.sessions[news.sessionID] {
-            let event: Notifier.SessionEvent = news.reason.isWait ? .waiting(blocking: true) : .finished(turn: session.finished?.turn ?? 0)
-            store.attentionNotice = AttentionNotice(session: session, event: event)
-        }
         expandNow(cause: .click)
+    }
+
+    /// Points the panel about to open at the news's session (NotchNews.opening), and names the session to the
+    /// panel (UsageStore.promptFocus) so its request, not the newest across every session, is the card drawn.
+    private func focus(on news: NotchNews) {
+        let session = store.sessions.sessions[news.sessionID]
+        switch NotchNews.opening(for: news.sessionID, pendingSessions: store.sessions.pending(now: Date()).map(\.session.id),
+                                 known: session != nil) {
+        case .request:
+            store.promptFocus = news.sessionID
+            store.panelOpenedForPrompt = true
+        case .notice:
+            guard let session else { return }
+            let event: Notifier.SessionEvent = news.reason.isWait ? .waiting(blocking: true) : .finished(turn: session.finished?.turn ?? 0)
+            store.promptFocus = news.sessionID
+            store.attentionNotice = AttentionNotice(session: session, event: event)
+        case .whole:
+            store.promptFocus = nil
+        }
     }
 
     /// The light under the notch, from the latest news and whether anything still waits (NotchGlow.state). Only

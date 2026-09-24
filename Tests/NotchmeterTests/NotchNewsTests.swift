@@ -200,17 +200,180 @@ import Testing
 
     // MARK: - The symbol in the rings
 
-    @Test func theSymbolSitsInTheMiddleWhereTheHoleCanHoldItAndOnTheCornerWhereItCannot() {
-        guard case .centre(let one) = CompactRings.glyph(rings: 1, quiet: false) else {
-            Issue.record("One ring leaves the whole middle free.")
+    @Test func theSymbolSitsInTheMiddleOfOneRingAndBesideAnyMore() {
+        guard case .centre(let one) = CompactRings.glyph(rings: 1) else {
+            Issue.record("One ring leaves the whole middle free, even quiet.")
             return
         }
         #expect(one >= CompactRings.smallestCentreGlyph)
-        guard case .centre = CompactRings.glyph(rings: 2, quiet: false) else {
-            Issue.record("Two rings leave a hole a glyph can be read in.")
-            return
-        }
-        #expect(CompactRings.glyph(rings: 3, quiet: false) == .corner(7), "Three rings leave a hole the size of a dot.")
-        #expect(CompactRings.glyph(rings: 3, quiet: true) == .corner(7))
+        #expect(CompactRings.glyph(rings: 2) == .beside(CompactRings.besideGlyph),
+                "The quiet two-ring nest leaves a hole under six points, and the place is the quiet nest's in both states.")
+        #expect(CompactRings.glyph(rings: 3) == .beside(CompactRings.besideGlyph), "Three rings leave a hole the size of a dot.")
+    }
+
+    /// Beside the nest the symbol has room of its own, which the fit measures; in the middle it takes none.
+    @Test func theSymbolBesideTheRingsWidensTheReadoutAndTheOneInsideDoesNot() {
+        #expect(CompactRings.width(rings: 1, symbol: true) == CompactRings.side)
+        #expect(CompactRings.width(rings: 2, symbol: false) == CompactRings.side)
+        #expect(CompactRings.width(rings: 2, symbol: true) > CompactRings.side)
+        #expect(CompactRings.width(rings: 3, symbol: true) == CompactRings.width(rings: 2, symbol: true))
+    }
+
+    // MARK: - Opening on the session
+
+    @Test func thePointerReachingThePeekOpensOnItsSession() {
+        #expect(NotchNews.opensOnSession(.dwell), "Under On hover the dwell opens the panel before a click can land.")
+        #expect(NotchNews.opensOnSession(.click))
+        #expect(NotchNews.opensOnSession(.swipe))
+        #expect(!NotchNews.opensOnSession(.hotkey), "The hotkey was not aimed at the words.")
+        #expect(!NotchNews.opensOnSession(.glance))
+        #expect(!NotchNews.opensOnSession(.notification))
+    }
+
+    @Test func thePanelOpensOnTheSessionsRequestElseItsCardElseWhole() {
+        #expect(NotchNews.opening(for: "a", pendingSessions: ["b", "a"], known: true) == .request)
+        #expect(NotchNews.opening(for: "a", pendingSessions: ["b"], known: true) == .notice,
+                "Another session's request does not make this one's.")
+        #expect(NotchNews.opening(for: "a", pendingSessions: [], known: false) == .whole, "A session gone in the meantime.")
+    }
+
+    @Test func theFocusedSessionsRequestIsDrawnInPlaceOfTheNewest() {
+        #expect(PanelLead.request(pendingSessions: [], focus: "a") == nil)
+        #expect(PanelLead.request(pendingSessions: ["b", "a"], focus: nil) == 0, "Unfocused, the newest.")
+        #expect(PanelLead.request(pendingSessions: ["b", "a"], focus: "a") == 1)
+        #expect(PanelLead.request(pendingSessions: ["b", "a"], focus: "gone") == 0)
+    }
+
+    @Test func theFocusedSessionsCardOutranksAnotherSessionsRequest() {
+        #expect(PanelLead.noticeLeads(notice: "a", pendingSessions: [], promptOnly: false, focus: nil))
+        #expect(!PanelLead.noticeLeads(notice: "a", pendingSessions: ["b"], promptOnly: false, focus: nil),
+                "A glance's card still gives way to a request.")
+        #expect(PanelLead.noticeLeads(notice: "a", pendingSessions: ["b"], promptOnly: false, focus: "a"))
+        #expect(!PanelLead.noticeLeads(notice: "a", pendingSessions: ["b"], promptOnly: true, focus: "a"))
+        #expect(!PanelLead.noticeLeads(notice: nil, pendingSessions: [], promptOnly: false, focus: "a"))
+    }
+
+    // MARK: - VoiceOver and timing
+
+    @Test func aSplitPeekIsOneButtonToVoiceOver() {
+        let layout = NotchPeek.layout(room: .init(leading: 120, trailing: 120), hasName: true)
+        let speaking = [layout?.leading, layout?.trailing].compactMap { $0 }.filter(NotchPeek.speaks)
+        #expect(speaking.count == 1, "Only the half with the reason is an element; the other is hidden.")
+        #expect(NotchPeek.speaks([.tool, .name, .reason]))
+        #expect(!NotchPeek.speaks([.tool, .name]))
+    }
+
+    @Test func thePeekStaysASecondLongerUnderReduceMotion() {
+        #expect(NotchNews.shownFor(motionReduced: false) == NotchNews.shownFor)
+        let longer: TimeInterval = NotchNews.shownFor + 1
+        #expect(NotchNews.shownFor(motionReduced: true) == longer)
+    }
+}
+
+/// `UsageStore.announce`: which of the peek, the glow and the VoiceOver line a piece of news gets, by the settings
+/// and by what the panel is already doing.
+@MainActor @Suite(.serialized) struct NotchNewsAnnouncing {
+    init() { Localization.use(language: "en") }
+
+    static let suite = "NotchmeterTests.notchNewsAnnounce"
+
+    func makeStore(news: Bool = true, glow: Bool = true, canPeek: Bool = true) -> (UsageStore, Box) {
+        let defaults = UserDefaults(suiteName: Self.suite)!
+        defaults.removePersistentDomain(forName: Self.suite)
+        let prefs = Preferences(defaults: defaults)
+        prefs.notchNews = news
+        prefs.notchGlow = glow
+        let now = Date()
+        let store = UsageStore(prefs: prefs, providers: DemoFixtures.readings(now: now).map { FixtureProvider(reading: $0) },
+                               cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
+        let box = Box()
+        store.canPeek = { canPeek }
+        store.announceNews = { box.spoken.append($0.spoken) }
+        return (store, box)
+    }
+
+    final class Box { var spoken: [String] = [] }
+
+    func news(_ reason: NotchNews.Reason = .approval, session: String = "a") -> NotchNews {
+        NotchNews(reason: reason, sessionID: session, tool: .claude, project: "notchmeter", at: Date())
+    }
+
+    @Test func newsGetsThePeekTheGlowAndTheAnnouncement() {
+        let (store, box) = makeStore()
+        store.announce(news())
+        #expect(store.peek?.sessionID == "a")
+        #expect(store.glowNews?.sessionID == "a")
+        #expect(box.spoken.count == 1)
+        store.endPeek()
+    }
+
+    @Test func aPanelOpenedOnARequestTakesThePeekButNotTheGlowOrTheAnnouncement() {
+        let (store, box) = makeStore()
+        store.panelOpenedForPrompt = true
+        store.announce(news())
+        #expect(store.peek == nil)
+        #expect(store.glowNews != nil)
+        #expect(box.spoken.count == 1)
+    }
+
+    /// A glance (or Open the panel) for the very message that made the news has already asked for the panel:
+    /// a peek put up now would be torn down by the opening a moment later, a flash and a shown/hidden pair.
+    @Test func aCardTheAttentionSettingIsOpeningTakesThePeek() {
+        let (store, box) = makeStore()
+        let now = Date()
+        let session = AgentSession(id: "a", project: "notchmeter", state: .waiting(since: now), started: now, lastEvent: now, turnStarted: nil)
+        store.attentionNotice = AttentionNotice(session: session, event: .waiting(blocking: true))
+        store.announce(news())
+        #expect(store.peek == nil)
+        #expect(store.glowNews != nil)
+        #expect(box.spoken.count == 1)
+    }
+
+    @Test func noStripThatCanShowItMeansNoPeek() {
+        let (store, box) = makeStore(canPeek: false)
+        store.announce(news())
+        #expect(store.peek == nil)
+        #expect(store.glowNews != nil, "The glow is lit whether or not a strip can draw the words.")
+        #expect(box.spoken.count == 1)
+    }
+
+    @Test func withThePeekOffOnlyTheGlowAndTheAnnouncementGo() {
+        let (store, box) = makeStore(news: false)
+        store.announce(news())
+        #expect(store.peek == nil)
+        #expect(store.glowNews != nil)
+        #expect(box.spoken.count == 1)
+    }
+
+    @Test func withBothOffNothingIsAnnounced() {
+        let (store, box) = makeStore(news: false, glow: false)
+        store.announce(news())
+        #expect(store.peek == nil)
+        #expect(store.glowNews == nil)
+        #expect(box.spoken.isEmpty)
+    }
+
+    @Test func aRepeatIsDroppedWholeGlowAndAnnouncementWithIt() {
+        let (store, box) = makeStore()
+        store.announce(news())
+        store.endPeek()
+        store.announce(news())
+        #expect(store.peek == nil, "The same session for the same reason inside thirty seconds is a repeat.")
+        #expect(box.spoken.count == 1)
+        store.announce(news(session: "b"))
+        #expect(store.peek?.sessionID == "b")
+        #expect(store.glowNews?.sessionID == "b")
+        #expect(box.spoken.count == 2)
+        store.endPeek()
+    }
+
+    @Test func aFinishDroppedUnderAWaitDropsItsGlowAndAnnouncementToo() {
+        let (store, box) = makeStore()
+        store.announce(news(.approval, session: "b"))
+        store.announce(news(.finished))
+        #expect(store.peek?.reason == .approval)
+        #expect(store.glowNews?.reason == .approval)
+        #expect(box.spoken.count == 1)
+        store.endPeek()
     }
 }
