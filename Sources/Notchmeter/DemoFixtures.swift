@@ -273,6 +273,90 @@ enum DemoFixtures {
     }
 }
 
+extension DemoFixtures {
+    static let assistantsSuiteName = "com.amirhackett.notchmeter.render-assets.assistants"
+    static let geminiTitle = "Port the quota parser to the summary shape"
+    static let kimiTitle = "Write the migration tests for the split rows"
+
+    /// The rows 0.9.0 added, drawn for review (`--render-assets` writes `assistants*.png`) rather than folded into
+    /// the afternoon above, whose pictures the README uses: Gemini CLI and Antigravity as two rows, each read under
+    /// its own identity and each showing its own figures, and Kimi Code with its session, weekly and monthly
+    /// windows. A Gemini CLI session is held on a tool permission, the one wait its hook documents, and a Kimi Code
+    /// session is mid-turn, which is as much as Kimi's hook can say. Nothing else is installed on this Mac, so the
+    /// picture is the new rows alone.
+    @MainActor
+    static func assistantsStore(now: Date = Date()) -> (store: UsageStore, prefs: Preferences) {
+        UserDefaults.standard.removePersistentDomain(forName: assistantsSuiteName)
+        let defaults = UserDefaults(suiteName: assistantsSuiteName) ?? .standard
+        defaults.register(defaults: ["resetDisplay": ResetDisplay.countdown.rawValue, "peakHoursTools": [String]()])
+        let prefs = Preferences(defaults: defaults)
+        let readings = assistantReadings(now: now)
+        let store = UsageStore(prefs: prefs, providers: readings.map { FixtureProvider(reading: $0) },
+                               cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
+        let empty = CostSummary(today: 0, yesterday: 0, last30Days: 0, daily: [], lastHour: 0, typicalHourly: 0, burnMultiple: nil,
+                                unpricedModels: [], scannedAt: now)
+        store.seed(readings: readings, cost: empty, nextUpdate: now.addingTimeInterval(2 * 60 + 40), sessions: assistantSessions(now: now), now: now)
+        store.hooksInstalled = true
+        return (store, prefs)
+    }
+
+    /// Gemini CLI on a Standard seat, its per-model buckets with no declared length (so the first read can only
+    /// say what the reset suggests, `InferredPeriods`); Antigravity on Google AI Pro, from the summary its own
+    /// panel shows; Kimi Code with a five-hour window from its counts, the week from its summary row and the month
+    /// from its ratio pools. Resets sit mid-unit for the reason `readings(now:)` gives.
+    static func assistantReadings(now: Date) -> [UsageReading] {
+        let daySeconds: Int = 14 * 3600 + 30 * 60
+        let sessionSeconds: Int = 2 * 3600 + 11 * 60 + 30
+        let weekSeconds: Int = 3 * 86_400 + 8 * 3600 + 30 * 60
+        let monthSeconds: Int = 22 * 86_400 + 4 * 3600 + 30 * 60
+        let dayReset = now.addingTimeInterval(TimeInterval(daySeconds))
+        let sessionReset = now.addingTimeInterval(TimeInterval(sessionSeconds))
+        let weekReset = now.addingTimeInterval(TimeInterval(weekSeconds))
+        let monthReset = now.addingTimeInterval(TimeInterval(monthSeconds))
+        let gemini = InferredPeriods.apply(UsageReading(tool: .gemini, windows: [
+            LimitWindow(id: "gemini_pro", label: .vendor("Gemini Pro"), usedFraction: 0.42, resetsAt: dayReset, note: "Gemini 3 Pro · Gemini 2.5 Pro", model: "Gemini Pro"),
+            LimitWindow(id: "gemini_flash", label: .vendor("Gemini Flash"), usedFraction: 0.18, resetsAt: dayReset, model: "Gemini Flash"),
+        ], plan: "Standard", fetchedAt: now, observedAt: nil), resets: [:], now: now)
+        let antigravity = UsageReading(tool: .antigravity, windows: [
+            LimitWindow(id: "gemini_session", label: .scoped(model: "Gemini", of: .key("Session")), usedFraction: 0.35, resetsAt: sessionReset,
+                        periodDuration: Period.fiveHours, model: "Gemini"),
+            LimitWindow(id: "gemini_weekly", label: .scoped(model: "Gemini", of: .key("Weekly")), usedFraction: 0.22, resetsAt: weekReset,
+                        periodDuration: Period.week, model: "Gemini"),
+            LimitWindow(id: "claude_and_gpt_session", label: .scoped(model: "Claude and GPT", of: .key("Session")), usedFraction: 0.6, resetsAt: sessionReset,
+                        periodDuration: Period.fiveHours, model: "Claude and GPT"),
+        ], plan: "Google AI Pro", fetchedAt: now, observedAt: nil)
+        let kimi = UsageReading(tool: .kimi, windows: [
+            LimitWindow(id: "session", label: .key("Session"), usedFraction: 0.31, resetsAt: sessionReset, note: L("%1$ld of %2$ld left", 138, 200),
+                        periodDuration: Period.fiveHours),
+            LimitWindow(id: "weekly", label: .key("Weekly"), usedFraction: 0.1, resetsAt: weekReset, note: L("%1$ld of %2$ld left", 1843, 2048),
+                        periodDuration: Period.week),
+            LimitWindow(id: "monthly_total", label: .key("Monthly total"), usedFraction: 0.12, resetsAt: monthReset, periodDuration: Period.month),
+        ], plan: nil, fetchedAt: now, observedAt: nil)
+        return [gemini, antigravity, kimi]
+    }
+
+    /// One Gemini CLI session held on a tool permission forty seconds ago, and one Kimi Code session three minutes
+    /// into a turn, each replayed as its hook would send it (`Hook.Gemini` and `Hook.Kimi` produce these messages).
+    static func assistantSessions(now: Date) -> SessionTracker {
+        var tracker = SessionTracker()
+        func send(_ tool: ToolID, _ event: String, _ ago: TimeInterval, session: String, project: String, type: String? = nil, title: String? = nil) {
+            var message = Hook.Message(event: event, needsInput: type != nil, sessionID: session, project: project, notificationType: type,
+                                       branch: "main", tool: tool)
+            message.title = title
+            if event == "SessionStart" {
+                message.terminal = TerminalRef(program: "ghostty", bundleID: "com.mitchellh.ghostty", tty: tool == .gemini ? "/dev/ttys006" : "/dev/ttys007")
+            }
+            tracker.apply(message, now: now.addingTimeInterval(-ago))
+        }
+        send(.gemini, "SessionStart", 12 * 60, session: "g-1", project: "quota-lab")
+        send(.kimi, "SessionStart", 8 * 60, session: "k-1", project: "notchmeter")
+        send(.gemini, "UserPromptSubmit", 7 * 60, session: "g-1", project: "quota-lab", title: geminiTitle)
+        send(.kimi, "UserPromptSubmit", 3 * 60, session: "k-1", project: "notchmeter", title: kimiTitle)
+        send(.gemini, "Notification", 40, session: "g-1", project: "quota-lab", type: "ToolPermission")
+        return tracker
+    }
+}
+
 /// Installed, and never read: the demo store is seeded with the reading instead.
 struct FixtureProvider: UsageProvider {
     let reading: UsageReading

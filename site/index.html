@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Notchmeter — AI coding usage, in the notch</title>
-<meta name="description" content="Usage meters for Claude Code, Codex, Cursor, Antigravity and Copilot, living in the MacBook notch. Pace, projections and what to do next. Free, open source, and it never signs in anywhere.">
+<meta name="description" content="Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, Copilot and Kimi Code, living in the MacBook notch. Pace, projections and what to do next. Free, open source, and it never signs in anywhere.">
 <link rel="icon" href="img/icon.png">
 <link rel="stylesheet" href="style.css">
 <!-- No analytics, by decision (2026-09-07). Vercel Analytics used to load here.
@@ -50,7 +50,7 @@
          away, the menu-bar line follows, then the two-way line. A test (ReleasePackagingTests, SiteParity)
          holds the three sentences identical in both files. -->
     <h1><span class="h1-setup">Every figure on this panel is sourced, dated and tested.</span><br>And it says what to do next.</h1>
-    <p class="lede" style="margin-bottom:14px">Usage meters for Claude Code, Codex, Cursor, Antigravity and Copilot, living in the MacBook notch — or on any screen edge you prefer. The rule behind every number, with its source and its date, is written down in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>; hover the rings and the panel says what to do about them.</p>
+    <p class="lede" style="margin-bottom:14px">Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, Copilot and Kimi Code, living in the MacBook notch — or on any screen edge you prefer. The rule behind every number, with its source and its date, is written down in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>; hover the rings and the panel says what to do about them.</p>
     <p class="lede" style="margin-bottom:14px">Your menu bar ran out of room three apps ago. This one doesn't take any.</p>
     <p class="lede">Answer Claude Code from the notch: approve or deny a permission request, pick the answer to a question, and jump back to the terminal it came from. Each part has its own switch in Settings; <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">docs/hooks.md</a> says what the hook sends and how it fails open.</p>
     <div class="cta-row">
@@ -75,7 +75,7 @@
     <div class="pillars">
       <div class="pillar">
         <div class="big">Five assistants</div>
-        <p>Claude Code, Codex, Cursor, Antigravity and Copilot, on one strip.</p>
+        <p>Claude Code, Codex, Cursor, Gemini CLI, Antigravity, Copilot and Kimi Code, on one strip.</p>
       </div>
       <div class="pillar">
         <div class="big">Never signs in</div>
@@ -176,16 +176,24 @@
         <p>Included plan usage and on-demand spend for the current billing cycle, read the way cursor.com's own dashboard reads it, plus the Grok Bot weekly allowance where a seat has one. On a seat billed on-demand, the dashboard's own cycle figures fill the ring; with none, today's spend against your usual day.</p>
       </div>
       <div class="tool">
-        <h3><span class="ring" style="color:#56B4E9"></span>Antigravity / Gemini CLI</h3>
-        <p>The session and weekly quota Antigravity's own panel shows for its model groups, or the per-model quota Google meters for Gemini CLI — Gemini Pro, Flash, Flash Lite, and any Claude or GPT model the plan covers — from the same Code Assist endpoints Antigravity and Gemini CLI's <code>/stats</code> read.</p>
+        <h3><span class="ring" style="color:#E36FC0"></span>Gemini CLI</h3>
+        <p>The per-model quota Google meters for Gemini CLI — Gemini Pro, Flash, Flash Lite, and any Claude or GPT model the plan covers — from the same Code Assist endpoints Gemini CLI's <code>/stats</code> reads, asked as Gemini CLI.</p>
+      </div>
+      <div class="tool">
+        <h3><span class="ring" style="color:#56B4E9"></span>Antigravity</h3>
+        <p>The session and weekly quota Antigravity's own panel shows for its model groups, asked as Antigravity, so it can differ from Gemini CLI's on the same Google account.</p>
       </div>
       <div class="tool">
         <h3><span class="ring" style="color:#F0E442"></span>GitHub Copilot</h3>
         <p>The AI-credit allowance for the month on a seat GitHub bills by usage (the premium-request allowance on a legacy one), and the chat and completion quotas when a plan meters them, from the endpoint Copilot's own editor plugin asks; the credits used, a cent each, join the Cost card.</p>
       </div>
       <div class="tool">
+        <h3><span class="ring" style="color:#7ED957"></span>Kimi Code</h3>
+        <p>The rolling five-hour window, the week and the monthly pools, from the endpoint Kimi Code's own <code>/usage</code> command reads. Where Kimi's two kinds of figure disagree about a window, the window is as spent as the furthest-along one says.</p>
+      </div>
+      <div class="tool">
         <h3><span class="ring" style="color:#0072B2"></span>Your own sessions</h3>
-        <p>With the optional hook, the notch refreshes the moment a turn ends and counts the sessions you have running, on every ring: Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot CLI each have one. Claude Code, Codex, Gemini CLI and Copilot also say when they stop to ask you something, and which project is waiting; Cursor has no event for a wait, so its ring never claims one.</p>
+        <p>With the optional hook, the notch refreshes the moment a turn ends and counts the sessions you have running: Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot CLI and Kimi Code each have one. Claude Code, Codex, Gemini CLI and Copilot also say when they stop to ask you something, and which project is waiting; Cursor and Kimi Code have no event for a wait, so their rings never claim one.</p>
       </div>
     </div>
   </div>

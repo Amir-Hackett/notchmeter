@@ -1,13 +1,22 @@
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "antigravity")
+private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "codeassist")
 
-struct AntigravityCredentials: Equatable {
+struct CodeAssistCredentials: Equatable {
     let accessToken: String
     let expiresAt: Date?
 }
 
+/// One actor type serves two rows since 0.9.0: Gemini CLI's (`tool: .gemini`) and Antigravity's
+/// (`tool: .antigravity`). Until then they were one Antigravity row whose identity was picked from what was
+/// installed; now each row reads under its own product's identity, so each shows its own figures, and a Mac with
+/// both reads both. Gemini CLI's row is installed wherever its login is (`oauth_creds.json`), and asks with Gemini
+/// CLI's identity on the two hosts in turn; Antigravity's row is installed wherever the app, its home folder or its
+/// CLI's folder is, and asks with Antigravity's identity on the host its CLI logged. Both use the one login on
+/// disk, Gemini CLI's, because the Antigravity app and `agy` keep theirs in the Keychain; the backend picks the
+/// licence it checks from the identity, so the two rows can rightly disagree.
+///
 /// Gemini CLI and Antigravity meter against the same Google Code Assist backend, and Gemini CLI caches its Google
 /// login in `~/.gemini/oauth_creds.json` (`Storage.getOAuthCredsPath` in gemini-cli packages/core/src/config/storage.ts),
 /// a google-auth-library `Credentials` object: `access_token`, `refresh_token`, `scope`, `token_type`, `id_token` and
@@ -36,20 +45,22 @@ struct AntigravityCredentials: Equatable {
 ///
 /// - An Antigravity licence is held by the user, not a project. The project-scoped quota call answers 403 "You do
 ///   not have a valid license of this product" for an Antigravity-only account while the same call with `{}`
-///   answers, and the backend picks which product's licence to check from the caller's identity, so when the login
-///   on this Mac is Antigravity's the calls carry `User-Agent: antigravity`, a `Client-Metadata` naming the IDE,
-///   and `ideType: ANTIGRAVITY`; a Gemini CLI login keeps Gemini CLI's own identity, above.
+///   answers, and the backend picks which product's licence to check from the caller's identity, so the
+///   Antigravity row's calls carry `User-Agent: antigravity`, a `Client-Metadata` naming the IDE, and
+///   `ideType: ANTIGRAVITY`; the Gemini CLI row keeps Gemini CLI's own identity, above.
 /// - `:retrieveUserQuotaSummary` (`{}`) is the richer answer, the session and weekly groups Antigravity's own
 ///   panel shows, with a declared window length; it is asked first and the per-model buckets are the fallback.
 /// - The quota is metered on one of two deployments, `cloudcode-pa.googleapis.com` and
 ///   `daily-cloudcode-pa.googleapis.com`, and the other one answers every bucket untouched with a reset five hours
-///   from the moment it was asked, whatever has been used (antigravity-cli #387). The host Antigravity's own CLI
-///   logged is preferred; failing that both are tried and the first with a live figure is believed. A payload
+///   from the moment it was asked, whatever has been used (antigravity-cli #387). The Antigravity row prefers the
+///   host Antigravity's own CLI logged; failing that, and always for the Gemini CLI row, whose calls that log says
+///   nothing about, both are tried and the first with a live figure is believed. A payload
 ///   whose every bucket reads untouched with one identical reset is written down as unmetered rather than as a
 ///   100 % ring, a bucket with no fraction is a window with no figure rather than a skipped one, and a fraction of
 ///   exactly 0 is exhausted.
-actor AntigravityProvider: UsageProvider {
-    nonisolated let tool: ToolID = .antigravity
+actor CodeAssistProvider: UsageProvider {
+    /// `.gemini` or `.antigravity`: the row this actor reads for, and so the identity its calls carry.
+    nonisolated let tool: ToolID
     nonisolated let refreshInterval: TimeInterval = 300
     nonisolated let credentialsFile: URL
     nonisolated let applicationBundle: URL
@@ -92,10 +103,12 @@ actor AntigravityProvider: UsageProvider {
 
     private let session: URLSession?
 
-    init(session: URLSession? = nil,
+    init(tool: ToolID,
+         session: URLSession? = nil,
          geminiHome: URL = Paths.home.appendingPathComponent(".gemini"),
          applicationBundle: URL = URL(fileURLWithPath: "/Applications/Antigravity.app"),
          antigravityHome: URL = Paths.home.appendingPathComponent(".antigravity")) {
+        self.tool = tool
         self.session = session
         credentialsFile = geminiHome.appendingPathComponent("oauth_creds.json")
         antigravityCLIHome = geminiHome.appendingPathComponent("antigravity-cli")
@@ -103,32 +116,57 @@ actor AntigravityProvider: UsageProvider {
         self.antigravityHome = antigravityHome
     }
 
+    /// Gemini CLI's row: its Google login is on this Mac. Antigravity's row: the app, its home folder or its CLI's
+    /// folder is here (`antigravityPresent`); with no Gemini CLI login beside it the row says how to give it one.
     nonisolated func isInstalled() -> Bool {
-        let fm = FileManager.default
-        return fm.fileExists(atPath: credentialsFile.path)
-            || fm.fileExists(atPath: applicationBundle.path)
-            || fm.fileExists(atPath: antigravityHome.path)
+        switch tool {
+        case .antigravity: antigravityPresent
+        default: FileManager.default.fileExists(atPath: credentialsFile.path)
+        }
     }
 
-    /// Whether the login on this Mac is Antigravity's rather than Gemini CLI's alone: the app, its home folder or
-    /// its CLI's folder is here. Decides the identity the calls carry.
-    nonisolated var identifiesAsAntigravity: Bool {
+    /// Whether Antigravity is set up on this Mac: the app, its home folder or its CLI's folder.
+    nonisolated var antigravityPresent: Bool {
         let fm = FileManager.default
         return fm.fileExists(atPath: antigravityCLIHome.path)
             || fm.fileExists(atPath: applicationBundle.path)
             || fm.fileExists(atPath: antigravityHome.path)
     }
 
+    /// Whether the calls carry Antigravity's identity: the Antigravity row's do, the Gemini CLI row's never.
+    nonisolated var identifiesAsAntigravity: Bool { tool == .antigravity }
+
+    /// The deployments to ask, in turn: for the Antigravity row the one its CLI logged, when it logged one; else, and
+    /// for the Gemini CLI row always, both.
+    nonisolated var hosts: [String] {
+        guard tool == .antigravity else { return Self.hostsToTry }
+        return Self.loggedHost(in: antigravityCLIHome.appendingPathComponent("cli.log")).map { [$0] } ?? Self.hostsToTry
+    }
+
+    /// The login refused or out of date, in the words of the row it is read for: Gemini CLI's row names its own CLI;
+    /// Antigravity's names both, since the login it reads is Gemini CLI's and either one refreshes it.
+    private var expiredMessage: String {
+        tool == .antigravity ? L("Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in")
+            : L("Gemini CLI's login has expired. Run Gemini CLI once so it signs back in")
+    }
+
+    private var refusedMessage: String {
+        tool == .antigravity ? L("Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in")
+            : L("Gemini CLI's login was refused. Run Gemini CLI once so it signs back in")
+    }
+
     func fetch() async throws -> UsageReading {
         guard let data = try? Data(contentsOf: credentialsFile) else {
-            throw ProviderError.notSignedIn(L("Sign in to Gemini CLI (run `gemini` and choose Login with Google) to read your quota"))
+            throw ProviderError.notSignedIn(tool == .antigravity
+                ? L("Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota")
+                : L("Sign in to Gemini CLI (run `gemini` and choose Login with Google) to read your quota"))
         }
         let credentials = try Self.parseCredentials(data)
         if let expiresAt = credentials.expiresAt, expiresAt.timeIntervalSinceNow < 30 {
-            throw ProviderError.tokenExpired(L("Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in"))
+            throw ProviderError.tokenExpired(expiredMessage)
         }
         let antigravity = identifiesAsAntigravity
-        let hosts = Self.loggedHost(in: antigravityCLIHome.appendingPathComponent("cli.log")).map { [$0] } ?? Self.hostsToTry
+        let hosts = self.hosts
         let now = Date()
         var unmetered: UsageReading?
         var shutdown = false
@@ -165,7 +203,7 @@ actor AntigravityProvider: UsageProvider {
     /// the shutdown diagnosis, which reads the `SUBSCRIPTION_REQUIRED` reason out of it.
     private func quota(host: String, token: String, account: Account, antigravity: Bool, now: Date) async throws -> UsageReading {
         if let (summary, summaryResponse) = try? await post(Self.url(host: host, method: "retrieveUserQuotaSummary"), token: token, body: [:], antigravity: antigravity),
-           summaryResponse?.statusCode == 200, let reading = try? Self.parseQuotaSummary(summary, plan: account.plan, now: now) {
+           summaryResponse?.statusCode == 200, let reading = try? Self.parseQuotaSummary(summary, plan: account.plan, tool: tool, now: now) {
             return reading
         }
         let quotaURL = Self.url(host: host, method: "retrieveUserQuota")
@@ -173,13 +211,13 @@ actor AntigravityProvider: UsageProvider {
         let (quota, response) = try await post(quotaURL, token: token, body: body, antigravity: antigravity)
         if response?.statusCode == 403, account.project != nil {
             let (retry, retryResponse) = try await post(quotaURL, token: token, body: [:], antigravity: antigravity)
-            if retryResponse?.statusCode == 200 { return try Self.parseQuota(retry, plan: account.plan, now: now) }
+            if retryResponse?.statusCode == 200 { return try Self.parseQuota(retry, plan: account.plan, tool: tool, now: now) }
         }
         switch response?.statusCode ?? 0 {
         case 200:
-            return try Self.parseQuota(quota, plan: account.plan, now: now)
+            return try Self.parseQuota(quota, plan: account.plan, tool: tool, now: now)
         case 401:
-            throw ProviderError.notSignedIn(L("Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in"))
+            throw ProviderError.notSignedIn(refusedMessage)
         case 403:
             guard Self.isSubscriptionRequired(quota) else { throw ProviderError.accessDenied(L("Google refused the quota read for this account")) }
             throw ProviderError.unavailable(Self.shutdownMessage)
@@ -198,7 +236,7 @@ actor AntigravityProvider: UsageProvider {
         case 200:
             return try Self.parseAccount(data)
         case 401:
-            throw ProviderError.notSignedIn(L("Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in"))
+            throw ProviderError.notSignedIn(refusedMessage)
         case 429:
             throw ProviderError.rateLimited(retryAfter: RetryAfter.seconds(from: response))
         default:
@@ -233,13 +271,13 @@ actor AntigravityProvider: UsageProvider {
 
     // MARK: - Parsing
 
-    static func parseCredentials(_ data: Data) throws -> AntigravityCredentials {
+    static func parseCredentials(_ data: Data) throws -> CodeAssistCredentials {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let token = root["access_token"] as? String, !token.isEmpty
         else {
             throw ProviderError.notSignedIn(L("Gemini CLI has not signed in with Google. Run `gemini` and choose Login with Google"))
         }
-        return AntigravityCredentials(accessToken: token, expiresAt: JSON.number(root["expiry_date"]).map { Date(timeIntervalSince1970: $0 / 1000) })
+        return CodeAssistCredentials(accessToken: token, expiresAt: JSON.number(root["expiry_date"]).map { Date(timeIntervalSince1970: $0 / 1000) })
     }
 
     static func parseAccount(_ data: Data) throws -> Account {
@@ -284,9 +322,9 @@ actor AntigravityProvider: UsageProvider {
     /// never one at 100 % remaining; a fraction of exactly 0 is exhausted; and a payload whose every bucket reads
     /// untouched with the same reset is the shape a host that is not metering this account answers with, so it is
     /// written down as unmetered rather than drawn as untouched.
-    static func parseQuota(_ data: Data, plan: String?, now: Date = Date()) throws -> UsageReading {
+    static func parseQuota(_ data: Data, plan: String?, tool: ToolID = .antigravity, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ProviderError.parse(L("Antigravity quota response unreadable"))
+            throw ProviderError.parse(L("Google's quota response unreadable"))
         }
         var pools: [Pool] = []
         for case let object as [String: Any] in (root["buckets"] as? [Any]) ?? [] {
@@ -308,8 +346,8 @@ actor AntigravityProvider: UsageProvider {
             }
         }
         let windows = pools.sorted { ($0.rank, $0.order) < ($1.rank, $1.order) }.map(\.window)
-        guard !windows.isEmpty else { throw ProviderError.parse(L("Antigravity reported no quota buckets")) }
-        return UsageReading(tool: .antigravity, windows: unmeteredIfUntouched(windows), plan: plan, fetchedAt: now, observedAt: nil)
+        guard !windows.isEmpty else { throw ProviderError.parse(L("Google reported no quota buckets")) }
+        return UsageReading(tool: tool, windows: unmeteredIfUntouched(windows), plan: plan, fetchedAt: now, observedAt: nil)
     }
 
     /// `:retrieveUserQuotaSummary`: `groups[]` (Gemini models; Claude and GPT models), each with `buckets[]` carrying
@@ -317,10 +355,10 @@ actor AntigravityProvider: UsageProvider {
     /// variant nests as `remaining.remainingFraction` or `remaining.value`. The window length is declared here, so
     /// these windows pace from the first read and need no inference. An unknown window keeps the vendor's own
     /// bucket name.
-    static func parseQuotaSummary(_ data: Data, plan: String?, now: Date = Date()) throws -> UsageReading {
+    static func parseQuotaSummary(_ data: Data, plan: String?, tool: ToolID = .antigravity, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let groups = root["groups"] as? [[String: Any]], !groups.isEmpty
-        else { throw ProviderError.parse(L("Antigravity quota response unreadable")) }
+        else { throw ProviderError.parse(L("Google's quota response unreadable")) }
         var windows: [LimitWindow] = []
         for group in groups {
             let name = groupName(group["displayName"] as? String)
@@ -339,8 +377,8 @@ actor AntigravityProvider: UsageProvider {
                                            resetsAt: (bucket["resetTime"] as? String).flatMap(DateParsing.iso8601), periodDuration: spec.period, model: name))
             }
         }
-        guard !windows.isEmpty else { throw ProviderError.parse(L("Antigravity reported no quota buckets")) }
-        return UsageReading(tool: .antigravity, windows: unmeteredIfUntouched(windows), plan: plan, fetchedAt: now, observedAt: nil)
+        guard !windows.isEmpty else { throw ProviderError.parse(L("Google reported no quota buckets")) }
+        return UsageReading(tool: tool, windows: unmeteredIfUntouched(windows), plan: plan, fetchedAt: now, observedAt: nil)
     }
 
     /// "Gemini Models" → "Gemini", "Claude and GPT models" → "Claude and GPT": the group's name without the word
@@ -462,11 +500,13 @@ actor AntigravityProvider: UsageProvider {
 /// `unmeteredIfUntouched` catches that only when every bucket agrees. One window pinned at untouched across poll
 /// after poll while the tool was demonstrably in use is the same fault one window at a time, and it cannot be told
 /// from a fresh quota by value, so it is told by history: after three consecutive reads at exactly 0 % used, with
-/// a hook having reported Antigravity's or Gemini CLI's turn since the first of them, the window loses its figure
-/// and says it is unverified. The count restarts the moment the figure moves, so a meter that starts counting
-/// comes straight back. The store keeps the counts in memory only; a relaunch starts them again, which is the
-/// cautious direction.
-enum AntigravityStaleness {
+/// the row's own tool seen at work since the first of them (Gemini CLI's hook for its row; Antigravity's files for
+/// its), the window loses its figure and says it is unverified. The count restarts the moment the figure moves, so
+/// a meter that starts counting comes straight back. The store keeps the counts in memory only, per row; a relaunch
+/// starts them again, which is the cautious direction.
+enum CodeAssistStaleness {
+    /// The rows read from Google's Code Assist backend, the two the two-host fault can reach.
+    static let tools: Set<ToolID> = [.gemini, .antigravity]
     /// How many consecutive reads at untouched it takes, with activity in between, to stop believing the figure.
     static let readsBeforeUnverified = 3
 
@@ -479,7 +519,7 @@ enum AntigravityStaleness {
     /// The runs after this reading: a window read at exactly 0 % extends its run or starts one; any other figure,
     /// or none, ends it.
     static func runs(after reading: UsageReading, previous: [String: Run], now: Date) -> [String: Run] {
-        guard reading.tool == .antigravity else { return previous }
+        guard tools.contains(reading.tool) else { return previous }
         var runs: [String: Run] = [:]
         for window in reading.windows {
             guard let used = window.usedFraction, used <= 0.001 else { continue }
@@ -495,7 +535,7 @@ enum AntigravityStaleness {
     /// The reading with every window whose run has reached the threshold, while the tool was seen working after
     /// the run began, marked unverified: no figure, a note saying so, and the local-estimate tag.
     static func unverified(_ reading: UsageReading, runs: [String: Run], activeSince: Date?) -> UsageReading {
-        guard reading.tool == .antigravity, let activeSince else { return reading }
+        guard tools.contains(reading.tool), let activeSince else { return reading }
         let windows = reading.windows.map { window -> LimitWindow in
             guard let run = runs[window.id], run.count >= readsBeforeUnverified, activeSince > run.since,
                   let used = window.usedFraction, used <= 0.001 else { return window }
@@ -512,8 +552,12 @@ enum AntigravityStaleness {
 /// said to be: two consecutive resets a window has been seen to count to, about five hours, a day or a week apart,
 /// confirm a rolling window of that length and give the meter its pace tick; a first read can only guess from how
 /// far off the reset is, which is written as a note and drives nothing. Low confidence by design: Google's own
-/// documentation calls these per-day request limits, so a confirmed length is still labelled "inferred".
-enum AntigravityPeriods {
+/// documentation calls these per-day request limits, so a confirmed length is still labelled "inferred". Kimi's
+/// answer can carry a window with no declared length too (a named entry, a pool key of another shape), and it gets
+/// the same treatment; a window whose length is declared is never inferred over.
+enum InferredPeriods {
+    /// The rows whose windows may arrive without a length.
+    static let tools: Set<ToolID> = [.gemini, .antigravity, .kimi]
     static let candidates: [TimeInterval] = [Period.fiveHours, Period.day, Period.week]
     static let tolerance = 0.2
 
@@ -546,7 +590,7 @@ enum AntigravityPeriods {
     /// The reading with each window's length filled in where the reset history confirms one (tagged as an
     /// estimate), and a note naming the likely length where it does not.
     static func apply(_ reading: UsageReading, resets: [String: [Date]], now: Date = Date()) -> UsageReading {
-        guard reading.tool == .antigravity else { return reading }
+        guard tools.contains(reading.tool) else { return reading }
         let windows = reading.windows.map { window -> LimitWindow in
             guard window.periodDuration == nil, let resetsAt = window.resetsAt else { return window }
             let history = (resets[window.id] ?? []) + [resetsAt]

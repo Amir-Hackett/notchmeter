@@ -8,7 +8,7 @@ enum NotchmeterMain {
     @MainActor
     static func main() {
         let arguments = CommandLine.arguments
-        // --hook [--tool codex|cursor|antigravity|copilot] [--event <name>]: an assistant's hook command; must
+        // --hook [--tool codex|cursor|gemini|copilot|kimi] [--event <name>]: an assistant's hook command; must
         // return within 50 ms, so nothing else is set up first.
         if arguments.contains("--hook") {
             Hook.runCommand(arguments: arguments)

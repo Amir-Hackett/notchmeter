@@ -251,8 +251,10 @@ extension ToolID {
         case .claude: pair = (0xC0603F, 0xCC7555)
         case .cursor: pair = (0x7F62E6, 0x8C74EA)
         case .codex: pair = (0x23A06F, 0x34A874)
+        case .gemini: pair = (0xB8378F, 0xE36FC0)       // 5.3:1 on white, 5.8:1 on the dark window
         case .antigravity: pair = (0x2F7FB8, 0x56B4E9)
         case .copilot: pair = (0x9A8A00, 0xF0E442)
+        case .kimi: pair = (0x3F8F2A, 0x7ED957)         // 4.1:1 on white, 9.5:1 on the dark window
         }
         return Color(nsColor: NSColor(name: nil) { appearance in
             let hex = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? pair.dark : pair.light

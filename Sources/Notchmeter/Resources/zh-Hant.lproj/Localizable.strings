@@ -123,7 +123,7 @@
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "指定的顯示器按硬體識別記憶，同型號的兩台顯示器可區分，重新命名也不會遺失。";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "在左側邊緣切出的瀏海，面板在它旁邊開啟。該側有 Dock 或幕前調度側欄時會讓開。";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "在右側邊緣切出的瀏海，面板在它旁邊開啟。該側有 Dock 時會讓開。";
-"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "來自 Claude Code、Codex 或 Copilot 的權限請求或提問會打開面板，顯示允許和拒絕（⌘Y、⌘N）或選項（⌘1…⌘9），助理會等待你的回答；按 Escape 交還給終端機。關閉後，終端機照常詢問，面板只顯示等待狀態。Cursor 和 Gemini CLI 沒有可以回答的事件。";
+"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor, Gemini CLI and Kimi Code have no event that can be answered." = "來自 Claude Code、Codex 或 Copilot 的權限請求或提問會打開面板，顯示允許和拒絕（⌘Y、⌘N）或選項（⌘1…⌘9），助理會等待你的回答；按 Escape 交還給終端機。關閉後，終端機照常詢問，面板只顯示等待狀態。Cursor、Gemini CLI 和 Kimi Code 沒有可以回答的事件。";
 "A request nobody has answered in this long goes back to the terminal, which asks as usual; the hook's own ceiling is ten minutes, and the assistant sees no decision either way." = "在這段時間內無人回答的請求會交還給終端機，由終端機照常詢問；hook 本身的上限是十分鐘，無論哪種情況助理都看不到任何決定。";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "以同一登入對 chatgpt.com 的第二次讀取，顯示可重設視窗的額度及其到期時間。領取仍需在 Codex 中進行。";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "使用同一工作階段 cookie 再讀取一次 cursor.com：最近 30 天的用量事件，按匯出的費用計價，折算進每日總計檔案作為 Cursor 序列（今日、30 天和趨勢）。";
@@ -162,7 +162,7 @@
 "Done — click to jump" = "已完成 — 點一下跳轉";
 "Expanded" = "已展開";
 "Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI 在啟動時讀取 settings.json：掛鉤從下一個工作階段開始生效。";
-"Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring." = "Gemini CLI 回報工作階段的開始與結束、提示的送出、每一輪的結束，以及它停下來請求你允許某個工具的時刻。那個通知是它唯一的等待：Antigravity 圓環為此顯示等待的手形，並在一輪結束、送出下一次提示或工作階段結束時，或十分鐘後放開。它沒有子代理、速率限制或取消的一輪的事件，因此被取消的一輪會一直顯示為工作中，直到下一次提示或工作階段結束。Gemini CLI 在啟動時讀取 settings.json；含有註解的檔案會被原樣保留，請改為貼上片段。Antigravity IDE 自己的掛鉤不回報這些，因此這一列屬於 Gemini CLI，點亮的是同一個圓環。";
+"Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Gemini ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. An entry added before 0.9.0 lit the Antigravity ring and reads as out of date until Repair points it at Gemini CLI's own. The Antigravity IDE's own hooks report none of this, so Antigravity has no hook row." = "Gemini CLI 回報工作階段的開始與結束、提示的送出、每一輪的結束，以及它停下來請求你允許某個工具的時刻。那個通知是它唯一的等待：Gemini 圓環為此顯示等待的手形，並在一輪結束、送出下一次提示或工作階段結束時，或十分鐘後放開。它沒有子代理、速率限制或取消的一輪的事件，因此被取消的一輪會一直顯示為工作中，直到下一次提示或工作階段結束。Gemini CLI 在啟動時讀取 settings.json；含有註解的檔案會被原樣保留，請改為貼上片段。0.9.0 之前加入的項目點亮的是 Antigravity 圓環，在「修復」把它指向 Gemini CLI 自己的圓環之前會顯示為已過時。Antigravity IDE 自己的掛鉤不回報這些，因此 Antigravity 沒有掛鉤列。";
 "GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it." = "GitHub Copilot 回報工作階段的開始與結束、提示的送出、停止、子代理的啟動與停止，以及它請求你的許可或向你提問時發出的通知。那兩種通知是它的等待：Copilot 圓環為此顯示等待的手形，並在下一次提示或停止時，或十分鐘後放開。它沒有速率限制或失敗的一輪的事件，其內建的通用代理也不回報子代理。該檔案是 Notchmeter 自己放在 ~/.copilot/hooks 下的，因此移除掛鉤就是刪除它；Copilot 在啟動時讀取它，/env 會列出它。Copilot 的雲端編碼代理永遠看不到它。";
 "GitHub reports no AI credits for this seat" = "GitHub 未回報此席位的 AI 額度";
 "Granted" = "已授權";
@@ -176,7 +176,7 @@
 "Install the hook and status line…" = "安裝掛鉤與狀態列…";
 "Open Integrations…" = "開啟整合…";
 "Installed, but an entry is out of date: Repair updates it" = "已安裝，但有一個項目已過時：「修復」會更新它";
-"It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "它讀取每個助理已保存在這台 Mac 上的用量——Claude Code、Codex、Cursor、Gemini CLI 和 GitHub Copilot——並以該工具保存的登入資訊向各廠商的用量端點查詢。它從不登入，不保存權杖，也不把任何內容送往別處：沒有帳號，沒有分析統計。";
+"It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot and Kimi Code — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "它讀取每個助理已保存在這台 Mac 上的用量——Claude Code、Codex、Cursor、Gemini CLI、Antigravity、GitHub Copilot 和 Kimi Code——並以該工具保存的登入資訊向各廠商的用量端點查詢。它從不登入，不保存權杖，也不把任何內容送往別處：沒有帳號，沒有分析統計。";
 "Jump to the terminal" = "跳轉到終端機";
 "Jump to the terminal on click" = "點一下時跳轉到終端機";
 "Just finished" = "剛剛完成";
@@ -209,7 +209,7 @@
 "Keep the numbers" = "保留數字";
 "Keep the tools" = "保留工具";
 "Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "「保留工具」會先捨去數字——數字旁有圓環時先捨去主要數字以外的數字，再捨去主要數字——直到每個讀數只剩圓環，然後才省去你排在最後的助理。「保留數字」會先省去這些助理，只有在單一讀數也放不下時才縮減剩下的讀數。";
-"Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "讓 Claude Code、Codex、Cursor、Gemini CLI 和 GitHub Copilot 在工作階段開始或結束、送出提示、一輪停止以及子代理執行時告知瀏海：儀表立即重新整理，卡片統計工作階段與代理數。Claude Code、Codex、Gemini CLI 和 Copilot 還會回報它們停下來向你提問的時刻；Cursor 沒有這種事件，因此它的圓環只顯示完成的勾號，絕不會顯示等待的手形。Claude Code 和 Codex 會回報其權限模式；只有 Claude Code 會回報因速率限制而停止。";
+"Let Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot and Kimi Code tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor and Kimi Code have no event for that, so their rings show the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "讓 Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot 和 Kimi Code 在工作階段開始或結束、送出提示、一輪停止以及子代理執行時告知瀏海：儀表立即重新整理，卡片統計工作階段與代理數。Claude Code、Codex、Gemini CLI 和 Copilot 還會回報它們停下來向你提問的時刻；Cursor 和 Kimi Code 沒有這種事件，因此它們的圓環只顯示完成的勾號，絕不會顯示等待的手形。Claude Code 和 Codex 會回報其權限模式；只有 Claude Code 會回報因速率限制而停止。";
 "Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "將此內容合併到 %1$@，或使用「加入 %2$@…」自動合併。每個項目會執行 %3$@ %4$@，將事件名稱送給執行中的 App 後結束。";
 "Metered apart from the included total" = "與方案內總量分開計量";
 "Reads 0% on this seat however much it spends; Today's spend carries the reading" = "此席位無論用量多少都讀作 0%，由「今日支出」代為顯示";
@@ -236,8 +236,8 @@
 "Also read organisation billing" = "同時讀取組織帳單";
 "Also read transcripts from" = "同時讀取以下位置的記錄";
 "Always open" = "永遠開啟";
-"Antigravity quota response unreadable" = "無法解析 Antigravity 配額回應";
-"Antigravity reported no quota buckets" = "Antigravity 未回報任何配額桶";
+"Google's quota response unreadable" = "無法解析 Google 配額回應";
+"Google reported no quota buckets" = "Google 未回報任何配額桶";
 "Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity 的登入已過期。請執行一次 Gemini CLI 或 Antigravity 以重新登入";
 "Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity 的登入被拒絕。請執行一次 Gemini CLI 或 Antigravity 以重新登入";
 "Appearance" = "外觀";
@@ -405,7 +405,7 @@
 "inferred" = "推斷";
 "Inner ring" = "內環";
 "Install" = "安裝";
-"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI or GitHub Copilot; its meters appear here." = "安裝並登入 Claude Code、Codex、Cursor、Gemini CLI 或 GitHub Copilot，其儀表會顯示在這裡。";
+"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here." = "安裝並登入 Claude Code、Codex、Cursor、Gemini CLI、Antigravity、GitHub Copilot 或 Kimi Code，其儀表會顯示在這裡。";
 "Install command line tool…" = "安裝命令列工具…";
 "Install status line…" = "安裝狀態列…";
 "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`." = "已安裝到 %1$@。將 %2$@ 加入 PATH 後即可以 `notchmeter` 使用。";
@@ -660,7 +660,7 @@
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "登入項目指向的 App 副本已被移動。請關閉後再重新開啟。";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "面板跟隨指標：移到指標停留半秒的顯示器上。";
 "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "無論如何選擇，面板的內容始終是黑底白字，螢幕側邊的瀏海形狀也一樣：兩者都必須看起來是螢幕的一部分，而不是疊在上面的東西。已知限制：在 macOS 26 上，邊緣面板背後的玻璃確實會跟隨該選擇，因此選淺色會讓白字落在淺色玻璃上。";
-"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "當助手在等待你的許可、或剛剛結束一輪工作時，圓環會變成表示需要你而不是快用完了的藍色，旁邊的標記說明是哪一種。節奏仍然保留弧線末端的端點，所以快用盡的視窗依舊會這麼說。每個掛鉤都會回報一輪的完成；Claude Code、Codex、Gemini CLI 和 Copilot 的掛鉤會回報等待，Cursor 的不會。";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's and Kimi Code's do not." = "當助手在等待你的許可、或剛剛結束一輪工作時，圓環會變成表示需要你而不是快用完了的藍色，旁邊的標記說明是哪一種。節奏仍然保留弧線末端的端點，所以快用盡的視窗依舊會這麼說。每個掛鉤都會回報一輪的完成；Claude Code、Codex、Gemini CLI 和 Copilot 的掛鉤會回報等待，Cursor 和 Kimi Code 的不會。";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "當 30 分鐘內沒有助理活動且所有視窗都很安靜時，圓環會縮成一個圓點；掛鉤事件、檔案活動、進度變化或把游標停在上面都會讓它們恢復。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "工作階段計量約為你常態的 %1$@：每 1%% 消耗 %2$@，常態為 %3$@。";
 "Third ring" = "第三環";
@@ -902,3 +902,23 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "將此專案的 Cursor 視窗移到前面（無法要求 Cursor 開啟某一個對話）";
 "First seen %@" = "首次發現於 %@";
+
+/* 0.9.0: Gemini CLI and Antigravity as two rows, Kimi Code (CodeAssistProvider, KimiProvider, KimiHookFile, HookSettings, SettingsWindow) */
+"%@ already defines hooks in a form Notchmeter does not edit, so it was left untouched: paste the snippet instead" = "%@ 已經以 Notchmeter 不編輯的形式定義了掛鉤，因此未做更動：請改為貼上片段";
+"Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota" = "Antigravity 把自己的登入資訊保存在鑰匙圈中；請用同一個 Google 帳號登入 Gemini CLI（執行 `gemini` 並選擇 Login with Google）以讀取它的配額";
+"Gemini CLI's login has expired. Run Gemini CLI once so it signs back in" = "Gemini CLI 的登入已過期。請執行一次 Gemini CLI 以重新登入";
+"Gemini CLI's login was refused. Run Gemini CLI once so it signs back in" = "Gemini CLI 的登入被拒絕。請執行一次 Gemini CLI 以重新登入";
+"Kimi Code has not signed in. Run `kimi`, then /login" = "Kimi Code 尚未登入。請執行 `kimi`，然後使用 /login";
+"Kimi Code reads config.toml when it starts: the hook works from the next session." = "Kimi Code 在啟動時讀取 config.toml：掛鉤從下一個工作階段開始生效。";
+"Kimi Code reported no usage yet" = "Kimi Code 尚未回報任何用量";
+"Kimi Code reports session starts and ends, prompt sends, the end of each turn, a turn that failed, and subagent starts and stops. It has no event for a wait on your approval or a question, so the Kimi ring shows the finished tick and never the waiting hand, and a failed turn ends without the tick. The entries are [[hooks]] tables added to the end of config.toml, and the rest of the file is left exactly as it was; a file that already defines hooks another way is left alone, so paste the snippet instead. Kimi Code reads config.toml when it starts, and /hooks lists the entries." = "Kimi Code 回報工作階段的開始與結束、提示的送出、每一輪的結束、失敗的一輪，以及子代理的開始與停止。它沒有等待你批准或回答問題的事件，因此 Kimi 圓環只顯示完成的勾號，絕不會顯示等待的手形，失敗的一輪結束時也沒有勾號。這些項目是附加到 config.toml 末尾的 [[hooks]] 表格，檔案其餘部分保持原樣；已經以其他方式定義掛鉤的檔案會被原樣保留，請改為貼上片段。Kimi Code 在啟動時讀取 config.toml，/hooks 會列出這些項目。";
+"Kimi Code's login has expired. Run Kimi Code once so it signs back in" = "Kimi Code 的登入已過期。請執行一次 Kimi Code 以重新登入";
+"Kimi Code's login was refused. Run Kimi Code once so it signs back in" = "Kimi Code 的登入被拒絕。請執行一次 Kimi Code 以重新登入";
+"Kimi refused the usage read for this account" = "Kimi 拒絕讀取此帳號的用量";
+"Kimi's usage endpoint answered" = "Kimi 用量端點回應異常";
+"Kimi's usage endpoint answers only a Kimi Code membership" = "Kimi 的用量端點只回應 Kimi Code 會員";
+"Kimi's usage response unreadable" = "無法解析 Kimi 用量回應";
+"Limit %ld" = "限額 %ld";
+"Monthly coding" = "每月（程式設計）";
+"Monthly total" = "每月（總計）";
+"Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "登入 Kimi Code（執行 `kimi`，然後使用 /login）以讀取你的方案用量";

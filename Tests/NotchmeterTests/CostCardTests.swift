@@ -138,7 +138,7 @@ import Testing
         let carried = prefs.costCardTools
 
         let asShipped = CostSelection(all: three, order: prefs.toolOrder, carried: carried)
-        let shippedOrder: [ToolID] = [.claude, .codex, .cursor, .antigravity, .copilot]
+        let shippedOrder: [ToolID] = [.claude, .codex, .cursor, .gemini, .antigravity, .copilot, .kimi]
         #expect(prefs.toolOrder == shippedOrder)
         let shippedProviders = asShipped.providers.map(\.tool)
         #expect(shippedProviders == [.claude, .codex, .cursor])
@@ -148,7 +148,7 @@ import Testing
         // The user drags Cursor above Claude, as they would in Settings.
         prefs.move(.cursor, by: -1)
         prefs.move(.cursor, by: -1)
-        let draggedOrder: [ToolID] = [.cursor, .claude, .codex, .antigravity, .copilot]
+        let draggedOrder: [ToolID] = [.cursor, .claude, .codex, .gemini, .antigravity, .copilot, .kimi]
         #expect(prefs.toolOrder == draggedOrder)
         let reordered = CostSelection(all: three, order: prefs.toolOrder, carried: carried)
         let reorderedProviders = reordered.providers.map(\.tool)

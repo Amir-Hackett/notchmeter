@@ -1,0 +1,252 @@
+import AppKit
+import Foundation
+import SwiftUI
+import Testing
+@testable import Notchmeter
+
+/// 0.9.0 split the one Antigravity row into Gemini CLI's and Antigravity's and added Kimi Code. A preference an
+/// earlier build wrote is brought forward once (ToolMigration): the Gemini CLI row inherits the combined row's
+/// settings, a new tool starts switched on, and nothing is migrated twice.
+@Suite struct ToolMigrationRules {
+    func withSuite(_ name: String, _ body: (UserDefaults) throws -> Void) rethrows {
+        let suite = "NotchmeterTests.ToolMigration.\(name)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        try body(defaults)
+    }
+
+    /// Everything a user of 0.8 could have set about the Antigravity row, which was Gemini CLI's too.
+    func legacy(_ defaults: UserDefaults, antigravityOn: Bool = true) {
+        defaults.set(antigravityOn ? ["antigravity", "claude"] : ["claude"], forKey: "enabledTools")
+        defaults.set(["claude", "antigravity", "codex", "cursor", "copilot"], forKey: "toolOrder")
+        defaults.set(["antigravity"], forKey: "menuBarPinnedTools")
+        defaults.set(["claude", "antigravity"], forKey: "peakHoursTools")
+        defaults.set(["antigravity"], forKey: "settingsExpandedTools")
+        defaults.set(["antigravity": ["gemini_flash", "gemini_pro"], "claude": ["five_hour"]], forKey: "ringWindows")
+        defaults.set(["antigravity": ["model_claude-opus-4-1"]], forKey: "hiddenWindows")
+        defaults.set(["antigravity": ["gemini_flash_lite"]], forKey: "revealedWindows")
+    }
+
+    @Test func theGeminiRowInheritsTheCombinedRowAndKimiStartsOn() {
+        withSuite("inherit") { defaults in
+            legacy(defaults)
+            let outcome = ToolMigration.migrate(defaults)
+            #expect(outcome.added == [.gemini, .kimi])
+            #expect(outcome.inherited == [.gemini: .antigravity])
+            let enabled = Set(defaults.stringArray(forKey: "enabledTools") ?? [])
+            #expect(enabled == ["antigravity", "claude", "gemini", "kimi"], "on because the combined row was, and a new tool starts on")
+            #expect(defaults.stringArray(forKey: "toolOrder") == ["claude", "gemini", "antigravity", "codex", "cursor", "copilot"],
+                    "just before Antigravity, where a new install has it")
+            #expect(defaults.stringArray(forKey: "menuBarPinnedTools") == ["antigravity", "gemini"])
+            #expect(defaults.stringArray(forKey: "peakHoursTools") == ["claude", "antigravity", "gemini"])
+            #expect(defaults.stringArray(forKey: "settingsExpandedTools") == ["antigravity", "gemini"])
+            let rings = defaults.dictionary(forKey: "ringWindows") as? [String: [String]]
+            #expect(rings?["gemini"] == ["gemini_flash", "gemini_pro"])
+            #expect(rings?["antigravity"] == ["gemini_flash", "gemini_pro"], "Antigravity keeps its own")
+            #expect((defaults.dictionary(forKey: "hiddenWindows") as? [String: [String]])?["gemini"] == ["model_claude-opus-4-1"])
+            #expect((defaults.dictionary(forKey: "revealedWindows") as? [String: [String]])?["gemini"] == ["gemini_flash_lite"])
+            #expect(defaults.stringArray(forKey: ToolMigration.knownToolsKey) == ToolID.allCases.map(\.rawValue))
+        }
+    }
+
+    /// The same setup read through Preferences, which is what the app does at launch.
+    @Test @MainActor func preferencesReadTheMigratedSetup() {
+        withSuite("prefs") { defaults in
+            legacy(defaults)
+            let prefs = Preferences(defaults: defaults)
+            #expect(prefs.enabledTools == [.claude, .gemini, .antigravity, .kimi])
+            let order: [ToolID] = [.claude, .gemini, .antigravity, .codex, .cursor, .copilot, .kimi]
+            #expect(prefs.toolOrder == order)
+            #expect(prefs.menuBarPinnedTools == [.gemini, .antigravity])
+            #expect(prefs.peakHoursTools == [.claude, .gemini, .antigravity])
+            #expect(prefs.ringWindows[.gemini] == ["gemini_flash", "gemini_pro"])
+            #expect(prefs.hiddenWindows[.gemini] == ["model_claude-opus-4-1"])
+            #expect(prefs.revealedWindows[.gemini] == ["gemini_flash_lite"])
+        }
+    }
+
+    @Test func aRowThatWasOffStaysOffAndANewToolStillStartsOn() {
+        withSuite("off") { defaults in
+            legacy(defaults, antigravityOn: false)
+            ToolMigration.migrate(defaults)
+            #expect(Set(defaults.stringArray(forKey: "enabledTools") ?? []) == ["claude", "kimi"])
+        }
+    }
+
+    /// Once is once: a user who switches the new row off after the migration finds it off at the next launch.
+    @Test @MainActor func aLaterChoiceIsNeverUndone() {
+        withSuite("once") { defaults in
+            legacy(defaults)
+            let prefs = Preferences(defaults: defaults)
+            prefs.enabledTools.remove(.gemini)
+            prefs.enabledTools.remove(.kimi)
+            prefs.menuBarPinnedTools.remove(.gemini)
+            let second = ToolMigration.migrate(defaults)
+            #expect(second.added.isEmpty)
+            let reloaded = Preferences(defaults: defaults)
+            #expect(!reloaded.enabledTools.contains(.gemini))
+            #expect(!reloaded.enabledTools.contains(.kimi))
+            #expect(!reloaded.menuBarPinnedTools.contains(.gemini))
+        }
+    }
+
+    /// A first launch has nothing to bring forward: it records the tools and changes nothing, and the defaults
+    /// already cover every tool.
+    @Test func aFirstLaunchOnlyRecords() {
+        withSuite("fresh") { defaults in
+            let outcome = ToolMigration.migrate(defaults)
+            #expect(outcome == ToolMigration.Outcome())
+            #expect(defaults.stringArray(forKey: ToolMigration.knownToolsKey) == ToolID.allCases.map(\.rawValue))
+            #expect(defaults.object(forKey: "enabledTools") == nil)
+            #expect(defaults.object(forKey: "toolOrder") == nil)
+        }
+    }
+
+    /// A tool added after this one, in a later version, is met the same way without an entry of its own here: it
+    /// starts on for a user with a stored set, and takes nobody's settings.
+    @Test func aToolFromALaterVersionStartsOnWithoutInheriting() {
+        withSuite("later") { defaults in
+            defaults.set(["claude", "codex", "cursor", "gemini", "antigravity", "copilot"], forKey: ToolMigration.knownToolsKey)
+            defaults.set(["claude"], forKey: "enabledTools")
+            defaults.set(["kimi-was-not-known"], forKey: "menuBarPinnedTools")
+            let outcome = ToolMigration.migrate(defaults)
+            #expect(outcome.added == [.kimi])
+            #expect(outcome.inherited.isEmpty)
+            #expect(defaults.stringArray(forKey: "enabledTools") == ["claude", "kimi"])
+            #expect(defaults.stringArray(forKey: "menuBarPinnedTools") == ["kimi-was-not-known"], "nothing else is touched")
+        }
+    }
+
+    @Test func insertingPlacesTheToolOnce() {
+        #expect(ToolMigration.inserting("gemini", before: "antigravity", in: ["claude", "antigravity"]) == ["claude", "gemini", "antigravity"])
+        #expect(ToolMigration.inserting("gemini", before: "antigravity", in: ["claude"]) == ["claude", "gemini"])
+        #expect(ToolMigration.inserting("gemini", before: "antigravity", in: ["gemini", "antigravity"]) == ["gemini", "antigravity"])
+    }
+}
+
+/// The two Google rows read and guard their own figures.
+@Suite struct GoogleRowsApart {
+    init() { Localization.use(language: "en") }
+
+    let now = DateParsing.iso8601("2026-09-24T12:00:00Z")!
+
+    @Test func eachRowTagsItsOwnReading() throws {
+        let buckets = Data(#"{"buckets":[{"modelId":"gemini-2.5-pro","remainingFraction":0.5,"resetTime":"2026-09-25T00:00:00Z"}]}"#.utf8)
+        #expect(try CodeAssistProvider.parseQuota(buckets, plan: nil, tool: .gemini, now: now).tool == .gemini)
+        #expect(try CodeAssistProvider.parseQuota(buckets, plan: nil, tool: .antigravity, now: now).tool == .antigravity)
+        let summary = Data(#"{"groups":[{"displayName":"Gemini Models","buckets":[{"window":"5h","remainingFraction":0.8,"resetTime":"2026-09-24T15:00:00Z"}]}]}"#.utf8)
+        #expect(try CodeAssistProvider.parseQuotaSummary(summary, plan: nil, tool: .gemini, now: now).tool == .gemini)
+        #expect(throws: ProviderError.parse("Google's quota response unreadable")) { try CodeAssistProvider.parseQuota(Data("x".utf8), plan: nil, tool: .gemini, now: now) }
+        #expect(throws: ProviderError.parse("Google reported no quota buckets")) { try CodeAssistProvider.parseQuota(Data(#"{"buckets":[]}"#.utf8), plan: nil, tool: .gemini, now: now) }
+    }
+
+    /// The staleness guard and the period inference reach the rows that need them and no other: both Google rows
+    /// for the guard (the two-host fault is theirs), those and Kimi's for the inference (windows that may arrive
+    /// without a length).
+    @Test func theGuardsReachTheirRowsAndNoOthers() {
+        #expect(CodeAssistStaleness.tools == [.gemini, .antigravity])
+        #expect(InferredPeriods.tools == [.gemini, .antigravity, .kimi])
+        func reading(_ tool: ToolID) -> UsageReading {
+            UsageReading(tool: tool, windows: [LimitWindow(id: "w", label: "W", usedFraction: 0, resetsAt: now.addingTimeInterval(3 * 3600))],
+                         plan: nil, fetchedAt: now, observedAt: nil)
+        }
+        for tool in ToolID.allCases {
+            let runs = CodeAssistStaleness.runs(after: reading(tool), previous: [:], now: now)
+            #expect(runs.isEmpty == !CodeAssistStaleness.tools.contains(tool), "\(tool)")
+            let inferred = InferredPeriods.apply(reading(tool), resets: [:], now: now)
+            #expect((inferred.windows[0].note != nil) == InferredPeriods.tools.contains(tool), "\(tool)")
+        }
+        let run = ["w": CodeAssistStaleness.Run(count: 3, since: now)]
+        let gemini = CodeAssistStaleness.unverified(reading(.gemini), runs: run, activeSince: now.addingTimeInterval(60))
+        #expect(gemini.windows[0].usedFraction == nil, "Gemini CLI's own turn after the run began makes its pinned figure unverified")
+        #expect(gemini.windows[0].source == .localEstimate)
+    }
+
+    /// Gemini CLI's files set Gemini CLI's cadence and Antigravity's set Antigravity's; the login file is Gemini
+    /// CLI's alone.
+    @Test func activityIsReadPerRow() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-gemini-activity-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("tmp/abc"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("antigravity-cli/conversations/c1"), withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: root.appendingPathComponent("oauth_creds.json"))
+        let geminiAt = Date(timeIntervalSince1970: 1_790_000_000)
+        let antigravityAt = Date(timeIntervalSince1970: 1_790_003_600)
+        try FileManager.default.setAttributes([.modificationDate: geminiAt], ofItemAtPath: root.appendingPathComponent("tmp/abc").path)
+        try FileManager.default.setAttributes([.modificationDate: geminiAt.addingTimeInterval(-60)], ofItemAtPath: root.appendingPathComponent("oauth_creds.json").path)
+        try FileManager.default.setAttributes([.modificationDate: antigravityAt], ofItemAtPath: root.appendingPathComponent("antigravity-cli/conversations/c1").path)
+        #expect(AgentActivity.newestGemini(root: root) == geminiAt)
+        #expect(AgentActivity.newestAntigravity(root: root) == antigravityAt)
+    }
+}
+
+/// What the rest of the app knows about the new rows: names, marks, colours, links, search.
+@MainActor
+@Suite struct NewRowsPresentation {
+    init() { Localization.use(language: "en") }
+
+    @Test func namesAndMarks() {
+        #expect(ToolID.gemini.displayName == "Gemini")
+        #expect(ToolID.gemini.productName == "Gemini CLI")
+        #expect(ToolID.kimi.displayName == "Kimi")
+        #expect(ToolID.kimi.productName == "Kimi Code")
+        #expect(ToolID.antigravity.productName == "Antigravity")
+        for tool in ToolID.allCases {
+            #expect(NSImage(systemSymbolName: tool.symbolName, accessibilityDescription: nil) != nil, "\(tool) asks for \(tool.symbolName)")
+        }
+        #expect(Set(ToolID.allCases.map(\.symbolName)).count == ToolID.allCases.count, "no two assistants share a mark")
+        #expect(ProviderLinks.usage(.gemini).host == "geminicli.com")
+        #expect(ProviderLinks.usage(.kimi).absoluteString == "https://www.kimi.com/code/console")
+        #expect(ProviderLinks.status(.kimi) == nil)
+    }
+
+    /// The identity colours stay apart and legible: 4.5:1 at least against the black notch, so a figure drawn in
+    /// one reads as text (every one clears 6.5:1, and the two added in 0.9.0 clear 7:1), and the chart pair 3:1
+    /// against the light and dark windows the Dashboard draws on.
+    @Test func coloursAreDistinctAndLegible() throws {
+        let black = NSColor.black
+        let light = NSColor.white
+        let dark = NSColor(srgbRed: 0x1E / 255, green: 0x1E / 255, blue: 0x1E / 255, alpha: 1)
+        var seen: [String] = []
+        for tool in ToolID.allCases {
+            let colour = NSColor(tool.color)
+            let srgb = try #require(colour.usingColorSpace(.sRGB))
+            seen.append(String(format: "%.3f %.3f %.3f", srgb.redComponent, srgb.greenComponent, srgb.blueComponent))
+            #expect(SettingsSidebarTiles.contrast(colour, black) >= 4.5, "\(tool) on the notch")
+            if tool == .gemini || tool == .kimi { #expect(SettingsSidebarTiles.contrast(colour, black) >= 7, "\(tool) on the notch") }
+            let chart = NSColor(tool.chartColor)
+            var onLight = 0.0
+            var onDark = 0.0
+            try #require(NSAppearance(named: .aqua)).performAsCurrentDrawingAppearance { onLight = SettingsSidebarTiles.contrast(chart, light) }
+            try #require(NSAppearance(named: .darkAqua)).performAsCurrentDrawingAppearance { onDark = SettingsSidebarTiles.contrast(chart, dark) }
+            #expect(onLight >= 3, "\(tool) chart on the light window")
+            #expect(onDark >= 3, "\(tool) chart on the dark window")
+        }
+        #expect(Set(seen).count == ToolID.allCases.count, "no two assistants share a colour")
+    }
+
+    @Test func searchFindsTheNewRowsByName() {
+        let entries = SettingsSearch.entries()
+        let kimi = SettingsSearch.sections(matching: "Kimi", in: entries)
+        #expect(kimi.contains(.assistants))
+        #expect(kimi.contains(.hooks))
+        let gemini = SettingsSearch.sections(matching: "Gemini", in: entries)
+        #expect(gemini.contains(.assistants) && gemini.contains(.hooks))
+        #expect(SettingsSearch.sections(matching: "Antigravity", in: entries) == [.assistants], "Antigravity has a switch and no hook row")
+    }
+
+    /// The review render of the new rows: the three rows alone, Gemini CLI's session held on its permission and
+    /// Kimi's working, each from its own hook's messages.
+    @Test func theReviewFixtureShowsTheNewRows() {
+        let now = Date()
+        let (store, _) = DemoFixtures.assistantsStore(now: now)
+        defer { UserDefaults.standard.removePersistentDomain(forName: DemoFixtures.assistantsSuiteName) }
+        let shown: [ToolID] = [.gemini, .antigravity, .kimi]
+        #expect(store.visibleTools == shown)
+        #expect(store.awaitingInput == [.gemini])
+        #expect(store.sessions.isWorking(.kimi))
+        #expect(store.status(.gemini).reading?.windows.first?.note?.contains("likely a 1-day window") == true, "the first read can only say what the reset suggests")
+        #expect(store.status(.kimi).reading?.windows.map(\.id) == ["session", "weekly", "monthly_total"])
+    }
+}

@@ -48,8 +48,10 @@ extension ProviderRegistry {
         [ClaudeProvider(),
          CodexProvider(defaults: defaults),
          CursorProvider(defaults: defaults),
-         AntigravityProvider(),
-         CopilotProvider(defaults: defaults)]
+         CodeAssistProvider(tool: .gemini),
+         CodeAssistProvider(tool: .antigravity),
+         CopilotProvider(defaults: defaults),
+         KimiProvider()]
     }
 }
 
@@ -114,8 +116,9 @@ final class UsageStore {
     private(set) var cursorExport: CursorExportRead?
     /// What GitHub last said about the Copilot seat's AI credits, for the same line on the card.
     private(set) var copilotCredits: CopilotCreditsRead?
-    /// How many polls in a row each Antigravity window has read untouched, for the staleness guard.
-    @ObservationIgnored private var antigravityRuns: [String: AntigravityStaleness.Run] = [:]
+    /// How many polls in a row each Gemini CLI and Antigravity window has read untouched, per row, for the
+    /// staleness guard (CodeAssistStaleness).
+    @ObservationIgnored private var untouchedRuns: [ToolID: [String: CodeAssistStaleness.Run]] = [:]
     /// The range the Cost card on the open panel is showing. It lived in the card as `@State` until 0.6.0, which
     /// left every other render of the card guessing: "Copy as image" on the whole panel rebuilt NotchExpandedView
     /// for the pasteboard, and the fresh card inside it opened on Today whatever the panel said, so a user reading
@@ -274,7 +277,7 @@ final class UsageStore {
         self.providers = providers.reduce(into: [:]) { $0[$1.tool] = $1 }
         let roots = ClaudeCostScanner.defaultRoots(extra: prefs.extraTranscriptRoots)
         self.costEngine = CostEngine(claude: ClaudeCostScanner(roots: roots))
-        self.activity = AgentActivity(claudeRoots: roots)
+        self.activity = Self.activity(claudeRoots: roots, providers: self.providers)
         if let data = defaults.data(forKey: ExtraUsageMemory.defaultsKey) {
             extraUsageMemory = try? JSONDecoder().decode(ExtraUsageMemory.self, from: data)
         }
@@ -613,11 +616,19 @@ final class UsageStore {
         }
     }
 
+    /// The activity check over these transcript roots, looking for Kimi Code's sessions in the share folder its
+    /// provider resolved (which also asks launchd's environment for `KIMI_SHARE_DIR`), so the two never disagree.
+    private static func activity(claudeRoots: [URL], providers: [ToolID: any UsageProvider]) -> AgentActivity {
+        var activity = AgentActivity(claudeRoots: claudeRoots)
+        if let kimi = providers[.kimi] as? KimiProvider { activity.kimiRoot = kimi.shareDirectory }
+        return activity
+    }
+
     /// The transcript roots changed in Settings: the scanner and the activity check follow, and the cost is rescanned.
     func reloadRoots() {
         let roots = ClaudeCostScanner.defaultRoots(extra: prefs.extraTranscriptRoots)
         costEngine = CostEngine(claude: ClaudeCostScanner(roots: roots))
-        activity = AgentActivity(claudeRoots: roots)
+        activity = Self.activity(claudeRoots: roots, providers: providers)
         lastCostScan = nil
         Task { await refreshCost() }
     }
@@ -794,13 +805,17 @@ final class UsageStore {
     /// A good reading: on screen, cached, logged for the drain, watched for its reset, and checked for alerts.
     private func adopt(_ reading: UsageReading, now: Date = Date()) {
         var reading = reading
-        if reading.tool == .antigravity {
-            let resets = drainSamples.filter { $0.key.tool == .antigravity }.reduce(into: [String: [Date]]()) { $0[$1.key.window] = $1.value.compactMap(\.resetsAt) }
-            reading = AntigravityPeriods.apply(reading, resets: resets, now: now)
+        let tool = reading.tool
+        if InferredPeriods.tools.contains(tool) {
+            let resets = drainSamples.filter { $0.key.tool == tool }.reduce(into: [String: [Date]]()) { $0[$1.key.window] = $1.value.compactMap(\.resetsAt) }
+            reading = InferredPeriods.apply(reading, resets: resets, now: now)
+        }
+        if CodeAssistStaleness.tools.contains(tool) {
             // The run is counted from the figure as read, before the guard strips it, so a pinned meter keeps
-            // counting rather than restarting the moment it is first doubted (AntigravityStaleness).
-            antigravityRuns = AntigravityStaleness.runs(after: reading, previous: antigravityRuns, now: now)
-            reading = AntigravityStaleness.unverified(reading, runs: antigravityRuns, activeSince: lastActivity[.antigravity])
+            // counting rather than restarting the moment it is first doubted (CodeAssistStaleness).
+            let runs = CodeAssistStaleness.runs(after: reading, previous: untouchedRuns[tool] ?? [:], now: now)
+            untouchedRuns[tool] = runs
+            reading = CodeAssistStaleness.unverified(reading, runs: runs, activeSince: lastActivity[tool])
         }
         if reading.tool == .claude { noteExtraUsage(reading, now: now) }
         statuses[reading.tool] = .ready(reading)

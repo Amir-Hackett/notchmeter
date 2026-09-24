@@ -59,7 +59,10 @@ import Testing
         #expect(Hook.tool(in: ["--tool", "bogus"]) == nil, "a name that is not a ToolID is ignored, so the event still posts as Claude's")
         #expect(Hook.tool(in: ["Notchmeter", "--hook"]) == nil)
         #expect(Hook.tool(in: ["Notchmeter", "--hook", "--tool", "codex"]) == .codex)
-        #expect(Hook.tool(in: ["Notchmeter", "--hook", "--tool", "antigravity"]) == .antigravity, "Gemini CLI's entries carry the ring's name")
+        #expect(Hook.tool(in: ["Notchmeter", "--hook", "--tool", "gemini"]) == .gemini)
+        #expect(Hook.tool(in: ["Notchmeter", "--hook", "--tool", "antigravity"]) == .gemini,
+                "a Gemini CLI entry from before 0.9.0 still names the combined ring; the Antigravity IDE never had one of ours")
+        #expect(Hook.tool(in: ["Notchmeter", "--hook", "--tool", "kimi"]) == .kimi)
         #expect(Hook.tool(in: ["Notchmeter", "--hook", "--tool", "copilot", "--event", "agentStop"]) == .copilot)
     }
 
@@ -111,8 +114,8 @@ import Testing
         #expect(asCodex.sessionID == "s")
         let claudePrompt = Data(#"{"hook_event_name":"Notification","notification_type":"permission_prompt","session_id":"s"}"#.utf8)
         // Gemini CLI: Claude's notification vocabulary under Gemini's flag is not Gemini's documented wait.
-        let asGemini = try #require(Hook.message(from: claudePrompt, tool: .antigravity, environment: [:]))
-        #expect(asGemini.tool == .antigravity)
+        let asGemini = try #require(Hook.message(from: claudePrompt, tool: .gemini, environment: [:]))
+        #expect(asGemini.tool == .gemini)
         #expect(!asGemini.needsInput, "only Gemini's ToolPermission lights the hand; Claude Code's permission_prompt is not its word")
         #expect(asGemini.notificationType == nil, "a type that is not a documented wait is not carried, so it can never end one either")
         let geminiPrompt = Data(#"{"hook_event_name":"Notification","notification_type":"ToolPermission","session_id":"s"}"#.utf8)
@@ -148,9 +151,17 @@ import Testing
         #expect(HookSettings.command(executable: "/it's/here") == "'/it'\\''s/here' --hook")
 
         // Every vendor's snippet parses, covers exactly its events, and every handler carries that event's flag.
+        // Kimi Code's is TOML, read back by the same scanner Add and Repair use.
         for vendor in HookVendor.allCases {
             let rendered = HookSettings.snippet(vendor: vendor, executable: "/Users/me/My Apps/Notchmeter.app/Contents/MacOS/Notchmeter")
-            let object = try #require(try JSONSerialization.jsonObject(with: Data(rendered.utf8)) as? [String: Any], "\(vendor.rawValue)")
+            let object: [String: Any]
+            if vendor.shape == .tomlTables {
+                let scan = KimiHookFile.scan(rendered)
+                #expect(!scan.conflict, "\(vendor.rawValue)")
+                object = KimiHookFile.settings(from: scan)
+            } else {
+                object = try #require(try JSONSerialization.jsonObject(with: Data(rendered.utf8)) as? [String: Any], "\(vendor.rawValue)")
+            }
             let events = try #require(object["hooks"] as? [String: Any], "\(vendor.rawValue)")
             #expect(Set(events.keys) == Set(vendor.events), "\(vendor.rawValue)")
             for (key, value) in vendor.shape.requiredRootKeys {

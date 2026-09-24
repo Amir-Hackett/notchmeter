@@ -71,11 +71,25 @@ enum AssetRenderer {
             let opened = try Stage(store: store, prefs: prefs, actions: actions)
             try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-open.png"))
             store.openPanelRows = []
+            // The rows 0.9.0 added, for review (DemoFixtures.assistantsStore): Gemini CLI and Antigravity apart,
+            // Kimi Code beside them, on the Simple panel, the strip, and the Detailed panel.
+            let (assistants, assistantsPrefs) = DemoFixtures.assistantsStore(now: now)
+            let assistantsStage = try Stage(store: assistants, prefs: assistantsPrefs, actions: actions)
+            try write(assistantsStage.image(.expanded, canvas: assistantsStage.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("assistants.png"))
+            try write(assistantsStage.image(.compact, canvas: CGSize(width: 1200, height: 80), pixelScale: scale), png: directory.appendingPathComponent("assistants-compact.png"))
+            assistantsPrefs.panelMode = .detailed
+            let assistantsDetailed = try Stage(store: assistants, prefs: assistantsPrefs, actions: actions)
+            try write(assistantsDetailed.image(.expanded, canvas: assistantsDetailed.panelCanvas, pixelScale: scale),
+                      png: directory.appendingPathComponent("assistants-detailed.png"))
+            assistantsPrefs.panelMode = .simple
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
             AccessibilityDisplay.shared.force(contrast: true)
             defer { AccessibilityDisplay.shared.force(contrast: nil) }
             let contrast = try Stage(store: store, prefs: prefs, actions: actions)
             try write(contrast.image(.expanded, canvas: contrast.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-contrast.png"))
+            let assistantsContrast = try Stage(store: assistants, prefs: assistantsPrefs, actions: actions)
+            try write(assistantsContrast.image(.expanded, canvas: assistantsContrast.panelCanvas, pixelScale: scale),
+                      png: directory.appendingPathComponent("assistants-contrast.png"))
             return true
         } catch {
             Probe.emit("render-assets: \(error)")

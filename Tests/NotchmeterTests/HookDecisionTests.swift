@@ -435,7 +435,8 @@ import Testing
         let untimed: [String: Any] = ["type": "command", "command": "'\(executable)' --hook --tool copilot --event PermissionRequest"]
         #expect(!HookVendor.copilot.isCurrent(handler: untimed, element: untimed, event: "PermissionRequest"), "Copilot's default is 30 s, which would cancel the command before the user answers")
         #expect(HookVendor.cursor.decidingEvents.isEmpty)
-        #expect(HookVendor.antigravity.decidingEvents.isEmpty)
+        #expect(HookVendor.gemini.decidingEvents.isEmpty)
+        #expect(HookVendor.kimi.decidingEvents.isEmpty, "Kimi Code has no permission event to hold")
     }
 }
 

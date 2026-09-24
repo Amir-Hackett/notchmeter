@@ -123,7 +123,7 @@
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "名前で選んだディスプレイはハードウェア ID で記憶されるため、同じ機種の 2 台も区別でき、名前が変わっても失われません。";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "左端に切り込まれたノッチ。パネルはその横に開きます。同じ側に Dock やステージマネージャの帯があるときは譲ります。";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "右端に切り込まれたノッチ。パネルはその横に開きます。同じ側に Dock があるときは譲ります。";
-"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "Claude Code、Codex、Copilot からの許可リクエストや質問でパネルが開き、許可と拒否（⌘Y、⌘N）または選択肢（⌘1…⌘9）が表示され、アシスタントはあなたの回答を待ちます。Escape でターミナルに戻します。オフにすると従来どおりターミナルが尋ね、パネルは待機中と表示するだけです。Cursor と Gemini CLI には回答できるイベントがありません。";
+"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor, Gemini CLI and Kimi Code have no event that can be answered." = "Claude Code、Codex、Copilot からの許可リクエストや質問でパネルが開き、許可と拒否（⌘Y、⌘N）または選択肢（⌘1…⌘9）が表示され、アシスタントはあなたの回答を待ちます。Escape でターミナルに戻します。オフにすると従来どおりターミナルが尋ね、パネルは待機中と表示するだけです。Cursor、Gemini CLI、Kimi Code には回答できるイベントがありません。";
 "A request nobody has answered in this long goes back to the terminal, which asks as usual; the hook's own ceiling is ten minutes, and the assistant sees no decision either way." = "この時間内に誰も回答しなかったリクエストはターミナルに戻り、従来どおり尋ねられます。フック自体の上限は 10 分で、どちらの場合もアシスタントには決定が伝わりません。";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "同じログインで chatgpt.com をもう一度読み、ウィンドウをリセットできるクレジットとその期限を表示します。受け取りは Codex 側で行います。";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "同じセッション Cookie で cursor.com をもう一度読みます。直近 30 日の使用イベントをエクスポートされたコストで価格付けし、日次合計ファイルに Cursor の系列（本日、30 日、トレンド）として加えます。";
@@ -162,7 +162,7 @@
 "Done — click to jump" = "完了 — クリックでジャンプ";
 "Expanded" = "展開";
 "Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI は起動時に settings.json を読み込みます。フックは次のセッションから働きます。";
-"Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring." = "Gemini CLI はセッションの開始と終了、プロンプトの送信、各ターンの終了、そしてツールの許可を求めて止まった瞬間を報告します。その通知が唯一の待機です。Antigravity のリングはそのとき待機の手を示し、ターンの終了、次のプロンプトの送信、セッションの終了、または 10 分後に下ろします。サブエージェント、レート制限、取り消されたターンのイベントはないため、取り消されたターンは次のプロンプトかセッションの終了まで作業中として表示されます。Gemini CLI は起動時に settings.json を読み込みます。コメントを含むファイルには手を触れないので、代わりにスニペットを貼り付けてください。Antigravity IDE 自身のフックはこれらを何も報告しないため、この行は Gemini CLI のものであり、同じリングを灯します。";
+"Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Gemini ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. An entry added before 0.9.0 lit the Antigravity ring and reads as out of date until Repair points it at Gemini CLI's own. The Antigravity IDE's own hooks report none of this, so Antigravity has no hook row." = "Gemini CLI はセッションの開始と終了、プロンプトの送信、各ターンの終了、そしてツールの許可を求めて止まった瞬間を報告します。その通知が唯一の待機です。Gemini のリングはそのとき待機の手を示し、ターンの終了、次のプロンプトの送信、セッションの終了、または 10 分後に下ろします。サブエージェント、レート制限、取り消されたターンのイベントはないため、取り消されたターンは次のプロンプトかセッションの終了まで作業中として表示されます。Gemini CLI は起動時に settings.json を読み込みます。コメントを含むファイルには手を触れないので、代わりにスニペットを貼り付けてください。0.9.0 より前に追加された項目は Antigravity のリングを灯していたため、「修復」で Gemini CLI 自身のリングに向け直すまで古い項目として表示されます。Antigravity IDE 自身のフックはこれらを何も報告しないため、Antigravity にはフックの行がありません。";
 "GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it." = "GitHub Copilot はセッションの開始と終了、プロンプトの送信、停止、サブエージェントの開始と停止、そして許可や質問を求めるときに出す通知を報告します。その 2 つの通知が待機です。Copilot のリングはそのとき待機の手を示し、次のプロンプトか停止、または 10 分後に下ろします。レート制限や失敗したターンのイベントはなく、内蔵の汎用エージェントはサブエージェントを報告しません。ファイルは ~/.copilot/hooks 配下の Notchmeter 自身のものなので、フックの削除はファイルの削除です。Copilot は起動時にそれを読み込み、/env に並べます。Copilot のクラウドコーディングエージェントはこれを決して見ません。";
 "GitHub reports no AI credits for this seat" = "GitHub はこのシートの AI クレジットを報告していません";
 "Granted" = "許可済み";
@@ -176,7 +176,7 @@
 "Install the hook and status line…" = "フックとステータスラインをインストール…";
 "Open Integrations…" = "連携を開く…";
 "Installed, but an entry is out of date: Repair updates it" = "インストール済みですが、古い項目があります。「修復」で更新します";
-"It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "各アシスタントがこの Mac にすでに保存している利用状況（Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot）を読み、そのツールが保存したログインで各ベンダーの利用状況エンドポイントに問い合わせます。サインインすることも、トークンを保持することも、他のどこかへ送ることもありません。アカウントも解析もありません。";
+"It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot and Kimi Code — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "各アシスタントがこの Mac にすでに保存している利用状況（Claude Code、Codex、Cursor、Gemini CLI、Antigravity、GitHub Copilot、Kimi Code）を読み、そのツールが保存したログインで各ベンダーの利用状況エンドポイントに問い合わせます。サインインすることも、トークンを保持することも、他のどこかへ送ることもありません。アカウントも解析もありません。";
 "Jump to the terminal" = "ターミナルへジャンプ";
 "Jump to the terminal on click" = "クリックでターミナルへジャンプする";
 "Just finished" = "完了しました";
@@ -209,7 +209,7 @@
 "Keep the numbers" = "数値を残す";
 "Keep the tools" = "ツールを残す";
 "Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "「ツールを残す」はまず数値を省きます。リングの横に数値がある場合は主要な数値以外を先に、次に主要な数値も省き、各表示がリングだけになってから、最後に並べたアシスタントを省きます。「数値を残す」はそのアシスタントを先に省き、表示が一つも収まらなくなって初めて残りを細くします。";
-"Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "セッションの開始と終了、プロンプトの送信、ターンの停止、サブエージェントの実行を Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot からノッチに知らせます。メーターはすぐ更新され、カードはセッションとエージェントを数えます。Claude Code、Codex、Gemini CLI、Copilot はさらに、あなたに何かを尋ねるために止まったことも報告します。Cursor にはそのイベントがないため、そのリングは完了のチェックを示し、待機の手は決して示しません。権限モードを報告するのは Claude Code と Codex で、レート制限による停止を報告するのは Claude Code だけです。";
+"Let Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot and Kimi Code tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor and Kimi Code have no event for that, so their rings show the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "セッションの開始と終了、プロンプトの送信、ターンの停止、サブエージェントの実行を Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot、Kimi Code からノッチに知らせます。メーターはすぐ更新され、カードはセッションとエージェントを数えます。Claude Code、Codex、Gemini CLI、Copilot はさらに、あなたに何かを尋ねるために止まったことも報告します。Cursor と Kimi Code にはそのイベントがないため、それらのリングは完了のチェックを示し、待機の手は決して示しません。権限モードを報告するのは Claude Code と Codex で、レート制限による停止を報告するのは Claude Code だけです。";
 "Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "これを %1$@ にマージするか、「%2$@ に追加…」で自動的にマージしてください。各項目は %3$@ %4$@ を実行し、イベント名を起動中のアプリに送って終了します。";
 "Metered apart from the included total" = "含まれる合計とは別に計測";
 "Reads 0% on this seat however much it spends; Today's spend carries the reading" = "この席では使っても 0% のまま。今日の支出が代わりに示します";
@@ -236,8 +236,8 @@
 "Also read organisation billing" = "組織の請求も読む";
 "Also read transcripts from" = "次の場所の記録も読む";
 "Always open" = "常に開く";
-"Antigravity quota response unreadable" = "Antigravity クォータの応答を読み取れません";
-"Antigravity reported no quota buckets" = "Antigravity はクォータバケットを報告しませんでした";
+"Google's quota response unreadable" = "Google クォータの応答を読み取れません";
+"Google reported no quota buckets" = "Google はクォータバケットを報告しませんでした";
 "Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity のログインが期限切れです。Gemini CLI または Antigravity を一度実行して再サインインしてください";
 "Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity のログインが拒否されました。Gemini CLI または Antigravity を一度実行して再サインインしてください";
 "Appearance" = "外観";
@@ -405,7 +405,7 @@
 "inferred" = "推定";
 "Inner ring" = "内側のリング";
 "Install" = "インストール";
-"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI or GitHub Copilot; its meters appear here." = "Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot をインストールしてサインインすると、メーターがここに表示されます。";
+"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here." = "Claude Code、Codex、Cursor、Gemini CLI、Antigravity、GitHub Copilot、Kimi Code のいずれかをインストールしてサインインすると、メーターがここに表示されます。";
 "Install command line tool…" = "コマンドラインツールをインストール…";
 "Install status line…" = "ステータスラインをインストール…";
 "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`." = "%1$@ にインストールしました。`notchmeter` として使うには %2$@ を PATH に追加してください。";
@@ -660,7 +660,7 @@
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "ログイン項目は移動済みのアプリを指しています。一度オフにしてから再度オンにしてください。";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "パネルはポインタに追従します。ポインタが半秒とどまったディスプレイへ移動します。";
 "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "どれを選んでもパネルの中身は黒地に白のままで、画面の左右の端に描くノッチの形も同じです。どちらも画面に載せたものではなく画面の一部として見える必要があるためです。既知の制限: macOS 26 では端に開くパネルの背後のガラスは選択に従うため、ライトを選ぶと明るいガラスの上に白い文字が乗ります。";
-"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "アシスタントが許可を待っているとき、またはターンを終えた直後、リングは「使い切りではなく、あなたを必要としている」を意味する青になり、隣のマークがどちらかを示します。ペースは弧の先端のキャップを保つので、ほぼ使い切った枠はそのまま伝わります。どのフックもターンの完了を報告します。待機を報告するのは Claude Code、Codex、Gemini CLI、Copilot のフックで、Cursor のフックは報告しません。";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's and Kimi Code's do not." = "アシスタントが許可を待っているとき、またはターンを終えた直後、リングは「使い切りではなく、あなたを必要としている」を意味する青になり、隣のマークがどちらかを示します。ペースは弧の先端のキャップを保つので、ほぼ使い切った枠はそのまま伝わります。どのフックもターンの完了を報告します。待機を報告するのは Claude Code、Codex、Gemini CLI、Copilot のフックで、Cursor と Kimi Code のフックは報告しません。";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "30 分間どのアシスタントも活動せず、すべてのウィンドウが静かなときリングはドットに縮みます。フックイベント、ファイルの活動、ペースの変化、リングにポインタを置くと元に戻ります。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "セッションの計測が平常より約 %1$@ 重くなっています: 1%% あたり %2$@（平常 %3$@）。";
 "Third ring" = "3 番目のリング";
@@ -902,3 +902,23 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "このプロジェクトの Cursor ウインドウを前面に出します（Cursor に特定のチャットを開かせることはできません）";
 "First seen %@" = "最初に検出：%@";
+
+/* 0.9.0: Gemini CLI and Antigravity as two rows, Kimi Code (CodeAssistProvider, KimiProvider, KimiHookFile, HookSettings, SettingsWindow) */
+"%@ already defines hooks in a form Notchmeter does not edit, so it was left untouched: paste the snippet instead" = "%@ は Notchmeter が編集しない形式ですでにフックを定義しているため変更しませんでした。代わりにスニペットを貼り付けてください";
+"Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota" = "Antigravity は自身のログインをキーチェーンに保存しています。そのクォータを読むには、同じ Google アカウントで Gemini CLI にサインインしてください（`gemini` を実行して Login with Google を選択）";
+"Gemini CLI's login has expired. Run Gemini CLI once so it signs back in" = "Gemini CLI のログインが期限切れです。Gemini CLI を一度実行して再サインインしてください";
+"Gemini CLI's login was refused. Run Gemini CLI once so it signs back in" = "Gemini CLI のログインが拒否されました。Gemini CLI を一度実行して再サインインしてください";
+"Kimi Code has not signed in. Run `kimi`, then /login" = "Kimi Code はサインインしていません。`kimi` を実行してから /login を使ってください";
+"Kimi Code reads config.toml when it starts: the hook works from the next session." = "Kimi Code は起動時に config.toml を読み込みます。フックは次のセッションから働きます。";
+"Kimi Code reported no usage yet" = "Kimi Code はまだ利用状況を報告していません";
+"Kimi Code reports session starts and ends, prompt sends, the end of each turn, a turn that failed, and subagent starts and stops. It has no event for a wait on your approval or a question, so the Kimi ring shows the finished tick and never the waiting hand, and a failed turn ends without the tick. The entries are [[hooks]] tables added to the end of config.toml, and the rest of the file is left exactly as it was; a file that already defines hooks another way is left alone, so paste the snippet instead. Kimi Code reads config.toml when it starts, and /hooks lists the entries." = "Kimi Code はセッションの開始と終了、プロンプトの送信、各ターンの終了、失敗したターン、サブエージェントの開始と終了を報告します。あなたの承認や質問を待つためのイベントはないため、Kimi のリングは完了のチェックを示し、待機の手は決して示しません。失敗したターンはチェックなしで終わります。項目は config.toml の末尾に追加される [[hooks]] テーブルで、ファイルの残りはそのまま残ります。すでに別の形でフックを定義しているファイルには手を触れないので、代わりにスニペットを貼り付けてください。Kimi Code は起動時に config.toml を読み込み、/hooks に項目が並びます。";
+"Kimi Code's login has expired. Run Kimi Code once so it signs back in" = "Kimi Code のログインが期限切れです。Kimi Code を一度実行して再サインインしてください";
+"Kimi Code's login was refused. Run Kimi Code once so it signs back in" = "Kimi Code のログインが拒否されました。Kimi Code を一度実行して再サインインしてください";
+"Kimi refused the usage read for this account" = "Kimi はこのアカウントの利用状況の読み取りを拒否しました";
+"Kimi's usage endpoint answered" = "Kimi 利用状況エンドポイントの応答エラー";
+"Kimi's usage endpoint answers only a Kimi Code membership" = "Kimi の利用状況エンドポイントは Kimi Code のメンバーシップにしか応答しません";
+"Kimi's usage response unreadable" = "Kimi の利用状況の応答を読み取れません";
+"Limit %ld" = "上限 %ld";
+"Monthly coding" = "月間（コーディング）";
+"Monthly total" = "月間（合計）";
+"Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "プランの利用状況を読むには Kimi Code にサインインしてください（`kimi` を実行してから /login）";

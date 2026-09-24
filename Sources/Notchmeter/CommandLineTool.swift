@@ -48,7 +48,7 @@ enum CommandLineTool {
 
     static func run(arguments: [String]) -> Never {
         if arguments.contains("--help") || arguments.contains("-h") {
-            Probe.emit("usage: notchmeter [claude|codex|cursor|antigravity|copilot] [--force] [--json]")
+            Probe.emit("usage: notchmeter [claude|codex|cursor|gemini|antigravity|copilot|kimi] [--force] [--json]")
             Probe.emit("  reads the running app's cached report; --force reads every vendor afresh")
             Probe.emit("  exit codes: 0 fine, 10 near a limit, 11 limit hit, 20 nothing used, 30 no data")
             exit(0)

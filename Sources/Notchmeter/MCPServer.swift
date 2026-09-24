@@ -11,8 +11,8 @@ struct MCPServer {
 
     static let tools: [[String: Any]] = [[
         "name": "get_limits",
-        "description": "This Mac's AI coding-tool usage windows (Claude Code, Codex, Cursor, Gemini CLI, Copilot), the local Claude Code cost estimate and Notchmeter's advice, as the notchmeter.limits.v1 object. Read it before long work to decide whether to switch models or wait for a reset.",
-        "inputSchema": ["type": "object", "properties": ["tool": ["type": "string", "description": "Limit the answer to one tool: claude, codex, cursor, antigravity or copilot."]], "additionalProperties": false],
+        "description": "This Mac's AI coding-tool usage windows (Claude Code, Codex, Cursor, Gemini CLI, Antigravity, Copilot, Kimi Code), the local Claude Code cost estimate and Notchmeter's advice, as the notchmeter.limits.v1 object. Read it before long work to decide whether to switch models or wait for a reset.",
+        "inputSchema": ["type": "object", "properties": ["tool": ["type": "string", "description": "Limit the answer to one tool: claude, codex, cursor, gemini, antigravity, copilot or kimi."]], "additionalProperties": false],
     ]]
 
     /// The client's configuration snippet, for Settings.

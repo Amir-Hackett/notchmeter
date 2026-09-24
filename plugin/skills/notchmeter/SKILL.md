@@ -1,6 +1,6 @@
 ---
 name: notchmeter
-description: Read this Mac's AI usage windows (Claude Code session/weekly/per-model, Codex, Cursor, Antigravity / Gemini CLI, Copilot), the local cost estimate and Notchmeter's advice before long work, so Claude can switch models or wait for a reset on its own. Use when the user asks how much quota is left, whether a long task fits before a reset, or when a task will run for more than a few minutes.
+description: Read this Mac's AI usage windows (Claude Code session/weekly/per-model, Codex, Cursor, Gemini CLI, Antigravity, Copilot, Kimi Code), the local cost estimate and Notchmeter's advice before long work, so Claude can switch models or wait for a reset on its own. Use when the user asks how much quota is left, whether a long task fits before a reset, or when a task will run for more than a few minutes.
 ---
 
 # Notchmeter

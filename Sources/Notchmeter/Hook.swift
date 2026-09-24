@@ -245,7 +245,15 @@ enum Hook {
     /// error, so a mistyped entry still posts the event as Claude's rather than dropping it).
     static func tool(in arguments: [String]) -> ToolID? {
         guard let index = arguments.firstIndex(of: "--tool"), index + 1 < arguments.count else { return nil }
-        return ToolID(rawValue: arguments[index + 1])
+        return sender(named: arguments[index + 1])
+    }
+
+    /// The tool a hook names itself as, on the command line or in a remote post's `"tool"` key. `antigravity` is
+    /// the name every Gemini CLI entry installed before 0.9.0 carries, from when Gemini CLI's hook lit the combined
+    /// Antigravity ring; the Antigravity IDE has never had a hook of ours, so that name can only be Gemini CLI's,
+    /// and it lands on Gemini CLI's row until Repair rewrites the entry to `--tool gemini`.
+    static func sender(named name: String) -> ToolID? {
+        name == ToolID.antigravity.rawValue ? .gemini : ToolID(rawValue: name)
     }
 
     /// `--event <name>` on the hook command line: the event a Copilot entry was registered under, because Copilot's
@@ -273,19 +281,20 @@ enum Hook {
         guard let object = try? JSONSerialization.jsonObject(with: payload) as? [String: Any],
               let event = (object[eventKey] as? String).flatMap({ $0.isEmpty ? nil : $0 }) ?? argumentEvent
         else { return nil }
-        let claimed = tool ?? (object[toolKey] as? String).flatMap(ToolID.init(rawValue:))
+        let claimed = tool ?? (object[toolKey] as? String).flatMap(sender(named:))
         let vendor: HookVendor = claimed.flatMap(HookVendor.vendor(for:))
             ?? (Copilot.recognises(object: object) ? .copilot
                 : Cursor.recognises(event: event, object: object) ? .cursor
-                : Gemini.recognises(event: event, object: object, environment: environment) ? .antigravity
+                : Gemini.recognises(event: event, object: object, environment: environment) ? .gemini
                 : Copilot.recognises(event: event, object: object) ? .copilot
                 : .claude)
         return switch vendor {
         case .claude: Claude.message(event: event, object: object, tool: claimed ?? .claude, branch: branch, requestID: requestID)
         case .codex: Codex.message(event: event, object: object, branch: branch, requestID: requestID)
         case .cursor: Cursor.message(event: event, object: object, environment: environment, branch: branch)
-        case .antigravity: Gemini.message(event: event, object: object, environment: environment, branch: branch)
+        case .gemini: Gemini.message(event: event, object: object, environment: environment, branch: branch)
         case .copilot: Copilot.message(event: event, object: object, branch: branch, requestID: requestID)
+        case .kimi: Kimi.message(event: event, object: object, branch: branch)
         }
     }
 

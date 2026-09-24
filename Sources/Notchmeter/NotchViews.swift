@@ -3,13 +3,21 @@ import Observation
 import SwiftUI
 
 extension ToolID {
+    /// Each assistant's identity colour on the black notch, every one above 6.5:1 against it and the two added in
+    /// 0.9.0 above 7:1. The seven sit in the hues the status colours (`Palette`) leave free, and those two take the
+    /// two gaps that were left:
+    /// Gemini CLI the orchid end of Gemini's own gradient, Kimi Code a leaf green clear of Codex's mint. Seven hues
+    /// cannot all stay apart for every reader, which is why the symbol, the name and the position carry identity
+    /// too (Preferences.ringSymbols).
     var color: Color {
         switch self {
         case .claude: Color(red: 0.85, green: 0.47, blue: 0.34)
         case .codex: Color(red: 0.36, green: 0.83, blue: 0.62)
         case .cursor: Color(red: 0.65, green: 0.55, blue: 0.98)
+        case .gemini: Color(hex: 0xE36FC0)       // #E36FC0 orchid, 7.3:1 on black
         case .antigravity: Color(hex: 0x56B4E9)  // #56B4E9 sky blue, from Wong's set
         case .copilot: Color(hex: 0xF0E442)      // #F0E442 yellow, from Wong's set
+        case .kimi: Color(hex: 0x7ED957)         // #7ED957 leaf green, 11.9:1 on black
         }
     }
 
@@ -23,8 +31,10 @@ extension ToolID {
         case .claude: [Color(hex: 0xE88AA8), Color(hex: 0xF2D0A4)]       // rose, sand
         case .codex: [Color(hex: 0x4FC3E0), Color(hex: 0xB8E476)]        // teal, lime
         case .cursor: [Color(hex: 0xF08BD6), Color(hex: 0x8FC0FF)]       // pink, periwinkle
+        case .gemini: [Color(hex: 0xFFB0D8), Color(hex: 0xC3A6FF)]       // blush, soft violet
         case .antigravity: [Color(hex: 0x9FA8FF), Color(hex: 0x7FE3CF)]  // indigo, mint
         case .copilot: [Color(hex: 0xC6E86A), Color(hex: 0xFFF4B0)]      // lime, cream
+        case .kimi: [Color(hex: 0xC3F08E), Color(hex: 0x7FE0B5)]         // pale lime, seafoam
         }
         return companions[min(index, companions.count) - 1]
     }
@@ -1193,7 +1203,7 @@ struct NotchExpandedView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(L("Connect an assistant to get started"))
                     .font(.callout)
-                Text(L("Install and sign in to Claude Code, Codex, Cursor, Gemini CLI or GitHub Copilot; its meters appear here."))
+                Text(L("Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here."))
                     .modifier(Caption())
             }
             .modifier(CardBackground())
@@ -1244,7 +1254,7 @@ extension NotchExpandedView {
             VStack(alignment: .leading, spacing: 4) {
                 Text(L("Connect an assistant to get started"))
                     .font(.body.weight(.semibold))
-                Text(L("Install and sign in to Claude Code, Codex, Cursor, Gemini CLI or GitHub Copilot; its meters appear here."))
+                Text(L("Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here."))
                     .modifier(Caption())
             }
             .padding(.horizontal, prefs.density.cardPadding)

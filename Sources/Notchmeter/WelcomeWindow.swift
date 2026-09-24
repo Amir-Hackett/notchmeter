@@ -377,7 +377,7 @@ struct WelcomeView: View {
         case .rings:
             VStack(alignment: .leading, spacing: 8) {
                 permission("lock.shield.fill", L("What %@ reads", AppInfo.name),
-                           L("It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics."))
+                           L("It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot and Kimi Code — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics."))
                 permission("key.fill", L("Keychain"),
                            L("To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog."))
                 permission("accessibility", L("Accessibility"),
