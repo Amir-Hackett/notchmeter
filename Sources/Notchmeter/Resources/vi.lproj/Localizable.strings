@@ -328,7 +328,7 @@
 "Countdown" = "Đếm ngược";
 "Credits" = "Tín dụng";
 "Currency code" = "Mã tiền tệ";
-"current" = "hiện tại";
+"Unlimited on the current plan" = "Không giới hạn với gói hiện tại";
 "Cursor models" = "Mô hình Cursor";
 "Cursor session token could not be decoded" = "Không giải mã được token phiên của Cursor";
 "Cursor session token has no user id" = "Token phiên của Cursor không có user id";
@@ -653,7 +653,7 @@
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Các vòng thu lại thành một chấm khi không trợ lý nào hoạt động trong 30 phút và mọi cửa sổ đều yên; một sự kiện hook, hoạt động tệp, thay đổi nhịp hoặc đặt con trỏ lên chúng sẽ đưa chúng trở lại.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "Phiên đang được đo nặng hơn chuẩn của bạn khoảng %1$@: %2$@ mỗi 1%% so với %3$@.";
 "Third ring" = "Vòng thứ ba";
-"This" = "Gói này";
+"This plan has nothing for Cursor to meter yet" = "Gói này chưa có gì để Cursor đo";
 "This GitHub account has no Copilot subscription" = "Tài khoản GitHub này không có đăng ký Copilot";
 "This session block %1$@ since %2$@ · %3$@/min" = "Khối phiên này %1$@ kể từ %2$@ · %3$@/phút";
 "This session block %1$@ since %2$@" = "Khối phiên này %1$@ kể từ %2$@";
@@ -817,3 +817,9 @@
 "idle %@" = "rảnh %@";
 "Clear the idle sessions; each comes back if it does anything" = "Xóa các phiên đang rảnh; phiên nào hoạt động trở lại sẽ hiện lại";
 "Remove from the list; it comes back if the session does anything" = "Xóa khỏi danh sách; nó quay lại nếu phiên có hoạt động";
+"Last crash report" = "Báo cáo sự cố gần nhất";
+"None on this Mac" = "Không có trên máy Mac này";
+"Copy crash report" = "Sao chép báo cáo sự cố";
+"Show in Finder" = "Hiện trong Finder";
+"The crash report could not be read." = "Không đọc được báo cáo sự cố.";
+"The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Báo cáo mới nhất macOS ghi khi %@ gặp sự cố, lấy từ ~/Library/Logs/DiagnosticReports. Nó ở lại trên máy Mac này: Sao chép đặt nó vào bộ nhớ tạm, đã xoá đường dẫn thư mục người dùng, để bạn dán vào báo cáo lỗi.";

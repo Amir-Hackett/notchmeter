@@ -61,7 +61,7 @@ If `scripts/Info.plist` still needs the bump, make it, commit it, and let CI go 
 Three more files carry the version or the release, and none of them reaches CI on its own:
 
 ```bash
-grep '"version"' .claude-plugin/plugin.json               # must equal $VERSION (ReleasePackagingTests holds it to the plist)
+grep '"version"' plugin/.claude-plugin/plugin.json         # must equal $VERSION (ReleasePackagingTests holds it to the plist)
 test -s "docs/release-notes/$VERSION.md" && head -5 "docs/release-notes/$VERSION.md"   # the notes Sparkle shows; written, not a stub
 grep -E '^\s*(version|sha256)' packaging/homebrew/notchmeter.rb   # the previous release until step 8; note it, do not touch it yet
 ```
@@ -114,8 +114,10 @@ gh release view "v$VERSION" --json tagName,isPrerelease,assets \
   -q '"prerelease=\(.isPrerelease)", (.assets[] | "  \(.name)")'
 ```
 
-It should carry `Notchmeter.dmg` and `appcast.xml`, and **`prerelease=true`** - `release.yml` publishes every `v*`
-tag as a prerelease on purpose, so `releases/latest` stays on the last promoted build until step 6 has passed. If it
+It should carry `Notchmeter.dmg` and `appcast.xml`, usually a `Notchmeter<build>-<older build>.delta` or three beside
+them (docs/release.md, "Delta updates"; the job summary says when there are none, and the log says why), and
+**`prerelease=true`** - `release.yml` publishes every `v*` tag as a prerelease on purpose, so `releases/latest` stays
+on the last promoted build until step 6 has passed. If it
 comes back `prerelease=false`, something published it outside the workflow: stop, and do not promote anything until
 step 6 has run against it.
 

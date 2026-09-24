@@ -91,13 +91,16 @@ enum WindowLabel: Codable, Equatable, Sendable, ExpressibleByStringLiteral {
     }
 
     /// The name inside a sentence ("you hit the Claude weekly cap"). Only the translated part is lowercased, with
-    /// the running language's own casing rules; the vendor's words keep the case the vendor gave them.
+    /// the running language's own casing rules, and not at all in a language that capitalises nouns; the vendor's
+    /// words keep the case the vendor gave them.
     var inSentence: String {
         let locale = Locale(identifier: Localization.current)
         switch self {
         case .vendor(let text): return text
-        case .key(let key): return L(key).lowercased(with: locale)
-        case .filled(let key, let values): return String(format: Localization.string(key).lowercased(with: locale), arguments: values.map(\.value))
+        case .key(let key): return Localization.capitalisesNouns ? L(key) : L(key).lowercased(with: locale)
+        case .filled(let key, let values):
+            let format = Localization.string(key)
+            return String(format: Localization.capitalisesNouns ? format : format.lowercased(with: locale), arguments: values.map(\.value))
         case .scoped(let model, let inner): return "\(model) \(inner.inSentence)"
         }
     }

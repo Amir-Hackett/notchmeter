@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import Notchmeter
 
-/// The documents the repository ships beside the app: the Claude Code plugin manifest under `.claude-plugin/`, and
+/// The documents the repository ships beside the app: the Claude Code plugin under `plugin/` and the marketplace at the root that lists it, and
 /// the README's first screen and Terms paragraph, which `site/` mirrors by hand. Each is read off `#filePath`, the way
 /// `TestHygiene` and `LocalizationTests` read the sources, so a change to one file that leaves its mirror behind
 /// fails here rather than on the published page.
@@ -23,7 +23,7 @@ import Testing
     }
 
     @Test func theManifestNamesThePluginTheShippedVersionAndTheSkillFolder() throws {
-        let manifest = try Self.object(".claude-plugin/plugin.json")
+        let manifest = try Self.object("plugin/.claude-plugin/plugin.json")
         #expect(manifest["name"] as? String == "notchmeter")
         #expect(manifest["license"] as? String == "MIT")
         // The version is the app's, so a release that bumps scripts/Info.plist and forgets this file fails here.
@@ -32,14 +32,14 @@ import Testing
 
         let skills = try #require(manifest["skills"] as? String, "skills is one path, the folder the README names")
         #expect(skills.hasPrefix("./"), "a plugin path is relative to the plugin root and starts with ./")
-        let skillFile = Self.root.appendingPathComponent(skills).appendingPathComponent("notchmeter/SKILL.md")
+        let skillFile = Self.root.appendingPathComponent("plugin").appendingPathComponent(skills).appendingPathComponent("notchmeter/SKILL.md")
         #expect(FileManager.default.fileExists(atPath: skillFile.path), "\(skills) holds notchmeter/SKILL.md")
         let skill = try String(contentsOf: skillFile, encoding: .utf8)
         #expect(skill.hasPrefix("---\nname: notchmeter\n"), "the skill's frontmatter names it after the plugin")
     }
 
     @Test func theManifestsMCPServerIsTheOneSettingsShows() throws {
-        let manifest = try Self.object(".claude-plugin/plugin.json")
+        let manifest = try Self.object("plugin/.claude-plugin/plugin.json")
         let servers = try #require(manifest["mcpServers"] as? [String: Any])
         let server = try #require(servers["notchmeter"] as? [String: Any])
         // The friendlier command: the alias Settings › General › Install command line tool creates, since the app may
@@ -53,17 +53,21 @@ import Testing
         #expect(shown["args"] as? [String] == server["args"] as? [String])
     }
 
-    @Test func theMarketplaceListsThePluginAtTheRepositoryRoot() throws {
+    @Test func theMarketplaceListsThePluginFolder() throws {
         let marketplace = try Self.object(".claude-plugin/marketplace.json")
         #expect(marketplace["name"] as? String == "notchmeter")
         let owner = try #require(marketplace["owner"] as? [String: Any])
         #expect((owner["name"] as? String)?.isEmpty == false)
         let plugins = try #require(marketplace["plugins"] as? [[String: Any]])
         let entry = try #require(plugins.first { $0["name"] as? String == "notchmeter" })
-        let source = try #require(entry["source"] as? String, "the plugin is this repository, a relative source")
-        #expect(source.hasPrefix("./"))
+        let source = try #require(entry["source"] as? String, "the plugin is a folder of this repository, a relative source")
+        // Its own folder, so a reviewer who opens the source sees only what the plugin loads, not the app around it.
+        #expect(source == "./plugin")
         let manifest = Self.root.appendingPathComponent(source).appendingPathComponent(".claude-plugin/plugin.json")
         #expect(FileManager.default.fileExists(atPath: manifest.path), "the source folder holds the plugin manifest")
+        let contents = try FileManager.default.contentsOfDirectory(atPath: Self.root.appendingPathComponent(source).path)
+        #expect(Set(contents.filter { $0 != ".DS_Store" }) == [".claude-plugin", "skills", "README.md"],
+                "the plugin folder holds the manifest, the skills and the README, and nothing a marketplace reviewer has to read past")
         let onlyOne = 1
         #expect(plugins.count == onlyOne)
     }
@@ -80,7 +84,7 @@ import Testing
     static let hero = "Every figure on this panel is sourced, dated and tested"
     static let menuBar = "Your menu bar ran out of room three apps ago. This one doesn't take any."
     static let twoWay = "from the notch"
-    static let platform = "macOS 14 or later"
+    static let platform = "macOS 15 or later"
 
     /// Anthropic's own words, quoted rather than paraphrased, in the README's Terms paragraph and on the site's Terms
     /// page: the credential sentence from Claude Code's "Authentication and credential use" and item 7 of the Consumer

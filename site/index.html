@@ -61,7 +61,7 @@
          say there is no Windows version. The button above it says "for macOS",
          which is true but is also how a Windows visitor hears "the Windows one
          is further down"; swapping the middle clause here ends that before the scroll. -->
-    <p class="cta-note" id="hero-note">macOS 14 or later · Apple silicon or Intel · no account, ever</p>
+    <p class="cta-note" id="hero-note">macOS 15 or later · Apple silicon or Intel · no account, ever</p>
 
     <figure class="shot">
       <img src="img/demo.gif" alt="The rings beside the notch open into the usage panel when the pointer rests on them, showing cost, pace and advice, then close again.">
@@ -271,7 +271,7 @@
 <section>
   <div class="wrap centered">
     <h2>Small enough to forget it's there</h2>
-    <p class="section-lede">Measured on an M5 Pro running macOS 26 with a heavy Claude Code job in the background; the method and every raw number are in the README's Energy section.</p>
+    <p class="section-lede">Measured on an M5 Pro running macOS 26 with a heavy Claude Code job in the background; the method and every raw number are in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/energy.md">docs/energy.md</a>.</p>
     <div class="facts">
       <div class="fact">
         <div class="n">1.4%</div>
@@ -292,7 +292,7 @@
 <section id="install">
   <div class="wrap centered">
     <h2>Install it</h2>
-    <p class="section-lede">macOS 14 Sonoma or later, Apple silicon or Intel. Signed, notarised, and it updates itself.</p>
+    <p class="section-lede">macOS 15 Sequoia or later, Apple silicon or Intel. Signed, notarised, and it updates itself.</p>
     <!-- Hidden until the script at the foot of the page finds the browser is on
          Windows. Then it takes over from the DMG row below, so the headline
          action for a Windows visitor is the issue and not a disk image they
@@ -370,7 +370,7 @@ brew install --cask notchmeter</div>
            a server of Amir's: the app talks only to the user's own providers,
            with the user's own local credentials, and keeps no backend. -->
       <span>No account · No server of ours · Pay nothing</span>
-      <span>macOS 14+ · Apple silicon or Intel</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
     </div>
   </div>
 </footer>
@@ -407,7 +407,7 @@ brew install --cask notchmeter</div>
     if (notice) notice.hidden = false;
     if (cta) cta.hidden = true;
     if (line) line.hidden = true;
-    if (hero) hero.textContent = 'macOS 14 or later · no Windows or Linux version · no account, ever';
+    if (hero) hero.textContent = 'macOS 15 or later · no Windows or Linux version · no account, ever';
   } catch (e) {}
 })();
 </script>

@@ -157,6 +157,9 @@ final class UsageStore {
     /// tool's refresh; per tool, so a Cursor event nudges Cursor's cadence and never Claude's.
     @ObservationIgnored private var lastHook: [ToolID: Date] = [:]
     @ObservationIgnored private var lastHookRefresh: [ToolID: Date] = [:]
+    /// Claude's last endpoint read beside a fresh status line failed, so a reading with nothing from the endpoint
+    /// is a read to try again rather than an account with nothing more to say (PollingPolicy.endpointDue).
+    @ObservationIgnored private var claudeEndpointFailedBesideStatusline = false
     @ObservationIgnored private var wokeAt: Date?
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var alertMemory: AlertMemory
@@ -592,7 +595,8 @@ final class UsageStore {
     }
 
     /// Unforced refreshes are throttled so hovering the notch cannot hammer the APIs. While the Claude Code status
-    /// line is reporting the same windows, the Claude read takes them from it and the endpoint is left alone.
+    /// line is reporting the same windows, the Claude read takes them from it and the endpoint is left alone, save
+    /// for a read the user asked for and the half-hourly one for figures only the endpoint carries (`read`).
     /// `interactive` marks a read the user asked for: it travels to the provider, where it is the one thing that
     /// may let the Keychain dialog appear (KeychainPromptPolicy), and it is the one kind of read that waits its
     /// turn behind a read already in flight rather than being dropped. A timer read that collides with one simply
@@ -631,9 +635,16 @@ final class UsageStore {
     /// the task `refresh` stored, is what lets a read waiting on `running.value` find the slot empty when it wakes.
     private func read(_ tool: ToolID, from provider: any UsageProvider, interactive: Bool) async {
         defer { inflight[tool] = nil }
+        // A fresh status line is Claude's first source: its windows are adopted and the endpoint is left alone,
+        // unless the user asked for this read or the half-hourly read for the figures only the endpoint carries is
+        // due (PollingPolicy.endpointDue). Either of those goes on to the endpoint below, and its answer is laid
+        // under the status line's windows rather than over them.
         if tool == .claude, let reading = statuslineReading() {
-            adopt(reading)
-            return
+            let due = endpointDueBesideStatusline()
+            guard prefs.pollClaudeEndpoint, interactive || due.map({ $0 <= Date() }) ?? false else {
+                adopt(reading)
+                return
+            }
         }
         // With the endpoint switched off, the status line is the whole Claude source: a fresh one was adopted
         // above, a stale one leaves the last reading standing, and with none at all the card says calmly why.
@@ -659,6 +670,25 @@ final class UsageStore {
         // overwrite `.off` with `.failed` either; the guard above the fetch checks the same thing, and anything
         // written after an `await` has to check it again.
         guard prefs.enabledTools.contains(tool) else { return }
+        // Checked again after the await: the status line may have arrived, or gone stale, while the fetch was out.
+        if tool == .claude, let statusline, statusline.standsIn(at: Date()) {
+            switch outcome {
+            case .success(let reading):
+                log.info("Claude usage beside the status line -> \(Probe.describe(reading), privacy: .public)")
+                serverTrouble[tool] = nil
+                claudeEndpointFailedBesideStatusline = false
+                adopt(reading.replacing(windows: statusline.windows, fetchedAt: statusline.receivedAt))
+            case .failure(let error):
+                // The status line's windows are still good, so a refused or failed read beside them only costs the
+                // endpoint's extra figures until the next one: the card is not marked failed, and no backoff is
+                // taken on a loop that is not polling the endpoint. `lastFetch` was set above, so the next try is
+                // half an hour away rather than at the next status line.
+                log.error("Claude usage beside the status line failed: \((error as? ProviderError)?.message ?? error.localizedDescription, privacy: .public)")
+                claudeEndpointFailedBesideStatusline = true
+                if let fallback = statuslineReading() { adopt(fallback) }
+            }
+            return
+        }
         switch outcome {
         case .success(let reading):
             log.info("\(tool.displayName, privacy: .public) usage -> \(Probe.describe(reading), privacy: .public)")
@@ -785,6 +815,14 @@ final class UsageStore {
         guard let statusline, statusline.standsIn(at: now) else { return nil }
         let base = statuses[.claude]?.reading ?? UsageReading(tool: .claude, windows: [], plan: nil, fetchedAt: now, observedAt: nil)
         return base.replacing(windows: statusline.windows, fetchedAt: statusline.receivedAt)
+    }
+
+    /// When the endpoint is next read while the status line stands in (PollingPolicy.endpointDue); nil while the
+    /// status line is not fresh, while the endpoint is switched off, or while it has nothing to add.
+    private func endpointDueBesideStatusline(now: Date = Date()) -> Date? {
+        guard prefs.pollClaudeEndpoint, let statusline, statusline.standsIn(at: now) else { return nil }
+        return PollingPolicy.endpointDue(besideStatusline: statusline.windows, reading: statuses[.claude]?.reading,
+                                         lastEndpointRead: lastFetch[.claude], lastReadFailed: claudeEndpointFailedBesideStatusline, now: now)
     }
 
     /// `--render-assets` (DemoFixtures): readings, a cost summary and a set of hook sessions in place of provider
@@ -1068,10 +1106,12 @@ final class UsageStore {
         while !Task.isCancelled {
             switch PollingPolicy.decide(pollingInputs(for: tool)) {
             case .paused(.statusline):
-                // The status line is feeding the windows; check again when its report would go stale.
+                // The status line is feeding the windows; check again when its report would go stale, or sooner
+                // when the endpoint's half-hourly read for the figures only it carries falls due first.
                 let stale = (statusline?.receivedAt ?? Date()).addingTimeInterval(PollingPolicy.statuslineFreshFor)
-                nextRefresh[tool] = stale
-                if await sleep(tool, for: max(1, stale.timeIntervalSinceNow)) { return }
+                let wake = min(stale, (tool == .claude ? endpointDueBesideStatusline() : nil) ?? stale)
+                nextRefresh[tool] = wake
+                if await sleep(tool, for: max(1, wake.timeIntervalSinceNow)) { return }
             case .paused:
                 nextRefresh[tool] = nil
                 await sleep(tool, for: nil)

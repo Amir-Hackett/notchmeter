@@ -25,7 +25,9 @@
 #   VERSION              the tag without its v (CI); must equal CFBundleShortVersionString in scripts/Info.plist
 #   BUILD_NUMBER         CFBundleVersion, which Sparkle compares; default `git rev-list --count HEAD` of the tree built
 #                        from, and checked against PREVIOUS_APPCAST so that it only ever grows
-#   PREVIOUS_APPCAST     the appcast.xml published last time, so its items survive into the new feed
+#   PREVIOUS_APPCAST     the appcast.xml published last time, so its items survive into the new feed; the DMGs its
+#                        items point at are also downloaded and diffed against this build, so a copy running one of
+#                        them is offered a delta of about a megabyte rather than the whole DMG ("Delta updates" below)
 #   RELEASE_NOTES        this version's release notes, embedded in the appcast item: a .md file (Sparkle 2.9 renders
 #                        Markdown on macOS 12 and later; docs/release-notes/<version>.md is where the tag workflow
 #                        looks), or .html / .txt. Unset, the item carries only the link to the GitHub release
@@ -241,6 +243,8 @@ fi
 # an earlier run can never become this version's notes, and the one copied keeps RELEASE_NOTES's own suffix, which
 # is what decides the sparkle:format the item carries (markdown, plain-text, or none for HTML).
 rm -f "$DIST"/Notchmeter.html "$DIST"/Notchmeter.txt "$DIST"/Notchmeter.md "$DIST"/Notchmeter.markdown
+# Deltas from an earlier run too: dist/*.delta is what gets uploaded, and only this run's may be ("Delta updates").
+rm -f "$DIST"/*.delta
 NOTES_FORMAT=""
 if [ -n "${RELEASE_NOTES:-}" ]; then
   [ -f "$RELEASE_NOTES" ] || fail "RELEASE_NOTES $RELEASE_NOTES does not exist"
@@ -287,8 +291,83 @@ case "$NOTES_FORMAT" in
     grep -q "<description" <<<"$ITEM" && fail "build $BUILD_NUMBER's item carries a <description> although RELEASE_NOTES is unset; a stray notes file in $DIST?" ;;
 esac
 
+
+# Delta updates. A delta is the difference between one build and another, about a megabyte where the DMG is eleven;
+# Sparkle takes it when the installed copy is the build it was made from, and falls back to the full DMG when it is
+# not or the delta fails to apply, so a missing or unusable delta costs a download and nothing else.
+#
+# generate_appcast makes them only from older archives lying in the directory it reads, and it cannot be handed those
+# in dist/: every archive whose version is already in the feed gets its item rewritten, enclosure URL (the one
+# --download-url-prefix names, this release's tag, where the older DMG is not) and release notes (there is no notes file
+# for it, so the description is dropped) included. So the deltas are made in a directory of their own, from this DMG
+# and the older ones, with --versions naming this build alone so no older archive grows an item, and that run's
+# <sparkle:deltas> is copied into this build's item in the real feed. Its URLs are relative to this build's enclosure,
+# so the deltas are uploaded to this release beside the DMG.
+#
+# The older builds are the ones PREVIOUS_APPCAST offers, the DMGs its items point at: exactly what installed copies were
+# given, whichever tag each came from, each checked against the signature and length its item carries before it is
+# diffed. A dry run cannot use them, since they carry the real public key and a delta is signed for the copy it
+# applies to; it makes a stand-in instead, this same build stamped one lower and signed with the throwaway key, which
+# proves every step between generate_appcast and the upload list. (generate_appcast warns there of a "mismatch code
+# signing identity": two ad-hoc signatures never match each other, where two Developer ID ones from the same team do.)
+# Trouble fetching or diffing fails a dry run, which
+# exists to prove this path, and only warns on a real one, which has spent its notarisation by now and ships a
+# correct feed without deltas rather than none at all.
+MAX_DELTAS=3
+DELTA_DIR=build/deltas
+DELTAS=()
+rm -rf "$DELTA_DIR"
+mkdir -p "$DELTA_DIR/archives"
+delta_trouble() {
+  [ "$DRY_RUN" = 0 ] || fail "$*"
+  echo "release: warning: $*; this release ships without delta updates" >&2
+  [ -z "${GITHUB_ACTIONS:-}" ] || echo "::warning::$*; this release ships without delta updates"
+}
+step "Making delta updates from up to $MAX_DELTAS earlier builds"
+if [ "$DRY_RUN" = 1 ]; then
+  PREVIOUS_APP="$DELTA_DIR/stand-in/Notchmeter.app"
+  mkdir -p "$(dirname "$PREVIOUS_APP")"
+  ditto "$APP" "$PREVIOUS_APP"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $((BUILD_NUMBER - 1))" "$PREVIOUS_APP/Contents/Info.plist"
+  sign_code "${SIGN_ARGS[@]+"${SIGN_ARGS[@]}"}" "$PREVIOUS_APP"
+  # A zip rather than a DMG: generate_appcast reads either, and the stand-in only has to be an older archive.
+  ditto -c -k --keepParent "$PREVIOUS_APP" "$DELTA_DIR/archives/Notchmeter-stand-in.zip"
+elif [ -n "${PREVIOUS_APPCAST:-}" ] && [ -f "$PREVIOUS_APPCAST" ]; then
+  # Newest first, as the feed lists them; delta enclosures end in .delta, so only the full archives match.
+  PREVIOUS_URLS="$(grep -o '<enclosure url="[^"]*\.dmg"' "$PREVIOUS_APPCAST" | sed 's/^<enclosure url="//; s/"$//' \
+    | grep -vxF "$DOWNLOAD_URL" | head -n "$MAX_DELTAS" || true)"
+  for url in $PREVIOUS_URLS; do
+    archive="$DELTA_DIR/archives/Notchmeter-$(basename "$(dirname "$url")").dmg"
+    if ! curl -fsSL --retry 1 --connect-timeout 20 --max-time 120 -o "$archive" "$url"; then
+      rm -f "$archive"; echo "release: could not download $url; no delta from it" >&2; continue
+    fi
+    if ! swift scripts/appcast-check.swift verify "$archive" "$PREVIOUS_APPCAST" "$PUBLIC_KEY" "$url" > /dev/null; then
+      rm -f "$archive"; echo "release: $url does not match its item in $PREVIOUS_APPCAST; no delta from it" >&2
+    fi
+  done
+fi
+if ls "$DELTA_DIR"/archives/* > /dev/null 2>&1; then
+  cp "$DMG" "$DELTA_DIR/archives/Notchmeter.dmg"
+  if printf '%s' "${SPARKLE_PRIVATE_KEY:-}" | "$SPARKLE_BIN/generate_appcast" ${KEY_ARGS[@]+"${KEY_ARGS[@]}"} \
+       --versions "$BUILD_NUMBER" --maximum-deltas "$MAX_DELTAS" \
+       --download-url-prefix "$REPO_URL/releases/download/v$VERSION/" \
+       -o "$DELTA_DIR/appcast.xml" "$DELTA_DIR/archives" \
+     && NAMES="$(swift scripts/appcast-check.swift add-deltas "$DELTA_DIR/appcast.xml" "$APPCAST" "$BUILD_NUMBER")"; then
+    for name in $NAMES; do
+      cp "$DELTA_DIR/archives/$name" "$DIST/$name"
+      DELTAS+=("$DIST/$name")
+    done
+    [ "${#DELTAS[@]}" -gt 0 ] || delta_trouble "generate_appcast made no delta smaller than the DMG"
+  else
+    delta_trouble "generate_appcast could not make the delta updates"
+  fi
+else
+  echo "No earlier build to diff against (no PREVIOUS_APPCAST, or none of its DMGs could be fetched and checked)"
+fi
+
 step "Checking the appcast against the public key the app ships"
-swift scripts/appcast-check.swift verify "$DMG" "$APPCAST" "$PUBLIC_KEY" "$DOWNLOAD_URL" ${NOTES_FORMAT:+--notes "$NOTES_FORMAT"}
+swift scripts/appcast-check.swift verify "$DMG" "$APPCAST" "$PUBLIC_KEY" "$DOWNLOAD_URL" ${NOTES_FORMAT:+--notes "$NOTES_FORMAT"} --deltas "${#DELTAS[@]}"
+DELTA_ASSETS="${DELTAS[*]+ ${DELTAS[*]}}"
 
 SHA256="$(shasum -a 256 "$DMG" | cut -d ' ' -f 1)"
 step "Release $VERSION is ready in $DIST/"
@@ -296,6 +375,7 @@ if [ "$DRY_RUN" = 1 ]; then
   cat <<CHECKLIST
   $DMG       DRY RUN: ad-hoc signed, not notarised; Gatekeeper will refuse it on another Mac
   $APPCAST   DRY RUN: signed with a throwaway key; do not publish it
+  deltas${DELTA_ASSETS:- none}   DRY RUN: made from a stand-in; do not publish them
   sha256 $SHA256
 To ship for real: docs/release.md, then DEVELOPER_ID_APP=... NOTARY_PROFILE=... scripts/release.sh
 CHECKLIST
@@ -303,9 +383,10 @@ elif [ -n "$CHANNEL" ]; then
   cat <<CHECKLIST
   $DMG       universal, Developer ID, hardened runtime, notarised, stapled; channel $CHANNEL
   $APPCAST   signed; verified against SUPublicEDKey; carries the $CHANNEL item and the previous feed
+  deltas${DELTA_ASSETS:- none}   the feed points at them on v$VERSION, beside the DMG
   sha256 $SHA256
 Publish by hand (the workflow ignores a tag with a hyphen in it):
-  1. gh release create v$VERSION $DMG --prerelease --target $COMMIT --title "Notchmeter $VERSION"
+  1. gh release create v$VERSION $DMG$DELTA_ASSETS --prerelease --target $COMMIT --title "Notchmeter $VERSION"
   2. gh release upload <stable-tag> $APPCAST --clobber   # the release releases/latest resolves to; the feed is its appcast
   3. curl -fsSL $FEED_URL | grep -F '<sparkle:version>$BUILD_NUMBER</sparkle:version>'   # expect exactly this build
 CHECKLIST
@@ -313,15 +394,16 @@ else
   cat <<CHECKLIST
   $DMG       universal, Developer ID, hardened runtime, notarised, stapled
   $APPCAST   signed; verified against SUPublicEDKey
+  deltas${DELTA_ASSETS:- none}   the feed points at them on v$VERSION, beside the DMG
   sha256 $SHA256
 Publish, one of these and never both (the workflow refuses, or stands down, when a DMG is already on the release,
 so a second publisher fails rather than replaces; still, pick one):
   a. Signing secrets set in GitHub (docs/release.md, step 5):
        git tag v$VERSION $COMMIT && git push origin v$VERSION
-     release.yml rebuilds from the tag, signs, notarises and creates the release with its DMG and appcast.
+     release.yml rebuilds from the tag, signs, notarises and creates the release with its DMG, deltas and appcast.
      This build was the rehearsal; do not run gh release create as well.
   b. No secrets in GitHub:
-       gh release create v$VERSION $DMG $APPCAST --target $COMMIT --title "Notchmeter $VERSION" --generate-notes
+       gh release create v$VERSION $DMG$DELTA_ASSETS $APPCAST --target $COMMIT --title "Notchmeter $VERSION" --generate-notes
      That creates the tag too, on the commit this was built from (without --target a new tag lands on the default
      branch, which may have moved). The workflow it fires builds, finds a published release and stands down.
 Then:

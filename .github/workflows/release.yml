@@ -52,6 +52,9 @@ jobs:
     # appcast item has to be merged into the current stable release's feed, which this job does not do.
     if: ${{ !contains(github.ref_name, '-') }}
     runs-on: macos-15
+    # A normal run takes about twelve minutes, notarisation included; this only stops a stalled step holding the
+    # runner for GitHub's six hours.
+    timeout-minutes: 60
     needs: icon
     env:
       TAG: ${{ github.ref_name }}
@@ -150,6 +153,8 @@ jobs:
           echo "NOTARY_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
 
       - name: Fetch the previous appcast so its items survive
+        # release.sh also downloads the DMGs its items point at, checks each against its item's signature, and diffs
+        # them against the new build for the delta updates. Without a feed there are simply no deltas.
         run: |
           mkdir -p previous
           gh release download --pattern appcast.xml --dir previous || echo "no published appcast yet"
@@ -228,11 +233,16 @@ jobs:
             # Forced back to prerelease before the assets land, so there is never a window in which a
             # non-prerelease release carries a build nobody has launched.
             gh release edit "$TAG" --prerelease > /dev/null
-            gh release upload "$TAG" dist/Notchmeter.dmg dist/appcast.xml
+            # The delta updates release.sh made from the builds the previous feed offers, when it made any. The new
+            # feed points at them on this tag, beside the DMG, so they go up with it (docs/release.md, "Delta updates").
+            shopt -s nullglob
+            deltas=(dist/*.delta)
+            gh release upload "$TAG" dist/Notchmeter.dmg ${deltas[@]+"${deltas[@]}"} dist/appcast.xml
             echo "outcome=signed" >> "$GITHUB_OUTPUT"
           else
             # A prerelease keeps releases/latest, and with it SUFeedURL, on the last signed build; no appcast is uploaded
-            # because an ad-hoc build can never be installed as an update. And an ad-hoc build never goes onto a release
+            # because an ad-hoc build can never be installed as an update, nor the deltas the dry run makes from its
+            # stand-in. And an ad-hoc build never goes onto a release
             # that is not a prerelease: that page is where people who trust Gatekeeper download from.
             if gh release view "$TAG" > /dev/null 2>&1; then
               if [ "$(gh release view "$TAG" --json isPrerelease -q .isPrerelease)" != "true" ]; then
@@ -260,6 +270,9 @@ jobs:
             {
               echo "## Notchmeter ${TAG#v}: signed **prerelease**"
               echo "Universal Notchmeter.dmg (Developer ID, hardened runtime, notarised, stapled) and appcast.xml uploaded to the $TAG release."
+              deltas="$(cd dist && ls *.delta 2>/dev/null | tr '\n' ' ' || true)"
+              echo
+              echo "Delta updates: ${deltas:-none, so every copy downloads the full DMG (the build log says why)}"
               echo
               echo "It is a prerelease on purpose. \`releases/latest\` still points at the last promoted build, so no installed copy is offered this one yet."
               echo

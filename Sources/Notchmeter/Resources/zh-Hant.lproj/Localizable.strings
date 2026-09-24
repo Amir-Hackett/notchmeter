@@ -328,7 +328,7 @@
 "Countdown" = "倒數";
 "Credits" = "額度餘額";
 "Currency code" = "貨幣代碼";
-"current" = "目前";
+"Unlimited on the current plan" = "目前方案不限量";
 "Cursor models" = "Cursor 模型";
 "Cursor session token could not be decoded" = "無法解碼 Cursor 的工作階段權杖";
 "Cursor session token has no user id" = "Cursor 的工作階段權杖沒有使用者 ID";
@@ -653,7 +653,7 @@
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "當 30 分鐘內沒有助理活動且所有視窗都很安靜時，圓環會縮成一個圓點；掛鉤事件、檔案活動、進度變化或把游標停在上面都會讓它們恢復。";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "工作階段計量約為你常態的 %1$@：每 1%% 消耗 %2$@，常態為 %3$@。";
 "Third ring" = "第三環";
-"This" = "目前";
+"This plan has nothing for Cursor to meter yet" = "目前方案尚無可供 Cursor 計量的額度";
 "This GitHub account has no Copilot subscription" = "此 GitHub 帳號沒有 Copilot 訂閱";
 "This session block %1$@ since %2$@ · %3$@/min" = "本工作階段時段自%2$@起 %1$@ · 每分鐘 %3$@";
 "This session block %1$@ since %2$@" = "本工作階段時段自%2$@起 %1$@";
@@ -817,3 +817,9 @@
 "idle %@" = "閒置 %@";
 "Clear the idle sessions; each comes back if it does anything" = "清除閒置的工作階段；有新動靜時會重新出現";
 "Remove from the list; it comes back if the session does anything" = "從清單中移除；工作階段有任何動作時會再出現";
+"Last crash report" = "最近的當機報告";
+"None on this Mac" = "此 Mac 上沒有";
+"Copy crash report" = "拷貝當機報告";
+"Show in Finder" = "在 Finder 中顯示";
+"The crash report could not be read." = "無法讀取當機報告。";
+"The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ 當機時 macOS 寫入 ~/Library/Logs/DiagnosticReports 的最新報告。它只留在這台 Mac 上：「拷貝」會把它放到剪貼簿，並隱去你的個人專屬檔案夾路徑，供你貼到錯誤回報中。";

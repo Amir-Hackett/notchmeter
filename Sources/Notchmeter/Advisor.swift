@@ -486,7 +486,7 @@ enum Advisor {
                                    now: context.now, calendar: context.calendar)
                 }
             }
-            if let next { return L("%1$@ %2$@ reset — 100%% until it %3$@.", alert.tool.displayName, name(window, of: alert.tool), next.prefix(1).lowercased() + next.dropFirst()) }
+            if let next { return L("%1$@ %2$@ reset — 100%% until it %3$@.", alert.tool.displayName, name(window, of: alert.tool), Localization.capitalisesNouns ? next : next.prefix(1).lowercased() + next.dropFirst()) }
             return L("%1$@ %2$@ reset — 100%% available.", alert.tool.displayName, name(window, of: alert.tool))
         }
     }
@@ -538,7 +538,7 @@ enum Advisor {
     /// The times are `RunOutInterval.presentation`'s, the rule the card uses, so a narrow interval reads as its
     /// midpoint here as there and the margin is measured from the same time; until 0.6.0 this quoted the earliest
     /// edge while the card above it printed the midpoint. An interval whose slow edge lasts past the reset names
-    /// its near edge as a single time here, the one the card gives as "from": the strings shipped in six languages
+    /// its near edge as a single time here, the one the card gives as "from": the strings shipped in every language
     /// have no third form. The headroom clause is the tool's own; `runOut` passes it in so the strip can drop a
     /// repeat, and a notification body, built here alone, keeps it.
     static func runOutText(tool: ToolID, window: LimitWindow, context: Context) -> String? {

@@ -89,7 +89,17 @@ import Testing
         #expect(chinese["Open at login"] == "登录时打开")
         #expect(String(format: chinese["Resets in %@"]!, "4 天 17 小时") == "4 天 17 小时后重置")
         #expect(Localization.canonical("zh-hans") == "zh-Hans")
-        #expect(Localization.canonical("fr") == nil)
+        #expect(Localization.canonical("pt-br") == "pt-BR")
+        #expect(Localization.canonical("it") == nil)
+    }
+
+    /// German keeps a window's name capitalised inside a sentence, where the other cased languages lowercase it.
+    @Test func germanKeepsItsNounsCapitalisedInASentence() {
+        Localization.use(language: "de")
+        defer { Localization.use(language: "en") }
+        let session = L("Session")
+        #expect(WindowLabel.key("Session").inSentence == session)
+        #expect(session.first?.isUppercase == true)
     }
 
     @Test func aMissingKeyReadsAsItself() {
@@ -99,10 +109,11 @@ import Testing
     /// The budget banners name their window through `WindowLabel.inSentence`, which lowercases a translated label
     /// ("Ngân sách tháng" becomes "ngân sách tháng") because English puts "The " in front of it. A translation that
     /// opens with that placeholder therefore starts its sentence in lowercase; 0.5.0's first Vietnamese draft did,
-    /// and the specifier check above cannot see it. Only the cased languages can show it: CJK has no case.
+    /// and the specifier check above cannot see it. Only the cased languages can show it: CJK has no case. German
+    /// capitalises its nouns and `inSentence` leaves them capitalised there, but it is held to the same rule anyway.
     @Test func aLowercasedWindowNameNeverOpensABudgetBanner() throws {
         let keys = ["The %1$@ is spent. %2$@.", "The %1$@ is close to pace: ~%2$ld%% left at reset."]
-        for language in ["en", "vi"] {
+        for language in ["en", "vi", "de", "fr", "es", "pt-BR", "ru"] {
             let table = try self.table(language)
             let locale = Locale(identifier: language)
             for key in keys {
@@ -114,12 +125,12 @@ import Testing
         }
     }
 
-    /// Six languages ship, all left-to-right. The compact strip beside the notch is pinned to left-to-right in code
+    /// Eleven languages ship, all left-to-right. The compact strip beside the notch is pinned to left-to-right in code
     /// (NotchCompactView, EdgeCompactView) because it refers to the physical notch, so a right-to-left language
     /// (Arabic, Hebrew) can be added without the strip mirroring away from its hover geometry; the rest of the
     /// panel is free to mirror.
     @Test func everyShippedLanguageSpeaksForItself() throws {
-        #expect(Localization.languages == ["en", "zh-Hans", "zh-Hant", "ja", "ko", "vi"])
+        #expect(Localization.languages == ["en", "zh-Hans", "zh-Hant", "ja", "ko", "vi", "de", "fr", "es", "pt-BR", "ru"])
         #expect(try table("zh-Hant")["Session"] == "工作階段")
         #expect(try table("ja")["Session"] == "セッション")
         #expect(try table("ko")["Session"] == "세션")
@@ -145,7 +156,7 @@ import Testing
         #expect(Localization.preferred(domain: defaults.persistentDomain(forName: suite)) == "ja")
         Localization.applyPreferred(language: "ZH-HANS", defaults: defaults)
         #expect(defaults.persistentDomain(forName: suite)?["AppleLanguages"] as? [String] == ["zh-Hans"])
-        Localization.applyPreferred(language: "fr", defaults: defaults)
+        Localization.applyPreferred(language: "it", defaults: defaults)
         #expect(defaults.persistentDomain(forName: suite)?["AppleLanguages"] == nil)
         Localization.applyPreferred(language: nil, defaults: defaults)
         #expect(Localization.preferred(domain: defaults.persistentDomain(forName: suite)) == nil)

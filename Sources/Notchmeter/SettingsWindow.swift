@@ -147,6 +147,10 @@ struct SettingsView: View {
     @State private var query = ""
     /// The Diagnostics disclosure in Advanced; closed until opened, or until a search lands inside it.
     @State private var diagnosticsExpanded = false
+    /// The newest crash report (CrashReports), looked up off the main thread each time the Diagnostics disclosure
+    /// opens: `.unknown` until the lookup answers, `.found(nil)` when there is none.
+    @State private var crashReport: CrashLookup = .unknown
+    @State private var crashMessage: String?
 
     /// Which pane the sidebar is on. Not optional: a nil selection would leave the detail side blank, and this
     /// window has no empty state to show there. Seeded through `init` rather than defaulted here, so a caller
@@ -1214,6 +1218,7 @@ struct SettingsView: View {
                         Button(L("Apply")) { applyRate() }
                     }
                     .help(L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours."))
+                    crashReportRows
                 }
                 .opacity(searchOpacity(.diagnostics))
             } label: {
@@ -1223,6 +1228,63 @@ struct SettingsView: View {
             Button(L("Reset All Settings…")) { resetAll() }
                 .help(L("Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept."))
                 .opacity(searchOpacity(.advanced))
+        }
+    }
+
+    enum CrashLookup: Equatable {
+        case unknown
+        case found(CrashReports.Report?)
+    }
+
+    /// The newest crash report's date, with Copy and Show in Finder, or a plain line saying there is none. Nothing
+    /// here leaves the Mac (docs/permissions.md). The folder is listed only while the disclosure is open, keyed on
+    /// it so each opening looks again, and never under `--render-assets`, whose picture must not read this machine.
+    @ViewBuilder private var crashReportRows: some View {
+        let help = L("The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report.", AppInfo.name)
+        LabeledContent(L("Last crash report")) {
+            switch crashReport {
+            case .unknown: Text(verbatim: "")
+            case .found(nil): Text(L("None on this Mac")).foregroundStyle(.secondary)
+            case .found(let report?): Text(Self.crashDate(report.modified)).foregroundStyle(.secondary)
+            }
+        }
+        .help(help)
+        .task(id: diagnosticsExpanded) {
+            guard diagnosticsExpanded, requests.renderedHookStatus == nil else { return }
+            let found = await Task.detached(priority: .utility) { CrashReports.newest() }.value
+            crashReport = .found(found)
+        }
+        if case .found(let report?) = crashReport {
+            HStack {
+                Button(L("Copy crash report")) { copyCrashReport(report) }
+                Button(L("Show in Finder")) { NSWorkspace.shared.activateFileViewerSelecting([report.url]) }
+                if let crashMessage {
+                    Text(crashMessage).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .help(help)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// The date in the app's own language rather than the system's, with how long ago beside it.
+    static func crashDate(_ date: Date, now: Date = Date()) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: Localization.current)
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return "\(formatter.string(from: date)) · \(RelativeTime.ago(date, now: now))"
+    }
+
+    private func copyCrashReport(_ report: CrashReports.Report) {
+        Task {
+            let text = await Task.detached(priority: .userInitiated) { CrashReports.text(of: report.url) }.value
+            guard let text else {
+                crashMessage = L("The crash report could not be read.")
+                return
+            }
+            Diagnostics.copy(text, kind: "crash report")
+            crashMessage = L("Copied %ld lines.", text.split(separator: "\n").count)
         }
     }
 

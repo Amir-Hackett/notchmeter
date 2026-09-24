@@ -17,8 +17,11 @@ enum CommandLineTool {
         case probe = "live probe"
     }
 
+    /// `--mcp` wins over the link name: the plugin starts the MCP server as `notchmeter --mcp`, through this same
+    /// link, and taking that for the tool printed the report and exited before the server ever answered.
     static func isInvokedAsTool(arguments: [String]) -> Bool {
-        arguments.contains("--cli") || URL(fileURLWithPath: arguments[0]).lastPathComponent == linkName
+        guard !arguments.contains("--mcp") else { return false }
+        return arguments.contains("--cli") || URL(fileURLWithPath: arguments[0]).lastPathComponent == linkName
     }
 
     /// The cached report and where it came from, or nil when the app is not running (or `force`).

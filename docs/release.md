@@ -10,12 +10,13 @@ the in-app updater stays off. A release is different in four ways, and `scripts/
 3. **A DMG** (`dist/Notchmeter.dmg`, volume "Notchmeter", with an Applications shortcut), itself signed, notarised and
    stapled.
 4. **A Sparkle appcast** (`dist/appcast.xml`) signed with the EdDSA key and checked, before anything is published,
-   against the `SUPublicEDKey` the app carries.
+   against the `SUPublicEDKey` the app carries, with **delta updates** (`dist/Notchmeter<build>-<older build>.delta`)
+   from the builds the previous feed offers ([Delta updates](#delta-updates)).
 
-Both files are hosted as GitHub Release assets. The app's feed is
+All of them are hosted as GitHub Release assets. The app's feed is
 `https://github.com/Amir-Hackett/notchmeter/releases/latest/download/appcast.xml`, which GitHub resolves to the
 `appcast.xml` of the newest non-prerelease release, so every release uploads the whole feed and each item inside it
-points at that version's own `Notchmeter.dmg`.
+points at that version's own `Notchmeter.dmg`, and at the deltas uploaded beside it.
 
 Nothing here needs Xcode; the Command Line Tools carry `codesign`, `notarytool`, `stapler`, `hdiutil` and `lipo`. The
 one optional thing that does is the Liquid Glass icon for macOS 26, which CI compiles when its runner has an Xcode 26
@@ -34,12 +35,44 @@ XML, on the enclosure's own item, and that the description is not empty. A `.htm
 the same way (`sparkle:format` absent or `plain-text`). Unset, the item carries only the link to the GitHub release
 page, and the script fails if a `<description>` turned up anyway, which would mean a stray notes file.
 
-What Sparkle renders (2.9, macOS 12 and later, so on the app's macOS 14 floor): headings, paragraphs, bullet and
+What Sparkle renders (2.9, macOS 12 and later, so on the app's macOS 15 floor): headings, paragraphs, bullet and
 numbered lists, block quotes and code blocks. Tables and images are not drawn, so keep them out; links render but the
 alert is not a browser. The file is also a good body for the GitHub release, which the workflow otherwise fills with
 `--generate-notes`. A missing file does not fail a release, on purpose: the guard in `release.yml` warns and ships
 without notes rather than failing after notarisation has been spent. `.claude/skills/release/SKILL.md` checks for the
 file in its preflight, so a tag cut through it never ships without them.
+
+## Delta updates
+
+An update is about eleven megabytes as a DMG and about one as a delta: the difference between the installed build and
+the new one, which Sparkle downloads when the installed copy is exactly the build the delta was made from. When it is
+not, or the delta fails to apply, Sparkle falls back to the full DMG, so a missing or unusable delta costs a download
+and nothing else.
+
+`scripts/release.sh` makes them from the DMGs `PREVIOUS_APPCAST` points at, up to three, newest first: exactly what
+installed copies were offered, whichever release each lives on. Each is downloaded from its enclosure URL and checked
+against the length and `sparkle:edSignature` its item carries before it is used, and one that fails is left out with
+a line saying so. They are diffed against the new DMG in `build/deltas/`, not in `dist/`, and that is the one thing
+here that is not obvious: `generate_appcast` rewrites the item of every archive it finds whose version is already in
+the feed, setting the enclosure URL from `--download-url-prefix` (this release's tag, where the older DMG is not) and
+dropping the release notes it has no file for. So the deltas come from a run of their own with `--versions <this
+build>` and `--maximum-deltas 3`, and `scripts/appcast-check.swift add-deltas` copies that run's `<sparkle:deltas>`
+into this build's item in the real feed; nothing else in the feed changes. A delta's URL is relative to its item's
+enclosure, so the files are uploaded to the new release beside its DMG, and `release.yml` uploads every
+`dist/*.delta` with the DMG and the feed. Items carried over from earlier feeds keep their own deltas, which stay on
+their own releases.
+
+`appcast-check.swift verify … --deltas <count>` then requires the new item to carry exactly the deltas that were
+made, each served from beside the DMG's URL, each file present in `dist/` at the length the feed gives, and each
+signature valid under `SUPublicEDKey`. A delta is checked by the copy it applies to, with the key that copy carries;
+the key never changes ([Sparkle signing key](#4-sparkle-signing-key)), so that is the same key.
+
+With no `PREVIOUS_APPCAST`, or none of its DMGs usable, the release has no deltas and says so. If the delta run
+itself fails, a real release warns (a `::warning::` in CI) and ships the feed without them, since notarisation has
+been spent by then. A **dry run** cannot use the published DMGs, which carry the real public key where it signs with
+a throwaway one; it makes a stand-in instead, this same build stamped one build lower and signed with the throwaway
+key, so the whole path runs offline and fails the dry run if any step of it breaks. Its delta is a few kilobytes and
+is never uploaded: the unsigned workflow path publishes the DMG alone.
 
 ## Try it now: the dry run
 
@@ -49,8 +82,9 @@ scripts/release.sh --dry-run
 
 This runs every step with an ad-hoc signature, no hardened runtime (its library validation needs a Team ID, which an
 ad-hoc signature lacks), no notarisation, and a throwaway appcast key stamped into the app the way the real key will
-be. It leaves a mountable `dist/Notchmeter.dmg` and a signed `dist/appcast.xml` that verifies against that throwaway
-key, so the pipeline is proved on a Mac with no Apple Developer account; it produces nothing you can ship.
+be. It leaves a mountable `dist/Notchmeter.dmg`, a signed `dist/appcast.xml` that verifies against that throwaway
+key, and one delta from a stand-in older build ([Delta updates](#delta-updates)), so the pipeline is proved on a Mac
+with no Apple Developer account and no network; it produces nothing you can ship.
 
 ## Testing an unsigned build
 
@@ -180,7 +214,7 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
 
 ## Each release
 
-1. Bump `CFBundleShortVersionString` in `scripts/Info.plist`, and `version` in `.claude-plugin/plugin.json` to the
+1. Bump `CFBundleShortVersionString` in `scripts/Info.plist`, and `version` in `plugin/.claude-plugin/plugin.json` to the
    same string (`ReleasePackagingTests` holds the two equal), write `docs/release-notes/<version>.md`
    ([Release notes](#release-notes)), and commit. The release refuses to build if the tag and
    the plist disagree. `CFBundleVersion`, which Sparkle compares, is stamped from `git rev-list --count HEAD`, so it
@@ -189,7 +223,7 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
 2. Build:
 
    ```bash
-   curl -fsSLo previous-appcast.xml https://github.com/Amir-Hackett/notchmeter/releases/latest/download/appcast.xml  # keeps older items in the feed; skip for the first release
+   curl -fsSLo previous-appcast.xml https://github.com/Amir-Hackett/notchmeter/releases/latest/download/appcast.xml  # keeps older items in the feed, and is where the deltas come from; skip for the first release
    DEVELOPER_ID_APP="Developer ID Application: Your Name (TEAMID)" NOTARY_PROFILE=notchmeter PREVIOUS_APPCAST=previous-appcast.xml scripts/release.sh
    ```
 
@@ -206,7 +240,7 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
    onto the current stable release, because the feed is the newest non-prerelease's `appcast.xml`:
 
    ```bash
-   gh release create v0.2.0-beta.1 dist/Notchmeter.dmg --prerelease --target <commit> --title "Notchmeter 0.2.0 beta 1"
+   gh release create v0.2.0-beta.1 dist/Notchmeter.dmg dist/*.delta --prerelease --target <commit> --title "Notchmeter 0.2.0 beta 1"
    gh release upload v0.1.0 dist/appcast.xml --clobber   # the stable release releases/latest resolves to; the one deliberate --clobber
    ```
 
@@ -217,12 +251,13 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
      built from (it prints it). The workflow rebuilds from the tag, signs, notarises and creates the release with the
      DMG and the appcast (it fetches the previous appcast itself), **as a prerelease**: nothing is offered to an
      installed copy until step 4 promotes it. The local build was the rehearsal; do not `gh release create` as well.
-   - **No secrets**: `gh release create v0.2.0 dist/Notchmeter.dmg dist/appcast.xml --target <commit> --title "Notchmeter 0.2.0" --generate-notes`,
+   - **No secrets**: `gh release create v0.2.0 dist/Notchmeter.dmg dist/*.delta dist/appcast.xml --target <commit> --title "Notchmeter 0.2.0" --generate-notes`,
      again naming the commit the script built from: without `--target`, a tag that does not exist yet is created on the
      default branch, which may have moved since the build. That creates the tag as well; the workflow it fires builds,
      finds a published release and stands down without touching it, green.
 
-   The script ends with the same two commands, filled in. Either way the workflow never replaces a `Notchmeter.dmg`
+   The script ends with the same two commands, filled in, naming each delta it made (zsh refuses a `dist/*.delta` that
+   matches nothing, so copy its line rather than this one when there are none). Either way the workflow never replaces a `Notchmeter.dmg`
    that is already on a release, and it uploads without `--clobber`, so a race with another publisher fails rather than
    deletes: publishing again means a new tag, or deleting the asset first, on purpose.
 4. **Install the DMG and open it, then promote.** This is the only step that runs the app, and it is the step v0.2.0
@@ -274,6 +309,16 @@ Two icons, one source of truth each. The classic one is drawn by `scripts/make-i
 `build/AppIcon.iconset`, folded by `iconutil` into `AppIcon.icns`, copied into `Contents/Resources` and named by
 `CFBundleIconFile` in `scripts/Info.plist`; it is what every macOS before 26 shows, what `scripts/site-assets.sh`
 copies to the site, and what a macOS 26 Mac falls back to. It needs nothing but the Command Line Tools.
+`docs/media/icon-512.png` and `docs/media/icon-1024.png`, the transparent squares directory listings ask for (at least
+280 pixels, which the site's 256-pixel mark is not), are its `icon_512x512.png` and `icon_512x512@2x.png` read back out
+of that `.icns`:
+
+```bash
+swift scripts/make-icon.swift build/AppIcon.iconset && iconutil -c icns build/AppIcon.iconset -o build/AppIcon.icns
+iconutil -c iconset build/AppIcon.icns -o build/icns-check.iconset
+cp build/icns-check.iconset/icon_512x512.png docs/media/icon-512.png
+cp build/icns-check.iconset/icon_512x512@2x.png docs/media/icon-1024.png
+```
 
 The Liquid Glass one for macOS 26 (Tahoe) is an Icon Composer document, `packaging/AppIcon.icon`, compiled by Xcode 26's `actool` into `Contents/Resources/Assets.car`, which `CFBundleIconName` points at. Two things make that awkward, and both are handled. The Command Line Tools this repository otherwise needs have no `actool` at all (`xcrun --find actool` exits 72), and Xcode 26's `actool` **crashes when it runs on macOS 15**: the asset agent dies with `IBPlatformToolFailureException … (AssetCatalogAgent-AssetRuntime)` however sound the document, which was settled by compiling the same document and a minimal control on both runners — macOS 15 crashed on both, macOS 26 compiled both. So `release.yml` has an `icon` job that runs on a **macOS 26 runner**, compiles the document there and uploads the car; the release job downloads it and hands the path to `scripts/build.sh` as `ICON_ASSETS_CAR`, which is also how you can pass a car compiled anywhere else. `build.sh` falls back to running `actool` itself when the selected developer directory has one, and to nothing at all when it does not: a developer build without Xcode is exactly the build it was before, `.icns` only, and the icon job failing leaves a release carrying the hand-drawn `.icns` rather than stopping it. `CFBundleIconName` is added to the bundle's `Info.plist` only when a car was actually copied in, never to `scripts/Info.plist`, so the plist never names an asset the bundle does not hold. The flattened `AppIcon.icns` `actool` writes beside the car is not copied, since the hand-drawn one under `CFBundleIconFile` is the better fallback.
 
@@ -286,7 +331,7 @@ codesign --verify --deep --strict build/Notchmeter.app                       # t
 ```
 
 and look at the result on a macOS 26 Mac (the glass icon) and a macOS 15 one (the `.icns`). The deployment target
-stays 14.0: `--minimum-deployment-target` is read from `LSMinimumSystemVersion`, and generate_appcast copies that
+stays 15.0: `--minimum-deployment-target` is read from `LSMinimumSystemVersion`, and generate_appcast copies that
 into `sparkle:minimumSystemVersion`, so a Tahoe icon never narrows who is offered the update.
 
 ## Homebrew

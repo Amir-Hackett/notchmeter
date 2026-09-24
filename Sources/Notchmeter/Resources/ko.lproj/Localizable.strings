@@ -328,7 +328,7 @@
 "Countdown" = "카운트다운";
 "Credits" = "크레딧";
 "Currency code" = "통화 코드";
-"current" = "현재";
+"Unlimited on the current plan" = "현재 플랜에서는 무제한";
 "Cursor models" = "Cursor 모델";
 "Cursor session token could not be decoded" = "Cursor 세션 토큰을 해독할 수 없습니다";
 "Cursor session token has no user id" = "Cursor 세션 토큰에 사용자 ID가 없습니다";
@@ -653,7 +653,7 @@
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "30분 동안 어떤 어시스턴트도 활동하지 않고 모든 창이 조용하면 링이 점으로 줄어듭니다. 훅 이벤트, 파일 활동, 페이스 변화, 링 위에 포인터를 올리면 다시 나타납니다.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "세션 측정이 평소보다 약 %1$@ 무겁습니다: 1%%당 %2$@ 대 %3$@.";
 "Third ring" = "세 번째 링";
-"This" = "이";
+"This plan has nothing for Cursor to meter yet" = "이 플랜에는 아직 Cursor가 측정할 항목이 없습니다";
 "This GitHub account has no Copilot subscription" = "이 GitHub 계정에는 Copilot 구독이 없습니다";
 "This session block %1$@ since %2$@ · %3$@/min" = "이 세션 블록 %2$@부터 %1$@ · 분당 %3$@";
 "This session block %1$@ since %2$@" = "이 세션 블록 %2$@부터 %1$@";
@@ -817,3 +817,9 @@
 "idle %@" = "유휴 %@";
 "Clear the idle sessions; each comes back if it does anything" = "유휴 세션을 지웁니다. 활동이 생기면 다시 표시됩니다";
 "Remove from the list; it comes back if the session does anything" = "목록에서 제거합니다. 세션에 움직임이 있으면 다시 나타납니다";
+"Last crash report" = "마지막 충돌 보고서";
+"None on this Mac" = "이 Mac에는 없음";
+"Copy crash report" = "충돌 보고서 복사";
+"Show in Finder" = "Finder에서 보기";
+"The crash report could not be read." = "충돌 보고서를 읽을 수 없습니다.";
+"The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@이(가) 충돌했을 때 macOS가 ~/Library/Logs/DiagnosticReports에 기록한 최신 보고서입니다. 이 Mac 밖으로 나가지 않습니다. 복사하면 홈 폴더 경로를 가린 채 클립보드에 담기므로 버그 보고서에 붙여 넣으세요.";

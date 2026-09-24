@@ -9,14 +9,30 @@
     {
       "name": "notchmeter",
       "displayName": "Notchmeter",
-      "source": "./",
-      "description": "Read this Mac's AI usage windows, the local cost estimate and Notchmeter's advice before long work, from the notchmeter command-line tool and the running app's MCP server.",
-      "author": { "name": "Amir Hackett", "url": "https://github.com/Amir-Hackett" },
+      "source": "./plugin",
+      "description": "Lets Claude check this Mac's AI usage limits (Claude Code, Codex, Cursor, Antigravity / Gemini CLI, Copilot), cost estimate and Notchmeter's advice before long work. Needs the Notchmeter app or its notchmeter command. It reads the app's cache; only when the app isn't running (or on --force) does it use the logins your AI tools saved on this Mac for one read-only request to each tool's own usage endpoint, never inference. Claude Code cost is priced from local transcripts' usage lines. No telemetry.",
+      "author": {
+        "name": "Amir Hackett",
+        "url": "https://github.com/Amir-Hackett"
+      },
       "homepage": "https://www.notchmeter.com",
       "repository": "https://github.com/Amir-Hackett/notchmeter",
       "license": "MIT",
       "category": "productivity",
-      "keywords": ["usage", "rate-limits", "claude-code", "macos"]
+      "keywords": [
+        "usage",
+        "rate-limits",
+        "quota",
+        "claude-code",
+        "codex",
+        "cursor",
+        "antigravity",
+        "gemini-cli",
+        "copilot",
+        "mcp",
+        "macos",
+        "notch"
+      ]
     }
   ]
 }

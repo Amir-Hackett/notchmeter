@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "Notchmeter",
     defaultLocalization: "en",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v15)],
     dependencies: [
         // Binary xcframework; scripts/build.sh embeds it in Contents/Frameworks and Updater.swift decides whether to start it.
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),

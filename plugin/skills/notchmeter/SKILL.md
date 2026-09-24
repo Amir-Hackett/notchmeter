@@ -1,6 +1,6 @@
 ---
 name: notchmeter
-description: Read this Mac's AI usage windows (Claude Code session/weekly/per-model, Codex, Cursor, Gemini CLI, Copilot), the local cost estimate and Notchmeter's advice before long work, so Claude can switch models or wait for a reset on its own. Use when the user asks how much quota is left, whether a long task fits before a reset, or when a task will run for more than a few minutes.
+description: Read this Mac's AI usage windows (Claude Code session/weekly/per-model, Codex, Cursor, Antigravity / Gemini CLI, Copilot), the local cost estimate and Notchmeter's advice before long work, so Claude can switch models or wait for a reset on its own. Use when the user asks how much quota is left, whether a long task fits before a reset, or when a task will run for more than a few minutes.
 ---
 
 # Notchmeter
@@ -22,13 +22,13 @@ notchmeter --json            # every tool
 notchmeter claude --json     # one tool
 ```
 
-It answers from the running app's cached report (the same object, at most a few minutes old) or its local API, and only asks the vendors when the app is not running; `notchmeter --force` reads afresh. If `notchmeter` is not on the PATH, the app answers directly:
+It answers from the running app's cached report (the same object, at most a few minutes old) or its local API, and only asks the vendors when the app is not running; `notchmeter --force` reads afresh. If `notchmeter` is not on the PATH, the app's own executable is the same command under `--cli`:
 
 ```bash
-/Applications/Notchmeter.app/Contents/MacOS/Notchmeter --probe --no-prompt --json
+/Applications/Notchmeter.app/Contents/MacOS/Notchmeter --cli --json
 ```
 
-If the app is built from source instead, the path is `build/Notchmeter.app/Contents/MacOS/Notchmeter` inside the repository, or `swift run Notchmeter --probe --no-prompt --json` there. `--no-prompt` matters: without it a locked Keychain item raises a dialog. The command makes one read-only request per signed-in tool, prices the local Claude Code transcripts, and prints one JSON object (schema `notchmeter.limits.v1`) with sorted keys. It never prints a token. `--history` adds the daily cost history. The same object is available as an MCP tool, `get_limits`, from `Notchmeter --mcp` (a stdio server; the snippet is in Settings › Other tools).
+If the app is built from source instead, the path is `build/Notchmeter.app/Contents/MacOS/Notchmeter` inside the repository, or `swift run Notchmeter --cli --json` there. Neither form raises a Keychain dialog: a locked item reports `needsAttention` instead. When it does read afresh (the app is not running, or `--force`), the command makes one read-only request per signed-in tool to that tool's own usage endpoint, prices the local Claude Code transcripts, and prints one JSON object (schema `notchmeter.limits.v1`) with sorted keys. It never prints a token. `Notchmeter --probe --no-prompt --json --history` is always a fresh read and adds the daily cost history. The same object is available as an MCP tool, `get_limits`, from `Notchmeter --mcp` (a stdio server; the snippet is in Settings › Integrations › Other tools).
 
 The exit code summarises the picture: `0` fine, `10` a window is at 80 % or behind pace, `11` a window is at 100 %, `20` readings exist but nothing has been used, `30` no reading at all (nothing signed in, or the Keychain item is locked).
 
@@ -52,7 +52,7 @@ The exit code summarises the picture: `0` fine, `10` a window is at 80 % or behi
 User: This is going to be a long refactor across 40 files. Do I have the room for it today?
 
 Claude: Checking the meter first.
-$ /Applications/Notchmeter.app/Contents/MacOS/Notchmeter --probe --no-prompt --json
+$ notchmeter --json
 (exit 10)
 
 Claude session is 61% used with 3h 50m left and behind pace (it drained 12% → 61% in the last hour); the weekly is at 13%.
@@ -65,4 +65,4 @@ review for after the session resets at 4:10 PM. Want me to proceed that way?
 
 - The Claude session and weekly figures are account-wide; the cost is this Mac's transcripts only.
 - With the app running and the local API enabled in its Settings, the same JSON is at `http://127.0.0.1:6737/v1/limits` without a new read.
-- Rules and divergences of the cost estimate: `docs/accuracy.md` in the repository.
+- Rules and divergences of the cost estimate: [docs/accuracy.md](https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md).
