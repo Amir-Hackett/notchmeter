@@ -571,8 +571,8 @@ final class AutoSideWatcher {
         if prefs.autoCompactFit != fit { prefs.autoCompactFit = fit }
         // The same gaps the fit was taken in, for the news peek (NotchPeek), which is laid out in them rather than
         // re-measured: a side nothing could be measured on keeps the peek's own cap.
-        let room = NotchPeek.Room(leading: menus.map { geometry.notch.minX - CompactFit.clearance - $0 } ?? NotchPeek.cap,
-                                  trailing: statusItems.map { $0 - CompactFit.clearance - geometry.notch.maxX } ?? NotchPeek.cap)
+        let room = NotchPeek.Room(leading: menus.map { geometry.notch.minX - CompactFit.clearance - $0 } ?? NotchPeek.unmeasuredHalf,
+                                  trailing: statusItems.map { $0 - CompactFit.clearance - geometry.notch.maxX } ?? NotchPeek.unmeasuredHalf)
         if prefs.autoCompactRoom != room { prefs.autoCompactRoom = room }
     }
 

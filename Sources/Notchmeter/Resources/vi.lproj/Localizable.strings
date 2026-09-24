@@ -898,3 +898,7 @@
 "Notes" = "Ghi chú";
 "%@ left" = "%@ còn lại";
 "Opens or closes the detail" = "Mở hoặc đóng phần chi tiết";
+
+/* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
+"Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Đưa cửa sổ Cursor của dự án này lên trước (không thể yêu cầu Cursor mở một cuộc trò chuyện cụ thể)";
+"First seen %@" = "Thấy lần đầu lúc %@";

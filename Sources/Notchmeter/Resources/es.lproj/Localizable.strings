@@ -915,3 +915,7 @@
 "Notes" = "Notas";
 "%@ left" = "%@ restante";
 "Opens or closes the detail" = "Abre o cierra el detalle";
+
+/* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
+"Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Trae al frente la ventana de Cursor de este proyecto (a Cursor no se le puede pedir que abra un chat concreto)";
+"First seen %@" = "Visto por primera vez %@";

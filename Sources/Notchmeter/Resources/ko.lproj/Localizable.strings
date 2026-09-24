@@ -898,3 +898,7 @@
 "Notes" = "메모";
 "%@ left" = "%@ 남음";
 "Opens or closes the detail" = "세부 정보를 열거나 닫습니다";
+
+/* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
+"Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "이 프로젝트의 Cursor 창을 앞으로 가져옵니다(Cursor에 특정 채팅을 열도록 요청할 수는 없습니다)";
+"First seen %@" = "처음 확인: %@";

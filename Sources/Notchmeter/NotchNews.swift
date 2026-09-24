@@ -121,9 +121,12 @@ struct NotchNews: Equatable, Sendable {
         return known ? .notice : .whole
     }
 
-    /// The text the peek draws and VoiceOver announces. While the screen is shared the project name goes, as it
-    /// does from the banner (Notifier.copy): the reason alone says there is something to look at without saying
-    /// where. The project is a folder name, not the prompt, so it is not behind the session-titles switch.
+    /// The text the peek draws and VoiceOver announces. The name is the session's own title when the caller may
+    /// show one (`title`: the prompt's first line, Claude Code's session name or Cursor's chat name, passed only
+    /// while Preferences.sessionTitles is on; UsageStore.peekTitle), else the project, so two chats in one folder
+    /// do not announce themselves alike. While the screen is shared the name goes altogether, as it does from the
+    /// banner (Notifier.copy): the reason alone says there is something to look at without saying where. The
+    /// project is a folder name, not the prompt, so it is not behind the session-titles switch.
     struct Words: Equatable {
         let name: String?
         let reason: String
@@ -133,32 +136,38 @@ struct NotchNews: Equatable, Sendable {
         let spoken: String
     }
 
-    func words(hidesFigures: Bool) -> Words {
-        let name = hidesFigures ? nil : project.flatMap { $0.isEmpty ? nil : $0 }
+    func words(hidesFigures: Bool, title: String? = nil) -> Words {
+        let chosen = title.flatMap { $0.isEmpty ? nil : $0 } ?? project.flatMap { $0.isEmpty ? nil : $0 }
+        let name = hidesFigures ? nil : chosen
         return Words(name: name, reason: reason.text, reasonSymbol: reason.symbolName, toolSymbol: tool.symbolName,
                      spoken: Spoken.line(tool.productName, name, reason.text))
     }
 }
 
 /// Where the peek's words go beside the notch, from the room either side of it. Pure, so the rule is tested
-/// without a menu bar.
+/// without a menu bar; the widths of the words come in from the caller (NotchPeekHalf.width measures them in the
+/// strip's own font).
 ///
 /// The words are drawn by the two compact halves DynamicNotchKit lays beside the notch, so they sit left and
 /// right of the physical notch and never under it. Each half takes no more than the gap Auto measured on its side
-/// (`Room`), less nothing: `Room` is already the gap less `CompactFit.clearance`. Under a fixed side nothing is
-/// measured, and the readouts are drawn without a measurement too; the peek then keeps to `cap` a side, which is
-/// about the width of three readouts with their figures, so it covers no more of the menu bar than they could.
+/// (`Room`), less nothing: `Room` is already the gap less `CompactFit.clearance`, and no more than `cap` however
+/// wide the gap is. Under a fixed side nothing is measured, and the readouts are drawn without a measurement too;
+/// the peek then keeps to `unmeasured`, about the width of three readouts with their figures, so it covers no
+/// more of the menu bar than they could.
 enum NotchPeek {
     /// The clear room each side of the notch, as AutoSideWatcher measured it.
     struct Room: Equatable {
         var leading: CGFloat
         var trailing: CGFloat
 
-        static let unmeasured = Room(leading: NotchPeek.cap, trailing: NotchPeek.cap)
+        static let unmeasured = Room(leading: NotchPeek.unmeasuredHalf, trailing: NotchPeek.unmeasuredHalf)
     }
 
-    /// The most either half ever takes, however much room there is: two words, not a sentence across the bar.
-    static let cap: CGFloat = 150
+    /// The most either half ever takes, however much room there is: a chat's name and a reason, not a sentence
+    /// across the bar.
+    static let cap: CGFloat = 320
+    /// Each half's room when nothing was measured.
+    static let unmeasuredHalf: CGFloat = 150
     /// Less than this and a half cannot hold a symbol and a word; its words move to the other side.
     static let minimumHalf: CGFloat = 44
     /// The tool's symbol alone needs this much (a 10 pt glyph and the strip's 6 pt padding either side).
@@ -179,25 +188,45 @@ enum NotchPeek {
     /// reason's half already says both.
     static func speaks(_ parts: [Part]) -> Bool { parts.contains(.reason) }
 
-    /// The name goes left of the notch and the reason right of it, the way a sentence reads across it. A side too
-    /// narrow for words gives its words to the other; with no room for the reason on either side there is no
-    /// peek, and the glow and the rings carry the news alone. With no name to show (the screen is shared, or the
-    /// hook sent none) the left keeps the tool's symbol, so the strip still says whose news it is.
-    static func layout(room: Room, hasName: Bool) -> Layout? {
+    /// The name goes left of the notch and the reason right of it, the way a sentence reads across it, when the
+    /// name fits whole on the left. When it does not, the arrangement that shows the most of the name wins: the
+    /// whole line on the right ("↖ my-project · ✓ Finished") where the status items leave more room than the menus
+    /// do, or on the left the other way round, before a name cut down to three letters beside a reason with room
+    /// to spare. A side too narrow for words gives its words to the other; with no room for the reason on either
+    /// side there is no peek, and the glow and the rings carry the news alone. With no name to show (the screen
+    /// is shared, or the hook sent none) the left keeps the tool's symbol, so the strip still says whose news it
+    /// is. `width` is what a half holding those parts needs, and `nameWidth` the name's own share of it.
+    static func layout(room: Room, hasName: Bool, nameWidth: CGFloat = 0, width: ([Part]) -> CGFloat = { _ in 0 }) -> Layout? {
         let leading = max(0, min(room.leading, cap))
         let trailing = max(0, min(room.trailing, cap))
-        let left: [Part] = hasName ? [.tool, .name] : [.tool]
-        if trailing >= minimumHalf, leading >= (hasName ? minimumHalf : symbolOnly) {
-            return Layout(leading: left, trailing: [.reason], leadingWidth: leading, trailingWidth: trailing)
+        guard hasName else {
+            if trailing >= minimumHalf, leading >= symbolOnly {
+                return Layout(leading: [.tool], trailing: [.reason], leadingWidth: leading, trailingWidth: trailing)
+            }
+            if trailing >= minimumHalf, trailing >= leading {
+                return Layout(leading: [], trailing: [.tool, .reason], leadingWidth: 0, trailingWidth: trailing)
+            }
+            if leading >= minimumHalf {
+                return Layout(leading: [.tool, .reason], trailing: [], leadingWidth: leading, trailingWidth: 0)
+            }
+            return nil
         }
-        let everything: [Part] = hasName ? [.tool, .name, .reason] : [.tool, .reason]
-        if trailing >= minimumHalf, trailing >= leading {
-            return Layout(leading: [], trailing: everything, leadingWidth: 0, trailingWidth: trailing)
+        let left: [Part] = [.tool, .name]
+        let everything: [Part] = [.tool, .name, .reason]
+        // How much of the name each arrangement shows: all of it, less what the half is short by.
+        func shown(_ parts: [Part], in room: CGFloat) -> CGFloat { nameWidth - max(0, width(parts) - room) }
+        var options: [(layout: Layout, shown: CGFloat)] = []
+        if trailing >= minimumHalf, leading >= minimumHalf {
+            options.append((Layout(leading: left, trailing: [.reason], leadingWidth: leading, trailingWidth: trailing), shown(left, in: leading)))
+        }
+        if trailing >= minimumHalf {
+            options.append((Layout(leading: [], trailing: everything, leadingWidth: 0, trailingWidth: trailing), shown(everything, in: trailing)))
         }
         if leading >= minimumHalf {
-            return Layout(leading: everything, trailing: [], leadingWidth: leading, trailingWidth: 0)
+            options.append((Layout(leading: everything, trailing: [], leadingWidth: leading, trailingWidth: 0), shown(everything, in: leading)))
         }
-        return nil
+        // `max(by:)` keeps the first of equals, so a tie keeps the split, then the right-hand side.
+        return options.max { $0.shown < $1.shown }?.layout
     }
 }
 

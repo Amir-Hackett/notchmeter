@@ -197,3 +197,78 @@ import Testing
         #expect(Date().timeIntervalSince(started) < budget)
     }
 }
+
+/// A click on a Cursor row raises Cursor's window for the chat's folder and never another app. The owner's 0.8.0
+/// recording brought the Claude app forward instead: Cursor had been launched from a shell, so its hooks inherited
+/// that shell's `__CFBundleIdentifier` (and `TERM_PROGRAM` and tab id), which named the jump's app. For Cursor's own
+/// agent the nearest app above the hook now decides, and a reference naming a new app replaces the old one whole.
+@Suite struct CursorJump {
+    let own = "com.amirhackett.notchmeter"
+    let cursor = TerminalJump.BundleID.cursor
+
+    /// The hook under a shell under Cursor's extension host (a helper, `…helper`) under Cursor, with the
+    /// environment Cursor inherited from a terminal inside the Claude app.
+    var underCursor: [TerminalIdentity.Ancestor] {
+        [TerminalIdentity.Ancestor(pid: 900, parent: 800, bundleID: nil),
+         TerminalIdentity.Ancestor(pid: 800, parent: 700, bundleID: nil),
+         TerminalIdentity.Ancestor(pid: 700, parent: 600, bundleID: cursor + ".helper"),
+         TerminalIdentity.Ancestor(pid: 600, parent: 1, bundleID: cursor)]
+    }
+    let inherited = ["__CFBundleIdentifier": "com.anthropic.claudefordesktop", "TERM_PROGRAM": "iTerm.app",
+                     "ITERM_SESSION_ID": "w0t0p0:9F1A2B3C-0000-1111-2222-333344445555", "CURSOR_PROJECT_DIR": "/Users/me/enrollhere"]
+
+    @Test func cursorsAgentIsCursorWhateverCursorInherited() {
+        let ref = TerminalIdentity.resolve(environment: inherited, ancestry: underCursor, ownBundleID: own, tool: .cursor)
+        #expect(ref == TerminalRef(bundleID: cursor), "only Cursor: no inherited app, program, tab or tty")
+        var withFolder = ref
+        withFolder?.workspace = "/Users/me/enrollhere"
+        #expect(withFolder.map(TerminalJump.resolve) == .openFolder("/Users/me/enrollhere", bundleID: cursor))
+    }
+
+    @Test func anotherToolKeepsWhatItsEnvironmentSays() {
+        let ref = TerminalIdentity.resolve(environment: inherited, ancestry: underCursor, ownBundleID: own, tool: .claude)
+        #expect(ref?.bundleID == "com.anthropic.claudefordesktop", "Claude Code's hooks are unchanged")
+        #expect(TerminalIdentity.resolve(environment: inherited, ancestry: underCursor, ownBundleID: own)?.program == "iTerm.app")
+    }
+
+    /// Cursor's command-line agent runs in a terminal: the nearest app is that terminal, and the jump goes there.
+    @Test func cursorsCommandLineAgentInATerminalJumpsToTheTerminal() {
+        let chain = [TerminalIdentity.Ancestor(pid: 900, parent: 800, tty: nil, bundleID: nil),
+                     TerminalIdentity.Ancestor(pid: 800, parent: 700, tty: "/dev/ttys004", bundleID: nil),
+                     TerminalIdentity.Ancestor(pid: 700, parent: 1, tty: nil, bundleID: TerminalJump.BundleID.iTerm)]
+        let env = ["__CFBundleIdentifier": TerminalJump.BundleID.iTerm, "TERM_PROGRAM": "iTerm.app"]
+        let ref = TerminalIdentity.resolve(environment: env, ancestry: chain, ownBundleID: own, tool: .cursor)
+        #expect(ref?.bundleID == TerminalJump.BundleID.iTerm)
+        #expect(ref?.tty == "/dev/ttys004")
+    }
+
+    /// A session first seen with a wrong reference is put right by the next event, not merged with it.
+    @Test func aReferenceNamingAnotherAppReplacesTheOldOneWhole() {
+        let stale = TerminalRef(program: "iTerm.app", bundleID: "com.anthropic.claudefordesktop", tty: "/dev/ttys001",
+                                sessionID: "w0t0p0:9F1A2B3C-0000-1111-2222-333344445555")
+        let fresh = TerminalRef(bundleID: cursor, workspace: "/Users/me/enrollhere")
+        #expect(stale.merging(fresh) == fresh)
+        #expect(TerminalJump.resolve(stale.merging(fresh)) == .openFolder("/Users/me/enrollhere", bundleID: cursor))
+        // The same app reporting less keeps what it knew.
+        let partial = TerminalRef(bundleID: TerminalJump.BundleID.iTerm)
+        let known = TerminalRef(program: "iTerm.app", bundleID: TerminalJump.BundleID.iTerm, tty: "/dev/ttys001")
+        #expect(known.merging(partial) == known)
+        #expect(TerminalRef(program: "iTerm.app").merging(partial).program == "iTerm.app", "no app named before: merged")
+    }
+
+    @Test func cursorAndItsHelpersAreCursor() {
+        #expect(TerminalJump.isCursor(cursor))
+        #expect(TerminalJump.isCursor(cursor + ".helper"))
+        #expect(!TerminalJump.isCursor(cursor + "x"))
+        #expect(!TerminalJump.isCursor("com.anthropic.claudefordesktop"))
+        #expect(!TerminalJump.isCursor(nil))
+    }
+
+    /// Cursor has no way to open one chat from outside, so the row promises the window and no more.
+    @Test func aCursorRowSaysItBringsTheWindowForward() {
+        #expect(TerminalJump.jumpHelp(TerminalRef(bundleID: cursor, workspace: "/x"))
+                == "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)")
+        #expect(TerminalJump.jumpHelp(TerminalRef(bundleID: TerminalJump.BundleID.iTerm)) == "Jump to the terminal")
+        #expect(TerminalJump.jumpHelp(nil) == "Jump to the terminal")
+    }
+}

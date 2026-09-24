@@ -64,13 +64,27 @@ enum TerminalIdentity {
     /// names the bundle. `ancestry` is the chain from the process itself upward, so the process's own tty counts
     /// (a hook run by hand in a terminal has one) but its own bundle does not: the hook is this app's binary, and
     /// naming Notchmeter as the terminal would send a jump nowhere.
-    static func resolve(environment: [String: String], ancestry: [Ancestor], ownBundleID: String? = Bundle.main.bundleIdentifier) -> TerminalRef? {
+    ///
+    /// Cursor's own agent (`tool` is `.cursor`) is the one case where the ancestry outranks the environment. Its hooks
+    /// run under Cursor's extension host, whose environment is whatever Cursor itself inherited: launched from a
+    /// shell (`cursor .` in a terminal, or from the Claude app's), it carries that shell's `__CFBundleIdentifier`,
+    /// `TERM_PROGRAM` and tab id, and a jump went to that app instead. So when the nearest app above the hook is
+    /// Cursor (or one of its helpers), the reference is Cursor and nothing else; when it is a terminal (Cursor's
+    /// command-line agent), it is that terminal's as usual.
+    static func resolve(environment: [String: String], ancestry: [Ancestor], ownBundleID: String? = Bundle.main.bundleIdentifier,
+                        tool: ToolID? = nil) -> TerminalRef? {
+        if tool == .cursor, let app = nearestApp(ancestry, ownBundleID: ownBundleID), TerminalJump.isCursor(app) {
+            return TerminalRef(bundleID: TerminalJump.BundleID.cursor)
+        }
         var terminal = fromEnvironment(environment)
         terminal.tty = ancestry.lazy.compactMap(\.tty).first
-        if terminal.bundleID == nil {
-            terminal.bundleID = ancestry.dropFirst().lazy.compactMap(\.bundleID).first { $0 != ownBundleID }
-        }
+        if terminal.bundleID == nil { terminal.bundleID = nearestApp(ancestry, ownBundleID: ownBundleID) }
         return terminal.isEmpty ? nil : terminal
+    }
+
+    /// The first ancestor above the process itself that the system knows as an app, other than this one.
+    static func nearestApp(_ ancestry: [Ancestor], ownBundleID: String?) -> String? {
+        ancestry.dropFirst().lazy.compactMap(\.bundleID).first { $0 != ownBundleID }
     }
 
     /// The chain from `pid` upward, at most `hops` long, stopping at launchd or a parent the kernel will not
@@ -90,10 +104,11 @@ enum TerminalIdentity {
     /// The live capture the command runs: the environment, then the ancestry through `proc_pidinfo` and
     /// LaunchServices. The bundle lookup is skipped altogether when the environment already names the app, since
     /// it is the one call here that leaves the kernel.
-    static func capture(environment: [String: String] = ProcessInfo.processInfo.environment, pid: pid_t = getpid()) -> TerminalRef? {
-        let needsBundle = environment["__CFBundleIdentifier"].map(\.isEmpty) ?? true
+    /// For Cursor's agent the lookup always runs, since the environment is exactly what it cannot trust there.
+    static func capture(environment: [String: String] = ProcessInfo.processInfo.environment, pid: pid_t = getpid(), tool: ToolID? = nil) -> TerminalRef? {
+        let needsBundle = tool == .cursor || (environment["__CFBundleIdentifier"].map(\.isEmpty) ?? true)
         let chain = ancestry(of: pid, parent: liveParent, bundleID: needsBundle ? liveBundleID : { _ in nil })
-        return resolve(environment: environment, ancestry: chain)
+        return resolve(environment: environment, ancestry: chain, tool: tool)
     }
 
     /// The parent pid and the controlling tty (`/dev/ttys003`) of `pid`, from `PROC_PIDTBSDINFO`; nil when the

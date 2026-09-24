@@ -456,7 +456,7 @@ enum Hook {
     static func runCommand(arguments: [String] = CommandLine.arguments) -> Never {
         let payload = readPayload()
         guard var message = message(from: payload, tool: tool(in: arguments), event: event(in: arguments)) else { exit(0) }
-        message.terminal = TerminalIdentity.capture()
+        message.terminal = TerminalIdentity.capture(tool: message.tool)
         if TerminalJump.opensFolders(message.terminal?.bundleID) { message.terminal?.workspace = folder(in: payload) }
         if message.request != nil {
             if case .sent(let reply?) = HookSocket.send(.hook, message.userInfo, timeout: decisionWait),

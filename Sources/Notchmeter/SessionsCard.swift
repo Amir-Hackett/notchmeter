@@ -94,6 +94,7 @@ struct SessionsCard: View {
         // With more than one project live every row sits under its project's header (`groups`), so a row with no
         // title of its own says something the header does not rather than the project again.
         let grouped = Set(sessions.map(groupName(of:))).count > 1
+        let alike = alike(sessions, hideTitles: hideTitles, grouped: grouped)
         let ordered = sessions.enumerated().sorted { a, b in
             let (ra, rb) = (status(a.element).rank, status(b.element).rank)
             return ra != rb ? ra < rb : a.offset < b.offset
@@ -105,11 +106,10 @@ struct SessionsCard: View {
             // nothing else (`TERM_PROGRAM=vscode` with no bundle id) is a reference, and not a jump.
             let canJump = jump && session.host == nil && session.terminal.map { TerminalJump.resolve($0) != .none } == true
             let note: Row.Note? = session.pending != nil ? .waitingForAnswer : finished ? (canJump ? .doneJump : .justFinished) : nil
-            // Cursor's own agent runs in Cursor: one name says it, not two.
-            let place = TerminalJump.displayName(bundleID: session.terminal?.bundleID).flatMap { $0 == session.tool.displayName ? nil : $0 }
+            let place = Self.place(of: session)
             let agents = session.agents.sorted { $0.value != $1.value ? $0.value < $1.value : $0.key < $1.key }
                 .map { Row.Agent(id: $0.key, since: $0.value) }
-            let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped)
+            let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped, alike: alike.contains(session.id))
             return Row(id: session.id, tool: session.tool, title: lines.title, chips: [session.tool.displayName],
                        branch: lines.branch, place: lines.place, host: lines.host, group: groupName(of: session),
                        since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
@@ -152,16 +152,44 @@ struct SessionsCard: View {
     /// branch, the terminal and the host. A row without one, under a project header, would only repeat the
     /// header, so it takes the branch as its title (else the terminal), which then leaves the second line; and
     /// the host is left off the second line wherever the title or the header already carries it ("proj@devbox").
-    static func line(of session: AgentSession, place: String?, hideTitles: Bool, grouped: Bool)
+    /// A row that would read word for word like another of its project's (`alike`: two Cursor chats on one
+    /// branch, neither of which has a title) is told apart by when the app first heard of it instead, "First seen 2:04 PM", with the
+    /// branch kept on the second line.
+    static func line(of session: AgentSession, place: String?, hideTitles: Bool, grouped: Bool, alike: Bool = false)
         -> (title: String, branch: String?, place: String?, host: String?) {
         let host = session.host.map { "@\($0)" }
         if !hideTitles, let title = session.displayTitle { return (title, session.branch, place, grouped ? nil : host) }
+        if alike { return (firstSeen(session.started), session.branch, place, grouped ? nil : host) }
         if grouped {
             if let branch = session.branch { return (branch, nil, place, nil) }
             if let place { return (place, nil, nil, nil) }
         }
         let fallback = Self.title(of: session, hideTitles: true)
         return (fallback, session.branch, place, grouped || host.map(fallback.contains) == true ? nil : host)
+    }
+
+    /// "First seen 2:04 PM", in the reader's own time format.
+    static func firstSeen(_ date: Date) -> String {
+        L("First seen %@", date.formatted(date: .omitted, time: .shortened))
+    }
+
+    /// The terminal or editor's short name for the row's second line. Cursor's own agent runs in Cursor: one name
+    /// says it, not two.
+    static func place(of session: AgentSession) -> String? {
+        TerminalJump.displayName(bundleID: session.terminal?.bundleID).flatMap { $0 == session.tool.displayName ? nil : $0 }
+    }
+
+    /// The sessions whose row, with no title of its own, would read word for word like another row of its
+    /// project: same fallback title, same second line. Two such rows cannot be told apart, so each says when it
+    /// was first seen instead (`line`).
+    static func alike(_ sessions: [AgentSession], hideTitles: Bool, grouped: Bool) -> Set<String> {
+        struct Key: Hashable { let group, title: String; let branch, place, host: String? }
+        let untitled = sessions.filter { hideTitles || $0.displayTitle == nil }
+        let byLine = Dictionary(grouping: untitled) { session -> Key in
+            let line = line(of: session, place: place(of: session), hideTitles: hideTitles, grouped: grouped)
+            return Key(group: groupName(of: session), title: line.title, branch: line.branch, place: line.place, host: line.host)
+        }
+        return Set(byLine.values.filter { $0.count > 1 }.flatMap { $0.map(\.id) })
     }
 
     /// The gauge's tint: quiet below 70 %, the warning orange to 90 %, vermillion past it. The percentage beside it
@@ -332,8 +360,8 @@ private struct SessionRow: View {
                 if row.canJump, let session {
                     Button { jump(session) } label: { content }
                         .buttonStyle(.plain)
-                        .help(L("Jump to the terminal"))
-                        .accessibilityAction(named: L("Jump to the terminal")) { jump(session) }
+                        .help(TerminalJump.jumpHelp(session.terminal))
+                        .accessibilityAction(named: TerminalJump.jumpHelp(session.terminal)) { jump(session) }
                 } else {
                     content
                 }

@@ -9,8 +9,13 @@ import SwiftUI
 ///
 /// The width is worked out here and set as a fixed frame rather than left to a `maxWidth`. DynamicNotchKit lays
 /// the compact halves out at their ideal size (`fixedSize`), and a text proposed no width draws whole whatever
-/// frame is round it; a fixed frame is what makes a long project name truncate in its middle inside the gap
-/// Auto measured instead of running on over the menus.
+/// frame is round it; a fixed frame is what makes a long name truncate inside the gap Auto measured instead of
+/// running on over the menus. The frame is the parts' measured width up to that room, never a smaller fixed
+/// one, and the layout (NotchPeek.layout) has already put the name on whichever side shows the most of it.
+///
+/// The name is in the text colour and cut at its end, so what is left reads as the start of a name ("enrollhere-
+/// admin-su…"), not two scraps of one ("enr…ols"); the assistant's symbol is in the assistant's colour, and the
+/// reason keeps the higher layout priority, so it is the name that gives way when a half is short.
 struct NotchPeekHalf: View {
     let news: NotchNews
     let words: NotchNews.Words
@@ -34,13 +39,12 @@ struct NotchPeekHalf: View {
                         .foregroundStyle(news.tool.color)
                 case .name:
                     Text(verbatim: words.name ?? "")
-                        .foregroundStyle(contrast ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                         .lineLimit(1)
-                        .truncationMode(.middle)
+                        .truncationMode(.tail)
                         .layoutPriority(0)
                 case .reason:
                     if index > 0, parts.contains(.name) {
-                        Text(verbatim: "·").foregroundStyle(.secondary)
+                        Text(verbatim: "·").foregroundStyle(.white.opacity(contrast ? 0.9 : 0.6))
                     }
                     Image(systemName: words.reasonSymbol)
                         .font(.system(size: Self.symbolSize, weight: .semibold))
@@ -69,6 +73,11 @@ struct NotchPeekHalf: View {
 
     /// What the half needs for its parts, no more than the room it has.
     static func width(parts: [NotchPeek.Part], words: NotchNews.Words, room: CGFloat) -> CGFloat {
+        min(needed(parts: parts, words: words), room)
+    }
+
+    /// What a half holding `parts` needs to draw them whole: the measure NotchPeek.layout chooses a side by.
+    static func needed(parts: [NotchPeek.Part], words: NotchNews.Words) -> CGFloat {
         var total = 2 * padding
         for (index, part) in parts.enumerated() {
             if index > 0 { total += spacing }
@@ -80,7 +89,12 @@ struct NotchPeekHalf: View {
                 total += symbolSize + 2 + spacing + textWidth(words.reason)
             }
         }
-        return min(ceil(total), room)
+        return ceil(total)
+    }
+
+    /// The peek's layout for `words` in `room`, measured in the strip's font.
+    static func layout(words: NotchNews.Words, room: NotchPeek.Room) -> NotchPeek.Layout? {
+        NotchPeek.layout(room: room, hasName: words.name != nil, nameWidth: words.name.map(textWidth) ?? 0) { needed(parts: $0, words: words) }
     }
 
     /// The rounded semibold the half draws in, measured the way AppKit sets it.

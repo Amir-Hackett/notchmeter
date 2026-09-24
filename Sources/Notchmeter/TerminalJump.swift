@@ -62,6 +62,21 @@ enum TerminalJump {
         static let kitty = "net.kovidgoyal.kitty"
         static let wezterm = "com.github.wez.wezterm"
         static let warpPrefix = "dev.warp."
+        static let cursor = "com.todesktop.230313mzl4w4u92"
+    }
+
+    /// Whether a bundle id is Cursor's, or one of its helper processes' (`com.todesktop.230313mzl4w4u92.helper`,
+    /// which is what the extension host a Cursor hook runs under answers to).
+    static func isCursor(_ bundleID: String?) -> Bool {
+        guard let bundleID else { return false }
+        return bundleID == BundleID.cursor || bundleID.hasPrefix(BundleID.cursor + ".")
+    }
+
+    /// What a row that jumps says it will do. Cursor can be asked to open a folder but not one of its chats (its
+    /// deeplinks start a prompt, a command or an MCP install, never an existing conversation), so a Cursor row
+    /// promises the window and no more.
+    static func jumpHelp(_ ref: TerminalRef?) -> String {
+        isCursor(ref?.bundleID) ? L("Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)") : L("Jump to the terminal")
     }
 
     /// The terminal app's short name for a chip on a session row, from the bundle id the hook read. Proper nouns,
@@ -77,7 +92,7 @@ enum TerminalJump {
         case BundleID.wezterm: return "WezTerm"
         case "io.alacritty", "org.alacritty": return "Alacritty"
         case "co.zeit.hyper": return "Hyper"
-        case "com.todesktop.230313mzl4w4u92": return "Cursor"
+        case BundleID.cursor: return "Cursor"
         case "com.microsoft.VSCode", "com.microsoft.VSCodeInsiders": return "VS Code"
         case "com.zed.Zed", "dev.zed.Zed": return "Zed"
         case "com.tabby.terminal": return "Tabby"
@@ -91,7 +106,7 @@ enum TerminalJump {
     /// The editors that answer a folder they are asked to open by focusing the window that already has it, and
     /// open a new one only when none does: VS Code and its forks. These are the only terminals a hook keeps the
     /// session's folder for (`TerminalRef.workspace`).
-    static let folderEditors: Set<String> = ["com.todesktop.230313mzl4w4u92", "com.microsoft.VSCode", "com.microsoft.VSCodeInsiders"]
+    static let folderEditors: Set<String> = [BundleID.cursor, "com.microsoft.VSCode", "com.microsoft.VSCodeInsiders"]
 
     static func opensFolders(_ bundleID: String?) -> Bool { bundleID.map(folderEditors.contains) ?? false }
 

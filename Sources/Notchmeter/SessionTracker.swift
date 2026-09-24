@@ -50,12 +50,15 @@ struct TerminalRef: Equatable, Sendable, Codable {
     }
 
     /// This reference with every field the newer one carries taken from it; a field the newer one lacks is kept,
-    /// so a later event that could read less does not erase what an earlier one knew.
+    /// so a later event that could read less does not erase what an earlier one knew. A newer reference naming a
+    /// different app replaces this one whole: the tty, the tab id or the folder of one app says nothing about
+    /// another's, and kept beside it they sent a jump for a Cursor chat to the terminal an older capture named.
     func merging(_ newer: TerminalRef) -> TerminalRef {
-        TerminalRef(program: newer.program ?? program, bundleID: newer.bundleID ?? bundleID, tty: newer.tty ?? tty,
-                    sessionID: newer.sessionID ?? sessionID, focusURL: newer.focusURL ?? focusURL, tmux: newer.tmux ?? tmux,
-                    tmuxPane: newer.tmuxPane ?? tmuxPane, kittySocket: newer.kittySocket ?? kittySocket, ghostty: newer.ghostty || ghostty,
-                    workspace: newer.workspace ?? workspace)
+        if let old = bundleID, let new = newer.bundleID, old != new { return newer }
+        return TerminalRef(program: newer.program ?? program, bundleID: newer.bundleID ?? bundleID, tty: newer.tty ?? tty,
+                           sessionID: newer.sessionID ?? sessionID, focusURL: newer.focusURL ?? focusURL, tmux: newer.tmux ?? tmux,
+                           tmuxPane: newer.tmuxPane ?? tmuxPane, kittySocket: newer.kittySocket ?? kittySocket, ghostty: newer.ghostty || ghostty,
+                           workspace: newer.workspace ?? workspace)
     }
 }
 
@@ -329,7 +332,7 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// The model's display name as the status line carries it ("Opus").
     var model: String?
     /// `session_name`: the name set with `--name` or `/rename`, else Claude Code's own title for the session;
-    /// never the default `my-app-3f` display name. Shown only under the same setting as the prompt title
+    /// never the default `my-app-3f` display name. For a Cursor chat, Cursor's own name for it (CursorChatNames). Shown only under the same setting as the prompt title
     /// (UsageStore.statuslineReceived drops it when Preferences.sessionTitles is off, as hookReceived drops `title`).
     var sessionName: String?
     var linesAdded: Int?
@@ -802,6 +805,13 @@ struct SessionTracker: Equatable, Sendable {
         session.lastEvent = now
         sessions[entry.key] = session
         return session
+    }
+
+    /// Cursor's own name for a chat (CursorChatNames), held as the session's name so a prompt title still comes
+    /// first. Set on a session set aside as well, so one that comes back has it; a session gone altogether is not
+    /// brought back for a name.
+    mutating func name(_ id: String, _ name: String) {
+        if sessions[id] != nil { sessions[id]?.sessionName = name } else if dismissed[id] != nil { dismissed[id]?.sessionName = name }
     }
 
     /// Drops every title, session name and task-list text held: *Show what a session is working on* was turned off,

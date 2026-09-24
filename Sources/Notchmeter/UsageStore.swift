@@ -133,6 +133,11 @@ final class UsageStore {
     /// The read in progress for each tool, so a second one can wait for it rather than run beside it or be lost.
     @ObservationIgnored private var inflight: [ToolID: Task<Void, Never>] = [:]
     @ObservationIgnored private var backoff: [ToolID: TimeInterval] = [:]
+    /// Cursor's chat names (CursorChatNames): when each conversation id was last read for, the read in flight, and
+    /// the follow-up armed for a chat Cursor may name after its turn has ended.
+    @ObservationIgnored private var cursorNamesTried: [String: Date] = [:]
+    @ObservationIgnored private var cursorNameRead: Task<Void, Never>?
+    @ObservationIgnored private var cursorNameFollowUp: Task<Void, Never>?
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -567,7 +572,10 @@ final class UsageStore {
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeSessionTitles() }
         }
-        if !titles { sessions.clearTitles() }
+        if !titles {
+            sessions.clearTitles()
+            cursorNamesTried = [:]
+        }
     }
 
     /// Reports the advice strip to the oracle whenever its lines change; the tracking is one-shot, so it re-arms.
@@ -1541,6 +1549,7 @@ final class UsageStore {
         lastActivity[tool] = now
         wokeAt = now
         let outcome = sessions.apply(message, now: now)
+        if tool == .cursor { lookUpCursorNames(now: now) }
         pruneOpenSessionLists()
         applyAwake()
         armSignalRelease(now: now)
@@ -1593,6 +1602,49 @@ final class UsageStore {
         }
     }
 
+    /// Cursor's own name for each Cursor chat that has no title yet (CursorChatNames), read from the running
+    /// user's Cursor state database off the main thread, one read at a time and each id at most every 30 s. Only
+    /// while titles are on and the screen is not shared, checked again when the read comes back; a store with no
+    /// Cursor provider (a test's) has no database to read.
+    func lookUpCursorNames(now: Date = Date()) {
+        guard cursorNameRead == nil, let database = (providers[.cursor] as? CursorProvider)?.stateDatabase else { return }
+        cursorNamesTried = cursorNamesTried.filter { now.timeIntervalSince($0.value) < CursorChatNames.followUpWindow }
+        let due = CursorChatNames.due(sessions.all, tried: cursorNamesTried, titles: prefs.sessionTitles, hidesFigures: hidesFigures, now: now)
+        guard !due.isEmpty else {
+            armCursorNameFollowUp(now: now)
+            return
+        }
+        for id in due.values { cursorNamesTried[id] = now }
+        let ids = Set(due.values)
+        cursorNameRead = Task { [weak self] in
+            let names = await Task.detached(priority: .utility) { CursorChatNames.read(ids: ids, database: database) }.value
+            self?.cursorNamesRead(names, due: due)
+        }
+    }
+
+    private func cursorNamesRead(_ names: [String: String], due: [String: String]) {
+        cursorNameRead = nil
+        guard CursorChatNames.allowed(titles: prefs.sessionTitles, hidesFigures: hidesFigures) else { return }
+        for (key, id) in due {
+            guard let name = names[id] else { continue }
+            sessions.name(key, name)
+        }
+        armCursorNameFollowUp(now: Date())
+    }
+
+    /// One read again in `CursorChatNames.retryAfter`, while a Cursor chat heard from lately still has no name:
+    /// Cursor names a chat after its first reply, which may be after the last hook event of the turn.
+    private func armCursorNameFollowUp(now: Date) {
+        guard cursorNameFollowUp == nil,
+              CursorChatNames.wantsFollowUp(sessions.all, titles: prefs.sessionTitles, hidesFigures: hidesFigures, now: now) else { return }
+        cursorNameFollowUp = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(CursorChatNames.retryAfter))
+            guard !Task.isCancelled else { return }
+            self?.cursorNameFollowUp = nil
+            self?.lookUpCursorNames()
+        }
+    }
+
     /// What the oracle records for a hook event: the event's name and shape, never the title, the summary, the
     /// detail, a question or the terminal. Static and pure so a test can pin the key set.
     /// `wait` is the kind the store settled before it dropped a request it will not show, so the oracle names a
@@ -1641,7 +1693,15 @@ final class UsageStore {
                 self?.endPeek()
             }
         }
-        announceNews(news.words(hidesFigures: hidesFigures))
+        announceNews(news.words(hidesFigures: hidesFigures, title: peekTitle(news)))
+    }
+
+    /// The title the peek may name `news`'s session by: its display title (the prompt's first line, Claude Code's
+    /// session name or Cursor's chat name), only while titles are on and the screen is not shared; nil otherwise,
+    /// and the peek falls back to the project.
+    func peekTitle(_ news: NotchNews) -> String? {
+        guard prefs.sessionTitles, !hidesFigures else { return nil }
+        return sessions.sessions[news.sessionID]?.displayTitle
     }
 
     /// Takes the peek down now: its time ran out, or it was clicked and the panel is opening on its session.

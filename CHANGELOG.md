@@ -13,6 +13,8 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 ### Sessions, front and centre
 
 - Sessions are grouped by project, with the branch and terminal on a second line.
+- A Cursor chat whose prompt Notchmeter never saw (it started before the app did) now shows Cursor's own name for it, read from Cursor's local state while session titles are on and never while your screen is shared. Two untitled chats in one project are told apart by when each was first seen.
+- Clicking a Cursor session brings Cursor's window for that project forward, and no other app. Cursor offers no way to open one particular chat from outside, and the row's help now says so.
 - The session that needs you is highlighted.
 - Each session shows its context fill when Claude Code's status line reports one.
 - A chip lists the subagents running under a session.
@@ -22,6 +24,7 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 ### News in the notch
 
 - When a session needs you or finishes, the notch briefly widens to say so ("notchmeter · Needs approval", "Finished") with a soft glow underneath. Hover or click opens the panel on that session. Both can be turned off in Settings, and the glow holds still under Reduce Motion.
+- The news names the session by its title when titles are on, gives the name whichever side of the notch has room for it, and cuts a long name at its end rather than its middle.
 - Optional assistant symbols inside the compact rings, for anyone who finds the colours hard to tell apart.
 
 ### Answering from the notch

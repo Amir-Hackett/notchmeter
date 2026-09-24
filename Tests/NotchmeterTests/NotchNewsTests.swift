@@ -142,11 +142,57 @@ import Testing
     // MARK: - Where the words go
 
     @Test func theNameGoesLeftOfTheNotchAndTheReasonRightOfIt() {
-        let layout = NotchPeek.layout(room: .init(leading: 200, trailing: 90), hasName: true)
+        let layout = NotchPeek.layout(room: .init(leading: 400, trailing: 90), hasName: true)
         #expect(layout?.leading == [.tool, .name])
         #expect(layout?.trailing == [.reason])
         #expect(layout?.leadingWidth == NotchPeek.cap, "No half takes more than the cap, however much room there is.")
         #expect(layout?.trailingWidth == 90, "A half takes no more than the gap Auto measured on its side.")
+    }
+
+    /// Widths as the strip would measure them: the tool's symbol 20, the name `name`, the reason's half 80, and
+    /// 100 more for the reason when it shares a half with the name.
+    static func measure(name: CGFloat) -> ([NotchPeek.Part]) -> CGFloat {
+        { parts in
+            var total: CGFloat = 0
+            if parts.contains(.tool) { total += 20 }
+            if parts.contains(.name) { total += name }
+            if parts.contains(.reason) { total += 80 }
+            return total
+        }
+    }
+
+    /// The owner's 0.8.0 screenshot: the Help menu left 70 pt beside the notch and the status items 300, and a
+    /// long folder name came out as "enr…ols" on the left beside a "Finished" with room to spare. The name now
+    /// goes where more of it shows, which is the whole line on the right.
+    @Test func aNameThatWouldBeCutShortMovesToTheSideWithRoom() {
+        let layout = NotchPeek.layout(room: .init(leading: 70, trailing: 300), hasName: true, nameWidth: 170, width: Self.measure(name: 170))
+        #expect(layout?.leading == [])
+        #expect(layout?.trailing == [.tool, .name, .reason])
+        #expect(layout?.trailingWidth == 300, "The half is given the whole gap, not a small fixed frame.")
+    }
+
+    @Test func aNameThatFitsOnTheLeftStaysThere() {
+        let layout = NotchPeek.layout(room: .init(leading: 200, trailing: 300), hasName: true, nameWidth: 170, width: Self.measure(name: 170))
+        #expect(layout?.leading == [.tool, .name])
+        #expect(layout?.trailing == [.reason])
+    }
+
+    @Test func whenNoSideHoldsTheNameTheOneShowingMostOfItWins() {
+        // 180 on the left shows 160 of a 400-point name beside its symbol; the whole line in 250 on the right
+        // shows 150. The split wins, by what it shows, not by habit.
+        let split = NotchPeek.layout(room: .init(leading: 180, trailing: 250), hasName: true, nameWidth: 400, width: Self.measure(name: 400))
+        #expect(split?.leading == [.tool, .name])
+        let right = NotchPeek.layout(room: .init(leading: 100, trailing: 320), hasName: true, nameWidth: 400, width: Self.measure(name: 400))
+        #expect(right?.trailing == [.tool, .name, .reason])
+    }
+
+    @Test func theSessionsTitleNamesThePeekBeforeTheFolder() {
+        let words = news(.finished, project: "enrollhere-admin-support-tools").words(hidesFigures: false, title: "Fix the queue sheet")
+        #expect(words.name == "Fix the queue sheet")
+        #expect(news(.finished, project: "p").words(hidesFigures: false, title: nil).name == "p", "No title, the folder.")
+        #expect(news(.finished, project: "p").words(hidesFigures: false, title: "").name == "p")
+        #expect(news(.finished, project: "p").words(hidesFigures: true, title: "Fix the queue sheet").name == nil,
+                "While the screen is shared no name at all, title or folder.")
     }
 
     @Test func aSideTooNarrowGivesItsWordsToTheOther() {
@@ -170,10 +216,10 @@ import Testing
         #expect(layout?.trailing == [.reason])
     }
 
-    @Test func unmeasuredRoomIsTheCapEitherSide() {
+    @Test func unmeasuredRoomIsTheUnmeasuredHalfEitherSide() {
         let layout = NotchPeek.layout(room: .unmeasured, hasName: true)
-        #expect(layout?.leadingWidth == NotchPeek.cap)
-        #expect(layout?.trailingWidth == NotchPeek.cap)
+        #expect(layout?.leadingWidth == NotchPeek.unmeasuredHalf)
+        #expect(layout?.trailingWidth == NotchPeek.unmeasuredHalf)
     }
 
     // MARK: - The glow

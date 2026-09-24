@@ -837,8 +837,8 @@ struct NotchCompactView: View {
     /// meets: the side holding the reason, so a peek split across the notch is one button, not two alike.
     private var peek: (news: NotchNews, words: NotchNews.Words, parts: [NotchPeek.Part], room: CGFloat, speaks: Bool)? {
         guard run == nil, store.prefs.notchNews, let news = store.peek else { return nil }
-        let words = news.words(hidesFigures: store.hidesFigures)
-        guard let layout = NotchPeek.layout(room: store.prefs.peekRoom, hasName: words.name != nil) else { return nil }
+        let words = news.words(hidesFigures: store.hidesFigures, title: store.peekTitle(news))
+        guard let layout = NotchPeekHalf.layout(words: words, room: store.prefs.peekRoom) else { return nil }
         let parts = side == .leading ? layout.leading : layout.trailing
         guard !parts.isEmpty else { return nil }
         return (news, words, parts, side == .leading ? layout.leadingWidth : layout.trailingWidth, NotchPeek.speaks(parts))

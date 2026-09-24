@@ -898,3 +898,7 @@
 "Notes" = "提示";
 "%@ left" = "%@剩餘";
 "Opens or closes the detail" = "展開或收合詳細資訊";
+
+/* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
+"Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "將此專案的 Cursor 視窗移到前面（無法要求 Cursor 開啟某一個對話）";
+"First seen %@" = "首次發現於 %@";

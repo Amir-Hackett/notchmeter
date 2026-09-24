@@ -424,19 +424,25 @@ enum AssetRenderer {
     /// raised, with its words beside the notch and the blue bloom under it; a long turn just finished, with the
     /// white one; and the plain strip with the assistants' symbols in their rings (Preferences.ringSymbols). Each
     /// row is its own store, the news seeded as `announce` would have raised it for the fixture's last hook
-    /// event, and the glow drawn from the real view the glow window hosts.
+    /// event, and the glow drawn from the real view the glow window hosts. The finish is laid out in the room of
+    /// a menu bar whose menus reach close to the notch (70 pt left of it, 300 right), so the picture shows the
+    /// session's long title moving to the side with room rather than cut to a few letters on the cramped one.
     @MainActor
     static func notchNews(now: Date, actions: NotchActions) throws -> CGImage {
         var stages: [Stage] = []
         for moment in [DemoFixtures.Moment.waiting, .justFinished] {
             let (store, prefs) = DemoFixtures.store(now: now, moment: moment)
+            if moment == .justFinished {
+                prefs.compactSide = .auto
+                prefs.autoCompactRoom = NotchPeek.Room(leading: 70, trailing: 300)
+            }
             store.seed(news: DemoFixtures.news(in: store, moment: moment, now: now))
             stages.append(try Stage(store: store, prefs: prefs, actions: actions, drawsGlow: true))
         }
         let (plain, plainPrefs) = DemoFixtures.store(now: now, moment: .justFinished)
         plainPrefs.ringSymbols = true
         stages.append(try Stage(store: plain, prefs: plainPrefs, actions: actions))
-        let width = (stages.map(\.compactSize.width).max() ?? 0) + 2 * NotchGlowView.spread + 80
+        let width = (stages.map(\.compactExtent).max() ?? 0) + 2 * NotchGlowView.spread + 80
         let row = CGSize(width: width, height: notch.height + NotchGlowView.depth + 8)
         let gap: CGFloat = 14
         let rows = try stages.map { try $0.image(.compact, canvas: row, pixelScale: scale) }
@@ -786,6 +792,14 @@ enum AssetRenderer {
             CGSize(width: leading.size.width + trailing.size.width + notch.width + 2 * ringInset + 2 * compactRadii.top, height: notch.height)
         }
 
+        /// How far the compact shape's centre sits right of the notch's. DynamicNotchKit keeps the notch over the
+        /// camera and lets each half take its own width, so halves of unequal width (a peek on one side, readouts
+        /// on the other) move the shape towards the wider one (NotchView's offset, half their difference).
+        var compactOffset: CGFloat { (trailing.size.width - leading.size.width) / 2 }
+
+        /// The width a canvas centred on the notch needs to hold the compact shape whichever way it leans.
+        var compactExtent: CGFloat { compactSize.width + 2 * abs(compactOffset) }
+
         /// The open panel with enough desktop around it to read as a screenshot.
         var panelCanvas: CGSize {
             CGSize(width: panelSize.width + 200, height: panelSize.height + 48)
@@ -837,12 +851,13 @@ enum AssetRenderer {
 
             if let glow, pose.ringsAlpha > 0 {
                 // Under the shape, from its bottom edge down, as the glow window sits under the notch panel.
-                draw(glow.image, in: CGRect(x: centerX - glow.size.width / 2, y: notch.height, width: glow.size.width, height: glow.size.height),
+                draw(glow.image, in: CGRect(x: centerX + compactOffset - glow.size.width / 2, y: notch.height, width: glow.size.width, height: glow.size.height),
                      alpha: pose.ringsAlpha, into: ctx)
             }
             let width = lerp(compactSize.width, panelSize.width, pose.shape)
             let height = lerp(compactSize.height, panelSize.height, pose.shape)
-            let shape = notchPath(CGRect(x: centerX - width / 2, y: 0, width: width, height: height),
+            let offset = lerp(compactOffset, 0, pose.shape)
+            let shape = notchPath(CGRect(x: centerX + offset - width / 2, y: 0, width: width, height: height),
                                   top: lerp(compactRadii.top, expandedRadii.top, pose.shape), bottom: lerp(compactRadii.bottom, expandedRadii.bottom, pose.shape))
             ctx.saveGState()
             let lift = min(1, max(0, pose.shape))

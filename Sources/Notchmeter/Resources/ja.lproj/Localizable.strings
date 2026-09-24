@@ -898,3 +898,7 @@
 "Notes" = "メモ";
 "%@ left" = "%@ 残り";
 "Opens or closes the detail" = "詳細を開くか閉じます";
+
+/* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
+"Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "このプロジェクトの Cursor ウインドウを前面に出します（Cursor に特定のチャットを開かせることはできません）";
+"First seen %@" = "最初に検出：%@";
