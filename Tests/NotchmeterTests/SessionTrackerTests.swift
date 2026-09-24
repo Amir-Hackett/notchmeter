@@ -666,4 +666,35 @@ import Testing
         _ = tracker.expire(now: t0.addingTimeInterval(SessionTracker.staleAfter + 1))
         #expect(tracker.dismissed.isEmpty)
     }
+
+    /// An idle session nothing has been heard from goes by itself after `idleAfter`, set aside rather than
+    /// dropped: it leaves every count, and its next event brings it back whole. A working one is not touched.
+    @Test func anIdleSessionAgesOffTheListAndComesBackWhenItSpeaks() {
+        var tracker = SessionTracker()
+        tracker.apply(cursor("SessionStart", "idle"), now: t0)
+        tracker.apply(cursor("UserPromptSubmit", "busy"), now: t0)
+        _ = tracker.expire(now: t0.addingTimeInterval(SessionTracker.idleAfter - 1))
+        #expect(tracker.count == 2, "not quiet long enough")
+        _ = tracker.expire(now: t0.addingTimeInterval(SessionTracker.idleAfter))
+        #expect(tracker.all.map(\.id) == ["cursor:busy"])
+        #expect(tracker.dismissed["cursor:idle"] != nil)
+        tracker.apply(cursor("UserPromptSubmit", "idle"), now: t0.addingTimeInterval(SessionTracker.idleAfter + 5))
+        #expect(tracker.count == 2)
+        #expect(tracker.dismissed.isEmpty)
+    }
+
+    /// A status line redrawn by a set-aside session brings that session back rather than starting a blank one
+    /// the set-aside copy would later overwrite.
+    @Test func aStatusLineBringsASetAsideSessionBack() {
+        var tracker = SessionTracker()
+        var prompt = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "a", project: "p")
+        prompt.title = "Fix it"
+        tracker.apply(prompt, now: t0)
+        tracker.apply(Hook.Message(event: "Stop", needsInput: false, sessionID: "a", project: "p"), now: t0)
+        _ = tracker.expire(now: t0.addingTimeInterval(SessionTracker.idleAfter))
+        #expect(tracker.count == 0)
+        tracker.statusline(sessionID: "a", project: "p", now: t0.addingTimeInterval(SessionTracker.idleAfter + 1))
+        #expect(tracker.all.first?.title == "Fix it")
+        #expect(tracker.dismissed.isEmpty)
+    }
 }

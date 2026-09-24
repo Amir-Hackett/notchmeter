@@ -830,4 +830,6 @@
 "Your prompt cache missed %1$ld times — %2$@ rewritten." = "Your prompt cache missed %1$ld times — %2$@ rewritten.";
 "Remove from the list" = "Remove from the list";
 "Remove all idle sessions" = "Remove all idle sessions";
+"idle %@" = "idle %@";
+"Clear the idle sessions; each comes back if it does anything" = "Clear the idle sessions; each comes back if it does anything";
 "Remove from the list; it comes back if the session does anything" = "Remove from the list; it comes back if the session does anything";

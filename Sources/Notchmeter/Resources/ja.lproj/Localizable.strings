@@ -814,4 +814,6 @@
 "Your prompt cache missed %1$ld times — %2$@ rewritten." = "プロンプトキャッシュが %1$ld 回ミスしました — %2$@ を書き直しました。";
 "Remove from the list" = "リストから削除";
 "Remove all idle sessions" = "アイドル中のセッションをすべて削除";
+"idle %@" = "アイドル %@";
+"Clear the idle sessions; each comes back if it does anything" = "アイドル中のセッションを消去します。動きがあれば再び表示されます";
 "Remove from the list; it comes back if the session does anything" = "リストから削除します。セッションに動きがあれば戻ります";

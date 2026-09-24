@@ -830,4 +830,6 @@
 "Your prompt cache missed %1$ld times — %2$@ rewritten." = "你的提示缓存未命中 %1$ld 次 — 重写了 %2$@。";
 "Remove from the list" = "从列表中移除";
 "Remove all idle sessions" = "移除所有空闲的会话";
+"idle %@" = "空闲 %@";
+"Clear the idle sessions; each comes back if it does anything" = "清除空闲的会话；有新动静时会重新出现";
 "Remove from the list; it comes back if the session does anything" = "从列表中移除；会话有任何动作时会再出现";
