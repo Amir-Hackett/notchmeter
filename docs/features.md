@@ -88,11 +88,11 @@ The top layout merges with the physical notch (compact readouts beside it, the p
 
 ## From the terminal and from agents
 
-`notchmeter` (Settings › General › *Install command line tool…* links it into `~/.local/bin`, or `/usr/local/bin`) prints every window with its pace and source and the advice; `notchmeter claude --json` narrows to one tool as the `--probe --json` document; the exit code is the report's (`0` fine, `10` near a limit, `11` a limit hit, `20` no session, `30` no data). It reads the running app's report file, or its local API, instead of asking every vendor again, and probes only when the app is not running; `--force` reads afresh. `Notchmeter --mcp` is an MCP server over stdio with one tool, `get_limits`, for Cursor, Codex and Claude Desktop; Settings › Integrations › Other tools shows the configuration snippet. `--probe --no-prompt --json --history` adds the daily history. The Claude Code skill in [`skills/notchmeter/SKILL.md`](../skills/notchmeter/SKILL.md) uses the same commands.
+`notchmeter` (Settings › General › *Install command line tool…* links it into `~/.local/bin`, or `/usr/local/bin`) prints every window with its pace and source and the advice; `notchmeter claude --json` narrows to one tool as the `--probe --json` document; the exit code is the report's (`0` fine, `10` near a limit, `11` a limit hit, `20` no session, `30` no data). It reads the running app's report file, or its local API, instead of asking every vendor again, and probes only when the app is not running; `--force` reads afresh. `Notchmeter --mcp` is an MCP server over stdio with one tool, `get_limits`, for Cursor, Codex and Claude Desktop; Settings › Integrations › Other tools shows the configuration snippet. `--probe --no-prompt --json --history` adds the daily history. The Claude Code skill in [`plugin/skills/notchmeter/SKILL.md`](../plugin/skills/notchmeter/SKILL.md) uses the same commands.
 
 ### Install as a Claude Code plugin
 
-The skill and the MCP server are packaged as a Claude Code plugin, from this repository ([`.claude-plugin/plugin.json`](../.claude-plugin/plugin.json) and [`marketplace.json`](../.claude-plugin/marketplace.json)). In Claude Code:
+The skill and the MCP server are packaged as a Claude Code plugin, from this repository: the [`plugin/`](../plugin) folder holds the manifest, the skill and a README and nothing else, and [`.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json) at the root lists it. In Claude Code:
 
 ```text
 /plugin marketplace add Amir-Hackett/notchmeter
