@@ -27,8 +27,8 @@ cask "notchmeter" do
   end
 
   auto_updates true
-  # A bare symbol is the minimum version; the ">= :sonoma" string form is deprecated and warns on every install.
-  depends_on macos: :sonoma
+  # A bare symbol is the minimum version; the ">= :sequoia" string form is deprecated and warns on every install.
+  depends_on macos: :sequoia
 
   app "Notchmeter.app"
   # The command-line tool is the same executable; Settings › General also links it into ~/.local/bin.

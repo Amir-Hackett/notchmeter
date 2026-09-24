@@ -34,7 +34,7 @@ XML, on the enclosure's own item, and that the description is not empty. A `.htm
 the same way (`sparkle:format` absent or `plain-text`). Unset, the item carries only the link to the GitHub release
 page, and the script fails if a `<description>` turned up anyway, which would mean a stray notes file.
 
-What Sparkle renders (2.9, macOS 12 and later, so on the app's macOS 14 floor): headings, paragraphs, bullet and
+What Sparkle renders (2.9, macOS 12 and later, so on the app's macOS 15 floor): headings, paragraphs, bullet and
 numbered lists, block quotes and code blocks. Tables and images are not drawn, so keep them out; links render but the
 alert is not a browser. The file is also a good body for the GitHub release, which the workflow otherwise fills with
 `--generate-notes`. A missing file does not fail a release, on purpose: the guard in `release.yml` warns and ships
@@ -286,7 +286,7 @@ codesign --verify --deep --strict build/Notchmeter.app                       # t
 ```
 
 and look at the result on a macOS 26 Mac (the glass icon) and a macOS 15 one (the `.icns`). The deployment target
-stays 14.0: `--minimum-deployment-target` is read from `LSMinimumSystemVersion`, and generate_appcast copies that
+stays 15.0: `--minimum-deployment-target` is read from `LSMinimumSystemVersion`, and generate_appcast copies that
 into `sparkle:minimumSystemVersion`, so a Tahoe icon never narrows who is offered the update.
 
 ## Homebrew
