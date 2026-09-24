@@ -375,6 +375,7 @@ struct SettingsView: View {
             transcriptsSection.opacity(searchOpacity(.transcripts))
         case .notifications:
             notificationsSection.opacity(searchOpacity(.notifications))
+            soundsSection.opacity(searchOpacity(.sounds))
         case .integrations:
             hookSection.opacity(searchOpacity(.hooks))
             integrationsSection.opacity(searchOpacity(.otherTools))
@@ -840,20 +841,6 @@ struct SettingsView: View {
                 ForEach(SessionAttention.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             .help(L("Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release."))
-            Toggle(L("Sound"), isOn: Binding(get: { prefs.notificationSound }, set: { prefs.notificationSound = $0 }))
-            if prefs.notificationSound {
-                SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))
-                SoundPicker(title: L("Permission request"), choice: Binding(get: { prefs.soundPermission }, set: { prefs.soundPermission = $0 }))
-                SoundPicker(title: L("Question"), choice: Binding(get: { prefs.soundQuestion }, set: { prefs.soundQuestion = $0 }),
-                            defaultTag: NotificationSound.defaultChoice(for: .question))
-                // Shown, not only hovered: a plan that plays the permission sound is the one thing here that looks
-                // like a fault, and the reason is a hook entry the user can check.
-                SoundPicker(title: L("Plan ready to approve"), choice: Binding(get: { prefs.soundPlan }, set: { prefs.soundPlan = $0 }),
-                            defaultTag: NotificationSound.defaultChoice(for: .plan),
-                            caption: L("A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound."))
-                SoundPicker(title: L("Turn finished"), choice: Binding(get: { prefs.soundFinished }, set: { prefs.soundFinished = $0 }))
-                paragraph(L("A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name."))
-            }
             Toggle(L("Quiet hours"), isOn: Binding(get: { prefs.quietHoursEnabled }, set: { prefs.quietHoursEnabled = $0 }))
             if prefs.quietHoursEnabled {
                 HStack {
@@ -868,6 +855,27 @@ struct SettingsView: View {
                 if let notificationMessage {
                     Text(notificationMessage).font(.caption).foregroundStyle(.secondary)
                 }
+            }
+        }
+    }
+
+    /// The sound block: one switch for every sound, then a row per SoundCategory with its sound, a Preview and a
+    /// Silence box. A block of its own rather than more rows at the foot of Notifications, where the five pickers
+    /// of 0.8.0 sat between the quiet hours and the attention picker and read as more notification switches.
+    private var soundsSection: some View {
+        Section(L("Sounds")) {
+            Toggle(L("Play sounds"), isOn: Binding(get: { prefs.notificationSound }, set: { prefs.notificationSound = $0 }))
+                .help(L("Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them."))
+            if prefs.notificationSound {
+                ForEach(SoundCategory.allCases, id: \.self) { category in
+                    SoundPicker(title: category.title,
+                                choice: Binding(get: { prefs.soundChoice(for: category) }, set: { prefs.soundChoices[category] = $0 }),
+                                silenced: Binding(get: { prefs.silencedSounds.contains(category) }, set: { prefs.setSilenced($0, category) }),
+                                defaultTag: NotificationSound.defaultChoice(for: category),
+                                caption: category.caption)
+                        .help(category.help)
+                }
+                paragraph(L("A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name."))
             }
         }
     }
@@ -1599,11 +1607,56 @@ private struct WindowChoices: View {
     }
 }
 
-/// One event class's sound: the system alert sounds, the user's imported files, none, or a file to import.
+/// What each sound category is called on its row, and what the row says about which notices it covers. Here
+/// rather than beside `SoundCategory` because the Settings search index (SettingsSearch) is checked against the
+/// literals in this file.
+extension SoundCategory {
+    var title: String {
+        switch self {
+        case .completion: L("Turn finished")
+        case .waiting: L("Waiting reminder")
+        case .permission: L("Permission request")
+        case .question: L("Question")
+        case .plan: L("Plan ready to approve")
+        case .limit: L("Limit alert")
+        }
+    }
+
+    /// A standing line under the rows whose reach is not what their name suggests, shown rather than hovered:
+    /// the reminder is not a request, a plan that plays the permission sound looks like a fault until its hook
+    /// entry is known, and the limit sound is also what advice and the Test button play while the gentler pace
+    /// notices play nothing.
+    var caption: String? {
+        switch self {
+        case .waiting: L("Claude Code's reminder that you have been idle for a minute, and a Cursor turn gone quiet that may be waiting on an approval: a session that may need you, as against the three below, which have asked.")
+        case .plan: L("A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound.")
+        case .limit: L("A window almost out or out, and advice about money already being spent; Test notification plays it too. Cutting it close, Will run out, resets and reminders arrive without a sound.")
+        case .completion, .permission, .question: nil
+        }
+    }
+
+    /// The row's help: the notices it covers, in full.
+    var help: String {
+        switch self {
+        case .completion: L("A turn longer than the minimum above, when Notify when a turn finishes is on.")
+        case .waiting, .plan, .limit: caption ?? ""
+        case .permission: L("A tool waiting for your approval, and any wait that has stopped a session without saying what it wants.")
+        case .question: L("Claude Code's AskUserQuestion, an MCP server asking for input, and an agent asking for input.")
+        }
+    }
+}
+
+/// One category's sound: the system alert sounds and the user's imported files, with a file to import at the foot
+/// of the menu, a Preview, and the category's Silence box.
+///
+/// Choose file… is the menu's last entry rather than a button beside it, as Other… is in macOS's own sound menus:
+/// the row had room for the picker and two buttons, and the Silence box needed the space of the second. None is no
+/// longer an entry: the box is how a category goes quiet, and it keeps the chosen sound for when it comes back.
 private struct SoundPicker: View {
     let title: String
     @Binding var choice: String
-    /// The choice the Default entry stands for: the system alert, or a kind of wait's own sound
+    @Binding var silenced: Bool
+    /// The choice the Default entry stands for: the system alert, or a category's own sound
     /// (`NotificationSound.defaultChoice(for:)`), so choosing Default puts the row back where it started.
     var defaultTag: String = NotificationSound.defaultChoice
     /// A standing explanation under the row, always shown.
@@ -1614,30 +1667,35 @@ private struct SoundPicker: View {
     /// main actor (an mp3 is decoded whole), so the row stays live meanwhile and this keeps a second Choose file…
     /// from starting a parallel import that would race the first for the same name in ~/Library/Sounds.
     @State private var importing = false
+    /// Bumped whenever Choose file… is picked, to rebuild the menu. The pick changes no state (the binding refuses
+    /// it), so without a change of identity the pop-up button could go on showing "Choose file…" as its title after
+    /// a cancelled panel, over a choice that never moved.
+    @State private var menuGeneration = 0
+
+    /// The menu entry that opens the file panel instead of being chosen. No stored choice can take this form
+    /// (NotificationSound's are "default", "none", "system:…" and "custom:…"), so it can never be mistaken for one.
+    private static let chooseFileTag = "choose-file"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Picker(title, selection: $choice) {
-                    Text(NotificationSound.defaultTitle(for: defaultTag)).tag(defaultTag)
-                    Text(L("None")).tag(NotificationSound.none)
-                    Divider()
-                    // The default's own sound is listed once, as Default: two entries with one tag leave the Picker
-                    // unable to say which is chosen.
-                    ForEach(NotificationSound.systemSounds().filter { "system:\($0)" != defaultTag }, id: \.self) { name in
-                        Text(name).tag("system:\(name)")
-                    }
-                    let custom = NotificationSound.customSounds()
-                    if !custom.isEmpty {
-                        Divider()
-                        ForEach(custom, id: \.self) { name in Text((name as NSString).deletingPathExtension).tag("custom:\(name)") }
-                    }
+            // One line where the words fit. Where they do not — Russian's "По умолчанию (Glass)" beside
+            // "Прослушать" and "Без звука" at the window's narrowest — the name and the menu keep a line of their
+            // own and the two controls go under it, rather than the menu cutting off the very sound it names. The
+            // name is a Text of its own, not the Picker's label, because the fit is judged on ideal widths and a
+            // Form's labelled Picker asks for all the room there is.
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    name
+                    picker
+                    controls
                 }
-                // Four rows each carry a Preview and a Choose file…, so VoiceOver hears which row's it is on.
-                Button(L("Preview")) { NotificationSound.preview(choice) }.controlSize(.small)
-                    .accessibilityLabel(L("Preview the %@ sound", title))
-                Button(L("Choose file…")) { chooseFile() }.controlSize(.small).disabled(importing)
-                    .accessibilityLabel(L("Choose a file for the %@ sound", title))
+                VStack(alignment: .trailing, spacing: 6) {
+                    HStack {
+                        name
+                        picker
+                    }
+                    HStack { controls }
+                }
             }
             if let caption {
                 Text(caption).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -1647,6 +1705,58 @@ private struct SoundPicker: View {
             }
         }
         .onAppear { settleMissingCustom() }
+    }
+
+    /// The row's name, pushed away from the menu. Hidden from VoiceOver, which hears it as the menu's own label.
+    private var name: some View {
+        HStack {
+            Text(title)
+            Spacer(minLength: 12)
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// The sound menu. The selection never becomes the Choose file… entry: picking it opens the panel, and the menu
+    /// goes on showing the sound that was chosen until an import replaces it.
+    private var picker: some View {
+        Picker(title, selection: Binding(get: { choice }, set: { picked in
+            if picked == Self.chooseFileTag {
+                menuGeneration += 1
+                chooseFile()
+            } else {
+                choice = picked
+            }
+        })) {
+            Text(NotificationSound.defaultTitle(for: defaultTag)).tag(defaultTag)
+            Divider()
+            // The default's own sound is listed once, as Default: two entries with one tag leave the Picker unable
+            // to say which is chosen.
+            ForEach(NotificationSound.systemSounds().filter { "system:\($0)" != defaultTag }, id: \.self) { name in
+                Text(name).tag("system:\(name)")
+            }
+            let custom = NotificationSound.customSounds()
+            if !custom.isEmpty {
+                Divider()
+                ForEach(custom, id: \.self) { name in Text((name as NSString).deletingPathExtension).tag("custom:\(name)") }
+            }
+            Divider()
+            Text(L("Choose file…")).tag(Self.chooseFileTag).disabled(importing)
+        }
+        .labelsHidden()
+        // At its own width, always: a menu Picker reports an ideal width short of what its title needs, so
+        // without this the one-line layout was chosen for German's "Standard (Basso)" and then cut it to "Ba…".
+        .fixedSize(horizontal: true, vertical: false)
+        .id(menuGeneration)
+    }
+
+    /// Six rows each carry a Preview and a Silence box, so VoiceOver hears which row's each one is. The box keeps
+    /// its word beside it: a crossed-out speaker alone would put a state on an icon.
+    @ViewBuilder private var controls: some View {
+        Button(L("Preview")) { NotificationSound.preview(choice) }
+            .accessibilityLabel(L("Preview the %@ sound", title))
+        Toggle(L("Silence"), isOn: $silenced)
+            .toggleStyle(.checkbox)
+            .accessibilityLabel(L("Silence the %@ sound", title))
     }
 
     /// A stored "custom:" choice whose file is gone, or was imported as an .mp3/.m4a that 0.5.0 stopped offering,
@@ -1666,6 +1776,9 @@ private struct SoundPicker: View {
     }
 
     private func chooseFile() {
+        // The menu entry is disabled while an import runs; this is the same rule for a menu that was open when it
+        // started.
+        guard !importing else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.audio]
         panel.allowsMultipleSelection = false

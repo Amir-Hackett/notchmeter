@@ -1,18 +1,18 @@
 import Foundation
 
-/// The block a Settings row sits in: one of the fourteen `Section`s `SettingsView.paneContent` composes, plus the
+/// The block a Settings row sits in: one of the fifteen `Section`s `SettingsView.paneContent` composes, plus the
 /// Diagnostics disclosure inside Advanced. The search field dims every section a query does not touch, and a hit
 /// inside the disclosure opens it.
 enum SettingsSection: CaseIterable {
-    case general, updates, about, panel, usage, shortcuts, assistants, sessions, transcripts, notifications, hooks, otherTools,
-         privacy, advanced, diagnostics
+    case general, updates, about, panel, usage, shortcuts, assistants, sessions, transcripts, notifications, sounds, hooks,
+         otherTools, privacy, advanced, diagnostics
 
     var pane: SettingsPane {
         switch self {
         case .general, .updates, .about: .general
         case .panel, .usage, .shortcuts: .appearance
         case .assistants, .sessions, .transcripts: .assistants
-        case .notifications: .notifications
+        case .notifications, .sounds: .notifications
         case .hooks, .otherTools: .integrations
         case .privacy, .advanced, .diagnostics: .advanced
         }
@@ -76,8 +76,9 @@ enum SettingsSearch {
             L("Notify when an assistant waits for you"), L("Notify when a turn finishes"), L("Only turns longer than"),
             L("Stay quiet while a terminal or editor is in front"), L("Colour the rings when an assistant waits or finishes"),
             L("Show news in the notch"), L("Glow under the notch for news"), L("When an assistant waits for you, or a turn finishes"),
-            L("Sound"), L("Pace crossing"), L("Permission request"), L("Question"), L("Plan ready to approve"), L("Turn finished"),
             L("Quiet hours"), L("Test notification"))
+        add(.sounds, L("Sounds"), L("Play sounds"), L("Turn finished"), L("Waiting reminder"), L("Permission request"), L("Question"),
+            L("Plan ready to approve"), L("Limit alert"), L("Silence"))
         add(.hooks, L("Integrations"), L("Hooks"), L("Repair a hook that points at an old copy at launch"), L("Claude Code status line"),
             L("Install status line…"))
         add(.otherTools, L("Other tools"), L("MCP server"), L("Remote Claude Code over SSH"))

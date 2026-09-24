@@ -58,6 +58,16 @@ enum AssetRenderer {
                           png: directory.appendingPathComponent("\(name).png"))
             }
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
+            // The Sounds block, for review: the Notifications pane at the window's narrowest, where the six rows
+            // are tightest, with one category silenced and one on a sound of its own, dark and light.
+            let (sounding, soundingPrefs) = DemoFixtures.store(now: now)
+            soundingPrefs.setSilenced(true, .waiting)
+            soundingPrefs.soundChoices[.question] = "system:Tink"
+            for (name, appearance) in [("settings-sounds", NSAppearance.Name.darkAqua), ("settings-sounds-light", .aqua)] {
+                try write(settings(pane: .notifications, store: sounding, prefs: soundingPrefs, actions: actions,
+                                   width: SettingsWindowController.minSize.width, appearance: appearance),
+                          png: directory.appendingPathComponent("\(name).png"))
+            }
             try write(welcome(now: now), png: directory.appendingPathComponent("welcome.png"))
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
             // The same moment on the Detailed panel (PanelMode): every card open, as the panel was before 0.8.0.
@@ -513,8 +523,12 @@ enum AssetRenderer {
     /// the view's minimum that would clip: a hosting view given less lays the pane out at 460 anyway and centres
     /// the overflow, losing rows off both ends. A pane shorter than that gets a little dead backing instead,
     /// which the stack below can carry and a cropped row cannot.
+    ///
+    /// `width` and `appearance` are the window's opening width and the dark appearance unless a review picture
+    /// asks for the narrowest window, or for the light one, to see a pane where it is tightest.
     @MainActor
-    static func settings(pane: SettingsPane, store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
+    static func settings(pane: SettingsPane, store: UsageStore, prefs: Preferences, actions: NotchActions,
+                         width: CGFloat = SettingsWindowController.contentSize.width, appearance: NSAppearance.Name = .darkAqua) throws -> CGImage {
         let requests = SettingsRequests()
         // The Mac this is rendered on is not the Mac in the picture. `/Applications/Notchmeter.app` is where the
         // DMG puts it and what `HookSettings.Status.shorten` prints for it, so the hook rows and the status-line
@@ -526,9 +540,8 @@ enum AssetRenderer {
         let controller = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: Notifier(available: false),
                                                   requests: requests, pane: pane)
         guard let window = controller.window, let frame = window.contentView?.superview else { throw Failure.snapshot("the Settings window") }
-        window.appearance = NSAppearance(named: .darkAqua)
+        window.appearance = NSAppearance(named: appearance)
         // The window opens at its own height and the pane scrolls; the picture shows the whole pane.
-        let width = SettingsWindowController.contentSize.width
         window.minSize = .zero
         window.setContentSize(NSSize(width: width, height: 9000))
         window.contentView?.layoutSubtreeIfNeeded()

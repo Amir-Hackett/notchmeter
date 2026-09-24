@@ -530,7 +530,6 @@
 "Outer ring" = "Внешнее кольцо";
 "over by %ld%%" = "превышение на %ld%%";
 "Overall %@" = "Общий лимит (%@)";
-"Pace crossing" = "Пересечение темпа";
 "Step %1$ld of %2$ld" = "Шаг %1$ld из %2$ld";
 
 "Allow %@ for the rest of this session" = "Разрешать %@ до конца этого сеанса";
@@ -649,7 +648,6 @@
 "Signed in · %@" = "Вход выполнен · %@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "С марта 2026 года Anthropic применяет более жёсткие 5-часовые лимиты сессий по будням с 5:00 до 11:00 по тихоокеанскому времени (по сообщениям, не документировано; docs/accuracy.md). В это время советы называют, когда начнутся непиковые часы, журнал расхода разделяет пиковый и непиковый темп, а нижняя строка пишет «часы пик». Применяется к ассистентам, отмеченным в разделе «Ассистенты».";
 "snapshot" = "снимок";
-"Sound" = "Звук";
 "Source: %@" = "Источник: %@";
 "Spend" = "Расходы";
 "Spend limit" = "Лимит расходов";
@@ -716,8 +714,22 @@
 "Question" = "Вопрос";
 "Plan ready to approve" = "План ждёт одобрения";
 "Preview the %@ sound" = "Прослушать звук: %@";
-"Choose a file for the %@ sound" = "Выбрать файл для звука: %@";
 "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "План распознаётся, только когда Claude Code просит одобрить его через хук; ожидание, которое не говорит, что ему нужно, играет звук запроса разрешения.";
+
+/* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
+"Sounds" = "Звуки";
+"Play sounds" = "Воспроизводить звуки";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them." = "У каждого вида уведомлений ниже свой звук и свой флажок «Без звука». Их воспроизводит Центр уведомлений, поэтому режим «Фокусирование» заглушает их, как звуки любого приложения, а также тихие часы; два уведомления в пределах двух секунд дают один звук.";
+"Waiting reminder" = "Напоминание об ожидании";
+"Limit alert" = "Лимит на исходе";
+"Silence" = "Без звука";
+"Silence the %@ sound" = "Отключить звук: %@";
+"Claude Code's reminder that you have been idle for a minute, and a Cursor turn gone quiet that may be waiting on an approval: a session that may need you, as against the three below, which have asked." = "Напоминание Claude Code о том, что вы бездействуете уже минуту, и затихший ход Cursor, который, возможно, ждёт одобрения: сессия, которой вы, возможно, нужны, в отличие от трёх ниже, которые уже спросили.";
+"A window almost out or out, and advice about money already being spent; Test notification plays it too. Cutting it close, Will run out, resets and reminders arrive without a sound." = "Окно почти или полностью исчерпано, и советы о деньгах, которые уже тратятся; тестовое уведомление тоже играет этот звук. «Впритык», «Закончится», сбросы и напоминания приходят без звука.";
+"A turn longer than the minimum above, when Notify when a turn finishes is on." = "Ход длиннее минимума выше, когда включено «Уведомлять о завершении хода».";
+"A tool waiting for your approval, and any wait that has stopped a session without saying what it wants." = "Инструмент, ждущий вашего одобрения, и любое ожидание, остановившее сессию без объяснения, что ему нужно.";
+"Claude Code's AskUserQuestion, an MCP server asking for input, and an agent asking for input." = "AskUserQuestion в Claude Code, MCP-сервер, запрашивающий ввод, и агент, запрашивающий ввод.";
+
 "Waiting for you" = "Ждёт вас";
 "Waiting for your answer" = "Ждёт вашего ответа";
 "Waiting for your approval in System Settings › General › Login Items." = "Ожидание вашего одобрения в Системных настройках › Основные › Объекты входа.";

@@ -1035,6 +1035,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "captured": store.screenCaptured,
             "presenters": presenters.map(\.screen.localizedName),
             "keepingAwake": store.keepingAwake,
+            "sounds": prefs.soundFields,
         ]
         if let presenter {
             fields["panelState"] = presenter.hover.state.rawValue

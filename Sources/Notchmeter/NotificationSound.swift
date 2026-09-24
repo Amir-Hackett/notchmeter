@@ -2,9 +2,47 @@ import AppKit
 import AVFoundation
 import UserNotifications
 
+/// The six kinds of notice a sound is chosen for, each with its own sound and its own Silence box in
+/// Settings › Notifications › Sounds. Through 0.8.0 there were five pickers and one switch for all of them: a
+/// pace crossing, three kinds of wait and a finished turn, with Claude Code's idle reminder sharing the
+/// permission sound although nothing had asked for permission, and the only way to quiet one kind was a None
+/// entry in its picker that threw the chosen sound away. The Silence box is separate from the choice so that
+/// silencing a kind and bringing it back later returns the sound it had.
+///
+/// The raw value is the word the oracle's `notification` line uses for the sound (docs/testing.md). The order
+/// is the Settings rows' order.
+enum SoundCategory: String, CaseIterable, Sendable {
+    /// A turn longer than the minimum finished (`Notifier.SessionEvent.finished`).
+    case completion
+    /// A session that may be waiting on you without having said it has stopped: Claude Code's idle reminder
+    /// (`idle_prompt`, `Hook.Message.blocksSession` false) and a Cursor turn gone quiet with nothing running
+    /// (`SessionTracker.quietNudges`), which is inferred rather than reported.
+    case waiting
+    /// A tool waiting for approval, and every wait that has stopped the session without saying what it wants.
+    case permission
+    /// `AskUserQuestion`, an MCP server's elicitation, an agent asking for input.
+    case question
+    /// `ExitPlanMode`: a plan written and waiting for a yes.
+    case plan
+    /// A window almost out or out (the pace alerts' two loud stages, a StopFailure for the rate limit included),
+    /// and advice about money already being spent.
+    case limit
+
+    /// The category a wait that has stopped the session plays under, by what it asks for.
+    init(_ kind: Hook.WaitKind) {
+        self = switch kind {
+        case .permission: .permission
+        case .question: .question
+        case .plan: .plan
+        }
+    }
+}
+
 /// The sound for one class of notification: the system default, none, one of the alert sounds in
 /// /System/Library/Sounds, or a file the user imported into ~/Library/Sounds (where UNNotificationSound can find
-/// it by name). Stored as one string: "default", "none", "system:Glass" or "custom:My Chime.aiff".
+/// it by name). Stored as one string: "default", "none", "system:Glass" or "custom:My Chime.aiff". No picker
+/// offers "none" since the Silence boxes arrived (SoundCategory); it is what `Preferences.sound(for:)` answers
+/// for a silenced category, and a choice of None an earlier build stored is read as that category silenced.
 enum NotificationSound {
     static let defaultChoice = "default"
     static let none = "none"
@@ -27,24 +65,30 @@ enum NotificationSound {
             .sorted()
     }
 
-    /// The sound each kind of wait starts with, chosen so the three can be told apart without looking: a
-    /// permission keeps the system's own alert, which is what every wait played before the kinds were split and
-    /// the one most people already answer by reflex; a question takes Pop, short and light, since it asks for a
-    /// choice rather than leave; a plan takes Hero, the fuller rising one, since a plan ready is a piece of work
-    /// finished and waiting for a yes. A system sound this Mac does not have falls back to the default rather
-    /// than to a name the picker cannot show.
-    static func defaultChoice(for kind: Hook.WaitKind, installed: [String] = systemSounds()) -> String {
-        let name: String? = switch kind {
+    /// The sound each category starts with, chosen so the six can be told apart without looking. A permission
+    /// keeps the system's own alert, which is what every wait played before the kinds were split and the one most
+    /// people already answer by reflex. A question takes Pop, short and light, since it asks for a choice rather
+    /// than leave; a plan takes Hero, the fuller rising one, since a plan ready is a piece of work finished and
+    /// waiting for a yes. A finished turn takes Glass, the clear chime of something done. The waiting reminder
+    /// takes Purr, the softest of the set, because it stands for a session that may need you rather than one
+    /// that has stopped; and a limit takes Basso, the low thud macOS itself plays when something cannot go on.
+    /// A system sound this Mac does not have falls back to the default rather than to a name the picker cannot
+    /// show.
+    static func defaultChoice(for category: SoundCategory, installed: [String] = systemSounds()) -> String {
+        let name: String? = switch category {
+        case .completion: "Glass"
+        case .waiting: "Purr"
         case .permission: nil
         case .question: "Pop"
         case .plan: "Hero"
+        case .limit: "Basso"
         }
         guard let name, installed.contains(name) else { return defaultChoice }
         return "system:\(name)"
     }
 
     /// The Default entry's name in a row whose default is `defaultTag`: plain "Default" for the system alert, and
-    /// "Default (Pop)" where a kind of wait starts with a sound of its own, so choosing it says what it restores.
+    /// "Default (Pop)" where a category starts with a sound of its own, so choosing it says what it restores.
     static func defaultTitle(for defaultTag: String) -> String {
         defaultTag == defaultChoice ? L("Default") : L("Default (%@)", title(for: defaultTag))
     }
