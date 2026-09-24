@@ -897,6 +897,7 @@
 "Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "每个助手都有一组自己颜色的嵌套圆环：外圈是它的主要限额，内圈是其他时间窗口，每段弧线随窗口用量增加而填满。虚线圆环表示暂时没有可读的数据。将指针悬停在圆环上即可打开面板。";
 "The panel, and pace" = "面板与节奏";
 "The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "面板为每个助手提供一张卡片，列出每个窗口、何时重置以及花费了多少。节奏会把窗口的消耗速度与剩余时间相比较，因此警告会在窗口用满之前很久、你仍来得及放慢时到来。";
+"The panel has a row for each assistant with its most urgent figure; click a row for every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "面板为每个助手显示一行，列出其最紧要的数字；点按该行即可查看每个窗口、何时重置以及花费了多少。节奏会把窗口的消耗速度与剩余时间相比较，因此警告会在窗口用满之前很久、你仍来得及放慢时到来。";
 "Sessions, answered from the notch" = "会话，在刘海处直接回复";
 "With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "装好钩子后，面板会列出你的 Claude Code 会话以及每个会话正在做什么。当某个会话请求权限或向你提问时，可以在这里回答；置之不理，它就会回到终端。";
 "Back" = "上一步";

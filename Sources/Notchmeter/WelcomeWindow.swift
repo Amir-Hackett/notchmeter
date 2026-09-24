@@ -117,8 +117,12 @@ struct WelcomePreviews {
     /// The two signals the hook lights, for the last step.
     let waiting: UsageStore
     let finished: UsageStore
+    /// The layout the reader's own panel uses (Preferences.panelMode), so the panel step shows and describes the
+    /// panel they will open: Simple's rows by default, the Detailed cards for someone who chose them.
+    let panelMode: PanelMode
 
-    init(now: Date = Date()) {
+    init(now: Date = Date(), panelMode: PanelMode = .simple) {
+        self.panelMode = panelMode
         let suite = DemoFixtures.previewSuiteName
         working = DemoFixtures.store(now: now, moment: .working, suite: suite).store
         asking = DemoFixtures.store(now: now, moment: .permissionRequest, suite: suite).store
@@ -168,13 +172,13 @@ struct WelcomeView: View {
     static let stageWidth: CGFloat = size.width - 40
 
     @MainActor
-    init(start: WelcomeStep = .rings, previews: WelcomePreviews? = nil, connected: Bool = false,
+    init(start: WelcomeStep = .rings, previews: WelcomePreviews? = nil, panelMode: PanelMode = .simple, connected: Bool = false,
          install: @escaping () -> Void, finish: @escaping () -> Void, onStep: @escaping (WelcomeStep) -> Void = { _ in }) {
         self.install = install
         self.finish = finish
         self.onStep = onStep
         self.connected = connected
-        let previews = previews ?? WelcomePreviews()
+        let previews = previews ?? WelcomePreviews(panelMode: panelMode)
         _tour = State(initialValue: WelcomeTour(step: start))
         _previews = State(initialValue: previews)
         _natural = State(initialValue: Dictionary(uniqueKeysWithValues: WelcomeStep.allCases.map { ($0, Self.measure($0, previews: previews)) }))
@@ -283,7 +287,7 @@ struct WelcomeView: View {
                 .font(.headline)
                 .accessibilityAddTraits(.isHeader)
                 .padding(.top, 4)
-            Text(summary(step))
+            Text(Self.summary(step, panelMode: previews.panelMode))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -300,8 +304,10 @@ struct WelcomeView: View {
         }
     }
 
-    private func summary(_ step: WelcomeStep) -> String {
+    static func summary(_ step: WelcomeStep, panelMode: PanelMode) -> String {
         switch step {
+        case .panel where panelMode == .simple:
+            L("The panel has a row for each assistant with its most urgent figure; click a row for every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full.")
         case .rings:
             L("Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel.")
         case .panel:
@@ -318,6 +324,17 @@ struct WelcomeView: View {
         switch step {
         case .rings:
             CompactStripPreview(store: previews.working)
+        case .panel where previews.panelMode == .simple:
+            // The rows as the Simple panel draws them, closed: one figure each, which is what the words above say.
+            // Not clickable: opening one here would grow a preview the stage has already scaled.
+            PanelColumn(store: previews.working) {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(previews.working.visibleTools, id: \.self) { tool in
+                        SimpleToolRow(tool: tool, store: previews.working, prefs: previews.working.prefs, actions: NotchActions(), advice: [])
+                    }
+                }
+                .allowsHitTesting(false)
+            }
         case .panel:
             PanelColumn(store: previews.working) {
                 ToolCard(tool: .claude, status: previews.working.status(.claude), store: previews.working, prefs: previews.working.prefs)
@@ -578,13 +595,13 @@ final class WelcomeWindowController: NSWindowController {
 
     /// `emit` is the oracle's, and a test's capture: the controller writes a line for each step as it comes on
     /// screen and one when the window closes, whichever way it closes.
-    init(connected: Bool = false, install: @escaping () -> Void, finish: @escaping () -> Void,
+    init(connected: Bool = false, panelMode: PanelMode = .simple, install: @escaping () -> Void, finish: @escaping () -> Void,
          emit: @escaping (String, [String: Any]) -> Void = { Oracle.shared.emit($0, $1) }) {
         let panel = SettingsPanel(contentRect: NSRect(origin: .zero, size: Self.contentSize),
                                   styleMask: [.titled, .closable, .nonactivatingPanel], backing: .buffered, defer: false)
         let log = StepLog(emit: emit)
         self.log = log
-        let host = FirstMouseHostingView(rootView: WelcomeView(connected: connected, install: install, finish: finish,
+        let host = FirstMouseHostingView(rootView: WelcomeView(panelMode: panelMode, connected: connected, install: install, finish: finish,
                                                                onStep: { log.shown($0) }))
         host.sizingOptions = []
         panel.title = L("Welcome to %@", AppInfo.name)

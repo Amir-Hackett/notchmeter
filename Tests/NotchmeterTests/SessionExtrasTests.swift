@@ -189,6 +189,30 @@ import Testing
         #expect(tracker.all.first?.todos?.items.map(\.content) == ["Ids started over"])
     }
 
+    /// The seal a prompt put on a finished plan survives an update or a delete to one of its old tasks, so the
+    /// next task created still starts a new plan rather than joining the finished one.
+    @Test func theSealSurvivesAnUpdateToAnOldTask() {
+        var tracker = SessionTracker()
+        tracker.apply(change(.created, "1", "One"), now: t0)
+        tracker.apply(change(.created, "2", "Two"), now: t0)
+        tracker.apply(change(.updated, "1", nil, .completed), now: t0)
+        tracker.apply(change(.updated, "2", nil, .completed), now: t0)
+        tracker.apply(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "a", project: "p"), now: t0)
+        #expect(tracker.all.first?.todos?.sealed == true)
+        tracker.apply(change(.updated, "1", "One, renamed"), now: t0)
+        #expect(tracker.all.first?.todos?.sealed == true, "an update keeps the seal")
+        tracker.apply(change(.created, "3", "Next"), now: t0)
+        #expect(tracker.all.first?.todos?.items.map(\.id) == ["3"], "the next task still starts a new plan")
+        #expect(tracker.all.first?.todos?.sealed == false)
+
+        // A delete keeps it too.
+        let sealed = TodoPlan(items: [TodoPlan.Item(id: "1", content: "A", status: .completed),
+                                      TodoPlan.Item(id: "2", content: "B", status: .completed)]).sealedIfDone()
+        let deleted = sealed.applying(TaskChange(kind: .updated, id: "2", deleted: true))
+        #expect(deleted.sealed)
+        #expect(deleted.applying(TaskChange(kind: .created, id: "7", subject: "Next")).items.map(\.id) == ["7"])
+    }
+
     /// Hooks run inside subagents too, under the parent's session id: a subagent's plan never touches the parent's.
     @Test func aSubagentsTaskCallsLeaveTheParentsPlanAlone() {
         var tracker = SessionTracker()

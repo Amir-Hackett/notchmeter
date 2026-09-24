@@ -486,18 +486,24 @@ final class UsageStore {
     }
 
     func adviceContext(now: Date = Date()) -> Advisor.Context {
-        var context = Advisor.Context(readings: readyReadings, awaitingInput: awaitingInput.filter(isShown), waitingSessions: sessions.waiting,
-                                      cost: prefs.showSpend ? cost : nil, timeFormat: prefs.timeFormat, toolOrder: prefs.toolOrder, drainRates: drainRates, now: now)
+        // While the screen is shared with the privacy setting on, the advice gets the spend under the same gate as
+        // the Cost card (NotchExpandedView.spendCard), and no project names, as the Sessions rows hide their titles;
+        // `hidesFigures` then keeps any figure the readings put in a sentence off the panel.
+        let hiding = hidesFigures
+        let spend = prefs.showSpend && !hiding
+        var context = Advisor.Context(readings: readyReadings, awaitingInput: awaitingInput.filter(isShown), waitingSessions: hiding ? [] : sessions.waiting,
+                                      cost: spend ? cost : nil, timeFormat: prefs.timeFormat, toolOrder: prefs.toolOrder, drainRates: drainRates, now: now)
         context.runOuts = runOutsByKey
-        context.monthlyBudgetUSD = prefs.showSpend ? prefs.monthlyBudgetUSD : nil
-        context.weeklyBudgetUSD = prefs.showSpend ? prefs.weeklyBudgetUSD : nil
-        context.extraUsageRise = extraUsageRiseAt.map { now.timeIntervalSince($0) < Self.extraUsageRiseShownFor } == true ? extraUsageRise : nil
+        context.monthlyBudgetUSD = spend ? prefs.monthlyBudgetUSD : nil
+        context.weeklyBudgetUSD = spend ? prefs.weeklyBudgetUSD : nil
+        context.extraUsageRise = !hiding && extraUsageRiseAt.map { now.timeIntervalSince($0) < Self.extraUsageRiseShownFor } == true ? extraUsageRise : nil
         context.peakHours = visibleTools.reduce(into: [:]) { $0[$1] = prefs.peakHours(for: $1) }
         context.limitHitTools = sessions.limitHitTools(now: now).filter(isShown)
         context.serverTrouble = serverTrouble.filter { isShown($0.key) }
-        context.metering = prefs.showSpend ? cost?.sessionMetering : nil
+        context.metering = spend ? cost?.sessionMetering : nil
         // The current 5-hour block: the cost scan's block when it has one, else the five hours behind now.
-        context.promptCache = promptCache(since: cost?.block?.start ?? now.addingTimeInterval(-Period.fiveHours))
+        context.promptCache = hiding ? nil : promptCache(since: cost?.block?.start ?? now.addingTimeInterval(-Period.fiveHours))
+        context.hidesFigures = hiding
         return context
     }
 

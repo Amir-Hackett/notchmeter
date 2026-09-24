@@ -76,6 +76,49 @@ import Testing
                                               "limit/antigravity", "status/cursor", "general"])
     }
 
+    /// The Sessions section draws a waiting line only where the rows under it do not already say it; a line it
+    /// leaves off goes on the first row it is about, for VoiceOver. Either way every line is reachable exactly once.
+    @Test func aWaitingLineTheRowsAlreadyShowGoesOnTheRow() {
+        let waiting = everyKind[0]
+        let other = Advice(id: "general", tool: nil, priority: .info, symbol: "lightbulb", text: "Something.")
+        let lines = [waiting, other]
+
+        // Every waiting Claude session is a visible row that needs the reader: the line moves onto the first.
+        let shown = AdvicePlacement.sessionLines(lines, needsYou: [("a", .claude), ("b", .claude)],
+                                                 waiting: [("a", .claude), ("b", .claude)], titlesShown: true)
+        #expect(shown.drawn.map(\.id) == ["general"])
+        #expect(shown.onRow == ["a": [waiting]])
+
+        // One of them is past the "+N more" cap: the line stays, since no row on the sheet says so for it.
+        let capped = AdvicePlacement.sessionLines(lines, needsYou: [("a", .claude)],
+                                                  waiting: [("a", .claude), ("z", .claude)], titlesShown: true)
+        #expect(capped.drawn.map(\.id) == ["waiting/claude", "general"])
+        #expect(capped.onRow.isEmpty)
+
+        // Titles hidden: the line names what the row cannot, so it stays.
+        let untitled = AdvicePlacement.sessionLines(lines, needsYou: [("a", .claude)], waiting: [("a", .claude)], titlesShown: false)
+        #expect(untitled.drawn.map(\.id) == ["waiting/claude", "general"])
+
+        // A tool waiting with no session the hooks reported, or a row of another tool: the line stays.
+        let noSession = AdvicePlacement.sessionLines(lines, needsYou: [("c", .codex)], waiting: [("c", .codex)], titlesShown: true)
+        #expect(noSession.drawn.map(\.id) == ["waiting/claude", "general"])
+
+        // Whatever the case, each line is drawn or on exactly one row that needs the reader.
+        for split in [shown, capped, untitled, noSession] {
+            let reached = split.drawn.map(\.id) + split.onRow.values.flatMap { $0 }.map(\.id)
+            #expect(reached.sorted() == lines.map(\.id).sorted())
+        }
+    }
+
+    /// An attention line keeps its blue on the symbol and reads in the text colour: Palette.calm text is under 4.5:1.
+    @MainActor @Test func anAttentionLineIsBlueOnlyOnItsSymbol() {
+        let line = SimpleLine.advice(everyKind[0])
+        #expect(line.color == .primary)
+        #expect(line.symbolColor == Palette.calm)
+        #expect(SimpleLine.advice(everyKind[1]).color == Palette.danger)
+        #expect(SimpleLine.advice(everyKind[8]).color == nil)
+    }
+
     func window(_ id: String, used: Double?, hoursLeft: Double = 24, period: TimeInterval = Period.week) -> LimitWindow {
         LimitWindow(id: id, label: WindowLabel(stringLiteral: id), usedFraction: used, resetsAt: now.addingTimeInterval(hoursLeft * 3600), periodDuration: period)
     }

@@ -478,7 +478,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         let connected = WelcomeWindowController.connected(hook: HookSettings.status(), statusline: HookSettings.statuslineStatus())
-        let controller = WelcomeWindowController(connected: connected, install: { [weak self] in self?.offerClaudeSetup() },
+        let controller = WelcomeWindowController(connected: connected, panelMode: store.prefs.panelMode, install: { [weak self] in self?.offerClaudeSetup() },
                                                  finish: { [weak self] in self?.welcome?.close() })
         welcome = controller
         if let window = controller.window {

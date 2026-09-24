@@ -239,13 +239,20 @@ struct TodoPlan: Equatable, Sendable {
     /// with no text unless the update carried a subject, so the counts are right from then on.
     func applying(_ change: TaskChange) -> TodoPlan {
         var items = items
+        // An update or a delete leaves the seal where it was, so the next create still starts a new plan; only a
+        // create starts one, and a new plan is never sealed.
+        func plan(_ items: [Item]) -> TodoPlan {
+            var plan = TodoPlan(items: items)
+            plan.sealed = sealed && change.kind == .updated
+            return plan
+        }
         guard let index = items.firstIndex(where: { $0.id == change.id }), change.kind == .updated else {
             if change.kind == .created, sealed || items.contains(where: { $0.id == change.id }) {
                 items = []
             }
-            if change.deleted || items.count >= Hook.todoLimit { return TodoPlan(items: items) }
+            if change.deleted || items.count >= Hook.todoLimit { return plan(items) }
             items.append(Item(id: change.id, content: change.subject, status: change.status ?? .pending))
-            return TodoPlan(items: items)
+            return plan(items)
         }
         if change.deleted {
             items.remove(at: index)
@@ -253,7 +260,7 @@ struct TodoPlan: Equatable, Sendable {
             if let status = change.status { items[index].status = status }
             if let subject = change.subject { items[index].content = subject }
         }
-        return TodoPlan(items: items)
+        return plan(items)
     }
 }
 

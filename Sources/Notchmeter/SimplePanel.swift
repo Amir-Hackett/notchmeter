@@ -58,6 +58,29 @@ enum AdvicePlacement {
         }
         return slots
     }
+
+    /// The Sessions section's lines, split into the ones drawn as a line over the rows and the ones a row carries in
+    /// its VoiceOver value instead. A waiting line is the third telling of a fact the row already draws (the wash,
+    /// the hand, "Waiting for your answer"), so it is left off the sheet when every session it is about is a row
+    /// on it that needs the reader, and goes on the first of them. It stays a line when one of its sessions is past
+    /// the "+N more" cap, when the titles are hidden (the line names the project the row cannot), or when it is
+    /// about no session the hooks reported. Total like `assign`: every line is drawn or on exactly one row.
+    static func sessionLines(_ advice: [Advice], needsYou rows: [(id: String, tool: ToolID)], waiting: [(id: String, tool: ToolID)],
+                             titlesShown: Bool) -> (drawn: [Advice], onRow: [String: [Advice]]) {
+        var drawn: [Advice] = []
+        var onRow: [String: [Advice]] = [:]
+        for line in advice {
+            guard isWaiting(line), titlesShown, let tool = line.tool else { drawn.append(line); continue }
+            let sessions = waiting.filter { $0.tool == tool }.map(\.id)
+            let shown = Set(rows.filter { $0.tool == tool }.map(\.id))
+            if !sessions.isEmpty, sessions.allSatisfy(shown.contains), let row = rows.first(where: { $0.tool == tool }) {
+                onRow[row.id, default: []].append(line)
+            } else {
+                drawn.append(line)
+            }
+        }
+        return (drawn, onRow)
+    }
 }
 
 // MARK: - The one figure a tool row shows
@@ -128,7 +151,21 @@ struct SimpleLine: Identifiable {
     let id: String
     let symbol: String?
     let text: String
+    /// The text's colour; nil is the caption's.
     var color: Color? = nil
+    /// The symbol's colour where it differs from the text's: an attention line keeps its blue on the symbol only.
+    var symbolColor: Color? = nil
+
+    /// An advice line as a row's line: warnings and dangers in their colour, with their symbol; an attention line
+    /// in the text colour with only its symbol blue (Palette.calm text is about 4:1 on black and under 4:1 on the
+    /// row's wash); an info line in the caption's.
+    @MainActor static func advice(_ item: Advice) -> SimpleLine {
+        switch item.priority {
+        case .info: SimpleLine(id: item.id, symbol: item.symbol, text: item.text)
+        case .attention: SimpleLine(id: item.id, symbol: item.symbol, text: item.text, color: .primary, symbolColor: item.priority.mark)
+        case .warn, .danger: SimpleLine(id: item.id, symbol: item.symbol, text: item.text, color: item.priority.color)
+        }
+    }
 }
 
 /// The row every part of the Simple panel is built from: a glyph, a title and at most one line under it on the
@@ -181,7 +218,9 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                         }
                         Image(systemName: "chevron.right")
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(contrast ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                            // Secondary in both modes: tertiary is 2:1 on the black panel, under the 3:1 a control's
+                            // only affordance needs, and the chevron is the only sign the row opens.
+                            .foregroundStyle(Caption.style)
                             .rotationEffect(.degrees(open ? 90 : 0))
                             .accessibilityHidden(true)
                     }
@@ -191,9 +230,10 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             if let symbol = line.symbol {
                                 Image(systemName: symbol).font(.caption2.weight(.semibold))
+                                    .foregroundStyle(line.symbolColor.map(AnyShapeStyle.init) ?? line.color.map(AnyShapeStyle.init) ?? AnyShapeStyle(Caption.style))
                             }
                             // A non-breaking hyphen keeps "30-day" whole when the line wraps, as on the Cost card.
-                            Text(line.text.replacingOccurrences(of: "-", with: "\u{2011}"))
+                            Text(line.text.keepingHyphensWhole)
                                 .monospacedDigit().fixedSize(horizontal: false, vertical: true)
                         }
                         .font(.caption)
@@ -308,7 +348,7 @@ struct SimpleToolRow: View {
         default: break
         }
         if let first = advice.first {
-            return SimpleLine(id: first.id, symbol: first.symbol, text: first.text, color: first.priority == .info ? nil : first.priority.color)
+            return SimpleLine.advice(first)
         }
         if !hideFigures, let window, let pace = MeterRow.paceNote(window: window, runOut: nil, format: format), pace.status != .ahead {
             return SimpleLine(id: "pace", symbol: pace.status.symbolName, text: pace.text, color: pace.status.noteColor)
@@ -343,7 +383,7 @@ struct SimpleCostRow: View {
         let figure = SpendCard.headline(mode: mode, amount: totals?.cost, totals: totals)
         let first = open ? nil : advice.first
         SimpleRow(title: L("Cost"),
-                  line: first.map { SimpleLine(id: $0.id, symbol: $0.symbol, text: $0.text, color: $0.priority == .info ? nil : $0.priority.color) },
+                  line: first.map(SimpleLine.advice),
                   figure: figure, caption: range.title,
                   needsYou: advice.contains { $0.priority == .attention },
                   spoken: Spoken.line(range.title, Spoken.phrase(figure), SpendCard.unit(mode: mode), first.map { Spoken.phrase($0.text) }),

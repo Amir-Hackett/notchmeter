@@ -158,6 +158,18 @@ extension Advice.Priority {
         case .info: .secondary
         }
     }
+
+    /// The colour of the line's symbol, which is where the state colour goes: the text stays in a text colour.
+    /// The "needs you" blue goes white under Increase Contrast, as SessionRow.needsYouMark does, where it is under
+    /// 3:1 on the lighter card and the row's wash.
+    @MainActor var mark: Color {
+        self == .attention && AccessibilityDisplay.shared.contrast ? .white : color
+    }
+}
+
+extension String {
+    /// The text with its hyphens made non-breaking, so "30-day" stays whole when a line wraps.
+    var keepingHyphensWhole: String { replacingOccurrences(of: "-", with: "\u{2011}") }
 }
 
 /// Captions are secondary on black by default and primary under Increase Contrast. Tertiary was tried first and
@@ -1676,7 +1688,7 @@ struct SpendCard: View {
         lines += gaps.map { (text: $0.text, quiet: true) }
         if let burnLine {
             // A non-breaking hyphen keeps "30-day" whole when the line wraps.
-            lines.append((text: burnLine.replacingOccurrences(of: "-", with: "\u{2011}"), quiet: false))
+            lines.append((text: burnLine.keepingHyphensWhole, quiet: false))
         }
         if store.prefs.showDetails {
             lines += detailLines.map { (text: $0, quiet: false) }
@@ -1901,9 +1913,9 @@ struct AdviceLines: View {
                     // whatever glyph it is.
                     Image(systemName: item.symbol)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(item.priority.color)
+                        .foregroundStyle(item.priority.mark)
                         .frame(width: 13, alignment: .leading)
-                    Text(item.text)
+                    Text(item.text.keepingHyphensWhole)
                         .font(.caption)
                         .monospacedDigit()
                         .fixedSize(horizontal: false, vertical: true)

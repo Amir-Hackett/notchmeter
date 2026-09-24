@@ -201,12 +201,15 @@ struct SessionsCard: View {
             // never be drawn under a setting that says not to).
             let (rows, more) = Self.rows(sessions.all, hideTitles: store.hidesFigures || !prefs.sessionTitles, jump: prefs.jumpToTerminal, now: context.date)
             let groups = Self.groups(rows, sessions: sessions.all)
+            let lines = AdvicePlacement.sessionLines(advice, needsYou: rows.filter(\.needsYou).map { ($0.id, $0.tool) },
+                                                     waiting: sessions.waiting.map { ($0.id, $0.tool) },
+                                                     titlesShown: !(store.hidesFigures || !prefs.sessionTitles))
             VStack(alignment: .leading, spacing: embedded ? density.lineSpacing + 2 : density.rowSpacing) {
                 if embedded {
                     SimpleSectionLabel(title: L("Sessions")) { clear(sessions) }
                         .padding(.horizontal, -density.cardPadding)
-                    if !advice.isEmpty {
-                        AdviceLines(advice: advice, open: actions.open)
+                    if !lines.drawn.isEmpty {
+                        AdviceLines(advice: lines.drawn, open: actions.open)
                     }
                 } else {
                     HStack(spacing: 6) {
@@ -228,7 +231,8 @@ struct SessionsCard: View {
                             SessionRow(row: row, now: context.date, jump: { actions.jump($0) }, session: sessions.all.first { $0.id == row.id },
                                        remove: { store.dismissSession(row.id) }, removeIdle: { store.dismissIdleSessions() },
                                        open: Set(Disclosure.allCases.filter { store.openSessionLists.contains(Self.listKey(row.id, $0)) }),
-                                       toggle: { toggle(row.id, $0) })
+                                       toggle: { toggle(row.id, $0) }, embedded: embedded,
+                                       advice: lines.onRow[row.id]?.map(\.text) ?? [])
                         }
                     }
                 }
@@ -310,6 +314,11 @@ private struct SessionRow: View {
     /// Which of the row's lists are open, held by the store (UsageStore.openSessionLists), and the switch for one.
     var open: Set<SessionsCard.Disclosure> = []
     var toggle: (SessionsCard.Disclosure) -> Void = { _ in }
+    /// On the Simple sheet, where the title takes the sheet's one title size.
+    var embedded = false
+    /// The advice lines this row carries instead of the sheet drawing them (AdvicePlacement.sessionLines), read
+    /// after the row's own value.
+    var advice: [String] = []
 
     /// A row holding a request keeps it: the request is answered from its own card.
     private var removable: Bool { session?.pending == nil }
@@ -331,7 +340,7 @@ private struct SessionRow: View {
                 trailing
             }
             if hasExtras {
-                extras.padding(.leading, SessionRow.textInset).opacity(idleOpacity)
+                extras.padding(.leading, SessionRow.textInset)
             }
             if open.contains(.agents), !row.agents.isEmpty {
                 agentList.padding(.leading, SessionRow.textInset)
@@ -389,8 +398,9 @@ private struct SessionRow: View {
     /// mark apart, and the wash stays blue.
     @MainActor static var needsYouMark: Color { AccessibilityDisplay.shared.contrast ? .white : Palette.calm }
 
-    /// The idle row's quiet: its text, and the extras line under it, a step down from a live row's.
-    private var idleOpacity: Double { row.status == .idle ? 0.8 : 1 }
+    /// The idle row's quiet is its title in the caption's colour and the hollow ring for its mark. It is not
+    /// dimmed further: at 0.8 opacity the secondary title, clock and context figure measured 3.7:1 on the black
+    /// panel, under 4.5:1 for text, and Increase Contrast could not raise them.
 
     private var hasExtras: Bool { row.contextUsed != nil || !row.agents.isEmpty || (row.todos?.total ?? 0) > 0 }
 
@@ -410,7 +420,7 @@ private struct SessionRow: View {
         } else {
             // Already spoken as part of the row's own value (`content`), so VoiceOver does not read it twice.
             Text(clock)
-                .font(.caption).foregroundStyle(row.status == .idle ? .tertiary : .secondary).monospacedDigit()
+                .font(.caption).foregroundStyle(Caption.style).monospacedDigit()
                 .padding(.top, 1)
                 .help(row.status == .idle || row.status == .finished ? L("How long since this session last did anything") : L("How long this turn has run"))
                 .accessibilityHidden(true)
@@ -434,8 +444,9 @@ private struct SessionRow: View {
                 .help(statusText)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
-                    Text(verbatim: row.title).font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.middle)
-                        .foregroundStyle(row.status == .idle ? .secondary : .primary)
+                    // On the Simple sheet the title matches its sibling rows' (SimpleRow): one title size a sheet.
+                    Text(verbatim: row.title).font((embedded ? Font.body : .callout).weight(.semibold)).lineLimit(1).truncationMode(.middle)
+                        .foregroundStyle(row.status == .idle ? Caption.style : AnyShapeStyle(.primary))
                     ForEach(row.chips, id: \.self) { Chip(text: $0).help(L("The assistant running this session")) }
                 }
                 if row.branch != nil || !placeParts.isEmpty {
@@ -462,8 +473,8 @@ private struct SessionRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(row.title)
         .accessibilityValue(Spoken.line(statusText, row.chips.joined(separator: ", "), row.branch, placeParts.joined(separator: ", "),
-                                        ResetText.duration(max(0, now.timeIntervalSince(row.since))), row.note.map(noteText)))
-        .opacity(idleOpacity)
+                                        ResetText.duration(max(0, now.timeIntervalSince(row.since))), row.note.map(noteText),
+                                        advice.isEmpty ? nil : advice.map(Spoken.phrase).joined(separator: " ")))
     }
 
     // MARK: The extras line
@@ -606,10 +617,11 @@ private struct ExtraChip: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            Image(systemName: symbol).font(.system(size: 9, weight: .semibold))
-            Text(verbatim: text).font(.system(size: 10, weight: .semibold)).monospacedDigit()
+            // The type ramp's smallest size, so the chip follows the panel's text size rather than a fixed point size.
+            Image(systemName: symbol).font(.caption2.weight(.semibold)).imageScale(.small)
+            Text(verbatim: text).font(.caption2.weight(.semibold)).monospacedDigit()
             if let chevron {
-                Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold))
+                Image(systemName: "chevron.right").font(.caption2.weight(.bold)).imageScale(.small)
                     .rotationEffect(.degrees(chevron ? 90 : 0))
             }
         }
@@ -624,7 +636,8 @@ private struct ExtraChip: View {
 /// 90 % (`SessionsCard.contextLevel`), and the figure beside it says the same thing without the colour.
 private struct ContextGauge: View {
     let fraction: Double
-    /// On an idle row: an untinted bar and figure go no brighter than the row's own secondary title.
+    /// On an idle row: an untinted bar goes no brighter than the row's own title. The figure stays in the
+    /// caption's colour, which is text and so held to 4.5:1.
     var quiet = false
 
     var body: some View {
@@ -638,8 +651,8 @@ private struct ContextGauge: View {
                 Capsule().fill(tint).frame(width: max(2, 34 * CGFloat(min(1, max(0, fraction)))))
             }
             .frame(width: 34, height: 4)
-            Text(verbatim: "\(percent)%").font(.system(size: 10, weight: .semibold)).monospacedDigit()
-                .foregroundStyle(level != .quiet ? AnyShapeStyle(tint) : quiet ? AnyShapeStyle(.secondary) : AnyShapeStyle(Caption.style))
+            Text(verbatim: "\(percent)%").font(.caption2.weight(.semibold)).monospacedDigit()
+                .foregroundStyle(level != .quiet ? AnyShapeStyle(tint) : AnyShapeStyle(Caption.style))
         }
         .frame(minHeight: 20)
         .contentShape(Rectangle())

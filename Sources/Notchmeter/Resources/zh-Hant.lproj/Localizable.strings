@@ -880,6 +880,7 @@
 "Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "每個助理都有一組自己顏色的巢狀圓環：外圈是主要限額，內圈是其他時段，每段弧線會隨該時段的用量填滿。虛線圓環表示目前還沒有可讀的資料。將指標停在圓環上即可打開面板。";
 "The panel, and pace" = "面板與進度";
 "The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "面板為每個助理提供一張卡片，列出每個時段、何時重設以及花費多少。進度會比較時段的消耗速度與剩餘時間，因此警告會在時段用滿之前很久、你仍來得及放慢時出現。";
+"The panel has a row for each assistant with its most urgent figure; click a row for every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "面板為每個助理顯示一列，列出其最緊要的數字；按一下該列即可查看每個時段、何時重設以及花費多少。進度會比較時段的消耗速度與剩餘時間，因此警告會在時段用滿之前很久、你仍來得及放慢時出現。";
 "Sessions, answered from the notch" = "工作階段，在瀏海直接回覆";
 "With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "安裝掛鉤後，面板會列出你的 Claude Code 工作階段以及每個階段正在做什麼。當某個階段請求權限或向你提問時，可以在這裡回答；不理會的話，它會回到終端機。";
 "Back" = "上一步";
