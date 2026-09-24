@@ -145,6 +145,20 @@ enum DemoFixtures {
         return tracker
     }
 
+    /// The news the moment's last hook event raises (NotchNews.from), for the notch's peek and glow: the
+    /// notchmeter session's permission prompt or question, or its long turn ending. Read off the tracker, so the
+    /// project and the assistant are the session's own; nil if the moment's session is somehow not there.
+    @MainActor
+    static func news(in store: UsageStore, moment: Moment, now: Date) -> NotchNews? {
+        guard let session = store.sessions.sessions["notchmeter"] else { return nil }
+        let reason: NotchNews.Reason = switch moment {
+        case .waiting, .permissionRequest: .approval
+        case .question: .question
+        case .justFinished: .finished
+        }
+        return NotchNews(reason: reason, sessionID: session.id, tool: session.tool, project: session.project, at: now)
+    }
+
     /// The request id the two request moments carry, so a test or a renderer can address it.
     static let requestID = "demo-request"
     static let notchmeterTitle = "Add a Sessions card between the advice and the tool cards"

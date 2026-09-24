@@ -847,3 +847,15 @@
 "In progress" = "進行中";
 "Completed" = "完了済み";
 "The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "各プロンプトの 1 行目（最大 96 文字）と Claude Code のタスクリストのテキストで、フックが送信し、実行中のアプリだけが保持します。オフにすると、アプリはどちらもどこにも保持する前に破棄し、行にはプロジェクトが、タスクリストには件数だけが表示されます。この設定にかかわらず、画面共有中はどちらも隠します。";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "承認が必要";
+"Question" = "質問";
+"Finished" = "完了";
+"Opens the panel on this session" = "このセッションでパネルを開きます";
+"Show assistant symbols in the rings" = "リングにアシスタントのシンボルを表示";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "各アシスタントのシンボル（カードにあるもの）をリングの中央に小さく描きます。リングが3本で余裕がないときはリングの角に描きます。アシスタントの色を見分けにくいときのための設定です。";
+"Show news in the notch" = "ノッチにお知らせを表示";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "セッションがあなたを待ち始めたときやターンを終えたとき、ノッチの横の帯にプロジェクトと理由を4秒間表示します。表示はメニューバーが空けている範囲に収まります。クリックするとそのセッションでパネルが開きます。画面共有中はプロジェクト名を表示しません。";
+"Glow under the notch for news" = "お知らせのときにノッチの下を光らせる";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "同じお知らせのためにノッチの下に光を灯します。待機は青、完了は白で、3秒後に消えます。セッションが待っている間は淡い青が残ります。「視差効果を減らす」がオンのときは動かない色になります。";

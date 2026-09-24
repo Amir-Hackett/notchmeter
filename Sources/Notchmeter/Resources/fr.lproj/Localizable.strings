@@ -864,3 +864,15 @@
 "In progress" = "En cours";
 "Completed" = "Terminée";
 "The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "La première ligne de chaque prompt, 96 caractères au plus, et le texte de la liste de tâches de Claude Code, que le hook envoie et que seule l'app en cours conserve. Désactivé, l'app écarte les deux avant de les stocker : la ligne affiche le projet à la place, et la liste de tâches seulement son décompte. Les deux sont masqués pendant le partage d'écran, quel que soit ce réglage.";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "Approbation requise";
+"Question" = "Question";
+"Finished" = "Terminé";
+"Opens the panel on this session" = "Ouvre le panneau sur cette session";
+"Show assistant symbols in the rings" = "Afficher les symboles des assistants dans les anneaux";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "Le symbole de chaque assistant, celui de sa carte, dessiné en petit au centre de ses anneaux, ou dans leur coin quand trois anneaux laissent trop peu de place, pour quand les couleurs des assistants sont difficiles à distinguer.";
+"Show news in the notch" = "Afficher les nouvelles dans l'encoche";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Quand une session commence à vous attendre ou termine un tour, la bande à côté de l'encoche indique le projet et la raison pendant quatre secondes, dans la place que laisse la barre des menus. Cliquez dessus pour ouvrir le panneau sur cette session. Pendant un partage d'écran, le projet est omis.";
+"Glow under the notch for news" = "Lueur sous l'encoche pour les nouvelles";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Une lumière sous l'encoche pour les mêmes nouvelles : bleue pour une attente, blanche pour une fin, qui s'estompe après trois secondes ; un bleu léger reste tant qu'une session attend. Avec Réduire les animations, c'est une teinte fixe.";

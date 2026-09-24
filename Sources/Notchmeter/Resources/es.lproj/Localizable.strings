@@ -864,3 +864,15 @@
 "In progress" = "En curso";
 "Completed" = "Completada";
 "The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "La primera línea de cada prompt, de 96 caracteres como máximo, y el texto de la lista de tareas de Claude Code, que envía el hook y solo guarda la app en marcha. Desactivado, la app descarta ambos antes de guardarlos en ningún sitio: la fila muestra el proyecto y la lista de tareas solo su recuento. Ambos se ocultan mientras se comparte la pantalla, diga lo que diga este ajuste.";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "Necesita aprobación";
+"Question" = "Pregunta";
+"Finished" = "Terminado";
+"Opens the panel on this session" = "Abre el panel en esta sesión";
+"Show assistant symbols in the rings" = "Mostrar los símbolos de los asistentes en los anillos";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "El símbolo de cada asistente, el de su tarjeta, dibujado en pequeño en el centro de sus anillos, o en su esquina cuando tres anillos dejan muy poco espacio, para cuando cuesta distinguir los colores de los asistentes.";
+"Show news in the notch" = "Mostrar novedades en la muesca";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Cuando una sesión empieza a esperarte o termina un turno, la franja junto a la muesca nombra el proyecto y el motivo durante cuatro segundos, en el espacio que deja la barra de menús. Haz clic para abrir el panel en esa sesión. Mientras compartes la pantalla, el proyecto se omite.";
+"Glow under the notch for news" = "Brillo bajo la muesca para las novedades";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Una luz bajo la muesca para las mismas novedades: azul para una espera, blanca para un final, que se desvanece a los tres segundos; queda un azul tenue mientras una sesión sigue esperando. Con Reducir movimiento es un tinte fijo.";

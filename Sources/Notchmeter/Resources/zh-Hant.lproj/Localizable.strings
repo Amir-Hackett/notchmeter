@@ -847,3 +847,15 @@
 "In progress" = "進行中";
 "Completed" = "已完成";
 "The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "每則提示的第一行（最多 96 個字元）以及 Claude Code 任務清單的文字，由 hook 送出，只保存在執行中的 App 裡。關閉後，App 會在保存之前丟棄兩者：該列改為顯示專案，任務清單只顯示數量。無論此項如何設定，分享螢幕時兩者都會隱藏。";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "需要核准";
+"Question" = "問題";
+"Finished" = "已完成";
+"Opens the panel on this session" = "在此工作階段上打開面板";
+"Show assistant symbols in the rings" = "在圓環中顯示助手符號";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "每個助手的符號（即其卡片上的符號）以小尺寸畫在圓環中央；三個圓環留下的空間不夠時畫在圓環的角上。適用於難以分辨各助手顏色的情況。";
+"Show news in the notch" = "在瀏海處顯示動態";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "當工作階段開始等待你或完成一輪時，瀏海旁的條帶會在選單列留出的空間內顯示專案和原因，持續四秒。點按即可在該工作階段上打開面板。分享螢幕時不顯示專案。";
+"Glow under the notch for news" = "有動態時在瀏海下方發光";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "為同樣的動態在瀏海下方亮起光暈：等待為藍色，完成為白色，三秒後漸隱；工作階段仍在等待時保留淡淡的藍色。開啟「減少動態效果」時為靜止的色調。";
