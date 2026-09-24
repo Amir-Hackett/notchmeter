@@ -833,3 +833,9 @@
 "idle %@" = "idle %@";
 "Clear the idle sessions; each comes back if it does anything" = "Clear the idle sessions; each comes back if it does anything";
 "Remove from the list; it comes back if the session does anything" = "Remove from the list; it comes back if the session does anything";
+"Last crash report" = "Last crash report";
+"None on this Mac" = "None on this Mac";
+"Copy crash report" = "Copy crash report";
+"Show in Finder" = "Show in Finder";
+"The crash report could not be read." = "The crash report could not be read.";
+"The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report.";

@@ -65,6 +65,18 @@ has the full ladder).
   `scripts/release.sh`'s claimed-versus-granted check leaves the `com.apple.security.*` namespace out for exactly
   this reason; `NSAppleEventsUsageDescription` in `scripts/Info.plist` is the sentence the dialog shows.
 
+## Crash reports, read locally and never sent
+
+*Settings › Advanced › Diagnostics › Last crash report* shows the date of the newest report macOS wrote for
+Notchmeter, with *Copy crash report* and *Show in Finder*. It needs no permission: the folder is your own.
+
+- **What it reads.** The file names and modification dates in `~/Library/Logs/DiagnosticReports`, keeping only
+  `Notchmeter-….ips` and `Notchmeter_….crash`; and, on *Copy crash report* alone, the first 256 KB of the newest
+  one. The code is `CrashReports` in [`Diagnostics.swift`](../Sources/Notchmeter/Diagnostics.swift).
+- **When it reads.** Each time the Diagnostics disclosure opens, off the main thread; never at launch.
+- **Where it goes.** Nowhere. There is no crash reporter and no upload: the copy puts the text on your clipboard,
+  with your home folder replaced by `~` as *Copy diagnostics* does, for you to paste into a bug report or not.
+
 ## Why the grants keep disappearing
 
 macOS ties an Accessibility grant — and the Keychain grant for Claude Code's login — to the identity a binary is

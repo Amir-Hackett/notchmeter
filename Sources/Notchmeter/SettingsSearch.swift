@@ -82,7 +82,8 @@ enum SettingsSearch {
         add(.privacy, L("Advanced"), L("Privacy"), L("Hide usage while the screen is shared or recorded"), L("Ask for Keychain access"),
             L("Local API on 127.0.0.1:%ld", Int(LocalAPI.port)))
         add(.advanced, L("Peak hours (Anthropic's tighter session limits)"), L("Export history…"), L("Reset All Settings…"))
-        add(.diagnostics, L("Diagnostics"), L("Route requests through"), L("Debug logging"), L("Copy diagnostics"), L("Rate per dollar"))
+        add(.diagnostics, L("Diagnostics"), L("Route requests through"), L("Debug logging"), L("Copy diagnostics"), L("Rate per dollar"),
+            L("Last crash report"), L("Copy crash report"))
         return rows
     }
 

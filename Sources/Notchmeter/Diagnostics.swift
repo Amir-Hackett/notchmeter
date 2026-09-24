@@ -55,9 +55,74 @@ enum Diagnostics {
     }
 
     @MainActor
-    static func copy(_ text: String) {
+    static func copy(_ text: String, kind: String = "diagnostics") {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
-        Oracle.shared.emit("clipboard", ["kind": "diagnostics", "length": text.count])
+        Oracle.shared.emit("clipboard", ["kind": kind, "length": text.count])
+    }
+}
+
+/// The newest crash report macOS wrote for this app, shown under Settings › Advanced › Diagnostics with a copy and
+/// a Show in Finder.
+///
+/// Local only, and on purpose: the app has no crash reporter and sends nothing anywhere. macOS already writes a
+/// report to `~/Library/Logs/DiagnosticReports` when a process dies, and the only thing missing was a way to find
+/// it without knowing that folder exists; a bug report that says "it crashed" is answered far faster with the
+/// report pasted in. The folder is read when the Diagnostics disclosure opens, never at launch or at layout, and
+/// off the main thread, since it holds every app's reports and can be slow to list on a cold disk.
+enum CrashReports {
+    struct Report: Equatable, Sendable {
+        let url: URL
+        let modified: Date
+    }
+
+    /// The most a copy reads. An `.ips` with a full thread dump runs to a few hundred kilobytes at most, and the
+    /// part a reader needs (the exception, the crashed thread) sits at the top; a report the size of a runaway
+    /// recursion's is cut here rather than put on the clipboard whole.
+    static let readLimit = 256 * 1024
+
+    static var folder: URL { Paths.home.appendingPathComponent("Library/Logs/DiagnosticReports") }
+
+    /// Whether a file name is one of this app's reports: `Notchmeter-2026-09-24-101010.ips` from macOS 12 on,
+    /// `Notchmeter_2026-09-24-101010_Mac.crash` before. A separator after the name is required, so another app
+    /// whose name merely starts with this one's is not taken for it.
+    static func isReport(_ name: String, app: String = AppInfo.name) -> Bool {
+        guard name.hasPrefix(app), let separator = name.dropFirst(app.count).first, "-_.".contains(separator) else { return false }
+        let ext = (name as NSString).pathExtension.lowercased()
+        return ext == "ips" || ext == "crash"
+    }
+
+    /// The newest of this app's reports among a folder's entries, by modification date; nil when there is none.
+    /// The pure half of `newest(in:)`, so the choice is testable without a folder of real crashes.
+    static func newest(_ entries: [Report], app: String = AppInfo.name) -> Report? {
+        entries.filter { isReport($0.url.lastPathComponent, app: app) }.max { $0.modified < $1.modified }
+    }
+
+    /// The newest report in the folder, or nil when there is none or the folder cannot be listed. Blocking disk
+    /// IO: call it off the main thread.
+    static func newest(in folder: URL = folder) -> Report? {
+        let keys: Set<URLResourceKey> = [.contentModificationDateKey, .isRegularFileKey]
+        guard let urls = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles]) else { return nil }
+        let entries = urls.compactMap { url -> Report? in
+            guard isReport(url.lastPathComponent), let values = try? url.resourceValues(forKeys: keys),
+                  values.isRegularFile == true, let modified = values.contentModificationDate else { return nil }
+            return Report(url: url, modified: modified)
+        }
+        return newest(entries)
+    }
+
+    /// The report's first `limit` bytes as text, scrubbed of the home folder the way Copy diagnostics is, with a
+    /// last line saying so when it was cut. Nil when the file cannot be read. Blocking disk IO: call it off the
+    /// main thread.
+    static func text(of url: URL, limit: Int = readLimit, home: String = Paths.home.path) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: limit + 1) else { return nil }
+        var text = String(decoding: data.prefix(limit), as: UTF8.self)
+        if data.count > limit { text += "\n[cut at \(limit / 1024) KB]" }
+        // An `.ips` body is JSON, which may write the path with escaped slashes; scrub that spelling too.
+        guard !home.isEmpty else { return text }
+        return text.replacingOccurrences(of: home, with: "~")
+            .replacingOccurrences(of: home.replacingOccurrences(of: "/", with: "\\/"), with: "~")
     }
 }

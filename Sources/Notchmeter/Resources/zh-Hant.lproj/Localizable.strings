@@ -817,3 +817,9 @@
 "idle %@" = "閒置 %@";
 "Clear the idle sessions; each comes back if it does anything" = "清除閒置的工作階段；有新動靜時會重新出現";
 "Remove from the list; it comes back if the session does anything" = "從清單中移除；工作階段有任何動作時會再出現";
+"Last crash report" = "最近的當機報告";
+"None on this Mac" = "此 Mac 上沒有";
+"Copy crash report" = "拷貝當機報告";
+"Show in Finder" = "在 Finder 中顯示";
+"The crash report could not be read." = "無法讀取當機報告。";
+"The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ 當機時 macOS 寫入 ~/Library/Logs/DiagnosticReports 的最新報告。它只留在這台 Mac 上：「拷貝」會把它放到剪貼簿，並隱去你的個人專屬檔案夾路徑，供你貼到錯誤回報中。";

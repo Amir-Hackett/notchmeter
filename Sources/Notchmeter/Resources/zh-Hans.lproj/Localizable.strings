@@ -833,3 +833,9 @@
 "idle %@" = "空闲 %@";
 "Clear the idle sessions; each comes back if it does anything" = "清除空闲的会话；有新动静时会重新出现";
 "Remove from the list; it comes back if the session does anything" = "从列表中移除；会话有任何动作时会再出现";
+"Last crash report" = "最近的崩溃报告";
+"None on this Mac" = "此 Mac 上没有";
+"Copy crash report" = "复制崩溃报告";
+"Show in Finder" = "在访达中显示";
+"The crash report could not be read." = "无法读取崩溃报告。";
+"The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ 崩溃时 macOS 写入 ~/Library/Logs/DiagnosticReports 的最新报告。它只留在这台 Mac 上：“复制”会把它放到剪贴板，并隐去你的个人文件夹路径，供你粘贴到错误报告中。";

@@ -817,3 +817,9 @@
 "idle %@" = "유휴 %@";
 "Clear the idle sessions; each comes back if it does anything" = "유휴 세션을 지웁니다. 활동이 생기면 다시 표시됩니다";
 "Remove from the list; it comes back if the session does anything" = "목록에서 제거합니다. 세션에 움직임이 있으면 다시 나타납니다";
+"Last crash report" = "마지막 충돌 보고서";
+"None on this Mac" = "이 Mac에는 없음";
+"Copy crash report" = "충돌 보고서 복사";
+"Show in Finder" = "Finder에서 보기";
+"The crash report could not be read." = "충돌 보고서를 읽을 수 없습니다.";
+"The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@이(가) 충돌했을 때 macOS가 ~/Library/Logs/DiagnosticReports에 기록한 최신 보고서입니다. 이 Mac 밖으로 나가지 않습니다. 복사하면 홈 폴더 경로를 가린 채 클립보드에 담기므로 버그 보고서에 붙여 넣으세요.";
