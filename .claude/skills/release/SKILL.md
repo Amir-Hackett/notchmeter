@@ -114,8 +114,10 @@ gh release view "v$VERSION" --json tagName,isPrerelease,assets \
   -q '"prerelease=\(.isPrerelease)", (.assets[] | "  \(.name)")'
 ```
 
-It should carry `Notchmeter.dmg` and `appcast.xml`, and **`prerelease=true`** - `release.yml` publishes every `v*`
-tag as a prerelease on purpose, so `releases/latest` stays on the last promoted build until step 6 has passed. If it
+It should carry `Notchmeter.dmg` and `appcast.xml`, usually a `Notchmeter<build>-<older build>.delta` or three beside
+them (docs/release.md, "Delta updates"; the job summary says when there are none, and the log says why), and
+**`prerelease=true`** - `release.yml` publishes every `v*` tag as a prerelease on purpose, so `releases/latest` stays
+on the last promoted build until step 6 has passed. If it
 comes back `prerelease=false`, something published it outside the workflow: stop, and do not promote anything until
 step 6 has run against it.
 
