@@ -6,7 +6,9 @@ import SwiftUI
 /// the card whenever it leads, so the card's own title line no longer repeats it. A row says what its session is
 /// working on, which assistant, branch and terminal it runs in, how long the turn has run, and whether it is
 /// waiting on the reader. What needs the reader first, then what is working, then what just finished, then idle,
-/// newest first within each; `rowCap` rows and then a count of the rest. With more than one project live the rows
+/// newest first within each; as many rows as Preferences.sessionRows asks (four to ten, `rowCap` by default) and then
+/// a count of the rest. A row leads with its conversation's title or its project (Preferences.sessionRowLead,
+/// `line`). With more than one project live the rows
 /// sit under a small header per project ("notchmeter · 2"), the projects in the order of their most urgent row, so
 /// grouping never pushes a wait below something that is only working. Idle
 /// rows are drawn quieter and clock their silence, not their age, and *Clear* in the header sets every one of them
@@ -35,6 +37,8 @@ struct SessionsCard: View {
     var advice: [Advice] = []
     @Environment(\.density) private var density
 
+    /// The rows drawn before "+N more" when nothing else is asked: the cap the card had before Preferences.sessionRows
+    /// made it a choice, and that setting's default.
     static let rowCap = 6
 
     /// One row, computed once per tick from the session it stands for.
@@ -51,6 +55,9 @@ struct SessionsCard: View {
         let id: String
         let tool: ToolID
         let title: String
+        /// The conversation's title on the second line, when the row leads with its project instead
+        /// (SessionRowLead.project); nil otherwise, and whenever titles are hidden.
+        var detail: String? = nil
         /// The assistant's name: the one chip on the title line.
         let chips: [String]
         /// The second line: the branch, the terminal or editor's short name, and the host for a remote session.
@@ -85,21 +92,24 @@ struct SessionsCard: View {
         let rows: [Row]
     }
 
-    /// The rows for `sessions` (newest first), live ones ahead of idle ones, and how many were left off. The sort
-    /// is stable, so recency still orders each group, and six idle terminals can no longer push a working one off.
-    static func rows(_ sessions: [AgentSession], hideTitles: Bool, jump: Bool, now: Date) -> (rows: [Row], more: Int) {
+    /// The rows for `sessions` (newest first), live ones ahead of idle ones, at most `cap` of them, and how many
+    /// were left off. The sort is stable, so recency still orders each group, and a run of idle terminals can no
+    /// longer push a working one off.
+    static func rows(_ sessions: [AgentSession], hideTitles: Bool, jump: Bool, now: Date, cap: Int = rowCap,
+                     lead: SessionRowLead = .title) -> (rows: [Row], more: Int) {
         func status(_ session: AgentSession) -> Row.Status {
             session.isWaiting ? .waiting : session.isWorking ? .working : session.finish(now: now) != nil ? .finished : .idle
         }
         // With more than one project live every row sits under its project's header (`groups`), so a row with no
         // title of its own says something the header does not rather than the project again.
         let grouped = Set(sessions.map(groupName(of:))).count > 1
-        let alike = alike(sessions, hideTitles: hideTitles, grouped: grouped)
+        let alike = alike(sessions, hideTitles: hideTitles, grouped: grouped, lead: lead)
         let ordered = sessions.enumerated().sorted { a, b in
             let (ra, rb) = (status(a.element).rank, status(b.element).rank)
             return ra != rb ? ra < rb : a.offset < b.offset
         }.map(\.element)
-        let rows = ordered.prefix(rowCap).map { session -> Row in
+        let cap = max(1, cap)
+        let rows = ordered.prefix(cap).map { session -> Row in
             let status = status(session)
             let finished = status == .finished
             // A row is a button only where the resolver has somewhere to go: a reference that names a program and
@@ -109,20 +119,20 @@ struct SessionsCard: View {
             let place = Self.place(of: session)
             let agents = session.agents.sorted { $0.value != $1.value ? $0.value < $1.value : $0.key < $1.key }
                 .map { Row.Agent(id: $0.key, since: $0.value) }
-            let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped, alike: alike.contains(session.id))
-            return Row(id: session.id, tool: session.tool, title: lines.title, chips: [session.tool.displayName],
+            let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped, alike: alike.contains(session.id), lead: lead)
+            return Row(id: session.id, tool: session.tool, title: lines.title, detail: lines.detail, chips: [session.tool.displayName],
                        branch: lines.branch, place: lines.place, host: lines.host, group: groupName(of: session),
                        since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
                        status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
                        todos: hideTitles ? session.todos?.withoutContent() : session.todos)
         }
-        return (rows, max(0, sessions.count - rowCap))
+        return (rows, max(0, sessions.count - cap))
     }
 
     /// The rows in project groups. One project, one headerless group. More than one, a group per project in the
     /// order of its most urgent row (the rows arrive worst first, so that is the order of each project's first
     /// row), and the rows keep their order inside it; so a wait still comes before any working row of another
-    /// project. The count is taken over every session, including the ones past `rowCap`.
+    /// project. The count is taken over every session, including the ones past the cap.
     static func groups(_ rows: [Row], sessions: [AgentSession]) -> [Group] {
         let counts = Dictionary(grouping: sessions, by: groupName(of:)).mapValues(\.count)
         guard counts.count > 1 else { return rows.isEmpty ? [] : [Group(name: nil, count: sessions.count, rows: rows)] }
@@ -155,17 +165,34 @@ struct SessionsCard: View {
     /// A row that would read word for word like another of its project's (`alike`: two Cursor chats on one
     /// branch, neither of which has a title) is told apart by when the app first heard of it instead, "First seen 2:04 PM", with the
     /// branch kept on the second line.
-    static func line(of session: AgentSession, place: String?, hideTitles: Bool, grouped: Bool, alike: Bool = false)
-        -> (title: String, branch: String?, place: String?, host: String?) {
+    ///
+    /// Leading with the project (SessionRowLead.project) turns a titled row over: the project leads, and the
+    /// conversation's title opens the second line (`detail`) before the branch and the terminal. Under a project
+    /// header the project is already said, so the row leads with its branch, else its terminal, with the title under
+    /// it; one with neither leads with its title as it would anyway, rather than repeat the header. A row with no
+    /// title of its own already leads with where it runs, so the setting leaves it as it is.
+    static func line(of session: AgentSession, place: String?, hideTitles: Bool, grouped: Bool, alike: Bool = false,
+                     lead: SessionRowLead = .title) -> (title: String, detail: String?, branch: String?, place: String?, host: String?) {
         let host = session.host.map { "@\($0)" }
-        if !hideTitles, let title = session.displayTitle { return (title, session.branch, place, grouped ? nil : host) }
-        if alike { return (firstSeen(session.started), session.branch, place, grouped ? nil : host) }
+        if !hideTitles, let title = session.displayTitle {
+            if lead == .project {
+                if grouped {
+                    if let branch = session.branch { return (branch, title, nil, place, nil) }
+                    if let place { return (place, title, nil, nil, nil) }
+                } else {
+                    let project = Self.title(of: session, hideTitles: true)
+                    return (project, title, session.branch, place, host.map(project.contains) == true ? nil : host)
+                }
+            }
+            return (title, nil, session.branch, place, grouped ? nil : host)
+        }
+        if alike { return (firstSeen(session.started), nil, session.branch, place, grouped ? nil : host) }
         if grouped {
-            if let branch = session.branch { return (branch, nil, place, nil) }
-            if let place { return (place, nil, nil, nil) }
+            if let branch = session.branch { return (branch, nil, nil, place, nil) }
+            if let place { return (place, nil, nil, nil, nil) }
         }
         let fallback = Self.title(of: session, hideTitles: true)
-        return (fallback, session.branch, place, grouped || host.map(fallback.contains) == true ? nil : host)
+        return (fallback, nil, session.branch, place, grouped || host.map(fallback.contains) == true ? nil : host)
     }
 
     /// "First seen 2:04 PM", in the reader's own time format.
@@ -182,11 +209,11 @@ struct SessionsCard: View {
     /// The sessions whose row, with no title of its own, would read word for word like another row of its
     /// project: same fallback title, same second line. Two such rows cannot be told apart, so each says when it
     /// was first seen instead (`line`).
-    static func alike(_ sessions: [AgentSession], hideTitles: Bool, grouped: Bool) -> Set<String> {
+    static func alike(_ sessions: [AgentSession], hideTitles: Bool, grouped: Bool, lead: SessionRowLead = .title) -> Set<String> {
         struct Key: Hashable { let group, title: String; let branch, place, host: String? }
         let untitled = sessions.filter { hideTitles || $0.displayTitle == nil }
         let byLine = Dictionary(grouping: untitled) { session -> Key in
-            let line = line(of: session, place: place(of: session), hideTitles: hideTitles, grouped: grouped)
+            let line = line(of: session, place: place(of: session), hideTitles: hideTitles, grouped: grouped, lead: lead)
             return Key(group: groupName(of: session), title: line.title, branch: line.branch, place: line.place, host: line.host)
         }
         return Set(byLine.values.filter { $0.count > 1 }.flatMap { $0.map(\.id) })
@@ -227,7 +254,8 @@ struct SessionsCard: View {
         TimelineView(.periodic(from: .now, by: sessions.working.isEmpty && sessions.waiting.isEmpty ? 60 : 1)) { context in
             // Titles off hides them here too, whatever the tracker still holds (the store clears it, but a value can
             // never be drawn under a setting that says not to).
-            let (rows, more) = Self.rows(sessions.all, hideTitles: store.hidesFigures || !prefs.sessionTitles, jump: prefs.jumpToTerminal, now: context.date)
+            let (rows, more) = Self.rows(sessions.all, hideTitles: store.hidesFigures || !prefs.sessionTitles, jump: prefs.jumpToTerminal, now: context.date,
+                                         cap: prefs.sessionRows, lead: prefs.sessionRowLead)
             let groups = Self.groups(rows, sessions: sessions.all)
             let lines = AdvicePlacement.sessionLines(advice, needsYou: rows.filter(\.needsYou).map { ($0.id, $0.tool) },
                                                      waiting: sessions.waiting.map { ($0.id, $0.tool) },
@@ -477,8 +505,14 @@ private struct SessionRow: View {
                         .foregroundStyle(row.status == .idle ? Caption.style : AnyShapeStyle(.primary))
                     ForEach(row.chips, id: \.self) { Chip(text: $0).help(L("The assistant running this session")) }
                 }
-                if row.branch != nil || !placeParts.isEmpty {
+                if row.detail != nil || row.branch != nil || !placeParts.isEmpty {
                     HStack(spacing: 4) {
+                        // The conversation's title, when the project leads: it gives way before the branch and the
+                        // terminal do, since the title line above already says where the session runs.
+                        if let detail = row.detail {
+                            Text(verbatim: detail).lineLimit(1).truncationMode(.tail).layoutPriority(-1)
+                            if row.branch != nil || !placeParts.isEmpty { Text(verbatim: "·") }
+                        }
                         if let branch = row.branch {
                             Image(systemName: "arrow.triangle.branch").font(.caption2)
                             Text(verbatim: branch).lineLimit(1).truncationMode(.middle)
@@ -500,7 +534,7 @@ private struct SessionRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(row.title)
-        .accessibilityValue(Spoken.line(statusText, row.chips.joined(separator: ", "), row.branch, placeParts.joined(separator: ", "),
+        .accessibilityValue(Spoken.line(statusText, row.detail, row.chips.joined(separator: ", "), row.branch, placeParts.joined(separator: ", "),
                                         ResetText.duration(max(0, now.timeIntervalSince(row.since))), row.note.map(noteText),
                                         advice.isEmpty ? nil : advice.map(Spoken.phrase).joined(separator: " ")))
     }

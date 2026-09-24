@@ -191,7 +191,7 @@
 "On a trial" = "試用中";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "開啟時，應用程式在沒有新鮮狀態列替代的情況下，每五分鐘用 Claude Code 自己的登入讀取 api.anthropic.com 的用量端點。關閉時只依賴狀態列，即 Anthropic 記錄在案的管道：Claude 環只在 Claude Code 完成一輪後填滿，且從不請求該端點。";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later." = "在 ~/.claude/settings.json 中加入一筆項目，Claude Code 就能在工作階段開始、一輪結束或等待你時通知瀏海；狀態列則在每一輪之後交出上下文佔用和官方限額。兩者都會先備份；之後可在「設定 › 整合」中修復或移除。";
-"One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "hook 回報的每個工作階段一列，最新的在前：它在做什麼、在哪個助理和哪個終端機中執行、這一輪已跑多久，以及是否在等你。顯示六列，其餘以數量計。";
+"One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. As many rows as set below, then a count of the rest." = "hook 回報的每個工作階段一列，最新的在前：它在做什麼、在哪個助理和哪個終端機中執行、這一輪已跑多久，以及是否在等你。按下方的設定顯示若干列，其餘以數量計。";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "僅當你選擇「讀數 › 自動」時需要，它讓讀數避開最前方 App 的選單標題。它只讀取選單列的幾何位置，別無其他。";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "僅用於跳至某個工作階段的終端機視窗，且只在你第一次跳轉時要求。App 中沒有其他部分會操控別的 App。";
 "Open Automation settings…" = "打開自動化設定…";
@@ -902,3 +902,28 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "將此專案的 Cursor 視窗移到前面（無法要求 Cursor 開啟某一個對話）";
 "First seen %@" = "首次發現於 %@";
+
+/* Panel controls: rows at once, the row's lead, the closed notch while working and quiet, scroll a ring to retarget it, a switch per display, the week on the Cost row (SessionsCard, ClosedNotch, RingRetarget, ScreenSelection, WeekSpend, SettingsWindow) */
+"Chosen displays" = "所選顯示器";
+"Show on these displays" = "在這些顯示器上顯示";
+"At least one display stays on." = "至少保留一台顯示器開啟。";
+"A display you have not switched is on when it has a notch. Each switch is remembered by the display's hardware identity, so it holds when the display is plugged in again." = "未手動切換過的顯示器，有瀏海時預設開啟。每個開關按顯示器的硬體識別記憶，重新連接後依然有效。";
+"Scroll over a ring, sideways with two fingers or with a mouse wheel, to change the window it watches; the choice is kept, and each assistant's Options under Assistants holds the same choice." = "在圓環上捲動（雙指橫向滑動或使用滑鼠滾輪）可切換它顯示的視窗；選擇會被保留，「助理」中各助理的「選項」也提供同樣的選擇。";
+"While an assistant works" = "助理工作時";
+"When nothing is running" = "沒有任務執行時";
+"Rings or numbers" = "圓環或數字";
+"Assistant symbols" = "助手符號";
+"Nothing" = "不顯示";
+"What the closed notch shows while a session is working, waiting for you or has just finished, and for five seconds after, so a quick turn does not flicker." = "工作階段正在工作、等待你或剛剛完成時，以及之後五秒內，收起的瀏海顯示什麼；這樣短回合不會造成閃爍。";
+"Nothing leaves the notch bare and still opens on hover; the readouts come back while a window is behind pace or out, so a limit running out is never hidden." = "「不顯示」讓瀏海保持空白，懸停仍可開啟；當視窗進度落後或已用完時讀數會恢復，絕不會隱藏即將用盡的額度。";
+"Working means a session is working, waiting for you or has just finished, which needs an assistant's hook. Nothing still opens on hover." = "工作中指工作階段正在工作、等待你或剛剛完成，這需要助理的 hook。選擇「不顯示」時仍可懸停開啟。";
+"Sessions shown at once" = "同時顯示的工作階段數";
+"How many rows the Sessions card draws before it counts the rest as “+N more”." = "工作階段卡片顯示多少列，其餘計為「還有 N 個」。";
+"A row leads with" = "每列首先顯示";
+"Conversation title" = "對話標題";
+"Project name" = "專案名稱";
+"Conversation title puts the prompt's first line on top and the project, branch and terminal under it; project name swaps them. Under a project's header the branch leads instead, since the header already names the project." = "「對話標題」把提示的第一行放在上方，專案、分支和終端機放在下方；「專案名稱」則將兩者對調。在專案標題下改為分支在前，因為標題已寫明專案。";
+"Ring shows %@" = "圓環顯示 %@";
+"Adjust to change which window the ring watches" = "調整以切換圓環顯示的視窗";
+"Last 7 days" = "最近 7 天";
+"Today %1$@ · 7 days %2$@" = "今日 %1$@ · 7 天 %2$@";

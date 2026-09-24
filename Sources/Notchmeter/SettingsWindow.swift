@@ -607,9 +607,14 @@ struct SettingsView: View {
                     Text(titles[index]).tag(DisplayChoice.named(keys[index]))
                 }
             }
-            paragraph(prefs.display == .pointer
-                      ? L("The panel follows the pointer: it moves to the display the pointer has rested on for half a second.")
-                      : L("A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it."))
+            // Chosen displays says the same of its switches under them, so the named display's line would repeat it.
+            if prefs.display == .selected {
+                displaySwitches
+            } else {
+                paragraph(prefs.display == .pointer
+                          ? L("The panel follows the pointer: it moves to the display the pointer has rested on for half a second.")
+                          : L("A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it."))
+            }
             Picker(L("Show"), selection: Binding(
                 get: { prefs.visibility },
                 set: { prefs.visibility = $0; actions.applyLayout() }
@@ -640,6 +645,20 @@ struct SettingsView: View {
             if prefs.compactStyle.showsRings {
                 Toggle(L("Show assistant symbols in the rings"), isOn: Binding(get: { prefs.ringSymbols }, set: { prefs.ringSymbols = $0 }))
                     .help(L("Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart."))
+            }
+            paragraph(L("Scroll over a ring, sideways with two fingers or with a mouse wheel, to change the window it watches; the choice is kept, and each assistant's Options under Assistants holds the same choice."))
+            // The notch layout's alone, so only where a display has a notch for it: an edge or the pill with nothing
+            // in it would be a stray capsule on the desktop.
+            if prefs.edge == .top, NSScreen.screens.contains(where: { $0.safeAreaInsets.top > 0 }) {
+                Picker(L("While an assistant works"), selection: Binding(get: { prefs.closedWhileWorking }, set: { prefs.closedWhileWorking = $0 })) {
+                    ForEach(ClosedNotchMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .help(L("What the closed notch shows while a session is working, waiting for you or has just finished, and for five seconds after, so a quick turn does not flicker."))
+                Picker(L("When nothing is running"), selection: Binding(get: { prefs.closedWhenQuiet }, set: { prefs.closedWhenQuiet = $0 })) {
+                    ForEach(ClosedNotchMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .help(L("Nothing leaves the notch bare and still opens on hover; the readouts come back while a window is behind pace or out, so a limit running out is never hidden."))
+                paragraph(L("Working means a session is working, waiting for you or has just finished, which needs an assistant's hook. Nothing still opens on hover."))
             }
             Picker(L("Panel layout"), selection: Binding(get: { prefs.panelMode }, set: { prefs.panelMode = $0 })) {
                 ForEach(PanelMode.allCases, id: \.self) { Text($0.title).tag($0) }
@@ -685,6 +704,27 @@ struct SettingsView: View {
             }
             Toggle(L("Gestures: swipe down to open, swipe up to close"), isOn: Binding(get: { prefs.gesturesEnabled }, set: { prefs.gesturesEnabled = $0 }))
             Toggle(L("Reduce animations"), isOn: Binding(get: { prefs.reduceAnimations }, set: { prefs.reduceAnimations = $0 }))
+        }
+    }
+
+    /// A switch per connected display under Chosen displays (DisplaySwitches), each by the name the Display
+    /// picker gives it; the last one on cannot be switched off, so the app is never left with nowhere to be.
+    private var displaySwitches: some View {
+        let screens = NSScreen.screens
+        let infos = screens.map(\.info)
+        let titles = DisplayIdentity.titles(for: screens.map(\.localizedName))
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(L("Show on these displays")).font(.subheadline.weight(.semibold))
+            ForEach(Array(infos.enumerated()), id: \.element.key) { index, info in
+                let on = DisplaySwitches.isOn(info, in: infos, switches: prefs.displaySwitches)
+                Toggle(isOn: Binding(get: { on }, set: { prefs.displaySwitches[info.key] = $0; actions.applyLayout() })) {
+                    Text(verbatim: titles[index])
+                }
+                .disabled(on && !DisplaySwitches.canSwitchOff(info, in: infos, switches: prefs.displaySwitches))
+                .help(on && !DisplaySwitches.canSwitchOff(info, in: infos, switches: prefs.displaySwitches)
+                      ? L("At least one display stays on.") : titles[index])
+            }
+            paragraph(L("A display you have not switched is on when it has a notch. Each switch is remembered by the display's hardware identity, so it holds when the display is plugged in again."))
         }
     }
 
@@ -991,7 +1031,15 @@ struct SettingsView: View {
     private var sessionsSection: some View {
         Section {
             Toggle(L("Show a Sessions card on the panel"), isOn: Binding(get: { prefs.sessionsCard }, set: { prefs.sessionsCard = $0 }))
-                .help(L("One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest."))
+                .help(L("One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. As many rows as set below, then a count of the rest."))
+            Picker(L("Sessions shown at once"), selection: Binding(get: { prefs.sessionRows }, set: { prefs.sessionRows = $0 })) {
+                ForEach(Preferences.sessionRowChoices, id: \.self) { Text(verbatim: "\($0)").tag($0) }
+            }
+            .help(L("How many rows the Sessions card draws before it counts the rest as “+N more”."))
+            Picker(L("A row leads with"), selection: Binding(get: { prefs.sessionRowLead }, set: { prefs.sessionRowLead = $0 })) {
+                ForEach(SessionRowLead.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .help(L("Conversation title puts the prompt's first line on top and the project, branch and terminal under it; project name swaps them. Under a project's header the branch leads instead, since the header already names the project."))
             Toggle(L("Show what a session is working on"), isOn: Binding(get: { prefs.sessionTitles }, set: { prefs.sessionTitles = $0 }))
                 .help(L("The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says."))
             Toggle(L("Answer from the notch"), isOn: Binding(get: { prefs.answerFromNotch }, set: { prefs.answerFromNotch = $0 }))

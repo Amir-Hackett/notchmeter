@@ -176,6 +176,42 @@ enum DemoFixtures {
         return NotchNews(reason: reason, sessionID: session.id, tool: session.tool, project: session.project, at: now)
     }
 
+    /// A busier afternoon for the panel's own controls (`AssetRenderer.panelControls`): seven sessions across three
+    /// projects, more than the four rows the picture asks for, so the card counts the rest as "+3 more", and every
+    /// one titled so a row led by its project has a title to put under it. Built from hook events like `sessions`,
+    /// one working turn in each project and the rest idle, and nothing waiting, so the closed notch is in its work
+    /// phase without a wait making the rings urgent.
+    static func crowdedSessions(now: Date) -> SessionTracker {
+        var tracker = SessionTracker()
+        let rows: [(session: String, project: String, branch: String, title: String, working: Bool)] = [
+            ("n1", "notchmeter", "feat/panel-controls", "Scroll a ring to change its window", true),
+            ("n2", "notchmeter", "fix/week-strip", "Draw the last seven days on the Cost row", false),
+            ("n3", "notchmeter", "main", "Tag the 0.9.0 release notes", false),
+            ("s1", "scout", "main", "Draft the Friday sports recap", true),
+            ("s2", "scout", "feat/budget", "Reconcile the budget snapshot", false),
+            ("w1", "site", "guides", "Write the accuracy guide page", true),
+            ("w2", "site", "main", "Fix the pricing page's footnote", false),
+        ]
+        // Collected first and replayed oldest first: `apply` expires against the clock it is handed, so the events of
+        // seven sessions have to reach it in the order they happened rather than one session at a time.
+        var events: [(ago: TimeInterval, message: Hook.Message)] = []
+        for (index, row) in rows.enumerated() {
+            let base = TimeInterval((rows.count - index) * 60 + 600)
+            func add(_ event: String, _ ago: TimeInterval, title: String? = nil) {
+                var message = Hook.Message(event: event, needsInput: false, sessionID: row.session, project: row.project, branch: row.branch)
+                message.title = title
+                events.append((ago, message))
+            }
+            add("SessionStart", base)
+            add("UserPromptSubmit", base - 30, title: row.title)
+            if !row.working { add("Stop", base - 400) }
+        }
+        for event in events.sorted(by: { $0.ago > $1.ago }) {
+            tracker.apply(event.message, now: now.addingTimeInterval(-event.ago))
+        }
+        return tracker
+    }
+
     /// The request id the two request moments carry, so a test or a renderer can address it.
     static let requestID = "demo-request"
     static let notchmeterTitle = "Add a Sessions card between the advice and the tool cards"

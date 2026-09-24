@@ -208,7 +208,7 @@
 "On a trial" = "En periodo de prueba";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "Activado, la app lee el endpoint de uso de api.anthropic.com con el propio inicio de sesión de Claude Code cada cinco minutos mientras no haya una línea de estado reciente que lo sustituya. Desactivado, depende solo de la línea de estado, el canal que documenta Anthropic: el anillo de Claude solo se llena tras un turno de Claude Code y nunca se consulta el endpoint.";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later." = "Una entrada en ~/.claude/settings.json permite que Claude Code avise a la muesca cuando empieza una sesión, termina un turno o te espera, y una línea de estado entrega el llenado del contexto y los límites oficiales tras cada turno. Se hace antes una copia de seguridad de ambos; en Ajustes › Integraciones puedes repararlos o eliminarlos más adelante.";
-"One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "Una fila por cada sesión que informan los hooks, la más reciente primero: en qué está trabajando, qué asistente y en qué terminal se ejecuta, cuánto dura el turno y si te está esperando. Seis filas y luego el recuento del resto.";
+"One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. As many rows as set below, then a count of the rest." = "Una fila por cada sesión que informan los hooks, la más reciente primero: en qué está trabajando, qué asistente y en qué terminal se ejecuta, cuánto dura el turno y si te está esperando. Tantas filas como se fije abajo y luego el recuento del resto.";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Solo si eliges Indicadores › Automático, que aparta los indicadores de los títulos de menú de la app en primer plano. Lee la geometría de la barra de menús y nada más.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Solo para ir a la ventana del terminal de una sesión, la primera vez que lo haces. Ninguna otra parte de la app controla otra app.";
 "Open Automation settings…" = "Abrir ajustes de Automatización…";
@@ -919,3 +919,28 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Trae al frente la ventana de Cursor de este proyecto (a Cursor no se le puede pedir que abra un chat concreto)";
 "First seen %@" = "Visto por primera vez %@";
+
+/* Panel controls: rows at once, the row's lead, the closed notch while working and quiet, scroll a ring to retarget it, a switch per display, the week on the Cost row (SessionsCard, ClosedNotch, RingRetarget, ScreenSelection, WeekSpend, SettingsWindow) */
+"Chosen displays" = "Pantallas elegidas";
+"Show on these displays" = "Mostrar en estas pantallas";
+"At least one display stays on." = "Al menos una pantalla sigue activada.";
+"A display you have not switched is on when it has a notch. Each switch is remembered by the display's hardware identity, so it holds when the display is plugged in again." = "Una pantalla que no has cambiado está activada si tiene muesca. Cada interruptor se recuerda por la identidad de hardware de la pantalla, así que se mantiene al volver a conectarla.";
+"Scroll over a ring, sideways with two fingers or with a mouse wheel, to change the window it watches; the choice is kept, and each assistant's Options under Assistants holds the same choice." = "Desplázate sobre un anillo, de lado con dos dedos o con la rueda del ratón, para cambiar la ventana que sigue; la elección se guarda, y las Opciones de cada asistente en Asistentes ofrecen la misma elección.";
+"While an assistant works" = "Mientras un asistente trabaja";
+"When nothing is running" = "Cuando no hay nada en marcha";
+"Rings or numbers" = "Anillos o cifras";
+"Assistant symbols" = "Símbolos de los asistentes";
+"Nothing" = "Nada";
+"What the closed notch shows while a session is working, waiting for you or has just finished, and for five seconds after, so a quick turn does not flicker." = "Lo que muestra la muesca cerrada mientras una sesión trabaja, te espera o acaba de terminar, y durante cinco segundos más, para que un turno breve no parpadee.";
+"Nothing leaves the notch bare and still opens on hover; the readouts come back while a window is behind pace or out, so a limit running out is never hidden." = "Nada deja la muesca vacía y sigue abriéndose al pasar el puntero; los indicadores vuelven mientras una ventana va por encima del ritmo o se ha agotado, para que nunca se oculte un límite que se acaba.";
+"Working means a session is working, waiting for you or has just finished, which needs an assistant's hook. Nothing still opens on hover." = "Trabajando significa que una sesión trabaja, te espera o acaba de terminar, lo que necesita el hook de un asistente. Con Nada, el panel sigue abriéndose al pasar el puntero.";
+"Sessions shown at once" = "Sesiones visibles a la vez";
+"How many rows the Sessions card draws before it counts the rest as “+N more”." = "Cuántas filas muestra la tarjeta Sesiones antes de contar el resto como «+N más».";
+"A row leads with" = "Cada fila empieza por";
+"Conversation title" = "Título de la conversación";
+"Project name" = "Nombre del proyecto";
+"Conversation title puts the prompt's first line on top and the project, branch and terminal under it; project name swaps them. Under a project's header the branch leads instead, since the header already names the project." = "Título de la conversación pone arriba la primera línea del prompt y debajo el proyecto, la rama y el terminal; Nombre del proyecto los intercambia. Bajo el encabezado de un proyecto va primero la rama, porque el encabezado ya nombra el proyecto.";
+"Ring shows %@" = "El anillo muestra %@";
+"Adjust to change which window the ring watches" = "Ajusta para cambiar la ventana que sigue el anillo";
+"Last 7 days" = "Últimos 7 días";
+"Today %1$@ · 7 days %2$@" = "Hoy %1$@ · 7 días %2$@";

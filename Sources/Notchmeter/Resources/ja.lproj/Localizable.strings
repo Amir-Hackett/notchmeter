@@ -191,7 +191,7 @@
 "On a trial" = "トライアル中";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "オンのとき、新しいステータスラインが代わりにない間は 5 分ごとに Claude Code 自身のログインで api.anthropic.com の使用量エンドポイントを読み取ります。オフのときは Anthropic が文書化した経路であるステータスラインだけに頼ります。Claude のリングは Claude Code のターンの後にのみ埋まり、エンドポイントは一切問い合わせません。";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later." = "~/.claude/settings.json の一項目で、セッションの開始、ターンの終了、あなたを待っているときに Claude Code がノッチへ知らせ、ステータスラインは毎ターン後にコンテキストの使用率と公式の上限を渡します。どちらも先にバックアップされ、「設定 › 連携」から後で修復や削除ができます。";
-"One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "フックが報告したセッションごとに 1 行、新しい順に表示します。何に取り組んでいるか、どのアシスタントとどのターミナルで動いているか、ターンの経過時間、あなたを待っているかどうか。6 行まで表示し、残りは件数で示します。";
+"One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. As many rows as set below, then a count of the rest." = "フックが報告したセッションごとに 1 行、新しい順に表示します。何に取り組んでいるか、どのアシスタントとどのターミナルで動いているか、ターンの経過時間、あなたを待っているかどうか。下で設定した行数まで表示し、残りは件数で示します。";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "「表示 › 自動」を選んだときだけ。最前面のアプリのメニュータイトルを避けて表示をずらすためで、メニューバーの位置と大きさ以外は何も読みません。";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "セッションのターミナルウインドウへ移動するときだけ、その最初の一回。アプリの他の部分が別のアプリを操作することはありません。";
 "Open Automation settings…" = "オートメーション設定を開く…";
@@ -902,3 +902,28 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "このプロジェクトの Cursor ウインドウを前面に出します（Cursor に特定のチャットを開かせることはできません）";
 "First seen %@" = "最初に検出：%@";
+
+/* Panel controls: rows at once, the row's lead, the closed notch while working and quiet, scroll a ring to retarget it, a switch per display, the week on the Cost row (SessionsCard, ClosedNotch, RingRetarget, ScreenSelection, WeekSpend, SettingsWindow) */
+"Chosen displays" = "選んだディスプレイ";
+"Show on these displays" = "表示するディスプレイ";
+"At least one display stays on." = "少なくとも 1 台のディスプレイはオンのままです。";
+"A display you have not switched is on when it has a notch. Each switch is remembered by the display's hardware identity, so it holds when the display is plugged in again." = "切り替えていないディスプレイは、ノッチがあればオンになります。各スイッチはディスプレイのハードウェア ID で記憶されるため、つなぎ直しても保たれます。";
+"Scroll over a ring, sideways with two fingers or with a mouse wheel, to change the window it watches; the choice is kept, and each assistant's Options under Assistants holds the same choice." = "リングの上で 2 本指で横に、またはマウスホイールでスクロールすると、リングが表示するウィンドウを切り替えられます。選択は保持され、「アシスタント」にある各アシスタントの「オプション」でも同じ選択ができます。";
+"While an assistant works" = "アシスタントの作業中";
+"When nothing is running" = "何も動いていないとき";
+"Rings or numbers" = "リングまたは数値";
+"Assistant symbols" = "アシスタントのシンボル";
+"Nothing" = "何も表示しない";
+"What the closed notch shows while a session is working, waiting for you or has just finished, and for five seconds after, so a quick turn does not flicker." = "セッションが作業中、あなたの応答待ち、または終わったばかりのとき、およびその 5 秒後まで、閉じたノッチに表示するもの。短いターンでちらつかないようにします。";
+"Nothing leaves the notch bare and still opens on hover; the readouts come back while a window is behind pace or out, so a limit running out is never hidden." = "「何も表示しない」ではノッチを空のままにし、ホバーで開くのは変わりません。ウィンドウがペースより遅れているか使い切ったときは表示が戻るため、尽きかけている上限が隠れることはありません。";
+"Working means a session is working, waiting for you or has just finished, which needs an assistant's hook. Nothing still opens on hover." = "作業中とは、セッションが作業中、あなたの応答待ち、または終わったばかりの状態で、アシスタントのフックが必要です。「何も表示しない」でもホバーで開きます。";
+"Sessions shown at once" = "一度に表示するセッション";
+"How many rows the Sessions card draws before it counts the rest as “+N more”." = "セッションカードに何行まで表示し、残りを「他 N 件」と数えるか。";
+"A row leads with" = "行の先頭に表示";
+"Conversation title" = "会話のタイトル";
+"Project name" = "プロジェクト名";
+"Conversation title puts the prompt's first line on top and the project, branch and terminal under it; project name swaps them. Under a project's header the branch leads instead, since the header already names the project." = "「会話のタイトル」ではプロンプトの 1 行目を上に、プロジェクト・ブランチ・ターミナルをその下に表示し、「プロジェクト名」では入れ替えます。プロジェクトの見出しの下では、見出しがすでにプロジェクトを示すため、代わりにブランチを先頭にします。";
+"Ring shows %@" = "リングの表示: %@";
+"Adjust to change which window the ring watches" = "調整するとリングが表示するウィンドウを切り替えます";
+"Last 7 days" = "過去 7 日間";
+"Today %1$@ · 7 days %2$@" = "本日 %1$@ · 7 日間 %2$@";

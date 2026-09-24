@@ -231,6 +231,14 @@ final class UsageStore {
     /// The news the glow under the notch is blooming for (NotchGlow), for `NotchGlow.bloomFor`; nil otherwise.
     /// Separate from `peek` because the two last different times and are switched off separately.
     private(set) var glowNews: NotchNews?
+    /// Whether the closed notch is in its work phase or quiet (ClosedNotch), the hold after the last activity
+    /// included. Stored and observed rather than computed in the view, because the notch is measured from the
+    /// view (NotchController.refreshRegions): a phase that ended on a clock with nothing observed changing would
+    /// leave the hover region the width of readouts the strip no longer draws.
+    private(set) var closedNotchPhase: ClosedNotch.Phase = .quiet
+    @ObservationIgnored private var closedNotchClock = ClosedNotchClock()
+    /// The one look the hold asks for, when it ends with nothing else having changed.
+    @ObservationIgnored private var closedNotchRecheck: Task<Void, Never>?
     /// The latest news announced, kept after its peek has gone so a repeat inside `NotchNews.repeatAfter` is known.
     @ObservationIgnored private(set) var latestNews: NotchNews?
     /// Whether a strip that can show the peek is on screen and collapsed; wired by the app delegate to its notch
@@ -426,7 +434,10 @@ final class UsageStore {
     /// is the one moment that geometry must not move. Once the look has released the finish the guard is false
     /// again, so a turn costs at most one publication however long the pointer plays over the rings.
     func wakeFromIdle() {
-        if showsFinish { attendedAt = Date() }
+        if showsFinish {
+            attendedAt = Date()
+            updateClosedNotch()
+        }
         guard prefs.visibility == .hideWhenIdle else { return }
         wokeAt = Date()
     }
@@ -910,6 +921,7 @@ final class UsageStore {
         self.sessions = sessions
         self.cost = cost
         lastUpdated = now
+        updateClosedNotch(now: now)
     }
 
     /// Puts news on the strip and under it with no clock to take it down, for a still of it (`--render-assets`):
@@ -1287,6 +1299,7 @@ final class UsageStore {
         if attentionNotice?.session.id == id { attentionNotice = nil }
         if result.wasWaiting { withdrawWaiting([id]) }
         applyAwake()
+        updateClosedNotch()
         Oracle.shared.emit("session", ["action": "dismissed", "session": id])
     }
 
@@ -1299,6 +1312,7 @@ final class UsageStore {
         pruneOpenSessionLists()
         if let notice = attentionNotice, removed.contains(notice.session.id) { attentionNotice = nil }
         applyAwake()
+        updateClosedNotch()
         Oracle.shared.emit("session", ["action": "dismissedIdle", "count": removed.count])
     }
 
@@ -1311,6 +1325,7 @@ final class UsageStore {
             pruneOpenSessionLists()
             applyAwake()
         }
+        updateClosedNotch(now: now)
         withdrawWaiting(stopped)
         // A quiet Cursor turn (SessionTracker.quietNudges) is reported as a wait that may be one, through the same
         // notice, rules and attention setting as a wait a hook announced. As a blocking one: what it stands for is
@@ -1519,6 +1534,45 @@ final class UsageStore {
         awakeChanged(hold)
     }
 
+    // MARK: - The closed notch
+
+    /// Re-reads whether anything is active (ClosedNotch.active) and moves the phase, with the hold after activity
+    /// ends; while a hold runs, one look is booked for when it ends. Every path that changes the sessions or the
+    /// signals comes through here: a hook event, the sweep and the signal release it runs, a row removed, and a
+    /// look at the rings that releases a finish. The phase is written only when it changes, since every write
+    /// re-measures the notch (NotchController.observeContent).
+    func updateClosedNotch(now: Date = Date()) {
+        let visible = Set(visibleTools)
+        let active = ClosedNotch.active(sessions: sessions.all.filter { visible.contains($0.tool) },
+                                        signalled: visible.contains { signal($0, now: now) != nil })
+        let recheck = closedNotchClock.update(active: active, now: now)
+        if closedNotchClock.phase != closedNotchPhase {
+            closedNotchPhase = closedNotchClock.phase
+            Oracle.shared.emit("closedNotch", ["phase": closedNotchPhase.rawValue, "shows": closedNotchShows.rawValue])
+        }
+        closedNotchRecheck?.cancel()
+        closedNotchRecheck = nil
+        guard let recheck else { return }
+        closedNotchRecheck = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(0.05, recheck.timeIntervalSince(now))))
+            guard !Task.isCancelled, let self else { return }
+            self.closedNotchRecheck = nil
+            self.updateClosedNotch()
+        }
+    }
+
+    /// What the closed notch draws now: the mode chosen for the phase, the readouts in place of nothing while the
+    /// rings are urgent (ClosedNotch.shows).
+    var closedNotchShows: ClosedNotchMode {
+        ClosedNotch.shows(phase: closedNotchPhase, whileWorking: prefs.closedWhileWorking, whenQuiet: prefs.closedWhenQuiet,
+                          urgent: presence == .urgent)
+    }
+
+    /// One assistant's state for the symbols mode (AgentGlyph).
+    func agentGlyphState(_ tool: ToolID, now: Date = Date()) -> AgentGlyphState {
+        AgentGlyphState.of(signal: signal(tool, now: now), working: sessions.isWorking(tool), sessions: sessions.knownCount(of: tool))
+    }
+
     // MARK: - The hooks (every assistant's) and Claude Code's status line
 
     /// Every event is activity for the tool that sent it; that tool's meter refreshes at most once every 30 s, and
@@ -1553,6 +1607,7 @@ final class UsageStore {
         pruneOpenSessionLists()
         applyAwake()
         armSignalRelease(now: now)
+        updateClosedNotch(now: now)
         // The withdrawal goes first because one message can end a wait and start another for the same session:
         // `apply` seeds stoppedWaiting from `expire`, so a needsInput arriving after its own wait timed out is
         // demoted and re-raised inside the one call, and both lists name it. Delivered first, the withdrawal took
