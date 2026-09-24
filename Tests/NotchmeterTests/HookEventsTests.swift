@@ -159,6 +159,27 @@ import UserNotifications
         #expect(Hook.headObject(of: Data(#"{"hook_event_name":"Stop"}"#.utf8)) == nil)
     }
 
+    /// A failure's `is_interrupt` and `agent_id` can sit past the cut (the reference's payload puts `error`,
+    /// `is_interrupt` and `duration_ms` after `tool_input`), so a failure read only to its head says so on the line
+    /// rather than reading as a try the main loop made.
+    @Test func aFailureCutShortSaysSoRatherThanReadingAsATry() throws {
+        let big = String(repeating: "x", count: 70_000)
+        let whole = #"{"session_id":"s","cwd":"/Users/me/app","hook_event_name":"PostToolUseFailure","tool_name":"Write","tool_input":{"content":""# + big
+            + #""},"tool_use_id":"t1","error":"aborted","is_interrupt":true,"agent_id":"a1","duration_ms":12}"#
+        let cut = Data(whole.utf8).prefix(Hook.quickPayloadLimit)
+        let message = try #require(Hook.message(from: cut, environment: [:], branch: { _ in nil }))
+        #expect(message.truncated)
+        #expect(message.toolFailure?.tool == "Write")
+        #expect(message.toolFailure?.interrupt == false, "the abort sat past the cut, which is why the line says the payload was cut")
+        #expect(message.agentID == nil)
+        #expect(message.userInfo[Hook.truncatedKey] as? Bool == true)
+        #expect(Hook.Message(userInfo: message.userInfo)?.truncated == true)
+        let read = try #require(Hook.message(from: Data(whole.utf8), environment: [:], branch: { _ in nil }))
+        #expect(!read.truncated)
+        #expect(read.userInfo[Hook.truncatedKey] == nil, "a payload read whole writes no key")
+        #expect(read.toolFailure?.interrupt == true)
+    }
+
     /// A move into a worktree is seen as it happens (`CwdChanged` names the new directory), and the row can say the
     /// session runs in one; the worktree's own folder name never travels.
     @Test func aChangeOfDirectoryNamesTheNewProjectAndWhetherItIsAWorktree() throws {
@@ -489,6 +510,48 @@ import UserNotifications
         #expect(tracker.sessions["s"]?.failureStreaks["a1"] == 5)
         tracker.apply(message("Stop"), now: at(60))
         #expect(tracker.sessions["s"]?.failureStreak == 0, "a turn's failures end with it")
+        // A failure whose payload was read only to its head is an unknown, and an unknown is never a try.
+        tracker.apply(message("UserPromptSubmit"), now: at(70))
+        tracker.apply(message(Hook.batchEvent) { $0.batchSize = 1 }, now: at(71))
+        for index in 0..<6 {
+            tracker.apply(message("PostToolUseFailure") {
+                $0.toolFailure = ToolFailure(tool: "Write", interrupt: false)
+                $0.truncated = true
+            }, now: at(72 + Double(index)))
+        }
+        #expect(tracker.sessions["s"]?.failureStreak == 0, "whether a cut-short failure was an abort, or a subagent's, cannot be told")
+        #expect(tracker.stuck(now: at(80)).isEmpty)
+    }
+
+    /// `agent_needs_input` is a background session's wait, landing on the foreground session's id while agent view
+    /// is open: the foreground's own batches and subagents keep going while that session is blocked, so neither
+    /// ends the wait; `agent_completed` does, and a prompt of the foreground's own is still ended by its batch.
+    @Test func aBackgroundSessionsWaitOutlivesTheForegroundsBatchesAndAgents() {
+        var tracker = SessionTracker()
+        tracker.apply(message("UserPromptSubmit"), now: t0)
+        let asked = tracker.apply(Hook.Message(event: "Notification", needsInput: true, sessionID: "s", notificationType: "agent_needs_input"), now: at(5))
+        #expect(asked.startedWaiting?.id == "s")
+        #expect(tracker.sessions["s"]?.waitsOnAgent == true)
+        let batched = tracker.apply(message(Hook.batchEvent) { $0.batchSize = 2 }, now: at(8))
+        #expect(batched.stoppedWaiting.isEmpty)
+        #expect(tracker.sessions["s"]?.isWaiting == true, "the foreground's batch says nothing about the background session")
+        tracker.apply(message("SubagentStart", agent: "a1"), now: at(9))
+        #expect(tracker.sessions["s"]?.isWaiting == true, "nor does a subagent the foreground started")
+        // A prompt of the main loop's own raised beside it does not make the batch proof of both.
+        tracker.apply(Hook.Message(event: "Notification", needsInput: true, sessionID: "s", notificationType: "permission_prompt"), now: at(10))
+        tracker.apply(message(Hook.batchEvent) { $0.batchSize = 1 }, now: at(11))
+        #expect(tracker.sessions["s"]?.isWaiting == true)
+        let done = tracker.apply(Hook.Message(event: "Notification", needsInput: false, sessionID: "s", notificationType: "agent_completed"), now: at(12))
+        #expect(done.stoppedWaiting == ["s"])
+        #expect(tracker.sessions["s"]?.isWorking == true)
+        #expect(tracker.sessions["s"]?.waitsOnAgent == false)
+        tracker.apply(Hook.Message(event: "Notification", needsInput: true, sessionID: "s", notificationType: "permission_prompt"), now: at(20))
+        tracker.apply(message(Hook.batchEvent) { $0.batchSize = 1 }, now: at(22))
+        #expect(tracker.sessions["s"]?.isWorking == true, "the main loop's own prompt is still ended by its batch")
+        // The turn's end clears the flag with the wait, so the next turn's batches speak for themselves again.
+        tracker.apply(Hook.Message(event: "Notification", needsInput: true, sessionID: "s", notificationType: "agent_needs_input"), now: at(30))
+        tracker.apply(message("Stop"), now: at(31))
+        #expect(tracker.sessions["s"]?.waitsOnAgent == false)
     }
 
     /// A batch resolves only once every call in it has, so a permission prompt among them has been answered: the one
@@ -557,13 +620,22 @@ import UserNotifications
     let t0 = DateParsing.iso8601("2026-09-24T12:00:00Z")!
 
     @MainActor
-    func store(_ suite: String, configure: (Preferences) -> Void = { _ in }) -> (UsageStore, UserDefaults) {
+    func store(_ suite: String, providers: [any UsageProvider] = [], configure: (Preferences) -> Void = { _ in }) -> (UsageStore, UserDefaults) {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
         let prefs = Preferences(defaults: defaults)
         configure(prefs)
-        let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
+        let store = UsageStore(prefs: prefs, providers: providers, cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
         return (store, defaults)
+    }
+
+    /// Installed, so Claude Code's events reach the store's refresh gate; never read, because the test swaps the
+    /// read for a count before an event arrives.
+    private struct InstalledProvider: UsageProvider {
+        let tool: ToolID = .claude
+        var refreshInterval: TimeInterval { 300 }
+        func isInstalled() -> Bool { true }
+        func fetch() async throws -> UsageReading { UsageReading(tool: .claude, windows: [], plan: nil, fetchedAt: Date(), observedAt: nil) }
     }
 
     func message(_ event: String, _ configure: (inout Hook.Message) -> Void = { _ in }) -> Hook.Message {
@@ -605,6 +677,76 @@ import UserNotifications
         #expect(!removed.contains("session/s/stuck"))
         store.hookReceived(message(Hook.batchEvent) { $0.batchSize = 6 }, now: t0.addingTimeInterval(20))
         #expect(removed.contains("session/s/stuck"), "a call in the batch worked, so the run ended and its notice is withdrawn")
+        #expect(!removed.contains("session/s/compacting"))
+        store.hookReceived(message("PostCompact") { $0.compaction = .auto }, now: t0.addingTimeInterval(25))
+        #expect(removed.contains("session/s/compacting"), "the compaction ended, so the notice saying it is running comes down")
+    }
+
+    /// The "is compacting" notice comes down however the compaction ends: its `PostCompact`, the turn ending
+    /// first, the sweep retiring one that never reported its end, or the reader removing the session; and a
+    /// removal takes a standing "may be stuck" notice down with it.
+    @MainActor @Test func aCompactingNoticeComesDownHoweverTheCompactionEnds() {
+        let suite = "NotchmeterTests.compactingNotice"
+        let (store, defaults) = store(suite) { $0.notifySessionTrouble = true }
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var removed: [String] = []
+        store.removeNotifications = { removed.append(contentsOf: $0) }
+        func removals(_ kind: String) -> Int { removed.filter { $0 == "session/s/\(kind)" }.count }
+        // The turn ends first.
+        store.hookReceived(message("UserPromptSubmit"), now: t0)
+        store.hookReceived(message("PreCompact") { $0.compaction = .auto }, now: t0.addingTimeInterval(1))
+        store.hookReceived(message("Stop"), now: t0.addingTimeInterval(2))
+        #expect(removals("compacting") == 1)
+        // The sweep retires one that never reported its end.
+        store.hookReceived(message("UserPromptSubmit"), now: t0.addingTimeInterval(10))
+        store.hookReceived(message("PreCompact") { $0.compaction = .manual }, now: t0.addingTimeInterval(11))
+        store.sweepSessions(now: t0.addingTimeInterval(12))
+        #expect(removals("compacting") == 1, "still running, so nothing to withdraw")
+        store.sweepSessions(now: t0.addingTimeInterval(11 + SessionTracker.waitingTimeout))
+        #expect(removals("compacting") == 2)
+        // The reader removes the session, with a compaction running and a run of failures standing.
+        let later = t0.addingTimeInterval(20 + SessionTracker.waitingTimeout)
+        store.hookReceived(message("UserPromptSubmit"), now: later)
+        store.hookReceived(message("PreCompact") { $0.compaction = .auto }, now: later.addingTimeInterval(1))
+        store.hookReceived(message(Hook.batchEvent) { $0.batchSize = 1 }, now: later.addingTimeInterval(2))
+        for index in 0..<5 {
+            store.hookReceived(message("PostToolUseFailure") { $0.toolFailure = ToolFailure(tool: "Bash", interrupt: false) }, now: later.addingTimeInterval(3 + Double(index)))
+        }
+        #expect(store.sessions.stuck(now: later.addingTimeInterval(9)) == ["s"])
+        store.dismissSession("s", now: later.addingTimeInterval(9))
+        #expect(removals("compacting") == 3)
+        #expect(removals("stuck") == 1)
+        #expect(store.sessions.sessions["s"] == nil)
+    }
+
+    /// No in-turn event asks the vendor's endpoint for anything; a `Stop` asks once (and not again inside
+    /// `UsageStore.hookRefreshSpacing`). Pinned on the read itself rather than on the order of `hookReceived`.
+    @MainActor @Test func noInTurnEventReadsTheMeterAndAStopDoes() {
+        let suite = "NotchmeterTests.hookRefresh"
+        let (store, defaults) = store(suite, providers: [InstalledProvider()])
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var reads: [ToolID] = []
+        store.refreshForHook = { reads.append($0) }
+        var second = 0.0
+        func send(_ event: String, _ configure: (inout Hook.Message) -> Void = { _ in }) {
+            second += 1
+            store.hookReceived(message(event, configure), now: t0.addingTimeInterval(second))
+        }
+        send(Hook.batchEvent) { $0.batchSize = 2 }
+        send("PostToolUseFailure") { $0.toolFailure = ToolFailure(tool: "Bash", interrupt: false) }
+        send("PermissionDenied") { $0.denial = Denial(tool: "Bash", kind: .rule) }
+        send("PreCompact") { $0.compaction = .auto }
+        send("PostCompact") { $0.compaction = .auto }
+        send("PostModelSwitch") { $0.modelSwitch = ModelSwitch(from: "claude-opus-5", to: "claude-sonnet-5", source: .auto) }
+        send("TeammateIdle") { $0.teammate = Teammate(key: "researcher", name: "researcher") }
+        send("ElicitationResult") { $0.mcpServer = "linear" }
+        send("CwdChanged")
+        for event in Hook.quietEvents { send(event) }
+        #expect(reads.isEmpty, "the in-turn events change the session and leave the meter alone")
+        send("Stop")
+        #expect(reads == [.claude])
+        send("Stop")
+        #expect(reads == [.claude], "a second stop inside the spacing waits its turn")
     }
 
     /// A batch boundary arrives with every model step: it changes the session's clock, which nothing prints, so it
@@ -777,6 +919,32 @@ import UserNotifications
         #expect(hidden.first { $0.id == "a" }?.note == .mcpInput(server: nil))
         #expect(SessionsCard.sourceText(.auto) == "fell back by itself")
         #expect(SessionsCard.denialText(.noVerdict) == "could not be judged")
+    }
+
+    /// The status line names every Claude row's model, so the chip is drawn only where it tells rows apart or
+    /// opens onto a switch; three rows all saying "Opus 4.6" would say nothing and wrap the extras sooner.
+    @Test func theModelChipIsDrawnOnlyWhereItSaysSomething() throws {
+        var tracker = SessionTracker()
+        for id in ["a", "b", "c"] {
+            tracker.apply(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: id, project: id), now: t0)
+            tracker.statusline(sessionID: id, project: id, model: "Opus 4.6", now: t0)
+        }
+        let same = SessionsCard.rows(tracker.all, hideTitles: false, jump: false, now: t0).rows
+        #expect(same.count == 3)
+        #expect(same.allSatisfy { $0.model == nil }, "one model across every row, and no switch heard")
+        tracker.statusline(sessionID: "c", project: "c", model: "Sonnet 4.6", now: t0.addingTimeInterval(1))
+        let differ = SessionsCard.rows(tracker.all, hideTitles: false, jump: false, now: t0.addingTimeInterval(1)).rows
+        #expect(differ.compactMap(\.model?.name).sorted() == ["Opus 4.6", "Opus 4.6", "Sonnet 4.6"], "the models differ, so every row names its own")
+        var one = SessionTracker()
+        one.apply(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s", project: "s"), now: t0)
+        one.statusline(sessionID: "s", project: "s", model: "Opus 4.6", now: t0)
+        #expect(SessionsCard.rows(one.all, hideTitles: false, jump: false, now: t0).rows.first?.model == nil)
+        var change = Hook.Message(event: "PostModelSwitch", needsInput: false, sessionID: "s")
+        change.modelSwitch = ModelSwitch(from: "claude-opus-4-6", to: "claude-sonnet-4-6", source: .command)
+        one.apply(change, now: t0.addingTimeInterval(1))
+        let switched = try #require(SessionsCard.rows(one.all, hideTitles: false, jump: false, now: t0.addingTimeInterval(1)).rows.first?.model)
+        #expect(switched.name == "Sonnet 4.6")
+        #expect(switched.switches.count == 1, "a switch heard is something the chip opens onto")
     }
 
     @Test func chipsWrapOntoAnotherLineWhenTheRowIsNarrow() {

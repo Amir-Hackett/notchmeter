@@ -64,6 +64,9 @@ enum Hook {
     static let denialKey = "denial"
     static let batchKey = "batch"
     static let worktreeKey = "worktree"
+    /// `true` when the command read the payload only to its head (`Hook.headObject`), so a field past the cut is
+    /// not absent but unread; written only then, so every whole line is byte for byte what it was.
+    static let truncatedKey = "truncated"
     /// The terminal keys, each written only when the hook could read it (TerminalIdentity.swift).
     static let terminalProgramKey = "terminal_program"
     static let terminalBundleKey = "terminal_bundle"
@@ -159,6 +162,11 @@ enum Hook {
         /// Whether `cwd` is a git worktree (ProjectName), read with `project`, so it says something whenever
         /// `project` does. Claude Code's hook alone reads it.
         var worktree = false
+        /// Whether the payload was read only to its head (`Hook.headEvents`, `headObject`): the fields before the
+        /// first bulky one are what they say, and every field after it is unread rather than absent, so a reader
+        /// of one of those (a failure's `is_interrupt`, the `agent_id` a subagent's event carries) must treat this
+        /// message as one that does not say. Never set on a payload read whole.
+        var truncated = false
 
         /// Whether the command holds the socket for the app's answer.
         var awaitsDecision: Bool { request != nil }
@@ -210,6 +218,7 @@ enum Hook {
             }
             batchSize = (userInfo?[Hook.batchKey] as? Int).flatMap { $0 >= 0 ? $0 : nil }
             worktree = userInfo?[Hook.worktreeKey] as? Bool == true
+            truncated = userInfo?[Hook.truncatedKey] as? Bool == true
         }
 
         var userInfo: [String: Any] {
@@ -252,6 +261,7 @@ enum Hook {
             }
             if let batchSize { info[Hook.batchKey] = batchSize }
             if worktree { info[Hook.worktreeKey] = true }
+            if truncated { info[Hook.truncatedKey] = true }
             return info
         }
 
@@ -290,6 +300,11 @@ enum Hook {
     /// whether a wait is worth a banner over a frontmost terminal, because only a stopped session costs anything
     /// by going unseen.
     static let idleNotificationType = "idle_prompt"
+
+    /// The one waiting type that is not the main loop's: "a background session starts waiting on your input while
+    /// agent view is open" (the hooks reference, 2026-09-24). The tracker remembers it (`AgentSession.waitsOnAgent`)
+    /// so the foreground loop's own progress — a batch resolving, a subagent starting — is not read as its end.
+    static let agentInputNotificationType = "agent_needs_input"
 
     /// Notification types that end a wait without a Stop: a subagent finished, the elicitation was answered, or
     /// Claude Code's own quota wait ended.
@@ -351,13 +366,16 @@ enum Hook {
                 : Gemini.recognises(event: event, object: object, environment: environment) ? .antigravity
                 : Copilot.recognises(event: event, object: object) ? .copilot
                 : .claude)
-        return switch vendor {
+        var message: Message? = switch vendor {
         case .claude: Claude.message(event: event, object: object, tool: claimed ?? .claude, branch: branch, requestID: requestID)
         case .codex: Codex.message(event: event, object: object, branch: branch, requestID: requestID)
         case .cursor: Cursor.message(event: event, object: object, environment: environment, branch: branch)
         case .antigravity: Gemini.message(event: event, object: object, environment: environment, branch: branch)
         case .copilot: Copilot.message(event: event, object: object, branch: branch, requestID: requestID)
         }
+        // A head-read message says so on the line, since the app is what weighs a field that sat past the cut.
+        message?.truncated = parsed == nil
+        return message
     }
 
     /// Claude Code's payload (docs/hooks.md). `needsInput(event:notificationType:)` is Claude Code's vocabulary

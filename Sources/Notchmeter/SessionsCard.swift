@@ -130,6 +130,11 @@ struct SessionsCard: View {
         // title of its own says something the header does not rather than the project again.
         let grouped = Set(sessions.map(groupName(of:))).count > 1
         let alike = alike(sessions, hideTitles: hideTitles, grouped: grouped)
+        // The model chip is drawn where it says something: on a row whose model differs from another row's, or one
+        // that has heard a switch and so opens onto how it got there. With the status line installed every Claude
+        // row knows its model, and a line of chips all naming the same one tells the rows apart by nothing while
+        // wrapping the extras sooner on the narrow panel.
+        let modelsDiffer = Set(sessions.compactMap(\.model)).count > 1
         let ordered = sessions.enumerated().sorted { a, b in
             let (ra, rb) = (status(a.element).rank, status(b.element).rank)
             return ra != rb ? ra < rb : a.offset < b.offset
@@ -154,7 +159,9 @@ struct SessionsCard: View {
                           status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
                           todos: hideTitles ? session.todos?.withoutContent() : session.todos)
             row.compaction = compactionMark(of: session)
-            row.model = session.model.map { Row.ModelMark(name: $0, fellBack: session.fellBack, switches: session.modelSwitches) }
+            if let model = session.model, modelsDiffer || !session.modelSwitches.isEmpty {
+                row.model = Row.ModelMark(name: model, fellBack: session.fellBack, switches: session.modelSwitches)
+            }
             row.teammates = hideTitles
                 ? session.idleTeammates.map { Stamped(value: Teammate(key: $0.value.key, name: nil), at: $0.at) }
                 : session.idleTeammates

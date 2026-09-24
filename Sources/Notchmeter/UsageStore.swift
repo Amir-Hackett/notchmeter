@@ -190,6 +190,11 @@ final class UsageStore {
     @ObservationIgnored var emitHookFacts: ([String: Any]) -> Void = { Oracle.shared.emit("hook", $0) }
     /// Notices whose state has passed, to withdraw from Notification Center.
     @ObservationIgnored var removeNotifications: ([String]) -> Void = { _ in }
+    /// The meter read a hook event asks for (`hookReceived`): that tool's endpoint, forced, and the loops
+    /// rescheduled after it. Set in `init` to the store's own read; a test swaps it for a count, which is what pins
+    /// that a `Stop` asks for one read and that no in-turn event (`Hook.quietEvents`) ever asks for any, a promise
+    /// the order of `hookReceived` alone would not keep through a refactor.
+    @ObservationIgnored var refreshForHook: (ToolID) -> Void = { _ in }
     /// True while the panel is open because a request opened it (App.promptRequested on a compact panel): the
     /// panel then draws the request's card alone, and closes again when the request ends. A panel the pointer
     /// had already opened keeps everything and takes the card on top. Cleared by every collapse, and by the
@@ -286,6 +291,13 @@ final class UsageStore {
         }
         // Armed here rather than in `start`: the setting governs what the tracker holds whether or not the loops run.
         observeSessionTitles()
+        refreshForHook = { [weak self] tool in
+            Task { @MainActor in
+                guard let self else { return }
+                await self.refresh(tool, force: true)
+                self.reschedule()
+            }
+        }
     }
 
     /// The tools on screen, in the user's order (Preferences.toolOrder), less the ones with nothing to show while
@@ -1100,6 +1112,26 @@ final class UsageStore {
         removeNotifications(ids.map { Notifier.identifier(session: $0, kind: "waiting") })
     }
 
+    /// Takes down the trouble notices whose state has passed (Notifier's contract: a notice is withdrawn once what
+    /// it announced is over): "may be stuck" for the sessions whose run of failures ended, however it ended, and
+    /// "is compacting" for the ones whose compaction did. Each caller hands in the sessions that were in the state
+    /// before its change and are not after it, so nothing is withdrawn that was not announced. The turn's first
+    /// auto-mode refusal has no notice to withdraw: a refusal is a thing that happened, not a state that passes.
+    private func withdrawTrouble(stuck: Set<String>, compacting: Set<String>) {
+        let identifiers = stuck.sorted().map { Notifier.identifier(session: $0, kind: SessionTrouble.stuck(failures: 0).name) }
+            + compacting.sorted().map { Notifier.identifier(session: $0, kind: SessionTrouble.compacting(context: nil).name) }
+        guard !identifiers.isEmpty else { return }
+        removeNotifications(identifiers)
+    }
+
+    /// The trouble notices standing for `ids` at `now`, for a removal that takes the sessions off the card
+    /// (`dismissSession`, `dismissIdleSessions`): a session the reader has removed is not one to keep a banner for.
+    private func withdrawTrouble(of ids: [String], now: Date) {
+        let removed = ids.compactMap { sessions.sessions[$0] }
+        withdrawTrouble(stuck: Set(removed.filter { $0.mayBeStuck(now: now) }.map(\.id)),
+                        compacting: Set(removed.filter { $0.compacting != nil }.map(\.id)))
+    }
+
     private func remember(_ memory: AlertMemory) {
         if memory != alertMemory {
             alertMemory = memory
@@ -1281,10 +1313,12 @@ final class UsageStore {
     }
 
     /// The Sessions card's Remove (SessionTracker.dismiss): the row goes until the session sends another event.
-    func dismissSession(_ id: String) {
+    func dismissSession(_ id: String, now: Date = Date()) {
         var tracker = sessions
         let result = tracker.dismiss(id)
         guard result.removed else { return }
+        // Read before the tracker is replaced: the notices to take down are the ones the session stood in.
+        withdrawTrouble(of: [id], now: now)
         sessions = tracker
         pruneOpenSessionLists()
         if attentionNotice?.session.id == id { attentionNotice = nil }
@@ -1294,10 +1328,11 @@ final class UsageStore {
     }
 
     /// *Remove all idle sessions* from the card's menu.
-    func dismissIdleSessions() {
+    func dismissIdleSessions(now: Date = Date()) {
         var tracker = sessions
         let removed = tracker.dismissIdle()
         guard !removed.isEmpty else { return }
+        withdrawTrouble(of: removed, now: now)
         sessions = tracker
         pruneOpenSessionLists()
         if let notice = attentionNotice, removed.contains(notice.session.id) { attentionNotice = nil }
@@ -1308,6 +1343,7 @@ final class UsageStore {
     func sweepSessions(now: Date = Date()) {
         var expired = sessions
         let stuckBefore = sessions.stuck(now: now)
+        let compactingBefore = sessions.compacting()
         let stopped = expired.expire(now: now)
         let nudged = expired.quietNudges(now: now)
         if expired != sessions {
@@ -1316,10 +1352,10 @@ final class UsageStore {
             applyAwake()
         }
         withdrawWaiting(stopped)
-        // A run of failures whose last one is now `SessionTracker.stuckFor` old says "may be stuck" no longer, and
-        // neither does a session that went: the clock ends it here.
-        let recovered = stuckBefore.subtracting(sessions.stuck(now: now))
-        if !recovered.isEmpty { removeNotifications(recovered.map { Notifier.identifier(session: $0, kind: SessionTrouble.stuck(failures: 0).name) }) }
+        // A run of failures whose last one is now `SessionTracker.stuckFor` old says "may be stuck" no longer, a
+        // compaction that never reported its end is retired after ten minutes, and neither outlives a session that
+        // went: the clock ends them here.
+        withdrawTrouble(stuck: stuckBefore.subtracting(sessions.stuck(now: now)), compacting: compactingBefore.subtracting(sessions.compacting()))
         // A quiet Cursor turn (SessionTracker.quietNudges) is reported as a wait that may be one, through the same
         // notice, rules and attention setting as a wait a hook announced. As a blocking one: what it stands for is
         // an approval the turn has stopped for, and a non-blocking wait is held back while an editor is in front,
@@ -1570,6 +1606,7 @@ final class UsageStore {
         if !batch || lastActivity[tool].map({ now.timeIntervalSince($0) >= Hook.batchSlack }) ?? true { lastActivity[tool] = now }
         wokeAt = now
         let stuckBefore = sessions.stuck(now: now)
+        let compactingBefore = sessions.compacting()
         var tracker = sessions
         let outcome = tracker.apply(message, now: now)
         let publish = !batch || tracker.differs(from: sessions, slack: Hook.batchSlack)
@@ -1580,9 +1617,9 @@ final class UsageStore {
             applyAwake()
             armSignalRelease(now: now)
         }
-        // A "may be stuck" notice comes down the moment its streak ends, however it ends.
-        let recovered = stuckBefore.subtracting(sessions.stuck(now: now))
-        if !recovered.isEmpty { removeNotifications(recovered.map { Notifier.identifier(session: $0, kind: SessionTrouble.stuck(failures: 0).name) }) }
+        // A "may be stuck" notice comes down the moment its streak ends, however it ends, and an "is compacting"
+        // one the moment the compaction does (`PostCompact`, or the turn ending first).
+        withdrawTrouble(stuck: stuckBefore.subtracting(sessions.stuck(now: now)), compacting: compactingBefore.subtracting(sessions.compacting()))
         // The withdrawal goes first because one message can end a wait and start another for the same session:
         // `apply` seeds stoppedWaiting from `expire`, so a needsInput arriving after its own wait timed out is
         // demoted and re-raised inside the one call, and both lists name it. Delivered first, the withdrawal took
@@ -1632,10 +1669,7 @@ final class UsageStore {
         let urgent = outcome.limitHit != nil || outcome.quotaResumed
         if urgent || (lastHookRefresh[tool].map({ now.timeIntervalSince($0) >= Self.hookRefreshSpacing }) ?? true) {
             lastHookRefresh[tool] = now
-            Task {
-                await refresh(tool, force: true)
-                reschedule()
-            }
+            refreshForHook(tool)
         } else {
             reschedule()
         }
@@ -1717,6 +1751,7 @@ final class UsageStore {
         }
         if message.event == Hook.batchEvent { facts["batch"] = message.batchSize as Any }
         if message.worktree { facts["worktree"] = true }
+        if message.truncated { facts["truncated"] = true }
         return facts
     }
 

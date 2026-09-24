@@ -923,7 +923,7 @@
 "%1$@ is compacting its context in %2$@ by itself, at %3$ld%% full: the conversation so far is being replaced by a summary." = "%1$@ сам сжимает контекст в %2$@ при заполнении %3$ld%%: вся беседа до этого момента заменяется кратким изложением.";
 "%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary." = "%1$@ сам сжимает контекст в %2$@: вся беседа до этого момента заменяется кратким изложением.";
 "%@ may be stuck" = "%@, возможно, застрял";
-"%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them." = "У %1$@ в %3$@ подряд не удались вызовы инструментов: %2$ld, и ни один между ними не прошёл успешно.";
+"%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them." = "У %1$@ в %3$@ %2$ld вызовов инструментов подряд завершились ошибкой, и ни один между ними не прошёл успешно.";
 "%@ was blocked" = "%@ заблокирован";
 "Auto mode refused a %1$@ call in %2$@. The session goes on without it." = "Автоматический режим отклонил вызов %1$@ в %2$@. Сессия продолжается без него.";
 "Needs input" = "Нужен ввод";
@@ -943,7 +943,7 @@
 "worktree" = "worktree";
 "%@ asks for input: answer in the terminal" = "%@ просит ввести данные: ответьте в терминале";
 "An MCP server asks for input: answer in the terminal" = "MCP-сервер просит ввести данные: ответьте в терминале";
-"May be stuck: %ld tool calls failed in a row" = "Возможно, застряла: подряд не удалось вызовов инструментов — %ld";
+"May be stuck: %ld tool calls failed in a row" = "Возможно, застряла: %ld вызовов инструментов подряд завершились ошибкой";
 "Model" = "Модель";
 "%@, fell back by itself" = "%@, автоматический откат";
 "The model this session runs on" = "Модель, на которой работает эта сессия";

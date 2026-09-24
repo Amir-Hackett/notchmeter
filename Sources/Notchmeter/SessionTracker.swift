@@ -390,6 +390,12 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// Whether the wait standing is an MCP server's request for input (`Elicitation`), and which server's.
     var waitsOnMCP = false
     var mcpServer: String?
+    /// Whether the wait standing is a background session's: the `agent_needs_input` notification, which the hooks
+    /// reference (2026-09-24) defines as "a background session starts waiting on your input while agent view is
+    /// open". It lands on the foreground session's id, whose own loop keeps running batches and starting agents
+    /// while that session is blocked, so neither is proof the wait is over; `agent_completed` is, and so is the
+    /// turn ending. Cleared with every end of the wait, like `waitsOnMCP`.
+    var waitsOnAgent = false
     /// Whether the session's working directory is a git worktree, as its last event with a directory said.
     var worktree = false
 
@@ -777,6 +783,7 @@ struct SessionTracker: Equatable, Sendable {
             session.failureStreaks = [:]
             session.failuresSinceBatch = [:]
             session.waitsOnMCP = false
+            session.waitsOnAgent = false
             if message.agentID == nil { session.idleTeammates = [] }
         case "Stop", "StopFailure":
             // The mark is set inside the state machine and above the notification's gate, so `notifyFinished` and
@@ -797,6 +804,7 @@ struct SessionTracker: Equatable, Sendable {
             session.failureStreaks = [:]
             session.failuresSinceBatch = [:]
             session.waitsOnMCP = false
+            session.waitsOnAgent = false
             if message.hitRateLimit {
                 session.limitHitAt = now
                 outcome.limitHit = session
@@ -808,8 +816,9 @@ struct SessionTracker: Equatable, Sendable {
             // the prompt and never the answer, so without it an approved prompt — or one auto mode settled by
             // itself — kept the hand up for the ten-minute timeout, through a turn that was plainly working.
             // A SubagentStop is deliberately not the same proof: a background agent can finish while the main
-            // loop is genuinely held at a prompt.
-            if session.isWaiting { session.state = .working(since: now) }
+            // loop is genuinely held at a prompt. Nor is a start proof about a background session's wait
+            // (`waitsOnAgent`): the foreground loop that started the agent is not the one that is blocked.
+            if session.isWaiting, !session.waitsOnAgent { session.state = .working(since: now) }
             session.pending = nil
         case "SubagentStop":
             if let agentID = message.agentID, session.agents[agentID] != nil {
@@ -853,8 +862,11 @@ struct SessionTracker: Equatable, Sendable {
             if session.idleTeammates.count > Self.teammateLimit { session.idleTeammates.removeFirst(session.idleTeammates.count - Self.teammateLimit) }
         case "PostToolUseFailure":
             // An abort is something that happened to the agent rather than something it tried, so it is not
-            // counted towards a run of failures.
-            if let failure = message.toolFailure, !failure.interrupt {
+            // counted towards a run of failures. Nor is a failure whose payload the command read only to its head
+            // (`Hook.Message.truncated`): `is_interrupt` sits past the cut, so an aborted large call would count as
+            // a try, and its `agent_id` may be past it too, so a subagent's failure would count on the main loop;
+            // an unknown is never what makes a session look stuck.
+            if let failure = message.toolFailure, !failure.interrupt, !message.truncated {
                 let agent = message.agentID ?? ""
                 session.failureStreaks[agent, default: 0] += 1
                 session.failuresSinceBatch[agent, default: 0] += 1
@@ -871,9 +883,10 @@ struct SessionTracker: Equatable, Sendable {
             if !(message.batchSize.map { $0 > 0 && failed >= $0 } ?? false) { session.failureStreaks[agent] = nil }
             // And a permission prompt raised by a call in the main loop's batch has been answered, since the batch
             // could not resolve without it: the one proof of an answered prompt besides a subagent starting (above).
-            // A request the notch is holding cannot be answered this way (its batch waits on it), and a subagent's
-            // batch says nothing about the main loop's prompt.
-            if message.agentID == nil, session.isWaiting, session.pending == nil, !session.waitsOnMCP, !session.quietNudge {
+            // A request the notch is holding cannot be answered this way (its batch waits on it), a subagent's
+            // batch says nothing about the main loop's prompt, and a background session's wait (`waitsOnAgent`) is
+            // not the main loop's at all: the foreground keeps running batches while that session is blocked.
+            if message.agentID == nil, session.isWaiting, session.pending == nil, !session.waitsOnMCP, !session.waitsOnAgent, !session.quietNudge {
                 session.state = .working(since: now)
             }
         case "PermissionDenied":
@@ -918,6 +931,9 @@ struct SessionTracker: Equatable, Sendable {
                 } else {
                     session.waitsOnMCP = false
                 }
+                // A background session's wait is remembered for as long as any wait stands: a prompt of the main
+                // loop's own raised beside it is ended by its batch, and this one is not.
+                if message.notificationType == Hook.agentInputNotificationType { session.waitsOnAgent = true }
             } else if message.clearsWaiting, session.isWaiting {
                 session.state = .working(since: now)
             }
@@ -952,7 +968,10 @@ struct SessionTracker: Equatable, Sendable {
             outcome.requestsEnded.append(EndedRequest(sessionID: id, requestID: hadPending.id))
         }
         if wasWaiting, !session.isWaiting { outcome.stoppedWaiting.append(id) }
-        if !session.isWaiting { session.waitsOnMCP = false }
+        if !session.isWaiting {
+            session.waitsOnMCP = false
+            session.waitsOnAgent = false
+        }
         // A run of failures reaching the threshold is news once, the moment it does; the flag then stays on the row
         // until a call succeeds, the turn ends or the last failure is `stuckFor` old.
         if !wasStuck, session.mayBeStuck(now: now), outcome.trouble == nil {
@@ -983,6 +1002,13 @@ struct SessionTracker: Equatable, Sendable {
         Set(sessions.values.filter { $0.mayBeStuck(now: now) }.map(\.id))
     }
 
+    /// The sessions with a compaction running (`AgentSession.compacting`), by id: compared the same way before and
+    /// after a change, so an "is compacting" notice comes down when the compaction ends, however it ends
+    /// (`PostCompact`, the turn's end, the sweep retiring one that never reported its end, or the session going).
+    func compacting() -> Set<String> {
+        Set(sessions.values.filter { $0.compacting != nil }.map(\.id))
+    }
+
     /// Every request still standing, with the session it stands on, newest first.
     func pending(now: Date) -> [(session: AgentSession, request: PendingRequest)] {
         sessions.values.compactMap { session in session.pending.map { (session, $0) } }
@@ -1000,7 +1026,10 @@ struct SessionTracker: Equatable, Sendable {
         var session = entry.value
         session.pending = nil
         if resumes, session.isWaiting { session.state = .working(since: now) }
-        if !session.isWaiting { session.waitsOnMCP = false }
+        if !session.isWaiting {
+            session.waitsOnMCP = false
+            session.waitsOnAgent = false
+        }
         session.lastEvent = now
         sessions[entry.key] = session
         return session
