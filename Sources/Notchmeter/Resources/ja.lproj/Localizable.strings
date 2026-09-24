@@ -823,3 +823,11 @@
 "Show in Finder" = "Finder に表示";
 "The crash report could not be read." = "クラッシュレポートを読み込めませんでした。";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ がクラッシュしたときに macOS が ~/Library/Logs/DiagnosticReports に書いた最新のレポートです。この Mac の外には出ません。「コピー」はホームフォルダのパスを伏せてクリップボードに入れるので、バグ報告に貼り付けてください。";
+
+/* The panel header: its three buttons (PanelHeader) */
+"Usage Dashboard" = "使用状況ダッシュボード";
+"Settings" = "設定";
+"Open the Usage Dashboard (⌘U)" = "使用状況ダッシュボードを開く（⌘U）";
+"Open Settings (⌘,)" = "設定を開く（⌘,）";
+"How the panel opens, its layout, refreshing and quitting" = "パネルの開き方、レイアウト、更新、終了";
+"Opens a menu" = "メニューを開きます";

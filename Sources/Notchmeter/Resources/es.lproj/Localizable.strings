@@ -839,3 +839,11 @@
 "Show in Finder" = "Mostrar en el Finder";
 "The crash report could not be read." = "No se ha podido leer el informe de fallo.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "El informe más reciente que escribió macOS cuando %@ falló, de ~/Library/Logs/DiagnosticReports. Se queda en este Mac: Copiar lo pone en el portapapeles, sin rastro de tu carpeta de inicio, para que lo pegues en un informe de error.";
+
+/* The panel header: its three buttons (PanelHeader) */
+"Usage Dashboard" = "Panel de uso";
+"Settings" = "Ajustes";
+"Open the Usage Dashboard (⌘U)" = "Abrir el panel de uso (⌘U)";
+"Open Settings (⌘,)" = "Abrir Ajustes (⌘,)";
+"How the panel opens, its layout, refreshing and quitting" = "Cómo se abre el panel, su disposición, la actualización y la salida";
+"Opens a menu" = "Abre un menú";

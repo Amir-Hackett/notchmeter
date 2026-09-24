@@ -823,3 +823,11 @@
 "Show in Finder" = "Finder에서 보기";
 "The crash report could not be read." = "충돌 보고서를 읽을 수 없습니다.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@이(가) 충돌했을 때 macOS가 ~/Library/Logs/DiagnosticReports에 기록한 최신 보고서입니다. 이 Mac 밖으로 나가지 않습니다. 복사하면 홈 폴더 경로를 가린 채 클립보드에 담기므로 버그 보고서에 붙여 넣으세요.";
+
+/* The panel header: its three buttons (PanelHeader) */
+"Usage Dashboard" = "사용량 대시보드";
+"Settings" = "설정";
+"Open the Usage Dashboard (⌘U)" = "사용량 대시보드 열기 (⌘U)";
+"Open Settings (⌘,)" = "설정 열기 (⌘,)";
+"How the panel opens, its layout, refreshing and quitting" = "패널 여는 방식, 레이아웃, 새로 고침 및 종료";
+"Opens a menu" = "메뉴를 엽니다";

@@ -171,7 +171,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         expanded = !held && (hover.mode == .always || expanded)
         layout(animated: panel.isVisible && wasExpanded != expanded)
         hover.adopt(expanded ? .expanded : .compact)
-        reporter.report(expanded ? .expanded : .compact, cause: expanded ? .always : held ? holdCause : .menu)
+        reporter.report(expanded ? .expanded : .compact, cause: expanded ? .always : held ? holdCause : .menu, parts: shownParts)
         hover.start()
         panel.orderFrontRegardless()
     }
@@ -230,6 +230,11 @@ final class EdgePanelController: NSObject, PanelPresenting {
         menu.popUp(in: panel)
     }
 
+    /// What an opening draws, for the oracle's `panel` line.
+    private var shownParts: [PanelPart] {
+        NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen).shownParts
+    }
+
     private func act(_ output: HoverIntent.Output, cause: PanelCause) {
         switch output {
         case .expand:
@@ -242,7 +247,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         case .none:
             return
         }
-        reporter.report(expanded ? .expanded : .compact, cause: cause)
+        reporter.report(expanded ? .expanded : .compact, cause: cause, parts: shownParts)
         transitionSerial += 1
         let serial = transitionSerial
         let duration = layout(animated: true)
@@ -286,6 +291,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
         let animate = animated && !AccessibilityDisplay.shared.motionReduced && !stillsTheNotch
         host.rootView = root(shown)
         host.layoutSubtreeIfNeeded()
+        panel.resizeShare = expanded ? 1 : PanelMotion.closeShare
         let duration = animate ? panel.animationResizeTime(shown.frame) : 0
         panel.setFrame(shown.frame, display: true, animate: animate)
         // The window is no longer opaque from corner to corner: with the panel open beside the notch, the gap
@@ -558,7 +564,21 @@ enum PanelKeyPolicy {
 }
 
 final class EdgePanel: NSPanel {
+    override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing backingStoreType: NSWindow.BackingStoreType, defer flag: Bool) {
+        super.init(contentRect: contentRect, styleMask: style, backing: backingStoreType, defer: flag)
+        // The app is an accessory that the panel never activates, and AppKit shows a tooltip only for the active
+        // app unless the window asks otherwise; the header's tooltips are where its shortcuts are named.
+        allowsToolTipsWhenApplicationIsInactive = true
+    }
+
     override var canBecomeKey: Bool { true }
+    /// The share of AppKit's own resize time a frame animation takes: the whole of it for an open, `PanelMotion.closeShare`
+    /// for a close, so the edge layouts leave quicker than they arrive, as the notch layout does.
+    var resizeShare = 1.0
+
+    override func animationResizeTime(_ newFrame: NSRect) -> TimeInterval {
+        super.animationResizeTime(newFrame) * resizeShare
+    }
 }
 
 /// What the one window draws: the notch, the panel, or the notch with the panel beside it.
@@ -598,7 +618,7 @@ struct EdgePanelRoot: View {
                             y: arrangement.frame.midY - arrangement.notch.midY)
             }
             if !arrangement.panel.isNull {
-                EdgePanelCard(store: store, prefs: prefs, actions: actions, screen: screen)
+                EdgePanelCard(store: store, prefs: prefs, actions: actions, screen: screen, entrance: true)
                     .frame(width: arrangement.panel.width, height: arrangement.panel.height)
                     .offset(x: arrangement.panel.midX - arrangement.frame.midX,
                             y: arrangement.frame.midY - arrangement.panel.midY)
@@ -620,9 +640,11 @@ struct EdgePanelCard: View {
     let prefs: Preferences
     let actions: NotchActions
     let screen: NSScreen
+    /// True for the card on screen, which staggers its parts in (PanelMotion); the probe that measures it does not.
+    var entrance = false
 
     var body: some View {
-        NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen)
+        NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: entrance)
             .padding(.vertical, 6)
             .modifier(PanelSurface(shape: RoundedRectangle(cornerRadius: 22, style: .continuous)))
             // The card's text is white in every appearance (NotchExpandedView), so its glass is dark in every

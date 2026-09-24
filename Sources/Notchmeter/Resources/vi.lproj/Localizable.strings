@@ -823,3 +823,11 @@
 "Show in Finder" = "Hiện trong Finder";
 "The crash report could not be read." = "Không đọc được báo cáo sự cố.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Báo cáo mới nhất macOS ghi khi %@ gặp sự cố, lấy từ ~/Library/Logs/DiagnosticReports. Nó ở lại trên máy Mac này: Sao chép đặt nó vào bộ nhớ tạm, đã xoá đường dẫn thư mục người dùng, để bạn dán vào báo cáo lỗi.";
+
+/* The panel header: its three buttons (PanelHeader) */
+"Usage Dashboard" = "Bảng mức dùng";
+"Settings" = "Cài đặt";
+"Open the Usage Dashboard (⌘U)" = "Mở Bảng mức dùng (⌘U)";
+"Open Settings (⌘,)" = "Mở Cài đặt (⌘,)";
+"How the panel opens, its layout, refreshing and quitting" = "Cách bảng mở ra, bố cục, làm mới và thoát";
+"Opens a menu" = "Mở một menu";
