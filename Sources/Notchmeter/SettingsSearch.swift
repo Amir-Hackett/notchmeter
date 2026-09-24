@@ -2,8 +2,11 @@ import Foundation
 
 /// One block of an assistant's own page (SettingsPane.agent), in the order the page draws them: what it is and
 /// whether it is on, its rings and windows, its hook, its sessions, its notices, and where its figures come from.
+/// The last is two blocks of one `Section`: the rows *Where each window comes from* folds away (`sourcesDetail`)
+/// apart from the switches under it (`sources`), because a search that lands inside the disclosure has to open
+/// it and one that lands on the Keychain picker under it must not.
 enum AgentBlock: CaseIterable, Hashable {
-    case overview, windows, hook, sessions, notifications, sources
+    case overview, windows, hook, sessions, notifications, sources, sourcesDetail
 }
 
 /// The block a Settings row sits in: one of the `Section`s `SettingsView.paneContent` composes, the Diagnostics
@@ -125,7 +128,8 @@ enum SettingsSearch {
         add(.sessions, L("Read its sessions"))
         if tool.hasAnswerableHook { add(.sessions, L("Answer from the notch")) }
         add(.notifications, L("Notify about its limits"), L("Notify when it waits or finishes a turn"))
-        add(.sources, L("Sources"), L("Login"), L("Readings"), L("Where each window comes from"))
+        add(.sources, L("Sources"))
+        add(.sourcesDetail, L("Where each window comes from"), L("Login"), L("Readings"))
         switch tool {
         case .claude:
             add(.sources, L("Also poll Claude's usage endpoint"), L("Ask for Keychain access"), L("Also read transcripts from"), L("Add folder…"))

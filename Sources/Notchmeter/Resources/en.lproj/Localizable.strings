@@ -216,7 +216,6 @@
 "Send" = "Send";
 "Send (⌘↩)" = "Send (⌘↩)";
 "Show a Sessions card on the panel" = "Show a Sessions card on the panel";
-"Show options" = "Show options";
 "just finished a turn" = "just finished a turn";
 "Keep the Mac awake while an assistant is working" = "Keep the Mac awake while an assistant is working";
 "Keep the numbers" = "Keep the numbers";
@@ -509,10 +508,12 @@
 "Only turns longer than" = "Only turns longer than";
 "Open" = "Open";
 "Open %@" = "Open %@";
+"Open %@'s page" = "Open %@'s page";
 "Open %@'s status page" = "Open %@'s status page";
 "Open %@'s usage page" = "Open %@'s usage page";
 "Open Accessibility settings…" = "Open Accessibility settings…";
 "Open at login" = "Open at login";
+"Open its page" = "Open its page";
 "Open on click" = "Open on click";
 "Open on hover" = "Open on hover";
 "Open panel" = "Open panel";
@@ -928,7 +929,7 @@
 "Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor has no event that can be answered: its approvals are always answered in Cursor.";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal.";
 "Notify about its limits" = "Notify about its limits";
-"Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay.";
+"Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay.";
 "Off for every assistant under Notifications." = "Off for every assistant under Notifications.";
 "Notify when it waits or finishes a turn" = "Notify when it waits or finishes a turn";
 "Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait.";
@@ -936,7 +937,7 @@
 "Login" = "Login";
 "Readings" = "Readings";
 "Where each window comes from" = "Where each window comes from";
-"The vendor's usage endpoint" = "The vendor's usage endpoint";
+"From the vendor's usage endpoint" = "From the vendor's usage endpoint";
 "From a file the tool wrote on this Mac" = "From a file the tool wrote on this Mac";
 "Worked out on this Mac" = "Worked out on this Mac";
 "Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here.";

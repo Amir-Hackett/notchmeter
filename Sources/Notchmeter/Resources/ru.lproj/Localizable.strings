@@ -216,7 +216,6 @@
 "Send" = "Отправить";
 "Send (⌘↩)" = "Отправить (⌘↩)";
 "Show a Sessions card on the panel" = "Показывать карточку «Сессии» на панели";
-"Show options" = "Показать варианты";
 "just finished a turn" = "ход только что завершён";
 "Keep the Mac awake while an assistant is working" = "Не давать Mac засыпать, пока ассистент работает";
 "Keep the numbers" = "Сохранять цифры";
@@ -509,10 +508,12 @@
 "Only turns longer than" = "Только ходы длиннее";
 "Open" = "Открыть";
 "Open %@" = "Открыть %@";
+"Open %@'s page" = "Открыть страницу %@";
 "Open %@'s status page" = "Открыть страницу статуса %@";
 "Open %@'s usage page" = "Открыть страницу использования %@";
 "Open Accessibility settings…" = "Открыть настройки Универсального доступа…";
 "Open at login" = "Открывать при входе";
+"Open its page" = "Открыть его страницу";
 "Open on click" = "Открывать по щелчку";
 "Open on hover" = "Открывать при наведении";
 "Open panel" = "Открыть панель";
@@ -928,7 +929,7 @@
 "Cursor has no event that can be answered: its approvals are always answered in Cursor." = "У Cursor нет события, на которое можно ответить: его подтверждения всегда даются в самом Cursor.";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Хук Gemini CLI только сообщает: на его запросы разрешений всегда отвечают в терминале.";
 "Notify about its limits" = "Уведомлять о его лимитах";
-"Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "Его уведомления о темпе, исчерпании, достигнутом лимите, сбросе и напоминания, как выбрано в разделе «Уведомления». Выключено — они не приходят только для этого ассистента; уведомления о бюджете касаются всех ассистентов и остаются.";
+"Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "Его уведомления о темпе, исчерпании, достигнутом лимите, сбросе и напоминания, а также о доп. использовании и смене уровня кэша или темпа расхода, как выбрано в разделе «Уведомления». Выключено — они не приходят только для этого ассистента; уведомления о бюджете касаются всех ассистентов и остаются.";
 "Off for every assistant under Notifications." = "Выключено для всех ассистентов в разделе «Уведомления».";
 "Notify when it waits or finishes a turn" = "Уведомлять, когда он ждёт или завершает ход";
 "Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "Его уведомления об ожидании и завершённом ходе, а также взгляд мельком или панель, которые они открывают, как выбрано в разделе «Уведомления». Выключено — они не приходят только для этого ассистента; его кольцо по-прежнему показывает ожидание.";
@@ -936,7 +937,7 @@
 "Login" = "Вход";
 "Readings" = "Данные";
 "Where each window comes from" = "Откуда берётся каждое окно";
-"The vendor's usage endpoint" = "Эндпоинт использования поставщика";
+"From the vendor's usage endpoint" = "Из эндпоинта использования поставщика";
 "From a file the tool wrote on this Mac" = "Из файла, который инструмент записал на этом Mac";
 "Worked out on this Mac" = "Вычислено на этом Mac";
 "Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Собственный вход Claude Code: его элемент в Связке ключей, иначе файл учётных данных, иначе CLAUDE_CODE_OAUTH_TOKEN. Только чтение: здесь ничего не входит в систему, не обновляется и не записывается.";

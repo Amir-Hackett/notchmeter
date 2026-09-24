@@ -195,6 +195,9 @@ struct SettingsView: View {
     @State private var query = ""
     /// The Diagnostics disclosure in Advanced; closed until opened, or until a search lands inside it.
     @State private var diagnosticsExpanded = false
+    /// The assistants whose *Where each window comes from* a search has opened, for this window only: the
+    /// remembered choice is `Preferences.settingsExpandedTools`, which a typed query must not write to.
+    @State private var sourcesOpenedBySearch: Set<ToolID> = []
     /// The newest crash report (CrashReports), looked up off the main thread each time the Diagnostics disclosure
     /// opens: `.unknown` until the lookup answers, `.found(nil)` when there is none.
     @State private var crashReport: CrashLookup = .unknown
@@ -267,13 +270,14 @@ struct SettingsView: View {
         .onChange(of: requests.showPane) { _, _ in takeRequestedPane() }
         .onChange(of: requests.statuslineOffer) { _, _ in runStatuslineOffer() }
         // Typing pulls the window to the first pane with a match — unless the pane on screen has one — and opens
-        // the disclosure a match is inside (Diagnostics, or an assistant's sources); the sections without one dim
+        // the disclosure a match is inside (Diagnostics, or an assistant's sources, and only for a row the
+        // disclosure folds away: a match on the rows under it leaves it as it is); the sections without one dim
         // (`searchOpacity`).
         .onChange(of: query) { _, text in
             guard let hit = SettingsSearch.hit(for: text, current: pane, in: SettingsSearch.entries(order: prefs.toolOrder)) else { return }
             if hit.pane != pane { pane = hit.pane }
             if hit.sections.contains(.diagnostics) { diagnosticsExpanded = true }
-            if let tool = hit.pane.tool, hit.sections.contains(.agent(tool, .sources)) { expansion(of: tool).wrappedValue = true }
+            if let tool = hit.pane.tool, hit.sections.contains(.agent(tool, .sourcesDetail)) { sourcesOpenedBySearch.insert(tool) }
         }
         .onChange(of: requests.hookSheetDryRun) { _, url in
             guard let url else { return }
@@ -428,7 +432,7 @@ struct SettingsView: View {
             agentHook(tool).opacity(searchOpacity(.agent(tool, .hook)))
             agentSessions(tool).opacity(searchOpacity(.agent(tool, .sessions)))
             agentNotifications(tool).opacity(searchOpacity(.agent(tool, .notifications)))
-            agentSources(tool).opacity(searchOpacity(.agent(tool, .sources)))
+            agentSources(tool).opacity(searchOpacity(.agent(tool, .sources), .agent(tool, .sourcesDetail)))
             if tool == .claude { transcriptsSection.opacity(searchOpacity(.agent(tool, .sources))) }
         case .notifications:
             notificationsSection.opacity(searchOpacity(.notifications))
@@ -953,9 +957,10 @@ struct SettingsView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(L("Show options"))
+            // Named for what activating it does, a page opening, not for the options that used to unfold here.
+            .help(L("Open %@'s page", tool.productName))
             .accessibilityLabel("\(tool.displayName), \(status)")
-            .accessibilityHint(L("Show options"))
+            .accessibilityHint(L("Open %@'s page", tool.productName))
             Toggle(tool.displayName, isOn: Binding(
                 get: { store.isShown(tool) },
                 set: { store.setEnabled(tool, $0) }
@@ -1037,10 +1042,16 @@ struct SettingsView: View {
     /// Which assistants' pages have *Where each window comes from* open (Preferences.settingsExpandedTools),
     /// remembered across launches so a page reopens the way it was left. The same key held which assistants had
     /// their options unfolded in the Assistants list before each had a page; a set opened then opens this now,
-    /// which is the nearest thing on the page to what was open.
+    /// which is the nearest thing on the page to what was open. A search whose match is inside the disclosure
+    /// opens it for this window alone (`sourcesOpenedBySearch`), as a search opens Diagnostics: a typed word is
+    /// not a choice about how the page should reopen next time, and only a click writes one. A click to close
+    /// takes both down, so a disclosure a search opened does not spring back open on the next query.
     private func expansion(of tool: ToolID) -> Binding<Bool> {
-        Binding(get: { prefs.settingsExpandedTools.contains(tool) },
-                set: { if $0 { prefs.settingsExpandedTools.insert(tool) } else { prefs.settingsExpandedTools.remove(tool) } })
+        Binding(get: { prefs.settingsExpandedTools.contains(tool) || sourcesOpenedBySearch.contains(tool) },
+                set: { open in
+                    if open { prefs.settingsExpandedTools.insert(tool) } else { prefs.settingsExpandedTools.remove(tool) }
+                    sourcesOpenedBySearch.remove(tool)
+                })
     }
 
     /// Every assistant's hook at a glance, with the way to its page, where Add, Repair and the snippet are; and the
@@ -1064,7 +1075,9 @@ struct SettingsView: View {
     }
 
     /// One assistant's line on the Integrations overview: its hook's name, where its file stands in words (colour
-    /// only repeats what the words say), and a button to its page.
+    /// only repeats what the words say), and a button to its page. The button reads the same on every line: named
+    /// for the page, the Gemini CLI hook's read "Open Antigravity" beside "Gemini CLI hook", two names on one line
+    /// for a reader who had to know that hook lights the Antigravity ring. VoiceOver still hears which page.
     private func hookSummary(_ vendor: HookVendor) -> some View {
         let status = hookStatus[vendor] ?? .notInstalled
         return HStack(alignment: .firstTextBaseline) {
@@ -1074,8 +1087,9 @@ struct SettingsView: View {
                 Text(status.text).font(.caption).foregroundStyle(hookStatusColor(status))
             }
             Spacer()
-            Button(L("Open %@", vendor.tool.productName)) { pane = .agent(vendor.tool) }
+            Button(L("Open its page")) { pane = .agent(vendor.tool) }
                 .controlSize(.small)
+                .accessibilityLabel(L("Open %@'s page", vendor.tool.productName))
         }
         .help(hookRowHelp(vendor))
     }
@@ -1119,10 +1133,11 @@ struct SettingsView: View {
         }
     }
 
-    /// Its rings and windows: the ring pickers and the Hide boxes once there is a reading to choose from, and the
-    /// three per-assistant switches that need none — the menu bar pin, peak hours, and whether the Cost card
-    /// carries it (only where it can report spend at all; one that is not on keeps its place in the set, so an
-    /// afternoon signed out does not silently drop it from the card it comes back to).
+    /// Its rings and windows: the ring pickers and the Hide boxes once there is a reading to choose from (until
+    /// then, why there is none, in the overview's words), and the three per-assistant switches that need none —
+    /// the menu bar pin, peak hours, and whether the Cost card carries it (only where it can report spend at all;
+    /// one that is not on keeps its place in the set, so an afternoon signed out does not silently drop it from the
+    /// card it comes back to).
     private func agentWindows(_ tool: ToolID) -> some View {
         Section(L("Rings and windows")) {
             // One window is still worth the pickers: requiring two made them vanish without a word when a vendor's
@@ -1130,7 +1145,7 @@ struct SettingsView: View {
             if let reading = store.status(tool).reading, !reading.windows.isEmpty {
                 WindowChoices(tool: tool, reading: reading, prefs: prefs)
             } else {
-                Text(L("Waiting for the first reading")).font(.caption).foregroundStyle(.secondary)
+                Text(subtitle(for: tool)).font(.caption).foregroundStyle(.secondary)
             }
             Toggle(L("Pin to menu bar"), isOn: Binding(
                 get: { prefs.menuBarPinnedTools.contains(tool) },
@@ -1216,7 +1231,8 @@ struct SettingsView: View {
     }
 
     /// Its notices, inside what Notifications allows for every assistant: its limits (pace, run-out, limit hit,
-    /// reset, reminder) and its sessions (a wait, a long turn finishing, and the glance or panel either opens).
+    /// reset, reminder, and the advice banners about it — extra usage, the cache tier, the metering) and its
+    /// sessions (a wait, a long turn finishing, and the glance or panel either opens).
     private func agentNotifications(_ tool: ToolID) -> some View {
         let sessionKinds = prefs.notifyWaiting || prefs.notifyFinished
         return Section(L("Notifications")) {
@@ -1225,7 +1241,7 @@ struct SettingsView: View {
                 set: { prefs.limitNoticesOff = Preferences.switching(prefs.limitNoticesOff, tool, on: $0) }
             ))
             .disabled(!prefs.notificationsEnabled)
-            .help(L("Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay."))
+            .help(L("Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay."))
             if !prefs.notificationsEnabled {
                 caption(L("Off for every assistant under Notifications."))
             }
@@ -1265,7 +1281,7 @@ struct SettingsView: View {
                                 .accessibilityElement(children: .combine)
                             }
                         } else {
-                            Text(L("Waiting for the first reading")).font(.caption).foregroundStyle(.secondary)
+                            Text(subtitle(for: tool)).font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     note(L("Login"), loginNote(tool))
@@ -1608,9 +1624,20 @@ struct SettingsView: View {
         store.hooksInstalled = hookStatus.values.contains { $0 != .notInstalled }
     }
 
+    /// An assistant's standing in a line: under its name in the Assistants list, under its switch on its page, and
+    /// on its page wherever its windows would be listed while it has none. The last is the same line on purpose:
+    /// an assistant that is off or not on this Mac is not waiting for a reading, and a page whose overview says
+    /// "Off" two rows above a "Waiting for the first reading" promised one that was never coming.
     private func subtitle(for tool: ToolID) -> String {
-        guard store.isInstalled(tool) else { return L("Not installed on this Mac") }
-        switch store.status(tool) {
+        Self.statusText(installed: store.isInstalled(tool), status: store.status(tool))
+    }
+
+    /// `subtitle(for:)` as a function of what the store knows, so a test can hold it to its words without a window:
+    /// not installed first, whatever the status says, since a store with no provider for a tool leaves its status
+    /// at `.waiting`.
+    static func statusText(installed: Bool, status: ToolStatus) -> String {
+        guard installed else { return L("Not installed on this Mac") }
+        switch status {
         case .off: return L("Off")
         case .waiting: return L("Waiting for the first reading")
         case .idle(let message): return message

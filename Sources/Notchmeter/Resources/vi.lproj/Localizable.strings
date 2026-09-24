@@ -199,7 +199,6 @@
 "Send" = "Gửi";
 "Send (⌘↩)" = "Gửi (⌘↩)";
 "Show a Sessions card on the panel" = "Hiện thẻ Phiên trên bảng";
-"Show options" = "Hiện tùy chọn";
 "just finished a turn" = "vừa hoàn thành một lượt";
 "Keep the Mac awake while an assistant is working" = "Giữ máy Mac thức khi một trợ lý đang làm việc";
 "Keep the numbers" = "Giữ số";
@@ -492,10 +491,12 @@
 "Only turns longer than" = "Chỉ các lượt dài hơn";
 "Open" = "Mở";
 "Open %@" = "Mở %@";
+"Open %@'s page" = "Mở trang của %@";
 "Open %@'s status page" = "Mở trang trạng thái của %@";
 "Open %@'s usage page" = "Mở trang dùng của %@";
 "Open Accessibility settings…" = "Mở cài đặt Trợ năng…";
 "Open at login" = "Mở khi đăng nhập";
+"Open its page" = "Mở trang của nó";
 "Open on click" = "Mở khi bấm";
 "Open on hover" = "Mở khi rê chuột";
 "Open panel" = "Mở bảng";
@@ -911,7 +912,7 @@
 "Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor không có sự kiện nào có thể trả lời: các yêu cầu phê duyệt của nó luôn được trả lời trong Cursor.";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Hook của Gemini CLI chỉ báo cáo: các yêu cầu cấp quyền của nó luôn được trả lời trong terminal.";
 "Notify about its limits" = "Thông báo về giới hạn của nó";
-"Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "Các thông báo về nhịp, cạn hạn mức, chạm giới hạn, đặt lại và nhắc nhở của nó, như đã chọn trong Thông báo. Tắt thì bỏ chúng chỉ cho trợ lý này; thông báo ngân sách áp cho mọi trợ lý và vẫn giữ.";
+"Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "Các thông báo về nhịp, cạn hạn mức, chạm giới hạn, đặt lại và nhắc nhở của nó, cùng thông báo về dùng thêm và mức cache hoặc cách đo, như đã chọn trong Thông báo. Tắt thì bỏ chúng chỉ cho trợ lý này; thông báo ngân sách áp cho mọi trợ lý và vẫn giữ.";
 "Off for every assistant under Notifications." = "Đã tắt cho mọi trợ lý trong Thông báo.";
 "Notify when it waits or finishes a turn" = "Thông báo khi nó chờ hoặc kết thúc một lượt";
 "Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "Các thông báo chờ và kết thúc lượt của nó, cùng cái liếc hoặc bảng mà chúng mở, như đã chọn trong Thông báo. Tắt thì bỏ chúng chỉ cho trợ lý này; vòng của nó vẫn hiện việc chờ.";
@@ -919,7 +920,7 @@
 "Login" = "Đăng nhập";
 "Readings" = "Số liệu đọc";
 "Where each window comes from" = "Mỗi cửa sổ lấy từ đâu";
-"The vendor's usage endpoint" = "Điểm cuối mức dùng của nhà cung cấp";
+"From the vendor's usage endpoint" = "Từ điểm cuối mức dùng của nhà cung cấp";
 "From a file the tool wrote on this Mac" = "Từ một tệp công cụ đã ghi trên máy Mac này";
 "Worked out on this Mac" = "Tính trên máy Mac này";
 "Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Thông tin đăng nhập riêng của Claude Code: mục Keychain của nó, nếu không có thì tệp thông tin xác thực, nếu không nữa thì CLAUDE_CODE_OAUTH_TOKEN. Chỉ đọc: ở đây không đăng nhập, làm mới hay ghi gì cả.";

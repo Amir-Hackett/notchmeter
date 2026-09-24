@@ -199,7 +199,6 @@
 "Send" = "送信";
 "Send (⌘↩)" = "送信（⌘↩）";
 "Show a Sessions card on the panel" = "パネルにセッションカードを表示する";
-"Show options" = "オプションを表示";
 "just finished a turn" = "ターンが完了しました";
 "Keep the Mac awake while an assistant is working" = "アシスタントの作業中は Mac をスリープさせない";
 "Keep the numbers" = "数値を残す";
@@ -492,10 +491,12 @@
 "Only turns longer than" = "次より長いターンのみ";
 "Open" = "開く";
 "Open %@" = "%@ を開く";
+"Open %@'s page" = "%@ のページを開く";
 "Open %@'s status page" = "%@ のステータスページを開く";
 "Open %@'s usage page" = "%@ の使用量ページを開く";
 "Open Accessibility settings…" = "アクセシビリティ設定を開く…";
 "Open at login" = "ログイン時に開く";
+"Open its page" = "そのページを開く";
 "Open on click" = "クリックで開く";
 "Open on hover" = "ホバーで開く";
 "Open panel" = "パネルを開く";
@@ -911,7 +912,7 @@
 "Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor には回答できるイベントがありません。承認は常に Cursor の中で行います。";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Gemini CLI のフックは報告するだけです。権限の確認は常にターミナルで回答します。";
 "Notify about its limits" = "上限の通知";
-"Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "ペース、使い切り、上限到達、リセット、リマインダーの通知で、内容は「通知」で選んだとおりです。オフにするとこのアシスタントの分だけを省きます。予算の通知はすべてのアシスタントが対象なので残ります。";
+"Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "ペース、使い切り、上限到達、リセット、リマインダーの通知と、追加使用やキャッシュ層・計測の通知で、内容は「通知」で選んだとおりです。オフにするとこのアシスタントの分だけを省きます。予算の通知はすべてのアシスタントが対象なので残ります。";
 "Off for every assistant under Notifications." = "「通知」ですべてのアシスタントに対してオフになっています。";
 "Notify when it waits or finishes a turn" = "待機やターン完了のときに通知";
 "Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "待機とターン完了の通知、およびそれが開くちら見やパネルで、内容は「通知」で選んだとおりです。オフにするとこのアシスタントの分だけを省きます。リングは引き続き待機を表示します。";
@@ -919,7 +920,7 @@
 "Login" = "ログイン情報";
 "Readings" = "読み取り元";
 "Where each window comes from" = "各ウィンドウの取得元";
-"The vendor's usage endpoint" = "ベンダーの使用量エンドポイント";
+"From the vendor's usage endpoint" = "ベンダーの使用量エンドポイントより";
 "From a file the tool wrote on this Mac" = "ツールがこの Mac に書いたファイルより";
 "Worked out on this Mac" = "この Mac で算出";
 "Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Claude Code 自身のログイン情報：キーチェーン項目、なければ認証情報ファイル、なければ CLAUDE_CODE_OAUTH_TOKEN。読み取りのみで、ここでサインイン、更新、書き込みをすることはありません。";

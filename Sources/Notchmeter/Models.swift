@@ -69,10 +69,11 @@ enum WindowSource: String, Codable, Equatable, Sendable {
     /// The source in words, for an assistant's Settings page (*Where each window comes from*), where there is room
     /// to say it and the endpoint is named too: a reader checking where a figure came from is asking about every
     /// window, not only the ones the card tags. The status-line and header wordings are the ones the panel already
-    /// uses for the same sources.
+    /// uses for the same sources, and the endpoint's takes the same "From …" shape, so a column of them reads as
+    /// a list of sources rather than a heading among sources.
     var name: String {
         switch self {
-        case .vendorEndpoint: L("The vendor's usage endpoint")
+        case .vendorEndpoint: L("From the vendor's usage endpoint")
         case .statusline: L("From Claude Code's status line")
         case .rateLimitHeaders: L("From rate-limit headers")
         case .localSnapshot: L("From a file the tool wrote on this Mac")

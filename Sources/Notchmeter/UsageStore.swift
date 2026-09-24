@@ -163,9 +163,10 @@ final class UsageStore {
     @ObservationIgnored private var screensAsleep = false
     @ObservationIgnored private var sessionInactive = false
     /// When each tool's hook last fired (the status line counts as Claude's), and when a hook last forced that
-    /// tool's refresh; per tool, so a Cursor event nudges Cursor's cadence and never Claude's.
+    /// tool's refresh; per tool, so a Cursor event nudges Cursor's cadence and never Claude's. The refresh times
+    /// are readable so a test can hold `hookRefreshSpacing`, and the events that override it, to their word.
     @ObservationIgnored private var lastHook: [ToolID: Date] = [:]
-    @ObservationIgnored private var lastHookRefresh: [ToolID: Date] = [:]
+    @ObservationIgnored private(set) var lastHookRefresh: [ToolID: Date] = [:]
     /// Claude's last endpoint read beside a fresh status line failed, so a reading with nothing from the endpoint
     /// is a read to try again rather than an account with nothing more to say (PollingPolicy.endpointDue).
     @ObservationIgnored private var claudeEndpointFailedBesideStatusline = false
@@ -1068,7 +1069,9 @@ final class UsageStore {
     /// has its limit notices off (Preferences.limitNoticesOff) is left out the same way, before anything is
     /// planned, so it too reports whatever is behind when it is switched back on. The budget rides along as a
     /// window of its own, spread across every assistant, so no one page's switch holds it back; advice lines
-    /// worth a banner go out here too.
+    /// worth a banner go out here too, under the same page switch as the readings: Claude's extra-usage,
+    /// cache-tier and metering notices are its limit notices as much as its pace ones, and a line about no one
+    /// assistant (the burn across every card) belongs to no page and stays.
     private func evaluateAlerts(now: Date = Date()) {
         guard prefs.notificationsEnabled else { return }
         var readings = readyReadings.filter { prefs.notifiesLimits(of: $0.tool) }
@@ -1079,7 +1082,8 @@ final class UsageStore {
         let plan = NotificationScheduler.plan(memory: alertMemory, readings: readings, now: now, options: alertOptions, rates: drainRates, runOuts: runOutsByKey)
         remember(plan.memory)
         send(plan.alerts)
-        let lines = NotificationScheduler.planAdvice(memory: alertMemory, advice: advice, now: now) { line in
+        let heard = advice.filter { $0.tool.map(prefs.notifiesLimits(of:)) ?? true }
+        let lines = NotificationScheduler.planAdvice(memory: alertMemory, advice: heard, now: now) { line in
             if line.id.hasPrefix("extra/") { return prefs.notifyExtraUsage ? (line.id == "extra/room" ? 3600 : 30 * 86400) : nil }
             if line.id == "cache-ttl" { return prefs.notifyCacheShift ? 86400 : nil }
             if line.id == "metering" { return prefs.notifyCacheShift ? 86400 : nil }
@@ -1658,7 +1662,11 @@ final class UsageStore {
         lastActivity[tool] = now
         wokeAt = now
         guard isShown(tool) else { return }
-        refreshAfterHook(tool, urgent: false, now: now)
+        // A limit hit or a quota resume is news about the meter, not the session, and is read off the message
+        // itself (`hitRateLimit`, `resumesFromQuota`) where the read path reads it off the tracker's outcome: the
+        // meter refreshes at once for either, as it does with the sessions read, rather than waiting out the
+        // spacing on the one event that says the figure on the ring is wrong.
+        refreshAfterHook(tool, urgent: message.hitRateLimit || message.resumesFromQuota, now: now)
     }
 
     /// A hook event's refresh of its own tool's meter: at once for a limit hit or a quota resume, otherwise at

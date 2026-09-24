@@ -199,7 +199,6 @@
 "Send" = "보내기";
 "Send (⌘↩)" = "보내기 (⌘↩)";
 "Show a Sessions card on the panel" = "패널에 세션 카드 표시";
-"Show options" = "옵션 보기";
 "just finished a turn" = "방금 턴을 마쳤습니다";
 "Keep the Mac awake while an assistant is working" = "어시스턴트가 작업 중일 때 Mac 깨어 있게 유지";
 "Keep the numbers" = "숫자 유지";
@@ -492,10 +491,12 @@
 "Only turns longer than" = "다음보다 긴 턴만";
 "Open" = "열기";
 "Open %@" = "%@ 열기";
+"Open %@'s page" = "%@ 페이지 열기";
 "Open %@'s status page" = "%@ 상태 페이지 열기";
 "Open %@'s usage page" = "%@ 사용량 페이지 열기";
 "Open Accessibility settings…" = "손쉬운 사용 설정 열기…";
 "Open at login" = "로그인 시 열기";
+"Open its page" = "해당 페이지 열기";
 "Open on click" = "클릭하면 열기";
 "Open on hover" = "마우스를 올리면 열기";
 "Open panel" = "패널 열기";
@@ -911,7 +912,7 @@
 "Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor에는 답할 수 있는 이벤트가 없습니다. 승인은 항상 Cursor에서 합니다.";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Gemini CLI의 훅은 보고만 합니다. 권한 요청은 항상 터미널에서 답합니다.";
 "Notify about its limits" = "한도 알림";
-"Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "속도, 소진, 한도 도달, 초기화, 미리 알림 알림으로, 알림에서 고른 대로입니다. 끄면 이 어시스턴트의 것만 빠지며, 예산 알림은 모든 어시스턴트에 해당하므로 남습니다.";
+"Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "속도, 소진, 한도 도달, 초기화, 미리 알림 알림과 추가 사용, 캐시 계층이나 측정 알림으로, 알림에서 고른 대로입니다. 끄면 이 어시스턴트의 것만 빠지며, 예산 알림은 모든 어시스턴트에 해당하므로 남습니다.";
 "Off for every assistant under Notifications." = "알림에서 모든 어시스턴트에 대해 꺼져 있습니다.";
 "Notify when it waits or finishes a turn" = "기다리거나 턴을 끝내면 알림";
 "Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "기다림과 턴 종료 알림, 그리고 그 알림이 여는 잠깐 보기나 패널로, 알림에서 고른 대로입니다. 끄면 이 어시스턴트의 것만 빠지며, 링은 여전히 기다림을 보여 줍니다.";
@@ -919,7 +920,7 @@
 "Login" = "로그인";
 "Readings" = "읽는 곳";
 "Where each window comes from" = "각 창의 출처";
-"The vendor's usage endpoint" = "공급자의 사용량 엔드포인트";
+"From the vendor's usage endpoint" = "공급자의 사용량 엔드포인트 기준";
 "From a file the tool wrote on this Mac" = "도구가 이 Mac에 쓴 파일 기준";
 "Worked out on this Mac" = "이 Mac에서 계산";
 "Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Claude Code 자체의 로그인: 키체인 항목, 없으면 자격 증명 파일, 없으면 CLAUDE_CODE_OAUTH_TOKEN. 읽기만 하며, 여기서 로그인하거나 갱신하거나 기록하는 것은 없습니다.";

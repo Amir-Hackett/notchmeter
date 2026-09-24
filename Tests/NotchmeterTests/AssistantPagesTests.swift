@@ -186,6 +186,33 @@ import Testing
         }
     }
 
+    /// The one thing an unread assistant's event still does, refresh its meter, keeps the read path's exceptions
+    /// to the spacing: a rate limit or a quota resume says the figure on the ring is wrong, so the meter is read
+    /// at once for either, while an ordinary event inside the spacing still waits.
+    @Test func aRateLimitStillRefreshesAnUnreadAssistantsMeterAtOnce() async throws {
+        let suite = "NotchmeterTests.AssistantPages.rateLimit"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let window = LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.5, resetsAt: t0.addingTimeInterval(3600), periodDuration: Period.fiveHours)
+        let reading = UsageReading(tool: .claude, windows: [window], plan: "Max", fetchedAt: t0, observedAt: nil)
+        let store = store(defaults, providers: [FixtureProvider(reading: reading)]) { $0.sessionReadingOff = [.claude] }
+        store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "a1"), now: t0)
+        #expect(store.lastHookRefresh[.claude] == t0)
+        store.hookReceived(Hook.Message(event: "Stop", needsInput: false, sessionID: "a1"), now: t0.addingTimeInterval(5))
+        #expect(store.lastHookRefresh[.claude] == t0, "an ordinary event inside the spacing waits")
+        store.hookReceived(Hook.Message(event: "StopFailure", needsInput: false, sessionID: "a1", failure: "rate_limit"), now: t0.addingTimeInterval(10))
+        #expect(store.lastHookRefresh[.claude] == t0.addingTimeInterval(10), "a rate limit is read at once")
+        store.hookReceived(Hook.Message(event: "Notification", needsInput: false, sessionID: "a1", notificationType: "quota_auto_resume_fired"),
+                           now: t0.addingTimeInterval(15))
+        #expect(store.lastHookRefresh[.claude] == t0.addingTimeInterval(15), "so is a quota resume")
+        #expect(store.sessions.all.isEmpty, "and none of it made a row")
+        // The reads the hooks started are queued on the main actor behind this test. An interactive read waits for
+        // the one in flight and the rest find its slot taken, so none is left writing to the suite once it is emptied.
+        await store.refresh(.claude, force: true, interactive: true)
+        #expect(store.status(.claude).reading != nil)
+    }
+
     // MARK: - Answering from the notch
 
     /// One assistant's page off: its request is answered nothing at once and is not held, while another
@@ -265,6 +292,33 @@ import Testing
         #expect(told.contains(.codex), "nothing was remembered as told while it was off")
     }
 
+    /// Its advice banners are its limit notices too: with the page's switch off, the extra-usage line a rise in
+    /// Claude's credits makes stays on the strip and goes out as no banner, and is not remembered as sent, so
+    /// switching the page back on sends it.
+    @Test func anAssistantsLimitNoticesSwitchKeepsItsAdviceBannersIn() async throws {
+        let suite = "NotchmeterTests.AssistantPages.advice"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let now = Date()
+        // The last figure seen, an hour ago and lower, so this reading's is a rise and the month's first.
+        let memory = ExtraUsageMemory(amountUSD: 1, seenAt: now.addingTimeInterval(-3600), risenIn: nil)
+        defaults.set(try JSONEncoder().encode(memory), forKey: ExtraUsageMemory.defaultsKey)
+        let reading = UsageReading(tool: .claude, windows: [
+            LimitWindow(id: "five_hour", label: "Session", usedFraction: 0.2, resetsAt: now.addingTimeInterval(4 * 3600), periodDuration: Period.fiveHours),
+            LimitWindow(id: "extra_usage", label: .key("Extra usage"), usedFraction: 0.05, resetsAt: nil, amountUSD: 5),
+        ], plan: "Max", fetchedAt: now, observedAt: nil)
+        let store = store(defaults, providers: [FixtureProvider(reading: reading)]) { $0.limitNoticesOff = [.claude] }
+        var banners: [String] = []
+        store.deliverAdvice = { banners += $0.map(\.id) }
+        await store.refresh(.claude, force: true)
+        #expect(store.advice.contains { $0.id.hasPrefix("extra/") }, "the strip still carries the line: \(store.advice.map(\.id))")
+        #expect(banners.isEmpty, "the page's switch kept Claude's banner out: \(banners)")
+        store.prefs.limitNoticesOff = []
+        await store.refresh(.claude, force: true)
+        #expect(banners.contains { $0.hasPrefix("extra/") }, "nothing was remembered as sent while it was off: \(banners)")
+    }
+
     /// A watched reset of an assistant whose limit notices are off is neither announced nor lost before it passes,
     /// and once it has passed it goes unannounced, taking its period's notices down, so switching the page back
     /// on later cannot announce a reset that passed while it was off.
@@ -293,6 +347,22 @@ import Testing
         store.checkResets(now: now.addingTimeInterval(1260))
         #expect(told.isEmpty, "a reset that passed while the page was off is never announced")
         #expect(withdrawn.isEmpty)
+    }
+
+    // MARK: - The page's words
+
+    /// Where a page would list an assistant's windows it says instead why there are none, in the words the
+    /// overview two rows above uses: an assistant that is off or not on this Mac is not waiting for a reading.
+    @Test func aPageWithNoReadingSaysWhyRatherThanWaiting() {
+        withSuite("noReading") { defaults in
+            let store = store(defaults)
+            #expect(SettingsView.statusText(installed: store.isInstalled(.antigravity), status: store.status(.antigravity)) == L("Not installed on this Mac"),
+                    "a tool with no provider reads as not installed, whatever its status says")
+            #expect(SettingsView.statusText(installed: false, status: .waiting) == L("Not installed on this Mac"))
+            #expect(SettingsView.statusText(installed: true, status: .off) == L("Off"))
+            #expect(SettingsView.statusText(installed: true, status: .waiting) == L("Waiting for the first reading"))
+            #expect(SettingsView.statusText(installed: true, status: .failed("Signed out", cached: nil)) == "Signed out")
+        }
     }
 }
 
@@ -377,6 +447,20 @@ import Testing
         for tool in ToolID.allCases {
             #expect(SettingsSearch.agentEntries(tool).first?.title == tool.productName, "a page is found by its own name first")
         }
+    }
+
+    /// A search opens *Where each window comes from* only for a match inside it: the disclosure's own rows index
+    /// apart from the switches under it, so "keychain" lands on Claude Code's Sources block without unfolding
+    /// the window list above the picker it matched.
+    @Test func onlyTheRowsInsideTheSourcesDisclosureIndexAsInsideIt() {
+        let entries = SettingsSearch.entries()
+        func sections(_ query: String) -> Set<SettingsSection> { SettingsSearch.sections(matching: query, in: entries) }
+        #expect(sections("keychain") == [.agent(.claude, .sources)])
+        #expect(sections("Also read Codex reset credits") == [.agent(.codex, .sources)])
+        #expect(sections("Where each window comes from") == Set(ToolID.allCases.map { .agent($0, .sourcesDetail) }))
+        #expect(sections("Readings").contains(.agent(.cursor, .sourcesDetail)))
+        #expect(!sections("Readings").contains(.agent(.cursor, .sources)))
+        #expect(sections("Sources").isSuperset(of: ToolID.allCases.map { .agent($0, .sources) }))
     }
 
     /// The user's order decides which page a row every page has lands on, as it decides the sidebar's.

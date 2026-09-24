@@ -199,7 +199,6 @@
 "Send" = "傳送";
 "Send (⌘↩)" = "傳送（⌘↩）";
 "Show a Sessions card on the panel" = "在面板上顯示工作階段卡片";
-"Show options" = "顯示選項";
 "just finished a turn" = "剛剛完成一輪工作";
 "Keep the Mac awake while an assistant is working" = "助理工作時保持 Mac 喚醒";
 "Keep the numbers" = "保留數字";
@@ -492,10 +491,12 @@
 "Only turns longer than" = "僅限時長超過";
 "Open" = "開啟";
 "Open %@" = "開啟 %@";
+"Open %@'s page" = "開啟 %@ 的頁面";
 "Open %@'s status page" = "開啟 %@ 的狀態頁";
 "Open %@'s usage page" = "開啟 %@ 的用量頁";
 "Open Accessibility settings…" = "打開輔助使用設定…";
 "Open at login" = "登入時開啟";
+"Open its page" = "開啟它的頁面";
 "Open on click" = "點按時開啟";
 "Open on hover" = "懸停時開啟";
 "Open panel" = "開啟面板";
@@ -911,7 +912,7 @@
 "Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor 沒有可以回答的事件：它的核准一律在 Cursor 中回答。";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Gemini CLI 的 hook 只負責回報：它的權限請求一律在終端機中回答。";
 "Notify about its limits" = "限額相關通知";
-"Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "它的進度、用盡、達到上限、重設和提醒通知，內容依「通知」中的選擇。關閉後只對該助理省略；預算通知涵蓋所有助理，仍會保留。";
+"Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "它的進度、用盡、達到上限、重設和提醒通知，以及額外用量和快取檔位或計量通知，內容依「通知」中的選擇。關閉後只對該助理省略；預算通知涵蓋所有助理，仍會保留。";
 "Off for every assistant under Notifications." = "已在「通知」中對所有助理關閉。";
 "Notify when it waits or finishes a turn" = "等待或完成一輪時通知";
 "Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "它的等待和一輪完成通知，以及它們開啟的一瞥或面板，內容依「通知」中的選擇。關閉後只對該助理省略；它的圓環仍會顯示等待。";
@@ -919,7 +920,7 @@
 "Login" = "登入資訊";
 "Readings" = "讀數來源";
 "Where each window comes from" = "每個視窗的來源";
-"The vendor's usage endpoint" = "供應商的用量端點";
+"From the vendor's usage endpoint" = "來自供應商的用量端點";
 "From a file the tool wrote on this Mac" = "來自該工具在這台 Mac 上寫入的檔案";
 "Worked out on this Mac" = "在這台 Mac 上推算";
 "Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Claude Code 自己的登入資訊：它的鑰匙圈項目，其次是它的憑證檔案，再次是 CLAUDE_CODE_OAUTH_TOKEN。唯讀：這裡不會登入、更新或寫入任何內容。";

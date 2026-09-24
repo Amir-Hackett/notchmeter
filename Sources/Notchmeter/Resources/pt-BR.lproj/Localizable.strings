@@ -216,7 +216,6 @@
 "Send" = "Enviar";
 "Send (⌘↩)" = "Enviar (⌘↩)";
 "Show a Sessions card on the panel" = "Mostrar um cartão Sessões no painel";
-"Show options" = "Mostrar opções";
 "just finished a turn" = "acabou de terminar um turno";
 "Keep the Mac awake while an assistant is working" = "Manter o Mac ativo enquanto um assistente trabalha";
 "Keep the numbers" = "Manter os números";
@@ -509,10 +508,12 @@
 "Only turns longer than" = "Só turnos com mais de";
 "Open" = "Abrir";
 "Open %@" = "Abrir %@";
+"Open %@'s page" = "Abrir a página do %@";
 "Open %@'s status page" = "Abrir a página de status do %@";
 "Open %@'s usage page" = "Abrir a página de uso do %@";
 "Open Accessibility settings…" = "Abrir ajustes de Acessibilidade…";
 "Open at login" = "Abrir ao iniciar sessão";
+"Open its page" = "Abrir a página dele";
 "Open on click" = "Abrir ao clicar";
 "Open on hover" = "Abrir ao passar o cursor";
 "Open panel" = "Abrir painel";
@@ -928,7 +929,7 @@
 "Cursor has no event that can be answered: its approvals are always answered in Cursor." = "O Cursor não tem evento que possa ser respondido: as aprovações dele são sempre respondidas no Cursor.";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "O hook do Gemini CLI só informa: os pedidos de permissão dele são sempre respondidos no terminal.";
 "Notify about its limits" = "Notificar sobre os limites dele";
-"Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "Os avisos de ritmo, esgotamento, limite atingido, renovação e lembrete dele, como escolhidos em Notificações. Desligado, eles ficam de fora só para este assistente; os avisos do orçamento cobrem todos os assistentes e continuam.";
+"Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "Os avisos de ritmo, esgotamento, limite atingido, renovação e lembrete dele, e os de uso extra e de nível de cache ou medição, como escolhidos em Notificações. Desligado, eles ficam de fora só para este assistente; os avisos do orçamento cobrem todos os assistentes e continuam.";
 "Off for every assistant under Notifications." = "Desligado para todos os assistentes em Notificações.";
 "Notify when it waits or finishes a turn" = "Notificar quando ele esperar ou terminar um turno";
 "Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "Os avisos de espera e de turno terminado dele, e a espiada ou o painel que abrem, como escolhidos em Notificações. Desligado, eles ficam de fora só para este assistente; o anel dele continua mostrando a espera.";
@@ -936,7 +937,7 @@
 "Login" = "Credencial";
 "Readings" = "Leituras";
 "Where each window comes from" = "De onde vem cada janela";
-"The vendor's usage endpoint" = "O endpoint de uso do fornecedor";
+"From the vendor's usage endpoint" = "Do endpoint de uso do fornecedor";
 "From a file the tool wrote on this Mac" = "De um arquivo que a ferramenta gravou neste Mac";
 "Worked out on this Mac" = "Calculado neste Mac";
 "Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "O login do próprio Claude Code: o item dele nas Chaves, senão o arquivo de credenciais, senão CLAUDE_CODE_OAUTH_TOKEN. Somente leitura: nada é conectado, renovado ou gravado aqui.";
