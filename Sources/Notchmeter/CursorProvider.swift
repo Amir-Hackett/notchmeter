@@ -457,9 +457,19 @@ actor CursorProvider: UsageProvider {
     /// `tokenUsage.totalCents` when the call was token-based, else the `usageBasedCosts` dollar string ("$0.05";
     /// "-" and "Included" cost nothing). Token counts come from `tokenUsage` when present.
     static func parseUsageEvents(_ data: Data) -> UsageEventPage {
-        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let list = (root["usageEventsDisplay"] ?? root["usageEvents"] ?? root["events"]) as? [Any]
-        else { return UsageEventPage() }
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return UsageEventPage() }
+        guard let list = (root["usageEventsDisplay"] ?? root["usageEvents"] ?? root["events"]) as? [Any] else {
+            // An empty range comes back as `{}`, or as a count of zero alone: the service writes its JSON the
+            // protobuf way, leaving out an empty list rather than sending `[]` (seen 2026-09-24 on a seat with no
+            // events in the last 30 days). That is a month with nothing in it, read correctly; anything else
+            // without the list is still a shape this build does not know.
+            // The count may come as a number or, protobuf's way for 64-bit integers, as a string.
+            // The count may come as a number or, protobuf's way for 64-bit integers, as a string.
+            let count = JSON.number(root["totalUsageEventsCount"]) ?? (root["totalUsageEventsCount"] as? String).flatMap(Double.init) ?? (root["totalUsageEventsCount"] as? String).flatMap(Double.init)
+            // `{}`, or a count that parses to zero on its own; a count that does not parse is not a zero.
+            let empty = root.isEmpty || (root.count == 1 && count == 0)
+            return UsageEventPage(events: [], rows: 0, recognised: empty)
+        }
         let events = list.compactMap { item -> UsageEvent? in
             guard let object = item as? [String: Any] else { return nil }
             let stamp: Double? = (object["timestamp"] as? String).flatMap(Double.init) ?? JSON.number(object["timestamp"])

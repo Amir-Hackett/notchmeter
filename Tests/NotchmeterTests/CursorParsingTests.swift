@@ -345,6 +345,24 @@ import Testing
         #expect(empty.rows == 0)
         #expect(empty.events.isEmpty)
     }
+
+    /// Cursor leaves an empty list out (2026-09-24): a range with no events answers `{}`, and a zero count alone
+    /// means the same. Both are an empty month read correctly; a count with no list, or any other key without
+    /// it, is still a shape this build does not know.
+    @Test func anOmittedEmptyListIsAnEmptyMonth() {
+        for body in [#"{}"#, #"{"totalUsageEventsCount":0}"#, #"{"totalUsageEventsCount":"0"}"#] {
+            let page = CursorProvider.parseUsageEvents(Data(body.utf8))
+            #expect(page.recognised, "\(body)")
+            #expect(page.rows == 0)
+        }
+        #expect(CursorProvider.parseUsageEvents(Data(#"{"totalUsageEventsCount":3}"#.utf8)).recognised == false)
+        #expect(CursorProvider.parseUsageEvents(Data(#"{"totalUsageEventsCount":"3"}"#.utf8)).recognised == false, "a count written as a string is still a count")
+        #expect(CursorProvider.parseUsageEvents(Data(#"{"totalUsageEventsCount":"3"}"#.utf8)).recognised == false, "a count written as a string is still a count")
+        #expect(CursorProvider.parseUsageEvents(Data(#"{"usageEventRows":[]}"#.utf8)).recognised == false)
+        #expect(CursorProvider.parseUsageEvents(Data(#"{"totalUsageEventsCount":"invalid"}"#.utf8)).recognised == false, "a count that does not parse is not a zero")
+        #expect(CursorProvider.parseUsageEvents(Data(#"{"totalUsageEventsCount":null}"#.utf8)).recognised == false)
+        #expect(CursorProvider.parseUsageEvents(Data("[]".utf8)).recognised == false)
+    }
 }
 
 /// The dashboard's own cycle figures (`get-current-period-usage`) and the Grok Bot allowance (`get-sand-usage-status`).
