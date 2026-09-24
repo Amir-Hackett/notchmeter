@@ -70,6 +70,9 @@ struct SessionsCard: View {
         let contextUsed: Double?
         /// Claude Code's task list; its text is gone when titles are hidden, and the counts stay.
         let todos: TodoPlan?
+        /// Read from the assistant's own database rather than reported by its hook (SessionSource.localStorage):
+        /// the row wears a chip that says so.
+        var fromStorage = false
 
         enum Note: Equatable, Sendable { case waitingForAnswer, doneJump, justFinished }
 
@@ -114,7 +117,7 @@ struct SessionsCard: View {
                        branch: lines.branch, place: lines.place, host: lines.host, group: groupName(of: session),
                        since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
                        status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
-                       todos: hideTitles ? session.todos?.withoutContent() : session.todos)
+                       todos: hideTitles ? session.todos?.withoutContent() : session.todos, fromStorage: session.source == .localStorage)
         }
         return (rows, max(0, sessions.count - rowCap))
     }
@@ -217,7 +220,8 @@ struct SessionsCard: View {
             group.rows.map { row -> [String: Any] in
                 ["id": row.id, "group": group.name as Any, "status": row.status.oracleName, "agents": row.agents.count,
                  "context": row.contextUsed.map(Oracle.fraction) as Any,
-                 "todos": row.todos.map { ["done": $0.done, "total": $0.total] } as Any]
+                 "todos": row.todos.map { ["done": $0.done, "total": $0.total] } as Any,
+                 "source": row.fromStorage ? "storage" : "hook"]
             }
         }
     }
@@ -267,12 +271,35 @@ struct SessionsCard: View {
                 if more > 0 {
                     Text(L("+%ld more", more)).modifier(Caption())
                 }
+                if rows.contains(where: \.fromStorage) {
+                    upgrade
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .modifier(CardBackground(boxed: !embedded))
         // Bare, the section still keeps the rows' text on the sheet's margin, which the box's padding gave it.
         .padding(.horizontal, embedded ? density.cardPadding : 0)
+    }
+
+    /// Under rows read from OpenCode's database, the one thing that would make them exact: the plugin, one click
+    /// away in Settings › Integrations; or, with the plugin already in place, that OpenCode loads it when it next
+    /// starts. A line rather than a banner, since the rows are right as far as they go.
+    @ViewBuilder
+    private var upgrade: some View {
+        if store.openCodePluginInstalled {
+            Text(L("OpenCode switches to its plugin when it next starts")).modifier(Caption())
+        } else {
+            Button { actions.openSettingsPane(.integrations) } label: {
+                Label(L("Add the OpenCode plugin for exact turn ends and waits"), systemImage: "puzzlepiece.extension")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.accent)
+                    .frame(minHeight: 22, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(L("Opens Settings › Integrations, where Add plugin… writes Notchmeter's own plugin file for OpenCode after asking"))
+        }
     }
 
     /// Always drawn while there is something to clear, never only on hover: a panel read at a glance has no
@@ -476,6 +503,10 @@ private struct SessionRow: View {
                     Text(verbatim: row.title).font((embedded ? Font.body : .callout).weight(.semibold)).lineLimit(1).truncationMode(.tail)
                         .foregroundStyle(row.status == .idle ? Caption.style : AnyShapeStyle(.primary))
                     ForEach(row.chips, id: \.self) { Chip(text: $0).help(L("The assistant running this session")) }
+                    if row.fromStorage {
+                        Chip(text: L("from database"))
+                            .help(L("Read from OpenCode's own database without its plugin: a turn's end shows a few seconds late, and a wait for your permission does not show at all"))
+                    }
                 }
                 if row.branch != nil || !placeParts.isEmpty {
                     HStack(spacing: 4) {
@@ -500,7 +531,8 @@ private struct SessionRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(row.title)
-        .accessibilityValue(Spoken.line(statusText, row.chips.joined(separator: ", "), row.branch, placeParts.joined(separator: ", "),
+        .accessibilityValue(Spoken.line(statusText, row.chips.joined(separator: ", "), row.fromStorage ? L("from database") : nil,
+                                        row.branch, placeParts.joined(separator: ", "),
                                         ResetText.duration(max(0, now.timeIntervalSince(row.since))), row.note.map(noteText),
                                         advice.isEmpty ? nil : advice.map(Spoken.phrase).joined(separator: " ")))
     }

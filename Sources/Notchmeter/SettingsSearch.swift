@@ -65,7 +65,7 @@ enum SettingsSearch {
         add(.shortcuts, L("Keyboard shortcuts"), L("Toggle the panel"), L("Open Settings"), L("Show over the full-screen app"))
         add(.assistants, L("Assistants"), L("Pin to menu bar"), L("Peak hours"), L("Keep the Mac awake while an assistant is working"),
             L("Also on battery"), L("Also read Codex reset credits"), L("Also read Cursor's usage events"), L("Also read organisation billing"),
-            L("Hide assistants with nothing to show"), L("Refresh now"))
+            L("Show sessions read from OpenCode's database"), L("Hide assistants with nothing to show"), L("Refresh now"))
         add(.sessions, L("Sessions"), L("Show a Sessions card on the panel"), L("Show what a session is working on"),
             L("Answer from the notch"), L("Hand a request back to the terminal after"), L("Jump to the terminal on click"),
             L("Automation"), L("Open Automation settings…"), L("Check again"))
@@ -78,8 +78,8 @@ enum SettingsSearch {
             L("Show news in the notch"), L("Glow under the notch for news"), L("When an assistant waits for you, or a turn finishes"),
             L("Sound"), L("Pace crossing"), L("Permission request"), L("Question"), L("Plan ready to approve"), L("Turn finished"),
             L("Quiet hours"), L("Test notification"))
-        add(.hooks, L("Integrations"), L("Hooks"), L("Repair a hook that points at an old copy at launch"), L("Claude Code status line"),
-            L("Install status line…"))
+        add(.hooks, L("Integrations"), L("Hooks"), L("OpenCode plugin"), L("Add plugin…"), L("Repair a hook that points at an old copy at launch"),
+            L("Claude Code status line"), L("Install status line…"))
         add(.otherTools, L("Other tools"), L("MCP server"), L("Remote Claude Code over SSH"))
         add(.privacy, L("Advanced"), L("Privacy"), L("Hide usage while the screen is shared or recorded"), L("Ask for Keychain access"),
             L("Local API on 127.0.0.1:%ld", Int(LocalAPI.port)))

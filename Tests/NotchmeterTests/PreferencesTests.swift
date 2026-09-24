@@ -82,13 +82,15 @@ import Testing
     @Test func movesOneStepAndStopsAtTheEnds() {
         withSuite("moves") { defaults in
             let prefs = Preferences(defaults: defaults)
+            let cursorSecond: [ToolID] = [.claude, .cursor, .codex, .antigravity, .copilot, .opencode]
+            let claudeSecond: [ToolID] = [.cursor, .claude, .codex, .antigravity, .copilot, .opencode]
             prefs.move(.cursor, by: -1)
-            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .antigravity, .copilot])
+            #expect(prefs.toolOrder == cursorSecond)
             prefs.move(.claude, by: -1)
-            prefs.move(.copilot, by: 1)
-            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .antigravity, .copilot])
+            prefs.move(.opencode, by: 1)
+            #expect(prefs.toolOrder == cursorSecond)
             prefs.move(.claude, by: 1)
-            #expect(prefs.toolOrder == [.cursor, .claude, .codex, .antigravity, .copilot])
+            #expect(prefs.toolOrder == claudeSecond)
         }
     }
 
@@ -99,7 +101,8 @@ import Testing
             prefs.compactStyle = .numbers
             prefs.compactKeep = .numbers
             let reloaded = Preferences(defaults: defaults)
-            #expect(reloaded.toolOrder == [.claude, .codex, .antigravity, .cursor, .copilot])
+            let antigravityThird: [ToolID] = [.claude, .codex, .antigravity, .cursor, .copilot, .opencode]
+            #expect(reloaded.toolOrder == antigravityThird)
             #expect(reloaded.compactStyle == .numbers)
             #expect(reloaded.compactKeep == .numbers)
         }
@@ -107,11 +110,16 @@ import Testing
 
     @Test func aStoredOrderGainsNewToolsAtTheEndAndLosesStrangers() {
         #expect(ToolOrder.normalize(nil) == ToolID.allCases)
-        #expect(ToolOrder.normalize(["cursor", "claude"]) == [.cursor, .claude, .codex, .antigravity, .copilot])
-        #expect(ToolOrder.normalize(["codex", "gemini", "codex"]) == [.codex, .claude, .cursor, .antigravity, .copilot])
+        let cursorFirst: [ToolID] = [.cursor, .claude, .codex, .antigravity, .copilot, .opencode]
+        let codexFirst: [ToolID] = [.codex, .claude, .cursor, .antigravity, .copilot, .opencode]
+        let antigravityFirst: [ToolID] = [.antigravity, .claude, .codex, .cursor, .copilot, .opencode]
+        #expect(ToolOrder.normalize(["cursor", "claude"]) == cursorFirst)
+        #expect(ToolOrder.normalize(["codex", "gemini", "codex"]) == codexFirst)
+        // An order stored before OpenCode existed gains it at the end, as every tool added later has.
+        #expect(ToolOrder.normalize(["claude", "codex", "cursor", "antigravity", "copilot"]).last == .opencode)
         withSuite("stale") { defaults in
             defaults.set(["antigravity", "claude"], forKey: "toolOrder")
-            #expect(Preferences(defaults: defaults).toolOrder == [.antigravity, .claude, .codex, .cursor, .copilot])
+            #expect(Preferences(defaults: defaults).toolOrder == antigravityFirst)
         }
     }
 
@@ -128,7 +136,7 @@ import Testing
             let asShipped: [ToolID] = [.claude, .codex, .cursor]
             let cursorSecond: [ToolID] = [.claude, .cursor, .codex]
             let claudeSecond: [ToolID] = [.cursor, .claude, .codex]
-            let wholeOrder: [ToolID] = [.claude, .cursor, .codex, .antigravity, .copilot]
+            let wholeOrder: [ToolID] = [.claude, .cursor, .codex, .antigravity, .copilot, .opencode]
             let spending: [ToolID] = [.cursor, .claude]
             #expect(store.visibleTools == asShipped)
             prefs.move(.cursor, by: -1)

@@ -1,7 +1,7 @@
 import Foundation
 
 /// The `--hook` half of the assistant integrations: a hook command that turns one Claude Code, Codex, Cursor,
-/// Gemini CLI or GitHub Copilot event into one line on the running app's socket carrying the event name, whether the
+/// Gemini CLI, GitHub Copilot or OpenCode event into one line on the running app's socket carrying the event name, whether the
 /// assistant is waiting on the user, the session id, the folder name of the working directory (or of the
 /// repository, when the working directory is a git worktree: ProjectName in ProviderCost.swift), the git branch
 /// checked out there, the permission mode, the subagent id, a stop failure's kind and — only when it is not
@@ -11,7 +11,7 @@ import Foundation
 /// Hook+Decision.swift), with a nonce the app's answer is addressed to; and on every event, where the hook's own
 /// terminal is, read from the hook process's environment and ancestry (TerminalIdentity.swift). Nothing else.
 /// Claude Code's command sends no tool; every other installer sends `--tool <id>` and each ToolID has a parser of
-/// its own (Hook+Codex.swift, Hook+Cursor.swift, Hook+Gemini.swift, Hook+Copilot.swift); failing the flag, a
+/// its own (Hook+Codex.swift, Hook+Cursor.swift, Hook+Gemini.swift, Hook+Copilot.swift, Hook+OpenCode.swift); failing the flag, a
 /// payload whose shape only one vendor produces is recognised by it. The running app listens in UsageStore, over
 /// the socket HookSocket.swift describes (until 0.6.0 it was a distributed notification, which any local process
 /// could read or forge); a remote host's hook posts the same fields to the local API instead (docs/hooks.md).
@@ -125,6 +125,9 @@ enum Hook {
         /// One task tool call on a `PostToolUse` for `TaskCreate` or `TaskUpdate` (`Hook.taskChange`); nil on every
         /// other event. Its subject is dropped by the store when *Show what a session is working on* is off.
         var task: TaskChange?
+        /// `.localStorage` for an event the app worked out from an assistant's own database (OpenCodeSessions) rather
+        /// than one a hook sent. Never written to or read from a socket line, so nothing outside the app can claim it.
+        var source: SessionSource = .hook
 
         /// Whether the command holds the socket for the app's answer.
         var awaitsDecision: Bool { request != nil }
@@ -223,9 +226,11 @@ enum Hook {
     /// by going unseen.
     static let idleNotificationType = "idle_prompt"
 
-    /// Notification types that end a wait without a Stop: a subagent finished, the elicitation was answered, or
-    /// Claude Code's own quota wait ended.
-    static let completionNotificationTypes: Set<String> = ["agent_completed", "elicitation_complete", "elicitation_response", "quota_auto_resume_fired"]
+    /// Notification types that end a wait without a Stop: a subagent finished, the elicitation was answered,
+    /// Claude Code's own quota wait ended, or OpenCode's permission request was answered (`permission.replied`,
+    /// Hook+OpenCode.swift), a type no other assistant sends.
+    static let completionNotificationTypes: Set<String> = ["agent_completed", "elicitation_complete", "elicitation_response", "quota_auto_resume_fired",
+                                                           Hook.OpenCode.permissionReplied]
 
     /// Claude Code is holding the session for a quota reset it will not resume from on its own.
     static let quotaWaitNotificationTypes: Set<String> = ["quota_auto_resume_stale", "quota_auto_resume_disabled"]
@@ -257,7 +262,8 @@ enum Hook {
 
     /// Reads one hook payload onto a Message. The sender is settled before any field is read: the `--tool` flag
     /// first, then a `"tool"` key in the JSON (what a remote post carries), then the shape of the payload, and
-    /// Claude Code otherwise. The shape is asked in a fixed order: Copilot's camelCase `sessionId` first, a key no
+    /// Claude Code otherwise. The shape is asked in a fixed order: OpenCode's dotted event names first, which no
+    /// other assistant's names are; then Copilot's camelCase `sessionId`, a key no
     /// other assistant sends, because eight of Copilot's camelCase names (`sessionStart`, `sessionEnd`,
     /// `subagentStart`, `subagentStop`, `preToolUse`, `postToolUse`, `postToolUseFailure`, `preCompact`) are Cursor's
     /// too; then Cursor's `conversation_id`, `cursor_version` or one of its own event names; then Gemini CLI's own
@@ -275,7 +281,8 @@ enum Hook {
         else { return nil }
         let claimed = tool ?? (object[toolKey] as? String).flatMap(ToolID.init(rawValue:))
         let vendor: HookVendor = claimed.flatMap(HookVendor.vendor(for:))
-            ?? (Copilot.recognises(object: object) ? .copilot
+            ?? (OpenCode.recognises(event: event) ? .opencode
+                : Copilot.recognises(object: object) ? .copilot
                 : Cursor.recognises(event: event, object: object) ? .cursor
                 : Gemini.recognises(event: event, object: object, environment: environment) ? .antigravity
                 : Copilot.recognises(event: event, object: object) ? .copilot
@@ -286,6 +293,7 @@ enum Hook {
         case .cursor: Cursor.message(event: event, object: object, environment: environment, branch: branch)
         case .antigravity: Gemini.message(event: event, object: object, environment: environment, branch: branch)
         case .copilot: Copilot.message(event: event, object: object, branch: branch, requestID: requestID)
+        case .opencode: OpenCode.message(event: event, object: object, branch: branch)
         }
     }
 

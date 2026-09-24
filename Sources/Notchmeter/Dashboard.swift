@@ -253,6 +253,11 @@ extension ToolID {
         case .codex: pair = (0x23A06F, 0x34A874)
         case .antigravity: pair = (0x2F7FB8, 0x56B4E9)
         case .copilot: pair = (0x9A8A00, 0xF0E442)
+        // The notch's violet sits on top of Cursor's periwinkle once both are stepped for a window (1.6 under
+        // deuteranopia), so OpenCode's window steps lean to the orchid side of the same purple: 18.1 normal and 9.3
+        // CVD from the light set at 7.2:1 on its surface, 17.9 and 7.9 from the dark set at 3.55:1. The Dashboard
+        // names every series in its legend, which is the secondary encoding the 6–8 CVD band asks for.
+        case .opencode: pair = (0x961C8C, 0xC818B8)
         }
         return Color(nsColor: NSColor(name: nil) { appearance in
             let hex = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? pair.dark : pair.light

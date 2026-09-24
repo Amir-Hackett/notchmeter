@@ -271,6 +271,86 @@ enum DemoFixtures {
                                firstUse: calendar.date(byAdding: .day, value: -212, to: start), sinceFirstUse: 41_300)
         return base.adding([claude, cursor].compactMap { $0 })
     }
+
+    // MARK: - OpenCode
+
+    /// The OpenCode afternoon `--render-assets` draws beside the README's: Claude Code on Max as above, and OpenCode on
+    /// the Go plan with no plugin installed. Every OpenCode figure comes from synthetic turns run through the code the
+    /// app uses — GoMeter for the meter, OpenCodeCostScanner's digest for the spend, OpenCodeSessions and the tracker for
+    /// the sessions — so a change to any rule changes the picture, and a figure the rules cannot produce cannot be drawn.
+    @MainActor
+    static func openCodeStore(now: Date = Date(), suite: String = suiteName) -> (store: UsageStore, prefs: Preferences) {
+        UserDefaults.standard.removePersistentDomain(forName: suite)
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
+        defaults.register(defaults: ["resetDisplay": ResetDisplay.countdown.rawValue, "peakHoursTools": [String]()])
+        let prefs = Preferences(defaults: defaults)
+        prefs.toolOrder = [.opencode, .claude, .codex, .cursor, .antigravity, .copilot]
+        prefs.settingsExpandedTools = [.opencode]
+        let usage = openCodeUsage(now: now)
+        var readings = Array(readings(now: now).prefix(1))
+        if let go = GoMeter.reading(usage, now: now) { readings.append(go) }
+        let store = UsageStore(prefs: prefs, providers: readings.map { FixtureProvider(reading: $0) },
+                               cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
+        store.seed(readings: readings, cost: openCodeCost(usage, now: now), nextUpdate: now.addingTimeInterval(2 * 60 + 40),
+                   sessions: openCodeSessions(now: now), now: now)
+        store.hooksInstalled = true
+        return (store, prefs)
+    }
+
+    /// A month of OpenCode turns: Kimi K3 and GLM-5.2 on Go, steady through the month and busier this afternoon, and
+    /// Claude Sonnet 5 on an Anthropic key whose cost OpenCode recorded itself.
+    static func openCodeUsage(now: Date) -> [OpenCodeUsage] {
+        var turns: [OpenCodeUsage] = []
+        func turn(_ ago: TimeInterval, provider: String, model: String, input: Int, output: Int, read: Int, cost: Double = 0, folder: String) {
+            let index = turns.count
+            turns.append(OpenCodeUsage(id: "msg_demo_\(index)", sessionID: "ses_demo_\(index % 3)", timestamp: now.addingTimeInterval(-ago),
+                                       providerID: provider, modelID: model, directory: "/Users/demo/Developer/\(folder)",
+                                       tokens: TokenBreakdown(input: input, cacheRead: read, output: output), contextTokens: input + read,
+                                       recordedCost: cost))
+        }
+        // Kimi K3 ($3 in, $15 out per million): $0.54 a turn, three this afternoon (54 % of its $3 five hours), two on each
+        // of two days this week (50 % of $7.50) and of five days before it (61 % of $15 over the month).
+        for hour in [0.5, 1.5, 3.0] { turn(hour * 3600, provider: GoPlan.providerID, model: "kimi-k3", input: 80_000, output: 20_000, read: 0, folder: "api-server") }
+        for day in [3, 5, 9, 12, 16, 20, 24] {
+            for slot in 0..<2 { turn(Double(day) * 86_400 + Double(slot) * 3600, provider: GoPlan.providerID, model: "kimi-k3", input: 80_000, output: 20_000, read: 0, folder: "api-server") }
+        }
+        // GLM-5.2 ($1.40 in, $4.40 out): cheaper turns against a $60 limit.
+        for day in 0...25 {
+            turn(Double(day) * 86_400 + 5400, provider: GoPlan.providerID, model: "glm-5.2", input: 120_000, output: 30_000, read: 400_000, folder: "notchmeter")
+        }
+        for day in 0...12 {
+            turn(Double(day) * 86_400 + 7200, provider: "anthropic", model: "claude-sonnet-5", input: 40_000, output: 12_000, read: 300_000, cost: 0.26, folder: "notchmeter")
+        }
+        return turns
+    }
+
+    /// The Claude Code figures of `cost(now:)` with OpenCode's own row beside them.
+    static func openCodeCost(_ usage: [OpenCodeUsage], now: Date) -> CostSummary {
+        let calendar = Calendar.current
+        let weekStart = CostEngine.weekStart(weeklyResetsAt: nil, now: now, calendar: calendar)
+        let digest = OpenCodeCostScanner.digest(usage, now: now, calendar: calendar)
+        let opencode = ProviderCost.build(tool: .opencode, source: .localMessages, days: digest.days, now: now, weekStart: weekStart, calendar: calendar,
+                                          hourly: HourlyBurn(lastHour: digest.lastHour, costByHour: digest.costByHour), unpricedModels: digest.unpriced,
+                                          scannedAt: now)
+        return cost(now: now).adding([opencode].compactMap { $0 })
+    }
+
+    /// One OpenCode session mid-turn, read from the database the way `OpenCodeSessions` reads it, and one idle, beside
+    /// the Claude Code session of the working moment.
+    static func openCodeSessions(now: Date) -> SessionTracker {
+        var tracker = sessions(now: now, moment: .working)
+        let states = [
+            OpenCodeSessionState(id: "ses_api", parentID: nil, directory: "/Users/demo/Developer/api-server", title: "Paginate the audit log endpoint",
+                                 updated: now.addingTimeInterval(-20), archived: false, turn: .working(since: now.addingTimeInterval(-3 * 60 - 10))),
+            OpenCodeSessionState(id: "ses_docs", parentID: nil, directory: "/Users/demo/Developer/notchmeter", title: nil,
+                                 updated: now.addingTimeInterval(-7 * 60), archived: false,
+                                 turn: .idle(finishedAt: now.addingTimeInterval(-7 * 60), turnStarted: now.addingTimeInterval(-9 * 60), failure: nil)),
+        ]
+        let read = OpenCodeSessions.events(previous: nil, current: states, now: now, branch: { _ in "main" })
+        for event in read.events { tracker.apply(event.message, now: event.at) }
+        for (key, name) in OpenCodeSessions.names(states) { tracker.name(key, name) }
+        return tracker
+    }
 }
 
 /// Installed, and never read: the demo store is seeded with the reading instead.

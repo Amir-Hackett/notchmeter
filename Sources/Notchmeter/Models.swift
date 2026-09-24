@@ -2,7 +2,7 @@ import Foundation
 import os
 
 enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
-    case claude, codex, cursor, antigravity, copilot
+    case claude, codex, cursor, antigravity, copilot, opencode
 
     var displayName: String {
         switch self {
@@ -11,6 +11,7 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
         case .cursor: "Cursor"
         case .antigravity: "Antigravity"
         case .copilot: "Copilot"
+        case .opencode: "OpenCode"
         }
     }
 
@@ -21,6 +22,8 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
         case .cursor: "cursorarrow"
         case .antigravity: "sparkles.rectangle.stack"
         case .copilot: "airplane"
+        // OpenCode is a terminal first; `terminal` is the one glyph none of the others wears.
+        case .opencode: "terminal"
         }
     }
 
@@ -30,13 +33,14 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
     }
 
     /// Whether this tool's spend can be derived from something it publishes: Claude Code's transcripts, Codex's
-    /// session rollouts, Cursor's priced usage-events export, and since GitHub's June 2026 move to usage-based
-    /// billing the AI credit count on a Copilot seat, a cent a credit at GitHub's published rate (a seat GitHub
-    /// does not meter in credits still produces no figure and no row). Antigravity meters quota rather than money,
-    /// so it cannot produce a dollar figure and never appears on the Cost card (docs/accuracy.md).
+    /// session rollouts, Cursor's priced usage-events export, since GitHub's June 2026 move to usage-based billing
+    /// the AI credit count on a Copilot seat, a cent a credit at GitHub's published rate (a seat GitHub does not
+    /// meter in credits still produces no figure and no row), and OpenCode's own database, whose every assistant
+    /// message records its tokens, its model and the cost OpenCode put on it. Antigravity meters quota rather than
+    /// money, so it cannot produce a dollar figure and never appears on the Cost card (docs/accuracy.md).
     var reportsCost: Bool {
         switch self {
-        case .claude, .codex, .cursor, .copilot: true
+        case .claude, .codex, .cursor, .copilot, .opencode: true
         case .antigravity: false
         }
     }
@@ -54,6 +58,10 @@ enum WindowSource: String, Codable, Equatable, Sendable {
     case localSnapshot
     /// Built here from local observation (an inferred window length); not something the vendor said.
     case localEstimate
+    /// Worked out on this Mac from the tool's own local records of your turns, at the prices and against the limits
+    /// the vendor publishes, because the vendor offers no reading of its own (OpenCode Go). The vendor never saw
+    /// this figure; its rule, sources and dates are in docs/accuracy.md, and it counts only this Mac's turns.
+    case computedLocally
 
     /// The small tag on the card; nil for the endpoint, which needs no explanation.
     var tag: String? {
@@ -63,6 +71,16 @@ enum WindowSource: String, Codable, Equatable, Sendable {
         case .rateLimitHeaders: L("headers")
         case .localSnapshot: L("snapshot")
         case .localEstimate: L("inferred")
+        case .computedLocally: L("computed here")
+        }
+    }
+
+    /// What the tag's tooltip and VoiceOver say where its one or two words would undersell what kind of figure this
+    /// is; nil where "Source: <tag>" says enough.
+    var explanation: String? {
+        switch self {
+        case .computedLocally: L("Computed on this Mac from your own turns at the vendor's published prices and limits; the vendor sent no figure, and turns on another machine are not counted")
+        default: nil
         }
     }
 }
@@ -638,6 +656,8 @@ enum ProviderLinks {
         case .cursor: URL(string: "https://cursor.com/dashboard")!
         case .antigravity: URL(string: "https://geminicli.com/docs/resources/quota-and-pricing/")!
         case .copilot: URL(string: "https://github.com/settings/copilot")!
+        // The console the Go page itself points at for "your current usage".
+        case .opencode: URL(string: "https://opencode.ai/auth")!
         }
     }
 
@@ -646,7 +666,8 @@ enum ProviderLinks {
         case .claude: URL(string: "https://status.anthropic.com")
         case .codex: URL(string: "https://status.openai.com")
         case .cursor: URL(string: "https://status.cursor.com")
-        case .antigravity: nil
+        // Neither publishes a status page this app could name with confidence.
+        case .antigravity, .opencode: nil
         case .copilot: URL(string: "https://www.githubstatus.com")
         }
     }

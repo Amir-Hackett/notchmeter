@@ -10,6 +10,14 @@ extension ToolID {
         case .cursor: Color(red: 0.65, green: 0.55, blue: 0.98)
         case .antigravity: Color(hex: 0x56B4E9)  // #56B4E9 sky blue, from Wong's set
         case .copilot: Color(hex: 0xF0E442)      // #F0E442 yellow, from Wong's set
+        // #BE3CE6 violet. Wong's one unused hue, reddish purple #CC79A7, sits 11 ΔE (OKLab×100) from Claude's
+        // terracotta under normal vision and 5 under deuteranopia, so it would be the one pair on the strip a reader
+        // could confuse. This violet was chosen by sweeping sRGB against all eight colours the notch draws (the five
+        // identities and Palette's three status hues) with the dataviz validator's arithmetic: at least 15.6 from
+        // every one of them under normal vision and 9.4 under every deutan, protan and tritan simulation, and 4.98:1
+        // on the panel's black. A magenta scored better against the identities and fell to 1.7 from Palette.calm,
+        // the waiting blue, which is the one confusion the strip can least afford.
+        case .opencode: Color(hex: 0xBE3CE6)
         }
     }
 
@@ -25,6 +33,7 @@ extension ToolID {
         case .cursor: [Color(hex: 0xF08BD6), Color(hex: 0x8FC0FF)]       // pink, periwinkle
         case .antigravity: [Color(hex: 0x9FA8FF), Color(hex: 0x7FE3CF)]  // indigo, mint
         case .copilot: [Color(hex: 0xC6E86A), Color(hex: 0xFFF4B0)]      // lime, cream
+        case .opencode: [Color(hex: 0xE59BFF), Color(hex: 0xF6D2FF)]     // orchid, lilac
         }
         return companions[min(index, companions.count) - 1]
     }
@@ -2215,7 +2224,7 @@ struct MeterRow: View {
                         .padding(.horizontal, 4).padding(.vertical, 1)
                         .background(Capsule().fill(.white.opacity(0.12)))
                         .foregroundStyle(.secondary)
-                        .help(L("Source: %@", tag))
+                        .help(window.source.explanation ?? L("Source: %@", tag))
                 }
                 Spacer(minLength: 8)
                 if let pace, !hideFigures {
@@ -2272,7 +2281,7 @@ struct MeterRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(toolName) \(window.label)")
         .accessibilityValue(Spoken.line(unused ?? usage, unused == nil ? reset : nil, detail, hideFigures ? nil : pace?.text, drainLine, meteringLine,
-                                        window.source.tag.map { L("Source: %@", $0) }))
+                                        window.source.tag.map { L("Source: %@", $0) }, window.source.explanation))
     }
 
     private func flipUsage() {

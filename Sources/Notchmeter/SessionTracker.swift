@@ -284,6 +284,14 @@ struct TaskChange: Equatable, Sendable {
     var deleted = false
 }
 
+/// Where a session's events came from. Almost always the assistant's own hook; for OpenCode without its plugin, the
+/// app's own reading of OpenCode's database (OpenCodeSessions), which learns of a turn's end a few seconds late,
+/// never learns of a wait, and knows nothing of the terminal. The row says so (SessionsCard), and the oracle too.
+enum SessionSource: String, Equatable, Sendable {
+    case hook
+    case localStorage
+}
+
 /// One assistant session a hook has reported: which project it runs in and whether it is mid-turn, idle between
 /// turns, or waiting for the user; plus what the hook and status line know about where it runs.
 struct AgentSession: Equatable, Sendable, Identifiable {
@@ -356,6 +364,8 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// This turn went quiet with nothing running and is shown as a possible wait. Set once per turn, cleared by the
     /// next prompt; the wait itself ends with the next activity.
     var quietNudge = false
+    /// Where the latest event about this session came from; a hook event makes it `.hook` again.
+    var source: SessionSource = .hook
 
     init(id: String, tool: ToolID = .claude, project: String?, state: State, started: Date, lastEvent: Date, turnStarted: Date?, branch: String? = nil,
          prURL: String? = nil, permissionMode: String? = nil, host: String? = nil) {
@@ -664,6 +674,7 @@ struct SessionTracker: Equatable, Sendable {
         }
         var session = sessions[id] ?? AgentSession(id: id, tool: message.tool, project: message.project, state: .idle, started: now, lastEvent: now,
                                                    turnStarted: nil, host: message.host)
+        session.source = message.source
         if let project = message.project { session.project = project }
         if let branch = message.branch { session.branch = branch }
         if let mode = message.permissionMode { session.permissionMode = mode }

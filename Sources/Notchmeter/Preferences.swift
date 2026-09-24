@@ -292,6 +292,22 @@ enum ResetReminder: String, CaseIterable, Codable {
     }
 }
 
+/// A tool a later version added, for an install whose lists were saved before it: switched on once, in Assistants
+/// and on the Cost card, the way a new install has every tool on. Without this an install that had ever touched
+/// either list kept the list it saved, and a new assistant arrived switched off with nothing to say it existed.
+/// Only once: `toolsOffered` records every tool the install has been offered, so one the user then switches off
+/// stays off. Before the record existed an install had been offered the five tools of 0.8.0.
+enum ToolIntroduction {
+    static let before090: [ToolID] = [.claude, .codex, .cursor, .antigravity, .copilot]
+
+    /// The tools to switch on: those this install has not been offered. A list never saved already holds every tool,
+    /// so adding them to it changes nothing.
+    static func new(offered: [String]?) -> Set<ToolID> {
+        let known = offered.map { Set($0.compactMap(ToolID.init(rawValue:))) } ?? Set(before090)
+        return Set(ToolID.allCases).subtracting(known)
+    }
+}
+
 enum ToolOrder {
     /// A stored order with names that are no tool dropped, repeats removed, and every tool it leaves out appended
     /// in default order, so a tool added in a later version appears without a reset.
@@ -833,6 +849,15 @@ final class Preferences {
     var sessionTitles: Bool {
         didSet { defaults.set(sessionTitles, forKey: Keys.sessionTitles); report(Keys.sessionTitles, sessionTitles, changed: sessionTitles != oldValue) }
     }
+    /// Whether OpenCode's sessions are read from its own database while its plugin is not reporting
+    /// (OpenCodeSessions). On by default: it is a local, read-only reading that needs nothing installed, and each
+    /// row it makes says where it came from. Off, OpenCode's sessions appear only once the plugin reports them.
+    var openCodeStorageSessions: Bool {
+        didSet {
+            defaults.set(openCodeStorageSessions, forKey: Keys.openCodeStorageSessions)
+            report(Keys.openCodeStorageSessions, openCodeStorageSessions, changed: openCodeStorageSessions != oldValue)
+        }
+    }
     /// Whether a permission request or a question is answered from the notch. Off, the store answers the hook
     /// nothing at once, so the terminal asks as it always has, and the panel shows only the wait.
     var answerFromNotch: Bool {
@@ -1045,6 +1070,8 @@ final class Preferences {
         static let autoRepair = "autoRepairHooks"
         static let sessionsCard = "sessionsCard"
         static let sessionTitles = "sessionTitles"
+        static let openCodeStorageSessions = "openCodeStorageSessions"
+        static let toolsOffered = "toolsOffered"
         static let answerFromNotch = "answerFromNotch"
         static let jumpToTerminal = "jumpToTerminal"
         static let promptHold = "promptHoldSeconds"
@@ -1063,8 +1090,9 @@ final class Preferences {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        let introduced = ToolIntroduction.new(offered: defaults.array(forKey: Keys.toolsOffered) as? [String])
         if let raw = defaults.array(forKey: Keys.enabledTools) as? [String] {
-            enabledTools = Set(raw.compactMap(ToolID.init(rawValue:)))
+            enabledTools = Set(raw.compactMap(ToolID.init(rawValue:))).union(introduced)
         } else {
             enabledTools = Set(ToolID.allCases)
         }
@@ -1107,7 +1135,8 @@ final class Preferences {
         weeklyBudgetUSD = defaults.object(forKey: Keys.weeklyBudget) as? Double
         costCardMode = CostCardMode(rawValue: defaults.string(forKey: Keys.costCardMode) ?? "") ?? .cost
         costCardTools = (defaults.array(forKey: Keys.costCardTools) as? [String])
-            .map { Set($0.compactMap(ToolID.init(rawValue:)).filter(\.reportsCost)) } ?? Set(ToolID.allCases.filter(\.reportsCost))
+            .map { Set($0.compactMap(ToolID.init(rawValue:)).filter(\.reportsCost)).union(introduced.filter(\.reportsCost)) }
+            ?? Set(ToolID.allCases.filter(\.reportsCost))
         ringWindows = (defaults.dictionary(forKey: Keys.ringWindows) as? [String: [String]] ?? [:])
             .reduce(into: [:]) { if let tool = ToolID(rawValue: $1.key) { $0[tool] = $1.value } }
         hiddenWindows = (defaults.dictionary(forKey: Keys.hiddenWindows) as? [String: [String]] ?? [:])
@@ -1163,6 +1192,7 @@ final class Preferences {
         autoRepairHooks = defaults.object(forKey: Keys.autoRepair) as? Bool ?? true
         sessionsCard = defaults.object(forKey: Keys.sessionsCard) as? Bool ?? true
         sessionTitles = defaults.object(forKey: Keys.sessionTitles) as? Bool ?? true
+        openCodeStorageSessions = defaults.object(forKey: Keys.openCodeStorageSessions) as? Bool ?? true
         answerFromNotch = defaults.object(forKey: Keys.answerFromNotch) as? Bool ?? true
         jumpToTerminal = defaults.object(forKey: Keys.jumpToTerminal) as? Bool ?? true
         promptHoldSeconds = min(Self.promptHoldRange.upperBound, max(Self.promptHoldRange.lowerBound, defaults.object(forKey: Keys.promptHold) as? Int ?? Self.promptHoldDefault))
@@ -1184,6 +1214,13 @@ final class Preferences {
         Keychain.setPolicy(keychainPrompts)
         NetworkSession.configure(proxy: proxyURL)
         DiagnosticLog.verbose = debugLogging
+        // Written here rather than by the observers, which do not run in an initialiser: a tool switched on for this
+        // install once is remembered as offered, so switching it off afterwards sticks (ToolIntroduction).
+        if !introduced.isEmpty {
+            if defaults.array(forKey: Keys.enabledTools) != nil { defaults.set(enabledTools.map(\.rawValue).sorted(), forKey: Keys.enabledTools) }
+            if defaults.array(forKey: Keys.costCardTools) != nil { defaults.set(costCardTools.map(\.rawValue).sorted(), forKey: Keys.costCardTools) }
+        }
+        defaults.set(ToolID.allCases.map(\.rawValue), forKey: Keys.toolsOffered)
     }
 
     private static func codable<T: Decodable>(_ defaults: UserDefaults, _ key: String) -> T? {

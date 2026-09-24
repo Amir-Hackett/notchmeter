@@ -183,12 +183,19 @@ struct SettingsView: View {
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: SettingsWindowController.minSize.width, minHeight: SettingsWindowController.minSize.height)
         .sheet(item: $showHookSnippet) { vendor in
-            HookSnippetView(title: L("%@ hook", vendor.displayName),
-                            explanation: L("Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits.", vendor.fileURL.path, vendor.fileName, AppInfo.name,
-                                             // The per-event flag with a placeholder, so Copilot's explanation names the `--event <name>`
-                                             // every entry below it carries; every other vendor's flag comes back unchanged.
-                                             vendor.flag(for: "<name>")),
-                            snippet: HookSettings.snippet(vendor: vendor))
+            if vendor.shape == .pluginModule {
+                HookSnippetView(title: L("OpenCode plugin"),
+                                explanation: L("Save this as %1$@, or use Add plugin… to have it written for you. OpenCode loads it when it starts, and for each event it runs %2$@ %3$@, which posts the event to the running app and exits.",
+                                               vendor.fileURL.path, AppInfo.name, vendor.flag),
+                                snippet: HookSettings.snippet(vendor: vendor))
+            } else {
+                HookSnippetView(title: L("%@ hook", vendor.displayName),
+                                explanation: L("Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits.", vendor.fileURL.path, vendor.fileName, AppInfo.name,
+                                                 // The per-event flag with a placeholder, so Copilot's explanation names the `--event <name>`
+                                                 // every entry below it carries; every other vendor's flag comes back unchanged.
+                                                 vendor.flag(for: "<name>")),
+                                snippet: HookSettings.snippet(vendor: vendor))
+            }
         }
         .sheet(isPresented: $showStatuslineSnippet) {
             HookSnippetView(title: L("Claude Code status line"), explanation: L("Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar.", HookSettings.settingsURL.path, AppInfo.name),
@@ -982,6 +989,10 @@ struct SettingsView: View {
                 .help(L("One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month."))
         case .antigravity:
             EmptyView()
+        case .opencode:
+            Toggle(L("Show sessions read from OpenCode's database"), isOn: Binding(get: { prefs.openCodeStorageSessions }, set: { prefs.openCodeStorageSessions = $0 }))
+                .help(L("With nothing installed, OpenCode's own database on this Mac is read every few seconds while OpenCode writes to it, and never written: a session appears when it starts, works from its prompt until the answer closes, and goes idle a few seconds after. It cannot see OpenCode stop to ask your permission. The OpenCode plugin under Integrations reports that and each turn's end as they happen, and once it has, this reading stands down."))
+            paragraph(L("OpenCode Go publishes no reading of its limits, so its meters are computed here from this Mac's own turns at the Go page's prices."))
         }
     }
 
@@ -1080,7 +1091,7 @@ struct SettingsView: View {
             }
         } header: {
             Text(L("Hooks"))
-                .help(L("Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit."))
+                .help(L("Let Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot and OpenCode tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI, Copilot and OpenCode also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; Claude Code and OpenCode report a stop on a rate limit."))
         }
     }
 
@@ -1088,13 +1099,14 @@ struct SettingsView: View {
     @ViewBuilder
     private func hookRow(_ vendor: HookVendor) -> some View {
         let status = hookStatus[vendor] ?? .notInstalled
-        Text(L("%@ hook", vendor.displayName))
+        Text(vendor.shape == .pluginModule ? L("OpenCode plugin") : L("%@ hook", vendor.displayName))
             .font(.subheadline.weight(.semibold))
             .help(hookRowHelp(vendor))
         Text(status.text).font(.caption).foregroundStyle(hookStatusColor(status))
         HStack {
             Button(L("Show snippet…")) { showHookSnippet = vendor }
             switch status {
+            case .notInstalled where vendor.shape == .pluginModule: Button(L("Add plugin…")) { installHook(vendor: vendor) }
             case .notInstalled: Button(L("Add to %@…", vendor.fileName)) { installHook(vendor: vendor) }
             case .stale, .partial: Button(L("Repair")) { repairHook(vendor: vendor) }
             case .installed: EmptyView()
@@ -1119,6 +1131,8 @@ struct SettingsView: View {
             L("Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring.")
         case .copilot:
             L("GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it.")
+        case .opencode:
+            L("OpenCode's plugin reports session starts and ends, prompt sends, each turn's end and a failed one, subagent starts and stops, and the moment it stops to ask your permission and the moment that is answered, so the OpenCode ring shows the waiting hand only while it waits. It is not answered from the notch. The file is Notchmeter's own in ~/.config/opencode/plugins, so removing the plugin is deleting it; OpenCode loads it when it starts. Without it, OpenCode's sessions are read from its own database, a few seconds late and never waiting.")
         }
     }
 
@@ -1136,6 +1150,8 @@ struct SettingsView: View {
             L("Gemini CLI reads settings.json when it starts: the hook works from the next session.")
         case .copilot:
             L("Copilot CLI reads its hooks when it starts: restart it, then /env lists the file.")
+        case .opencode:
+            L("OpenCode loads its plugins when it starts: the plugin works from the next session.")
         case .claude, .cursor:
             nil
         }
@@ -1346,6 +1362,7 @@ struct SettingsView: View {
         statuslineStatus = requests.renderedHookStatus?.statusline ?? HookSettings.statuslineStatus()
         // What the Sessions card's empty state reads, kept current by the one place the user installs a hook.
         store.hooksInstalled = hookStatus.values.contains { $0 != .notInstalled }
+        store.openCodePluginInstalled = (hookStatus[.opencode] ?? .notInstalled) != .notInstalled
     }
 
     private func subtitle(for tool: ToolID) -> String {
@@ -1450,9 +1467,17 @@ struct SettingsView: View {
     private func installHook(vendor: HookVendor = .claude, at url: URL? = nil, dryRun: Bool = false) {
         let url = url ?? vendor.fileURL
         let alert = NSAlert()
-        alert.messageText = L("Add the Notchmeter hook to %@?", vendor.fileName)
-        alert.informativeText = L("%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@.",
-                                  url.path, vendor.fileName, vendor.events.joined(separator: ", "))
+        if vendor.shape == .pluginModule {
+            // The plugin is a file of Notchmeter's own rather than an entry merged into the user's, so the sheet says
+            // what is written, and that a file already at the path is backed up rather than merged.
+            alert.messageText = L("Add the Notchmeter plugin to OpenCode?")
+            alert.informativeText = L("Notchmeter writes its own plugin at %1$@. A file already there is copied to %2$@.bak-<date> first; nothing else in OpenCode's configuration changes.",
+                                      url.path, vendor.fileName)
+        } else {
+            alert.messageText = L("Add the Notchmeter hook to %@?", vendor.fileName)
+            alert.informativeText = L("%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@.",
+                                      url.path, vendor.fileName, vendor.events.joined(separator: ", "))
+        }
         alert.addButton(withTitle: L("Add"))
         alert.addButton(withTitle: L("Cancel"))
         let finish: (NSApplication.ModalResponse) -> Void = { response in
