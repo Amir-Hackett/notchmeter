@@ -833,6 +833,19 @@ final class Preferences {
     var sessionTitles: Bool {
         didSet { defaults.set(sessionTitles, forKey: Keys.sessionTitles); report(Keys.sessionTitles, sessionTitles, changed: sessionTitles != oldValue) }
     }
+    /// Where Send Feedback last sent (Feedback.Destination), so a person without a GitHub account picks Email once
+    /// rather than every time.
+    var feedbackDestination: Feedback.Destination {
+        didSet {
+            defaults.set(feedbackDestination.rawValue, forKey: Keys.feedbackDestination)
+            report(Keys.feedbackDestination, feedbackDestination.rawValue, changed: feedbackDestination != oldValue)
+        }
+    }
+    /// Whether Send Feedback's *Include diagnostics* is ticked. On until unticked: the report is shown whole, and
+    /// already scrubbed, before it can leave, and a bug report without it is usually answered by asking for it.
+    var feedbackDiagnostics: Bool {
+        didSet { defaults.set(feedbackDiagnostics, forKey: Keys.feedbackDiagnostics); report(Keys.feedbackDiagnostics, feedbackDiagnostics, changed: feedbackDiagnostics != oldValue) }
+    }
     /// Whether a permission request or a question is answered from the notch. Off, the store answers the hook
     /// nothing at once, so the terminal asks as it always has, and the panel shows only the wait.
     var answerFromNotch: Bool {
@@ -1046,6 +1059,8 @@ final class Preferences {
         static let sessionsCard = "sessionsCard"
         static let sessionTitles = "sessionTitles"
         static let answerFromNotch = "answerFromNotch"
+        static let feedbackDestination = "feedbackDestination"
+        static let feedbackDiagnostics = "feedbackDiagnostics"
         static let jumpToTerminal = "jumpToTerminal"
         static let promptHold = "promptHoldSeconds"
         static let proxy = "proxyURL"
@@ -1164,6 +1179,8 @@ final class Preferences {
         sessionsCard = defaults.object(forKey: Keys.sessionsCard) as? Bool ?? true
         sessionTitles = defaults.object(forKey: Keys.sessionTitles) as? Bool ?? true
         answerFromNotch = defaults.object(forKey: Keys.answerFromNotch) as? Bool ?? true
+        feedbackDestination = Feedback.Destination(rawValue: defaults.string(forKey: Keys.feedbackDestination) ?? "") ?? .github
+        feedbackDiagnostics = defaults.object(forKey: Keys.feedbackDiagnostics) as? Bool ?? true
         jumpToTerminal = defaults.object(forKey: Keys.jumpToTerminal) as? Bool ?? true
         promptHoldSeconds = min(Self.promptHoldRange.upperBound, max(Self.promptHoldRange.lowerBound, defaults.object(forKey: Keys.promptHold) as? Int ?? Self.promptHoldDefault))
         proxyURL = defaults.string(forKey: Keys.proxy) ?? ""

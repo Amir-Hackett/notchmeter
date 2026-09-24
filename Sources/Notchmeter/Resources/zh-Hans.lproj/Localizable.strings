@@ -919,3 +919,38 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "将此项目的 Cursor 窗口移到前面（无法让 Cursor 打开某一个对话）";
 "First seen %@" = "首次发现于 %@";
+
+/* Send Feedback (Feedback.swift, FeedbackView.swift): the sheet, its buttons in Settings and the Options menu */
+"Send Feedback…" = "发送反馈…";
+"Write to the developer: a message, and the diagnostics if you like, with every project name, branch, session title and your home folder replaced. You see all of it before it goes, and it goes only through GitHub in your browser or your own mail app." = "写信给开发者：一段留言，以及你愿意附上的诊断信息，所有项目名称、分支、会话标题和你的个人文件夹都会被替换。发出前你能看到全部内容，而且只会通过浏览器中的 GitHub 或你自己的邮件应用发出。";
+"GitHub issue" = "GitHub Issue";
+"Email" = "电子邮件";
+"Send Feedback" = "发送反馈";
+"%@ has no server. Send hands what you write to GitHub in your browser or to your own mail app, and nothing is filed or mailed until you send it there. The text under What will be sent is exactly what goes." = "%@ 没有服务器。“发送”只会把你写的内容交给浏览器中的 GitHub 或你自己的邮件应用，在你在那里发送之前，不会提交或寄出任何内容。“将发送的内容”下的文字就是实际发出的全部内容。";
+"Include diagnostics" = "包含诊断信息";
+"The same report as Copy diagnostics: the last 10 minutes of this app's log, each assistant's status, the hooks, the layout and the macOS version. Never a token." = "与“复制诊断信息”相同的报告：本应用日志的最近 10 分钟、各助手状态、钩子、布局和 macOS 版本。绝不包含令牌。";
+"Send through" = "发送方式";
+"Message" = "留言";
+"What happened, and what did you expect? Or what would make it better?" = "发生了什么，你原本期望怎样？或者，怎样能让它更好？";
+"What will be sent" = "将发送的内容";
+"The diagnostics are hidden while the screen is shared or recorded. Untick Include diagnostics, or send once sharing stops." = "屏幕共享或录制期间会隐藏诊断信息。取消勾选“包含诊断信息”，或在共享结束后再发送。";
+"Goes to" = "发送到";
+"Title" = "标题";
+"Subject" = "主题";
+"Reading the diagnostics…" = "正在读取诊断信息…";
+"Puts the title and the text above on the clipboard, for pasting wherever you like." = "把标题和上面的文字放到剪贴板，随处粘贴。";
+"Copied." = "已复制。";
+"Send…" = "发送…";
+"Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "在发送目的地打开上面的文字（⌘↩）；在那里发送之前，什么都不会发出。";
+"Write a message first." = "请先写留言。";
+"Replaced: project names %1$ld · branches %2$ld · session titles %3$ld · other names and paths %4$ld. Your home folder reads ~." = "已替换：项目名称 %1$ld · 分支 %2$ld · 会话标题 %3$ld · 其他名称和路径 %4$ld。你的个人文件夹显示为 ~。";
+"Older log lines left out so the text fits in a link: %ld." = "为让文字放得进链接而省略的较早日志行数：%ld。";
+"The diagnostics are left out so the text fits in a link." = "为让文字放得进链接，省略了诊断信息。";
+"The message is cut short so it fits in a link." = "为放得进链接，留言被截短了。";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "“发送”会在浏览器中打开 %@ 的新 Issue，并填好这段文字。GitHub 会在页面加载时收到文字，但在你点按 Submit new issue 之前不会发布任何内容。Issue 是公开的，并以你的 GitHub 账户提交。";
+"Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "“发送”会在“邮件”中打开发给 %@ 的新邮件，并填好这段文字。在你在那里点按“发送”之前不会发出任何内容，发件人是你自己的地址。";
+"Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "“发送”会在你的邮件应用中打开发给 %@ 的新邮件，并填好这段文字。在你在那里点按“发送”之前不会发出任何内容，发件人是你自己的地址。";
+"No browser took the link." = "没有浏览器打开这个链接。";
+"No mail app took the message." = "没有邮件应用接收这封邮件。";
+"Opened in your browser. Nothing is filed until you press Submit new issue there." = "已在浏览器中打开。在你点按 Submit new issue 之前不会提交任何内容。";
+"Opened in your mail app. Nothing is sent until you press Send there." = "已在邮件应用中打开。在你在那里点按“发送”之前不会发出任何内容。";

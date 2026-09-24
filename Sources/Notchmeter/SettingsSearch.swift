@@ -55,7 +55,7 @@ enum SettingsSearch {
             L("Show the welcome tour again"))
         add(.updates, L("Updates"), L("Check for updates automatically"), L("Download updates automatically"), L("Beta updates"),
             L("Check for Updates…"))
-        add(.about, L("Version %@", AppInfo.version), L("Support %@…", AppInfo.name))
+        add(.about, L("Version %@", AppInfo.version), L("Send Feedback…"), L("Support %@…", AppInfo.name))
         add(.panel, L("Appearance"), L("Panel"), L("Readouts"), L("When crowded"), L("Show details"), L("Position"), L("Display"),
             L("Show"), L("Hover delay"), L("Show reset countdown beside the figures"), L("Show the main figure beside the rings"),
             L("Show assistant symbols in the rings"), L("Panel layout"), L("Density"), L("Panel width"), L("Show over full-screen apps"), L("Gestures: swipe down to open, swipe up to close"),
@@ -84,7 +84,7 @@ enum SettingsSearch {
         add(.privacy, L("Advanced"), L("Privacy"), L("Hide usage while the screen is shared or recorded"), L("Ask for Keychain access"),
             L("Local API on 127.0.0.1:%ld", Int(LocalAPI.port)))
         add(.advanced, L("Peak hours (Anthropic's tighter session limits)"), L("Export history…"), L("Reset All Settings…"))
-        add(.diagnostics, L("Diagnostics"), L("Route requests through"), L("Debug logging"), L("Copy diagnostics"), L("Rate per dollar"),
+        add(.diagnostics, L("Diagnostics"), L("Route requests through"), L("Debug logging"), L("Copy diagnostics"), L("Send Feedback…"), L("Rate per dollar"),
             L("Last crash report"), L("Copy crash report"))
         return rows
     }

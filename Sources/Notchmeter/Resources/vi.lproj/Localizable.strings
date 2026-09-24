@@ -902,3 +902,38 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Đưa cửa sổ Cursor của dự án này lên trước (không thể yêu cầu Cursor mở một cuộc trò chuyện cụ thể)";
 "First seen %@" = "Thấy lần đầu lúc %@";
+
+/* Send Feedback (Feedback.swift, FeedbackView.swift): the sheet, its buttons in Settings and the Options menu */
+"Send Feedback…" = "Gửi phản hồi…";
+"Write to the developer: a message, and the diagnostics if you like, with every project name, branch, session title and your home folder replaced. You see all of it before it goes, and it goes only through GitHub in your browser or your own mail app." = "Viết cho nhà phát triển: một tin nhắn, và chẩn đoán nếu bạn muốn, với mọi tên dự án, nhánh, tiêu đề phiên và thư mục nhà đã được thay. Bạn xem toàn bộ trước khi gửi, và nó chỉ đi qua GitHub trong trình duyệt hoặc ứng dụng thư của chính bạn.";
+"GitHub issue" = "Issue trên GitHub";
+"Email" = "Email";
+"Send Feedback" = "Gửi phản hồi";
+"%@ has no server. Send hands what you write to GitHub in your browser or to your own mail app, and nothing is filed or mailed until you send it there. The text under What will be sent is exactly what goes." = "%@ không có máy chủ. Gửi chỉ chuyển nội dung bạn viết tới GitHub trong trình duyệt hoặc ứng dụng thư của chính bạn, và không gì được tạo hay gửi đi cho đến khi bạn gửi ở đó. Văn bản dưới Nội dung sẽ gửi chính là những gì được gửi đi.";
+"Include diagnostics" = "Kèm chẩn đoán";
+"The same report as Copy diagnostics: the last 10 minutes of this app's log, each assistant's status, the hooks, the layout and the macOS version. Never a token." = "Cùng báo cáo với Sao chép chẩn đoán: 10 phút cuối nhật ký của ứng dụng, trạng thái từng trợ lý, các hook, bố cục và phiên bản macOS. Không bao giờ có token.";
+"Send through" = "Gửi qua";
+"Message" = "Tin nhắn";
+"What happened, and what did you expect? Or what would make it better?" = "Chuyện gì đã xảy ra và bạn mong đợi điều gì? Hay điều gì sẽ làm nó tốt hơn?";
+"What will be sent" = "Nội dung sẽ gửi";
+"The diagnostics are hidden while the screen is shared or recorded. Untick Include diagnostics, or send once sharing stops." = "Chẩn đoán bị ẩn khi màn hình đang được chia sẻ hoặc ghi. Bỏ chọn Kèm chẩn đoán, hoặc gửi khi đã ngừng chia sẻ.";
+"Goes to" = "Gửi đến";
+"Title" = "Tiêu đề";
+"Subject" = "Chủ đề";
+"Reading the diagnostics…" = "Đang đọc chẩn đoán…";
+"Puts the title and the text above on the clipboard, for pasting wherever you like." = "Đặt tiêu đề và văn bản ở trên vào bộ nhớ tạm để dán vào bất cứ đâu bạn muốn.";
+"Copied." = "Đã sao chép.";
+"Send…" = "Gửi…";
+"Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "Mở văn bản ở trên tại nơi nó sẽ đến (⌘↩); không gì được gửi đi cho đến khi bạn gửi ở đó.";
+"Write a message first." = "Hãy viết tin nhắn trước.";
+"Replaced: project names %1$ld · branches %2$ld · session titles %3$ld · other names and paths %4$ld. Your home folder reads ~." = "Đã thay: tên dự án %1$ld · nhánh %2$ld · tiêu đề phiên %3$ld · tên và đường dẫn khác %4$ld. Thư mục nhà hiển thị là ~.";
+"Older log lines left out so the text fits in a link: %ld." = "Số dòng nhật ký cũ đã bỏ để văn bản vừa trong một liên kết: %ld.";
+"The diagnostics are left out so the text fits in a link." = "Đã bỏ chẩn đoán để văn bản vừa trong một liên kết.";
+"The message is cut short so it fits in a link." = "Tin nhắn đã bị cắt bớt để vừa trong một liên kết.";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "Gửi sẽ mở một issue mới trên %@ trong trình duyệt với văn bản này đã điền sẵn. GitHub nhận văn bản khi trang tải và không đăng gì cho đến khi bạn bấm Submit new issue. Issue là công khai và được tạo dưới tài khoản GitHub của bạn.";
+"Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "Gửi sẽ mở một thư mới tới %@ trong Mail với văn bản này đã điền sẵn. Không gì được gửi cho đến khi bạn bấm Gửi ở đó, từ địa chỉ của chính bạn.";
+"Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "Gửi sẽ mở một thư mới tới %@ trong ứng dụng thư của bạn với văn bản này đã điền sẵn. Không gì được gửi cho đến khi bạn bấm Gửi ở đó, từ địa chỉ của chính bạn.";
+"No browser took the link." = "Không trình duyệt nào mở được liên kết.";
+"No mail app took the message." = "Không ứng dụng thư nào nhận tin nhắn.";
+"Opened in your browser. Nothing is filed until you press Submit new issue there." = "Đã mở trong trình duyệt. Không gì được tạo cho đến khi bạn bấm Submit new issue ở đó.";
+"Opened in your mail app. Nothing is sent until you press Send there." = "Đã mở trong ứng dụng thư. Không gì được gửi cho đến khi bạn bấm Gửi ở đó.";

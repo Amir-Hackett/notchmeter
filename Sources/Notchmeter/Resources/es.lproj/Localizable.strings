@@ -919,3 +919,38 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Trae al frente la ventana de Cursor de este proyecto (a Cursor no se le puede pedir que abra un chat concreto)";
 "First seen %@" = "Visto por primera vez %@";
+
+/* Send Feedback (Feedback.swift, FeedbackView.swift): the sheet, its buttons in Settings and the Options menu */
+"Send Feedback…" = "Enviar comentarios…";
+"Write to the developer: a message, and the diagnostics if you like, with every project name, branch, session title and your home folder replaced. You see all of it before it goes, and it goes only through GitHub in your browser or your own mail app." = "Escribe al desarrollador: un mensaje y, si quieres, el diagnóstico, con cada nombre de proyecto, rama, título de sesión y tu carpeta de inicio reemplazados. Lo ves todo antes de que salga, y solo sale por GitHub en tu navegador o por tu propia app de correo.";
+"GitHub issue" = "Issue de GitHub";
+"Email" = "Correo";
+"Send Feedback" = "Enviar comentarios";
+"%@ has no server. Send hands what you write to GitHub in your browser or to your own mail app, and nothing is filed or mailed until you send it there. The text under What will be sent is exactly what goes." = "%@ no tiene servidor. Enviar entrega lo que escribes a GitHub en tu navegador o a tu propia app de correo, y no se crea ni se envía nada hasta que lo envíes allí. El texto bajo Lo que se enviará es exactamente lo que sale.";
+"Include diagnostics" = "Incluir diagnóstico";
+"The same report as Copy diagnostics: the last 10 minutes of this app's log, each assistant's status, the hooks, the layout and the macOS version. Never a token." = "El mismo informe que Copiar diagnóstico: los últimos 10 minutos del registro de esta app, el estado de cada asistente, los hooks, la disposición y la versión de macOS. Nunca un token.";
+"Send through" = "Enviar por";
+"Message" = "Mensaje";
+"What happened, and what did you expect? Or what would make it better?" = "¿Qué pasó y qué esperabas? ¿O qué lo mejoraría?";
+"What will be sent" = "Lo que se enviará";
+"The diagnostics are hidden while the screen is shared or recorded. Untick Include diagnostics, or send once sharing stops." = "El diagnóstico se oculta mientras la pantalla se comparte o se graba. Desmarca Incluir diagnóstico, o envía cuando termine de compartirse.";
+"Goes to" = "Destino";
+"Title" = "Título";
+"Subject" = "Asunto";
+"Reading the diagnostics…" = "Leyendo el diagnóstico…";
+"Puts the title and the text above on the clipboard, for pasting wherever you like." = "Pone el título y el texto de arriba en el portapapeles, para pegarlos donde quieras.";
+"Copied." = "Copiado.";
+"Send…" = "Enviar…";
+"Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "Abre el texto de arriba en su destino (⌘↩); nada sale hasta que lo envíes allí.";
+"Write a message first." = "Escribe primero un mensaje.";
+"Replaced: project names %1$ld · branches %2$ld · session titles %3$ld · other names and paths %4$ld. Your home folder reads ~." = "Reemplazado: nombres de proyecto %1$ld · ramas %2$ld · títulos de sesión %3$ld · otros nombres y rutas %4$ld. Tu carpeta de inicio aparece como ~.";
+"Older log lines left out so the text fits in a link: %ld." = "Líneas de registro antiguas omitidas para que el texto quepa en un enlace: %ld.";
+"The diagnostics are left out so the text fits in a link." = "Se omite el diagnóstico para que el texto quepa en un enlace.";
+"The message is cut short so it fits in a link." = "El mensaje se ha recortado para que quepa en un enlace.";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "Enviar abre un issue nuevo en %@ en tu navegador con este texto ya escrito. GitHub recibe el texto al cargar la página y no publica nada hasta que pulses Submit new issue. Los issues son públicos y se crean con tu cuenta de GitHub.";
+"Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "Enviar abre en Mail un mensaje nuevo para %@ con este texto ya escrito. No se envía nada hasta que pulses Enviar allí, desde tu propia dirección.";
+"Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "Enviar abre en tu app de correo un mensaje nuevo para %@ con este texto ya escrito. No se envía nada hasta que pulses Enviar allí, desde tu propia dirección.";
+"No browser took the link." = "Ningún navegador abrió el enlace.";
+"No mail app took the message." = "Ninguna app de correo abrió el mensaje.";
+"Opened in your browser. Nothing is filed until you press Submit new issue there." = "Abierto en tu navegador. No se crea nada hasta que pulses Submit new issue allí.";
+"Opened in your mail app. Nothing is sent until you press Send there." = "Abierto en tu app de correo. No se envía nada hasta que pulses Enviar allí.";

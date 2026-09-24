@@ -902,3 +902,38 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "このプロジェクトの Cursor ウインドウを前面に出します（Cursor に特定のチャットを開かせることはできません）";
 "First seen %@" = "最初に検出：%@";
+
+/* Send Feedback (Feedback.swift, FeedbackView.swift): the sheet, its buttons in Settings and the Options menu */
+"Send Feedback…" = "フィードバックを送信…";
+"Write to the developer: a message, and the diagnostics if you like, with every project name, branch, session title and your home folder replaced. You see all of it before it goes, and it goes only through GitHub in your browser or your own mail app." = "開発者に連絡します。メッセージと、必要なら診断情報を、プロジェクト名、ブランチ、セッションのタイトル、ホームフォルダをすべて置き換えて送ります。送る前にすべて確認でき、送信はブラウザーの GitHub かお使いのメールアプリからだけです。";
+"GitHub issue" = "GitHub の Issue";
+"Email" = "メール";
+"Send Feedback" = "フィードバックを送信";
+"%@ has no server. Send hands what you write to GitHub in your browser or to your own mail app, and nothing is filed or mailed until you send it there. The text under What will be sent is exactly what goes." = "%@ にはサーバーがありません。「送信」は書いた内容をブラウザーの GitHub かお使いのメールアプリに渡すだけで、そちらで送信するまで何も作成・送信されません。「送信される内容」の下のテキストが、そのまま送られます。";
+"Include diagnostics" = "診断情報を含める";
+"The same report as Copy diagnostics: the last 10 minutes of this app's log, each assistant's status, the hooks, the layout and the macOS version. Never a token." = "「診断情報をコピー」と同じレポートです。このアプリのログの直近 10 分、各アシスタントの状態、フック、レイアウト、macOS のバージョン。トークンは含みません。";
+"Send through" = "送信方法";
+"Message" = "メッセージ";
+"What happened, and what did you expect? Or what would make it better?" = "何が起きて、どうなると思っていましたか？ あるいは、何があればもっと良くなりますか？";
+"What will be sent" = "送信される内容";
+"The diagnostics are hidden while the screen is shared or recorded. Untick Include diagnostics, or send once sharing stops." = "画面の共有中や収録中は診断情報を隠します。「診断情報を含める」をオフにするか、共有が終わってから送信してください。";
+"Goes to" = "送信先";
+"Title" = "タイトル";
+"Subject" = "件名";
+"Reading the diagnostics…" = "診断情報を読み込み中…";
+"Puts the title and the text above on the clipboard, for pasting wherever you like." = "タイトルと上のテキストをクリップボードに入れます。好きな場所に貼り付けられます。";
+"Copied." = "コピーしました。";
+"Send…" = "送信…";
+"Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "上のテキストを送信先で開きます（⌘↩）。そこで送信するまで何も送られません。";
+"Write a message first." = "先にメッセージを書いてください。";
+"Replaced: project names %1$ld · branches %2$ld · session titles %3$ld · other names and paths %4$ld. Your home folder reads ~." = "置き換え済み：プロジェクト名 %1$ld 件 · ブランチ %2$ld 件 · セッションのタイトル %3$ld 件 · その他の名前とパス %4$ld 件。ホームフォルダは ~ と表示されます。";
+"Older log lines left out so the text fits in a link: %ld." = "テキストがリンクに収まるよう省いた古いログの行数：%ld";
+"The diagnostics are left out so the text fits in a link." = "テキストがリンクに収まるよう、診断情報を省いています。";
+"The message is cut short so it fits in a link." = "リンクに収まるよう、メッセージを途中で切っています。";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "「送信」を押すと、この内容を入力済みの新しい Issue がブラウザーで %@ に開きます。GitHub はページの読み込み時にテキストを受け取りますが、「Submit new issue」を押すまで何も公開しません。Issue は公開され、あなたの GitHub アカウントで作成されます。";
+"Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "「送信」を押すと、この内容を入力済みの %@ 宛て新規メッセージがメールで開きます。そこで送信を押すまで何も送られず、送信元はあなた自身のアドレスです。";
+"Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "「送信」を押すと、この内容を入力済みの %@ 宛て新規メッセージがお使いのメールアプリで開きます。そこで送信を押すまで何も送られず、送信元はあなた自身のアドレスです。";
+"No browser took the link." = "リンクを開けるブラウザーがありませんでした。";
+"No mail app took the message." = "メッセージを受け取れるメールアプリがありませんでした。";
+"Opened in your browser. Nothing is filed until you press Submit new issue there." = "ブラウザーで開きました。そこで「Submit new issue」を押すまで何も作成されません。";
+"Opened in your mail app. Nothing is sent until you press Send there." = "メールアプリで開きました。そこで送信を押すまで何も送られません。";

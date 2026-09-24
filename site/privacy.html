@@ -105,7 +105,7 @@ table.dtable code { font-size: 12.4px; }
       <div class="summary-card">
         <h3>The short version</h3>
         <ul>
-          <li><strong>No server of ours.</strong> There is no Notchmeter account, no Notchmeter backend, no telemetry, no analytics and no crash reporting. Nothing about your usage, your prompts, your transcripts or your projects ever reaches us. We could not look it up if we wanted to, because we hold no record of you at all.</li>
+          <li><strong>No server of ours.</strong> There is no Notchmeter account, no Notchmeter backend, no telemetry, no analytics and no crash reporting. Nothing about your usage, your prompts, your transcripts or your projects ever reaches us. We could not look it up if we wanted to, because we hold no record of you at all. The one exception is feedback you choose to send from the app, which you read in full first and which travels through your own browser or mail app (4.6).</li>
           <li><strong>The app is not silent on the network, and you should know who it talks to.</strong> Its whole job is to read your AI usage, and the only way to do that is to ask your providers. It reads the login each tool already saved on your Mac and makes that tool's own usage request to that tool's own vendor, with your own token. Section 4 lists every single request.</li>
           <li><strong>It also checks GitHub for updates, about once a day.</strong> That means GitHub sees the IP address of a running copy of Notchmeter roughly daily. You can switch it off in Settings › Updates › <em>Check for updates automatically</em>.</li>
           <li><strong>This website has no analytics, no cookies and no browser storage.</strong> No script of any kind runs on these pages. The only thing recorded is the ordinary server log kept by our host, Vercel.</li>
@@ -186,7 +186,7 @@ table.dtable code { font-size: 12.4px; }
       <h2 id="app">4. The Mac app</h2>
 
       <div class="callout">
-        <p><strong>Nothing the app does reaches us.</strong> There is no Notchmeter account, no Notchmeter server, no telemetry, no analytics, no crash reporter and no usage reporting. The app never sends a prompt, a response, a transcript or a file path anywhere. It never sends any token to us, because there is no "us" on the network for it to send one to.</p>
+        <p><strong>Nothing the app does reaches us.</strong> There is no Notchmeter account, no Notchmeter server, no telemetry, no analytics, no crash reporter and no usage reporting. The app never sends a prompt, a response, a transcript or a file path anywhere. It never sends any token to us, because there is no "us" on the network for it to send one to. The only way anything from the app reaches us is feedback you write and send yourself, described in 4.6.</p>
         <p>What follows is the honest other half. The app does make network requests. It talks only to providers you already have an account with, using the login their own tool already put on your Mac, and it is worth setting that out request by request rather than waving at it.</p>
       </div>
 
@@ -278,6 +278,9 @@ table.dtable code { font-size: 12.4px; }
       <h3>4.5 Copy diagnostics</h3>
       <p>Settings has a Copy diagnostics button. It reads the app's own last ten minutes of log lines, replaces your home folder path with <code>~</code>, and puts the text on your clipboard. <strong>Nothing is transmitted.</strong> If you paste it into a bug report, you are the one sending it, and you can read it first.</p>
 
+      <h3>4.6 Send feedback</h3>
+      <p>Settings › General › <em>Send Feedback…</em> (also in the Options menu) opens a form with a message, an optional copy of the Copy diagnostics report, and a choice of GitHub or email. Under it the app shows the exact text that would leave. Before showing it, the app replaces your home folder path with <code>~</code> and replaces every project name, git branch, session title, folder, pull request link, remote machine name and your account name that it is holding with a placeholder such as <code>[project 1]</code>, in your message as well as in the report. <strong>The app itself sends nothing.</strong> Pressing Send opens either a new, prefilled issue on our GitHub repository in your browser, or a new email to <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a> in your mail app. Two things are worth knowing. A prefilled GitHub issue carries its text in the page address, so GitHub receives that text when the page loads, before you press <em>Submit new issue</em>; nothing is published until you do, and a published issue is public and shows your GitHub account. An email is sent only when you press Send in your mail app, from your own address, and reaches us like any other email. Neither is anonymous.</p>
+
       <hr>
 
       <h2 id="basis">5. Legal basis for each use</h2>
@@ -290,6 +293,7 @@ table.dtable code { font-size: 12.4px; }
             <tr><td>A donation, if you choose to make one</td><td>Taking the payment you asked to make</td><td>Article 6(1)(b), the transaction you asked for. Keeping the record afterwards rests on Article 6(1)(f), our interest in holding the accounting and tax records US law requires of us.</td></tr>
             <tr><td>App update check</td><td>Telling you when a fixed or safer version exists</td><td>Article 6(1)(f), legitimate interests in getting security fixes to installed software. You can switch automatic checking off.</td></tr>
             <tr><td>App usage reads to AI vendors</td><td>Showing you your own usage, which is the one thing you installed the app to do</td><td>These run on your machine, at your instruction, with your own credentials, and we receive nothing from them. To the extent a basis applies to us at all it is Article 6(1)(f). Each vendor is its own controller for what it does with the request.</td></tr>
+            <tr><td>Feedback you send from the app</td><td>Reading it, answering you, and fixing what you report</td><td>Article 6(1)(f), legitimate interests in answering people who write to us and in fixing the software. You decide whether to send anything and see every word first. A GitHub issue is also processed by GitHub under its own privacy statement.</td></tr>
             <tr><td>Everything else the app does</td><td>Showing your usage and cost locally</td><td>No basis is needed, because we do no processing. The data never leaves your Mac and we never see it.</td></tr>
           </tbody>
         </table>
@@ -306,7 +310,7 @@ table.dtable code { font-size: 12.4px; }
           <tbody>
             <tr><td>Vercel</td><td>Website server logs: IP address, user agent, the page requested, the time, the referrer</td><td>Every visit to notchmeter.com</td><td>Vercel is a United States company and serves the site from a global edge network</td></tr>
             <tr><td>Stripe</td><td>Your email address, the amount, and your payment details</td><td>Only if you click the support link and choose to donate</td><td>United States</td></tr>
-            <tr><td>GitHub (Microsoft)</td><td>IP address and browser or updater details</td><td>When you click through to the source, docs or issues, when you download the app, and when the app checks for updates</td><td>United States</td></tr>
+            <tr><td>GitHub (Microsoft)</td><td>IP address and browser or updater details; and, if you send feedback as a GitHub issue, the text you saw in the app's feedback form</td><td>When you click through to the source, docs or issues, when you download the app, when the app checks for updates, and when you choose to send feedback as a GitHub issue</td><td>United States</td></tr>
             <tr><td>Anthropic, OpenAI, Cursor, Google, and GitHub for Copilot</td><td>Your IP address and your own saved token for that tool, plus the account, project or organisation identifier that tool's request requires</td><td>Each time the app reads your usage for a provider you have enabled</td><td>United States, and wherever else that vendor operates</td></tr>
           </tbody>
         </table>
@@ -331,7 +335,8 @@ table.dtable code { font-size: 12.4px; }
 
       <h2 id="retention">8. How long anything is kept</h2>
       <ul>
-        <li><strong>By us: nothing about you.</strong> There is no user database, no analytics warehouse and no log archive of our own. The one exception is the donation record described below.</li>
+        <li><strong>By us: nothing about you.</strong> There is no user database, no analytics warehouse and no log archive of our own. The exceptions are the donation record and any feedback you choose to send, both described below.</li>
+        <li><strong>Feedback you send.</strong> An email stays in our mailbox for as long as it is useful for answering you and fixing what you reported; ask and we delete it. A GitHub issue lives on GitHub, in public, until you or we delete it.</li>
         <li><strong>Donation records.</strong> If you donate, we keep the transaction record Stripe shows us, which includes the email address you entered, for as long as US tax and accounting rules require records of income to be kept, and then no longer. We do not use it for anything else, and we never add it to a mailing list, because there is no mailing list.</li>
         <li><strong>Website server logs</strong> are held by Vercel, not by us. Vercel does not publish a single retention period for them; its Data Processing Addendum commits it to anonymising or deleting personal data when it no longer needs it for the purpose it was collected for. We have no way to shorten that and no access to the raw logs.</li>
         <li><strong>Payment data</strong> is kept by Stripe under its own policy, which states that it generally retains this kind of data for five or more years from the last transaction or the end of the relationship, whichever is later.</li>
