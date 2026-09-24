@@ -49,7 +49,8 @@ enum PollingDecision: Equatable {
 /// Low Power Mode, a quarter as often once no agent has been active for half an hour, at the ceiling while a
 /// window is exhausted with a known reset (nothing can change before it; a reset timer reads at the reset itself)
 /// or while another user's session is in front, never more than fifteen minutes apart while awake, and never
-/// faster than the provider's own cadence. A fresh status-line reading replaces the read entirely.
+/// faster than the provider's own cadence. A fresh status-line reading replaces the read, save for the half-hourly
+/// one `endpointDue` keeps for the figures only Claude's endpoint carries.
 ///
 /// Fast user switching slows the cadence rather than stopping it, which the other pauses do not. Locked and
 /// asleep mean the work has stopped too; a switched-out session's agents keep running, and the limits being
@@ -62,6 +63,9 @@ enum PollingPolicy {
     static let batteryMultiplier: Double = 2
     static let ceiling: TimeInterval = 15 * 60
     static let statuslineFreshFor: TimeInterval = 180
+    /// How often the endpoint is still read while the status line stands in, and then only for an account whose
+    /// endpoint carries something the status line does not (`endpointDue`).
+    static let endpointBesideStatusline: TimeInterval = 30 * 60
 
     static func decide(_ inputs: PollingInputs) -> PollingDecision {
         if inputs.asleep { return .paused(.asleep) }
@@ -74,6 +78,27 @@ enum PollingPolicy {
         if isExhausted(inputs) { interval = ceiling }
         if inputs.sessionInactive { interval = ceiling }
         return .after(max(interval, inputs.baseInterval))
+    }
+
+    /// When Claude's usage endpoint is next worth reading while a status line stands in for it; nil for never.
+    ///
+    /// The status line carries the session and weekly windows (and a gateway's spend limit), and those are taken
+    /// from it rather than from the network. The endpoint also answers figures the status line has no field for:
+    /// the per-model weekly limits and the extra-usage spend, and the weekly window itself when a payload leaves it
+    /// out. Showing only what the status line has would drop those from the card and silence the extra-usage
+    /// notice for exactly the people who use Claude Code most, whose status line never goes stale; carrying them
+    /// over from the last endpoint answer without ever asking again would show an hours-old spend as current,
+    /// because the reading takes the status line's time. So the endpoint is read beside the status line every half
+    /// hour, a sixth of its own cadence, and only while the last reading holds a figure it alone supplied. An
+    /// account whose endpoint says nothing the status line does not is never read while the status line is fresh.
+    /// With no endpoint figure on record and no read yet this run, one read learns which kind of account it is;
+    /// after that read the answer stands until the next launch.
+    static func endpointDue(besideStatusline carried: [LimitWindow], reading: UsageReading?, lastEndpointRead: Date?, now: Date) -> Date? {
+        let fromEndpoint = (reading?.windows ?? []).filter { $0.source == .vendorEndpoint || $0.source == .rateLimitHeaders }
+        guard !fromEndpoint.isEmpty else { return lastEndpointRead == nil ? now : nil }
+        let ids = Set(carried.map(\.id))
+        guard fromEndpoint.contains(where: { !ids.contains($0.id) }) else { return nil }
+        return (lastEndpointRead ?? .distantPast).addingTimeInterval(endpointBesideStatusline)
     }
 
     /// The main window is used up and its reset is still ahead.
