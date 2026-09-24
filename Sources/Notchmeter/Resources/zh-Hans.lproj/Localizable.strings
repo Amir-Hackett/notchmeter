@@ -701,7 +701,11 @@
 "Waiting for permission." = "正在等待授权。";
 "Waiting for the first reading" = "等待首次读数";
 "waiting for the first reading" = "等待首次读数";
-"Waiting for you" = "等待你";
+"Question" = "提问";
+"Plan ready to approve" = "计划待批准";
+"Preview the %@ sound" = "试听“%@”的声音";
+"Choose a file for the %@ sound" = "为“%@”的声音选择文件";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "只有当 Claude Code 通过钩子请求批准时，才能识别出计划；未说明需要什么的等待会播放权限请求的声音。";
 "Waiting for your answer" = "正在等待你的回应";
 "Waiting for your approval in System Settings › General › Login Items." = "等待你在“系统设置 › 通用 › 登录项”中批准。";
 "waiting for your input" = "正在等待你的输入";

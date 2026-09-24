@@ -88,6 +88,9 @@ enum Hook {
         /// has gone quiet. Anything without a type counts as blocking: no vendor but Claude Code reports an idle
         /// nudge at all, so a wait with nothing to say for itself is one that is holding.
         var blocksSession: Bool { notificationType != Hook.idleNotificationType }
+        /// What a wait this message begins is asking for (`Hook.waitKind`). Read before the store drops a request
+        /// the notch will not answer, since the request is where a plan tells itself apart from a permission.
+        var waitKind: Hook.WaitKind { Hook.waitKind(event: event, notificationType: notificationType, request: request) }
 
         /// The branch checked out in `cwd`, when it is a git checkout.
         let branch: String?

@@ -701,7 +701,11 @@
 "Waiting for permission." = "Waiting for permission.";
 "Waiting for the first reading" = "Waiting for the first reading";
 "waiting for the first reading" = "waiting for the first reading";
-"Waiting for you" = "Waiting for you";
+"Question" = "Question";
+"Plan ready to approve" = "Plan ready to approve";
+"Preview the %@ sound" = "Preview the %@ sound";
+"Choose a file for the %@ sound" = "Choose a file for the %@ sound";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound.";
 "Waiting for your answer" = "Waiting for your answer";
 "Waiting for your approval in System Settings › General › Login Items." = "Waiting for your approval in System Settings › General › Login Items.";
 "waiting for your input" = "waiting for your input";

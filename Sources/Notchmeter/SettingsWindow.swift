@@ -825,7 +825,10 @@ struct SettingsView: View {
             Toggle(L("Sound"), isOn: Binding(get: { prefs.notificationSound }, set: { prefs.notificationSound = $0 }))
             if prefs.notificationSound {
                 SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))
-                SoundPicker(title: L("Waiting for you"), choice: Binding(get: { prefs.soundWaiting }, set: { prefs.soundWaiting = $0 }))
+                SoundPicker(title: L("Permission request"), choice: Binding(get: { prefs.soundPermission }, set: { prefs.soundPermission = $0 }))
+                SoundPicker(title: L("Question"), choice: Binding(get: { prefs.soundQuestion }, set: { prefs.soundQuestion = $0 }))
+                SoundPicker(title: L("Plan ready to approve"), choice: Binding(get: { prefs.soundPlan }, set: { prefs.soundPlan = $0 }))
+                    .help(L("A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound."))
                 SoundPicker(title: L("Turn finished"), choice: Binding(get: { prefs.soundFinished }, set: { prefs.soundFinished = $0 }))
                 paragraph(L("A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name."))
             }
@@ -1597,8 +1600,11 @@ private struct SoundPicker: View {
                         ForEach(custom, id: \.self) { name in Text((name as NSString).deletingPathExtension).tag("custom:\(name)") }
                     }
                 }
+                // Four rows each carry a Preview and a Choose file…, so VoiceOver hears which row's it is on.
                 Button(L("Preview")) { NotificationSound.preview(choice) }.controlSize(.small)
+                    .accessibilityLabel(L("Preview the %@ sound", title))
                 Button(L("Choose file…")) { chooseFile() }.controlSize(.small).disabled(importing)
+                    .accessibilityLabel(L("Choose a file for the %@ sound", title))
             }
             if let note {
                 Text(note).font(.caption).foregroundStyle(.secondary)

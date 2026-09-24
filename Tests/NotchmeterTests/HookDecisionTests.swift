@@ -778,7 +778,8 @@ import Testing
         message.title = "the secret plan"
         message.terminal = TerminalRef(program: "iTerm.app", bundleID: "com.googlecode.iterm2", tty: "/dev/ttys003", sessionID: "w0t0p0:X")
         let facts = UsageStore.hookFacts(message)
-        #expect(Set(facts.keys) == ["name", "needsInput", "session", "project", "host", "branch", "agent", "failure", "request"])
+        #expect(Set(facts.keys) == ["name", "needsInput", "session", "project", "host", "branch", "agent", "failure", "request", "wait"])
+        #expect(facts["wait"] as? String == "permission")
         #expect(facts["request"] as? String == "permission")
         for key in ["title", "toolName", "toolSummary", "toolDetail", "suggestions", "questions", "terminal", "terminal_tty", "terminal_program", "requestID"] {
             #expect(facts[key] == nil, "\(key)")

@@ -685,7 +685,11 @@
 "Waiting for permission." = "正在等待授權。";
 "Waiting for the first reading" = "等待第一次讀取";
 "waiting for the first reading" = "等待第一次讀取";
-"Waiting for you" = "等待你";
+"Question" = "提問";
+"Plan ready to approve" = "計畫待核准";
+"Preview the %@ sound" = "試聽「%@」的聲音";
+"Choose a file for the %@ sound" = "為「%@」的聲音選擇檔案";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "只有當 Claude Code 透過掛鉤請求核准時，才能辨認出計畫；未說明需要什麼的等待會播放權限請求的聲音。";
 "Waiting for your answer" = "正在等待你的回應";
 "Waiting for your approval in System Settings › General › Login Items." = "等待你在「系統設定 › 一般 › 登入項目」中核准。";
 "waiting for your input" = "正在等待你的輸入";

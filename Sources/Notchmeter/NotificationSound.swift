@@ -27,6 +27,22 @@ enum NotificationSound {
             .sorted()
     }
 
+    /// The sound each kind of wait starts with, chosen so the three can be told apart without looking: a
+    /// permission keeps the system's own alert, which is what every wait played before the kinds were split and
+    /// the one most people already answer by reflex; a question takes Pop, short and light, since it asks for a
+    /// choice rather than leave; a plan takes Hero, the fuller rising one, since a plan ready is a piece of work
+    /// finished and waiting for a yes. A system sound this Mac does not have falls back to the default rather
+    /// than to a name the picker cannot show.
+    static func defaultChoice(for kind: Hook.WaitKind, installed: [String] = systemSounds()) -> String {
+        let name: String? = switch kind {
+        case .permission: nil
+        case .question: "Pop"
+        case .plan: "Hero"
+        }
+        guard let name, installed.contains(name) else { return defaultChoice }
+        return "system:\(name)"
+    }
+
     /// The sounds the user imported, by file name. Only the extensions Notification Center can play are offered:
     /// a .mp3 or .m4a that an earlier build copied in verbatim would preview and then never sound on a banner.
     static func customSounds(folder: URL = userFolder) -> [String] {

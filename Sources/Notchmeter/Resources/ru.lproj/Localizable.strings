@@ -701,7 +701,11 @@
 "Waiting for permission." = "Ожидание разрешения.";
 "Waiting for the first reading" = "Ожидание первых данных";
 "waiting for the first reading" = "ожидание первых данных";
-"Waiting for you" = "Ждёт вас";
+"Question" = "Вопрос";
+"Plan ready to approve" = "План ждёт одобрения";
+"Preview the %@ sound" = "Прослушать звук: %@";
+"Choose a file for the %@ sound" = "Выбрать файл для звука: %@";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "План распознаётся, только когда Claude Code просит одобрить его через хук; ожидание, которое не говорит, что ему нужно, играет звук запроса разрешения.";
 "Waiting for your answer" = "Ждёт вашего ответа";
 "Waiting for your approval in System Settings › General › Login Items." = "Ожидание вашего одобрения в Системных настройках › Основные › Объекты входа.";
 "waiting for your input" = "ждёт вашего ввода";

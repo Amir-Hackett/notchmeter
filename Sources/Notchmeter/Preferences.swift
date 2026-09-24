@@ -691,12 +691,21 @@ final class Preferences {
     var notificationSound: Bool {
         didSet { defaults.set(notificationSound, forKey: Keys.notificationSound); report(Keys.notificationSound, notificationSound, changed: notificationSound != oldValue) }
     }
-    /// The sound per event class (NotificationSound): a pace crossing, Claude Code waiting, a turn finishing.
+    /// The sound per event class (NotificationSound): a pace crossing, each kind of wait (Hook.WaitKind), a turn
+    /// finishing.
     var soundPace: String {
         didSet { defaults.set(soundPace, forKey: Keys.soundPace); report(Keys.soundPace, soundPace, changed: soundPace != oldValue) }
     }
-    var soundWaiting: String {
-        didSet { defaults.set(soundWaiting, forKey: Keys.soundWaiting); report(Keys.soundWaiting, soundWaiting, changed: soundWaiting != oldValue) }
+    /// Through 0.7.9 the three waits shared one sound, stored under `soundWaiting`; `storedWaitSound` carries that
+    /// choice over to each of them until the user picks one of its own.
+    var soundPermission: String {
+        didSet { defaults.set(soundPermission, forKey: Keys.soundPermission); report(Keys.soundPermission, soundPermission, changed: soundPermission != oldValue) }
+    }
+    var soundQuestion: String {
+        didSet { defaults.set(soundQuestion, forKey: Keys.soundQuestion); report(Keys.soundQuestion, soundQuestion, changed: soundQuestion != oldValue) }
+    }
+    var soundPlan: String {
+        didSet { defaults.set(soundPlan, forKey: Keys.soundPlan); report(Keys.soundPlan, soundPlan, changed: soundPlan != oldValue) }
     }
     var soundFinished: String {
         didSet { defaults.set(soundFinished, forKey: Keys.soundFinished); report(Keys.soundFinished, soundFinished, changed: soundFinished != oldValue) }
@@ -962,7 +971,12 @@ final class Preferences {
         static let signalRings = "signalRings"
         static let notificationSound = "notificationSound"
         static let soundPace = "soundPace"
+        /// The one waiting sound through 0.7.9. Read, never written: `storedWaitSound` falls back to it, and it is
+        /// left in place so an earlier build run again still finds the choice it made.
         static let soundWaiting = "soundWaiting"
+        static let soundPermission = "soundPermission"
+        static let soundQuestion = "soundQuestion"
+        static let soundPlan = "soundPlan"
         static let soundFinished = "soundFinished"
         static let quietHours = "quietHoursEnabled"
         static let quietStart = "quietHoursStart"
@@ -1066,7 +1080,9 @@ final class Preferences {
         signalRings = defaults.object(forKey: Keys.signalRings) as? Bool ?? true
         notificationSound = defaults.object(forKey: Keys.notificationSound) as? Bool ?? true
         soundPace = defaults.string(forKey: Keys.soundPace) ?? NotificationSound.defaultChoice
-        soundWaiting = defaults.string(forKey: Keys.soundWaiting) ?? NotificationSound.defaultChoice
+        soundPermission = Self.storedWaitSound(.permission, defaults: defaults)
+        soundQuestion = Self.storedWaitSound(.question, defaults: defaults)
+        soundPlan = Self.storedWaitSound(.plan, defaults: defaults)
         soundFinished = defaults.string(forKey: Keys.soundFinished) ?? NotificationSound.defaultChoice
         quietHoursEnabled = defaults.bool(forKey: Keys.quietHours)
         quietHoursStart = defaults.object(forKey: Keys.quietStart) as? Int ?? 22 * 60
@@ -1275,9 +1291,31 @@ final class Preferences {
         guard notificationSound else { return NotificationSound.none }
         switch event {
         case .pace: return soundPace
-        case .waiting: return soundWaiting
+        case .waiting(.permission): return soundPermission
+        case .waiting(.question): return soundQuestion
+        case .waiting(.plan): return soundPlan
         case .finished: return soundFinished
         }
+    }
+
+    /// The key each kind of wait keeps its sound under.
+    static func soundKey(for kind: Hook.WaitKind) -> String {
+        switch kind {
+        case .permission: Keys.soundPermission
+        case .question: Keys.soundQuestion
+        case .plan: Keys.soundPlan
+        }
+    }
+
+    /// A wait's sound as stored: its own choice once it has one; otherwise whatever the single waiting sound
+    /// was set to before the kinds were split, so someone who chose Glass for every wait still hears Glass for
+    /// each of them after the update; and only for someone who never chose at all, the kind's own default
+    /// (`NotificationSound.defaultChoice(for:)`), which is where the three first sound different. The old key is
+    /// consulted rather than copied: a user who later picks a sound for one kind changes that one alone, and the
+    /// other two keep following the choice they were migrated from.
+    static func storedWaitSound(_ kind: Hook.WaitKind, defaults: UserDefaults, installed: [String] = NotificationSound.systemSounds()) -> String {
+        defaults.string(forKey: soundKey(for: kind)) ?? defaults.string(forKey: Keys.soundWaiting)
+            ?? NotificationSound.defaultChoice(for: kind, installed: installed)
     }
 
     /// Empties this app's defaults domain; the caller relaunches, so nothing here needs to be re-read.

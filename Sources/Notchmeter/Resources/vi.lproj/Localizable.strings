@@ -685,7 +685,11 @@
 "Waiting for permission." = "Đang chờ cấp quyền.";
 "waiting for the first reading" = "đang chờ lần đọc đầu tiên";
 "Waiting for the first reading" = "Đang chờ lần đọc đầu tiên";
-"Waiting for you" = "Đang chờ bạn";
+"Question" = "Câu hỏi";
+"Plan ready to approve" = "Kế hoạch chờ duyệt";
+"Preview the %@ sound" = "Nghe thử âm thanh cho %@";
+"Choose a file for the %@ sound" = "Chọn tệp làm âm thanh cho %@";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "Kế hoạch chỉ được nhận ra khi Claude Code xin duyệt qua hook; lần chờ nào không nói rõ cần gì sẽ phát âm thanh yêu cầu cấp quyền.";
 "Waiting for your answer" = "Đang chờ bạn trả lời";
 "Waiting for your approval in System Settings › General › Login Items." = "Đang chờ bạn phê duyệt trong Cài đặt hệ thống › Chung › Mục đăng nhập.";
 "waiting for your input" = "đang chờ bạn nhập";

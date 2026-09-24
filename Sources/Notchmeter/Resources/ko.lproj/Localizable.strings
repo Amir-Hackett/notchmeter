@@ -685,7 +685,11 @@
 "Waiting for permission." = "권한을 기다리는 중.";
 "Waiting for the first reading" = "첫 읽기를 기다리는 중";
 "waiting for the first reading" = "첫 읽기를 기다리는 중";
-"Waiting for you" = "대기 중";
+"Question" = "질문";
+"Plan ready to approve" = "승인 대기 중인 계획";
+"Preview the %@ sound" = "%@ 소리 미리 듣기";
+"Choose a file for the %@ sound" = "%@ 소리로 쓸 파일 선택";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "계획은 Claude Code가 훅을 통해 승인을 요청할 때만 구별됩니다. 무엇을 원하는지 밝히지 않는 대기에는 권한 요청 소리가 재생됩니다.";
 "Waiting for your answer" = "답변을 기다리는 중";
 "Waiting for your approval in System Settings › General › Login Items." = "시스템 설정 › 일반 › 로그인 항목에서 승인을 기다리는 중입니다.";
 "waiting for your input" = "입력을 기다리는 중";

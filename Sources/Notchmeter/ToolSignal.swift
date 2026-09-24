@@ -63,8 +63,8 @@ enum ToolSignal: Equatable, Sendable {
     }
 
     /// The short label the expanded card carries beside the tool's name, where there is room for words. Its own
-    /// keys rather than the sound picker's "Waiting for you": a row that names a sound and a line that reports a
-    /// state want different registers in the languages that inflect them, and one key cannot be proofread for both.
+    /// keys rather than the sound picker's row names: a row that names a sound and a line that reports a state
+    /// want different registers in the languages that inflect them, and one key cannot be proofread for both.
     var cardText: String {
         switch self {
         case .waiting: L("Waiting for your answer")

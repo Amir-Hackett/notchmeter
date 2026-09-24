@@ -1231,7 +1231,7 @@ final class UsageStore {
         // an approval the turn has stopped for, and a non-blocking wait is held back while an editor is in front,
         // which for Cursor is exactly when it asks (the ten-minute ceiling on blocking banners still applies).
         if prefs.notifyWaiting {
-            for session in nudged { deliverSessionEvent(.waiting(blocking: true), session) }
+            for session in nudged { deliverSessionEvent(.waiting(blocking: true, kind: .permission), session) }
         }
     }
 
@@ -1445,13 +1445,16 @@ final class UsageStore {
     func hookReceived(_ message: Hook.Message, now: Date = Date(), reply: HookSocket.Reply? = nil) {
         var message = message
         if !prefs.sessionTitles { message.title = nil }
+        // Settled before the request can be dropped below: with answering from the notch off, the request is the
+        // only thing that says a permission is a plan's, and the sound for it should not depend on that setting.
+        let waitKind = message.waitKind
         if message.request != nil, !prefs.answerFromNotch {
             reply?.answer(nil)
             message.request = nil
         }
         let tool = message.tool
         log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.request.map { " (\($0.kind.name) request)" } ?? "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
-        Oracle.shared.emit("hook", Self.hookFacts(message))
+        Oracle.shared.emit("hook", Self.hookFacts(message, wait: waitKind))
         lastHook[tool] = now
         lastActivity[tool] = now
         wokeAt = now
@@ -1482,7 +1485,7 @@ final class UsageStore {
             reply?.answer(nil)
         }
         if let waiting = outcome.startedWaiting, prefs.notifyWaiting {
-            deliverSessionEvent(.waiting(blocking: message.blocksSession), waiting)
+            deliverSessionEvent(.waiting(blocking: message.blocksSession, kind: waitKind), waiting)
         }
         if let finished = outcome.finished, prefs.notifyFinished, finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
@@ -1508,11 +1511,15 @@ final class UsageStore {
 
     /// What the oracle records for a hook event: the event's name and shape, never the title, the summary, the
     /// detail, a question or the terminal. Static and pure so a test can pin the key set.
-    nonisolated static func hookFacts(_ message: Hook.Message) -> [String: Any] {
+    /// `wait` is the kind the store settled before it dropped a request it will not show, so the oracle names a
+    /// plan as a plan whether or not answering from the notch is on; nil reads it off the message. Only the kind:
+    /// the tool's name, which is what tells a plan apart, stays out like the rest of the request.
+    nonisolated static func hookFacts(_ message: Hook.Message, wait: Hook.WaitKind? = nil) -> [String: Any] {
         var facts: [String: Any] = ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any,
                                     "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any]
         if message.tool != .claude { facts["tool"] = message.tool.rawValue }
         if let request = message.request { facts["request"] = request.kind.name }
+        if message.needsInput || message.request != nil { facts["wait"] = (wait ?? message.waitKind).rawValue }
         return facts
     }
 

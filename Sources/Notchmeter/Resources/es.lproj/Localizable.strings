@@ -701,7 +701,11 @@
 "Waiting for permission." = "Esperando permiso.";
 "Waiting for the first reading" = "Esperando la primera lectura";
 "waiting for the first reading" = "esperando la primera lectura";
-"Waiting for you" = "Te está esperando";
+"Question" = "Pregunta";
+"Plan ready to approve" = "Plan listo para aprobar";
+"Preview the %@ sound" = "Escuchar el sonido de %@";
+"Choose a file for the %@ sound" = "Elegir un archivo para el sonido de %@";
+"A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "Un plan solo se distingue cuando Claude Code pide su aprobación a través del hook; una espera que no dice qué necesita reproduce el sonido de solicitud de permiso.";
 "Waiting for your answer" = "Esperando tu respuesta";
 "Waiting for your approval in System Settings › General › Login Items." = "Esperando tu aprobación en Ajustes del Sistema › General › Ítems de inicio.";
 "waiting for your input" = "esperando tu respuesta";
