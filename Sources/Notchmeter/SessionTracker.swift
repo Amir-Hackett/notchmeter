@@ -633,13 +633,19 @@ struct SessionTracker: Equatable, Sendable {
     }
 
     /// Drops every title and session name held: *Show what a session is working on* was turned off, and with it
-    /// off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only nothing new.
+    /// off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only nothing new. Set-aside sessions
+    /// too: one that comes back must not bring a title the setting has since forbidden.
     mutating func clearTitles() {
-        for (id, var session) in sessions where session.title != nil || session.sessionName != nil {
-            session.title = nil
-            session.sessionName = nil
-            sessions[id] = session
+        func cleared(_ table: [String: AgentSession]) -> [String: AgentSession] {
+            table.mapValues { session in
+                var session = session
+                session.title = nil
+                session.sessionName = nil
+                return session
+            }
         }
+        sessions = cleared(sessions)
+        dismissed = cleared(dismissed)
     }
 
     /// A status-line update is proof the session is alive; its project, branch and pull request are taken. Only

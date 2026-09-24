@@ -697,4 +697,17 @@ import Testing
         #expect(tracker.all.first?.title == "Fix it")
         #expect(tracker.dismissed.isEmpty)
     }
+
+    /// Turning titles off reaches the set-aside sessions too, so one that comes back brings no title with it.
+    @Test func turningTitlesOffClearsSetAsideSessionsToo() {
+        var tracker = SessionTracker()
+        var prompt = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "a", project: "p")
+        prompt.title = "Fix it"
+        tracker.apply(prompt, now: t0)
+        tracker.dismiss("a")
+        tracker.clearTitles()
+        #expect(tracker.dismissed["a"]?.title == nil)
+        tracker.apply(Hook.Message(event: "Stop", needsInput: false, sessionID: "a", project: "p"), now: t0.addingTimeInterval(5))
+        #expect(tracker.all.first?.title == nil)
+    }
 }
