@@ -167,7 +167,6 @@
 "Collapsed" = "Recolhido";
 "Colour the rings when an assistant waits or finishes" = "Colorir os anéis quando um assistente espera ou termina";
 "Connect Claude Code" = "Conectar o Claude Code";
-"Continue" = "Continuar";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "O Copilot CLI lê os hooks ao iniciar: reinicie-o e /env lista o arquivo.";
 "credits" = "créditos";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "O Cursor informa quando uma conversa começa ou termina, quando você envia um prompt, quando um turno para e quando um subagente começa ou termina. Ele não tem evento para uma espera pela sua aprovação nem para um limite de taxa, então o anel do Cursor mostra o sinal de concluído e nunca a mão de espera, e um turno cancelado ou com erro termina sem o sinal. O Cursor recarrega o hooks.json assim que ele é salvo.";
@@ -192,6 +191,7 @@
 "Hooks" = "Hooks";
 "Idle" = "Ocioso";
 "Install the hook and status line…" = "Instalar o hook e a linha de status…";
+"Open Integrations…" = "Abrir Integrações…";
 "Installed, but an entry is out of date: Repair updates it" = "Instalado, mas uma entrada está desatualizada: Reparar a atualiza";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "Ele lê o uso que cada assistente já guarda neste Mac (Claude Code, Codex, Cursor, Gemini CLI e GitHub Copilot) e consulta o endpoint de uso de cada fornecedor com o login que a ferramenta salvou. Nunca inicia sessão, não guarda token e não envia nada para nenhum outro lugar: sem conta, sem análises.";
 "Jump to the terminal" = "Ir para o terminal";
@@ -532,7 +532,6 @@
 "Overall %@" = "Geral (%@)";
 "Pace crossing" = "Cruzamento de ritmo";
 "Step %1$ld of %2$ld" = "Passo %1$ld de %2$ld";
-"Suggested rules" = "Regras sugeridas";
 
 "Allow %@ for the rest of this session" = "Permitir %@ pelo resto desta sessão";
 "Always allow %@ in this project" = "Sempre permitir %@ neste projeto";
@@ -546,7 +545,6 @@
 "Hidden" = "Ocultas";
 "Allows this request and saves the rule, so it is not asked again." = "Permite esta solicitação e salva a regra para não perguntar de novo.";
 "%1$@ (%2$@)" = "%1$@ (%2$@)";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "A primeira linha de cada prompt, com no máximo 96 caracteres, que o hook envia e só o app em execução guarda. Desativado, o app a descarta antes que fique guardada em qualquer lugar e a linha mostra o projeto e o branch. Os títulos ficam ocultos enquanto a tela é compartilhada, seja qual for este ajuste.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "A janela do anel externo como um único número ao lado dos anéis, no sentido Usado ou Restante escolhido em Exibição do uso e sem a contagem regressiva da renovação. Os anéis ainda se aquietam abaixo de 40%; o número continua legível.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Para ler o login salvo do Claude Code, uma vez. Escolha Permitir Sempre para que não pergunte de novo; as leituras programadas nunca abrem o diálogo.";
 "Unknown" = "Desconhecido";
@@ -720,6 +718,7 @@
 "Preview the %@ sound" = "Ouvir o som de %@";
 "Choose a file for the %@ sound" = "Escolher um arquivo para o som de %@";
 "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "Um plano só é reconhecido quando o Claude Code pede aprovação pelo hook; uma espera que não diz o que quer toca o som de pedido de permissão.";
+"Waiting for you" = "Esperando por você";
 "Waiting for your answer" = "Esperando sua resposta";
 "Waiting for your approval in System Settings › General › Login Items." = "Esperando sua aprovação em Ajustes do Sistema › Geral › Itens de Início.";
 "waiting for your input" = "esperando sua resposta";
@@ -733,7 +732,6 @@
 "Weekly budget" = "Orçamento semanal";
 "Welcome to %@" = "Bem-vindo ao %@";
 "What %@ reads" = "O que o %@ lê";
-"What it may ask for" = "O que ele pode pedir";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "O que o painel mostra de cada sessão informada pelos hooks, e o que você pode fazer com ela a partir dali. Tudo isso precisa do hook do assistente (Integrações).";
 "When crowded" = "Quando faltar espaço";
 "When a window resets" = "Quando uma janela renovar";
@@ -886,7 +884,6 @@
 
 /* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
 "Needs approval" = "Precisa de aprovação";
-"Question" = "Pergunta";
 "Finished" = "Terminado";
 "Opens the panel on this session" = "Abre o painel nesta sessão";
 "Show assistant symbols in the rings" = "Mostrar os símbolos dos assistentes nos anéis";
@@ -895,3 +892,16 @@
 "When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Quando uma sessão começa a esperar por você ou termina um turno, a faixa ao lado do notch mostra o projeto e o motivo por quatro segundos, no espaço que a barra de menus deixa. Clique para abrir o painel nessa sessão. Enquanto sua tela é compartilhada, o projeto fica de fora.";
 "Glow under the notch for news" = "Brilho sob o notch para novidades";
 "A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Uma luz sob o notch para as mesmas novidades: azul para uma espera, branca para um fim, sumindo após três segundos; um azul fraco fica enquanto uma sessão ainda espera. Com Reduzir movimento, é uma cor parada.";
+
+"The rings beside the notch" = "Os anéis ao lado do notch";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "Cada assistente tem um ninho de anéis na própria cor: o anel externo é o limite principal, os de dentro são as outras janelas, e cada arco se enche conforme a janela é usada. Um anel tracejado ainda não tem nada para ler. Passe o ponteiro sobre os anéis para abrir o painel.";
+"The panel, and pace" = "O painel e o ritmo";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "O painel tem um cartão para cada assistente com cada janela, quando ela reinicia e quanto custou. O ritmo compara a velocidade com que uma janela é usada com o tempo que resta, então o aviso chega enquanto ainda dá tempo de desacelerar, bem antes de a janela encher.";
+"Sessions, answered from the notch" = "Sessões, respondidas pelo notch";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "Com o hook instalado, o painel lista suas sessões do Claude Code e o que cada uma está fazendo. Quando uma pedir permissão ou fizer uma pergunta, responda aqui; se deixar, ela volta para o terminal.";
+"Back" = "Voltar";
+"Next" = "Avançar";
+"Sample data" = "Dados de exemplo";
+"The hook and the status line are both installed." = "O hook e a linha de status já estão instalados.";
+"Show the welcome tour again" = "Mostrar o tour de boas-vindas de novo";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "Os anéis, o painel e o ritmo, as sessões e o hook do Claude Code, numa prévia com dados de exemplo.";

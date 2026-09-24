@@ -167,7 +167,6 @@
 "Collapsed" = "已收起";
 "Colour the rings when an assistant waits or finishes" = "助手等待或完成时为圆环着色";
 "Connect Claude Code" = "连接 Claude Code";
-"Continue" = "继续";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI 在启动时读取钩子：重新启动它，然后 /env 会列出该文件。";
 "credits" = "额度";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor 报告对话的开始或结束、你发送提示、一轮停止以及子代理的启动或停止。它没有等待你批准或速率限制的事件，因此 Cursor 圆环只显示完成的勾号，绝不会显示等待的手形，而被中止或出错的一轮结束时不会有勾号。Cursor 会在 hooks.json 保存后立即重新加载。";
@@ -192,6 +191,7 @@
 "Hooks" = "钩子";
 "Idle" = "空闲";
 "Install the hook and status line…" = "安装钩子和状态行…";
+"Open Integrations…" = "打开集成…";
 "Installed, but an entry is out of date: Repair updates it" = "已安装，但有一个条目已过时：“修复”会更新它";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "它读取每个助手已保存在这台 Mac 上的用量——Claude Code、Codex、Cursor、Gemini CLI 和 GitHub Copilot——并用该工具保存的登录信息向各厂商的用量接口查询。它从不登录，不保存令牌，也不把任何内容发往别处：没有账户，没有分析统计。";
 "Jump to the terminal" = "跳转到终端";
@@ -532,7 +532,6 @@
 "Overall %@" = "总体%@";
 "Pace crossing" = "进度越界";
 "Step %1$ld of %2$ld" = "第 %1$ld 步，共 %2$ld 步";
-"Suggested rules" = "建议的规则";
 
 "Allow %@ for the rest of this session" = "在本次会话剩余时间内允许 %@";
 "Always allow %@ in this project" = "在此项目中始终允许 %@";
@@ -546,7 +545,6 @@
 "Hidden" = "已隐藏";
 "Allows this request and saves the rule, so it is not asked again." = "允许此请求并保存规则，以后不再询问。";
 "%1$@ (%2$@)" = "%1$@（%2$@）";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "每条提示的第一行，最多 96 个字符，由钩子发送，仅保存在运行中的应用里。关闭后，应用会在保存之前丢弃它，该行改为显示项目和分支。无论此项如何设置，共享屏幕时标题都会隐藏。";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "外环所属窗口以一个数字显示在圆环旁，按“用量显示”中所选的已用或剩余口径，不带重置倒计时。低于 40 % 时圆环仍会变淡；数字保持清晰。";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "用于读取 Claude Code 保存的登录信息，仅一次。选择“始终允许”即可不再打扰；定时读取绝不会弹出对话框。";
 "Unknown" = "未知";
@@ -720,6 +718,7 @@
 "Preview the %@ sound" = "试听“%@”的声音";
 "Choose a file for the %@ sound" = "为“%@”的声音选择文件";
 "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "只有当 Claude Code 通过钩子请求批准时，才能识别出计划；未说明需要什么的等待会播放权限请求的声音。";
+"Waiting for you" = "等待你";
 "Waiting for your answer" = "正在等待你的回应";
 "Waiting for your approval in System Settings › General › Login Items." = "等待你在“系统设置 › 通用 › 登录项”中批准。";
 "waiting for your input" = "正在等待你的输入";
@@ -733,7 +732,6 @@
 "Weekly budget" = "每周预算";
 "Welcome to %@" = "欢迎使用 %@";
 "What %@ reads" = "%@ 读取什么";
-"What it may ask for" = "它可能请求的权限";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "面板对钩子报告的每个会话显示什么，以及你可以在那里对它做什么。这一切都需要助手的钩子（集成）。";
 "When crowded" = "空间不足时";
 "When a window resets" = "窗口重置时";
@@ -886,7 +884,6 @@
 
 /* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
 "Needs approval" = "需要批准";
-"Question" = "问题";
 "Finished" = "已完成";
 "Opens the panel on this session" = "在此会话上打开面板";
 "Show assistant symbols in the rings" = "在圆环中显示助手符号";
@@ -895,3 +892,16 @@
 "When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "当会话开始等待你或完成一轮时，刘海旁的条带会在菜单栏留出的空间内显示项目和原因，持续四秒。点按即可在该会话上打开面板。共享屏幕时不显示项目。";
 "Glow under the notch for news" = "有动态时在刘海下方发光";
 "A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "为同样的动态在刘海下方亮起光晕：等待为蓝色，完成为白色，三秒后渐隐；会话仍在等待时保留淡淡的蓝色。开启“减弱动态效果”时为静止的色调。";
+
+"The rings beside the notch" = "刘海旁的圆环";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "每个助手都有一组自己颜色的嵌套圆环：外圈是它的主要限额，内圈是其他时间窗口，每段弧线随窗口用量增加而填满。虚线圆环表示暂时没有可读的数据。将指针悬停在圆环上即可打开面板。";
+"The panel, and pace" = "面板与节奏";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "面板为每个助手提供一张卡片，列出每个窗口、何时重置以及花费了多少。节奏会把窗口的消耗速度与剩余时间相比较，因此警告会在窗口用满之前很久、你仍来得及放慢时到来。";
+"Sessions, answered from the notch" = "会话，在刘海处直接回复";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "装好钩子后，面板会列出你的 Claude Code 会话以及每个会话正在做什么。当某个会话请求权限或向你提问时，可以在这里回答；置之不理，它就会回到终端。";
+"Back" = "上一步";
+"Next" = "下一步";
+"Sample data" = "示例数据";
+"The hook and the status line are both installed." = "钩子和状态行均已安装。";
+"Show the welcome tour again" = "再次显示欢迎导览";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "用示例数据预览圆环、面板与节奏、会话以及 Claude Code 钩子。";

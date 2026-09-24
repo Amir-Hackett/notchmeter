@@ -209,10 +209,10 @@ import Testing
         let window = try #require(controller.window)
         #expect(window is SettingsPanel)
         #expect(window.styleMask.contains(.nonactivatingPanel))
-        #expect(!window.styleMask.contains(.resizable), "a fixed three-step window has nothing to resize")
+        #expect(!window.styleMask.contains(.resizable), "a fixed four-step window has nothing to resize")
         #expect(window.standardWindowButton(.miniaturizeButton)?.isHidden ?? true)
         #expect(window.standardWindowButton(.zoomButton)?.isHidden ?? true)
         #expect(window.contentView is FirstMouseHostingView<WelcomeView>, "a first click has to land on a button")
-        #expect(WelcomeView.steps == 3)
+        #expect(WelcomeView.steps == 4)
     }
 }

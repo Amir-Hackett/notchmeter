@@ -167,7 +167,6 @@
 "Collapsed" = "Collapsed";
 "Colour the rings when an assistant waits or finishes" = "Colour the rings when an assistant waits or finishes";
 "Connect Claude Code" = "Connect Claude Code";
-"Continue" = "Continue";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file.";
 "credits" = "credits";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved.";
@@ -192,6 +191,7 @@
 "Hooks" = "Hooks";
 "Idle" = "Idle";
 "Install the hook and status line…" = "Install the hook and status line…";
+"Open Integrations…" = "Open Integrations…";
 "Installed, but an entry is out of date: Repair updates it" = "Installed, but an entry is out of date: Repair updates it";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics.";
 "Jump to the terminal" = "Jump to the terminal";
@@ -532,7 +532,6 @@
 "Overall %@" = "Overall %@";
 "Pace crossing" = "Pace crossing";
 "Step %1$ld of %2$ld" = "Step %1$ld of %2$ld";
-"Suggested rules" = "Suggested rules";
 
 "Allow %@ for the rest of this session" = "Allow %@ for the rest of this session";
 "Always allow %@ in this project" = "Always allow %@ in this project";
@@ -546,7 +545,6 @@
 "Hidden" = "Hidden";
 "Allows this request and saves the rule, so it is not asked again." = "Allows this request and saves the rule, so it is not asked again.";
 "%1$@ (%2$@)" = "%1$@ (%2$@)";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog.";
 "Unknown" = "Unknown";
@@ -720,6 +718,7 @@
 "Preview the %@ sound" = "Preview the %@ sound";
 "Choose a file for the %@ sound" = "Choose a file for the %@ sound";
 "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound.";
+"Waiting for you" = "Waiting for you";
 "Waiting for your answer" = "Waiting for your answer";
 "Waiting for your approval in System Settings › General › Login Items." = "Waiting for your approval in System Settings › General › Login Items.";
 "waiting for your input" = "waiting for your input";
@@ -733,7 +732,6 @@
 "Weekly budget" = "Weekly budget";
 "Welcome to %@" = "Welcome to %@";
 "What %@ reads" = "What %@ reads";
-"What it may ask for" = "What it may ask for";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations).";
 "When crowded" = "When crowded";
 "When a window resets" = "When a window resets";
@@ -886,7 +884,6 @@
 
 /* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
 "Needs approval" = "Needs approval";
-"Question" = "Question";
 "Finished" = "Finished";
 "Opens the panel on this session" = "Opens the panel on this session";
 "Show assistant symbols in the rings" = "Show assistant symbols in the rings";
@@ -895,3 +892,16 @@
 "When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out.";
 "Glow under the notch for news" = "Glow under the notch for news";
 "A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint.";
+
+"The rings beside the notch" = "The rings beside the notch";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel.";
+"The panel, and pace" = "The panel, and pace";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full.";
+"Sessions, answered from the notch" = "Sessions, answered from the notch";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal.";
+"Back" = "Back";
+"Next" = "Next";
+"Sample data" = "Sample data";
+"The hook and the status line are both installed." = "The hook and the status line are both installed.";
+"Show the welcome tour again" = "Show the welcome tour again";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data.";

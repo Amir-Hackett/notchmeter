@@ -150,7 +150,6 @@
 "Collapsed" = "Đã thu gọn";
 "Colour the rings when an assistant waits or finishes" = "Đổi màu vòng khi một trợ lý chờ hoặc hoàn thành";
 "Connect Claude Code" = "Kết nối Claude Code";
-"Continue" = "Tiếp tục";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI đọc hook khi khởi động: khởi động lại nó, rồi /env liệt kê tệp.";
 "credits" = "tín dụng";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor báo khi một cuộc trò chuyện bắt đầu hoặc kết thúc, khi bạn gửi prompt, khi một lượt dừng và khi một tác tử con bắt đầu hoặc dừng. Nó không có sự kiện cho việc chờ bạn phê duyệt hay cho giới hạn tốc độ, nên vòng Cursor hiện dấu tick đã xong và không bao giờ hiện bàn tay chờ, và một lượt bị hủy hay lỗi kết thúc mà không có dấu tick. Cursor tải lại hooks.json ngay khi nó được lưu.";
@@ -175,6 +174,7 @@
 "Hooks" = "Hook";
 "Idle" = "Rảnh";
 "Install the hook and status line…" = "Cài hook và dòng trạng thái…";
+"Open Integrations…" = "Mở Tích hợp…";
 "Installed, but an entry is out of date: Repair updates it" = "Đã cài, nhưng một mục đã cũ: Sửa sẽ cập nhật nó";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "Nó đọc mức dùng mà mỗi trợ lý đã lưu trên máy Mac này — Claude Code, Codex, Cursor, Gemini CLI và GitHub Copilot — và hỏi điểm cuối mức dùng của từng nhà cung cấp bằng đăng nhập mà công cụ đó đã lưu. Nó không bao giờ đăng nhập, không giữ token, và không gửi gì đi nơi khác: không tài khoản, không phân tích.";
 "Jump to the terminal" = "Nhảy tới terminal";
@@ -515,7 +515,6 @@
 "Overall %@" = "Tổng %@";
 "Pace crossing" = "Vượt nhịp";
 "Step %1$ld of %2$ld" = "Bước %1$ld trên %2$ld";
-"Suggested rules" = "Quy tắc gợi ý";
 
 "Allow %@ for the rest of this session" = "Cho phép %@ đến hết phiên này";
 "Always allow %@ in this project" = "Luôn cho phép %@ trong dự án này";
@@ -529,7 +528,6 @@
 "Hidden" = "Đang ẩn";
 "Allows this request and saves the rule, so it is not asked again." = "Cho phép yêu cầu này và lưu quy tắc để không hỏi lại.";
 "%1$@ (%2$@)" = "%1$@ (%2$@)";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "Dòng đầu của mỗi prompt, tối đa 96 ký tự, do hook gửi và chỉ ứng dụng đang chạy giữ. Khi tắt, ứng dụng bỏ nó trước khi giữ ở bất cứ đâu và dòng hiển thị dự án và nhánh thay vào đó. Tiêu đề bị ẩn khi chia sẻ màn hình dù cài đặt này ra sao.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "Cửa sổ của vòng ngoài hiện thành một con số bên cạnh các vòng, theo nghĩa Đã dùng hoặc Còn lại đã chọn trong Hiển thị mức dùng, không kèm đếm ngược đặt lại. Dưới 40 % các vòng vẫn mờ đi; con số vẫn đọc được.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Để đọc đăng nhập đã lưu của Claude Code, một lần. Chọn Luôn cho phép để nó im lặng; các lần đọc định kỳ không bao giờ hiện hộp thoại.";
 "Unknown" = "Không rõ";
@@ -703,6 +701,7 @@
 "Preview the %@ sound" = "Nghe thử âm thanh cho %@";
 "Choose a file for the %@ sound" = "Chọn tệp làm âm thanh cho %@";
 "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "Kế hoạch chỉ được nhận ra khi Claude Code xin duyệt qua hook; lần chờ nào không nói rõ cần gì sẽ phát âm thanh yêu cầu cấp quyền.";
+"Waiting for you" = "Đang chờ bạn";
 "Waiting for your answer" = "Đang chờ bạn trả lời";
 "Waiting for your approval in System Settings › General › Login Items." = "Đang chờ bạn phê duyệt trong Cài đặt hệ thống › Chung › Mục đăng nhập.";
 "waiting for your input" = "đang chờ bạn nhập";
@@ -716,7 +715,6 @@
 "Weekly budget" = "Ngân sách tuần";
 "Welcome to %@" = "Chào mừng đến với %@";
 "What %@ reads" = "%@ đọc những gì";
-"What it may ask for" = "Những quyền nó có thể hỏi";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "Bảng hiển thị gì về mỗi phiên do hook báo cáo, và bạn có thể làm gì với nó từ đó. Tất cả đều cần hook của trợ lý (Tích hợp).";
 "When crowded" = "Khi chật chỗ";
 "When a window resets" = "Khi một cửa sổ đặt lại";
@@ -869,7 +867,6 @@
 
 /* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
 "Needs approval" = "Cần phê duyệt";
-"Question" = "Câu hỏi";
 "Finished" = "Đã xong";
 "Opens the panel on this session" = "Mở bảng ở phiên này";
 "Show assistant symbols in the rings" = "Hiện biểu tượng trợ lý trong các vòng";
@@ -878,3 +875,16 @@
 "When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Khi một phiên bắt đầu chờ bạn hoặc xong một lượt, dải cạnh notch hiện tên dự án và lý do trong bốn giây, trong khoảng trống thanh menu để lại. Bấm vào để mở bảng ở phiên đó. Khi màn hình đang được chia sẻ, tên dự án được ẩn.";
 "Glow under the notch for news" = "Phát sáng dưới notch khi có tin";
 "A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Một vệt sáng dưới notch cho cùng tin đó: xanh dương khi chờ, trắng khi xong, mờ dần sau ba giây; một màu xanh nhạt còn lại khi một phiên vẫn đang chờ. Khi bật Giảm chuyển động, đó là một sắc màu tĩnh.";
+
+"The rings beside the notch" = "Các vòng cạnh notch";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "Mỗi trợ lý có một cụm vòng mang màu riêng: vòng ngoài là giới hạn chính, các vòng bên trong là những khung thời gian khác, và mỗi cung đầy dần khi khung đó được dùng. Vòng nét đứt là chưa có gì để đọc. Di con trỏ lên các vòng để mở bảng.";
+"The panel, and pace" = "Bảng và nhịp độ";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "Bảng có một thẻ cho mỗi trợ lý với từng khung thời gian, lúc nó đặt lại và chi phí đã tiêu. Nhịp độ so tốc độ dùng một khung với thời gian còn lại, nên cảnh báo đến khi vẫn còn kịp chậm lại, rất lâu trước khi khung đầy.";
+"Sessions, answered from the notch" = "Phiên, trả lời ngay từ notch";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "Khi đã cài hook, bảng liệt kê các phiên Claude Code của bạn và việc mỗi phiên đang làm. Khi một phiên xin quyền hoặc hỏi bạn, hãy trả lời ngay tại đây; nếu để đó, yêu cầu sẽ quay về terminal.";
+"Back" = "Quay lại";
+"Next" = "Tiếp";
+"Sample data" = "Dữ liệu mẫu";
+"The hook and the status line are both installed." = "Hook và dòng trạng thái đều đã được cài.";
+"Show the welcome tour again" = "Xem lại tour chào mừng";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "Các vòng, bảng và nhịp độ, các phiên và hook của Claude Code, trên bản xem trước với dữ liệu mẫu.";
