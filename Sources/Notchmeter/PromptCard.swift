@@ -7,7 +7,8 @@ import SwiftUI
 ///
 /// Every answer leaves through `decide` (`UsageStore.decide`), addressed to the request's id: the card never
 /// holds a socket or a session, and a request that ends under it (the session moved on, the hold ran out) simply
-/// takes the card down. The keys are the panel's own: ⌘Y and ⌘N for a permission, ⌘1 to ⌘9 for an option,
+/// takes the card down. The keys are the panel's own: ⌘Y and ⌘N for a permission, ⌥⌘Y to allow it always by
+/// the assistant's first suggestion (⌥⌘↓ unfolds the others, ⌥⌘2 onward), ⌘1 to ⌘9 for an option,
 /// ⌘↩ to send a multi-select, and Escape hands the request back to the terminal from the controllers' own key
 /// monitor (`NotchActions.passPrompt`). They fire only while the panel is key, which `PanelKeyPolicy` grants a
 /// panel with a request on it.
@@ -28,6 +29,8 @@ struct PromptCard: View {
     @State private var chosen: [Int: Set<Int>] = [:]
     /// Which question of several is on screen.
     @State private var current = 0
+    /// Whether *Allow always* has its other suggestions unfolded.
+    @State private var showsMoreSuggestions = false
 
     /// How many lines of the excerpt are shown before it scrolls inside a fixed frame.
     static let detailLinesShown = 8
@@ -51,9 +54,6 @@ struct PromptCard: View {
                 if let detail, !hideFigures {
                     DetailBlock(lines: Self.lines(of: detail))
                 }
-                if !suggestions.isEmpty {
-                    suggestionChips(suggestions)
-                }
                 HStack(spacing: 8) {
                     Button { decide(request.id, .deny(message: nil)) } label: { buttonLabel(L("Deny"), key: "⌘N") }
                         .buttonStyle(PromptButtonStyle(filled: false))
@@ -65,6 +65,9 @@ struct PromptCard: View {
                         .keyboardShortcut("y", modifiers: .command)
                         .help(L("Allow (⌘Y)"))
                         .accessibilityLabel(L("Allow (⌘Y)"))
+                }
+                if let first = Self.offered(suggestions).first {
+                    alwaysAllow(first, others: Array(Self.offered(suggestions).dropFirst()))
                 }
                 passLink
             case .question(let questions):
@@ -112,18 +115,96 @@ struct PromptCard: View {
         .help(L("Hands the request back to the terminal, which asks as it always has; Escape does the same."))
     }
 
-    private func suggestionChips(_ suggestions: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(L("Suggested rules")).modifier(Caption())
-            ForEach(suggestions.prefix(3), id: \.self) { rule in
-                Text(verbatim: rule).font(.caption2.monospaced()).lineLimit(1).truncationMode(.middle)
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(.white.opacity(0.1)))
+    /// *Allow always*: a split button under Allow and Deny. Its main part answers allow with the assistant's
+    /// first suggestion (⌥⌘Y), spelled out in plain words so the rule being saved is read before it is saved, not
+    /// found later in a settings file; the chevron beside it, present only when there are more, unfolds the rest
+    /// as buttons of their own (⌥⌘2 onward, ⌥⌘↓ to unfold). They unfold in the card rather than in a pop-up menu
+    /// because the panel sits at screen-saver level, above any menu an unanchored SwiftUI `Menu` would open, and
+    /// because a row in the card keeps its shortcut and its VoiceOver label like every other answer on it. ⌘Y
+    /// stays plain Allow: saving a rule is the choice that outlives this call, so it takes the extra key.
+    private func alwaysAllow(_ first: PendingRequest.Suggestion, others: [PendingRequest.Suggestion]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                alwaysButton(first, key: "⌥⌘Y", shortcut: "y")
+                if !others.isEmpty {
+                    Button {
+                        if AccessibilityDisplay.shared.motionReduced {
+                            showsMoreSuggestions.toggle()
+                        } else {
+                            withAnimation(.easeOut(duration: 0.15)) { showsMoreSuggestions.toggle() }
+                        }
+                    } label: {
+                        Image(systemName: showsMoreSuggestions ? "chevron.up" : "chevron.down")
+                            .font(.callout.weight(.semibold))
+                            .frame(width: 18)
+                            .frame(maxHeight: .infinity)
+                    }
+                    .buttonStyle(PromptButtonStyle(filled: false))
+                    .fixedSize(horizontal: true, vertical: false)
+                    .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+                    .help(L("Other rules to always allow (⌥⌘↓)"))
+                    .accessibilityLabel(L("Other rules to always allow (⌥⌘↓)"))
+                    .accessibilityValue(showsMoreSuggestions ? L("Shown") : L("Hidden"))
+                }
+            }
+            // The chevron takes the height of the phrase beside it, so the two read as one split button.
+            .fixedSize(horizontal: false, vertical: true)
+            if showsMoreSuggestions {
+                ForEach(Array(others.enumerated()), id: \.offset) { offset, suggestion in
+                    let number = offset + 2
+                    alwaysButton(suggestion, key: "⌥⌘\(number)", shortcut: KeyEquivalent(Character("\(number)")))
+                }
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(L("Suggested rules"))
-        .accessibilityValue(suggestions.prefix(3).joined(separator: ", "))
+    }
+
+    private func alwaysButton(_ suggestion: PendingRequest.Suggestion, key: String, shortcut: KeyEquivalent) -> some View {
+        let phrase = Self.phrase(suggestion)
+        return Button { decide(request.id, .allowAlways(suggestion: suggestion.index)) } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "checkmark.shield")
+                Text(verbatim: phrase)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                Text(verbatim: key).font(.caption2.monospaced()).opacity(0.6)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(PromptButtonStyle(filled: false, leading: true))
+        .keyboardShortcut(shortcut, modifiers: [.command, .option])
+        .help(phrase)
+        .accessibilityLabel(phrase)
+        .accessibilityHint(L("Allows this request and saves the rule, so it is not asked again."))
+    }
+
+    /// The suggestions the card shows, at most `suggestionsShown`: past that a rule set is better read in the
+    /// terminal, which lists them all.
+    static func offered(_ suggestions: [PendingRequest.Suggestion]) -> [PendingRequest.Suggestion] {
+        Array(suggestions.prefix(suggestionsShown))
+    }
+
+    static let suggestionsShown = 4
+
+    /// A suggestion in plain words: what it would allow from now on, then where Claude Code would write it
+    /// (`destination`): the session only, this project for you (`.claude/settings.local.json`), this project for
+    /// everyone who shares it (`.claude/settings.json`), or every project (`~/.claude/settings.json`). Rules are
+    /// quoted as Claude Code writes them, so the words on the button are the words in the settings file.
+    static func phrase(_ suggestion: PendingRequest.Suggestion) -> String {
+        let what: String
+        switch suggestion.grant {
+        case .rules(let rules): what = rules.joined(separator: ", ")
+        case .directories(let directories): what = L("files in %@", directories.joined(separator: ", "))
+        case .acceptEdits: what = L("every file edit")
+        }
+        switch suggestion.place {
+        case .session: return L("Allow %@ for the rest of this session", what)
+        case .localSettings: return L("Always allow %@ in this project", what)
+        case .projectSettings: return L("Always allow %@ in this project, for everyone", what)
+        case .userSettings: return L("Always allow %@ in every project", what)
+        case nil: return L("Always allow %@", what)
+        }
     }
 
     @ViewBuilder

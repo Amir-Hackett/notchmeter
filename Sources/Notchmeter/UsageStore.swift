@@ -1533,11 +1533,20 @@ final class UsageStore {
         let behavior = delivered ? decision.behavior : "lost"
         let session = sessions.resolve(requestID: requestID, resumes: delivered && decision != .pass, now: now)
         log.info("decision \(behavior, privacy: .public) for a \(kind ?? "gone", privacy: .public) request")
-        Oracle.shared.emit("decision", ["request": requestID, "kind": kind as Any, "behavior": behavior, "session": session?.id as Any])
+        Oracle.shared.emit("decision", Self.decisionFields(request: requestID, kind: kind, behavior: behavior, session: session?.id,
+                                                           addsRule: delivered && decision.addsRule))
         if let session { withdrawWaiting([session.id]) }
         applyAwake()
         armSignalRelease(now: now)
         promptEnded(requestID)
+    }
+
+    /// The oracle's `decision` fields. An allow also says whether it added a permission rule (*Allow always*),
+    /// as `ruleAdded`, and never which rule: the rule is a command's text, which the oracle does not carry.
+    nonisolated static func decisionFields(request: String, kind: String?, behavior: String, session: String?, addsRule: Bool) -> [String: Any] {
+        var fields: [String: Any] = ["request": request, "kind": kind as Any, "behavior": behavior, "session": session as Any]
+        if behavior == "allow" { fields["ruleAdded"] = addsRule }
+        return fields
     }
 
     /// The hook process behind `requestID` went away before the app answered (the socket's worker saw its
