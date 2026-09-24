@@ -631,6 +631,10 @@ struct SettingsView: View {
                 Toggle(L("Show the main figure beside the rings"), isOn: Binding(get: { prefs.compactPrimary }, set: { prefs.compactPrimary = $0 }))
                     .help(L("The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible."))
             }
+            if prefs.compactStyle.showsRings {
+                Toggle(L("Show assistant symbols in the rings"), isOn: Binding(get: { prefs.ringSymbols }, set: { prefs.ringSymbols = $0 }))
+                    .help(L("Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart."))
+            }
             Picker(L("Density"), selection: Binding(get: { prefs.density }, set: { prefs.density = $0 })) {
                 ForEach(Density.allCases, id: \.self) { Text($0.title).tag($0) }
             }
@@ -818,6 +822,10 @@ struct SettingsView: View {
                 .help(L("On, a notice about a session is held back while a terminal or editor is frontmost, because you are probably looking at the session in it. Off, it arrives anyway — the answer when your sessions sit in tabs you are not looking at, since the app can only see which app is in front and never which window, and never reads a window's title to find out. A wait the session has stopped for, and a session on another Mac, ignore this setting; the quiet hours override it."))
             Toggle(L("Colour the rings when an assistant waits or finishes"), isOn: Binding(get: { prefs.signalRings }, set: { prefs.signalRings = $0 }))
                 .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not."))
+            Toggle(L("Show news in the notch"), isOn: Binding(get: { prefs.notchNews }, set: { prefs.notchNews = $0 }))
+                .help(L("When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out."))
+            Toggle(L("Glow under the notch for news"), isOn: Binding(get: { prefs.notchGlow }, set: { prefs.notchGlow = $0 }))
+                .help(L("A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint."))
             Picker(L("When an assistant waits for you, or a turn finishes"), selection: Binding(get: { prefs.sessionAttention }, set: { prefs.sessionAttention = $0 })) {
                 ForEach(SessionAttention.allCases, id: \.self) { Text($0.title).tag($0) }
             }

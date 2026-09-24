@@ -823,3 +823,15 @@
 "Show in Finder" = "Hiện trong Finder";
 "The crash report could not be read." = "Không đọc được báo cáo sự cố.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Báo cáo mới nhất macOS ghi khi %@ gặp sự cố, lấy từ ~/Library/Logs/DiagnosticReports. Nó ở lại trên máy Mac này: Sao chép đặt nó vào bộ nhớ tạm, đã xoá đường dẫn thư mục người dùng, để bạn dán vào báo cáo lỗi.";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "Cần phê duyệt";
+"Question" = "Câu hỏi";
+"Finished" = "Đã xong";
+"Opens the panel on this session" = "Mở bảng ở phiên này";
+"Show assistant symbols in the rings" = "Hiện biểu tượng trợ lý trong các vòng";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "Biểu tượng của mỗi trợ lý, cái trên thẻ của nó, vẽ nhỏ ở giữa các vòng, hoặc ở góc khi ba vòng để lại quá ít chỗ, dành cho khi khó phân biệt màu của các trợ lý.";
+"Show news in the notch" = "Hiện tin trong notch";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Khi một phiên bắt đầu chờ bạn hoặc xong một lượt, dải cạnh notch hiện tên dự án và lý do trong bốn giây, trong khoảng trống thanh menu để lại. Bấm vào để mở bảng ở phiên đó. Khi màn hình đang được chia sẻ, tên dự án được ẩn.";
+"Glow under the notch for news" = "Phát sáng dưới notch khi có tin";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Một vệt sáng dưới notch cho cùng tin đó: xanh dương khi chờ, trắng khi xong, mờ dần sau ba giây; một màu xanh nhạt còn lại khi một phiên vẫn đang chờ. Khi bật Giảm chuyển động, đó là một sắc màu tĩnh.";

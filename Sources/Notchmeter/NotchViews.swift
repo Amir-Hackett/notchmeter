@@ -330,6 +330,9 @@ struct CompactRings: View {
     var signalColours = true
     var contextUsed: Double? = nil
     var presence: PresenceLevel = .legible
+    /// The assistant's own symbol drawn with the rings (Preferences.ringSymbols), for a reader who cannot tell the
+    /// identity colours apart.
+    var symbol = false
 
     /// Diameter and stroke for each nested ring, outermost first.
     static func nest(count: Int, quiet: Bool) -> [(diameter: CGFloat, lineWidth: CGFloat)] {
@@ -338,6 +341,25 @@ struct CompactRings: View {
             return [(outer, quiet ? 2 : 2.5), (quiet ? 9.5 : 12.5, quiet ? 1.5 : 2), (quiet ? 5 : 7, quiet ? 1.25 : 1.5)]
         }
         return [(outer, quiet ? 2 : 2.5), (quiet ? 8 : 10, quiet ? 1.5 : 2)]
+    }
+
+    /// Where the assistant's symbol goes. In the middle of the nest when the innermost ring leaves a hole a glyph
+    /// can be read in — one ring, or two — and otherwise as a small badge on the nest's lower-left corner, the one
+    /// no mark uses: a three-ring nest leaves a four-point hole, and a symbol that size is a dot, which tells no
+    /// one anything colour did not.
+    enum Glyph: Equatable {
+        case centre(CGFloat)
+        case corner(CGFloat)
+    }
+
+    /// The smallest glyph worth drawing in the middle; below it the badge is used.
+    static let smallestCentreGlyph: CGFloat = 6
+
+    static func glyph(rings: Int, quiet: Bool) -> Glyph {
+        let nest = nest(count: rings, quiet: quiet)
+        let innermost = nest[max(0, min(rings, nest.count) - 1)]
+        let hole = innermost.diameter - innermost.lineWidth - 1
+        return hole >= smallestCentreGlyph ? .centre(min(hole, 9)) : .corner(7)
     }
 
     var body: some View {
@@ -368,9 +390,17 @@ struct CompactRings: View {
                     if status.problem != nil {
                         ProblemMark()
                     }
+                    if symbol, status.problem == nil, case .centre(let size) = Self.glyph(rings: windows.count, quiet: quiet) {
+                        ToolGlyph(tool: tool, size: size)
+                    }
                 }
             }
             .opacity(presence.readoutOpacity)
+            // Outside the dimming, like the signal mark, and on the corner that mark never takes.
+            if symbol, presence != .hidden, case .corner(let size) = Self.glyph(rings: windows.count, quiet: quiet) {
+                ToolGlyph(tool: tool, size: size, badge: true)
+                    .offset(x: -(Self.side - size - 2) / 2, y: (Self.side - size - 2) / 2)
+            }
             if presence != .hidden, let signal {
                 SignalMark(signal: signal).offset(SignalMark.cornerOffset(of: signal, in: Self.side))
             }
@@ -378,6 +408,26 @@ struct CompactRings: View {
         .frame(width: Self.side, height: Self.side)
         .opacity(status.reading == nil && status.problem == nil ? 0.5 : 1)
         .animation(AccessibilityDisplay.shared.motionReduced ? nil : .snappy(duration: 0.4), value: presence)
+    }
+}
+
+/// An assistant's symbol (ToolID.symbolName, the one on its card) at ring size. White, for the reason the signal
+/// marks are: it has to read on any of the identity colours and on the black notch, and the shape is the point
+/// of it. As a badge it sits on a black disc so the ring under it cannot run into its outline.
+private struct ToolGlyph: View {
+    let tool: ToolID
+    let size: CGFloat
+    var badge = false
+
+    var body: some View {
+        Image(systemName: tool.symbolName)
+            .font(.system(size: size, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: size + 2, height: size + 2)
+            .background {
+                if badge { Circle().fill(.black) }
+            }
+            .accessibilityHidden(true)
     }
 }
 
@@ -617,6 +667,8 @@ struct CompactReadout: View {
     var axis: Axis = .horizontal
     /// Claude Code on an API key: no rings to draw; the month's cost stands in for the digits when they are shown.
     var apiKeyCost: String? = nil
+    /// The assistant's symbol with its rings (Preferences.ringSymbols).
+    var ringSymbol = false
     @State private var pulsing = false
     @State private var pulseTask: Task<Void, Never>?
     static let pulseCycles = 3
@@ -667,7 +719,7 @@ struct CompactReadout: View {
         } else {
             if style.showsRings || hideFigures || presence == .hidden {
                 CompactRings(tool: tool, status: status, windows: windows, signal: signal, signalColours: signalColours,
-                             contextUsed: contextUsed, presence: presence)
+                             contextUsed: contextUsed, presence: presence, symbol: ringSymbol)
             }
             if showNumbers {
                 CompactNumbers(tool: tool, status: status, windows: windows, display: display, figures: drawn ?? .all, countdown: countdown,
@@ -703,7 +755,7 @@ private extension UsageStore {
         return CompactReadout(tool: tool, status: status, style: style, figures: figures, display: prefs.usageDisplay,
                               windows: status.reading.map(prefs.ringWindows) ?? [], signal: signal(tool), signalColours: prefs.signalRings,
                               contextUsed: tool == .claude ? contextUsed : nil, countdown: prefs.showResetCountdown, primary: prefs.compactPrimary,
-                              hideFigures: hidesFigures, presence: presence, axis: axis, apiKeyCost: apiKeyCost)
+                              hideFigures: hidesFigures, presence: presence, axis: axis, apiKeyCost: apiKeyCost, ringSymbol: prefs.ringSymbols)
     }
 
     /// The tools with a compact readout: Claude on an API key has nothing to draw unless a figure is shown, which
@@ -747,13 +799,48 @@ struct NotchCompactView: View {
         return side == .leading ? halves.leading : halves.trailing
     }
 
+    /// Opens the panel on the peek's session; nil where the view is only measured.
+    var openNews: ((NotchNews) -> Void)? = nil
+
+    /// The news this side names, and how: nil when there is no peek, when it is switched off, when this view was
+    /// handed a run to measure (CompactStripProbe asks for readouts, never for a peek), or when the layout gives
+    /// this side nothing, in which case it keeps its readouts.
+    private var peek: (news: NotchNews, words: NotchNews.Words, parts: [NotchPeek.Part], room: CGFloat)? {
+        guard run == nil, store.prefs.notchNews, let news = store.peek else { return nil }
+        let words = news.words(hidesFigures: store.hidesFigures)
+        guard let layout = NotchPeek.layout(room: store.prefs.peekRoom, hasName: words.name != nil) else { return nil }
+        let parts = side == .leading ? layout.leading : layout.trailing
+        guard !parts.isEmpty else { return nil }
+        return (news, words, parts, side == .leading ? layout.leadingWidth : layout.trailingWidth)
+    }
+
     var body: some View {
+        let reduceMotion = AccessibilityDisplay.shared.motionReduced
+        ZStack {
+            if let peek {
+                NotchPeekHalf(news: peek.news, words: peek.words, parts: peek.parts, room: peek.room, side: side)
+                    .transition(.opacity)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(peek.words.spoken)
+                    .accessibilityHint(L("Opens the panel on this session"))
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction { openNews?(peek.news) }
+            } else {
+                readouts.transition(.opacity)
+            }
+        }
+        // A crossfade either way. Under Reduce Motion it is the only movement: the shape's width follows at once
+        // (DynamicNotch.reduceMotion) rather than sliding.
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.35), value: store.peek)
+    }
+
+    private var readouts: some View {
         let presence = store.presence
         let run = drawn
         let visible = store.compactTools(style: run.style)
         // Clamped because the store can lose a tool between the fit being resolved and this being drawn.
         let tools = Array(visible[run.readouts.clamped(to: 0 ..< visible.count)])
-        HStack(spacing: run.style.showsNumbers ? 9 : 7) {
+        return HStack(spacing: run.style.showsNumbers ? 9 : 7) {
             ForEach(tools, id: \.self) { tool in
                 store.readout(tool, presence: presence, style: run.style, figures: run.figures)
             }

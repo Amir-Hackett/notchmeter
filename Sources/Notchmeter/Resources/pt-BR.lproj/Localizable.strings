@@ -839,3 +839,15 @@
 "Show in Finder" = "Mostrar no Finder";
 "The crash report could not be read." = "O relatório de falha não pôde ser lido.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "O relatório mais recente que o macOS gravou quando o %@ falhou, em ~/Library/Logs/DiagnosticReports. Ele fica neste Mac: Copiar o coloca na área de transferência, sem a sua pasta pessoal, para você colar num relatório de bug.";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "Precisa de aprovação";
+"Question" = "Pergunta";
+"Finished" = "Terminado";
+"Opens the panel on this session" = "Abre o painel nesta sessão";
+"Show assistant symbols in the rings" = "Mostrar os símbolos dos assistentes nos anéis";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "O símbolo de cada assistente, o do seu cartão, desenhado pequeno no centro dos anéis, ou no canto deles quando três anéis deixam pouco espaço, para quando as cores dos assistentes são difíceis de distinguir.";
+"Show news in the notch" = "Mostrar novidades no notch";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Quando uma sessão começa a esperar por você ou termina um turno, a faixa ao lado do notch mostra o projeto e o motivo por quatro segundos, no espaço que a barra de menus deixa. Clique para abrir o painel nessa sessão. Enquanto sua tela é compartilhada, o projeto fica de fora.";
+"Glow under the notch for news" = "Brilho sob o notch para novidades";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Uma luz sob o notch para as mesmas novidades: azul para uma espera, branca para um fim, sumindo após três segundos; um azul fraco fica enquanto uma sessão ainda espera. Com Reduzir movimento, é uma cor parada.";

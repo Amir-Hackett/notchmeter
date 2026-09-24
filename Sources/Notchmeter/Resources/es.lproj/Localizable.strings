@@ -839,3 +839,15 @@
 "Show in Finder" = "Mostrar en el Finder";
 "The crash report could not be read." = "No se ha podido leer el informe de fallo.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "El informe más reciente que escribió macOS cuando %@ falló, de ~/Library/Logs/DiagnosticReports. Se queda en este Mac: Copiar lo pone en el portapapeles, sin rastro de tu carpeta de inicio, para que lo pegues en un informe de error.";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "Necesita aprobación";
+"Question" = "Pregunta";
+"Finished" = "Terminado";
+"Opens the panel on this session" = "Abre el panel en esta sesión";
+"Show assistant symbols in the rings" = "Mostrar los símbolos de los asistentes en los anillos";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "El símbolo de cada asistente, el de su tarjeta, dibujado en pequeño en el centro de sus anillos, o en su esquina cuando tres anillos dejan muy poco espacio, para cuando cuesta distinguir los colores de los asistentes.";
+"Show news in the notch" = "Mostrar novedades en la muesca";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Cuando una sesión empieza a esperarte o termina un turno, la franja junto a la muesca nombra el proyecto y el motivo durante cuatro segundos, en el espacio que deja la barra de menús. Haz clic para abrir el panel en esa sesión. Mientras compartes la pantalla, el proyecto se omite.";
+"Glow under the notch for news" = "Brillo bajo la muesca para las novedades";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Una luz bajo la muesca para las mismas novedades: azul para una espera, blanca para un final, que se desvanece a los tres segundos; queda un azul tenue mientras una sesión sigue esperando. Con Reducir movimiento es un tinte fijo.";

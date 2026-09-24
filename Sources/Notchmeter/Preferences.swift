@@ -462,6 +462,12 @@ final class Preferences {
     var compactPrimary: Bool {
         didSet { defaults.set(compactPrimary, forKey: Keys.compactPrimary); report(Keys.compactPrimary, compactPrimary, changed: compactPrimary != oldValue) }
     }
+    /// Each assistant's symbol (ToolID.symbolName, the one on its card) drawn small in the middle of its rings, for
+    /// a reader who cannot tell the identity colours apart: position in the strip says which tool a ring is only
+    /// to someone who remembers the order. Off by default, since at this size it is a mark to learn, not a label.
+    var ringSymbols: Bool {
+        didSet { defaults.set(ringSymbols, forKey: Keys.ringSymbols); report(Keys.ringSymbols, ringSymbols, changed: ringSymbols != oldValue) }
+    }
     /// An assistant that is switched on and installed but has nothing to show — no reading, no spend, no session —
     /// stays off the panel and the strip until it has (UsageStore.visibleTools). The last visible one is never hidden.
     var hideEmptyTools: Bool {
@@ -492,6 +498,14 @@ final class Preferences {
     }
     /// What Auto has made of the menu bar (AutoSideWatcher); nil until it has looked.
     var autoCompactFit: CompactFit?
+    /// The room Auto last measured either side of the notch (AutoSideWatcher), which a news peek (NotchPeek) is
+    /// laid out in; nil until it has looked. Not saved, like the fit beside it.
+    var autoCompactRoom: NotchPeek.Room?
+    /// The room a peek may take: what Auto measured, or nothing measured under a fixed side, where the readouts
+    /// themselves are drawn without a measurement either.
+    var peekRoom: NotchPeek.Room {
+        compactSide == .auto ? autoCompactRoom ?? .unmeasured : .unmeasured
+    }
     /// The fit the readouts are actually drawn at. A fixed side keeps every tool at the chosen style; Auto uses
     /// what it last measured, and until it has measured anything it sits centred on the notch — the arrangement
     /// it returns to whenever there is room, so the strip starts where it spends most of its life.
@@ -687,6 +701,19 @@ final class Preferences {
     /// reader, and a banner and a colour beside the notch are not the same imposition.
     var signalRings: Bool {
         didSet { defaults.set(signalRings, forKey: Keys.signalRings); report(Keys.signalRings, signalRings, changed: signalRings != oldValue) }
+    }
+    /// The collapsed strip names the session and the reason for a few seconds when one starts waiting or finishes
+    /// a turn (NotchNews): the rings say that something happened, and this says where and what, without opening
+    /// the panel. On by default for the reason `signalRings` is: the strip has no other channel for it. Not tied to
+    /// the notification settings either — a banner interrupts, a few words beside the notch do not.
+    var notchNews: Bool {
+        didSet { defaults.set(notchNews, forKey: Keys.notchNews); report(Keys.notchNews, notchNews, changed: notchNews != oldValue) }
+    }
+    /// A soft light under the notch for the same news (NotchGlow): blue for a wait, white for a finish, fading after
+    /// a few seconds, with a faint blue kept while anything still waits. Separate from `notchNews` because the two
+    /// cost different things: the words cover the menu bar for four seconds, the light covers nothing.
+    var notchGlow: Bool {
+        didSet { defaults.set(notchGlow, forKey: Keys.notchGlow); report(Keys.notchGlow, notchGlow, changed: notchGlow != oldValue) }
     }
     var notificationSound: Bool {
         didSet { defaults.set(notificationSound, forKey: Keys.notificationSound); report(Keys.notificationSound, notificationSound, changed: notificationSound != oldValue) }
@@ -916,6 +943,7 @@ final class Preferences {
         static let compactStyle = "compactStyle"
         static let resetCountdown = "showResetCountdown"
         static let compactPrimary = "compactPrimary"
+        static let ringSymbols = "ringSymbols"
         static let hideEmptyTools = "hideEmptyTools"
         static let showSpend = "showSpend"
         static let showDetails = "showDetails"
@@ -960,6 +988,8 @@ final class Preferences {
         static let notifyPromptCache = "notifyPromptCache"
         static let sessionAttention = "sessionAttention"
         static let signalRings = "signalRings"
+        static let notchNews = "notchNews"
+        static let notchGlow = "notchGlow"
         static let notificationSound = "notificationSound"
         static let soundPace = "soundPace"
         static let soundWaiting = "soundWaiting"
@@ -1016,6 +1046,7 @@ final class Preferences {
         compactStyle = CompactStyle(rawValue: defaults.string(forKey: Keys.compactStyle) ?? "") ?? .rings
         showResetCountdown = defaults.bool(forKey: Keys.resetCountdown)
         compactPrimary = defaults.object(forKey: Keys.compactPrimary) as? Bool ?? true
+        ringSymbols = defaults.bool(forKey: Keys.ringSymbols)
         hideEmptyTools = defaults.object(forKey: Keys.hideEmptyTools) as? Bool ?? true
         showSpend = defaults.object(forKey: Keys.showSpend) as? Bool ?? true
         showDetails = defaults.object(forKey: Keys.showDetails) as? Bool ?? false
@@ -1064,6 +1095,8 @@ final class Preferences {
         notifyPromptCache = defaults.object(forKey: Keys.notifyPromptCache) as? Bool ?? true
         sessionAttention = SessionAttention.stored(defaults.string(forKey: Keys.sessionAttention))
         signalRings = defaults.object(forKey: Keys.signalRings) as? Bool ?? true
+        notchNews = defaults.object(forKey: Keys.notchNews) as? Bool ?? true
+        notchGlow = defaults.object(forKey: Keys.notchGlow) as? Bool ?? true
         notificationSound = defaults.object(forKey: Keys.notificationSound) as? Bool ?? true
         soundPace = defaults.string(forKey: Keys.soundPace) ?? NotificationSound.defaultChoice
         soundWaiting = defaults.string(forKey: Keys.soundWaiting) ?? NotificationSound.defaultChoice

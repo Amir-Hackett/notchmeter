@@ -41,6 +41,10 @@ final class NotchActions {
     /// A click on a session row: jump to the terminal the session's hook reported (TerminalJump.swift). Wired by
     /// the app delegate, which owns the executor; the view never activates another app itself.
     var jump: (AgentSession) -> Void = { _ in }
+    /// The news peek beside the notch was pressed with VoiceOver (NotchCompactView): the panel under the pointer
+    /// opens on that session. A mouse click never comes this way; the hover machine hands it to the presenter it
+    /// landed on (HoverDriver.claimsCompactClick).
+    var openNews: (NotchNews) -> Void = { _ in }
 }
 
 /// One on-screen presentation of the readings: the hardware notch, a notch of the same shape cut into a side
@@ -366,6 +370,8 @@ final class NotchController: NSObject, PanelPresenting {
     /// Which window holds the panel closed, for the oracle's cause.
     private var holdCause: PanelCause = .settings
     private var reporter = PanelReporter()
+    /// The light under the collapsed notch (NotchGlow), in a click-through window of its own.
+    private let glow = NotchGlowPresenter()
 
     /// DynamicNotchKit's insets around the expanded content: 15 pt at the sides and bottom, the notch on top.
     static let panelInset: CGFloat = 15
@@ -385,9 +391,9 @@ final class NotchController: NSObject, PanelPresenting {
         notch = DynamicNotch(hoverBehavior: [.increaseShadow], style: .notch) {
             NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen)
         } compactLeading: {
-            NotchCompactView(store: store, side: .leading)
+            NotchCompactView(store: store, side: .leading, openNews: { actions.openNews($0) })
         } compactTrailing: {
-            NotchCompactView(store: store, side: .trailing)
+            NotchCompactView(store: store, side: .trailing, openNews: { actions.openNews($0) })
         }
         leadingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .leading))
         trailingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .trailing))
@@ -406,6 +412,7 @@ final class NotchController: NSObject, PanelPresenting {
             return !window.isOnActiveSpace
         }
         hover.pointerEnteredCompact = { [weak self] in self?.store.wakeFromIdle() }
+        hover.claimsCompactClick = { [weak self] in self?.openOnPeek() ?? false }
         let workspace = NSWorkspace.shared.notificationCenter
         observers.append((workspace, workspace.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
@@ -532,6 +539,7 @@ final class NotchController: NSObject, PanelPresenting {
         guard hide != suppressedForFullScreen else { return false }
         suppressedForFullScreen = hide
         reporter.report(.compact, cause: .fullScreen)
+        refreshGlow()
         guard hide else { return true }
         hover.stop()
         // Drive the notch to hidden rather than ordering its window out: it early-returns from a transition
@@ -577,6 +585,7 @@ final class NotchController: NSObject, PanelPresenting {
         // alone, its two-second poll outlived the controller: see FullScreenWatch.deinit.
         fullScreenWatch?.stop()
         fullScreenWatch = nil
+        glow.close()
         transitionSerial += 1
         await notch.hide()
     }
@@ -604,6 +613,9 @@ final class NotchController: NSObject, PanelPresenting {
         configureTransition(closing: false)
         hover.adopt(.expanded)
         reporter.report(.expanded, cause: cause)
+        // The panel covers the strip the words were in and the edge the light spilled from.
+        store.endPeek()
+        refreshGlow()
         let serial = beginTransition()
         await notch.expand(on: screen)
         if PanelKeyPolicy.takesKeyboard(cause, pendingRequest: hasPendingRequest) { window?.makeKey() }
@@ -620,6 +632,7 @@ final class NotchController: NSObject, PanelPresenting {
         let serial = beginTransition()
         await notch.compact(on: screen)
         endTransition(serial)
+        refreshGlow()
     }
 
     private func beginTransition() -> Int {
@@ -639,6 +652,7 @@ final class NotchController: NSObject, PanelPresenting {
     /// black slab with its content already faded. Reduce Motion (or the app's own toggle) makes every transition instant.
     private func configureTransition(closing: Bool) {
         let instant = AccessibilityDisplay.shared.motionReduced
+        notch.reduceMotion = instant
         let shrink: Animation = .smooth(duration: 0.25)
         notch.transitionConfiguration = DynamicNotchTransitionConfiguration(
             openingAnimation: instant ? .linear(duration: 0) : nil,
@@ -646,6 +660,47 @@ final class NotchController: NSObject, PanelPresenting {
             conversionAnimation: instant ? .linear(duration: 0) : closing ? shrink : nil,
             skipIntermediateHides: true
         )
+    }
+
+    // MARK: - News
+
+    /// Whether this strip can show the news peek now: on screen, collapsed, and not stood aside for a full-screen app.
+    var canShowPeek: Bool {
+        isVisible && hover.state == .compact && !suppressedForFullScreen && !hover.isOffScreen()
+    }
+
+    /// A click on the collapsed strip while it is naming a session opens the panel on that session rather than
+    /// doing what a click on the rings does (HoverDriver.claimsCompactClick); with no peek up the click is the
+    /// hover machine's as before.
+    private func openOnPeek() -> Bool {
+        guard prefs.notchNews, let news = store.peek else { return false }
+        open(on: news)
+        return true
+    }
+
+    /// Opens the panel on the news's session: on its request card when it is holding for one, the way a request
+    /// opens it (UsageStore.panelOpenedForPrompt); otherwise on the session's own card alone, the way a glance
+    /// does (UsageStore.attentionNotice), with the link to the whole panel under it. A session that has gone in
+    /// the meantime opens the whole panel.
+    func open(on news: NotchNews) {
+        store.endPeek()
+        let now = Date()
+        if store.sessions.pending(now: now).contains(where: { $0.session.id == news.sessionID }) {
+            store.panelOpenedForPrompt = true
+        } else if let session = store.sessions.sessions[news.sessionID] {
+            let event: Notifier.SessionEvent = news.reason.isWait ? .waiting(blocking: true) : .finished(turn: session.finished?.turn ?? 0)
+            store.attentionNotice = AttentionNotice(session: session, event: event)
+        }
+        expandNow(cause: .click)
+    }
+
+    /// The light under the notch, from the latest news and whether anything still waits (NotchGlow.state). Only
+    /// while the strip is collapsed and on screen: the open panel covers where it would fall.
+    private func refreshGlow() {
+        let waiting = !store.awaitingInput.filter(store.isShown).isEmpty
+        let state = canShowPeek ? NotchGlow.state(news: store.glowNews, waiting: waiting, enabled: prefs.notchGlow, now: Date()) : nil
+        let compact = hover.regions.compact.insetBy(dx: Self.compactMargin, dy: 0)
+        glow.show(state, under: compact, behavior: Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen), screen: screen.localizedName)
     }
 
     // MARK: - Geometry
@@ -707,8 +762,10 @@ final class NotchController: NSObject, PanelPresenting {
                  prefs.showSpend, prefs.signalRings, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
-                 prefs.monthlyBudgetUSD, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal)
+                 prefs.monthlyBudgetUSD, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal,
+                 store.peek, store.glowNews, prefs.notchNews, prefs.notchGlow, prefs.ringSymbols, prefs.autoCompactRoom)
             refreshRegions()
+            refreshGlow()
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced
             applyWindowBehaviour()

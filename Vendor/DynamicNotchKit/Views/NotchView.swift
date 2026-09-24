@@ -80,7 +80,8 @@ struct NotchView<Expanded, CompactLeading, CompactTrailing>: View where Expanded
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .offset(x: xOffset)
-            .animation(.smooth, value: [compactLeadingWidth, compactTrailingWidth])
+            // Notchmeter: no slide under Reduce Motion (DynamicNotch.reduceMotion).
+            .animation(dynamicNotch.reduceMotion ? nil : .smooth, value: [compactLeadingWidth, compactTrailingWidth])
     }
 
     private func notchContent() -> some View {

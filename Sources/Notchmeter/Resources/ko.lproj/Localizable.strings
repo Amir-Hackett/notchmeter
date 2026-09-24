@@ -823,3 +823,15 @@
 "Show in Finder" = "Finder에서 보기";
 "The crash report could not be read." = "충돌 보고서를 읽을 수 없습니다.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@이(가) 충돌했을 때 macOS가 ~/Library/Logs/DiagnosticReports에 기록한 최신 보고서입니다. 이 Mac 밖으로 나가지 않습니다. 복사하면 홈 폴더 경로를 가린 채 클립보드에 담기므로 버그 보고서에 붙여 넣으세요.";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "승인 필요";
+"Question" = "질문";
+"Finished" = "완료";
+"Opens the panel on this session" = "이 세션에서 패널을 엽니다";
+"Show assistant symbols in the rings" = "링에 어시스턴트 기호 표시";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "각 어시스턴트의 기호(카드에 있는 것)를 링 가운데에 작게 그립니다. 링이 세 개라 공간이 부족하면 링 모서리에 그립니다. 어시스턴트의 색을 구별하기 어려울 때를 위한 설정입니다.";
+"Show news in the notch" = "노치에 소식 표시";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "세션이 당신을 기다리기 시작하거나 턴을 마치면, 노치 옆 띠에 프로젝트와 이유를 4초 동안 메뉴 막대가 남겨 둔 공간 안에 표시합니다. 클릭하면 그 세션에서 패널이 열립니다. 화면을 공유하는 동안에는 프로젝트를 표시하지 않습니다.";
+"Glow under the notch for news" = "소식이 있으면 노치 아래를 밝히기";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "같은 소식을 위해 노치 아래에 빛을 켭니다. 기다림은 파란색, 완료는 흰색이며 3초 뒤에 사라집니다. 세션이 아직 기다리는 동안에는 옅은 파란색이 남습니다. 동작 줄이기가 켜져 있으면 움직이지 않는 색입니다.";

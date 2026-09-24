@@ -188,6 +188,22 @@ final class UsageStore {
     /// NoticeCard alone, the way `panelOpenedForPrompt` draws a request's. Cleared by every collapse and by the
     /// card's own *Show the whole panel*.
     var attentionNotice: AttentionNotice?
+    /// The news the collapsed strip is naming right now (NotchNews, the peek), for `NotchNews.shownFor`; nil the
+    /// rest of the time and always while Preferences.notchNews is off.
+    private(set) var peek: NotchNews?
+    /// The news the glow under the notch is blooming for (NotchGlow), for `NotchGlow.bloomFor`; nil otherwise.
+    /// Separate from `peek` because the two last different times and are switched off separately.
+    private(set) var glowNews: NotchNews?
+    /// The latest news announced, kept after its peek has gone so a repeat inside `NotchNews.repeatAfter` is known.
+    @ObservationIgnored private(set) var latestNews: NotchNews?
+    /// Whether a strip that can show the peek is on screen and collapsed; wired by the app delegate to its notch
+    /// presenters. News that arrives with none of them (the panel open, a full-screen app over the notch, an edge
+    /// layout) still lights the glow and is still announced, but draws no words nobody would see.
+    @ObservationIgnored var canPeek: () -> Bool = { false }
+    /// Posts the news to VoiceOver; wired by the app delegate (NotchNewsAnnouncer).
+    @ObservationIgnored var announceNews: (NotchNews.Words) -> Void = { _ in }
+    @ObservationIgnored private var peekEnd: Task<Void, Never>?
+    @ObservationIgnored private var glowEnd: Task<Void, Never>?
     /// A session began holding for a decision its hook is waiting on; wired to NotchActions.showPrompt by the app
     /// delegate, so the panel can open on the request.
     @ObservationIgnored var promptRequested: (AgentSession, PendingRequest) -> Void = { _, _ in }
@@ -850,6 +866,14 @@ final class UsageStore {
         lastUpdated = now
     }
 
+    /// Puts news on the strip and under it with no clock to take it down, for a still of it (`--render-assets`):
+    /// a picture is one instant, and `announce` would schedule its own end and ask whether a strip is on screen.
+    func seed(news: NotchNews?) {
+        peek = news
+        glowNews = news
+        latestNews = news
+    }
+
     /// The report file beside the drain log, for the command-line tool and the status line, at most every 30 s.
     private func writeReportIfDue(now: Date = Date()) {
         guard let reportFile, started, lastReportWrite.map({ now.timeIntervalSince($0) >= Self.reportWriteSpacing }) ?? true else { return }
@@ -1488,6 +1512,7 @@ final class UsageStore {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
         }
         guard isShown(tool) else { return }
+        if let news = NotchNews.from(message, outcome: outcome, now: now) { announce(news, now: now) }
         if outcome.limitHit != nil, prefs.notificationsEnabled {
             let reading = status(tool).reading.map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
             let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: tool, reading: reading, now: now, options: alertOptions)
@@ -1514,6 +1539,53 @@ final class UsageStore {
         if message.tool != .claude { facts["tool"] = message.tool.rawValue }
         if let request = message.request { facts["request"] = request.kind.name }
         return facts
+    }
+
+    /// News for the collapsed notch (NotchNews): the peek names it for four seconds when the setting is on and a
+    /// collapsed strip can show it, the glow blooms for it when that setting is on, and VoiceOver is told either
+    /// way one of them is, since the listener has no other way to catch a light or two words that come and go.
+    /// The oracle records the peek going up and coming down with the reason and the session, never the project.
+    func announce(_ news: NotchNews, now: Date = Date()) {
+        guard prefs.notchNews || prefs.notchGlow,
+              NotchNews.isDue(news, showing: peek, last: latestNews, now: now) else { return }
+        latestNews = news
+        if prefs.notchGlow {
+            glowNews = news
+            glowEnd?.cancel()
+            glowEnd = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(NotchGlow.bloomFor))
+                guard !Task.isCancelled else { return }
+                self?.glowNews = nil
+            }
+        }
+        // A request that opened the panel on its card is already in front of the reader; words beside a notch the
+        // panel is growing out of would only flash on the way.
+        if prefs.notchNews, !panelOpenedForPrompt, canPeek() {
+            if let showing = peek { Oracle.shared.emit("peek", Self.peekFacts(showing, action: "hidden")) }
+            peek = news
+            Oracle.shared.emit("peek", Self.peekFacts(news, action: "shown"))
+            peekEnd?.cancel()
+            peekEnd = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(NotchNews.shownFor + (AccessibilityDisplay.shared.motionReduced ? 1 : 0)))
+                guard !Task.isCancelled else { return }
+                self?.endPeek()
+            }
+        }
+        announceNews(news.words(hidesFigures: hidesFigures))
+    }
+
+    /// Takes the peek down now: its time ran out, or it was clicked and the panel is opening on its session.
+    func endPeek() {
+        peekEnd?.cancel()
+        peekEnd = nil
+        guard let showing = peek else { return }
+        peek = nil
+        Oracle.shared.emit("peek", Self.peekFacts(showing, action: "hidden"))
+    }
+
+    /// What the oracle records for a peek: the reason, the session and the assistant, never the project.
+    nonisolated static func peekFacts(_ news: NotchNews, action: String) -> [String: Any] {
+        ["action": action, "reason": news.reason.rawValue, "session": news.sessionID, "tool": news.tool.rawValue]
     }
 
     /// The user's answer to the request `requestID`, from the panel (or the hold running out, as a pass): the

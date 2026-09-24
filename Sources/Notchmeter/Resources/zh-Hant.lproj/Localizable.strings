@@ -823,3 +823,15 @@
 "Show in Finder" = "在 Finder 中顯示";
 "The crash report could not be read." = "無法讀取當機報告。";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ 當機時 macOS 寫入 ~/Library/Logs/DiagnosticReports 的最新報告。它只留在這台 Mac 上：「拷貝」會把它放到剪貼簿，並隱去你的個人專屬檔案夾路徑，供你貼到錯誤回報中。";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "需要核准";
+"Question" = "問題";
+"Finished" = "已完成";
+"Opens the panel on this session" = "在此工作階段上打開面板";
+"Show assistant symbols in the rings" = "在圓環中顯示助手符號";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "每個助手的符號（即其卡片上的符號）以小尺寸畫在圓環中央；三個圓環留下的空間不夠時畫在圓環的角上。適用於難以分辨各助手顏色的情況。";
+"Show news in the notch" = "在瀏海處顯示動態";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "當工作階段開始等待你或完成一輪時，瀏海旁的條帶會在選單列留出的空間內顯示專案和原因，持續四秒。點按即可在該工作階段上打開面板。分享螢幕時不顯示專案。";
+"Glow under the notch for news" = "有動態時在瀏海下方發光";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "為同樣的動態在瀏海下方亮起光暈：等待為藍色，完成為白色，三秒後漸隱；工作階段仍在等待時保留淡淡的藍色。開啟「減少動態效果」時為靜止的色調。";

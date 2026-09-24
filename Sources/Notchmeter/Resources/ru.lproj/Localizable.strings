@@ -839,3 +839,15 @@
 "Show in Finder" = "Показать в Finder";
 "The crash report could not be read." = "Не удалось прочитать отчёт о сбое.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Самый свежий отчёт, который macOS записала при сбое %@, из ~/Library/Logs/DiagnosticReports. Он остаётся на этом Mac: «Скопировать» помещает его в буфер обмена без пути к вашей домашней папке, чтобы вы вставили его в отчёт об ошибке.";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "Нужно одобрение";
+"Question" = "Вопрос";
+"Finished" = "Готово";
+"Opens the panel on this session" = "Открывает панель на этой сессии";
+"Show assistant symbols in the rings" = "Показывать значки ассистентов в кольцах";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "Значок каждого ассистента — тот, что на его карточке, — мелко в центре его колец или на их углу, когда при трёх кольцах места слишком мало: на случай, если цвета ассистентов трудно различить.";
+"Show news in the notch" = "Показывать новости в вырезе";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Когда сессия начинает ждать вас или завершает ход, полоса рядом с вырезом на четыре секунды называет проект и причину — в том месте, которое оставляет строка меню. Нажмите на неё, чтобы открыть панель на этой сессии. Пока экран демонстрируется, проект не показывается.";
+"Glow under the notch for news" = "Свечение под вырезом при новостях";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Свет под вырезом для тех же новостей: синий — ожидание, белый — завершение, гаснет через три секунды; слабый синий остаётся, пока сессия ещё ждёт. При «Уменьшении движения» это неподвижный оттенок.";

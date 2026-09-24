@@ -839,3 +839,15 @@
 "Show in Finder" = "Afficher dans le Finder";
 "The crash report could not be read." = "Le rapport de plantage n'a pas pu être lu.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Le rapport le plus récent écrit par macOS quand %@ a planté, depuis ~/Library/Logs/DiagnosticReports. Il reste sur ce Mac : Copier le place dans le presse-papiers, expurgé de votre dossier personnel, pour que vous le colliez dans un rapport de bug.";
+
+/* News in the collapsed notch: the peek beside it, the glow under it, and symbols in the rings (NotchNews, NotchNewsViews, SettingsWindow) */
+"Needs approval" = "Approbation requise";
+"Question" = "Question";
+"Finished" = "Terminé";
+"Opens the panel on this session" = "Ouvre le panneau sur cette session";
+"Show assistant symbols in the rings" = "Afficher les symboles des assistants dans les anneaux";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "Le symbole de chaque assistant, celui de sa carte, dessiné en petit au centre de ses anneaux, ou dans leur coin quand trois anneaux laissent trop peu de place, pour quand les couleurs des assistants sont difficiles à distinguer.";
+"Show news in the notch" = "Afficher les nouvelles dans l'encoche";
+"When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "Quand une session commence à vous attendre ou termine un tour, la bande à côté de l'encoche indique le projet et la raison pendant quatre secondes, dans la place que laisse la barre des menus. Cliquez dessus pour ouvrir le panneau sur cette session. Pendant un partage d'écran, le projet est omis.";
+"Glow under the notch for news" = "Lueur sous l'encoche pour les nouvelles";
+"A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "Une lumière sous l'encoche pour les mêmes nouvelles : bleue pour une attente, blanche pour une fin, qui s'estompe après trois secondes ; un bleu léger reste tant qu'une session attend. Avec Réduire les animations, c'est une teinte fixe.";

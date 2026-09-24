@@ -204,6 +204,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.removeNotifications = { [weak self] identifiers in self?.notifier.remove(identifiers: identifiers) }
         store.promptRequested = { [weak self] session, request in self?.actions.showPrompt(session, request) }
         store.promptEnded = { [weak self] requestID in self?.actions.promptEnded(requestID) }
+        // The news peek is drawn by the notch strips alone (NotchController); the edge pills keep their readouts.
+        store.canPeek = { [weak self] in
+            self?.presenters.contains { ($0 as? NotchController)?.canShowPeek ?? false } ?? false
+        }
+        store.announceNews = { words in NotchNewsAnnouncer.post(words) }
         store.awakeChanged = { [weak self] hold in
             self?.awake.apply(hold: hold)
             self?.refreshFooterNote()
@@ -238,6 +243,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.showPrompt = { [weak self] session, request in self?.promptRequested(session, request) }
         actions.promptEnded = { [weak self] requestID in self?.promptEnded(requestID) }
         actions.passPrompt = { [weak self] in self?.passPrompts() }
+        actions.openNews = { [weak self] news in
+            guard let self else { return }
+            let strips = self.presenters.compactMap { $0 as? NotchController }
+            (strips.first { $0 === self.pointerPresenter } ?? strips.first { $0.canShowPeek })?.open(on: news)
+        }
         actions.jump = { [weak self] session in
             guard let self, self.prefs.jumpToTerminal else { return }
             self.jumper.jump(session)

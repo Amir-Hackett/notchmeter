@@ -42,6 +42,10 @@ final class HoverDriver {
     var pointerLocation: () -> CGPoint = { NSEvent.mouseLocation }
     /// The pointer came to rest on the rings; Hide when idle brings them back for it.
     var pointerEnteredCompact: () -> Void = {}
+    /// A click on the collapsed strip that the presenter takes for itself, returning true when it did: while the
+    /// strip names a session (the news peek) a click opens the panel on that session in any visibility mode,
+    /// where a click on the rings only toggles the panel under Open on click.
+    var claimsCompactClick: () -> Bool = { false }
     /// One line per decision, for the transition log.
     var log: ((String) -> Void)?
     /// Swipes open and close (Preferences.gesturesEnabled, off under Reduce Motion).
@@ -155,6 +159,7 @@ final class HoverDriver {
 
     func clicked(at point: CGPoint) {
         if regions.isClickOnCompact(point) {
+            if intent.state == .compact, claimsCompactClick() { return }
             act(intent.clickInside(at: now), cause: .click)
             return
         }
