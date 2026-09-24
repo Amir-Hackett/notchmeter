@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// Every session the hooks know about, one row each, between the Advice strip and the tool cards
-/// (Preferences.sessionsCard): what it is working on, which assistant and which terminal it runs in, how long
-/// the turn has run, and whether it is waiting on the reader. What needs the reader first, then what is working,
-/// then what just finished, then idle, newest first within each; `rowCap` rows and then a count of the rest. Idle
+/// Every session the hooks know about, one row each (Preferences.sessionsCard): at the top of the panel while any
+/// of them is working, waiting or holding a request, and between the Advice strip and the tool cards otherwise
+/// (PanelLayout.sessionsLead). How many there are is the panel header's to say (PanelHeader), directly above
+/// the card whenever it leads, so the card's own title line no longer repeats it. A row says what its session is
+/// working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting
+/// on the reader. What needs the reader first, then what is working, then what just finished, then idle, newest first within each; `rowCap` rows and then a count of the rest. Idle
 /// rows are drawn quieter and clock their silence, not their age, and *Clear* in the header sets every one of them
 /// aside (SessionTracker.dismissIdle); left alone they go by themselves after `SessionTracker.idleAfter`. A click on a row jumps to its terminal (`NotchActions.jump`, TerminalJump.swift) when the hook
 /// reported one and the setting allows it; a row with nowhere to go is a row and not a button.
@@ -90,8 +92,6 @@ struct SessionsCard: View {
                     Image(systemName: "terminal").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                     Text(L("Sessions")).font(.headline)
                     Spacer()
-                    Text(sessions.count == 1 ? L("1 session") : L("%ld sessions", sessions.count))
-                        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                     // Always drawn while there is something to clear, never only on hover: a panel read at a glance
                     // has no pointer on it.
                     if sessions.all.contains(where: { !$0.isWorking && !$0.isWaiting && $0.pending == nil }) {

@@ -839,3 +839,10 @@
 "Show in Finder" = "Показать в Finder";
 "The crash report could not be read." = "Не удалось прочитать отчёт о сбое.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Самый свежий отчёт, который macOS записала при сбое %@, из ~/Library/Logs/DiagnosticReports. Он остаётся на этом Mac: «Скопировать» помещает его в буфер обмена без пути к вашей домашней папке, чтобы вы вставили его в отчёт об ошибке.";
+
+/* The panel header: its three buttons (PanelHeader) */
+"Usage Dashboard" = "Сводка использования";
+"Settings" = "Настройки";
+"Open the Usage Dashboard (⌘U)" = "Открыть сводку использования (⌘U)";
+"Open Settings (⌘,)" = "Открыть настройки (⌘,)";
+"How the panel opens, its layout, refreshing and quitting" = "Как открывается панель, её раскладка, обновление и выход";

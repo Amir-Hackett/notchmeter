@@ -839,3 +839,10 @@
 "Show in Finder" = "在访达中显示";
 "The crash report could not be read." = "无法读取崩溃报告。";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ 崩溃时 macOS 写入 ~/Library/Logs/DiagnosticReports 的最新报告。它只留在这台 Mac 上：“复制”会把它放到剪贴板，并隐去你的个人文件夹路径，供你粘贴到错误报告中。";
+
+/* The panel header: its three buttons (PanelHeader) */
+"Usage Dashboard" = "用量仪表板";
+"Settings" = "设置";
+"Open the Usage Dashboard (⌘U)" = "打开用量仪表板（⌘U）";
+"Open Settings (⌘,)" = "打开设置（⌘,）";
+"How the panel opens, its layout, refreshing and quitting" = "面板的打开方式、布局、刷新和退出";

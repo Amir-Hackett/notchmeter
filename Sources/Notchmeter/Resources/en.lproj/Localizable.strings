@@ -839,3 +839,10 @@
 "Show in Finder" = "Show in Finder";
 "The crash report could not be read." = "The crash report could not be read.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report.";
+
+/* The panel header: its three buttons (PanelHeader) */
+"Usage Dashboard" = "Usage Dashboard";
+"Settings" = "Settings";
+"Open the Usage Dashboard (⌘U)" = "Open the Usage Dashboard (⌘U)";
+"Open Settings (⌘,)" = "Open Settings (⌘,)";
+"How the panel opens, its layout, refreshing and quitting" = "How the panel opens, its layout, refreshing and quitting";

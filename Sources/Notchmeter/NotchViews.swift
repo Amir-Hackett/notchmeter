@@ -812,7 +812,12 @@ struct NotchExpandedView: View {
     /// Measures the content at its natural height, so the sizing self-check reads what the panel wants
     /// rather than what the cap already forced on it.
     var unclamped = false
+    /// Whether the parts stagger in as the panel opens (PanelMotion). Only the panels on screen ask for it; every
+    /// other build of this view — the sizing probes, the renders, "Copy as image" — draws the parts where they rest.
+    var entrance = false
     @State private var contentHeight: CGFloat = 0
+    /// Set as the live panel appears, which is what starts the stagger.
+    @State private var appeared = false
 
     static let screenMargin: CGFloat = 24
     /// The room the content keeps above its first card.
@@ -821,10 +826,12 @@ struct NotchExpandedView: View {
     /// (ExpandedPanelWidth); a card wider than it is drawn past the panel's edge and clipped by the notch shape.
     static let contentHorizontalPadding: CGFloat = 14
 
-    /// The room between the top of the scrolled content and the first card's title: this padding and the card's
-    /// own. A reading of where the panel opens counts from the title, which is what has to clear the notch
-    /// (PanelScroll).
-    static func titleInset(density: Density) -> CGFloat { contentTopPadding + density.cardPadding }
+    /// The room between the top of the scrolled content and the panel's first line: this padding and the header
+    /// bar's (PanelHeader). A reading of where the panel opens counts from that line, which is what has to clear
+    /// the notch (PanelScroll). Until the header came in, the first line was the Cost card's title, a card's
+    /// padding further down; a panel opened on a request alone still starts there, deeper than this, so the check
+    /// errs on the side of the notch.
+    static func titleInset(density: Density) -> CGFloat { contentTopPadding + PanelHeader.topPadding(density: density) }
 
     /// Room for the content: the screen's usable height less a margin above the Dock. `visibleFrame` already
     /// excludes the menu bar the notch sits in, so the notch height is not subtracted a second time.
@@ -896,26 +903,47 @@ struct NotchExpandedView: View {
         return SpendCard(store: store)
     }
 
-    private var content: some View {
+    /// The whole panel's parts, top to bottom, for what the store holds now (PanelLayout.parts). Exposed so the
+    /// oracle can report the order the reader is looking at, and a test can check it, without drawing the panel.
+    var parts: [PanelPart] {
         let tools = store.visibleTools
-        let advice = store.advice
+        return PanelLayout.parts(prompt: !store.sessions.pending(now: Date()).isEmpty, spend: spendCard != nil,
+                                 advice: !store.advice.isEmpty,
+                                 sessions: prefs.sessionsCard && store.sessions.count > 0,
+                                 sessionsLead: PanelLayout.sessionsLead(store.sessions.all),
+                                 connect: tools.isEmpty, tools: tools, addTool: !store.hiddenEmptyTools.isEmpty)
+    }
+
+    /// What the panel draws right now: the one card of a prompt-only or notice-only opening, else every part.
+    var shownParts: [PanelPart] {
+        if store.panelOpenedForPrompt { return store.sessions.pending(now: Date()).isEmpty ? [] : [.prompt] }
+        if store.sessions.pending(now: Date()).isEmpty, store.attentionNotice != nil { return [.notice] }
+        return parts
+    }
+
+    /// Whether the parts are drawn where they rest: always, except on the live panel before it has appeared.
+    private var arrived: Bool { appeared || !entrance || AccessibilityDisplay.shared.motionReduced }
+
+    private var content: some View {
         let pending = store.sessions.pending(now: Date())
         let promptOnly = store.panelOpenedForPrompt
+        let arrived = self.arrived
         return VStack(alignment: .leading, spacing: prefs.density.cardSpacing) {
             // A request the assistant is holding a session for outranks the cost and the advice: it is the one
             // thing on the panel that is waiting on the reader. Only the newest is drawn; the rest queue behind it.
             // A panel the request itself opened carries the card and nothing else (UsageStore.panelOpenedForPrompt),
-            // with one link to the rest; a panel already open takes the card on top of everything.
-            if let newest = pending.first {
+            // with one link to the rest; a panel already open takes the card under its header and above every other
+            // card (PanelLayout.parts).
+            if promptOnly, let newest = pending.first {
                 PromptCard(session: newest.session, request: newest.request, hideFigures: store.hidesFigures,
                            decide: { store.decide($0, $1) })
-                if promptOnly {
-                    Button { store.panelOpenedForPrompt = false } label: {
-                        Text(L("Show the whole panel")).font(.caption).foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.leading, prefs.density.cardPadding)
+                    .modifier(PanelEntranceStep(index: 0, arrived: arrived))
+                Button { store.panelOpenedForPrompt = false } label: {
+                    Text(L("Show the whole panel")).font(.caption).foregroundStyle(.secondary)
                 }
+                .buttonStyle(.plain)
+                .padding(.leading, prefs.density.cardPadding)
+                .modifier(PanelEntranceStep(index: 1, arrived: arrived))
             }
             // A card the attention setting opened (SessionAttention.glance) is drawn the same way, alone with the one
             // link, unless a request is on the panel, which outranks it.
@@ -923,47 +951,160 @@ struct NotchExpandedView: View {
                 NoticeCard(notice: notice, hideFigures: store.hidesFigures, hideTitle: !prefs.sessionTitles,
                            canJump: NoticeCard.canJump(notice.session, enabled: prefs.jumpToTerminal),
                            jump: { actions.jump(notice.session) })
+                    .modifier(PanelEntranceStep(index: 0, arrived: arrived))
                 Button { store.attentionNotice = nil } label: {
                     Text(L("Show the whole panel")).font(.caption).foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, prefs.density.cardPadding)
+                .modifier(PanelEntranceStep(index: 1, arrived: arrived))
             }
             if promptOnly || (pending.isEmpty && store.attentionNotice != nil) {
                 // The request has just ended and the panel is on its way closed: nothing else appears for the frame.
                 EmptyView()
             } else {
-            if let spendCard {
-                spendCard
-            }
-            if !advice.isEmpty {
-                AdviceStrip(advice: advice, open: actions.open)
-            }
-            if prefs.sessionsCard, store.sessions.count > 0 {
-                SessionsCard(store: store, prefs: prefs, actions: actions)
-            }
-            if tools.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L("Connect an assistant to get started"))
-                        .font(.callout)
-                    Text(L("Install and sign in to Claude Code, Codex, Cursor, Gemini CLI or GitHub Copilot; its meters appear here."))
-                        .modifier(Caption())
+                ForEach(Array(parts.enumerated()), id: \.element) { index, part in
+                    self.part(part, pending: pending)
+                        .modifier(PanelEntranceStep(index: index, arrived: arrived))
                 }
-                .modifier(CardBackground())
-            }
-            ForEach(tools, id: \.self) { tool in
-                ToolCard(tool: tool, status: store.status(tool), store: store, prefs: prefs, actions: actions)
-            }
-            if !store.hiddenEmptyTools.isEmpty {
-                AddToolRow(hidden: store.hiddenEmptyTools, actions: actions)
-            }
-            FooterView(store: store, actions: actions)
             }
         }
         .padding(.horizontal, Self.contentHorizontalPadding)
         .padding(.top, Self.contentTopPadding)
         .padding(.bottom, 10)
         .frame(width: prefs.panelWidth.points, alignment: .leading)
+        // The live panel is built fresh on every open (DynamicNotchKit drops the expanded content when it closes,
+        // the edge layouts drop their card), so this runs once per opening and starts that opening's stagger.
+        .onAppear { if entrance { appeared = true } }
+    }
+
+    @ViewBuilder
+    private func part(_ part: PanelPart, pending: [(session: AgentSession, request: PendingRequest)]) -> some View {
+        switch part {
+        case .header:
+            PanelHeader(sessions: store.sessions.count, actions: actions)
+        case .prompt:
+            if let newest = pending.first {
+                PromptCard(session: newest.session, request: newest.request, hideFigures: store.hidesFigures,
+                           decide: { store.decide($0, $1) })
+            }
+        case .spend:
+            if let spendCard { spendCard }
+        case .advice:
+            AdviceStrip(advice: store.advice, open: actions.open)
+        case .sessions:
+            SessionsCard(store: store, prefs: prefs, actions: actions)
+        case .connect:
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L("Connect an assistant to get started"))
+                    .font(.callout)
+                Text(L("Install and sign in to Claude Code, Codex, Cursor, Gemini CLI or GitHub Copilot; its meters appear here."))
+                    .modifier(Caption())
+            }
+            .modifier(CardBackground())
+        case .tool(let tool):
+            ToolCard(tool: tool, status: store.status(tool), store: store, prefs: prefs, actions: actions)
+        case .addTool:
+            AddToolRow(hidden: store.hiddenEmptyTools, actions: actions)
+        case .footer:
+            FooterView(store: store, actions: actions)
+        case .notice:
+            // Never laid out among the others (PanelLayout.parts): a notice opening draws its card alone, above.
+            EmptyView()
+        }
+    }
+}
+
+/// One part of the panel arriving (PanelMotion): faint and a few points high until `arrived`, then settling into
+/// place at its own delay. `arrived` is true from the start wherever there is no entrance, so nothing but the live
+/// panel ever draws a part in its hidden state. The animation is scoped to `arrived`, so a reading that changes a
+/// card later is drawn as it always was, not faded in again. An offset moves the drawing and not the layout, so
+/// the panel's measured height (PanelSizing) and its scroll position (PanelScroll) never see the stagger.
+private struct PanelEntranceStep: ViewModifier {
+    let index: Int
+    let arrived: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(arrived ? 1 : PanelMotion.hiddenOpacity)
+            .offset(y: arrived ? 0 : -PanelMotion.rise)
+            .animation(AccessibilityDisplay.shared.motionReduced ? nil
+                       : .easeOut(duration: PanelMotion.fade).delay(PanelMotion.delay(index: index)), value: arrived)
+    }
+}
+
+/// The bar above the cards: how many sessions the hooks know about on the left, and on the right the three ways
+/// out of the panel — the Usage Dashboard, Settings and the Options menu, whose button sat in the footer until the
+/// header came in. Icon buttons, always drawn and never only on hover, each with a VoiceOver label and a tooltip
+/// that names its shortcut; the shortcuts themselves live in the main menu (MainMenu), so they work from every
+/// window and did not move with the buttons.
+///
+/// The count is the tracker's whole list, whether or not the Sessions card is on, and nothing at all when it is
+/// empty. It carries no title or project, so it stays while the screen is shared.
+struct PanelHeader: View {
+    let sessions: Int
+    let actions: NotchActions
+    @Environment(\.density) private var density
+
+    /// The room above the bar, inside the content's own top padding. The bar is the panel's first line, so this and
+    /// `NotchExpandedView.contentTopPadding` are what hold it clear of the notch (NotchExpandedView.titleInset).
+    static func topPadding(density: Density) -> CGFloat { density.lineSpacing }
+
+    /// "3 sessions", or nil when there are none.
+    static func count(_ sessions: Int) -> String? {
+        switch sessions {
+        case ...0: nil
+        case 1: L("1 session")
+        default: L("%ld sessions", sessions)
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let count = Self.count(sessions) {
+                Text(count)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Caption.style)
+                    .monospacedDigit()
+                    .accessibilityAddTraits(.isHeader)
+            }
+            Spacer(minLength: 8)
+            PanelHeaderButton(symbol: "chart.bar.xaxis", label: L("Usage Dashboard"), help: L("Open the Usage Dashboard (⌘U)")) {
+                actions.openDashboard()
+            }
+            PanelHeaderButton(symbol: "gearshape", label: L("Settings"), help: L("Open Settings (⌘,)")) {
+                actions.openSettings()
+            }
+            PanelHeaderButton(symbol: "ellipsis", label: L("Options"), help: L("How the panel opens, its layout, refreshing and quitting")) {
+                actions.showOptions()
+            }
+        }
+        .padding(.horizontal, density.cardPadding)
+        .padding(.top, Self.topPadding(density: density))
+    }
+}
+
+/// One of the header's icon buttons: a 30 × 24 target on a quiet well, so a click lands without aiming at the glyph
+/// and the button reads as a button before the pointer is on it. The well is raised under Increase Contrast.
+private struct PanelHeaderButton: View {
+    let symbol: String
+    let label: String
+    let help: String
+    let action: () -> Void
+
+    var body: some View {
+        let contrast = AccessibilityDisplay.shared.contrast
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(contrast ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                .frame(width: 30, height: 24)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(.white.opacity(contrast ? 0.18 : 0.08)))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(label)
     }
 }
 
@@ -1994,20 +2135,12 @@ struct FooterView: View {
                 .foregroundStyle(.secondary)
                 .accessibilityLabel(Spoken.phrase(next))
                 .accessibilityAction(named: L("Refresh now")) { actions.refresh() }
+                // The Options button that sat here is in the header now (PanelHeader), beside Settings and the
+                // Dashboard, so the three ways out of the panel are in one place at the top.
                 Spacer()
-                Button {
-                    actions.showOptions()
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(L("Options"))
-                        Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
-                    }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
             }
-            // The footer carries no card of its own, so it takes the cards' inner padding: the version line and
-            // the Options button end on the same two margins as everything above them.
+            // The footer carries no card of its own, so it takes the cards' inner padding: the refresh line starts
+            // on the same margin as everything above it.
             .padding(.horizontal, density.cardPadding)
         }
     }

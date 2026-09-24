@@ -98,13 +98,27 @@ extension PanelPresenting {
 }
 
 /// Reports each change of the panel's state to the oracle (Oracle.swift); the first report is the launch state.
+/// An opening also says what it opened on — the parts in the order drawn, and whether they staggered in — so a
+/// tester can check that the Sessions card led while a session was working without taking a screenshot.
 struct PanelReporter {
     private var reported: HoverIntent.State?
 
-    mutating func report(_ state: HoverIntent.State, cause: PanelCause) {
+    @MainActor
+    mutating func report(_ state: HoverIntent.State, cause: PanelCause, parts: [PanelPart]? = nil) {
         guard reported != state else { return }
-        Oracle.shared.emit("panel", ["state": state.rawValue, "cause": (reported == nil ? PanelCause.launch : cause).rawValue])
+        Oracle.shared.emit("panel", Self.fields(state: state, cause: reported == nil ? .launch : cause, parts: parts,
+                                                staggered: !AccessibilityDisplay.shared.motionReduced))
         reported = state
+    }
+
+    /// `cards` and `entrance` ride on an opening only: a closed panel has no parts to report.
+    static func fields(state: HoverIntent.State, cause: PanelCause, parts: [PanelPart]?, staggered: Bool) -> [String: Any] {
+        var fields: [String: Any] = ["state": state.rawValue, "cause": cause.rawValue]
+        if state == .expanded, let parts {
+            fields["cards"] = parts.map(\.name)
+            fields["entrance"] = staggered ? "staggered" : "none"
+        }
+        return fields
     }
 }
 
@@ -383,7 +397,7 @@ final class NotchController: NSObject, PanelPresenting {
         self.actions = actions
         self.menu = OptionsMenu(prefs: prefs, actions: actions)
         notch = DynamicNotch(hoverBehavior: [.increaseShadow], style: .notch) {
-            NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen)
+            NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: true)
         } compactLeading: {
             NotchCompactView(store: store, side: .leading)
         } compactTrailing: {
@@ -603,7 +617,7 @@ final class NotchController: NSObject, PanelPresenting {
         refreshRegions()
         configureTransition(closing: false)
         hover.adopt(.expanded)
-        reporter.report(.expanded, cause: cause)
+        reporter.report(.expanded, cause: cause, parts: NotchExpandedView(store: store, prefs: prefs, actions: actions).shownParts)
         let serial = beginTransition()
         await notch.expand(on: screen)
         if PanelKeyPolicy.takesKeyboard(cause, pendingRequest: hasPendingRequest) { window?.makeKey() }
@@ -635,11 +649,13 @@ final class NotchController: NSObject, PanelPresenting {
         hover.transitionSettled()
     }
 
-    /// The open keeps DynamicNotchKit's spring; the close is a 0.25 s smooth shrink so the panel never sits as a
-    /// black slab with its content already faded. Reduce Motion (or the app's own toggle) makes every transition instant.
+    /// The open keeps DynamicNotchKit's spring and the parts stagger in behind it (PanelMotion); the close is a smooth
+    /// shrink about two thirds as long, so the panel never sits as a black slab with its content already faded and
+    /// never takes longer to leave than it took to arrive. Reduce Motion (or the app's own toggle) makes every
+    /// transition instant.
     private func configureTransition(closing: Bool) {
         let instant = AccessibilityDisplay.shared.motionReduced
-        let shrink: Animation = .smooth(duration: 0.25)
+        let shrink: Animation = .smooth(duration: PanelMotion.close)
         notch.transitionConfiguration = DynamicNotchTransitionConfiguration(
             openingAnimation: instant ? .linear(duration: 0) : nil,
             closingAnimation: instant ? .linear(duration: 0) : shrink,
