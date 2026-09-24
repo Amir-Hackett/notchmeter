@@ -149,7 +149,7 @@ extension Pace.Status {
     }
 }
 
-private extension Advice.Priority {
+extension Advice.Priority {
     var color: Color {
         switch self {
         case .attention: Palette.calm
@@ -174,13 +174,17 @@ struct Caption: ViewModifier {
     }
 }
 
+/// The box a Detailed card sits in. `boxed: false` draws the content bare, for a card opened in place under a
+/// Simple row (SimplePanel.swift), where the sheet is the only surface and the row above already frames it.
 struct CardBackground: ViewModifier {
+    var boxed = true
     @Environment(\.density) private var density
 
     func body(content: Content) -> some View {
         content
-            .padding(density.cardPadding)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.16 : 0.07)))
+            .padding(boxed ? density.cardPadding : 0)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.white.opacity(boxed ? (AccessibilityDisplay.shared.contrast ? 0.16 : 0.07) : 0)))
     }
 }
 
@@ -1042,14 +1046,30 @@ struct NotchExpandedView: View {
     /// looking at, and a test can check it, without drawing the panel.
     var parts: [PanelPart] {
         let tools = store.visibleTools
+        if simple {
+            return PanelLayout.simpleParts(prompt: !store.sessions.pending(now: Date()).isEmpty, spend: spendCard != nil,
+                                           notes: !(placedAdvice[.notes] ?? []).isEmpty, sessions: showsSessions,
+                                           connect: tools.isEmpty, tools: tools, addTool: !store.hiddenEmptyTools.isEmpty)
+        }
         return PanelLayout.parts(prompt: !store.sessions.pending(now: Date()).isEmpty, spend: spendCard != nil,
                                  advice: !store.advice.isEmpty,
                                  // With a hook installed the card stays when nothing is running, saying so in one
                                  // line, so an empty list is not mistaken for a setup that never worked
                                  // (UsageStore.hooksInstalled).
-                                 sessions: prefs.sessionsCard && (store.sessions.count > 0 || store.hooksInstalled),
+                                 sessions: showsSessions,
                                  sessionsLead: openedWithSessionsLead ?? PanelLayout.sessionsLead(store.sessions.all),
                                  connect: tools.isEmpty, tools: tools, addTool: !store.hiddenEmptyTools.isEmpty)
+    }
+
+    /// Whether the Sessions card, or on the Simple panel the Sessions section, is on the panel.
+    private var showsSessions: Bool { prefs.sessionsCard && (store.sessions.count > 0 || store.hooksInstalled) }
+
+    /// Whether this is the Simple panel (PanelMode, SimplePanel.swift) rather than the Detailed one.
+    var simple: Bool { prefs.panelMode == .simple }
+
+    /// The Simple panel's advice, each line on the row it is about (AdvicePlacement), for the rows this panel has.
+    var placedAdvice: [AdvicePlacement.Slot: [Advice]] {
+        AdvicePlacement.assign(store.advice, tools: store.visibleTools, cost: spendCard != nil, sessions: showsSessions)
     }
 
     /// What the panel draws right now: the one card of a prompt-only or notice-only opening, else every part.
@@ -1072,7 +1092,9 @@ struct NotchExpandedView: View {
                                                 promptOnly: promptOnly, focus: store.promptFocus)
         let lead = noticeLeads ? nil : PanelLead.request(pendingSessions: pendingSessions, focus: store.promptFocus).map { pending[$0] }
         let arrived = self.arrived
-        return VStack(alignment: .leading, spacing: prefs.density.cardSpacing) {
+        let simple = self.simple
+        let placed = simple ? placedAdvice : [:]
+        return VStack(alignment: .leading, spacing: simple ? 0 : prefs.density.cardSpacing) {
             // A request the assistant is holding a session for outranks the cost and the advice: it is the one
             // thing on the panel that is waiting on the reader. Only one is drawn, the newest unless the peek opened
             // the panel on another (PanelLead); the rest queue behind it. A panel the request itself opened carries
@@ -1110,9 +1132,17 @@ struct NotchExpandedView: View {
                 // The request has just ended and the panel is on its way closed: nothing else appears for the frame.
                 EmptyView()
             } else {
+                let parts = self.parts
                 ForEach(Array(parts.enumerated()), id: \.element) { index, part in
-                    self.part(part, lead: lead)
-                        .modifier(PanelEntranceStep(index: index, arrived: arrived))
+                    VStack(alignment: .leading, spacing: 0) {
+                        if simple {
+                            simpleBreak(PanelLayout.simpleBreak(before: part, after: index > 0 ? parts[index - 1] : nil))
+                            simplePart(part, lead: lead, placed: placed)
+                        } else {
+                            self.part(part, lead: lead)
+                        }
+                    }
+                    .modifier(PanelEntranceStep(index: index, arrived: arrived))
                 }
             }
         }
@@ -1130,7 +1160,7 @@ struct NotchExpandedView: View {
     }
 
     @ViewBuilder
-    private func part(_ part: PanelPart, lead: (session: AgentSession, request: PendingRequest)?) -> some View {
+    fileprivate func part(_ part: PanelPart, lead: (session: AgentSession, request: PendingRequest)?) -> some View {
         switch part {
         case .header:
             PanelHeader(sessions: store.sessions.count, actions: actions)
@@ -1161,9 +1191,53 @@ struct NotchExpandedView: View {
             AddToolRow(hidden: store.hiddenEmptyTools, actions: actions)
         case .footer:
             FooterView(store: store, actions: actions)
-        case .notice:
+        case .notice, .notes:
             // Never laid out among the others (PanelLayout.parts): a notice opening draws its card alone, above.
+            // Notes is the Simple panel's alone (simplePart).
             EmptyView()
+        }
+    }
+}
+
+extension NotchExpandedView {
+    /// The room, or the room and a hairline, above a part of the Simple panel (PanelLayout.simpleBreak): 12 pt
+    /// between sections either side of the rule, 10 pt under the header and the request card.
+    @ViewBuilder
+    fileprivate func simpleBreak(_ kind: PanelLayout.SimpleBreak) -> some View {
+        switch kind {
+        case .none: EmptyView()
+        case .space: Color.clear.frame(height: 10)
+        case .divider:
+            SimpleDivider().padding(.vertical, 12)
+        }
+    }
+
+    /// A part of the Simple panel: the same header, request and "Add a tool" as the Detailed panel, and a row in
+    /// place of each card.
+    @ViewBuilder
+    fileprivate func simplePart(_ part: PanelPart, lead: (session: AgentSession, request: PendingRequest)?,
+                                placed: [AdvicePlacement.Slot: [Advice]]) -> some View {
+        switch part {
+        case .header:
+            PanelHeader(sessions: store.sessions.count, actions: actions, refresh: store)
+        case .tool(let tool):
+            SimpleToolRow(tool: tool, store: store, prefs: prefs, actions: actions, advice: placed[.tool(tool)] ?? [])
+        case .spend:
+            SimpleCostRow(store: store, actions: actions, advice: placed[.cost] ?? [])
+        case .sessions:
+            SessionsCard(store: store, prefs: prefs, actions: actions, embedded: true, advice: placed[.sessions] ?? [])
+        case .notes:
+            SimpleNotesRow(store: store, actions: actions, advice: placed[.notes] ?? [])
+        case .connect:
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L("Connect an assistant to get started"))
+                    .font(.body.weight(.semibold))
+                Text(L("Install and sign in to Claude Code, Codex, Cursor, Gemini CLI or GitHub Copilot; its meters appear here."))
+                    .modifier(Caption())
+            }
+            .padding(.horizontal, prefs.density.cardPadding)
+        case .prompt, .addTool, .footer, .advice, .notice:
+            self.part(part, lead: lead)
         }
     }
 }
@@ -1197,6 +1271,8 @@ private struct PanelEntranceStep: ViewModifier {
 struct PanelHeader: View {
     let sessions: Int
     let actions: NotchActions
+    /// The Simple panel's header carries the refresh line under the count, in place of the footer it does not have.
+    var refresh: UsageStore? = nil
     @Environment(\.density) private var density
 
     /// The room above the bar, inside the content's own top padding. The bar is the panel's first line, so this and
@@ -1214,12 +1290,17 @@ struct PanelHeader: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            if let count = Self.count(sessions) {
-                Text(count)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Caption.style)
-                    .monospacedDigit()
-                    .accessibilityAddTraits(.isHeader)
+            VStack(alignment: .leading, spacing: 1) {
+                if let count = Self.count(sessions) {
+                    Text(count)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Caption.style)
+                        .monospacedDigit()
+                        .accessibilityAddTraits(.isHeader)
+                }
+                if let refresh {
+                    RefreshLine(store: refresh, actions: actions)
+                }
             }
             Spacer(minLength: 8)
             PanelHeaderButton(symbol: "chart.bar.xaxis", label: L("Usage Dashboard"), help: L("Open the Usage Dashboard (⌘U)")) {
@@ -1436,15 +1517,18 @@ struct SpendCard: View {
     let store: UsageStore
     /// A range this card is pinned to, or nil for a card that shows and sets the store's (`UsageStore.spendRange`).
     private let seeded: Range?
+    /// Drawn open under the Simple panel's cost row: no box and no title, which the row already carries.
+    private let embedded: Bool
     @Environment(\.density) private var density
 
     /// The card on the panel passes no range: it draws the store's and its SegmentedBar sets it, so the range
     /// lives as long as the app rather than as long as the panel. Until 0.6.0 it was the card's own `@State`,
     /// which died with the panel and left every detached render of the card on Today (see `imageCard`). Tests
     /// and rendered stills pass the range they want, and a copy passes the one on screen.
-    init(store: UsageStore, range: Range? = nil) {
+    init(store: UsageStore, range: Range? = nil, embedded: Bool = false) {
         self.store = store
         seeded = range
+        self.embedded = embedded
     }
 
     private var range: Range { seeded ?? store.spendRange }
@@ -1621,13 +1705,15 @@ struct SpendCard: View {
         let headline = Self.headline(mode: mode, amount: amount, totals: totals)
         let unit = Self.unit(mode: mode)
         VStack(alignment: .leading, spacing: density.rowSpacing) {
-            HStack {
-                Text(L("Cost")).font(.headline)
-                Spacer()
-                if store.costScanning {
-                    HStack(spacing: 5) {
-                        ProgressView().controlSize(.mini)
-                        Text(L("Pricing local files")).font(.caption2).foregroundStyle(.secondary)
+            if !embedded || store.costScanning {
+                HStack {
+                    if !embedded { Text(L("Cost")).font(.headline) }
+                    Spacer()
+                    if store.costScanning {
+                        HStack(spacing: 5) {
+                            ProgressView().controlSize(.mini)
+                            Text(L("Pricing local files")).font(.caption2).foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -1732,7 +1818,7 @@ struct SpendCard: View {
                 ModelShares(shares: totals.models, total: totals.cost, byModel: totals.byModel, tokensByModel: nil, mode: mode, rangeTokens: totals.tokens.total)
             }
         }
-        .modifier(CardBackground())
+        .modifier(CardBackground(boxed: !embedded))
         .contextMenu {
             Button(L("Copy as image")) {
                 CardImage.copy(imageCard.environment(\.density, density), width: store.prefs.panelWidth.points - 28)
@@ -1789,6 +1875,22 @@ private struct ModelShares: View {
 struct AdviceStrip: View {
     let advice: [Advice]
     var open: (URL) -> Void = { _ in }
+
+    var body: some View {
+        AdviceLines(advice: advice, open: open)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .modifier(CardBackground())
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(L("Advice"))
+            .accessibilityValue(advice.map { Spoken.phrase($0.text) }.joined(separator: " "))
+    }
+}
+
+/// The advice lines themselves, each with its symbol and its link: the strip's content on the Detailed panel, and
+/// on the Simple panel the lines a row carries (AdvicePlacement).
+struct AdviceLines: View {
+    let advice: [Advice]
+    var open: (URL) -> Void = { _ in }
     @Environment(\.density) private var density
 
     var body: some View {
@@ -1819,11 +1921,6 @@ struct AdviceStrip: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .modifier(CardBackground())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(L("Advice"))
-        .accessibilityValue(advice.map { Spoken.phrase($0.text) }.joined(separator: " "))
     }
 }
 
@@ -1833,6 +1930,9 @@ struct ToolCard: View {
     let store: UsageStore
     let prefs: Preferences
     var actions: NotchActions? = nil
+    /// Drawn open under the Simple panel's row for this assistant: no box, and no glyph, name or state on the title
+    /// line, which the row above already carries. The plan, the usage-page link and the problem mark stay.
+    var embedded = false
     @Environment(\.density) private var density
 
     /// This assistant's own spend, where it reports any and the panel is showing figures. The spend line and the
@@ -1857,8 +1957,10 @@ struct ToolCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: density.rowSpacing) {
             HStack(spacing: 6) {
-                Image(systemName: tool.symbolName).foregroundStyle(tool.color).font(.subheadline.weight(.semibold))
-                Text(tool.displayName).font(.headline)
+                if !embedded {
+                    Image(systemName: tool.symbolName).foregroundStyle(tool.color).font(.subheadline.weight(.semibold))
+                    Text(tool.displayName).font(.headline)
+                }
                 if let plan = status.reading?.plan {
                     Text(plan).font(.subheadline).foregroundStyle(.secondary)
                 }
@@ -1867,7 +1969,7 @@ struct ToolCard: View {
                 // In the app's accent rather than Palette.calm: the calm blue stays on the rings and the marks,
                 // where it is the "needs you" colour a reader learns; on the card the words already say it, and
                 // the blue beside them read as the system's link colour.
-                if let signal = store.signal(tool) {
+                if !embedded, let signal = store.signal(tool) {
                     Label(signal.cardText, systemImage: signal.symbolName)
                         .font(.caption)
                         .foregroundStyle(Palette.accent)
@@ -1958,7 +2060,7 @@ struct ToolCard: View {
                 .accessibilityValue(Spoken.phrase(Sparkline.summary(trend)))
             }
         }
-        .modifier(CardBackground())
+        .modifier(CardBackground(boxed: !embedded))
         .contextMenu {
             Button(L("Refresh")) { Task { await store.refresh(tool, force: true, interactive: true) } }
             Button(L("Copy as image")) {
@@ -2309,31 +2411,42 @@ struct FooterView: View {
     @Environment(\.density) private var density
 
     var body: some View {
+        HStack(alignment: .center) {
+            // The refresh line alone: the version and build that stood above it until 0.7.0 are in
+            // Settings › About, where someone filing a bug looks, and were a line of the panel nobody
+            // opened it for. VoiceOver reads the line itself, which is what the version used to label.
+            RefreshLine(store: store, actions: actions)
+            // The Options button that sat here is in the header now (PanelHeader), beside Settings and the
+            // Dashboard, so the three ways out of the panel are in one place at the top.
+            Spacer()
+        }
+        // The footer carries no card of its own, so it takes the cards' inner padding: the refresh line starts
+        // on the same margin as everything above it.
+        .padding(.horizontal, density.cardPadding)
+    }
+}
+
+/// "Next update in 2m", a button that refreshes (⌘R). The Detailed panel's footer; on the Simple panel, which has
+/// no footer, it sits in the header under the session count (PanelHeader).
+struct RefreshLine: View {
+    let store: UsageStore
+    let actions: NotchActions
+
+    var body: some View {
         TimelineView(.periodic(from: .now, by: 10)) { context in
             let next = nextUpdate(now: context.date)
-            HStack(alignment: .center) {
-                // The refresh line alone: the version and build that stood above it until 0.7.0 are in
-                // Settings › About, where someone filing a bug looks, and were a line of the panel nobody
-                // opened it for. VoiceOver reads the line itself, which is what the version used to label.
-                Button {
-                    actions.refresh()
-                } label: {
-                    Text(next).monospacedDigit()
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut("r", modifiers: .command)
-                .help(L("Refresh now (⌘R)"))
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel(Spoken.phrase(next))
-                .accessibilityAction(named: L("Refresh now")) { actions.refresh() }
-                // The Options button that sat here is in the header now (PanelHeader), beside Settings and the
-                // Dashboard, so the three ways out of the panel are in one place at the top.
-                Spacer()
+            Button {
+                actions.refresh()
+            } label: {
+                Text(next).monospacedDigit().fixedSize(horizontal: false, vertical: true)
             }
-            // The footer carries no card of its own, so it takes the cards' inner padding: the refresh line starts
-            // on the same margin as everything above it.
-            .padding(.horizontal, density.cardPadding)
+            .buttonStyle(.plain)
+            .keyboardShortcut("r", modifiers: .command)
+            .help(L("Refresh now (⌘R)"))
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel(Spoken.phrase(next))
+            .accessibilityAction(named: L("Refresh now")) { actions.refresh() }
         }
     }
 

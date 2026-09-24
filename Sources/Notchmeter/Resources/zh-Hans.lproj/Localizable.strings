@@ -905,3 +905,12 @@
 "The hook and the status line are both installed." = "钩子和状态行均已安装。";
 "Show the welcome tour again" = "再次显示欢迎导览";
 "The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "用示例数据预览圆环、面板与节奏、会话以及 Claude Code 钩子。";
+
+/* The Simple panel (SimplePanel.swift) and its setting */
+"Simple" = "简洁";
+"Detailed" = "详细";
+"Panel layout" = "面板布局";
+"Simple shows one row per assistant with its most urgent figure; click a row for everything else. Detailed shows every assistant's card open." = "简洁为每个助手显示一行及其最紧迫的数值；点按一行可查看其余全部内容。详细会展开显示每个助手的卡片。";
+"Notes" = "提示";
+"%@ left" = "%@剩余";
+"Opens or closes the detail" = "展开或收起详细信息";

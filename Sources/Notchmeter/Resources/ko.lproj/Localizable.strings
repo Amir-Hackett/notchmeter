@@ -888,3 +888,12 @@
 "The hook and the status line are both installed." = "훅과 상태 표시줄이 모두 설치되어 있습니다.";
 "Show the welcome tour again" = "환영 둘러보기 다시 보기";
 "The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "링, 패널과 페이스, 세션, Claude Code 훅을 샘플 데이터 미리보기로 보여 줍니다.";
+
+/* The Simple panel (SimplePanel.swift) and its setting */
+"Simple" = "간단히";
+"Detailed" = "자세히";
+"Panel layout" = "패널 레이아웃";
+"Simple shows one row per assistant with its most urgent figure; click a row for everything else. Detailed shows every assistant's card open." = "간단히는 어시스턴트마다 가장 급한 수치를 한 줄로 보여 주고, 줄을 클릭하면 나머지를 모두 보여 줍니다. 자세히는 모든 어시스턴트의 카드를 펼쳐서 보여 줍니다.";
+"Notes" = "메모";
+"%@ left" = "%@ 남음";
+"Opens or closes the detail" = "세부 정보를 열거나 닫습니다";

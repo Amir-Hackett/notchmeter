@@ -905,3 +905,12 @@
 "The hook and the status line are both installed." = "El hook y la línea de estado ya están instalados.";
 "Show the welcome tour again" = "Mostrar de nuevo el recorrido de bienvenida";
 "The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "Los anillos, el panel y el ritmo, las sesiones y el hook de Claude Code, sobre una vista previa con datos de ejemplo.";
+
+/* The Simple panel (SimplePanel.swift) and its setting */
+"Simple" = "Simple";
+"Detailed" = "Detallado";
+"Panel layout" = "Diseño del panel";
+"Simple shows one row per assistant with its most urgent figure; click a row for everything else. Detailed shows every assistant's card open." = "Simple muestra una fila por asistente con su cifra más urgente; haz clic en una fila para ver todo lo demás. Detallado muestra abierta la tarjeta de cada asistente.";
+"Notes" = "Notas";
+"%@ left" = "%@ restante";
+"Opens or closes the detail" = "Abre o cierra el detalle";

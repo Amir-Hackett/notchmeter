@@ -888,3 +888,12 @@
 "The hook and the status line are both installed." = "フックとステータスラインはどちらもインストール済みです。";
 "Show the welcome tour again" = "ようこそツアーをもう一度表示";
 "The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "リング、パネルとペース、セッション、Claude Code のフックを、サンプルデータのプレビューで紹介します。";
+
+/* The Simple panel (SimplePanel.swift) and its setting */
+"Simple" = "シンプル";
+"Detailed" = "詳細";
+"Panel layout" = "パネルのレイアウト";
+"Simple shows one row per assistant with its most urgent figure; click a row for everything else. Detailed shows every assistant's card open." = "シンプルはアシスタントごとに最も急ぎの数値を1行で表示し、行をクリックするとそれ以外のすべてを表示します。詳細は各アシスタントのカードを開いた状態で表示します。";
+"Notes" = "メモ";
+"%@ left" = "%@ 残り";
+"Opens or closes the detail" = "詳細を開くか閉じます";

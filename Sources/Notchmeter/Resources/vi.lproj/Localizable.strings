@@ -888,3 +888,12 @@
 "The hook and the status line are both installed." = "Hook và dòng trạng thái đều đã được cài.";
 "Show the welcome tour again" = "Xem lại tour chào mừng";
 "The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "Các vòng, bảng và nhịp độ, các phiên và hook của Claude Code, trên bản xem trước với dữ liệu mẫu.";
+
+/* The Simple panel (SimplePanel.swift) and its setting */
+"Simple" = "Đơn giản";
+"Detailed" = "Chi tiết";
+"Panel layout" = "Bố cục bảng";
+"Simple shows one row per assistant with its most urgent figure; click a row for everything else. Detailed shows every assistant's card open." = "Đơn giản hiện mỗi trợ lý một dòng với con số cấp bách nhất; bấm vào dòng để xem mọi thứ còn lại. Chi tiết hiện thẻ của từng trợ lý ở dạng mở.";
+"Notes" = "Ghi chú";
+"%@ left" = "%@ còn lại";
+"Opens or closes the detail" = "Mở hoặc đóng phần chi tiết";

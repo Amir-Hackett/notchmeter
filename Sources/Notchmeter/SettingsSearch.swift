@@ -58,7 +58,7 @@ enum SettingsSearch {
         add(.about, L("Version %@", AppInfo.version), L("Support %@…", AppInfo.name))
         add(.panel, L("Appearance"), L("Panel"), L("Readouts"), L("When crowded"), L("Show details"), L("Position"), L("Display"),
             L("Show"), L("Hover delay"), L("Show reset countdown beside the figures"), L("Show the main figure beside the rings"),
-            L("Show assistant symbols in the rings"), L("Density"), L("Panel width"), L("Show over full-screen apps"), L("Gestures: swipe down to open, swipe up to close"),
+            L("Show assistant symbols in the rings"), L("Panel layout"), L("Density"), L("Panel width"), L("Show over full-screen apps"), L("Gestures: swipe down to open, swipe up to close"),
             L("Reduce animations"))
         add(.usage, L("Usage display"), L("Show usage as"), L("Reset times"), L("Time format"), L("Show costs in"), L("Monthly budget"),
             L("Weekly budget"), L("Cost card shows"), L("In the Cost card"))

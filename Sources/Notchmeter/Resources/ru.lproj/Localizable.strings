@@ -905,3 +905,12 @@
 "The hook and the status line are both installed." = "Хук и строка состояния уже установлены.";
 "Show the welcome tour again" = "Показать приветственный тур снова";
 "The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "Кольца, панель и темп, сессии и хук Claude Code — на превью с примером данных.";
+
+/* The Simple panel (SimplePanel.swift) and its setting */
+"Simple" = "Простой";
+"Detailed" = "Подробный";
+"Panel layout" = "Вид панели";
+"Simple shows one row per assistant with its most urgent figure; click a row for everything else. Detailed shows every assistant's card open." = "Простой вид показывает по строке на ассистента с самым срочным показателем; щелчок по строке открывает всё остальное. Подробный показывает карточку каждого ассистента целиком.";
+"Notes" = "Заметки";
+"%@ left" = "%@: осталось";
+"Opens or closes the detail" = "Открывает или закрывает подробности";

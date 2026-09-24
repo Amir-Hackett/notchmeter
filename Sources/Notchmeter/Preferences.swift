@@ -131,6 +131,21 @@ enum Density: String, CaseIterable, Codable {
     var costRing: CGFloat { self == .compact ? 72 : 92 }
 }
 
+/// How the open panel is laid out. Simple is one sheet with a row per assistant, the cost and the sessions, each
+/// row carrying one figure and opening in place onto the detail (SimplePanel.swift); Detailed is the card per
+/// assistant the panel was until 0.8.0. Simple is the default for new installs and for everyone who never chose,
+/// because the panel is read at a glance and one figure a row is what a glance takes in.
+enum PanelMode: String, CaseIterable, Codable {
+    case simple, detailed
+
+    var title: String {
+        switch self {
+        case .simple: L("Simple")
+        case .detailed: L("Detailed")
+        }
+    }
+}
+
 enum PanelWidth: String, CaseIterable, Codable {
     case standard, wide
 
@@ -540,6 +555,9 @@ final class Preferences {
     }
     var density: Density {
         didSet { defaults.set(density.rawValue, forKey: Keys.density); report(Keys.density, density.rawValue, changed: density != oldValue) }
+    }
+    var panelMode: PanelMode {
+        didSet { defaults.set(panelMode.rawValue, forKey: Keys.panelMode); report(Keys.panelMode, panelMode.rawValue, changed: panelMode != oldValue) }
     }
     var panelWidth: PanelWidth {
         didSet { defaults.set(panelWidth.rawValue, forKey: Keys.panelWidth); report(Keys.panelWidth, panelWidth.rawValue, changed: panelWidth != oldValue) }
@@ -964,6 +982,7 @@ final class Preferences {
         static let timeFormat = "timeFormat"
         static let density = "density"
         static let panelWidth = "panelWidth"
+        static let panelMode = "panelMode"
         static let gestures = "gesturesEnabled"
         static let reduceAnimations = "reduceAnimations"
         static let menuBarItem = "showMenuBarItem"
@@ -1072,6 +1091,7 @@ final class Preferences {
         timeFormat = TimeFormatPreference(rawValue: defaults.string(forKey: Keys.timeFormat) ?? "") ?? .auto
         density = Density(rawValue: defaults.string(forKey: Keys.density) ?? "") ?? .comfortable
         panelWidth = PanelWidth(rawValue: defaults.string(forKey: Keys.panelWidth) ?? "") ?? .standard
+        panelMode = PanelMode(rawValue: defaults.string(forKey: Keys.panelMode) ?? "") ?? .simple
         gesturesEnabled = defaults.object(forKey: Keys.gestures) as? Bool ?? true
         reduceAnimations = defaults.bool(forKey: Keys.reduceAnimations)
         showMenuBarItem = defaults.object(forKey: Keys.menuBarItem) as? Bool

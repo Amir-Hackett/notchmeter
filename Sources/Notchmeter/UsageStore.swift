@@ -213,6 +213,9 @@ final class UsageStore {
     /// content (NotchController.expandedContentSize): a list opened in view state alone grew the drawn card and
     /// not the window, and the footer was cut off under it. Here the measure sees it and the observation re-sizes.
     var openSessionLists: Set<String> = []
+    /// The Simple panel's rows open in place ("tool:claude", "cost", "notes"; SimplePanel.swift), held here for the
+    /// same reason as `openSessionLists`: the measuring copy of the panel has to see a row open to size the window.
+    var openPanelRows: Set<String> = []
     /// The session the panel was opened on from the news peek (NotchController.open(on:)): its request card is the
     /// one drawn when several sessions hold requests, and its own card outranks another session's request. Nil the
     /// rest of the time; cleared by every collapse.

@@ -81,6 +81,7 @@ Every line carries `"t"` (ISO 8601 with milliseconds, UTC) and `"event"`; keys a
 | `advice` | the advice strip's lines changed | `titles` |
 | `screens` | launch, and every `NSApplication.didChangeScreenParametersNotification` (a display plugged in or out, the lid, mirroring) | `screens`: per screen `name`, `frame`, `visibleFrame`, `safeAreaTop`, `notch`, `isMain`, `isPrimary` |
 | `sessionRow` | a Sessions card row's subagent or task list was opened or closed | `session`, `list` (`agents` / `todos`), `expanded` |
+| `panelRow` | a Simple panel row was opened or closed in place | `row` (`tool:claude`, `cost`, `notes`), `expanded` |
 | `statusline` | a Claude Code status-line payload arrived | `context` (0…1 or null), `windows` (ids), `session`, `model`, `branch`, `cacheMisses` (Claude Code's count, or null); never the session's name |
 | `privacy` | the screen-capture probe changed its answer | `captured` |
 | `hotkey` | a global shortcut fired | `id` |

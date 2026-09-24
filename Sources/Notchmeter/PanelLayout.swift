@@ -20,6 +20,8 @@ enum PanelPart: Hashable, Sendable {
     case addTool
     /// The refresh line.
     case footer
+    /// The Simple panel's one row for the advice that belongs to no other row (AdvicePlacement).
+    case notes
 
     /// The part's name in the oracle's `panel` line and snapshot.
     var name: String {
@@ -34,6 +36,7 @@ enum PanelPart: Hashable, Sendable {
         case .tool(let tool): "tool:\(tool.rawValue)"
         case .addTool: "addTool"
         case .footer: "footer"
+        case .notes: "notes"
         }
     }
 }
@@ -68,6 +71,51 @@ enum PanelLayout {
         if addTool { parts.append(.addTool) }
         parts.append(.footer)
         return parts
+    }
+}
+
+extension PanelLayout {
+    /// The Simple panel's parts, top to bottom (PanelMode.simple): the header, a request, one row per assistant,
+    /// the cost row, the sessions, the notes, and the quiet "Add a tool". No footer: its refresh line is in the
+    /// header. The order is fixed rather than moving the sessions up while one works: every part above them is a
+    /// row, not a card, so they are never more than a few lines down, and a panel whose order changes with what is
+    /// running is one the eye has to find its place in again.
+    static func simpleParts(prompt: Bool, spend: Bool, notes: Bool, sessions: Bool, connect: Bool,
+                            tools: [ToolID], addTool: Bool) -> [PanelPart] {
+        var parts: [PanelPart] = [.header]
+        if prompt { parts.append(.prompt) }
+        if connect { parts.append(.connect) }
+        parts += tools.map(PanelPart.tool)
+        if spend { parts.append(.spend) }
+        if sessions { parts.append(.sessions) }
+        if notes { parts.append(.notes) }
+        if addTool { parts.append(.addTool) }
+        return parts
+    }
+
+    /// What goes above a part on the Simple panel: nothing inside a section (its rows carry their own spacing), a
+    /// hairline between two sections, and room alone under the header and the request card, which already stand
+    /// apart. "Add a tool" takes room and no rule: it is a footnote to the rows above, not a section.
+    enum SimpleBreak: Equatable { case none, space, divider }
+
+    static func simpleBreak(before part: PanelPart, after previous: PanelPart?) -> SimpleBreak {
+        guard let previous else { return .none }
+        if part == .addTool { return .space }
+        if previous == .header || previous == .prompt || part == .prompt { return .space }
+        return section(part) == section(previous) ? .none : .divider
+    }
+
+    private static func section(_ part: PanelPart) -> Int {
+        switch part {
+        case .header: 0
+        case .prompt, .notice: 1
+        case .connect, .tool: 2
+        case .spend: 3
+        case .sessions: 4
+        case .notes: 5
+        case .addTool, .footer: 6
+        case .advice: 7
+        }
     }
 }
 

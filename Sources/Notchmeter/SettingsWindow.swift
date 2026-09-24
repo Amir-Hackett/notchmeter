@@ -641,6 +641,10 @@ struct SettingsView: View {
                 Toggle(L("Show assistant symbols in the rings"), isOn: Binding(get: { prefs.ringSymbols }, set: { prefs.ringSymbols = $0 }))
                     .help(L("Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart."))
             }
+            Picker(L("Panel layout"), selection: Binding(get: { prefs.panelMode }, set: { prefs.panelMode = $0 })) {
+                ForEach(PanelMode.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .help(L("Simple shows one row per assistant with its most urgent figure; click a row for everything else. Detailed shows every assistant's card open."))
             Picker(L("Density"), selection: Binding(get: { prefs.density }, set: { prefs.density = $0 })) {
                 ForEach(Density.allCases, id: \.self) { Text($0.title).tag($0) }
             }

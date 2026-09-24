@@ -60,6 +60,17 @@ enum AssetRenderer {
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
             try write(welcome(now: now), png: directory.appendingPathComponent("welcome.png"))
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
+            // The same moment on the Detailed panel (PanelMode): every card open, as the panel was before 0.8.0.
+            prefs.panelMode = .detailed
+            let detailed = try Stage(store: store, prefs: prefs, actions: actions)
+            try write(detailed.image(.expanded, canvas: detailed.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-detailed.png"))
+            prefs.panelMode = .simple
+            // The Simple panel with two rows opened in place, for review: the tool's card and the Cost card drawn
+            // under their rows without a box.
+            store.openPanelRows = [AdvicePlacement.Slot.tool(.claude).key, AdvicePlacement.Slot.cost.key]
+            let opened = try Stage(store: store, prefs: prefs, actions: actions)
+            try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-open.png"))
+            store.openPanelRows = []
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
             AccessibilityDisplay.shared.force(contrast: true)
             defer { AccessibilityDisplay.shared.force(contrast: nil) }

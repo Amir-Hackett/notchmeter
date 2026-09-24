@@ -29,6 +29,10 @@ struct SessionsCard: View {
     let store: UsageStore
     let prefs: Preferences
     let actions: NotchActions
+    /// Drawn as the Simple panel's Sessions section (SimplePanel.swift): no box, the title as a section label, and
+    /// the advice about sessions (AdvicePlacement) under it, which the Detailed panel keeps in its Advice strip.
+    var embedded = false
+    var advice: [Advice] = []
     @Environment(\.density) private var density
 
     static let rowCap = 6
@@ -197,19 +201,19 @@ struct SessionsCard: View {
             // never be drawn under a setting that says not to).
             let (rows, more) = Self.rows(sessions.all, hideTitles: store.hidesFigures || !prefs.sessionTitles, jump: prefs.jumpToTerminal, now: context.date)
             let groups = Self.groups(rows, sessions: sessions.all)
-            VStack(alignment: .leading, spacing: density.rowSpacing) {
-                HStack(spacing: 6) {
-                    Image(systemName: "terminal").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
-                    Text(L("Sessions")).font(.headline)
-                    Spacer()
-                    // Always drawn while there is something to clear, never only on hover: a panel read at a glance
-                    // has no pointer on it.
-                    if sessions.all.contains(where: { !$0.isWorking && !$0.isWaiting && $0.pending == nil }) {
-                        Button(L("Clear")) { store.dismissIdleSessions() }
-                            .buttonStyle(.plain)
-                            .font(.caption.weight(.semibold)).foregroundStyle(Palette.accent)
-                            .help(L("Clear the idle sessions; each comes back if it does anything"))
-                            .accessibilityLabel(L("Remove all idle sessions"))
+            VStack(alignment: .leading, spacing: embedded ? density.lineSpacing + 2 : density.rowSpacing) {
+                if embedded {
+                    SimpleSectionLabel(title: L("Sessions")) { clear(sessions) }
+                        .padding(.horizontal, -density.cardPadding)
+                    if !advice.isEmpty {
+                        AdviceLines(advice: advice, open: actions.open)
+                    }
+                } else {
+                    HStack(spacing: 6) {
+                        Image(systemName: "terminal").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                        Text(L("Sessions")).font(.headline)
+                        Spacer()
+                        clear(sessions)
                     }
                 }
                 if groups.isEmpty {
@@ -234,7 +238,22 @@ struct SessionsCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .modifier(CardBackground())
+        .modifier(CardBackground(boxed: !embedded))
+        // Bare, the section still keeps the rows' text on the sheet's margin, which the box's padding gave it.
+        .padding(.horizontal, embedded ? density.cardPadding : 0)
+    }
+
+    /// Always drawn while there is something to clear, never only on hover: a panel read at a glance has no
+    /// pointer on it.
+    @ViewBuilder
+    private func clear(_ sessions: SessionTracker) -> some View {
+        if sessions.all.contains(where: { !$0.isWorking && !$0.isWaiting && $0.pending == nil }) {
+            Button(L("Clear")) { store.dismissIdleSessions() }
+                .buttonStyle(.plain)
+                .font(.caption.weight(.semibold)).foregroundStyle(Palette.accent)
+                .help(L("Clear the idle sessions; each comes back if it does anything"))
+                .accessibilityLabel(L("Remove all idle sessions"))
+        }
     }
 }
 
