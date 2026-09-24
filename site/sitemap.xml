@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Every page of the site, at the canonical URL each page names for itself. A page added to site/ is added here
+     too; ReleasePackagingTests (SiteGuides) fails when an .html file is missing from this list or a URL here
+     does not match that page's canonical link. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://www.notchmeter.com/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/pricing.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/privacy.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/terms.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/guides/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/guides/claude-code-cost-estimate-vs-bill.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/guides/will-you-run-out-before-the-reset.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/guides/which-assistant-should-get-this-task.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/guides/claude-code-notifications-not-working.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/guides/prompt-cache-cost.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/guides/cursor-copilot-antigravity-limits.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/guides/monitor-coding-agents-without-config-writes.html</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://www.notchmeter.com/guides/macos-agent-notch-apps-compared.html</loc><lastmod>2026-09-24</lastmod></url>
+</urlset>

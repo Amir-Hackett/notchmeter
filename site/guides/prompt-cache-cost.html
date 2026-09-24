@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How much is your prompt cache actually costing you? · Notchmeter</title>
+<meta name="description" content="Claude Code's prompt cache priced: what a cache miss costs against a hit, the four causes Claude Code reports, the 1-hour to 5-minute tier shift, and where to see all of it.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
+
+<meta property="og:title" content="How much is your prompt cache actually costing you?">
+<meta property="og:description" content="A miss costs 12.5 to 20 times what the hit would have. Claude Code now says when it happens and why; here is how to read it.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/guides/prompt-cache-cost.html">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-09-24">
+<link rel="canonical" href="https://www.notchmeter.com/guides/prompt-cache-cost.html">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="index.html" class="here">Guides</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<article class="guide">
+  <header class="guide-head">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Guides</a> <span aria-hidden="true">›</span> Prompt cache cost</nav>
+      <h1>How much is your prompt cache actually costing you?</h1>
+      <p class="lede">Prompt caching is why a long Claude Code session costs a fraction of what its token count suggests. It is also where some of the day's most expensive turns hide: a cache miss writes back what the cache already held, at a write rate, instead of reading it at a tenth of the input price.</p>
+      <ul class="meta-strip">
+        <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
+        <li class="stamp">Tested on Notchmeter 0.9.0</li>
+        <li>Rates from Anthropic's pricing page, 2026-09-01</li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="wrap guide-body">
+    <div class="answer">
+      <p class="label">The short answer</p>
+      <p>A cache read costs a tenth of the input rate. A cache write costs 1.25 times it on the 5-minute tier and twice it on the 1-hour tier. So a miss costs 12.5 to 20 times what the hit would have: rewriting 310,000 tokens on Opus 5 is about $3.10 on the 1-hour tier, where reading them would have been $0.16. Claude Code reports its own misses in the status line (since 2.1.251) and their causes (since 2.1.260). Notchmeter prices those rewrites and names the cause. It never infers a miss from a transcript, where a miss and the first turn of a session look exactly alike.</p>
+    </div>
+
+    <h2 id="multipliers">What each part of the cache costs</h2>
+    <p>Anthropic prices the cache as multiples of a model's base input rate, and they stack with the other modifiers, US-only residency included.</p>
+    <div class="tablewrap" role="region" aria-label="Cache prices for three models" tabindex="0">
+      <table class="dtable">
+        <caption>Dollars per million tokens, from Anthropic's pricing page on 2026-09-01</caption>
+        <thead><tr><th scope="col">Part</th><th scope="col">Multiplier</th><th scope="col" class="num">Opus 5</th><th scope="col" class="num">Sonnet 5</th><th scope="col" class="num">Haiku 4.5</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Input (no cache)</th><td>1 ×</td><td class="num">5.00</td><td class="num">2.00</td><td class="num">1.00</td></tr>
+          <tr><th scope="row">Cache read</th><td>0.1 ×</td><td class="num">0.50</td><td class="num">0.20</td><td class="num">0.10</td></tr>
+          <tr><th scope="row">5-minute cache write</th><td>1.25 ×</td><td class="num">6.25</td><td class="num">2.50</td><td class="num">1.25</td></tr>
+          <tr><th scope="row">1-hour cache write</th><td>2 ×</td><td class="num">10.00</td><td class="num">4.00</td><td class="num">2.00</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Fable 5.1 and Mythos 5.1 read from the cache at 0.025 ×, not 0.1 ×, which makes a miss on those models even more lopsided.</p>
+    <div class="tablewrap" role="region" aria-label="What 310,000 tokens cost as a hit and as a miss" tabindex="0">
+      <table class="dtable">
+        <caption>The same 310,000 cached tokens, read as a hit or rewritten after a miss</caption>
+        <thead><tr><th scope="col">Model</th><th scope="col" class="num">Hit (read)</th><th scope="col" class="num">Miss, 5-minute tier</th><th scope="col" class="num">Miss, 1-hour tier</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Opus 5</th><td class="num">$0.16</td><td class="num">$1.94</td><td class="num">$3.10</td></tr>
+          <tr><th scope="row">Sonnet 5</th><td class="num">$0.06</td><td class="num">$0.78</td><td class="num">$1.24</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="what-is-a-miss">What counts as a miss</h2>
+    <p>Claude Code's own definition, which Notchmeter takes as given: a request that re-processed content the cache already held, more than 5% and at least 2,000 tokens of what could have been read from it, with no compaction or tool-result clearing to explain it. A rebuild after a compaction is expected and counted separately, not as a miss. Claude Code does not count subagent requests.</p>
+    <p>The transcripts cannot answer this question, and Notchmeter does not pretend they can. A transcript records that a cache write happened and never why. A large write with no read is also exactly what the first turn of every session, and every <code>/clear</code>, looks like, so any tool that counts "misses" from transcripts is counting session starts too.</p>
+
+    <h2 id="causes">The four causes, and what to do about each</h2>
+    <div class="tablewrap" role="region" aria-label="Cache-miss causes" tabindex="0">
+      <table class="dtable">
+        <thead><tr><th scope="col">Cause Claude Code reports</th><th scope="col">Shown as</th><th scope="col">What it means</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><code>tools_changed</code></th><td>tools changed</td><td>The tool definitions changed mid-session, and Claude Code lists the tools added and removed. Notchmeter adds the one thing to do about it: <em>Your MCP server list is changing mid-session.</em> A server that connects, drops or reconnects mid-session changes the tool list.</td></tr>
+          <tr><th scope="row"><code>system_prompt_changed</code></th><td>system prompt changed</td><td>Something that goes into the system prompt changed mid-session. Claude Code reports by how many characters; it does not say what, and neither does Notchmeter.</td></tr>
+          <tr><th scope="row"><code>ttl_expired_5m</code></th><td>5-minute cache expired</td><td>More than five minutes passed between requests while the cache was on the 5-minute tier. Coming back from a break costs a rewrite.</td></tr>
+          <tr><th scope="row"><code>likely_server_side</code></th><td>likely server-side</td><td>Nothing on your side explains it. There is nothing to change.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="where-to-see-it">Where Notchmeter shows it</h2>
+    <p>Notchmeter prices each session's rewritten tokens once, at that session's model's cache-write rate for the tier the cache is on, and prints no dollar figure for a model its table does not know.</p>
+    <ul>
+      <li><strong>The Cost card</strong> adds up the Claude sessions heard from today: <em>Prompt cache: 4 misses today · 310K tokens (~$1.94) rewritten · cause: tools changed</em>.</li>
+      <li><strong>An advice line</strong> appears at three misses in the current 5-hour block, or 200,000 rewritten tokens: <em>Your prompt cache missed 4 times — 310K tokens (~$1.94) rewritten. Cause: tools changed. Your MCP server list is changing mid-session.</em></li>
+      <li><strong>A notification</strong>, <em>When the prompt cache keeps missing</em>, carries that line at most once a day.</li>
+      <li><strong>Claude Code's own status bar</strong> shows the session's miss share, <code>cache 14% miss</code>, in orange from one miss in ten and red from one in four, where the bar allows colour.</li>
+      <li><strong><code>notchmeter --json</code></strong> and the MCP tool carry the same figures as a <code>promptCache</code> object.</li>
+    </ul>
+
+    <h2 id="tier-shift">The quieter cost: the tier shift</h2>
+    <p>Anthropic's Agent SDK documentation explains why the tier moves under you: <em>"On a Claude subscription within your plan's included usage, you get the 1-hour TTL on your own turns, and on some of the helper requests Claude Code makes beside them … and Claude Code drops those turns to the 5-minute TTL once you're drawing on usage credits."</em> On the 5-minute tier every pause longer than five minutes is a rewrite.</p>
+    <p>The transcripts record which tier each write used, so Notchmeter compares today's share of cache writes on the 1-hour tier with your last 30 days. When today is at least 25 points lower, with at least 100,000 cache-write tokens to judge by, the Cost card notes it and the advice says so: <em>Cache writes today are 12% 1-hour against a 30-day norm of 64%: the 5-minute tier re-caches more often and costs more quota per turn.</em> It is an observation of the tier, not of your credits; the transcripts do not say why the tier changed. With the Cost card's details on, the token line also shows how much of the range came from cache reads (<em>4.2M tokens · 71% cache reads</em>).</p>
+
+    <h2 id="setup">What you need</h2>
+    <ul>
+      <li><strong>For misses and their causes:</strong> Notchmeter's status line in Claude Code (Settings › Integrations › <em>Install status line…</em>, which keeps a status line you already had by chaining it), and Claude Code 2.1.251 or later; 2.1.260 or later for the cause.</li>
+      <li><strong>For the tier shift and the cache-read share:</strong> nothing. Both come from the transcripts already on your Mac.</li>
+    </ul>
+    <p>On a subscription, every dollar here is the API-equivalent value, not a charge (see the <a href="claude-code-cost-estimate-vs-bill.html">cost guide</a>). The rewrite still spends your window, which is the cost you actually feel.</p>
+
+    <div class="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#the-prompt-cache">docs/accuracy.md, The prompt cache</a> and <em>The cache tier shift</em>: the rules, pinned by <code>PromptCacheTests</code> and <code>StatuslineTests</code>.</li>
+        <li>Anthropic, <a href="https://code.claude.com/docs/en/statusline">Status line</a>: the <code>prompt_cache</code> object and its fields.</li>
+        <li>Anthropic, <a href="https://platform.claude.com/docs/en/about-claude/pricing">Pricing</a>, prompt-caching multipliers, read 2026-09-01.</li>
+        <li>Anthropic, <a href="https://code.claude.com/docs/en/agent-sdk/cost-tracking">Track cost and usage</a>, on the 1-hour and 5-minute tiers, read 2026-09-01.</li>
+      </ul>
+    </div>
+  </div>
+</article>
+
+<section>
+  <div class="wrap">
+    <h2>Related guides</h2>
+    <div class="related">
+      <a class="guide-card" href="claude-code-cost-estimate-vs-bill.html"><span class="q">Why your Claude Code cost estimate doesn't match your bill</span><span class="what">Every rule behind the estimate, and where it differs.</span></a>
+      <a class="guide-card" href="will-you-run-out-before-the-reset.html"><span class="q">Will you run out before the window resets?</span><span class="what">Pace, the run-out interval and peak hours.</span></a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap centered">
+    <h2>Find the expensive misses</h2>
+    <p class="section-lede">Free, MIT licensed, and it never signs in anywhere.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#the-prompt-cache">Read the rules</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h4>Notchmeter</h4>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="index.html">Guides</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

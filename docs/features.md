@@ -1,6 +1,6 @@
 # Features
 
-What each meter shows, the pictures, every setting, the command line and the agents' tools, the languages and the advice rules, in full. The [README](../README.md) has the short version.
+What each meter shows, the pictures, every setting, the command line and the agents' tools, the languages and the advice rules, in full. The [README](../README.md) has the short version, and the [guides](https://www.notchmeter.com/guides/) on the site (sources in [`site/guides/`](../site/guides)) take the common questions one at a time: the cost estimate against the bill, running out before a reset, which assistant should get a task, notifications, the prompt cache, the three vendors' limits, monitoring without config writes, and the other apps in this space.
 
 ## The meters
 

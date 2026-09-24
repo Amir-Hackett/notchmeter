@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Will you run out before the window resets? · Notchmeter</title>
+<meta name="description" content="How to tell whether a Claude Code, Codex, Cursor or Copilot limit lasts to its reset: pace instead of percentage, a run-out range from your own recent hours, and Claude's peak hours.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
+
+<meta property="og:title" content="Will you run out before the window resets?">
+<meta property="og:description" content="Pace instead of percentage, a run-out range measured from your own hours, and what peak hours change.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/guides/will-you-run-out-before-the-reset.html">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-09-24">
+<link rel="canonical" href="https://www.notchmeter.com/guides/will-you-run-out-before-the-reset.html">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="index.html" class="here">Guides</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<article class="guide">
+  <header class="guide-head">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Guides</a> <span aria-hidden="true">›</span> Running out before the reset</nav>
+      <h1>Will you run out before the window resets?</h1>
+      <p class="lede">A percentage says how much is gone. It does not say whether the rest will last. Here are the three ways Notchmeter answers that question, from the weakest evidence to the strongest, and the things that can still make the answer wrong.</p>
+      <ul class="meta-strip">
+        <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
+        <li class="stamp">Tested on Notchmeter 0.9.0</li>
+        <li>Rules from docs/accuracy.md</li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="wrap guide-body">
+    <div class="answer">
+      <p class="label">The short answer</p>
+      <p>Compare how much is used with how much of the window has gone by. 62% used three days into a seven-day week runs out about two days early at the same rate; 62% used six days in is comfortably fine. Notchmeter draws that comparison as a pace tick on every meter and projects it to the reset. Once it has watched enough of your own hours, it gives the run-out as a range, from the pace of your slower hours to the pace of your faster ones, instead of one guessed time.</p>
+    </div>
+
+    <h2 id="pace">Pace, not percentage</h2>
+    <p>Every meter carries a tick at the point an even burn would have reached by now. The fill against the tick is the whole question: fill short of the tick is room, fill past it is borrowing from later. The projection beside the meter carries the same arithmetic to the reset, and the window gets one of three states.</p>
+    <div class="tablewrap" role="region" aria-label="Three weekly windows and their pace" tabindex="0">
+      <table class="dtable">
+        <caption>Three seven-day windows, projected at an even burn</caption>
+        <thead><tr><th scope="col">Used</th><th scope="col">Time gone</th><th scope="col">Projected at the reset</th><th scope="col">State</th><th scope="col">What the meter says</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">62%</th><td>6 of 7 days</td><td>72%</td><td>Ahead: lands with at least 10% to spare</td><td>~28% left at reset</td></tr>
+          <tr><th scope="row">85%</th><td>6 of 7 days</td><td>99%</td><td>On track: lands inside the last 10%</td><td>~1% left at reset</td></tr>
+          <tr><th scope="row">62%</th><td>3 of 7 days</td><td>145%</td><td>Behind: runs out before the reset</td><td>Runs out in 1d 20h</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The third row runs out a little over two days before its reset. A 62% on its own would have looked like the first row. Nothing is projected until at least a minute and 1% of the window have gone by, because a rate measured over seconds is noise; and a window nobody has touched gets no note at all, since "100% left at reset" tells you nothing the meter does not.</p>
+
+    <figure>
+      <div class="shot"><img src="../img/expanded.png" width="1280" height="1234" alt="The Simple panel over sample readings: a row per assistant with its most urgent window and figure, the Cost row, and the sessions grouped by project with the one waiting on you washed blue." loading="lazy"></div>
+      <figcaption>The Simple panel, drawn from sample data. Each assistant's row shows its most urgent window, the one furthest behind pace, and a figure behind pace carries a symbol as well as a colour.</figcaption>
+    </figure>
+
+    <h2 id="three-answers">Three answers, from weakest to strongest</h2>
+    <h3>1. The even burn</h3>
+    <p>The projection above assumes the rest of the window goes the way the part so far went. It needs nothing but the vendor's figure, the reset and the window's length, so it is available from the first read. Its weakness is obvious: a morning of heavy work followed by an afternoon off looks, at noon, like a week that will run out.</p>
+    <h3>2. The measured drain</h3>
+    <p>Notchmeter keeps a small log of every successful read: the time, the window, the used fraction and the reset, never a token, for seven days. A meter that moved gets a line such as <em>12% → 61% in the last hour</em>, and the last hour's measured rate replaces the even-burn assumption in the projection and the notifications. It answers "at the rate I am going right now", which is the right question in the middle of a heavy job.</p>
+    <h3>3. The run-out interval</h3>
+    <p>With enough history the log answers with two times instead of one. Every hour of the last seven days in which the window moved gives a rate. The 20th percentile of those rates gives the latest run-out, the 80th the earliest. At least four rates are needed; fewer and there is no interval.</p>
+    <ul>
+      <li>When the two edges are more than fifteen minutes apart, the card shows a range: <em>Runs out 2:10 PM–4:40 PM</em>.</li>
+      <li>When they are closer than that, one time, their midpoint, because neither edge is the better guess inside a quarter of an hour.</li>
+      <li>When only the fast edge falls before the reset: <em>Runs out from 2:10 PM, or lasts to the reset</em>. The advice line names that same time, so the panel never gives two times for one event.</li>
+    </ul>
+    <p>The interval is a description of your own recent hours, not a model of how the vendor meters. Notifications fire on its earliest edge, because a warning is a threshold and should come early.</p>
+
+    <h2 id="peak-hours">Peak hours</h2>
+    <p>Anthropic applies tighter session limits on weekdays between 05:00 and 11:00 Pacific. That window is <strong>reporting, not documentation</strong>: The Register described it on 2026-03-26 from Anthropic's announcement, and Anthropic's support article on usage limits does not publish the hours. So in Notchmeter it is a setting you can edit or turn off: the hours under Settings › Advanced › Peak hours, and which assistants they apply to with the <em>Peak hours</em> switch in each assistant's Options under Settings › Assistants. It starts on for Claude only, and off for every other vendor because none has announced one.</p>
+    <p>Inside the window, the session projection assumes the peak rate the log has observed, and the panel says so: <em>Peak hours until 11:00 AM: the session projection assumes the peak rate.</em> Within an hour of the end it turns into advice about timing: <em>Off-peak in 1h 20m: start the long job then.</em> And the run-out interval keeps peak and off-peak hours apart once it has at least four rates on each side.</p>
+
+    <h2 id="warnings">Being told before it happens</h2>
+    <p>Notifications fire when a window's pace crosses a line, not when a percentage does, because an alert at 90% arrives when it is too late to change anything. Each has its own switch under Settings › Notifications.</p>
+    <ul>
+      <li><strong>Cutting it close (on track).</strong> Passive: no sound, no banner over a full-screen app.</li>
+      <li><strong>Will run out (behind pace).</strong> Active.</li>
+      <li><strong>Almost out (under an hour left), and out.</strong> Time-sensitive, with a sound if you allow it.</li>
+    </ul>
+    <p>Each is sent once per window per reset period, a calmer state is never announced, and none is sent in the first tenth of a window, when the projection is still noise. A limit actually hit is a measurement rather than a projection, so it is reported the moment it is seen. Inside your quiet hours these are delivered silently to Notification Center rather than dropped, because a stage that never repeats would otherwise be one you were never told about.</p>
+
+    <h2 id="when-it-is-out">When it has run out</h2>
+    <p>With the Claude Code hook installed, a turn that stops on a rate limit moves the ring to <em>Limit hit</em> at once rather than at the next poll, and the advice names the reset: <em>Claude Code hit its limit; session resets in 2h.</em> Whether to wait or move depends on what else has room. When the window resets within the hour and no other assistant on a paid plan has half its main window left, the advice is to wait: <em>Claude session resets in 40m; wait rather than switch.</em> When something else does have room, it says which (the <a href="which-assistant-should-get-this-task.html">routing guide</a> has the rules).</p>
+    <p>One line is deliberately hedged. When the Claude session window was the one hit and the week still has 40% left, a quieter line mentions <code>/limit-reset</code>, a command users report clears the 5-hour window but not the weekly cap. It is community-sourced and was not in Anthropic's documentation when the rule was written (2026-09-20), and the line says "may" for that reason.</p>
+
+    <h2 id="what-can-be-wrong">What can still make the forecast wrong</h2>
+    <ul>
+      <li><strong>Other machines.</strong> The vendor's used fraction is the whole account's. Work on another Mac or on claude.ai drains the same window, and the log sees the figure move without seeing why.</li>
+      <li><strong>The metering itself moves.</strong> Anthropic meters the session window in something other than tokens, and the same work can cost a different share on different days. Notchmeter records how many of this Mac's tokens made 1% of the session each day, and when today's figure is half the 30-day median or less it says so: <em>The session is metering about 2.1x heavier than your norm.</em> It needs five days to compare against, and a gap of six times or more is not called heavier metering at all, because another machine explains that far better.</li>
+      <li><strong>The 2026-09-14 weekly-cap change.</strong> Anthropic changed what the weekly window measures on that date while the percentage kept reading the same. The log marks the boundary, and the metering norm starts after it.</li>
+      <li><strong>Windows with no declared length.</strong> Google declares no length for Gemini CLI's per-model buckets, so those meters carry no pace tick or projection until it does. Antigravity's session and weekly groups do declare theirs.</li>
+      <li><strong>Comparisons are not limits.</strong> Cursor's <em>Today's spend</em>, shown on a seat Cursor meters nothing for, is today's dollars against your usual day. It paces, but it never runs out, warns or notifies.</li>
+    </ul>
+
+    <h2 id="before-a-long-job">Asking before a long job</h2>
+    <p>The <code>notchmeter</code> command (Settings › General › <em>Install command line tool…</em>) exits with <code>10</code> when any window is at 80% or behind pace and <code>11</code> when one is at 100%, so a script can check before it starts. <code>notchmeter claude --json</code> carries each window's <code>pace</code>, <code>projectedFraction</code> and <code>drainLastHour</code>, and the Claude Code plugin's skill reads the same object so Claude checks its own windows before long work without being asked.</p>
+
+    <div class="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#the-run-out-interval">docs/accuracy.md</a>: the run-out interval, peak hours, session metering and the weekly-cap boundary, each with the tests that pin it.</li>
+        <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/features.md#advice-and-notifications">docs/features.md</a>: the advice rules and the notification stages.</li>
+        <li>The Register, 2026-03-26, on Anthropic's peak-hour session limits, as cited in the accuracy document; Anthropic's own support article does not publish the hours.</li>
+      </ul>
+    </div>
+  </div>
+</article>
+
+<section>
+  <div class="wrap">
+    <h2>Related guides</h2>
+    <div class="related">
+      <a class="guide-card" href="which-assistant-should-get-this-task.html"><span class="q">Which assistant should get this task?</span><span class="what">Routing by headroom: switch models before tools.</span></a>
+      <a class="guide-card" href="cursor-copilot-antigravity-limits.html"><span class="q">Cursor, Copilot and Antigravity limits in one place</span><span class="what">Three vendors, three ways of metering, one strip.</span></a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap centered">
+    <h2>Know before it runs out</h2>
+    <p class="section-lede">Free, MIT licensed, and it never signs in anywhere.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter">View the source</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h4>Notchmeter</h4>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="index.html">Guides</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

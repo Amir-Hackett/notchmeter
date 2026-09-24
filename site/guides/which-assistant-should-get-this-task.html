@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which assistant should get this task? · Notchmeter</title>
+<meta name="description" content="Routing work between Claude Code, Codex, Cursor and Copilot by the room each has left: switch models before tools, when to wait for a reset, and how to ask from a script or from Claude itself.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
+
+<meta property="og:title" content="Which assistant should get this task?">
+<meta property="og:description" content="Switch models before tools, wait when the reset is close, and route by the room each plan has left.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/guides/which-assistant-should-get-this-task.html">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-09-24">
+<link rel="canonical" href="https://www.notchmeter.com/guides/which-assistant-should-get-this-task.html">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="index.html" class="here">Guides</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<article class="guide">
+  <header class="guide-head">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Guides</a> <span aria-hidden="true">›</span> Which assistant gets the task</nav>
+      <h1>Which assistant should get this task?</h1>
+      <p class="lede">If you pay for more than one coding assistant, the question before a long job is rarely "which is best at this". It is "which of them can afford it right now". That second question has an answer you can compute, and this is how Notchmeter computes it.</p>
+      <ul class="meta-strip">
+        <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
+        <li class="stamp">Tested on Notchmeter 0.9.0</li>
+        <li>Rules from Advisor.swift</li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="wrap guide-body">
+    <div class="answer">
+      <p class="label">The short answer</p>
+      <p>Switch models before you switch tools: a per-model limit near its end usually sits beside another model, on the same plan, with room. If the whole plan is tight, move the work to another assistant only when that one has at least half of its own main window left. And if the tight window resets within the hour and nothing else has room, wait. Notchmeter applies those rules to every assistant's live reading and says the result as one instruction.</p>
+    </div>
+
+    <h2 id="what-it-can-know">What a meter can and cannot know</h2>
+    <p>No usage meter knows which model writes better migrations, which one your team trusts for security work, or which bill your employer pays. Those are your call. What it does know, with a source for every figure, is how much of each window each assistant has used, how fast, and when each resets. Routing on that alone already avoids the two expensive mistakes: running a long job into a wall halfway through, and paying for extra usage on one plan while another sits idle.</p>
+
+    <h2 id="rules">The rules</h2>
+    <p>These are pure functions over every visible assistant's reading, each pinned by unit tests. The panel says at most three lines at once, most urgent first: a run-out before a model switch, a model switch before a note about room elsewhere.</p>
+    <div class="advice-list">
+      <div class="advice"><div class="tag">Switch models</div><div class="say"><em>Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.</em></div></div>
+      <div class="advice"><div class="tag">Wait</div><div class="say"><em>Claude session resets in 40m; wait rather than switch.</em></div></div>
+      <div class="advice"><div class="tag">Room elsewhere</div><div class="say"><em>Codex has 78% of its weekly left.</em></div></div>
+      <div class="advice"><div class="tag">Off-peak</div><div class="say"><em>Off-peak in 1h 20m: start the long job then.</em></div></div>
+    </div>
+    <div class="tablewrap" role="region" aria-label="When each routing line appears" tabindex="0">
+      <table class="dtable">
+        <thead><tr><th scope="col">Line</th><th scope="col">When it appears</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Run-out, with somewhere to go</th><td>A window is behind pace and has a run-out time; if another assistant on a paid plan has half its main window left, the line ends by naming it (<em>Codex weekly is at 22%</em>).</td></tr>
+          <tr><th scope="row">Switch models</th><td>A per-model window is at 85% or more, and another model's window, or the plan's overall window, has at least 40% left. Said once per assistant, for its fullest model.</td></tr>
+          <tr><th scope="row">Wait</th><td>A window is out or behind pace, resets within the hour, and no other assistant on a paid plan has room.</td></tr>
+          <tr><th scope="row">Room elsewhere</th><td>An assistant's main window is on track or behind, and another assistant on a paid plan has at least 50% of its own main window left.</td></tr>
+          <tr><th scope="row">Off-peak</th><td>Claude's peak hours end within the hour (see the <a href="will-you-run-out-before-the-reset.html#peak-hours">run-out guide</a>).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Why models before tools</h3>
+    <p>Moving a task to a different assistant costs you its context, its conventions and often its permissions. Moving it to a different model in the same assistant costs a <code>/model</code>. Anthropic and Google both meter some limits per model, so the cheap move is often available and easy to miss. One caveat travels with it: Anthropic's pricing page says Claude 4.7 and later count roughly 30% more tokens than 4.6 and earlier for the same text, so when the two models named sit either side of that line, the advice adds <em>… counts about 30% more tokens for the same text</em>. The same work will move the newer model's meter further.</p>
+
+    <h3>What counts as "room"</h3>
+    <p>An assistant's <strong>main window</strong> is its longest plan-wide one: the weekly window for Claude Code and Codex, the billing cycle for Cursor, the month for Copilot. Antigravity publishes only per-model windows, so it has no main window and is never named as the place to go. Half of a main window left is the threshold, and a tie goes to the assistant you placed first in Settings.</p>
+    <p>A <strong>free tier is never named as room</strong>, however empty it is: Codex's free plan, Copilot Free and a Claude free subscription meter so little that routing a paid tool's work there would stall it. A reading that names no plan counts as paid.</p>
+
+    <h2 id="waiting">When waiting beats switching</h2>
+    <p>A session window that resets in forty minutes is often the cheapest option there is. The wait line appears only when nothing else has room, and it links the vendor's status page when the vendor's own endpoint is answering server errors, because then the delay may be theirs.</p>
+
+    <h2 id="from-a-script">Asking from a script, or from Claude</h2>
+    <p>The same rules answer outside the panel. Install the command line tool from Settings › General, then:</p>
+    <div class="code" tabindex="0"><code>notchmeter --json          # every assistant, with the advice lines
+notchmeter claude --json   # one assistant
+echo $?                    # 0 fine · 10 a window at 80% or behind pace · 11 a window at 100%</code></div>
+    <p>While the app is running it answers from the app's own report and asks no vendor again; it reads afresh only when the app is not running, or with <code>--force</code>. It never prints a token. Exit code <code>20</code> means readings exist but nothing has been used, and <code>30</code> means there is no reading at all. The same object is an MCP tool, <code>get_limits</code>, from <code>Notchmeter --mcp</code>, for Cursor, Codex and Claude Desktop.</p>
+    <p>For Claude Code there is a plugin that packages a skill and that MCP server. With it, Claude checks its own windows and the advice before a long task, without being asked, and can propose doing the mechanical part on the model that has room:</p>
+    <div class="code" tabindex="0"><code>/plugin marketplace add Amir-Hackett/notchmeter
+/plugin install notchmeter@notchmeter</code></div>
+
+    <h2 id="limits">What this will not do</h2>
+    <ul>
+      <li><strong>It does not move work for you.</strong> Every line is advice. Notchmeter never switches a model, claims a credit or starts a session.</li>
+      <li><strong>It sees each vendor's figure, not your intent.</strong> A window at 30% on a plan you are saving for Friday looks the same as one you are free to spend.</li>
+      <li><strong>It cannot route to what it cannot read.</strong> An assistant with no reading, switched off, or on a login it cannot see is never named.</li>
+      <li><strong>Its figures are this account's.</strong> The vendors' windows are account-wide already; the cost figures are this Mac's (see the <a href="claude-code-cost-estimate-vs-bill.html">cost guide</a>).</li>
+    </ul>
+
+    <div class="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/Sources/Notchmeter/Advisor.swift">Sources/Notchmeter/Advisor.swift</a>: every threshold above, as constants, with <code>AdvisorTests</code> pinning them.</li>
+        <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/features.md#advice-and-notifications">docs/features.md</a>: the advice table and the main-window rule.</li>
+        <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/plugin/skills/notchmeter/SKILL.md">plugin/skills/notchmeter/SKILL.md</a>: what Claude reads and how it is told to act on it.</li>
+        <li>Anthropic, <a href="https://platform.claude.com/docs/en/about-claude/pricing">Pricing</a>, on the tokenizer change at Claude 4.7, as cited in the accuracy document.</li>
+      </ul>
+    </div>
+  </div>
+</article>
+
+<section>
+  <div class="wrap">
+    <h2>Related guides</h2>
+    <div class="related">
+      <a class="guide-card" href="will-you-run-out-before-the-reset.html"><span class="q">Will you run out before the window resets?</span><span class="what">Pace, the run-out interval and peak hours.</span></a>
+      <a class="guide-card" href="cursor-copilot-antigravity-limits.html"><span class="q">Cursor, Copilot and Antigravity limits in one place</span><span class="what">Three vendors, three ways of metering, one strip.</span></a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap centered">
+    <h2>Route by what is left</h2>
+    <p class="section-lede">Free, MIT licensed, and it never signs in anywhere.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter">View the source</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h4>Notchmeter</h4>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="index.html">Guides</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why your Claude Code cost estimate doesn't match your bill · Notchmeter</title>
+<meta name="description" content="Claude Code's dollar figures are list-price estimates made on your Mac. Every rule behind Notchmeter's estimate, its sources, and the seven places it is known to differ from what Anthropic bills.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
+
+<meta property="og:title" content="Why your Claude Code cost estimate doesn't match your bill">
+<meta property="og:description" content="Every rule behind the estimate, the primary sources, and the seven places it is known to differ from a bill.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/guides/claude-code-cost-estimate-vs-bill.html">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-09-24">
+<link rel="canonical" href="https://www.notchmeter.com/guides/claude-code-cost-estimate-vs-bill.html">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="index.html" class="here">Guides</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<article class="guide">
+  <header class="guide-head">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Guides</a> <span aria-hidden="true">›</span> Cost estimate against the bill</nav>
+      <h1>Why your Claude Code cost estimate doesn't match your bill</h1>
+      <p class="lede">The dollar figure in Claude Code's <code>/usage</code>, in its status line and in Notchmeter's Cost card is worked out on your Mac from token counts and a price table. It is an estimate by construction. Here is exactly how Notchmeter's is built, where it comes from, and every place it is known to part company with the bill.</p>
+      <ul class="meta-strip">
+        <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
+        <li class="stamp">Tested on Notchmeter 0.9.0</li>
+        <li>Sources read 2026-09-01</li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="wrap guide-body">
+    <div class="answer">
+      <p class="label">The short answer</p>
+      <p>On a Pro, Max, Team or Enterprise seat there is no bill for it to match: the figure is what the same work would have cost at Anthropic's API list prices, and Anthropic says as much. On an API key it is a list-price estimate that cannot see contracted rates, cloud regional premiums, other machines, or the real length of a response that was cut off. The authoritative number is the Usage page in the Claude Console, or your cloud provider's invoice.</p>
+    </div>
+
+    <h2 id="which-bill">First: which bill?</h2>
+    <p>Anthropic's own documentation settles the subscription case in one sentence: <em>"Claude Max and Pro subscribers have usage included in their subscription, so the session cost figure isn't relevant for billing purposes."</em> The figure is still useful. It is the API-equivalent value of the work your sessions did, which is how you compare two days, notice an expensive hour, or judge what a plan is worth to you. It just is not money you owe.</p>
+
+    <div class="tablewrap" role="region" aria-label="What the figure means on each kind of account" tabindex="0">
+      <table class="dtable">
+        <thead><tr><th scope="col">Account</th><th scope="col">What the Cost card's figure is</th><th scope="col">Where the real number is</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Pro, Max, Team or Enterprise seat</th><td>The API-equivalent value of the work, at list price. Usage credits drawn past the plan limit are billed at Anthropic's own rates, and a transcript does not record which lines drew them.</td><td>Your plan's usage page and invoices</td></tr>
+          <tr><th scope="row">API key or Console</th><td>An estimate at list price, unless a <code>modelPricing</code> table or an override carries your contracted rates (below).</td><td>The Usage page in the Claude Console</td></tr>
+          <tr><th scope="row">Bedrock, Vertex, Foundry</th><td>Priced at Anthropic's list. Partner platforms keep their own price lists, and regional endpoints carry a premium that is not modelled.</td><td>Your cloud provider's bill</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="how-it-is-built">How the estimate is built</h2>
+    <p>Claude Code writes one JSONL transcript per session under <code>~/.claude/projects</code>. Notchmeter reads every one touched in the last 30 days (plus Claude Desktop's Cowork sessions and any folder you add in Settings), and each response contributes five token counts from the API's own <code>usage</code> object. None of them is estimated: the counts are what the API reported, and each model's tokens are priced at that model's rate.</p>
+    <div class="tablewrap" role="region" aria-label="The five token buckets" tabindex="0">
+      <table class="dtable">
+        <caption>The five buckets, and the multiplier each takes off the model's base input rate</caption>
+        <thead><tr><th scope="col">Bucket</th><th scope="col">Field in the transcript</th><th scope="col">Price</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Input</th><td><code>input_tokens</code></td><td>base input rate</td></tr>
+          <tr><th scope="row">Output</th><td><code>output_tokens</code> (thinking tokens are inside it)</td><td>output rate</td></tr>
+          <tr><th scope="row">5-minute cache write</th><td><code>ephemeral_5m_input_tokens</code></td><td>1.25 × input</td></tr>
+          <tr><th scope="row">1-hour cache write</th><td><code>ephemeral_1h_input_tokens</code></td><td>2 × input</td></tr>
+          <tr><th scope="row">Cache read</th><td><code>cache_read_input_tokens</code></td><td>0.1 × input (0.025 × on Fable 5.1 and Mythos 5.1)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Three more rules come straight from Anthropic's pricing page and the Agent SDK's cost documentation. A response whose usage says <code>inference_geo: "us"</code> is multiplied by 1.1 on every bucket, because US-only inference on Claude 4.6 and later is billed at that premium. A web search adds $10 per 1,000 searches, after the multiplier, which never applies to a per-request fee. And a response marked <code>speed: "fast"</code> on Opus 5 or Opus 4.8 is priced at twice the standard rate.</p>
+    <div class="tablewrap" role="region" aria-label="Rates for four current models" tabindex="0">
+      <table class="dtable">
+        <caption>Four of the rates, dollars per million tokens, from Anthropic's pricing page on 2026-09-01</caption>
+        <thead><tr><th scope="col">Model</th><th scope="col" class="num">Input</th><th scope="col" class="num">Output</th><th scope="col" class="num">5m write</th><th scope="col" class="num">1h write</th><th scope="col" class="num">Cache read</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Fable 5.1</th><td class="num">10</td><td class="num">50</td><td class="num">12.50</td><td class="num">20</td><td class="num">0.25</td></tr>
+          <tr><th scope="row">Opus 5</th><td class="num">5</td><td class="num">25</td><td class="num">6.25</td><td class="num">10</td><td class="num">0.50</td></tr>
+          <tr><th scope="row">Sonnet 5</th><td class="num">2</td><td class="num">10</td><td class="num">2.50</td><td class="num">4</td><td class="num">0.20</td></tr>
+          <tr><th scope="row">Haiku 4.5</th><td class="num">1</td><td class="num">5</td><td class="num">1.25</td><td class="num">2</td><td class="num">0.10</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>A worked line, so you can check the arithmetic: one Sonnet 5 response with 2,000 input tokens, 800 output, 5,000 written to the 5-minute cache and 30,000 read from it costs $0.004 + $0.008 + $0.0125 + $0.006 = <strong>$0.0305</strong>. The same response served from US-only inference costs $0.03355.</p>
+
+    <h2 id="two-tools-disagree">Why two tools disagree about the same transcripts</h2>
+    <p>Claude Code writes a streamed response as several lines, one per content block, and they share one message id and one request id. Anthropic's documentation says to count each response once, which every tool does. What differs is <em>which</em> line a tool keeps, and it matters more than it looks: Claude Code builds each line from the usage reported when the response <em>began</em>, so every line but the last carries a placeholder output count, often single digits. Only the final line has the real one.</p>
+    <p>Notchmeter keeps the line with the largest output count. Measured across the 3,501 transcripts on the development Mac on 2026-09-01, keeping the first line of each response would have counted 17,975,458 output tokens; keeping the last counts 24,339,282, <strong>35% more</strong>. A golden test pins it: three lines of one Fable 5.1 response, with output counts of 3, 3 and 1,090, price to $0.1095, not the $0.05515 that keeping the first would give. If another tool shows you a lower figure for the same day, this is the first place to look.</p>
+    <p>The other common mismatch is scope. Claude Code's <code>/usage</code> Session block covers one session since its last <code>/clear</code>. Notchmeter's <em>Today</em> covers every transcript on the Mac for the calendar day. Both can be right.</p>
+
+    <h2 id="divergences">The seven known divergences</h2>
+    <p>These are the things a bill can contain that the estimate does not, in the order they are likely to matter. They are listed in the <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#known-divergences">accuracy document</a> for the same reason they are listed here: a number that cannot show its work should not be on screen.</p>
+    <ol>
+      <li><strong>Interrupted responses.</strong> A response that never finished (you pressed Escape, the network dropped) has only placeholder lines, so its output is under-counted. Its input and cache counts are right. It cannot be told apart from a genuinely short reply, so nothing is guessed.</li>
+      <li><strong>Contracted rates, regional cloud premiums and usage-credit rates</strong>, unless you tell the app about them (next section).</li>
+      <li><strong>Price changes.</strong> The table is a dated snapshot. A scheduled job fetches Anthropic's pricing page every week and fails when a row no longer matches.</li>
+      <li><strong>Other machines and claude.ai.</strong> Only this Mac's transcripts, Cowork's and the folders you add are read. Chat on claude.ai is never priced.</li>
+      <li><strong>Currency.</strong> Everything is computed in US dollars. <em>Show costs in</em> converts with a rate you type; nothing is fetched, so a converted figure is only as current as that rate.</li>
+      <li><strong>Cursor's percentage fields</strong>, which Cursor's own staff describe as a different internal metric from spend (see the <a href="cursor-copilot-antigravity-limits.html">limits guide</a>).</li>
+      <li><strong>Copilot's day series.</strong> GitHub reports a month-to-date count, so a day's credits land on the day this Mac saw them rise.</li>
+    </ol>
+    <p>Two rules that used to be on this list are now modelled and are not divergences: the web-search fee and fast mode, both since 2026-09-02.</p>
+
+    <h2 id="contracted-rates">If you pay contracted rates</h2>
+    <p>Anthropic's documentation is plain that Claude Code <em>"computes every cost figure it shows developers at list price, so if your organization pays contracted rates, the figures in <code>/usage</code>, the status line, and OpenTelemetry don't match your bill."</em> Two files change that, and Notchmeter reads both. Claude Code's own <code>modelPricing</code> table in <code>~/.claude/settings.json</code> is honoured, so the card agrees with Claude Code's figure. Notchmeter's <code>~/Library/Application Support/Notchmeter/pricing-overrides.json</code> takes the same shape and wins on a clash:</p>
+    <div class="code" tabindex="0"><code>{"claude-opus-5": {"input": 4, "output": 20, "cacheRead": 0.4, "cacheWrite": 5, "cacheWrite1h": 8}}</code></div>
+    <p>Rates are dollars per million tokens, and a cache rate you leave out is derived from your input rate with the standard multipliers. An override changes the pricing fingerprint the app's cache is keyed on, so every transcript is re-priced on the next scan.</p>
+
+    <h2 id="other-tools">Codex, Cursor, Copilot and Antigravity</h2>
+    <ul>
+      <li><strong>Codex</strong> is priced from its session rollouts at OpenAI's published standard-tier rates, with cached input taken out of <code>input_tokens</code> before it is priced so it is not charged twice. On a ChatGPT plan it is, like Claude's, the value of the work and not a bill.</li>
+      <li><strong>Cursor</strong> is not estimated at all. Every dollar on its row is the one Cursor itself put on that event in its own usage export, which is why the row says <em>billing export</em>.</li>
+      <li><strong>GitHub Copilot</strong> is GitHub's own running count of AI credits, a cent each at GitHub's published rate, on seats GitHub meters that way.</li>
+      <li><strong>Antigravity</strong> has no row. Its endpoints return quota fractions and no price and no token count, so there is nothing to derive a dollar from, and a $0 would be a claim that it cost nothing.</li>
+    </ul>
+
+    <h2 id="check-it">Check a number yourself</h2>
+    <p>Without the app running and without a Keychain prompt, the app's own executable prints the totals and one clause per tool:</p>
+    <div class="code" tabindex="0"><code>/Applications/Notchmeter.app/Contents/MacOS/Notchmeter --probe --no-prompt</code></div>
+    <p>To check one transcript by hand, list its priced lines, keep the line with the largest <code>output_tokens</code> for each message id and request id pair, price the five buckets from the table, multiply by 1.1 where <code>inference_geo</code> is <code>"us"</code>, and add up:</p>
+    <div class="code" tabindex="0"><code>jq -c 'select(.message.usage) | [.timestamp, .message.id, .requestId, .message.model, .message.usage]' \
+  ~/.claude/projects/&lt;project&gt;/&lt;session&gt;.jsonl</code></div>
+    <p>A model the table does not know is never priced at a guess and hidden: it costs $0 and is listed on the card as <em>Unpriced</em>, so a new model shows up as a gap you can see.</p>
+
+    <div class="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>: every rule above, the full rate tables, and the golden tests that pin them.</li>
+        <li>Anthropic, <a href="https://code.claude.com/docs/en/costs">Manage costs effectively</a> (Claude Code documentation), read 2026-09-01.</li>
+        <li>Anthropic, <a href="https://code.claude.com/docs/en/agent-sdk/cost-tracking">Track cost and usage</a> (Agent SDK documentation), read 2026-09-01.</li>
+        <li>Anthropic, <a href="https://platform.claude.com/docs/en/about-claude/pricing">Pricing</a>, read 2026-09-01; the rates on this page are from that day's snapshot.</li>
+      </ul>
+    </div>
+  </div>
+</article>
+
+<section>
+  <div class="wrap">
+    <h2>Related guides</h2>
+    <div class="related">
+      <a class="guide-card" href="prompt-cache-cost.html"><span class="q">How much is your prompt cache actually costing you?</span><span class="what">Cache writes, misses and their causes, priced.</span></a>
+      <a class="guide-card" href="will-you-run-out-before-the-reset.html"><span class="q">Will you run out before the window resets?</span><span class="what">Pace, the run-out interval and peak hours.</span></a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap centered">
+    <h2>See your own figures</h2>
+    <p class="section-lede">Free, MIT licensed, and it never signs in anywhere.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">Read the accuracy document</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h4>Notchmeter</h4>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="index.html">Guides</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

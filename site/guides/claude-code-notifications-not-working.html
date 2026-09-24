@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code notifications not working? · Notchmeter</title>
+<meta name="description" content="Why Claude Code's permission and finished notifications do not arrive, the terminal settings that fix most cases, what a Notification hook adds, and when you should not install one.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
+
+<meta property="og:title" content="Claude Code notifications not working?">
+<meta property="og:description" content="Fix Claude Code's own notifications first. Then what a hook adds, how to fix it when it goes quiet, and when not to install it.">
+<meta property="og:image" content="https://www.notchmeter.com/img/permission.png">
+<meta property="og:url" content="https://www.notchmeter.com/guides/claude-code-notifications-not-working.html">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-09-24">
+<link rel="canonical" href="https://www.notchmeter.com/guides/claude-code-notifications-not-working.html">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="index.html" class="here">Guides</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<article class="guide">
+  <header class="guide-head">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Guides</a> <span aria-hidden="true">›</span> Claude Code notifications</nav>
+      <h1>Claude Code notifications not working?</h1>
+      <p class="lede">When Claude Code stops for a permission and nothing tells you, the fix is usually in your terminal, not in another app. Start there. If you then want more than a banner, this is what a hook adds, how to fix one that has gone quiet, and when you are better off without it.</p>
+      <ul class="meta-strip">
+        <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
+        <li class="stamp">Tested on Notchmeter 0.9.0</li>
+        <li>Claude Code docs read 2026-09-24</li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="wrap guide-body">
+    <div class="answer">
+      <p class="label">The short answer</p>
+      <p>Claude Code sends a desktop notification on its own only in Ghostty, Kitty and iTerm2. In any other terminal, set <code>preferredNotifChannel</code> to <code>"terminal_bell"</code> or add a Notification hook. In iTerm2, allow escape-sequence alerts; inside tmux, turn on passthrough; and check that macOS lets the terminal notify at all. If notifications then arrive but you still lose track of which session is waiting, that is the gap a hook like Notchmeter's fills.</p>
+    </div>
+
+    <h2 id="claude-codes-own">Step one: Claude Code's own notifications</h2>
+    <p>Claude Code's terminal documentation describes when it notifies: <em>"When Claude finishes a task or pauses for a permission prompt, and you appear to be away from the terminal, it fires a notification event."</em> Two consequences follow. If you are looking at the terminal, no notification is expected. And whether the event becomes something you see depends on the terminal.</p>
+    <ol>
+      <li><strong>Your terminal.</strong> <em>"By default Claude Code sends a desktop notification only in Ghostty, Kitty, and iTerm2."</em> In Apple's Terminal, Warp, or an editor's integrated terminal, add this to <code>~/.claude/settings.json</code> to ring the terminal bell instead:
+        <div class="code" tabindex="0"><code>{ "preferredNotifChannel": "terminal_bell" }</code></div>
+      </li>
+      <li><strong>iTerm2</strong> forwards the alert only once you allow it: Settings › Profiles › Terminal, tick <em>Notification Center Alerts</em>, then <em>Filter Alerts</em> and enable <em>Send escape sequence-generated alerts</em>.</li>
+      <li><strong>tmux</strong> swallows notifications unless <code>set -g allow-passthrough on</code> is in <code>~/.tmux.conf</code> (then <code>tmux source-file ~/.tmux.conf</code>).</li>
+      <li><strong>macOS.</strong> System Settings › Notifications › your terminal must be allowed, and a Focus may be holding it back.</li>
+      <li><strong>Hooks switched off.</strong> <code>"disableAllHooks": true</code> in any settings file turns off every hook, and a project's <code>.claude/settings.json</code> can override your user setting either way. If an administrator manages hooks through policy, only a managed setting can switch those off.</li>
+    </ol>
+    <p>A Notification hook runs alongside the built-in notification rather than replacing it, which is why the same documentation suggests one for terminals that get no desktop notification.</p>
+
+    <h2 id="what-the-hook-adds">What Notchmeter's hook adds</h2>
+    <p>A banner says something happened. It does not say which of four sessions is waiting, it is gone once dismissed, and answering it still means finding the right terminal tab. The hook sends Claude Code's session events to Notchmeter, which keeps them where you can see them:</p>
+    <ul>
+      <li><strong>A mark beside the notch.</strong> A white dot on the Claude ring while a session waits for your permission or your answer, with a count once more than one does, and a tick for ninety seconds after a turn longer than twenty seconds ends. The ring takes the blue that means <em>needs you, not running out</em>, and both marks stay if you turn the colour off.</li>
+      <li><strong>News in the notch.</strong> For four seconds the collapsed strip names the project and the reason (<em>Needs approval</em>, <em>Question</em>, <em>Finished</em>), with a glow under the notch.</li>
+      <li><strong>A list of sessions</strong>, grouped by project, the one that needs you first, each a click away from its terminal tab or pane.</li>
+      <li><strong>Answering from the notch.</strong> Allow, Deny or <em>Allow always</em> for a permission; pick the option for a question. The terminal shows its own prompt at the same time, and whichever you answer first wins.</li>
+      <li><strong>A banner and a sound per kind of wait</strong>: a permission, a question, and a plan ready to approve each sound different.</li>
+    </ul>
+    <figure>
+      <div class="shot"><img src="../img/signal-rings.png" width="1046" height="236" alt="The rings beside the notch a moment apart: above, Claude Code waiting for an answer, the rings blue with a white dot; below, a turn just finished, the same blue with a tick." loading="lazy"></div>
+      <figcaption>Waiting, above, and just finished, below. The dot and the tick carry the state without the colour.</figcaption>
+    </figure>
+    <figure>
+      <div class="shot"><img src="../img/permission.png" width="1280" height="700" alt="The panel open on a permission request alone: the Bash and project chips, the command, its excerpt, and Deny and Allow with their keyboard shortcuts." loading="lazy"></div>
+      <figcaption>A permission request, answered from the notch. Escape, or <em>Answer in the terminal</em>, hands it straight back.</figcaption>
+    </figure>
+    <p>Codex, Gemini CLI and GitHub Copilot CLI each document an event for a wait, so their hooks light the same dot. Cursor documents none, so its ring shows the tick and never claims a wait it cannot see; since 0.7.6 a Cursor turn quiet for 45 seconds with nothing running is shown as a <em>possible</em> wait, worded as "may be" because a slow model step looks the same.</p>
+
+    <h2 id="notchmeter-quiet">When Notchmeter's notification does not come</h2>
+    <p>The dot on the ring is always drawn. The banner is held back on purpose in three cases, and each has a switch.</p>
+    <ul>
+      <li><strong>A terminal or editor is in front.</strong> A session that has stopped for you still banners, but at most once every ten minutes per session, because Claude Code reports a permission prompt and never its answer, so a repository with no allow rules would otherwise banner at every prompt. A finished turn, and Claude Code's idle nudge, stay silent while a terminal or editor is frontmost. <em>Stay quiet while a terminal or editor is in front</em> (Settings › Notifications, on by default) turns that off.</li>
+      <li><strong>Quiet hours.</strong> They override all of it.</li>
+      <li><strong>The switch itself.</strong> <em>Notify when an assistant waits for you</em>, and macOS's own permission for Notchmeter, which is asked for when you turn the switch on and never at launch.</li>
+    </ul>
+    <p>If the dot never appears either, the hook is not reaching the app. Settings › Integrations › Hooks says, per assistant, whether the entry is installed and whether it points at the copy that is running: <em>Installed, but an entry is out of date</em> and <em>Installed but points at an old path</em> each have a Repair button. Then try it by hand; with Notchmeter running this should print <code>exit 0</code> at once and put a line in the log:</p>
+    <div class="code" tabindex="0"><code>echo '{"hook_event_name":"Stop"}' | /Applications/Notchmeter.app/Contents/MacOS/Notchmeter --hook; echo "exit $?"
+/usr/bin/log show --last 5m --info --predicate 'subsystem == "com.amirhackett.notchmeter" AND eventMessage BEGINSWITH "hook"' --style compact</code></div>
+    <p>The app accepts a hook only from a copy of Notchmeter whose code signature matches its own, so a development build next to an installed release is refused, and the log names the refused path (<code>category == "hook-socket"</code>). If <code>Notchmeter --smoke</code> reports the transport as <em>stale</em>, the socket is a leftover from a crash: relaunch the app.</p>
+
+    <h2 id="when-not-to">When not to install it</h2>
+    <p>A hook is a command Claude Code runs on every event you register it for. It is worth being sure you want one.</p>
+    <ul>
+      <li><strong>You work in Claude's desktop app.</strong> Its documentation says it <em>"sends an OS notification when a Code session finishes a task and you aren't currently viewing that session"</em>, and its sidebar can <em>"filter sessions by status, project, or environment"</em>. If that is where your sessions live, you already have most of this.</li>
+      <li><strong>One session at a time, in a terminal that already notifies.</strong> The hook would add a mark and answering from the notch, at the cost of a process launch per event (about 13.5 ms each, measured for 0.7.0).</li>
+      <li><strong>You want no third-party command in <code>settings.json</code> at all.</strong> Then do not add one. The meters do not need it, and 0.9.0 lists running sessions without any hook, with less precision; the <a href="monitor-coding-agents-without-config-writes.html">monitoring guide</a> sets out exactly what you give up.</li>
+      <li><strong>Cursor with third-party configs on.</strong> With <em>Include third-party Plugins, Skills, and other configs</em>, Cursor also runs the hooks in <code>~/.claude/settings.json</code>, so with both entries installed every Cursor event arrives twice and its subagent count under-reports. Keep one of the two.</li>
+      <li><strong>VS Code's Copilot agent mode.</strong> It reads <code>~/.claude/settings.json</code> as one of its hook sources, so its sessions are counted on the Claude ring, and nothing documented in the payload tells them apart.</li>
+      <li><strong>Settings your organisation manages.</strong> Ask first. A managed <code>disableAllHooks</code> wins over anything you add.</li>
+    </ul>
+
+    <h2 id="what-it-sends">What the hook sends, and what it never does</h2>
+    <p>Each event carries its name, the session id, the project folder's name (the repository's, for a git worktree), the branch and the permission mode. The first line of your prompt, at most 96 characters, crosses too, because the hook command does not read Notchmeter's settings; the app drops it on arrival unless <em>Show what a session is working on</em> is on, so with that off nothing of a prompt is kept anywhere. A permission request carries the tool's name and a bounded summary, never the raw input. The transcript path, the rest of the prompt and the notification text never leave the command. It all goes over a Unix socket on your Mac, not the network.</p>
+    <p>Everything fails open. If Notchmeter is not running, if you do not answer within the hold (two minutes by default), or if anything at all goes wrong, the command prints nothing and Claude Code asks in the terminal exactly as it always has.</p>
+
+    <h2 id="install-remove">Installing and removing it</h2>
+    <p>Settings › Integrations › Hooks › <em>Add to settings.json…</em> merges the entries after copying your file to <code>settings.json.bak-yyyyMMdd-HHmmss</code> beside it, and keeps every hook already there. <em>Show snippet…</em> gives you the JSON to paste yourself instead. The first launch offers this once, as a button; it is never done for you. To remove it, delete the groups whose command contains <code>Notchmeter … --hook</code>, or restore the backup.</p>
+
+    <div class="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li>Anthropic, <a href="https://code.claude.com/docs/en/terminal-config">Configure your terminal for Claude Code</a>, read 2026-09-24: the terminals that notify by default, <code>preferredNotifChannel</code>, iTerm2 and tmux.</li>
+        <li>Anthropic, <a href="https://code.claude.com/docs/en/hooks">Hooks reference</a>, read 2026-09-24: the Notification event and <code>disableAllHooks</code>.</li>
+        <li>Anthropic, <a href="https://code.claude.com/docs/en/desktop">Claude Code desktop app</a>, read 2026-09-24: its notifications and session sidebar.</li>
+        <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">docs/hooks.md</a>: every field the hook sends, the socket, the hold, the timings and the troubleshooting steps.</li>
+      </ul>
+    </div>
+  </div>
+</article>
+
+<section>
+  <div class="wrap">
+    <h2>Related guides</h2>
+    <div class="related">
+      <a class="guide-card" href="monitor-coding-agents-without-config-writes.html"><span class="q">Monitoring coding agents without letting an app write to your config</span><span class="what">What works with no hook, and what the hook is for.</span></a>
+      <a class="guide-card" href="macos-agent-notch-apps-compared.html"><span class="q">Every macOS agent-notch app compared (2026)</span><span class="what">Ten other apps, and where each beats this one.</span></a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap centered">
+    <h2>See which session is waiting</h2>
+    <p class="section-lede">Free, MIT licensed, and the hook is always your click.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Read what the hook sends</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h4>Notchmeter</h4>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="index.html">Guides</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
