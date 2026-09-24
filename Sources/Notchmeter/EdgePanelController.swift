@@ -564,6 +564,13 @@ enum PanelKeyPolicy {
 }
 
 final class EdgePanel: NSPanel {
+    override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing backingStoreType: NSWindow.BackingStoreType, defer flag: Bool) {
+        super.init(contentRect: contentRect, styleMask: style, backing: backingStoreType, defer: flag)
+        // The app is an accessory that the panel never activates, and AppKit shows a tooltip only for the active
+        // app unless the window asks otherwise; the header's tooltips are where its shortcuts are named.
+        allowsToolTipsWhenApplicationIsInactive = true
+    }
+
     override var canBecomeKey: Bool { true }
     /// The share of AppKit's own resize time a frame animation takes: the whole of it for an open, `PanelMotion.closeShare`
     /// for a close, so the edge layouts leave quicker than they arrive, as the notch layout does.

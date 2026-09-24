@@ -79,8 +79,10 @@ enum PanelLayout {
 /// dismissed has already been read, and a slow exit is time the reader spends waiting for it to get out of the way.
 ///
 /// None of it holds up a click. A part starts at a sliver of opacity rather than none, so it is hit-testable from
-/// the first frame, and the whole stagger is over in under 300 ms. Under Reduce Motion there is no stagger and no
-/// spring: the panel is simply there.
+/// the first frame. The stagger itself, from the first part starting to the last one settled, runs in under 300 ms
+/// (about 270); counted from the panel appearing, which is when a reader starts waiting, every part has settled by
+/// the time the shape's own spring is over, about 0.39 s against its 0.4. Under Reduce Motion there is no stagger
+/// and no spring: the panel is simply there.
 enum PanelMotion {
     /// DynamicNotchKit's own opening spring (DynamicNotchStyle.openingAnimation), which the notch layout keeps.
     static let open: TimeInterval = 0.4
@@ -97,15 +99,25 @@ enum PanelMotion {
     static let fade: TimeInterval = 0.16
     /// The stagger's whole run, from the first part starting to the last one settled, stays under this.
     static let budget: TimeInterval = 0.3
+    /// Counted from the panel appearing, the last part has settled by this: the open itself, so the parts are done
+    /// no later than the shape they arrive into.
+    static var settleBudget: TimeInterval { open }
     /// How far above its place a part starts, in points.
     static let rise: CGFloat = 6
     /// A part's opacity before it arrives: low enough to read as absent, high enough that a click on it still lands.
     static let hiddenOpacity: Double = 0.02
 
     /// The last position that still gets a beat of its own; everything below it arrives with it. A tall panel has
-    /// ten or more parts, and a beat for each would run past the budget or shrink the step until no stagger could
-    /// be seen. The top of the panel, where the eye starts, is where the stagger is felt.
-    static var lastStaggered: Int { max(0, Int(((budget - fade) / step).rounded(.down))) }
+    /// ten or more parts, and a beat for each would run past the budgets or shrink the step until no stagger could
+    /// be seen. The top of the panel, where the eye starts, is where the stagger is felt. The beats fit both
+    /// budgets: the run's own, and the settle counted from the panel appearing.
+    static var lastStaggered: Int {
+        let beats = min(budget - fade, settleBudget - landing - fade) / step
+        return max(0, Int(beats.rounded(.down)))
+    }
+
+    /// When the last part has settled, counted from the panel appearing.
+    static var settled: TimeInterval { delay(index: lastStaggered) + fade }
 
     /// When the part at `index` starts, counted from the panel appearing.
     static func delay(index: Int) -> TimeInterval {

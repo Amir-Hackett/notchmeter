@@ -7,7 +7,8 @@
 // Notchmeter: isOpaque is set false explicitly. A clear background alone leaves NSPanel opaque, and the
 // window now spans the screen's full height, so its transparent area must stay click-through. The collection
 // behaviour is set by the app (DynamicNotch.collectionBehavior) so the "Show over full-screen apps" setting
-// applies to this window the same way it applies to the edge pills.
+// applies to this window the same way it applies to the edge pills. Tooltips are allowed while the app is
+// inactive: the panel opens on hover without activating the app, and the header's tooltips name its shortcuts.
 
 import AppKit
 
@@ -29,6 +30,7 @@ final class DynamicNotchPanel: NSPanel {
         self.backgroundColor = .clear
         self.level = .screenSaver
         self.collectionBehavior = [.canJoinAllSpaces, .stationary]
+        self.allowsToolTipsWhenApplicationIsInactive = true
     }
 
     override var canBecomeKey: Bool {

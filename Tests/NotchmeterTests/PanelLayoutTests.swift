@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 @testable import Notchmeter
@@ -53,16 +54,44 @@ import Testing
     }
 
     /// The stagger's beats are 50–60 ms apart, the whole run from first start to last settled is under 300 ms,
-    /// and the close is 60–70 % of the open.
+    /// every part has settled within the 0.4 s open counted from the panel appearing (so a change to `landing` is
+    /// caught), and the close is 60–70 % of the open.
     @Test func theOpenStaggersWithinItsBudgetAndTheCloseIsQuicker() {
         #expect(PanelMotion.step >= 0.05 && PanelMotion.step <= 0.06)
         let run = PanelMotion.delay(index: 50) - PanelMotion.delay(index: 0) + PanelMotion.fade
         #expect(run < PanelMotion.budget)
         #expect(PanelMotion.budget <= 0.3)
+        let settled = PanelMotion.delay(index: 50) + PanelMotion.fade
+        #expect(settled == PanelMotion.settled)
+        #expect(settled <= PanelMotion.settleBudget)
+        #expect(PanelMotion.settleBudget <= 0.4)
+        #expect(PanelMotion.lastStaggered >= 2, "the top three parts each get a beat")
         #expect(PanelMotion.delay(index: 1) > PanelMotion.delay(index: 0))
         #expect(PanelMotion.delay(index: -3) == PanelMotion.delay(index: 0))
         let share = PanelMotion.close / PanelMotion.open
         #expect(share >= 0.6 && share <= 0.7)
+    }
+
+    /// The header's buttons answer the pointer: lighter under it, lighter again pressed, and raised throughout
+    /// under Increase Contrast.
+    @Test func aHeaderButtonShowsHoverAndPress() {
+        for contrast in [false, true] {
+            let rest = PanelHeaderButtonStyle.fill(contrast: contrast, hovered: false, pressed: false)
+            let hover = PanelHeaderButtonStyle.fill(contrast: contrast, hovered: true, pressed: false)
+            let pressed = PanelHeaderButtonStyle.fill(contrast: contrast, hovered: true, pressed: true)
+            #expect(rest < hover && hover < pressed)
+            #expect(PanelHeaderButtonStyle.fill(contrast: contrast, hovered: false, pressed: true) == pressed)
+        }
+        #expect(PanelHeaderButtonStyle.fill(contrast: true, hovered: false, pressed: false)
+                > PanelHeaderButtonStyle.fill(contrast: false, hovered: false, pressed: false))
+    }
+
+    /// The edge panel shows its header's tooltips while the app is inactive, which is always while the panel is
+    /// open: it opens on hover and never activates the app.
+    @MainActor @Test func theEdgePanelShowsTooltipsWhileTheAppIsInactive() {
+        let panel = EdgePanel(contentRect: NSRect(x: 0, y: 0, width: 10, height: 10),
+                              styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        #expect(panel.allowsToolTipsWhenApplicationIsInactive)
     }
 
     @Test func anOpeningTellsTheOracleItsCardsAndEntrance() {

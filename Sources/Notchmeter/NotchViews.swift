@@ -818,6 +818,10 @@ struct NotchExpandedView: View {
     @State private var contentHeight: CGFloat = 0
     /// Set as the live panel appears, which is what starts the stagger.
     @State private var appeared = false
+    /// Whether the Sessions card leads (PanelLayout.sessionsLead), as it was when this opening appeared. The order
+    /// is decided once per opening: a session starting or ending a turn while the panel is open would otherwise
+    /// move the Sessions card above or below Cost under the reader's eye. The next opening reads it afresh.
+    @State private var openedWithSessionsLead: Bool?
 
     static let screenMargin: CGFloat = 24
     /// The room the content keeps above its first card.
@@ -879,7 +883,7 @@ struct NotchExpandedView: View {
                 .scrollBounceBehavior(.basedOnSize)
                 .scrollIndicators(.never)
                 // Nothing pins the offset: the scroll view is destroyed when the panel closes and rebuilt on the
-                // next open, so it already starts at the Cost card. An anchor here would fight a real scroll.
+                // next open, so it already starts at the header. An anchor here would fight a real scroll.
                 .scrollDisabled(!overflows)
                 .frame(maxHeight: cap)
                 .onPreferenceChange(PanelContentHeight.self) { contentHeight = $0 }
@@ -903,14 +907,15 @@ struct NotchExpandedView: View {
         return SpendCard(store: store)
     }
 
-    /// The whole panel's parts, top to bottom, for what the store holds now (PanelLayout.parts). Exposed so the
-    /// oracle can report the order the reader is looking at, and a test can check it, without drawing the panel.
+    /// The whole panel's parts, top to bottom, for what the store holds now (PanelLayout.parts), with the Sessions
+    /// card's place held where this opening found it. Exposed so the oracle can report the order the reader is
+    /// looking at, and a test can check it, without drawing the panel.
     var parts: [PanelPart] {
         let tools = store.visibleTools
         return PanelLayout.parts(prompt: !store.sessions.pending(now: Date()).isEmpty, spend: spendCard != nil,
                                  advice: !store.advice.isEmpty,
                                  sessions: prefs.sessionsCard && store.sessions.count > 0,
-                                 sessionsLead: PanelLayout.sessionsLead(store.sessions.all),
+                                 sessionsLead: openedWithSessionsLead ?? PanelLayout.sessionsLead(store.sessions.all),
                                  connect: tools.isEmpty, tools: tools, addTool: !store.hiddenEmptyTools.isEmpty)
     }
 
@@ -974,8 +979,12 @@ struct NotchExpandedView: View {
         .padding(.bottom, 10)
         .frame(width: prefs.panelWidth.points, alignment: .leading)
         // The live panel is built fresh on every open (DynamicNotchKit drops the expanded content when it closes,
-        // the edge layouts drop their card), so this runs once per opening and starts that opening's stagger.
-        .onAppear { if entrance { appeared = true } }
+        // the edge layouts drop their card), so this runs once per opening: it starts that opening's stagger and
+        // holds the Sessions card where the opening put it.
+        .onAppear {
+            openedWithSessionsLead = PanelLayout.sessionsLead(store.sessions.all)
+            if entrance { appeared = true }
+        }
     }
 
     @ViewBuilder
@@ -1075,7 +1084,10 @@ struct PanelHeader: View {
             PanelHeaderButton(symbol: "gearshape", label: L("Settings"), help: L("Open Settings (⌘,)")) {
                 actions.openSettings()
             }
-            PanelHeaderButton(symbol: "ellipsis", label: L("Options"), help: L("How the panel opens, its layout, refreshing and quitting")) {
+            // The one button that opens a menu rather than a window says so to VoiceOver, since the ellipsis alone
+            // does not (the footer's old Options button carried a chevron).
+            PanelHeaderButton(symbol: "ellipsis", label: L("Options"), help: L("How the panel opens, its layout, refreshing and quitting"),
+                              hint: L("Opens a menu")) {
                 actions.showOptions()
             }
         }
@@ -1090,6 +1102,8 @@ private struct PanelHeaderButton: View {
     let symbol: String
     let label: String
     let help: String
+    /// What the button does, for VoiceOver, where the label alone does not say it.
+    var hint: String? = nil
     let action: () -> Void
 
     var body: some View {
@@ -1098,13 +1112,47 @@ private struct PanelHeaderButton: View {
             Image(systemName: symbol)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(contrast ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-                .frame(width: 30, height: 24)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(.white.opacity(contrast ? 0.18 : 0.08)))
-                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PanelHeaderButtonStyle(contrast: contrast))
         .help(help)
         .accessibilityLabel(label)
+        .accessibilityHint(hint ?? "")
+    }
+}
+
+/// The header button's well, which answers the pointer: a shade lighter under it and lighter again while pressed,
+/// so a click on a panel that never becomes key is seen to land before the window or menu it opens is up. The
+/// change is in the fill alone, with no scale, so there is no motion for Reduce Motion to take away, and each state
+/// keeps the glyph and its label, so none is told by the shade only.
+struct PanelHeaderButtonStyle: ButtonStyle {
+    let contrast: Bool
+
+    /// The well's white opacity at rest, under the pointer and pressed; raised throughout under Increase Contrast.
+    static func fill(contrast: Bool, hovered: Bool, pressed: Bool) -> Double {
+        switch (pressed, hovered) {
+        case (true, _): contrast ? 0.28 : 0.16
+        case (false, true): contrast ? 0.23 : 0.12
+        case (false, false): contrast ? 0.18 : 0.08
+        }
+    }
+
+    func makeBody(configuration: Configuration) -> some View {
+        Well(configuration: configuration, contrast: contrast)
+    }
+
+    private struct Well: View {
+        let configuration: ButtonStyleConfiguration
+        let contrast: Bool
+        @State private var hovered = false
+
+        var body: some View {
+            configuration.label
+                .frame(width: 30, height: 24)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(.white.opacity(PanelHeaderButtonStyle.fill(contrast: contrast, hovered: hovered, pressed: configuration.isPressed))))
+                .contentShape(Rectangle())
+                .onHover { hovered = $0 }
+        }
     }
 }
 
