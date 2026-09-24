@@ -340,6 +340,19 @@
 "Cost card shows" = "Kostenkarte zeigt";
 "Cost, %@" = "Kosten, %@";
 "Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours." = "Kosten werden in US-Dollar zu API-Listenpreisen berechnet; ein Code (EUR, GBP, JPY) und dein eigener Kurs rechnen sie um. Es wird nichts abgerufen: Der Kurs stammt von dir.";
+
+/* Currency: Fetch today's rate, the ECB's reference rate beside converted figures (ReferenceRates, SettingsWindow, SpendCard) */
+"Fetch today's rate" = "Heutigen Kurs abrufen";
+"Once a day, a plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, carrying the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old." = "Einmal am Tag eine einfache Anfrage nach den öffentlichen Euro-Referenzkursen der Europäischen Zentralbank auf ecb.europa.eu, die den Namen und die Version der App mitschickt und nichts über dich. Dein eigener Kurs unter Erweitert › Diagnose springt ein, bis sie antwortet, für eine Währung, die die EZB nicht veröffentlicht, und sobald ihr neuester Kurs älter als eine Woche ist.";
+"Your own rate: used while Fetch today's rate is off, and whenever the ECB's rate cannot be used." = "Dein eigener Kurs: verwendet, solange „Heutigen Kurs abrufen“ aus ist, und immer dann, wenn der Kurs der EZB nicht verwendet werden kann.";
+"%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@" = "%1$@ zu %2$@ pro US-Dollar, Referenzkurs der EZB vom %3$@";
+"%1$@ at your own rate of %2$@ per US dollar" = "%1$@ zu deinem eigenen Kurs von %2$@ pro US-Dollar";
+"%1$@ per US dollar, the ECB reference rate of %2$@, fetched %3$@." = "%1$@ pro US-Dollar, Referenzkurs der EZB vom %2$@, abgerufen %3$@.";
+"Not fetched yet; your own rate (%@) stands in." = "Noch nicht abgerufen; dein eigener Kurs (%@) springt ein.";
+"The ECB could not be reached; your own rate (%@) stands in until it can." = "Die EZB war nicht erreichbar; dein eigener Kurs (%@) springt ein, bis sie es wieder ist.";
+"The ECB publishes no rate for %1$@; your own rate (%2$@) stands in." = "Die EZB veröffentlicht keinen Kurs für %1$@; dein eigener Kurs (%2$@) springt ein.";
+"The ECB's latest rate is from %1$@, over a week ago; your own rate (%2$@) stands in." = "Der neueste Kurs der EZB ist vom %1$@, über eine Woche alt; dein eigener Kurs (%2$@) springt ein.";
+
 "Could not install the command line tool: %@" = "Das Befehlszeilentool konnte nicht installiert werden: %@";
 "Could not move %@" = "%@ konnte nicht bewegt werden";
 "Countdown" = "Countdown";

@@ -106,6 +106,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pointerMonitor: Any?
     private var pointerSettle: Task<Void, Never>?
     private let awake = AwakeKeeper()
+    /// The ECB's rate for *Fetch today's rate*; asks for nothing while that is off (ReferenceRates.swift).
+    private lazy var rateFetcher = ReferenceRateFetcher(prefs: prefs)
     /// The one jump at a time back to a session's terminal (TerminalJump.swift).
     private let jumper = TerminalJump.Executor()
     private lazy var autoSideProbe = CompactStripProbe(store: store)
@@ -218,6 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notifier.terminalRule = { [weak self] in self?.prefs.quietWhileTerminalFrontmost ?? true }
         notifier.onOpen = { [weak self] tool in self?.openFromNotification(tool) }
         store.start()
+        rateFetcher.start()
         actions.refresh = { [weak self] in self?.store.refreshAll(interactive: true) }
         actions.openSettings = { [weak self] in self?.showSettings() }
         actions.openSettingsPane = { [weak self] pane in self?.showSettings(pane: pane) }
@@ -1021,6 +1024,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "costCard": ["carried": store.costSelection.providers.map(\.tool.rawValue),
                          "leads": store.costSelection.providers.first?.tool.rawValue as Any,
                          "gaps": store.costGaps.map { ["tool": $0.tool.rawValue, "reason": $0.text] }],
+            "currency": prefs.currencyConversion.oracleFields,
             "awaitingInput": store.awaitingInput.map(\.rawValue).sorted(), "sessions": store.sessions.count,
             "sessionsCard": sessionsCardFields(),
             "signals": ToolID.allCases.compactMap { tool in store.signal(tool).map { "\(tool.rawValue):\(String(describing: $0))" } },

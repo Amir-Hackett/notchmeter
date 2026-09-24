@@ -603,13 +603,24 @@ final class Preferences {
     var hideFromScreenShare: Bool {
         didSet { defaults.set(hideFromScreenShare, forKey: Keys.screenShare); report(Keys.screenShare, hideFromScreenShare, changed: hideFromScreenShare != oldValue) }
     }
-    /// ISO 4217 code and the user's own rate from a dollar; nothing is fetched.
+    /// ISO 4217 code and the user's own rate from a dollar. Nothing is fetched unless `fetchCurrencyRate` is on.
     var currencyCode: String {
-        didSet { defaults.set(currencyCode, forKey: Keys.currencyCode); report(Keys.currencyCode, currencyCode, changed: currencyCode != oldValue); Money.configure(code: currencyCode, rate: currencyRate) }
+        didSet { defaults.set(currencyCode, forKey: Keys.currencyCode); report(Keys.currencyCode, currencyCode, changed: currencyCode != oldValue); applyCurrency() }
     }
     var currencyRate: Double {
-        didSet { defaults.set(currencyRate, forKey: Keys.currencyRate); report(Keys.currencyRate, currencyRate, changed: currencyRate != oldValue); Money.configure(code: currencyCode, rate: currencyRate) }
+        didSet { defaults.set(currencyRate, forKey: Keys.currencyRate); report(Keys.currencyRate, currencyRate, changed: currencyRate != oldValue); applyCurrency() }
     }
+    /// Converts at the ECB's reference rate, fetched once a day (ReferenceRateFetcher), instead of the typed one.
+    /// Off by default: the typed rate and no request at all is how the app has always converted, and a request
+    /// the user did not ask for is one the privacy page would have to explain away.
+    var fetchCurrencyRate: Bool {
+        didSet { defaults.set(fetchCurrencyRate, forKey: Keys.fetchCurrencyRate); report(Keys.fetchCurrencyRate, fetchCurrencyRate, changed: fetchCurrencyRate != oldValue); applyCurrency() }
+    }
+    /// The rate `Money` converts at and where it came from, resolved from the three settings above and the cached
+    /// rates. Not a preference: derived, never written, and re-resolved whenever one of its inputs moves.
+    private(set) var currencyConversion: CurrencyConversion
+    /// The last ECB rates read and when a request was last made, kept in these defaults beside the switch.
+    private(set) var referenceRateCache: ReferenceRateCache
     /// A spend budget for the calendar month (and optionally the week), stored in US dollars, typed in the user's currency.
     var monthlyBudgetUSD: Double? {
         didSet { store(monthlyBudgetUSD, forKey: Keys.monthlyBudget); report(Keys.monthlyBudget, monthlyBudgetUSD as Any, changed: monthlyBudgetUSD != oldValue) }
@@ -994,6 +1005,7 @@ final class Preferences {
         static let screenShare = "hideFromScreenShare"
         static let currencyCode = "currencyCode"
         static let currencyRate = "currencyRate"
+        static let fetchCurrencyRate = "fetchCurrencyRate"
         static let monthlyBudget = "monthlyBudgetUSD"
         static let weeklyBudget = "weeklyBudgetUSD"
         static let costCardMode = "costCardMode"
@@ -1101,8 +1113,15 @@ final class Preferences {
         menuBarTint = MenuBarTint(rawValue: defaults.string(forKey: Keys.menuBarTint) ?? "") ?? .pace
         menuBarTintHex = defaults.string(forKey: Keys.menuBarTintHex) ?? "0072B2"
         hideFromScreenShare = defaults.bool(forKey: Keys.screenShare)
-        currencyCode = defaults.string(forKey: Keys.currencyCode) ?? "USD"
-        currencyRate = defaults.object(forKey: Keys.currencyRate) as? Double ?? 1
+        let code = defaults.string(forKey: Keys.currencyCode) ?? "USD"
+        let rate = defaults.object(forKey: Keys.currencyRate) as? Double ?? 1
+        let fetch = defaults.bool(forKey: Keys.fetchCurrencyRate)
+        let rates = ReferenceRateCache.load(defaults)
+        currencyCode = code
+        currencyRate = rate
+        fetchCurrencyRate = fetch
+        referenceRateCache = rates
+        currencyConversion = CurrencyConversion.resolve(code: code, typed: rate, fetch: fetch, cache: rates, now: Date())
         monthlyBudgetUSD = defaults.object(forKey: Keys.monthlyBudget) as? Double
         weeklyBudgetUSD = defaults.object(forKey: Keys.weeklyBudget) as? Double
         costCardMode = CostCardMode(rawValue: defaults.string(forKey: Keys.costCardMode) ?? "") ?? .cost
@@ -1180,7 +1199,7 @@ final class Preferences {
         let status = SMAppService.mainApp.status
         launchAtLoginStatus = status
         launchAtLogin = status == .enabled
-        Money.configure(code: currencyCode, rate: currencyRate)
+        Money.configure(code: currencyConversion.code, rate: currencyConversion.rate)
         Keychain.setPolicy(keychainPrompts)
         NetworkSession.configure(proxy: proxyURL)
         DiagnosticLog.verbose = debugLogging
@@ -1369,6 +1388,36 @@ final class Preferences {
     static func storedWaitSound(_ kind: Hook.WaitKind, defaults: UserDefaults, installed: [String] = NotificationSound.systemSounds()) -> String {
         defaults.string(forKey: soundKey(for: kind)) ?? defaults.string(forKey: Keys.soundWaiting)
             ?? NotificationSound.defaultChoice(for: kind, installed: installed)
+    }
+
+    /// Resolves the rate from the settings and the cached rates and hands it to `Money`. Written only on a change,
+    /// because every write to an observed property re-draws whatever reads it, and the fetcher calls this on each
+    /// of its checks so that a rate past its week gives way without waiting for a request.
+    func applyCurrency(now: Date = Date()) {
+        let resolved = CurrencyConversion.resolve(code: currencyCode, typed: currencyRate, fetch: fetchCurrencyRate,
+                                                  cache: referenceRateCache, now: now)
+        Money.configure(code: resolved.code, rate: resolved.rate)
+        guard resolved != currencyConversion else { return }
+        currencyConversion = resolved
+        Oracle.shared.emit("currency", resolved.oracleFields)
+    }
+
+    /// A request is about to be made: counted as a failure until it comes back with rates (ReferenceRateCache).
+    func recordRateRequest(at now: Date) {
+        referenceRateCache.lastAttempt = now
+        referenceRateCache.failures += 1
+        referenceRateCache.save(defaults)
+    }
+
+    /// The request came back: new rates replace the old and clear the failures. A request that brought nothing
+    /// leaves the old rates in place, and they go on being used until they are a week old.
+    func recordRates(_ rates: ReferenceRates?, now: Date = Date()) {
+        if let rates {
+            referenceRateCache.rates = rates
+            referenceRateCache.failures = 0
+        }
+        referenceRateCache.save(defaults)
+        applyCurrency(now: now)
     }
 
     /// Empties this app's defaults domain; the caller relaunches, so nothing here needs to be re-read.

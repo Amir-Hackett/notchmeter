@@ -317,6 +317,10 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 if !embedded { Text(L("Usage")).font(.title2.weight(.semibold)) }
                 Text(updatedLine).font(.caption).foregroundStyle(.secondary)
+                // The rate every figure below was converted at, and its day, while *Fetch today's rate* is on.
+                if store.prefs.showSpend, let note = store.prefs.currencyConversion.note {
+                    Text(note).font(.caption).foregroundStyle(.secondary)
+                }
             }
             Spacer()
             Picker(L("Range"), selection: $range) {

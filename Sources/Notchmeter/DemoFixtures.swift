@@ -271,6 +271,19 @@ enum DemoFixtures {
                                firstUse: calendar.date(byAdding: .day, value: -212, to: start), sinceFirstUse: 41_300)
         return base.adding([claude, cursor].compactMap { $0 })
     }
+
+    /// *Fetch today's rate* as it reads with a request answered two hours ago: the rates the ECB published for
+    /// 2026-09-24 (a few of its currencies, and the dollar every one is crossed through), dated the day before the
+    /// render so that a picture drawn next year is not of a rate a week out of use. Never fetched.
+    static func referenceRates(now: Date) -> ReferenceRates {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let yesterday = utc.date(byAdding: .day, value: -1, to: now) ?? now
+        let parts = utc.dateComponents([.year, .month, .day], from: yesterday)
+        let day = String(format: "%04ld-%02ld-%02ld", parts.year ?? 2026, parts.month ?? 9, parts.day ?? 24)
+        return ReferenceRates(day: day, perEuro: ["USD": 1.1367, "GBP": 0.85986, "JPY": 180.57, "CHF": 0.9409, "KRW": 1555.69, "CNY": 7.6302],
+                              fetchedAt: now.addingTimeInterval(-2 * 3600))
+    }
 }
 
 /// Installed, and never read: the demo store is seeded with the reading instead.

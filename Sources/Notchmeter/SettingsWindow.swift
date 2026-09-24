@@ -523,6 +523,16 @@ struct SettingsView: View {
             .frame(width: width)
     }
 
+    /// What converts the costs while nothing is fetched: under the currency row, and on the rate's own row.
+    private static var currencyHelp: String {
+        L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours.")
+    }
+
+    /// The whole of the request *Fetch today's rate* makes, where the switch is (docs/privacy.md says it again).
+    private static var fetchRateHelp: String {
+        L("Once a day, a plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, carrying the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old.")
+    }
+
     /// One explanation for both budget rows.
     private static var budgetHelp: String {
         L("In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period.")
@@ -717,8 +727,14 @@ struct SettingsView: View {
             }
             // The rate the code converts at is under Advanced › Diagnostics with its own Apply: a number set once
             // and rarely, beside the other rarely-touched fields, where it no longer makes the currency row look
-            // like something everyone has to fill in.
-            paragraph(L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours."))
+            // like something everyone has to fill in. The switch beside the code is the one alternative to it, off
+            // until asked for, and dimmed in dollars, which need no rate.
+            Toggle(L("Fetch today's rate"), isOn: Binding(get: { prefs.fetchCurrencyRate }, set: { prefs.fetchCurrencyRate = $0 }))
+                .disabled(prefs.currencyConversion.code == "USD")
+                .help(Self.fetchRateHelp)
+            // Off, the paragraph says nothing is fetched, which is then true; on, it is the rate in use and its day,
+            // or why the typed rate stands in.
+            paragraph(prefs.fetchCurrencyRate ? prefs.currencyConversion.settingsLine() ?? Self.currencyHelp : Self.currencyHelp)
             LabeledContent(L("Monthly budget")) {
                 field($monthlyBudgetText, prompt: Money.code, label: L("Monthly budget"))
                     .onSubmit { applyBudgets() }
@@ -1242,7 +1258,9 @@ struct SettingsView: View {
                             .onSubmit { applyRate() }
                         Button(L("Apply")) { applyRate() }
                     }
-                    .help(L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours."))
+                    .help(prefs.fetchCurrencyRate
+                        ? L("Your own rate: used while Fetch today's rate is off, and whenever the ECB's rate cannot be used.")
+                        : Self.currencyHelp)
                     crashReportRows
                 }
                 .opacity(searchOpacity(.diagnostics))

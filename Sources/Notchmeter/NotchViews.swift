@@ -1649,6 +1649,12 @@ struct SpendCard: View {
     /// reporting, where there is no figure to have a provenance.
     private var sourceLine: String? { detail?.source }
 
+    /// Which rate the amounts were converted at, and for the ECB's which day it is for, while *Fetch today's rate*
+    /// is on (CurrencyConversion.note). Not under Tokens, which shows no amount to have converted.
+    private var conversionLine: String? {
+        mode == .tokens || providers.isEmpty ? nil : store.prefs.currencyConversion.note
+    }
+
     /// A tool whose figures are stale or partial says so under its row.
     private var problemLines: [String] {
         providers.compactMap { provider in provider.problem.map { "\(provider.tool.displayName): \($0)" } }
@@ -1700,6 +1706,7 @@ struct SpendCard: View {
             lines.append((text: L("Unpriced: %@", selection.unpricedModels.sorted().joined(separator: ", ")), quiet: true))
         }
         if let sourceLine { lines.append((text: sourceLine, quiet: true)) }
+        if let conversionLine { lines.append((text: conversionLine, quiet: true)) }
         return lines
     }
 
@@ -1825,7 +1832,8 @@ struct SpendCard: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L("Cost, %@", range.title))
             .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, burnLine, problemLines.first, gaps.first?.text,
-                                            store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine))
+                                            store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine,
+                                            conversionLine))
             if store.prefs.showDetails, let totals, !totals.models.isEmpty, totals.cost > 0 {
                 ModelShares(shares: totals.models, total: totals.cost, byModel: totals.byModel, tokensByModel: nil, mode: mode, rangeTokens: totals.tokens.total)
             }

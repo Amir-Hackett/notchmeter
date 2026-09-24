@@ -265,7 +265,8 @@ enum StaleReading {
 }
 
 /// Every amount on screen goes through here. Amounts are computed in US dollars; "Show costs in" converts them
-/// with the user's own rate and the locale's symbol for the code (docs/accuracy.md: the rate is never fetched).
+/// with the user's own rate, or the ECB's reference rate while *Fetch today's rate* is on
+/// (Preferences.currencyConversion), and the locale's symbol for the code (docs/accuracy.md, *Currency*).
 enum Money {
     private struct Currency {
         var code = "USD"

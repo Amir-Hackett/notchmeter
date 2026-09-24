@@ -60,7 +60,7 @@ enum SettingsSearch {
             L("Show"), L("Hover delay"), L("Show reset countdown beside the figures"), L("Show the main figure beside the rings"),
             L("Show assistant symbols in the rings"), L("Panel layout"), L("Density"), L("Panel width"), L("Show over full-screen apps"), L("Gestures: swipe down to open, swipe up to close"),
             L("Reduce animations"))
-        add(.usage, L("Usage display"), L("Show usage as"), L("Reset times"), L("Time format"), L("Show costs in"), L("Monthly budget"),
+        add(.usage, L("Usage display"), L("Show usage as"), L("Reset times"), L("Time format"), L("Show costs in"), L("Fetch today's rate"), L("Monthly budget"),
             L("Weekly budget"), L("Cost card shows"), L("In the Cost card"))
         add(.shortcuts, L("Keyboard shortcuts"), L("Toggle the panel"), L("Open Settings"), L("Show over the full-screen app"))
         add(.assistants, L("Assistants"), L("Pin to menu bar"), L("Peak hours"), L("Keep the Mac awake while an assistant is working"),

@@ -71,6 +71,7 @@ enum AssetRenderer {
             let opened = try Stage(store: store, prefs: prefs, actions: actions)
             try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-open.png"))
             store.openPanelRows = []
+            try currency(into: directory, store: store, prefs: prefs, actions: actions, now: now)
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
             AccessibilityDisplay.shared.force(contrast: true)
             defer { AccessibilityDisplay.shared.force(contrast: nil) }
@@ -477,6 +478,31 @@ enum AssetRenderer {
                 .environment(\.density, prefs.density)
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1),
             what: "a panel crop")
+    }
+
+    /// *Fetch today's rate*, for review; the README does not use these. The Cost card in euros at the ECB's rate
+    /// with its day under the figures, and the Appearance pane with the switch on and the rate in use; then the
+    /// same two for dong, which the ECB does not publish, with the typed rate standing in and saying so. The
+    /// preferences are put back to dollars afterwards, so the pictures drawn after these are the README's own.
+    @MainActor
+    static func currency(into directory: URL, store: UsageStore, prefs: Preferences, actions: NotchActions, now: Date) throws {
+        defer {
+            prefs.fetchCurrencyRate = false
+            prefs.currencyCode = "USD"
+            prefs.currencyRate = 1
+        }
+        prefs.currencyCode = "EUR"
+        prefs.currencyRate = 0.9
+        prefs.fetchCurrencyRate = true
+        prefs.recordRates(DemoFixtures.referenceRates(now: now), now: now)
+        for (code, rate, name) in [("EUR", 0.9, "currency"), ("VND", 25_000.0, "currency-fallback")] {
+            prefs.currencyCode = code
+            prefs.currencyRate = rate
+            let card = try panelCrop(SpendCard(store: store, range: .today), prefs: prefs)
+            try write(card.image, png: directory.appendingPathComponent("\(name)-card.png"))
+            try write(settings(pane: .appearance, store: store, prefs: prefs, actions: actions),
+                      png: directory.appendingPathComponent("\(name)-settings.png"))
+        }
     }
 
     /// Every pane of the Settings window, one under another, in the dark appearance the notch panel always has.
