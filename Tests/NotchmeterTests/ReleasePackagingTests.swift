@@ -80,7 +80,7 @@ import Testing
     static let hero = "Every figure on this panel is sourced, dated and tested"
     static let menuBar = "Your menu bar ran out of room three apps ago. This one doesn't take any."
     static let twoWay = "from the notch"
-    static let platform = "macOS 14 or later"
+    static let platform = "macOS 15 or later"
 
     /// Anthropic's own words, quoted rather than paraphrased, in the README's Terms paragraph and on the site's Terms
     /// page: the credential sentence from Claude Code's "Authentication and credential use" and item 7 of the Consumer

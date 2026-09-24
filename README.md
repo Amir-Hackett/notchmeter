@@ -31,7 +31,7 @@ Everything, with the screenshots and every setting: [docs/features.md](docs/feat
 - **Download** [`Notchmeter.dmg`](https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg) from the latest release and drag it to Applications. The DMG is Developer ID signed and notarised, and the app updates itself through Sparkle.
 - **Homebrew**: `brew tap Amir-Hackett/tap && brew trust --cask Amir-Hackett/tap/notchmeter && brew install --cask notchmeter`. The middle step is Homebrew's, not this project's: it refuses to load a cask from a tap outside homebrew/cask until you say you trust it.
 
-macOS 14 or later, Apple silicon or Intel. Notchmeter is free and stays free; if it earns its place in your notch, you can [support the project](https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800).
+macOS 15 or later, Apple silicon or Intel. Notchmeter is free and stays free; if it earns its place in your notch, you can [support the project](https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800).
 
 Pre-release builds, building from source (`scripts/build.sh`) and what the first launch asks for: [docs/install.md](docs/install.md). Something not showing up: [docs/troubleshooting.md](docs/troubleshooting.md).
 

@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git fetch:*)",
+      "Bash(git add:*)", "Bash(git commit:*)", "Bash(git checkout:*)", "Bash(git branch:*)",
+      "Bash(git push origin:*)", "Bash(git tag:*)",
+      "Bash(swift build:*)", "Bash(swift test:*)",
+      "Bash(scripts/build.sh:*)", "Bash(scripts/test.sh:*)", "Bash(scripts/release.sh:*)",
+      "Bash(gh run:*)", "Bash(gh pr:*)", "Bash(gh secret list:*)", "Bash(gh api:*)",
+      "Bash(gh release view:*)", "Bash(gh release download:*)",
+      "Bash(gh release create:*)", "Bash(gh release upload:*)", "Bash(gh release edit:*)",
+      "Bash(codesign:*)", "Bash(spctl:*)", "Bash(xcrun stapler:*)", "Bash(xcrun notarytool:*)",
+      "Bash(security find-identity:*)", "Bash(security cms:*)",
+      "Bash(hdiutil:*)", "Bash(shasum:*)", "Bash(lipo:*)", "Bash(plutil:*)",
+      "Bash(/usr/libexec/PlistBuddy:*)",
+      "Bash(open -a Notchmeter:*)", "Bash(open -n -a Notchmeter:*)",
+      "Bash(pkill -x Notchmeter)", "Bash(pgrep -x Notchmeter)",
+      "Bash(tccutil reset Accessibility com.amirhackett.notchmeter)",
+      "Bash(log show:*)", "Bash(log stream:*)", "Bash(curl -fsSL:*)", "Bash(brew:*)",
+      "Read", "Edit", "Write", "Grep", "Glob"
+    ],
+    "deny": [
+      "Bash(generate_keys:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)"
+    ]
+  }
+}

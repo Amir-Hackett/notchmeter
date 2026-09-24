@@ -171,7 +171,7 @@ enum SystemChrome {
     static let dockRevealStrip: CGFloat = 4
     /// The width of Stage Manager's recent-apps strip along the left edge: 120 pt thumbnails with the 16 pt margins
     /// either side that Apple's window manager lays them out with. visibleFrame does not exclude it. Not measured on
-    /// this machine (Stage Manager is off here and turning it on is a system setting); re-measure on macOS 14, 15
+    /// this machine (Stage Manager is off here and turning it on is a system setting); re-measure on macOS 15
     /// and 26 and correct the constant if the strip differs.
     static let stageManagerStripWidth: CGFloat = 152
 

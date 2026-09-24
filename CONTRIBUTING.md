@@ -6,7 +6,7 @@ Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Building
 
-Needs macOS 14 or later and the Xcode Command Line Tools only; Xcode itself is not required, and everything is plain SwiftPM.
+Needs macOS 15 or later and the Xcode Command Line Tools only; Xcode itself is not required, and everything is plain SwiftPM.
 
 ```bash
 scripts/build.sh            # build build/Notchmeter.app and ad-hoc sign it

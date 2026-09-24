@@ -8,7 +8,7 @@ The [README](../README.md) has the two install routes; this page adds testing a 
 - **Download** [`Notchmeter.dmg`](https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg) from the latest release and drag it to Applications. The DMG is Developer ID signed and notarised, and the app updates itself through Sparkle.
 - **Homebrew**, from the tap ([`packaging/homebrew/notchmeter.rb`](../packaging/homebrew/notchmeter.rb)): `brew tap Amir-Hackett/tap && brew trust --cask Amir-Hackett/tap/notchmeter && brew install --cask notchmeter`. The middle step is Homebrew's, not this project's: it refuses to load a cask from a tap outside homebrew/cask until you say you trust it, and it prints that same command when you skip it.
 
-macOS 14 or later, Apple silicon or Intel.
+macOS 15 or later, Apple silicon or Intel.
 
 Notchmeter is free and stays free. If it earns its place in your notch, you can [support the project](https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800) — optional, any amount, and the same link sits under Settings › General.
 
@@ -24,7 +24,7 @@ A quarantined copy launched from Downloads or straight from the DMG also runs Ap
 
 ## Build and install
 
-Needs macOS 14+ and the Xcode Command Line Tools only (no Xcode). Everything is plain SwiftPM.
+Needs macOS 15+ and the Xcode Command Line Tools only (no Xcode). Everything is plain SwiftPM.
 
 ```bash
 scripts/build.sh install
