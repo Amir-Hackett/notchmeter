@@ -114,10 +114,32 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     static let decisionTimeout = Int(Hook.decisionWait)
 
     /// The matcher a group of ours must carry for one event: Claude Code's `PreToolUse` is registered for
-    /// `AskUserQuestion` alone, since the command has nothing to say to any other tool call and would only cost
-    /// a launch per call. Every other entry is unmatched.
+    /// `AskUserQuestion` alone and its `PostToolUse` for the task tools alone (`TodoWrite|TaskCreate|TaskUpdate`:
+    /// the Task tools current Claude Code keeps its plan with, and the `TodoWrite` older builds used), since the
+    /// command has nothing to say to any other tool call and would only cost a launch per call. Every other entry
+    /// is unmatched.
     func matcher(for event: String) -> String? {
-        self == .claude && event == "PreToolUse" ? Hook.askUserQuestionTool : nil
+        guard self == .claude else { return nil }
+        return switch event {
+        case "PreToolUse": Hook.askUserQuestionTool
+        case "PostToolUse": Hook.taskTools.joined(separator: "|")
+        default: nil
+        }
+    }
+
+    /// Whether a group's `matcher` names every tool `required` does, read as Claude Code's `|` list of exact
+    /// names: "AskUserQuestion|Bash" covers "AskUserQuestion"; "TodoWrite" does not cover the task tools.
+    static func matcher(_ existing: String?, covers required: String) -> Bool {
+        let names = Set((existing ?? "").split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) })
+        return required.split(separator: "|").allSatisfy { names.contains(String($0)) }
+    }
+
+    /// `existing` with whichever of `required`'s names it lacks added to the end, so a name the user matched
+    /// the group to as well stays; `required` alone for a group with no matcher.
+    static func matcher(_ existing: String?, adding required: String) -> String {
+        let names = (existing ?? "").split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        let missing = required.split(separator: "|").map(String.init).filter { !names.contains($0) }
+        return (names + missing).joined(separator: "|")
     }
 
     /// The key the vendor's timeout is written under.
@@ -172,12 +194,15 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     }
 
     /// Whether a handler of ours under `event` (with the element it sits in, for the matcher) is in the shape the
-    /// current version writes. Only a deciding event has a shape to check: its handler must not be `async`, its
-    /// timeout must be at least `decisionTimeout` (absent counts as the vendor's default, which is 600 s for
-    /// Claude Code and Codex and 30 s for Copilot), and Claude Code's `PreToolUse` group must be matched to
-    /// `AskUserQuestion`. A 0.6.0 entry (`async: true, timeout: 5`) fails this and reads as `.partial`, so the
+    /// current version writes. A group whose event has a matcher (`matcher(for:)`) must carry it; beyond that only
+    /// a deciding event has a shape to check: its handler must not be `async` and its timeout must be at least
+    /// `decisionTimeout` (absent counts as the vendor's default, which is 600 s for Claude Code and Codex and 30 s
+    /// for Copilot). A 0.6.0 entry (`async: true, timeout: 5`) fails this and reads as `.partial`, so the
     /// launch repair upgrades it after its backup. A user who raised the timeout further keeps it.
     func isCurrent(handler: [String: Any], element: [String: Any], event: String) -> Bool {
+        // Checked for every event that has a matcher, not only the deciding ones: an unmatched `PostToolUse` of
+        // ours would launch the command on every tool call.
+        if let matcher = matcher(for: event), !Self.matcher(element["matcher"] as? String, covers: matcher) { return false }
         guard decidingEvents.contains(event) else { return true }
         if handler["async"] as? Bool == true { return false }
         if let timeout = (handler[timeoutKey] as? NSNumber)?.intValue {
@@ -185,7 +210,6 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         } else if self == .copilot {
             return false
         }
-        if let matcher = matcher(for: event), (element["matcher"] as? String)?.contains(matcher) != true { return false }
         return true
     }
 

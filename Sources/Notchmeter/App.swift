@@ -311,6 +311,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 actions.checkForUpdates = { updater.checkForUpdates() }
             }
             autoRepairHooks()
+            store.hooksInstalled = HookSettings.anyInstalled()
             if Translocation.shouldOffer(bundlePath: Bundle.main.bundlePath) {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(1))
@@ -975,6 +976,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Oracle
 
+    /// The Sessions card as it would draw now: whether it is on the panel, and its rows in order with their group,
+    /// status and counts (SessionsCard.oracleRows), so grouping, the gauge and the chips can be checked without a
+    /// screenshot. An empty `rows` with `shown` true is the card's empty state.
+    private func sessionsCardFields() -> [String: Any] {
+        let all = store.sessions.all
+        let rows = SessionsCard.rows(all, hideTitles: true, jump: prefs.jumpToTerminal, now: Date())
+        return ["shown": prefs.sessionsCard && (store.sessions.count > 0 || store.hooksInstalled),
+                "rows": SessionsCard.oracleRows(SessionsCard.groups(rows.rows, sessions: all)), "more": rows.more]
+    }
+
     /// Everything a tester could otherwise only see, in one line, on the distributed notification
     /// com.amirhackett.notchmeter.oracle.snapshot.
     private func emitSnapshot() {
@@ -987,6 +998,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                          "leads": store.costSelection.providers.first?.tool.rawValue as Any,
                          "gaps": store.costGaps.map { ["tool": $0.tool.rawValue, "reason": $0.text] }],
             "awaitingInput": store.awaitingInput.map(\.rawValue).sorted(), "sessions": store.sessions.count,
+            "sessionsCard": sessionsCardFields(),
             "signals": ToolID.allCases.compactMap { tool in store.signal(tool).map { "\(tool.rawValue):\(String(describing: $0))" } },
             "readings": ToolID.allCases.map { Oracle.fields($0, store.status($0)) },
             "advice": store.advice.map(\.text),

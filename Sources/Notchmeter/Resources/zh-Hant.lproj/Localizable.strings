@@ -1,6 +1,5 @@
 /* Notchmeter，繁體中文。鍵為英文原文；LocalizationTests 會核對本表與 en 表的鍵和格式佔位符完全一致。產品名與工具名（Notchmeter、Claude Code、Codex、Cursor、Gemini CLI、Antigravity、GitHub Copilot）保留原文。發布前需要母語者校閱。 */
 
-
 /* 第二輪補全：工作階段、預算、尖峰時段、來源標籤、命令列工具、MCP、鑰匙圈政策、顯示器、診斷 */
 
 /* 列狀顯示放不下的工具，接在最後一個讀數之後（NotchViews） */
@@ -516,7 +515,6 @@
 "Pace crossing" = "進度越界";
 "Step %1$ld of %2$ld" = "第 %1$ld 步，共 %2$ld 步";
 "Suggested rules" = "建議的規則";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "每則提示的第一行，最多 96 個字元，由 hook 送出，只保存在執行中的 App 裡。關閉後，App 會在保存之前丟棄它，該列改為顯示專案和分支。無論此項如何設定，分享螢幕時標題都會隱藏。";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "外環所屬視窗以一個數字顯示在圓環旁，依「用量顯示」所選的已用或剩餘口徑，不含重設倒數。低於 40 % 時圓環仍會轉淡；數字保持清晰。";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "用於讀取 Claude Code 保存的登入資訊，僅一次。選擇「永遠允許」即可不再打擾；定時讀取絕不會跳出對話框。";
 "Unknown" = "未知";
@@ -831,3 +829,21 @@
 "Open Settings (⌘,)" = "開啟設定（⌘,）";
 "How the panel opens, its layout, refreshing and quitting" = "面板的開啟方式、版面、重新整理和結束";
 "Opens a menu" = "開啟選單";
+
+/* The Sessions card: grouped rows, context gauge, subagents and the task list */
+"No sessions right now" = "目前沒有工作階段";
+"How long since this session last did anything" = "此工作階段上次活動至今的時間";
+"How long this turn has run" = "本輪已執行的時間";
+"The assistant running this session" = "執行此工作階段的助理";
+"Subagents" = "子代理";
+"The subagents this session is running; click to list them" = "此工作階段正在執行的子代理；點一下列出";
+"%1$ld of %2$ld done" = "已完成 %1$ld/%2$ld";
+"Task list" = "任務清單";
+"Untitled task" = "未命名的任務";
+"Claude Code's task list for this session; click to show it" = "此工作階段的 Claude Code 任務清單；點一下顯示";
+"Claude Code's task list for this session" = "此工作階段的 Claude Code 任務清單";
+"Subagent %ld" = "子代理 %ld";
+"How full this session's context window is, from its status line" = "此工作階段上下文視窗的使用比例，來自其狀態列";
+"In progress" = "進行中";
+"Completed" = "已完成";
+"The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "每則提示的第一行（最多 96 個字元）以及 Claude Code 任務清單的文字，由 hook 送出，只保存在執行中的 App 裡。關閉後，App 會在保存之前丟棄兩者：該列改為顯示專案，任務清單只顯示數量。無論此項如何設定，分享螢幕時兩者都會隱藏。";

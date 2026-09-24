@@ -8,9 +8,11 @@ import Foundation
 /// file that is not strict JSON (Gemini CLI's settings.json may carry comments) is refused rather than flattened.
 enum HookSettings {
     /// SubagentStart, SubagentStop and StopFailure joined in round 2, PreToolUse (matched to AskUserQuestion) in
-    /// 0.7.0; Repair adds them to an older install, and brings a 0.6.0 PermissionRequest entry to the synchronous
-    /// shape the decision channel needs (HookVendor.isCurrent).
-    static let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "PreToolUse", "Notification", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd"]
+    /// 0.7.0, PostToolUse (matched to the task tools, for the Sessions card's task list) after 0.7.9; Repair adds them to
+    /// an older install, and brings a 0.6.0 PermissionRequest entry to the synchronous shape the decision channel
+    /// needs (HookVendor.isCurrent).
+    static let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "PreToolUse", "PostToolUse", "Notification", "Stop", "StopFailure",
+                         "SubagentStart", "SubagentStop", "SessionEnd"]
 
     struct Installed: Equatable {
         let backup: URL?
@@ -213,8 +215,9 @@ enum HookSettings {
     /// executable and that event, then adds the events that lack one; every other hook is untouched, and so is
     /// every other key of a handler of ours (`async`, `timeout`, `timeoutSec`, `name`, `matcher` stay as they
     /// are) except under a deciding event, where the shape is the contract (HookVendor.bringingCurrent): `async`
-    /// goes, a timeout under 600 s becomes 600, and Claude Code's `PreToolUse` group gains its `AskUserQuestion`
-    /// matcher. This is what re-points a moved app, what turns a Cursor entry still on a plain `--hook` into
+    /// goes and a timeout under 600 s becomes 600; and a group of ours whose event has a matcher gains it (Claude
+    /// Code's `PreToolUse`, `AskUserQuestion`; its `PostToolUse`, `TodoWrite|TaskCreate|TaskUpdate`; a name the user
+    /// matched the group to as well is kept). This is what re-points a moved app, what turns a Cursor entry still on a plain `--hook` into
     /// `--hook --tool cursor`, what gives a Copilot entry lacking `--event`, or carrying another event's, its own,
     /// and what upgrades a 0.6.0 install to the two-way hook. Returns the events whose entry changed, in the
     /// vendor's order.
@@ -242,8 +245,8 @@ enum HookSettings {
                     elements[index] = vendor.shape.settingHandlers(handlers, in: elements[index])
                     changed = true
                 }
-                if ours, let matcher = vendor.matcher(for: event), (elements[index]["matcher"] as? String)?.contains(matcher) != true {
-                    elements[index]["matcher"] = matcher
+                if ours, let matcher = vendor.matcher(for: event), !HookVendor.matcher(elements[index]["matcher"] as? String, covers: matcher) {
+                    elements[index]["matcher"] = HookVendor.matcher(elements[index]["matcher"] as? String, adding: matcher)
                     changed = true
                 }
             }
@@ -257,6 +260,12 @@ enum HookSettings {
         let order = vendor.events
         let ordered = repaired.sorted { (order.firstIndex(of: $0) ?? order.count, $0) < (order.firstIndex(of: $1) ?? order.count, $1) }
         return (merged.settings, ordered, merged.added)
+    }
+
+    /// Whether any assistant's file carries an entry of ours at all, current or not: what the Sessions card asks
+    /// before it says there are no sessions rather than staying away.
+    static func anyInstalled() -> Bool {
+        HookVendor.allCases.contains { status(vendor: $0) != .notInstalled }
     }
 
     /// Where the hook stands: absent; naming another executable (stale); installed for every event with the

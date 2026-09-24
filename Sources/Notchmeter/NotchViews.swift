@@ -914,7 +914,10 @@ struct NotchExpandedView: View {
         let tools = store.visibleTools
         return PanelLayout.parts(prompt: !store.sessions.pending(now: Date()).isEmpty, spend: spendCard != nil,
                                  advice: !store.advice.isEmpty,
-                                 sessions: prefs.sessionsCard && store.sessions.count > 0,
+                                 // With a hook installed the card stays when nothing is running, saying so in one
+                                 // line, so an empty list is not mistaken for a setup that never worked
+                                 // (UsageStore.hooksInstalled).
+                                 sessions: prefs.sessionsCard && (store.sessions.count > 0 || store.hooksInstalled),
                                  sessionsLead: openedWithSessionsLead ?? PanelLayout.sessionsLead(store.sessions.all),
                                  connect: tools.isEmpty, tools: tools, addTool: !store.hiddenEmptyTools.isEmpty)
     }

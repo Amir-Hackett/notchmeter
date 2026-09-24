@@ -1,6 +1,5 @@
 /* Notchmeter, tiếng Việt. Khóa là nguyên văn tiếng Anh; LocalizationTests kiểm tra bảng này có đúng các khóa và định dạng như bảng en. Tên sản phẩm và công cụ (Notchmeter, Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot) giữ nguyên. Bản dịch nháp, cần người bản ngữ rà soát trước khi phát hành. */
 
-
 /* Bổ sung vòng 2: phiên, ngân sách, giờ cao điểm, nhãn nguồn, công cụ dòng lệnh, MCP, chính sách Keychain, màn hình, chẩn đoán */
 
 /* Các công cụ không vừa, đặt sau chỉ số cuối cùng (NotchViews) */
@@ -516,7 +515,6 @@
 "Pace crossing" = "Vượt nhịp";
 "Step %1$ld of %2$ld" = "Bước %1$ld trên %2$ld";
 "Suggested rules" = "Quy tắc gợi ý";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "Dòng đầu của mỗi prompt, tối đa 96 ký tự, do hook gửi và chỉ ứng dụng đang chạy giữ. Khi tắt, ứng dụng bỏ nó trước khi giữ ở bất cứ đâu và dòng hiển thị dự án và nhánh thay vào đó. Tiêu đề bị ẩn khi chia sẻ màn hình dù cài đặt này ra sao.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "Cửa sổ của vòng ngoài hiện thành một con số bên cạnh các vòng, theo nghĩa Đã dùng hoặc Còn lại đã chọn trong Hiển thị mức dùng, không kèm đếm ngược đặt lại. Dưới 40 % các vòng vẫn mờ đi; con số vẫn đọc được.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Để đọc đăng nhập đã lưu của Claude Code, một lần. Chọn Luôn cho phép để nó im lặng; các lần đọc định kỳ không bao giờ hiện hộp thoại.";
 "Unknown" = "Không rõ";
@@ -831,3 +829,21 @@
 "Open Settings (⌘,)" = "Mở Cài đặt (⌘,)";
 "How the panel opens, its layout, refreshing and quitting" = "Cách bảng mở ra, bố cục, làm mới và thoát";
 "Opens a menu" = "Mở một menu";
+
+/* The Sessions card: grouped rows, context gauge, subagents and the task list */
+"No sessions right now" = "Hiện không có phiên nào";
+"How long since this session last did anything" = "Đã bao lâu phiên này không làm gì";
+"How long this turn has run" = "Lượt này đã chạy bao lâu";
+"The assistant running this session" = "Trợ lý đang chạy phiên này";
+"Subagents" = "Tác tử con";
+"The subagents this session is running; click to list them" = "Các tác tử con phiên này đang chạy; bấm để liệt kê";
+"%1$ld of %2$ld done" = "Xong %1$ld trên %2$ld";
+"Task list" = "Danh sách việc";
+"Untitled task" = "Việc chưa đặt tên";
+"Claude Code's task list for this session; click to show it" = "Danh sách việc của Claude Code cho phiên này; bấm để hiện";
+"Claude Code's task list for this session" = "Danh sách việc của Claude Code cho phiên này";
+"Subagent %ld" = "Tác tử con %ld";
+"How full this session's context window is, from its status line" = "Cửa sổ ngữ cảnh của phiên này đầy bao nhiêu, theo dòng trạng thái của nó";
+"In progress" = "Đang làm";
+"Completed" = "Đã xong";
+"The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "Dòng đầu của mỗi prompt, tối đa 96 ký tự, và nội dung danh sách việc của Claude Code, do hook gửi và chỉ ứng dụng đang chạy giữ. Khi tắt, ứng dụng bỏ cả hai trước khi giữ ở bất cứ đâu: dòng hiển thị dự án thay vào đó, còn danh sách việc chỉ hiện số lượng. Cả hai bị ẩn khi chia sẻ màn hình dù cài đặt này ra sao.";

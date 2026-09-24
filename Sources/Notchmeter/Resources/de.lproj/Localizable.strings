@@ -533,7 +533,6 @@
 "Pace crossing" = "Soll-Warnung";
 "Step %1$ld of %2$ld" = "Schritt %1$ld von %2$ld";
 "Suggested rules" = "Vorgeschlagene Regeln";
-"The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "Die erste Zeile jedes Prompts, höchstens 96 Zeichen, die der Hook sendet und nur die laufende App behält. Aus: Die App verwirft sie, bevor sie irgendwo abgelegt wird, und die Zeile zeigt stattdessen Projekt und Branch. Solange der Bildschirm geteilt wird, sind Titel unabhängig von dieser Einstellung ausgeblendet.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "Das Fenster des äußeren Rings als eine Zahl neben den Ringen, als „Genutzt“ oder „Übrig“ wie unter „Nutzungsanzeige“ gewählt und ohne Reset-Countdown. Die Ringe werden unter 40 % weiterhin dezent; die Zahl bleibt lesbar.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Einmal, um die gespeicherte Anmeldung von Claude Code zu lesen. Wähle „Immer erlauben“, damit es ruhig bleibt; die zeitgesteuerten Abrufe zeigen den Dialog nie.";
 "Unknown" = "Unbekannt";
@@ -848,3 +847,21 @@
 "Open Settings (⌘,)" = "Einstellungen öffnen (⌘,)";
 "How the panel opens, its layout, refreshing and quitting" = "Wie sich das Panel öffnet, sein Layout, Aktualisieren und Beenden";
 "Opens a menu" = "Öffnet ein Menü";
+
+/* The Sessions card: grouped rows, context gauge, subagents and the task list */
+"No sessions right now" = "Gerade keine Sitzungen";
+"How long since this session last did anything" = "Wie lange diese Sitzung schon nichts mehr getan hat";
+"How long this turn has run" = "Wie lange dieser Durchgang schon läuft";
+"The assistant running this session" = "Der Assistent, der diese Sitzung ausführt";
+"Subagents" = "Subagenten";
+"The subagents this session is running; click to list them" = "Die Subagenten, die diese Sitzung ausführt; klicken, um sie aufzulisten";
+"%1$ld of %2$ld done" = "%1$ld von %2$ld erledigt";
+"Task list" = "Aufgabenliste";
+"Untitled task" = "Aufgabe ohne Titel";
+"Claude Code's task list for this session; click to show it" = "Die Aufgabenliste von Claude Code für diese Sitzung; klicken, um sie zu zeigen";
+"Claude Code's task list for this session" = "Die Aufgabenliste von Claude Code für diese Sitzung";
+"Subagent %ld" = "Subagent %ld";
+"How full this session's context window is, from its status line" = "Wie voll das Kontextfenster dieser Sitzung ist, laut ihrer Statuszeile";
+"In progress" = "In Arbeit";
+"Completed" = "Erledigt";
+"The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "Die erste Zeile jedes Prompts, höchstens 96 Zeichen, und der Text der Aufgabenliste von Claude Code, die der Hook sendet und nur die laufende App behält. Aus: Die App verwirft beides, bevor es irgendwo abgelegt wird; die Zeile zeigt stattdessen das Projekt und die Aufgabenliste nur ihre Anzahl. Solange der Bildschirm geteilt wird, ist beides unabhängig von dieser Einstellung ausgeblendet.";

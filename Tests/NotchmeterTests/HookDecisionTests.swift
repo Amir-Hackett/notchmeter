@@ -252,16 +252,17 @@ import Testing
                 #expect(handler["async"] as? Bool == true, "\(event)")
                 #expect(handler["timeout"] as? Int == 5, "\(event)")
             }
-            #expect(group["matcher"] as? String == (event == "PreToolUse" ? "AskUserQuestion" : nil), "\(event)")
+            #expect(group["matcher"] as? String == HookVendor.claude.matcher(for: event), "\(event)")
         }
         #expect(snippet.contains("\"PreToolUse\": [\n      { \"matcher\": \"AskUserQuestion\", \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"timeout\": 600 } ] }"))
+        #expect(snippet.contains("\"PostToolUse\": [\n      { \"matcher\": \"TodoWrite|TaskCreate|TaskUpdate\", \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"async\": true, \"timeout\": 5 } ] }"))
         #expect(snippet.contains("\"PermissionRequest\": [\n      { \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"timeout\": 600 } ] }"))
     }
 
     @Test func aSixPointZeroInstallIsPartialAndRepairUpgradesItOnce() throws {
-        // What 0.6.0 wrote: every event async with a five-second timeout, and no PreToolUse.
+        // What 0.6.0 wrote: every event async with a five-second timeout, and no PreToolUse or PostToolUse.
         var hooks: [String: Any] = [:]
-        for event in HookSettings.events where event != "PreToolUse" {
+        for event in HookSettings.events where event != "PreToolUse" && event != "PostToolUse" {
             hooks[event] = [["hooks": [["type": "command", "command": "'\(executable)' --hook", "async": true, "timeout": 5]]]]
         }
         let older: [String: Any] = ["hooks": hooks, "model": "opus"]
@@ -270,7 +271,7 @@ import Testing
         #expect(status.needsRepair)
 
         let repaired = HookSettings.repair(older, executable: executable)
-        #expect(repaired.added == ["PreToolUse"])
+        #expect(repaired.added == ["PreToolUse", "PostToolUse"])
         #expect(repaired.repaired == ["PermissionRequest"], "only the deciding entry changes shape; the others are byte for byte what they were")
         #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
         let written = try #require(repaired.settings["hooks"] as? [String: Any])
@@ -287,6 +288,50 @@ import Testing
         #expect(again.added.isEmpty)
         #expect(again.repaired.isEmpty)
         #expect(NSDictionary(dictionary: again.settings) == NSDictionary(dictionary: repaired.settings))
+    }
+
+    /// An unmatched `PostToolUse` of ours would launch the command after every tool call, so it is out of date
+    /// even though the event is not a deciding one, and Repair gives the group its task-tool matcher and nothing else.
+    @Test func anUnmatchedPostToolUseIsPartialAndRepairMatchesItToTheTaskTools() throws {
+        let snippet = HookSettings.snippet(executable: executable)
+        var root = try #require(try JSONSerialization.jsonObject(with: Data(snippet.utf8)) as? [String: Any])
+        var hooks = try #require(root["hooks"] as? [String: Any])
+        hooks["PostToolUse"] = [["hooks": [["type": "command", "command": "'\(executable)' --hook", "async": true, "timeout": 5]]]]
+        root["hooks"] = hooks
+        #expect(HookSettings.status(settings: root, executable: executable) == .partial(path: executable))
+        let repaired = HookSettings.repair(root, executable: executable)
+        #expect(repaired.repaired == ["PostToolUse"])
+        let group = try #require(((repaired.settings["hooks"] as? [String: Any])?["PostToolUse"] as? [[String: Any]])?.first)
+        #expect(group["matcher"] as? String == "TodoWrite|TaskCreate|TaskUpdate")
+        let handler = try #require((group["hooks"] as? [[String: Any]])?.first)
+        #expect(handler["async"] as? Bool == true, "not a deciding event: the handler stays asynchronous")
+        #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
+    }
+
+    /// A group matched to `TodoWrite` alone (what the first build of the task list wrote) misses the Task tools
+    /// current Claude Code uses: it is out of date, and Repair adds the two names and keeps any the user added.
+    @Test func aPostToolUseMatchedToTodoWriteAloneGainsTheTaskTools() throws {
+        let snippet = HookSettings.snippet(executable: executable)
+        var root = try #require(try JSONSerialization.jsonObject(with: Data(snippet.utf8)) as? [String: Any])
+        var hooks = try #require(root["hooks"] as? [String: Any])
+        hooks["PostToolUse"] = [["matcher": "TodoWrite|Bash", "hooks": [["type": "command", "command": "'\(executable)' --hook", "async": true, "timeout": 5]]]]
+        root["hooks"] = hooks
+        #expect(HookSettings.status(settings: root, executable: executable) == .partial(path: executable))
+        let repaired = HookSettings.repair(root, executable: executable)
+        #expect(repaired.repaired == ["PostToolUse"])
+        let group = try #require(((repaired.settings["hooks"] as? [String: Any])?["PostToolUse"] as? [[String: Any]])?.first)
+        #expect(group["matcher"] as? String == "TodoWrite|Bash|TaskCreate|TaskUpdate")
+        #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
+    }
+
+    @Test func aMatcherCoversARequiredListNameByName() {
+        #expect(HookVendor.matcher("AskUserQuestion|Bash", covers: "AskUserQuestion"))
+        #expect(!HookVendor.matcher("TodoWrite", covers: "TodoWrite|TaskCreate|TaskUpdate"))
+        #expect(HookVendor.matcher("TaskUpdate|TodoWrite|TaskCreate", covers: "TodoWrite|TaskCreate|TaskUpdate"), "order does not matter")
+        #expect(!HookVendor.matcher(nil, covers: "AskUserQuestion"))
+        #expect(!HookVendor.matcher("AskUserQuestions", covers: "AskUserQuestion"), "a name, not a substring")
+        #expect(HookVendor.matcher(nil, adding: "A|B") == "A|B")
+        #expect(HookVendor.matcher("B|C", adding: "A|B") == "B|C|A")
     }
 
     @Test func aPreToolUseGroupWithoutItsMatcherIsPartialAndATimeoutTheUserRaisedIsKept() throws {
