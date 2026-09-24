@@ -32,7 +32,7 @@ CI builds `swift build -c release` and fails if any compiler warning originates 
 
 ## Localization
 
-Every user-visible string goes through `L("…")`, keyed by its English copy, and every key has to be in all six tables under `Sources/Notchmeter/Resources/`: `en`, `ja`, `ko`, `vi`, `zh-Hans` and `zh-Hant`, each `<language>.lproj/Localizable.strings`. `LocalizationTests` (run by `scripts/test.sh`) fails when a table is missing a key the code uses, when a translation's format arguments differ from the English, and when a table carries a key nothing uses any more, so a removed string comes out of all six too. Write a real translation rather than copying the English; the ja, ko, vi and zh-Hant tables were drafted without a native speaker, and a correction from one is a welcome one-line pull request. Adding a language is described in [docs/features.md](docs/features.md#languages).
+Every user-visible string goes through `L("…")`, keyed by its English copy, and every key has to be in all eleven tables under `Sources/Notchmeter/Resources/`: `en`, `de`, `es`, `fr`, `ja`, `ko`, `pt-BR`, `ru`, `vi`, `zh-Hans` and `zh-Hant`, each `<language>.lproj/Localizable.strings`. `LocalizationTests` (run by `scripts/test.sh`) fails when a table is missing a key the code uses, when a translation's format arguments differ from the English, and when a table carries a key nothing uses any more, so a removed string comes out of all eleven too. Write a real translation rather than copying the English; the de, es, fr, ja, ko, pt-BR, ru, vi and zh-Hant tables were drafted without a native speaker, and a correction from one is a welcome one-line pull request. Adding a language is described in [docs/features.md](docs/features.md#languages).
 
 ## Pull requests
 

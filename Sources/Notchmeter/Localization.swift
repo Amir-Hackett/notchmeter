@@ -39,12 +39,12 @@ enum Localization {
         pinned.withLock { $0 = shipped.flatMap { code in table.map { (code, $0) } } }
     }
 
-    /// The language the copy comes out in.
     /// Whether the running language capitalises nouns inside a sentence, as German does: a window's name spliced
     /// into a sentence keeps its capital there ("Claude Code (Sitzung) ist aufgebraucht"), where every other
     /// shipped language lowercases it.
     static var capitalisesNouns: Bool { current == "de" }
 
+    /// The language the copy comes out in.
     static var current: String {
         if let pinned = pinned.withLock({ $0?.language }) { return pinned }
         return resources.preferredLocalizations.first.flatMap(canonical) ?? languages[0]

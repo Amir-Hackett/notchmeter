@@ -338,7 +338,7 @@ elif [ -n "${PREVIOUS_APPCAST:-}" ] && [ -f "$PREVIOUS_APPCAST" ]; then
     | grep -vxF "$DOWNLOAD_URL" | head -n "$MAX_DELTAS" || true)"
   for url in $PREVIOUS_URLS; do
     archive="$DELTA_DIR/archives/Notchmeter-$(basename "$(dirname "$url")").dmg"
-    if ! curl -fsSL --retry 3 --connect-timeout 20 --max-time 300 -o "$archive" "$url"; then
+    if ! curl -fsSL --retry 1 --connect-timeout 20 --max-time 120 -o "$archive" "$url"; then
       rm -f "$archive"; echo "release: could not download $url; no delta from it" >&2; continue
     fi
     if ! swift scripts/appcast-check.swift verify "$archive" "$PREVIOUS_APPCAST" "$PUBLIC_KEY" "$url" > /dev/null; then

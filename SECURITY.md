@@ -1,6 +1,6 @@
 # Security policy
 
-Notchmeter reads the saved logins of five vendors' tools and sends each token to exactly one place, the usage endpoint of the vendor that issued it (docs/privacy.md, "Where it sends things"). Anything that widens that is a security issue, whether or not it is exploitable today.
+Notchmeter reads the saved logins of five vendors' tools and sends each token only to the vendor that issued it, and only to that vendor's endpoints listed in docs/privacy.md, "Where it sends things". Anything that widens that is a security issue, whether or not it is exploitable today.
 
 ## Supported version
 

@@ -157,6 +157,9 @@ final class UsageStore {
     /// tool's refresh; per tool, so a Cursor event nudges Cursor's cadence and never Claude's.
     @ObservationIgnored private var lastHook: [ToolID: Date] = [:]
     @ObservationIgnored private var lastHookRefresh: [ToolID: Date] = [:]
+    /// Claude's last endpoint read beside a fresh status line failed, so a reading with nothing from the endpoint
+    /// is a read to try again rather than an account with nothing more to say (PollingPolicy.endpointDue).
+    @ObservationIgnored private var claudeEndpointFailedBesideStatusline = false
     @ObservationIgnored private var wokeAt: Date?
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var alertMemory: AlertMemory
@@ -673,6 +676,7 @@ final class UsageStore {
             case .success(let reading):
                 log.info("Claude usage beside the status line -> \(Probe.describe(reading), privacy: .public)")
                 serverTrouble[tool] = nil
+                claudeEndpointFailedBesideStatusline = false
                 adopt(reading.replacing(windows: statusline.windows, fetchedAt: statusline.receivedAt))
             case .failure(let error):
                 // The status line's windows are still good, so a refused or failed read beside them only costs the
@@ -680,6 +684,7 @@ final class UsageStore {
                 // taken on a loop that is not polling the endpoint. `lastFetch` was set above, so the next try is
                 // half an hour away rather than at the next status line.
                 log.error("Claude usage beside the status line failed: \((error as? ProviderError)?.message ?? error.localizedDescription, privacy: .public)")
+                claudeEndpointFailedBesideStatusline = true
                 if let fallback = statuslineReading() { adopt(fallback) }
             }
             return
@@ -817,7 +822,7 @@ final class UsageStore {
     private func endpointDueBesideStatusline(now: Date = Date()) -> Date? {
         guard prefs.pollClaudeEndpoint, let statusline, statusline.standsIn(at: now) else { return nil }
         return PollingPolicy.endpointDue(besideStatusline: statusline.windows, reading: statuses[.claude]?.reading,
-                                         lastEndpointRead: lastFetch[.claude], now: now)
+                                         lastEndpointRead: lastFetch[.claude], lastReadFailed: claudeEndpointFailedBesideStatusline, now: now)
     }
 
     /// `--render-assets` (DemoFixtures): readings, a cost summary and a set of hook sessions in place of provider

@@ -128,7 +128,10 @@ import Testing
             == read.addingTimeInterval(PollingPolicy.endpointBesideStatusline))
         #expect(PollingPolicy.endpointDue(besideStatusline: carried, reading: extra, lastEndpointRead: nil, now: now)! <= now)
         #expect(PollingPolicy.endpointDue(besideStatusline: carried, reading: onlyStatusline, lastEndpointRead: nil, now: now) == now)
-        #expect(PollingPolicy.endpointDue(besideStatusline: carried, reading: nil, lastEndpointRead: read, now: now) == nil)
+        #expect(PollingPolicy.endpointDue(besideStatusline: carried, reading: nil, lastEndpointRead: read, now: now) == nil, "an answer with nothing more settles it")
+        #expect(PollingPolicy.endpointDue(besideStatusline: carried, reading: nil, lastEndpointRead: read, lastReadFailed: true, now: now)
+            == read.addingTimeInterval(PollingPolicy.endpointBesideStatusline), "a failed discovery read is tried again on the half-hour")
+        #expect(PollingPolicy.endpointDue(besideStatusline: carried, reading: onlyStatusline, lastEndpointRead: read, now: now) == nil)
         // A payload without the weekly window leaves the endpoint's weekly as something only it supplies.
         #expect(PollingPolicy.endpointDue(besideStatusline: Array(carried.prefix(1)), reading: plain, lastEndpointRead: read, now: now) != nil)
     }

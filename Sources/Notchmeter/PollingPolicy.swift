@@ -92,11 +92,16 @@ enum PollingPolicy {
     /// hour, a sixth of its own cadence, and only while the last reading holds a figure it alone supplied. An
     /// account whose endpoint says nothing the status line does not is never read while the status line is fresh.
     /// With no endpoint figure on record and no read yet this run, one read learns which kind of account it is;
-    /// after that read the answer stands until the next launch. A reset on an endpoint-only window brings the read
-    /// forward to the reset.
-    static func endpointDue(besideStatusline carried: [LimitWindow], reading: UsageReading?, lastEndpointRead: Date?, now: Date) -> Date? {
+    /// an answer with nothing more settles it, and a read that failed is tried again on the half-hour. A reset on an endpoint-only window brings the read forward to the reset.
+    static func endpointDue(besideStatusline carried: [LimitWindow], reading: UsageReading?, lastEndpointRead: Date?, lastReadFailed: Bool = false,
+                            now: Date) -> Date? {
         let fromEndpoint = (reading?.windows ?? []).filter { $0.source == .vendorEndpoint || $0.source == .rateLimitHeaders }
-        guard !fromEndpoint.isEmpty else { return lastEndpointRead == nil ? now : nil }
+        // Nothing from the endpoint on record: learn at once which kind of account this is. An answer that brought
+        // nothing more settles it; a read that failed is tried again on the half-hour rather than never.
+        guard !fromEndpoint.isEmpty else {
+            guard let lastEndpointRead else { return now }
+            return lastReadFailed ? lastEndpointRead.addingTimeInterval(endpointBesideStatusline) : nil
+        }
         let ids = Set(carried.map(\.id))
         let endpointOnly = fromEndpoint.filter { !ids.contains($0.id) }
         guard !endpointOnly.isEmpty else { return nil }
