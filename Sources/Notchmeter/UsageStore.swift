@@ -149,9 +149,9 @@ final class UsageStore {
     @ObservationIgnored private var costEngine: CostEngine
     @ObservationIgnored private var activity: AgentActivity
     /// Claude Cowork's watch (`startCoworkWatch`): the reader, which keeps its place in each task's log between
-    /// reads, the loop that runs it, and whether the Claude app is running, kept by the workspace's launch and
-    /// quit notices so nothing is read while it is not.
-    @ObservationIgnored private let coworkReader = CoworkReader()
+    /// reads (over the Claude app's own folder, or a folder a test lays out), the loop that runs it, and whether
+    /// the Claude app is running, kept by the workspace's launch and quit notices so nothing is read while it is not.
+    @ObservationIgnored private let coworkReader: CoworkReader
     @ObservationIgnored private var coworkWatch: Task<Void, Never>?
     @ObservationIgnored private(set) var claudeAppRunning = false
     @ObservationIgnored private let drainLog: DrainLog?
@@ -270,12 +270,14 @@ final class UsageStore {
     static let extraUsageRiseShownFor: TimeInterval = 3600
 
     init(prefs: Preferences, providers: [any UsageProvider] = ProviderRegistry.all(), cache: ReadingCache = ReadingCache(),
-         defaults: UserDefaults = .standard, drainLog: DrainLog? = DrainLog(), reportFile: URL? = Paths.reportFile) {
+         defaults: UserDefaults = .standard, drainLog: DrainLog? = DrainLog(), reportFile: URL? = Paths.reportFile,
+         coworkReader: CoworkReader = CoworkReader()) {
         self.prefs = prefs
         self.cache = cache
         self.defaults = defaults
         self.drainLog = drainLog
         self.reportFile = reportFile
+        self.coworkReader = coworkReader
         self.alertMemory = AlertMemory.load(from: defaults)
         self.providers = providers.reduce(into: [:]) { $0[$1.tool] = $1 }
         let roots = ClaudeCostScanner.defaultRoots(extra: prefs.extraTranscriptRoots)
@@ -570,9 +572,10 @@ final class UsageStore {
 
     /// Titles off is titles gone: the titles and session names the tracker already holds are cleared the moment
     /// *Show what a session is working on* turns off, not at each session's next event, which for an idle
-    /// session may never come (docs/hooks.md: with the setting off nothing of a prompt is held anywhere). The
-    /// tracking is one-shot, so it re-arms; the preference alone is read inside it, so a hook event does not
-    /// re-arm it.
+    /// session may never come (docs/hooks.md: with the setting off nothing of a prompt is held anywhere), and the
+    /// Cowork reader drops the task titles it holds between two polls the same moment, not at its next poll (up
+    /// to thirty seconds with nobody at the screen). The tracking is one-shot, so it re-arms; the preference alone
+    /// is read inside it, so a hook event does not re-arm it.
     private func observeSessionTitles() {
         let titles = withObservationTracking {
             prefs.sessionTitles
@@ -582,6 +585,8 @@ final class UsageStore {
         if !titles {
             sessions.clearTitles()
             cursorNamesTried = [:]
+            let reader = coworkReader
+            Task { await reader.dropTitles() }
         }
     }
 

@@ -33,8 +33,19 @@ enum CoworkLines {
         #"{"type":"system","subtype":"status","status":null,"uuid":"x","session_id":"s","_audit_timestamp":"\#(stamp(date))"}"#
     }
 
-    static func result(at date: Date, seconds: Double, subtype: String = "success", error: Bool = false) -> String {
-        #"{"type":"result","subtype":"\#(subtype)","is_error":\#(error),"duration_ms":\#(Int(seconds * 1000)),"result":"done","session_id":"s","_audit_timestamp":"\#(stamp(date))"}"#
+    /// `text` is the turn's final answer, which the SDK puts whole in the line's `result` field.
+    static func result(at date: Date, seconds: Double, subtype: String = "success", error: Bool = false, text: String = "done") -> String {
+        #"{"type":"result","subtype":"\#(subtype)","is_error":\#(error),"duration_ms":\#(Int(seconds * 1000)),"result":"\#(text)","session_id":"s","_audit_timestamp":"\#(stamp(date))"}"#
+    }
+
+    /// Feeds `bytes` to the chunk reader `size` bytes at a time.
+    static func read(_ bytes: Data, into turn: inout CoworkSessions.Turn, chunk size: Int) -> Data {
+        var partial = Data()
+        var skipping = false
+        for start in stride(from: 0, to: bytes.count, by: size) {
+            turn.read(bytes[start..<min(start + size, bytes.count)], partial: &partial, skipping: &skipping)
+        }
+        return partial
     }
 
     static func turn(_ lines: [String]) -> CoworkSessions.Turn {
@@ -174,6 +185,37 @@ enum CoworkLines {
         turn.read(stream.dropFirst(CoworkSessions.lineLimit / 2).prefix(CoworkSessions.lineLimit), partial: &partial, skipping: &skipping)
         turn.read(stream.dropFirst(CoworkSessions.lineLimit / 2 + CoworkSessions.lineLimit), partial: &partial, skipping: &skipping)
         #expect(turn.began == t0.addingTimeInterval(20))
+        #expect(partial.isEmpty)
+    }
+
+    /// A result line carries the turn's whole final text, so a long answer makes it longer than any other line
+    /// the reader cares for: it is read past the limit those are held to, whole or gathered across chunks, and
+    /// only past its own limit is it something else and skipped.
+    @Test func aResultLineIsReadHoweverLongItsFinalTextMadeIt() {
+        let end = t0.addingTimeInterval(30)
+        let long = CoworkLines.result(at: end, seconds: 30, text: String(repeating: "x", count: CoworkSessions.lineLimit + 100))
+        let whole = CoworkLines.turn([CoworkLines.prompt("hi", at: t0), long])
+        #expect(!whole.open)
+        #expect(whole.end?.duration == 30)
+        #expect(whole.end?.at == end)
+        let bytes = Data(([CoworkLines.prompt("hi", at: t0), long].joined(separator: "\n") + "\n").utf8)
+        for size in [4096, CoworkSessions.lineLimit, bytes.count] {
+            var turn = CoworkSessions.Turn()
+            let partial = CoworkLines.read(bytes, into: &turn, chunk: size)
+            #expect(!turn.open, "chunks of \(size)")
+            #expect(turn.end?.duration == 30)
+            #expect(partial.isEmpty)
+        }
+        let beyond = CoworkLines.result(at: end, seconds: 30, text: String(repeating: "x", count: CoworkSessions.resultLineLimit + 1))
+        let skipped = CoworkLines.turn([CoworkLines.prompt("hi", at: t0), beyond])
+        #expect(skipped.open)
+        #expect(skipped.end == nil)
+        var gathered = CoworkSessions.Turn()
+        let after = CoworkLines.prompt("after", at: t0.addingTimeInterval(40))
+        let stream = Data(([CoworkLines.prompt("hi", at: t0), beyond, after].joined(separator: "\n") + "\n").utf8)
+        let partial = CoworkLines.read(stream, into: &gathered, chunk: 1 << 20)
+        #expect(gathered.end == nil)
+        #expect(gathered.began == t0.addingTimeInterval(40), "the lines after it are still read")
         #expect(partial.isEmpty)
     }
 }
@@ -330,6 +372,24 @@ enum CoworkLines {
         #expect(outcome.changes.map(\.kind) == [.seen])
     }
 
+    /// A task with a record and no log yet has no turn (CoworkReader hands it a closed one): listed idle, holding
+    /// the Claude ring and the awake assertion for nothing, however fresh its record's `lastActivityAt`; it works
+    /// from its prompt once its log says so.
+    @Test func aTaskWithARecordAndNoLogIsListedIdle() throws {
+        var tracker = SessionTracker()
+        let outcome = tracker.observeCowork([task(CoworkSessions.Turn(open: false), wrote: 20, at: t0)], now: t0)
+        let session = try #require(tracker.sessions[key])
+        #expect(session.state == .idle)
+        #expect(session.turnStarted == nil)
+        #expect(outcome.changes.map(\.kind) == [.seen])
+        #expect(!tracker.isWorking(.claude))
+        #expect(tracker.finish(of: .claude, now: t0) == nil)
+        let prompt = t0.addingTimeInterval(30)
+        let begun = tracker.observeCowork([task(running(since: prompt), wrote: 1, at: prompt.addingTimeInterval(2))], now: prompt.addingTimeInterval(2))
+        #expect(tracker.sessions[key]?.state == .working(since: prompt))
+        #expect(begun.changes.map(\.kind) == [.working])
+    }
+
     /// A turn whose prompt was not among the lines read clocks from when the app first saw it running.
     @Test func aTurnWithNoPromptInViewClocksFromWhenItWasFirstSeen() {
         var tracker = SessionTracker()
@@ -367,10 +427,26 @@ enum CoworkLines {
         let later = t0.addingTimeInterval(20)
         tracker.observeCowork([task(running(since: t0.addingTimeInterval(18)), wrote: 1, at: later)], now: later)
         #expect(tracker.sessions[key]?.isWorking == true)
-        // A set-aside task that leaves the read is forgotten altogether rather than kept for four hours.
+        // A set-aside task that leaves the read (here the Claude app quitting) is forgotten altogether rather than
+        // kept for four hours, and says so, as one on the card does.
         tracker.dismiss(key)
-        tracker.observeCowork([], now: later.addingTimeInterval(1))
+        let gone = tracker.observeCowork([], now: later.addingTimeInterval(1))
         #expect(tracker.dismissed[key] == nil)
+        #expect(gone.changes == [SessionTracker.CoworkChange(session: key, kind: .gone)])
+    }
+
+    /// A task that ages out is reported gone on the poll it leaves: `listedFor` is `idleAfter`, so the reader stops
+    /// listing an idle task on the very poll `expire` sets it aside, and the read has to look there too.
+    @Test func aTaskThatAgesOutIsReportedGoneOnThePollItLeaves() {
+        var tracker = SessionTracker()
+        let old = ended(began: t0.addingTimeInterval(-90), at: t0.addingTimeInterval(-60), seconds: 30)
+        tracker.observeCowork([task(old, wrote: 60, at: t0)], now: t0)
+        #expect(tracker.sessions[key]?.state == .idle)
+        let aged = t0.addingTimeInterval(CoworkSessions.listedFor - 60)
+        let outcome = tracker.observeCowork([], now: aged)
+        #expect(outcome.changes == [SessionTracker.CoworkChange(session: key, kind: .gone)])
+        #expect(tracker.count == 0)
+        #expect(tracker.dismissed.isEmpty)
     }
 
     @Test func titlesOffClearsACoworkTasksTitleToo() {
@@ -455,7 +531,7 @@ enum CoworkLines {
     }
 
     /// An old task costs a `stat` and is not listed; an archived one is not listed either; a task with no log is
-    /// dated by its record's `lastActivityAt`.
+    /// dated by its record's `lastActivityAt` and has no turn open until its log appears.
     @Test func oldAndArchivedTasksAreLeftOutAndATaskWithNoLogIsDatedByItsRecord() async throws {
         let folder = try Folder()
         defer { folder.remove() }
@@ -467,11 +543,20 @@ enum CoworkLines {
         try folder.record("local_bare", ["title": "bare", "lastActivityAt": activity.timeIntervalSince1970 * 1000], modified: activity)
         try folder.record("local_bare_old", ["title": "bare old", "lastActivityAt": (t0.timeIntervalSince1970 - 7200) * 1000],
                           modified: t0.addingTimeInterval(-7200))
-        let tasks = await CoworkReader(root: folder.root).poll(now: t0)
+        let reader = CoworkReader(root: folder.root)
+        let tasks = await reader.poll(now: t0)
         #expect(tasks.map(\.id) == ["local_bare"])
         #expect(tasks.first?.lastWrite == activity)
-        #expect(tasks.first?.turn.open == true)
+        #expect(tasks.first?.turn.open == false, "a record alone opens no turn")
+        #expect(tasks.first?.turn.began == nil)
         #expect(tasks.first?.project == nil)
+        // Its log appearing is what opens a turn, from the prompt.
+        let prompt = t0.addingTimeInterval(5)
+        try folder.log("local_bare", [CoworkLines.prompt("go", at: prompt)], modified: prompt)
+        let begun = try #require(await reader.poll(now: t0.addingTimeInterval(6)).first { $0.id == "local_bare" })
+        #expect(begun.turn.open)
+        #expect(begun.turn.began == prompt)
+        #expect(begun.lastWrite == prompt)
     }
 
     /// A log longer than the tail is read from the tail, its first, partial line skipped. A tail that settles
@@ -512,6 +597,23 @@ enum CoworkLines {
         #expect(await fresh.poll(now: t0, titles: false).first?.title == nil)
         #expect(await fresh.poll(now: t0.addingTimeInterval(1), titles: true).first?.title == nil, "not before the spacing")
         #expect(await fresh.poll(now: t0.addingTimeInterval(CoworkSessions.recordSpacing + 1), titles: true).first?.title == "Secret plan")
+    }
+
+    /// The store drops the reader's titles the moment the setting turns off (`dropTitles`), so a title held between
+    /// two polls does not wait for the next; the record is read afresh once titles are on again and the spacing
+    /// allows, as after a poll without them.
+    @Test func titlesDroppedBetweenPollsAreGoneFromTheReaderAtOnce() async throws {
+        let folder = try Folder()
+        defer { folder.remove() }
+        try folder.record("local_1", ["title": "Secret plan"], modified: t0)
+        try folder.log("local_1", [CoworkLines.prompt("go", at: t0.addingTimeInterval(-5))], modified: t0.addingTimeInterval(-1))
+        let reader = CoworkReader(root: folder.root)
+        #expect(await reader.poll(now: t0, titles: true).first?.title == "Secret plan")
+        #expect(await Set(reader.heldTitles) == ["Secret plan"])
+        await reader.dropTitles()
+        #expect(await reader.heldTitles.isEmpty)
+        #expect(await reader.poll(now: t0.addingTimeInterval(1), titles: true).first?.title == nil, "not read again before the spacing")
+        #expect(await reader.poll(now: t0.addingTimeInterval(CoworkSessions.recordSpacing + 1), titles: true).first?.title == "Secret plan")
     }
 
     @Test func aMissingFolderReadsAsNoTasks() async {
@@ -629,6 +731,37 @@ enum CoworkLines {
         // The watch stopping (the Claude app quit, or the setting off) is an empty read: every Cowork row goes.
         store.coworkObserved([], now: later.addingTimeInterval(1))
         #expect(store.sessions.count == 0)
+    }
+
+    /// Switching *Show what a session is working on* off reaches the reader at once: the titles it holds between
+    /// two polls go with the tracker's, not at its next poll.
+    @MainActor @Test func theStoreDropsTheReadersTitlesTheMomentTheSettingTurnsOff() async throws {
+        let suite = "NotchmeterTests.CoworkTitles"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let folder = try CoworkReading.Folder()
+        defer { folder.remove() }
+        try folder.record("local_1", ["title": "Secret plan"], modified: t0)
+        try folder.log("local_1", [CoworkLines.prompt("go", at: t0.addingTimeInterval(-5))], modified: t0.addingTimeInterval(-1))
+        let reader = CoworkReader(root: folder.root)
+        let prefs = Preferences(defaults: defaults)
+        prefs.sessionTitles = true
+        let reading = UsageReading(tool: .claude, windows: [], plan: nil, fetchedAt: t0, observedAt: nil)
+        let store = UsageStore(prefs: prefs, providers: [FixtureProvider(reading: reading)], cache: ReadingCache(defaults: defaults), defaults: defaults,
+                               drainLog: nil, reportFile: nil, coworkReader: reader)
+        _ = await reader.poll(now: t0, titles: true)
+        #expect(await !reader.heldTitles.isEmpty)
+        prefs.sessionTitles = false
+        // The change reaches the store on the main actor's next turn and the reader on the one after: a few
+        // turns, never a poll interval.
+        var turns = 0
+        while await !reader.heldTitles.isEmpty, turns < 100 {
+            turns += 1
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(await reader.heldTitles.isEmpty)
+        withExtendedLifetime(store) {}
     }
 
     /// The fixture `cowork.png` is drawn from: one task working and one just finished, both from the rule itself.

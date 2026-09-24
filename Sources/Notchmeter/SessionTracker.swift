@@ -902,9 +902,10 @@ struct SessionTracker: Equatable, Sendable {
 
     /// Claude Cowork's tasks as the reader last saw them (CoworkSessions), all of them at once: a Cowork session
     /// not in `tasks` has left the list (archived, quiet past `CoworkSessions.listedFor`, or the Claude app quit,
-    /// for which the store passes none). A task the user set aside stays aside until its log is written again, as
-    /// a hook's session does until its next event. `hooksSeen` is never touched: a task read from a file is no proof
-    /// about Claude Code's hook, and the calm rule (Presence.level) reads that set.
+    /// for which the store passes none), and says so with a `gone` whether it was on the card or set aside. A
+    /// task the user set aside stays aside until its log is written again, as a hook's session does until its next
+    /// event. `hooksSeen` is never touched: a task read from a file is no proof about Claude Code's hook, and the
+    /// calm rule (Presence.level) reads that set.
     ///
     /// The rule (docs/accuracy.md, *Claude Cowork's tasks*): a task is working while its log has a turn open, was
     /// written inside `CoworkSessions.busyWindow`, and has not stopped at a request to the user for longer than
@@ -922,7 +923,12 @@ struct SessionTracker: Equatable, Sendable {
             sessions[key] = nil
             outcome.changes.append(CoworkChange(session: key, kind: .gone))
         }
-        dismissed = dismissed.filter { $0.value.source != .coworkLog || live.contains($0.key) }
+        // A task set aside leaves the same way, and one that ages out is always here by now: `listedFor` is
+        // `idleAfter`, so the `expire` above sets an idle task aside on the very poll the reader stops listing it.
+        for (key, session) in dismissed where session.source == .coworkLog && !live.contains(key) {
+            dismissed[key] = nil
+            outcome.changes.append(CoworkChange(session: key, kind: .gone))
+        }
         for task in tasks {
             let key = CoworkSessions.key(task.id)
             if let aside = dismissed[key] {

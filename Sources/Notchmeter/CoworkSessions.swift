@@ -61,9 +61,17 @@ enum CoworkSessions {
     /// Mac this was written on: 56 wrote more than the 256 KB tail between their prompt and their end, 11 more than
     /// 2 MB, and one more than 8 MB (a 36 MB log that was one turn).
     static let catchUpLimit = 8 * 1024 * 1024
-    /// A line longer than this is not parsed: it is a tool's output (a file read back, a screenshot), which says
-    /// nothing about where a turn stands. A prompt, a model step and a result are all far shorter.
+    /// A line longer than this is not parsed: it is a tool's output (a file read back, a screenshot), or an
+    /// attachment the app added to a prompt (an image, a PDF; `isSynthetic`, which is not a prompt), and says
+    /// nothing about where a turn stands. Measured on 2026-09-24 over the 38 task logs on the Mac this was written
+    /// on: the 38 prompt-shaped lines over 64 KB were all such attachments (the longest 17 MB), and the longest model
+    /// step was 51 KB. A `result` line is the one exception, read up to `resultLineLimit`: its `result` field is
+    /// the turn's whole final text, so a long answer makes the end line long, and an end line dropped is a turn that
+    /// never ends in the app's eyes (it would read as working for `busyWindow` more, then idle, with no finish).
     static let lineLimit = 64 * 1024
+    /// How long a `result` line may be and still be read: far past the longest of the 131 on that Mac (17 KB) and
+    /// past any answer a model writes in one turn, so a line past it is something else and is skipped like the rest.
+    static let resultLineLimit = 4 * 1024 * 1024
 
     /// How often the watch reads while the Claude app is running: every five seconds on mains power, ten on
     /// battery or in Low Power Mode; fifteen while no task is on the list, since the Claude app is often open all
@@ -135,12 +143,13 @@ enum CoworkSessions {
         var asking = false
 
         /// Reads one line. The type is told from the line's head, where every line the log writes puts it, so a
-        /// line is parsed only when it may be a prompt, a result, or a step that reopens a turn.
+        /// line is parsed only when it may be a prompt, a result, or a step that reopens a turn. A result is read
+        /// however long its final text made it (`resultLineLimit`); every other kind is held to `lineLimit`.
         mutating func read(_ line: Data) {
             let head = line.prefix(64)
             asking = head.starts(with: Self.requestHead)
             if head.starts(with: Self.resultHead) {
-                guard line.count <= lineLimit, let object = Self.object(line) else { return }
+                guard line.count <= resultLineLimit, let object = Self.object(line) else { return }
                 let subtype = object["subtype"] as? String
                 let failed = (object["is_error"] as? Bool ?? false) || (subtype.map { $0 != "success" } ?? false)
                 end = End(at: Self.timestamp(object), duration: (object["duration_ms"] as? NSNumber).map { $0.doubleValue / 1000 }, failed: failed)
@@ -158,7 +167,8 @@ enum CoworkSessions {
         }
 
         /// Reads every whole line in `chunk`, with `partial` holding the bytes after its last newline for the next
-        /// chunk. A partial line that outgrows the limit is dropped and the rest of it skipped: it is tool output.
+        /// chunk. A partial line that outgrows the limit is dropped and the rest of it skipped: it is tool output,
+        /// unless its head says it is a result, which is kept to its own, larger limit.
         mutating func read(_ chunk: Data, partial: inout Data, skipping: inout Bool) {
             var start = chunk.startIndex
             while let newline = chunk[start...].firstIndex(of: 0x0A) {
@@ -175,12 +185,17 @@ enum CoworkSessions {
             }
             guard !skipping else { return }
             partial.append(chunk[start...])
-            if partial.count > CoworkSessions.lineLimit {
+            if partial.count > Self.limit(for: partial) {
                 // A line written after a request, so the request is no longer the last thing the log says.
                 partial.removeAll(keepingCapacity: false)
                 skipping = true
                 asking = false
             }
+        }
+
+        /// The limit a line still being gathered is held to: a result's, or every other line's.
+        static func limit(for partial: Data) -> Int {
+            partial.starts(with: resultHead) ? resultLineLimit : lineLimit
         }
 
         static let resultHead = Data(#"{"type":"result""#.utf8)
@@ -224,6 +239,7 @@ enum CoworkSessions {
         var project: String?
         /// The log's modification time (the record's `lastActivityAt` for a task with no log).
         var lastWrite: Date
+        /// What the log says; closed, with nothing in it, for a task that has no log yet.
         var turn: Turn
     }
 }
@@ -239,7 +255,11 @@ actor CoworkReader {
         var project: String?
         var recordModified: Date?
         var recordReadAt: Date?
-        var turn = CoworkSessions.Turn()
+        /// Closed until a log has been read: with no lines seen there is no turn to be open, whatever the record's
+        /// `lastActivityAt` says (the Claude app writes that as the task is made, before any prompt). A log read
+        /// from its middle is the one case that is open with nothing in view (`Turn.open`), and `readTail` makes
+        /// that one.
+        var turn = CoworkSessions.Turn(open: false)
         /// Bytes of the log read so far; nil before the first read.
         var offset: UInt64?
         var partial = Data()
@@ -258,6 +278,8 @@ actor CoworkReader {
     /// Every task written to inside `CoworkSessions.listedFor`, and not archived, as it stands now. `titles` is
     /// *Show what a session is working on*: off, a task's title is dropped as its record is parsed and any title
     /// already held here goes, so nothing of it is kept even in the reader; on again, the records are read afresh.
+    /// The store also calls `dropTitles` the moment the setting turns off, so a title held between two polls does
+    /// not wait for the next one (up to thirty seconds with nobody at the screen).
     func poll(now: Date = Date(), titles: Bool = true) -> [CoworkSessions.Observation] {
         let fm = FileManager.default
         var observations: [CoworkSessions.Observation] = []
@@ -279,6 +301,23 @@ actor CoworkReader {
         return observations.sorted { $0.id < $1.id }
     }
 
+    /// Drops every title held here, now: what `poll` does with `titles` off, without waiting for the next poll.
+    /// Calls on this actor run one at a time, so a poll already under way with titles on is followed by the drop.
+    /// A task is marked as read without titles, so a poll with them on again reads its record afresh (once
+    /// `recordSpacing` allows), as after a poll without them.
+    func dropTitles() {
+        for id in tracked.keys {
+            tracked[id]?.record?.title = nil
+            tracked[id]?.observation?.title = nil
+            tracked[id]?.titles = false
+        }
+    }
+
+    /// The titles held here at this moment, wherever a task's entry holds one; for the tests.
+    var heldTitles: [String] {
+        tracked.values.flatMap { [$0.record?.title, $0.observation?.title].compactMap { $0 } }
+    }
+
     /// Brings one task's entry up to date. False for a task outside the window, which is forgotten; true for one
     /// still worth remembering, which includes an archived task that is recent, so that its half-megabyte record
     /// is not read again on every poll only to be refused again.
@@ -292,7 +331,12 @@ actor CoworkReader {
         if let logModified, now.timeIntervalSince(logModified) >= CoworkSessions.listedFor { return false }
         if logModified == nil, recordModified.map({ now.timeIntervalSince($0) >= CoworkSessions.listedFor }) ?? true { return false }
         var entry = tracked[id] ?? Tracked()
-        if !titles { entry.record?.title = nil }
+        if !titles {
+            // Dropped in place, and the entry marked as read without titles, so the record is not opened again
+            // only to drop it once more; it is read afresh when titles come back on.
+            entry.record?.title = nil
+            entry.titles = false
+        }
         let due = entry.recordReadAt.map { now.timeIntervalSince($0) >= CoworkSessions.recordSpacing } ?? true
         if entry.record == nil || ((recordModified != entry.recordModified || entry.titles != titles) && due) {
             // A record caught half written does not parse; the one read before it stands, and the next change is
@@ -309,7 +353,20 @@ actor CoworkReader {
         }
         guard let metadata = entry.record, let lastWrite = logModified ?? metadata.lastActivity,
               now.timeIntervalSince(lastWrite) < CoworkSessions.listedFor else { return false }
-        if !metadata.archived, let size = logValues?.fileSize.map(UInt64.init) { readLog(log, size: size, into: &entry) }
+        // An archived task is not listed, so its log is not read either.
+        if !metadata.archived {
+            if let size = logValues?.fileSize.map(UInt64.init) {
+                readLog(log, size: size, into: &entry)
+            } else {
+                // A record and no log: the task exists and has written no turn, so none is open, and it is listed
+                // idle until its log appears (docs/accuracy.md, *Claude Cowork's tasks*). Whatever was read of a
+                // log that is gone is forgotten with it, so one that reappears is read from its tail.
+                entry.turn = CoworkSessions.Turn(open: false)
+                entry.offset = nil
+                entry.partial.removeAll(keepingCapacity: false)
+                entry.skipping = false
+            }
+        }
         entry.observation = metadata.archived ? nil
             : CoworkSessions.Observation(id: id, title: metadata.title, project: entry.project, lastWrite: lastWrite, turn: entry.turn)
         tracked[id] = entry
