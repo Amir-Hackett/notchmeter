@@ -366,6 +366,7 @@ struct SettingsView: View {
         case .dashboard:
             EmptyView()
         case .appearance:
+            themeSection.opacity(searchOpacity(.theme))
             panelSection.opacity(searchOpacity(.panel))
             usageSection.opacity(searchOpacity(.usage))
             shortcutsSection.opacity(searchOpacity(.shortcuts))
@@ -528,6 +529,66 @@ struct SettingsView: View {
         L("In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period.")
     }
 
+    /// Whether the panel is drawn in an edge layout's card rather than under the notch, which is what decides the
+    /// material an install that never chose one gets (`PanelMaterial.unchosen`); the same test `buildPresenters`
+    /// makes, against the screen the panel is on.
+    private var panelIsEdgeCard: Bool {
+        prefs.edge != .top || NSScreen.panelScreen.safeAreaInsets.top == 0
+    }
+
+    /// The open panel's look: a live preview over sample data, then the face, the material, the accent, how usage
+    /// is drawn and the hour clock. Every choice is applied to the panel at once; the preview is the same views the
+    /// panel draws, in the look being chosen (ThemePreview).
+    private var themeSection: some View {
+        let edgeCard = panelIsEdgeCard
+        let look = PanelLook.current(prefs, edgeCard: edgeCard)
+        let forcedSolid = AccessibilityDisplay.shared.reduceTransparency || AccessibilityDisplay.shared.contrast
+        return Section(L("Theme")) {
+            ThemePreview(look: look)
+            Picker(L("Colour"), selection: Binding(get: { prefs.panelTheme }, set: { prefs.panelTheme = $0 })) {
+                ForEach(PanelTheme.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .help(L("Paper is the panel inverted: the notch's black stays round it, and the sheet inside is light, with the figures printed on it rather than lit."))
+            // The material an install never chose is shown as what the layout draws, and only a click stores one.
+            Picker(L("Material"), selection: Binding(
+                get: { prefs.panelMaterial ?? PanelMaterial.unchosen(edgeCard: edgeCard, liquidGlass: PanelLook.liquidGlass) },
+                set: { prefs.panelMaterial = $0 }
+            )) {
+                ForEach(PanelMaterial.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .disabled(prefs.panelTheme == .paper || forcedSolid)
+            .help(L("How much of the desktop shows through the open panel, blurred. Glassy and Smoked keep a black tint strong enough that every line still reads over a white window; the band the notch sits in stays black."))
+            if prefs.panelTheme == .paper {
+                paragraph(L("Paper is always solid: dark figures on a sheet the desktop shows through would lose their contrast over a dark window."))
+            } else if forcedSolid {
+                paragraph(L("Solid while Reduce Transparency or Increase Contrast is on, as macOS draws its own panels."))
+            }
+            LabeledContent(L("Accent")) {
+                // At its own size, with a point either side, so the outer chips' rings are not shaved by the row.
+                HStack(spacing: 6) {
+                    ForEach(PanelAccent.allCases, id: \.self) { accent in
+                        AccentChoice(accent: accent, selected: prefs.panelAccent == accent) { prefs.panelAccent = accent }
+                    }
+                }
+                .padding(.horizontal, 2)
+                .fixedSize()
+            }
+            .help(L("The app's own colour on the panel: the chosen range on the Cost card, a session waiting for your answer, Clear. Each reads on the panel in every theme and stays apart from the warning colours for colour-blind eyes."))
+            Picker(L("Usage style"), selection: Binding(get: { prefs.usageStyle }, set: { prefs.usageStyle = $0 })) {
+                ForEach(UsageStyle.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .help(L("Bars draws a meter for each window. Gauges draws an assistant's windows as rings nested in one dial, outermost first, the way the rings beside the notch are; a window past the third keeps its meter, and every line under a window stays."))
+            Toggle(L("Draw hour limits on a clock"), isOn: Binding(get: { prefs.hourClock }, set: { prefs.hourClock = $0 }))
+                .help(L("A window measured in hours, such as the five-hour session, gets a small clock beside its reset: the filled part is the time left before it resets, and a full clock is a window that has not started. Longer windows keep their words."))
+            paragraph(look.theme == .paper || !look.material.translucent
+                      ? L("Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1.")
+                      : L("Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window."))
+        }
+    }
+
     private var panelSection: some View {
         Section(L("Panel")) {
             // Applied to this window at once, not only when it is next opened: the choice is made while looking at it.
@@ -538,7 +599,7 @@ struct SettingsView: View {
             })) {
                 ForEach(AppearanceChoice.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            Text(L("The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass."))
+            Text(L("The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it."))
                 .font(.caption).foregroundStyle(.secondary)
             Picker(L("Readouts"), selection: Binding(
                 get: { prefs.compactSide },

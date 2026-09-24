@@ -29,8 +29,10 @@ struct NoticeCard: View {
         let copy = Notifier.copy(for: notice.event, session: notice.session, hidingFigures: hideFigures)
         VStack(alignment: .leading, spacing: density.rowSpacing) {
             HStack(spacing: 6) {
-                Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(colour)
-                Text(copy.title).font(.caption.weight(.semibold)).foregroundStyle(colour)
+                Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Themed(colour))
+                // The title is words, so it takes the colour's text role: Wong's blue and the pine green are 4.0:1 on
+                // black as they stand, and are lifted by the least that reaches 4.5:1 (PanelLook).
+                Text(copy.title).font(.caption.weight(.semibold)).foregroundStyle(Themed(colour, .text))
                 ForEach(chips, id: \.self) { Chip(text: $0) }
                 Spacer(minLength: 0)
             }

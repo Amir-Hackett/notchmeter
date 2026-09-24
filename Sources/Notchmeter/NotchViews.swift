@@ -3,15 +3,10 @@ import Observation
 import SwiftUI
 
 extension ToolID {
-    var color: Color {
-        switch self {
-        case .claude: Color(red: 0.85, green: 0.47, blue: 0.34)
-        case .codex: Color(red: 0.36, green: 0.83, blue: 0.62)
-        case .cursor: Color(red: 0.65, green: 0.55, blue: 0.98)
-        case .antigravity: Color(hex: 0x56B4E9)  // #56B4E9 sky blue, from Wong's set
-        case .copilot: Color(hex: 0xF0E442)      // #F0E442 yellow, from Wong's set
-        }
-    }
+    /// The assistant's own colour on the black panel and beside the notch (`PanelInk`, which also holds its Paper
+    /// counterpart): Claude's terracotta, Codex's green, Cursor's violet, Wong's sky blue for Antigravity and his
+    /// yellow for Copilot.
+    var color: Color { PanelInk.tool(self).onBlack.color }
 
     /// The colour of each nested ring, outermost first: the assistant's own on the outer ring, then two companions
     /// near it in hue, so the inner rings read as the same assistant but can be told apart from the outer one at a
@@ -19,40 +14,31 @@ extension ToolID {
     /// never mistaken for a warning.
     func ringColor(at index: Int) -> Color {
         guard index > 0 else { return color }
-        let companions: [Color] = switch self {
-        case .claude: [Color(hex: 0xE88AA8), Color(hex: 0xF2D0A4)]       // rose, sand
-        case .codex: [Color(hex: 0x4FC3E0), Color(hex: 0xB8E476)]        // teal, lime
-        case .cursor: [Color(hex: 0xF08BD6), Color(hex: 0x8FC0FF)]       // pink, periwinkle
-        case .antigravity: [Color(hex: 0x9FA8FF), Color(hex: 0x7FE3CF)]  // indigo, mint
-        case .copilot: [Color(hex: 0xC6E86A), Color(hex: 0xFFF4B0)]      // lime, cream
-        }
-        return companions[min(index, companions.count) - 1]
+        return PanelInk.companion(self, min(index, 2)).onBlack.color
     }
 }
 
 /// Status colours are Wong's colour-blind-safe set, and every status also carries a shape or a symbol so the
-/// meaning never rests on hue alone. Tool identity keeps its own colours on the bars.
+/// meaning never rests on hue alone. Tool identity keeps its own colours on the bars. The values live in `PanelInk`
+/// beside their Paper counterparts; these are the black panel's, which is also what everything outside the open
+/// panel draws in.
 enum Palette {
-    static let calm = Color(hex: 0x0072B2)    // #0072B2 blue: needs you, not running out
-    static let warn = Color(hex: 0xE69F00)    // #E69F00 orange: on track, nearly full, needs attention
-    static let danger = Color(hex: 0xD55E00)  // #D55E00 vermillion: behind pace, out
+    static let calm = PanelInk.calm.onBlack.color      // #0072B2 blue: needs you, not running out
+    static let warn = PanelInk.warn.onBlack.color      // #E69F00 orange: on track, nearly full, needs attention
+    static let danger = PanelInk.danger.onBlack.color  // #D55E00 vermillion: behind pace, out
     /// The brand terracotta, the icon's colour (scripts/make-icon.swift) and Claude Code's identity colour on
     /// the rings. Not a status colour: it is the app's own accent, on the Cost card's range control and on the
     /// card's "Waiting for your answer" line, where the system's blue would have been. 5.7:1 against the panel's
-    /// black, 3.7:1 under white, so a selected segment carries black text on it rather than white.
-    static let accent = Color(red: 0.85, green: 0.47, blue: 0.34)
+    /// black, 3.7:1 under white, so a selected segment carries black text on it rather than white. On the open
+    /// panel it is drawn as the accent the reader chose (`Themed(.accent, …)`, Settings › Appearance › Theme).
+    static let accent = PanelInk.accent.onBlack.color
     /// The accent under Increase Contrast: the same hue lifted so black text on it clears 7:1.
-    static let accentContrast = Color(hex: 0xE8A084)
+    static let accentContrast = PanelInk.accentContrast.onBlack.color
     /// Not a status colour and never on a reading: the neutral chrome tile behind a white glyph (the Settings
     /// sidebar). 6.45:1 against white in both appearances, where `.gray` is 3.26 light and 2.87 dark.
-    static let pine = Color(hex: 0x1D7A5F)    // #1D7A5F green: the Dashboard tile in Settings, 5.4:1 under white
-    static let slate = Color(hex: 0x5E5E63)   // #5E5E63 grey: chrome, says nothing about a limit
-}
-
-private extension Color {
-    init(hex: UInt32) {
-        self.init(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
-    }
+    static let pine = PanelInk.pine.onBlack.color      // #1D7A5F green: the Dashboard tile in Settings, 5.4:1 under white
+    /// Settings' chrome only, never on the panel, so it has no Paper counterpart.
+    static let slate = RGB(hex: 0x5E5E63).color         // #5E5E63 grey: chrome, says nothing about a limit
 }
 
 extension ToolSignal {
@@ -175,10 +161,12 @@ extension String {
 /// Captions are secondary on black by default and primary under Increase Contrast. Tertiary was tried first and
 /// on the black panel it blended in: the lines it carried ("$108.76 of a usual $107 day", "no spend read yet") could
 /// not be read at a glance, which is the only way the panel is read.
+/// The levels are the panel's inks (`Ink`), which on the black panel are SwiftUI's own and on every other look the
+/// measured ones: SwiftUI's secondary is 3.1:1 on a light sheet.
 struct Caption: ViewModifier {
     @MainActor
     static var style: AnyShapeStyle {
-        AccessibilityDisplay.shared.contrast ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)
+        AccessibilityDisplay.shared.contrast ? AnyShapeStyle(Ink.primary) : AnyShapeStyle(Ink.secondary)
     }
 
     func body(content: Content) -> some View {
@@ -196,7 +184,7 @@ struct CardBackground: ViewModifier {
         content
             .padding(boxed ? density.cardPadding : 0)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.white.opacity(boxed ? (AccessibilityDisplay.shared.contrast ? 0.16 : 0.07) : 0)))
+                .fill(Themed.wash(.white, boxed ? (AccessibilityDisplay.shared.contrast ? 0.16 : 0.07) : 0)))
     }
 }
 
@@ -961,6 +949,9 @@ struct NotchExpandedView: View {
     /// Whether the parts stagger in as the panel opens (PanelMotion). Only the panels on screen ask for it; every
     /// other build of this view — the sizing probes, the renders, "Copy as image" — draws the parts where they rest.
     var entrance = false
+    /// Drawn in the card an edge layout opens, rather than under the notch: the two keep different materials until
+    /// one is chosen (`PanelMaterial.unchosen`), and the material moves the colours (PanelLook).
+    var edgeCard = false
     @State private var contentHeight: CGFloat = 0
     /// Set as the live panel appears, which is what starts the stagger.
     @State private var appeared = false
@@ -1035,11 +1026,17 @@ struct NotchExpandedView: View {
                 .onPreferenceChange(PanelContentHeight.self) { contentHeight = $0 }
             }
         }
-        .foregroundStyle(.white)
-        .environment(\.colorScheme, .dark)
+        // The look is resolved here, at the root every build of the panel shares — the live panel, its probes,
+        // "Copy as image" and the renders — so all of them draw the same colours (PanelLook). Paper's sheet is the
+        // panel's own ground inside the black the notch or the card draws round it; the black panel draws none.
+        .modifier(PaperSheet(look: look))
+        .modifier(PanelInkEnvironment(look: look))
         .environment(\.density, prefs.density)
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
+
+    /// The look this panel is drawn in, for its layout.
+    var look: PanelLook { PanelLook.current(prefs, edgeCard: edgeCard) }
 
     /// The Cost card at the top of the panel, or nil while there is nothing to price: spend hidden, figures hidden
     /// for a capture, or no carried tool that can report a cost. Built with no range, so it shows the store's
@@ -1119,7 +1116,7 @@ struct NotchExpandedView: View {
                            setUnfolded: { store.unfoldSuggestions(newest.request.id, $0) })
                     .modifier(PanelEntranceStep(index: 0, arrived: arrived))
                 Button { store.panelOpenedForPrompt = false } label: {
-                    Text(L("Show the whole panel")).font(.caption).foregroundStyle(.secondary)
+                    Text(L("Show the whole panel")).font(.caption).foregroundStyle(Ink.secondary)
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, prefs.density.cardPadding)
@@ -1134,7 +1131,7 @@ struct NotchExpandedView: View {
                            jump: { actions.jump(notice.session) })
                     .modifier(PanelEntranceStep(index: 0, arrived: arrived))
                 Button { store.attentionNotice = nil } label: {
-                    Text(L("Show the whole panel")).font(.caption).foregroundStyle(.secondary)
+                    Text(L("Show the whole panel")).font(.caption).foregroundStyle(Ink.secondary)
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, prefs.density.cardPadding)
@@ -1348,7 +1345,7 @@ private struct PanelHeaderButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(contrast ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                .foregroundStyle(contrast ? AnyShapeStyle(Ink.primary) : AnyShapeStyle(Ink.secondary))
         }
         .buttonStyle(PanelHeaderButtonStyle(contrast: contrast))
         .help(help)
@@ -1386,30 +1383,33 @@ struct PanelHeaderButtonStyle: ButtonStyle {
             configuration.label
                 .frame(width: 30, height: 24)
                 .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(.white.opacity(PanelHeaderButtonStyle.fill(contrast: contrast, hovered: hovered, pressed: configuration.isPressed))))
+                    .fill(Themed.wash(.white, PanelHeaderButtonStyle.fill(contrast: contrast, hovered: hovered, pressed: configuration.isPressed))))
                 .contentShape(Rectangle())
                 .onHover { hovered = $0 }
         }
     }
 }
 
-/// Copies a card or the whole panel to the pasteboard as a 2x PNG with a small wordmark, for Slack or a bug report.
+/// Copies a card or the whole panel to the pasteboard as a 2x PNG with a small wordmark, for Slack or a bug report,
+/// in the look the panel is drawn in: a Paper card is pasted on paper. The whole panel draws its own sheet, so it
+/// is framed in the notch's black like the panel on screen.
 @MainActor
 enum CardImage {
-    static func copy<Content: View>(_ content: Content, width: CGFloat) {
+    static func copy<Content: View>(_ content: Content, width: CGFloat, look: PanelLook = .standard, wholePanel: Bool = false) {
+        // Only Paper differs: the black panel's ground is the notch's black either way.
+        let framedInBlack = wholePanel && look.theme == .paper
         let framed = VStack(alignment: .leading, spacing: 8) {
             content
             HStack(spacing: 4) {
                 Image(systemName: "gauge.with.dots.needle.33percent").font(.caption2)
                 Text(verbatim: AppInfo.name).font(.caption2.weight(.semibold))
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(framedInBlack ? AnyShapeStyle(Color.white.opacity(0.6)) : AnyShapeStyle(Ink.secondary)) // panel-ink: on the notch's black frame, outside the sheet
         }
         .padding(12)
         .frame(width: width)
-        .background(Color.black)
-        .foregroundStyle(.white)
-        .environment(\.colorScheme, .dark)
+        .background(framedInBlack ? Color.black : look.ground.color)
+        .modifier(PanelInkEnvironment(look: look))
         let renderer = ImageRenderer(content: framed)
         renderer.scale = 2
         guard let image = renderer.nsImage else { return }
@@ -1447,7 +1447,7 @@ struct SegmentedBar<Value: Hashable>: View {
                 // in it already; drawing both is the one place the native control looks busy.
                 if index > 0 {
                     Rectangle()
-                        .fill(.white.opacity(divided(index) ? 0.18 : 0))
+                        .fill(Themed.wash(.white, divided(index) ? 0.18 : 0))
                         .frame(width: 1, height: 11)
                         .accessibilityHidden(true)
                 }
@@ -1456,7 +1456,7 @@ struct SegmentedBar<Value: Hashable>: View {
         }
         .padding(2)
         .background(RoundedRectangle(cornerRadius: Self.troughRadius, style: .continuous)
-            .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.2 : 0.1)))
+            .fill(Themed.wash(.white, AccessibilityDisplay.shared.contrast ? 0.2 : 0.1)))
         .accessibilityElement(children: .contain)
     }
 
@@ -1475,19 +1475,20 @@ struct SegmentedBar<Value: Hashable>: View {
                 // The column is fixed, so a title too long for it shrinks rather than widening the bar. Long
                 // enough to matter only outside English; at the Standard width the shipped titles all fit whole.
                 .minimumScaleFactor(0.6)
-                // Selected: the app's own terracotta (Palette.accent) rather than `Color.accentColor`, which is
-                // the user's system accent and read as a stray piece of blue on a panel that is otherwise the
-                // app's own colours. The title on it is black: the accent is 5.7:1 under black and 3.7:1 under
-                // white, and a caption at this size is text, not a control, so it owes 4.5:1. Increase Contrast
-                // lightens the pill so the same black clears 7:1.
-                // Unselected: `.foreground` and not `.primary`, because the panel paints its content white
-                // over black whatever appearance the window carries, and `.primary` would resolve to that
-                // appearance's label colour and turn the title black on the trough.
-                .foregroundStyle(selected ? AnyShapeStyle(Color.black) : AnyShapeStyle(.foreground))
+                // Selected: the app's own accent (the one chosen under Theme, terracotta unless changed) rather
+                // than `Color.accentColor`, which is the user's system accent and read as a stray piece of blue on a
+                // panel that is otherwise the app's own colours. The title on it is the panel's ground colour —
+                // black on the black panel, paper on Paper: terracotta is 5.7:1 under black and 3.7:1 under white,
+                // and a caption at this size is text, not a control, so it owes 4.5:1 (PanelLook.audit holds every
+                // accent to it). Increase Contrast lightens the pill so the same black clears 7:1.
+                // Unselected: `.foreground` and not `.primary`, because the panel paints its content in its own
+                // ink whatever appearance the window carries, and `.primary` would resolve to that appearance's
+                // label colour and turn the title black on the black panel's trough.
+                .foregroundStyle(selected ? AnyShapeStyle(Themed(.black, .text)) : AnyShapeStyle(.foreground))
                 .padding(.vertical, 3)
                 .padding(.horizontal, 4)
                 .frame(maxWidth: .infinity)
-                .background(selected ? AnyShapeStyle(AccessibilityDisplay.shared.contrast ? Palette.accentContrast : Palette.accent) : AnyShapeStyle(.clear),
+                .background(selected ? AnyShapeStyle(Themed(AccessibilityDisplay.shared.contrast ? PanelInk.accentContrast : .accent)) : AnyShapeStyle(.clear),
                             in: RoundedRectangle(cornerRadius: Self.pillRadius, style: .continuous))
                 .contentShape(Rectangle())
         }
@@ -1532,6 +1533,7 @@ struct SpendCard: View {
     /// Drawn open under the Simple panel's cost row: no box and no title, which the row already carries.
     private let embedded: Bool
     @Environment(\.density) private var density
+    @Environment(\.panelLook) private var look
 
     /// The card on the panel passes no range: it draws the store's and its SegmentedBar sets it, so the range
     /// lives as long as the app rather than as long as the panel. Until 0.6.0 it was the card's own `@State`,
@@ -1724,7 +1726,7 @@ struct SpendCard: View {
                     if store.costScanning {
                         HStack(spacing: 5) {
                             ProgressView().controlSize(.mini)
-                            Text(L("Pricing local files")).font(.caption2).foregroundStyle(.secondary)
+                            Text(L("Pricing local files")).font(.caption2).foregroundStyle(Ink.secondary)
                         }
                     }
                 }
@@ -1741,17 +1743,17 @@ struct SpendCard: View {
                     ZStack {
                         // strokeBorder and an inset arc, never stroke: a stroked path is centred on the circle, so
                         // half the 13 pt line falls outside the frame and the ring hangs past the card's text margin.
-                        Circle().strokeBorder(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.25 : 0.1), lineWidth: Self.ringWidth)
+                        Circle().strokeBorder(Themed.wash(.white, AccessibilityDisplay.shared.contrast ? 0.25 : 0.1), lineWidth: Self.ringWidth)
                         ForEach(arcs) { arc in
                             Circle()
                                 .inset(by: Self.ringWidth / 2)
                                 .trim(from: arc.start, to: arc.end)
-                                .stroke(arcColor(arc), style: StrokeStyle(lineWidth: Self.ringWidth, lineCap: .butt))
+                                .stroke(Themed(arcColor(arc)), style: StrokeStyle(lineWidth: Self.ringWidth, lineCap: .butt))
                                 .rotationEffect(.degrees(-90))
                         }
                         if let budget {
                             Rectangle()
-                                .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 1 : 0.8))
+                                .fill(Themed(.white, opacity: AccessibilityDisplay.shared.contrast ? 1 : 0.8))
                                 .frame(width: 2, height: 15)
                                 .offset(y: -(density.costRing - Self.ringWidth) / 2)
                                 .rotationEffect(.degrees(360 * budget.tick))
@@ -1763,7 +1765,7 @@ struct SpendCard: View {
                                 .monospacedDigit()
                                 .minimumScaleFactor(0.6)
                                 .lineLimit(1)
-                            Text(unit).font(.caption2).foregroundStyle(.secondary)
+                            Text(unit).font(.caption2).foregroundStyle(Ink.secondary)
                         }
                         .padding(.horizontal, 10)
                     }
@@ -1779,20 +1781,20 @@ struct SpendCard: View {
                     .accessibilityAction(named: L("Show %@", mode.next.title)) { store.prefs.costCardMode = mode.next }
                     VStack(alignment: .leading, spacing: density.lineSpacing) {
                         if providers.isEmpty {
-                            Text(L("no cost yet")).font(.callout).foregroundStyle(.secondary)
+                            Text(L("no cost yet")).font(.callout).foregroundStyle(Ink.secondary)
                         }
                         ForEach(providers) { provider in
                             let totals = provider.totals(range.costRange)
                             HStack(spacing: 6) {
-                                Circle().fill(provider.tool.color).frame(width: 7, height: 7)
+                                Circle().fill(Themed(provider.tool.color)).frame(width: 7, height: 7)
                                 Text(verbatim: provider.tool.displayName).font(.callout).lineLimit(1)
-                                Text(provider.source.shortLabel).font(.caption2).foregroundStyle(.secondary).lineLimit(1).layoutPriority(-1)
+                                Text(provider.source.shortLabel).font(.caption2).foregroundStyle(Ink.secondary).lineLimit(1).layoutPriority(-1)
                                 Spacer(minLength: 4)
                                 // Both figures keep a column of their own, so a shorter amount on one row does not
                                 // drag that row's percentage in from the one above it.
                                 if let share = share(provider) {
                                     Text(verbatim: "\(Int((share * 100).rounded()))%")
-                                        .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                                        .font(.caption2).foregroundStyle(Ink.secondary).monospacedDigit()
                                         // "100%" is wider than the column: drawn at its own width it reaches left into
                                         // the spacer and still ends on the column's edge, where wrapping it put "%" on
                                         // a line of its own and the row off centre. Widening the column instead cut the
@@ -1814,7 +1816,7 @@ struct SpendCard: View {
                         ForEach(noteLines, id: \.text) { note in
                             Text(note.text)
                                 .font(.caption2)
-                                .foregroundStyle(note.quiet ? Caption.style : AnyShapeStyle(.secondary))
+                                .foregroundStyle(note.quiet ? Caption.style : AnyShapeStyle(Ink.secondary))
                                 .monospacedDigit()
                                 .lineLimit(2)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -1833,7 +1835,7 @@ struct SpendCard: View {
         .modifier(CardBackground(boxed: !embedded))
         .contextMenu {
             Button(L("Copy as image")) {
-                CardImage.copy(imageCard.environment(\.density, density), width: store.prefs.panelWidth.points - 28)
+                CardImage.copy(imageCard.environment(\.density, density), width: store.prefs.panelWidth.points - 28, look: look)
             }
         }
     }
@@ -1869,10 +1871,10 @@ private struct ModelShares: View {
             ForEach(shares) { share in
                 HStack(spacing: 6) {
                     Text(share.name == CostShare.other ? L("Other") : ModelNames.display(share.name))
-                        .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        .font(.caption2).foregroundStyle(Ink.secondary).lineLimit(1)
                     Spacer(minLength: 6)
                     Text(verbatim: "\(Int((share.cost / max(total, 0.0001) * 100).rounded()))%")
-                        .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                        .font(.caption2).foregroundStyle(Ink.secondary).monospacedDigit()
                     Text(figure(share)).font(.caption2).monospacedDigit().frame(width: 62, alignment: .trailing)
                 }
             }
@@ -1913,7 +1915,7 @@ struct AdviceLines: View {
                     // whatever glyph it is.
                     Image(systemName: item.symbol)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(item.priority.mark)
+                        .foregroundStyle(Themed(item.priority.mark))
                         .frame(width: 13, alignment: .leading)
                     Text(item.text.keepingHyphensWhole)
                         .font(.caption)
@@ -1926,7 +1928,7 @@ struct AdviceLines: View {
                             Image(systemName: "arrow.up.right.square").font(.caption2)
                         }
                         .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Ink.secondary)
                         .help(url.host ?? url.absoluteString)
                         .accessibilityLabel(L("Open %@", url.host ?? url.absoluteString))
                     }
@@ -1946,6 +1948,7 @@ struct ToolCard: View {
     /// line, which the row above already carries. The plan, the usage-page link and the problem mark stay.
     var embedded = false
     @Environment(\.density) private var density
+    @Environment(\.panelLook) private var look
 
     /// This assistant's own spend, where it reports any and the panel is showing figures. The spend line and the
     /// trend below both come from it, so no card has to know which assistants can report cost: one that cannot
@@ -1970,11 +1973,11 @@ struct ToolCard: View {
         VStack(alignment: .leading, spacing: density.rowSpacing) {
             HStack(spacing: 6) {
                 if !embedded {
-                    Image(systemName: tool.symbolName).foregroundStyle(tool.color).font(.subheadline.weight(.semibold))
+                    Image(systemName: tool.symbolName).foregroundStyle(Themed(tool.color)).font(.subheadline.weight(.semibold))
                     Text(tool.displayName).font(.headline)
                 }
                 if let plan = status.reading?.plan {
-                    Text(plan).font(.subheadline).foregroundStyle(.secondary)
+                    Text(plan).font(.subheadline).foregroundStyle(Ink.secondary)
                 }
                 // The rings recolour because they have no room for anything else. A card has room for words, so it
                 // says which state it is in rather than leaving the reader to learn a hue.
@@ -1984,34 +1987,29 @@ struct ToolCard: View {
                 if !embedded, let signal = store.signal(tool) {
                     Label(signal.cardText, systemImage: signal.symbolName)
                         .font(.caption)
-                        .foregroundStyle(Palette.accent)
+                        .foregroundStyle(Themed(.accent, .text))
                         .accessibilityLabel(signal.cardText)
                 }
                 Spacer()
                 Button {
                     actions?.open(ProviderLinks.usage(tool))
                 } label: {
-                    Image(systemName: "arrow.up.right.square").font(.caption).foregroundStyle(.secondary)
+                    Image(systemName: "arrow.up.right.square").font(.caption).foregroundStyle(Ink.secondary)
                 }
                 .buttonStyle(.plain)
                 .help(L("Open %@'s usage page", tool.displayName))
                 .accessibilityLabel(L("Open %@'s usage page", tool.displayName))
                 if let problem = status.problem {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(Palette.warn)
+                        .foregroundStyle(Themed(Palette.warn))
                         .help(problem)
                         .accessibilityLabel(problem)
                 }
             }
             SessionLine(store: store, tool: tool)
             if let reading = status.reading {
-                ForEach(prefs.panelWindows(of: reading)) { window in
-                    MeterRow(toolName: tool.displayName, window: window, color: tool.color, prefs: prefs,
-                             stale: status.staleReading != nil, hideFigures: store.hidesFigures,
-                             drain: store.drain(for: tool, window: window), runOut: store.runOut(for: tool, window: window),
-                             metering: tool == .claude && window.id == "five_hour" && prefs.showSpend ? store.cost?.sessionMetering : nil)
-                }
-                .opacity(status.problem == nil ? 1 : 0.55)
+                meters(prefs.panelWindows(of: reading))
+                    .opacity(status.problem == nil ? 1 : 0.55)
                 if let observed = reading.observedAt, Date().timeIntervalSince(observed) > 600 {
                     Text(L("As of %@", RelativeTime.ago(observed))).modifier(Caption()).monospacedDigit()
                 }
@@ -2022,21 +2020,21 @@ struct ToolCard: View {
                     ProgressView().controlSize(.mini)
                     Text(L("Waiting for the first reading"))
                 }
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(Ink.secondary)
             case .idle(let message):
-                Text(message).font(.caption).foregroundStyle(.secondary)
+                Text(message).font(.caption).foregroundStyle(Ink.secondary)
             case .needsAttention(let message, _):
                 Label(message, systemImage: "person.crop.circle.badge.exclamationmark")
-                    .font(.caption).foregroundStyle(Palette.warn)
+                    .font(.caption).foregroundStyle(Themed(Palette.warn, .text))
             case .failed(let message, _):
                 Label(message, systemImage: "exclamationmark.triangle")
-                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    .font(.caption).foregroundStyle(Ink.secondary).monospacedDigit()
             case .offline:
                 Label(L("Offline, retrying"), systemImage: "wifi.slash")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(Ink.secondary)
             case .rateLimited(let message, _):
                 Label(message, systemImage: "clock.badge.exclamationmark")
-                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    .font(.caption).foregroundStyle(Ink.secondary).monospacedDigit()
             default:
                 EmptyView()
             }
@@ -2076,7 +2074,8 @@ struct ToolCard: View {
         .contextMenu {
             Button(L("Refresh")) { Task { await store.refresh(tool, force: true, interactive: true) } }
             Button(L("Copy as image")) {
-                CardImage.copy(ToolCard(tool: tool, status: status, store: store, prefs: prefs).environment(\.density, density), width: prefs.panelWidth.points - 28)
+                CardImage.copy(ToolCard(tool: tool, status: status, store: store, prefs: prefs).environment(\.density, density), width: prefs.panelWidth.points - 28,
+                               look: look)
             }
             Divider()
             Button(L("Open %@'s usage page", tool.displayName)) { actions?.open(ProviderLinks.usage(tool)) }
@@ -2084,6 +2083,45 @@ struct ToolCard: View {
                 Button(L("Open %@'s status page", tool.displayName)) { actions?.open(status) }
             }
         }
+    }
+}
+
+extension ToolCard {
+    /// The card's windows as the chosen usage style draws them (UsageStyle): a meter each, or a dial of up to three
+    /// rings beside the same rows without their bars, each row led by a swatch saying which ring is its own, and a
+    /// meter for any window past the third or with no figure. The rows keep every line they carry either way — pace,
+    /// source, reset, drain and metering — so the dial adds a picture and takes no words away.
+    @ViewBuilder
+    fileprivate func meters(_ windows: [LimitWindow]) -> some View {
+        if windows.isEmpty {
+            EmptyView()
+        } else if look.usageStyle == .gauges, case let split = UsageDial.split(windows), !split.rings.isEmpty {
+            VStack(alignment: .leading, spacing: density.rowSpacing) {
+                HStack(alignment: .center, spacing: 14) {
+                    UsageDialView(tool: tool, windows: split.rings, size: density == .compact ? 72 : 84, display: prefs.usageDisplay,
+                                  showsCentre: !store.hidesFigures)
+                    VStack(alignment: .leading, spacing: density.rowSpacing) {
+                        ForEach(Array(split.rings.enumerated()), id: \.element.id) { index, window in
+                            meter(window, gauge: MeterRow.Gauge(index: index, count: split.rings.count,
+                                                                colour: UsageDial.colour(window, tool: tool, index: index)))
+                        }
+                    }
+                }
+                ForEach(split.bars) { window in meter(window) }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: density.rowSpacing) {
+                ForEach(windows) { window in meter(window) }
+            }
+        }
+    }
+
+    private func meter(_ window: LimitWindow, gauge: MeterRow.Gauge? = nil) -> MeterRow {
+        MeterRow(toolName: tool.displayName, window: window, color: tool.color, prefs: prefs,
+                 stale: status.staleReading != nil, hideFigures: store.hidesFigures,
+                 drain: store.drain(for: tool, window: window), runOut: store.runOut(for: tool, window: window),
+                 metering: tool == .claude && window.id == "five_hour" && prefs.showSpend ? store.cost?.sessionMetering : nil,
+                 gauge: gauge)
     }
 }
 
@@ -2104,21 +2142,21 @@ private struct SessionLine: View {
                 VStack(alignment: .leading, spacing: density.lineSpacing) {
                     if sessions.count > 0 {
                         Text(Self.sessionsText(sessions, now: context.date))
-                            .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                            .font(.caption).foregroundStyle(Ink.secondary).monospacedDigit()
                     }
                     if let place = Self.placeText(sessions) {
                         HStack(spacing: 5) {
-                            Text(place.text).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                            Text(place.text).font(.caption).foregroundStyle(Ink.secondary).lineLimit(1).truncationMode(.middle)
                             if let badge = place.badge {
                                 Text(badge)
                                     .font(.system(size: 9, weight: .semibold))
                                     .padding(.horizontal, 4).padding(.vertical, 1)
-                                    .background(Capsule().fill(.white.opacity(0.14)))
+                                    .background(Capsule().fill(Themed.wash(.white, 0.14)))
                                     .accessibilityLabel(L("permission mode %@", badge))
                             }
                             if let pr = place.pr {
                                 Button { store.openURL(pr) } label: { Image(systemName: "arrow.up.right.square").font(.caption2) }
-                                    .buttonStyle(.plain).foregroundStyle(.secondary)
+                                    .buttonStyle(.plain).foregroundStyle(Ink.secondary)
                                     .help(pr.absoluteString)
                                     .accessibilityLabel(L("Open the pull request"))
                             }
@@ -2126,7 +2164,9 @@ private struct SessionLine: View {
                     }
                     if let contextUsed {
                         Text(Self.contextText(contextUsed, statusline: statusline, hideFigures: store.hidesFigures))
-                            .font(.caption).foregroundStyle(contextUsed >= 0.9 ? Palette.warn : .secondary).monospacedDigit()
+                            .font(.caption)
+                            .foregroundStyle(contextUsed >= 0.9 ? AnyShapeStyle(Themed(Palette.warn, .text)) : AnyShapeStyle(Ink.secondary))
+                            .monospacedDigit()
                     }
                 }
                 .accessibilityElement(children: .combine)
@@ -2182,7 +2222,17 @@ struct MeterRow: View {
     var drain: Drain? = nil
     var runOut: RunOutInterval? = nil
     var metering: MeteringRatio? = nil
+    /// Drawn beside a dial (UsageStyle.gauges): which ring is this row's, and no bar of its own.
+    var gauge: Gauge? = nil
     @Environment(\.density) private var density
+    @Environment(\.panelLook) private var look
+
+    /// A row's place in the dial it stands beside: its ring, of how many, in the ring's colour.
+    struct Gauge {
+        let index: Int
+        let count: Int
+        let colour: Color
+    }
 
     /// The pace note, with the run-out interval's range in place of the point when the log has a wide one.
     static func paceNote(window: LimitWindow, runOut: RunOutInterval?, format: TimeFormatPreference, now: Date = Date()) -> (text: String, status: Pace.Status)? {
@@ -2206,15 +2256,21 @@ struct MeterRow: View {
             guard let median = ratio.median else { return L("%@ per 1%% of session today", today) }
             return L("%1$@ per 1%% of session today vs %2$@ 30-day median", today, Money.tokens(Int(median.rounded())))
         }
+        // The clock beside the reset, for a window measured in hours when the reader asked for one (HourClock).
+        let clock = look.hourClock ? HourClock.remaining(window) : nil
         VStack(alignment: .leading, spacing: density.lineSpacing) {
             HStack(alignment: .firstTextBaseline, spacing: 5) {
+                if let gauge {
+                    DialSwatch(index: gauge.index, count: gauge.count, colour: gauge.colour)
+                        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+                }
                 Text(window.label).font(.subheadline.weight(.semibold))
                 if let tag = window.source.tag {
                     Text(tag)
                         .font(.system(size: 9, weight: .medium))
                         .padding(.horizontal, 4).padding(.vertical, 1)
-                        .background(Capsule().fill(.white.opacity(0.12)))
-                        .foregroundStyle(.secondary)
+                        .background(Capsule().fill(Themed.wash(.white, 0.12)))
+                        .foregroundStyle(Ink.secondary)
                         .help(L("Source: %@", tag))
                 }
                 Spacer(minLength: 8)
@@ -2225,31 +2281,39 @@ struct MeterRow: View {
                         }
                         Text(pace.text).monospacedDigit()
                     }
-                    .font(.caption).foregroundStyle(pace.status.noteColor)
+                    .font(.caption).foregroundStyle(Themed(pace.status.noteColor, .text))
                 }
             }
             if let used = window.usedFraction {
-                Meter(
-                    fraction: used,
-                    tick: window.resetsAt.flatMap { resetsAt in window.periodDuration.flatMap { Pace.elapsedFraction(resetsAt: resetsAt, period: $0) } },
-                    color: pace?.status.meterColor ?? color
-                )
+                if gauge == nil {
+                    Meter(
+                        fraction: used,
+                        tick: window.resetsAt.flatMap { resetsAt in window.periodDuration.flatMap { Pace.elapsedFraction(resetsAt: resetsAt, period: $0) } },
+                        color: pace?.status.meterColor ?? color
+                    )
+                }
                 HStack {
                     if let unused {
-                        Text(unused).monospacedDigit()
+                        HStack(spacing: 4) {
+                            if let clock { ClockFace(remaining: clock) }
+                            Text(unused).monospacedDigit()
+                        }
                     } else {
                         Text(usage ?? "").monospacedDigit()
                             .help(L("Click to show %@", prefs.usageDisplay == .used ? UsageDisplay.left.title : UsageDisplay.used.title))
                             .onTapGesture { flipUsage() }
                             .accessibilityAction(named: L("Flip used and left")) { flipUsage() }
                         Spacer()
-                        Text(reset).monospacedDigit()
-                            .help(L("Click to show %@", prefs.resetDisplay == .countdown ? ResetDisplay.exact.title : ResetDisplay.countdown.title))
-                            .onTapGesture { flipReset() }
-                            .accessibilityAction(named: L("Flip countdown and exact time")) { flipReset() }
+                        HStack(spacing: 4) {
+                            if let clock { ClockFace(remaining: clock) }
+                            Text(reset).monospacedDigit()
+                                .help(L("Click to show %@", prefs.resetDisplay == .countdown ? ResetDisplay.exact.title : ResetDisplay.countdown.title))
+                                .onTapGesture { flipReset() }
+                                .accessibilityAction(named: L("Flip countdown and exact time")) { flipReset() }
+                        }
                     }
                 }
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(Ink.secondary)
                 if let detail {
                     Text(detail).modifier(Caption()).monospacedDigit()
                 }
@@ -2266,7 +2330,7 @@ struct MeterRow: View {
                     Spacer()
                     Text(reset).monospacedDigit()
                 }
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(Ink.secondary)
             }
         }
         .accessibilityElement(children: .combine)
@@ -2301,13 +2365,13 @@ struct Meter: View {
         GeometryReader { geometry in
             let width = geometry.size.width
             ZStack(alignment: .leading) {
-                Capsule().fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.28 : 0.12))
+                Capsule().fill(Themed.wash(.white, AccessibilityDisplay.shared.contrast ? 0.28 : 0.12))
                 if fraction > 0 {
-                    Capsule().fill(color).frame(width: max(6, width * CGFloat(min(1, fraction))))
+                    Capsule().fill(Themed(color)).frame(width: max(6, width * CGFloat(min(1, fraction))))
                 }
                 if let tick {
                     Rectangle()
-                        .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 1 : 0.7))
+                        .fill(Themed(.white, opacity: AccessibilityDisplay.shared.contrast ? 1 : 0.7))
                         .frame(width: 2, height: 11)
                         .offset(x: Self.tickOffset(width: width, tick: tick))
                 }
@@ -2333,7 +2397,7 @@ struct Sparkline: View {
             HStack(alignment: .bottom, spacing: spacing) {
                 ForEach(series) { day in
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(day.cost > 0 ? color : color.opacity(0.3))
+                        .fill(Themed(color, opacity: day.cost > 0 ? 1 : 0.3))
                         .frame(width: barWidth, height: max(2, geometry.size.height * CGFloat(day.cost / peak)))
                         .help(Self.tooltip(day))
                 }
@@ -2374,7 +2438,7 @@ struct DrainSparkline: View {
             HStack(alignment: .bottom, spacing: spacing) {
                 ForEach(Array(points.enumerated()), id: \.offset) { _, point in
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(point.map { $0 >= 0.95 ? Palette.danger : $0 >= 0.8 ? Palette.warn : color } ?? color.opacity(0.2))
+                        .fill(Themed(point.map { $0 >= 0.95 ? Palette.danger : $0 >= 0.8 ? Palette.warn : color } ?? color, opacity: point == nil ? 0.2 : 1))
                         .frame(width: barWidth, height: max(2, geometry.size.height * CGFloat(point ?? 0)))
                 }
             }
@@ -2402,11 +2466,11 @@ struct AddToolRow: View {
                 Text(L("Add a tool")).font(.caption)
                 Text(verbatim: hidden.map(\.displayName).joined(separator: ", "))
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Ink.tertiary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Ink.secondary)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -2456,7 +2520,7 @@ struct RefreshLine: View {
             .keyboardShortcut("r", modifiers: .command)
             .help(L("Refresh now (⌘R)"))
             .font(.caption2)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Ink.secondary)
             .accessibilityLabel(Spoken.phrase(next))
             .accessibilityAction(named: L("Refresh now")) { actions.refresh() }
         }

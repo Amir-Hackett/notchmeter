@@ -8,6 +8,8 @@ enum DemoFixtures {
     /// The Welcome tour's previews, which run inside the app rather than in a render: a suite of their own so a
     /// tour open while `--render-assets` runs from the same account cannot have its preferences emptied under it.
     static let previewSuiteName = "com.amirhackett.notchmeter.welcome-preview"
+    /// Settings › Appearance › Theme's preview, for the same reason: the tour and Settings can both be open.
+    static let themePreviewSuiteName = "com.amirhackett.notchmeter.theme-preview"
 
     /// What the hook is reporting while a picture is drawn. A tool has one ring and `ToolSignal.resolve` gives a
     /// wait the better claim on it, so the two states cannot both be true of Claude Code at one instant and no

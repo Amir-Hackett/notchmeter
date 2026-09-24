@@ -180,6 +180,12 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
     var urgency: SimpleUrgency = .calm
     /// The row asks something of the reader: the calm wash and the bar down its leading edge (SessionsCard's).
     var needsYou = false
+    /// Under Gauges (UsageStyle), the assistant's windows as a small dial before the figure: the same rings, in the
+    /// same order, as the card's dial and the nest beside the notch. The figure stays beside it; the dial is a
+    /// picture of all the windows, the figure the one that matters most.
+    var dial: (tool: ToolID, windows: [LimitWindow])? = nil
+    /// The time left before the figure's window resets, as the hour clock draws it (HourClock), beside the caption.
+    var clock: Double? = nil
     /// What VoiceOver reads after the title, in words rather than the drawn abbreviations.
     var spoken: String? = nil
     let open: Bool
@@ -191,6 +197,8 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
     /// Where a row's title starts, from the row's own edge: the glyph's column and the gap after it. The line under
     /// the title starts here too.
     static var textInset: CGFloat { 26 }
+    /// The small dial's size: about the title's own line, so the dial sits in the row rather than stretching it.
+    static var dialSize: CGFloat { 20 }
 
     var body: some View {
         let contrast = AccessibilityDisplay.shared.contrast
@@ -204,7 +212,14 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                         Text(title).font(.body.weight(.semibold)).lineLimit(1)
                         Spacer(minLength: 8)
                         if let caption {
-                            Text(caption).font(.caption).foregroundStyle(Caption.style).lineLimit(1).fixedSize()
+                            HStack(spacing: 4) {
+                                if let clock { ClockFace(remaining: clock) }
+                                Text(caption).font(.caption).foregroundStyle(Caption.style).lineLimit(1).fixedSize()
+                            }
+                        }
+                        if let dial, !dial.windows.isEmpty {
+                            UsageDialView(tool: dial.tool, windows: dial.windows, size: Self.dialSize, showsCentre: false)
+                                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
                         }
                         if let figure {
                             HStack(spacing: 3) {
@@ -213,7 +228,7 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                                 }
                                 Text(figure).font(.body.weight(.bold)).monospacedDigit()
                             }
-                            .foregroundStyle(urgency.color.map(AnyShapeStyle.init) ?? AnyShapeStyle(.primary))
+                            .foregroundStyle(urgency.color.map { AnyShapeStyle(Themed($0, .text)) } ?? AnyShapeStyle(Ink.primary))
                             .fixedSize()
                         }
                         Image(systemName: "chevron.right")
@@ -230,14 +245,14 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             if let symbol = line.symbol {
                                 Image(systemName: symbol).font(.caption2.weight(.semibold))
-                                    .foregroundStyle(line.symbolColor.map(AnyShapeStyle.init) ?? line.color.map(AnyShapeStyle.init) ?? AnyShapeStyle(Caption.style))
+                                    .foregroundStyle((line.symbolColor ?? line.color).map { AnyShapeStyle(Themed($0)) } ?? AnyShapeStyle(Caption.style))
                             }
                             // A non-breaking hyphen keeps "30-day" whole when the line wraps, as on the Cost card.
                             Text(line.text.keepingHyphensWhole)
                                 .monospacedDigit().fixedSize(horizontal: false, vertical: true)
                         }
                         .font(.caption)
-                        .foregroundStyle(line.color.map(AnyShapeStyle.init) ?? AnyShapeStyle(Caption.style))
+                        .foregroundStyle(line.color.map { AnyShapeStyle(Themed($0, .text)) } ?? AnyShapeStyle(Caption.style))
                         .padding(.leading, Self.textInset)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -250,9 +265,9 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
             .background {
                 if needsYou {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Palette.calm.opacity(contrast ? 0.32 : 0.15))
+                        .fill(Themed.wash(Palette.calm, contrast ? 0.32 : 0.15))
                         .overlay(alignment: .leading) {
-                            Rectangle().fill(contrast ? .white : Palette.calm).frame(width: 3)
+                            Rectangle().fill(Themed(contrast ? .white : Palette.calm)).frame(width: 3)
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
@@ -299,6 +314,7 @@ struct SimpleToolRow: View {
     let prefs: Preferences
     let actions: NotchActions
     let advice: [Advice]
+    @Environment(\.panelLook) private var look
 
     private var key: String { AdvicePlacement.Slot.tool(tool).key }
 
@@ -313,10 +329,13 @@ struct SimpleToolRow: View {
         SimpleRow(title: tool.displayName, line: line, figure: text?.figure, caption: text?.caption,
                   urgency: store.hidesFigures ? .calm : urgency,
                   needsYou: Self.needsYou(status: status, advice: advice),
+                  dial: look.usageStyle == .gauges ? status.reading.map { (tool, UsageDial.split(prefs.panelWindows(of: $0)).rings) } : nil,
+                  // Only beside a caption: a clock with no window named beside it would be a clock of nothing.
+                  clock: look.hourClock && text != nil ? window.flatMap { HourClock.remaining($0) } : nil,
                   spoken: Spoken.line(window.flatMap { w in prefs.usageLine(for: w).map { "\(w.label) \($0)" } }.flatMap { store.hidesFigures ? nil : $0 },
                                       line.map { Spoken.phrase($0.text) }),
                   open: open, toggle: { NotchExpandedView.toggleRow(key, store: store) }) {
-            Image(systemName: tool.symbolName).foregroundStyle(tool.color)
+            Image(systemName: tool.symbolName).foregroundStyle(Themed(tool.color))
         } detail: {
             VStack(alignment: .leading, spacing: 8) {
                 ToolCard(tool: tool, status: status, store: store, prefs: prefs, actions: actions, embedded: true)
@@ -415,7 +434,7 @@ struct SimpleNotesRow: View {
                   spoken: Spoken.line("\(advice.count)", open ? nil : advice.map { Spoken.phrase($0.text) }.joined(separator: " ")),
                   open: open, toggle: { NotchExpandedView.toggleRow(Self.key, store: store) }) {
             Image(systemName: advice.first?.symbol ?? "lightbulb")
-                .foregroundStyle(top == .info ? AnyShapeStyle(Caption.style) : AnyShapeStyle(top.color))
+                .foregroundStyle(top == .info ? AnyShapeStyle(Caption.style) : AnyShapeStyle(Themed(top.color)))
         } detail: {
             AdviceLines(advice: advice, open: actions.open)
         }
@@ -453,7 +472,7 @@ struct SimpleDivider: View {
 
     var body: some View {
         Rectangle()
-            .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.3 : 0.12))
+            .fill(Themed.wash(.white, AccessibilityDisplay.shared.contrast ? 0.3 : 0.12))
             .frame(height: 1)
             .padding(.horizontal, density.cardPadding)
             .accessibilityHidden(true)

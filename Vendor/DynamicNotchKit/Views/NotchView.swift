@@ -57,9 +57,32 @@ struct NotchView<Expanded, CompactLeading, CompactTrailing>: View where Expanded
         notchContent()
             .background {
                 ZStack(alignment: .top) {
-                    Rectangle()
-                        .foregroundStyle(.black)
-                        .padding(-50) // The opening/closing animation can overshoot, so this makes sure that it's still black
+                    if let tint = dynamicNotch.expandedTint {
+                        // Notchmeter: a translucent panel. The blur and its tint under everything; the body's black
+                        // over them fades out as the panel opens (and back in, quicker, as it closes), so the compact
+                        // strip is never translucent; the band the hardware notch sits in stays black throughout.
+                        ZStack {
+                            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow, appearance: NSAppearance(named: .darkAqua))
+                            Rectangle().foregroundStyle(.black.opacity(tint))
+                        }
+                        .padding(-50)
+                        Rectangle()
+                            .foregroundStyle(.black)
+                            .opacity(dynamicNotch.state == .expanded ? 0 : 1)
+                            .padding(-50)
+                            .animation(dynamicNotch.reduceMotion ? nil
+                                       : dynamicNotch.state == .expanded ? .easeOut(duration: 0.22) : .easeIn(duration: 0.15),
+                                       value: dynamicNotch.state)
+                        Rectangle()
+                            .foregroundStyle(.black)
+                            .frame(height: dynamicNotch.notchSize.height + 50)
+                            .padding(.horizontal, -50)
+                            .offset(y: -50)
+                    } else {
+                        Rectangle()
+                            .foregroundStyle(.black)
+                            .padding(-50) // The opening/closing animation can overshoot, so this makes sure that it's still black
+                    }
                     // Notchmeter: Liquid Glass under the expanded content only; the strip beside the notch stays black.
                     if dynamicNotch.expandedGlass, dynamicNotch.state == .expanded {
                         GlassBackdrop()

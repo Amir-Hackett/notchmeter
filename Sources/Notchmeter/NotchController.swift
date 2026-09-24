@@ -578,6 +578,11 @@ final class NotchController: NSObject, PanelPresenting {
         // The notch panel stays black so it reads as one shape with the hardware notch: a glass backdrop
         // over black renders as pale grey and breaks that join. Glass belongs to the edge layouts.
         notch.expandedGlass = false
+        // A translucent material (Settings › Appearance › Theme) is a blur with the black laid over it below the
+        // notch's band, which stays black; Paper's sheet is drawn by the panel itself inside the black.
+        let look = PanelLook.current(prefs, edgeCard: false)
+        let tint: Double? = look.theme == .black && look.material.translucent ? look.material.tint : nil
+        if notch.expandedTint != tint { notch.expandedTint = tint }
     }
 
     func toggle(cause: PanelCause) {
@@ -808,7 +813,8 @@ final class NotchController: NSObject, PanelPresenting {
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
                  prefs.monthlyBudgetUSD, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal, store.hooksInstalled,
                  store.openSessionLists, store.peek, store.glowNews, prefs.notchNews, prefs.notchGlow, prefs.ringSymbols,
-                 prefs.autoCompactRoom, store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows)
+                 prefs.autoCompactRoom, store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial,
+                 prefs.panelAccent, prefs.usageStyle, prefs.hourClock)
             refreshRegions()
             refreshGlow()
             hover.dwell = prefs.hoverDelay

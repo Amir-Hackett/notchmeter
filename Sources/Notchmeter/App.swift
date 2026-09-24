@@ -966,7 +966,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// (`UsageStore.spendRange`), so the copy shows the range on screen; until 0.6.0 the card kept its range as
     /// `@State` and this fresh panel pasted Today's figure under a 90d reading.
     private func copyPanelImage() {
-        CardImage.copy(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000), width: prefs.panelWidth.points + 24)
+        let edgeCard = presenter is EdgePanelController
+        CardImage.copy(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000, edgeCard: edgeCard),
+                       width: prefs.panelWidth.points + 24, look: PanelLook.current(prefs, edgeCard: edgeCard), wholePanel: true)
     }
 
     private func installCommandLineTool() {
@@ -1035,6 +1037,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "captured": store.screenCaptured,
             "presenters": presenters.map(\.screen.localizedName),
             "keepingAwake": store.keepingAwake,
+            "panelTheme": prefs.panelTheme.rawValue, "panelMaterial": prefs.panelMaterial?.rawValue as Any,
+            "panelAccent": prefs.panelAccent.rawValue, "usageStyle": prefs.usageStyle.rawValue, "hourClock": prefs.hourClock,
+            // What the panel is actually drawn in: the choices after the layout's default material and the
+            // accessibility settings that force a solid panel (PanelLook.resolve).
+            "look": PanelLook.current(prefs, edgeCard: presenter is EdgePanelController).oracleFields,
         ]
         if let presenter {
             fields["panelState"] = presenter.hover.state.rawValue
@@ -1124,6 +1131,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("main menu: \(MainMenu.describe())")
         Probe.emit("readouts: \(autoSide.description)")
         Probe.emit("full screen: \(FullScreen.describe(on: .panelScreen))")
+        // The look the panel is drawn in (Settings › Appearance › Theme) after the layout's default material and
+        // the accessibility settings, and its weakest pairing by the contrast rules (PanelLook.audit).
+        let look = PanelLook.current(prefs, edgeCard: presenter is EdgePanelController)
+        let findings = look.audit()
+        Probe.emit("theme: \(look.summary) (material \(prefs.panelMaterial?.rawValue ?? "unchosen")); weakest text "
+                   + String(format: "%.2f:1, weakest mark %.2f:1; ", look.weakest.text, look.weakest.mark)
+                   + (findings.isEmpty ? "every pairing passes" : "SHORT: \(findings.map(\.description).joined(separator: "; "))"))
         Probe.emit("copy (\(Localization.current)): \(L("Session")) · \(L("Weekly")) · \(L("%@ Settings", AppInfo.name)) · "
                    + "\(L("Resets in %@", ResetText.duration(4 * 3600 + 17 * 60))) · \(L("Open at login"))")
         let settingsPassed = await smokeSettings()

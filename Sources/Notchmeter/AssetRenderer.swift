@@ -71,6 +71,7 @@ enum AssetRenderer {
             let opened = try Stage(store: store, prefs: prefs, actions: actions)
             try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-open.png"))
             store.openPanelRows = []
+            try themes(into: directory, now: now, actions: actions)
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
             AccessibilityDisplay.shared.force(contrast: true)
             defer { AccessibilityDisplay.shared.force(contrast: nil) }
@@ -300,6 +301,86 @@ enum AssetRenderer {
         }
     }
 
+    // MARK: - Themes
+
+    /// Settings › Appearance › Theme, drawn for review (the README uses none of them): Paper on the Simple panel,
+    /// with two rows open, on the Detailed panel, with the dials, in an edge layout's card and under Increase
+    /// Contrast; the two translucent materials over a desktop that runs from colour into a white window, the worst
+    /// backdrop they are chosen against; each of the two other accents; the dials with the hour clock on the
+    /// Simple and Detailed panels; and Settings' Theme section with a look chosen, its preview drawing that look.
+    /// Each is the demo afternoon in its own store, so one look never leaks into the
+    /// next, and each file is followed by a `contrast` line: the look's weakest text and mark against the grounds
+    /// the rules measure (PanelLook.audit, which fails the build's tests if any pairing is short), and for a
+    /// translucent material the colour actually drawn over the white window beside the colour the rules assume.
+    @MainActor
+    static func themes(into directory: URL, now: Date, actions: NotchActions) throws {
+        let claude = AdvicePlacement.Slot.tool(.claude).key
+        let cost = AdvicePlacement.Slot.cost.key
+        let renders: [(name: String, wallpaper: Wallpaper, configure: (UsageStore, Preferences) -> Void)] = [
+            ("theme-paper", .dark, { _, prefs in prefs.panelTheme = .paper }),
+            ("theme-paper-open", .dark, { store, prefs in prefs.panelTheme = .paper; store.openPanelRows = [claude, cost] }),
+            ("theme-paper-detailed", .dark, { _, prefs in prefs.panelTheme = .paper; prefs.panelMode = .detailed }),
+            ("theme-paper-gauges", .dark, { _, prefs in
+                prefs.panelTheme = .paper; prefs.panelMode = .detailed; prefs.usageStyle = .gauges; prefs.hourClock = true }),
+            ("theme-glassy", .desktop, { _, prefs in prefs.panelMaterial = .glassy }),
+            ("theme-smoked", .desktop, { _, prefs in prefs.panelMaterial = .smoked }),
+            ("theme-solid", .desktop, { _, prefs in prefs.panelMaterial = .solid }),
+            ("theme-accent-teal", .dark, { store, prefs in prefs.panelAccent = .teal; store.openPanelRows = [cost] }),
+            ("theme-accent-lilac", .dark, { store, prefs in prefs.panelAccent = .lilac; store.openPanelRows = [cost] }),
+            ("usage-gauges", .dark, { _, prefs in prefs.panelMode = .detailed; prefs.usageStyle = .gauges; prefs.hourClock = true }),
+            ("usage-gauges-simple", .dark, { store, prefs in prefs.usageStyle = .gauges; prefs.hourClock = true; store.openPanelRows = [claude] }),
+            ("usage-clock", .dark, { store, prefs in prefs.hourClock = true; store.openPanelRows = [claude] }),
+        ]
+        for render in renders {
+            let (store, prefs) = DemoFixtures.store(now: now)
+            render.configure(store, prefs)
+            let stage = try Stage(store: store, prefs: prefs, actions: actions, wallpaper: render.wallpaper)
+            let image = try stage.image(.expanded, canvas: stage.panelCanvas, pixelScale: scale)
+            try write(image, png: directory.appendingPathComponent("\(render.name).png"))
+            reportContrast(render.name, look: PanelLook.current(prefs, edgeCard: false), stage: stage, image: image)
+        }
+        // The Theme section itself with a look chosen, so its live preview is seen drawing something other than
+        // the default: Paper, the teal accent, the dials and the clock.
+        let (themedStore, themedPrefs) = DemoFixtures.store(now: now)
+        themedPrefs.panelTheme = .paper
+        themedPrefs.panelAccent = .teal
+        themedPrefs.usageStyle = .gauges
+        themedPrefs.hourClock = true
+        try write(settings(pane: .appearance, store: themedStore, prefs: themedPrefs, actions: actions),
+                  png: directory.appendingPathComponent("settings-theme.png"))
+        // Paper in an edge layout's card: the sheet in a frame of the card's black on every side.
+        let (edgeStore, edgePrefs) = DemoFixtures.store(now: now)
+        edgePrefs.panelTheme = .paper
+        let edgeStage = try Stage(store: edgeStore, prefs: edgePrefs, actions: actions)
+        try write(edgeNotchWithPanel(panel: edgeStage.content, store: edgeStore, sideFrame: EdgePanelCard.paperFrame),
+                  png: directory.appendingPathComponent("theme-paper-edge.png"))
+        // Paper under Increase Contrast: the washes, the tracks and the captions raised, the colours darkened to match.
+        AccessibilityDisplay.shared.force(contrast: true)
+        defer { AccessibilityDisplay.shared.force(contrast: nil) }
+        let (store, prefs) = DemoFixtures.store(now: now)
+        prefs.panelTheme = .paper
+        store.openPanelRows = [claude, cost]
+        let stage = try Stage(store: store, prefs: prefs, actions: actions)
+        let image = try stage.image(.expanded, canvas: stage.panelCanvas, pixelScale: scale)
+        try write(image, png: directory.appendingPathComponent("theme-paper-contrast.png"))
+        reportContrast("theme-paper-contrast", look: PanelLook.current(prefs, edgeCard: false), stage: stage, image: image)
+    }
+
+    /// One `contrast` line: the look, its weakest pairings, whether the audit found anything short, and on a
+    /// translucent panel the ground drawn over the white window against the ground the rules assume there.
+    @MainActor
+    private static func reportContrast(_ name: String, look: PanelLook, stage: Stage, image: CGImage) {
+        let weakest = look.weakest
+        let findings = look.audit()
+        var line = "contrast \(name): \(look.summary); weakest text \(String(format: "%.2f", weakest.text)):1, "
+            + "weakest mark \(String(format: "%.2f", weakest.mark)):1; "
+            + (findings.isEmpty ? "every pairing passes" : "SHORT: \(findings.map(\.description).joined(separator: "; "))")
+        if look.theme == .black, look.material.translucent, let drawn = stage.groundOverWhite(in: image) {
+            line += "; drawn over white \(drawn), assumed \(look.sheet)"
+        }
+        Probe.emit(line)
+    }
+
     // MARK: - Pictures
 
     /// The left-hand side notch on a strip of desktop, as it looks before Liquid Glass: the glass material samples
@@ -336,12 +417,13 @@ enum AssetRenderer {
     /// is the same arithmetic `EdgePanelController.arrangement` does, so the picture cannot promise a spacing the
     /// app does not lay out.
     @MainActor
-    static func edgeNotchWithPanel(panel: Snapshot, store: UsageStore) throws -> CGImage {
+    static func edgeNotchWithPanel(panel: Snapshot, store: UsageStore, sideFrame: CGFloat = 0) throws -> CGImage {
         let rings = try snapshot(EdgeCompactView(store: store, edge: .right), what: "the edge rings")
         let run = rings.size.height + 2 * SideNotchShape.flareCap
-        // EdgePanelCard: the panel's own content padded 6 pt top and bottom inside a 22 pt rounded rectangle, then
-        // 4 pt of window slack outside it, which shows as desktop between the card and the notch.
-        let card = CGSize(width: panel.size.width, height: panel.size.height + 12)
+        // EdgePanelCard: the panel's own content padded 6 pt top and bottom inside a 22 pt rounded rectangle (and
+        // `sideFrame` at the sides, which Paper takes), then 4 pt of window slack outside it, which shows as desktop
+        // between the card and the notch.
+        let card = CGSize(width: panel.size.width + 2 * sideFrame, height: panel.size.height + 12)
         let gap = EdgePanelController.besideGap + 4
         let desktop: CGFloat = 40
         let margin: CGFloat = 28
@@ -361,7 +443,7 @@ enum AssetRenderer {
             ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.12))
             ctx.setLineWidth(1)
             ctx.strokePath()
-            draw(panel.image, in: CGRect(x: cardRect.minX, y: cardRect.minY + 6, width: panel.size.width, height: panel.size.height), alpha: 1, into: ctx)
+            draw(panel.image, in: CGRect(x: cardRect.minX + sideFrame, y: cardRect.minY + 6, width: panel.size.width, height: panel.size.height), alpha: 1, into: ctx)
             drawSideNotch(rings, edge: .right, in: CGRect(x: canvas.width - rings.size.width, y: (canvas.height - run) / 2,
                                                           width: rings.size.width, height: run), into: ctx)
         }
@@ -766,9 +848,19 @@ enum AssetRenderer {
         /// The light under the collapsed shape (NotchGlow), when the stage was asked to draw it and there is one.
         /// Off for the README's pictures, which are of the readouts and not of a moment's news.
         let glow: Snapshot?
+        /// What the panel is drawn over.
+        var wallpaper: Wallpaper = .dark
+        /// The black laid over the desktop under a translucent panel (PanelMaterial.tint), as the notch window lays
+        /// it over its blur; nil for the opaque black the panel has always been. An off-screen bitmap has nothing
+        /// behind it to blur, so the tint is drawn straight over the painted desktop — which is the case the
+        /// contrast rules count on anyway.
+        var tint: Double?
 
         @MainActor
-        init(store: UsageStore, prefs: Preferences, actions: NotchActions, drawsGlow: Bool = false) throws {
+        init(store: UsageStore, prefs: Preferences, actions: NotchActions, drawsGlow: Bool = false, wallpaper: Wallpaper = .dark) throws {
+            self.wallpaper = wallpaper
+            let look = PanelLook.current(prefs, edgeCard: false)
+            tint = look.theme == .black && look.material.translucent ? look.material.tint : nil
             content = try snapshot(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000), what: "the panel")
             leading = try snapshot(NotchCompactView(store: store, side: .leading), what: "the leading rings")
             trailing = try snapshot(NotchCompactView(store: store, side: .trailing), what: "the trailing rings")
@@ -838,9 +930,29 @@ enum AssetRenderer {
             return frames
         }
 
+        /// The panel's ground as drawn at the right-hand end of its bottom margin, over the white half of the
+        /// desktop, read back out of the finished picture: the colour a translucent material actually comes to over a
+        /// white window, for the renderer's `contrast` line. Nil where the spot is not on the panel.
+        func groundOverWhite(in image: CGImage) -> String? {
+            let canvas = panelCanvas
+            let point = CGPoint(x: canvas.width / 2 + panelSize.width / 2 - expandedRadii.top - panelInset / 2, y: panelSize.height - panelInset / 2 - 4)
+            let x = Int(point.x * CGFloat(image.width) / canvas.width), y = Int(point.y * CGFloat(image.height) / canvas.height)
+            guard x >= 0, y >= 0, x < image.width, y < image.height, let cropped = image.cropping(to: CGRect(x: x, y: y, width: 1, height: 1)) else { return nil }
+            var pixel = [UInt8](repeating: 0, count: 4)
+            guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+                  let ctx = CGContext(data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: space,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            else { return nil }
+            ctx.draw(cropped, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+            return RGB(red: Double(pixel[0]) / 255, green: Double(pixel[1]) / 255, blue: Double(pixel[2]) / 255).description
+        }
+
         private func paint(_ pose: Pose, in ctx: CGContext, canvas: CGSize, pixelScale: CGFloat) {
             let centerX = canvas.width / 2
-            wallpaper(in: ctx, canvas: canvas)
+            switch wallpaper {
+            case .dark: AssetRenderer.wallpaper(in: ctx, canvas: canvas)
+            case .desktop: AssetRenderer.desktop(in: ctx, canvas: canvas)
+            }
             ctx.setFillColor(CGColor(srgbRed: 0.10, green: 0.11, blue: 0.13, alpha: 1))
             ctx.fill(CGRect(x: 0, y: 0, width: canvas.width, height: notch.height))
             ctx.setFillColor(CGColor(gray: 1, alpha: 0.06))
@@ -863,12 +975,18 @@ enum AssetRenderer {
             let lift = min(1, max(0, pose.shape))
             ctx.setShadow(offset: CGSize(width: 0, height: -10 * pixelScale * lift), blur: 36 * pixelScale * lift, color: CGColor(gray: 0, alpha: 0.55 * lift))
             ctx.addPath(shape)
+            if let tint { ctx.setFillColor(CGColor(gray: 0, alpha: tint)) }
             ctx.fillPath()
             ctx.restoreGState()
 
             ctx.saveGState()
             ctx.addPath(shape)
             ctx.clip()
+            if tint != nil {
+                // The band the hardware notch sits in stays black, as the notch window draws it (NotchView).
+                ctx.setFillColor(CGColor(gray: 0, alpha: 1))
+                ctx.fill(CGRect(x: 0, y: 0, width: canvas.width, height: notch.height))
+            }
             if pose.contentAlpha > 0 {
                 let rect = CGRect(x: centerX - content.size.width / 2, y: notch.height, width: content.size.width, height: content.size.height * pose.contentScaleY)
                 draw(content.image, in: rect, alpha: pose.contentAlpha, into: ctx)
@@ -976,6 +1094,25 @@ enum AssetRenderer {
         body(ctx)
         guard let image = ctx.makeImage() else { throw Failure.snapshot("a \(Int(canvas.width))×\(Int(canvas.height)) canvas") }
         return image
+    }
+
+    /// What a stage is drawn over: the README's flat dark tone, or a desktop running from a wallpaper's colour into
+    /// a white window, for the translucent materials.
+    enum Wallpaper {
+        case dark
+        case desktop
+    }
+
+    /// A wallpaper's colour on the left running into a white window on the right, which the open panel straddles:
+    /// what a translucent material lets through on one side, and on the other the worst backdrop it is judged against.
+    static func desktop(in ctx: CGContext, canvas: CGSize) {
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let gradient = CGGradient(colorsSpace: space, colors: [CGColor(srgbRed: 0.86, green: 0.42, blue: 0.28, alpha: 1),
+                                                                    CGColor(srgbRed: 0.18, green: 0.5, blue: 0.72, alpha: 1),
+                                                                    CGColor(gray: 1, alpha: 1), CGColor(gray: 1, alpha: 1)] as CFArray,
+                                        locations: [0, 0.38, 0.52, 1])
+        else { return wallpaper(in: ctx, canvas: canvas) }
+        ctx.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: canvas.width, y: 0), options: [])
     }
 
     /// One flat tone: a gradient bands once the GIF is down to 256 colours.

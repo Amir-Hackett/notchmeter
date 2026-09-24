@@ -676,7 +676,6 @@
 "The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one." = "A última janela que uma ferramenta mostra fica no cartão: sem ela, os anéis e a barra de menus não teriam o que desenhar. Mostre outra janela antes de ocultar esta.";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "O item de início aponta para uma cópia do app que foi movida. Desative e ative de novo.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "O painel segue o cursor: ele passa para a tela em que o cursor ficou parado por meio segundo.";
-"The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "O conteúdo do painel é branco sobre preto seja qual for a escolha, e o mesmo vale para um notch recortado numa borda lateral: os dois precisam parecer parte da tela, e não algo colocado por cima dela. Limitação conhecida: no macOS 26 o vidro atrás do painel numa borda segue a escolha, então Claro ali põe o texto branco sobre vidro claro.";
 "The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "O anel assume o azul que significa \"precisa de você\" em vez de \"esgotando\" enquanto um assistente espera sua permissão ou acabou de terminar um turno, e uma marca ao lado diz qual dos dois. O ritmo mantém a ponta no fim do arco, então uma janela quase esgotada ainda avisa. Todo hook informa um turno concluído; os do Claude Code, Codex, Gemini CLI e Copilot informam uma espera, o do Cursor não.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Os anéis encolhem para um ponto quando nenhum assistente fica ativo por 30 minutos e todas as janelas estão calmas; um evento de hook, atividade em arquivos, uma mudança de ritmo ou o cursor parado sobre eles os traz de volta.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "A sessão está consumindo cerca de %1$@ mais que o normal: %2$@ por 1%% vs. %3$@.";
@@ -919,3 +918,30 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Traz para a frente a janela do Cursor deste projeto (não dá para pedir ao Cursor que abra um chat específico)";
 "First seen %@" = "Visto pela primeira vez às %@";
+
+/* Theming: the panel's colour, material, accent, usage style and hour clock (PanelTheme, UsageGauge, ThemePreview, SettingsWindow) */
+"Theme" = "Tema";
+"Black" = "Preto";
+"Paper" = "Papel";
+"Material" = "Material";
+"Glassy" = "Vidro";
+"Smoked" = "Fumê";
+"Solid" = "Sólido";
+"Accent" = "Cor de destaque";
+"Terracotta" = "Terracota";
+"Teal" = "Verde-azulado";
+"Lilac" = "Lilás";
+"Usage style" = "Estilo de uso";
+"Gauges" = "Mostradores";
+"Draw hour limits on a clock" = "Desenhar limites de horas num relógio";
+"Preview of the open panel" = "Prévia do painel aberto";
+"Paper is the panel inverted: the notch's black stays round it, and the sheet inside is light, with the figures printed on it rather than lit." = "Papel é o painel invertido: o preto do notch fica em volta, e a folha dentro é clara, com os números impressos nela em vez de acesos.";
+"How much of the desktop shows through the open panel, blurred. Glassy and Smoked keep a black tint strong enough that every line still reads over a white window; the band the notch sits in stays black." = "Quanto da mesa aparece, desfocada, através do painel aberto. Vidro e Fumê mantêm uma camada preta forte o bastante para que cada linha continue legível sobre uma janela branca; a faixa onde fica o notch continua preta.";
+"Paper is always solid: dark figures on a sheet the desktop shows through would lose their contrast over a dark window." = "Papel é sempre sólido: números escuros numa folha que deixa a mesa aparecer perderiam o contraste sobre uma janela escura.";
+"Solid while Reduce Transparency or Increase Contrast is on, as macOS draws its own panels." = "Sólido enquanto Reduzir transparência ou Aumentar contraste estiver ativado, como o macOS desenha os próprios painéis.";
+"The app's own colour on the panel: the chosen range on the Cost card, a session waiting for your answer, Clear. Each reads on the panel in every theme and stays apart from the warning colours for colour-blind eyes." = "A cor própria do app no painel: o período escolhido no cartão Custo, uma sessão esperando sua resposta, Limpar. Cada uma é legível no painel em qualquer tema e se distingue das cores de alerta também para olhos daltônicos.";
+"Bars draws a meter for each window. Gauges draws an assistant's windows as rings nested in one dial, outermost first, the way the rings beside the notch are; a window past the third keeps its meter, and every line under a window stays." = "Barras desenha um medidor para cada janela. Mostradores desenha as janelas de um assistente como anéis aninhados num só mostrador, o mais externo primeiro, como os anéis ao lado do notch; uma janela além da terceira mantém o medidor, e cada linha sob uma janela continua.";
+"A window measured in hours, such as the five-hour session, gets a small clock beside its reset: the filled part is the time left before it resets, and a full clock is a window that has not started. Longer windows keep their words." = "Uma janela medida em horas, como a sessão de cinco horas, ganha um pequeno relógio ao lado da renovação: a parte preenchida é o tempo que falta até renovar, e um relógio cheio é uma janela que ainda não começou. Janelas mais longas mantêm as palavras.";
+"Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1." = "Cada linha do painel alcança contraste de 4,5:1 ou mais no tema escolhido, e cada marca, 3:1.";
+"Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window." = "Cada linha do painel alcança contraste de 4,5:1 ou mais no tema escolhido, e cada marca, 3:1, mesmo sobre uma janela branca.";
+"The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it." = "A janela de Ajustes e a pílula de um layout de borda seguem esta escolha. O painel aberto segue Tema, acima, seja qual for a escolha aqui, e um notch recortado numa borda lateral é sempre escuro: precisa parecer parte da tela, e não algo colocado por cima dela.";

@@ -676,7 +676,6 @@
 "The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one." = "Последнее окно, которое показывает инструмент, остаётся на карточке: без него кольцам и строке меню нечего рисовать. Покажите другое окно, прежде чем скрывать это.";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "Объект входа указывает на перемещённую копию приложения. Выключите и снова включите его.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "Панель следует за указателем: она переходит на дисплей, где указатель задержался на полсекунды.";
-"The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "Содержимое панели — белое на чёрном при любом выборе, как и вырез в боковом краю: оба должны выглядеть частью экрана, а не чем-то поверх него. Известное ограничение: в macOS 26 стекло за панелью на краю следует выбору, поэтому при «Светлом» белый текст оказывается на светлом стекле.";
 "The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "Кольцо окрашивается в синий — цвет «нужны вы», а не «лимит заканчивается», — пока ассистент ждёт вашего разрешения или только что завершил ход, а значок рядом показывает, что именно. Темп сохраняет отметку на конце дуги, поэтому почти исчерпанное окно всё равно это показывает. Каждый хук сообщает о завершённом ходе; хуки Claude Code, Codex, Gemini CLI и Copilot сообщают и об ожидании, хук Cursor — нет.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "Кольца сжимаются в точку, когда ни один ассистент не активен 30 минут и все окна спокойны; событие хука, активность файлов, изменение темпа или указатель, задержавшийся на них, возвращают их.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "Сессия расходует лимит интенсивнее обычного (примерно %1$@): %2$@ за 1%% против %3$@.";
@@ -919,3 +918,30 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Выводит на передний план окно Cursor с этим проектом (Cursor нельзя попросить открыть конкретный чат)";
 "First seen %@" = "Впервые замечен в %@";
+
+/* Theming: the panel's colour, material, accent, usage style and hour clock (PanelTheme, UsageGauge, ThemePreview, SettingsWindow) */
+"Theme" = "Тема";
+"Black" = "Чёрный";
+"Paper" = "Бумага";
+"Material" = "Материал";
+"Glassy" = "Стеклянный";
+"Smoked" = "Дымчатый";
+"Solid" = "Сплошной";
+"Accent" = "Акцент";
+"Terracotta" = "Терракотовый";
+"Teal" = "Бирюзовый";
+"Lilac" = "Сиреневый";
+"Usage style" = "Вид использования";
+"Gauges" = "Циферблаты";
+"Draw hour limits on a clock" = "Показывать часовые лимиты на циферблате";
+"Preview of the open panel" = "Предпросмотр открытой панели";
+"Paper is the panel inverted: the notch's black stays round it, and the sheet inside is light, with the figures printed on it rather than lit." = "Бумага — это панель наоборот: чёрный цвет выреза остаётся рамкой вокруг, а лист внутри светлый, и цифры на нём напечатаны, а не светятся.";
+"How much of the desktop shows through the open panel, blurred. Glassy and Smoked keep a black tint strong enough that every line still reads over a white window; the band the notch sits in stays black." = "Сколько рабочего стола видно сквозь открытую панель, в размытии. Стеклянный и Дымчатый сохраняют чёрный оттенок, достаточно плотный, чтобы каждая строка читалась даже поверх белого окна; полоса, в которой находится вырез, остаётся чёрной.";
+"Paper is always solid: dark figures on a sheet the desktop shows through would lose their contrast over a dark window." = "Бумага всегда сплошная: тёмные цифры на листе, сквозь который виден рабочий стол, потеряли бы контраст над тёмным окном.";
+"Solid while Reduce Transparency or Increase Contrast is on, as macOS draws its own panels." = "Сплошной, пока включено «Уменьшить прозрачность» или «Увеличить контраст», — так macOS рисует и свои панели.";
+"The app's own colour on the panel: the chosen range on the Cost card, a session waiting for your answer, Clear. Each reads on the panel in every theme and stays apart from the warning colours for colour-blind eyes." = "Собственный цвет приложения на панели: выбранный период на карточке «Стоимость», сессия, ждущая вашего ответа, «Очистить». Каждый читается на панели в любой теме и отличается от предупреждающих цветов и при нарушениях цветового зрения.";
+"Bars draws a meter for each window. Gauges draws an assistant's windows as rings nested in one dial, outermost first, the way the rings beside the notch are; a window past the third keeps its meter, and every line under a window stays." = "«Полосы» рисуют шкалу для каждого окна. «Циферблаты» рисуют окна ассистента кольцами, вложенными в один циферблат, начиная с внешнего, как кольца рядом с вырезом; окно после третьего сохраняет свою шкалу, и каждая строка под окном остаётся.";
+"A window measured in hours, such as the five-hour session, gets a small clock beside its reset: the filled part is the time left before it resets, and a full clock is a window that has not started. Longer windows keep their words." = "Окно, измеряемое в часах, например пятичасовая сессия, получает маленькие часы рядом со сбросом: закрашенная часть — время до сброса, а полностью закрашенные часы — окно, которое ещё не началось. Более длинные окна остаются словами.";
+"Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1." = "Каждая строка на панели имеет контраст 4,5:1 или выше в выбранной теме, а каждая отметка — 3:1.";
+"Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window." = "Каждая строка на панели имеет контраст 4,5:1 или выше в выбранной теме, а каждая отметка — 3:1, даже поверх белого окна.";
+"The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it." = "Окно настроек и капсула раскладки у края следуют этому выбору. Открытая панель следует «Теме» выше, что бы вы здесь ни выбрали, а вырез в боковом краю всегда тёмный: он должен выглядеть частью экрана, а не чем-то поверх него.";

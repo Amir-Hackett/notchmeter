@@ -676,7 +676,6 @@
 "The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one." = "The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one.";
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "The login item points at a copy of the app that has moved. Turn it off and on again.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "The panel follows the pointer: it moves to the display the pointer has rested on for half a second.";
-"The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass.";
 "The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@.";
@@ -919,3 +918,30 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)";
 "First seen %@" = "First seen %@";
+
+/* Theming: the panel's colour, material, accent, usage style and hour clock (PanelTheme, UsageGauge, ThemePreview, SettingsWindow) */
+"Theme" = "Theme";
+"Black" = "Black";
+"Paper" = "Paper";
+"Material" = "Material";
+"Glassy" = "Glassy";
+"Smoked" = "Smoked";
+"Solid" = "Solid";
+"Accent" = "Accent";
+"Terracotta" = "Terracotta";
+"Teal" = "Teal";
+"Lilac" = "Lilac";
+"Usage style" = "Usage style";
+"Gauges" = "Gauges";
+"Draw hour limits on a clock" = "Draw hour limits on a clock";
+"Preview of the open panel" = "Preview of the open panel";
+"Paper is the panel inverted: the notch's black stays round it, and the sheet inside is light, with the figures printed on it rather than lit." = "Paper is the panel inverted: the notch's black stays round it, and the sheet inside is light, with the figures printed on it rather than lit.";
+"How much of the desktop shows through the open panel, blurred. Glassy and Smoked keep a black tint strong enough that every line still reads over a white window; the band the notch sits in stays black." = "How much of the desktop shows through the open panel, blurred. Glassy and Smoked keep a black tint strong enough that every line still reads over a white window; the band the notch sits in stays black.";
+"Paper is always solid: dark figures on a sheet the desktop shows through would lose their contrast over a dark window." = "Paper is always solid: dark figures on a sheet the desktop shows through would lose their contrast over a dark window.";
+"Solid while Reduce Transparency or Increase Contrast is on, as macOS draws its own panels." = "Solid while Reduce Transparency or Increase Contrast is on, as macOS draws its own panels.";
+"The app's own colour on the panel: the chosen range on the Cost card, a session waiting for your answer, Clear. Each reads on the panel in every theme and stays apart from the warning colours for colour-blind eyes." = "The app's own colour on the panel: the chosen range on the Cost card, a session waiting for your answer, Clear. Each reads on the panel in every theme and stays apart from the warning colours for colour-blind eyes.";
+"Bars draws a meter for each window. Gauges draws an assistant's windows as rings nested in one dial, outermost first, the way the rings beside the notch are; a window past the third keeps its meter, and every line under a window stays." = "Bars draws a meter for each window. Gauges draws an assistant's windows as rings nested in one dial, outermost first, the way the rings beside the notch are; a window past the third keeps its meter, and every line under a window stays.";
+"A window measured in hours, such as the five-hour session, gets a small clock beside its reset: the filled part is the time left before it resets, and a full clock is a window that has not started. Longer windows keep their words." = "A window measured in hours, such as the five-hour session, gets a small clock beside its reset: the filled part is the time left before it resets, and a full clock is a window that has not started. Longer windows keep their words.";
+"Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1." = "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1.";
+"Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window." = "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window.";
+"The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it." = "The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it.";

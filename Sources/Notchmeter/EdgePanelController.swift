@@ -54,7 +54,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
                                                      arrangement: .empty))
         notchProbe = NSHostingView(rootView: EdgeNotch(store: store, edge: edge, flush: false))
         cardProbe = NSHostingView(rootView: EdgePanelCard(store: store, prefs: prefs, actions: actions, screen: screen))
-        contentProbe = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen))
+        contentProbe = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, edgeCard: true))
         hover = HoverDriver(mode: prefs.visibility.hoverMode, dwell: prefs.hoverDelay)
         super.init()
 
@@ -127,7 +127,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
     var expandedIntrinsicContentSize: CGSize { measuredContentSize(unclamped: true) }
 
     private func measuredContentSize(unclamped: Bool) -> CGSize {
-        contentProbe.rootView = NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, unclamped: unclamped)
+        contentProbe.rootView = NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, unclamped: unclamped, edgeCard: true)
         contentProbe.layoutSubtreeIfNeeded()
         return contentProbe.fittingSize
     }
@@ -541,7 +541,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
                  prefs.monthlyBudgetUSD, prefs.sessionsCard, prefs.jumpToTerminal, store.panelOpenedForPrompt,
                  store.attentionNotice?.session.id, store.hooksInstalled, store.openSessionLists, store.promptFocus,
-                 store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows)
+                 store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial, prefs.panelAccent,
+                 prefs.usageStyle, prefs.hourClock)
             layout(animated: false)
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced
@@ -646,21 +647,32 @@ struct EdgePanelCard: View {
     var entrance = false
 
     var body: some View {
-        NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: entrance)
+        let look = PanelLook.current(prefs, edgeCard: true)
+        NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: entrance, edgeCard: true)
             .padding(.vertical, 6)
-            .modifier(PanelSurface(shape: RoundedRectangle(cornerRadius: 22, style: .continuous)))
-            // The card's text is white in every appearance (NotchExpandedView), so its glass is dark in every
+            // Paper's sheet sits in a frame of the card's black, as it sits in the notch's (PaperSheet): the six
+            // points above and below are already there, so the sides take the same.
+            .padding(.horizontal, look.theme == .paper ? Self.paperFrame : 0)
+            .modifier(PanelSurface(shape: RoundedRectangle(cornerRadius: 22, style: .continuous), card: look.material))
+            // The black panel's text is white in every appearance (NotchExpandedView), so its glass is dark in every
             // appearance too. Under Light the surface read the ambient scheme and drew that white text on light
             // glass (AppearanceChoice's note, 0.7.5). The pill beside it still follows the setting: its figures are
-            // drawn in colours that read on either.
+            // drawn in colours that read on either. Paper's sheet sets its own scheme inside this one.
             .environment(\.colorScheme, .dark)
             .padding(4)
             .fixedSize()
     }
+
+    /// The black round Paper's sheet at the card's sides.
+    static let paperFrame: CGFloat = 6
 }
 
-/// The pill and panel background. The floating shapes — the edge pill and the card the panel opens in — are
-/// Liquid Glass from macOS 26 and solid black before it and under Reduce Transparency. The flush side notch is
+/// The pill and panel background. The pill is Liquid Glass from macOS 26 and solid black before it and under Reduce
+/// Transparency. The card the panel opens in follows the material (Settings › Appearance › Theme; `card`): Solid is
+/// black on every OS; Glassy and Smoked lay the material's black over Liquid Glass from macOS 26 and over a
+/// behind-window blur before it, so the tint that keeps the text readable over a white window is there on both
+/// (PanelMaterial). Until a material is chosen the card keeps what it had: Glassy from macOS 26, solid before it.
+/// The flush side notch is
 /// opaque black on every OS, and so is the notch layout's own panel, which is drawn on an opaque black backdrop
 /// and leaves `expandedGlass` off (`NotchController.applyWindowBehaviour`) because glass over black renders pale
 /// grey and the panel stops reading as one shape with the hardware notch.
@@ -688,17 +700,39 @@ struct PanelSurface<S: Shape>: ViewModifier {
     /// rule sat beside `reachesTheGlass` with no caller, so nothing exercised it and nothing would have caught it
     /// drifting from the line the shape is actually drawn by — the two workings `EdgeArrangement`'s own doc warns about.
     var onTheBoundary = false
+    /// The card's resolved material (PanelLook.material); nil for the pill and the side notch, which keep their own
+    /// rule above.
+    var card: PanelMaterial? = nil
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *), !flush, !AccessibilityDisplay.shared.reduceTransparency {
+        if let card {
+            if card.translucent {
+                let tinted = content.background(shape.fill(Color.black.opacity(card.tint)))
+                if #available(macOS 26.0, *) {
+                    tinted.glassEffect(.regular, in: shape)
+                } else {
+                    tinted
+                        .background(BehindWindowBlur().clipShape(shape))
+                        .overlay(rim)
+                }
+            } else {
+                solid(content)
+            }
+        } else if #available(macOS 26.0, *), !flush, !AccessibilityDisplay.shared.reduceTransparency {
             content.glassEffect(.regular, in: shape)
         } else {
-            let line = shape.stroke(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.35 : 0.12),
-                                    lineWidth: onTheBoundary ? 1 : 0.5)
-            content
-                .background(shape.fill(.black))
-                .overlay(onTheBoundary ? AnyView(line.clipShape(shape)) : AnyView(line))
+            solid(content)
         }
+    }
+
+    private var rim: some View {
+        shape.stroke(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.35 : 0.12), lineWidth: onTheBoundary ? 1 : 0.5)
+    }
+
+    private func solid(_ content: Content) -> some View {
+        content
+            .background(shape.fill(.black))
+            .overlay(onTheBoundary ? AnyView(rim.clipShape(shape)) : AnyView(rim))
     }
 }

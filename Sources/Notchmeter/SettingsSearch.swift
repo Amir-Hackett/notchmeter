@@ -1,16 +1,16 @@
 import Foundation
 
-/// The block a Settings row sits in: one of the fourteen `Section`s `SettingsView.paneContent` composes, plus the
+/// The block a Settings row sits in: one of the fifteen `Section`s `SettingsView.paneContent` composes, plus the
 /// Diagnostics disclosure inside Advanced. The search field dims every section a query does not touch, and a hit
 /// inside the disclosure opens it.
 enum SettingsSection: CaseIterable {
-    case general, updates, about, panel, usage, shortcuts, assistants, sessions, transcripts, notifications, hooks, otherTools,
+    case general, updates, about, theme, panel, usage, shortcuts, assistants, sessions, transcripts, notifications, hooks, otherTools,
          privacy, advanced, diagnostics
 
     var pane: SettingsPane {
         switch self {
         case .general, .updates, .about: .general
-        case .panel, .usage, .shortcuts: .appearance
+        case .theme, .panel, .usage, .shortcuts: .appearance
         case .assistants, .sessions, .transcripts: .assistants
         case .notifications: .notifications
         case .hooks, .otherTools: .integrations
@@ -56,6 +56,7 @@ enum SettingsSearch {
         add(.updates, L("Updates"), L("Check for updates automatically"), L("Download updates automatically"), L("Beta updates"),
             L("Check for Updates…"))
         add(.about, L("Version %@", AppInfo.version), L("Support %@…", AppInfo.name))
+        add(.theme, L("Theme"), L("Colour"), L("Material"), L("Accent"), L("Usage style"), L("Draw hour limits on a clock"))
         add(.panel, L("Appearance"), L("Panel"), L("Readouts"), L("When crowded"), L("Show details"), L("Position"), L("Display"),
             L("Show"), L("Hover delay"), L("Show reset countdown beside the figures"), L("Show the main figure beside the rings"),
             L("Show assistant symbols in the rings"), L("Panel layout"), L("Density"), L("Panel width"), L("Show over full-screen apps"), L("Gestures: swipe down to open, swipe up to close"),

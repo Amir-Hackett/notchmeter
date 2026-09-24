@@ -9,8 +9,9 @@
 //  content to the top of the window; the extra height below is transparent and click-through. The
 //  screen-parameter observer is gone (it re-created the window on the primary screen, which is not the
 //  notch screen); the app re-derives the screen itself. `collectionBehavior` and `expandedGlass` are the
-//  app's full-screen and Liquid Glass settings; `reduceMotion` is its Reduce Motion answer for the compact
-//  shape's width.
+//  app's full-screen and Liquid Glass settings; `expandedTint` is its translucent material (a blur with the
+//  panel's black laid over it, below the notch's band); `reduceMotion` is its Reduce Motion answer for the compact
+//  shape's width and the material's crossfade.
 
 import SwiftUI
 
@@ -85,6 +86,11 @@ public final class DynamicNotch<Expanded, CompactLeading, CompactTrailing>: Obse
 
     /// On macOS 26, draws the expanded panel below the notch in Liquid Glass; the compact strip stays black.
     @Published public var expandedGlass: Bool = false
+
+    /// Notchmeter: the black laid over a behind-window blur under the expanded panel, below the notch's own band,
+    /// so the desktop shows through it; nil keeps the panel opaque black. The band the hardware notch sits in stays
+    /// black either way, and so does the compact strip.
+    @Published public var expandedTint: Double? = nil
 
     /// Under Reduce Motion the compact shape takes a new width at once instead of sliding to it; the app
     /// crossfades what is drawn inside it (Notchmeter's news peek widens the strip for a few seconds).

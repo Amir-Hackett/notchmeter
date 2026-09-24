@@ -30,6 +30,7 @@ struct PromptCard: View {
     var unfolded = false
     var setUnfolded: (Bool) -> Void = { _ in }
     @Environment(\.density) private var density
+    @Environment(\.panelLook) private var look
     /// The options chosen per question, by index, while a question is being answered.
     @State private var chosen: [Int: Set<Int>] = [:]
     /// Which question of several is on screen.
@@ -94,8 +95,10 @@ struct PromptCard: View {
 
     private func header(symbol: String, title: String, chips: [String]) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Palette.calm)
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(Palette.calm)
+            Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Themed(Palette.calm))
+            // Words in the "needs you" blue are held to 4.5:1, which Wong's blue is not on black (4.05:1): the text
+            // role lifts it by the least that reads (PanelLook), and the symbol beside it keeps the blue itself.
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(Themed(Palette.calm, .text))
             ForEach(chips, id: \.self) { Chip(text: $0) }
             Spacer(minLength: 0)
         }
@@ -106,13 +109,17 @@ struct PromptCard: View {
     private func buttonLabel(_ text: String, key: String) -> some View {
         HStack(spacing: 6) {
             Text(text)
-            Text(verbatim: key).font(.caption2.monospaced()).opacity(0.6)
+            Text(verbatim: key).font(.caption2.monospaced()).opacity(Self.hintOpacity(look))
         }
     }
 
+    /// How far a shortcut's key recedes beside its answer: 0.6 on the black panel, where white at 0.6 on a button's
+    /// well is 6.4:1, and 0.7 on Paper, where ink at 0.6 on the same well would be 4.0:1.
+    static func hintOpacity(_ look: PanelLook) -> Double { look.theme == .paper ? 0.7 : 0.6 }
+
     private var passLink: some View {
         Button { decide(request.id, .pass) } label: {
-            Text(L("Answer in the terminal")).font(.caption).foregroundStyle(.secondary)
+            Text(L("Answer in the terminal")).font(.caption).foregroundStyle(Ink.secondary)
         }
         .buttonStyle(.plain)
         .help(L("Hands the request back to the terminal, which asks as it always has; Escape does the same."))
@@ -175,7 +182,7 @@ struct PromptCard: View {
                     .truncationMode(.middle)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
-                Text(verbatim: key).font(.caption2.monospaced()).opacity(0.6)
+                Text(verbatim: key).font(.caption2.monospaced()).opacity(Self.hintOpacity(look))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -246,7 +253,7 @@ struct PromptCard: View {
                             Image(systemName: picked.contains(index) ? "checkmark.circle.fill" : "circle").font(.callout)
                         }
                         if let key {
-                            Text(verbatim: key).font(.caption2.monospaced()).opacity(0.6)
+                            Text(verbatim: key).font(.caption2.monospaced()).opacity(Self.hintOpacity(look))
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -346,17 +353,18 @@ struct PromptCard: View {
                 }
             }
             .padding(6)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.black.opacity(0.35)))
+            // A well darker than the card on the black panel, lighter than it on Paper: the ground's colour either way.
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Themed.wash(.black, 0.35)))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(L("Detail"))
             .accessibilityValue(lines.prefix(PromptCard.detailLinesShown).map(\.text).joined(separator: "\n"))
         }
 
-        private func colour(_ tint: DetailLine.Tint) -> Color {
+        private func colour(_ tint: DetailLine.Tint) -> Themed {
             switch tint {
-            case .plain: .white
-            case .removed: Palette.danger
-            case .added: Palette.pine
+            case .plain: Themed(.white, .text)
+            case .removed: Themed(Palette.danger, .text)
+            case .added: Themed(Palette.pine, .text)
             }
         }
     }
@@ -372,7 +380,7 @@ struct Chip: View {
             .lineLimit(1)
             .truncationMode(.middle)
             .padding(.horizontal, 5).padding(.vertical, 1.5)
-            .background(Capsule().fill(.white.opacity(0.14)))
+            .background(Capsule().fill(Themed.wash(.white, 0.14)))
     }
 }
 
@@ -390,9 +398,11 @@ struct PromptButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, alignment: leading ? .leading : .center)
             .padding(.vertical, 7)
             .padding(.horizontal, 10)
+            // The ink and the ground, so the filled answer is inverted on either face: white on black on the black
+            // panel, ink with paper-coloured words on Paper.
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(filled ? Color.white : Color.white.opacity(contrast ? 0.22 : 0.1)))
-            .foregroundStyle(filled ? Color.black : Color.white)
+                .fill(filled ? Themed(.white) : Themed.wash(.white, contrast ? 0.22 : 0.1)))
+            .foregroundStyle(Themed(filled ? .black : .white, .text))
             .opacity(configuration.isPressed ? 0.7 : 1)
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
