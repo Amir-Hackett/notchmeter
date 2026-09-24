@@ -214,7 +214,7 @@
 "Metered apart from the included total" = "Được đo riêng với tổng đã bao gồm";
 "Reads 0% on this seat however much it spends; Today's spend carries the reading" = "Ghế này luôn đọc 0% dù dùng bao nhiêu; hiển thị Chi tiêu hôm nay thay cho số đọc này";
 "a session" = "một phiên";
-"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "Giữ khẳng định chống ngủ chỉ khi phiên do hook báo đang giữa lượt, thả ra khi Stop, nên phiên khởi động từ điện thoại hay qua SSH vẫn chạy khi gập máy có cắm điện. Chân trang hiện \"Giữ máy thức · 2 phiên\" khi đang giữ.";
+"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held. A Claude Cowork task at work holds it too, until its log shows the turn ended or goes quiet." = "Giữ khẳng định chống ngủ chỉ khi phiên do hook báo đang giữa lượt, thả ra khi Stop, nên phiên khởi động từ điện thoại hay qua SSH vẫn chạy khi gập máy có cắm điện. Chân trang hiện \"Giữ máy thức · 2 phiên\" khi đang giữ. Tác vụ Claude Cowork đang làm việc cũng giữ nó, cho đến khi nhật ký cho thấy lượt đã kết thúc hoặc ngừng được ghi.";
 "about " = "khoảng ";
 "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "Trợ năng đang tắt nên Tự động giữ nguyên bên đã chọn trước đó. Notchmeter chỉ đọc vị trí và kích thước thanh menu của ứng dụng đang ở trước, không đọc gì khác; không phần nào khác của ứng dụng cần Trợ năng.";
 "Add" = "Thêm";
@@ -715,7 +715,7 @@
 "Weekly budget" = "Ngân sách tuần";
 "Welcome to %@" = "Chào mừng đến với %@";
 "What %@ reads" = "%@ đọc những gì";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "Bảng hiển thị gì về mỗi phiên do hook báo cáo, và bạn có thể làm gì với nó từ đó. Tất cả đều cần hook của trợ lý (Tích hợp).";
+"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations), except Claude Cowork's tasks, which are read from the Claude app's own files." = "Bảng hiển thị gì về mỗi phiên do hook báo cáo, và bạn có thể làm gì với nó từ đó. Tất cả đều cần hook của trợ lý (Tích hợp), trừ các tác vụ Claude Cowork, được đọc từ chính các tệp của ứng dụng Claude.";
 "When crowded" = "Khi chật chỗ";
 "When a window resets" = "Khi một cửa sổ đặt lại";
 "When an assistant waits for you, or a turn finishes" = "Khi một trợ lý chờ bạn, hoặc một lượt xong";
@@ -902,3 +902,10 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Đưa cửa sổ Cursor của dự án này lên trước (không thể yêu cầu Cursor mở một cuộc trò chuyện cụ thể)";
 "First seen %@" = "Thấy lần đầu lúc %@";
+
+/* Claude Cowork's tasks as sessions (CoworkSessions, Settings, SessionsCard, TerminalJump, NoticeCard) */
+"Show Claude Cowork tasks" = "Hiện các tác vụ Claude Cowork";
+"Cowork has no hook. While the Claude app is running, Notchmeter reads each task it keeps on this Mac every few seconds, without changing anything: the task's title (only while Show what a session is working on is on), the folder you gave it, and its log. A task is working from its prompt until the log's own end-of-turn line, and shows as idle while its log is quiet for four minutes or it has stopped to ask you something in Claude. It is never shown as waiting for you." = "Cowork không có hook. Khi ứng dụng Claude đang chạy, Notchmeter đọc vài giây một lần mỗi tác vụ mà ứng dụng lưu trên máy Mac này, không thay đổi gì: tiêu đề tác vụ (chỉ khi bật “Hiện phiên đang làm gì”), thư mục bạn giao cho nó và nhật ký của nó. Tác vụ đang làm việc từ prompt cho tới chính dòng kết thúc lượt trong nhật ký, và hiện là rảnh khi nhật ký im lặng bốn phút hoặc tác vụ đã dừng để hỏi bạn điều gì đó trong Claude. Nó không bao giờ hiện là đang chờ bạn.";
+"Claude Cowork, read from the task's own log in the Claude app. It has no hook, so a task is never shown as waiting for you." = "Claude Cowork, đọc từ chính nhật ký của tác vụ trong ứng dụng Claude. Nó không có hook, nên tác vụ không bao giờ hiện là đang chờ bạn.";
+"Brings the Claude app forward (Notchmeter can't open one Cowork task in it)" = "Đưa ứng dụng Claude lên trước (Notchmeter không thể mở một tác vụ Cowork cụ thể trong đó)";
+"Open Claude" = "Mở Claude";

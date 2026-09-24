@@ -35,8 +35,10 @@ enum DemoFixtures {
         case working
     }
 
+    /// `cowork` adds two Claude Cowork tasks to the afternoon (`coworkTasks`), for `cowork.png` and
+    /// `cowork-news.png`; the README's own pictures leave them out, so they stay the pictures they were.
     @MainActor
-    static func store(now: Date = Date(), moment: Moment = .waiting, suite: String = suiteName) -> (store: UsageStore, prefs: Preferences) {
+    static func store(now: Date = Date(), moment: Moment = .waiting, cowork: Bool = false, suite: String = suiteName) -> (store: UsageStore, prefs: Preferences) {
         // A suite nothing writes to. The registration domain lives in memory only, so the countdown style the
         // pictures rely on is neither read from nor written to the user's own preferences. Peak hours are off: the
         // window is read against the wall clock, so a render during it grew an advice line and a footer word that
@@ -49,8 +51,10 @@ enum DemoFixtures {
         let readings = readings(now: now)
         let store = UsageStore(prefs: prefs, providers: readings.map { FixtureProvider(reading: $0) },
                                cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
+        var tracker = sessions(now: now, moment: moment)
+        if cowork { coworkTasks(into: &tracker, now: now) }
         store.seed(readings: readings, cost: cost(now: now), nextUpdate: now.addingTimeInterval(2 * 60 + 40),
-                   sessions: sessions(now: now, moment: moment), now: now)
+                   sessions: tracker, now: now)
         // The afternoon has the Claude Code hook installed, which is what keeps the Sessions card on the panel.
         store.hooksInstalled = true
         // The task list open on the notchmeter row, so the pictures show the checklist and not only its count.
@@ -175,6 +179,42 @@ enum DemoFixtures {
         }
         return NotchNews(reason: reason, sessionID: session.id, tool: session.tool, project: session.project, at: now)
     }
+
+    /// Two Claude Cowork tasks, put on the tracker the way the watch puts them there (SessionTracker.observeCowork),
+    /// from two reads thirty seconds apart, so the state drawn is the rule's own answer: the research task is still
+    /// running, its log written four seconds ago; the ticket summary was running at the first read and its log's
+    /// end line, twelve seconds ago, ended a turn of 7m 8s by the time of the second.
+    static func coworkTasks(into tracker: inout SessionTracker, now: Date) {
+        let researchBegan = now.addingTimeInterval(-(3 * 60 + 12))
+        let ticketsBegan = now.addingTimeInterval(-(7 * 60 + 20))
+        func research(_ lastWrite: TimeInterval) -> CoworkSessions.Observation {
+            CoworkSessions.Observation(id: coworkResearch, title: coworkResearchTitle, project: "Research", lastWrite: now.addingTimeInterval(-lastWrite),
+                                       turn: CoworkSessions.Turn(began: researchBegan, end: nil, open: true))
+        }
+        let ticketsTitle = "Summarise last week's support tickets"
+        tracker.observeCowork([
+            research(33),
+            CoworkSessions.Observation(id: coworkTickets, title: ticketsTitle, project: "Support", lastWrite: now.addingTimeInterval(-34),
+                                       turn: CoworkSessions.Turn(began: ticketsBegan, end: nil, open: true)),
+        ], now: now.addingTimeInterval(-30))
+        let ended = CoworkSessions.Turn.End(at: now.addingTimeInterval(-12), duration: 7 * 60 + 8, failed: false)
+        tracker.observeCowork([
+            research(4),
+            CoworkSessions.Observation(id: coworkTickets, title: ticketsTitle, project: "Support", lastWrite: now.addingTimeInterval(-12),
+                                       turn: CoworkSessions.Turn(began: ticketsBegan, end: ended, open: false)),
+        ], now: now)
+    }
+
+    /// The news the ticket summary's finish raised (NotchNews.finished), read off the tracker like `news(in:)`.
+    @MainActor
+    static func coworkNews(in store: UsageStore, now: Date) -> NotchNews? {
+        guard let session = store.sessions.sessions[CoworkSessions.key(coworkTickets)], let finished = session.finished else { return nil }
+        return NotchNews.finished(session, turn: finished.turn, now: now)
+    }
+
+    static let coworkResearch = "local_0d3f7a52-demo-research"
+    static let coworkTickets = "local_5b8e21c4-demo-tickets"
+    static let coworkResearchTitle = "Compare the three vendors' pricing pages"
 
     /// The request id the two request moments carry, so a test or a renderer can address it.
     static let requestID = "demo-request"

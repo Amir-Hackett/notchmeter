@@ -148,6 +148,12 @@ final class UsageStore {
     @ObservationIgnored private var powerSourceWatch: CFRunLoopSource?
     @ObservationIgnored private var costEngine: CostEngine
     @ObservationIgnored private var activity: AgentActivity
+    /// Claude Cowork's watch (`startCoworkWatch`): the reader, which keeps its place in each task's log between
+    /// reads, the loop that runs it, and whether the Claude app is running, kept by the workspace's launch and
+    /// quit notices so nothing is read while it is not.
+    @ObservationIgnored private let coworkReader = CoworkReader()
+    @ObservationIgnored private var coworkWatch: Task<Void, Never>?
+    @ObservationIgnored private(set) var claudeAppRunning = false
     @ObservationIgnored private let drainLog: DrainLog?
     @ObservationIgnored private(set) var drainSamples: [DrainLog.Key: [DrainSample]] = [:]
     /// The drain log's boundary rows (DrainLog.Boundary), read once at launch; the newest Claude one floors the
@@ -559,6 +565,7 @@ final class UsageStore {
         startTick()
         startResetTimer()
         observeEnvironment()
+        startCoworkWatch()
     }
 
     /// Titles off is titles gone: the titles and session names the tracker already holds are cleared the moment
@@ -1519,6 +1526,122 @@ final class UsageStore {
         awakeChanged(hold)
     }
 
+    // MARK: - Claude Cowork
+
+    /// Follows Claude Cowork's tasks (CoworkSessions). The Claude app's launch and quit are watched, so the reader
+    /// runs only while the app is running and *Show Claude Cowork tasks* is on; the setting is watched too, so
+    /// switching it off takes every Cowork row away at once rather than at the next read.
+    private func startCoworkWatch() {
+        let center = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                guard app?.bundleIdentifier == CoworkSessions.bundleID else { return }
+                Task { @MainActor in self?.claudeAppChanged() }
+            })
+        }
+        claudeAppChanged()
+        observeCoworkSetting()
+    }
+
+    /// Reads whether the Claude app is running (this login's own apps only, so another account's copy of it is
+    /// never taken for this one's) and starts or stops the watch to match.
+    private func claudeAppChanged() {
+        claudeAppRunning = NSRunningApplication.runningApplications(withBundleIdentifier: CoworkSessions.bundleID).contains { !$0.isTerminated }
+        updateCoworkWatch()
+    }
+
+    /// The tracking is one-shot, so it re-arms, as `observeSessionTitles` does.
+    private func observeCoworkSetting() {
+        withObservationTracking {
+            _ = prefs.coworkSessions
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.updateCoworkWatch()
+                self?.observeCoworkSetting()
+            }
+        }
+    }
+
+    /// Runs the watch while the setting is on and the Claude app is running, and stops it otherwise. Stopping takes
+    /// every Cowork row away: with the app gone no task can be running, and with the setting off none may be shown.
+    /// Each pass reads off the main actor (CoworkReader) and applies here, against the clock taken before the read,
+    /// so a turn's end written during the read is never older than the start the row was given.
+    private func updateCoworkWatch() {
+        let wanted = prefs.coworkSessions && claudeAppRunning
+        if wanted, coworkWatch == nil {
+            let reader = coworkReader
+            coworkWatch = Task { [weak self] in
+                while !Task.isCancelled {
+                    guard let titles = self?.prefs.sessionTitles else { return }
+                    let now = Date()
+                    let tasks = await reader.poll(now: now, titles: titles)
+                    guard !Task.isCancelled, let self else { return }
+                    self.coworkObserved(tasks, now: now)
+                    let interval = self.coworkInterval
+                    try? await Task.sleep(for: .seconds(interval))
+                }
+            }
+            Oracle.shared.emit("cowork", ["action": "watch", "watching": true])
+        } else if !wanted, let watch = coworkWatch {
+            watch.cancel()
+            coworkWatch = nil
+            coworkObserved([])
+            Oracle.shared.emit("cowork", ["action": "watch", "watching": false])
+        }
+    }
+
+    /// CoworkSessions.pollInterval for the power source, whether anyone is at the screen, and whether any task is
+    /// listed (a task set aside with Clear still counts: its next write is what brings it back).
+    private var coworkInterval: TimeInterval {
+        let listed = sessions.all.contains { $0.source == .coworkLog } || sessions.dismissed.values.contains { $0.source == .coworkLog }
+        return CoworkSessions.pollInterval(onBattery: onBattery, lowPower: lowPowerMode, unattended: screenLocked || screensAsleep || sessionInactive,
+                                           listed: listed)
+    }
+
+    /// One read of Cowork's tasks, applied (SessionTracker.observeCowork) and written back only when it changed
+    /// something, since every write re-measures the panels (`sweepSessions`). A turn that ended is announced the way a
+    /// hook's `Stop` is: the finished banner past *Only turns longer than*, and the news in the notch past twenty
+    /// seconds while Claude is shown. Titles off is titles never held, as for a hook's prompt line (`hookReceived`).
+    /// The oracle hears each change by its kind and the task's key, never its title or its folder.
+    func coworkObserved(_ tasks: [CoworkSessions.Observation], now: Date = Date()) {
+        let tasks = prefs.sessionTitles ? tasks : tasks.map { task in
+            var task = task
+            task.title = nil
+            return task
+        }
+        var tracker = sessions
+        let outcome = tracker.observeCowork(tasks, now: now)
+        withdrawWaiting(outcome.stoppedWaiting)
+        guard tracker != sessions else { return }
+        sessions = tracker
+        pruneOpenSessionLists()
+        applyAwake()
+        armSignalRelease(now: now)
+        for change in outcome.changes { Oracle.shared.emit("cowork", Self.coworkFacts(change)) }
+        for (session, turn) in outcome.finished {
+            if prefs.notifyFinished, turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
+                deliverSessionEvent(.finished(turn: turn), session)
+            }
+            if isShown(.claude), let news = NotchNews.finished(session, turn: turn, now: now) { announce(news, now: now) }
+        }
+    }
+
+    /// What the oracle records for a Cowork task's change: its kind, the task's key and a finished turn's length.
+    nonisolated static func coworkFacts(_ change: SessionTracker.CoworkChange) -> [String: Any] {
+        var facts: [String: Any] = ["action": change.kind.rawValue, "session": change.session]
+        if let turn = change.turn { facts["turn"] = Int(turn.rounded()) }
+        return facts
+    }
+
+    /// The self check's line for the watch: the setting, the Claude app, the reader, the folder and what is listed.
+    var coworkSummary: String {
+        let tasks = sessions.all.filter { $0.source == .coworkLog }
+        let root = FileManager.default.fileExists(atPath: CoworkSessions.root.path) ? "present" : "absent"
+        return "cowork: setting \(prefs.coworkSessions ? "on" : "off"); Claude app \(claudeAppRunning ? "running" : "not running"); "
+            + "watch \(coworkWatch == nil ? "stopped" : "running"); folder \(root); \(tasks.count) listed, \(tasks.filter(\.isWorking).count) working"
+    }
+
     // MARK: - The hooks (every assistant's) and Claude Code's status line
 
     /// Every event is activity for the tool that sent it; that tool's meter refreshes at most once every 30 s, and
@@ -1713,9 +1836,12 @@ final class UsageStore {
         Oracle.shared.emit("peek", Self.peekFacts(showing, action: "hidden"))
     }
 
-    /// What the oracle records for a peek: the reason, the session and the assistant, never the project.
+    /// What the oracle records for a peek: the reason, the session and the assistant, never the project; and
+    /// `source` on news no hook sent (a Claude Cowork task's finish).
     nonisolated static func peekFacts(_ news: NotchNews, action: String) -> [String: Any] {
-        ["action": action, "reason": news.reason.rawValue, "session": news.sessionID, "tool": news.tool.rawValue]
+        var facts: [String: Any] = ["action": action, "reason": news.reason.rawValue, "session": news.sessionID, "tool": news.tool.rawValue]
+        if news.source != .hook { facts["source"] = news.source.rawValue }
+        return facts
     }
 
     /// The user's answer to the request `requestID`, from the panel (or the hold running out, as a pass): the

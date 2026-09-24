@@ -231,7 +231,7 @@
 "Metered apart from the included total" = "Mesuré à part du total inclus";
 "Reads 0% on this seat however much it spends; Today's spend carries the reading" = "Affiche 0 % sur ce siège quelle que soit la dépense ; la ligne Dépenses du jour porte le relevé";
 "a session" = "une session";
-"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "Une assertion de veille maintenue uniquement pendant qu'une session signalée par le hook est en plein tour, et libérée à son arrêt : une session lancée depuis un téléphone ou via SSH continue de tourner capot fermé sur secteur. Le pied de page indique « Maintien en éveil · 2 sessions » tant qu'elle est active.";
+"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held. A Claude Cowork task at work holds it too, until its log shows the turn ended or goes quiet." = "Une assertion de veille maintenue uniquement pendant qu'une session signalée par le hook est en plein tour, et libérée à son arrêt : une session lancée depuis un téléphone ou via SSH continue de tourner capot fermé sur secteur. Le pied de page indique « Maintien en éveil · 2 sessions » tant qu'elle est active. Une tâche Claude Cowork en cours la maintient aussi, jusqu'à ce que son journal montre la fin du tour ou cesse d'être écrit.";
 "about " = "environ ";
 "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "L'Accessibilité est désactivée : Auto reste donc du côté choisi auparavant. Notchmeter ne lit que la géométrie de la barre des menus de l'app au premier plan ; aucune autre partie de l'app ne demande l'Accessibilité.";
 "Add" = "Ajouter";
@@ -732,7 +732,7 @@
 "Weekly budget" = "Budget hebdomadaire";
 "Welcome to %@" = "Bienvenue dans %@";
 "What %@ reads" = "Ce que lit %@";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "Ce que le panneau affiche de chaque session signalée par les hooks, et ce que vous pouvez en faire depuis là. Tout cela nécessite le hook de l'assistant (Intégrations).";
+"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations), except Claude Cowork's tasks, which are read from the Claude app's own files." = "Ce que le panneau affiche de chaque session signalée par les hooks, et ce que vous pouvez en faire depuis là. Tout cela nécessite le hook de l'assistant (Intégrations), sauf les tâches Claude Cowork, lues dans les fichiers propres à l'app Claude.";
 "When crowded" = "En cas d'encombrement";
 "When a window resets" = "Quand une fenêtre se réinitialise";
 "When an assistant waits for you, or a turn finishes" = "Quand un assistant vous attend ou qu'un tour se termine";
@@ -919,3 +919,10 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Met au premier plan la fenêtre de Cursor pour ce projet (on ne peut pas demander à Cursor d'ouvrir une discussion précise)";
 "First seen %@" = "Vu pour la première fois à %@";
+
+/* Claude Cowork's tasks as sessions (CoworkSessions, Settings, SessionsCard, TerminalJump, NoticeCard) */
+"Show Claude Cowork tasks" = "Afficher les tâches Claude Cowork";
+"Cowork has no hook. While the Claude app is running, Notchmeter reads each task it keeps on this Mac every few seconds, without changing anything: the task's title (only while Show what a session is working on is on), the folder you gave it, and its log. A task is working from its prompt until the log's own end-of-turn line, and shows as idle while its log is quiet for four minutes or it has stopped to ask you something in Claude. It is never shown as waiting for you." = "Cowork n'a pas de hook. Tant que l'app Claude est ouverte, Notchmeter lit toutes les quelques secondes chaque tâche qu'elle conserve sur ce Mac, sans rien modifier : le titre de la tâche (seulement quand « Afficher le travail en cours d'une session » est activé), le dossier que vous lui avez donné et son journal. Une tâche est en cours de son prompt jusqu'à la ligne de fin de tour du journal lui-même, et apparaît inactive tant que son journal reste muet quatre minutes ou qu'elle s'est arrêtée pour vous demander quelque chose dans Claude. Elle n'est jamais présentée comme vous attendant.";
+"Claude Cowork, read from the task's own log in the Claude app. It has no hook, so a task is never shown as waiting for you." = "Claude Cowork, lu dans le journal propre à la tâche dans l'app Claude. Il n'a pas de hook, donc une tâche n'est jamais présentée comme vous attendant.";
+"Brings the Claude app forward (Notchmeter can't open one Cowork task in it)" = "Met l'app Claude au premier plan (Notchmeter ne peut pas y ouvrir une tâche Cowork précise)";
+"Open Claude" = "Ouvrir Claude";

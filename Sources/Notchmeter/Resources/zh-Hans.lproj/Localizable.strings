@@ -231,7 +231,7 @@
 "Metered apart from the included total" = "与套餐内总量分开计量";
 "Reads 0% on this seat however much it spends; Today's spend carries the reading" = "此席位无论用量多少都读作 0%，由“今日支出”代为显示";
 "a session" = "某个会话";
-"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "仅当钩子报告的会话处于一轮之中时持有防休眠断言，在其 Stop 时释放，因此从手机或通过 SSH 启动的会话在接通电源合盖时仍能继续。持有期间页脚显示“保持唤醒 · 2 个会话”。";
+"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held. A Claude Cowork task at work holds it too, until its log shows the turn ended or goes quiet." = "仅当钩子报告的会话处于一轮之中时持有防休眠断言，在其 Stop 时释放，因此从手机或通过 SSH 启动的会话在接通电源合盖时仍能继续。持有期间页脚显示“保持唤醒 · 2 个会话”。正在工作的 Claude Cowork 任务同样会持有它，直到其日志显示本轮结束或不再写入。";
 "about " = "约";
 "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "辅助功能未开启，因此“自动”会保持在选择它之前的那一侧。Notchmeter 只读取最前面应用菜单栏的位置和大小，不读取其他任何内容；应用的其他部分都不需要辅助功能权限。";
 "Add" = "添加";
@@ -732,7 +732,7 @@
 "Weekly budget" = "每周预算";
 "Welcome to %@" = "欢迎使用 %@";
 "What %@ reads" = "%@ 读取什么";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "面板对钩子报告的每个会话显示什么，以及你可以在那里对它做什么。这一切都需要助手的钩子（集成）。";
+"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations), except Claude Cowork's tasks, which are read from the Claude app's own files." = "面板对钩子报告的每个会话显示什么，以及你可以在那里对它做什么。除了从 Claude 应用自己的文件中读取的 Claude Cowork 任务，这一切都需要助手的钩子（集成）。";
 "When crowded" = "空间不足时";
 "When a window resets" = "窗口重置时";
 "When an assistant waits for you, or a turn finishes" = "当助手等待你，或一轮结束时";
@@ -919,3 +919,10 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "将此项目的 Cursor 窗口移到前面（无法让 Cursor 打开某一个对话）";
 "First seen %@" = "首次发现于 %@";
+
+/* Claude Cowork's tasks as sessions (CoworkSessions, Settings, SessionsCard, TerminalJump, NoticeCard) */
+"Show Claude Cowork tasks" = "显示 Claude Cowork 任务";
+"Cowork has no hook. While the Claude app is running, Notchmeter reads each task it keeps on this Mac every few seconds, without changing anything: the task's title (only while Show what a session is working on is on), the folder you gave it, and its log. A task is working from its prompt until the log's own end-of-turn line, and shows as idle while its log is quiet for four minutes or it has stopped to ask you something in Claude. It is never shown as waiting for you." = "Cowork 没有钩子。Claude 应用运行时，Notchmeter 每隔几秒读取它在这台 Mac 上保存的每个任务，不做任何更改：任务的标题（仅在“显示会话正在做什么”开启时）、你交给它的文件夹，以及它的日志。任务从提示开始直到日志自己的本轮结束行都算工作中；日志四分钟没有写入，或任务停下来在 Claude 中向你提问时，显示为空闲。它永远不会显示为在等你。";
+"Claude Cowork, read from the task's own log in the Claude app. It has no hook, so a task is never shown as waiting for you." = "Claude Cowork，读取自 Claude 应用中该任务自己的日志。它没有钩子，所以任务永远不会显示为在等你。";
+"Brings the Claude app forward (Notchmeter can't open one Cowork task in it)" = "将 Claude 应用移到前面（Notchmeter 无法在其中打开某一个 Cowork 任务）";
+"Open Claude" = "打开 Claude";

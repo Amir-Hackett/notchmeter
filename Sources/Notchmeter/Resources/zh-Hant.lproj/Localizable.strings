@@ -214,7 +214,7 @@
 "Metered apart from the included total" = "與方案內總量分開計量";
 "Reads 0% on this seat however much it spends; Today's spend carries the reading" = "此席位無論用量多少都讀作 0%，由「今日支出」代為顯示";
 "a session" = "某個工作階段";
-"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "僅當 hook 回報的工作階段處於一輪之中時持有防睡眠斷言，在其 Stop 時釋放，因此從手機或透過 SSH 啟動的工作階段在接電源合蓋時仍能繼續。持有期間頁尾顯示「保持喚醒 · 2 個工作階段」。";
+"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held. A Claude Cowork task at work holds it too, until its log shows the turn ended or goes quiet." = "僅當 hook 回報的工作階段處於一輪之中時持有防睡眠斷言，在其 Stop 時釋放，因此從手機或透過 SSH 啟動的工作階段在接電源合蓋時仍能繼續。持有期間頁尾顯示「保持喚醒 · 2 個工作階段」。正在工作的 Claude Cowork 任務同樣會持有它，直到其記錄顯示本輪結束或不再寫入。";
 "about " = "約 ";
 "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "輔助使用未開啟，因此「自動」會維持在選擇它之前的那一側。Notchmeter 只讀取最前方 App 選單列的位置和大小，不讀取其他任何內容；App 的其他部分都不需要輔助使用權限。";
 "Add" = "加入";
@@ -715,7 +715,7 @@
 "Weekly budget" = "每週預算";
 "Welcome to %@" = "歡迎使用 %@";
 "What %@ reads" = "%@ 讀取什麼";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "面板對 hook 回報的每個工作階段顯示什麼，以及你可以在那裡對它做什麼。這一切都需要助理的 hook（整合）。";
+"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations), except Claude Cowork's tasks, which are read from the Claude app's own files." = "面板對 hook 回報的每個工作階段顯示什麼，以及你可以在那裡對它做什麼。除了從 Claude App 本身檔案讀取的 Claude Cowork 任務，這一切都需要助理的 hook（整合）。";
 "When crowded" = "空間不足時";
 "When a window resets" = "視窗重設時";
 "When an assistant waits for you, or a turn finishes" = "當助手等待你，或一輪結束時";
@@ -902,3 +902,10 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "將此專案的 Cursor 視窗移到前面（無法要求 Cursor 開啟某一個對話）";
 "First seen %@" = "首次發現於 %@";
+
+/* Claude Cowork's tasks as sessions (CoworkSessions, Settings, SessionsCard, TerminalJump, NoticeCard) */
+"Show Claude Cowork tasks" = "顯示 Claude Cowork 任務";
+"Cowork has no hook. While the Claude app is running, Notchmeter reads each task it keeps on this Mac every few seconds, without changing anything: the task's title (only while Show what a session is working on is on), the folder you gave it, and its log. A task is working from its prompt until the log's own end-of-turn line, and shows as idle while its log is quiet for four minutes or it has stopped to ask you something in Claude. It is never shown as waiting for you." = "Cowork 沒有 hook。Claude App 執行時，Notchmeter 每隔幾秒讀取它在這台 Mac 上保存的每個任務，不做任何更改：任務的標題（僅在「顯示工作階段正在做什麼」開啟時）、你交給它的資料夾，以及它的記錄。任務從提示開始直到記錄本身的本輪結束行都算工作中；記錄四分鐘沒有寫入，或任務停下來在 Claude 中向你提問時，顯示為閒置。它永遠不會顯示為在等你。";
+"Claude Cowork, read from the task's own log in the Claude app. It has no hook, so a task is never shown as waiting for you." = "Claude Cowork，讀取自 Claude App 中該任務本身的記錄。它沒有 hook，所以任務永遠不會顯示為在等你。";
+"Brings the Claude app forward (Notchmeter can't open one Cowork task in it)" = "將 Claude App 移到前面（Notchmeter 無法在其中開啟某一個 Cowork 任務）";
+"Open Claude" = "打開 Claude";

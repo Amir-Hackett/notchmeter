@@ -66,7 +66,7 @@ enum SettingsSearch {
         add(.assistants, L("Assistants"), L("Pin to menu bar"), L("Peak hours"), L("Keep the Mac awake while an assistant is working"),
             L("Also on battery"), L("Also read Codex reset credits"), L("Also read Cursor's usage events"), L("Also read organisation billing"),
             L("Hide assistants with nothing to show"), L("Refresh now"))
-        add(.sessions, L("Sessions"), L("Show a Sessions card on the panel"), L("Show what a session is working on"),
+        add(.sessions, L("Sessions"), L("Show a Sessions card on the panel"), L("Show Claude Cowork tasks"), L("Show what a session is working on"),
             L("Answer from the notch"), L("Hand a request back to the terminal after"), L("Jump to the terminal on click"),
             L("Automation"), L("Open Automation settings…"), L("Check again"))
         add(.transcripts, L("Also read transcripts from"), L("Add folder…"))

@@ -1121,6 +1121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("hooks: " + HookVendor.allCases.map { "\($0.rawValue): \(HookSettings.status(vendor: $0).text)" }.joined(separator: "; ") + "; status line: \(HookSettings.statuslineStatus().text); auto-repair: \(prefs.autoRepairHooks) (never under --smoke); command line tool: \(CommandLineTool.installedLink().map { "\($0.link.path) → \($0.destination)" } ?? "not installed"); transport: \(HookSocket.describe())")
         Probe.emit("prompts: pending=\(store.sessions.pending(now: Date()).count); answer from the notch=\(prefs.answerFromNotch ? "on" : "off") hold=\(prefs.promptHoldSeconds)s; sessions card=\(prefs.sessionsCard ? "on" : "off") titles=\(prefs.sessionTitles ? "on" : "off"); jump=\(prefs.jumpToTerminal ? "on" : "off") automation: "
                    + TerminalJump.scriptedApps.map { "\($0.name)=\(TerminalJump.automationStatus(bundleID: $0.bundleID).word)" }.joined(separator: " "))
+        Probe.emit(store.coworkSummary)
         Probe.emit("main menu: \(MainMenu.describe())")
         Probe.emit("readouts: \(autoSide.description)")
         Probe.emit("full screen: \(FullScreen.describe(on: .panelScreen))")

@@ -46,9 +46,11 @@ struct NoticeCard: View {
                     .truncationMode(.tail)
             }
             if canJump {
-                Button(action: jump) { Text(L("Jump to the terminal")).frame(maxWidth: .infinity) }
+                // "Open Claude" for a Cowork task, which runs in the Claude app rather than a terminal.
+                let title = TerminalJump.jumpTitle(notice.session.terminal)
+                Button(action: jump) { Text(title).frame(maxWidth: .infinity) }
                     .buttonStyle(PromptButtonStyle(filled: true))
-                    .accessibilityLabel(L("Jump to the terminal"))
+                    .accessibilityLabel(title)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

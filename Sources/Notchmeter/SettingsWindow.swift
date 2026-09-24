@@ -967,7 +967,7 @@ struct SettingsView: View {
             Toggle(L("Also poll Claude's usage endpoint"), isOn: Binding(get: { prefs.pollClaudeEndpoint }, set: { prefs.pollClaudeEndpoint = $0; store.refreshAll() }))
                 .help(L("On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked."))
             Toggle(L("Keep the Mac awake while an assistant is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
-                .help(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held."))
+                .help(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held. A Claude Cowork task at work holds it too, until its log shows the turn ended or goes quiet."))
             if prefs.keepAwake {
                 Toggle(L("Also on battery"), isOn: Binding(get: { prefs.keepAwakeOnBattery }, set: { prefs.keepAwakeOnBattery = $0; requests.awakeChanged() }))
             }
@@ -987,11 +987,14 @@ struct SettingsView: View {
 
     /// The 0.7.0 two-way features: the Sessions card, the titles it shows, answering a request from the notch
     /// and the hold before it goes back to the terminal, and the jump to a session's terminal with the
-    /// Automation grant it may need (docs/hooks.md, docs/permissions.md).
+    /// Automation grant it may need (docs/hooks.md, docs/permissions.md); and since 0.9.0 Claude Cowork's tasks,
+    /// which need no hook (CoworkSessions).
     private var sessionsSection: some View {
         Section {
             Toggle(L("Show a Sessions card on the panel"), isOn: Binding(get: { prefs.sessionsCard }, set: { prefs.sessionsCard = $0 }))
                 .help(L("One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest."))
+            Toggle(L("Show Claude Cowork tasks"), isOn: Binding(get: { prefs.coworkSessions }, set: { prefs.coworkSessions = $0 }))
+                .help(L("Cowork has no hook. While the Claude app is running, Notchmeter reads each task it keeps on this Mac every few seconds, without changing anything: the task's title (only while Show what a session is working on is on), the folder you gave it, and its log. A task is working from its prompt until the log's own end-of-turn line, and shows as idle while its log is quiet for four minutes or it has stopped to ask you something in Claude. It is never shown as waiting for you."))
             Toggle(L("Show what a session is working on"), isOn: Binding(get: { prefs.sessionTitles }, set: { prefs.sessionTitles = $0 }))
                 .help(L("The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says."))
             Toggle(L("Answer from the notch"), isOn: Binding(get: { prefs.answerFromNotch }, set: { prefs.answerFromNotch = $0 }))
@@ -1029,7 +1032,7 @@ struct SettingsView: View {
             }
         } header: {
             Text(L("Sessions"))
-                .help(L("What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)."))
+                .help(L("What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations), except Claude Cowork's tasks, which are read from the Claude app's own files."))
         }
     }
 

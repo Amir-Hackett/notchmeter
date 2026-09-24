@@ -214,7 +214,7 @@
 "Metered apart from the included total" = "含まれる合計とは別に計測";
 "Reads 0% on this seat however much it spends; Today's spend carries the reading" = "この席では使っても 0% のまま。今日の支出が代わりに示します";
 "a session" = "セッション";
-"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "フックが報告するセッションがターン中の間だけスリープ抑止を保持し、Stop で解放します。電源接続中なら、スマートフォンや SSH から始めたセッションが蓋を閉じても動き続けます。保持中はフッターに「スリープ抑止中 · 2 セッション」と出ます。";
+"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held. A Claude Cowork task at work holds it too, until its log shows the turn ended or goes quiet." = "フックが報告するセッションがターン中の間だけスリープ抑止を保持し、Stop で解放します。電源接続中なら、スマートフォンや SSH から始めたセッションが蓋を閉じても動き続けます。保持中はフッターに「スリープ抑止中 · 2 セッション」と出ます。作業中の Claude Cowork タスクも、ログがターンの終了を示すか書き込みが止まるまで保持します。";
 "about " = "約 ";
 "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "アクセシビリティがオフのため、自動は選ぶ前の側のままになります。Notchmeter は最前面のアプリのメニューバーの位置と大きさだけを読み、ほかは何も読みません。アプリの他の部分がアクセシビリティを求めることはありません。";
 "Add" = "追加";
@@ -715,7 +715,7 @@
 "Weekly budget" = "週次予算";
 "Welcome to %@" = "%@ へようこそ";
 "What %@ reads" = "%@ が読むもの";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "フックが報告した各セッションについてパネルが何を表示し、そこから何ができるか。すべてアシスタントのフックが必要です（統合）。";
+"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations), except Claude Cowork's tasks, which are read from the Claude app's own files." = "フックが報告した各セッションについてパネルが何を表示し、そこから何ができるか。Claude アプリ自身のファイルから読み取る Claude Cowork のタスクを除き、すべてアシスタントのフックが必要です（統合）。";
 "When crowded" = "余白が足りないとき";
 "When a window resets" = "ウィンドウがリセットされたとき";
 "When an assistant waits for you, or a turn finishes" = "アシスタントが待機したとき、またはターンが終わったとき";
@@ -902,3 +902,10 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "このプロジェクトの Cursor ウインドウを前面に出します（Cursor に特定のチャットを開かせることはできません）";
 "First seen %@" = "最初に検出：%@";
+
+/* Claude Cowork's tasks as sessions (CoworkSessions, Settings, SessionsCard, TerminalJump, NoticeCard) */
+"Show Claude Cowork tasks" = "Claude Cowork のタスクを表示する";
+"Cowork has no hook. While the Claude app is running, Notchmeter reads each task it keeps on this Mac every few seconds, without changing anything: the task's title (only while Show what a session is working on is on), the folder you gave it, and its log. A task is working from its prompt until the log's own end-of-turn line, and shows as idle while its log is quiet for four minutes or it has stopped to ask you something in Claude. It is never shown as waiting for you." = "Cowork にはフックがありません。Claude アプリの実行中、Notchmeter はこの Mac に保存されている各タスクを数秒ごとに読み取り、何も変更しません。読み取るのは、タスクのタイトル（「セッションの作業内容を表示する」がオンのときのみ）、タスクに渡したフォルダ、そのログです。タスクはプロンプトからログ自身のターン終了行まで作業中となり、ログが 4 分間書き込まれないときや、Claude であなたに何か尋ねるために止まっているときはアイドルと表示されます。あなたを待機中と表示されることはありません。";
+"Claude Cowork, read from the task's own log in the Claude app. It has no hook, so a task is never shown as waiting for you." = "Claude Cowork。Claude アプリ内のタスク自身のログから読み取っています。フックがないため、タスクがあなたを待機中と表示されることはありません。";
+"Brings the Claude app forward (Notchmeter can't open one Cowork task in it)" = "Claude アプリを前面に出します（Notchmeter はその中の特定の Cowork タスクを開けません）";
+"Open Claude" = "Claude を開く";
