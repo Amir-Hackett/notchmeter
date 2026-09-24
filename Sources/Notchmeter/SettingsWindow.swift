@@ -283,7 +283,7 @@ struct SettingsView: View {
                     .accessibilityAddTraits(.isHeader)
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
-                DashboardView(store: store, embedded: true)
+                DashboardView(store: store, embedded: true, actions: actions)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
@@ -494,6 +494,8 @@ struct SettingsView: View {
             // itself, and the reader who wants it again is looking for the app's basics, not its version line.
             Button(L("Show the welcome tour again")) { requests.showWelcomeTour() }
                 .help(L("The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data."))
+            Toggle(L("Offer the usage card after an update"), isOn: Binding(get: { prefs.offerShareCardAfterUpdate }, set: { prefs.offerShareCardAfterUpdate = $0 }))
+                .help(L("Once per version, after an update, Share usage card… opens by itself with the last thirty days as a card, when they hold at least a week of use; never while the screen is shared or a full-screen app has the display. The card is always in the Options menu."))
         }
     }
 

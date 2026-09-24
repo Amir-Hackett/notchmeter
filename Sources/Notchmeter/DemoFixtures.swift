@@ -224,6 +224,29 @@ enum DemoFixtures {
         ]
     }
 
+    /// A week of the drain log for the Fable window the reading above carries, for the usage card's one line
+    /// (ShareCardAdvice.peak): the window climbed to 91 % over the four days before its weekly reset, two and a
+    /// half days ago, and has read a few per cent since, which is where the reading puts it now. Hourly rows, the
+    /// way a five-minute poll of a moving figure leaves them; nothing here is a token or a session.
+    static func drainSamples(now: Date) -> [DrainLog.Key: [DrainSample]] {
+        let reset = now.addingTimeInterval(-(2 * 86_400 + 12 * 3600))
+        let sinceReset = now.timeIntervalSince(reset)
+        var samples: [DrainSample] = []
+        for hour in stride(from: -7 * 24, through: 0, by: 1) {
+            let t = now.addingTimeInterval(TimeInterval(hour) * 3600)
+            let used: Double
+            if t < reset {
+                // Four days of climbing to the peak, which the last hourly row before the reset holds at 91 %.
+                let climb = min(1, max(0, t.timeIntervalSince(reset.addingTimeInterval(-97 * 3600)) / (96 * 3600)))
+                used = 0.08 + 0.83 * climb
+            } else {
+                used = 0.01 + 0.05 * t.timeIntervalSince(reset) / sinceReset
+            }
+            samples.append(DrainSample(t: t, used: used, resetsAt: t < reset ? reset : reset.addingTimeInterval(Period.week)))
+        }
+        return [DrainLog.Key(tool: .claude, window: "scoped_fable"): samples]
+    }
+
     /// $6,600 over 30 days of Claude Code with quiet weekends, a heavy $548.76 yesterday and $118.31 so far
     /// today, beside a Cursor export at a ninth of it. The last hour ran at 3.2x the 30-day average active hour,
     /// which is what puts a line in the Advice strip.

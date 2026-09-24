@@ -382,16 +382,20 @@ struct SimpleCostRow: View {
         let mode = store.prefs.costCardMode
         let figure = SpendCard.headline(mode: mode, amount: totals?.cost, totals: totals)
         let first = open ? nil : advice.first
+        // The one line under the row: the money advice where there is some, else the value framing (PlanValue),
+        // which the open card carries in full either way.
+        let line = first.map(SimpleLine.advice)
+            ?? (open ? nil : store.planValueLine(for: range.costRange).map { SimpleLine(id: "value", symbol: nil, text: $0) })
         SimpleRow(title: L("Cost"),
-                  line: first.map(SimpleLine.advice),
+                  line: line,
                   figure: figure, caption: range.title,
                   needsYou: advice.contains { $0.priority == .attention },
-                  spoken: Spoken.line(range.title, Spoken.phrase(figure), SpendCard.unit(mode: mode), first.map { Spoken.phrase($0.text) }),
+                  spoken: Spoken.line(range.title, Spoken.phrase(figure), SpendCard.unit(mode: mode), line.map { Spoken.phrase($0.text) }),
                   open: open, toggle: { NotchExpandedView.toggleRow(Self.key, store: store) }) {
             Image(systemName: "dollarsign.circle").foregroundStyle(Caption.style)
         } detail: {
             VStack(alignment: .leading, spacing: 8) {
-                SpendCard(store: store, embedded: true)
+                SpendCard(store: store, embedded: true, actions: actions)
                 if !advice.isEmpty {
                     AdviceLines(advice: advice, open: actions.open)
                 }
