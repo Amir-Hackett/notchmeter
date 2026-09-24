@@ -1203,12 +1203,26 @@ final class UsageStore {
     /// the life of the process, to arrive at the frame it already had. Both clocks that retire sessions, the sweep
     /// and `armSignalRelease`, come through here so neither can drift back to the in-place call. The awake
     /// assertion is re-applied on a change because a session dropped for silence may have been the last one working.
+    /// Closes the Sessions card's lists of every session no longer on it: ended, removed, set aside or aged out.
+    /// A session that comes back starts with its lists closed, and the set does not grow for the life of the
+    /// process. Written only on a change, since every write re-sizes the panels (NotchController).
+    func pruneOpenSessionLists() {
+        guard !openSessionLists.isEmpty else { return }
+        let live = Set(sessions.all.map(\.id))
+        let kept = openSessionLists.filter { key in
+            guard let slash = key.range(of: "/", options: .backwards) else { return false }
+            return live.contains(String(key[..<slash.lowerBound]))
+        }
+        if kept != openSessionLists { openSessionLists = kept }
+    }
+
     /// The Sessions card's Remove (SessionTracker.dismiss): the row goes until the session sends another event.
     func dismissSession(_ id: String) {
         var tracker = sessions
         let result = tracker.dismiss(id)
         guard result.removed else { return }
         sessions = tracker
+        pruneOpenSessionLists()
         if attentionNotice?.session.id == id { attentionNotice = nil }
         if result.wasWaiting { withdrawWaiting([id]) }
         applyAwake()
@@ -1221,6 +1235,7 @@ final class UsageStore {
         let removed = tracker.dismissIdle()
         guard !removed.isEmpty else { return }
         sessions = tracker
+        pruneOpenSessionLists()
         if let notice = attentionNotice, removed.contains(notice.session.id) { attentionNotice = nil }
         applyAwake()
         Oracle.shared.emit("session", ["action": "dismissedIdle", "count": removed.count])
@@ -1232,6 +1247,7 @@ final class UsageStore {
         let nudged = expired.quietNudges(now: now)
         if expired != sessions {
             sessions = expired
+            pruneOpenSessionLists()
             applyAwake()
         }
         withdrawWaiting(stopped)
@@ -1456,6 +1472,7 @@ final class UsageStore {
         if !prefs.sessionTitles {
             message.title = nil
             message.todos = message.todos?.withoutContent()
+            message.task?.subject = nil
         }
         if message.request != nil, !prefs.answerFromNotch {
             reply?.answer(nil)
@@ -1468,6 +1485,7 @@ final class UsageStore {
         lastActivity[tool] = now
         wokeAt = now
         let outcome = sessions.apply(message, now: now)
+        pruneOpenSessionLists()
         applyAwake()
         armSignalRelease(now: now)
         // The withdrawal goes first because one message can end a wait and start another for the same session:
@@ -1527,6 +1545,7 @@ final class UsageStore {
         if let request = message.request { facts["request"] = request.kind.name }
         // A task list is reported by its counts, never its words.
         if let todos = message.todos { facts["todos"] = ["done": todos.done, "total": todos.total] }
+        if let task = message.task { facts["task"] = ["kind": task.kind.rawValue, "status": task.deleted ? "deleted" : task.status?.rawValue as Any] }
         return facts
     }
 

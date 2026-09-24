@@ -832,6 +832,7 @@
 "The subagents this session is running; click to list them" = "このセッションが実行中のサブエージェント。クリックで一覧表示";
 "%1$ld of %2$ld done" = "%2$ld 件中 %1$ld 件完了";
 "Task list" = "タスクリスト";
+"Untitled task" = "無題のタスク";
 "Claude Code's task list for this session; click to show it" = "このセッションの Claude Code のタスクリスト。クリックで表示";
 "Claude Code's task list for this session" = "このセッションの Claude Code のタスクリスト";
 "Subagent %ld" = "サブエージェント %ld";

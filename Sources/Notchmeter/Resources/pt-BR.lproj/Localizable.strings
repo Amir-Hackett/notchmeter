@@ -848,6 +848,7 @@
 "The subagents this session is running; click to list them" = "Os subagentes que esta sessão está executando; clique para listá-los";
 "%1$ld of %2$ld done" = "%1$ld de %2$ld feitas";
 "Task list" = "Lista de tarefas";
+"Untitled task" = "Tarefa sem título";
 "Claude Code's task list for this session; click to show it" = "A lista de tarefas do Claude Code para esta sessão; clique para mostrá-la";
 "Claude Code's task list for this session" = "A lista de tarefas do Claude Code para esta sessão";
 "Subagent %ld" = "Subagente %ld";

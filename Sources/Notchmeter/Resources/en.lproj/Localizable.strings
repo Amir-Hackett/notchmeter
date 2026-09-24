@@ -848,6 +848,7 @@
 "The subagents this session is running; click to list them" = "The subagents this session is running; click to list them";
 "%1$ld of %2$ld done" = "%1$ld of %2$ld done";
 "Task list" = "Task list";
+"Untitled task" = "Untitled task";
 "Claude Code's task list for this session; click to show it" = "Claude Code's task list for this session; click to show it";
 "Claude Code's task list for this session" = "Claude Code's task list for this session";
 "Subagent %ld" = "Subagent %ld";

@@ -848,6 +848,7 @@
 "The subagents this session is running; click to list them" = "此会话正在运行的子代理；点击列出";
 "%1$ld of %2$ld done" = "已完成 %1$ld/%2$ld";
 "Task list" = "任务列表";
+"Untitled task" = "未命名的任务";
 "Claude Code's task list for this session; click to show it" = "此会话的 Claude Code 任务列表；点击显示";
 "Claude Code's task list for this session" = "此会话的 Claude Code 任务列表";
 "Subagent %ld" = "子代理 %ld";

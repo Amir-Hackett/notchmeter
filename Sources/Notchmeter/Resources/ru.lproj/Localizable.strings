@@ -848,6 +848,7 @@
 "The subagents this session is running; click to list them" = "Субагенты, запущенные этой сессией; щёлкните, чтобы увидеть список";
 "%1$ld of %2$ld done" = "Сделано %1$ld из %2$ld";
 "Task list" = "Список задач";
+"Untitled task" = "Задача без названия";
 "Claude Code's task list for this session; click to show it" = "Список задач Claude Code для этой сессии; щёлкните, чтобы показать";
 "Claude Code's task list for this session" = "Список задач Claude Code для этой сессии";
 "Subagent %ld" = "Субагент %ld";

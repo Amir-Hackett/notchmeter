@@ -128,7 +128,9 @@ import Testing
         #expect(rows[3].note == .doneJump)
         #expect(rows[3].since == t0.addingTimeInterval(120), "an ended turn clocks its quiet, not the session's age")
         #expect(rows[2].chips == ["Claude"])
-        #expect(rows[2].host == "@devbox")
+        #expect(rows[2].host == nil, "two projects are live, so the row sits under the \"notchmeter@devbox\" header, which names the host")
+        #expect(rows[2].title == "main", "untitled under a header: the branch, not the project again")
+        #expect(rows[2].branch == nil)
         #expect(rows[2].place == nil)
         #expect(rows[2].canJump == false, "a session on another Mac has nothing to jump to")
         let noJump = SessionsCard.rows([finished], hideTitles: false, jump: false, now: now).rows[0]
@@ -201,6 +203,32 @@ import Testing
         let groups = SessionsCard.groups(rows, sessions: sessions)
         #expect(groups.map(\.count) == [8], "only notchmeter's six made it on; scout is counted in +3 more")
         #expect(groups[0].name == "notchmeter")
+    }
+
+    /// A row without a title of its own says something its header does not: under a project header it takes the
+    /// branch (else the terminal) as its title and leaves it off the second line; with one project and no header
+    /// it is the project, and a remote one's host is not said twice.
+    @Test func aFallbackTitleNeverRepeatsTheHeaderOrTheHost() {
+        let grouped = [make("a", terminal: iterm), make("b", branch: nil, terminal: iterm), make("c", branch: nil), make("s", project: "scout"),
+                       make("t", title: "Fix it", host: "devbox", state: .working(since: t0))]
+        let rows = Dictionary(uniqueKeysWithValues: SessionsCard.rows(grouped, hideTitles: false, jump: true, now: t0).rows.map { ($0.id, $0) })
+        #expect(rows["a"]?.title == "main")
+        #expect(rows["a"]?.branch == nil)
+        #expect(rows["a"]?.place == "iTerm")
+        #expect(rows["b"]?.title == "iTerm", "no branch: the terminal")
+        #expect(rows["b"]?.place == nil)
+        #expect(rows["c"]?.title == "notchmeter", "nothing else to say: the project, which is never blank")
+        #expect(rows["t"]?.title == "Fix it")
+        #expect(rows["t"]?.host == nil, "the header says @devbox")
+        let hidden = SessionsCard.rows(grouped, hideTitles: true, jump: true, now: t0).rows.first { $0.id == "t" }
+        #expect(hidden?.title == "main", "a shared screen hides the prompt and the header still names the project")
+
+        let single = SessionsCard.rows([make("r", host: "devbox")], hideTitles: false, jump: true, now: t0).rows[0]
+        #expect(single.title == "notchmeter@devbox")
+        #expect(single.branch == "main")
+        #expect(single.host == nil, "the title already carries @devbox")
+        let titled = SessionsCard.rows([make("r", title: "Deploy", host: "devbox")], hideTitles: false, jump: true, now: t0).rows[0]
+        #expect(titled.host == "@devbox", "a titled row alone keeps its host on the second line")
     }
 
     /// Subagents are listed oldest first by when they started; the ids are the tracker's, never shown.

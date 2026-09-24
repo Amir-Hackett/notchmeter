@@ -92,9 +92,15 @@ enum DemoFixtures {
                                            branch: "feat/side-notch", agentID: agent)
                 tracker.apply(message, now: now.addingTimeInterval(-ago))
             }
-            var todo = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
-            todo.todos = TodoPlan(items: todoItems)
-            tracker.apply(todo, now: now.addingTimeInterval(-100))
+            // The way current Claude Code builds it: a TaskCreate per task, then a TaskUpdate per change of status.
+            for (index, item) in todoItems.enumerated() {
+                for change in [TaskChange(kind: .created, id: "\(index + 1)", subject: item.content, status: .pending),
+                               TaskChange(kind: .updated, id: "\(index + 1)", subject: nil, status: item.status)] {
+                    var task = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
+                    task.task = change
+                    tracker.apply(task, now: now.addingTimeInterval(-100))
+                }
+            }
             tracker.statusline(sessionID: "scout", project: "scout", contextUsed: 0.31, now: now.addingTimeInterval(-90))
             tracker.statusline(sessionID: "notchmeter", project: "notchmeter", contextUsed: 0.78, now: now.addingTimeInterval(-60))
         }
@@ -143,7 +149,7 @@ enum DemoFixtures {
     static let requestID = "demo-request"
     static let notchmeterTitle = "Add a Sessions card between the advice and the tool cards"
     static let scoutTitle = "Draft the Friday sports recap"
-    /// The notchmeter session's task list, as Claude Code's TodoWrite would leave it partway through the turn.
+    /// The notchmeter session's task list, as Claude Code's Task tools would leave it partway through the turn.
     static let todoItems = [
         TodoPlan.Item(content: "Read the Sessions card and its tests", status: .completed),
         TodoPlan.Item(content: "Group the rows by project", status: .completed),

@@ -255,7 +255,7 @@ import Testing
             #expect(group["matcher"] as? String == HookVendor.claude.matcher(for: event), "\(event)")
         }
         #expect(snippet.contains("\"PreToolUse\": [\n      { \"matcher\": \"AskUserQuestion\", \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"timeout\": 600 } ] }"))
-        #expect(snippet.contains("\"PostToolUse\": [\n      { \"matcher\": \"TodoWrite\", \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"async\": true, \"timeout\": 5 } ] }"))
+        #expect(snippet.contains("\"PostToolUse\": [\n      { \"matcher\": \"TodoWrite|TaskCreate|TaskUpdate\", \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"async\": true, \"timeout\": 5 } ] }"))
         #expect(snippet.contains("\"PermissionRequest\": [\n      { \"hooks\": [ { \"type\": \"command\", \"command\": \"'\(executable)' --hook\", \"timeout\": 600 } ] }"))
     }
 
@@ -291,8 +291,8 @@ import Testing
     }
 
     /// An unmatched `PostToolUse` of ours would launch the command after every tool call, so it is out of date
-    /// even though the event is not a deciding one, and Repair gives the group its `TodoWrite` matcher and nothing else.
-    @Test func anUnmatchedPostToolUseIsPartialAndRepairMatchesItToTodoWrite() throws {
+    /// even though the event is not a deciding one, and Repair gives the group its task-tool matcher and nothing else.
+    @Test func anUnmatchedPostToolUseIsPartialAndRepairMatchesItToTheTaskTools() throws {
         let snippet = HookSettings.snippet(executable: executable)
         var root = try #require(try JSONSerialization.jsonObject(with: Data(snippet.utf8)) as? [String: Any])
         var hooks = try #require(root["hooks"] as? [String: Any])
@@ -302,10 +302,36 @@ import Testing
         let repaired = HookSettings.repair(root, executable: executable)
         #expect(repaired.repaired == ["PostToolUse"])
         let group = try #require(((repaired.settings["hooks"] as? [String: Any])?["PostToolUse"] as? [[String: Any]])?.first)
-        #expect(group["matcher"] as? String == "TodoWrite")
+        #expect(group["matcher"] as? String == "TodoWrite|TaskCreate|TaskUpdate")
         let handler = try #require((group["hooks"] as? [[String: Any]])?.first)
         #expect(handler["async"] as? Bool == true, "not a deciding event: the handler stays asynchronous")
         #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
+    }
+
+    /// A group matched to `TodoWrite` alone (what the first build of the task list wrote) misses the Task tools
+    /// current Claude Code uses: it is out of date, and Repair adds the two names and keeps any the user added.
+    @Test func aPostToolUseMatchedToTodoWriteAloneGainsTheTaskTools() throws {
+        let snippet = HookSettings.snippet(executable: executable)
+        var root = try #require(try JSONSerialization.jsonObject(with: Data(snippet.utf8)) as? [String: Any])
+        var hooks = try #require(root["hooks"] as? [String: Any])
+        hooks["PostToolUse"] = [["matcher": "TodoWrite|Bash", "hooks": [["type": "command", "command": "'\(executable)' --hook", "async": true, "timeout": 5]]]]
+        root["hooks"] = hooks
+        #expect(HookSettings.status(settings: root, executable: executable) == .partial(path: executable))
+        let repaired = HookSettings.repair(root, executable: executable)
+        #expect(repaired.repaired == ["PostToolUse"])
+        let group = try #require(((repaired.settings["hooks"] as? [String: Any])?["PostToolUse"] as? [[String: Any]])?.first)
+        #expect(group["matcher"] as? String == "TodoWrite|Bash|TaskCreate|TaskUpdate")
+        #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
+    }
+
+    @Test func aMatcherCoversARequiredListNameByName() {
+        #expect(HookVendor.matcher("AskUserQuestion|Bash", covers: "AskUserQuestion"))
+        #expect(!HookVendor.matcher("TodoWrite", covers: "TodoWrite|TaskCreate|TaskUpdate"))
+        #expect(HookVendor.matcher("TaskUpdate|TodoWrite|TaskCreate", covers: "TodoWrite|TaskCreate|TaskUpdate"), "order does not matter")
+        #expect(!HookVendor.matcher(nil, covers: "AskUserQuestion"))
+        #expect(!HookVendor.matcher("AskUserQuestions", covers: "AskUserQuestion"), "a name, not a substring")
+        #expect(HookVendor.matcher(nil, adding: "A|B") == "A|B")
+        #expect(HookVendor.matcher("B|C", adding: "A|B") == "B|C|A")
     }
 
     @Test func aPreToolUseGroupWithoutItsMatcherIsPartialAndATimeoutTheUserRaisedIsKept() throws {

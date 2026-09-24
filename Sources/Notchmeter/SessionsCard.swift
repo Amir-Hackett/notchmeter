@@ -84,6 +84,9 @@ struct SessionsCard: View {
         func status(_ session: AgentSession) -> Row.Status {
             session.isWaiting ? .waiting : session.isWorking ? .working : session.finish(now: now) != nil ? .finished : .idle
         }
+        // With more than one project live every row sits under its project's header (`groups`), so a row with no
+        // title of its own says something the header does not rather than the project again.
+        let grouped = Set(sessions.map(groupName(of:))).count > 1
         let ordered = sessions.enumerated().sorted { a, b in
             let (ra, rb) = (status(a.element).rank, status(b.element).rank)
             return ra != rb ? ra < rb : a.offset < b.offset
@@ -99,8 +102,9 @@ struct SessionsCard: View {
             let place = TerminalJump.displayName(bundleID: session.terminal?.bundleID).flatMap { $0 == session.tool.displayName ? nil : $0 }
             let agents = session.agents.sorted { $0.value != $1.value ? $0.value < $1.value : $0.key < $1.key }
                 .map { Row.Agent(id: $0.key, since: $0.value) }
-            return Row(id: session.id, tool: session.tool, title: title(of: session, hideTitles: hideTitles), chips: [session.tool.displayName],
-                       branch: session.branch, place: place, host: session.host.map { "@\($0)" }, group: groupName(of: session),
+            let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped)
+            return Row(id: session.id, tool: session.tool, title: lines.title, chips: [session.tool.displayName],
+                       branch: lines.branch, place: lines.place, host: lines.host, group: groupName(of: session),
                        since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
                        status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
                        todos: hideTitles ? session.todos?.withoutContent() : session.todos)
@@ -135,6 +139,22 @@ struct SessionsCard: View {
     static func title(of session: AgentSession, hideTitles: Bool) -> String {
         if !hideTitles, let title = session.displayTitle { return title }
         return session.displayName ?? session.tool.displayName
+    }
+
+    /// The row's title and second line, each saying a thing once. A row with a title of its own shows it over the
+    /// branch, the terminal and the host. A row without one, under a project header, would only repeat the
+    /// header, so it takes the branch as its title (else the terminal), which then leaves the second line; and
+    /// the host is left off the second line wherever the title or the header already carries it ("proj@devbox").
+    static func line(of session: AgentSession, place: String?, hideTitles: Bool, grouped: Bool)
+        -> (title: String, branch: String?, place: String?, host: String?) {
+        let host = session.host.map { "@\($0)" }
+        if !hideTitles, let title = session.displayTitle { return (title, session.branch, place, grouped ? nil : host) }
+        if grouped {
+            if let branch = session.branch { return (branch, nil, place, nil) }
+            if let place { return (place, nil, nil, nil) }
+        }
+        let fallback = Self.title(of: session, hideTitles: true)
+        return (fallback, session.branch, place, grouped || host.map(fallback.contains) == true ? nil : host)
     }
 
     /// The gauge's tint: quiet below 70 %, the warning orange to 90 %, vermillion past it. The percentage beside it
@@ -293,7 +313,7 @@ private struct SessionRow: View {
                 trailing
             }
             if hasExtras {
-                extras.padding(.leading, SessionRow.textInset)
+                extras.padding(.leading, SessionRow.textInset).opacity(idleOpacity)
             }
             if open.contains(.agents), !row.agents.isEmpty {
                 agentList.padding(.leading, SessionRow.textInset)
@@ -307,11 +327,14 @@ private struct SessionRow: View {
         .background {
             // The row that needs the reader: a wash of the "needs you" blue and a bar down its leading edge, so it
             // is found by shape as well as by the hand in its status mark.
+            // Under Increase Contrast the card is lighter and the wash with it, and the blue marks drawn on it fall
+            // under 3:1 (measured on expanded-contrast.png: the hand 2.3:1, the tick 2.1:1), so the bar and the marks
+            // go white there (`SessionRow.needsYouMark`) and the wash alone carries the blue.
             if row.needsYou {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Palette.calm.opacity(contrast ? 0.32 : 0.15))
                     .overlay(alignment: .leading) {
-                        Rectangle().fill(Palette.calm).frame(width: 3)
+                        Rectangle().fill(Self.needsYouMark).frame(width: 3)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
@@ -342,6 +365,14 @@ private struct SessionRow: View {
 
     /// Where the row's text starts: past the 13 pt status mark and its 7 pt gap, so the extras line up under it.
     static let textInset: CGFloat = 20
+
+    /// The "needs you" blue for a mark drawn on the card (the hand, the bar, a task in progress), or white under
+    /// Increase Contrast, where Palette.calm on the lighter card and wash is under 3:1. The shape still tells the
+    /// mark apart, and the wash stays blue.
+    @MainActor static var needsYouMark: Color { AccessibilityDisplay.shared.contrast ? .white : Palette.calm }
+
+    /// The idle row's quiet: its text, and the extras line under it, a step down from a live row's.
+    private var idleOpacity: Double { row.status == .idle ? 0.8 : 1 }
 
     private var hasExtras: Bool { row.contextUsed != nil || !row.agents.isEmpty || (row.todos?.total ?? 0) > 0 }
 
@@ -414,7 +445,7 @@ private struct SessionRow: View {
         .accessibilityLabel(row.title)
         .accessibilityValue(Spoken.line(statusText, row.chips.joined(separator: ", "), row.branch, placeParts.joined(separator: ", "),
                                         ResetText.duration(max(0, now.timeIntervalSince(row.since))), row.note.map(noteText)))
-        .opacity(row.status == .idle ? 0.8 : 1)
+        .opacity(idleOpacity)
     }
 
     // MARK: The extras line
@@ -422,7 +453,7 @@ private struct SessionRow: View {
     private var extras: some View {
         HStack(spacing: 6) {
             if let used = row.contextUsed {
-                ContextGauge(fraction: used)
+                ContextGauge(fraction: used, quiet: row.status == .idle)
             }
             if !row.agents.isEmpty {
                 disclosure(.agents, symbol: "person.2.fill", text: "\(row.agents.count)",
@@ -479,17 +510,22 @@ private struct SessionRow: View {
         }
     }
 
+    /// The plan's items in order. One with no words (the tool sent none, or an update for a task the app never
+    /// saw created) is still an item the counts include, so it is drawn and read as "Untitled task", in the
+    /// caption's quieter style, rather than as an empty line VoiceOver would read as nothing.
     private func checklist(_ todos: TodoPlan) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             ForEach(Array(todos.items.enumerated()), id: \.offset) { _, item in
+                let text = item.content.flatMap { $0.isEmpty ? nil : $0 }
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Image(systemName: item.status.symbol).font(.caption2.weight(.semibold)).foregroundStyle(item.status.colour)
-                    Text(verbatim: item.content ?? "").font(.caption).lineLimit(2)
+                    Text(text ?? L("Untitled task")).font(.caption).lineLimit(2)
+                        .italic(text == nil)
                         .strikethrough(item.status == .completed)
-                        .foregroundStyle(item.status == .completed ? AnyShapeStyle(Caption.style) : AnyShapeStyle(.primary))
+                        .foregroundStyle(item.status == .completed || text == nil ? AnyShapeStyle(Caption.style) : AnyShapeStyle(.primary))
                 }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(item.content ?? "")
+                .accessibilityLabel(text ?? L("Untitled task"))
                 .accessibilityValue(item.status.spoken)
             }
         }
@@ -509,7 +545,7 @@ private struct SessionRow: View {
     private var colour: Color {
         switch row.status {
         case .working: row.tool.color
-        case .waiting: Palette.calm
+        case .waiting: Self.needsYouMark
         case .idle: .secondary
         case .finished: Palette.pine
         }
@@ -570,12 +606,14 @@ private struct ExtraChip: View {
 /// 90 % (`SessionsCard.contextLevel`), and the figure beside it says the same thing without the colour.
 private struct ContextGauge: View {
     let fraction: Double
+    /// On an idle row: an untinted bar and figure go no brighter than the row's own secondary title.
+    var quiet = false
 
     var body: some View {
         let contrast = AccessibilityDisplay.shared.contrast
         let percent = Int((fraction * 100).rounded())
         let level = SessionsCard.contextLevel(fraction)
-        let tint = level.tint ?? .white.opacity(contrast ? 0.95 : 0.75)
+        let tint = level.tint ?? .white.opacity(quiet ? 0.55 : contrast ? 0.95 : 0.75)
         HStack(spacing: 4) {
             ZStack(alignment: .leading) {
                 Capsule().fill(.white.opacity(contrast ? 0.3 : 0.15))
@@ -583,7 +621,7 @@ private struct ContextGauge: View {
             }
             .frame(width: 34, height: 4)
             Text(verbatim: "\(percent)%").font(.system(size: 10, weight: .semibold)).monospacedDigit()
-                .foregroundStyle(level == .quiet ? AnyShapeStyle(Caption.style) : AnyShapeStyle(tint))
+                .foregroundStyle(level != .quiet ? AnyShapeStyle(tint) : quiet ? AnyShapeStyle(.secondary) : AnyShapeStyle(Caption.style))
         }
         .frame(minHeight: 20)
         .contentShape(Rectangle())
@@ -629,11 +667,14 @@ private extension TodoPlan.Status {
         }
     }
 
-    var colour: Color {
-        switch self {
+    /// Under Increase Contrast both coloured marks go white: Palette.calm and Palette.pine are under 3:1 on the
+    /// lighter card and the row's wash, and the shape (half ring, tick) and the spoken status carry the difference.
+    @MainActor var colour: Color {
+        let contrast = AccessibilityDisplay.shared.contrast
+        return switch self {
         case .pending: .secondary
-        case .inProgress: Palette.calm
-        case .completed: Palette.pine
+        case .inProgress: contrast ? .white : Palette.calm
+        case .completed: contrast ? .white : Palette.pine
         }
     }
 

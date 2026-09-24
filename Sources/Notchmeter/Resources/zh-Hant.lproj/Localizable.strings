@@ -832,6 +832,7 @@
 "The subagents this session is running; click to list them" = "此工作階段正在執行的子代理；點一下列出";
 "%1$ld of %2$ld done" = "已完成 %1$ld/%2$ld";
 "Task list" = "任務清單";
+"Untitled task" = "未命名的任務";
 "Claude Code's task list for this session; click to show it" = "此工作階段的 Claude Code 任務清單；點一下顯示";
 "Claude Code's task list for this session" = "此工作階段的 Claude Code 任務清單";
 "Subagent %ld" = "子代理 %ld";

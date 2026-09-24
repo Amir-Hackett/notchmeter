@@ -832,6 +832,7 @@
 "The subagents this session is running; click to list them" = "Các tác tử con phiên này đang chạy; bấm để liệt kê";
 "%1$ld of %2$ld done" = "Xong %1$ld trên %2$ld";
 "Task list" = "Danh sách việc";
+"Untitled task" = "Việc chưa đặt tên";
 "Claude Code's task list for this session; click to show it" = "Danh sách việc của Claude Code cho phiên này; bấm để hiện";
 "Claude Code's task list for this session" = "Danh sách việc của Claude Code cho phiên này";
 "Subagent %ld" = "Tác tử con %ld";

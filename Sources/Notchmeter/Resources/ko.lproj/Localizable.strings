@@ -832,6 +832,7 @@
 "The subagents this session is running; click to list them" = "이 세션이 실행 중인 하위 에이전트, 클릭하면 목록 표시";
 "%1$ld of %2$ld done" = "%2$ld개 중 %1$ld개 완료";
 "Task list" = "작업 목록";
+"Untitled task" = "제목 없는 작업";
 "Claude Code's task list for this session; click to show it" = "이 세션의 Claude Code 작업 목록, 클릭하면 표시";
 "Claude Code's task list for this session" = "이 세션의 Claude Code 작업 목록";
 "Subagent %ld" = "하위 에이전트 %ld";
