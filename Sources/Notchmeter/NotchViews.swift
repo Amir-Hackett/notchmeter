@@ -908,7 +908,9 @@ struct NotchExpandedView: View {
             // with one link to the rest; a panel already open takes the card on top of everything.
             if let newest = pending.first {
                 PromptCard(session: newest.session, request: newest.request, hideFigures: store.hidesFigures,
-                           decide: { store.decide($0, $1) })
+                           decide: { store.decide($0, $1) },
+                           unfolded: store.unfoldedSuggestions.contains(newest.request.id),
+                           setUnfolded: { store.unfoldSuggestions(newest.request.id, $0) })
                 if promptOnly {
                     Button { store.panelOpenedForPrompt = false } label: {
                         Text(L("Show the whole panel")).font(.caption).foregroundStyle(.secondary)

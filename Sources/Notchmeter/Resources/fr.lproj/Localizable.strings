@@ -542,6 +542,7 @@
 "Shown" = "Affichées";
 "Hidden" = "Masquées";
 "Allows this request and saves the rule, so it is not asked again." = "Autorise cette demande et enregistre la règle pour ne plus la redemander.";
+"%1$@ (%2$@)" = "%1$@ (%2$@)";
 "The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "La première ligne de chaque prompt, 96 caractères au plus, que le hook envoie et que seule l'app en cours conserve. Désactivé, l'app l'écarte avant de la stocker et la ligne affiche à la place le projet et la branche. Les titres sont masqués pendant le partage d'écran, quel que soit ce réglage.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "La fenêtre de l'anneau extérieur sous forme d'un chiffre à côté des anneaux, au sens Utilisé ou Restant choisi sous Affichage de l'utilisation et sans le compte à rebours. Les anneaux s'estompent toujours sous 40 % ; le chiffre reste lisible.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Pour lire une fois la connexion enregistrée de Claude Code. Choisissez Toujours autoriser pour ne plus être sollicité ; les lectures programmées n'affichent jamais la fenêtre de dialogue.";

@@ -24,13 +24,16 @@ struct PromptCard: View {
     /// shoulder. The summary and the buttons stay, because the request still has to be answerable.
     var hideFigures = false
     var decide: (String, Decision) -> Void = { _, _ in }
+    /// Whether *Allow always* has its other suggestions unfolded, and how the chevron changes it. The store holds
+    /// it (`UsageStore.unfoldedSuggestions`), not the card, so the edge layout's probe measures the card as drawn
+    /// and refits the window when it unfolds, rather than clipping the rows to the folded height.
+    var unfolded = false
+    var setUnfolded: (Bool) -> Void = { _ in }
     @Environment(\.density) private var density
     /// The options chosen per question, by index, while a question is being answered.
     @State private var chosen: [Int: Set<Int>] = [:]
     /// Which question of several is on screen.
     @State private var current = 0
-    /// Whether *Allow always* has its other suggestions unfolded.
-    @State private var showsMoreSuggestions = false
 
     /// How many lines of the excerpt are shown before it scrolls inside a fixed frame.
     static let detailLinesShown = 8
@@ -128,13 +131,16 @@ struct PromptCard: View {
                 alwaysButton(first, key: "⌥⌘Y", shortcut: "y")
                 if !others.isEmpty {
                     Button {
+                        // Eased out on the way in and quicker on the way out, as the rest of the panel's motion is;
+                        // under Reduce Motion the rows are simply there, or gone.
+                        let unfolding = !unfolded
                         if AccessibilityDisplay.shared.motionReduced {
-                            showsMoreSuggestions.toggle()
+                            setUnfolded(unfolding)
                         } else {
-                            withAnimation(.easeOut(duration: 0.15)) { showsMoreSuggestions.toggle() }
+                            withAnimation(unfolding ? .easeOut(duration: 0.2) : .easeIn(duration: 0.12)) { setUnfolded(unfolding) }
                         }
                     } label: {
-                        Image(systemName: showsMoreSuggestions ? "chevron.up" : "chevron.down")
+                        Image(systemName: unfolded ? "chevron.up" : "chevron.down")
                             .font(.callout.weight(.semibold))
                             .frame(width: 18)
                             .frame(maxHeight: .infinity)
@@ -144,15 +150,16 @@ struct PromptCard: View {
                     .keyboardShortcut(.downArrow, modifiers: [.command, .option])
                     .help(L("Other rules to always allow (⌥⌘↓)"))
                     .accessibilityLabel(L("Other rules to always allow (⌥⌘↓)"))
-                    .accessibilityValue(showsMoreSuggestions ? L("Shown") : L("Hidden"))
+                    .accessibilityValue(unfolded ? L("Shown") : L("Hidden"))
                 }
             }
             // The chevron takes the height of the phrase beside it, so the two read as one split button.
             .fixedSize(horizontal: false, vertical: true)
-            if showsMoreSuggestions {
+            if unfolded {
                 ForEach(Array(others.enumerated()), id: \.offset) { offset, suggestion in
                     let number = offset + 2
                     alwaysButton(suggestion, key: "⌥⌘\(number)", shortcut: KeyEquivalent(Character("\(number)")))
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
         }
@@ -174,8 +181,9 @@ struct PromptCard: View {
         }
         .buttonStyle(PromptButtonStyle(filled: false, leading: true))
         .keyboardShortcut(shortcut, modifiers: [.command, .option])
-        .help(phrase)
-        .accessibilityLabel(phrase)
+        // The key is spoken with the phrase, as Allow's and Deny's are with theirs.
+        .help(L("%1$@ (%2$@)", phrase, key))
+        .accessibilityLabel(L("%1$@ (%2$@)", phrase, key))
         .accessibilityHint(L("Allows this request and saves the rule, so it is not asked again."))
     }
 

@@ -542,6 +542,7 @@
 "Shown" = "Shown";
 "Hidden" = "Hidden";
 "Allows this request and saves the rule, so it is not asked again." = "Allows this request and saves the rule, so it is not asked again.";
+"%1$@ (%2$@)" = "%1$@ (%2$@)";
 "The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog.";

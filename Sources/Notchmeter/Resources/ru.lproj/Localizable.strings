@@ -542,6 +542,7 @@
 "Shown" = "Показаны";
 "Hidden" = "Скрыты";
 "Allows this request and saves the rule, so it is not asked again." = "Разрешает этот запрос и сохраняет правило, чтобы больше не спрашивать.";
+"%1$@ (%2$@)" = "%1$@ (%2$@)";
 "The first line of each prompt, at most 96 characters, which the hook sends and only the running app keeps. Off, the app drops it before it is held anywhere and the row shows the project and branch instead. Titles are hidden while the screen is shared whatever this says." = "Первая строка каждого промпта, не длиннее 96 символов: её отправляет хук, и хранит только запущенное приложение. Если выключено, приложение отбрасывает её до того, как она где-либо сохранится, а строка показывает проект и ветку. Во время трансляции экрана заголовки скрыты независимо от этой настройки.";
 "The outer ring's window as one figure beside the rings, in the Used or Left sense chosen under Usage display and without the reset countdown. The rings still go quiet under 40 %; the figure stays legible." = "Окно внешнего кольца одной цифрой рядом с кольцами — «использовано» или «осталось», как выбрано в «Отображении использования», и без отсчёта до сброса. Кольца по-прежнему приглушаются ниже 40 %, а цифра остаётся читаемой.";
 "To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog." = "Чтобы один раз прочитать сохранённые учётные данные Claude Code. Выберите «Разрешать всегда», чтобы запрос больше не появлялся; плановые чтения никогда не вызывают этот диалог.";

@@ -88,8 +88,22 @@ import Testing
         }
     }
 
-    @MainActor private func size(of request: PendingRequest, width: CGFloat) -> CGSize {
-        let host = NSHostingView(rootView: PromptCard(session: session(request), request: request)
+    /// The unfold is an input, not the card's own state, so a fresh card measured unfolded (as the edge layout's
+    /// probe measures one) comes out taller by the rows it shows.
+    @MainActor @Test func anUnfoldedCardMeasuresTallerThanAFoldedOne() {
+        let request = PendingRequest(id: "r", kind: .permission(tool: "Bash", summary: "swift build", detail: nil, suggestions: [
+            .init(index: 0, grant: .rules(["Bash(swift build:*)"]), place: .localSettings),
+            .init(index: 1, grant: .acceptEdits, place: .session),
+            .init(index: 2, grant: .directories(["~/src"]), place: .session),
+        ]), since: t0)
+        let width = PanelWidth.standard.points - 2 * NotchExpandedView.contentHorizontalPadding
+        let folded = size(of: request, width: width)
+        let unfolded = size(of: request, width: width, unfolded: true)
+        #expect(unfolded.height > folded.height + 40, "two more rows are laid out")
+    }
+
+    @MainActor private func size(of request: PendingRequest, width: CGFloat, unfolded: Bool = false) -> CGSize {
+        let host = NSHostingView(rootView: PromptCard(session: session(request), request: request, unfolded: unfolded)
             .frame(width: width)
             .environment(\.density, .comfortable))
         host.layoutSubtreeIfNeeded()

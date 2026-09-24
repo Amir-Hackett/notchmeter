@@ -245,18 +245,18 @@ import Testing
         #expect(Hook.Answer.output(event: "PreToolUse", reply: always, payload: payload) == nil, "a question is answered, not allowed")
     }
 
-    @Test func theOracleSaysARuleWasAddedAndNeverWhichRule() {
+    @Test func theOracleSaysARuleWasAskedForAndNeverWhichRule() {
         let always = UsageStore.decisionFields(request: "r", kind: "permission", behavior: Decision.allowAlways(suggestion: 0).behavior,
-                                               session: "s", addsRule: Decision.allowAlways(suggestion: 0).addsRule)
+                                               session: "s", asksRule: Decision.allowAlways(suggestion: 0).addsRule)
         #expect(always["behavior"] as? String == "allow")
-        #expect(always["ruleAdded"] as? Bool == true)
-        #expect(Set(always.keys) == ["request", "kind", "behavior", "session", "ruleAdded"])
-        let plain = UsageStore.decisionFields(request: "r", kind: "permission", behavior: "allow", session: nil, addsRule: Decision.allow.addsRule)
-        #expect(plain["ruleAdded"] as? Bool == false)
-        let deny = UsageStore.decisionFields(request: "r", kind: "permission", behavior: "deny", session: nil, addsRule: false)
-        #expect(deny["ruleAdded"] == nil, "only an allow says whether it added a rule")
-        let lost = UsageStore.decisionFields(request: "r", kind: "permission", behavior: "lost", session: nil, addsRule: false)
-        #expect(lost["ruleAdded"] == nil)
+        #expect(always["ruleRequested"] as? Bool == true)
+        #expect(Set(always.keys) == ["request", "kind", "behavior", "session", "ruleRequested"])
+        let plain = UsageStore.decisionFields(request: "r", kind: "permission", behavior: "allow", session: nil, asksRule: Decision.allow.addsRule)
+        #expect(plain["ruleRequested"] as? Bool == false)
+        let deny = UsageStore.decisionFields(request: "r", kind: "permission", behavior: "deny", session: nil, asksRule: false)
+        #expect(deny["ruleRequested"] == nil, "only an allow says whether it asked for a rule")
+        let lost = UsageStore.decisionFields(request: "r", kind: "permission", behavior: "lost", session: nil, asksRule: false)
+        #expect(lost["ruleRequested"] == nil)
     }
 
     @Test @MainActor func theHeadOfALargePayloadSaysWhetherToReadOn() {
@@ -652,6 +652,26 @@ import Testing
         #expect(acted == ["prompt s r1", "raise s", "withdraw session/s/waiting", "ended r1"])
         store.decide("r1", .deny(message: nil), now: t0.addingTimeInterval(3))
         #expect(acted.count == 4, "a second decision on the same id is nothing")
+    }
+
+    /// *Allow always*'s unfold lives on the store, so the edge layout's probe measures it; it is kept for a
+    /// pending request only and leaves with the request.
+    @MainActor @Test func anUnfoldIsKeptForAPendingRequestAndLeavesWithIt() throws {
+        let suite = "NotchmeterTests.unfold"
+        let (store, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let (reply, peer) = try Self.pair()
+        defer { close(peer) }
+        store.hookReceived(HookSocketDecisions.request("r1"), now: t0, reply: reply)
+        store.unfoldSuggestions("nobody", true, now: t0)
+        #expect(store.unfoldedSuggestions.isEmpty, "an id the app is not showing is not unfolded")
+        store.unfoldSuggestions("r1", true, now: t0)
+        #expect(store.unfoldedSuggestions == ["r1"])
+        store.unfoldSuggestions("r1", false, now: t0)
+        #expect(store.unfoldedSuggestions.isEmpty)
+        store.unfoldSuggestions("r1", true, now: t0)
+        store.decide("r1", .allow, now: t0.addingTimeInterval(1))
+        #expect(store.unfoldedSuggestions.isEmpty, "an answered request takes its unfold with it")
     }
 
     @MainActor @Test func aPassLeavesTheSessionWaitingAndANewRequestReleasesTheOld() throws {
