@@ -473,7 +473,7 @@ private struct SessionRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
                     // On the Simple sheet the title matches its sibling rows' (SimpleRow): one title size a sheet.
-                    Text(verbatim: row.title).font((embedded ? Font.body : .callout).weight(.semibold)).lineLimit(1).truncationMode(.middle)
+                    Text(verbatim: row.title).font((embedded ? Font.body : .callout).weight(.semibold)).lineLimit(1).truncationMode(.tail)
                         .foregroundStyle(row.status == .idle ? Caption.style : AnyShapeStyle(.primary))
                     ForEach(row.chips, id: \.self) { Chip(text: $0).help(L("The assistant running this session")) }
                 }
