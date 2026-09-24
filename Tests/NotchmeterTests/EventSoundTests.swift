@@ -67,6 +67,58 @@ import Testing
         #expect(UsageStore.hookFacts(Hook.Message(event: "Stop", needsInput: false))["wait"] == nil, "no wait, no kind")
     }
 
+    /// The rule the store keeps, not only the helper: with answering from the notch off the request is dropped
+    /// before the tracker sees it, and the plan must still sound as a plan and be named one in the oracle.
+    @Test func aPlanSoundsAsAPlanWithAnsweringFromTheNotchOff() throws {
+        try withSuite("store") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            prefs.notifyWaiting = true
+            prefs.answerFromNotch = false
+            let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults,
+                                   drainLog: nil, reportFile: nil)
+            var raised: [Hook.WaitKind] = []
+            store.deliverSessionEvent = { event, _ in if case .waiting(_, let kind) = event { raised.append(kind) } }
+            var waits: [String] = []
+            store.emitHookFacts = { facts in if let wait = facts["wait"] as? String { waits.append(wait) } }
+            let payload = try JSONSerialization.data(withJSONObject: [
+                "hook_event_name": "PermissionRequest", "session_id": "s", "tool_name": "ExitPlanMode",
+                "tool_input": ["plan": "1. Split the waiting sound"], "permission_mode": "plan",
+            ])
+            let message = try #require(Hook.message(from: payload, branch: { _ in nil }))
+            #expect(message.request != nil, "the payload carries the request the store will drop")
+            store.hookReceived(message)
+            #expect(raised == [.plan])
+            #expect(waits == ["plan"])
+            #expect(store.sessions.pending(now: Date()).isEmpty, "the request itself was dropped")
+        }
+    }
+
+    /// A wait answered in the terminal is never reported, so a session can still read as waiting when its next
+    /// request arrives; that request is a new wait with its own sound, not a continuation of the old one.
+    @Test func aNewRequestOnAnUnansweredWaitStartsAWaitOfItsOwn() {
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        func request(_ id: String, tool: String) -> Hook.Message {
+            var message = Hook.Message(event: "PermissionRequest", needsInput: true, sessionID: "a")
+            message.request = Hook.Request(id: id, kind: .permission(tool: tool, summary: tool, detail: nil, suggestions: []))
+            return message
+        }
+        var tracker = SessionTracker()
+        let prompt = Hook.Message(event: "Notification", needsInput: true, sessionID: "a", notificationType: "permission_prompt")
+        #expect(tracker.apply(prompt, now: t0).startedWaiting?.id == "a")
+        #expect(tracker.apply(request("r1", tool: "ExitPlanMode"), now: t0.addingTimeInterval(5)).startedWaiting?.id == "a",
+                "waiting with no request standing: the plan is a wait of its own")
+        #expect(tracker.apply(request("r1", tool: "ExitPlanMode"), now: t0.addingTimeInterval(6)).startedWaiting == nil,
+                "a replayed request is not a new wait")
+        #expect(tracker.apply(request("r2", tool: "Bash"), now: t0.addingTimeInterval(7)).startedWaiting == nil,
+                "one replacing a standing request is the same wait, as before")
+    }
+
+    @Test func theDefaultEntryNamesTheSoundItRestores() {
+        #expect(NotificationSound.defaultTitle(for: NotificationSound.defaultChoice) == L("Default"))
+        #expect(NotificationSound.defaultTitle(for: "system:Pop") == L("Default (%@)", "Pop"))
+        #expect(NotificationSound.defaultTitle(for: "system:Hero").contains("Hero"))
+    }
+
     @Test func eachSessionEventPlaysUnderItsOwnClass() {
         #expect(Notifier.soundEvent(for: .waiting(blocking: true, kind: .plan)) == .waiting(.plan))
         #expect(Notifier.soundEvent(for: .waiting(blocking: false)) == .waiting(.permission), "a wait that says nothing is a permission")

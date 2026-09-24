@@ -363,6 +363,7 @@
 "Dark" = "Dark";
 "Debug logging" = "Debug logging";
 "Default" = "Default";
+"Default (%@)" = "Default (%@)";
 "Density" = "Density";
 "Display" = "Display";
 "Display with the pointer" = "Display with the pointer";

@@ -43,6 +43,12 @@ enum NotificationSound {
         return "system:\(name)"
     }
 
+    /// The Default entry's name in a row whose default is `defaultTag`: plain "Default" for the system alert, and
+    /// "Default (Pop)" where a kind of wait starts with a sound of its own, so choosing it says what it restores.
+    static func defaultTitle(for defaultTag: String) -> String {
+        defaultTag == defaultChoice ? L("Default") : L("Default (%@)", title(for: defaultTag))
+    }
+
     /// The sounds the user imported, by file name. Only the extensions Notification Center can play are offered:
     /// a .mp3 or .m4a that an earlier build copied in verbatim would preview and then never sound on a banner.
     static func customSounds(folder: URL = userFolder) -> [String] {

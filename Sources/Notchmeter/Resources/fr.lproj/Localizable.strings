@@ -363,6 +363,7 @@
 "Dark" = "Sombre";
 "Debug logging" = "Journalisation de débogage";
 "Default" = "Par défaut";
+"Default (%@)" = "Par défaut (%@)";
 "Density" = "Densité";
 "Display" = "Écran";
 "Display with the pointer" = "Écran du pointeur";

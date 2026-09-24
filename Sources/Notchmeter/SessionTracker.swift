@@ -591,10 +591,13 @@ struct SessionTracker: Equatable, Sendable {
             // A request whose id is already standing, on this session or another, is a replayed line (ids are
             // UUIDs the hook generated): the first keeps its place and its `since`, and this one is reported as
             // nothing, so the store releases its connection at once and it lands as the display-only wait.
+            // A fresh request on a session already waiting with none standing starts a wait of its own: the
+            // assistant has moved on to a new tool call, so the wait before it was answered in the terminal (no
+            // hook reports that), and this one is announced under its own kind rather than folded into the old.
             if let request = message.request {
-                if !session.isWaiting { outcome.startedWaiting = session }
-                session.state = .waiting(since: now)
                 let standing = session.pending?.id == request.id || sessions.values.contains { $0.pending?.id == request.id }
+                if !session.isWaiting || (!standing && hadPending == nil) { outcome.startedWaiting = session }
+                session.state = .waiting(since: now)
                 if !standing {
                     let pending = PendingRequest(id: request.id, kind: request.kind, since: now)
                     session.pending = pending

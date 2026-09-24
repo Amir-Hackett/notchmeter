@@ -347,6 +347,7 @@
 "Dark" = "어둡게";
 "Debug logging" = "디버그 로깅";
 "Default" = "기본";
+"Default (%@)" = "기본(%@)";
 "Density" = "밀도";
 "Display" = "디스플레이";
 "Display with the pointer" = "포인터가 있는 디스플레이";

@@ -347,6 +347,7 @@
 "Dark" = "Tối";
 "Debug logging" = "Ghi nhật ký gỡ lỗi";
 "Default" = "Mặc định";
+"Default (%@)" = "Mặc định (%@)";
 "Density" = "Mật độ";
 "Display" = "Màn hình";
 "Display with the pointer" = "Màn hình có con trỏ";

@@ -363,6 +363,7 @@
 "Dark" = "Тёмное";
 "Debug logging" = "Журнал отладки";
 "Default" = "По умолчанию";
+"Default (%@)" = "По умолчанию (%@)";
 "Density" = "Плотность";
 "Display" = "Дисплей";
 "Display with the pointer" = "Дисплей с указателем";

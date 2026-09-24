@@ -363,6 +363,7 @@
 "Dark" = "Escuro";
 "Debug logging" = "Registro de depuração";
 "Default" = "Padrão";
+"Default (%@)" = "Padrão (%@)";
 "Density" = "Densidade";
 "Display" = "Tela";
 "Display with the pointer" = "Tela com o cursor";

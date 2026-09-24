@@ -177,6 +177,8 @@ final class UsageStore {
     /// A session (any assistant's) began waiting, or finished a turn; wired to the Notifier by the app
     /// delegate, which names the session's tool.
     @ObservationIgnored var deliverSessionEvent: (Notifier.SessionEvent, AgentSession) -> Void = { _, _ in }
+    /// Where the oracle line for each hook event goes (`hookFacts`); a test swaps it to read the line back.
+    @ObservationIgnored var emitHookFacts: ([String: Any]) -> Void = { Oracle.shared.emit("hook", $0) }
     /// Notices whose state has passed, to withdraw from Notification Center.
     @ObservationIgnored var removeNotifications: ([String]) -> Void = { _ in }
     /// True while the panel is open because a request opened it (App.promptRequested on a compact panel): the
@@ -1454,7 +1456,7 @@ final class UsageStore {
         }
         let tool = message.tool
         log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.request.map { " (\($0.kind.name) request)" } ?? "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
-        Oracle.shared.emit("hook", Self.hookFacts(message, wait: waitKind))
+        emitHookFacts(Self.hookFacts(message, wait: waitKind))
         lastHook[tool] = now
         lastActivity[tool] = now
         wokeAt = now

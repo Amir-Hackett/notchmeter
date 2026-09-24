@@ -363,6 +363,7 @@
 "Dark" = "深色";
 "Debug logging" = "调试日志";
 "Default" = "默认";
+"Default (%@)" = "默认（%@）";
 "Density" = "密度";
 "Display" = "显示器";
 "Display with the pointer" = "指针所在的显示器";

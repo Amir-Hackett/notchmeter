@@ -347,6 +347,7 @@
 "Dark" = "ダーク";
 "Debug logging" = "デバッグログ";
 "Default" = "デフォルト";
+"Default (%@)" = "デフォルト（%@）";
 "Density" = "密度";
 "Display" = "ディスプレイ";
 "Display with the pointer" = "ポインタのあるディスプレイ";

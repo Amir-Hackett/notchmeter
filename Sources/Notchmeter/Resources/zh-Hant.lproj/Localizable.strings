@@ -347,6 +347,7 @@
 "Dark" = "深色";
 "Debug logging" = "偵錯記錄";
 "Default" = "預設";
+"Default (%@)" = "預設（%@）";
 "Density" = "密度";
 "Display" = "顯示器";
 "Display with the pointer" = "游標所在的顯示器";

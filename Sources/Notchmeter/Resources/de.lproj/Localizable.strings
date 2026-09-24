@@ -364,6 +364,7 @@
 "Dark" = "Dunkel";
 "Debug logging" = "Debug-Protokollierung";
 "Default" = "Standard";
+"Default (%@)" = "Standard (%@)";
 "Density" = "Dichte";
 "Display" = "Bildschirm";
 "Display with the pointer" = "Bildschirm mit dem Zeiger";

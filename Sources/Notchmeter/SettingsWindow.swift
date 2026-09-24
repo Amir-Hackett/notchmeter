@@ -826,9 +826,13 @@ struct SettingsView: View {
             if prefs.notificationSound {
                 SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))
                 SoundPicker(title: L("Permission request"), choice: Binding(get: { prefs.soundPermission }, set: { prefs.soundPermission = $0 }))
-                SoundPicker(title: L("Question"), choice: Binding(get: { prefs.soundQuestion }, set: { prefs.soundQuestion = $0 }))
-                SoundPicker(title: L("Plan ready to approve"), choice: Binding(get: { prefs.soundPlan }, set: { prefs.soundPlan = $0 }))
-                    .help(L("A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound."))
+                SoundPicker(title: L("Question"), choice: Binding(get: { prefs.soundQuestion }, set: { prefs.soundQuestion = $0 }),
+                            defaultTag: NotificationSound.defaultChoice(for: .question))
+                // Shown, not only hovered: a plan that plays the permission sound is the one thing here that looks
+                // like a fault, and the reason is a hook entry the user can check.
+                SoundPicker(title: L("Plan ready to approve"), choice: Binding(get: { prefs.soundPlan }, set: { prefs.soundPlan = $0 }),
+                            defaultTag: NotificationSound.defaultChoice(for: .plan),
+                            caption: L("A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound."))
                 SoundPicker(title: L("Turn finished"), choice: Binding(get: { prefs.soundFinished }, set: { prefs.soundFinished = $0 }))
                 paragraph(L("A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name."))
             }
@@ -1579,6 +1583,11 @@ private struct WindowChoices: View {
 private struct SoundPicker: View {
     let title: String
     @Binding var choice: String
+    /// The choice the Default entry stands for: the system alert, or a kind of wait's own sound
+    /// (`NotificationSound.defaultChoice(for:)`), so choosing Default puts the row back where it started.
+    var defaultTag: String = NotificationSound.defaultChoice
+    /// A standing explanation under the row, always shown.
+    var caption: String?
     /// What the last import or fallback has to say, shown under the row; nil when there is nothing to report.
     @State private var note: String?
     /// True from the moment a file is chosen until its import has been applied or refused. The import runs off the
@@ -1590,10 +1599,14 @@ private struct SoundPicker: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Picker(title, selection: $choice) {
-                    Text(L("Default")).tag(NotificationSound.defaultChoice)
+                    Text(NotificationSound.defaultTitle(for: defaultTag)).tag(defaultTag)
                     Text(L("None")).tag(NotificationSound.none)
                     Divider()
-                    ForEach(NotificationSound.systemSounds(), id: \.self) { name in Text(name).tag("system:\(name)") }
+                    // The default's own sound is listed once, as Default: two entries with one tag leave the Picker
+                    // unable to say which is chosen.
+                    ForEach(NotificationSound.systemSounds().filter { "system:\($0)" != defaultTag }, id: \.self) { name in
+                        Text(name).tag("system:\(name)")
+                    }
                     let custom = NotificationSound.customSounds()
                     if !custom.isEmpty {
                         Divider()
@@ -1605,6 +1618,9 @@ private struct SoundPicker: View {
                     .accessibilityLabel(L("Preview the %@ sound", title))
                 Button(L("Choose file…")) { chooseFile() }.controlSize(.small).disabled(importing)
                     .accessibilityLabel(L("Choose a file for the %@ sound", title))
+            }
+            if let caption {
+                Text(caption).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             if let note {
                 Text(note).font(.caption).foregroundStyle(.secondary)
@@ -1623,7 +1639,7 @@ private struct SoundPicker: View {
         let name = String(choice.dropFirst("custom:".count))
         guard !NotificationSound.customSounds().contains(name) else { return }
         let stored = choice
-        choice = NotificationSound.defaultChoice
+        choice = defaultTag
         note = NotificationSound.isUnplayableCustom(stored)
             ? L("%@ is in a format Notification Center cannot play, so Default plays until you choose the file again, which converts it.", name)
             : L("%@ is no longer in ~/Library/Sounds, so Default plays until you choose another.", name)
