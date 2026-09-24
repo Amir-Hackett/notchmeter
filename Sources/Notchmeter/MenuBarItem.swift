@@ -45,6 +45,13 @@ final class MenuBarItem {
         return image
     }
 
+    /// The text style's glyph: the raised hand while an assistant waits, and nothing otherwise, because the
+    /// figures beside it already name the item. Pure so the rule is testable without a status item.
+    nonisolated static func textIcon(signal: ToolSignal?) -> NSImage? {
+        guard case .waiting = signal else { return nil }
+        return icon(signal: signal)
+    }
+
     /// The drawn styles' image: the meters' glyph for the windows there are, and the gauge when there are none.
     ///
     /// `update` guards only that some pinned tool has a reading, not that the reading has a window left to show,
@@ -143,8 +150,11 @@ final class MenuBarItem {
         }
         switch prefs.menuBarStyle {
         case .text:
-            button.image = Self.icon(signal: signalled?.signal)
-            button.title = " " + Self.label(readings: readings, countdown: prefs.showResetCountdown)
+            // The figures say what the item is, so the glyph only earns its place when there is something to act
+            // on: the raised hand while an assistant waits. No gauge beside the numbers, and no tick after a finish.
+            let image = Self.textIcon(signal: signalled?.signal)
+            button.image = image
+            button.title = (image == nil ? "" : " ") + Self.label(readings: readings, countdown: prefs.showResetCountdown)
             button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize(for: .small), weight: .medium)
         case .bars, .rings, .dots:
             button.title = ""
