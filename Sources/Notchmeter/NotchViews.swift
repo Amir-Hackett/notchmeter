@@ -3,23 +3,33 @@ import Observation
 import SwiftUI
 
 extension ToolID {
-    /// Each assistant's identity colour on the black notch, every one above 6.5:1 against it and the two added in
-    /// 0.9.0 above 7:1. The seven sit in the hues the status colours (`Palette`) leave free, and those two take the
-    /// two gaps that were left:
-    /// Gemini CLI the orchid end of Gemini's own gradient, Kimi Code a leaf green clear of Codex's mint. Seven hues
-    /// cannot all stay apart for every reader, which is why the symbol, the name and the position carry identity
-    /// too (Preferences.ringSymbols).
-    var color: Color {
+    /// Each assistant's identity colour, as a pair: on a dark surface and on a light one. The dark values are the
+    /// rings' colours on the black notch, every one above 6.5:1 against it and the two added in 0.9.0 above 7:1;
+    /// the seven sit in the hues the status colours (`Palette`) leave free, and those two take the two gaps that
+    /// were left, Gemini CLI the orchid end of Gemini's own gradient, Kimi Code a leaf green clear of Codex's
+    /// mint. The light values are the same hues stepped down until a figure drawn in one reads as text on white,
+    /// 4.5:1 or better for every one of them: the edge pill follows *Appearance* and can be light, and on it the
+    /// dark leaf green sat at 1.6:1 and the orchid at 2.6:1, invisible in sunlight. The Dashboard's charts take
+    /// the light values for their light window too (`chartColor`), so one table serves both. Seven hues cannot all
+    /// stay apart for every reader, which is why the symbol, the name and the position carry identity too
+    /// (Preferences.ringSymbols). NewRowsPresentation pins both sets against their surfaces.
+    var identity: (light: UInt32, dark: UInt32) {
         switch self {
-        case .claude: Color(red: 0.85, green: 0.47, blue: 0.34)
-        case .codex: Color(red: 0.36, green: 0.83, blue: 0.62)
-        case .cursor: Color(red: 0.65, green: 0.55, blue: 0.98)
-        case .gemini: Color(hex: 0xE36FC0)       // #E36FC0 orchid, 7.3:1 on black
-        case .antigravity: Color(hex: 0x56B4E9)  // #56B4E9 sky blue, from Wong's set
-        case .copilot: Color(hex: 0xF0E442)      // #F0E442 yellow, from Wong's set
-        case .kimi: Color(hex: 0x7ED957)         // #7ED957 leaf green, 11.9:1 on black
+        case .claude: (0xB85A3A, 0xD97857)       // the brand terracotta (Palette.accent); 4.6:1 on white
+        case .codex: (0x1A855C, 0x5CD49E)        // mint; 4.6:1 on white
+        case .cursor: (0x7A5CE3, 0xA68CFA)       // violet; 4.7:1 on white
+        case .gemini: (0xB8378F, 0xE36FC0)       // orchid: 5.3:1 on white, 7.3:1 on black
+        case .antigravity: (0x2C79B0, 0x56B4E9)  // sky blue, from Wong's set; 4.7:1 on white
+        case .copilot: (0x857700, 0xF0E442)      // yellow, from Wong's set; 4.5:1 on white
+        case .kimi: (0x3A8527, 0x7ED957)         // leaf green: 4.6:1 on white, 11.9:1 on black
         }
     }
+
+    /// The identity colour for the surface it is drawn on: the dark value under the dark colour scheme, which the
+    /// notch, the panel, the edge card and the flush side notch force whatever *Appearance* says, and the light
+    /// value under the light one, which only a floating edge pill and the Dashboard's window can be. A view draws
+    /// `tool.color` and the surface decides.
+    var color: Color { Color(nsColor: .adaptive(light: identity.light, dark: identity.dark)) }
 
     /// The colour of each nested ring, outermost first: the assistant's own on the outer ring, then two companions
     /// near it in hue, so the inner rings read as the same assistant but can be told apart from the outer one at a
@@ -62,6 +72,21 @@ enum Palette {
 private extension Color {
     init(hex: UInt32) {
         self.init(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
+    }
+}
+
+extension NSColor {
+    convenience init(hex: UInt32) {
+        self.init(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255, blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+    }
+
+    /// A colour that resolves by the appearance it is drawn under: `dark` under Dark, `light` under Light. In
+    /// SwiftUI the colour scheme in force where the view sits is what it resolves against, so a subtree that
+    /// forces `.dark` (the panel, the notch strip) draws the dark value on a Mac set to Light.
+    static func adaptive(light: UInt32, dark: UInt32) -> NSColor {
+        NSColor(name: nil) { appearance in
+            NSColor(hex: appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light)
+        }
     }
 }
 
@@ -882,6 +907,11 @@ struct NotchCompactView: View {
             }
         }
         .animation(Self.peekAnimation(appearing: store.peek != nil), value: store.peek)
+        // The strip sits on the black notch whatever the Mac's appearance, so its colours resolve as on a dark
+        // surface: the identity colours' dark values (ToolID.color) and a `.secondary` separator that is light
+        // grey rather than the light scheme's dark grey on black. The edge pill does not pass through here and
+        // keeps following Appearance (EdgePanelRoot).
+        .environment(\.colorScheme, .dark)
     }
 
     private var readouts: some View {

@@ -81,6 +81,29 @@ import Testing
         #expect(reading.windows[1].usedFraction == 1, "used 100 of 100 is spent, whatever the ratio says")
     }
 
+    /// Two sources of counts for one window: the summary row says the week is a quarter spent, a seven-day
+    /// `limits[]` entry says three quarters. The rule is the one above: the window is as spent as its
+    /// furthest-along figure says, and that source's counts are the ones kept whole, its reset with them.
+    @Test func twoCountSourcesForOneWindowKeepTheFurthestAlong() throws {
+        let reading = try parse(#"""
+        {"usage":{"limit":"200","used":"50","resetTime":"2026-09-27T00:00:00Z"},
+         "limits":[{"window":{"duration":7,"timeUnit":"TIME_UNIT_DAY"},"detail":{"limit":"200","used":"150","resetTime":"2026-09-28T00:00:00Z"}}]}
+        """#)
+        #expect(reading.windows.map(\.id) == ["weekly"], "the summary and the seven-day entry are one window")
+        #expect(reading.windows[0].usedFraction == 0.75, "150 of 200, not the summary's 50")
+        #expect(reading.windows[0].note == "50 of 200 left")
+        #expect(reading.windows[0].resetsAt == DateParsing.iso8601("2026-09-28T00:00:00Z"), "the reset travels with the counts that won")
+        let summaryWins = try parse(#"{"usage":{"limit":"200","used":"150"},"limits":[{"window":{"duration":7,"timeUnit":"TIME_UNIT_DAY"},"detail":{"limit":"200","used":"50","resetTime":"2026-09-28T00:00:00Z"}}]}"#)
+        #expect(summaryWins.windows[0].usedFraction == 0.75)
+        #expect(summaryWins.windows[0].resetsAt == DateParsing.iso8601("2026-09-28T00:00:00Z"), "a winner without a reset takes the other's")
+        let tied = try parse(#"{"usage":{"limit":"200","used":"50"},"limits":[{"window":{"duration":7,"timeUnit":"TIME_UNIT_DAY"},"detail":{"limit":"200","used":"50","resetTime":"2026-09-28T00:00:00Z"}}]}"#)
+        #expect(tied.windows[0].usedFraction == 0.25)
+        #expect(tied.windows[0].resetsAt == DateParsing.iso8601("2026-09-28T00:00:00Z"), "on a tie the counts carrying a reset win")
+        let first = KimiProvider.Counts(limit: 10, used: 2, resetsAt: nil)
+        let second = KimiProvider.Counts(limit: 10, used: 2, resetsAt: nil)
+        #expect(KimiProvider.furtherAlong(first, second) == first, "a full tie keeps the first, the summary's")
+    }
+
     /// No limit, no figure: Kimi publishes no plan sizes, so a window without one is not drawn as untouched or full.
     @Test func noLimitMeansNoFigure() throws {
         let reading = try parse(#"{"usage":{"used":"12","reset_in":3600},"limits":[{"detail":{"limit":"0","used":"3"}}]}"#)
@@ -248,6 +271,21 @@ import Testing
         try login(expiresIn: -60)
         await #expect(throws: ProviderError.tokenExpired("Kimi Code's login has expired. Run Kimi Code once so it signs back in")) { try await provider.fetch() }
         #expect(recorder.requests.isEmpty, "an expired token is not sent, and never refreshed from here")
+    }
+
+    /// kimi-cli on a Moonshot API-key platform has a config and no Kimi Code login: nothing to meter and nothing
+    /// wrong, so the row is calm (idle, and hideable) rather than wearing an attention mark for a membership the
+    /// user does not hold. A login file that is there but unreadable is still a login to renew.
+    @Test func aConfigWithoutALoginIsCalmNotAFault() async throws {
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        try Data("default_model = \"moonshot-v1-8k\"\n".utf8).write(to: share.appendingPathComponent("config.toml"))
+        #expect(provider.isInstalled(), "the config alone is a set-up CLI")
+        let message = "No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage"
+        await #expect(throws: ProviderError.apiKeyOnly(message)) { try await provider.fetch() }
+        #expect(ToolStatus(ProviderError.apiKeyOnly(message), cached: nil) == .idle(message))
+        #expect(recorder.requests.isEmpty, "nothing is asked of Kimi without a token")
+        try Data(#"{"refresh_token":"only"}"#.utf8).write(to: share.appendingPathComponent("credentials/kimi-code.json"))
+        await #expect(throws: ProviderError.notSignedIn("Kimi Code has not signed in. Run `kimi`, then /login")) { try await provider.fetch() }
     }
 
     @Test func refusalsAreMappedToTheirCauses() async throws {
@@ -505,6 +543,40 @@ import Testing
         #expect(HookSettings.Failure.tomlHooksKey(url).errorDescription?.hasSuffix("paste the snippet instead") == true)
         let siblings = try FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path)
         #expect(siblings == ["config.toml"], "no backup either: nothing was written")
+    }
+
+    /// A config.toml with Windows line endings. Swift reads CRLF as one Character, so a Character split on "\n"
+    /// saw the whole file as one line: no table found, a root `hooks = [...]` no conflict, and Add appended a
+    /// second `hooks`, which TOML forbids and Kimi refused. The scanner splits on the LF byte now, drops the CR
+    /// before it, and counts both towards the next line's offset, so Repair's in-place rewrite lands on the bytes.
+    @Test func windowsLineEndingsAreLines() throws {
+        let crlf = Self.userConfig.replacingOccurrences(of: "\n", with: "\r\n") + "\r\n"
+        let scan = KimiHookFile.scan(crlf)
+        #expect(!scan.conflict)
+        #expect(scan.tables.count == 1)
+        #expect(scan.tables.first?.event == "PostToolUse")
+        #expect(scan.tables.first?.command == #"jq -r ".tool_input.file_path" | xargs prettier --write"#)
+        #expect(scan.tables.first?.timeout == 10)
+        #expect(KimiHookFile.scan("default_model = \"x\"\r\nhooks = [{ event = \"Stop\", command = \"say done\" }]\r\n").conflict,
+                "a root hooks array on the second line is still a conflict")
+        #expect(KimiHookFile.scan("[[hooks]]\r\nevent = \"Stop\"\r\nnotes = \"\"\"\r\nnever closed\r\n").conflict)
+        #expect(KimiHookFile.lines(of: "").map { $0.offset } == [0], "an empty text is one empty line")
+        #expect(KimiHookFile.lines(of: "a\r\nb\nc\r").map { "\($0.offset):\($0.line)" } == ["0:a", "3:b", "5:c"], "a CR is dropped, LF or not")
+        #expect(KimiHookFile.lines(of: "x\n").map { "\($0.offset):\($0.line)" } == ["0:x", "2:"])
+
+        let old = "/Users/me/Downloads/Notchmeter.app/Contents/MacOS/Notchmeter"
+        var text = crlf
+        for event in HookVendor.kimi.events {
+            text += "\r\n[[hooks]]\r\nevent = \"\(event)\"\r\ncommand = \"'\(old)' --hook --tool kimi\"\r\ntimeout = 5\r\n"
+        }
+        let url = try scratchFile(text)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        #expect(HookSettings.status(vendor: .kimi, at: url, executable: executable) == .stale(path: old))
+        let repaired = try HookSettings.repairInstall(vendor: .kimi, at: url, executable: executable, now: Date(timeIntervalSince1970: 1_790_000_000))
+        #expect(repaired.backup != nil)
+        let after = try String(contentsOf: url, encoding: .utf8)
+        #expect(after == text.replacingOccurrences(of: old, with: executable), "only the seven command values changed; every CR stays")
+        #expect(HookSettings.status(vendor: .kimi, at: url, executable: executable) == .installed(path: executable))
     }
 
     /// The command's range is in UTF-8 bytes, so a value with a multi-byte character before or inside it is still

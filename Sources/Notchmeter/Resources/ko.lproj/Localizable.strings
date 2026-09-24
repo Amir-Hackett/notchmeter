@@ -222,7 +222,7 @@
 "Added %@" = "%@ 추가됨";
 "Advanced" = "고급";
 "Advice" = "조언";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "응용 프로그램으로 옮기거나 업데이트한 뒤, 이 앱의 옛 경로를 가리키는 항목은 실행 시 평소 백업 후 실행 중인 복사본으로 다시 쓰이고 푸터에 한 번 표시됩니다. build 폴더나 --smoke에서는 절대 쓰지 않습니다. 모든 어시스턴트의 훅 파일에 적용됩니다.";
+"At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "실행 시 평소 백업 후, 이 앱의 옛 경로를 가리키거나(응용 프로그램으로 이동, 업데이트), 이벤트가 빠졌거나, 오래된 플래그를 가진 Notchmeter 자체 항목을 실행 중인 복사본과 현재 형태로 다시 쓰고 바닥글에 한 번 알립니다. 0.9.0은 아직 --tool antigravity인 Gemini CLI 항목을 이 방식으로 --tool gemini로 바꿉니다. 빌드 폴더에서는 하지 않고, --smoke에서도 하지 않습니다. 모든 어시스턴트의 훅 파일에 적용됩니다.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Claude Code는 매 턴 후 컨텍스트 창 사용률, 공식 세션·주간 한도(Pro와 Max), 게이트웨이 지출 한도, 모델과 노력 수준, 브랜치와 풀 리퀘스트, 세션 비용을 상태 표시줄에 넘깁니다. 설치하면 Claude 링에 컨텍스트 호가, 카드에 컨텍스트 줄이 표시되고 세션 중에는 엔드포인트를 묻지 않습니다. 이미 설정된 상태 표시줄은 그 뒤에 계속 실행됩니다.";
 "All displays" = "모든 디스플레이";
 "All models" = "전체 모델";
@@ -579,7 +579,7 @@
 "Remote Claude Code over SSH" = "SSH를 통한 원격 Claude Code";
 "Remove" = "제거";
 "Repair" = "복구";
-"Repair a hook that points at an old copy at launch" = "실행 시 옛 복사본을 가리키는 훅 수리";
+"Repair an out-of-date hook at launch" = "실행 시 오래된 훅 수리";
 "Reset" = "초기화";
 "Reset all settings?" = "모든 설정을 재설정할까요?";
 "Reset All Settings…" = "모든 설정 재설정…";
@@ -919,6 +919,7 @@
 "Kimi's usage endpoint answers only a Kimi Code membership" = "Kimi 사용량 엔드포인트는 Kimi Code 멤버십에만 응답합니다";
 "Kimi's usage response unreadable" = "Kimi 사용량 응답을 읽을 수 없습니다";
 "Limit %ld" = "한도 %ld";
-"Monthly coding" = "월간 (코딩)";
-"Monthly total" = "월간 (전체)";
+"Monthly coding" = "월간 코딩";
+"Monthly total" = "월간 전체";
 "Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "플랜 사용량을 읽으려면 Kimi Code에 로그인하세요 (`kimi` 실행 후 /login)";
+"No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage" = "이 Mac에 Kimi Code 로그인이 없습니다 (API 키에는 측정할 플랜이 없습니다). 멤버십 사용량을 읽으려면 `kimi` 실행 후 /login 하세요";

@@ -75,14 +75,24 @@ actor KimiProvider: UsageProvider {
         URL(string: base.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/usages") ?? defaultBaseURL.appendingPathComponent("usages")
     }
 
+    nonisolated var configFile: URL { shareDirectory.appendingPathComponent("config.toml") }
+
     /// The CLI has signed in on this Mac, or has at least been set up here.
     nonisolated func isInstalled() -> Bool {
         let fm = FileManager.default
-        return fm.fileExists(atPath: credentialsFile.path) || fm.fileExists(atPath: shareDirectory.appendingPathComponent("config.toml").path)
+        return fm.fileExists(atPath: credentialsFile.path) || fm.fileExists(atPath: configFile.path)
     }
 
     func fetch() async throws -> UsageReading {
         guard let data = try? Data(contentsOf: credentialsFile) else {
+            // A config with no Kimi Code login is what kimi-cli looks like on a Moonshot API-key platform
+            // (`auth/platforms.py`), which has no membership to meter: a calm state, not a fault, so the row can
+            // hide as one with nothing to show rather than wear an attention mark for a login the user never
+            // wanted. Neither file is the row not installed; an unreadable or tokenless login file, below, is
+            // still a login to renew.
+            if FileManager.default.fileExists(atPath: configFile.path) {
+                throw ProviderError.apiKeyOnly(L("No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage"))
+            }
             throw ProviderError.notSignedIn(L("Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage"))
         }
         let credentials = try Self.parseCredentials(data)
@@ -282,6 +292,12 @@ actor KimiProvider: UsageProvider {
         let used: Double?
         let resetsAt: Date?
 
+        init(limit: Double?, used: Double?, resetsAt: Date?) {
+            self.limit = limit
+            self.used = used
+            self.resetsAt = resetsAt
+        }
+
         init?(_ object: [String: Any], now: Date) {
             let limit = KimiProvider.number(object["limit"])
             var used = KimiProvider.number(object["used"])
@@ -335,14 +351,33 @@ actor KimiProvider: UsageProvider {
         }
     }
 
-    /// Adds `slot` to `windows`, folding it into the slot already there for the same window.
+    /// Adds `slot` to `windows`, folding it into the slot already there for the same window. The furthest-along
+    /// rule holds between two sources of counts as much as between counts and a ratio: the summary row and a
+    /// seven-day `limits[]` entry both map to the week, and if they disagree the one that says more is used is
+    /// kept whole (its reset with it), so the card cannot show a week half spent while the API refuses requests.
     private static func merge(_ slot: Slot, into windows: inout [Slot]) {
         guard let index = windows.firstIndex(where: { $0.kind.id == slot.kind.id }) else {
             windows.append(slot)
             return
         }
-        if let counts = slot.counts, windows[index].counts == nil { windows[index].counts = counts }
+        if let counts = slot.counts { windows[index].counts = windows[index].counts.map { furtherAlong($0, counts) } ?? counts }
         if let ratio = slot.ratio { windows[index].ratio = max(windows[index].ratio ?? 0, ratio) }
         if let reset = slot.ratioReset, windows[index].ratioReset == nil { windows[index].ratioReset = reset }
+    }
+
+    /// Of two counts for one window, the one with the higher fraction; on a tie, or when neither has a fraction,
+    /// the one carrying a reset, and the first when both or neither do (the summary's, which the CLI prints). The
+    /// winner's counts are kept whole; only a reset it lacks is taken from the other, so the window keeps a reset
+    /// whichever source sent it.
+    static func furtherAlong(_ first: Counts, _ second: Counts) -> Counts {
+        let winner: Counts
+        let other: Counts
+        switch (first.fraction, second.fraction) {
+        case let (a?, b?) where a != b: (winner, other) = a > b ? (first, second) : (second, first)
+        case (nil, .some): (winner, other) = (second, first)
+        case (.some, nil): (winner, other) = (first, second)
+        default: (winner, other) = first.resetsAt == nil && second.resetsAt != nil ? (second, first) : (first, second)
+        }
+        return Counts(limit: winner.limit, used: winner.used, resetsAt: winner.resetsAt ?? other.resetsAt)
     }
 }

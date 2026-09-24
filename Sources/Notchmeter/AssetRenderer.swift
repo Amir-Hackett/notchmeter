@@ -77,6 +77,10 @@ enum AssetRenderer {
             let assistantsStage = try Stage(store: assistants, prefs: assistantsPrefs, actions: actions)
             try write(assistantsStage.image(.expanded, canvas: assistantsStage.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("assistants.png"))
             try write(assistantsStage.image(.compact, canvas: CGSize(width: 1200, height: 80), pixelScale: scale), png: directory.appendingPathComponent("assistants-compact.png"))
+            // The edge pill under Light, for both fixtures: the one surface where the identity colours take their
+            // light values (ToolID.identity), so a reviewer sees every ring and readout against a light capsule.
+            try write(edgePill(store: store, light: true), png: directory.appendingPathComponent("pill-light.png"))
+            try write(edgePill(store: assistants, light: true), png: directory.appendingPathComponent("assistants-pill-light.png"))
             assistantsPrefs.panelMode = .detailed
             let assistantsDetailed = try Stage(store: assistants, prefs: assistantsPrefs, actions: actions)
             try write(assistantsDetailed.image(.expanded, canvas: assistantsDetailed.panelCanvas, pixelScale: scale),
@@ -336,6 +340,37 @@ enum AssetRenderer {
             wallpaper(in: ctx, canvas: canvas)
             let x = edge == .right ? canvas.width - rings.size.width : 0
             drawSideNotch(rings, edge: edge, in: CGRect(x: x, y: (canvas.height - run) / 2, width: rings.size.width, height: run), into: ctx)
+        }
+    }
+
+    /// The bottom-bar pill under the Light appearance, for review: the one surface the identity colours are drawn
+    /// on that is not dark (the pill follows *Appearance*, EdgePanelRoot; the notch, the panel, the edge card and
+    /// the flush side notch force dark), so it is where `ToolID.identity`'s light values are seen. The capsule is
+    /// painted with Core Graphics for the reason `edgeNotch` gives about its shape: from macOS 26 it is glass,
+    /// and glass off-screen has nothing behind it to sample. Its fill stands in for light glass over the
+    /// wallpaper; its padding is the four points `EdgeNotch` gives the capsule plus the readouts' own.
+    @MainActor
+    static func edgePill(store: UsageStore, light: Bool) throws -> CGImage {
+        let rings = try snapshot(EdgeCompactView(store: store, edge: .bottom).environment(\.colorScheme, light ? .light : .dark),
+                                 what: "the edge pill", appearance: light ? .aqua : .darkAqua)
+        let pad: CGFloat = 4
+        let pill = CGSize(width: rings.size.width + 2 * pad, height: rings.size.height + 2 * pad)
+        let canvas = CGSize(width: pill.width + 80, height: pill.height + 60)
+        return try bitmap(canvas, pixelScale: scale) { ctx in
+            wallpaper(in: ctx, canvas: canvas)
+            let rect = CGRect(x: (canvas.width - pill.width) / 2, y: (canvas.height - pill.height) / 2, width: pill.width, height: pill.height)
+            let capsule = CGPath(roundedRect: rect, cornerWidth: rect.height / 2, cornerHeight: rect.height / 2, transform: nil)
+            ctx.saveGState()
+            ctx.setShadow(offset: CGSize(width: 0, height: -4 * scale), blur: 16 * scale, color: CGColor(gray: 0, alpha: 0.35))
+            ctx.addPath(capsule)
+            ctx.setFillColor(light ? CGColor(gray: 0.96, alpha: 0.96) : CGColor(gray: 0, alpha: 1))
+            ctx.fillPath()
+            ctx.restoreGState()
+            ctx.addPath(capsule)
+            ctx.setStrokeColor(light ? CGColor(gray: 0, alpha: 0.12) : CGColor(gray: 1, alpha: 0.12))
+            ctx.setLineWidth(1)
+            ctx.strokePath()
+            draw(rings.image, in: CGRect(x: rect.minX + pad, y: rect.minY + pad, width: rings.size.width, height: rings.size.height), alpha: 1, into: ctx)
         }
     }
 
@@ -948,14 +983,14 @@ enum AssetRenderer {
     /// A view at its fitting size, laid out in a window that is never shown. Going through the window rather
     /// than ImageRenderer draws the AppKit-backed controls too: the segmented picker, the buttons, the toggles.
     @MainActor
-    static func snapshot<Content: View>(_ content: Content, what: String) throws -> Snapshot {
+    static func snapshot<Content: View>(_ content: Content, what: String, appearance: NSAppearance.Name = .darkAqua) throws -> Snapshot {
         let host = NSHostingView(rootView: content)
         host.layoutSubtreeIfNeeded()
         let size = host.fittingSize
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: .borderless, backing: .buffered, defer: false)
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.appearance = NSAppearance(named: .darkAqua)
+        window.appearance = NSAppearance(named: appearance)
         window.contentView = host
         host.layoutSubtreeIfNeeded()
         windows.append(window)

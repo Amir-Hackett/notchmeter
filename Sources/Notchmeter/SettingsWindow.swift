@@ -1061,9 +1061,13 @@ struct SettingsView: View {
                     hookRow(vendor)
                     Divider()
                 }
-                Toggle(L("Repair a hook that points at an old copy at launch"), isOn: Binding(get: { prefs.autoRepairHooks }, set: { prefs.autoRepairHooks = $0 }))
+                // Named for everything the launch repair does, not only the moved path: it also rewrites an entry
+                // of ours that lacks an event or carries older flags (HookSettings.Status.partial), and 0.9.0's
+                // rewrite of a Gemini CLI entry from --tool antigravity is one of those. A toggle that is on by
+                // default is the consent for a config write at launch, so its label has to say what it consents to.
+                Toggle(L("Repair an out-of-date hook at launch"), isOn: Binding(get: { prefs.autoRepairHooks }, set: { prefs.autoRepairHooks = $0 }))
                     .font(.caption)
-                    .help(L("After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file."))
+                    .help(L("At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file."))
                 Divider()
                 Text(L("Claude Code status line"))
                     .font(.subheadline.weight(.semibold))

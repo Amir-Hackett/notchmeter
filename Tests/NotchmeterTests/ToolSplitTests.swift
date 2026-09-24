@@ -123,6 +123,52 @@ import Testing
         #expect(ToolMigration.inserting("gemini", before: "antigravity", in: ["claude"]) == ["claude", "gemini"])
         #expect(ToolMigration.inserting("gemini", before: "antigravity", in: ["gemini", "antigravity"]) == ["gemini", "antigravity"])
     }
+
+    /// Antigravity's user base is personal Google AI Pro accounts, the plan `DemoFixtures.assistantReadings` uses,
+    /// and Google stopped serving Gemini CLI quota to those in June 2026. A Mac with both, updated from 0.8: the
+    /// Gemini CLI row inherits "on" from the combined row, Google says no under Gemini CLI's identity, and the row
+    /// is calm rather than broken: idle with the sentence as its note, no problem line, hidden by *Hide assistants
+    /// with nothing to show* and named by *Add a tool*, its next poll an hour off rather than five minutes, while
+    /// the Antigravity row reads as it did.
+    @Test @MainActor func aPersonalAccountsGeminiRowIsCalmAfterTheSplit() async {
+        let suite = "NotchmeterTests.ToolMigration.personal"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        legacy(defaults)
+        let prefs = Preferences(defaults: defaults)
+        #expect(prefs.enabledTools.contains(.gemini), "inherited from the combined row, which was on")
+        #expect(prefs.hideEmptyTools, "on by default")
+        let now = Date()
+        guard let antigravity = DemoFixtures.assistantReadings(now: now).first(where: { $0.tool == .antigravity }) else {
+            Issue.record("the review fixture has no Antigravity reading")
+            return
+        }
+        let store = UsageStore(prefs: prefs, providers: [NotServedProvider(), FixtureProvider(reading: antigravity)],
+                               cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil, reportFile: nil)
+        await store.refresh(.gemini, force: true)
+        await store.refresh(.antigravity, force: true)
+        let status = store.status(.gemini)
+        #expect(status == .idle(CodeAssistProvider.shutdownMessage))
+        #expect(status.problem == nil, "nothing on the card's problem line or in the footer")
+        #expect(status.hasNothingYet)
+        #expect(Oracle.kind(status) == "idle")
+        #expect(store.isEmpty(.gemini))
+        #expect(store.visibleTools == [.antigravity], "the Antigravity row alone is on the panel")
+        #expect(store.hiddenEmptyTools == [.gemini], "and Add a tool names the Gemini row")
+        #expect(store.backoffAfterLastRead(.gemini) == UsageStore.notServedBackoff, "asked again in an hour, not five minutes")
+        #expect(store.status(.antigravity).reading?.tool == .antigravity)
+        #expect(store.status(.antigravity).problem == nil)
+        #expect(store.backoffAfterLastRead(.antigravity) == 0)
+    }
+}
+
+/// Gemini CLI's row on a personal account: Google answers, under Gemini CLI's identity, that it does not serve it.
+private struct NotServedProvider: UsageProvider {
+    var tool: ToolID { .gemini }
+    var refreshInterval: TimeInterval { 300 }
+    func isInstalled() -> Bool { true }
+    func fetch() async throws -> UsageReading { throw ProviderError.notServed(CodeAssistProvider.shutdownMessage) }
 }
 
 /// The two Google rows read and guard their own figures.
@@ -201,29 +247,46 @@ import Testing
         #expect(ProviderLinks.status(.kimi) == nil)
     }
 
-    /// The identity colours stay apart and legible: 4.5:1 at least against the black notch, so a figure drawn in
-    /// one reads as text (every one clears 6.5:1, and the two added in 0.9.0 clear 7:1), and the chart pair 3:1
+    /// The identity colours stay apart and legible on both surfaces they are drawn on. Under the dark scheme,
+    /// which the notch, the panel and the edge card force, the dark value: 4.5:1 at least against black, so a
+    /// figure drawn in one reads as text (every one clears 6.5:1, and the two added in 0.9.0 clear 7:1). Under
+    /// the light scheme, which only a floating edge pill takes, the light value: 4.5:1 at least against white,
+    /// where the dark leaf green sat at 1.6:1 and the orchid at 2.6:1 before the pair. And the chart pair 3:1
     /// against the light and dark windows the Dashboard draws on.
     @Test func coloursAreDistinctAndLegible() throws {
         let black = NSColor.black
-        let light = NSColor.white
-        let dark = NSColor(srgbRed: 0x1E / 255, green: 0x1E / 255, blue: 0x1E / 255, alpha: 1)
-        var seen: [String] = []
-        for tool in ToolID.allCases {
-            let colour = NSColor(tool.color)
-            let srgb = try #require(colour.usingColorSpace(.sRGB))
-            seen.append(String(format: "%.3f %.3f %.3f", srgb.redComponent, srgb.greenComponent, srgb.blueComponent))
-            #expect(SettingsSidebarTiles.contrast(colour, black) >= 4.5, "\(tool) on the notch")
-            if tool == .gemini || tool == .kimi { #expect(SettingsSidebarTiles.contrast(colour, black) >= 7, "\(tool) on the notch") }
-            let chart = NSColor(tool.chartColor)
-            var onLight = 0.0
-            var onDark = 0.0
-            try #require(NSAppearance(named: .aqua)).performAsCurrentDrawingAppearance { onLight = SettingsSidebarTiles.contrast(chart, light) }
-            try #require(NSAppearance(named: .darkAqua)).performAsCurrentDrawingAppearance { onDark = SettingsSidebarTiles.contrast(chart, dark) }
-            #expect(onLight >= 3, "\(tool) chart on the light window")
-            #expect(onDark >= 3, "\(tool) chart on the dark window")
+        let white = NSColor.white
+        let darkWindow = NSColor(srgbRed: 0x1E / 255, green: 0x1E / 255, blue: 0x1E / 255, alpha: 1)
+        let aqua = try #require(NSAppearance(named: .aqua))
+        let darkAqua = try #require(NSAppearance(named: .darkAqua))
+        func resolved(_ colour: Color, under appearance: NSAppearance) throws -> NSColor {
+            var out: NSColor?
+            appearance.performAsCurrentDrawingAppearance { out = NSColor(colour).usingColorSpace(.sRGB) }
+            return try #require(out)
         }
-        #expect(Set(seen).count == ToolID.allCases.count, "no two assistants share a colour")
+        func hex(_ colour: NSColor) -> String {
+            String(format: "%02X%02X%02X", Int((colour.redComponent * 255).rounded()), Int((colour.greenComponent * 255).rounded()), Int((colour.blueComponent * 255).rounded()))
+        }
+        var onDark: [String] = []
+        var onLight: [String] = []
+        for tool in ToolID.allCases {
+            let dark = try resolved(tool.color, under: darkAqua)
+            let light = try resolved(tool.color, under: aqua)
+            onDark.append(hex(dark))
+            onLight.append(hex(light))
+            #expect(hex(dark) == String(format: "%06X", tool.identity.dark), "\(tool) under Dark is its dark value")
+            #expect(hex(light) == String(format: "%06X", tool.identity.light), "\(tool) under Light is its light value")
+            #expect(SettingsSidebarTiles.contrast(dark, black) >= 4.5, "\(tool) on the notch")
+            if tool == .gemini || tool == .kimi { #expect(SettingsSidebarTiles.contrast(dark, black) >= 7, "\(tool) on the notch") }
+            #expect(SettingsSidebarTiles.contrast(light, white) >= 4.5, "\(tool) readout on a light pill")
+            let chartLight = try resolved(tool.chartColor, under: aqua)
+            let chartDark = try resolved(tool.chartColor, under: darkAqua)
+            #expect(hex(chartLight) == hex(light), "\(tool): the chart's light value is the identity's")
+            #expect(SettingsSidebarTiles.contrast(chartLight, white) >= 3, "\(tool) chart on the light window")
+            #expect(SettingsSidebarTiles.contrast(chartDark, darkWindow) >= 3, "\(tool) chart on the dark window")
+        }
+        #expect(Set(onDark).count == ToolID.allCases.count, "no two assistants share a colour on the notch")
+        #expect(Set(onLight).count == ToolID.allCases.count, "nor on a light pill")
     }
 
     @Test func searchFindsTheNewRowsByName() {

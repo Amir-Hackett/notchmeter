@@ -136,6 +136,15 @@ final class UsageStore {
     /// The read in progress for each tool, so a second one can wait for it rather than run beside it or be lost.
     @ObservationIgnored private var inflight: [ToolID: Task<Void, Never>] = [:]
     @ObservationIgnored private var backoff: [ToolID: TimeInterval] = [:]
+    /// How much longer than its base cadence a row waits after the vendor said it does not serve this account
+    /// (`ProviderError.notServed`): an hour on top of the five minutes, so a permanent answer is checked about
+    /// hourly rather than at every poll, and still checked, in case it stops being permanent.
+    static let notServedBackoff: TimeInterval = 3600
+
+    /// The extra wait the last read left on `tool`'s next poll: 0 after a good reading or a calm answer, the
+    /// vendor's Retry-After after a 429, an hour after `notServed`. Read by the tests that pin those rules; the
+    /// loop itself adds it in `waitUntilDue`.
+    func backoffAfterLastRead(_ tool: ToolID) -> TimeInterval { backoff[tool] ?? 0 }
     /// Cursor's chat names (CursorChatNames): when each conversation id was last read for, the read in flight, and
     /// the follow-up armed for a chat Cursor may name after its turn has ended.
     @ObservationIgnored private var cursorNamesTried: [String: Date] = [:]
@@ -773,7 +782,12 @@ final class UsageStore {
             // The status is one mapping shared with the probe (ToolStatus.init(_:cached:)); only the backoff is
             // decided here, because only the store has a loop to back off.
             statuses[tool] = ToolStatus(error, cached: cached)
-            if error.isCalm {
+            if case .notServed = error {
+                // Calm, but not worth the base cadence: the vendor's answer is documented as permanent, and for
+                // the Gemini CLI row it costs two loadCodeAssist calls a poll. Hourly keeps an ear open in case
+                // Google changes its mind, and Refresh still reads at once.
+                backoff[tool] = Self.notServedBackoff
+            } else if error.isCalm {
                 backoff[tool] = 0
             } else if case .offline = error {
                 backoff[tool] = min(300, max(30, (backoff[tool] ?? 15) * 2))

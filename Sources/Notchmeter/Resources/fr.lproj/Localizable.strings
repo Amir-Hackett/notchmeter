@@ -239,7 +239,7 @@
 "Added %@" = "%@ ajouté";
 "Advanced" = "Avancé";
 "Advice" = "Conseils";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "Après un déplacement vers Applications ou une mise à jour, une entrée qui désigne un ancien chemin de cette app est réécrite vers la copie en cours au lancement, après la sauvegarde habituelle, et le pied de page le signale une fois. Jamais depuis un dossier de compilation, jamais sous --smoke. S'applique au fichier de hooks de chaque assistant.";
+"At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "Au lancement, après la sauvegarde habituelle, une entrée propre à Notchmeter qui pointe vers un ancien chemin de cette app (déplacement vers Applications, mise à jour), à laquelle il manque un événement ou qui porte d'anciens indicateurs est réécrite vers la copie en cours et sa forme actuelle, et le pied de page le dit une fois ; 0.9.0 fait ainsi passer une entrée Gemini CLI encore en --tool antigravity à --tool gemini. Jamais depuis un dossier de build, jamais sous --smoke. S'applique au fichier de hooks de chaque assistant.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Après chaque tour, Claude Code transmet à sa ligne d'état le remplissage de la fenêtre de contexte, les limites officielles de session et hebdomadaire (Pro et Max), la limite de dépense d'une passerelle, le modèle et son niveau d'effort, la branche et la pull request, et le coût de la session. Une fois installée, l'anneau Claude affiche un arc de contexte, la carte une ligne Contexte, et le point de terminaison n'est pas interrogé pendant qu'une session tourne. Une ligne d'état déjà configurée continue de s'exécuter après elle.";
 "All displays" = "Tous les écrans";
 "All models" = "Tous les modèles";
@@ -596,7 +596,7 @@
 "Remote Claude Code over SSH" = "Claude Code distant via SSH";
 "Remove" = "Retirer";
 "Repair" = "Réparer";
-"Repair a hook that points at an old copy at launch" = "Réparer au lancement un hook qui pointe vers une ancienne copie";
+"Repair an out-of-date hook at launch" = "Réparer au lancement un hook obsolète";
 "Reset" = "Réinitialiser";
 "Reset all settings?" = "Réinitialiser tous les réglages ?";
 "Reset All Settings…" = "Réinitialiser tous les réglages…";
@@ -936,6 +936,7 @@
 "Kimi's usage endpoint answers only a Kimi Code membership" = "Le point de terminaison d'utilisation de Kimi ne répond qu'à un abonnement Kimi Code";
 "Kimi's usage response unreadable" = "Réponse d'utilisation de Kimi illisible";
 "Limit %ld" = "Limite %ld";
-"Monthly coding" = "Mensuel (code)";
-"Monthly total" = "Mensuel (total)";
+"Monthly coding" = "Mensuel code";
+"Monthly total" = "Mensuel total";
 "Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "Connectez-vous à Kimi Code (lancez `kimi`, puis /login) pour lire l'utilisation de votre forfait";
+"No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage" = "Aucune connexion Kimi Code sur ce Mac (une clé d'API n'a pas de forfait à mesurer). Lancez `kimi`, puis /login, pour lire l'utilisation d'un abonnement";

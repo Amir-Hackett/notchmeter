@@ -370,6 +370,12 @@ enum ProviderError: Error, Equatable {
     case offline(String)
     /// The tool is billed by API key: no plan windows exist to meter, and that is not a fault.
     case apiKeyOnly(String)
+    /// The vendor has said, in an answer documented as permanent, that it does not serve this account's figures
+    /// to this kind of client (Google's June 2026 shutdown of Gemini CLI quota for personal accounts). Nothing on
+    /// this Mac can change it and no retry will, so it is a calm state rather than a fault: the row reads idle
+    /// with the sentence as its note, can be hidden as one with nothing to show, and is asked again only rarely
+    /// (`UsageStore.notServedBackoff`), in case the vendor's answer changes.
+    case notServed(String)
 
     /// The shortest a rate-limit backoff is ever allowed to be. A vendor that answers `Retry-After: 0` still gets a
     /// minute, and one that answers `Retry-After: 1800` gets ten (`rateLimitCeiling`), so the wait the message names
@@ -391,7 +397,8 @@ enum ProviderError: Error, Equatable {
 
     var message: String {
         switch self {
-        case .notSignedIn(let m), .tokenExpired(let m), .accessDenied(let m), .parse(let m), .unavailable(let m), .nothingYet(let m), .offline(let m), .apiKeyOnly(let m):
+        case .notSignedIn(let m), .tokenExpired(let m), .accessDenied(let m), .parse(let m), .unavailable(let m), .nothingYet(let m), .offline(let m), .apiKeyOnly(let m),
+             .notServed(let m):
             m
         case .rateLimited(let retry):
             retry.map { L("Rate limited, retrying in %lds", Int(Self.rateLimitWait(retryAfter: $0))) } ?? L("Rate limited, backing off")
@@ -408,10 +415,11 @@ enum ProviderError: Error, Equatable {
         }
     }
 
-    /// A calm state rather than a fault: nothing is wrong, there is simply nothing to meter yet.
+    /// A calm state rather than a fault: nothing is wrong, there is simply nothing to meter yet, or nothing the
+    /// vendor will meter for this account.
     var isCalm: Bool {
         switch self {
-        case .nothingYet, .apiKeyOnly: true
+        case .nothingYet, .apiKeyOnly, .notServed: true
         default: false
         }
     }

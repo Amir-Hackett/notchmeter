@@ -46,11 +46,7 @@ enum KimiHookFile {
         var conflict = false
         var closing: String?
         var arrayDepth = 0
-        var offset = 0
-        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
-            let lineStart = offset
-            offset += rawLine.utf8.count + 1
-            let line = rawLine.hasSuffix("\r") ? rawLine.dropLast() : rawLine
+        for (lineStart, line) in lines(of: text) {
             if let delimiter = closing {
                 if line.contains(delimiter) { closing = nil }
                 continue
@@ -181,6 +177,32 @@ enum KimiHookFile {
     }
 
     // MARK: - Scanning helpers
+
+    /// The text's lines, each with the UTF-8 offset it begins at, split on the LF byte alone: TOML's newline is
+    /// LF or CRLF, and a trailing CR is dropped from the line. The split is on bytes rather than Characters
+    /// because Swift reads CRLF as one Character, so a Character split on "\n" never finds the newline in a file
+    /// with Windows line endings and reads the whole of it as one line: the tables in it went unseen, and a root
+    /// `hooks = [...]` in it was no conflict, so Add appended a second definition of `hooks` and Kimi refused its
+    /// config. The dropped CR and the LF both count towards the next line's offset, so a `commandRange` read out of
+    /// a CRLF file still points at the bytes `replacing` rewrites. An empty text is one empty line.
+    static func lines(of text: String) -> [(offset: Int, line: Substring)] {
+        let utf8 = text.utf8
+        var lines: [(offset: Int, line: Substring)] = []
+        var cursor = utf8.startIndex
+        var offset = 0
+        while true {
+            let newline = utf8[cursor...].firstIndex(of: 0x0A)
+            let lineEnd = newline ?? utf8.endIndex
+            var end = lineEnd
+            if end > cursor, utf8[utf8.index(before: end)] == 0x0D { end = utf8.index(before: end) }
+            // Both bounds sit on Character boundaries (after an LF, before a CR or LF, or the end), so the
+            // slice is exactly the bytes between them.
+            lines.append((offset, text[cursor..<end]))
+            offset += utf8.distance(from: cursor, to: lineEnd) + (newline == nil ? 0 : 1)
+            guard let newline else { return lines }
+            cursor = utf8.index(after: newline)
+        }
+    }
 
     /// The name inside a table header, `[name]` or `[[name]]`, whitespace and a trailing comment ignored; nil for
     /// a header that does not close.

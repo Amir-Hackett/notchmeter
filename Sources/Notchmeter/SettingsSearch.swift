@@ -80,7 +80,7 @@ enum SettingsSearch {
             L("Show news in the notch"), L("Glow under the notch for news"), L("When an assistant waits for you, or a turn finishes"),
             L("Sound"), L("Pace crossing"), L("Permission request"), L("Question"), L("Plan ready to approve"), L("Turn finished"),
             L("Quiet hours"), L("Test notification"))
-        add(.hooks, L("Integrations"), L("Hooks"), L("Repair a hook that points at an old copy at launch"), L("Claude Code status line"),
+        add(.hooks, L("Integrations"), L("Hooks"), L("Repair an out-of-date hook at launch"), L("Claude Code status line"),
             L("Install status line…"))
         // Each assistant's hook row by its product's name, so "Kimi" or "Gemini" finds it (the switches under
         // Assistants are indexed by the same names, above).

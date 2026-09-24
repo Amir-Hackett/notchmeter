@@ -239,7 +239,7 @@
 "Added %@" = "Added %@";
 "Advanced" = "Advanced";
 "Advice" = "Advice";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file.";
+"At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it.";
 "All displays" = "All displays";
 "All models" = "All models";
@@ -596,7 +596,7 @@
 "Remote Claude Code over SSH" = "Remote Claude Code over SSH";
 "Remove" = "Remove";
 "Repair" = "Repair";
-"Repair a hook that points at an old copy at launch" = "Repair a hook that points at an old copy at launch";
+"Repair an out-of-date hook at launch" = "Repair an out-of-date hook at launch";
 "Reset" = "Reset";
 "Reset all settings?" = "Reset all settings?";
 "Reset All Settings…" = "Reset All Settings…";
@@ -939,3 +939,4 @@
 "Monthly coding" = "Monthly coding";
 "Monthly total" = "Monthly total";
 "Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage";
+"No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage" = "No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage";

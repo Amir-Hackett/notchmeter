@@ -222,7 +222,7 @@
 "Added %@" = "Đã thêm %@";
 "Advanced" = "Nâng cao";
 "Advice" = "Lời khuyên";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "Sau khi chuyển vào Applications hoặc cập nhật, mục trỏ tới đường dẫn cũ của ứng dụng được viết lại thành bản đang chạy khi khởi động, sau bản sao lưu thường lệ, và chân trang báo một lần. Không bao giờ từ thư mục build, không bao giờ với --smoke. Áp dụng cho tệp hook của mọi trợ lý.";
+"At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "Khi khởi động, sau bản sao lưu thường lệ, mục của chính Notchmeter trỏ tới đường dẫn cũ của ứng dụng (chuyển vào Applications, cập nhật), thiếu một sự kiện hoặc mang cờ cũ sẽ được ghi lại theo bản đang chạy và dạng hiện tại, chân trang báo một lần; 0.9.0 chuyển mục Gemini CLI còn ở --tool antigravity sang --tool gemini theo cách này. Không bao giờ từ thư mục build, không bao giờ dưới --smoke. Áp dụng cho tệp hook của mọi trợ lý.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Sau mỗi lượt, Claude Code chuyển cho thanh trạng thái mức đầy cửa sổ ngữ cảnh, giới hạn phiên và tuần chính thức (Pro và Max), giới hạn chi tiêu của cổng, mô hình và mức nỗ lực, nhánh và pull request, cùng chi phí phiên. Cài xong, vòng Claude hiện cung ngữ cảnh, thẻ hiện dòng Ngữ cảnh, và không hỏi điểm cuối khi phiên đang chạy. Thanh trạng thái đã cấu hình vẫn chạy sau nó.";
 "All displays" = "Tất cả màn hình";
 "All models" = "Tất cả mô hình";
@@ -579,7 +579,7 @@
 "Remote Claude Code over SSH" = "Claude Code từ xa qua SSH";
 "Remove" = "Gỡ";
 "Repair" = "Sửa";
-"Repair a hook that points at an old copy at launch" = "Sửa hook trỏ tới bản cũ khi khởi động";
+"Repair an out-of-date hook at launch" = "Sửa hook lỗi thời khi khởi động";
 "Reset" = "Đặt lại";
 "Reset all settings?" = "Đặt lại mọi cài đặt?";
 "Reset All Settings…" = "Đặt lại mọi cài đặt…";
@@ -919,6 +919,7 @@
 "Kimi's usage endpoint answers only a Kimi Code membership" = "Điểm cuối mức dùng của Kimi chỉ trả lời cho gói thành viên Kimi Code";
 "Kimi's usage response unreadable" = "không đọc được phản hồi mức dùng của Kimi";
 "Limit %ld" = "Giới hạn %ld";
-"Monthly coding" = "Hằng tháng (lập trình)";
-"Monthly total" = "Hằng tháng (tổng)";
+"Monthly coding" = "Lập trình hằng tháng";
+"Monthly total" = "Tổng hằng tháng";
 "Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "Đăng nhập Kimi Code (chạy `kimi`, rồi /login) để đọc mức dùng gói của bạn";
+"No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage" = "Không có đăng nhập Kimi Code trên máy Mac này (khóa API không có gói để đo). Chạy `kimi`, rồi /login, để đọc mức dùng của gói thành viên";

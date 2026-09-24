@@ -239,7 +239,7 @@
 "Added %@" = "%@ adicionado";
 "Advanced" = "Avançado";
 "Advice" = "Dicas";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "Depois de mover para Aplicativos ou de uma atualização, uma entrada que aponte para um caminho antigo deste app é reescrita para a cópia em execução ao abrir, depois do backup de sempre, e o rodapé avisa uma vez. Nunca a partir de uma pasta de build, nunca com --smoke. Vale para o arquivo de hooks de todos os assistentes.";
+"At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "Ao abrir, depois do backup habitual, uma entrada do próprio Notchmeter que aponte para um caminho antigo deste app (mudança para Aplicativos, atualização), sem um evento ou com flags antigas é reescrita para a cópia em execução e sua forma atual, e o rodapé avisa uma vez; a 0.9.0 leva assim uma entrada do Gemini CLI ainda em --tool antigravity para --tool gemini. Nunca a partir de uma pasta de build, nunca sob --smoke. Vale para o arquivo de hooks de cada assistente.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Depois de cada turno, o Claude Code entrega à linha de status o preenchimento da janela de contexto, os limites oficiais de sessão e semanal (Pro e Max), o limite de gasto de um gateway, o modelo e seu esforço, o branch e o pull request, e o custo da sessão. Com ela instalada, o anel do Claude mostra um arco de contexto, o cartão uma linha Contexto, e o endpoint não é consultado enquanto uma sessão roda. Uma linha de status já configurada continua rodando depois dela.";
 "All displays" = "Todas as telas";
 "All models" = "Todos os modelos";
@@ -596,7 +596,7 @@
 "Remote Claude Code over SSH" = "Claude Code remoto via SSH";
 "Remove" = "Remover";
 "Repair" = "Reparar";
-"Repair a hook that points at an old copy at launch" = "Ao abrir, reparar um hook que aponta para uma cópia antiga";
+"Repair an out-of-date hook at launch" = "Ao abrir, reparar um hook desatualizado";
 "Reset" = "Renovação";
 "Reset all settings?" = "Redefinir todos os ajustes?";
 "Reset All Settings…" = "Redefinir Todos os Ajustes…";
@@ -936,6 +936,7 @@
 "Kimi's usage endpoint answers only a Kimi Code membership" = "O endpoint de uso do Kimi só responde a uma assinatura do Kimi Code";
 "Kimi's usage response unreadable" = "Resposta de uso do Kimi ilegível";
 "Limit %ld" = "Limite %ld";
-"Monthly coding" = "Mensal (código)";
-"Monthly total" = "Mensal (total)";
+"Monthly coding" = "Mensal código";
+"Monthly total" = "Mensal total";
 "Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "Inicie sessão no Kimi Code (rode `kimi` e depois /login) para ler o uso do seu plano";
+"No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage" = "Nenhum login do Kimi Code neste Mac (uma chave de API não tem plano a medir). Rode `kimi` e depois /login para ler o uso de uma assinatura";

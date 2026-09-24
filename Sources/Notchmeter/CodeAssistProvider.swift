@@ -35,7 +35,11 @@ struct CodeAssistCredentials: Equatable {
 ///    `modelId`, `remainingFraction` (0...1 of the quota left), `resetTime` (RFC 3339) and, optionally,
 ///    `remainingAmount` (a count, as a string) and `tokenType`. No window length is declared, so a window here has no
 ///    pace tick or projection until Google publishes one. A personal account gets HTTP 403 with the ErrorInfo reason
-///    `SUBSCRIPTION_REQUIRED`, reported as the shutdown it is.
+///    `SUBSCRIPTION_REQUIRED`: the shutdown, which is documented as permanent, so it is reported as a calm state
+///    (`ProviderError.notServed`) rather than a fault. The row reads idle with the sentence as its note, hides under
+///    *Hide assistants with nothing to show*, and is asked again about once an hour rather than every five minutes.
+///    That matters most for the Antigravity user base, personal Google AI Pro accounts, whose Gemini CLI row would
+///    otherwise fail on both hosts at every poll for an answer that is not going to change.
 ///
 /// Buckets are grouped the way Gemini CLI's own /stats view groups them (ui/components/ModelQuotaDisplay.tsx): the
 /// Gemini models of one tier (Pro, Flash, Flash Lite) share a pool, so a tier is one window at its lowest remaining
@@ -186,16 +190,16 @@ actor CodeAssistProvider: UsageProvider {
                 if Self.looksMetered(reading, now: now) { return reading }
                 unmetered = unmetered ?? reading
             } catch let error as ProviderError {
-                if case .unavailable = error { shutdown = true } else { lastError = error }
+                if case .notServed = error { shutdown = true } else { lastError = error }
             } catch {
                 transportError = error
             }
         }
         if let unmetered { return unmetered }
-        if shutdown { throw ProviderError.unavailable(Self.shutdownMessage) }
+        if shutdown { throw ProviderError.notServed(Self.shutdownMessage) }
         if let lastError { throw lastError }
         if let transportError { throw transportError }
-        throw ProviderError.unavailable(Self.shutdownMessage)
+        throw ProviderError.notServed(Self.shutdownMessage)
     }
 
     /// The reading from one host: the summary's groups first, else the per-model buckets, with a project-scoped
@@ -220,7 +224,7 @@ actor CodeAssistProvider: UsageProvider {
             throw ProviderError.notSignedIn(refusedMessage)
         case 403:
             guard Self.isSubscriptionRequired(quota) else { throw ProviderError.accessDenied(L("Google refused the quota read for this account")) }
-            throw ProviderError.unavailable(Self.shutdownMessage)
+            throw ProviderError.notServed(Self.shutdownMessage)
         case 429:
             throw ProviderError.rateLimited(retryAfter: RetryAfter.seconds(from: response))
         case let status:

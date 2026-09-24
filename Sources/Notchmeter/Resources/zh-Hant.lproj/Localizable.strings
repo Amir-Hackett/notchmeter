@@ -222,7 +222,7 @@
 "Added %@" = "已加入 %@";
 "Advanced" = "進階";
 "Advice" = "建議";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "移至「應用程式」或更新後，指向本應用程式舊路徑的項目會在啟動時（照常備份後）改寫為正在執行的副本，頁尾提示一次。從 build 資料夾執行或 --smoke 時絕不改寫。適用於每個助手的掛鉤檔案。";
+"At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "啟動時，照常備份後，Notchmeter 自己的項目若指向本應用程式的舊路徑（移至「應用程式」、更新後）、缺少某個事件或帶有舊旗標，會改寫為正在執行的副本及其目前形式，頁尾提示一次；0.9.0 以此把仍為 --tool antigravity 的 Gemini CLI 項目改為 --tool gemini。絕不從建置資料夾執行，--smoke 下也不執行。適用於每個助理的 hook 檔案。";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "每輪結束後，Claude Code 會把上下文視窗佔用、官方工作階段與每週限額（Pro 和 Max）、閘道的支出上限、模型及其推理強度、分支與拉取請求以及本次工作階段費用交給狀態列。安裝後 Claude 環上顯示上下文弧線，卡片顯示「上下文」一行，工作階段執行期間不再請求介面。已設定的狀態列會在其後繼續執行。";
 "All displays" = "所有顯示器";
 "All models" = "所有模型";
@@ -579,7 +579,7 @@
 "Remote Claude Code over SSH" = "透過 SSH 的遠端 Claude Code";
 "Remove" = "移除";
 "Repair" = "修復";
-"Repair a hook that points at an old copy at launch" = "啟動時修復指向舊副本的 hook";
+"Repair an out-of-date hook at launch" = "啟動時修復過時的 hook";
 "Reset" = "重設";
 "Reset all settings?" = "要重設所有設定嗎？";
 "Reset All Settings…" = "重設所有設定…";
@@ -919,6 +919,7 @@
 "Kimi's usage endpoint answers only a Kimi Code membership" = "Kimi 的用量端點只回應 Kimi Code 會員";
 "Kimi's usage response unreadable" = "無法解析 Kimi 用量回應";
 "Limit %ld" = "限額 %ld";
-"Monthly coding" = "每月（程式設計）";
-"Monthly total" = "每月（總計）";
+"Monthly coding" = "每月程式設計";
+"Monthly total" = "每月總計";
 "Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "登入 Kimi Code（執行 `kimi`，然後使用 /login）以讀取你的方案用量";
+"No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage" = "此 Mac 上沒有 Kimi Code 登入（API 金鑰沒有可計量的方案）。執行 `kimi`，然後使用 /login，以讀取會員方案的用量";

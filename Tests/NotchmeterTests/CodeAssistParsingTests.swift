@@ -509,11 +509,17 @@ import Testing
         await #expect(throws: (any Error).self) { try await provider.fetch() }
     }
 
+    /// The shutdown is a calm state (`ProviderError.notServed`), not a fault: the answer is documented as permanent,
+    /// so the row reads idle with the sentence, can hide, and is not polled every five minutes for it.
     @Test func aPersonalAccountIsToldAboutTheShutdownWithoutAQuotaCall() async throws {
         defer { try? FileManager.default.removeItem(at: scratch) }
         let unsupported = json(["ineligibleTiers": [["reasonCode": "UNSUPPORTED_CLIENT", "tierId": "free-tier"]]])
         exchange.answer = { url in url.path == "/v1internal:loadCodeAssist" ? (200, unsupported) : (500, Data()) }
-        #expect(await failure(of: provider) == .unavailable)
+        #expect(await failure(of: provider) == .notServed)
+        let error = ProviderError.notServed(CodeAssistProvider.shutdownMessage)
+        #expect(error.isCalm && !error.needsAttention)
+        #expect(ToolStatus(error, cached: nil) == .idle(CodeAssistProvider.shutdownMessage))
+        #expect(ToolStatus(error, cached: nil).problem == nil, "no problem line on the card or in the footer")
         // Both hosts are asked who the account is, and only then is the shutdown reported; no quota call is made.
         let calledInTurn = exchange.seen.map { $0.request.url }
         #expect(calledInTurn == [CodeAssistProvider.url(host: CodeAssistProvider.dailyHost, method: "loadCodeAssist"), CodeAssistProvider.codeAssistURL])
@@ -524,7 +530,7 @@ import Testing
         let licensed = json(["currentTier": ["id": "standard-tier"]])
         let refusal = json(["error": ["code": 403, "status": "PERMISSION_DENIED", "details": [["reason": "SUBSCRIPTION_REQUIRED"]]]])
         exchange.answer = { url in url.path == "/v1internal:loadCodeAssist" ? (200, licensed) : (403, refusal) }
-        #expect(await failure(of: provider) == .unavailable)
+        #expect(await failure(of: provider) == .notServed, "SUBSCRIPTION_REQUIRED on the quota call is the same calm shutdown")
         #expect(exchange.seen.last?.body.isEmpty == true)
 
         exchange.answer = { url in url.path == "/v1internal:loadCodeAssist" ? (200, licensed) : (403, Data()) }
@@ -540,7 +546,7 @@ import Testing
 
 /// Which ProviderError a fetch ends in, by case; nil when it succeeds or fails some other way.
 enum ProviderFailure: Equatable {
-    case notSignedIn, tokenExpired, accessDenied, rateLimited, http, parse, unavailable, nothingYet, offline, apiKeyOnly
+    case notSignedIn, tokenExpired, accessDenied, rateLimited, http, parse, unavailable, nothingYet, offline, apiKeyOnly, notServed
 }
 
 func failure(of provider: CodeAssistProvider) async -> ProviderFailure? {
@@ -559,6 +565,7 @@ func failure(of provider: CodeAssistProvider) async -> ProviderFailure? {
         case .nothingYet: return .nothingYet
         case .offline: return .offline
         case .apiKeyOnly: return .apiKeyOnly
+        case .notServed: return .notServed
         }
     } catch {
         return nil

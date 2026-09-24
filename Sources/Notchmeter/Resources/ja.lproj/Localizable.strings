@@ -222,7 +222,7 @@
 "Added %@" = "%@ を追加しました";
 "Advanced" = "詳細";
 "Advice" = "アドバイス";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "アプリケーションフォルダへの移動やアップデート後、このアプリの古いパスを指すエントリは起動時に（通常のバックアップ後）実行中のコピーへ書き換えられ、フッターに一度だけ表示されます。build フォルダからの起動や --smoke では書き換えません。どのアシスタントのフックファイルにも適用されます。";
+"At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "起動時、通常のバックアップ後に、このアプリの古いパスを指す（アプリケーションフォルダへの移動やアップデート後）、イベントが欠けている、または古いフラグを持つ Notchmeter 自身のエントリを、実行中のコピーと現在の形に書き換え、フッターに一度表示します。0.9.0 では、まだ --tool antigravity のままの Gemini CLI エントリをこの方法で --tool gemini にします。ビルドフォルダからは行わず、--smoke でも行いません。すべてのアシスタントのフックファイルに適用されます。";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Claude Code は各ターンの後にコンテキストウィンドウの使用率、公式のセッション/週次上限（Pro と Max）、ゲートウェイの支出上限、モデルと努力レベル、ブランチとプルリクエスト、セッションのコストをステータスラインに渡します。導入すると Claude のリングにコンテキストの弧、カードに「コンテキスト」行が出て、セッション中はエンドポイントに問い合わせません。既存のステータスラインはその後に実行されます。";
 "All displays" = "すべてのディスプレイ";
 "All models" = "全モデル";
@@ -579,7 +579,7 @@
 "Remote Claude Code over SSH" = "SSH 経由のリモート Claude Code";
 "Remove" = "削除";
 "Repair" = "修復";
-"Repair a hook that points at an old copy at launch" = "起動時に古いコピーを指すフックを修復";
+"Repair an out-of-date hook at launch" = "起動時に古くなったフックを修復";
 "Reset" = "リセット";
 "Reset all settings?" = "すべての設定をリセットしますか？";
 "Reset All Settings…" = "すべての設定をリセット…";
@@ -919,6 +919,7 @@
 "Kimi's usage endpoint answers only a Kimi Code membership" = "Kimi の利用状況エンドポイントは Kimi Code のメンバーシップにしか応答しません";
 "Kimi's usage response unreadable" = "Kimi の利用状況の応答を読み取れません";
 "Limit %ld" = "上限 %ld";
-"Monthly coding" = "月間（コーディング）";
-"Monthly total" = "月間（合計）";
+"Monthly coding" = "月間コーディング";
+"Monthly total" = "月間合計";
 "Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "プランの利用状況を読むには Kimi Code にサインインしてください（`kimi` を実行してから /login）";
+"No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage" = "この Mac に Kimi Code のログインがありません（API キーには計測するプランがありません）。メンバーシップの利用状況を読むには `kimi` を実行してから /login してください";
