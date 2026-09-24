@@ -817,3 +817,9 @@
 "idle %@" = "アイドル %@";
 "Clear the idle sessions; each comes back if it does anything" = "アイドル中のセッションを消去します。動きがあれば再び表示されます";
 "Remove from the list; it comes back if the session does anything" = "リストから削除します。セッションに動きがあれば戻ります";
+"Last crash report" = "最新のクラッシュレポート";
+"None on this Mac" = "この Mac にはありません";
+"Copy crash report" = "クラッシュレポートをコピー";
+"Show in Finder" = "Finder に表示";
+"The crash report could not be read." = "クラッシュレポートを読み込めませんでした。";
+"The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ がクラッシュしたときに macOS が ~/Library/Logs/DiagnosticReports に書いた最新のレポートです。この Mac の外には出ません。「コピー」はホームフォルダのパスを伏せてクリップボードに入れるので、バグ報告に貼り付けてください。";

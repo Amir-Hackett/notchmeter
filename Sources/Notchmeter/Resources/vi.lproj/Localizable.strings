@@ -817,3 +817,9 @@
 "idle %@" = "rảnh %@";
 "Clear the idle sessions; each comes back if it does anything" = "Xóa các phiên đang rảnh; phiên nào hoạt động trở lại sẽ hiện lại";
 "Remove from the list; it comes back if the session does anything" = "Xóa khỏi danh sách; nó quay lại nếu phiên có hoạt động";
+"Last crash report" = "Báo cáo sự cố gần nhất";
+"None on this Mac" = "Không có trên máy Mac này";
+"Copy crash report" = "Sao chép báo cáo sự cố";
+"Show in Finder" = "Hiện trong Finder";
+"The crash report could not be read." = "Không đọc được báo cáo sự cố.";
+"The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Báo cáo mới nhất macOS ghi khi %@ gặp sự cố, lấy từ ~/Library/Logs/DiagnosticReports. Nó ở lại trên máy Mac này: Sao chép đặt nó vào bộ nhớ tạm, đã xoá đường dẫn thư mục người dùng, để bạn dán vào báo cáo lỗi.";
