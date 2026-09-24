@@ -38,6 +38,8 @@ final class SettingsRequests {
     var awakeChanged: () -> Void = {}
     var diagnostics: () -> String = { "" }
     var installCommandLineTool: () -> Void = {}
+    /// Settings › General › "Show the welcome tour again" (AppDelegate.showWelcomeTour).
+    var showWelcomeTour: () -> Void = {}
     var updater: () -> Updater? = { nil }
 }
 
@@ -488,6 +490,10 @@ struct SettingsView: View {
             if let message = requests.commandLineToolMessage {
                 Text(message).font(.caption).foregroundStyle(.secondary)
             }
+            // Beside the other one-off actions on General rather than under About: the tour is how the app explains
+            // itself, and the reader who wants it again is looking for the app's basics, not its version line.
+            Button(L("Show the welcome tour again")) { requests.showWelcomeTour() }
+                .help(L("The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data."))
         }
     }
 

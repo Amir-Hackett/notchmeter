@@ -44,6 +44,17 @@ Notchmeter never signs in anywhere and never stores a token. Each reading is bor
 
 The pictures are drawn by `Notchmeter --render-assets docs/media` (and the dashboard by `--render-dashboard`) from the real views over fixed readings and a fixed set of hook events — Claude on Max 5x an hour and forty minutes into a quiet five-hour session, so a third of it gone by the clock and 14 % of the allowance gone with it, two Claude Code sessions open and one of them waiting on a permission prompt, Codex and Cursor on free plans — not from a live account, so they come out the same on every build and show nobody's usage.
 
+## The welcome tour
+
+The first launch opens a four-step tour, and **Settings › General › Show the welcome tour again** opens it again at any time. Each step is a preview of the real views drawn from sample data, the same fixtures the pictures above come from, and labelled **Sample data** so nobody reads it as their own usage. The previews take no clicks and VoiceOver reads each one as a single item named for its step.
+
+1. **The rings beside the notch.** The compact strip with a turn running and nothing asked, so no ring carries a mark yet. This step also says what the app reads and what it never sends, and explains the Keychain and Accessibility prompts beside the rings that need them.
+2. **The panel, and pace.** Claude's card, and the two pace states the way the ring's cap, the card's symbol and its words show them (*Cutting it close*, *Will run out*). State never depends on colour alone.
+3. **Sessions, answered from the notch.** The Sessions card beside a permission request, and the Automation prompt that jumping to a terminal needs.
+4. **Connect Claude Code.** The waiting hand and the finished tick as the hook lights them, and the same **Install the hook and status line…** button as before. It still opens Settings › Integrations, which backs the file up first. If both are already installed, the step says so.
+
+Back, Next (Done on the last step) and Skip sit under the step. The dots between them go straight to a step, and the current dot is a wider bar, so it is marked by shape and not only by colour. ← and → move one step, and → stops at the last step instead of closing the tour. Return is Next, and Escape closes the tour. Pages slide from the side you are heading towards. Under Reduce Motion (the system's setting or *Reduce animations*) they are replaced with no animation. `--render-assets` also writes `welcome.png`, all four steps one under another, for review.
+
 ## Layout and settings
 
 Right-click (or Control-click) the rings, or use the **Options** button in the panel's footer, for the menu; **Settings…** opens the full window. Settings is a floating window that never takes focus away from the app you are working in, and the panel stays closed while it is open, so the two never overlap. The app has a real main menu even though it shows no menu bar entry of its own, so ⌘, opens Settings, ⌘Q quits, ⌘W closes Settings, Escape closes Settings or the open panel, ⌘R refreshes, and Cut, Copy, Paste and Select All work in every text field.

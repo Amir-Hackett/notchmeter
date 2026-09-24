@@ -51,7 +51,8 @@ enum SettingsSearch {
             rows += titles.map { Entry(section: section, title: $0) }
         }
         add(.general, L("General"), L("Show total spend"), L("Open at login"), L("Language"), L("Relaunch"),
-            L("Show menu bar icon"), L("Pin figures beside the icon"), L("Icon style"), L("Icon colour"), L("Install command line tool…"))
+            L("Show menu bar icon"), L("Pin figures beside the icon"), L("Icon style"), L("Icon colour"), L("Install command line tool…"),
+            L("Show the welcome tour again"))
         add(.updates, L("Updates"), L("Check for updates automatically"), L("Download updates automatically"), L("Beta updates"),
             L("Check for Updates…"))
         add(.about, L("Version %@", AppInfo.version), L("Support %@…", AppInfo.name))

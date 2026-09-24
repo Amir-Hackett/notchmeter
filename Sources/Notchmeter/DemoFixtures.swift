@@ -5,6 +5,9 @@ import Foundation
 /// reaches a provider, the Keychain or the network: the store is seeded and its loops never start.
 enum DemoFixtures {
     static let suiteName = "com.amirhackett.notchmeter.render-assets"
+    /// The Welcome tour's previews, which run inside the app rather than in a render: a suite of their own so a
+    /// tour open while `--render-assets` runs from the same account cannot have its preferences emptied under it.
+    static let previewSuiteName = "com.amirhackett.notchmeter.welcome-preview"
 
     /// What the hook is reporting while a picture is drawn. A tool has one ring and `ToolSignal.resolve` gives a
     /// wait the better claim on it, so the two states cannot both be true of Claude Code at one instant and no
@@ -25,17 +28,22 @@ enum DemoFixtures {
         case permissionRequest
         /// A question with options, the same way.
         case question
+        /// A turn still running: the notchmeter session has its prompt and nothing has stopped it or asked
+        /// anything. The one moment with no mark on any ring, which is what the Welcome tour's first step wants —
+        /// it explains the rings before it explains the marks, and a dot it has not yet named would be a question
+        /// the page cannot answer.
+        case working
     }
 
     @MainActor
-    static func store(now: Date = Date(), moment: Moment = .waiting) -> (store: UsageStore, prefs: Preferences) {
+    static func store(now: Date = Date(), moment: Moment = .waiting, suite: String = suiteName) -> (store: UsageStore, prefs: Preferences) {
         // A suite nothing writes to. The registration domain lives in memory only, so the countdown style the
         // pictures rely on is neither read from nor written to the user's own preferences. Peak hours are off: the
         // window is read against the wall clock, so a render during it grew an advice line and a footer word that
         // one an hour later did not. The suite is emptied first, since a registered default is only a fallback and
         // a value an earlier render left behind would outrank it.
-        UserDefaults.standard.removePersistentDomain(forName: suiteName)
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        UserDefaults.standard.removePersistentDomain(forName: suite)
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.register(defaults: ["resetDisplay": ResetDisplay.countdown.rawValue, "peakHoursTools": [String]()])
         let prefs = Preferences(defaults: defaults)
         let readings = readings(now: now)
@@ -111,6 +119,9 @@ enum DemoFixtures {
                         PendingRequest.Option(label: "Above the cost", description: "First card on the panel"),
                         PendingRequest.Option(label: "Inside each tool card", description: "One block per assistant"),
                     ])]))
+        case .working:
+            send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
+            send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
         }
         return tracker
     }

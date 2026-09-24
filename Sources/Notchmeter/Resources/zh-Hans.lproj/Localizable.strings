@@ -167,7 +167,6 @@
 "Collapsed" = "已收起";
 "Colour the rings when an assistant waits or finishes" = "助手等待或完成时为圆环着色";
 "Connect Claude Code" = "连接 Claude Code";
-"Continue" = "继续";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI 在启动时读取钩子：重新启动它，然后 /env 会列出该文件。";
 "credits" = "额度";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor 报告对话的开始或结束、你发送提示、一轮停止以及子代理的启动或停止。它没有等待你批准或速率限制的事件，因此 Cursor 圆环只显示完成的勾号，绝不会显示等待的手形，而被中止或出错的一轮结束时不会有勾号。Cursor 会在 hooks.json 保存后立即重新加载。";
@@ -715,7 +714,6 @@
 "Weekly budget" = "每周预算";
 "Welcome to %@" = "欢迎使用 %@";
 "What %@ reads" = "%@ 读取什么";
-"What it may ask for" = "它可能请求的权限";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "面板对钩子报告的每个会话显示什么，以及你可以在那里对它做什么。这一切都需要助手的钩子（集成）。";
 "When crowded" = "空间不足时";
 "When a window resets" = "窗口重置时";
@@ -839,3 +837,15 @@
 "Show in Finder" = "在访达中显示";
 "The crash report could not be read." = "无法读取崩溃报告。";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ 崩溃时 macOS 写入 ~/Library/Logs/DiagnosticReports 的最新报告。它只留在这台 Mac 上：“复制”会把它放到剪贴板，并隐去你的个人文件夹路径，供你粘贴到错误报告中。";
+"The rings beside the notch" = "刘海旁的圆环";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "每个助手都有一组自己颜色的嵌套圆环：外圈是它的主要限额，内圈是其他时间窗口，每段弧线随窗口用量增加而填满。虚线圆环表示暂时没有可读的数据。将指针悬停在圆环上即可打开面板。";
+"The panel, and pace" = "面板与节奏";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "面板为每个助手提供一张卡片，列出每个窗口、何时重置以及花费了多少。节奏会把窗口的消耗速度与剩余时间相比较，因此警告会在窗口用满之前很久、你仍来得及放慢时到来。";
+"Sessions, answered from the notch" = "会话，在刘海处直接回复";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "装好钩子后，面板会列出你的 Claude Code 会话以及每个会话正在做什么。当某个会话请求权限或向你提问时，可以在这里回答；置之不理，它就会回到终端。";
+"Back" = "上一步";
+"Next" = "下一步";
+"Sample data" = "示例数据";
+"The hook and the status line are both installed." = "钩子和状态行均已安装。";
+"Show the welcome tour again" = "再次显示欢迎导览";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "用示例数据预览圆环、面板与节奏、会话以及 Claude Code 钩子。";

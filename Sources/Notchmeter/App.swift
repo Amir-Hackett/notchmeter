@@ -250,6 +250,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         requests.awakeChanged = { [weak self] in self?.store.applyAwake() }
         requests.diagnostics = { [weak self] in self?.diagnostics() ?? "" }
         requests.installCommandLineTool = { [weak self] in self?.installCommandLineTool() }
+        requests.showWelcomeTour = { [weak self] in self?.showWelcomeTour() }
         requests.updater = { [weak self] in self?.updater }
         buildPresenters()
         // The app's own menu bar icon is one of the status items Auto measures against, so it exists before the
@@ -458,9 +459,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Welcome
 
     /// The first-launch Welcome, held open the way Settings is. Its install button closes it and opens Settings
-    /// on Integrations with the hook offer and the status line queued (`offerClaudeSetup`).
+    /// on Integrations with the hook offer and the status line queued (`offerClaudeSetup`). A second ask while it
+    /// is up brings the one already open forward rather than stacking another.
     private func showWelcome() {
-        let controller = WelcomeWindowController(install: { [weak self] in self?.offerClaudeSetup() },
+        if let welcome {
+            welcome.present(on: .pointerScreen)
+            return
+        }
+        var connected = false
+        if case .installed = HookSettings.status(), case .installed = HookSettings.statuslineStatus() { connected = true }
+        let controller = WelcomeWindowController(connected: connected, install: { [weak self] in self?.offerClaudeSetup() },
                                                  finish: { [weak self] in self?.welcome?.close() })
         welcome = controller
         if let window = controller.window {
@@ -473,7 +481,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Oracle.shared.emit("settings", ["action": "welcome"])
     }
 
+    /// Settings › General › "Show the welcome tour again". Settings steps aside first: it sits above the tour's
+    /// level, and the tour's last step sends the reader back into it anyway.
+    private func showWelcomeTour() {
+        settings?.close()
+        showWelcome()
+    }
+
     private func welcomeDidClose() {
+        Oracle.shared.emit("welcome", WelcomeTour.oracleFields("closed", step: welcome?.shownStep))
         hold(.welcome, false)
         if let welcomeObserver { NotificationCenter.default.removeObserver(welcomeObserver) }
         welcomeObserver = nil

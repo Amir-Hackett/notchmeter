@@ -151,7 +151,6 @@
 "Collapsed" = "Đã thu gọn";
 "Colour the rings when an assistant waits or finishes" = "Đổi màu vòng khi một trợ lý chờ hoặc hoàn thành";
 "Connect Claude Code" = "Kết nối Claude Code";
-"Continue" = "Tiếp tục";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI đọc hook khi khởi động: khởi động lại nó, rồi /env liệt kê tệp.";
 "credits" = "tín dụng";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor báo khi một cuộc trò chuyện bắt đầu hoặc kết thúc, khi bạn gửi prompt, khi một lượt dừng và khi một tác tử con bắt đầu hoặc dừng. Nó không có sự kiện cho việc chờ bạn phê duyệt hay cho giới hạn tốc độ, nên vòng Cursor hiện dấu tick đã xong và không bao giờ hiện bàn tay chờ, và một lượt bị hủy hay lỗi kết thúc mà không có dấu tick. Cursor tải lại hooks.json ngay khi nó được lưu.";
@@ -699,7 +698,6 @@
 "Weekly budget" = "Ngân sách tuần";
 "Welcome to %@" = "Chào mừng đến với %@";
 "What %@ reads" = "%@ đọc những gì";
-"What it may ask for" = "Những quyền nó có thể hỏi";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "Bảng hiển thị gì về mỗi phiên do hook báo cáo, và bạn có thể làm gì với nó từ đó. Tất cả đều cần hook của trợ lý (Tích hợp).";
 "When crowded" = "Khi chật chỗ";
 "When a window resets" = "Khi một cửa sổ đặt lại";
@@ -823,3 +821,15 @@
 "Show in Finder" = "Hiện trong Finder";
 "The crash report could not be read." = "Không đọc được báo cáo sự cố.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Báo cáo mới nhất macOS ghi khi %@ gặp sự cố, lấy từ ~/Library/Logs/DiagnosticReports. Nó ở lại trên máy Mac này: Sao chép đặt nó vào bộ nhớ tạm, đã xoá đường dẫn thư mục người dùng, để bạn dán vào báo cáo lỗi.";
+"The rings beside the notch" = "Các vòng cạnh notch";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "Mỗi trợ lý có một cụm vòng mang màu riêng: vòng ngoài là giới hạn chính, các vòng bên trong là những khung thời gian khác, và mỗi cung đầy dần khi khung đó được dùng. Vòng nét đứt là chưa có gì để đọc. Di con trỏ lên các vòng để mở bảng.";
+"The panel, and pace" = "Bảng và nhịp độ";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "Bảng có một thẻ cho mỗi trợ lý với từng khung thời gian, lúc nó đặt lại và chi phí đã tiêu. Nhịp độ so tốc độ dùng một khung với thời gian còn lại, nên cảnh báo đến khi vẫn còn kịp chậm lại, rất lâu trước khi khung đầy.";
+"Sessions, answered from the notch" = "Phiên, trả lời ngay từ notch";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "Khi đã cài hook, bảng liệt kê các phiên Claude Code của bạn và việc mỗi phiên đang làm. Khi một phiên xin quyền hoặc hỏi bạn, hãy trả lời ngay tại đây; nếu để đó, yêu cầu sẽ quay về terminal.";
+"Back" = "Quay lại";
+"Next" = "Tiếp";
+"Sample data" = "Dữ liệu mẫu";
+"The hook and the status line are both installed." = "Hook và dòng trạng thái đều đã được cài.";
+"Show the welcome tour again" = "Xem lại tour chào mừng";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "Các vòng, bảng và nhịp độ, các phiên và hook của Claude Code, trên bản xem trước với dữ liệu mẫu.";

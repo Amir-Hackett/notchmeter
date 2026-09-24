@@ -167,7 +167,6 @@
 "Collapsed" = "Свёрнуто";
 "Colour the rings when an assistant waits or finishes" = "Окрашивать кольца, когда ассистент ждёт или завершает ход";
 "Connect Claude Code" = "Подключить Claude Code";
-"Continue" = "Продолжить";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI читает хуки при запуске: перезапустите его, и /env покажет файл.";
 "credits" = "кредиты";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor сообщает о начале и завершении разговора, отправке промпта, остановке хода и запуске или остановке субагента. У него нет событий для ожидания вашего подтверждения или лимита запросов, поэтому кольцо Cursor показывает галочку завершения, но никогда не показывает значок руки, а прерванный или завершившийся ошибкой ход заканчивается без галочки. Cursor перечитывает hooks.json сразу после сохранения.";
@@ -715,7 +714,6 @@
 "Weekly budget" = "Бюджет на неделю";
 "Welcome to %@" = "Добро пожаловать в %@";
 "What %@ reads" = "Что читает %@";
-"What it may ask for" = "Что может запросить";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "Что панель показывает о каждой сессии, о которой сообщают хуки, и что с ней можно оттуда сделать. Для всего этого нужен хук ассистента (Интеграции).";
 "When crowded" = "Когда не хватает места";
 "When a window resets" = "Когда окно сбрасывается";
@@ -839,3 +837,15 @@
 "Show in Finder" = "Показать в Finder";
 "The crash report could not be read." = "Не удалось прочитать отчёт о сбое.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Самый свежий отчёт, который macOS записала при сбое %@, из ~/Library/Logs/DiagnosticReports. Он остаётся на этом Mac: «Скопировать» помещает его в буфер обмена без пути к вашей домашней папке, чтобы вы вставили его в отчёт об ошибке.";
+"The rings beside the notch" = "Кольца рядом с вырезом";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "У каждого ассистента своё гнездо колец своего цвета: внешнее кольцо — основной лимит, внутренние — другие окна, и каждая дуга заполняется по мере расхода окна. Пунктирному кольцу пока нечего показать. Наведите указатель на кольца, чтобы открыть панель.";
+"The panel, and pace" = "Панель и темп";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "На панели у каждого ассистента своя карточка: каждое окно, когда оно сбросится и сколько стоило. Темп сравнивает, как быстро расходуется окно, с оставшимся временем, поэтому предупреждение приходит, пока ещё можно сбавить обороты, задолго до того, как окно заполнится.";
+"Sessions, answered from the notch" = "Сессии: ответ прямо из выреза";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "С установленным хуком панель показывает ваши сессии Claude Code и чем занята каждая. Если сессия просит разрешения или задаёт вопрос, ответьте здесь; если оставить её, запрос вернётся в терминал.";
+"Back" = "Назад";
+"Next" = "Далее";
+"Sample data" = "Пример данных";
+"The hook and the status line are both installed." = "Хук и строка состояния уже установлены.";
+"Show the welcome tour again" = "Показать приветственный тур снова";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "Кольца, панель и темп, сессии и хук Claude Code — на превью с примером данных.";

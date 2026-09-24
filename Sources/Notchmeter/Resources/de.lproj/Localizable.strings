@@ -168,7 +168,6 @@
 "Collapsed" = "Eingeklappt";
 "Colour the rings when an assistant waits or finishes" = "Ringe einfärben, wenn ein Assistent wartet oder fertig ist";
 "Connect Claude Code" = "Claude Code verbinden";
-"Continue" = "Fortfahren";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI liest seine Hooks beim Start: Starte es neu, dann listet /env die Datei.";
 "credits" = "Credits";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor meldet, wenn eine Unterhaltung beginnt oder endet, wenn du einen Prompt sendest, wenn ein Durchgang stoppt und wenn ein Subagent startet oder stoppt. Es hat kein Ereignis für das Warten auf deine Freigabe oder für ein Ratenlimit, daher zeigt der Cursor-Ring das Fertig-Häkchen und nie die wartende Hand, und ein abgebrochener oder fehlgeschlagener Durchgang endet ohne Häkchen. Cursor lädt hooks.json neu, sobald die Datei gesichert ist.";
@@ -716,7 +715,6 @@
 "Weekly budget" = "Wochenbudget";
 "Welcome to %@" = "Willkommen bei %@";
 "What %@ reads" = "Was %@ liest";
-"What it may ask for" = "Wonach es fragen kann";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "Was das Panel von jeder Sitzung zeigt, die die Hooks melden, und was du dort damit tun kannst. Alles davon braucht den Hook des Assistenten (Integrationen).";
 "When crowded" = "Wenn es eng wird";
 "When a window resets" = "Wenn ein Fenster zurückgesetzt wird";
@@ -840,3 +838,15 @@
 "Show in Finder" = "Im Finder zeigen";
 "The crash report could not be read." = "Der Absturzbericht konnte nicht gelesen werden.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "Der neueste Bericht, den macOS beim Absturz von %@ geschrieben hat, aus ~/Library/Logs/DiagnosticReports. Er bleibt auf diesem Mac: „Kopieren“ legt ihn, bereinigt um deinen Benutzerordner, in die Zwischenablage, damit du ihn in einen Fehlerbericht einfügen kannst.";
+"The rings beside the notch" = "Die Ringe neben der Notch";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "Jeder Assistent hat ein Nest aus Ringen in seiner eigenen Farbe: Der äußere Ring ist sein Hauptlimit, die Ringe darin sind seine anderen Zeitfenster, und jeder Bogen füllt sich, während das Fenster verbraucht wird. Ein gestrichelter Ring hat noch nichts zu lesen. Fahre mit dem Zeiger über die Ringe, um das Panel zu öffnen.";
+"The panel, and pace" = "Das Panel und das Tempo";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "Das Panel hat für jeden Assistenten eine Karte mit jedem Zeitfenster, wann es zurückgesetzt wird und was es gekostet hat. Das Tempo vergleicht, wie schnell ein Fenster verbraucht wird, mit der Zeit, die ihm bleibt – so kommt die Warnung, solange du noch langsamer machen kannst, lange bevor das Fenster voll ist.";
+"Sessions, answered from the notch" = "Sitzungen, direkt in der Notch beantwortet";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "Mit dem Hook listet das Panel deine Claude-Code-Sitzungen und was jede gerade tut. Fragt eine um Erlaubnis oder stellt dir eine Frage, beantworte sie hier; lässt du sie liegen, geht sie zurück ans Terminal.";
+"Back" = "Zurück";
+"Next" = "Weiter";
+"Sample data" = "Beispieldaten";
+"The hook and the status line are both installed." = "Der Hook und die Statuszeile sind beide installiert.";
+"Show the welcome tour again" = "Die Willkommenstour erneut zeigen";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "Die Ringe, das Panel und das Tempo, Sitzungen und der Claude-Code-Hook, als Vorschau mit Beispieldaten.";

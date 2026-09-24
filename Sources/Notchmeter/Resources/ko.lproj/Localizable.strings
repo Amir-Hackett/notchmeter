@@ -151,7 +151,6 @@
 "Collapsed" = "접힘";
 "Colour the rings when an assistant waits or finishes" = "어시스턴트가 기다리거나 끝났을 때 링에 색 입히기";
 "Connect Claude Code" = "Claude Code 연결";
-"Continue" = "계속";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI는 시작할 때 훅을 읽습니다: 다시 시작하면 /env가 그 파일을 나열합니다.";
 "credits" = "크레딧";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor는 대화가 시작되거나 끝날 때, 프롬프트를 보낼 때, 턴이 멈출 때, 하위 에이전트가 시작되거나 멈출 때를 보고합니다. 승인 대기나 속도 제한 이벤트는 없으므로 Cursor 링은 완료 체크만 보이고 대기 손 모양은 절대 보이지 않으며, 중단되거나 오류로 끝난 턴은 체크 없이 끝납니다. Cursor는 hooks.json을 저장하는 즉시 다시 읽습니다.";
@@ -699,7 +698,6 @@
 "Weekly budget" = "주 예산";
 "Welcome to %@" = "%@에 오신 것을 환영합니다";
 "What %@ reads" = "%@이(가) 읽는 것";
-"What it may ask for" = "요청할 수 있는 권한";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "훅이 보고한 각 세션에 대해 패널이 무엇을 보여 주고, 거기서 무엇을 할 수 있는지. 모두 어시스턴트의 훅이 필요합니다(통합).";
 "When crowded" = "공간이 부족할 때";
 "When a window resets" = "창이 초기화될 때";
@@ -823,3 +821,15 @@
 "Show in Finder" = "Finder에서 보기";
 "The crash report could not be read." = "충돌 보고서를 읽을 수 없습니다.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@이(가) 충돌했을 때 macOS가 ~/Library/Logs/DiagnosticReports에 기록한 최신 보고서입니다. 이 Mac 밖으로 나가지 않습니다. 복사하면 홈 폴더 경로를 가린 채 클립보드에 담기므로 버그 보고서에 붙여 넣으세요.";
+"The rings beside the notch" = "노치 옆의 링";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "어시스턴트마다 고유한 색의 링이 겹쳐 있습니다. 바깥 링은 주 한도, 안쪽 링은 다른 기간이며, 각 호는 해당 기간을 쓸수록 채워집니다. 점선 링은 아직 읽을 것이 없다는 뜻입니다. 링 위에 포인터를 올리면 패널이 열립니다.";
+"The panel, and pace" = "패널과 페이스";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "패널에는 어시스턴트마다 카드가 있어 각 기간, 재설정 시점, 든 비용을 보여 줍니다. 페이스는 기간을 쓰는 속도를 남은 시간과 비교하므로, 기간이 가득 차기 훨씬 전 아직 속도를 줄일 수 있을 때 경고가 옵니다.";
+"Sessions, answered from the notch" = "노치에서 답하는 세션";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "훅을 설치하면 패널에 Claude Code 세션과 각 세션이 하는 일이 표시됩니다. 권한을 요청하거나 질문하면 여기서 답하세요. 그대로 두면 터미널로 돌아갑니다.";
+"Back" = "뒤로";
+"Next" = "다음";
+"Sample data" = "샘플 데이터";
+"The hook and the status line are both installed." = "훅과 상태 표시줄이 모두 설치되어 있습니다.";
+"Show the welcome tour again" = "환영 둘러보기 다시 보기";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "링, 패널과 페이스, 세션, Claude Code 훅을 샘플 데이터 미리보기로 보여 줍니다.";

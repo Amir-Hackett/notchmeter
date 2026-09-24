@@ -167,7 +167,6 @@
 "Collapsed" = "Recolhido";
 "Colour the rings when an assistant waits or finishes" = "Colorir os anéis quando um assistente espera ou termina";
 "Connect Claude Code" = "Conectar o Claude Code";
-"Continue" = "Continuar";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "O Copilot CLI lê os hooks ao iniciar: reinicie-o e /env lista o arquivo.";
 "credits" = "créditos";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "O Cursor informa quando uma conversa começa ou termina, quando você envia um prompt, quando um turno para e quando um subagente começa ou termina. Ele não tem evento para uma espera pela sua aprovação nem para um limite de taxa, então o anel do Cursor mostra o sinal de concluído e nunca a mão de espera, e um turno cancelado ou com erro termina sem o sinal. O Cursor recarrega o hooks.json assim que ele é salvo.";
@@ -715,7 +714,6 @@
 "Weekly budget" = "Orçamento semanal";
 "Welcome to %@" = "Bem-vindo ao %@";
 "What %@ reads" = "O que o %@ lê";
-"What it may ask for" = "O que ele pode pedir";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "O que o painel mostra de cada sessão informada pelos hooks, e o que você pode fazer com ela a partir dali. Tudo isso precisa do hook do assistente (Integrações).";
 "When crowded" = "Quando faltar espaço";
 "When a window resets" = "Quando uma janela renovar";
@@ -839,3 +837,15 @@
 "Show in Finder" = "Mostrar no Finder";
 "The crash report could not be read." = "O relatório de falha não pôde ser lido.";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "O relatório mais recente que o macOS gravou quando o %@ falhou, em ~/Library/Logs/DiagnosticReports. Ele fica neste Mac: Copiar o coloca na área de transferência, sem a sua pasta pessoal, para você colar num relatório de bug.";
+"The rings beside the notch" = "Os anéis ao lado do notch";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "Cada assistente tem um ninho de anéis na própria cor: o anel externo é o limite principal, os de dentro são as outras janelas, e cada arco se enche conforme a janela é usada. Um anel tracejado ainda não tem nada para ler. Passe o ponteiro sobre os anéis para abrir o painel.";
+"The panel, and pace" = "O painel e o ritmo";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "O painel tem um cartão para cada assistente com cada janela, quando ela reinicia e quanto custou. O ritmo compara a velocidade com que uma janela é usada com o tempo que resta, então o aviso chega enquanto ainda dá tempo de desacelerar, bem antes de a janela encher.";
+"Sessions, answered from the notch" = "Sessões, respondidas pelo notch";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "Com o hook instalado, o painel lista suas sessões do Claude Code e o que cada uma está fazendo. Quando uma pedir permissão ou fizer uma pergunta, responda aqui; se deixar, ela volta para o terminal.";
+"Back" = "Voltar";
+"Next" = "Avançar";
+"Sample data" = "Dados de exemplo";
+"The hook and the status line are both installed." = "O hook e a linha de status já estão instalados.";
+"Show the welcome tour again" = "Mostrar o tour de boas-vindas de novo";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "Os anéis, o painel e o ritmo, as sessões e o hook do Claude Code, numa prévia com dados de exemplo.";

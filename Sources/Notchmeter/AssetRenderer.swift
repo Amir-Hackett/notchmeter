@@ -57,6 +57,7 @@ enum AssetRenderer {
                           png: directory.appendingPathComponent("\(name).png"))
             }
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
+            try write(welcome(now: now), png: directory.appendingPathComponent("welcome.png"))
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
             AccessibilityDisplay.shared.force(contrast: true)
@@ -492,6 +493,33 @@ enum AssetRenderer {
         }
         windows.append(window)
         return try bitmap(of: frame, size: frame.bounds.size, what: "the \(pane.title) pane of the Settings window")
+    }
+
+    /// The Welcome tour, every step one under another, as the window draws it in the dark appearance.
+    ///
+    /// For review: the README does not use it. Each step is its own window opened on that step, because the tour
+    /// builds only the page on screen. The previews scale themselves once they have been measured, and that
+    /// measurement lands on the run loop's next turn rather than inside the first layout, so the run loop is
+    /// turned once before the capture; without it the picture is of the previews at their own size, overflowing
+    /// the stage.
+    @MainActor
+    static func welcome(now: Date) throws -> CGImage {
+        let previews = WelcomePreviews(now: now)
+        let size = WelcomeWindowController.contentSize
+        var pages: [CGImage] = []
+        for step in WelcomeStep.allCases {
+            let host = NSHostingView(rootView: WelcomeView(start: step, previews: previews, install: {}, finish: {}))
+            let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: .borderless, backing: .buffered, defer: false)
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.backgroundColor = .windowBackgroundColor
+            window.contentView = host
+            host.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            host.layoutSubtreeIfNeeded()
+            windows.append(window)
+            pages.append(try bitmap(of: host, size: size, what: "the \(step.name) step of the Welcome tour"))
+        }
+        return try stack(pages, gutter: 24)
     }
 
     /// Images one under another, left-aligned, on the same ground the sheet's gutters use.

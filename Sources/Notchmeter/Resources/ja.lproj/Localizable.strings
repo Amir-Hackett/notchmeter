@@ -151,7 +151,6 @@
 "Collapsed" = "折りたたみ";
 "Colour the rings when an assistant waits or finishes" = "アシスタントが待機中または完了したときにリングに色を付ける";
 "Connect Claude Code" = "Claude Code を接続";
-"Continue" = "続ける";
 "Copilot CLI reads its hooks when it starts: restart it, then /env lists the file." = "Copilot CLI は起動時にフックを読み込みます。再起動すると /env にそのファイルが並びます。";
 "credits" = "クレジット";
 "Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved." = "Cursor は会話の開始と終了、プロンプトの送信、ターンの停止、サブエージェントの開始と停止を報告します。承認待ちやレート制限のイベントはないため、Cursor のリングは完了のチェックを示し、待機の手は決して示しません。中断またはエラーで終わったターンにはチェックが付きません。Cursor は hooks.json を保存するとすぐ再読み込みします。";
@@ -699,7 +698,6 @@
 "Weekly budget" = "週次予算";
 "Welcome to %@" = "%@ へようこそ";
 "What %@ reads" = "%@ が読むもの";
-"What it may ask for" = "求められることのある許可";
 "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "フックが報告した各セッションについてパネルが何を表示し、そこから何ができるか。すべてアシスタントのフックが必要です（統合）。";
 "When crowded" = "余白が足りないとき";
 "When a window resets" = "ウィンドウがリセットされたとき";
@@ -823,3 +821,15 @@
 "Show in Finder" = "Finder に表示";
 "The crash report could not be read." = "クラッシュレポートを読み込めませんでした。";
 "The newest report macOS wrote when %@ crashed, from ~/Library/Logs/DiagnosticReports. It stays on this Mac: Copy puts it on the clipboard, scrubbed of your home folder, for you to paste into a bug report." = "%@ がクラッシュしたときに macOS が ~/Library/Logs/DiagnosticReports に書いた最新のレポートです。この Mac の外には出ません。「コピー」はホームフォルダのパスを伏せてクリップボードに入れるので、バグ報告に貼り付けてください。";
+"The rings beside the notch" = "ノッチ横のリング";
+"Each assistant has a nest of rings in its own colour: the outer ring is its main limit, the rings inside it are its other windows, and each arc fills as that window is used. A dashed ring has nothing to read yet. Hover the rings to open the panel." = "アシスタントごとに固有の色のリングが重なっています。外側のリングがメインの上限、内側のリングがその他のウインドウで、ウインドウを使うにつれて各弧が満ちていきます。破線のリングはまだ読み取るものがありません。リングにポインタを置くとパネルが開きます。";
+"The panel, and pace" = "パネルとペース";
+"The panel has a card for each assistant with every window, when it resets and what it has cost. Pace compares how fast a window is being used with the time it has left, so the warning comes while there is still time to slow down, long before the window is full." = "パネルにはアシスタントごとにカードがあり、各ウインドウ、リセットの時期、かかったコストを表示します。ペースはウインドウの消費速度を残り時間と比べるので、ウインドウが満杯になるずっと前、まだ控える余裕があるうちに警告が届きます。";
+"Sessions, answered from the notch" = "セッションにノッチから応答";
+"With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal." = "フックを入れると、パネルに Claude Code のセッションと各セッションの作業内容が並びます。許可を求められたり質問されたりしたらここで答えられます。放っておけばターミナルに戻ります。";
+"Back" = "戻る";
+"Next" = "次へ";
+"Sample data" = "サンプルデータ";
+"The hook and the status line are both installed." = "フックとステータスラインはどちらもインストール済みです。";
+"Show the welcome tour again" = "ようこそツアーをもう一度表示";
+"The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data." = "リング、パネルとペース、セッション、Claude Code のフックを、サンプルデータのプレビューで紹介します。";
