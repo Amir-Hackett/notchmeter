@@ -814,4 +814,6 @@
 "Your prompt cache missed %1$ld times — %2$@ rewritten." = "你的提示快取未命中 %1$ld 次 — 重寫了 %2$@。";
 "Remove from the list" = "從清單中移除";
 "Remove all idle sessions" = "移除所有閒置的工作階段";
+"idle %@" = "閒置 %@";
+"Clear the idle sessions; each comes back if it does anything" = "清除閒置的工作階段；有新動靜時會重新出現";
 "Remove from the list; it comes back if the session does anything" = "從清單中移除；工作階段有任何動作時會再出現";

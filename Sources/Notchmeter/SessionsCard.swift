@@ -2,8 +2,10 @@ import SwiftUI
 
 /// Every session the hooks know about, one row each, between the Advice strip and the tool cards
 /// (Preferences.sessionsCard): what it is working on, which assistant and which terminal it runs in, how long
-/// the turn has run, and whether it is waiting on the reader. Newest first, `rowCap` rows and then a count of
-/// the rest. A click on a row jumps to its terminal (`NotchActions.jump`, TerminalJump.swift) when the hook
+/// the turn has run, and whether it is waiting on the reader. What needs the reader first, then what is working,
+/// then what just finished, then idle, newest first within each; `rowCap` rows and then a count of the rest. Idle
+/// rows are drawn quieter and clock their silence, not their age, and *Clear* in the header sets every one of them
+/// aside (SessionTracker.dismissIdle); left alone they go by themselves after `SessionTracker.idleAfter`. A click on a row jumps to its terminal (`NotchActions.jump`, TerminalJump.swift) when the hook
 /// reported one and the setting allows it; a row with nowhere to go is a row and not a button.
 ///
 /// The card asserts only what a hook said: a title is the prompt's first line the hook sent and the store kept,
@@ -29,7 +31,7 @@ struct SessionsCard: View {
         let title: String
         /// The assistant's name, the terminal app's short name, and the host for a remote session.
         let chips: [String]
-        /// The turn's start, or the session's when no turn has begun.
+        /// The turn's start while one runs; the last event heard once idle, so the clock reads as "quiet for".
         let since: Date
         let status: Status
         /// The second line: waiting for an answer, or done and worth a jump.
@@ -39,11 +41,19 @@ struct SessionsCard: View {
         enum Note: Equatable, Sendable { case waitingForAnswer, doneJump, justFinished }
     }
 
-    /// The rows for `sessions` (already newest first), and how many were left off.
+    /// The rows for `sessions` (newest first), live ones ahead of idle ones, and how many were left off. The sort
+    /// is stable, so recency still orders each group, and six idle terminals can no longer push a working one off.
     static func rows(_ sessions: [AgentSession], hideTitles: Bool, jump: Bool, now: Date) -> (rows: [Row], more: Int) {
-        let rows = sessions.prefix(rowCap).map { session -> Row in
-            let finished = session.finish(now: now) != nil
-            let status: Row.Status = session.isWaiting ? .waiting : session.isWorking ? .working : finished ? .finished : .idle
+        func status(_ session: AgentSession) -> Row.Status {
+            session.isWaiting ? .waiting : session.isWorking ? .working : session.finish(now: now) != nil ? .finished : .idle
+        }
+        let ordered = sessions.enumerated().sorted { a, b in
+            let (ra, rb) = (status(a.element).rank, status(b.element).rank)
+            return ra != rb ? ra < rb : a.offset < b.offset
+        }.map(\.element)
+        let rows = ordered.prefix(rowCap).map { session -> Row in
+            let status = status(session)
+            let finished = status == .finished
             // A row is a button only where the resolver has somewhere to go: a reference that names a program and
             // nothing else (`TERM_PROGRAM=vscode` with no bundle id) is a reference, and not a jump.
             let canJump = jump && session.host == nil && session.terminal.map { TerminalJump.resolve($0) != .none } == true
@@ -53,7 +63,8 @@ struct SessionsCard: View {
             if let terminal = TerminalJump.displayName(bundleID: session.terminal?.bundleID), terminal != chips[0] { chips.append(terminal) }
             if let host = session.host { chips.append("@\(host)") }
             return Row(id: session.id, tool: session.tool, title: title(of: session, hideTitles: hideTitles), chips: chips,
-                       since: session.turnStarted ?? session.started, status: status, note: note, canJump: canJump)
+                       since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
+                       status: status, note: note, canJump: canJump)
         }
         return (rows, max(0, sessions.count - rowCap))
     }
@@ -81,6 +92,15 @@ struct SessionsCard: View {
                     Spacer()
                     Text(sessions.count == 1 ? L("1 session") : L("%ld sessions", sessions.count))
                         .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    // Always drawn while there is something to clear, never only on hover: a panel read at a glance
+                    // has no pointer on it.
+                    if sessions.all.contains(where: { !$0.isWorking && !$0.isWaiting && $0.pending == nil }) {
+                        Button(L("Clear")) { store.dismissIdleSessions() }
+                            .buttonStyle(.plain)
+                            .font(.caption.weight(.semibold)).foregroundStyle(Palette.accent)
+                            .help(L("Clear the idle sessions; each comes back if it does anything"))
+                            .accessibilityLabel(L("Remove all idle sessions"))
+                    }
                 }
                 ForEach(rows, id: \.id) { row in
                     SessionRow(row: row, now: context.date, jump: { actions.jump($0) }, session: sessions.all.first { $0.id == row.id },
@@ -160,22 +180,27 @@ private struct SessionRow: View {
             .accessibilityLabel(L("Remove from the list"))
         } else {
             // Already spoken as part of the row's own value (`content`), so VoiceOver does not read it twice.
-            Text(ResetText.duration(max(0, now.timeIntervalSince(row.since))))
-                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+            Text(clock)
+                .font(.caption).foregroundStyle(row.status == .idle ? .tertiary : .secondary).monospacedDigit()
                 .accessibilityHidden(true)
         }
     }
 
+    /// A running turn's length, or how long an idle session has been quiet ("idle 12m").
+    private var clock: String {
+        let duration = ResetText.duration(max(0, now.timeIntervalSince(row.since)))
+        return row.status == .idle ? L("idle %@", duration) : duration
+    }
+
     private var content: some View {
         HStack(alignment: .top, spacing: 7) {
-            Image(systemName: symbol)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(colour)
+            StatusMark(status: row.status, symbol: symbol, colour: colour)
                 .frame(width: 13, alignment: .center)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
                     Text(verbatim: row.title).font(.caption).lineLimit(1).truncationMode(.middle)
+                        .foregroundStyle(row.status == .idle ? .secondary : .primary)
                     ForEach(row.chips, id: \.self) { Chip(text: $0) }
                 }
                 if let note = row.note {
@@ -190,15 +215,16 @@ private struct SessionRow: View {
         .accessibilityLabel(row.title)
         .accessibilityValue(Spoken.line(statusText, row.chips.joined(separator: ", "), ResetText.duration(max(0, now.timeIntervalSince(row.since))),
                                         row.note.map(noteText)))
+        .opacity(row.status == .idle ? 0.8 : 1)
     }
 
-    /// Colour and shape together: the tool's own colour while it works, the blue hand while it waits, a grey ring
-    /// while it idles, a green tick just after it finished.
+    /// Colour and shape together: the tool's own colour, breathing, while it works; the blue hand while it waits; a
+    /// small grey ring while it idles; a green tick just after it finished.
     private var symbol: String {
         switch row.status {
         case .working: "circle.fill"
         case .waiting: "hand.raised.fill"
-        case .idle: "circle"
+        case .idle: "circle.dotted"
         case .finished: "checkmark.circle.fill"
         }
     }
@@ -235,6 +261,36 @@ private struct SessionRow: View {
         switch note {
         case .waitingForAnswer: Palette.accent
         case .doneJump, .justFinished: Palette.pine
+        }
+    }
+}
+
+extension SessionsCard.Row.Status {
+    /// The card's order: what needs the reader, what is running, what just ended, what is idle.
+    var rank: Int {
+        switch self {
+        case .waiting: 0
+        case .working: 1
+        case .finished: 2
+        case .idle: 3
+        }
+    }
+}
+
+/// The row's status symbol. A working turn's dot breathes, so "running" reads without the colour legend and a
+/// stalled clock is not the only sign of life; under Reduce Motion it holds still (the word is in the row's
+/// spoken value either way).
+private struct StatusMark: View {
+    let status: SessionsCard.Row.Status
+    let symbol: String
+    let colour: Color
+
+    var body: some View {
+        let image = Image(systemName: symbol).font(.caption2.weight(.semibold)).foregroundStyle(colour)
+        if status == .working, !AccessibilityDisplay.shared.motionReduced {
+            image.symbolEffect(.pulse, options: .repeating)
+        } else {
+            image
         }
     }
 }

@@ -331,6 +331,10 @@ struct SessionTracker: Equatable, Sendable {
     static let finishedHold = ToolSignal.heldFor
     static let agentTimeout: TimeInterval = 600
     static let staleAfter: TimeInterval = 4 * 3600
+    /// How long an idle session stays on the list with nothing heard from it before `expire` sets it aside as a
+    /// removal would (`dismissed`): a terminal left open and a Cursor conversation closed without a word both look
+    /// like this, and four hours of rows for them was clutter. It comes back whole with its next event.
+    static let idleAfter: TimeInterval = 30 * 60
     static let unknownSession = "unknown"
 
     private(set) var sessions: [String: AgentSession] = [:]
@@ -629,13 +633,19 @@ struct SessionTracker: Equatable, Sendable {
     }
 
     /// Drops every title and session name held: *Show what a session is working on* was turned off, and with it
-    /// off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only nothing new.
+    /// off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only nothing new. Set-aside sessions
+    /// too: one that comes back must not bring a title the setting has since forbidden.
     mutating func clearTitles() {
-        for (id, var session) in sessions where session.title != nil || session.sessionName != nil {
-            session.title = nil
-            session.sessionName = nil
-            sessions[id] = session
+        func cleared(_ table: [String: AgentSession]) -> [String: AgentSession] {
+            table.mapValues { session in
+                var session = session
+                session.title = nil
+                session.sessionName = nil
+                return session
+            }
         }
+        sessions = cleared(sessions)
+        dismissed = cleared(dismissed)
     }
 
     /// A status-line update is proof the session is alive; its project, branch and pull request are taken. Only
@@ -648,6 +658,9 @@ struct SessionTracker: Equatable, Sendable {
                              promptCache: Statusline.PromptCache? = nil, now: Date) {
         guard let sessionID else { return }
         expire(now: now)
+        // A removed or aged-out session that redraws its status line is back, as `apply` brings one back: made anew
+        // here, it lost its title and figures, and the set-aside copy overwrote it at the next hook event.
+        if let returning = dismissed.removeValue(forKey: sessionID) { sessions[sessionID] = returning }
         var session = sessions[sessionID] ?? AgentSession(id: sessionID, project: project, state: .idle, started: now, lastEvent: now, turnStarted: nil)
         if session.project == nil { session.project = project }
         if let branch { session.branch = branch }
@@ -662,7 +675,8 @@ struct SessionTracker: Equatable, Sendable {
     }
 
     /// Waits older than ten minutes fall back to idle, a finished turn's mark is dropped once its ninety seconds
-    /// are up, agents silent that long are forgotten, and sessions silent for four hours are dropped. This is the
+    /// are up, agents silent that long are forgotten, idle sessions silent for thirty minutes are set aside
+    /// (`idleAfter`), and sessions silent for four hours are dropped. This is the
     /// app's answer to a hook that stops reporting mid-session: every state here has an end that arrives whether or
     /// not another event ever does.
     /// Returns the sessions that stopped waiting by timing out or going stale, so their delivered "is waiting"
@@ -689,6 +703,12 @@ struct SessionTracker: Equatable, Sendable {
                 session.finished = nil
             }
             session.agents = session.agents.filter { now.timeIntervalSince($0.value) < Self.agentTimeout }
+            // Checked after the wait's own timeout above, so a wait nobody answered goes idle and then ages out.
+            if case .idle = session.state, session.pending == nil, now.timeIntervalSince(session.lastEvent) >= Self.idleAfter {
+                sessions[id] = nil
+                dismissed[id] = session
+                continue
+            }
             sessions[id] = session
         }
         return stoppedWaiting

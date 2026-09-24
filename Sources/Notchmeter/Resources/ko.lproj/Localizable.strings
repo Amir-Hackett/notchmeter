@@ -814,4 +814,6 @@
 "Your prompt cache missed %1$ld times — %2$@ rewritten." = "프롬프트 캐시가 %1$ld회 미스했습니다 — %2$@ 다시 씀.";
 "Remove from the list" = "목록에서 제거";
 "Remove all idle sessions" = "유휴 세션 모두 제거";
+"idle %@" = "유휴 %@";
+"Clear the idle sessions; each comes back if it does anything" = "유휴 세션을 지웁니다. 활동이 생기면 다시 표시됩니다";
 "Remove from the list; it comes back if the session does anything" = "목록에서 제거합니다. 세션에 움직임이 있으면 다시 나타납니다";
