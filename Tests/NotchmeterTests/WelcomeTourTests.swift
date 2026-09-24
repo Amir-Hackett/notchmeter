@@ -128,3 +128,65 @@ import Testing
         #expect(signal == nil)
     }
 }
+
+/// The window around the tour: what it writes to the oracle as the reader moves through it and closes it, and
+/// what the last step is told about Claude Code.
+@Suite struct WelcomeWindowWiring {
+    /// The oracle lines the controller writes, in order, as `action/step`.
+    @MainActor final class Lines {
+        var all: [String] = []
+        func emit(_ event: String, _ fields: [String: Any]) {
+            all.append("\(event) \(fields["action"] as? String ?? "?")/\(fields["step"] as? String ?? "null")")
+        }
+    }
+
+    @MainActor @Test func theTourWritesTheStepItOpensOnThenTheStepItClosesOn() throws {
+        let lines = Lines()
+        let controller = WelcomeWindowController(install: {}, finish: {}, emit: { lines.emit($0, $1) })
+        let window = try #require(controller.window)
+        // Laying the host out brings the view on screen as far as SwiftUI is concerned, which is when it reports its
+        // first step, without ordering a window in front of whoever runs the tests.
+        window.contentView?.layoutSubtreeIfNeeded()
+        #expect(lines.all == ["welcome step/rings"])
+        #expect(controller.shownStep == .rings)
+        // Drawn again (the tour brought forward a second time): the step it is on is not written twice.
+        window.contentView?.needsLayout = true
+        window.contentView?.layoutSubtreeIfNeeded()
+        #expect(lines.all == ["welcome step/rings"])
+        window.close()
+        #expect(lines.all == ["welcome step/rings", "welcome closed/rings"])
+    }
+
+    @MainActor @Test func aTourClosedBeforeItWasDrawnClosesOnNoStep() throws {
+        let lines = Lines()
+        let controller = WelcomeWindowController(install: {}, finish: {}, emit: { lines.emit($0, $1) })
+        try #require(controller.window).close()
+        #expect(lines.all == ["welcome closed/null"])
+    }
+
+    @Test func claudeCodeIsConnectedOnlyWithTheHookAndTheStatusLineBothIn() {
+        let path = "/Applications/Notchmeter.app/Contents/MacOS/Notchmeter"
+        #expect(WelcomeWindowController.connected(hook: .installed(path: path), statusline: .installed(path: path)))
+        let short: [(HookSettings.Status, HookSettings.Status)] = [
+            (.notInstalled, .installed(path: path)),
+            (.installed(path: path), .notInstalled),
+            (.stale(path: path), .installed(path: path)),
+            (.partial(path: path), .installed(path: path)),
+            (.installed(path: path), .stale(path: path)),
+            (.notInstalled, .notInstalled),
+        ]
+        for (hook, statusline) in short {
+            #expect(!WelcomeWindowController.connected(hook: hook, statusline: statusline), "\(hook), \(statusline)")
+        }
+    }
+
+    /// Every preview is measured before its page is drawn, so the stage has its scale on the first frame of a
+    /// slide rather than a turn later.
+    @MainActor @Test func everyPreviewHasASizeBeforeItsPageIsDrawn() {
+        let previews = WelcomePreviews(now: Date())
+        for step in WelcomeStep.allCases {
+            let size = WelcomeView.measure(step, previews: previews)
+            #expect(size.width > 0 && size.height > 0, "\(step.name) is unmeasured")
+        }
+    }
+}

@@ -64,8 +64,8 @@ Every line carries `"t"` (ISO 8601 with milliseconds, UTC) and `"event"`; keys a
 | `regions` | the compact or expanded hover region changed (launch, a reading, a style or order change, a screen change) | `compact`, `expanded` |
 | `panel` | the panel opened or closed | `state` (`compact` / `expanded`), `cause` (`dwell`, `exit`, `clickOutside`, `click`, `swipe`, `hotkey`, `escape`, `space`, `lock`, `always`, `settings`, `dashboard`, `menu`, `notification`, `launch`, `glance`, `fullScreen`) |
 | `menu` | the Options menu opened or closed | `action` (`shown` / `dismissed`), `items` (titles, when shown) |
-| `settings` | Settings was presented or closed, or the first-launch Welcome was shown | `action` (`shown` / `hidden` / `welcome`), `frame`, `level`, `nonActivating`, `frontmostBundleId`, `panelState` (the Welcome carries `action` alone) |
-| `welcome` | a step of the Welcome tour came on screen (the first one included), or the tour closed | `action` (`step` / `closed`), `step` (`rings`, `panel`, `sessions`, `connect`; on `closed`, the step it was on, or null), `index` (1…4), `count` |
+| `settings` | Settings was presented or closed, or the Welcome was shown (at first launch, or from Settings › General › Show the welcome tour again, which closes Settings first; asking again while it is up brings it forward and writes nothing) | `action` (`shown` / `hidden` / `welcome`), `frame`, `level`, `nonActivating`, `frontmostBundleId`, `panelState` (the Welcome carries `action` alone) |
+| `welcome` | a step of the Welcome tour came on screen (the first one included, and none twice in a row), or the tour closed, whether by Skip, Done, Escape or the close button | `action` (`step` / `closed`), `step` (`rings`, `panel`, `sessions`, `connect`; on `closed`, the step it was on, or null), `index` (1…4), `count` |
 | `dashboard` | the Usage Dashboard (Options menu or ⌘U) was presented or closed; the panel is held compact while it is up | `action` (`shown` / `hidden`) |
 | `layout` | the edge preference changed | `edge` |
 | `order` | the tool order changed | `toolOrder` |

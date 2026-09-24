@@ -466,8 +466,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             welcome.present(on: .pointerScreen)
             return
         }
-        var connected = false
-        if case .installed = HookSettings.status(), case .installed = HookSettings.statuslineStatus() { connected = true }
+        let connected = WelcomeWindowController.connected(hook: HookSettings.status(), statusline: HookSettings.statuslineStatus())
         let controller = WelcomeWindowController(connected: connected, install: { [weak self] in self?.offerClaudeSetup() },
                                                  finish: { [weak self] in self?.welcome?.close() })
         welcome = controller
@@ -489,7 +488,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func welcomeDidClose() {
-        Oracle.shared.emit("welcome", WelcomeTour.oracleFields("closed", step: welcome?.shownStep))
         hold(.welcome, false)
         if let welcomeObserver { NotificationCenter.default.removeObserver(welcomeObserver) }
         welcomeObserver = nil

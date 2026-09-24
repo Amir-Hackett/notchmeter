@@ -175,6 +175,7 @@
 "Hooks" = "훅";
 "Idle" = "유휴";
 "Install the hook and status line…" = "훅과 상태 표시줄 설치…";
+"Open Integrations…" = "연동 열기…";
 "Installed, but an entry is out of date: Repair updates it" = "설치되었지만 오래된 항목이 있습니다: 복구가 업데이트합니다";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "각 어시스턴트가 이 Mac에 이미 보관하는 사용량(Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot)을 읽고, 그 도구가 저장한 로그인으로 각 공급업체의 사용량 엔드포인트에 묻습니다. 로그인하지 않고, 토큰을 보관하지 않으며, 다른 어디로도 보내지 않습니다. 계정도 분석도 없습니다.";
 "Jump to the terminal" = "터미널로 이동";

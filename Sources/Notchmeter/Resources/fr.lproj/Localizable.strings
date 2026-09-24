@@ -191,6 +191,7 @@
 "Hooks" = "Hooks";
 "Idle" = "Inactif";
 "Install the hook and status line…" = "Installer le hook et la ligne d'état…";
+"Open Integrations…" = "Ouvrir les Intégrations…";
 "Installed, but an entry is out of date: Repair updates it" = "Installé, mais une entrée est obsolète : Réparer la met à jour";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "Il lit l'utilisation que chaque assistant conserve déjà sur ce Mac — Claude Code, Codex, Cursor, Gemini CLI et GitHub Copilot — et interroge le point de terminaison d'utilisation de chaque fournisseur avec la connexion enregistrée par l'outil. Il ne se connecte jamais, ne conserve aucun jeton et n'envoie rien ailleurs : ni compte, ni statistiques.";
 "Jump to the terminal" = "Aller au terminal";

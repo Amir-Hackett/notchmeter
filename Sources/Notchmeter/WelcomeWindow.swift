@@ -155,6 +155,12 @@ struct WelcomeView: View {
     var connected = false
     @State private var tour: WelcomeTour
     @State private var previews: WelcomePreviews
+    /// Which way the next slide goes. It trails `tour.forward` by one render on a reversal (`move`), because the
+    /// page on its way out leaves with the transition it was last drawn with.
+    @State private var heading = true
+    /// Each preview's own size, measured before the first frame and kept here rather than on the stage, which
+    /// every step rebuilds: a scale worked out a turn after the page arrived would jump in the middle of its slide.
+    @State private var natural: [WelcomeStep: CGSize]
 
     static let steps = WelcomeTour.count
     static let size: CGSize = WelcomeWindowController.contentSize
@@ -168,12 +174,21 @@ struct WelcomeView: View {
         self.finish = finish
         self.onStep = onStep
         self.connected = connected
+        let previews = previews ?? WelcomePreviews()
         _tour = State(initialValue: WelcomeTour(step: start))
-        _previews = State(initialValue: previews ?? WelcomePreviews())
+        _previews = State(initialValue: previews)
+        _natural = State(initialValue: Dictionary(uniqueKeysWithValues: WelcomeStep.allCases.map { ($0, Self.measure($0, previews: previews)) }))
+    }
+
+    /// A preview's size as the stage lays it out, from a host of its own, so the stage has its scale on the frame
+    /// it first draws.
+    @MainActor
+    static func measure(_ step: WelcomeStep, previews: WelcomePreviews) -> CGSize {
+        NSHostingView(rootView: preview(step, previews: previews).fixedSize().modifier(StageEnvironment())).fittingSize
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             Text(L("Welcome to %@", AppInfo.name))
                 .font(.title2.weight(.semibold))
                 .accessibilityAddTraits(.isHeader)
@@ -197,31 +212,47 @@ struct WelcomeView: View {
         .onAppear { onStep(tour.step) }
     }
 
+    /// The incoming page eases out as it arrives; the outgoing one eases in and is gone sooner, so the two never
+    /// read as one block sliding.
+    static let arrival = Animation.easeOut(duration: 0.25)
+    static let departure = Animation.easeIn(duration: 0.18)
+
     /// A slide from the side the reader is heading towards; under Reduce Motion the page is simply replaced, with
     /// no animation at all (`move`).
     private var transition: AnyTransition {
         guard !AccessibilityDisplay.shared.motionReduced else { return .identity }
-        let forward = tour.forward
-        return .asymmetric(insertion: .move(edge: forward ? .trailing : .leading).combined(with: .opacity),
-                           removal: .move(edge: forward ? .leading : .trailing).combined(with: .opacity))
+        return .asymmetric(insertion: .move(edge: heading ? .trailing : .leading).combined(with: .opacity).animation(Self.arrival),
+                           removal: .move(edge: heading ? .leading : .trailing).combined(with: .opacity).animation(Self.departure))
     }
 
+    /// Works the move out on a copy first, so a reversal can turn `heading` round in a render of its own and change
+    /// the step on the next turn: the page leaving then slides off the side the reader is heading away from.
     private func move(_ change: (inout WelcomeTour) -> WelcomeTour.Outcome) {
-        var outcome = WelcomeTour.Outcome.stayed
-        withAnimation(AccessibilityDisplay.shared.motionReduced ? nil : .easeInOut(duration: 0.25)) {
-            outcome = change(&tour)
-        }
-        switch outcome {
-        case .stayed: break
-        case .moved(let step): onStep(step)
-        case .finished: finish()
+        var next = tour
+        switch change(&next) {
+        case .stayed:
+            break
+        case .finished:
+            finish()
+        case .moved(let step):
+            let still = AccessibilityDisplay.shared.motionReduced
+            let show = {
+                withAnimation(still ? nil : Self.arrival) { tour = next }
+                onStep(step)
+            }
+            if still || next.forward == heading {
+                show()
+            } else {
+                heading = next.forward
+                DispatchQueue.main.async(execute: show)
+            }
         }
     }
 
     // MARK: - Footer
 
     private var footer: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Button(L("Back")) { move { $0.press(.left) } }
                 .keyboardShortcut(.leftArrow, modifiers: [])
                 .disabled(tour.isFirst)
@@ -241,9 +272,12 @@ struct WelcomeView: View {
     // MARK: - The four steps
 
     private func page(_ step: WelcomeStep) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            PreviewStage(title: step.title, height: Self.stageHeight(step), largest: step == .rings ? 2 : step == .connect ? 1.6 : 1) {
-                preview(step)
+        VStack(alignment: .leading, spacing: 12) {
+            PreviewStage(title: step.title, height: Self.stageHeight(step), largest: step == .rings ? 2 : step == .connect ? 1.6 : 1,
+                         natural: natural[step] ?? .zero, measured: { size in
+                             if natural[step] != size { natural[step] = size }
+                         }) {
+                Self.preview(step, previews: previews)
             }
             Text(step.title)
                 .font(.headline)
@@ -279,7 +313,8 @@ struct WelcomeView: View {
         }
     }
 
-    @ViewBuilder private func preview(_ step: WelcomeStep) -> some View {
+    @MainActor @ViewBuilder
+    static func preview(_ step: WelcomeStep, previews: WelcomePreviews) -> some View {
         switch step {
         case .rings:
             CompactStripPreview(store: previews.working)
@@ -288,7 +323,7 @@ struct WelcomeView: View {
                 ToolCard(tool: .claude, status: previews.working.status(.claude), store: previews.working, prefs: previews.working.prefs)
             }
         case .sessions:
-            HStack(alignment: .top, spacing: 18) {
+            HStack(alignment: .top, spacing: 16) {
                 PanelColumn(store: previews.asking) {
                     SessionsCard(store: previews.asking, prefs: previews.asking.prefs, actions: NotchActions())
                 }
@@ -310,8 +345,9 @@ struct WelcomeView: View {
 
     /// One strip and the words for the mark on it. The words are the card's own (`ToolSignal.cardText`) and the
     /// symbol the card's, so the step teaches the vocabulary the panel will use.
-    private func signalRow(_ store: UsageStore, _ signal: ToolSignal) -> some View {
-        HStack(spacing: 14) {
+    @MainActor
+    private static func signalRow(_ store: UsageStore, _ signal: ToolSignal) -> some View {
+        HStack(spacing: 16) {
             CompactStripPreview(store: store)
             Label(signal.cardText, systemImage: signal.symbolName)
                 .font(.callout.weight(.semibold))
@@ -339,12 +375,14 @@ struct WelcomeView: View {
             permission("arrow.up.forward.app.fill", L("Automation"),
                        L("Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app."))
         case .connect:
-            VStack(alignment: .leading, spacing: 10) {
+            // With both already in, the button offers only what pressing it does: Settings on Integrations, where
+            // they can be repaired or removed. Queuing an install of what is there would queue nothing.
+            VStack(alignment: .leading, spacing: 12) {
                 if connected {
                     Label(L("The hook and the status line are both installed."), systemImage: "checkmark.circle.fill")
                         .font(.callout)
                 }
-                Button(L("Install the hook and status line…")) { install() }
+                Button(connected ? L("Open Integrations…") : L("Install the hook and status line…")) { install() }
                     .controlSize(.large)
             }
         }
@@ -354,10 +392,10 @@ struct WelcomeView: View {
     /// carries it — beside the symbol and the words the card prints for it. Three channels, so none of them is
     /// colour alone.
     private func paceRow(_ pace: Pace.Status, fraction: Double, _ text: String) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             RingView(fraction: fraction, color: ToolID.claude.color, lineWidth: 2.5, pace: pace)
                 .frame(width: 18, height: 18)
-                .padding(5)
+                .padding(4)
                 .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.black))
                 .accessibilityHidden(true)
             if let symbol = pace.symbolName {
@@ -372,7 +410,7 @@ struct WelcomeView: View {
     }
 
     private func permission(_ symbol: String, _ title: String, _ detail: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 12) {
             Image(systemName: symbol)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -388,7 +426,8 @@ struct WelcomeView: View {
 }
 
 /// The dots under the tour: one per step, the current one drawn as a wider bar so where the reader is does not rest
-/// on colour, and each a button with a 24-point target that goes straight to its step.
+/// on colour, and each a button with a 24-point target that goes straight to its step. The others are `.secondary`,
+/// not `.tertiary`: they are controls, and tertiary falls under 3:1 on the dark window.
 private struct StepDots: View {
     let current: WelcomeStep
     let select: (WelcomeStep) -> Void
@@ -400,10 +439,9 @@ private struct StepDots: View {
                 let here = step == current
                 Button { select(step) } label: {
                     Capsule()
-                        .fill(here ? (contrast ? AnyShapeStyle(.primary) : AnyShapeStyle(Palette.accent))
-                                   : AnyShapeStyle(contrast ? .secondary : .tertiary))
-                        .frame(width: here ? 18 : 7, height: 7)
-                        .frame(width: 26, height: 24)
+                        .fill(here ? (contrast ? AnyShapeStyle(.primary) : AnyShapeStyle(Palette.accent)) : AnyShapeStyle(.secondary))
+                        .frame(width: here ? 16 : 8, height: 8)
+                        .frame(width: 24, height: 24)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -418,47 +456,61 @@ private struct StepDots: View {
 /// The black the notch is drawn in, with a preview laid out at its own size and scaled into the room the step
 /// gives it. The preview is a picture rather than a panel: it takes no clicks, and VoiceOver reads it as one element
 /// named for the step rather than walking a fixture's buttons as if they would do something.
+///
+/// The size it scales from is the view's (`WelcomeView.natural`), measured before the page is drawn; the stage only
+/// reports back when a live preview's size really changes, such as a fixture's finish mark running out.
 private struct PreviewStage<Content: View>: View {
     let title: String
     let height: CGFloat
     /// How far a short preview may be enlarged: the strips are drawn at twice their size or so, the cards never.
     var largest: CGFloat = 1
+    let natural: CGSize
+    let measured: (CGSize) -> Void
     @ViewBuilder let content: Content
-    @State private var natural: CGSize = .zero
 
-    static var inset: CGFloat { 14 }
+    static var inset: CGFloat { 12 }
     /// Room above the preview for the label, so the two never overlap.
-    static var labelRoom: CGFloat { 26 }
+    static var labelRoom: CGFloat { 24 }
 
     var body: some View {
         let contrast = AccessibilityDisplay.shared.contrast
         let room = CGSize(width: WelcomeView.stageWidth - 2 * Self.inset, height: height - Self.labelRoom - Self.inset)
         let scale = PreviewScale.fit(natural, in: room, largest: largest)
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         content
             .fixedSize()
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { natural = $0 }
+            .modifier(StageEnvironment())
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { measured($0) }
             .scaleEffect(scale)
             .frame(width: room.width, height: room.height)
             .padding(.top, Self.labelRoom)
             .padding([.horizontal, .bottom], Self.inset)
             .frame(width: WelcomeView.stageWidth, height: height)
-            .foregroundStyle(.white)
-            .environment(\.colorScheme, .dark)
-            .environment(\.density, .comfortable)
-            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
             .background(shape.fill(Color.black))
             .overlay(shape.strokeBorder(.white.opacity(contrast ? 0.4 : 0.12)))
             .overlay(alignment: .topLeading) {
                 Chip(text: L("Sample data"))
                     .foregroundStyle(.white.opacity(contrast ? 1 : 0.8))
-                    .padding(10)
+                    .padding(8)
             }
             .clipShape(shape)
             .allowsHitTesting(false)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(L("Sample data"))
             .accessibilityValue(title)
+    }
+}
+
+/// What a preview is drawn under, on the stage and in the host that measures it (`WelcomeView.measure`), so the
+/// two agree on its size: the notch's dark appearance and white text, the panel's comfortable density, and type
+/// no larger than the panel allows.
+private struct StageEnvironment: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(.white)
+            .environment(\.colorScheme, .dark)
+            .environment(\.density, .comfortable)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 }
 
@@ -524,10 +576,13 @@ final class WelcomeWindowController: NSWindowController {
     var shownStep: WelcomeStep? { log.last }
     private let log: StepLog
 
-    init(connected: Bool = false, install: @escaping () -> Void, finish: @escaping () -> Void) {
+    /// `emit` is the oracle's, and a test's capture: the controller writes a line for each step as it comes on
+    /// screen and one when the window closes, whichever way it closes.
+    init(connected: Bool = false, install: @escaping () -> Void, finish: @escaping () -> Void,
+         emit: @escaping (String, [String: Any]) -> Void = { Oracle.shared.emit($0, $1) }) {
         let panel = SettingsPanel(contentRect: NSRect(origin: .zero, size: Self.contentSize),
                                   styleMask: [.titled, .closable, .nonactivatingPanel], backing: .buffered, defer: false)
-        let log = StepLog()
+        let log = StepLog(emit: emit)
         self.log = log
         let host = FirstMouseHostingView(rootView: WelcomeView(connected: connected, install: install, finish: finish,
                                                                onStep: { log.shown($0) }))
@@ -542,6 +597,19 @@ final class WelcomeWindowController: NSWindowController {
         panel.isReleasedWhenClosed = false
         panel.wearCloseOnly()
         super.init(window: panel)
+        // A selector observer goes when the controller does, with nothing to remove by hand.
+        NotificationCenter.default.addObserver(self, selector: #selector(windowWillClose(_:)), name: NSWindow.willCloseNotification, object: panel)
+    }
+
+    @objc private func windowWillClose(_ notification: Notification) {
+        log.closed()
+    }
+
+    /// Whether the last step can say Claude Code is already connected: the hook and the status line both in. A
+    /// hook that needs repair is not in, so the step still offers the install that repairs it.
+    nonisolated static func connected(hook: HookSettings.Status, statusline: HookSettings.Status) -> Bool {
+        if case .installed = hook, case .installed = statusline { return true }
+        return false
     }
 
     @available(*, unavailable)
@@ -550,25 +618,36 @@ final class WelcomeWindowController: NSWindowController {
     }
 
     /// Centred under the notch of the given screen, the way Settings is placed, and made key without activating
-    /// the app.
+    /// the app. The step on screen is logged here as well as when the view appears, so a tour brought forward a
+    /// second time writes nothing new (`StepLog` drops a repeat).
     func present(on screen: NSScreen) {
         guard let window else { return }
         window.setFrame(SettingsWindowController.frame(for: window.frame.size, screen: screen.frame, safeAreaTop: screen.safeAreaInsets.top,
                                                        visible: screen.visibleFrame), display: false)
+        log.shown(log.last ?? .rings)
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
     }
 
-    /// Each step as it comes on screen, to the oracle: the tour is otherwise invisible to a tester who cannot see
-    /// the window.
+    /// Each step as it comes on screen, and the step the window closed on, to the oracle: the tour is otherwise
+    /// invisible to a tester who cannot see the window.
     @MainActor
     private final class StepLog {
         private(set) var last: WelcomeStep?
+        private let emit: (String, [String: Any]) -> Void
+
+        init(emit: @escaping (String, [String: Any]) -> Void) {
+            self.emit = emit
+        }
 
         func shown(_ step: WelcomeStep) {
             guard step != last else { return }
             last = step
-            Oracle.shared.emit("welcome", WelcomeTour.oracleFields("step", step: step))
+            emit("welcome", WelcomeTour.oracleFields("step", step: step))
+        }
+
+        func closed() {
+            emit("welcome", WelcomeTour.oracleFields("closed", step: last))
         }
     }
 }

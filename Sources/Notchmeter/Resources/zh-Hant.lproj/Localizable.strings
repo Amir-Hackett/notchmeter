@@ -175,6 +175,7 @@
 "Hooks" = "掛鉤";
 "Idle" = "閒置";
 "Install the hook and status line…" = "安裝掛鉤與狀態列…";
+"Open Integrations…" = "開啟整合…";
 "Installed, but an entry is out of date: Repair updates it" = "已安裝，但有一個項目已過時：「修復」會更新它";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "它讀取每個助理已保存在這台 Mac 上的用量——Claude Code、Codex、Cursor、Gemini CLI 和 GitHub Copilot——並以該工具保存的登入資訊向各廠商的用量端點查詢。它從不登入，不保存權杖，也不把任何內容送往別處：沒有帳號，沒有分析統計。";
 "Jump to the terminal" = "跳轉到終端機";

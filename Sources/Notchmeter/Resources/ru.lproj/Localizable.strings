@@ -191,6 +191,7 @@
 "Hooks" = "Хуки";
 "Idle" = "Бездействует";
 "Install the hook and status line…" = "Установить хук и строку состояния…";
+"Open Integrations…" = "Открыть «Интеграции»…";
 "Installed, but an entry is out of date: Repair updates it" = "Установлено, но одна из записей устарела: «Исправить» обновит её";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "Он читает данные об использовании, которые каждый ассистент уже хранит на этом Mac, — Claude Code, Codex, Cursor, Gemini CLI и GitHub Copilot — и обращается к эндпоинту использования каждого поставщика с учётными данными, сохранёнными этим инструментом. Он никогда не входит в аккаунты, не хранит токены и больше ничего никуда не отправляет: ни аккаунта, ни аналитики.";
 "Jump to the terminal" = "Перейти в терминал";

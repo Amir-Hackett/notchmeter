@@ -191,6 +191,7 @@
 "Hooks" = "钩子";
 "Idle" = "空闲";
 "Install the hook and status line…" = "安装钩子和状态行…";
+"Open Integrations…" = "打开集成…";
 "Installed, but an entry is out of date: Repair updates it" = "已安装，但有一个条目已过时：“修复”会更新它";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "它读取每个助手已保存在这台 Mac 上的用量——Claude Code、Codex、Cursor、Gemini CLI 和 GitHub Copilot——并用该工具保存的登录信息向各厂商的用量接口查询。它从不登录，不保存令牌，也不把任何内容发往别处：没有账户，没有分析统计。";
 "Jump to the terminal" = "跳转到终端";

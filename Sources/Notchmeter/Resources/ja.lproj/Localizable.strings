@@ -175,6 +175,7 @@
 "Hooks" = "フック";
 "Idle" = "アイドル";
 "Install the hook and status line…" = "フックとステータスラインをインストール…";
+"Open Integrations…" = "連携を開く…";
 "Installed, but an entry is out of date: Repair updates it" = "インストール済みですが、古い項目があります。「修復」で更新します";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "各アシスタントがこの Mac にすでに保存している利用状況（Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot）を読み、そのツールが保存したログインで各ベンダーの利用状況エンドポイントに問い合わせます。サインインすることも、トークンを保持することも、他のどこかへ送ることもありません。アカウントも解析もありません。";
 "Jump to the terminal" = "ターミナルへジャンプ";

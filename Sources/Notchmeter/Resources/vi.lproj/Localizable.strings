@@ -175,6 +175,7 @@
 "Hooks" = "Hook";
 "Idle" = "Rảnh";
 "Install the hook and status line…" = "Cài hook và dòng trạng thái…";
+"Open Integrations…" = "Mở Tích hợp…";
 "Installed, but an entry is out of date: Repair updates it" = "Đã cài, nhưng một mục đã cũ: Sửa sẽ cập nhật nó";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "Nó đọc mức dùng mà mỗi trợ lý đã lưu trên máy Mac này — Claude Code, Codex, Cursor, Gemini CLI và GitHub Copilot — và hỏi điểm cuối mức dùng của từng nhà cung cấp bằng đăng nhập mà công cụ đó đã lưu. Nó không bao giờ đăng nhập, không giữ token, và không gửi gì đi nơi khác: không tài khoản, không phân tích.";
 "Jump to the terminal" = "Nhảy tới terminal";
