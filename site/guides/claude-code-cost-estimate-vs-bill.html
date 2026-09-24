@@ -47,7 +47,7 @@
       <p class="lede">The dollar figure in Claude Code's <code>/usage</code>, in its status line and in Notchmeter's Cost card is worked out on your Mac from token counts and a price table. It is an estimate by construction. Here is exactly how Notchmeter's is built, where it comes from, and every place it is known to part company with the bill.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
-        <li class="stamp">Tested on Notchmeter 0.9.0</li>
+        <li class="stamp">Tested on Notchmeter 0.8.0</li>
         <li>Sources read 2026-09-01</li>
       </ul>
     </div>
@@ -104,7 +104,7 @@
     <p>A worked line, so you can check the arithmetic: one Sonnet 5 response with 2,000 input tokens, 800 output, 5,000 written to the 5-minute cache and 30,000 read from it costs $0.004 + $0.008 + $0.0125 + $0.006 = <strong>$0.0305</strong>. The same response served from US-only inference costs $0.03355.</p>
 
     <h2 id="two-tools-disagree">Why two tools disagree about the same transcripts</h2>
-    <p>Claude Code writes a streamed response as several lines, one per content block, and they share one message id and one request id. Anthropic's documentation says to count each response once, which every tool does. What differs is <em>which</em> line a tool keeps, and it matters more than it looks: Claude Code builds each line from the usage reported when the response <em>began</em>, so every line but the last carries a placeholder output count, often single digits. Only the final line has the real one.</p>
+    <p>Claude Code writes a streamed response as several lines, one per content block, and they share one message id. Anthropic's documentation says to deduplicate by that id, and since 2026-09-24 Notchmeter groups by it alone. Until then it grouped by the message id and Claude Code's request id together, the pair ccusage uses, which counted a Claude Desktop Cowork response two or three times over: Cowork's transcripts write the request id under another name on some lines and leave it off others, so each of those lines stood on its own. Claude Code's own transcripts carry the request id on every line, and their figures did not move. What differs between tools is <em>which</em> line each keeps, and it matters more than it looks: Claude Code builds each line from the usage reported when the response <em>began</em>, so every line but the last carries a placeholder output count, often single digits. Only the final line has the real one.</p>
     <p>Notchmeter keeps the line with the largest output count. Measured across the 3,501 transcripts on the development Mac on 2026-09-01, keeping the first line of each response would have counted 17,975,458 output tokens; keeping the last counts 24,339,282, <strong>35% more</strong>. A golden test pins it: three lines of one Fable 5.1 response, with output counts of 3, 3 and 1,090, price to $0.1095, not the $0.05515 that keeping the first would give. If another tool shows you a lower figure for the same day, this is the first place to look.</p>
     <p>The other common mismatch is scope. Claude Code's <code>/usage</code> Session block covers one session since its last <code>/clear</code>. Notchmeter's <em>Today</em> covers every transcript on the Mac for the calendar day. Both can be right.</p>
 
@@ -137,8 +137,8 @@
     <h2 id="check-it">Check a number yourself</h2>
     <p>Without the app running and without a Keychain prompt, the app's own executable prints the totals and one clause per tool:</p>
     <div class="code" tabindex="0"><code>/Applications/Notchmeter.app/Contents/MacOS/Notchmeter --probe --no-prompt</code></div>
-    <p>To check one transcript by hand, list its priced lines, keep the line with the largest <code>output_tokens</code> for each message id and request id pair, price the five buckets from the table, multiply by 1.1 where <code>inference_geo</code> is <code>"us"</code>, and add up:</p>
-    <div class="code" tabindex="0"><code>jq -c 'select(.message.usage) | [.timestamp, .message.id, .requestId, .message.model, .message.usage]' \
+    <p>To check one transcript by hand, list its priced lines, keep the line with the largest <code>output_tokens</code> for each message id, price the five buckets from the table, multiply by 1.1 where <code>inference_geo</code> is <code>"us"</code>, and add up:</p>
+    <div class="code" tabindex="0"><code>jq -c 'select(.message.usage) | [.timestamp, .message.id, .message.model, .message.usage]' \
   ~/.claude/projects/&lt;project&gt;/&lt;session&gt;.jsonl</code></div>
     <p>A model the table does not know is never priced at a guess and hidden: it costs $0 and is listed on the card as <em>Unpriced</em>, so a new model shows up as a gap you can see.</p>
 

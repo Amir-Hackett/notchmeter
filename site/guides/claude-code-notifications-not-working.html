@@ -47,7 +47,7 @@
       <p class="lede">When Claude Code stops for a permission and nothing tells you, the fix is usually in your terminal, not in another app. Start there. If you then want more than a banner, this is what a hook adds, how to fix one that has gone quiet, and when you are better off without it.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
-        <li class="stamp">Tested on Notchmeter 0.9.0</li>
+        <li class="stamp">Tested on Notchmeter 0.8.0</li>
         <li>Claude Code docs read 2026-09-24</li>
       </ul>
     </div>
@@ -108,7 +108,7 @@
     <ul>
       <li><strong>You work in Claude's desktop app.</strong> Its documentation says it <em>"sends an OS notification when a Code session finishes a task and you aren't currently viewing that session"</em>, and its sidebar can <em>"filter sessions by status, project, or environment"</em>. If that is where your sessions live, you already have most of this.</li>
       <li><strong>One session at a time, in a terminal that already notifies.</strong> The hook would add a mark and answering from the notch, at the cost of a process launch per event (about 13.5 ms each, measured for 0.7.0).</li>
-      <li><strong>You want no third-party command in <code>settings.json</code> at all.</strong> Then do not add one. The meters do not need it, and 0.9.0 lists running sessions without any hook, with less precision; the <a href="monitor-coding-agents-without-config-writes.html">monitoring guide</a> sets out exactly what you give up.</li>
+      <li><strong>You want no third-party command in <code>settings.json</code> at all.</strong> Then do not add one. The meters and the Cost card do not need it; without one no session is listed at all, and the <a href="monitor-coding-agents-without-config-writes.html">monitoring guide</a> sets out exactly what you give up.</li>
       <li><strong>Cursor with third-party configs on.</strong> With <em>Include third-party Plugins, Skills, and other configs</em>, Cursor also runs the hooks in <code>~/.claude/settings.json</code>, so with both entries installed every Cursor event arrives twice and its subagent count under-reports. Keep one of the two.</li>
       <li><strong>VS Code's Copilot agent mode.</strong> It reads <code>~/.claude/settings.json</code> as one of its hook sources, so its sessions are counted on the Claude ring, and nothing documented in the payload tells them apart.</li>
       <li><strong>Settings your organisation manages.</strong> Ask first. A managed <code>disableAllHooks</code> wins over anything you add.</li>

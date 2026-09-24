@@ -180,7 +180,14 @@ import Testing
     static let site = ClaudeCodePlugin.root.appendingPathComponent("site")
     static let host = "https://www.notchmeter.com/"
     static let published = "2026-09-24"
-    static let stamp = "Tested on Notchmeter 0.9.0"
+
+    /// The version each guide says it was checked against is the shipped one, read from `scripts/Info.plist` the way
+    /// the plugin manifest is held to it, so a release that bumps the plist without re-checking the guides fails here
+    /// rather than on the published page. The first draft pinned a literal, and stamped a version that had not been
+    /// built.
+    static func stamp() throws -> String {
+        "Tested on Notchmeter \(try ClaudeCodePlugin.bundleVersion())"
+    }
     static let guides = [
         "claude-code-cost-estimate-vs-bill",
         "will-you-run-out-before-the-reset",
@@ -227,6 +234,7 @@ import Testing
     }
 
     @Test func everyGuideIsDatedStampedAndCarriesTheHeadItNeedsToBeFound() throws {
+        let stamp = try Self.stamp()
         for slug in Self.guides {
             let page = "guides/\(slug).html"
             let html = try Self.text(page)
@@ -243,7 +251,7 @@ import Testing
             #expect(title.hasPrefix(SiteParity.plain(h1)), "\(page): the title is the question the page answers")
             #expect(html.components(separatedBy: "<h1").count == 2, "\(page): one <h1>")
             #expect(html.contains("<time datetime=\"\(Self.published)\">"), "\(page): dated")
-            #expect(html.contains(Self.stamp), "\(page): stamped with the version it was checked against")
+            #expect(html.contains(stamp), "\(page): stamped with the shipped version, the one it was checked against")
             #expect(html.contains("href=\"index.html\""), "\(page): links back to the guides")
             #expect(html.contains("href=\"../style.css\""), "\(page): the site's one stylesheet, and no other")
         }
@@ -256,6 +264,10 @@ import Testing
         }
         let onDisk = try Self.pages().filter { $0.hasPrefix("guides/") && $0 != "guides/index.html" }
         #expect(Set(onDisk) == Set(Self.guides.map { "guides/\($0).html" }), "a guide on disk that the list does not name, or the other way round")
+        // Each card's date line carries the stamp of the page it opens, so the index cannot promise a version the
+        // guide was not checked on.
+        let stamped = index.components(separatedBy: "· \(try Self.stamp())").count - 1
+        #expect(stamped == Self.guides.count, "guides/index.html: one stamp per card, each the shipped version")
     }
 
     @Test func theSitemapNamesEveryPageAtItsCanonicalURLAndRobotsPointsAtIt() throws {
@@ -300,6 +312,13 @@ import Testing
         for call in ["fetch(", "XMLHttpRequest", "sendBeacon", "document.cookie", "localStorage", "sessionStorage", "new Image"] {
             #expect(!script.contains(call), "index.html's script uses \(call)")
         }
+        // The privacy notice states the same fact in its own words. Until 2026-09-24 it said no script of any kind
+        // ran on the site while this test held the home page to exactly one, and a reader who viewed source could
+        // see which of the two was wrong.
+        let privacy = try Self.text("privacy.html")
+        #expect(privacy.contains("The one script on this site is the home page"), "privacy.html names the one script")
+        #expect(!privacy.contains("No script of any kind") && !privacy.contains("no JavaScript on these pages at all"),
+                "privacy.html does not deny the script the home page runs")
     }
 
     /// Every opening tag in the page, comments left out.
