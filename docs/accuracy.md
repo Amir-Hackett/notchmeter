@@ -375,6 +375,17 @@ jq -c 'select(.message.usage) | [.timestamp, .message.id, .requestId, .message.m
 
 Group by the id and request id columns, keep the line with the largest `output_tokens` in each group, price the five buckets from the table, multiply by 1.1 where `inference_geo` is `"us"`, and sum. Claude Code's `/usage` Session block will not match this figure and is not meant to: it covers one session since its last `/clear`, while the card covers every transcript on the Mac for the day.
 
+## Where Claude's windows come from
+
+Claude Code's session (5-hour) and weekly windows have two sources, taken in this order:
+
+1. **Claude Code's status line**, when it is installed ([docs/hooks.md](hooks.md#the-status-line)) and its last report is under three minutes old and describes no window that has since reset (`Statusline.Message.standsIn`). Its `rate_limits.five_hour` and `seven_day` (and, behind a Claude apps gateway, `spend_limit`) are the figures on the ring, marked *From Claude Code's status line*. It is local and costs no request, so while it is fresh the timer does not read the endpoint at all.
+2. **`GET https://api.anthropic.com/api/oauth/usage`**, the fallback, on its own five-minute cadence whenever there is no fresh status-line report: the status line is not installed, no turn has run for three minutes, or the report carries no rate-limit window at all.
+
+The endpoint answers more than the status line has fields for: the per-model weekly limits (`limits[]` of kind `weekly_scoped`, and the older `seven_day_opus` and `seven_day_sonnet`), the extra-usage spend against its monthly cap, and the weekly window itself when a payload leaves it out. Those are neither dropped nor left to age. While the status line is fresh the endpoint is still read every thirty minutes, a sixth of its own cadence, but only while the last reading holds a figure the endpoint alone supplied; an account whose endpoint says nothing the status line does not is never read beside it. The first such read of a run is taken at once, since nothing says how old the cached extra figures are; and with nothing from the endpoint on record at all, one read is taken to learn which kind of account it is. The answer is laid *under* the status line's windows: the session and weekly figures stay the status line's, and only the others are refreshed (`PollingPolicy.endpointDue`). A read beside the status line that fails costs only those figures until the next one; the card keeps the status line's reading and is not marked failed.
+
+A Refresh the user asks for (the Refresh button, the ring, a card's menu) reads the endpoint even beside a fresh status line, because the status line cannot be asked for a new figure, only waited for; the answer is merged the same way. With *Also poll Claude's usage endpoint* off (Settings › Assistants › Claude Code) the endpoint is never read, on any of these paths. Pinned by `StatuslineFirstTests`.
+
 ## Why there is no header fallback
 
 Anthropic attaches rate-limit headers to some responses for OAuth accounts: `anthropic-ratelimit-unified-5h-utilization` and `-7d-utilization` (a 0–1 fraction of the window), `-5h-reset` and `-7d-reset` (epoch seconds), plus `-overage-utilization` and `-representative-claim`. They describe the same Session and Weekly windows the usage endpoint reports, so they look like a way to keep the meter alive if the usage endpoint ever changes.
