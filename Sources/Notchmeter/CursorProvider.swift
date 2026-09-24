@@ -466,7 +466,8 @@ actor CursorProvider: UsageProvider {
             // The count may come as a number or, protobuf's way for 64-bit integers, as a string.
             // The count may come as a number or, protobuf's way for 64-bit integers, as a string.
             let count = JSON.number(root["totalUsageEventsCount"]) ?? (root["totalUsageEventsCount"] as? String).flatMap(Double.init) ?? (root["totalUsageEventsCount"] as? String).flatMap(Double.init)
-            let empty = root.keys.allSatisfy { $0 == "totalUsageEventsCount" } && (count ?? 0) == 0
+            // `{}`, or a count that parses to zero on its own; a count that does not parse is not a zero.
+            let empty = root.isEmpty || (root.count == 1 && count == 0)
             return UsageEventPage(events: [], rows: 0, recognised: empty)
         }
         let events = list.compactMap { item -> UsageEvent? in
