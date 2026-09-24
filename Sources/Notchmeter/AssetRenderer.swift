@@ -58,6 +58,7 @@ enum AssetRenderer {
                           png: directory.appendingPathComponent("\(name).png"))
             }
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
+            try write(sheet(assistantPages(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings-assistants.png"))
             try write(welcome(now: now), png: directory.appendingPathComponent("welcome.png"))
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
             // The same moment on the Detailed panel (PanelMode): every card open, as the panel was before 0.8.0.
@@ -217,8 +218,9 @@ enum AssetRenderer {
                 ("07-edges", notchShape, L("A notch cut into the left or the right edge of any Mac."), []),
                 // The caption names things the frame has to contain. It named three that lived on the Appearance
                 // and Integrations panes while the capture was one window opened on General, so the sheet is
-                // every pane now (AssetRenderer.settings) and the caption says which frame it is a spread of.
-                ("08-settings", settingsImage, L("All six Settings panes: position, hover or always open, hook install with a backup."), []),
+                // every pane now (AssetRenderer.settings) and the caption says which frame it is a spread of. The
+                // hook install it names is on Claude Code's own page, the one assistant's page the sheet carries.
+                ("08-settings", settingsImage, L("The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup."), []),
             ]
             for frame in frames {
                 let image = try composite(frame.image, caption: frame.caption, lines: frame.lines, canvas: canvas,
@@ -482,14 +484,28 @@ enum AssetRenderer {
     /// Every pane of the Settings window, one under another, in the dark appearance the notch panel always has.
     ///
     /// The window is a sidebar beside one pane, and `paneContent` builds only the pane that is selected: a single
-    /// capture is a picture of a sixth of this window, whichever sixth `@State` happens to start on. So the six
-    /// are captured in turn — each in its own window, opened on that pane by name — and stacked. The reader gets
-    /// all twelve sections, and `sheet` below cuts the ribbon into columns as it always did.
+    /// capture is a picture of one pane of this window, whichever one `@State` happens to start on. So the panes
+    /// are captured in turn — each in its own window, opened on that pane by name — and stacked, and `sheet` below
+    /// cuts the ribbon into columns as it always did. The app's six panes and one assistant's page, Claude Code's:
+    /// the other assistants' pages are the same page for another assistant, and five of them would crowd the
+    /// README's one picture to thumbnails. They are drawn for review in `settings-assistants.png`.
     @MainActor
     static func settings(store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
         // The Dashboard pane is left out: it is the Usage Dashboard itself, which --render-dashboard draws, and a
         // dashboard in the settings sheet would be the one pane of the sheet that is not a setting.
-        try stack(SettingsPane.allCases.filter { $0 != .dashboard }.map { try settings(pane: $0, store: store, prefs: prefs, actions: actions) })
+        let panes = SettingsPane.app.filter { $0 != .dashboard } + [.agent(.claude)]
+        return try stack(panes.map { try settings(pane: $0, store: store, prefs: prefs, actions: actions) })
+    }
+
+    /// Every assistant's own page, one under another, in the user's order, for review: the README does not use it.
+    /// Each page's *Where each window comes from* is drawn open, so its reference text is reviewed with the rest;
+    /// the choice is put back afterwards, since the pictures after this one share the preferences.
+    @MainActor
+    static func assistantPages(store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
+        let folded = prefs.settingsExpandedTools
+        prefs.settingsExpandedTools = Set(ToolID.allCases)
+        defer { prefs.settingsExpandedTools = folded }
+        return try stack(prefs.toolOrder.map { try settings(pane: .agent($0), store: store, prefs: prefs, actions: actions) })
     }
 
     /// One pane of the Settings window, title bar and sidebar included.
@@ -517,9 +533,10 @@ enum AssetRenderer {
     static func settings(pane: SettingsPane, store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
         let requests = SettingsRequests()
         // The Mac this is rendered on is not the Mac in the picture. `/Applications/Notchmeter.app` is where the
-        // DMG puts it and what `HookSettings.Status.shorten` prints for it, so the hook rows and the status-line
-        // row on the Integrations pane read as a machine with every integration in place, which is what the
-        // fixture sessions and the status-line arc elsewhere in these pictures already assume.
+        // DMG puts it and what `HookSettings.Status.shorten` prints for it, so the hook rows on each assistant's
+        // page, the status-line row on Claude Code's and the overview on the Integrations pane read as a machine
+        // with every integration in place, which is what the fixture sessions and the status-line arc elsewhere in
+        // these pictures already assume.
         let installed = "/Applications/\(AppInfo.name).app/Contents/MacOS/\(AppInfo.name)"
         requests.renderedHookStatus = (hook: Dictionary(uniqueKeysWithValues: HookVendor.allCases.map { ($0, HookSettings.Status.installed(path: installed)) }),
                                        statusline: .installed(path: installed))

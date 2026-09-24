@@ -431,7 +431,9 @@ final class Preferences {
             report("toolOrder", toolOrder.map(\.rawValue), changed: toolOrder != oldValue, event: "order")
         }
     }
-    /// Which assistants have their options open in Settings; empty, so every one starts collapsed.
+    /// Which assistants' pages in Settings have *Where each window comes from* open; empty, so every one starts
+    /// folded. Before each assistant had a page it held which assistants had their options unfolded in the
+    /// Assistants list, under the same key, so a choice made then opens the nearest thing to it now.
     var settingsExpandedTools: Set<ToolID> {
         didSet {
             defaults.set(settingsExpandedTools.map(\.rawValue).sorted(), forKey: Keys.settingsExpanded)
@@ -838,6 +840,45 @@ final class Preferences {
     var answerFromNotch: Bool {
         didSet { defaults.set(answerFromNotch, forKey: Keys.answerFromNotch); report(Keys.answerFromNotch, answerFromNotch, changed: answerFromNotch != oldValue) }
     }
+    /// The four switches on each assistant's own Settings page (SettingsPane.agent), each kept as the set of
+    /// assistants it is off for rather than on for. An assistant a later version adds is then on from its first
+    /// launch like every one before it, with no migration, and an install that never touched a page stores
+    /// nothing at all. They sit under the app-wide switches above rather than replacing them: *Answer from the
+    /// notch*, *Notify when a window is on pace to run out* and the two session notices still decide for every
+    /// assistant, and a page can only take its own assistant out of what they allow.
+    ///
+    /// Sessions read from this assistant's hook. Off, the store drops its events before the session tracker sees
+    /// them (UsageStore.hookReceived): no row, no wait or finish on its ring, no news, no notice, no request on
+    /// the panel and no keep-awake, and nothing of the event is held. The event still refreshes its meter.
+    var sessionReadingOff: Set<ToolID> {
+        didSet {
+            defaults.set(sessionReadingOff.map(\.rawValue).sorted(), forKey: Keys.sessionReadingOff)
+            report(Keys.sessionReadingOff, sessionReadingOff.map(\.rawValue).sorted(), changed: sessionReadingOff != oldValue)
+        }
+    }
+    /// Requests from this assistant answered from the notch, under `answerFromNotch`. Off, its hook is answered
+    /// nothing at once and its terminal asks, as with the app-wide switch off.
+    var notchAnswersOff: Set<ToolID> {
+        didSet {
+            defaults.set(notchAnswersOff.map(\.rawValue).sorted(), forKey: Keys.notchAnswersOff)
+            report(Keys.notchAnswersOff, notchAnswersOff.map(\.rawValue).sorted(), changed: notchAnswersOff != oldValue)
+        }
+    }
+    /// This assistant's pace, run-out, limit-hit, reset and reminder notices, under `notificationsEnabled`.
+    var limitNoticesOff: Set<ToolID> {
+        didSet {
+            defaults.set(limitNoticesOff.map(\.rawValue).sorted(), forKey: Keys.limitNoticesOff)
+            report(Keys.limitNoticesOff, limitNoticesOff.map(\.rawValue).sorted(), changed: limitNoticesOff != oldValue)
+        }
+    }
+    /// This assistant's waiting and finished-turn notices, and the glance or panel `sessionAttention` opens for
+    /// them, under `notifyWaiting` and `notifyFinished`.
+    var sessionNoticesOff: Set<ToolID> {
+        didSet {
+            defaults.set(sessionNoticesOff.map(\.rawValue).sorted(), forKey: Keys.sessionNoticesOff)
+            report(Keys.sessionNoticesOff, sessionNoticesOff.map(\.rawValue).sorted(), changed: sessionNoticesOff != oldValue)
+        }
+    }
     /// Whether clicking a session row activates the terminal it runs in (TerminalJump).
     var jumpToTerminal: Bool {
         didSet { defaults.set(jumpToTerminal, forKey: Keys.jumpToTerminal); report(Keys.jumpToTerminal, jumpToTerminal, changed: jumpToTerminal != oldValue) }
@@ -1046,6 +1087,10 @@ final class Preferences {
         static let sessionsCard = "sessionsCard"
         static let sessionTitles = "sessionTitles"
         static let answerFromNotch = "answerFromNotch"
+        static let sessionReadingOff = "sessionReadingOffTools"
+        static let notchAnswersOff = "answerFromNotchOffTools"
+        static let limitNoticesOff = "limitNoticesOffTools"
+        static let sessionNoticesOff = "sessionNoticesOffTools"
         static let jumpToTerminal = "jumpToTerminal"
         static let promptHold = "promptHoldSeconds"
         static let proxy = "proxyURL"
@@ -1164,6 +1209,10 @@ final class Preferences {
         sessionsCard = defaults.object(forKey: Keys.sessionsCard) as? Bool ?? true
         sessionTitles = defaults.object(forKey: Keys.sessionTitles) as? Bool ?? true
         answerFromNotch = defaults.object(forKey: Keys.answerFromNotch) as? Bool ?? true
+        sessionReadingOff = Self.tools(defaults, Keys.sessionReadingOff)
+        notchAnswersOff = Self.tools(defaults, Keys.notchAnswersOff)
+        limitNoticesOff = Self.tools(defaults, Keys.limitNoticesOff)
+        sessionNoticesOff = Self.tools(defaults, Keys.sessionNoticesOff)
         jumpToTerminal = defaults.object(forKey: Keys.jumpToTerminal) as? Bool ?? true
         promptHoldSeconds = min(Self.promptHoldRange.upperBound, max(Self.promptHoldRange.lowerBound, defaults.object(forKey: Keys.promptHold) as? Int ?? Self.promptHoldDefault))
         proxyURL = defaults.string(forKey: Keys.proxy) ?? ""
@@ -1184,6 +1233,11 @@ final class Preferences {
         Keychain.setPolicy(keychainPrompts)
         NetworkSession.configure(proxy: proxyURL)
         DiagnosticLog.verbose = debugLogging
+    }
+
+    /// A stored set of assistants, names that are no assistant dropped.
+    private static func tools(_ defaults: UserDefaults, _ key: String) -> Set<ToolID> {
+        Set((defaults.array(forKey: key) as? [String] ?? []).compactMap(ToolID.init(rawValue:)))
     }
 
     private static func codable<T: Decodable>(_ defaults: UserDefaults, _ key: String) -> T? {
@@ -1337,6 +1391,39 @@ final class Preferences {
     /// The peak window that applies to a tool, when one does.
     func peakHours(for tool: ToolID) -> PeakHours? {
         peakHours.enabled && peakHoursTools.contains(tool) ? peakHours : nil
+    }
+
+    // MARK: - Per-assistant gates
+
+    /// Whether this assistant's hook events reach the session tracker (`sessionReadingOff`).
+    func readsSessions(of tool: ToolID) -> Bool {
+        !sessionReadingOff.contains(tool)
+    }
+
+    /// Whether a request from this assistant is held for an answer in the notch: the app-wide switch, its sessions
+    /// read, and its own page's switch. The first two are asked here too so the one call is the whole rule, and a
+    /// page's toggle can say it is off without repeating how.
+    func answersFromNotch(_ tool: ToolID) -> Bool {
+        answerFromNotch && readsSessions(of: tool) && !notchAnswersOff.contains(tool)
+    }
+
+    /// Whether this assistant's limit notices may go out. The app-wide switch is asked where it always was
+    /// (UsageStore.evaluateAlerts, checkResets), before anything is planned; this is the page's own part.
+    func notifiesLimits(of tool: ToolID) -> Bool {
+        !limitNoticesOff.contains(tool)
+    }
+
+    /// Whether this assistant's waiting and finished-turn notices may go out; the page's own part, as above.
+    func notifiesSessions(of tool: ToolID) -> Bool {
+        !sessionNoticesOff.contains(tool)
+    }
+
+    /// The write behind each page's toggles: one assistant in or out of an off-set, the set left alone when it
+    /// already says so, so a redraw that re-sets the same value reports no change.
+    static func switching(_ tools: Set<ToolID>, _ tool: ToolID, on: Bool) -> Set<ToolID> {
+        var tools = tools
+        if on { tools.remove(tool) } else { tools.insert(tool) }
+        return tools
     }
 
     /// The notification sound choice for one event class.

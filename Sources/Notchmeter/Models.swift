@@ -65,6 +65,20 @@ enum WindowSource: String, Codable, Equatable, Sendable {
         case .localEstimate: L("inferred")
         }
     }
+
+    /// The source in words, for an assistant's Settings page (*Where each window comes from*), where there is room
+    /// to say it and the endpoint is named too: a reader checking where a figure came from is asking about every
+    /// window, not only the ones the card tags. The status-line and header wordings are the ones the panel already
+    /// uses for the same sources.
+    var name: String {
+        switch self {
+        case .vendorEndpoint: L("The vendor's usage endpoint")
+        case .statusline: L("From Claude Code's status line")
+        case .rateLimitHeaders: L("From rate-limit headers")
+        case .localSnapshot: L("From a file the tool wrote on this Mac")
+        case .localEstimate: L("Worked out on this Mac")
+        }
+    }
 }
 
 /// A window's name, kept free of any one language so a reading cached in one run reads correctly in the next: the

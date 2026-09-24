@@ -132,7 +132,6 @@
 "Add the Notchmeter hook to %@?" = "Thêm hook Notchmeter vào %@?";
 "Add to %@…" = "Thêm vào %@…";
 "AI credits" = "Tín dụng AI";
-"All six Settings panes: position, hover or always open, hook install with a backup." = "Toàn bộ sáu ngăn Cài đặt: vị trí, rê chuột hoặc luôn mở, cài hook có sao lưu.";
 "Allow" = "Cho phép";
 "Allow (⌘Y)" = "Cho phép (⌘Y)";
 "Also poll Claude's usage endpoint" = "Cũng thăm dò điểm cuối dùng của Claude";
@@ -142,7 +141,6 @@
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "Trợ lý chưa có gì để hiển thị sẽ không xuất hiện trên bảng. Mở Cài đặt › Trợ lý, mỗi hàng sẽ cho biết nó đang chờ gì.";
 "Automation" = "Tự động hoá";
 "Check again" = "Kiểm tra lại";
-"Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them." = "Claude Code chỉ trả lời từ notch khi có các mục hook 0.7.0: dòng Hooks trong Tích hợp hiển thị Sửa (hoặc Thêm) cho đến khi có chúng.";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code báo phiên bắt đầu và kết thúc, prompt được gửi, chờ bạn nhập, dừng và dừng lỗi, và tác tử con bắt đầu và dừng.";
 "Claude's usage endpoint is not polled; install the status line and run a turn for a reading" = "Không thăm dò điểm cuối dùng của Claude; cài dòng trạng thái và chạy một lượt để có số đọc";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex báo phiên bắt đầu và kết thúc, prompt được gửi, dừng, lượt bị ngắt, tác tử con bắt đầu và dừng, và thời điểm nó sắp hỏi bạn phê duyệt. Lời hỏi phê duyệt đó là lần chờ duy nhất của nó: vòng Codex hiện bàn tay chờ cho việc đó và buông ra ở prompt, lần dừng hay tác tử con kế tiếp, hoặc sau mười phút. Codex không có sự kiện cho câu hỏi hay giới hạn tốc độ, nên chạm giới hạn phải chờ lần thăm dò kế tiếp. Codex bỏ qua hook mới hoặc đã đổi cho tới khi bạn mở /hooks trong Codex và tin cậy nó, và phiên đang chạy giữ các hook nó đã khởi động cùng.";
@@ -170,11 +168,9 @@
 "Hand a request back to the terminal after" = "Trả yêu cầu về terminal sau";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Trả yêu cầu về terminal, nơi hỏi như xưa nay; Escape cũng làm vậy.";
 "Hide assistants with nothing to show" = "Ẩn trợ lý chưa có gì để hiển thị";
-"Hide options" = "Ẩn tùy chọn";
 "Hooks" = "Hook";
 "Idle" = "Rảnh";
 "Install the hook and status line…" = "Cài hook và dòng trạng thái…";
-"Open Integrations…" = "Mở Tích hợp…";
 "Installed, but an entry is out of date: Repair updates it" = "Đã cài, nhưng một mục đã cũ: Sửa sẽ cập nhật nó";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "Nó đọc mức dùng mà mỗi trợ lý đã lưu trên máy Mac này — Claude Code, Codex, Cursor, Gemini CLI và GitHub Copilot — và hỏi điểm cuối mức dùng của từng nhà cung cấp bằng đăng nhập mà công cụ đó đã lưu. Nó không bao giờ đăng nhập, không giữ token, và không gửi gì đi nơi khác: không tài khoản, không phân tích.";
 "Jump to the terminal" = "Nhảy tới terminal";
@@ -190,7 +186,7 @@
 "Not selected" = "Chưa chọn";
 "On a trial" = "Đang dùng thử";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "Bật: ứng dụng đọc điểm cuối dùng của api.anthropic.com bằng đăng nhập của chính Claude Code mỗi năm phút khi không có dòng trạng thái mới thay thế. Tắt: chỉ dựa vào dòng trạng thái, kênh Anthropic ghi nhận: vòng Claude chỉ đầy sau một lượt Claude Code, và điểm cuối không bao giờ bị hỏi.";
-"One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later." = "Một mục trong ~/.claude/settings.json cho phép Claude Code báo cho tai thỏ khi một phiên bắt đầu, một lượt kết thúc hoặc nó chờ bạn, và dòng trạng thái chuyển mức đầy ngữ cảnh cùng giới hạn chính thức sau mỗi lượt. Cả hai đều được sao lưu trước; Cài đặt › Tích hợp có thể sửa hoặc gỡ chúng sau.";
+"One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "Một mục trong ~/.claude/settings.json cho phép Claude Code báo cho tai thỏ khi một phiên bắt đầu, một lượt kết thúc hoặc nó chờ bạn, và dòng trạng thái chuyển mức đầy ngữ cảnh cùng giới hạn chính thức sau mỗi lượt. Cả hai đều được sao lưu trước; trang Claude Code trong Cài đặt có thể sửa hoặc gỡ chúng sau.";
 "One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "Mỗi phiên do hook báo cáo một dòng, mới nhất trước: nó đang làm gì, chạy trong trợ lý nào và terminal nào, lượt đã chạy bao lâu, và nó có đang chờ bạn không. Sáu dòng, rồi đếm số còn lại.";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Chỉ khi bạn chọn Số liệu › Tự động, để dời số liệu tránh tiêu đề menu của ứng dụng đang ở trước. Nó chỉ đọc hình học của thanh menu, không gì khác.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Chỉ để nhảy tới cửa sổ terminal của một phiên, lần đầu bạn làm vậy. Không phần nào khác của ứng dụng điều khiển ứng dụng khác.";
@@ -630,7 +626,7 @@
 "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage" = "Đăng nhập GitHub Copilot trong trình soạn thảo (hoặc chạy `gh auth login`) để đọc mức dùng của bạn";
 "Signed in" = "Đã đăng nhập";
 "Signed in · %@" = "Đã đăng nhập · %@";
-"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "Từ tháng 3 năm 2026 Anthropic áp giới hạn phiên 5 giờ chặt hơn vào ngày thường từ 5:00 đến 11:00 giờ Thái Bình Dương (theo báo chí, không phải tài liệu; docs/accuracy.md). Trong đó lời khuyên nêu khi nào ngoài cao điểm bắt đầu, nhật ký tiêu hao tách tốc độ cao điểm và ngoài cao điểm, và chân trang ghi \"giờ cao điểm\". Áp dụng cho trợ lý được tích trong Trợ lý.";
+"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on." = "Từ tháng 3 năm 2026 Anthropic áp giới hạn phiên 5 giờ chặt hơn vào ngày thường từ 5:00 đến 11:00 giờ Thái Bình Dương (theo báo chí, không phải tài liệu; docs/accuracy.md). Trong đó lời khuyên nêu khi nào ngoài cao điểm bắt đầu, nhật ký tiêu hao tách tốc độ cao điểm và ngoài cao điểm, và chân trang ghi \"giờ cao điểm\". Áp dụng cho các trợ lý bật Giờ cao điểm trên trang riêng của chúng.";
 "snapshot" = "ảnh chụp";
 "Sound" = "Âm thanh";
 "Source: %@" = "Nguồn: %@";
@@ -653,7 +649,6 @@
 "The %1$@'s %2$@ is past the %3$@ budget." = "%2$@ của %1$@ đã vượt ngân sách %3$@.";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "Phần thẻ chi phí ngoài vòng tròn, chú giải và dòng tốc độ tiêu (ngân sách, tuần và các dòng theo mô hình), cùng khối phiên, token, dự án chính và biểu đồ nhỏ. Tắt để bảng đủ ngắn, không cần cuộn.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "Tệp tổng ngày dạng CSV hoặc JSON: mỗi ngày một dòng với chi phí, năm nhóm token, mô hình cao nhất và chi phí theo mô hình và theo dự án.";
-"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "Trợ lý đầu nằm bên trái notch và phần còn lại bên phải; thẻ trong bảng và viên nang ở cạnh theo cùng thứ tự. Giờ cao điểm áp cửa sổ ngày thường của Anthropic (Nâng cao) cho lời khuyên và dự phóng của trợ lý đó.";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "Yêu cầu Keychain đã bị đóng. Tắt rồi bật lại Claude trong Cài đặt để hỏi lại";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "10 phút cuối của nhật ký hợp nhất ứng dụng, trạng thái từng trợ lý, trạng thái hook và thanh trạng thái, bố cục và phiên bản macOS, đã xóa thư mục nhà, để báo lỗi. Không bao giờ có token.";
 "The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one." = "Cửa sổ cuối cùng mà một công cụ hiển thị sẽ ở lại trên thẻ: không có nó, các vòng và thanh menu sẽ không có gì để vẽ. Hãy hiện một cửa sổ khác trước khi ẩn cửa sổ này.";
@@ -715,13 +710,11 @@
 "Weekly budget" = "Ngân sách tuần";
 "Welcome to %@" = "Chào mừng đến với %@";
 "What %@ reads" = "%@ đọc những gì";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "Bảng hiển thị gì về mỗi phiên do hook báo cáo, và bạn có thể làm gì với nó từ đó. Tất cả đều cần hook của trợ lý (Tích hợp).";
 "When crowded" = "Khi chật chỗ";
 "When a window resets" = "Khi một cửa sổ đặt lại";
 "When an assistant waits for you, or a turn finishes" = "Khi một trợ lý chờ bạn, hoặc một lượt xong";
 "When the cache tier or the metering shifts" = "Khi mức cache hoặc cách đo thay đổi";
 "When you start paying (extra usage rises)" = "Khi bạn bắt đầu trả tiền (dùng thêm tăng)";
-"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "Những trợ lý mà vòng tròn, chú giải và tổng của thẻ bao gồm, theo thứ tự đặt ở mục Trợ lý. Trợ lý không thể báo chi phí, hoặc bạn chưa đăng nhập, không bao giờ có ở đây; trợ lý bị bỏ ra vẫn hiện chi tiêu trên thẻ của chính nó.";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "Khi Zoom, Meet, QuickTime hoặc Chia sẻ màn hình đang ghi màn hình, các vòng giữ hình dạng nhưng ẩn số, bảng ẩn thẻ Chi phí, và biểu ngữ nào hiện lên trong lúc đó không mang số liệu hay tên dự án. Kiểm tra mỗi năm giây.";
 "Wide" = "Rộng";
 "Will run out (behind pace)" = "Sẽ hết (chậm hơn nhịp)";
@@ -767,7 +760,7 @@
 "Custom colour" = "Màu tự chọn";
 "Icon colour" = "Màu biểu tượng";
 "Colour" = "Màu";
-"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "Chọn ghim trợ lý nào ở từng trợ lý bên dưới; nếu không chọn gì, trợ lý hiển thị đầu tiên sẽ được dùng. Thanh vẽ mỗi cửa sổ đã ghim thành một thanh nhỏ, Vòng vẽ theo hình bên cạnh notch, Chấm chỉ vẽ nhịp dùng.";
+"Which assistants are pinned is chosen on each assistant's page; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "Chọn ghim trợ lý nào trên trang của từng trợ lý; nếu không chọn gì, trợ lý hiển thị đầu tiên sẽ được dùng. Thanh vẽ mỗi cửa sổ đã ghim thành một thanh nhỏ, Vòng vẽ theo hình bên cạnh notch, Chấm chỉ vẽ nhịp dùng.";
 "By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "Theo nhịp dùng dùng màu hổ phách và đỏ son của chính ứng dụng, nên biểu tượng cho biết khi một cửa sổ sắp chạm nhịp hoặc đã tụt lại. Đơn sắc luôn giữ màu của chính thanh trình đơn và vẫn là ảnh mẫu để macOS vẽ như mọi biểu tượng khác. Màu tự chọn giữ lại các con số nhưng bỏ đi lời cảnh báo.";
 
 /* The peak window read on the reader's own clock, when their zone is not the window's (PeakHours, SettingsWindow) */
@@ -902,3 +895,45 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Đưa cửa sổ Cursor của dự án này lên trước (không thể yêu cầu Cursor mở một cuộc trò chuyện cụ thể)";
 "First seen %@" = "Thấy lần đầu lúc %@";
+
+/* Each assistant's own Settings page, and the panes that point at it (SettingsWindow, SettingsSearch, Models, WelcomeWindow, AssetRenderer) */
+"Show %@ on the panel and the rings" = "Hiện %@ trên bảng và các vòng";
+"Off stops every read of its usage and takes its rings, its card and its menu bar figures away. Its hook and its sessions follow their own switches below." = "Tắt thì dừng mọi lần đọc mức dùng của nó và gỡ các vòng, thẻ và số liệu trên thanh menu của nó. Hook và các phiên của nó theo các công tắc riêng bên dưới.";
+"Rings and windows" = "Vòng và cửa sổ";
+"Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections." = "Áp khung giờ cao điểm ngày thường của Anthropic, đặt trong Nâng cao, cho lời khuyên và dự phóng của trợ lý này.";
+"Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card." = "Vòng tròn, chú giải và tổng của thẻ chi phí có bao gồm trợ lý này không, theo thứ tự đặt ở mục Trợ lý. Nếu bị bỏ ra, nó vẫn hiện chi tiêu trên thẻ của chính nó.";
+"Read its sessions" = "Đọc các phiên của nó";
+"Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once." = "Tắt thì hook của nó vẫn làm mới đồng hồ đo, và không giữ gì khác của sự kiện: không có dòng trên thẻ Phiên, không có chờ hay kết thúc trên vòng, không tin, không thông báo, không yêu cầu trên bảng và không giữ máy thức. Các phiên đã liệt kê biến mất ngay.";
+"Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait." = "Các yêu cầu cấp quyền và câu hỏi của nó mở bảng cùng các câu trả lời, và nó chờ câu trả lời của bạn; tắt thì terminal của nó hỏi như xưa nay và bảng chỉ hiện việc chờ.";
+"Off for every assistant under Assistants › Sessions." = "Đã tắt cho mọi trợ lý trong Trợ lý › Phiên.";
+"Its sessions are not read." = "Các phiên của nó không được đọc.";
+"Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them." = "Claude Code chỉ trả lời từ notch khi có các mục hook 0.7.0: phần hook ở trên hiển thị Sửa (hoặc Thêm) cho đến khi có chúng.";
+"Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor không có sự kiện nào có thể trả lời: các yêu cầu phê duyệt của nó luôn được trả lời trong Cursor.";
+"Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Hook của Gemini CLI chỉ báo cáo: các yêu cầu cấp quyền của nó luôn được trả lời trong terminal.";
+"Notify about its limits" = "Thông báo về giới hạn của nó";
+"Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "Các thông báo về nhịp, cạn hạn mức, chạm giới hạn, đặt lại và nhắc nhở của nó, như đã chọn trong Thông báo. Tắt thì bỏ chúng chỉ cho trợ lý này; thông báo ngân sách áp cho mọi trợ lý và vẫn giữ.";
+"Off for every assistant under Notifications." = "Đã tắt cho mọi trợ lý trong Thông báo.";
+"Notify when it waits or finishes a turn" = "Thông báo khi nó chờ hoặc kết thúc một lượt";
+"Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "Các thông báo chờ và kết thúc lượt của nó, cùng cái liếc hoặc bảng mà chúng mở, như đã chọn trong Thông báo. Tắt thì bỏ chúng chỉ cho trợ lý này; vòng của nó vẫn hiện việc chờ.";
+"Sources" = "Nguồn";
+"Login" = "Đăng nhập";
+"Readings" = "Số liệu đọc";
+"Where each window comes from" = "Mỗi cửa sổ lấy từ đâu";
+"The vendor's usage endpoint" = "Điểm cuối mức dùng của nhà cung cấp";
+"From a file the tool wrote on this Mac" = "Từ một tệp công cụ đã ghi trên máy Mac này";
+"Worked out on this Mac" = "Tính trên máy Mac này";
+"Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Thông tin đăng nhập riêng của Claude Code: mục Keychain của nó, nếu không có thì tệp thông tin xác thực, nếu không nữa thì CLAUDE_CODE_OAUTH_TOKEN. Chỉ đọc: ở đây không đăng nhập, làm mới hay ghi gì cả.";
+"Codex's own login, from auth.json in its home folder; the plan name is Codex's own. Read only: the token is never refreshed or written." = "Thông tin đăng nhập riêng của Codex, từ auth.json trong thư mục chính của nó; tên gói là của Codex. Chỉ đọc: token không bao giờ được làm mới hay ghi.";
+"The editor's own login, from Cursor's state database, sent the way cursor.com's dashboard sends it. Read only: never refreshed or written." = "Thông tin đăng nhập riêng của trình soạn thảo, từ cơ sở dữ liệu trạng thái của Cursor, gửi đi theo cách bảng điều khiển cursor.com gửi. Chỉ đọc: không bao giờ làm mới hay ghi.";
+"The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. The Antigravity app keeps its own in the Keychain, out of reach, so one sign-in through Gemini CLI is needed. Read only: never refreshed or written." = "Thông tin đăng nhập Google mà Gemini CLI giữ trong ~/.gemini/oauth_creds.json. Ứng dụng Antigravity giữ thông tin của nó trong Keychain, ngoài tầm với, nên cần đăng nhập một lần qua Gemini CLI. Chỉ đọc: không bao giờ làm mới hay ghi.";
+"The token Copilot's editor plugin or gh keeps: apps.json, then hosts.json, then gh's hosts.yml, each tried in turn. Read only: never refreshed or written." = "Token mà plugin trình soạn thảo của Copilot hoặc gh giữ: apps.json, rồi hosts.json, rồi hosts.yml của gh, thử lần lượt. Chỉ đọc: không bao giờ làm mới hay ghi.";
+"The status line after every turn, Anthropic's usage endpoint while it is allowed below, and this Mac's transcripts for the cost." = "Dòng trạng thái sau mỗi lượt, điểm cuối mức dùng của Anthropic khi được cho phép bên dưới, và bản ghi của máy Mac này cho chi phí.";
+"chatgpt.com's usage endpoint, else the newest rate-limit line in Codex's session files, and those files for the cost." = "Điểm cuối mức dùng của chatgpt.com, nếu không thì dòng giới hạn tốc độ mới nhất trong các tệp phiên của Codex, và các tệp đó cho chi phí.";
+"cursor.com's usage summary and the dashboard's own reads, and its usage events for the cost." = "Bản tóm tắt mức dùng của cursor.com và các lần đọc riêng của bảng điều khiển, và cho chi phí là các sự kiện sử dụng của nó.";
+"Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money." = "Hạn mức Code Assist của Google, dưới danh tính riêng của Antigravity khi ứng dụng của nó có trên máy Mac này. Không có chi phí: nó đo hạn mức, không đo tiền.";
+"api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost." = "Hạn mức Copilot từ api.github.com, cùng lần đọc mà plugin trình soạn thảo của nó thực hiện, và cho chi phí là các tín dụng AI, mỗi cái một xu.";
+"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "Trợ lý đầu nằm bên trái notch và phần còn lại bên phải; thẻ trong bảng và viên nang ở cạnh theo cùng thứ tự. Mọi thứ khác về một trợ lý nằm trên trang riêng của nó, dưới Trợ lý ở thanh bên.";
+"What the panel shows of each session the hooks report, and what you can do to it from there, for every assistant. All of it needs the assistant's hook; each assistant's page can stop reading its sessions or answering its requests." = "Bảng hiển thị gì về mỗi phiên do hook báo cáo, và bạn có thể làm gì với nó từ đó, cho mọi trợ lý. Tất cả đều cần hook của trợ lý; trang của từng trợ lý có thể ngừng đọc các phiên hoặc ngừng trả lời các yêu cầu của nó.";
+"These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "Các mục này áp cho mọi trợ lý. Trang của từng trợ lý có thể bỏ các thông báo giới hạn riêng của nó và các thông báo chờ và kết thúc lượt của nó.";
+"Open Claude Code in Settings…" = "Mở Claude Code trong Cài đặt…";
+"The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "Sáu ngăn Cài đặt và trang riêng của Claude Code: vị trí, rê chuột hoặc luôn mở, cài hook có sao lưu.";

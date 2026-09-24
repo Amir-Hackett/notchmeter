@@ -170,13 +170,13 @@ import Testing
 
     @Test func aQueryStaysOnAPaneThatHoldsAMatchAndOtherwiseGoesToTheFirst() throws {
         let entries = SettingsSearch.entries()
-        // "Peak hours" is both an assistant switch and the Advanced editor: on Assistants it stays put, and from
-        // General it goes to Assistants, the first of the two in the window's order.
-        let onAssistants = try #require(SettingsSearch.hit(for: "peak hours", current: .assistants, in: entries))
-        #expect(onAssistants.pane == .assistants)
-        #expect(onAssistants.sections.contains(.assistants) && onAssistants.sections.contains(.advanced))
+        // "Peak hours" is a switch on every assistant's page and the Advanced editor: on Codex's page it stays put,
+        // and from General it goes to the first assistant's page, the first of them in the window's order.
+        let onCodex = try #require(SettingsSearch.hit(for: "peak hours", current: .agent(.codex), in: entries))
+        #expect(onCodex.pane == .agent(.codex))
+        #expect(onCodex.sections.contains(.agent(.codex, .windows)) && onCodex.sections.contains(.advanced))
         let fromGeneral = try #require(SettingsSearch.hit(for: "peak hours", current: .general, in: entries))
-        #expect(fromGeneral.pane == .assistants)
+        #expect(fromGeneral.pane == .agent(.claude))
         // Case and diacritics do not matter, and the edges are trimmed.
         let loud = try #require(SettingsSearch.hit(for: "  DÉBUG  ", current: .general, in: entries))
         #expect(loud.pane == .advanced)

@@ -50,12 +50,44 @@ final class SettingsRequests {
 /// case name would read to it as shipped-but-never-used.
 ///
 /// Not file-private: `--render-assets` walks `allCases` and asks for each pane by name, because a capture that
-/// took whatever `@State` happened to default to would be a picture of one sixth of this window.
-enum SettingsPane: String, CaseIterable, Identifiable {
+/// took whatever `@State` happened to default to would be a picture of one pane of this window.
+///
+/// Each assistant has a page of its own (`agent`), listed under Assistants in the sidebar: everything about that
+/// one assistant — whether it is on, its rings and windows, its hook, its sessions, its notices, where its
+/// figures come from — in one place, because a reader thinks "what does Codex do here", not "which of six panes
+/// holds Codex's hook". What is the same for every assistant stays on the app's own panes.
+enum SettingsPane: Hashable, Identifiable, CaseIterable {
     case general, dashboard, appearance, assistants, notifications, integrations, advanced
+    case agent(ToolID)
+
+    /// The app's own panes, in the sidebar's order.
+    static let app: [SettingsPane] = [.general, .dashboard, .appearance, .assistants, .notifications, .integrations, .advanced]
+
+    /// Every pane in the default order; the sidebar itself follows the user's (`sidebar(order:)`).
+    static var allCases: [SettingsPane] { sidebar(order: ToolID.allCases) }
+
+    /// The sidebar's rows: the app's panes, with a page per assistant right under Assistants, in the user's order
+    /// of the assistants — the order the rings, the panel and the Assistants list already use.
+    static func sidebar(order: [ToolID]) -> [SettingsPane] {
+        app.flatMap { $0 == .assistants ? [$0] + order.map(SettingsPane.agent) : [$0] }
+    }
 
     var id: Self { self }
 
+    /// The assistant a page belongs to; nil for the app's own panes.
+    var tool: ToolID? {
+        if case .agent(let tool) = self { return tool }
+        return nil
+    }
+
+    /// The sidebar row's name: an assistant's short one, the name on its rings and in the Assistants list. The
+    /// product name ("GitHub Copilot") cut to "GitHub C…" once indented under Assistants, which is a sidebar row
+    /// that no longer says which assistant it is; the page's own title carries the full name.
+    var sidebarTitle: String {
+        tool?.displayName ?? title
+    }
+
+    /// An assistant's page is titled with its product's name, which is a name in every language and so not a key.
     var title: String {
         switch self {
         case .general: return L("General")
@@ -65,13 +97,16 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .notifications: return L("Notifications")
         case .integrations: return L("Integrations")
         case .advanced: return L("Advanced")
+        case .agent(let tool): return tool.productName
         }
     }
 
-    /// One family and one fill weight across the six. An outline glyph beside a solid one reads as two sets
-    /// rather than one list, which is what the first pass shipped: gearshape and terminal were outlines against
-    /// a solid bell and puzzle piece. Every tile is a fill now, and each glyph has to hold at 11 pt — two crossed
-    /// tools (`wrench.and.screwdriver`) turn to mush at that size, so Advanced wears a single wrench.
+    /// One family and one fill weight across the app's panes. An outline glyph beside a solid one reads as two
+    /// sets rather than one list, which is what the first pass shipped: gearshape and terminal were outlines
+    /// against a solid bell and puzzle piece. Every tile is a fill now, and each glyph has to hold at 11 pt — two
+    /// crossed tools (`wrench.and.screwdriver`) turn to mush at that size, so Advanced wears a single wrench.
+    /// An assistant's page wears the symbol on its card and beside its rings instead: there the glyph's job is to
+    /// be recognised as that assistant, which a new drawing would undo.
     /// `SettingsSidebarTiles` asserts each of these still resolves; a name macOS does not know draws nothing at
     /// all, with no warning and no crash.
     var symbol: String {
@@ -83,15 +118,24 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .notifications: return "bell.fill"
         case .integrations: return "powerplug.fill"
         case .advanced: return "wrench.adjustable.fill"
+        case .agent(let tool): return tool.symbolName
         }
+    }
+
+    /// The glyph's colour on its tile. White on the app's chrome tiles, which were chosen dark enough to carry
+    /// it; black on an assistant's own colour, every one of which is a light tint picked to read on the panel's
+    /// black, and clears 6.8:1 under a black glyph (Claude's terracotta, the darkest) where white would fail on
+    /// Copilot's yellow at 1.3:1. `SettingsSidebarTiles` measures both.
+    var glyph: Color {
+        tool == nil ? .white : .black
     }
 
     /// The tile behind the glyph. Palette.warn and Palette.danger are deliberately absent: they mean "needs
     /// attention" and "out" a few rows to the right in this same window, and a sidebar that wore them at rest
     /// would read as alarmed.
     ///
-    /// Every tile carries an 11 pt semibold white glyph, so every tile owes it the 3:1 WCAG 1.4.11 asks of a
-    /// graphical object. Measured against white under `performAsCurrentDrawingAppearance`, light then dark:
+    /// Every tile carries an 11 pt semibold glyph (`glyph`: white on these, black on an assistant's own colour), so
+    /// every tile owes it the 3:1 WCAG 1.4.11 asks of a graphical object. Measured against white under `performAsCurrentDrawingAppearance`, light then dark:
     /// purple 4.17/3.63, calm 5.19/5.19, pink 3.65/3.52, indigo 5.09/3.51, brown 3.53/3.07, slate 6.45/6.45.
     /// The system colours do **not** buy adaptivity here: they shift a little between `.aqua` and `.darkAqua`
     /// and `Increase Contrast` returns the identical sRGB values (`accessibilityHighContrastDarkAqua` answers
@@ -110,6 +154,8 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .notifications: return .pink
         case .integrations: return .indigo
         case .advanced: return .brown
+        // The colour its rings and card wear, so the page and the ring beside the notch are one thing to the eye.
+        case .agent(let tool): return tool.color
         }
     }
 }
@@ -214,27 +260,29 @@ struct SettingsView: View {
             refreshAutomation()
             // The window can be built with the offer already raised; the onChange below catches it being raised
             // while the window is open.
-            if requests.hookOffer { pane = .integrations }
+            if requests.hookOffer { pane = .agent(.claude) }
             takeRequestedPane()
             runStatuslineOffer()
         }
         .onChange(of: requests.showPane) { _, _ in takeRequestedPane() }
         .onChange(of: requests.statuslineOffer) { _, _ in runStatuslineOffer() }
         // Typing pulls the window to the first pane with a match — unless the pane on screen has one — and opens
-        // the Diagnostics disclosure when the match is inside it; the sections without one dim (`searchOpacity`).
+        // the disclosure a match is inside (Diagnostics, or an assistant's sources); the sections without one dim
+        // (`searchOpacity`).
         .onChange(of: query) { _, text in
-            guard let hit = SettingsSearch.hit(for: text, current: pane) else { return }
+            guard let hit = SettingsSearch.hit(for: text, current: pane, in: SettingsSearch.entries(order: prefs.toolOrder)) else { return }
             if hit.pane != pane { pane = hit.pane }
             if hit.sections.contains(.diagnostics) { diagnosticsExpanded = true }
+            if let tool = hit.pane.tool, hit.sections.contains(.agent(tool, .sources)) { expansion(of: tool).wrappedValue = true }
         }
         .onChange(of: requests.hookSheetDryRun) { _, url in
             guard let url else { return }
             installHook(at: url, dryRun: true)
         }
-        // The offer explains the hook rows, so put them on screen behind it rather than leaving the sheet
+        // The offer explains the hook rows, so put Claude Code's on screen behind it rather than leaving the sheet
         // talking about a pane the reader cannot see.
         .onChange(of: requests.hookOffer) { _, offered in
-            if offered { pane = .integrations }
+            if offered { pane = .agent(.claude) }
         }
         // SwiftUI writes to this binding itself, so a constant initial value is not a pin.
         .onChange(of: columnVisibility) { _, visibility in
@@ -248,21 +296,23 @@ struct SettingsView: View {
     /// the list and the arrow keys move through it, and the selected row carries both the list's own fill and a
     /// heavier title — the selection never rests on colour alone. (The panel spends most of its life not key, so
     /// that fill is often the inactive grey, which makes the second cue do real work rather than being belt and
-    /// braces.)
+    /// braces.) The assistants' pages are indented under Assistants, which reads as "these belong to that" without
+    /// a disclosure to open first; the whole row stays the click target.
     private var sidebar: some View {
-        List(SettingsPane.allCases, selection: $pane) { item in
+        List(SettingsPane.sidebar(order: prefs.toolOrder), selection: $pane) { item in
             Label {
-                Text(item.title).fontWeight(item == pane ? .semibold : .regular)
+                Text(item.sidebarTitle).fontWeight(item == pane ? .semibold : .regular)
             } icon: {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .fill(item.tint)
                     .frame(width: 20, height: 20)
-                    .overlay(Image(systemName: item.symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white))
+                    .overlay(Image(systemName: item.symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(item.glyph))
                     // Decoration: the row already says "General" in words, and VoiceOver would otherwise read
                     // the pane name twice, once as the glyph's own name.
                     .accessibilityHidden(true)
             }
             .padding(.vertical, 2)
+            .padding(.leading, item.tool == nil ? 0 : 10)
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(190)
@@ -353,7 +403,7 @@ struct SettingsView: View {
     private func runStatuslineOffer() {
         guard requests.statuslineOffer, !requests.hookOffer else { return }
         requests.statuslineOffer = false
-        pane = .integrations
+        pane = .agent(.claude)
         installStatusline()
     }
 
@@ -372,7 +422,14 @@ struct SettingsView: View {
         case .assistants:
             assistantsSection.opacity(searchOpacity(.assistants))
             sessionsSection.opacity(searchOpacity(.sessions))
-            transcriptsSection.opacity(searchOpacity(.transcripts))
+        case .agent(let tool):
+            agentOverview(tool).opacity(searchOpacity(.agent(tool, .overview)))
+            agentWindows(tool).opacity(searchOpacity(.agent(tool, .windows)))
+            agentHook(tool).opacity(searchOpacity(.agent(tool, .hook)))
+            agentSessions(tool).opacity(searchOpacity(.agent(tool, .sessions)))
+            agentNotifications(tool).opacity(searchOpacity(.agent(tool, .notifications)))
+            agentSources(tool).opacity(searchOpacity(.agent(tool, .sources)))
+            if tool == .claude { transcriptsSection.opacity(searchOpacity(.agent(tool, .sources))) }
         case .notifications:
             notificationsSection.opacity(searchOpacity(.notifications))
         case .integrations:
@@ -447,7 +504,7 @@ struct SettingsView: View {
                     ForEach(MenuBarStyle.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .disabled(!prefs.menuBarPin)
-                .help(L("Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone."))
+                .help(L("Which assistants are pinned is chosen on each assistant's page; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone."))
                 // Only for the drawn styles: Text is drawn by the menu bar itself, in the colour it uses for
                 // everything else, and nothing here could change that without fighting it.
                 if prefs.menuBarStyle != .text {
@@ -730,29 +787,10 @@ struct SettingsView: View {
                 Button(L("Apply")) { applyBudgets() }
             }
             .help(Self.budgetHelp)
+            // Which assistants the card carries is on each one's page (*In the Cost card*), beside its other
+            // windows; what the card leads with is the card's own, and stays here.
             Picker(L("Cost card shows"), selection: Binding(get: { prefs.costCardMode }, set: { prefs.costCardMode = $0 })) {
                 ForEach(CostCardMode.allCases, id: \.self) { Text($0.title).tag($0) }
-            }
-            // The same two tests the card itself applies (UsageStore.reportingCostTools): it can report spend, and
-            // it is here to report it. Read from toolOrder rather than allCases so the row is in the order the
-            // help promises — the order set under Assistants — and not the enum's.
-            let costTools = prefs.toolOrder.filter { $0.reportsCost && store.isShown($0) }
-            if !costTools.isEmpty {
-                LabeledContent(L("In the Cost card")) {
-                    ForEach(costTools, id: \.self) { tool in
-                        Toggle(isOn: Binding(
-                            get: { prefs.costCardTools.contains(tool) },
-                            set: { if $0 { prefs.costCardTools.insert(tool) } else { prefs.costCardTools.remove(tool) } }
-                        )) {
-                            Text(verbatim: tool.displayName)
-                        }
-                        .toggleStyle(.checkbox).controlSize(.small)
-                    }
-                }
-                // A tool that is not here keeps its place in costCardTools rather than being struck from it: the
-                // preference is a Set the user chose, and signing out of one assistant for an afternoon should not
-                // silently drop it from the card it comes back to.
-                .help(L("Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card."))
             }
         }
     }
@@ -761,10 +799,6 @@ struct SettingsView: View {
         Section(L("Privacy")) {
             Toggle(L("Hide usage while the screen is shared or recorded"), isOn: Binding(get: { prefs.hideFromScreenShare }, set: { prefs.hideFromScreenShare = $0; requests.privacyChanged() }))
                 .help(L("While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds."))
-            Picker(L("Ask for Keychain access"), selection: Binding(get: { prefs.keychainPrompts }, set: { prefs.keychainPrompts = $0 })) {
-                ForEach(KeychainPromptPolicy.allCases, id: \.self) { Text($0.title).tag($0) }
-            }
-            .help(L("Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only."))
             Toggle(L("Local API on 127.0.0.1:%ld", Int(LocalAPI.port)), isOn: Binding(get: { prefs.localAPIEnabled }, set: { prefs.localAPIEnabled = $0; requests.localAPIChanged() }))
                 .help(L("GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's hook events, any assistant's, over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address."))
             if prefs.localAPIEnabled {
@@ -869,6 +903,9 @@ struct SettingsView: View {
                     Text(notificationMessage).font(.caption).foregroundStyle(.secondary)
                 }
             }
+            // The switches here choose which kinds of notice go out, for every assistant; which assistants they go
+            // out for is on each assistant's own page, and a reader looking for "stop Cursor's banners" is here.
+            paragraph(L("These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices."))
         }
     }
 
@@ -877,62 +914,48 @@ struct SettingsView: View {
             let order = prefs.toolOrder
             ForEach(Array(order.enumerated()), id: \.element) { index, tool in
                 assistantRow(tool, at: index, of: order.count)
-                if store.isShown(tool), expansion(of: tool).wrappedValue {
-                    assistantOptions(tool)
-                        .padding(.leading, 22)
-                }
             }
             Toggle(L("Hide assistants with nothing to show"), isOn: Binding(get: { prefs.hideEmptyTools }, set: { prefs.hideEmptyTools = $0 }))
                 .help(L("An assistant that is on and installed but has no reading, no spend and no session yet stays off the panel and the rings until it has one; the last visible assistant is never hidden. While one is hidden the panel ends with an Add a tool row that opens this pane."))
             Button(L("Refresh now")) { store.refreshAll(interactive: true) }
         } header: {
             Text(L("Assistants"))
-                .help(L("The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections."))
+                .help(L("The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar."))
         }
     }
 
-    /// What an assistant shows collapsed: its name, its status line, its switch and the two reorder arrows. The whole
-    /// name is the expand target, not just a stock disclosure triangle, and clicking it never flips the switch.
+    /// One assistant in the list: its name and status, its switch and the two reorder arrows. The whole name opens
+    /// the assistant's own page, not only the chevron, and clicking it never flips the switch. Every assistant has a
+    /// page, installed or not, so every row opens one: the page is also where an assistant that is not on this Mac
+    /// says so and still offers its hook's snippet. Until the pages existed the name unfolded the options in place,
+    /// which put a second copy of half a pane inside a list the arrows were reordering.
     private func assistantRow(_ tool: ToolID, at index: Int, of count: Int) -> some View {
-        let expandable = store.isShown(tool)
-        let expanded = expandable && expansion(of: tool).wrappedValue
         let status = subtitle(for: tool)
-        let name = VStack(alignment: .leading, spacing: 2) {
-            Text(tool.displayName)
-            Text(status)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
         return HStack(spacing: 10) {
-            if expandable {
-                Button {
-                    withAnimation(AccessibilityDisplay.shared.motionReduced ? nil : .easeInOut(duration: 0.18)) { expansion(of: tool).wrappedValue.toggle() }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .rotationEffect(.degrees(expanded ? 90 : 0))
-                            .frame(width: 14)
-                        name
-                        Spacer(minLength: 0)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(expanded ? L("Hide options") : L("Show options"))
-                .accessibilityLabel("\(tool.displayName), \(status)")
-                .accessibilityValue(expanded ? L("Expanded") : L("Collapsed"))
-            } else {
-                // Off or not installed: nothing to expand, so plain text in its ordinary colours rather than a
-                // disabled button that reads the same as a missing assistant.
+            Button {
+                pane = .agent(tool)
+            } label: {
                 HStack(spacing: 8) {
-                    Color.clear.frame(width: 14, height: 1)
-                    name
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tool.displayName)
+                        Text(status)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     Spacer(minLength: 0)
+                    // Trailing, as a navigation row wears it in System Settings: the row goes somewhere, it does
+                    // not unfold.
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                 }
-                .accessibilityElement(children: .combine)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .help(L("Show options"))
+            .accessibilityLabel("\(tool.displayName), \(status)")
+            .accessibilityHint(L("Show options"))
             Toggle(tool.displayName, isOn: Binding(
                 get: { store.isShown(tool) },
                 set: { store.setEnabled(tool, $0) }
@@ -946,48 +969,11 @@ struct SettingsView: View {
         }
     }
 
-    /// Everything the collapsed row leaves out: the rings, the hidden windows, the two per-assistant switches and
-    /// whatever second read that assistant alone offers.
-    @ViewBuilder private func assistantOptions(_ tool: ToolID) -> some View {
-        // One window is still worth the section: requiring two made the ring pickers vanish without a word when a
-        // vendor's reset left only one (Cursor Enterprise, 2026-09-18), which read as a bug rather than a choice.
-        if let reading = store.status(tool).reading, !reading.windows.isEmpty {
-            WindowChoices(tool: tool, reading: reading, prefs: prefs)
-        }
-        Toggle(L("Pin to menu bar"), isOn: Binding(
-            get: { prefs.menuBarPinnedTools.contains(tool) },
-            set: { if $0 { prefs.menuBarPinnedTools.insert(tool) } else { prefs.menuBarPinnedTools.remove(tool) } }
-        ))
-        Toggle(L("Peak hours"), isOn: Binding(
-            get: { prefs.peakHoursTools.contains(tool) },
-            set: { if $0 { prefs.peakHoursTools.insert(tool) } else { prefs.peakHoursTools.remove(tool) } }
-        ))
-        switch tool {
-        case .claude:
-            Toggle(L("Also poll Claude's usage endpoint"), isOn: Binding(get: { prefs.pollClaudeEndpoint }, set: { prefs.pollClaudeEndpoint = $0; store.refreshAll() }))
-                .help(L("On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked."))
-            Toggle(L("Keep the Mac awake while an assistant is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
-                .help(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held."))
-            if prefs.keepAwake {
-                Toggle(L("Also on battery"), isOn: Binding(get: { prefs.keepAwakeOnBattery }, set: { prefs.keepAwakeOnBattery = $0; requests.awakeChanged() }))
-            }
-        case .codex:
-            Toggle(L("Also read Codex reset credits"), isOn: Binding(get: { prefs.codexResetCredits }, set: { prefs.codexResetCredits = $0; store.refreshAll() }))
-                .help(L("A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex."))
-        case .cursor:
-            Toggle(L("Also read Cursor's usage events"), isOn: Binding(get: { prefs.cursorUsageEvents }, set: { prefs.cursorUsageEvents = $0; store.refreshAll() }))
-                .help(L("A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)."))
-        case .copilot:
-            Toggle(L("Also read organisation billing"), isOn: Binding(get: { prefs.copilotOrgBilling }, set: { prefs.copilotOrgBilling = $0; store.refreshAll() }))
-                .help(L("One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month."))
-        case .antigravity:
-            EmptyView()
-        }
-    }
-
-    /// The 0.7.0 two-way features: the Sessions card, the titles it shows, answering a request from the notch
-    /// and the hold before it goes back to the terminal, and the jump to a session's terminal with the
-    /// Automation grant it may need (docs/hooks.md, docs/permissions.md).
+    /// The 0.7.0 two-way features, for every assistant at once: the Sessions card, the titles it shows, answering a
+    /// request from the notch and the hold before it goes back to the terminal, the jump to a session's terminal
+    /// with the Automation grant it may need (docs/hooks.md, docs/permissions.md), and keeping the Mac awake while
+    /// a session works, which counts every assistant's sessions and so was never Claude Code's alone. Which
+    /// assistants' sessions are read and answered is on each one's page.
     private var sessionsSection: some View {
         Section {
             Toggle(L("Show a Sessions card on the panel"), isOn: Binding(get: { prefs.sessionsCard }, set: { prefs.sessionsCard = $0 }))
@@ -1008,8 +994,10 @@ struct SettingsView: View {
             }
             Toggle(L("Jump to the terminal on click"), isOn: Binding(get: { prefs.jumpToTerminal }, set: { prefs.jumpToTerminal = $0 }))
                 .help(L("A click on a session row brings its terminal tab or pane forward, from what the hook read in its own environment: Warp by its focus link, iTerm2, Terminal and Ghostty by AppleScript, kitty and WezTerm by their own command, a tmux pane on its socket, anything else by raising the app. It never launches a terminal that is not running, and a session on another Mac has nothing to jump to."))
-            if !claudeHookIsCurrent {
-                paragraph(L("Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them."))
+            Toggle(L("Keep the Mac awake while an assistant is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
+                .help(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held."))
+            if prefs.keepAwake {
+                Toggle(L("Also on battery"), isOn: Binding(get: { prefs.keepAwakeOnBattery }, set: { prefs.keepAwakeOnBattery = $0; requests.awakeChanged() }))
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(L("Automation")).font(.subheadline.weight(.semibold))
@@ -1029,12 +1017,12 @@ struct SettingsView: View {
             }
         } header: {
             Text(L("Sessions"))
-                .help(L("What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)."))
+                .help(L("What the panel shows of each session the hooks report, and what you can do to it from there, for every assistant. All of it needs the assistant's hook; each assistant's page can stop reading its sessions or answering its requests."))
         }
     }
 
     /// Claude Code's hook carries the deciding entries: `.installed` only; a stale or partial one (a 0.6.0 install)
-    /// shows Repair under Integrations, which the copy above points at.
+    /// shows Repair in the hook section of Claude Code's page, which the copy there points at.
     private var claudeHookIsCurrent: Bool {
         if case .installed = hookStatus[.claude] ?? .notInstalled { return true }
         return false
@@ -1046,37 +1034,28 @@ struct SettingsView: View {
         }
     }
 
-    /// Which assistants are open, remembered across launches so a window reopens the way it was left.
+    /// Which assistants' pages have *Where each window comes from* open (Preferences.settingsExpandedTools),
+    /// remembered across launches so a page reopens the way it was left. The same key held which assistants had
+    /// their options unfolded in the Assistants list before each had a page; a set opened then opens this now,
+    /// which is the nearest thing on the page to what was open.
     private func expansion(of tool: ToolID) -> Binding<Bool> {
         Binding(get: { prefs.settingsExpandedTools.contains(tool) },
                 set: { if $0 { prefs.settingsExpandedTools.insert(tool) } else { prefs.settingsExpandedTools.remove(tool) } })
     }
 
+    /// Every assistant's hook at a glance, with the way to its page, where Add, Repair and the snippet are; and the
+    /// launch repair, which applies to every hooks file alike. One line per assistant, in the rings' order, always
+    /// shown, so a Mac without one of them still says "Not installed" rather than hiding the option.
     private var hookSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 8) {
-                // One row per assistant, in the rings' order; every row is always shown, so a Mac without one of
-                // them still says "Not installed" rather than hiding the option.
                 ForEach(HookVendor.allCases) { vendor in
-                    hookRow(vendor)
+                    hookSummary(vendor)
                     Divider()
                 }
                 Toggle(L("Repair a hook that points at an old copy at launch"), isOn: Binding(get: { prefs.autoRepairHooks }, set: { prefs.autoRepairHooks = $0 }))
                     .font(.caption)
                     .help(L("After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file."))
-                Divider()
-                Text(L("Claude Code status line"))
-                    .font(.subheadline.weight(.semibold))
-                    .help(L("After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it."))
-                Text(statuslineStatus.text).font(.caption).foregroundStyle(hookStatusColor(statuslineStatus))
-                HStack {
-                    Button(L("Show snippet…")) { showStatuslineSnippet = true }
-                    Button(statuslineStatus == .notInstalled ? L("Install status line…") : L("Repair")) { installStatusline() }
-                        .disabled({ if case .installed = statuslineStatus { return true } else { return false } }())
-                }
-                if let statuslineMessage {
-                    Text(statuslineMessage).font(.caption).foregroundStyle(.secondary)
-                }
             }
         } header: {
             Text(L("Hooks"))
@@ -1084,13 +1063,28 @@ struct SettingsView: View {
         }
     }
 
-    /// One vendor's row: its name, where its file stands, the snippet, and Add or Repair as the status calls for.
+    /// One assistant's line on the Integrations overview: its hook's name, where its file stands in words (colour
+    /// only repeats what the words say), and a button to its page.
+    private func hookSummary(_ vendor: HookVendor) -> some View {
+        let status = hookStatus[vendor] ?? .notInstalled
+        return HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L("%@ hook", vendor.displayName))
+                    .font(.subheadline.weight(.semibold))
+                Text(status.text).font(.caption).foregroundStyle(hookStatusColor(status))
+            }
+            Spacer()
+            Button(L("Open %@", vendor.tool.productName)) { pane = .agent(vendor.tool) }
+                .controlSize(.small)
+        }
+        .help(hookRowHelp(vendor))
+    }
+
+    /// One vendor's hook on its assistant's page, under the section header that names it: where its file stands,
+    /// the snippet, Add or Repair as the status calls for, and what the last press did.
     @ViewBuilder
     private func hookRow(_ vendor: HookVendor) -> some View {
         let status = hookStatus[vendor] ?? .notInstalled
-        Text(L("%@ hook", vendor.displayName))
-            .font(.subheadline.weight(.semibold))
-            .help(hookRowHelp(vendor))
         Text(status.text).font(.caption).foregroundStyle(hookStatusColor(status))
         HStack {
             Button(L("Show snippet…")) { showHookSnippet = vendor }
@@ -1102,6 +1096,272 @@ struct SettingsView: View {
         }
         if let message = hookMessage[vendor] {
             Text(message).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - An assistant's page
+
+    /// Whether it is on, what it says about itself, and a read of it now. The switch is the Assistants list's own
+    /// (`UsageStore.setEnabled`), so the two can never disagree; its label carries the status, so VoiceOver reads
+    /// "Signed in · Max" with the switch rather than as a line of its own.
+    private func agentOverview(_ tool: ToolID) -> some View {
+        Section {
+            Toggle(isOn: Binding(get: { store.isShown(tool) }, set: { store.setEnabled(tool, $0) })) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L("Show %@ on the panel and the rings", tool.displayName))
+                    Text(subtitle(for: tool)).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .disabled(!store.isInstalled(tool))
+            .help(L("Off stops every read of its usage and takes its rings, its card and its menu bar figures away. Its hook and its sessions follow their own switches below."))
+            Button(L("Refresh now")) { Task { await store.refresh(tool, force: true, interactive: true) } }
+                .disabled(!store.isShown(tool))
+        }
+    }
+
+    /// Its rings and windows: the ring pickers and the Hide boxes once there is a reading to choose from, and the
+    /// three per-assistant switches that need none — the menu bar pin, peak hours, and whether the Cost card
+    /// carries it (only where it can report spend at all; one that is not on keeps its place in the set, so an
+    /// afternoon signed out does not silently drop it from the card it comes back to).
+    private func agentWindows(_ tool: ToolID) -> some View {
+        Section(L("Rings and windows")) {
+            // One window is still worth the pickers: requiring two made them vanish without a word when a vendor's
+            // reset left only one (Cursor Enterprise, 2026-09-18), which read as a bug rather than a choice.
+            if let reading = store.status(tool).reading, !reading.windows.isEmpty {
+                WindowChoices(tool: tool, reading: reading, prefs: prefs)
+            } else {
+                Text(L("Waiting for the first reading")).font(.caption).foregroundStyle(.secondary)
+            }
+            Toggle(L("Pin to menu bar"), isOn: Binding(
+                get: { prefs.menuBarPinnedTools.contains(tool) },
+                set: { if $0 { prefs.menuBarPinnedTools.insert(tool) } else { prefs.menuBarPinnedTools.remove(tool) } }
+            ))
+            Toggle(L("Peak hours"), isOn: Binding(
+                get: { prefs.peakHoursTools.contains(tool) },
+                set: { if $0 { prefs.peakHoursTools.insert(tool) } else { prefs.peakHoursTools.remove(tool) } }
+            ))
+            .help(L("Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections."))
+            if tool.reportsCost {
+                Toggle(L("In the Cost card"), isOn: Binding(
+                    get: { prefs.costCardTools.contains(tool) },
+                    set: { if $0 { prefs.costCardTools.insert(tool) } else { prefs.costCardTools.remove(tool) } }
+                ))
+                .disabled(!store.isShown(tool))
+                .help(L("Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card."))
+            }
+        }
+    }
+
+    /// Its hook: status, snippet, Add or Repair, with what the vendor's hook reports and cannot, and for Claude Code
+    /// the status line beside it, which is the other half of the same connection.
+    @ViewBuilder
+    private func agentHook(_ tool: ToolID) -> some View {
+        if let vendor = HookVendor.vendor(for: tool) {
+            Section {
+                hookRow(vendor)
+                // Whole, not cut to the form's two faint lines: on the assistant's own page what its hook reports and
+                // cannot is the answer the reader came for, and the vendor's own step (Codex's trust in /hooks) sits
+                // at the end of it.
+                pageText(hookRowHelp(vendor))
+                if tool == .claude {
+                    Text(L("Claude Code status line"))
+                        .font(.subheadline.weight(.semibold))
+                        .help(L("After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it."))
+                    Text(statuslineStatus.text).font(.caption).foregroundStyle(hookStatusColor(statuslineStatus))
+                    HStack {
+                        Button(L("Show snippet…")) { showStatuslineSnippet = true }
+                        Button(statuslineStatus == .notInstalled ? L("Install status line…") : L("Repair")) { installStatusline() }
+                            .disabled({ if case .installed = statuslineStatus { return true } else { return false } }())
+                    }
+                    if let statuslineMessage {
+                        Text(statuslineMessage).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text(L("%@ hook", vendor.displayName))
+            }
+        }
+    }
+
+    /// Its sessions: whether they are read at all, and whether its requests are answered from the notch where its
+    /// hook has an event to answer. Each toggle shows what actually happens, so one the app-wide switch has turned
+    /// off reads off, disabled, with the line under it saying where that switch is — never a greyed "on" that
+    /// does nothing.
+    private func agentSessions(_ tool: ToolID) -> some View {
+        Section(L("Sessions")) {
+            Toggle(L("Read its sessions"), isOn: Binding(
+                get: { prefs.readsSessions(of: tool) },
+                set: { prefs.sessionReadingOff = Preferences.switching(prefs.sessionReadingOff, tool, on: $0) }
+            ))
+            .help(L("Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once."))
+            if tool.hasAnswerableHook {
+                Toggle(L("Answer from the notch"), isOn: Binding(
+                    get: { prefs.answersFromNotch(tool) },
+                    set: { prefs.notchAnswersOff = Preferences.switching(prefs.notchAnswersOff, tool, on: $0) }
+                ))
+                .disabled(!prefs.answerFromNotch || !prefs.readsSessions(of: tool))
+                .help(L("Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait."))
+                if !prefs.answerFromNotch {
+                    caption(L("Off for every assistant under Assistants › Sessions."))
+                } else if !prefs.readsSessions(of: tool) {
+                    caption(L("Its sessions are not read."))
+                }
+                if tool == .claude, !claudeHookIsCurrent {
+                    pageText(L("Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them."))
+                }
+            } else if let note = noAnswerNote(tool) {
+                pageText(note)
+            }
+        }
+    }
+
+    /// Its notices, inside what Notifications allows for every assistant: its limits (pace, run-out, limit hit,
+    /// reset, reminder) and its sessions (a wait, a long turn finishing, and the glance or panel either opens).
+    private func agentNotifications(_ tool: ToolID) -> some View {
+        let sessionKinds = prefs.notifyWaiting || prefs.notifyFinished
+        return Section(L("Notifications")) {
+            Toggle(L("Notify about its limits"), isOn: Binding(
+                get: { prefs.notificationsEnabled && prefs.notifiesLimits(of: tool) },
+                set: { prefs.limitNoticesOff = Preferences.switching(prefs.limitNoticesOff, tool, on: $0) }
+            ))
+            .disabled(!prefs.notificationsEnabled)
+            .help(L("Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay."))
+            if !prefs.notificationsEnabled {
+                caption(L("Off for every assistant under Notifications."))
+            }
+            Toggle(L("Notify when it waits or finishes a turn"), isOn: Binding(
+                get: { sessionKinds && prefs.readsSessions(of: tool) && prefs.notifiesSessions(of: tool) },
+                set: { prefs.sessionNoticesOff = Preferences.switching(prefs.sessionNoticesOff, tool, on: $0) }
+            ))
+            .disabled(!sessionKinds || !prefs.readsSessions(of: tool))
+            .help(L("Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait."))
+            if !sessionKinds {
+                caption(L("Off for every assistant under Notifications."))
+            } else if !prefs.readsSessions(of: tool) {
+                caption(L("Its sessions are not read."))
+            }
+        }
+    }
+
+    /// Where its figures come from: the login it reads and the requests it makes, as `docs/accuracy.md` lists
+    /// them, and each window of its reading with the source that window carries — the reference half folded
+    /// away (`expansion(of:)`), the second reads the reader can switch beside it — and for Claude Code the
+    /// Keychain policy, which is about Claude Code's login and no one else's.
+    private func agentSources(_ tool: ToolID) -> some View {
+        Section(L("Sources")) {
+            DisclosureGroup(isExpanded: expansion(of: tool)) {
+                VStack(alignment: .leading, spacing: 8) {
+                    // Each window with its source in words, the answer the disclosure's label asks for; then the
+                    // login and the requests behind all of them.
+                    VStack(alignment: .leading, spacing: 3) {
+                        if let reading = store.status(tool).reading, !reading.windows.isEmpty {
+                            ForEach(reading.windows) { window in
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(window.label)
+                                    Spacer()
+                                    Text(window.source.name).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
+                                }
+                                .font(.caption)
+                                .accessibilityElement(children: .combine)
+                            }
+                        } else {
+                            Text(L("Waiting for the first reading")).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    note(L("Login"), loginNote(tool))
+                    note(L("Readings"), readingsNote(tool))
+                }
+                // A disclosure's rows are not stretched the way a section's are.
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } label: {
+                Text(L("Where each window comes from"))
+            }
+            .accessibilityLabel(L("Where each window comes from"))
+            switch tool {
+            case .claude:
+                Toggle(L("Also poll Claude's usage endpoint"), isOn: Binding(get: { prefs.pollClaudeEndpoint }, set: { prefs.pollClaudeEndpoint = $0; store.refreshAll() }))
+                    .help(L("On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked."))
+                Picker(L("Ask for Keychain access"), selection: Binding(get: { prefs.keychainPrompts }, set: { prefs.keychainPrompts = $0 })) {
+                    ForEach(KeychainPromptPolicy.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .help(L("Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only."))
+            case .codex:
+                Toggle(L("Also read Codex reset credits"), isOn: Binding(get: { prefs.codexResetCredits }, set: { prefs.codexResetCredits = $0; store.refreshAll() }))
+                    .help(L("A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex."))
+            case .cursor:
+                Toggle(L("Also read Cursor's usage events"), isOn: Binding(get: { prefs.cursorUsageEvents }, set: { prefs.cursorUsageEvents = $0; store.refreshAll() }))
+                    .help(L("A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)."))
+            case .copilot:
+                Toggle(L("Also read organisation billing"), isOn: Binding(get: { prefs.copilotOrgBilling }, set: { prefs.copilotOrgBilling = $0; store.refreshAll() }))
+                    .help(L("One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month."))
+            case .antigravity:
+                EmptyView()
+            }
+        }
+    }
+
+    /// A titled note on a page: the title a step heavier than the text, the text whole rather than cut to two
+    /// lines, since on its own assistant's page this is the answer the reader came for, not a hint.
+    private func note(_ title: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.subheadline.weight(.semibold))
+            Text(text).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Why a toggle above it is off: shown, not only hovered, since a switch that cannot be moved has to say why.
+    private func caption(_ text: String) -> some View {
+        Text(text).font(.caption).foregroundStyle(.secondary)
+    }
+
+    /// Explanatory text on an assistant's page, whole and in the secondary colour. The form's `paragraph` is the
+    /// tertiary level cut to two lines, a hint beside a control; here the text is the page's own content, and the
+    /// tertiary grey sits under 4.5:1 on the dark form.
+    private func pageText(_ text: String) -> some View {
+        Text(text).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Where each assistant's login comes from (docs/accuracy.md, *How it reads each tool*). Literal keys per
+    /// assistant, for the reason `hookRowHelp` gives.
+    private func loginNote(_ tool: ToolID) -> String {
+        switch tool {
+        case .claude:
+            L("Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here.")
+        case .codex:
+            L("Codex's own login, from auth.json in its home folder; the plan name is Codex's own. Read only: the token is never refreshed or written.")
+        case .cursor:
+            L("The editor's own login, from Cursor's state database, sent the way cursor.com's dashboard sends it. Read only: never refreshed or written.")
+        case .antigravity:
+            L("The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. The Antigravity app keeps its own in the Keychain, out of reach, so one sign-in through Gemini CLI is needed. Read only: never refreshed or written.")
+        case .copilot:
+            L("The token Copilot's editor plugin or gh keeps: apps.json, then hosts.json, then gh's hosts.yml, each tried in turn. Read only: never refreshed or written.")
+        }
+    }
+
+    /// Where each assistant's figures come from, in one line (docs/accuracy.md, *How it reads each tool* and
+    /// *Who each request says it is*).
+    private func readingsNote(_ tool: ToolID) -> String {
+        switch tool {
+        case .claude:
+            L("The status line after every turn, Anthropic's usage endpoint while it is allowed below, and this Mac's transcripts for the cost.")
+        case .codex:
+            L("chatgpt.com's usage endpoint, else the newest rate-limit line in Codex's session files, and those files for the cost.")
+        case .cursor:
+            L("cursor.com's usage summary and the dashboard's own reads, and its usage events for the cost.")
+        case .antigravity:
+            L("Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money.")
+        case .copilot:
+            L("api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost.")
+        }
+    }
+
+    /// Why an assistant whose hook has nothing to answer offers no *Answer from the notch*.
+    private func noAnswerNote(_ tool: ToolID) -> String? {
+        switch tool {
+        case .cursor: L("Cursor has no event that can be answered: its approvals are always answered in Cursor.")
+        case .antigravity: L("Gemini CLI's hook only reports: its permission prompts are always answered in the terminal.")
+        case .claude, .codex, .copilot: nil
         }
     }
 
@@ -1699,7 +1959,7 @@ private struct PeakHoursEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Toggle(L("Peak hours (Anthropic's tighter session limits)"), isOn: Binding(get: { prefs.peakHours.enabled }, set: { prefs.peakHours.enabled = $0 }))
-                .help(L("Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants."))
+                .help(L("Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on."))
             if prefs.peakHours.enabled {
                 // Four controls in one row clipped the times to "5:0…" at the window's minimum width.
                 HStack {

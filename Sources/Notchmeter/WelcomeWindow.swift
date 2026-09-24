@@ -149,7 +149,7 @@ struct WelcomePreviews {
 /// arrows are shortcuts on buttons rather than a key handler, because in a panel that never activates the app,
 /// focus is not something a view can count on having.
 struct WelcomeView: View {
-    /// Opens Settings on Integrations with the hook offer and the status line install queued (AppDelegate).
+    /// Opens Settings on Claude Code's page with the hook offer and the status line install queued (AppDelegate).
     let install: () -> Void
     /// Closes the window, whether by Skip, Done or Escape.
     let finish: () -> Void
@@ -315,7 +315,7 @@ struct WelcomeView: View {
         case .sessions:
             L("With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal.")
         case .connect:
-            L("One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later.")
+            L("One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later.")
         }
     }
 
@@ -392,14 +392,14 @@ struct WelcomeView: View {
             permission("arrow.up.forward.app.fill", L("Automation"),
                        L("Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app."))
         case .connect:
-            // With both already in, the button offers only what pressing it does: Settings on Integrations, where
-            // they can be repaired or removed. Queuing an install of what is there would queue nothing.
+            // With both already in, the button offers only what pressing it does: Settings on Claude Code's page,
+            // where they can be repaired or removed. Queuing an install of what is there would queue nothing.
             VStack(alignment: .leading, spacing: 12) {
                 if connected {
                     Label(L("The hook and the status line are both installed."), systemImage: "checkmark.circle.fill")
                         .font(.callout)
                 }
-                Button(connected ? L("Open Integrations…") : L("Install the hook and status line…")) { install() }
+                Button(connected ? L("Open Claude Code in Settings…") : L("Install the hook and status line…")) { install() }
                     .controlSize(.large)
             }
         }

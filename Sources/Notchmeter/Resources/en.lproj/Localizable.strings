@@ -149,7 +149,6 @@
 "Add the Notchmeter hook to %@?" = "Add the Notchmeter hook to %@?";
 "Add to %@…" = "Add to %@…";
 "AI credits" = "AI credits";
-"All six Settings panes: position, hover or always open, hook install with a backup." = "All six Settings panes: position, hover or always open, hook install with a backup.";
 "Allow" = "Allow";
 "Allow (⌘Y)" = "Allow (⌘Y)";
 "Also poll Claude's usage endpoint" = "Also poll Claude's usage endpoint";
@@ -159,7 +158,6 @@
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for.";
 "Automation" = "Automation";
 "Check again" = "Check again";
-"Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them." = "Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them.";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops.";
 "Claude's usage endpoint is not polled; install the status line and run a turn for a reading" = "Claude's usage endpoint is not polled; install the status line and run a turn for a reading";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with.";
@@ -187,11 +185,9 @@
 "Hand a request back to the terminal after" = "Hand a request back to the terminal after";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Hands the request back to the terminal, which asks as it always has; Escape does the same.";
 "Hide assistants with nothing to show" = "Hide assistants with nothing to show";
-"Hide options" = "Hide options";
 "Hooks" = "Hooks";
 "Idle" = "Idle";
 "Install the hook and status line…" = "Install the hook and status line…";
-"Open Integrations…" = "Open Integrations…";
 "Installed, but an entry is out of date: Repair updates it" = "Installed, but an entry is out of date: Repair updates it";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics.";
 "Jump to the terminal" = "Jump to the terminal";
@@ -207,7 +203,7 @@
 "Not selected" = "Not selected";
 "On a trial" = "On a trial";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked.";
-"One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later." = "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later.";
+"One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later.";
 "One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest.";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app.";
@@ -647,7 +643,7 @@
 "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage" = "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage";
 "Signed in" = "Signed in";
 "Signed in · %@" = "Signed in · %@";
-"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants.";
+"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on." = "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on.";
 "snapshot" = "snapshot";
 "Sound" = "Sound";
 "Source: %@" = "Source: %@";
@@ -670,7 +666,6 @@
 "The %1$@'s %2$@ is past the %3$@ budget." = "The %1$@'s %2$@ is past the %3$@ budget.";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost.";
-"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections.";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token.";
 "The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one." = "The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one.";
@@ -732,13 +727,11 @@
 "Weekly budget" = "Weekly budget";
 "Welcome to %@" = "Welcome to %@";
 "What %@ reads" = "What %@ reads";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations).";
 "When crowded" = "When crowded";
 "When a window resets" = "When a window resets";
 "When an assistant waits for you, or a turn finishes" = "When an assistant waits for you, or a turn finishes";
 "When the cache tier or the metering shifts" = "When the cache tier or the metering shifts";
 "When you start paying (extra usage rises)" = "When you start paying (extra usage rises)";
-"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card.";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds.";
 "Wide" = "Wide";
 "Will run out (behind pace)" = "Will run out (behind pace)";
@@ -784,7 +777,7 @@
 "Custom colour" = "Custom colour";
 "Icon colour" = "Icon colour";
 "Colour" = "Colour";
-"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone.";
+"Which assistants are pinned is chosen on each assistant's page; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "Which assistants are pinned is chosen on each assistant's page; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone.";
 "By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning.";
 
 /* The peak window read on the reader's own clock, when their zone is not the window's (PeakHours, SettingsWindow) */
@@ -919,3 +912,45 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)";
 "First seen %@" = "First seen %@";
+
+/* Each assistant's own Settings page, and the panes that point at it (SettingsWindow, SettingsSearch, Models, WelcomeWindow, AssetRenderer) */
+"Show %@ on the panel and the rings" = "Show %@ on the panel and the rings";
+"Off stops every read of its usage and takes its rings, its card and its menu bar figures away. Its hook and its sessions follow their own switches below." = "Off stops every read of its usage and takes its rings, its card and its menu bar figures away. Its hook and its sessions follow their own switches below.";
+"Rings and windows" = "Rings and windows";
+"Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections." = "Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections.";
+"Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card." = "Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card.";
+"Read its sessions" = "Read its sessions";
+"Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once." = "Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once.";
+"Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait." = "Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait.";
+"Off for every assistant under Assistants › Sessions." = "Off for every assistant under Assistants › Sessions.";
+"Its sessions are not read." = "Its sessions are not read.";
+"Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them." = "Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them.";
+"Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor has no event that can be answered: its approvals are always answered in Cursor.";
+"Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal.";
+"Notify about its limits" = "Notify about its limits";
+"Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "Its pace, run-out, limit-hit, reset and reminder notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay.";
+"Off for every assistant under Notifications." = "Off for every assistant under Notifications.";
+"Notify when it waits or finishes a turn" = "Notify when it waits or finishes a turn";
+"Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait.";
+"Sources" = "Sources";
+"Login" = "Login";
+"Readings" = "Readings";
+"Where each window comes from" = "Where each window comes from";
+"The vendor's usage endpoint" = "The vendor's usage endpoint";
+"From a file the tool wrote on this Mac" = "From a file the tool wrote on this Mac";
+"Worked out on this Mac" = "Worked out on this Mac";
+"Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here.";
+"Codex's own login, from auth.json in its home folder; the plan name is Codex's own. Read only: the token is never refreshed or written." = "Codex's own login, from auth.json in its home folder; the plan name is Codex's own. Read only: the token is never refreshed or written.";
+"The editor's own login, from Cursor's state database, sent the way cursor.com's dashboard sends it. Read only: never refreshed or written." = "The editor's own login, from Cursor's state database, sent the way cursor.com's dashboard sends it. Read only: never refreshed or written.";
+"The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. The Antigravity app keeps its own in the Keychain, out of reach, so one sign-in through Gemini CLI is needed. Read only: never refreshed or written." = "The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. The Antigravity app keeps its own in the Keychain, out of reach, so one sign-in through Gemini CLI is needed. Read only: never refreshed or written.";
+"The token Copilot's editor plugin or gh keeps: apps.json, then hosts.json, then gh's hosts.yml, each tried in turn. Read only: never refreshed or written." = "The token Copilot's editor plugin or gh keeps: apps.json, then hosts.json, then gh's hosts.yml, each tried in turn. Read only: never refreshed or written.";
+"The status line after every turn, Anthropic's usage endpoint while it is allowed below, and this Mac's transcripts for the cost." = "The status line after every turn, Anthropic's usage endpoint while it is allowed below, and this Mac's transcripts for the cost.";
+"chatgpt.com's usage endpoint, else the newest rate-limit line in Codex's session files, and those files for the cost." = "chatgpt.com's usage endpoint, else the newest rate-limit line in Codex's session files, and those files for the cost.";
+"cursor.com's usage summary and the dashboard's own reads, and its usage events for the cost." = "cursor.com's usage summary and the dashboard's own reads, and its usage events for the cost.";
+"Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money." = "Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money.";
+"api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost." = "api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost.";
+"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar.";
+"What the panel shows of each session the hooks report, and what you can do to it from there, for every assistant. All of it needs the assistant's hook; each assistant's page can stop reading its sessions or answering its requests." = "What the panel shows of each session the hooks report, and what you can do to it from there, for every assistant. All of it needs the assistant's hook; each assistant's page can stop reading its sessions or answering its requests.";
+"These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices.";
+"Open Claude Code in Settings…" = "Open Claude Code in Settings…";
+"The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup.";
