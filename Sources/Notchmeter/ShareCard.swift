@@ -242,10 +242,12 @@ struct ShareCardContent: Equatable {
         return L("of API-equivalent value %@", plan.phrase)
     }
 
-    /// The words beside the ratio's badge.
+    /// The words beside the ratio's badge, counting the plans the way `PlanValue.phrase` does: a free plan beside
+    /// a paid one adds nothing to the fee, so the caption above names the one paid plan and the badge says "the
+    /// plan's price" to match, rather than "the plans" over a line that named only one.
     var ratioCaption: String? {
         guard let plan else { return nil }
-        return plan.plans.count == 1 ? L("the plan's price") : L("what the plans cost")
+        return plan.plans.filter { $0.monthlyUSD > 0 }.count == 1 ? L("the plan's price") : L("what the plans cost")
     }
 
     /// The kind of number the card is, in the words the card must carry.

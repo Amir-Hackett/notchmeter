@@ -31,6 +31,14 @@ import Testing
         #expect(PlanCatalog.price(tool: .antigravity, plan: "Pro") == nil, "Antigravity reports quota, never a cost")
         #expect(PlanCatalog.price(tool: .claude, plan: nil) == nil)
         #expect(PlanCatalog.price(tool: .claude, plan: "  ") == nil)
+        // The vendor's own punctuation names the same plan: GitHub writes "Pro+", a slug may hyphenate or
+        // underscore, and none of it makes a bare "Max" into a tier.
+        #expect(PlanCatalog.price(tool: .copilot, plan: "Pro+")?.monthlyUSD == 39)
+        #expect(PlanCatalog.price(tool: .cursor, plan: "Pro-Plus")?.monthlyUSD == 60)
+        #expect(PlanCatalog.price(tool: .cursor, plan: "pro_plus")?.monthlyUSD == 60)
+        #expect(PlanCatalog.spelled(" Pro+ ") == "Pro Plus")
+        #expect(PlanCatalog.spelled("Max--5x") == "Max 5x")
+        #expect(PlanCatalog.price(tool: .claude, plan: "Max-") == nil)
         // Every price names the vendor page it was read from, and the day the table was read is stated.
         for price in PlanCatalog.prices { #expect(price.source.hasPrefix("https://"), "\(price.tool) \(price.plan) has no source") }
         #expect(PlanCatalog.readOn == "2026-09-24")

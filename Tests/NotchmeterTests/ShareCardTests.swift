@@ -133,6 +133,12 @@ import Testing
         let claude = try provider(.claude, spend: [0: 100, 10: 100, 20: 100])
         let cursor = try provider(.cursor, spend: [0: 50])
         let content = ShareCard.content(input([claude, cursor], range: .thirtyDays, plans: [.claude: "Max 5x", .cursor: "Free"]))
+        // Cursor Free adds nothing to the fee, so the caption names the one paid plan and the badge agrees with it.
+        #expect(content.headlineCaption == "of API-equivalent value on the $100 Claude Max 5x plan")
+        #expect(content.ratioCaption == "the plan's price")
+        let twoPaid = ShareCard.content(input([claude, cursor], range: .thirtyDays, plans: [.claude: "Pro", .cursor: "Pro"]))
+        #expect(twoPaid.headlineCaption == "of API-equivalent value on $40 of plans")
+        #expect(twoPaid.ratioCaption == "what the plans cost")
         let caption = content.caption(calendar: utc)
         #expect(caption.hasPrefix("30 days (Aug 26"))
         #expect(caption.contains("Sep 24): $350 of API-equivalent value on the $100 Claude Max 5x plan · 3.5x"))

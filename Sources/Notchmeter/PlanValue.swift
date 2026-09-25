@@ -47,11 +47,23 @@ enum PlanCatalog {
         PlanPrice(tool: .copilot, plan: "Max", monthlyUSD: 100, source: "https://github.com/features/copilot/plans"),
     ]
 
-    /// The price of the plan a reading names, matched whole and without regard to case; nil for a plan the table
-    /// does not carry, a reading that names none, and every Antigravity plan (it reports quota, never a cost).
+    /// The price of the plan a reading names, matched whole and without regard to case or to how the vendor
+    /// punctuates it: GitHub writes "Pro+" on its plans page and Cursor's slug may hyphenate, so "Pro+", "Pro-Plus"
+    /// and "Pro Plus" are one name (`spelled`). Nil for a plan the table does not carry, a reading that names none,
+    /// and every Antigravity plan (it reports quota, never a cost).
     static func price(tool: ToolID, plan: String?) -> PlanPrice? {
-        guard let plan = plan?.trimmingCharacters(in: .whitespacesAndNewlines), !plan.isEmpty else { return nil }
+        guard let plan = plan.map(spelled), !plan.isEmpty else { return nil }
         return prices.first { $0.tool == tool && $0.plan.caseInsensitiveCompare(plan) == .orderedSame }
+    }
+
+    /// A plan name with its punctuation settled: "+" reads as " Plus", a hyphen or underscore as a space, and runs
+    /// of spaces as one. The name itself is never changed, only its spelling, so "Max" still names neither tier.
+    static func spelled(_ plan: String) -> String {
+        plan.replacingOccurrences(of: "+", with: " Plus")
+            .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: "_", with: " ")
+            .split(separator: " ", omittingEmptySubsequences: true)
+            .joined(separator: " ")
     }
 }
 
