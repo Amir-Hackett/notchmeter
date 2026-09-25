@@ -1,18 +1,20 @@
 # site
 
-The marketing site: static pages, one stylesheet, no build step and no dependencies.
+The marketing site: static pages, two stylesheets, no build step and no dependencies.
 
 ```
 site/
-  index.html     the landing page
-  pricing.html   Free, pay what you want, and why
-  privacy.html   the privacy policy
-  terms.html     the terms of use
-  guides/        index.html and one page per guide
-  sitemap.xml    every page at its canonical URL
-  robots.txt     allows everything and names the sitemap
-  style.css      the whole design, dark and light
-  img/           copied from ../docs/media by scripts/site-assets.sh
+  index.html            the landing page
+  pricing.html          Free, pay what you want, and why
+  privacy.html          the privacy policy
+  terms.html            the terms of use, with the vendors' own words
+  guides/               index.html and one page per guide
+  usage-trackers/       the hub of the usage-tracker pages, one folder per page beside it
+  sitemap.xml           every page at its canonical URL
+  robots.txt            allows everything and names the sitemap
+  style.css             the whole design, dark and light
+  landing.css           what the usage-tracker pages add, built from style.css's tokens
+  img/                  copied from ../docs/media by scripts/site-assets.sh
 ```
 
 Open `index.html` in a browser to look at it, or serve the folder:
@@ -78,3 +80,30 @@ string, and on Windows shows that notice with the issue as the headline button a
 one, hides the DMG row and the static line, and rewrites the hero's platform line to say there is no Windows or
 Linux version; the check runs in the browser and the result goes nowhere, so the page still makes no request and
 sets nothing.
+
+## The usage-tracker pages
+
+`usage-trackers/` is a hub and the nine folders beside it are one page each, one per tool or question people search
+for (`claude-code-usage-tracker/`, `claude-code-rate-limit-reset/`, `claude-code-opus-weekly-limit/`,
+`codex-cli-usage-tracker/`, `cursor-usage-tracker/`, `copilot-usage-tracker/`, `gemini-cli-quota-tracker/`,
+`antigravity-usage-tracker/`, `ai-usage-tracker-mac/`). Each is a folder with an `index.html` so its URL is the
+folder on any static host, with no rewrite rule: `https://www.notchmeter.com/claude-code-usage-tracker/`. They share
+`landing.css`, loaded after `style.css` and built only from its tokens, so nothing in it can change the other pages.
+
+Each page says what Notchmeter shows for that tool, where every figure comes from (a table naming the endpoint or
+file, the login it uses and what the card labels it), what the Advice strip says about it, and four to six questions
+with answers. Nothing on a page goes past `docs/accuracy.md`, `docs/features.md`, `docs/hooks.md` and the code; a
+rule is quoted with the section it lives in, and the page links that section rather than restating a figure that
+could drift. The pages follow the site's two schemes (*Light and dark*, above): every colour in `landing.css` is a
+`style.css` token, and each page declares `<meta name="color-scheme" content="dark light">` so that what the browser
+draws for itself before the stylesheet arrives, the scrollbar under the sources table or a code block at phone
+width, follows the scheme the reader asked for rather than showing a white track across a dark card.
+Each page carries a canonical URL, Open Graph tags and two JSON-LD blocks for search engines: a
+`SoftwareApplication` (this app, free, macOS 15+, with aliases that are its own name and never another product's) and
+a `FAQPage` that repeats the visible questions and answers word for word. No page names a competitor, and none runs a
+script.
+
+`sitemap.xml` lists every page at its canonical URL and `robots.txt` allows everything and names the sitemap. To add
+a page: copy a folder, change its head, add it to the hub, to `sitemap.xml` and to `SiteLandingPages` in
+`Tests/NotchmeterTests/SiteLandingPagesTests.swift`, which holds the head, the JSON-LD against the visible FAQ, the
+links, the images, the heading order and the no-script rule.

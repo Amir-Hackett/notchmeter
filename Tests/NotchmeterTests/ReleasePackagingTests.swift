@@ -300,7 +300,9 @@ import Testing
             for tracker in trackers {
                 #expect(!tags.contains { $0.contains(tracker) }, "\(page) loads \(tracker)")
             }
-            let scripts = tags.filter { $0.hasPrefix("<script") }
+            // A JSON-LD data block runs nothing; the usage-tracker pages carry two each, and SiteLandingPages holds
+            // every script tag on them to that one type.
+            let scripts = tags.filter { $0.hasPrefix("<script") && !$0.contains("application/ld+json") }
             #expect(!scripts.contains { $0.contains(" src=") }, "\(page) loads an external script")
             if page != "index.html" {
                 #expect(scripts.isEmpty, "\(page) runs a script")
@@ -339,7 +341,9 @@ import Testing
         for page in try Self.pages() {
             let html = try Self.text(page)
             let nav = try #require(SiteParity.element("nav", in: html), "\(page): a header nav")
-            let guides = page.hasPrefix("guides/") ? "href=\"index.html\"" : "href=\"guides/index.html\""
+            // A page in a folder of its own (the usage-tracker pages) reaches the guides through its parent.
+            let up = String(repeating: "../", count: page.components(separatedBy: "/").count - 1)
+            let guides = page.hasPrefix("guides/") ? "href=\"index.html\"" : "href=\"\(up)guides/index.html\""
             #expect(nav.contains(guides) && nav.contains(">Guides</a>"), "\(page): the header links the guides")
             #expect(html.contains("<a class=\"skip\" href=\"#main\">"), "\(page): a skip link")
             #expect(html.range(of: "<main[^>]*id=\"main\"", options: .regularExpression) != nil, "\(page): the skip link's target")

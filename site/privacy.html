@@ -263,7 +263,7 @@ table.dtable code { font-size: 12.4px; }
         <li><strong>Pricing settings</strong> from Claude Code's own settings file, plus any overrides you write yourself. Model prices otherwise come from a table shipped inside the app. There is no pricing lookup over the network.</li>
         <li><strong>Modification times only</strong>, with no file contents, for a handful of folders, so the app knows when to slow its polling down.</li>
         <li><strong>Whether the screen is being shared</strong>, as a yes or no from macOS, and only while the "hide usage while the screen is shared" option is on.</li>
-        <li><strong>Menu bar geometry of the frontmost app</strong>, through the macOS Accessibility API, and only if you choose the Auto layout. It is measured when you switch apps and cached, never polled.</li>
+        <li><strong>Menu bar geometry of the frontmost app</strong>, through the macOS Accessibility API, and only if you set Readouts to Auto. It is measured when you switch apps and cached, never polled.</li>
         <li><strong>Hook and status line events</strong>, if you install the optional hooks. These carry an event name, a session id, a folder name, a git branch, a permission mode, a model name, context fill and a session cost. They explicitly exclude your prompt, the response, the transcript path, the full working directory and any email address.</li>
       </ul>
 

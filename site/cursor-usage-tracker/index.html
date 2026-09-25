@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Cursor usage tracker for Mac · Notchmeter</title>
+<meta name="description" content="Cursor's included usage and on-demand spend for the cycle beside the notch, read the way cursor.com's dashboard reads them. Free, never signs in.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../landing.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. The two scripts below are JSON-LD data
+     blocks for search engines; nothing on this page runs. -->
+
+<meta property="og:title" content="A Cursor usage tracker in the MacBook notch">
+<meta property="og:description" content="Cursor's included usage and on-demand spend for the cycle beside the notch, the way cursor.com's dashboard reads them, with the team pool, the Grok Bot allowance and Cursor's own event costs.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/cursor-usage-tracker/">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://www.notchmeter.com/cursor-usage-tracker/">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "Notchmeter",
+ "alternateName": [
+  "Notchmeter for Cursor",
+  "Notchmeter usage tracker"
+ ],
+ "description": "Cursor's included usage and on-demand spend for the cycle beside the notch, read the way cursor.com's dashboard reads them. Free, never signs in.",
+ "url": "https://www.notchmeter.com/",
+ "operatingSystem": "macOS 15+",
+ "applicationCategory": "DeveloperApplication",
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "USD"
+ },
+ "isAccessibleForFree": true,
+ "downloadUrl": "https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg",
+ "license": "https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE",
+ "sameAs": [
+  "https://github.com/Amir-Hackett/notchmeter"
+ ],
+ "image": "https://www.notchmeter.com/img/expanded.png"
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Which Cursor plans does it meter?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Any seat signed into the Cursor editor on this Mac: a Pro or Ultra seat's included usage and on-demand spend, a Teams plan's pool, an Enterprise seat including one billed on-demand (its cycle figures, or Today's spend where nothing is metered), and a request-metered legacy plan's fast requests. A free plan has nothing for Cursor to meter, and the card says exactly that rather than drawing an empty bar."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why does the meter disagree with the percentage on cursor.com?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Because the ring is drawn from dollars, not from Cursor's percentage fields. Cursor staff have said those fields “reflect a different internal metric” and are “not calculated as a simple totalSpend / limit” (forum thread 168210, 2026-08-13), and between 2026-08-11 and 2026-08-17 they froze backend-side while the cents kept counting. The included ring is includedSpend over limit, the dollars are printed as the summary gave them, and where two figures disagree the window is as spent as the further-along one says. The reasoning is in docs/accuracy.md."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does Notchmeter price my Cursor usage?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. Every dollar on the Cursor row is the one Cursor itself put on that event in its usage export, which is why the row's source reads “billing export” rather than an estimate. A request or a model Cursor left unpriced stays unpriced. The export is day resolution and reaches back 30 days; anything older is what Notchmeter's own daily history has accumulated since it was installed."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it show when Cursor is waiting for me?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Not as a certainty. Cursor's hooks document no event that means the agent is asking you, so the Cursor ring shows the tick when a turn ends and the session count, and never the waiting dot. A turn that goes 45 seconds without activity and with no command running is shown as a possible wait, labelled as Notchmeter's inference rather than a Cursor event, and nothing of Cursor's can be answered from the notch."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it sign into Cursor or store my token?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. It reads the access token the editor already keeps in its state database and sends it only to cursor.com, as the cookie the dashboard sends it in, in the same reads the dashboard makes. It is never refreshed, stored or forwarded, and switching it off under Settings › Assistants stops every request to cursor.com at once."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Is reading the dashboard endpoints allowed by Cursor's terms?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Cursor's Terms of Service (effective 2026-09-03, read 2026-09-24) forbid harvesting, scraping or extracting data from the Service. These are the dashboard's own reads of your own usage, made by a program rather than the browser; whether the clause reaches them is Cursor's to say. The commitment is written down: if Cursor asks the project to stop, the meter is removed in the next release, and the release notes say so. See docs/privacy.md."
+   }
+  }
+ ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="../guides/index.html" class="hide-sm">Guides</a>
+      <a href="../usage-trackers/" class="hide-sm">Usage trackers</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="lp-hero plain">
+  <div class="wrap">
+    <nav class="lp-crumbs" aria-label="Breadcrumb"><ol><li><a href="../index.html">Notchmeter</a></li><li><a href="../usage-trackers/">Usage trackers</a></li><li aria-current="page">Cursor</li></ol></nav>
+    <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
+    <h1>A Cursor usage tracker in the MacBook notch</h1>
+    <p class="lede">Notchmeter shows Cursor's included plan usage and on-demand spend for the current billing cycle beside the notch, read the way cursor.com's own dashboard reads them, with a pace tick and the cycle's reset; the team pool and the Grok Bot weekly allowance where a seat has them; and the last 30 days of usage events with the cost Cursor itself put on each. Nothing is priced here, and nothing is signed into.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#cursors-usage-events">How the export is read</a>
+    </div>
+    <p class="cta-note">macOS 15 or later · Apple silicon or Intel · no account, ever</p>
+  </div>
+</section>
+
+<section id="shows">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>What Notchmeter shows for Cursor</h2>
+        <p>The render on the right has Cursor on a free plan, which has nothing to meter and says so; a paid seat fills the same card.</p>
+        <ul class="lp-points">
+          <li><strong>Included usage</strong>: the plan's allowance for the cycle as dollars used of the limit, with a pace tick and the cycle's reset; <strong>On-demand</strong> as dollars spent, against a limit where one is set.</li>
+          <li><strong>Team pooled</strong> and <strong>Team on-demand</strong> on a Teams plan, and <strong>Cursor models</strong> and <strong>Other models</strong>, Cursor's own two percentages, captioned <em>metered apart from the included total</em> because they are not shares of it.</li>
+          <li><strong>Grok Bot</strong>: the seven-day allowance a seat may have, or its trial, captioned as one.</li>
+          <li><strong>Today's spend</strong>, on a seat the summary meters nothing for: today's dollars from the export against your usual day. A comparison, so it paces but never runs out, warns or notifies.</li>
+          <li><strong>Cost</strong>: today, yesterday, the week, the month and 30 days, by model, every dollar the one Cursor put on that event; and the 30-day trend under the card.</li>
+          <li><strong>Sessions</strong>: with Cursor's hook, every running agent with its title and elapsed time, and a tick on the ring when a turn ends.</li>
+        </ul>
+      </div>
+      <figure class="lp-figure fit-narrow">
+        <div class="shot"><img src="../img/expanded-detailed.png" alt="The Detailed panel: the Sessions card with two Claude Code sessions, one waiting; the Cost card with today's $131 split between Claude and Cursor; the Advice strip; the Claude card with Session, Weekly and Fable meters, each with a pace tick, a projection and its reset; the Codex and Cursor cards on free plans." loading="lazy"></div>
+        <figcaption>The Detailed panel over a fixed set of readings, so it shows nobody's usage: Claude on Max 5x, Codex and Cursor on free plans.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <h2>Where each figure comes from</h2>
+    <p class="section-lede">Every window is one of cursor.com's own figures; the source is named on the card.</p>
+    <div class="lp-tablewrap" role="region" aria-label="Cursor figures and their sources" tabindex="0">
+      <table class="lp-table">
+        <caption>Read on 2026-09-24 from the code and docs/accuracy.md.</caption>
+        <thead><tr><th scope="col">Figure</th><th scope="col">Source</th><th scope="col">Notes</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Included usage, On-demand, Team pooled, Cursor models, Other models</th><td><code>GET https://cursor.com/api/usage-summary</code> (falling back to <code>/api/usage</code> on a request-metered plan, whose figure is <em>Fast requests</em>)</td><td>Undocumented dashboard endpoints; their shapes were taken from cursor.com's own traffic and are pinned by tests.</td></tr>
+          <tr><th scope="row">The cycle figures</th><td><code>POST /api/dashboard/get-current-period-usage</code>, asked only on a seat the summary meters nothing for</td><td>The included ring is <code>includedSpend / limit</code> in cents, never Cursor's percentage fields.</td></tr>
+          <tr><th scope="row">Grok Bot</th><td><code>POST /api/dashboard/get-sand-usage-status</code></td><td>A window only where the seat has the allowance or a live trial; an expired trial is no window, never an empty bar.</td></tr>
+          <tr><th scope="row">Cost</th><td><code>POST /api/dashboard/get-filtered-usage-events</code>: the last 30 days of usage events with Cursor's own cost on each. On by default; <em>Also read Cursor's usage events</em> switches it off</td><td>Day resolution, so Cursor reports no hour and never appears in a burn line; days older than 30 come from Notchmeter's own daily history, so the 90-day range is short until it has run that long.</td></tr>
+          <tr><th scope="row">Sessions</th><td>Cursor's hooks, through the optional hook command</td><td>Cursor documents no event that waits for you, so its ring never claims a wait; a turn quiet for 45 seconds with no command running is shown as a <em>possible</em> wait, labelled as Notchmeter's inference.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="lp-prose">
+      <p>The login is the editor's own access token in <code>~/Library/Application Support/Cursor/User/globalStorage/state.vscdb</code>, sent to cursor.com as the <code>WorkosCursorSessionToken</code> cookie, the form the dashboard sends it in, with <code>User-Agent: Notchmeter/&lt;version&gt;</code> and, on the POSTs, the <code>Origin: https://cursor.com</code> the dashboard's own requests carry. It is read, never refreshed or stored.</p>
+      <p>When cursor.com answers the same question twice, the window is as spent as its furthest-along figure says: an Enterprise seat once read 55% by one field while the other said the whole allowance was gone, and the billing export showed on-demand charges in that same cycle. Under-reporting a spent window hides a meter that is charging money, which is the one thing this app exists to catch, so the other way to be wrong is the one chosen (<a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#when-a-vendor-publishes-two-figures-for-one-window">When a vendor publishes two figures for one window</a>).</p>
+      <p>Cursor's Terms of Service (effective 2026-09-03, read 2026-09-24) list “harvest, scrape, or extract data from the Service” among the things a user may not do. These are the dashboard's own reads of your own usage, made by a program rather than the browser; whether the clause reaches them is Cursor's to say, and if Cursor asks the project to stop, the meter is removed in the next release (<a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#if-a-vendor-asks-us-to-stop">If a vendor asks us to stop</a>).</p>
+    </div>
+  </div>
+</section>
+
+<section id="advice">
+  <div class="wrap">
+    <h2>What it says to do about it</h2>
+    <p class="section-lede">The Advice strip's lines for Cursor. Its main window is the billing cycle.</p>
+    <div class="advice-list">
+      <div class="advice">
+        <div class="tag">Run-out</div>
+        <div class="say"><em>At this rate you hit the Cursor included usage cap Thursday at 2:00 PM, 3d 4h before reset. Claude weekly is at 22%.</em><span class="when">The included window is behind pace and has a run-out time; another tool on a paid plan with half of its main window left is named.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Room elsewhere</div>
+        <div class="say"><em>Cursor has 78% of its included usage left.</em><span class="when">Another tool's main window is on track or behind, and Cursor, on a paid plan, has half of its cycle left.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Switch models</div>
+        <div class="say"><em>Cursor models 30-day window is 91%. Other models is 34%. Switch models, not tools.</em><span class="when">One of Cursor's two model meters is 85% used and the other, or the included window, has 40% left. The first is named with its cycle's length, the second by itself.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div class="faq">
+      <details open>
+        <summary>Which Cursor plans does it meter?</summary>
+        <p class="a">Any seat signed into the Cursor editor on this Mac: a Pro or Ultra seat's included usage and on-demand spend, a Teams plan's pool, an Enterprise seat including one billed on-demand (its cycle figures, or Today's spend where nothing is metered), and a request-metered legacy plan's fast requests. A free plan has nothing for Cursor to meter, and the card says exactly that rather than drawing an empty bar.</p>
+      </details>
+      <details>
+        <summary>Why does the meter disagree with the percentage on cursor.com?</summary>
+        <p class="a">Because the ring is drawn from dollars, not from Cursor's percentage fields. Cursor staff have said those fields “reflect a different internal metric” and are “not calculated as a simple totalSpend / limit” (forum thread 168210, 2026-08-13), and between 2026-08-11 and 2026-08-17 they froze backend-side while the cents kept counting. The included ring is includedSpend over limit, the dollars are printed as the summary gave them, and where two figures disagree the window is as spent as the further-along one says. The reasoning is in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#known-divergences">docs/accuracy.md</a>.</p>
+      </details>
+      <details>
+        <summary>Does Notchmeter price my Cursor usage?</summary>
+        <p class="a">No. Every dollar on the Cursor row is the one Cursor itself put on that event in its usage export, which is why the row's source reads “billing export” rather than an estimate. A request or a model Cursor left unpriced stays unpriced. The export is day resolution and reaches back 30 days; anything older is what Notchmeter's own daily history has accumulated since it was installed.</p>
+      </details>
+      <details>
+        <summary>Does it show when Cursor is waiting for me?</summary>
+        <p class="a">Not as a certainty. Cursor's hooks document no event that means the agent is asking you, so the Cursor ring shows the tick when a turn ends and the session count, and never the waiting dot. A turn that goes 45 seconds without activity and with no command running is shown as a possible wait, labelled as Notchmeter's inference rather than a Cursor event, and nothing of Cursor's can be answered from the notch.</p>
+      </details>
+      <details>
+        <summary>Does it sign into Cursor or store my token?</summary>
+        <p class="a">No. It reads the access token the editor already keeps in its state database and sends it only to cursor.com, as the cookie the dashboard sends it in, in the same reads the dashboard makes. It is never refreshed, stored or forwarded, and switching it off under Settings › Assistants stops every request to cursor.com at once.</p>
+      </details>
+      <details>
+        <summary>Is reading the dashboard endpoints allowed by Cursor's terms?</summary>
+        <p class="a">Cursor's Terms of Service (effective 2026-09-03, read 2026-09-24) forbid harvesting, scraping or extracting data from the Service. These are the dashboard's own reads of your own usage, made by a program rather than the browser; whether the clause reaches them is Cursor's to say. The commitment is written down: if Cursor asks the project to stop, the meter is removed in the next release, and the release notes say so. See <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/privacy.md">docs/privacy.md</a>.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap centered">
+    <h2>Install it</h2>
+    <p class="section-lede">macOS 15 Sequoia or later, Apple silicon or Intel. Signed, notarised, and it updates itself. Free forever, MIT licensed.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Download the DMG</a>
+      <a class="btn btn-ghost" href="../usage-trackers/">All usage trackers</a>
+    </div>
+    <div class="lp-brew">
+      <div class="code"><span class="p"># or with Homebrew</span>
+brew tap Amir-Hackett/tap
+brew trust --cask Amir-Hackett/tap/notchmeter
+brew install --cask notchmeter</div>
+    </div>
+    <p class="cta-note">Notchmeter is a Mac app. There is no Windows or Linux version; if you want a Windows one, <a href="https://github.com/Amir-Hackett/notchmeter/issues/32">the Windows issue</a> is where to say so. How every figure is built, with its source and its date: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h2>Notchmeter</h2>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h2>Product</h2>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="../guides/index.html">Guides</a></li>
+          <li><a href="../usage-trackers/">Usage trackers</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

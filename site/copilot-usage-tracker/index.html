@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>GitHub Copilot usage tracker for Mac · Notchmeter</title>
+<meta name="description" content="Copilot's monthly AI credits, or a legacy seat's premium requests, beside the notch with pace and reset, from Copilot's own endpoint. Free, never signs in.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../landing.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. The two scripts below are JSON-LD data
+     blocks for search engines; nothing on this page runs. -->
+
+<meta property="og:title" content="A GitHub Copilot usage tracker in the MacBook notch">
+<meta property="og:description" content="The month's AI credits, used and left, with a pace tick and the reset on the first of the month, from the endpoint Copilot's own editor plugin asks; a cent a credit on the Cost card.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/copilot-usage-tracker/">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://www.notchmeter.com/copilot-usage-tracker/">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "Notchmeter",
+ "alternateName": [
+  "Notchmeter for GitHub Copilot",
+  "Notchmeter usage tracker"
+ ],
+ "description": "Copilot's monthly AI credits, or a legacy seat's premium requests, beside the notch with pace and reset, from Copilot's own endpoint. Free, never signs in.",
+ "url": "https://www.notchmeter.com/",
+ "operatingSystem": "macOS 15+",
+ "applicationCategory": "DeveloperApplication",
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "USD"
+ },
+ "isAccessibleForFree": true,
+ "downloadUrl": "https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg",
+ "license": "https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE",
+ "sameAs": [
+  "https://github.com/Amir-Hackett/notchmeter"
+ ],
+ "image": "https://www.notchmeter.com/img/expanded.png"
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Which Copilot plans does it meter?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Copilot Free's chat and completion quotas; a Pro, Pro+, Business or Enterprise seat that GitHub meters in AI credits, which is how GitHub has billed Copilot since 2026-06-01; and a legacy seat's premium-request allowance. An org admin can opt in to the organisation's month as well. A GitHub account with no Copilot subscription is told so, not shown an empty bar."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why does it show credits rather than requests times a rate?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Because a cent a credit is GitHub's own published rate, and the credit count is GitHub's own running total, so the figure is GitHub's arithmetic and not Notchmeter's. Request counts on a legacy seat stay counts: multiplying them by an overage rate would invent a bill for requests inside the allowance."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Why is the daily spend for Copilot approximate?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "GitHub publishes one month-to-date count and not when each credit was spent, so Notchmeter lays every rise on the day it saw it, sets the month's baseline at its first read rather than charging the whole count to one day, and takes a falling count as the reset. Credits spent while the app was not running land on the day it next looks, and credits spent before it first looked are never charged to any day. The row is tagged an estimate for exactly that reason."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it send another client's identity to GitHub?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "For the quota read, yes: the endpoint is keyed on the Copilot Chat extension's identifiers and answers no other, so the request carries them. The organisation reads carry Notchmeter's own name. It is the one borrowed identity in the app, and it is stated in docs/privacy.md and in the accuracy document rather than left in the code."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it need the gh command line tool?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. It reads the token Copilot's editor plugin keeps in apps.json or hosts.json first, and gh's hosts.yml only after those. Whichever answers is used, read only, never refreshed or written."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Can I answer a Copilot CLI permission from the notch?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes, with the Copilot CLI hook. Copilot's PascalCase PermissionRequest documents the same decision shape as Claude Code's, so the panel opens on the request with Allow and Deny, and it fails open: hand it back, let the hold run out, or quit Notchmeter, and Copilot asks in the terminal as it always has. docs/hooks.md has the events and the fail-open rule."
+   }
+  }
+ ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="../guides/index.html" class="hide-sm">Guides</a>
+      <a href="../usage-trackers/" class="hide-sm">Usage trackers</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="lp-hero plain">
+  <div class="wrap">
+    <nav class="lp-crumbs" aria-label="Breadcrumb"><ol><li><a href="../index.html">Notchmeter</a></li><li><a href="../usage-trackers/">Usage trackers</a></li><li aria-current="page">GitHub Copilot</li></ol></nav>
+    <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
+    <h1>A GitHub Copilot usage tracker in the MacBook notch</h1>
+    <p class="lede">Notchmeter shows the month's AI-credit allowance on a Copilot seat GitHub bills by usage, used, left and the reset on the first of the month, with a pace tick and a projection, beside the notch, from the same endpoint Copilot's own editor plugin asks; on a legacy seat the premium-request allowance, and on Copilot Free the chat and completion quotas. The credits used, a cent each at GitHub's published rate, join the Cost card.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#github-copilots-ai-credits">How the credits are read</a>
+    </div>
+    <p class="cta-note">macOS 15 or later · Apple silicon or Intel · no account, ever</p>
+  </div>
+</section>
+
+<section id="shows">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>What Notchmeter shows for GitHub Copilot</h2>
+        <p>The strip on the right is drawn from a fixed set of readings that has no Copilot seat on it; a seat that does adds a ring of its own in the same row, in Copilot's yellow.</p>
+        <ul class="lp-points">
+          <li><strong>AI credits</strong>, on a seat GitHub meters in credits: the month's count used and the remainder against the entitlement where a snapshot carries one, with a pace tick, a projection and the reset on the first of the month. A seat marked unlimited says so rather than drawing a bar.</li>
+          <li><strong>Premium requests</strong> on a legacy seat, and <strong>Chat</strong> and <strong>Completions</strong> where a plan meters them, Copilot Free's included. Request counts stay counts: multiplying them by an overage rate would invent a bill.</li>
+          <li><strong>Cost</strong>: the credits used times a cent, on the Cost card as a row whose source reads <em>AI credits</em>, with the day series being what this Mac observed.</li>
+          <li><strong>Organisation billing</strong>, opt-in for org admins: the month's organisation credits and spend as hidden-by-default windows, GitHub's own figures, and kept off the Cost card because they are the whole organisation's month rather than this seat's.</li>
+          <li><strong>Sessions</strong>: with the Copilot CLI hook, every running session, a dot on the ring while Copilot waits for a permission, and Allow or Deny from the notch.</li>
+        </ul>
+      </div>
+      <figure class="lp-figure fit-medium">
+        <div class="shot"><img src="../img/compact-top.png" alt="The strip beside the notch: the Claude ring at 14% with a white dot on its corner, the Codex ring at 0% and the Cursor ring with no figure." loading="lazy"></div>
+        <figcaption>The strip beside the notch, drawn from a fixed set of readings rather than a live account. The white dot on the Claude ring says a session is waiting for you.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <h2>Where each figure comes from</h2>
+    <p class="section-lede">The count is GitHub's and the rate is GitHub's. Nothing on this card is priced here.</p>
+    <div class="lp-tablewrap" role="region" aria-label="Copilot figures and their sources" tabindex="0">
+      <table class="lp-table">
+        <caption>Read on 2026-09-24 from the code and docs/accuracy.md.</caption>
+        <thead><tr><th scope="col">Figure</th><th scope="col">Source</th><th scope="col">Notes</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">AI credits, Premium requests, Chat, Completions</th><td><code>GET https://api.github.com/copilot_internal/user</code>: the read Copilot's editor plugin makes to show its own quota (<code>quota_snapshots</code> with <code>credits_used</code> since June 2026; Copilot Free's <code>monthly_quotas</code> and <code>limited_user_quotas</code>)</td><td>Undocumented, and keyed on the client identity it answers to, so the request carries the Copilot Chat extension's identifiers (<code>Editor-Version: vscode/1.96.2</code>, <code>Editor-Plugin-Version: copilot-chat/0.26.7</code>, <code>User-Agent: GitHubCopilotChat/0.26.7</code>, <code>X-Github-Api-Version: 2025-04-01</code>). That is the one borrowed identity in the app, and it is said here rather than left in the code.</td></tr>
+          <tr><th scope="row">Cost</th><td><code>credits_used</code> times $0.01: “1 AI credit = $0.01 USD” (docs.github.com, <em>Billing for individuals</em>, read 2026-09-20)</td><td>GitHub publishes the month-to-date count and not when each credit was spent, so every poll's rise is laid on the day it was seen, the first read of a month sets the baseline, and a count that falls is the month's reset. Tagged an estimate for that reason alone.</td></tr>
+          <tr><th scope="row">Plan allowances</th><td>Only where a snapshot carries an <code>entitlement</code></td><td>GitHub publishes no per-seat ceiling on any endpoint, so the plan allowances (Pro 1,500, Pro+ 7,000, Max 20,000, Business 1,900, Enterprise 3,900 a month) are never assumed.</td></tr>
+          <tr><th scope="row">Organisation billing</th><td><code>GET /user/orgs</code>, then <code>/orgs/&lt;org&gt;/settings/billing/usage/summary</code>: GitHub's public REST API, opt-in</td><td>With <code>User-Agent: Notchmeter/&lt;version&gt;</code> and the documented <code>X-GitHub-Api-Version: 2022-11-28</code>.</td></tr>
+          <tr><th scope="row">Sessions, waits</th><td>The Copilot CLI hook: <code>permission_prompt</code> and <code>elicitation_dialog</code> start a wait; its PascalCase <code>PermissionRequest</code> can be answered</td><td>A Copilot <code>agent_completed</code> is about a background subagent and never ends a wait it did not answer.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="lp-prose">
+      <p>The login is the <code>oauth_token</code> Copilot's editor plugin keeps in <code>~/.config/github-copilot/apps.json</code> (every github.com entry tried in turn), then <code>hosts.json</code>, then the one <code>gh</code> keeps in <code>~/.config/gh/hosts.yml</code>; a token that does not answer falls through to the next. Each is read, never refreshed or written, and sent only to api.github.com as <code>Authorization: token</code>.</p>
+      <p>Why credits and only credits: since 2026-06-01 GitHub bills Copilot by usage in AI credits, with a monthly allowance per plan that resets on the first of the month and does not roll over. The count times a cent is the one Copilot figure that is money. A seat whose snapshots carry no <code>credits_used</code>, a legacy premium-request quota, produces no cost row, and the line under the legend says <em>GitHub reports no AI credits for this seat</em>. The full rule: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#github-copilots-ai-credits">GitHub Copilot’s AI credits</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section id="advice">
+  <div class="wrap">
+    <h2>What it says to do about it</h2>
+    <p class="section-lede">The Advice strip's lines for Copilot. Its main window is the month.</p>
+    <div class="advice-list">
+      <div class="advice">
+        <div class="tag">Run-out</div>
+        <div class="say"><em>At this rate you hit the Copilot premium requests cap Thursday at 2:00 PM, 3d 4h before reset. Claude weekly is at 22%.</em><span class="when">The month's window is behind pace and has a run-out time, and the line names the window it is about, here a legacy seat's premium requests; another tool on a paid plan with half of its main window left is named.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Room elsewhere</div>
+        <div class="say"><em>Copilot has 78% of its premium requests left.</em><span class="when">Another tool's main window is on track or behind, and Copilot, on a paid plan, has half of the month's allowance left. Copilot Free is never the room named.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Needs you</div>
+        <div class="say"><em>GitHub Copilot is waiting in notchmeter.</em><span class="when">The Copilot CLI hook reports a permission prompt or an elicitation; with a session id the line names the project.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div class="faq">
+      <details open>
+        <summary>Which Copilot plans does it meter?</summary>
+        <p class="a">Copilot Free's chat and completion quotas; a Pro, Pro+, Business or Enterprise seat that GitHub meters in AI credits, which is how GitHub has billed Copilot since 2026-06-01; and a legacy seat's premium-request allowance. An org admin can opt in to the organisation's month as well. A GitHub account with no Copilot subscription is told so, not shown an empty bar.</p>
+      </details>
+      <details>
+        <summary>Why does it show credits rather than requests times a rate?</summary>
+        <p class="a">Because a cent a credit is GitHub's own published rate, and the credit count is GitHub's own running total, so the figure is GitHub's arithmetic and not Notchmeter's. Request counts on a legacy seat stay counts: multiplying them by an overage rate would invent a bill for requests inside the allowance.</p>
+      </details>
+      <details>
+        <summary>Why is the daily spend for Copilot approximate?</summary>
+        <p class="a">GitHub publishes one month-to-date count and not when each credit was spent, so Notchmeter lays every rise on the day it saw it, sets the month's baseline at its first read rather than charging the whole count to one day, and takes a falling count as the reset. Credits spent while the app was not running land on the day it next looks, and credits spent before it first looked are never charged to any day. The row is tagged an estimate for exactly that reason.</p>
+      </details>
+      <details>
+        <summary>Does it send another client's identity to GitHub?</summary>
+        <p class="a">For the quota read, yes: the endpoint is keyed on the Copilot Chat extension's identifiers and answers no other, so the request carries them. The organisation reads carry Notchmeter's own name. It is the one borrowed identity in the app, and it is stated in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/privacy.md">docs/privacy.md</a> and in the accuracy document rather than left in the code.</p>
+      </details>
+      <details>
+        <summary>Does it need the gh command line tool?</summary>
+        <p class="a">No. It reads the token Copilot's editor plugin keeps in apps.json or hosts.json first, and gh's hosts.yml only after those. Whichever answers is used, read only, never refreshed or written.</p>
+      </details>
+      <details>
+        <summary>Can I answer a Copilot CLI permission from the notch?</summary>
+        <p class="a">Yes, with the Copilot CLI hook. Copilot's PascalCase PermissionRequest documents the same decision shape as Claude Code's, so the panel opens on the request with Allow and Deny, and it fails open: hand it back, let the hold run out, or quit Notchmeter, and Copilot asks in the terminal as it always has. <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">docs/hooks.md</a> has the events and the fail-open rule.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap centered">
+    <h2>Install it</h2>
+    <p class="section-lede">macOS 15 Sequoia or later, Apple silicon or Intel. Signed, notarised, and it updates itself. Free forever, MIT licensed.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Download the DMG</a>
+      <a class="btn btn-ghost" href="../usage-trackers/">All usage trackers</a>
+    </div>
+    <div class="lp-brew">
+      <div class="code"><span class="p"># or with Homebrew</span>
+brew tap Amir-Hackett/tap
+brew trust --cask Amir-Hackett/tap/notchmeter
+brew install --cask notchmeter</div>
+    </div>
+    <p class="cta-note">Notchmeter is a Mac app. There is no Windows or Linux version; if you want a Windows one, <a href="https://github.com/Amir-Hackett/notchmeter/issues/32">the Windows issue</a> is where to say so. How every figure is built, with its source and its date: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h2>Notchmeter</h2>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h2>Product</h2>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="../guides/index.html">Guides</a></li>
+          <li><a href="../usage-trackers/">Usage trackers</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

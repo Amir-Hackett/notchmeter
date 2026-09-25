@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Usage trackers for AI coding tools · Notchmeter</title>
+<meta name="description" content="One free Mac app metering Claude Code, Codex, Cursor, Copilot, Gemini CLI, Antigravity, Kimi Code and OpenCode beside the notch, with a page per tool.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../landing.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. The two scripts below are JSON-LD data
+     blocks for search engines; nothing on this page runs. -->
+
+<meta property="og:title" content="Usage trackers for AI coding tools, in the MacBook notch">
+<meta property="og:description" content="One free Mac app, one page per tool: what Notchmeter shows for each, where every figure comes from, and what it says to do about it.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/usage-trackers/">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://www.notchmeter.com/usage-trackers/">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "Notchmeter",
+ "alternateName": [
+  "Notchmeter for Mac",
+  "Notchmeter usage tracker"
+ ],
+ "description": "One free Mac app metering Claude Code, Codex, Cursor, Copilot, Gemini CLI, Antigravity, Kimi Code and OpenCode beside the notch, with a page per tool.",
+ "url": "https://www.notchmeter.com/",
+ "operatingSystem": "macOS 15+",
+ "applicationCategory": "DeveloperApplication",
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "USD"
+ },
+ "isAccessibleForFree": true,
+ "downloadUrl": "https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg",
+ "license": "https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE",
+ "sameAs": [
+  "https://github.com/Amir-Hackett/notchmeter"
+ ],
+ "image": "https://www.notchmeter.com/img/expanded.png"
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "Do I need all eight tools installed?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No. Notchmeter meters whichever tools have a login on this Mac; switch the others off under Settings › Assistants and the strip shows what is left, with the rings giving their room to the ones you keep."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it track more than one account per tool?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "It reads the login each tool keeps on this Mac, so it follows the account that tool is signed into. Switch accounts in Claude Code, Codex, Cursor, Gemini CLI, Kimi Code or your editor and the notch follows on its next read."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Which tools show a cost?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Claude Code and Codex, priced here from this Mac's transcripts and rollouts at the vendors' published rates and labelled as estimates; Cursor and GitHub Copilot, with the vendor's own figures; OpenCode, from the cost its own database recorded on each turn, or on OpenCode Go the Go page's rates applied here; and Gemini CLI, Antigravity and Kimi Code not at all, because Google and Moonshot meter quota rather than money. A tool that cannot report spend has no row, not a $0."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does it tell me which tool to use?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "When one tool's window is behind pace and another tool on a paid plan still has half of its own left, the Advice strip names it: “Codex has 78% of its weekly left.” It never names a free tier as the room to move to."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Where do the numbers come from?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "From the vendor wherever the vendor publishes one, in the same read-only status request that vendor's own app or dashboard makes, and otherwise from a rule written down with its source and its date in docs/accuracy.md, pinned by tests. Notchmeter does not show a number it cannot show its work for."
+   }
+  }
+ ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="../guides/index.html" class="hide-sm">Guides</a>
+      <a href="../usage-trackers/" class="here hide-sm" aria-current="page">Usage trackers</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="lp-hero plain">
+  <div class="wrap">
+    <nav class="lp-crumbs" aria-label="Breadcrumb"><ol><li><a href="../index.html">Notchmeter</a></li><li aria-current="page">Usage trackers</li></ol></nav>
+    <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
+    <h1>Usage trackers for AI coding tools, in the MacBook notch</h1>
+    <p class="lede">Notchmeter is one free, open-source Mac app that meters eight AI coding tools beside the MacBook notch — or on any screen edge — with a pace tick, a projection and the reset on every window, and an Advice strip that says what to do about the number. Every figure is the vendor's own or an estimate whose rule is written down, with its source and its date, in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="../ai-usage-tracker-mac/">Why one app for all of them</a>
+    </div>
+    <p class="cta-note">macOS 15 or later · Apple silicon or Intel · no account, ever</p>
+  </div>
+</section>
+
+<section id="pages">
+  <div class="wrap">
+    <h2>One page per tool</h2>
+    <p class="section-lede">Each page says what Notchmeter shows for that tool, where every figure on it comes from, and what the Advice strip says to do about it.</p>
+    <div class="tools">
+      <a class="tool" href="../claude-code-usage-tracker/">
+        <h3><span class="ring" style="color:#d97757"></span>Claude Code</h3>
+        <p>The 5-hour session window, the weekly window and the per-model weekly limits, plus what your local sessions would have cost at API list prices.</p>
+        <span class="more">The Claude Code usage tracker</span>
+      </a>
+      <a class="tool" href="../claude-code-rate-limit-reset/">
+        <h3><span class="ring" style="color:#d97757"></span>Claude Code: when the limit resets</h3>
+        <p>The reset as a countdown or an exact time, whether you will run out before it, and a notification when the window comes back.</p>
+        <span class="more">When the Claude Code limit resets</span>
+      </a>
+      <a class="tool" href="../claude-code-opus-weekly-limit/">
+        <h3><span class="ring" style="color:#d97757"></span>Claude Code: the Opus weekly limit</h3>
+        <p>Each per-model weekly limit as its own meter, and one line when a model is nearly gone while another has room.</p>
+        <span class="more">The Opus weekly limit</span>
+      </a>
+      <a class="tool" href="../codex-cli-usage-tracker/">
+        <h3><span class="ring" style="color:#5CD49E"></span>Codex</h3>
+        <p>The session, weekly or monthly rate-limit windows from the same backend Codex itself asks, and this Mac's sessions priced at OpenAI's rates.</p>
+        <span class="more">The Codex CLI usage tracker</span>
+      </a>
+      <a class="tool" href="../cursor-usage-tracker/">
+        <h3><span class="ring" style="color:#a68cfa"></span>Cursor</h3>
+        <p>Included plan usage and on-demand spend for the billing cycle, read the way cursor.com's own dashboard reads it, and the export's own costs.</p>
+        <span class="more">The Cursor usage tracker</span>
+      </a>
+      <a class="tool" href="../copilot-usage-tracker/">
+        <h3><span class="ring" style="color:#F0E442"></span>GitHub Copilot</h3>
+        <p>The month's AI-credit allowance on a seat GitHub bills by usage, or a legacy seat's premium requests, from the endpoint Copilot's own plugin asks.</p>
+        <span class="more">The Copilot usage tracker</span>
+      </a>
+      <a class="tool" href="../gemini-cli-quota-tracker/">
+        <h3><span class="ring" style="color:#E36FC0"></span>Gemini CLI</h3>
+        <p>The per-model quota Google meters for Gemini CLI, from the Code Assist endpoints its own /stats reads.</p>
+        <span class="more">The Gemini CLI quota tracker</span>
+      </a>
+      <a class="tool" href="../antigravity-usage-tracker/">
+        <h3><span class="ring" style="color:#56B4E9"></span>Antigravity</h3>
+        <p>The session and weekly quota Antigravity's own panel shows for its model groups, under Antigravity's own identity.</p>
+        <span class="more">The Antigravity usage tracker</span>
+      </a>
+      <a class="tool" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#kimi-code-an-allowance-two-shapes-of-answer">
+        <h3><span class="ring" style="color:#7ED957"></span>Kimi Code</h3>
+        <p>The rolling five-hour window, the week and the monthly pools, from the endpoint Kimi Code's own <code>/usage</code> command reads; where Kimi's two kinds of figure disagree about a window, the further-along one is shown.</p>
+        <span class="more">How Kimi Code is read, in docs/accuracy.md</span>
+      </a>
+      <a class="tool" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#opencode-its-own-records-and-a-go-meter-computed-here">
+        <h3><span class="ring" style="color:#BE3CE6"></span>OpenCode</h3>
+        <p>The OpenCode Go meter, computed on this Mac from OpenCode's own database at the Go page's published rates and limits, its spend on the Cost card and its sessions, with no request to anyone.</p>
+        <span class="more">How OpenCode is read, in docs/accuracy.md</span>
+      </a>
+      <a class="tool" href="../ai-usage-tracker-mac/">
+        <h3><span class="ring" style="color:#0072B2"></span>All of them, on a Mac</h3>
+        <p>What one meter for every tool looks like, what it reads, what it never does, and what it costs to run.</p>
+        <span class="more">An AI usage tracker for the Mac</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section id="common">
+  <div class="wrap">
+    <h2>What every meter has in common</h2>
+    <p class="section-lede">The same rules apply to all eight tools, and each is written down with its source and its date in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+    <div class="pillars">
+      <div class="pillar">
+        <div class="big">A pace tick</div>
+        <p>Where an even burn would be right now, on every window that declares its length; a window without one shows its fraction and its reset and no tick.</p>
+      </div>
+      <div class="pillar">
+        <div class="big">A projection</div>
+        <p>“~67% left at reset” or “Runs out in 2h”, and a run-out range measured from your own last seven days once there is enough to measure.</p>
+      </div>
+      <div class="pillar">
+        <div class="big">A source label</div>
+        <p>Every window says whose figure it is: the vendor's, Claude Code's status line, a tool's last session file, or an estimate.</p>
+      </div>
+      <div class="pillar">
+        <div class="big">No sign-in</div>
+        <p>Each reading is borrowed from the tool that owns the account, on the login that tool already keeps on this Mac. Nothing is stored and nothing goes to a server of ours.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="cost">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>Which tools report spend</h2>
+        <p>The Cost card carries one row per tool whose spend can be derived from something that tool publishes, and no row at all for one that cannot: not $0, because a zero says "this cost you nothing", and that would be a claim.</p>
+        <ul class="lp-points">
+          <li><strong>Claude Code</strong> and <strong>Codex</strong>: this Mac's transcripts and session rollouts, priced here at Anthropic's and OpenAI's published rates. An estimate, and labelled as one.</li>
+          <li><strong>Cursor</strong>: the cost Cursor itself put on each event in its usage export. Nothing is priced here.</li>
+          <li><strong>GitHub Copilot</strong>: GitHub's own count of the seat's AI credits, a cent each at GitHub's published rate.</li>
+          <li><strong>OpenCode</strong>: on OpenCode Go, the Go page's published rates applied here to each turn's tokens; otherwise the cost OpenCode itself recorded, or a direct Anthropic or OpenAI model at that vendor's list rate; anything else is counted in tokens with no figure.</li>
+          <li><strong>Gemini CLI, Antigravity and Kimi Code</strong>: no row. Google and Moonshot meter quota, not money, and publish nothing a rate could be applied to.</li>
+        </ul>
+        <p style="margin-top:16px">The rules, the rates and every known divergence from a bill: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#which-tools-report-spend">Which tools report spend</a>.</p>
+      </div>
+      <figure class="lp-figure fit-medium">
+        <div class="shot"><img src="../img/dashboard.png" alt="The Usage Dashboard: total, daily average, peak day and today for the week; daily spend stacked by assistant; each limit with its pace tick and how much a day lasts to the reset; spend by model and by project; and a line under it all naming where each figure came from." loading="lazy"></div>
+        <figcaption>The Usage Dashboard (⌘U) over the same fixed readings: the week's spend and every limit in one window, with a line saying where each figure came from.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div class="faq">
+      <details open>
+        <summary>Do I need all eight tools installed?</summary>
+        <p class="a">No. Notchmeter meters whichever tools have a login on this Mac; switch the others off under Settings › Assistants and the strip shows what is left, with the rings giving their room to the ones you keep.</p>
+      </details>
+      <details>
+        <summary>Does it track more than one account per tool?</summary>
+        <p class="a">It reads the login each tool keeps on this Mac, so it follows the account that tool is signed into. Switch accounts in Claude Code, Codex, Cursor, Gemini CLI, Kimi Code or your editor and the notch follows on its next read.</p>
+      </details>
+      <details>
+        <summary>Which tools show a cost?</summary>
+        <p class="a">Claude Code and Codex, priced here from this Mac's transcripts and rollouts at the vendors' published rates and labelled as estimates; Cursor and GitHub Copilot, with the vendor's own figures; OpenCode, from the cost its own database recorded on each turn, or on OpenCode Go the Go page's rates applied here; and Gemini CLI, Antigravity and Kimi Code not at all, because Google and Moonshot meter quota rather than money. A tool that cannot report spend has no row, not a $0.</p>
+      </details>
+      <details>
+        <summary>Does it tell me which tool to use?</summary>
+        <p class="a">When one tool's window is behind pace and another tool on a paid plan still has half of its own left, the Advice strip names it: “Codex has 78% of its weekly left.” It never names a free tier as the room to move to.</p>
+      </details>
+      <details>
+        <summary>Where do the numbers come from?</summary>
+        <p class="a">From the vendor wherever the vendor publishes one, in the same read-only status request that vendor's own app or dashboard makes, and otherwise from a rule written down with its source and its date in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>, pinned by tests. Notchmeter does not show a number it cannot show its work for.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap centered">
+    <h2>Install it</h2>
+    <p class="section-lede">macOS 15 Sequoia or later, Apple silicon or Intel. Signed, notarised, and it updates itself. Free forever, MIT licensed.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Download the DMG</a>
+      <a class="btn btn-ghost" href="../index.html">See everything it does</a>
+    </div>
+    <div class="lp-brew">
+      <div class="code"><span class="p"># or with Homebrew</span>
+brew tap Amir-Hackett/tap
+brew trust --cask Amir-Hackett/tap/notchmeter
+brew install --cask notchmeter</div>
+    </div>
+    <p class="cta-note">Notchmeter is a Mac app. There is no Windows or Linux version; if you want a Windows one, <a href="https://github.com/Amir-Hackett/notchmeter/issues/32">the Windows issue</a> is where to say so. How every figure is built, with its source and its date: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h2>Notchmeter</h2>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h2>Product</h2>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="../guides/index.html">Guides</a></li>
+          <li><a href="../usage-trackers/">Usage trackers</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
