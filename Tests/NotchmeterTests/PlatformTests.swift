@@ -136,6 +136,11 @@ import Testing
         #expect(Money.tokens(12_000_000) == "12M tokens")
         #expect(Money.tokens(310_400) == "310K tokens")
         #expect(Money.tokens(812) == "812 tokens")
+        #expect(Money.compactCount(4_200_000) == "4.2M")
+        #expect(Money.compactCount(12_000_000) == "12M")
+        #expect(Money.compactCount(310_400) == "310K")
+        #expect(Money.compactCount(812) == "812")
+        #expect(Money.compactCount(0) == "0")
         #expect(TokenBreakdown(input: 10, cacheRead: 30).cacheReadShare == 0.75)
         #expect(TokenBreakdown().cacheReadShare == nil)
     }

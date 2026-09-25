@@ -577,7 +577,7 @@ private struct ProblemMark: View {
 /// black stroke, which is what keeps them legible over a tool colour, over Liquid Glass and over the black notch
 /// alike; the shape inside is what tells the two states apart, so nothing here rests on the ring's hue and the
 /// distinction survives the colouring being turned off.
-private struct SignalMark: View {
+struct SignalMark: View {
     /// The black ring both marks carry. `Circle().stroke` is centred on the path, so a 1 pt stroke adds half a
     /// point outside the disc on every side and a mark covers its disc plus one whole point.
     static let strokeWidth: CGFloat = 1
@@ -708,6 +708,10 @@ struct CompactReadout: View {
     var apiKeyCost: String? = nil
     /// The assistant's symbol with its rings (Preferences.ringSymbols).
     var ringSymbol = false
+    /// Moves the outer ring to the tool's next (+1) or previous (-1) window (UsageStore.cycleRing), for VoiceOver's
+    /// adjustable action, the keyboard's way to what a scroll over the ring does; nil where there is only one
+    /// window to show.
+    var retarget: ((Int) -> Void)? = nil
     @State private var pulsing = false
     @State private var pulseTask: Task<Void, Never>?
     static let pulseCycles = 3
@@ -729,7 +733,16 @@ struct CompactReadout: View {
         .onChange(of: reduceMotion) { updatePulse() }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(tool.displayName)
-        .accessibilityValue(Spoken.status(status, signal: signal))
+        .accessibilityValue(spokenValue)
+        .modifier(RingAdjustable(retarget: retarget))
+    }
+
+    /// The window the outer ring shows leads what VoiceOver reads, so an adjustment is heard as the ring's new
+    /// window before the figures of every window follow.
+    private var spokenValue: String {
+        let status = Spoken.status(status, signal: signal)
+        guard retarget != nil, let window = windows.first else { return status }
+        return [L("Ring shows %@", window.label), status].filter { !$0.isEmpty }.joined(separator: "; ")
     }
 
     @ViewBuilder private var parts: some View {
@@ -791,10 +804,12 @@ private extension UsageStore {
                  figures: CompactFit.Figures = .all) -> CompactReadout {
         let status = status(tool)
         let apiKeyCost = tool == .claude && claudeOnAPIKey ? Money.dollars(cost?.totals(.month).cost ?? 0, cents: false) : nil
+        let cycles = status.reading.map { RingCycle.candidates(prefs.panelWindows(of: $0)).count > 1 } ?? false
         return CompactReadout(tool: tool, status: status, style: style, figures: figures, display: prefs.usageDisplay,
                               windows: status.reading.map(prefs.ringWindows) ?? [], signal: signal(tool), signalColours: prefs.signalRings,
                               contextUsed: tool == .claude ? contextUsed : nil, countdown: prefs.showResetCountdown, primary: prefs.compactPrimary,
-                              hideFigures: hidesFigures, presence: presence, axis: axis, apiKeyCost: apiKeyCost, ringSymbol: prefs.ringSymbols)
+                              hideFigures: hidesFigures, presence: presence, axis: axis, apiKeyCost: apiKeyCost, ringSymbol: prefs.ringSymbols,
+                              retarget: cycles ? { [weak self] step in self?.cycleRing(tool, by: step, cause: .voiceOver) } : nil)
     }
 
     /// The tools with a compact readout: Claude on an API key has nothing to draw unless a figure is shown, which
@@ -840,6 +855,9 @@ struct NotchCompactView: View {
 
     /// Opens the panel on the peek's session; nil where the view is only measured.
     var openNews: ((NotchNews) -> Void)? = nil
+    /// Where each readout registers itself for scroll-to-retarget (RingTargets); nil where the view is only
+    /// measured, so a probe's copy never answers for a ring on screen.
+    var ringTargets: RingTargets? = nil
 
     /// The news this side names, and how: nil when there is no peek, when it is switched off, when this view was
     /// handed a run to measure (CompactStripProbe asks for readouts, never for a peek), or when the layout gives
@@ -889,21 +907,35 @@ struct NotchCompactView: View {
         .environment(\.colorScheme, .dark)
     }
 
+    /// What this side draws in place of a peek: the readouts, the assistants' symbols or nothing, as the closed
+    /// notch's mode for the phase asks (UsageStore.closedNotchShows). A run handed in is a measurement of readouts
+    /// (CompactStripProbe sizing Auto's candidates), so it is always drawn as readouts whatever the notch shows.
+    /// The symbols take the same tools as the readouts would, split the same way across the notch, so switching
+    /// modes never moves an assistant to the other side; nothing draws nothing at all, and the notch keeps only the
+    /// hover region around the hardware notch itself.
     private var readouts: some View {
         let presence = store.presence
         let run = drawn
         let visible = store.compactTools(style: run.style)
         // Clamped because the store can lose a tool between the fit being resolved and this being drawn.
         let tools = Array(visible[run.readouts.clamped(to: 0 ..< visible.count)])
-        return HStack(spacing: run.style.showsNumbers ? 9 : 7) {
-            ForEach(tools, id: \.self) { tool in
-                store.readout(tool, presence: presence, style: run.style, figures: run.figures)
+        let shows = self.run == nil ? store.closedNotchShows : .readouts
+        let drawnTools = shows == .nothing ? [] : tools
+        let overflow = shows == .nothing ? 0 : run.overflow
+        return HStack(spacing: shows == .readouts && run.style.showsNumbers ? 9 : 7) {
+            ForEach(drawnTools, id: \.self) { tool in
+                if shows == .agents {
+                    AgentGlyph(tool: tool, state: store.agentGlyphState(tool), presence: presence)
+                } else {
+                    store.readout(tool, presence: presence, style: run.style, figures: run.figures)
+                        .ringTarget(tool, in: ringTargets)
+                }
             }
-            if run.overflow > 0 {
-                CompactOverflow(count: run.overflow, presence: presence)
+            if overflow > 0 {
+                CompactOverflow(count: overflow, presence: presence)
             }
         }
-        .padding(.horizontal, tools.isEmpty && run.overflow == 0 ? 0 : 6)
+        .padding(.horizontal, drawnTools.isEmpty && overflow == 0 ? 0 : 6)
         .environment(\.layoutDirection, .leftToRight)
     }
 }
@@ -913,6 +945,8 @@ struct NotchCompactView: View {
 struct EdgeCompactView: View {
     let store: UsageStore
     let edge: PanelEdge
+    /// Set by EdgePanelRoot for the pill on screen (RingTargets); absent in the probes that measure it.
+    @Environment(\.ringTargets) private var ringTargets
 
     var body: some View {
         let style = store.prefs.compactStyle
@@ -921,6 +955,7 @@ struct EdgeCompactView: View {
         let horizontal = edge == .bottom || edge == .top
         let readouts = ForEach(tools, id: \.self) { tool in
             store.readout(tool, presence: presence, axis: horizontal ? .horizontal : .vertical, style: style)
+                .ringTarget(tool, in: ringTargets)
         }
         Group {
             if horizontal {
@@ -1856,6 +1891,13 @@ struct SpendCard: View {
             .accessibilityLabel(L("Cost, %@", range.title))
             .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, burnLine, problemLines.first, gaps.first?.text,
                                             store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine))
+            // The week, day by day and split by assistant: always where the Simple panel's Cost row opens onto this
+            // card, so the row's hover is never the only way to it, and behind Show details on the Detailed card,
+            // which keeps its height budget without it. Outside the element above, which VoiceOver reads as one
+            // line: the chart is an element of its own.
+            if embedded || store.prefs.showDetails, let week = WeekSpend.of(selection, now: Date()) {
+                WeekSpendChart(week: week, mode: mode)
+            }
             if store.prefs.showDetails, let totals, !totals.models.isEmpty, totals.cost > 0 {
                 ModelShares(shares: totals.models, total: totals.cost, byModel: totals.byModel, tokensByModel: nil, mode: mode, rangeTokens: totals.tokens.total)
             }

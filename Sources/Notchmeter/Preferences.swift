@@ -70,12 +70,13 @@ enum CompactStyle: String, CaseIterable, Codable {
 }
 
 /// Which display carries the panel: the built-in one with the notch, the main (menu bar) display, the one under the
-/// pointer, every display at once, or one named by its identity key (DisplayIdentity; an older preference holds
-/// the localizedName and still matches on it).
+/// pointer, every display at once, the displays switched on one by one (`selected`, Preferences.displaySwitches),
+/// or one named by its identity key (DisplayIdentity; an older preference holds the localizedName and still
+/// matches on it).
 enum DisplayChoice: Hashable, Codable {
-    case builtIn, main, pointer, all, named(String)
+    case builtIn, main, pointer, all, selected, named(String)
 
-    static let fixed: [DisplayChoice] = [.builtIn, .main, .pointer, .all]
+    static let fixed: [DisplayChoice] = [.builtIn, .main, .pointer, .all, .selected]
 
     var title: String {
         switch self {
@@ -83,6 +84,7 @@ enum DisplayChoice: Hashable, Codable {
         case .main: L("Main display (the one with the menu bar)")
         case .pointer: L("Display with the pointer")
         case .all: L("All displays")
+        case .selected: L("Chosen displays")
         case .named(let name): name
         }
     }
@@ -93,6 +95,7 @@ enum DisplayChoice: Hashable, Codable {
         case .main: "main"
         case .pointer: "pointer"
         case .all: "all"
+        case .selected: "selected"
         case .named(let name): "named:\(name)"
         }
     }
@@ -103,6 +106,7 @@ enum DisplayChoice: Hashable, Codable {
         case "main": self = .main
         case "pointer": self = .pointer
         case "all": self = .all
+        case "selected": self = .selected
         default:
             guard rawValue.hasPrefix("named:"), rawValue.count > 6 else { return nil }
             self = .named(String(rawValue.dropFirst(6)))
@@ -142,6 +146,21 @@ enum PanelMode: String, CaseIterable, Codable {
         switch self {
         case .simple: L("Simple")
         case .detailed: L("Detailed")
+        }
+    }
+}
+
+/// What a Sessions card row leads with (SessionsCard.line): the conversation's own title, with the project, branch
+/// and terminal under it, or the project, with the title under it. Title is the default because it is what the
+/// row has led with since 0.7.0 and what tells two sessions of one project apart; project suits a reader who
+/// keeps one conversation per repository and finds the work by where it runs.
+enum SessionRowLead: String, CaseIterable, Codable {
+    case title, project
+
+    var title: String {
+        switch self {
+        case .title: L("Conversation title")
+        case .project: L("Project name")
         }
     }
 }
@@ -552,6 +571,15 @@ final class Preferences {
     var display: DisplayChoice {
         didSet { defaults.set(display.rawValue, forKey: Keys.display); report(Keys.display, display.rawValue, changed: display != oldValue) }
     }
+    /// Under `DisplayChoice.selected`, the switch per display, keyed by its identity (DisplayIdentity) so a switch
+    /// survives the display being unplugged and plugged back in. Only a switch the user turned is written; a display
+    /// with none follows `DisplaySwitches.isOn`'s default, so a new display arrives on if it has a notch.
+    var displaySwitches: [String: Bool] {
+        didSet {
+            defaults.set(displaySwitches, forKey: Keys.displaySwitches)
+            report(Keys.displaySwitches, displaySwitches.map { "\($0.key):\($0.value)" }.sorted(), changed: displaySwitches != oldValue)
+        }
+    }
     var showOverFullScreenApps: Bool {
         didSet { defaults.set(showOverFullScreenApps, forKey: Keys.fullScreen); report(Keys.fullScreen, showOverFullScreenApps, changed: showOverFullScreenApps != oldValue) }
     }
@@ -576,6 +604,15 @@ final class Preferences {
     /// to someone who remembers the order. Off by default, since at this size it is a mark to learn, not a label.
     var ringSymbols: Bool {
         didSet { defaults.set(ringSymbols, forKey: Keys.ringSymbols); report(Keys.ringSymbols, ringSymbols, changed: ringSymbols != oldValue) }
+    }
+    /// What the closed notch shows while an assistant is working, waiting for the user or has just finished
+    /// (ClosedNotch), and what it shows when nothing is running. Both are the readouts by default, which is the
+    /// strip as it has always been; the notch layout reads them, and the edges and the pill keep their readouts.
+    var closedWhileWorking: ClosedNotchMode {
+        didSet { defaults.set(closedWhileWorking.rawValue, forKey: Keys.closedWhileWorking); report(Keys.closedWhileWorking, closedWhileWorking.rawValue, changed: closedWhileWorking != oldValue) }
+    }
+    var closedWhenQuiet: ClosedNotchMode {
+        didSet { defaults.set(closedWhenQuiet.rawValue, forKey: Keys.closedWhenQuiet); report(Keys.closedWhenQuiet, closedWhenQuiet.rawValue, changed: closedWhenQuiet != oldValue) }
     }
     /// An assistant that is switched on and installed but has nothing to show — no reading, no spend, no session —
     /// stays off the panel and the strip until it has (UsageStore.visibleTools). The last visible one is never hidden.
@@ -990,6 +1027,27 @@ final class Preferences {
     var coworkSessions: Bool {
         didSet { defaults.set(coworkSessions, forKey: Keys.coworkSessions); report(Keys.coworkSessions, coworkSessions, changed: coworkSessions != oldValue) }
     }
+    /// How many rows the Sessions card draws before it counts the rest as "+N more": one of `sessionRowChoices`,
+    /// six by default, which is the cap the card had before it was a setting (SessionsCard.rowCap).
+    var sessionRows: Int {
+        didSet {
+            // Same shape as finishedAfterMinutes below: the snap writes back only when it changes the value.
+            let snapped = Self.sessionRowChoice(sessionRows)
+            if snapped != sessionRows { sessionRows = snapped; return }
+            defaults.set(sessionRows, forKey: Keys.sessionRows)
+            report(Keys.sessionRows, sessionRows, changed: sessionRows != oldValue)
+        }
+    }
+    nonisolated static let sessionRowChoices = [4, 6, 8, 10]
+    /// A stored count that is not one of the choices (a hand-edited default) reads as the nearest one, the lower
+    /// on a tie, so the card never draws a count the picker cannot show.
+    nonisolated static func sessionRowChoice(_ count: Int) -> Int {
+        sessionRowChoices.min { abs($0 - count) < abs($1 - count) } ?? 6
+    }
+    /// What a session row leads with (SessionRowLead).
+    var sessionRowLead: SessionRowLead {
+        didSet { defaults.set(sessionRowLead.rawValue, forKey: Keys.sessionRowLead); report(Keys.sessionRowLead, sessionRowLead.rawValue, changed: sessionRowLead != oldValue) }
+    }
     /// Whether a prompt's first line is kept as the session's title. Off, the store drops the title before it
     /// reaches the tracker (UsageStore.hookReceived), so nothing of the prompt is held anywhere in the app.
     var sessionTitles: Bool {
@@ -1174,6 +1232,11 @@ final class Preferences {
         static let hoverDelay = "hoverDelay"
         static let edge = "panelEdge"
         static let display = "display"
+        static let displaySwitches = "displaySwitches"
+        static let closedWhileWorking = "closedNotchWhileWorking"
+        static let closedWhenQuiet = "closedNotchWhenQuiet"
+        static let sessionRows = "sessionRows"
+        static let sessionRowLead = "sessionRowLead"
         static let fullScreen = "showOverFullScreenApps"
         static let fullScreenExceptions = "fullScreenExceptions"
         static let hotkeyFullScreen = "hotkeyShowOverFullScreen"
@@ -1319,6 +1382,9 @@ final class Preferences {
         hoverDelay = defaults.object(forKey: Keys.hoverDelay) as? Double ?? HoverIntent.expandDwell
         edge = PanelEdge(rawValue: defaults.string(forKey: Keys.edge) ?? "") ?? .top
         display = DisplayChoice(rawValue: defaults.string(forKey: Keys.display) ?? "") ?? .builtIn
+        displaySwitches = defaults.dictionary(forKey: Keys.displaySwitches) as? [String: Bool] ?? [:]
+        closedWhileWorking = ClosedNotchMode(rawValue: defaults.string(forKey: Keys.closedWhileWorking) ?? "") ?? .readouts
+        closedWhenQuiet = ClosedNotchMode(rawValue: defaults.string(forKey: Keys.closedWhenQuiet) ?? "") ?? .readouts
         showOverFullScreenApps = defaults.object(forKey: Keys.fullScreen) as? Bool ?? false
         fullScreenExceptions = defaults.stringArray(forKey: Keys.fullScreenExceptions) ?? []
         compactStyle = CompactStyle(rawValue: defaults.string(forKey: Keys.compactStyle) ?? "") ?? .rings
@@ -1415,6 +1481,8 @@ final class Preferences {
         sessionsCard = defaults.object(forKey: Keys.sessionsCard) as? Bool ?? true
         detectSessions = defaults.object(forKey: Keys.detectSessions) as? Bool ?? true
         coworkSessions = defaults.object(forKey: Keys.coworkSessions) as? Bool ?? true
+        sessionRows = Self.sessionRowChoice(defaults.object(forKey: Keys.sessionRows) as? Int ?? SessionsCard.rowCap)
+        sessionRowLead = SessionRowLead(rawValue: defaults.string(forKey: Keys.sessionRowLead) ?? "") ?? .title
         sessionTitles = defaults.object(forKey: Keys.sessionTitles) as? Bool ?? true
         openCodeStorageSessions = defaults.object(forKey: Keys.openCodeStorageSessions) as? Bool ?? true
         answerFromNotch = defaults.object(forKey: Keys.answerFromNotch) as? Bool ?? true

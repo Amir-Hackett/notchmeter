@@ -203,7 +203,7 @@
 "On a trial" = "On a trial";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked.";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later.";
-"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest.";
+"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. As many rows as set below, then a count of the rest." = "One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. As many rows as set below, then a count of the rest.";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app.";
 "Open Automation settings…" = "Open Automation settings…";
@@ -1138,3 +1138,28 @@
 "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1." = "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1.";
 "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window." = "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window.";
 "The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it." = "The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it.";
+/* Panel controls: rows at once, the row's lead, the closed notch while working and quiet, scroll a ring to retarget it, a switch per display, the week on the Cost row (SessionsCard, ClosedNotch, RingRetarget, ScreenSelection, WeekSpend, SettingsWindow) */
+"Chosen displays" = "Chosen displays";
+"Show on these displays" = "Show on these displays";
+"At least one display stays on." = "At least one display stays on.";
+"A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "A display you have not switched is on when it has a notch. The last display on cannot be switched off.";
+"Shown here while no chosen display is connected." = "Shown here while no chosen display is connected.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants.";
+"While an assistant works" = "While an assistant works";
+"When nothing is running" = "When nothing is running";
+"Rings or numbers" = "Rings or numbers";
+"Assistant symbols" = "Assistant symbols";
+"Nothing" = "Nothing";
+"What the closed notch shows while a session is working, waiting for you or has just finished, and for five seconds after, so a quick turn does not flicker." = "What the closed notch shows while a session is working, waiting for you or has just finished, and for five seconds after, so a quick turn does not flicker.";
+"Nothing leaves the notch bare and still opens on hover; the readouts come back while a window is behind pace or out, so a limit running out is never hidden." = "Nothing leaves the notch bare and still opens on hover; the readouts come back while a window is behind pace or out, so a limit running out is never hidden.";
+"Working means a session is working, waiting for you or has just finished, which needs an assistant's hook. Nothing still opens on hover." = "Working means a session is working, waiting for you or has just finished, which needs an assistant's hook. Nothing still opens on hover.";
+"Sessions shown at once" = "Sessions shown at once";
+"How many rows the Sessions card draws before it counts the rest as “+N more”." = "How many rows the Sessions card draws before it counts the rest as “+N more”.";
+"A row leads with" = "A row leads with";
+"Conversation title" = "Conversation title";
+"Project name" = "Project name";
+"Conversation title puts the prompt's first line on top and the project, branch and terminal under it; project name swaps them. Under a project's header the branch leads instead, since the header already names the project." = "Conversation title puts the prompt's first line on top and the project, branch and terminal under it; project name swaps them. Under a project's header the branch leads instead, since the header already names the project.";
+"Ring shows %@" = "Ring shows %@";
+"Adjust to change which window the ring watches" = "Adjust to change which window the ring watches";
+"Last 7 days" = "Last 7 days";
+"Today %1$@ · 7 days %2$@" = "Today %1$@ · 7 days %2$@";

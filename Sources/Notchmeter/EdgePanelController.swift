@@ -39,6 +39,10 @@ final class EdgePanelController: NSObject, PanelPresenting {
     private var keyMonitor: Any?
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     private var transitionSerial = 0
+    /// The readouts in the notch or pill, for a scroll over one of them (RingRetarget), and the label that names the
+    /// window a scroll moved a ring to.
+    private let ringTargets = RingTargets()
+    private let ringLabel = RingLabelPresenter()
 
     init(edge: PanelEdge, screen: NSScreen, store: UsageStore, prefs: Preferences, actions: NotchActions) {
         self.edge = edge
@@ -75,6 +79,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
         hover.holdsOpen = { [weak self] in self.map { $0.promptHeld && $0.expanded } ?? false }
         hover.isOffScreen = { [weak self] in self.map { $0.panel.isVisible && !$0.panel.isOnActiveSpace } ?? false }
         hover.pointerEnteredCompact = { [weak self] in self?.store.wakeFromIdle() }
+        hover.ringAt = { [weak self] point in self?.ringTargets.tool(at: point) }
+        hover.ringScrolled = { [weak self] tool, step in self?.retarget(tool, by: step) }
         clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown, .leftMouseDown]) { [weak self] event in
             let secondary = event.type == .rightMouseDown || event.modifierFlags.contains(.control)
             let handled = MainActor.assumeIsolated {
@@ -222,8 +228,18 @@ final class EdgePanelController: NSObject, PanelPresenting {
         // The discard path, as in NotchController.hide(): the watch and its poll end with the controller.
         fullScreenWatch?.stop()
         fullScreenWatch = nil
+        ringLabel.close()
         transitionSerial += 1
         panel.orderOut(nil)
+    }
+
+    /// A scroll over a readout moved its ring (UsageStore.cycleRing): name the new window beside it for a moment,
+    /// inboard of a side notch, above the bottom bar, under the top pill.
+    private func retarget(_ tool: ToolID, by step: Int) {
+        guard let window = store.cycleRing(tool, by: step, cause: .scroll) else { return }
+        let ring = ringTargets.rect(of: tool) ?? hover.regions.compact
+        ringLabel.show(RingCycle.label(window, display: prefs.usageDisplay, hideFigures: store.hidesFigures), near: ring, edge: edge,
+                       screen: screen.frame, behavior: Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen))
     }
 
     func showOptions() {
@@ -409,7 +425,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
     }
 
     private func root(_ arrangement: EdgeArrangement) -> EdgePanelRoot {
-        EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, screen: screen, arrangement: arrangement)
+        EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, screen: screen, arrangement: arrangement, ringTargets: ringTargets)
     }
 
     /// How far a top or bottom bar stands off its edge, and how far a side stands off when it has had to give the
@@ -542,7 +558,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
                  prefs.monthlyBudgetUSD, prefs.sessionsCard, prefs.jumpToTerminal, store.panelOpenedForPrompt,
                  store.attentionNotice?.session.id, store.hooksInstalled, store.openCodePluginInstalled, store.openSessionLists, store.promptFocus,
                  store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial, prefs.panelAccent,
-                 prefs.usageStyle, prefs.hourClock)
+                 prefs.usageStyle, prefs.hourClock, prefs.sessionRows, prefs.sessionRowLead)
             layout(animated: false)
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced
@@ -602,6 +618,8 @@ struct EdgePanelRoot: View {
     let edge: PanelEdge
     let screen: NSScreen
     let arrangement: EdgePanelController.EdgeArrangement
+    /// The presenter's registry for scroll-to-retarget, handed to the readouts through the environment.
+    var ringTargets: RingTargets? = nil
 
     var body: some View {
         ZStack {
@@ -631,6 +649,7 @@ struct EdgePanelRoot: View {
         // The pill and the card are their own shapes on the desktop, so they can be light; the notch layout
         // cannot, and neither can the side notch, which forces dark inside its own shape.
         .environment(\.colorScheme, prefs.appearance.colorScheme ?? .dark)
+        .environment(\.ringTargets, ringTargets)
     }
 }
 

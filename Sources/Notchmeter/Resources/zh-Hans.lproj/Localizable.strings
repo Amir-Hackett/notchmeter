@@ -203,7 +203,7 @@
 "On a trial" = "试用中";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "开启时，应用在没有新鲜状态行替代的情况下，每五分钟用 Claude Code 自己的登录读取 api.anthropic.com 的用量端点。关闭时只依赖状态行，即 Anthropic 记录在案的渠道：Claude 环只在 Claude Code 完成一轮后填充，且从不请求该端点。";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "在 ~/.claude/settings.json 中加入一条记录，Claude Code 就能在会话开始、一轮结束或等待你时通知刘海；状态行则在每一轮之后交出上下文占用和官方限额。两者都会先备份；之后可在“设置”中 Claude Code 的页面修复或移除。";
-"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "每个会话一行，钩子报告的和未经钩子找到的都在内，最新的在前：它在做什么、运行在哪个助手和哪个终端里、本轮已运行多久，以及是否在等你。显示六行，其余以数量计。";
+"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. As many rows as set below, then a count of the rest." = "每个会话一行，钩子报告的和未经钩子找到的都在内，最新的在前：它在做什么、运行在哪个助手和哪个终端里、本轮已运行多久，以及是否在等你。按下方的设置显示若干行，其余以数量计。";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "仅当你选择“读数 › 自动”时需要，它让读数避开最前面应用的菜单标题。它只读取菜单栏的几何位置，别无其他。";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "仅用于跳转到某个会话的终端窗口，且只在你第一次跳转时请求。应用中没有其他部分会操控别的应用。";
 "Open Automation settings…" = "打开自动化设置…";
@@ -1138,3 +1138,28 @@
 "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1." = "在你选择的主题中，面板上每一行文字的对比度都在 4.5:1 以上，每个标记在 3:1 以上。";
 "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window." = "在你选择的主题中，即使在白色窗口上，面板上每一行文字的对比度也在 4.5:1 以上，每个标记在 3:1 以上。";
 "The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it." = "设置窗口和边缘布局的胶囊会跟随此选择。无论这里如何选择，打开的面板都跟随上方的“主题”；屏幕侧边的刘海形状始终为深色：它必须看起来是屏幕的一部分，而不是叠在上面的东西。";
+/* Panel controls: rows at once, the row's lead, the closed notch while working and quiet, scroll a ring to retarget it, a switch per display, the week on the Cost row (SessionsCard, ClosedNotch, RingRetarget, ScreenSelection, WeekSpend, SettingsWindow) */
+"Chosen displays" = "所选显示器";
+"Show on these displays" = "在这些显示器上显示";
+"At least one display stays on." = "至少保留一台显示器开启。";
+"A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "未手动切换过的显示器，有刘海时默认开启。最后一台开启的显示器无法关闭。";
+"Shown here while no chosen display is connected." = "在没有已选显示器连接时，显示在此处。";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "在圆环上横向滚动（双指或鼠标滚轮）可切换它显示的窗口。选择会被保留，并与“助手”中该助手的“选项”一致。";
+"While an assistant works" = "助手工作时";
+"When nothing is running" = "没有任务运行时";
+"Rings or numbers" = "圆环或数字";
+"Assistant symbols" = "助手符号";
+"Nothing" = "不显示";
+"What the closed notch shows while a session is working, waiting for you or has just finished, and for five seconds after, so a quick turn does not flicker." = "会话正在工作、等待你或刚刚完成时，以及之后五秒内，收起的刘海显示什么；这样短回合不会造成闪烁。";
+"Nothing leaves the notch bare and still opens on hover; the readouts come back while a window is behind pace or out, so a limit running out is never hidden." = "“不显示”让刘海保持空白，悬停仍可展开；当窗口节奏落后或已用完时读数会恢复，绝不会隐藏即将用尽的额度。";
+"Working means a session is working, waiting for you or has just finished, which needs an assistant's hook. Nothing still opens on hover." = "工作中指会话正在工作、等待你或刚刚完成，这需要助手的钩子。选择“不显示”时仍可悬停展开。";
+"Sessions shown at once" = "同时显示的会话数";
+"How many rows the Sessions card draws before it counts the rest as “+N more”." = "会话卡片显示多少行，其余计为“还有 N 个”。";
+"A row leads with" = "每行首先显示";
+"Conversation title" = "对话标题";
+"Project name" = "项目名称";
+"Conversation title puts the prompt's first line on top and the project, branch and terminal under it; project name swaps them. Under a project's header the branch leads instead, since the header already names the project." = "“对话标题”把提示的第一行放在上方，项目、分支和终端放在下方；“项目名称”则将两者对调。在项目标题下改为分支在前，因为标题已写明项目。";
+"Ring shows %@" = "圆环显示 %@";
+"Adjust to change which window the ring watches" = "调整以切换圆环显示的窗口";
+"Last 7 days" = "最近 7 天";
+"Today %1$@ · 7 days %2$@" = "今日 %1$@ · 7 天 %2$@";

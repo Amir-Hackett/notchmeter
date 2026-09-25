@@ -186,7 +186,7 @@
 "On a trial" = "Đang dùng thử";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "Bật: ứng dụng đọc điểm cuối dùng của api.anthropic.com bằng đăng nhập của chính Claude Code mỗi năm phút khi không có dòng trạng thái mới thay thế. Tắt: chỉ dựa vào dòng trạng thái, kênh Anthropic ghi nhận: vòng Claude chỉ đầy sau một lượt Claude Code, và điểm cuối không bao giờ bị hỏi.";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "Một mục trong ~/.claude/settings.json cho phép Claude Code báo cho tai thỏ khi một phiên bắt đầu, một lượt kết thúc hoặc nó chờ bạn, và dòng trạng thái chuyển mức đầy ngữ cảnh cùng giới hạn chính thức sau mỗi lượt. Cả hai đều được sao lưu trước; trang Claude Code trong Cài đặt có thể sửa hoặc gỡ chúng sau.";
-"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "Mỗi phiên một dòng, cả phiên do hook báo cáo lẫn phiên tìm thấy mà không cần hook, mới nhất trước: nó đang làm gì, chạy trong trợ lý nào và terminal nào, lượt đã chạy bao lâu, và nó có đang chờ bạn không. Sáu dòng, rồi đếm số còn lại.";
+"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. As many rows as set below, then a count of the rest." = "Mỗi phiên một dòng, cả phiên do hook báo cáo lẫn phiên tìm thấy mà không cần hook, mới nhất trước: nó đang làm gì, chạy trong trợ lý nào và terminal nào, lượt đã chạy bao lâu, và nó có đang chờ bạn không. Số dòng theo thiết lập bên dưới, rồi đếm số còn lại.";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Chỉ khi bạn chọn Số liệu › Tự động, để dời số liệu tránh tiêu đề menu của ứng dụng đang ở trước. Nó chỉ đọc hình học của thanh menu, không gì khác.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Chỉ để nhảy tới cửa sổ terminal của một phiên, lần đầu bạn làm vậy. Không phần nào khác của ứng dụng điều khiển ứng dụng khác.";
 "Open Automation settings…" = "Mở cài đặt Tự động hoá…";
@@ -1121,3 +1121,28 @@
 "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1." = "Với chủ đề bạn chọn, mọi dòng trên bảng đạt độ tương phản 4,5:1 trở lên, và mọi dấu hiệu đạt 3:1.";
 "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window." = "Với chủ đề bạn chọn, kể cả trên một cửa sổ trắng, mọi dòng trên bảng đạt độ tương phản 4,5:1 trở lên, và mọi dấu hiệu đạt 3:1.";
 "The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it." = "Cửa sổ Cài đặt và viên thuốc của bố cục ở cạnh màn hình theo lựa chọn này. Bảng đang mở theo Chủ đề ở trên dù bạn chọn gì ở đây, và hình notch ở cạnh bên màn hình luôn tối: nó phải trông như một phần của màn hình chứ không phải thứ đặt lên trên.";
+/* Panel controls: rows at once, the row's lead, the closed notch while working and quiet, scroll a ring to retarget it, a switch per display, the week on the Cost row (SessionsCard, ClosedNotch, RingRetarget, ScreenSelection, WeekSpend, SettingsWindow) */
+"Chosen displays" = "Màn hình đã chọn";
+"Show on these displays" = "Hiện trên các màn hình này";
+"At least one display stays on." = "Luôn giữ bật ít nhất một màn hình.";
+"A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "Màn hình bạn chưa bật tắt sẽ được bật nếu có tai thỏ. Màn hình cuối cùng còn bật không thể tắt.";
+"Shown here while no chosen display is connected." = "Hiển thị ở đây khi không có màn hình đã chọn nào được kết nối.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Cuộn ngang trên một vòng, bằng hai ngón hoặc con lăn chuột, để đổi cửa sổ mà vòng theo dõi. Lựa chọn được giữ lại và dùng chung với Tùy chọn của trợ lý trong mục Trợ lý.";
+"While an assistant works" = "Khi một trợ lý đang làm việc";
+"When nothing is running" = "Khi không có gì chạy";
+"Rings or numbers" = "Vòng hoặc số";
+"Assistant symbols" = "Biểu tượng trợ lý";
+"Nothing" = "Không hiện gì";
+"What the closed notch shows while a session is working, waiting for you or has just finished, and for five seconds after, so a quick turn does not flicker." = "Những gì tai thỏ đóng hiển thị khi một phiên đang làm việc, đang chờ bạn hoặc vừa xong, và thêm năm giây sau đó, để một lượt ngắn không nhấp nháy.";
+"Nothing leaves the notch bare and still opens on hover; the readouts come back while a window is behind pace or out, so a limit running out is never hidden." = "Không hiện gì để tai thỏ trống và rê chuột vẫn mở; số liệu trở lại khi một cửa sổ chậm hơn nhịp hoặc đã hết, để một hạn mức sắp cạn không bao giờ bị che.";
+"Working means a session is working, waiting for you or has just finished, which needs an assistant's hook. Nothing still opens on hover." = "Đang làm việc nghĩa là một phiên đang làm việc, đang chờ bạn hoặc vừa xong, điều này cần hook của một trợ lý. Với Không hiện gì, rê chuột vẫn mở bảng.";
+"Sessions shown at once" = "Số phiên hiện cùng lúc";
+"How many rows the Sessions card draws before it counts the rest as “+N more”." = "Thẻ Phiên hiện bao nhiêu dòng trước khi đếm phần còn lại là “+N nữa”.";
+"A row leads with" = "Mỗi dòng bắt đầu bằng";
+"Conversation title" = "Tiêu đề cuộc trò chuyện";
+"Project name" = "Tên dự án";
+"Conversation title puts the prompt's first line on top and the project, branch and terminal under it; project name swaps them. Under a project's header the branch leads instead, since the header already names the project." = "Tiêu đề cuộc trò chuyện đặt dòng đầu của prompt lên trên, dự án, nhánh và terminal ở dưới; Tên dự án đổi chỗ hai phần. Dưới tiêu đề của một dự án, nhánh sẽ đứng đầu vì tiêu đề đã nêu tên dự án.";
+"Ring shows %@" = "Vòng hiển thị %@";
+"Adjust to change which window the ring watches" = "Điều chỉnh để đổi cửa sổ mà vòng theo dõi";
+"Last 7 days" = "7 ngày qua";
+"Today %1$@ · 7 days %2$@" = "Hôm nay %1$@ · 7 ngày %2$@";

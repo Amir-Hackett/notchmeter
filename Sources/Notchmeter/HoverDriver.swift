@@ -10,7 +10,15 @@ enum PanelCause: String {
 
 /// What a mouse monitor saw, reduced to what the machine needs.
 struct PointerEvent: Equatable {
-    enum Kind: Equatable { case moved, click, controlClick, scroll(deltaY: CGFloat, fingersDown: Bool, phase: NSEvent.Phase) }
+    /// A scroll: the vertical travel the swipe reads, and the whole of it for a readout's retarget (RingScroll).
+    struct Scroll: Equatable {
+        var deltaY: CGFloat
+        var fingersDown: Bool
+        var phase: NSEvent.Phase
+        var ring: RingScroll.Input
+    }
+
+    enum Kind: Equatable { case moved, click, controlClick, scroll(Scroll) }
     let kind: Kind
 }
 
@@ -46,6 +54,11 @@ final class HoverDriver {
     /// strip names a session (the news peek) a click opens the panel on that session in any visibility mode,
     /// where a click on the rings only toggles the panel under Open on click.
     var claimsCompactClick: () -> Bool = { false }
+    /// The assistant whose readout is under a point on the collapsed strip (RingTargets), for scroll-to-retarget;
+    /// nil where there is none, which is every point for a presenter that registers no readouts.
+    var ringAt: (CGPoint) -> ToolID? = { _ in nil }
+    /// A scroll over a readout stepped: the presenter moves that tool's ring on (+1) or back (-1) and names it.
+    var ringScrolled: (ToolID, Int) -> Void = { _, _ in }
     /// One line per decision, for the transition log.
     var log: ((String) -> Void)?
     /// Swipes open and close (Preferences.gesturesEnabled, off under Reduce Motion).
@@ -66,6 +79,7 @@ final class HoverDriver {
     private var wasInCompact = false
     private var swipeTravel: CGFloat = 0
     private var swipeFired = false
+    private var ringScroll = RingScroll()
 
     init(mode: HoverIntent.Mode, dwell: TimeInterval = HoverIntent.expandDwell) {
         intent = HoverIntent(mode: mode, expandDwell: dwell)
@@ -205,19 +219,29 @@ final class HoverDriver {
             return PointerEvent(kind: event.modifierFlags.contains(.control) ? .controlClick : .click)
         case .scrollWheel:
             let fingersDown = (event.scrollingDeltaY > 0) == event.isDirectionInvertedFromDevice
-            return PointerEvent(kind: .scroll(deltaY: event.scrollingDeltaY, fingersDown: fingersDown, phase: event.phase))
+            let phase: RingScroll.Phase = event.phase.contains(.began) || event.phase.contains(.mayBegin) ? .began
+                : event.phase.contains(.ended) || event.phase.contains(.cancelled) ? .ended
+                : event.phase.isEmpty ? .none : .changed
+            let ring = RingScroll.Input(deltaX: event.scrollingDeltaX, deltaY: event.scrollingDeltaY, phase: phase,
+                                        momentum: !event.momentumPhase.isEmpty)
+            return PointerEvent(kind: .scroll(PointerEvent.Scroll(deltaY: event.scrollingDeltaY, fingersDown: fingersDown, phase: event.phase, ring: ring)))
         default:
             return PointerEvent(kind: .moved)
         }
     }
 
-    private func handle(_ event: PointerEvent) {
+    /// One reduced event from either monitor; the tests feed it directly, since no monitor runs without a
+    /// window server. A scroll is offered to the readout under the pointer first (`retargetRing`), and only one
+    /// it did not claim goes on to the swipe, so a sideways gesture over a ring never also opens the panel.
+    func handle(_ event: PointerEvent) {
         switch event.kind {
         case .click:
             clicked(at: pointerLocation())
         case .controlClick:
             break
-        case .scroll(let deltaY, let fingersDown, let phase):
+        case .scroll(let scroll):
+            if retargetRing(scroll.ring) { return }
+            let (deltaY, fingersDown, phase) = (scroll.deltaY, scroll.fingersDown, scroll.phase)
             guard gestures else { return }
             if phase == .began || phase == .mayBegin {
                 swipeTravel = 0
@@ -235,6 +259,19 @@ final class HoverDriver {
         case .moved:
             sample()
         }
+    }
+
+    /// A scroll over a readout on the collapsed strip, fed to the ring's quantiser (RingScroll); true when the
+    /// scroll was the readout's, so the swipe below does not count it too. Only while collapsed and on screen, and
+    /// never while a menu or a window holds the panel: the same conditions the pointer's own samples keep.
+    private func retargetRing(_ input: RingScroll.Input) -> Bool {
+        guard intent.state == .compact, !isPaused(), !isOffScreen(), let tool = ringAt(pointerLocation()) else {
+            ringScroll.reset()
+            return false
+        }
+        let outcome = ringScroll.feed(input, verticalSwipes: gestures, at: now)
+        if let step = outcome.step { ringScrolled(tool, step) }
+        return outcome.claimed
     }
 
     private func sample() {

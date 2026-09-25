@@ -140,6 +140,12 @@ enum AssetRenderer {
                       png: directory.appendingPathComponent("sessions-detected-contrast.png"))
             AccessibilityDisplay.shared.force(contrast: nil)
             try themes(into: directory, now: now, actions: actions)
+            // The panel's own controls, for review: the closed notch in each mode while a session works and a ring
+            // just scrolled onto another window; the Simple panel with four rows before "+3 more", rows led by their
+            // project and the Cost row open on its week; and the Settings rows that set them.
+            try write(closedNotch(now: now, actions: actions), png: directory.appendingPathComponent("closed-notch.png"))
+            try write(controlsPanel(now: now, actions: actions), png: directory.appendingPathComponent("expanded-controls.png"))
+            try write(controlsSettings(now: now, actions: actions), png: directory.appendingPathComponent("settings-controls.png"))
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
             AccessibilityDisplay.shared.force(contrast: true)
             defer { AccessibilityDisplay.shared.force(contrast: nil) }
@@ -659,6 +665,79 @@ enum AssetRenderer {
         }
     }
 
+    /// The closed notch while a session works (`DemoFixtures.Moment.working`), one row per mode it can be set to
+    /// show (ClosedNotchMode): the readouts, the assistants' symbols with the working bar under Claude Code's, and
+    /// nothing but the notch; then the symbols while nothing runs, the hollow ring under Claude Code's for its idle
+    /// sessions. A last row is the readouts a moment after a scroll moved Claude's outer ring onto the next
+    /// window, with the label that names it drawn where RingLabel puts it, under the readout and clear of the
+    /// band. Each row is its own store, as the signal pictures are, since a picture is one instant.
+    @MainActor
+    static func closedNotch(now: Date, actions: NotchActions) throws -> CGImage {
+        var stages: [Stage] = []
+        for mode in ClosedNotchMode.allCases {
+            let (store, prefs) = DemoFixtures.store(now: now, moment: .working)
+            prefs.closedWhileWorking = mode
+            stages.append(try Stage(store: store, prefs: prefs, actions: actions))
+        }
+        // The symbols while nothing runs (`DemoFixtures.Moment.idle`): Claude Code's sessions idle, so its symbol
+        // keeps its colour with the hollow ring under it, beside the grey symbols of the assistants with no session;
+        // the shape is what tells the two apart, so the row exists to be looked at for that.
+        let (quiet, quietPrefs) = DemoFixtures.store(now: now, moment: .idle)
+        quietPrefs.closedWhenQuiet = .agents
+        stages.append(try Stage(store: quiet, prefs: quietPrefs, actions: actions))
+        let (store, prefs) = DemoFixtures.store(now: now, moment: .working)
+        guard let window = store.cycleRing(.claude, by: 1, cause: .scroll) else { throw Failure.snapshot("a ring moved onto its next window") }
+        let model = RingLabelModel()
+        model.text = RingCycle.label(window, display: prefs.usageDisplay, hideFigures: false)
+        model.visible = true
+        let label = try snapshot(RingLabelView(model: model), what: "the ring label")
+        let moved = try Stage(store: store, prefs: prefs, actions: actions)
+        let width = ((stages + [moved]).map(\.compactExtent).max() ?? 0) + 160
+        let row = CGSize(width: width, height: 52)
+        var rows = try stages.map { try $0.image(.compact, canvas: row, pixelScale: scale) }
+        let labelled = CGSize(width: width, height: notch.height + RingLabel.gap + label.size.height + 10)
+        let base = try moved.image(.compact, canvas: labelled, pixelScale: scale)
+        // Claude Code is the first readout left of the notch: its ring's centre is the leading half's padding and
+        // half a ring in from the half's outer edge.
+        let ring = width / 2 - notch.width / 2 - moved.leading.size.width + 6 + CompactRings.side / 2
+        rows.append(try bitmap(labelled, pixelScale: scale) { ctx in
+            draw(base, in: CGRect(origin: .zero, size: labelled), alpha: 1, into: ctx)
+            draw(label.image, in: CGRect(x: ring - label.size.width / 2, y: notch.height + RingLabel.gap, width: label.size.width, height: label.size.height),
+                 alpha: 1, into: ctx)
+        })
+        return try stack(rows, gutter: 14)
+    }
+
+    /// The Simple panel on a busier afternoon (`DemoFixtures.crowdedSessions`): four rows before "+3 more", each
+    /// led by its project (here, under three project headers, its branch) with the conversation's title under it,
+    /// and the Cost row open on the week split by assistant, the strip of seven bars beside its figure.
+    @MainActor
+    static func controlsPanel(now: Date, actions: NotchActions) throws -> CGImage {
+        let (store, prefs) = DemoFixtures.store(now: now, moment: .working)
+        store.seed(readings: DemoFixtures.readings(now: now), cost: DemoFixtures.cost(now: now), nextUpdate: now.addingTimeInterval(160),
+                   sessions: DemoFixtures.crowdedSessions(now: now), now: now)
+        prefs.sessionRows = 4
+        prefs.sessionRowLead = .project
+        store.openPanelRows = [AdvicePlacement.Slot.cost.key]
+        let stage = try Stage(store: store, prefs: prefs, actions: actions)
+        return try stage.image(.expanded, canvas: stage.panelCanvas, pixelScale: scale)
+    }
+
+    /// The Appearance pane with Chosen displays picked, so the switch per display is on show, and the notch set to
+    /// the symbols while working and nothing while quiet; then the Assistants pane, where the rows at once and the
+    /// row's lead sit with the rest of the Sessions settings.
+    @MainActor
+    static func controlsSettings(now: Date, actions: NotchActions) throws -> CGImage {
+        let (store, prefs) = DemoFixtures.store(now: now, moment: .working)
+        prefs.display = .selected
+        prefs.closedWhileWorking = .agents
+        prefs.closedWhenQuiet = .nothing
+        prefs.sessionRows = 4
+        prefs.sessionRowLead = .project
+        return try stack([settings(pane: .appearance, store: store, prefs: prefs, actions: actions),
+                          settings(pane: .assistants, store: store, prefs: prefs, actions: actions)], gutter: 24)
+    }
+
     /// One or two of the panel's cards in the panel's own container: its width, its horizontal padding, and the
     /// black it is drawn on, at 2 px a point.
     ///
@@ -1033,8 +1112,9 @@ enum AssetRenderer {
             let look = PanelLook.current(prefs, edgeCard: false)
             tint = look.theme == .black && look.material.translucent ? look.material.tint : nil
             content = try snapshot(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000), what: "the panel")
-            leading = try snapshot(NotchCompactView(store: store, side: .leading), what: "the leading rings")
-            trailing = try snapshot(NotchCompactView(store: store, side: .trailing), what: "the trailing rings")
+            // A half can be empty: the closed notch set to show nothing draws no readouts either side of it.
+            leading = try snapshot(NotchCompactView(store: store, side: .leading), what: "the leading rings", allowEmpty: true)
+            trailing = try snapshot(NotchCompactView(store: store, side: .trailing), what: "the trailing rings", allowEmpty: true)
             let waiting = !store.awaitingInput.filter(store.isShown).isEmpty
             if drawsGlow, let state = NotchGlow.state(news: store.glowNews, waiting: waiting, enabled: prefs.notchGlow, now: store.glowNews?.at ?? Date()) {
                 let model = NotchGlowModel()
@@ -1223,10 +1303,15 @@ enum AssetRenderer {
     /// A view at its fitting size, laid out in a window that is never shown. Going through the window rather
     /// than ImageRenderer draws the AppKit-backed controls too: the segmented picker, the buttons, the toggles.
     @MainActor
-    static func snapshot<Content: View>(_ content: Content, what: String, appearance: NSAppearance.Name = .darkAqua) throws -> Snapshot {
+    static func snapshot<Content: View>(_ content: Content, what: String, appearance: NSAppearance.Name = .darkAqua, allowEmpty: Bool = false) throws -> Snapshot {
         let host = NSHostingView(rootView: content)
         host.layoutSubtreeIfNeeded()
         let size = host.fittingSize
+        // A view that draws nothing measures nothing, and there is no bitmap of nothing: a one-pixel clear image
+        // stands in, at a size of zero, so whatever lays it out places nothing where it would have gone.
+        if allowEmpty, size.width < 1 || size.height < 1 {
+            return Snapshot(image: try bitmap(CGSize(width: 1, height: 1), pixelScale: 1) { _ in }, size: .zero)
+        }
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: .borderless, backing: .buffered, defer: false)
         window.isOpaque = false
         window.backgroundColor = .clear

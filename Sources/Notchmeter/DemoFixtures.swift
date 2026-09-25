@@ -48,6 +48,10 @@ enum DemoFixtures {
         /// An MCP server's form a click can answer, held for the notch like a permission request
         /// (`elicitation.png`, for review).
         case elicitation
+        /// Both turns over, the notchmeter one three minutes ago: twice `ToolSignal.heldFor` past its finish, so
+        /// nothing is lit and every session idles. The closed notch's quiet phase, for the symbols mode while
+        /// nothing runs, where the hollow ring under an idle assistant is the picture.
+        case idle
     }
 
     /// `cowork` adds two Claude Cowork tasks to the afternoon (`coworkTasks`), for `cowork.png` and
@@ -194,6 +198,10 @@ enum DemoFixtures {
             message.mcpServer = "deploybot"
             message.request = Hook.Request(id: requestID, kind: .elicitation(elicitationForm))
             tracker.apply(message, now: now.addingTimeInterval(-35))
+        case .idle:
+            send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
+            send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            send("Stop", 3 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
         }
         return tracker
     }
@@ -305,7 +313,7 @@ enum DemoFixtures {
         case .waiting, .permissionRequest: reason = .approval
         case .question: reason = .question
         case .justFinished: reason = .finished
-        case .working, .firstLaunch: return nil
+        case .working, .firstLaunch, .idle: return nil
         case .hookEvents: reason = .compacting
         case .elicitation: reason = .input
         }
@@ -347,6 +355,43 @@ enum DemoFixtures {
     static let coworkResearch = "local_0d3f7a52-demo-research"
     static let coworkTickets = "local_5b8e21c4-demo-tickets"
     static let coworkResearchTitle = "Compare the three vendors' pricing pages"
+
+
+    /// A busier afternoon for the panel's own controls (`AssetRenderer.panelControls`): seven sessions across three
+    /// projects, more than the four rows the picture asks for, so the card counts the rest as "+3 more", and every
+    /// one titled so a row led by its project has a title to put under it. Built from hook events like `sessions`,
+    /// one working turn in each project and the rest idle, and nothing waiting, so the closed notch is in its work
+    /// phase without a wait making the rings urgent.
+    static func crowdedSessions(now: Date) -> SessionTracker {
+        var tracker = SessionTracker()
+        let rows: [(session: String, project: String, branch: String, title: String, working: Bool)] = [
+            ("n1", "notchmeter", "feat/panel-controls", "Scroll a ring to change its window", true),
+            ("n2", "notchmeter", "fix/week-strip", "Draw the last seven days on the Cost row", false),
+            ("n3", "notchmeter", "main", "Tag the 0.9.0 release notes", false),
+            ("s1", "scout", "main", "Draft the Friday sports recap", true),
+            ("s2", "scout", "feat/budget", "Reconcile the budget snapshot", false),
+            ("w1", "site", "guides", "Write the accuracy guide page", true),
+            ("w2", "site", "main", "Fix the pricing page's footnote", false),
+        ]
+        // Collected first and replayed oldest first: `apply` expires against the clock it is handed, so the events of
+        // seven sessions have to reach it in the order they happened rather than one session at a time.
+        var events: [(ago: TimeInterval, message: Hook.Message)] = []
+        for (index, row) in rows.enumerated() {
+            let base = TimeInterval((rows.count - index) * 60 + 600)
+            func add(_ event: String, _ ago: TimeInterval, title: String? = nil) {
+                var message = Hook.Message(event: event, needsInput: false, sessionID: row.session, project: row.project, branch: row.branch)
+                message.title = title
+                events.append((ago, message))
+            }
+            add("SessionStart", base)
+            add("UserPromptSubmit", base - 30, title: row.title)
+            if !row.working { add("Stop", base - 400) }
+        }
+        for event in events.sorted(by: { $0.ago > $1.ago }) {
+            tracker.apply(event.message, now: now.addingTimeInterval(-event.ago))
+        }
+        return tracker
+    }
 
     /// The request id the two request moments carry, so a test or a renderer can address it.
     static let requestID = "demo-request"

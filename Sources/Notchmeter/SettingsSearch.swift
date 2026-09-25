@@ -84,13 +84,14 @@ enum SettingsSearch {
         add(.theme, L("Theme"), L("Surface"), L("Material"), L("Accent"), L("Usage style"), L("Draw hour limits on a clock"))
         add(.panel, L("Appearance"), L("Panel"), L("Readouts"), L("When crowded"), L("Show details"), L("Position"), L("Display"),
             L("Show"), L("Hover delay"), L("Show reset countdown beside the figures"), L("Show the main figure beside the rings"),
-            L("Show assistant symbols in the rings"), L("Panel layout"), L("Density"), L("Panel width"), L("Show over full-screen apps"), L("Gestures: swipe down to open, swipe up to close"),
+            L("Show assistant symbols in the rings"), L("While an assistant works"), L("When nothing is running"), L("Show on these displays"),
+            L("Panel layout"), L("Density"), L("Panel width"), L("Show over full-screen apps"), L("Gestures: swipe down to open, swipe up to close"),
             L("Reduce animations"))
         add(.usage, L("Usage display"), L("Show usage as"), L("Reset times"), L("Time format"), L("Show costs in"), L("Monthly budget"),
             L("Weekly budget"), L("Cost card shows"))
         add(.shortcuts, L("Keyboard shortcuts"), L("Toggle the panel"), L("Open Settings"), L("Show over the full-screen app"))
         add(.assistants, L("Assistants"), L("Hide assistants with nothing to show"), L("Refresh now"))
-        add(.sessions, L("Sessions"), L("Show a Sessions card on the panel"), L("Find sessions without the hook"), L("Show Claude Cowork tasks"), L("Show what a session is working on"),
+        add(.sessions, L("Sessions"), L("Show a Sessions card on the panel"), L("Sessions shown at once"), L("A row leads with"), L("Find sessions without the hook"), L("Show Claude Cowork tasks"), L("Show what a session is working on"),
             L("Answer from the notch"), L("Hand a request back to the terminal after"), L("Jump to the terminal on click"),
             L("Automation"), L("Open Automation settings…"), L("Check again"), L("Keep the Mac awake while an assistant is working"),
             L("Also on battery"))

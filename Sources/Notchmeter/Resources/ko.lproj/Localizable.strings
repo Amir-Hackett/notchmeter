@@ -186,7 +186,7 @@
 "On a trial" = "체험 중";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "켜면 신선한 상태 표시줄이 대신하지 않는 동안 5분마다 Claude Code 자체 로그인으로 api.anthropic.com 사용량 엔드포인트를 읽습니다. 끄면 Anthropic 이 문서화한 채널인 상태 표시줄에만 의존합니다. Claude 링은 Claude Code 턴 이후에만 채워지고 엔드포인트는 절대 요청하지 않습니다.";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "~/.claude/settings.json의 항목 하나로 Claude Code가 세션 시작, 턴 종료, 사용자를 기다릴 때 노치에 알리고, 상태 표시줄은 매 턴 후 컨텍스트 사용률과 공식 한도를 전달합니다. 둘 다 먼저 백업되며, 설정의 Claude Code 페이지에서 나중에 복구하거나 제거할 수 있습니다.";
-"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "세션마다 한 줄씩, 훅이 보고한 세션과 훅 없이 찾은 세션 모두 최신 순으로: 무엇을 하고 있는지, 어느 어시스턴트와 어느 터미널에서 실행 중인지, 턴이 얼마나 지났는지, 그리고 당신을 기다리는지. 여섯 줄을 보여 주고 나머지는 개수로 표시합니다.";
+"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. As many rows as set below, then a count of the rest." = "세션마다 한 줄씩, 훅이 보고한 세션과 훅 없이 찾은 세션 모두 최신 순으로: 무엇을 하고 있는지, 어느 어시스턴트와 어느 터미널에서 실행 중인지, 턴이 얼마나 지났는지, 그리고 당신을 기다리는지. 아래에서 정한 줄 수만큼 보여 주고 나머지는 개수로 표시합니다.";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "표시 › 자동을 고른 경우에만. 맨 앞 앱의 메뉴 제목을 피해 표시를 옮기기 위한 것으로, 메뉴 막대의 위치와 크기 외에는 아무것도 읽지 않습니다.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "세션의 터미널 창으로 이동할 때만, 처음 한 번. 앱의 다른 어떤 부분도 다른 앱을 조작하지 않습니다.";
 "Open Automation settings…" = "자동화 설정 열기…";
@@ -1121,3 +1121,28 @@
 "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1." = "선택한 테마에서 패널의 모든 줄은 4.5:1 이상, 모든 표시는 3:1 이상의 대비를 가집니다.";
 "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window." = "선택한 테마에서 흰 윈도우 위에서도 패널의 모든 줄은 4.5:1 이상, 모든 표시는 3:1 이상의 대비를 가집니다.";
 "The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it." = "설정 윈도우와 가장자리 레이아웃의 알약은 이 선택을 따릅니다. 열린 패널은 여기서 무엇을 고르든 위의 테마를 따르며, 화면 옆면에 그리는 노치는 항상 어둡습니다. 화면 위에 얹힌 것이 아니라 화면의 일부로 보여야 하기 때문입니다.";
+/* Panel controls: rows at once, the row's lead, the closed notch while working and quiet, scroll a ring to retarget it, a switch per display, the week on the Cost row (SessionsCard, ClosedNotch, RingRetarget, ScreenSelection, WeekSpend, SettingsWindow) */
+"Chosen displays" = "선택한 디스플레이";
+"Show on these displays" = "이 디스플레이에 표시";
+"At least one display stays on." = "디스플레이 하나 이상은 켜 둡니다.";
+"A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "켜거나 끈 적이 없는 디스플레이는 노치가 있으면 켜집니다. 마지막으로 켜져 있는 디스플레이는 끌 수 없습니다.";
+"Shown here while no chosen display is connected." = "선택한 디스플레이가 연결되어 있지 않은 동안 여기에 표시됩니다.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "링 위에서 두 손가락 또는 마우스 휠로 옆으로 스크롤하면 링이 보여 주는 창이 바뀝니다. 선택은 유지되며, 어시스턴트 아래 해당 어시스턴트의 옵션과 같은 선택입니다.";
+"While an assistant works" = "어시스턴트 작업 중";
+"When nothing is running" = "아무것도 실행 중이 아닐 때";
+"Rings or numbers" = "링 또는 숫자";
+"Assistant symbols" = "어시스턴트 기호";
+"Nothing" = "표시 안 함";
+"What the closed notch shows while a session is working, waiting for you or has just finished, and for five seconds after, so a quick turn does not flicker." = "세션이 작업 중이거나 당신을 기다리거나 방금 끝났을 때, 그리고 그 뒤 5초 동안 닫힌 노치에 표시할 내용입니다. 짧은 턴에 깜박이지 않게 합니다.";
+"Nothing leaves the notch bare and still opens on hover; the readouts come back while a window is behind pace or out, so a limit running out is never hidden." = "‘표시 안 함’은 노치를 비워 두고 마우스를 올리면 여전히 열립니다. 창이 페이스보다 느리거나 소진되면 표시가 돌아오므로 다 떨어져 가는 한도가 가려지지 않습니다.";
+"Working means a session is working, waiting for you or has just finished, which needs an assistant's hook. Nothing still opens on hover." = "작업 중이란 세션이 작업 중이거나 당신을 기다리거나 방금 끝난 상태로, 어시스턴트의 훅이 필요합니다. ‘표시 안 함’이어도 마우스를 올리면 열립니다.";
+"Sessions shown at once" = "한 번에 표시할 세션";
+"How many rows the Sessions card draws before it counts the rest as “+N more”." = "세션 카드가 몇 줄을 표시한 뒤 나머지를 ‘외 N개’로 셀지 정합니다.";
+"A row leads with" = "각 줄의 첫 항목";
+"Conversation title" = "대화 제목";
+"Project name" = "프로젝트 이름";
+"Conversation title puts the prompt's first line on top and the project, branch and terminal under it; project name swaps them. Under a project's header the branch leads instead, since the header already names the project." = "‘대화 제목’은 프롬프트의 첫 줄을 위에, 프로젝트·브랜치·터미널을 그 아래에 두고, ‘프로젝트 이름’은 둘을 바꿉니다. 프로젝트 제목 아래에서는 제목이 이미 프로젝트를 알려 주므로 대신 브랜치가 앞에 옵니다.";
+"Ring shows %@" = "링 표시: %@";
+"Adjust to change which window the ring watches" = "조정하면 링이 보여 주는 창이 바뀝니다";
+"Last 7 days" = "지난 7일";
+"Today %1$@ · 7 days %2$@" = "오늘 %1$@ · 7일 %2$@";

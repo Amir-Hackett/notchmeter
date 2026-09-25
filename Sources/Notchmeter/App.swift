@@ -786,7 +786,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func chosenScreens() -> [NSScreen] {
-        NSScreen.panelScreens(for: prefs.display)
+        NSScreen.panelScreens(for: prefs.display, switches: prefs.displaySwitches)
     }
 
     /// Hides the old presenters, then builds for the newest generation only; a rebuild asked for meanwhile
@@ -1025,7 +1025,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// assistant the card's upgrade line offers the hook for, or is null when the line is not drawn.
     private func sessionsCardFields() -> [String: Any] {
         let all = store.sessions.all
-        let rows = SessionsCard.rows(all, hideTitles: true, jump: prefs.jumpToTerminal, now: Date())
+        let rows = SessionsCard.rows(all, hideTitles: true, jump: prefs.jumpToTerminal, now: Date(), cap: prefs.sessionRows, lead: prefs.sessionRowLead)
         return ["shown": prefs.sessionsCard && (store.sessions.count > 0 || store.hooksInstalled),
                 "rows": SessionsCard.oracleRows(SessionsCard.groups(rows.rows, sessions: all)), "more": rows.more,
                 "upgrade": SessionsCard.upgradeTool(rows.rows, installed: store.hookInstalledTools)?.rawValue as Any]
@@ -1065,6 +1065,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "ringWindows": ToolID.allCases.reduce(into: [String: [String]]()) { rings, tool in
                 if let reading = store.status(tool).reading { rings[tool.rawValue] = prefs.ringWindows(of: reading).map(\.id) }
             },
+            "closedNotch": ["phase": store.closedNotchPhase.rawValue, "shows": store.closedNotchShows.rawValue],
             "screens": NSScreen.descriptions,
             "captured": store.screenCaptured,
             "presenters": presenters.map(\.screen.localizedName),

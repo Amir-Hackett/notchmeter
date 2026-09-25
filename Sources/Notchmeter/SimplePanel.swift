@@ -189,6 +189,11 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
     var dial: (tool: ToolID, windows: [LimitWindow])? = nil
     /// What VoiceOver reads after the title, in words rather than the drawn abbreviations.
     var spoken: String? = nil
+    /// Drawn before the caption, beside the figure: the Cost row's week of bars (WeekSpendStrip).
+    var accessory: AnyView? = nil
+    /// The row's tooltip, where resting on it says more than the row draws (the Cost row's week, day by day). The
+    /// same words are in the detail the row opens onto and in its VoiceOver value, so nothing is hover-only.
+    var help: String? = nil
     let open: Bool
     let toggle: () -> Void
     @ViewBuilder let glyph: () -> Glyph
@@ -212,6 +217,9 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                             .frame(width: 18)
                         Text(title).font(.body.weight(.semibold)).lineLimit(1)
                         Spacer(minLength: 8)
+                        if let accessory {
+                            accessory
+                        }
                         if let caption {
                             Text(caption).font(.caption).foregroundStyle(Caption.style).lineLimit(1).fixedSize()
                         }
@@ -260,6 +268,7 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .modifier(RowHelp(text: help))
             .background {
                 if needsYou {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -288,6 +297,16 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
         }
         // The wash reaches into the sheet's margin, so every row's glyph sits on the header's edge.
         .padding(.horizontal, density.cardPadding - 6)
+    }
+}
+
+/// A row's tooltip where it has one, and no tooltip region at all where it does not.
+private struct RowHelp: ViewModifier {
+    let text: String?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let text { content.help(text) } else { content }
     }
 }
 
@@ -379,9 +398,11 @@ struct SimpleToolRow: View {
     }
 }
 
-/// The cost as one row: what the Cost card's range comes to, in its unit, with the money advice under it. Opens
-/// onto the Cost card without its box or title. Only built while the Cost card would be (NotchExpandedView.spendCard),
-/// so it is gone under the same privacy and settings the card is.
+/// The cost as one row: what the Cost card's range comes to, in its unit, with the money advice under it, and the
+/// last seven days as a strip of bars beside the figure (WeekSpend): today and the six days before it, named day by
+/// day when the pointer rests on the row, and drawn as a chart split by assistant at the top of what the row opens
+/// onto. Opens onto the Cost card without its box or title. Only built while the Cost card would be
+/// (NotchExpandedView.spendCard), so it is gone under the same privacy and settings the card is.
 struct SimpleCostRow: View {
     let store: UsageStore
     let actions: NotchActions
@@ -397,11 +418,18 @@ struct SimpleCostRow: View {
         let mode = store.prefs.costCardMode
         let figure = SpendCard.headline(mode: mode, amount: totals?.cost, totals: totals)
         let first = open ? nil : advice.first
+        let now = Date()
+        let week = WeekSpend.of(selection, now: now)
         SimpleRow(title: L("Cost"),
                   line: first.map(SimpleLine.advice),
                   figure: figure, caption: range.title,
                   needsYou: advice.contains { $0.priority == .attention },
-                  spoken: Spoken.line(range.title, Spoken.phrase(figure), SpendCard.unit(mode: mode), first.map { Spoken.phrase($0.text) }),
+                  // The week's headline only: the row is read every time it is reached, and the days one by one
+                  // are the opened chart's to read.
+                  spoken: Spoken.line(range.title, Spoken.phrase(figure), SpendCard.unit(mode: mode), first.map { Spoken.phrase($0.text) },
+                                      week.map { $0.headline(mode: mode) }),
+                  accessory: week.map { AnyView(WeekSpendStrip(week: $0, mode: mode)) },
+                  help: week?.tooltip(mode: mode, now: now),
                   open: open, toggle: { NotchExpandedView.toggleRow(Self.key, store: store) }) {
             Image(systemName: "dollarsign.circle").foregroundStyle(Caption.style)
         } detail: {

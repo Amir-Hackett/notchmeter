@@ -203,7 +203,7 @@
 "On a trial" = "Пробный период";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "Если включено, приложение каждые пять минут опрашивает эндпоинт использования api.anthropic.com с учётными данными Claude Code, пока нет свежих данных от строки состояния. Если выключено, используется только строка состояния — канал, который документирует Anthropic: кольцо Claude тогда заполняется только после хода Claude Code, а эндпоинт никогда не опрашивается.";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "Одна запись в ~/.claude/settings.json позволяет Claude Code сообщать вырезу, когда начинается сессия, заканчивается ход или он ждёт вас, а строка состояния после каждого хода передаёт заполнение контекста и официальные лимиты. Для обоих сначала создаётся резервная копия; позже их можно исправить или удалить на странице Claude Code в Настройках.";
-"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "По строке на каждую сессию, о которой сообщают хуки или которая найдена без них, новые сверху: над чем она работает, какой ассистент и в каком терминале, сколько длится ход и ждёт ли она вас. Шесть строк, затем число остальных.";
+"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. As many rows as set below, then a count of the rest." = "По строке на каждую сессию, о которой сообщают хуки или которая найдена без них, новые сверху: над чем она работает, какой ассистент и в каком терминале, сколько длится ход и ждёт ли она вас. Столько строк, сколько задано ниже, затем число остальных.";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Только если вы выберете Показатели › Авто: показатели смещаются так, чтобы не перекрывать меню активного приложения. Считывается только геометрия строки меню, и ничего больше.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Только для перехода к окну терминала сессии, при первом переходе. Больше ничто в приложении не управляет другими приложениями.";
 "Open Automation settings…" = "Открыть настройки автоматизации…";
@@ -1138,3 +1138,28 @@
 "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1." = "Каждая строка на панели имеет контраст 4,5:1 или выше в выбранной теме, а каждая отметка — 3:1.";
 "Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window." = "Каждая строка на панели имеет контраст 4,5:1 или выше в выбранной теме, а каждая отметка — 3:1, даже поверх белого окна.";
 "The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it." = "Окно настроек и капсула раскладки у края следуют этому выбору. Открытая панель следует «Теме» выше, что бы вы здесь ни выбрали, а вырез в боковом краю всегда тёмный: он должен выглядеть частью экрана, а не чем-то поверх него.";
+/* Panel controls: rows at once, the row's lead, the closed notch while working and quiet, scroll a ring to retarget it, a switch per display, the week on the Cost row (SessionsCard, ClosedNotch, RingRetarget, ScreenSelection, WeekSpend, SettingsWindow) */
+"Chosen displays" = "Выбранные дисплеи";
+"Show on these displays" = "Показывать на этих дисплеях";
+"At least one display stays on." = "Хотя бы один дисплей остаётся включённым.";
+"A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "Дисплей, который вы не переключали, включён, если у него есть вырез. Последний включённый дисплей выключить нельзя.";
+"Shown here while no chosen display is connected." = "Показывается здесь, пока не подключён ни один выбранный дисплей.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Прокрутите над кольцом вбок — двумя пальцами или колёсиком мыши, — чтобы сменить окно, которое оно показывает. Выбор сохраняется и совпадает с «Параметрами» ассистента в разделе «Ассистенты».";
+"While an assistant works" = "Пока работает ассистент";
+"When nothing is running" = "Когда ничего не запущено";
+"Rings or numbers" = "Кольца или цифры";
+"Assistant symbols" = "Значки ассистентов";
+"Nothing" = "Ничего";
+"What the closed notch shows while a session is working, waiting for you or has just finished, and for five seconds after, so a quick turn does not flicker." = "Что показывает закрытый вырез, пока сессия работает, ждёт вас или только что закончила, и ещё пять секунд после, чтобы короткий ход не мигал.";
+"Nothing leaves the notch bare and still opens on hover; the readouts come back while a window is behind pace or out, so a limit running out is never hidden." = "«Ничего» оставляет вырез пустым, и наведение по-прежнему его открывает; показатели возвращаются, пока окно в перерасходе или закончилось, так что заканчивающийся лимит никогда не скрыт.";
+"Working means a session is working, waiting for you or has just finished, which needs an assistant's hook. Nothing still opens on hover." = "«Работают» — это когда сессия работает, ждёт вас или только что закончила; для этого нужен хук ассистента. При «Ничего» наведение по-прежнему открывает панель.";
+"Sessions shown at once" = "Сессий одновременно";
+"How many rows the Sessions card draws before it counts the rest as “+N more”." = "Сколько строк показывает карточка «Сессии», прежде чем посчитать остальные как «Ещё N».";
+"A row leads with" = "Строка начинается с";
+"Conversation title" = "Название разговора";
+"Project name" = "Название проекта";
+"Conversation title puts the prompt's first line on top and the project, branch and terminal under it; project name swaps them. Under a project's header the branch leads instead, since the header already names the project." = "«Название разговора» ставит первую строку промпта сверху, а проект, ветку и терминал — под ней; «Название проекта» меняет их местами. Под заголовком проекта первой идёт ветка, потому что заголовок уже называет проект.";
+"Ring shows %@" = "Кольцо показывает: %@";
+"Adjust to change which window the ring watches" = "Настройте, чтобы сменить окно, которое показывает кольцо";
+"Last 7 days" = "Последние 7 дней";
+"Today %1$@ · 7 days %2$@" = "Сегодня %1$@ · 7 дней %2$@";
