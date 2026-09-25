@@ -351,9 +351,13 @@ struct SettingsView: View {
             .padding(.leading, item.tool == nil ? 0 : 10)
         }
         .listStyle(.sidebar)
-        // Wide enough for the longest pane name in the shipped languages: at 190 the German "Erscheinungsbild"
-        // (Appearance) came out as "Erscheinun…", a pane whose own name was cut.
-        .navigationSplitViewColumnWidth(210)
+        // Wide enough for the longest pane names in the shipped languages: at the width the split view chose on
+        // its own (about 145 pt) the German "Erscheinungsbild" came out as "Erscheinun…", and Russian, Spanish,
+        // French and Japanese each lost a pane name or three the same way. `navigationSplitViewColumnWidth` does
+        // not move this panel's sidebar (neither an ideal nor a minimum changed the rendered window or the split
+        // view item's thickness, probed with the panel hosted both ways); a minimum on the column's own content
+        // is what the split view honours, so the rule lives here.
+        .frame(minWidth: 200)
         // The panel has no toolbar of its own and no way to show one, so a toggle that hides the sidebar would
         // hide it for good; the column visibility below is pinned for the same reason.
         .toolbar(removing: .sidebarToggle)
