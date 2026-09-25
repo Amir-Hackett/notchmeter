@@ -3,8 +3,9 @@ import Foundation
 import Testing
 @testable import Notchmeter
 
-/// The documents the repository ships beside the app: the Claude Code plugin under `plugin/` and the marketplace at the root that lists it, and
-/// the README's first screen and Terms paragraph, which `site/` mirrors by hand. Each is read off `#filePath`, the way
+/// The documents the repository ships beside the app: the Claude Code plugin under `plugin/` and the marketplace at the root that lists it,
+/// the README's first screen and Terms paragraph, which `site/` mirrors by hand, and the site's guides, sitemap and
+/// page heads, which nothing but a reader or a crawler would otherwise check. Each is read off `#filePath`, the way
 /// `TestHygiene` and `LocalizationTests` read the sources, so a change to one file that leaves its mirror behind
 /// fails here rather than on the published page.
 @Suite struct ClaudeCodePlugin {
@@ -53,6 +54,24 @@ import Testing
         #expect(shown["args"] as? [String] == server["args"] as? [String])
     }
 
+    /// What an MCP client and the plugin's manifest are told about `get_limits` names every assistant the `tool`
+    /// argument accepts: the schema is built from the enum, and the manifest's hand-written description is held to
+    /// it, so a tool the app reads is never one the client is told does not exist.
+    @Test func theToolSchemaAndTheManifestNameEveryAssistant() throws {
+        let tool = try #require(MCPServer.tools.first)
+        let description = try #require(tool["description"] as? String)
+        let schema = try #require(tool["inputSchema"] as? [String: Any])
+        let argument = try #require((schema["properties"] as? [String: Any])?["tool"] as? [String: Any])
+        let accepted = try #require(argument["description"] as? String)
+        let manifest = try #require(try Self.object("plugin/.claude-plugin/plugin.json")["description"] as? String)
+        for id in ToolID.allCases {
+            #expect(description.contains(id.productName), "the description names \(id.productName)")
+            #expect(accepted.contains(id.rawValue), "the tool argument offers \(id.rawValue)")
+            // The manifest's prose calls GitHub Copilot "Copilot", as the rings do.
+            #expect(manifest.contains(id.productName) || manifest.contains(id.displayName), "plugin.json names \(id.productName)")
+        }
+    }
+
     @Test func theMarketplaceListsThePluginFolder() throws {
         let marketplace = try Self.object(".claude-plugin/marketplace.json")
         #expect(marketplace["name"] as? String == "notchmeter")
@@ -80,8 +99,12 @@ import Testing
         try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
     }
 
-    /// The README's first screen leads with the accuracy document; the site's hero carries the same line.
-    static let hero = "Every figure on this panel is sourced, dated and tested"
+    /// The README's first screen leads with the job the app does and proves it second, with the accuracy document one
+    /// click away; the site's hero says the same two things in the same order. Until 2026-09-24 both led with the proof
+    /// ("Every figure on this panel is sourced, dated and tested"), which answered "can I trust the number" before the
+    /// reader knew what the number was for.
+    static let job = "Know which assistant is waiting, and whether you can afford the next task."
+    static let proof = "Every figure sourced, dated and tested"
     static let menuBar = "Your menu bar ran out of room three apps ago. This one doesn't take any."
     static let twoWay = "from the notch"
     static let platform = "macOS 15 or later"
@@ -92,17 +115,49 @@ import Testing
     static let credentialQuote = "developers may not collect, store, or intermediate Claude.ai credentials or session tokens — sign-in to a Claude account must complete through Anthropic's own flow."
     static let automatedAccessQuote = "Except when you are accessing our Services via an Anthropic API Key or where we otherwise explicitly permit it, to access the Services through automated or non-human means, whether through a bot, script, or otherwise."
 
-    @Test func theHeroLeadsWithTheAccuracyDocumentAndTheSiteRepeatsIt() throws {
+    /// The page's text with its tags removed and its whitespace collapsed, so a sentence can be found however the
+    /// markup around it breaks it (the headline carries a `<br>` for wide screens).
+    static func plain(_ html: String) -> String {
+        html.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&#39;", with: "'")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+    }
+
+    /// The inner HTML of the first `<tag …>…</tag>`, or nil.
+    static func element(_ tag: String, in html: String) -> String? {
+        guard let open = html.range(of: "<\(tag)[ >]", options: .regularExpression),
+              let close = html.range(of: ">", range: open.lowerBound..<html.endIndex),
+              let end = html.range(of: "</\(tag)>", range: close.upperBound..<html.endIndex) else { return nil }
+        return String(html[close.upperBound..<end.lowerBound])
+    }
+
+    @Test func theFirstScreenLeadsWithTheJobAndProvesItSecond() throws {
         let readme = try Self.text("README.md")
+        let lines = readme.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        let opening = Array(lines.prefix(3))
+        try #require(opening.count == 3)
+        #expect(opening[0] == "# Notchmeter")
+        #expect(opening[1].contains(Self.job), "the README's first line under the title is the job")
+        #expect(opening[2].hasPrefix(Self.proof), "the proof comes second")
+        #expect(opening[2].contains("docs/accuracy.md"), "and links the document")
+
         let index = try Self.text("site/index.html")
-        let opening = readme.split(separator: "\n", omittingEmptySubsequences: true).prefix(2).joined(separator: "\n")
-        #expect(opening.contains(Self.hero), "the README's first two lines carry the accuracy line")
-        #expect(opening.contains("docs/accuracy.md"), "and link the document")
-        for line in [Self.hero, Self.menuBar, Self.twoWay, Self.platform] {
-            #expect(readme.contains(line), "README: \(line)")
-            #expect(index.contains(line), "site/index.html: \(line)")
+        let headline = try #require(Self.element("h1", in: index))
+        #expect(Self.plain(headline).trimmingCharacters(in: .whitespaces) == Self.job, "the site's headline is the job")
+        // The proof's own paragraph carries the link, so the document is one click from the claim.
+        let proofAt = try #require(index.range(of: Self.proof))
+        let paragraphEnd = try #require(index.range(of: "</p>", range: proofAt.upperBound..<index.endIndex))
+        #expect(index[proofAt.lowerBound..<paragraphEnd.lowerBound].contains("docs/accuracy.md"), "the proof links the document")
+
+        // The same sentences, in the same order, in both files.
+        for (name, text) in [("README", readme), ("site/index.html", Self.plain(index))] {
+            let positions = [Self.job, Self.proof, Self.menuBar, Self.twoWay].map { text.range(of: $0)?.lowerBound }
+            #expect(!positions.contains(nil), "\(name) carries all four lines")
+            let found = positions.compactMap { $0 }
+            #expect(found == found.sorted(), "\(name): job, proof, menu-bar line, two-way line, in that order")
+            #expect(text.contains(Self.platform), "\(name): \(Self.platform)")
         }
-        #expect(index.contains("docs/accuracy.md"), "the site links the same document")
     }
 
     @Test func theTermsQuoteAnthropicVerbatimInBothPlaces() throws {
@@ -121,6 +176,231 @@ import Testing
         }
         #expect(!readme.contains("grey area"), "Anthropic's position is quoted, not called a grey area")
         #expect(!terms.contains("grey area"))
+    }
+
+    /// The pricing page argued until 2026-09-24 that "a paid tier would need an account to check", which is not so: a
+    /// licence can be a signed file checked on the Mac. It now gives the real reason, a choice, and says when the choice
+    /// will be looked at again.
+    @Test func thePricingPageGivesTheRealReasonItIsFree() throws {
+        let pricing = try Self.text("site/pricing.html")
+        let words = Self.plain(pricing)
+        #expect(!words.contains("would need an account"), "the account argument is gone")
+        #expect(words.contains("the project chose to be free and open"))
+        #expect(words.contains("real download numbers"), "and says the choice will be revisited")
+    }
+}
+
+/// The guides under `site/guides/`, the index that lists them, and the files that tell a search engine what the site
+/// holds. Each guide is written to a question people search for, dated, and stamped with the version it was checked
+/// against; these hold the parts a hand edit most easily drops: the head every page needs to be shared and found, the
+/// stamp, the sitemap entry, the way back to the index, and the promise that no page measures its reader.
+@Suite struct SiteGuides {
+    static let site = ClaudeCodePlugin.root.appendingPathComponent("site")
+    static let host = "https://www.notchmeter.com/"
+    static let published = "2026-09-24"
+
+    /// The version each guide says it was checked against is the shipped one, read from `scripts/Info.plist` the way
+    /// the plugin manifest is held to it, so a release that bumps the plist without re-checking the guides fails here
+    /// rather than on the published page. The first draft pinned a literal, and stamped a version that had not been
+    /// built.
+    static func stamp() throws -> String {
+        "Tested on Notchmeter \(try ClaudeCodePlugin.bundleVersion())"
+    }
+    static let guides = [
+        "claude-code-cost-estimate-vs-bill",
+        "will-you-run-out-before-the-reset",
+        "which-assistant-should-get-this-task",
+        "claude-code-notifications-not-working",
+        "prompt-cache-cost",
+        "cursor-copilot-antigravity-limits",
+        "monitor-coding-agents-without-config-writes",
+        "macos-agent-notch-apps-compared",
+    ]
+
+    /// Every `.html` file under `site/`, as paths relative to it.
+    static func pages() throws -> [String] {
+        let enumerator = try #require(FileManager.default.enumerator(atPath: site.path))
+        return enumerator.compactMap { $0 as? String }.filter { $0.hasSuffix(".html") }.sorted()
+    }
+
+    static func text(_ page: String) throws -> String {
+        try String(contentsOf: site.appendingPathComponent(page), encoding: .utf8)
+    }
+
+    /// The `content` of `<meta property|name="key" content="…">`, or nil.
+    static func meta(_ key: String, in html: String) -> String? {
+        for attribute in ["property", "name"] {
+            let prefix = "<meta \(attribute)=\"\(key)\" content=\""
+            guard let start = html.range(of: prefix) else { continue }
+            let rest = html[start.upperBound...]
+            if let end = rest.firstIndex(of: "\"") { return String(rest[..<end]) }
+        }
+        return nil
+    }
+
+    static func canonical(in html: String) -> String? {
+        guard let start = html.range(of: "<link rel=\"canonical\" href=\"") else { return nil }
+        let rest = html[start.upperBound...]
+        return rest.firstIndex(of: "\"").map { String(rest[..<$0]) }
+    }
+
+    /// The canonical URL a page at `page` should name: the folder itself for an index, the file otherwise.
+    static func expectedCanonical(_ page: String) -> String {
+        if page == "index.html" { return host }
+        if page.hasSuffix("/index.html") { return host + String(page.dropLast("index.html".count)) }
+        return host + page
+    }
+
+    @Test func everyGuideIsDatedStampedAndCarriesTheHeadItNeedsToBeFound() throws {
+        let stamp = try Self.stamp()
+        for slug in Self.guides {
+            let page = "guides/\(slug).html"
+            let html = try Self.text(page)
+            let url = Self.expectedCanonical(page)
+            #expect(Self.canonical(in: html) == url, "\(page): canonical")
+            #expect(Self.meta("og:url", in: html) == url, "\(page): og:url is the canonical URL")
+            #expect(Self.meta("og:type", in: html) == "article", "\(page): shared as an article")
+            #expect(Self.meta("article:published_time", in: html) == Self.published, "\(page): published date")
+            for key in ["description", "og:title", "og:description", "og:image"] {
+                #expect(!(Self.meta(key, in: html) ?? "").isEmpty, "\(page): \(key)")
+            }
+            let title = try #require(SiteParity.element("title", in: html), "\(page): a <title>")
+            let h1 = try #require(SiteParity.element("h1", in: html), "\(page): an <h1>")
+            #expect(title.hasPrefix(SiteParity.plain(h1)), "\(page): the title is the question the page answers")
+            #expect(html.components(separatedBy: "<h1").count == 2, "\(page): one <h1>")
+            #expect(html.contains("<time datetime=\"\(Self.published)\">"), "\(page): dated")
+            #expect(html.contains(stamp), "\(page): stamped with the shipped version, the one it was checked against")
+            #expect(html.contains("href=\"index.html\""), "\(page): links back to the guides")
+            #expect(html.contains("href=\"../style.css\""), "\(page): the site's one stylesheet, and no other")
+        }
+    }
+
+    @Test func theIndexListsEveryGuideAndNothingElse() throws {
+        let index = try Self.text("guides/index.html")
+        for slug in Self.guides {
+            #expect(index.contains("href=\"\(slug).html\""), "guides/index.html lists \(slug)")
+        }
+        let onDisk = try Self.pages().filter { $0.hasPrefix("guides/") && $0 != "guides/index.html" }
+        #expect(Set(onDisk) == Set(Self.guides.map { "guides/\($0).html" }), "a guide on disk that the list does not name, or the other way round")
+        // Each card's date line carries the stamp of the page it opens, so the index cannot promise a version the
+        // guide was not checked on.
+        let stamped = index.components(separatedBy: "· \(try Self.stamp())").count - 1
+        #expect(stamped == Self.guides.count, "guides/index.html: one stamp per card, each the shipped version")
+    }
+
+    @Test func theSitemapNamesEveryPageAtItsCanonicalURLAndRobotsPointsAtIt() throws {
+        let sitemap = try String(contentsOf: Self.site.appendingPathComponent("sitemap.xml"), encoding: .utf8)
+            .replacingOccurrences(of: "<!--[\\s\\S]*?-->", with: "", options: .regularExpression)
+        let listed = sitemap.components(separatedBy: "<loc>").dropFirst().compactMap { $0.components(separatedBy: "</loc>").first }
+        var expected: [String] = []
+        for page in try Self.pages() {
+            let html = try Self.text(page)
+            let url = try #require(Self.canonical(in: html), "\(page) names a canonical URL")
+            #expect(url == Self.expectedCanonical(page), "\(page): canonical \(url)")
+            expected.append(url)
+        }
+        #expect(Set(listed) == Set(expected), "sitemap.xml lists exactly the pages on disk")
+        #expect(listed.count == Set(listed).count, "no page listed twice")
+        let robots = try String(contentsOf: Self.site.appendingPathComponent("robots.txt"), encoding: .utf8)
+        #expect(robots.contains("Sitemap: \(Self.host)sitemap.xml"))
+    }
+
+    /// No analytics, by decision (2026-09-07, the note at the head of index.html): a site selling an app on the
+    /// promise that nothing of yours reaches a server of ours does not measure its own readers. The one script on the
+    /// site is index.html's inline Windows check, which makes no request; nothing else runs a line of script.
+    @Test func noPageLoadsAScriptOrATracker() throws {
+        // Hosts in a tag's attributes, not words in the prose: the comparison guide names Mixpanel because another app
+        // uses it, and saying so is the point of the page.
+        let trackers = ["googletagmanager", "google-analytics", "plausible", "_vercel/insights", "va.vercel-scripts",
+                        "segment.com", "mixpanel", "hotjar", "clarity.ms", "posthog"]
+        for page in try Self.pages() {
+            let tags = Self.tags(in: try Self.text(page)).map { $0.lowercased() }
+            for tracker in trackers {
+                #expect(!tags.contains { $0.contains(tracker) }, "\(page) loads \(tracker)")
+            }
+            // A JSON-LD data block runs nothing; the usage-tracker pages carry two each, and SiteLandingPages holds
+            // every script tag on them to that one type.
+            let scripts = tags.filter { $0.hasPrefix("<script") && !$0.contains("application/ld+json") }
+            #expect(!scripts.contains { $0.contains(" src=") }, "\(page) loads an external script")
+            if page != "index.html" {
+                #expect(scripts.isEmpty, "\(page) runs a script")
+            }
+        }
+        // And the one inline script does what its comment says: no request, no cookie, no storage.
+        let index = try Self.text("index.html")
+        let script = try #require(SiteParity.element("script", in: index))
+        for call in ["fetch(", "XMLHttpRequest", "sendBeacon", "document.cookie", "localStorage", "sessionStorage", "new Image"] {
+            #expect(!script.contains(call), "index.html's script uses \(call)")
+        }
+        // The privacy notice states the same fact in its own words. Until 2026-09-24 it said no script of any kind
+        // ran on the site while this test held the home page to exactly one, and a reader who viewed source could
+        // see which of the two was wrong.
+        let privacy = try Self.text("privacy.html")
+        #expect(privacy.contains("The one script on this site is the home page"), "privacy.html names the one script")
+        #expect(!privacy.contains("No script of any kind") && !privacy.contains("no JavaScript on these pages at all"),
+                "privacy.html does not deny the script the home page runs")
+    }
+
+    /// Every opening tag in the page, comments left out.
+    static func tags(in html: String) -> [String] {
+        let text = html.replacingOccurrences(of: "<!--[\\s\\S]*?-->", with: "", options: .regularExpression)
+        var found: [String] = []
+        var from = text.startIndex
+        while let tag = text.range(of: "<[a-zA-Z][^>]*>", options: .regularExpression, range: from..<text.endIndex) {
+            found.append(String(text[tag]))
+            from = tag.upperBound
+        }
+        return found
+    }
+
+    /// On every page the headings never skip a level, so the outline a screen reader walks reads in order (until
+    /// 2026-09-25 the footer's column titles were h4 under h2 sections, and the legal pages went h1 to h3 and h4),
+    /// and a link into one of the repository's documents lands on the section it promises: a `#fragment` on a
+    /// `docs/*.md` link is one of that file's headings, as GitHub anchors them, so a renamed heading fails here
+    /// rather than opening the top of a long document. `SiteLandingPages` holds the usage-tracker pages to the same
+    /// two rules; this covers the rest.
+    @Test func headingsDoNotSkipALevelAndDocumentAnchorsResolve() throws {
+        for page in try Self.pages() {
+            let html = try Self.text(page)
+            var previous = 0
+            for level in SiteLandingPages.captures("<h([1-6])[ >]", in: html).compactMap({ Int($0[0]) }) {
+                #expect(level <= previous + 1, "\(page): the headings jump from h\(previous) to h\(level)")
+                previous = level
+            }
+            for href in SiteLandingPages.captures("<a [^>]*href=\"([^\"]+)\"", in: html).map({ $0[0] }) {
+                try SiteLandingPages.expectDocumentAnchorResolves(href, on: page)
+            }
+        }
+    }
+
+    /// A search result shows about 155 to 160 characters of a description (the rule `SiteLandingPages` holds the
+    /// usage-tracker pages to, read on 2026-09-24), so every other page is held to the same: the home page's ran to
+    /// 309 characters and the guides' to 227, each cut mid-sentence in a result. Link cards show about 200.
+    @Test func everyDescriptionFitsASearchSnippetAndALinkCard() throws {
+        let snippet = 155
+        let card = 200
+        for page in try Self.pages() {
+            let html = try Self.text(page)
+            let description = try #require(Self.meta("description", in: html), "\(page): a description")
+            #expect(description.count <= snippet, "\(page): the description is \(description.count) characters; a snippet shows \(snippet)")
+            let og = try #require(Self.meta("og:description", in: html), "\(page): an og:description")
+            #expect(og.count <= card, "\(page): og:description is \(og.count) characters; a card shows \(card)")
+        }
+    }
+
+    /// Every page has the way in to the guides and the way past its own header: the Guides link in the header, and a
+    /// skip link to a `main` that exists.
+    @Test func everyPageLinksTheGuidesAndCanSkipItsHeader() throws {
+        for page in try Self.pages() {
+            let html = try Self.text(page)
+            let nav = try #require(SiteParity.element("nav", in: html), "\(page): a header nav")
+            // A page in a folder of its own (the usage-tracker pages) reaches the guides through its parent.
+            let up = String(repeating: "../", count: page.components(separatedBy: "/").count - 1)
+            let guides = page.hasPrefix("guides/") ? "href=\"index.html\"" : "href=\"\(up)guides/index.html\""
+            #expect(nav.contains(guides) && nav.contains(">Guides</a>"), "\(page): the header links the guides")
+            #expect(html.contains("<a class=\"skip\" href=\"#main\">"), "\(page): a skip link")
+            #expect(html.range(of: "<main[^>]*id=\"main\"", options: .regularExpression) != nil, "\(page): the skip link's target")
+        }
     }
 }
 

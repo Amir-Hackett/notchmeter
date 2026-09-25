@@ -4,15 +4,26 @@ import Foundation
 /// that keeps every hook already there, the status line entry beside Claude Code's, and the check that says
 /// whether any of them points at the copy of Notchmeter that is running. Which file, which events, which flag and
 /// which handler dictionary are the vendor's (HookVendor); the merge, repair and status rules below are the same
-/// for all of them. This writes only on a Settings button or the launch repair, after a backup, and only JSON: a
-/// file that is not strict JSON (Gemini CLI's settings.json may carry comments) is refused rather than flattened.
+/// for all of them. This writes only on a Settings button or the launch repair, after a backup. A JSON file that is
+/// not strict JSON (Gemini CLI's settings.json may carry comments) is refused rather than flattened; Kimi Code's
+/// TOML file is edited as text (KimiHookFile), appending tables and rewriting a command in place, and one that
+/// already defines `hooks` in another form is refused the same way. OpenCode's integration is a plugin module rather
+/// than an entry in a file, so its status, install, repair and snippet are OpenCodePlugin's, reached through the
+/// same four functions so that every caller stays vendor-blind.
 enum HookSettings {
     /// SubagentStart, SubagentStop and StopFailure joined in round 2, PreToolUse (matched to AskUserQuestion) in
     /// 0.7.0, PostToolUse (matched to the task tools, for the Sessions card's task list) after 0.7.9; Repair adds them to
     /// an older install, and brings a 0.6.0 PermissionRequest entry to the synchronous shape the decision channel
-    /// needs (HookVendor.isCurrent).
+    /// needs (HookVendor.isCurrent). The ten after SessionEnd joined in 0.11 (Hook+Events.swift says what each keeps,
+    /// and why WorktreeCreate, WorktreeRemove and PreModelSwitch are left out); an install from before them reads as
+    /// partial, and Repair or the launch repair adds them after the usual backup. Every one but Elicitation is
+    /// asynchronous, which is also what makes the four that could block something (PreCompact, TeammateIdle,
+    /// PostToolBatch, ElicitationResult) unable to: an async hook's output "has no effect", and the command exits 0
+    /// having printed nothing whatever happens.
     static let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "PreToolUse", "PostToolUse", "Notification", "Stop", "StopFailure",
-                         "SubagentStart", "SubagentStop", "SessionEnd"]
+                         "SubagentStart", "SubagentStop", "SessionEnd",
+                         "PreCompact", "PostCompact", "PostModelSwitch", "Elicitation", "ElicitationResult", "TeammateIdle",
+                         "PostToolUseFailure", "PermissionDenied", "PostToolBatch", "CwdChanged"]
 
     struct Installed: Equatable {
         let backup: URL?
@@ -67,10 +78,14 @@ enum HookSettings {
 
     enum Failure: LocalizedError {
         case notAnObject(URL)
+        /// A TOML file that defines `hooks` other than as `[[hooks]]` tables, or ends inside a value: appending a
+        /// table would break it for the assistant (KimiHookFile.Scan.conflict).
+        case tomlHooksKey(URL)
 
         var errorDescription: String? {
             switch self {
             case .notAnObject(let url): L("%@ is not a JSON object, so it was left untouched", url.path)
+            case .tomlHooksKey(let url): L("%@ already defines hooks in a form Notchmeter does not edit, so it was left untouched: paste the snippet instead", url.path)
             }
         }
     }
@@ -93,8 +108,8 @@ enum HookSettings {
     /// Claude Code runs the command through `sh -c` (Codex through `$SHELL -lc`, the others through a shell of
     /// their own), so the path is single-quoted, which sh, bash, zsh and fish all read alike. The flag is the
     /// vendor's for the event (HookVendor.flag(for:)): `--hook` for Claude Code, `--hook --tool codex` for Codex,
-    /// `--hook --tool cursor` for Cursor, `--hook --tool antigravity` for Gemini CLI and
-    /// `--hook --tool copilot --event <name>` for Copilot.
+    /// `--hook --tool cursor` for Cursor, `--hook --tool gemini` for Gemini CLI, `--hook --tool kimi` for Kimi Code
+    /// and `--hook --tool copilot --event <name>` for Copilot.
     static func command(executable: String, flag: String = "--hook") -> String {
         "\(quote(executable)) \(flag)"
     }
@@ -133,8 +148,15 @@ enum HookSettings {
     /// Claude Code's, Codex's and Gemini CLI's nested groups, or Cursor's and Copilot's `"version": 1` and a bare
     /// handler per event. Cursor's carries no timeout (its default is an undocumented platform one and the command
     /// exits in under 50 ms), no failClosed (the command prints nothing, which failClosed would count as a
-    /// failure), no loop_limit (no followup_message is ever emitted) and no matcher.
+    /// failure), no loop_limit (no followup_message is ever emitted) and no matcher. Kimi Code's is TOML: the
+    /// `[[hooks]]` tables Add appends, byte for byte (KimiHookFile.table).
     static func snippet(vendor: HookVendor = .claude, executable: String = executablePath) -> String {
+        if vendor.shape == .pluginModule { return OpenCodePlugin.source(executable: executable) }
+        if vendor.shape == .tomlTables {
+            return vendor.events.map { event in
+                KimiHookFile.table(event: event, handler: vendor.handler(command: command(executable: executable, flag: vendor.flag(for: event)), event: event))
+            }.joined(separator: "\n")
+        }
         let entries = vendor.events.map { event in
             let handler = render(handler: vendor.handler(command: command(executable: executable, flag: vendor.flag(for: event)), event: event))
             switch vendor.shape {
@@ -145,8 +167,10 @@ enum HookSettings {
                       { \(matcher)"hooks": [ \(handler) ] }
                     ]
                 """
-            case .flatCommands:
+            case .flatCommands, .tomlTables:
                 return "    \"\(event)\": [ \(handler) ]"
+            case .pluginModule:
+                return ""
             }
         }
         let rootKeys = vendor.shape.requiredRootKeys.sorted { $0.key < $1.key }.map { "  \"\($0.key)\": \(render(value: $0.value)),\n" }.joined()
@@ -265,7 +289,13 @@ enum HookSettings {
     /// Whether any assistant's file carries an entry of ours at all, current or not: what the Sessions card asks
     /// before it says there are no sessions rather than staying away.
     static func anyInstalled() -> Bool {
-        HookVendor.allCases.contains { status(vendor: $0) != .notInstalled }
+        !installedTools().isEmpty
+    }
+
+    /// The assistants whose file carries an entry of ours, current or not: the Sessions card offers the hook for a
+    /// row found without it only where this says there is none.
+    static func installedTools() -> Set<ToolID> {
+        Set(HookVendor.allCases.filter { status(vendor: $0) != .notInstalled }.map(\.tool))
     }
 
     /// Where the hook stands: absent; naming another executable (stale); installed for every event with the
@@ -330,7 +360,15 @@ enum HookSettings {
 
     /// The vendor's file on disk, or another at `url` (tests and `--smoke`).
     static func status(vendor: HookVendor = .claude, at url: URL? = nil, executable: String = executablePath) -> Status {
-        ((try? readSettings(at: url ?? vendor.fileURL)).map { status(settings: $0, vendor: vendor, executable: executable) }) ?? .notInstalled
+        if vendor.shape == .pluginModule { return OpenCodePlugin.status(at: url ?? vendor.fileURL, executable: executable) }
+        return ((try? hooks(of: vendor, at: url ?? vendor.fileURL)).map { status(settings: $0, vendor: vendor, executable: executable) }) ?? .notInstalled
+    }
+
+    /// The file's hooks as a JSON-shaped object whatever the file is written in: the JSON itself, or Kimi Code's
+    /// `[[hooks]]` tables read into the same shape (KimiHookFile.settings), so one status rule serves every vendor.
+    static func hooks(of vendor: HookVendor, at url: URL) throws -> [String: Any] {
+        guard vendor.shape == .tomlTables else { return try readSettings(at: url) }
+        return KimiHookFile.settings(from: KimiHookFile.scan(try KimiHookFile.read(at: url)))
     }
 
     static func statuslineStatus(at url: URL = settingsURL, executable: String = executablePath) -> Status {
@@ -341,6 +379,8 @@ enum HookSettings {
     /// file's own permissions. Nothing is written when every event already has the hook.
     static func install(vendor: HookVendor = .claude, at url: URL? = nil, executable: String = executablePath, now: Date = Date()) throws -> Installed {
         let url = url ?? vendor.fileURL
+        if vendor.shape == .pluginModule { return try OpenCodePlugin.install(at: url, executable: executable, now: now) }
+        if vendor.shape == .tomlTables { return try installTables(vendor: vendor, at: url, executable: executable, now: now) }
         let settings = try readSettings(at: url)
         let merged = merge(into: settings, vendor: vendor, executable: executable)
         guard !merged.added.isEmpty else { return Installed(backup: nil, added: [], present: merged.present) }
@@ -352,11 +392,58 @@ enum HookSettings {
     /// lacks one, after a backup.
     static func repairInstall(vendor: HookVendor = .claude, at url: URL? = nil, executable: String = executablePath, now: Date = Date()) throws -> Installed {
         let url = url ?? vendor.fileURL
+        // The plugin is rewritten whole for this executable and version, after the same backup.
+        if vendor.shape == .pluginModule { return try OpenCodePlugin.install(at: url, executable: executable, now: now) }
+        if vendor.shape == .tomlTables { return try repairTables(vendor: vendor, at: url, executable: executable, now: now) }
         let settings = try readSettings(at: url)
         let result = repair(settings, vendor: vendor, executable: executable)
         guard !result.repaired.isEmpty || !result.added.isEmpty else { return Installed(backup: nil, added: [], present: vendor.events) }
         let backup = try write(result.settings, to: url, now: now)
         return Installed(backup: backup, added: result.added + result.repaired, present: [])
+    }
+
+    /// Add for a TOML file: the same merge rule decides which events lack an entry of ours, and each one gets a
+    /// `[[hooks]]` table appended to the text, so the rest of the file is left byte for byte as it was.
+    private static func installTables(vendor: HookVendor, at url: URL, executable: String, now: Date) throws -> Installed {
+        let text = try KimiHookFile.read(at: url)
+        let scan = KimiHookFile.scan(text)
+        guard !scan.conflict else { throw Failure.tomlHooksKey(url) }
+        let merged = merge(into: KimiHookFile.settings(from: scan), vendor: vendor, executable: executable)
+        guard !merged.added.isEmpty else { return Installed(backup: nil, added: [], present: merged.present) }
+        let backup = try write(text: KimiHookFile.appending(tables(for: merged.added, vendor: vendor, executable: executable), to: text), to: url, now: now)
+        return Installed(backup: backup, added: merged.added, present: merged.present)
+    }
+
+    /// Repair for a TOML file: every table of ours, under any event, has its command rewritten in place to the
+    /// current one for its event (nothing else in the table is touched, the timeout included, as Repair keeps a
+    /// JSON handler's other keys), then the events that lack a table get one appended.
+    private static func repairTables(vendor: HookVendor, at url: URL, executable: String, now: Date) throws -> Installed {
+        let text = try KimiHookFile.read(at: url)
+        let scan = KimiHookFile.scan(text)
+        guard !scan.conflict else { throw Failure.tomlHooksKey(url) }
+        var replacements: [(range: Range<Int>, with: String)] = []
+        var repaired: [String] = []
+        for table in scan.tables {
+            guard let event = table.event, let current = table.command, let range = table.commandRange,
+                  isNotchmeterHook(["command": current]) else { continue }
+            let expected = command(executable: executable, flag: vendor.flag(for: event))
+            guard current != expected else { continue }
+            replacements.append((range, KimiHookFile.basicString(expected)))
+            if !repaired.contains(event) { repaired.append(event) }
+        }
+        let rewritten = KimiHookFile.replacing(replacements, in: text)
+        let added = merge(into: KimiHookFile.settings(from: KimiHookFile.scan(rewritten)), vendor: vendor, executable: executable).added
+        guard !repaired.isEmpty || !added.isEmpty else { return Installed(backup: nil, added: [], present: vendor.events) }
+        let order = vendor.events
+        let ordered = repaired.sorted { (order.firstIndex(of: $0) ?? order.count, $0) < (order.firstIndex(of: $1) ?? order.count, $1) }
+        let backup = try write(text: KimiHookFile.appending(tables(for: added, vendor: vendor, executable: executable), to: rewritten), to: url, now: now)
+        return Installed(backup: backup, added: added + ordered, present: [])
+    }
+
+    private static func tables(for events: [String], vendor: HookVendor, executable: String) -> [String] {
+        events.map { event in
+            KimiHookFile.table(event: event, handler: vendor.handler(command: command(executable: executable, flag: vendor.flag(for: event)), event: event))
+        }
     }
 
     struct StatuslineInstalled: Equatable {
@@ -393,6 +480,17 @@ enum HookSettings {
 
     @discardableResult
     private static func write(_ settings: [String: Any], to url: URL, now: Date) throws -> URL? {
+        try write(data: JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]), to: url, now: now)
+    }
+
+    @discardableResult
+    private static func write(text: String, to url: URL, now: Date) throws -> URL? {
+        try write(data: Data(text.utf8), to: url, now: now)
+    }
+
+    /// Backs the file up beside itself as `<name>.bak-<timestamp>` (once per second's timestamp), then writes the new
+    /// contents atomically with the file's own permissions.
+    private static func write(data: Data, to url: URL, now: Date) throws -> URL? {
         let fm = FileManager.default
         var backup: URL?
         if fm.fileExists(atPath: url.path) {
@@ -404,7 +502,6 @@ enum HookSettings {
             backup = target
         }
         let permissions = (try? fm.attributesOfItem(atPath: url.path))?[.posixPermissions]
-        let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
         try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: url, options: .atomic)
         if let permissions {

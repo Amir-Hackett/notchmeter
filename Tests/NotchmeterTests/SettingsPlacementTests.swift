@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Testing
 @testable import Notchmeter
 
@@ -91,24 +92,55 @@ import Testing
         }
     }
 
-    /// One fill weight across the six, so the sidebar reads as one list. Outline and solid glyphs side by side
-    /// were the first pass's mistake; this pins the fix rather than trusting the next editor to see it.
-    @Test func theSixGlyphsShareOneFillWeight() {
-        for pane in SettingsPane.allCases {
+    /// One fill weight across the app's own panes, so the sidebar reads as one list. Outline and solid glyphs side
+    /// by side were the first pass's mistake; this pins the fix rather than trusting the next editor to see it.
+    @Test func theAppPanesGlyphsShareOneFillWeight() {
+        for pane in SettingsPane.app {
             #expect(pane.symbol.hasSuffix(".fill"), "\(pane.title) wears \(pane.symbol), which is not a fill")
         }
     }
 
-    @Test func everyTileClearsThreeToOneAgainstItsWhiteGlyphInBothAppearances() throws {
+    /// An assistant's page wears its own card's symbol and its own ring colour, so the sidebar and the notch name
+    /// it the same way; a new drawing for Settings alone would have to be learned twice.
+    @Test func anAssistantsPageWearsItsCardsSymbolAndColour() throws {
+        // `ToolID.color` is adaptive since 0.9.0, a fresh provider on every read, so two reads are never equal as
+        // `Color` values: the tint and the ring colour are compared as the sRGB values they resolve to under each
+        // appearance instead.
+        func resolved(_ colour: Color, under appearance: NSAppearance) throws -> String {
+            var out: NSColor?
+            appearance.performAsCurrentDrawingAppearance { out = NSColor(colour).usingColorSpace(.sRGB) }
+            let c = try #require(out)
+            return String(format: "%02X%02X%02X", Int((c.redComponent * 255).rounded()), Int((c.greenComponent * 255).rounded()), Int((c.blueComponent * 255).rounded()))
+        }
+        let aqua = try #require(NSAppearance(named: .aqua))
+        let darkAqua = try #require(NSAppearance(named: .darkAqua))
+        for tool in ToolID.allCases {
+            let pane = SettingsPane.agent(tool)
+            #expect(pane.symbol == tool.symbolName)
+            #expect(try resolved(pane.tint, under: aqua) == resolved(tool.color, under: aqua), "\(tool)'s page in light")
+            #expect(try resolved(pane.tint, under: darkAqua) == resolved(tool.color, under: darkAqua), "\(tool)'s page in dark")
+            #expect(pane.title == tool.productName)
+        }
+    }
+
+    /// White on the chrome tiles, black on an assistant's light identity colour: each glyph against its own tile.
+    @Test func everyTileClearsThreeToOneAgainstItsGlyphInBothAppearances() throws {
         for name in [NSAppearance.Name.aqua, .darkAqua] {
             let appearance = try #require(NSAppearance(named: name))
             appearance.performAsCurrentDrawingAppearance {
                 for pane in SettingsPane.allCases {
-                    let ratio = Self.contrast(NSColor(pane.tint), .white)
+                    let ratio = Self.contrast(NSColor(pane.tint), NSColor(pane.glyph))
                     #expect(ratio >= 3, "\(pane.title) is \(ratio) against its glyph in \(name.rawValue)")
                 }
             }
         }
+    }
+
+    /// The reason the assistants' tiles carry a black glyph rather than the chrome's white: their colours are light
+    /// tints chosen for the panel's black, and a white glyph would vanish on the lightest of them.
+    @Test func aWhiteGlyphWouldFailOnAnAssistantsOwnColour() {
+        let ratios = ToolID.allCases.map { Self.contrast(NSColor($0.color), .white) }
+        #expect(ratios.contains { $0 < 3 }, "every identity colour now carries white: \(ratios)")
     }
 
     /// General is the pane the window opens on, so its tile is the first one a low-vision reader meets. It wears a

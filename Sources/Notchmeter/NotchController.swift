@@ -10,11 +10,15 @@ final class NotchActions {
     /// Settings open on a named pane: the panel's "Add a tool" row lands on Assistants.
     var openSettingsPane: (SettingsPane) -> Void = { _ in }
     var openDashboard: () -> Void = {}
+    /// The usage card (ShareCardWindow), from wherever it was asked for; the cause goes to the oracle.
+    var openShareCard: (ShareCardCause) -> Void = { _ in }
     var showOptions: () -> Void = {}
     var applyLayout: () -> Void = {}
     var togglePanel: () -> Void = {}
     var copyPanelImage: () -> Void = {}
     var installCommandLineTool: () -> Void = {}
+    /// The Options menu's Send Feedback…: Settings, with the feedback sheet up over it (FeedbackView).
+    var sendFeedback: () -> Void = {}
     /// The user picking which side of the notch the readouts sit on. Not `prefs.compactSide = side` directly:
     /// picking Auto is what asks for Accessibility (AutoSideWatcher.sideChosen).
     var chooseCompactSide: (CompactSide) -> Void = { _ in }
@@ -41,6 +45,9 @@ final class NotchActions {
     /// A click on a session row: jump to the terminal the session's hook reported (TerminalJump.swift). Wired by
     /// the app delegate, which owns the executor; the view never activates another app itself.
     var jump: (AgentSession) -> Void = { _ in }
+    /// The Sessions card's upgrade line under a row found without the hook: opens the hook's install flow for that
+    /// assistant in Settings (AppDelegate.offerHook). It never installs anything itself.
+    var offerHook: (ToolID) -> Void = { _ in }
     /// The news peek beside the notch was pressed with VoiceOver (NotchCompactView): the panel under the pointer
     /// opens on that session. A mouse click never comes this way; the hover machine hands it to the presenter it
     /// landed on (HoverDriver.claimsCompactClick).
@@ -136,7 +143,7 @@ struct PanelReporter {
 /// and a window coming up while a request is showing still wins, because a panel the user cannot see behind
 /// Settings is no place to answer from.
 struct PanelHolds {
-    enum Reason { case settings, dashboard, update, alert, prompt, welcome }
+    enum Reason { case settings, dashboard, update, alert, prompt, welcome, shareCard }
 
     private var reasons: Set<Reason> = []
 
@@ -262,6 +269,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
             menu.addItem(.separator())
         }
         menu.addItem(item(L("Copy panel as image"), #selector(copyImage)))
+        menu.addItem(item(L("Share usage card…"), #selector(shareCard)))
         menu.addItem(item(L("Install command line tool…"), #selector(installCLI)))
         menu.addItem(.separator())
         let login = item(L("Open at login"), #selector(toggleLaunchAtLogin))
@@ -278,6 +286,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         if actions.checkForUpdates != nil {
             menu.addItem(item(L("Check for Updates…"), #selector(checkForUpdates)))
         }
+        menu.addItem(item(L("Send Feedback…"), #selector(sendFeedback)))
         menu.addItem(.separator())
         let quit = item(L("Quit %@", AppInfo.name), #selector(quit))
         quit.keyEquivalent = "q"
@@ -317,6 +326,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
     @objc private func refreshNow() { actions.refresh() }
     @objc private func togglePanel() { actions.togglePanel() }
     @objc private func copyImage() { actions.copyPanelImage() }
+    @objc private func shareCard() { actions.openShareCard(.menu) }
     @objc private func installCLI() { actions.installCommandLineTool() }
 
     @objc private func setVisibility(_ sender: NSMenuItem) {
@@ -345,6 +355,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
     @objc private func showSettings() { actions.openSettings() }
     @objc private func showDashboard() { actions.openDashboard() }
     @objc private func checkForUpdates() { actions.checkForUpdates?() }
+    @objc private func sendFeedback() { actions.sendFeedback() }
     @objc private func quit() { NSApp.terminate(nil) }
 }
 
@@ -386,6 +397,10 @@ final class NotchController: NSObject, PanelPresenting {
     private var reporter = PanelReporter()
     /// The light under the collapsed notch (NotchGlow), in a click-through window of its own.
     private let glow = NotchGlowPresenter()
+    /// The readouts on screen, for a scroll over one of them (RingRetarget), and the label naming the window a
+    /// scroll moved a ring to, in a click-through window of its own like the glow.
+    private let ringTargets = RingTargets()
+    private let ringLabel = RingLabelPresenter()
     /// The hover machine has decided to open and the transition has not yet adopted it (`act`, `expand`).
     private var expanding = false
 
@@ -404,12 +419,13 @@ final class NotchController: NSObject, PanelPresenting {
         self.prefs = prefs
         self.actions = actions
         self.menu = OptionsMenu(prefs: prefs, actions: actions)
+        let targets = ringTargets
         notch = DynamicNotch(hoverBehavior: [.increaseShadow], style: .notch) {
             NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: true)
         } compactLeading: {
-            NotchCompactView(store: store, side: .leading, openNews: { actions.openNews($0) })
+            NotchCompactView(store: store, side: .leading, openNews: { actions.openNews($0) }, ringTargets: targets)
         } compactTrailing: {
-            NotchCompactView(store: store, side: .trailing, openNews: { actions.openNews($0) })
+            NotchCompactView(store: store, side: .trailing, openNews: { actions.openNews($0) }, ringTargets: targets)
         }
         leadingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .leading))
         trailingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .trailing))
@@ -429,6 +445,8 @@ final class NotchController: NSObject, PanelPresenting {
         }
         hover.pointerEnteredCompact = { [weak self] in self?.store.wakeFromIdle() }
         hover.claimsCompactClick = { [weak self] in self?.openOnPeek() ?? false }
+        hover.ringAt = { [weak self] point in self?.ringTargets.tool(at: point) }
+        hover.ringScrolled = { [weak self] tool, step in self?.retarget(tool, by: step) }
         let workspace = NSWorkspace.shared.notificationCenter
         observers.append((workspace, workspace.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
@@ -578,6 +596,11 @@ final class NotchController: NSObject, PanelPresenting {
         // The notch panel stays black so it reads as one shape with the hardware notch: a glass backdrop
         // over black renders as pale grey and breaks that join. Glass belongs to the edge layouts.
         notch.expandedGlass = false
+        // A translucent material (Settings › Appearance › Theme) is a blur with the black laid over it below the
+        // notch's band, which stays black; Paper's sheet is drawn by the panel itself inside the black.
+        let look = PanelLook.current(prefs, edgeCard: false)
+        let tint: Double? = look.theme == .black && look.material.translucent ? look.material.tint : nil
+        if notch.expandedTint != tint { notch.expandedTint = tint }
     }
 
     func toggle(cause: PanelCause) {
@@ -607,6 +630,7 @@ final class NotchController: NSObject, PanelPresenting {
         fullScreenWatch?.stop()
         fullScreenWatch = nil
         glow.close()
+        ringLabel.close()
         transitionSerial += 1
         await notch.hide()
     }
@@ -730,7 +754,8 @@ final class NotchController: NSObject, PanelPresenting {
             store.panelOpenedForPrompt = true
         case .notice:
             guard let session else { return }
-            let event: Notifier.SessionEvent = news.reason.isWait ? .waiting(blocking: true) : .finished(turn: session.finished?.turn ?? 0)
+            let event: Notifier.SessionEvent = news.reason.isWait ? .waiting(blocking: true)
+                : news.reason.trouble(of: session).map(Notifier.SessionEvent.trouble) ?? .finished(turn: session.finished?.turn ?? 0)
             store.promptFocus = news.sessionID
             store.attentionNotice = AttentionNotice(session: session, event: event)
         case .whole:
@@ -745,6 +770,19 @@ final class NotchController: NSObject, PanelPresenting {
         let state = canShowPeek ? NotchGlow.state(news: store.glowNews, waiting: waiting, enabled: prefs.notchGlow, now: Date()) : nil
         let compact = hover.regions.compact.insetBy(dx: Self.compactMargin, dy: 0)
         glow.show(state, under: compact, behavior: Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen), screen: screen.localizedName)
+    }
+
+    // MARK: - Scroll to retarget
+
+    /// A scroll over a readout moved its ring (UsageStore.cycleRing): name the new window under it for a moment.
+    /// The label hangs from the foot of the notch band rather than from the readout, so it never sits over the band.
+    private func retarget(_ tool: ToolID, by step: Int) {
+        guard let window = store.cycleRing(tool, by: step, cause: .scroll) else { return }
+        let notch = Self.notchRect(on: screen)
+        let readout = ringTargets.rect(of: tool) ?? hover.regions.compact
+        let ring = CGRect(x: readout.minX, y: notch.minY, width: readout.width, height: max(readout.maxY, notch.maxY) - notch.minY)
+        ringLabel.show(RingCycle.label(window, display: prefs.usageDisplay, hideFigures: store.hidesFigures), near: ring, edge: .top,
+                       screen: screen.frame, behavior: Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen))
     }
 
     // MARK: - Geometry
@@ -806,9 +844,13 @@ final class NotchController: NSObject, PanelPresenting {
                  prefs.showSpend, prefs.signalRings, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
-                 prefs.monthlyBudgetUSD, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal, store.hooksInstalled,
+                 // The conversion on its own: the Cost card's rate line comes and goes with it whether or not a
+                 // budget is set, and monthlyBudgetUSD reads it only while one is.
+                 prefs.monthlyBudgetUSD, prefs.currencyConversion, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal, store.hooksInstalled, store.openCodePluginInstalled,
                  store.openSessionLists, store.peek, store.glowNews, prefs.notchNews, prefs.notchGlow, prefs.ringSymbols,
-                 prefs.autoCompactRoom, store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows)
+                 prefs.autoCompactRoom, store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial,
+                 prefs.panelTheme, prefs.panelMaterial, prefs.panelAccent, prefs.usageStyle, prefs.hourClock,
+                 prefs.closedWhileWorking, prefs.closedWhenQuiet, store.closedNotchPhase, prefs.sessionRows, prefs.sessionRowLead)
             refreshRegions()
             refreshGlow()
             hover.dwell = prefs.hoverDelay

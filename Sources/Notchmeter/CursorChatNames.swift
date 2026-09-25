@@ -30,7 +30,8 @@ enum CursorChatNames {
     /// The conversation id behind a session key (`cursor:<id>`, SessionTracker.key), or nil for any other tool's
     /// session, a remote one (whose Cursor is on another Mac), or an id that is not shaped like Cursor's.
     static func conversationID(of session: AgentSession) -> String? {
-        guard session.tool == .cursor, session.host == nil else { return nil }
+        // A detected row is keyed by its process (SessionDetection.processKey), which names no conversation.
+        guard session.tool == .cursor, session.host == nil, session.source == .hook else { return nil }
         let prefix = ToolID.cursor.rawValue + ":"
         guard session.id.hasPrefix(prefix) else { return nil }
         let id = String(session.id.dropFirst(prefix.count))

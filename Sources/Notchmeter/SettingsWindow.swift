@@ -37,7 +37,15 @@ final class SettingsRequests {
     var privacyChanged: () -> Void = {}
     var awakeChanged: () -> Void = {}
     var diagnostics: () -> String = { "" }
+    /// The same report for Send Feedback, its log read off the main thread so the sheet is up before it is.
+    var diagnosticsInBackground: () async -> String = { "" }
+    /// Send Feedback's sheet is up (FeedbackView). The About and Diagnostics buttons raise it; the Options menu's
+    /// Send Feedback… raises it and then opens the window, which is built with it up.
+    var feedback = false
     var installCommandLineTool: () -> Void = {}
+    /// The catalog fetcher, for the line under *Update model prices from notchmeter's catalog*; nil in a
+    /// process that never fetches (the command-line tool, a render without a seeded one).
+    var pricingCatalog: () -> PricingCatalogFetcher? = { nil }
     /// Settings › General › "Show the welcome tour again" (AppDelegate.showWelcomeTour).
     var showWelcomeTour: () -> Void = {}
     var updater: () -> Updater? = { nil }
@@ -50,12 +58,44 @@ final class SettingsRequests {
 /// case name would read to it as shipped-but-never-used.
 ///
 /// Not file-private: `--render-assets` walks `allCases` and asks for each pane by name, because a capture that
-/// took whatever `@State` happened to default to would be a picture of one sixth of this window.
-enum SettingsPane: String, CaseIterable, Identifiable {
+/// took whatever `@State` happened to default to would be a picture of one pane of this window.
+///
+/// Each assistant has a page of its own (`agent`), listed under Assistants in the sidebar: everything about that
+/// one assistant — whether it is on, its rings and windows, its hook, its sessions, its notices, where its
+/// figures come from — in one place, because a reader thinks "what does Codex do here", not "which of six panes
+/// holds Codex's hook". What is the same for every assistant stays on the app's own panes.
+enum SettingsPane: Hashable, Identifiable, CaseIterable {
     case general, dashboard, appearance, assistants, notifications, integrations, advanced
+    case agent(ToolID)
+
+    /// The app's own panes, in the sidebar's order.
+    static let app: [SettingsPane] = [.general, .dashboard, .appearance, .assistants, .notifications, .integrations, .advanced]
+
+    /// Every pane in the default order; the sidebar itself follows the user's (`sidebar(order:)`).
+    static var allCases: [SettingsPane] { sidebar(order: ToolID.allCases) }
+
+    /// The sidebar's rows: the app's panes, with a page per assistant right under Assistants, in the user's order
+    /// of the assistants — the order the rings, the panel and the Assistants list already use.
+    static func sidebar(order: [ToolID]) -> [SettingsPane] {
+        app.flatMap { $0 == .assistants ? [$0] + order.map(SettingsPane.agent) : [$0] }
+    }
 
     var id: Self { self }
 
+    /// The assistant a page belongs to; nil for the app's own panes.
+    var tool: ToolID? {
+        if case .agent(let tool) = self { return tool }
+        return nil
+    }
+
+    /// The sidebar row's name: an assistant's short one, the name on its rings and in the Assistants list. The
+    /// product name ("GitHub Copilot") cut to "GitHub C…" once indented under Assistants, which is a sidebar row
+    /// that no longer says which assistant it is; the page's own title carries the full name.
+    var sidebarTitle: String {
+        tool?.displayName ?? title
+    }
+
+    /// An assistant's page is titled with its product's name, which is a name in every language and so not a key.
     var title: String {
         switch self {
         case .general: return L("General")
@@ -65,13 +105,16 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .notifications: return L("Notifications")
         case .integrations: return L("Integrations")
         case .advanced: return L("Advanced")
+        case .agent(let tool): return tool.productName
         }
     }
 
-    /// One family and one fill weight across the six. An outline glyph beside a solid one reads as two sets
-    /// rather than one list, which is what the first pass shipped: gearshape and terminal were outlines against
-    /// a solid bell and puzzle piece. Every tile is a fill now, and each glyph has to hold at 11 pt — two crossed
-    /// tools (`wrench.and.screwdriver`) turn to mush at that size, so Advanced wears a single wrench.
+    /// One family and one fill weight across the app's panes. An outline glyph beside a solid one reads as two
+    /// sets rather than one list, which is what the first pass shipped: gearshape and terminal were outlines
+    /// against a solid bell and puzzle piece. Every tile is a fill now, and each glyph has to hold at 11 pt — two
+    /// crossed tools (`wrench.and.screwdriver`) turn to mush at that size, so Advanced wears a single wrench.
+    /// An assistant's page wears the symbol on its card and beside its rings instead: there the glyph's job is to
+    /// be recognised as that assistant, which a new drawing would undo.
     /// `SettingsSidebarTiles` asserts each of these still resolves; a name macOS does not know draws nothing at
     /// all, with no warning and no crash.
     var symbol: String {
@@ -83,15 +126,24 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .notifications: return "bell.fill"
         case .integrations: return "powerplug.fill"
         case .advanced: return "wrench.adjustable.fill"
+        case .agent(let tool): return tool.symbolName
         }
+    }
+
+    /// The glyph's colour on its tile. White on the app's chrome tiles, which were chosen dark enough to carry
+    /// it; black on an assistant's own colour, every one of which is a light tint picked to read on the panel's
+    /// black, and clears 6.8:1 under a black glyph (Claude's terracotta, the darkest) where white would fail on
+    /// Copilot's yellow at 1.3:1. `SettingsSidebarTiles` measures both.
+    var glyph: Color {
+        tool == nil ? .white : .black
     }
 
     /// The tile behind the glyph. Palette.warn and Palette.danger are deliberately absent: they mean "needs
     /// attention" and "out" a few rows to the right in this same window, and a sidebar that wore them at rest
     /// would read as alarmed.
     ///
-    /// Every tile carries an 11 pt semibold white glyph, so every tile owes it the 3:1 WCAG 1.4.11 asks of a
-    /// graphical object. Measured against white under `performAsCurrentDrawingAppearance`, light then dark:
+    /// Every tile carries an 11 pt semibold glyph (`glyph`: white on these, black on an assistant's own colour), so
+    /// every tile owes it the 3:1 WCAG 1.4.11 asks of a graphical object. Measured against white under `performAsCurrentDrawingAppearance`, light then dark:
     /// purple 4.17/3.63, calm 5.19/5.19, pink 3.65/3.52, indigo 5.09/3.51, brown 3.53/3.07, slate 6.45/6.45.
     /// The system colours do **not** buy adaptivity here: they shift a little between `.aqua` and `.darkAqua`
     /// and `Increase Contrast` returns the identical sRGB values (`accessibilityHighContrastDarkAqua` answers
@@ -110,6 +162,8 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .notifications: return .pink
         case .integrations: return .indigo
         case .advanced: return .brown
+        // The colour its rings and card wear, so the page and the ring beside the notch are one thing to the eye.
+        case .agent(let tool): return tool.color
         }
     }
 }
@@ -129,6 +183,8 @@ struct SettingsView: View {
     @State private var statuslineMessage: String?
     @State private var notificationMessage: String?
     @State private var diagnosticsMessage: String?
+    /// What the last Send Feedback handed over to, under the buttons that raise the sheet.
+    @State private var feedbackMessage: String?
     @State private var exportMessage: String?
     @State private var hookStatus: [HookVendor: HookSettings.Status] = [:]
     @State private var statuslineStatus = HookSettings.statuslineStatus()
@@ -149,6 +205,11 @@ struct SettingsView: View {
     @State private var query = ""
     /// The Diagnostics disclosure in Advanced; closed until opened, or until a search lands inside it.
     @State private var diagnosticsExpanded = false
+    /// The assistants whose *Where each window comes from* a search has opened, for this window only: the
+    /// remembered choice is `Preferences.settingsExpandedTools`, which a typed query must not write to.
+    @State private var sourcesOpenedBySearch: Set<ToolID> = []
+    /// What each sound row wants on one line and what the form gives it, as the rows report it (`soundRowsTwoLine`).
+    @State private var soundRowWidths: [SoundCategory: SoundRowWidths] = [:]
     /// The newest crash report (CrashReports), looked up off the main thread each time the Diagnostics disclosure
     /// opens: `.unknown` until the lookup answers, `.found(nil)` when there is none.
     @State private var crashReport: CrashLookup = .unknown
@@ -183,12 +244,19 @@ struct SettingsView: View {
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: SettingsWindowController.minSize.width, minHeight: SettingsWindowController.minSize.height)
         .sheet(item: $showHookSnippet) { vendor in
-            HookSnippetView(title: L("%@ hook", vendor.displayName),
-                            explanation: L("Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits.", vendor.fileURL.path, vendor.fileName, AppInfo.name,
-                                             // The per-event flag with a placeholder, so Copilot's explanation names the `--event <name>`
-                                             // every entry below it carries; every other vendor's flag comes back unchanged.
-                                             vendor.flag(for: "<name>")),
-                            snippet: HookSettings.snippet(vendor: vendor))
+            if vendor.shape == .pluginModule {
+                HookSnippetView(title: L("OpenCode plugin"),
+                                explanation: L("Save this as %1$@, or use Add plugin… to have it written for you. OpenCode loads it when it starts, and for each event it runs %2$@ %3$@, which posts the event to the running app and exits.",
+                                               vendor.fileURL.path, AppInfo.name, vendor.flag),
+                                snippet: HookSettings.snippet(vendor: vendor))
+            } else {
+                HookSnippetView(title: L("%@ hook", vendor.displayName),
+                                explanation: L("Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits.", vendor.fileURL.path, vendor.fileName, AppInfo.name,
+                                                 // The per-event flag with a placeholder, so Copilot's explanation names the `--event <name>`
+                                                 // every entry below it carries; every other vendor's flag comes back unchanged.
+                                                 vendor.flag(for: "<name>")),
+                                snippet: HookSettings.snippet(vendor: vendor))
+            }
         }
         .sheet(isPresented: $showStatuslineSnippet) {
             HookSnippetView(title: L("Claude Code status line"), explanation: L("Set this as statusLine in %1$@, or use Install status line… to have it written for you. Claude Code runs %2$@ --statusline after every turn; it forwards the context fill, the rate limits and the session cost to the app and prints one line for Claude Code's own bar.", HookSettings.settingsURL.path, AppInfo.name),
@@ -202,39 +270,55 @@ struct SettingsView: View {
             HookOfferView(install: { requests.hookOffer = false; installHook() },
                           later: { requests.hookOffer = false; requests.statuslineOffer = false })
         }
+        .sheet(isPresented: Binding(get: { requests.feedback }, set: { requests.feedback = $0 })) {
+            FeedbackView(store: store, prefs: prefs, diagnostics: requests.diagnosticsInBackground,
+                         routeFor: { Feedback.liveRoute(for: $0) },
+                         redaction: { FeedbackRedaction.gather(store: store, prefs: prefs) },
+                         sent: { feedbackMessage = $0 },
+                         close: { requests.feedback = false })
+        }
         .onAppear {
             prefs.refreshLaunchAtLogin()
             currencyText = prefs.currencyCode
             rateText = prefs.currencyRate == 1 ? "1" : String(prefs.currencyRate)
-            monthlyBudgetText = prefs.monthlyBudgetUSD.map { Self.budgetText($0) } ?? ""
-            weeklyBudgetText = prefs.weeklyBudgetUSD.map { Self.budgetText($0) } ?? ""
+            monthlyBudgetText = Self.budgetText(prefs.monthlyBudget, at: prefs.currencyConversion)
+            weeklyBudgetText = Self.budgetText(prefs.weeklyBudget, at: prefs.currencyConversion)
             proxyText = prefs.proxyURL
             accessibilityTrusted = MenuBarExtent.isTrusted
             refreshHookStatus()
             refreshAutomation()
             // The window can be built with the offer already raised; the onChange below catches it being raised
             // while the window is open.
-            if requests.hookOffer { pane = .integrations }
+            if requests.hookOffer { pane = .agent(.claude) }
             takeRequestedPane()
             runStatuslineOffer()
         }
         .onChange(of: requests.showPane) { _, _ in takeRequestedPane() }
         .onChange(of: requests.statuslineOffer) { _, _ in runStatuslineOffer() }
+        // On the window rather than the pane, so a rate applied under Advanced still moves the budget fields on
+        // Appearance, and the ECB's answer landing while the window is open does too.
+        .onChange(of: prefs.currencyConversion) { old, new in
+            monthlyBudgetText = Self.budgetText(prefs.monthlyBudget, from: old, to: new, draft: monthlyBudgetText)
+            weeklyBudgetText = Self.budgetText(prefs.weeklyBudget, from: old, to: new, draft: weeklyBudgetText)
+        }
         // Typing pulls the window to the first pane with a match — unless the pane on screen has one — and opens
-        // the Diagnostics disclosure when the match is inside it; the sections without one dim (`searchOpacity`).
+        // the disclosure a match is inside (Diagnostics, or an assistant's sources, and only for a row the
+        // disclosure folds away: a match on the rows under it leaves it as it is); the sections without one dim
+        // (`searchOpacity`).
         .onChange(of: query) { _, text in
-            guard let hit = SettingsSearch.hit(for: text, current: pane) else { return }
+            guard let hit = SettingsSearch.hit(for: text, current: pane, in: SettingsSearch.entries(order: prefs.toolOrder)) else { return }
             if hit.pane != pane { pane = hit.pane }
             if hit.sections.contains(.diagnostics) { diagnosticsExpanded = true }
+            if let tool = hit.pane.tool, hit.sections.contains(.agent(tool, .sourcesDetail)) { sourcesOpenedBySearch.insert(tool) }
         }
         .onChange(of: requests.hookSheetDryRun) { _, url in
             guard let url else { return }
             installHook(at: url, dryRun: true)
         }
-        // The offer explains the hook rows, so put them on screen behind it rather than leaving the sheet
+        // The offer explains the hook rows, so put Claude Code's on screen behind it rather than leaving the sheet
         // talking about a pane the reader cannot see.
         .onChange(of: requests.hookOffer) { _, offered in
-            if offered { pane = .integrations }
+            if offered { pane = .agent(.claude) }
         }
         // SwiftUI writes to this binding itself, so a constant initial value is not a pin.
         .onChange(of: columnVisibility) { _, visibility in
@@ -248,24 +332,32 @@ struct SettingsView: View {
     /// the list and the arrow keys move through it, and the selected row carries both the list's own fill and a
     /// heavier title — the selection never rests on colour alone. (The panel spends most of its life not key, so
     /// that fill is often the inactive grey, which makes the second cue do real work rather than being belt and
-    /// braces.)
+    /// braces.) The assistants' pages are indented under Assistants, which reads as "these belong to that" without
+    /// a disclosure to open first; the whole row stays the click target.
     private var sidebar: some View {
-        List(SettingsPane.allCases, selection: $pane) { item in
+        List(SettingsPane.sidebar(order: prefs.toolOrder), selection: $pane) { item in
             Label {
-                Text(item.title).fontWeight(item == pane ? .semibold : .regular)
+                Text(item.sidebarTitle).fontWeight(item == pane ? .semibold : .regular)
             } icon: {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .fill(item.tint)
                     .frame(width: 20, height: 20)
-                    .overlay(Image(systemName: item.symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white))
+                    .overlay(Image(systemName: item.symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(item.glyph))
                     // Decoration: the row already says "General" in words, and VoiceOver would otherwise read
                     // the pane name twice, once as the glyph's own name.
                     .accessibilityHidden(true)
             }
             .padding(.vertical, 2)
+            .padding(.leading, item.tool == nil ? 0 : 10)
         }
         .listStyle(.sidebar)
-        .navigationSplitViewColumnWidth(190)
+        // Wide enough for the longest pane names in the shipped languages: at the width the split view chose on
+        // its own (about 145 pt) the German "Erscheinungsbild" came out as "Erscheinun…", and Russian, Spanish,
+        // French and Japanese each lost a pane name or three the same way. `navigationSplitViewColumnWidth` does
+        // not move this panel's sidebar (neither an ideal nor a minimum changed the rendered window or the split
+        // view item's thickness, probed with the panel hosted both ways); a minimum on the column's own content
+        // is what the split view honours, so the rule lives here.
+        .frame(minWidth: 200)
         // The panel has no toolbar of its own and no way to show one, so a toggle that hides the sidebar would
         // hide it for good; the column visibility below is pinned for the same reason.
         .toolbar(removing: .sidebarToggle)
@@ -283,7 +375,7 @@ struct SettingsView: View {
                     .accessibilityAddTraits(.isHeader)
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
-                DashboardView(store: store, embedded: true)
+                DashboardView(store: store, embedded: true, actions: actions)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
@@ -353,7 +445,7 @@ struct SettingsView: View {
     private func runStatuslineOffer() {
         guard requests.statuslineOffer, !requests.hookOffer else { return }
         requests.statuslineOffer = false
-        pane = .integrations
+        pane = .agent(.claude)
         installStatusline()
     }
 
@@ -366,15 +458,24 @@ struct SettingsView: View {
         case .dashboard:
             EmptyView()
         case .appearance:
+            themeSection.opacity(searchOpacity(.theme))
             panelSection.opacity(searchOpacity(.panel))
             usageSection.opacity(searchOpacity(.usage))
             shortcutsSection.opacity(searchOpacity(.shortcuts))
         case .assistants:
             assistantsSection.opacity(searchOpacity(.assistants))
             sessionsSection.opacity(searchOpacity(.sessions))
-            transcriptsSection.opacity(searchOpacity(.transcripts))
+        case .agent(let tool):
+            agentOverview(tool).opacity(searchOpacity(.agent(tool, .overview)))
+            agentWindows(tool).opacity(searchOpacity(.agent(tool, .windows)))
+            agentHook(tool).opacity(searchOpacity(.agent(tool, .hook)))
+            agentSessions(tool).opacity(searchOpacity(.agent(tool, .sessions)))
+            agentNotifications(tool).opacity(searchOpacity(.agent(tool, .notifications)))
+            agentSources(tool).opacity(searchOpacity(.agent(tool, .sources), .agent(tool, .sourcesDetail)))
+            if tool == .claude { transcriptsSection.opacity(searchOpacity(.agent(tool, .sources))) }
         case .notifications:
             notificationsSection.opacity(searchOpacity(.notifications))
+            soundsSection.opacity(searchOpacity(.sounds))
         case .integrations:
             hookSection.opacity(searchOpacity(.hooks))
             integrationsSection.opacity(searchOpacity(.otherTools))
@@ -447,7 +548,7 @@ struct SettingsView: View {
                     ForEach(MenuBarStyle.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .disabled(!prefs.menuBarPin)
-                .help(L("Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone."))
+                .help(L("Which assistants are pinned is chosen on each assistant's page; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone."))
                 // Only for the drawn styles: Text is drawn by the menu bar itself, in the colour it uses for
                 // everything else, and nothing here could change that without fighting it.
                 if prefs.menuBarStyle != .text {
@@ -494,6 +595,8 @@ struct SettingsView: View {
             // itself, and the reader who wants it again is looking for the app's basics, not its version line.
             Button(L("Show the welcome tour again")) { requests.showWelcomeTour() }
                 .help(L("The rings, the panel and pace, sessions and the Claude Code hook, over a preview with sample data."))
+            Toggle(L("Offer the usage card after an update"), isOn: Binding(get: { prefs.offerShareCardAfterUpdate }, set: { prefs.offerShareCardAfterUpdate = $0 }))
+                .help(L("Once per version, after an update, Share usage card… opens by itself with the last thirty days as a card, when they hold at least a week of use; never while the screen is shared or a full-screen app has the display. The card is always in the Options menu."))
         }
     }
 
@@ -504,13 +607,15 @@ struct SettingsView: View {
     /// Wide enough for a grouped amount with a decimal ("1,250.00") at the window's minimum width.
     private static let fieldWidth: CGFloat = 96
 
-    /// Help text, the lightest of the form's four levels and never more than two lines of it: what does not fit
-    /// is in the tooltip, which carries the whole thing in every language.
-    private func paragraph(_ text: String) -> some View {
+    /// Help text, the lightest of the form's four levels. Two lines by default, with what does not fit in the
+    /// tooltip, which carries the whole thing in every language; `lines: nil` for a paragraph that carries a rule
+    /// the reader has to have whole (a switch that cannot be turned off, a choice shared with another pane), which
+    /// German and Russian run past two lines and an ellipsis would hand to the pointer alone.
+    private func paragraph(_ text: String, lines: Int? = 2) -> some View {
         Text(text)
             .font(.caption)
             .foregroundStyle(.tertiary)
-            .lineLimit(2)
+            .lineLimit(lines)
             .help(text)
     }
 
@@ -523,9 +628,79 @@ struct SettingsView: View {
             .frame(width: width)
     }
 
+    /// What converts the costs while nothing is fetched: under the currency row, and on the rate's own row.
+    private static var currencyHelp: String {
+        L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours.")
+    }
+
+    /// The whole of the request *Fetch today's rate* makes, where the switch is (docs/privacy.md says it again),
+    /// and how often: after each weekday publication, so about once a day, and twice on the day the switch goes
+    /// on, when the first request reads the file already out (`RateRefresh`).
+    private static var fetchRateHelp: String {
+        L("A plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, just after it publishes them on a weekday: about once a day, and twice on the day you turn the switch on. It carries the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old; with no rate of your own set, a rate past its week stays in use and is marked so.")
+    }
+
     /// One explanation for both budget rows.
     private static var budgetHelp: String {
         L("In the currency above; leave empty for none. The Cost card's ring fills against the month's budget with the same pace tick the meters use, the Advice strip projects the month against it, and the on-track, behind and run-out notifications apply to it with the month as the period.")
+    }
+
+    /// Whether the panel is drawn in an edge layout's card rather than under the notch, which is what decides the
+    /// material an install that never chose one gets (`PanelMaterial.unchosen`); the same test `buildPresenters`
+    /// makes, against the screen the panel is on.
+    private var panelIsEdgeCard: Bool {
+        prefs.edge != .top || NSScreen.panelScreen.safeAreaInsets.top == 0
+    }
+
+    /// The open panel's look: a live preview over sample data, then the face, the material, the accent, how usage
+    /// is drawn and the hour clock. Every choice is applied to the panel at once; the preview is the same views the
+    /// panel draws, in the look being chosen (ThemePreview).
+    private var themeSection: some View {
+        let edgeCard = panelIsEdgeCard
+        let look = PanelLook.current(prefs, edgeCard: edgeCard)
+        let forcedSolid = AccessibilityDisplay.shared.reduceTransparency || AccessibilityDisplay.shared.contrast
+        return Section(L("Theme")) {
+            ThemePreview(look: look, width: prefs.panelWidth.points)
+            // "Surface", not "Colour": the colour a reader looks for is the accent two rows down, and the menu bar
+            // icon's own row is already called Colour.
+            Picker(L("Surface"), selection: Binding(get: { prefs.panelTheme }, set: { prefs.panelTheme = $0 })) {
+                ForEach(PanelTheme.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .help(L("Paper is the panel inverted: the notch's black stays round it, and the sheet inside is light, with the figures printed on it rather than lit."))
+            // The material an install never chose is shown as what the layout draws, and only a click stores one.
+            Picker(L("Material"), selection: Binding(
+                get: { prefs.panelMaterial ?? PanelMaterial.unchosen(edgeCard: edgeCard, liquidGlass: PanelLook.liquidGlass) },
+                set: { prefs.panelMaterial = $0 }
+            )) {
+                ForEach(PanelMaterial.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .disabled(prefs.panelTheme == .paper || forcedSolid)
+            .help(L("How much of the desktop shows through the open panel, blurred. Glassy and Smoked keep a black tint strong enough that every line still reads over a white window; the band the notch sits in stays black."))
+            if prefs.panelTheme == .paper {
+                paragraph(L("Paper is always solid: dark figures on a sheet the desktop shows through would lose their contrast over a dark window."))
+            } else if forcedSolid {
+                paragraph(L("Solid while Reduce Transparency or Increase Contrast is on, as macOS draws its own panels."))
+            }
+            // A radio group, as the other choices here are pickers: one control with its options, not three buttons.
+            Picker(L("Accent"), selection: Binding(get: { prefs.panelAccent }, set: { prefs.panelAccent = $0 })) {
+                ForEach(PanelAccent.allCases, id: \.self) { AccentLabel(accent: $0).tag($0) }
+            }
+            .pickerStyle(.radioGroup)
+            .horizontalRadioGroupLayout()
+            .help(L("The app's own colour on the panel: the chosen range on the Cost card, a session waiting for your answer, Clear. Each reads on the panel in every theme and stays apart from the warning colours for colour-blind eyes."))
+            Picker(L("Usage style"), selection: Binding(get: { prefs.usageStyle }, set: { prefs.usageStyle = $0 })) {
+                ForEach(UsageStyle.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .help(L("Bars draws a meter for each window. Gauges draws an assistant's windows as rings nested in one dial, outermost first, the way the rings beside the notch are; a window past the third keeps its meter, and every line under a window stays."))
+            Toggle(L("Draw hour limits on a clock"), isOn: Binding(get: { prefs.hourClock }, set: { prefs.hourClock = $0 }))
+                .help(L("A window measured in hours, such as the five-hour session, gets a small clock beside its reset: the filled part is the time left before it resets, and a full clock is a window that has not started. Longer windows keep their words."))
+            paragraph(look.theme == .paper || !look.material.translucent
+                      ? L("Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1.")
+                      : L("Every line on the panel reads at 4.5:1 or better in the theme you choose, and every mark at 3:1, even over a white window."))
+        }
     }
 
     private var panelSection: some View {
@@ -538,7 +713,7 @@ struct SettingsView: View {
             })) {
                 ForEach(AppearanceChoice.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            Text(L("The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass."))
+            Text(L("The Settings window and the pill an edge layout sits in follow this. The open panel follows Theme above whatever you choose here, and a notch cut into a side edge is always dark: it has to read as part of the screen rather than as something laid on top of it."))
                 .font(.caption).foregroundStyle(.secondary)
             Picker(L("Readouts"), selection: Binding(
                 get: { prefs.compactSide },
@@ -607,9 +782,14 @@ struct SettingsView: View {
                     Text(titles[index]).tag(DisplayChoice.named(keys[index]))
                 }
             }
-            paragraph(prefs.display == .pointer
-                      ? L("The panel follows the pointer: it moves to the display the pointer has rested on for half a second.")
-                      : L("A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it."))
+            // Chosen displays says the same of its switches under them, so the named display's line would repeat it.
+            if prefs.display == .selected {
+                displaySwitches
+            } else {
+                paragraph(prefs.display == .pointer
+                          ? L("The panel follows the pointer: it moves to the display the pointer has rested on for half a second.")
+                          : L("A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it."))
+            }
             Picker(L("Show"), selection: Binding(
                 get: { prefs.visibility },
                 set: { prefs.visibility = $0; actions.applyLayout() }
@@ -640,6 +820,20 @@ struct SettingsView: View {
             if prefs.compactStyle.showsRings {
                 Toggle(L("Show assistant symbols in the rings"), isOn: Binding(get: { prefs.ringSymbols }, set: { prefs.ringSymbols = $0 }))
                     .help(L("Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart."))
+            }
+            paragraph(L("Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants."), lines: nil)
+            // The notch layout's alone, so only where a display has a notch for it: an edge or the pill with nothing
+            // in it would be a stray capsule on the desktop.
+            if prefs.edge == .top, NSScreen.screens.contains(where: { $0.safeAreaInsets.top > 0 }) {
+                Picker(L("While an assistant works"), selection: Binding(get: { prefs.closedWhileWorking }, set: { prefs.closedWhileWorking = $0 })) {
+                    ForEach(ClosedNotchMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .help(L("What the closed notch shows while a session is working, waiting for you or has just finished, and for five seconds after, so a quick turn does not flicker."))
+                Picker(L("When nothing is running"), selection: Binding(get: { prefs.closedWhenQuiet }, set: { prefs.closedWhenQuiet = $0 })) {
+                    ForEach(ClosedNotchMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .help(L("Nothing leaves the notch bare and still opens on hover; the readouts come back while a window is behind pace or out, so a limit running out is never hidden."))
+                paragraph(L("Working means a session is working, waiting for you or has just finished, which needs an assistant's hook. Nothing still opens on hover."))
             }
             Picker(L("Panel layout"), selection: Binding(get: { prefs.panelMode }, set: { prefs.panelMode = $0 })) {
                 ForEach(PanelMode.allCases, id: \.self) { Text($0.title).tag($0) }
@@ -688,6 +882,33 @@ struct SettingsView: View {
         }
     }
 
+    /// A switch per connected display under Chosen displays (DisplaySwitches), each by the name the Display
+    /// picker gives it; the last one on cannot be switched off, so the app is never left with nowhere to be, and
+    /// the paragraph says so, since a lone greyed switch with the reason only in its tooltip explained nothing to
+    /// a reader who never hovers. A display the app is on because every chosen one is unplugged keeps its switch
+    /// off and says under it that the app is here meanwhile (DisplaySwitches.standsIn).
+    private var displaySwitches: some View {
+        let screens = NSScreen.screens
+        let infos = screens.map(\.info)
+        let titles = DisplayIdentity.titles(for: screens.map(\.localizedName))
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(L("Show on these displays")).font(.subheadline.weight(.semibold))
+            ForEach(Array(infos.enumerated()), id: \.element.key) { index, info in
+                let on = DisplaySwitches.isOn(info, in: infos, switches: prefs.displaySwitches)
+                let locked = on && !DisplaySwitches.canSwitchOff(info, in: infos, switches: prefs.displaySwitches)
+                Toggle(isOn: Binding(get: { on }, set: { prefs.displaySwitches[info.key] = $0; actions.applyLayout() })) {
+                    Text(verbatim: titles[index])
+                }
+                .disabled(locked)
+                .help(locked ? L("At least one display stays on.") : titles[index])
+                if DisplaySwitches.standsIn(info, in: infos, switches: prefs.displaySwitches) {
+                    Text(L("Shown here while no chosen display is connected.")).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            paragraph(L("A display you have not switched is on when it has a notch. The last display on cannot be switched off."), lines: nil)
+        }
+    }
+
     private var shortcutsSection: some View {
         Section {
             HotkeyRow(title: L("Toggle the panel"), hotkey: Binding(get: { prefs.togglePanelHotkey }, set: { prefs.togglePanelHotkey = $0; requests.hotkeysChanged() }))
@@ -717,8 +938,18 @@ struct SettingsView: View {
             }
             // The rate the code converts at is under Advanced › Diagnostics with its own Apply: a number set once
             // and rarely, beside the other rarely-touched fields, where it no longer makes the currency row look
-            // like something everyone has to fill in.
-            paragraph(L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours."))
+            // like something everyone has to fill in. The switch beside the code is the one alternative to it, off
+            // until asked for, and dimmed in dollars, which need no rate.
+            Toggle(L("Fetch today's rate"), isOn: Binding(get: { prefs.fetchCurrencyRate }, set: { prefs.fetchCurrencyRate = $0 }))
+                .disabled(prefs.currencyConversion.code == "USD")
+                .help(Self.fetchRateHelp)
+            // Off, the paragraph says nothing is fetched, which is then true; on, it is the rate in use and its day,
+            // or why the typed rate stands in, and, when that rate was never typed, where to type one: the 1 that
+            // stands in then converts nothing, and a figure marked EUR that is a dollar figure needs saying.
+            paragraph(prefs.fetchCurrencyRate ? prefs.currencyConversion.settingsLine() ?? Self.currencyHelp : Self.currencyHelp)
+            if prefs.fetchCurrencyRate, prefs.currencyConversion.standsInWithoutOwnRate {
+                paragraph(L("No rate of your own is set, so 1 per US dollar stands in: type one under Advanced › Diagnostics › Rate per dollar."))
+            }
             LabeledContent(L("Monthly budget")) {
                 field($monthlyBudgetText, prompt: Money.code, label: L("Monthly budget"))
                     .onSubmit { applyBudgets() }
@@ -730,30 +961,15 @@ struct SettingsView: View {
                 Button(L("Apply")) { applyBudgets() }
             }
             .help(Self.budgetHelp)
+            // Which assistants the card carries is on each one's page (*In the Cost card*), beside its other
+            // windows; what the card leads with is the card's own, and stays here.
             Picker(L("Cost card shows"), selection: Binding(get: { prefs.costCardMode }, set: { prefs.costCardMode = $0 })) {
                 ForEach(CostCardMode.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            // The same two tests the card itself applies (UsageStore.reportingCostTools): it can report spend, and
-            // it is here to report it. Read from toolOrder rather than allCases so the row is in the order the
-            // help promises — the order set under Assistants — and not the enum's.
-            let costTools = prefs.toolOrder.filter { $0.reportsCost && store.isShown($0) }
-            if !costTools.isEmpty {
-                LabeledContent(L("In the Cost card")) {
-                    ForEach(costTools, id: \.self) { tool in
-                        Toggle(isOn: Binding(
-                            get: { prefs.costCardTools.contains(tool) },
-                            set: { if $0 { prefs.costCardTools.insert(tool) } else { prefs.costCardTools.remove(tool) } }
-                        )) {
-                            Text(verbatim: tool.displayName)
-                        }
-                        .toggleStyle(.checkbox).controlSize(.small)
-                    }
-                }
-                // A tool that is not here keeps its place in costCardTools rather than being struck from it: the
-                // preference is a Set the user chose, and signing out of one assistant for an afternoon should not
-                // silently drop it from the card it comes back to.
-                .help(L("Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card."))
-            }
+            Toggle(L("Update model prices from notchmeter's catalog"), isOn: Binding(get: { prefs.pricingCatalog }, set: { prefs.pricingCatalog = $0 }))
+                .help(L("Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used."))
+            // The line says which prices are in use either way, so switching the catalog off is not a silent change.
+            paragraph((requests.pricingCatalog()?.status ?? PricingCatalogFetcher.Status()).settingsLine(enabled: prefs.pricingCatalog))
         }
     }
 
@@ -761,10 +977,6 @@ struct SettingsView: View {
         Section(L("Privacy")) {
             Toggle(L("Hide usage while the screen is shared or recorded"), isOn: Binding(get: { prefs.hideFromScreenShare }, set: { prefs.hideFromScreenShare = $0; requests.privacyChanged() }))
                 .help(L("While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds."))
-            Picker(L("Ask for Keychain access"), selection: Binding(get: { prefs.keychainPrompts }, set: { prefs.keychainPrompts = $0 })) {
-                ForEach(KeychainPromptPolicy.allCases, id: \.self) { Text($0.title).tag($0) }
-            }
-            .help(L("Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only."))
             Toggle(L("Local API on 127.0.0.1:%ld", Int(LocalAPI.port)), isOn: Binding(get: { prefs.localAPIEnabled }, set: { prefs.localAPIEnabled = $0; requests.localAPIChanged() }))
                 .help(L("GET /v1/limits answers with the same JSON as --probe --json, from the cached readings, for status-line scripts, widgets and the command-line tool on this Mac; POST /v1/hook takes a remote machine's hook events, any assistant's, over an SSH tunnel. Loopback only, no authentication; a request from a web page (one carrying an Origin header) is refused unless its origin is listed below, and the Host header must be the loopback address."))
             if prefs.localAPIEnabled {
@@ -828,32 +1040,20 @@ struct SettingsView: View {
                     }
                 }
             }
+            Toggle(L("Notify when a session compacts, may be stuck or is refused"), isOn: Binding(get: { prefs.notifySessionTrouble }, set: { prefs.notifySessionTrouble = $0; if $0 { notifier.requestAuthorization() } }))
+                .help(L("Claude Code's hook only: once when a session starts compacting its context by itself, once when five tool calls in a row have failed with none succeeding between them, and the first time in a turn auto mode refuses a tool. Each arrives without a sound, stays in the background while a terminal or editor is in front, and follows the quiet hours. The session's row and the word beside the notch say all three without it."))
             Toggle(L("Stay quiet while a terminal or editor is in front"), isOn: Binding(get: { prefs.quietWhileTerminalFrontmost }, set: { prefs.quietWhileTerminalFrontmost = $0 }))
                 .help(L("On, a notice about a session is held back while a terminal or editor is frontmost, because you are probably looking at the session in it. Off, it arrives anyway — the answer when your sessions sit in tabs you are not looking at, since the app can only see which app is in front and never which window, and never reads a window's title to find out. A wait the session has stopped for, and a session on another Mac, ignore this setting; the quiet hours override it."))
             Toggle(L("Colour the rings when an assistant waits or finishes"), isOn: Binding(get: { prefs.signalRings }, set: { prefs.signalRings = $0 }))
-                .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not."))
+                .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's and Kimi Code's do not."))
             Toggle(L("Show news in the notch"), isOn: Binding(get: { prefs.notchNews }, set: { prefs.notchNews = $0 }))
-                .help(L("When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out."))
+                .help(L("When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out."))
             Toggle(L("Glow under the notch for news"), isOn: Binding(get: { prefs.notchGlow }, set: { prefs.notchGlow = $0 }))
                 .help(L("A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint."))
             Picker(L("When an assistant waits for you, or a turn finishes"), selection: Binding(get: { prefs.sessionAttention }, set: { prefs.sessionAttention = $0 })) {
                 ForEach(SessionAttention.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             .help(L("Both need the assistant's hook and follow the same rules as the notices above: the frontmost-terminal setting, and the quiet hours. This chooses what the panel does; the toggle above chooses what the rings do, and either can be off without the other. A glance opens a card for that session alone, with a jump back to it, and settles again unless the pointer comes in; under Reduce Motion it opens without animation and stays a little longer. A \"waiting\" notice is withdrawn when you answer. In an unsigned build no notice can break through Focus or Do Not Disturb; the time-sensitive ones (running out, waiting for you) do in the signed release."))
-            Toggle(L("Sound"), isOn: Binding(get: { prefs.notificationSound }, set: { prefs.notificationSound = $0 }))
-            if prefs.notificationSound {
-                SoundPicker(title: L("Pace crossing"), choice: Binding(get: { prefs.soundPace }, set: { prefs.soundPace = $0 }))
-                SoundPicker(title: L("Permission request"), choice: Binding(get: { prefs.soundPermission }, set: { prefs.soundPermission = $0 }))
-                SoundPicker(title: L("Question"), choice: Binding(get: { prefs.soundQuestion }, set: { prefs.soundQuestion = $0 }),
-                            defaultTag: NotificationSound.defaultChoice(for: .question))
-                // Shown, not only hovered: a plan that plays the permission sound is the one thing here that looks
-                // like a fault, and the reason is a hook entry the user can check.
-                SoundPicker(title: L("Plan ready to approve"), choice: Binding(get: { prefs.soundPlan }, set: { prefs.soundPlan = $0 }),
-                            defaultTag: NotificationSound.defaultChoice(for: .plan),
-                            caption: L("A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound."))
-                SoundPicker(title: L("Turn finished"), choice: Binding(get: { prefs.soundFinished }, set: { prefs.soundFinished = $0 }))
-                paragraph(L("A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name."))
-            }
             Toggle(L("Quiet hours"), isOn: Binding(get: { prefs.quietHoursEnabled }, set: { prefs.quietHoursEnabled = $0 }))
             if prefs.quietHoursEnabled {
                 HStack {
@@ -869,7 +1069,47 @@ struct SettingsView: View {
                     Text(notificationMessage).font(.caption).foregroundStyle(.secondary)
                 }
             }
+            // The switches here choose which kinds of notice go out, for every assistant; which assistants they go
+            // out for is on each assistant's own page, and a reader looking for "stop Cursor's banners" is here.
+            paragraph(L("These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices."))
         }
+    }
+
+    /// The sound block: one switch for every sound, then a row per SoundCategory with its sound, a Preview and a
+    /// Silence box. A block of its own rather than more rows at the foot of Notifications, where the five pickers
+    /// of 0.8.0 sat between the quiet hours and the attention picker and read as more notification switches.
+    private var soundsSection: some View {
+        Section(L("Sounds")) {
+            Toggle(L("Play sounds"), isOn: Binding(get: { prefs.notificationSound }, set: { prefs.notificationSound = $0 }))
+                .help(L("Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder."))
+            if prefs.notificationSound {
+                ForEach(SoundCategory.allCases, id: \.self) { category in
+                    SoundPicker(title: category.title,
+                                choice: Binding(get: { prefs.soundChoice(for: category) }, set: { prefs.soundChoices[category] = $0 }),
+                                silenced: Binding(get: { prefs.silencedSounds.contains(category) }, set: { prefs.setSilenced($0, category) }),
+                                defaultTag: NotificationSound.defaultChoice(for: category),
+                                caption: category.caption,
+                                twoLine: soundRowsTwoLine,
+                                measured: { soundRowWidths[category] = $0 })
+                        .help(category.help)
+                }
+                // In full, as the captions above are, rather than through `paragraph`: its two lines end this
+                // sentence in an ellipsis at the window's narrowest in every language, with the rest reachable by
+                // hovering alone, and it is the one place the import rules are stated.
+                Text(L("A chosen .aiff, .wav or .caf is copied into ~/Library/Sounds as it is; any other format, an mp3 or m4a for instance, is converted to a .caf there, since Notification Center plays nothing else by name."))
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// Whether the six sound rows put their Preview and Silence box under the menu (SoundPicker.twoLine): once
+    /// for the block, from what every row reports as it lays out (SoundRowWidths). A row judging for itself, as
+    /// each did through a `ViewThatFits`, left the block ragged where a language's words run long — at the
+    /// window's narrowest in German, *Plan zur Freigabe bereit* went to two lines while the four rows between it
+    /// and *Durchgang beendet* stayed on one, and the six menus sat in three columns — and neighbouring rows in
+    /// two layouts read as a fault, not a fit. One line is kept only while every row's fits.
+    private var soundRowsTwoLine: Bool {
+        soundRowWidths.values.contains { !$0.fits }
     }
 
     private var assistantsSection: some View {
@@ -877,62 +1117,49 @@ struct SettingsView: View {
             let order = prefs.toolOrder
             ForEach(Array(order.enumerated()), id: \.element) { index, tool in
                 assistantRow(tool, at: index, of: order.count)
-                if store.isShown(tool), expansion(of: tool).wrappedValue {
-                    assistantOptions(tool)
-                        .padding(.leading, 22)
-                }
             }
             Toggle(L("Hide assistants with nothing to show"), isOn: Binding(get: { prefs.hideEmptyTools }, set: { prefs.hideEmptyTools = $0 }))
                 .help(L("An assistant that is on and installed but has no reading, no spend and no session yet stays off the panel and the rings until it has one; the last visible assistant is never hidden. While one is hidden the panel ends with an Add a tool row that opens this pane."))
             Button(L("Refresh now")) { store.refreshAll(interactive: true) }
         } header: {
             Text(L("Assistants"))
-                .help(L("The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections."))
+                .help(L("The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar."))
         }
     }
 
-    /// What an assistant shows collapsed: its name, its status line, its switch and the two reorder arrows. The whole
-    /// name is the expand target, not just a stock disclosure triangle, and clicking it never flips the switch.
+    /// One assistant in the list: its name and status, its switch and the two reorder arrows. The whole name opens
+    /// the assistant's own page, not only the chevron, and clicking it never flips the switch. Every assistant has a
+    /// page, installed or not, so every row opens one: the page is also where an assistant that is not on this Mac
+    /// says so and still offers its hook's snippet. Until the pages existed the name unfolded the options in place,
+    /// which put a second copy of half a pane inside a list the arrows were reordering.
     private func assistantRow(_ tool: ToolID, at index: Int, of count: Int) -> some View {
-        let expandable = store.isShown(tool)
-        let expanded = expandable && expansion(of: tool).wrappedValue
         let status = subtitle(for: tool)
-        let name = VStack(alignment: .leading, spacing: 2) {
-            Text(tool.displayName)
-            Text(status)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
         return HStack(spacing: 10) {
-            if expandable {
-                Button {
-                    withAnimation(AccessibilityDisplay.shared.motionReduced ? nil : .easeInOut(duration: 0.18)) { expansion(of: tool).wrappedValue.toggle() }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .rotationEffect(.degrees(expanded ? 90 : 0))
-                            .frame(width: 14)
-                        name
-                        Spacer(minLength: 0)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(expanded ? L("Hide options") : L("Show options"))
-                .accessibilityLabel("\(tool.displayName), \(status)")
-                .accessibilityValue(expanded ? L("Expanded") : L("Collapsed"))
-            } else {
-                // Off or not installed: nothing to expand, so plain text in its ordinary colours rather than a
-                // disabled button that reads the same as a missing assistant.
+            Button {
+                pane = .agent(tool)
+            } label: {
                 HStack(spacing: 8) {
-                    Color.clear.frame(width: 14, height: 1)
-                    name
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tool.displayName)
+                        Text(status)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     Spacer(minLength: 0)
+                    // Trailing, as a navigation row wears it in System Settings: the row goes somewhere, it does
+                    // not unfold.
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                 }
-                .accessibilityElement(children: .combine)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            // Named for what activating it does, a page opening, not for the options that used to unfold here.
+            .help(L("Open %@'s page", tool.productName))
+            .accessibilityLabel("\(tool.displayName), \(status)")
+            .accessibilityHint(L("Open %@'s page", tool.productName))
             Toggle(tool.displayName, isOn: Binding(
                 get: { store.isShown(tool) },
                 set: { store.setEnabled(tool, $0) }
@@ -946,56 +1173,32 @@ struct SettingsView: View {
         }
     }
 
-    /// Everything the collapsed row leaves out: the rings, the hidden windows, the two per-assistant switches and
-    /// whatever second read that assistant alone offers.
-    @ViewBuilder private func assistantOptions(_ tool: ToolID) -> some View {
-        // One window is still worth the section: requiring two made the ring pickers vanish without a word when a
-        // vendor's reset left only one (Cursor Enterprise, 2026-09-18), which read as a bug rather than a choice.
-        if let reading = store.status(tool).reading, !reading.windows.isEmpty {
-            WindowChoices(tool: tool, reading: reading, prefs: prefs)
-        }
-        Toggle(L("Pin to menu bar"), isOn: Binding(
-            get: { prefs.menuBarPinnedTools.contains(tool) },
-            set: { if $0 { prefs.menuBarPinnedTools.insert(tool) } else { prefs.menuBarPinnedTools.remove(tool) } }
-        ))
-        Toggle(L("Peak hours"), isOn: Binding(
-            get: { prefs.peakHoursTools.contains(tool) },
-            set: { if $0 { prefs.peakHoursTools.insert(tool) } else { prefs.peakHoursTools.remove(tool) } }
-        ))
-        switch tool {
-        case .claude:
-            Toggle(L("Also poll Claude's usage endpoint"), isOn: Binding(get: { prefs.pollClaudeEndpoint }, set: { prefs.pollClaudeEndpoint = $0; store.refreshAll() }))
-                .help(L("On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked."))
-            Toggle(L("Keep the Mac awake while an assistant is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
-                .help(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held."))
-            if prefs.keepAwake {
-                Toggle(L("Also on battery"), isOn: Binding(get: { prefs.keepAwakeOnBattery }, set: { prefs.keepAwakeOnBattery = $0; requests.awakeChanged() }))
-            }
-        case .codex:
-            Toggle(L("Also read Codex reset credits"), isOn: Binding(get: { prefs.codexResetCredits }, set: { prefs.codexResetCredits = $0; store.refreshAll() }))
-                .help(L("A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex."))
-        case .cursor:
-            Toggle(L("Also read Cursor's usage events"), isOn: Binding(get: { prefs.cursorUsageEvents }, set: { prefs.cursorUsageEvents = $0; store.refreshAll() }))
-                .help(L("A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)."))
-        case .copilot:
-            Toggle(L("Also read organisation billing"), isOn: Binding(get: { prefs.copilotOrgBilling }, set: { prefs.copilotOrgBilling = $0; store.refreshAll() }))
-                .help(L("One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month."))
-        case .antigravity:
-            EmptyView()
-        }
-    }
-
-    /// The 0.7.0 two-way features: the Sessions card, the titles it shows, answering a request from the notch
-    /// and the hold before it goes back to the terminal, and the jump to a session's terminal with the
-    /// Automation grant it may need (docs/hooks.md, docs/permissions.md).
+    /// The 0.7.0 two-way features, for every assistant at once: the Sessions card, the titles it shows, answering a
+    /// request from the notch and the hold before it goes back to the terminal, the jump to a session's terminal
+    /// with the Automation grant it may need (docs/hooks.md, docs/permissions.md), and keeping the Mac awake while
+    /// a session works, which counts every assistant's sessions and so was never Claude Code's alone; since 0.9.0
+    /// the sessions found without a hook (SessionDetection) and Claude Cowork's tasks (CoworkSessions), which need
+    /// none. Which assistants' sessions are read and answered is on each one's page.
     private var sessionsSection: some View {
         Section {
             Toggle(L("Show a Sessions card on the panel"), isOn: Binding(get: { prefs.sessionsCard }, set: { prefs.sessionsCard = $0 }))
-                .help(L("One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest."))
+                .help(L("One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. As many rows as set below, then a count of the rest."))
+            Picker(L("Sessions shown at once"), selection: Binding(get: { prefs.sessionRows }, set: { prefs.sessionRows = $0 })) {
+                ForEach(Preferences.sessionRowChoices, id: \.self) { Text(verbatim: "\($0)").tag($0) }
+            }
+            .help(L("How many rows the Sessions card draws before it counts the rest as “+N more”."))
+            Picker(L("A row leads with"), selection: Binding(get: { prefs.sessionRowLead }, set: { prefs.sessionRowLead = $0 })) {
+                ForEach(SessionRowLead.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .help(L("Conversation title puts the prompt's first line on top and the project, branch and terminal under it; project name swaps them. Under a project's header the branch leads instead, since the header already names the project."))
+            Toggle(L("Find sessions without the hook"), isOn: Binding(get: { prefs.detectSessions }, set: { prefs.detectSessions = $0 }))
+                .help(L("Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's."))
+            Toggle(L("Show Claude Cowork tasks"), isOn: Binding(get: { prefs.coworkSessions }, set: { prefs.coworkSessions = $0 }))
+                .help(L("Cowork has no hook. While the Claude app is running, Notchmeter reads each task it keeps on this Mac every few seconds, without changing anything: the task's title (only while Show what a session is working on is on), the folder you gave it, and its log. A task is working from its prompt until the log's own end-of-turn line, and shows as idle while its log is quiet for four minutes or it has stopped to ask you something in Claude. It is never shown as waiting for you."))
             Toggle(L("Show what a session is working on"), isOn: Binding(get: { prefs.sessionTitles }, set: { prefs.sessionTitles = $0 }))
                 .help(L("The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says."))
             Toggle(L("Answer from the notch"), isOn: Binding(get: { prefs.answerFromNotch }, set: { prefs.answerFromNotch = $0 }))
-                .help(L("A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered."))
+                .help(L("A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. So does a Claude Code MCP server's request for input when every field is a choice; one that wants text or a sign-in goes straight to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor, Gemini CLI and Kimi Code have no event that can be answered."))
             if prefs.answerFromNotch {
                 Stepper(value: Binding(get: { prefs.promptHoldSeconds }, set: { prefs.promptHoldSeconds = $0 }), in: Preferences.promptHoldRange, step: 15) {
                     HStack {
@@ -1008,8 +1211,10 @@ struct SettingsView: View {
             }
             Toggle(L("Jump to the terminal on click"), isOn: Binding(get: { prefs.jumpToTerminal }, set: { prefs.jumpToTerminal = $0 }))
                 .help(L("A click on a session row brings its terminal tab or pane forward, from what the hook read in its own environment: Warp by its focus link, iTerm2, Terminal and Ghostty by AppleScript, kitty and WezTerm by their own command, a tmux pane on its socket, anything else by raising the app. It never launches a terminal that is not running, and a session on another Mac has nothing to jump to."))
-            if !claudeHookIsCurrent {
-                paragraph(L("Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them."))
+            Toggle(L("Keep the Mac awake while an assistant is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
+                .help(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held. A Claude Cowork task at work holds it too, until its log shows the turn ended or goes quiet."))
+            if prefs.keepAwake {
+                Toggle(L("Also on battery"), isOn: Binding(get: { prefs.keepAwakeOnBattery }, set: { prefs.keepAwakeOnBattery = $0; requests.awakeChanged() }))
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(L("Automation")).font(.subheadline.weight(.semibold))
@@ -1029,12 +1234,12 @@ struct SettingsView: View {
             }
         } header: {
             Text(L("Sessions"))
-                .help(L("What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)."))
+                .help(L("What the panel shows of each session, and what you can do to it from there, for every assistant. Sessions are found without the hook too, and Claude Cowork's tasks are read from the Claude app's own files; exact turn ends, waits, answers and the task list need the assistant's hook, on its page, and each assistant's page can stop reading its sessions or answering its requests."))
         }
     }
 
     /// Claude Code's hook carries the deciding entries: `.installed` only; a stale or partial one (a 0.6.0 install)
-    /// shows Repair under Integrations, which the copy above points at.
+    /// shows Repair in the hook section of Claude Code's page, which the copy there points at.
     private var claudeHookIsCurrent: Bool {
         if case .installed = hookStatus[.claude] ?? .notInstalled { return true }
         return false
@@ -1046,55 +1251,75 @@ struct SettingsView: View {
         }
     }
 
-    /// Which assistants are open, remembered across launches so a window reopens the way it was left.
+    /// Which assistants' pages have *Where each window comes from* open (Preferences.settingsExpandedTools),
+    /// remembered across launches so a page reopens the way it was left. The same key held which assistants had
+    /// their options unfolded in the Assistants list before each had a page; a set opened then opens this now,
+    /// which is the nearest thing on the page to what was open. A search whose match is inside the disclosure
+    /// opens it for this window alone (`sourcesOpenedBySearch`), as a search opens Diagnostics: a typed word is
+    /// not a choice about how the page should reopen next time, and only a click writes one. A click to close
+    /// takes both down, so a disclosure a search opened does not spring back open on the next query.
     private func expansion(of tool: ToolID) -> Binding<Bool> {
-        Binding(get: { prefs.settingsExpandedTools.contains(tool) },
-                set: { if $0 { prefs.settingsExpandedTools.insert(tool) } else { prefs.settingsExpandedTools.remove(tool) } })
+        Binding(get: { prefs.settingsExpandedTools.contains(tool) || sourcesOpenedBySearch.contains(tool) },
+                set: { open in
+                    if open { prefs.settingsExpandedTools.insert(tool) } else { prefs.settingsExpandedTools.remove(tool) }
+                    sourcesOpenedBySearch.remove(tool)
+                })
     }
 
+    /// Every assistant's hook at a glance, with the way to its page, where Add, Repair and the snippet are; and the
+    /// launch repair, which applies to every hooks file alike. One line per assistant, in the rings' order, always
+    /// shown, so a Mac without one of them still says "Not installed" rather than hiding the option.
     private var hookSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 8) {
-                // One row per assistant, in the rings' order; every row is always shown, so a Mac without one of
-                // them still says "Not installed" rather than hiding the option.
                 ForEach(HookVendor.allCases) { vendor in
-                    hookRow(vendor)
+                    hookSummary(vendor)
                     Divider()
                 }
-                Toggle(L("Repair a hook that points at an old copy at launch"), isOn: Binding(get: { prefs.autoRepairHooks }, set: { prefs.autoRepairHooks = $0 }))
+                // Named for everything the launch repair does, not only the moved path: it also rewrites an entry
+                // of ours that lacks an event or carries older flags (HookSettings.Status.partial), and 0.9.0's
+                // rewrite of a Gemini CLI entry from --tool antigravity is one of those. A toggle that is on by
+                // default is the consent for a config write at launch, so its label has to say what it consents to.
+                Toggle(L("Repair an out-of-date hook at launch"), isOn: Binding(get: { prefs.autoRepairHooks }, set: { prefs.autoRepairHooks = $0 }))
                     .font(.caption)
-                    .help(L("After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file."))
-                Divider()
-                Text(L("Claude Code status line"))
-                    .font(.subheadline.weight(.semibold))
-                    .help(L("After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it."))
-                Text(statuslineStatus.text).font(.caption).foregroundStyle(hookStatusColor(statuslineStatus))
-                HStack {
-                    Button(L("Show snippet…")) { showStatuslineSnippet = true }
-                    Button(statuslineStatus == .notInstalled ? L("Install status line…") : L("Repair")) { installStatusline() }
-                        .disabled({ if case .installed = statuslineStatus { return true } else { return false } }())
-                }
-                if let statuslineMessage {
-                    Text(statuslineMessage).font(.caption).foregroundStyle(.secondary)
-                }
+                    .help(L("At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file."))
             }
         } header: {
             Text(L("Hooks"))
-                .help(L("Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit."))
+                .help(L("Let Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Kimi Code and OpenCode tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI, Copilot and OpenCode also report when they stop to ask you something; Cursor and Kimi Code have no event for that, so their rings show the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; Claude Code and OpenCode report a stop on a rate limit."))
         }
     }
 
-    /// One vendor's row: its name, where its file stands, the snippet, and Add or Repair as the status calls for.
+    /// One assistant's line on the Integrations overview: its hook's name, where its file stands in words (colour
+    /// only repeats what the words say), and a button to its page. The button reads the same on every line: named
+    /// for the page, the Gemini CLI hook's read "Open Antigravity" beside "Gemini CLI hook", two names on one line
+    /// for a reader who had to know that hook lights the Antigravity ring. VoiceOver still hears which page.
+    private func hookSummary(_ vendor: HookVendor) -> some View {
+        let status = hookStatus[vendor] ?? .notInstalled
+        return HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(vendor.shape == .pluginModule ? L("OpenCode plugin") : L("%@ hook", vendor.displayName))
+                    .font(.subheadline.weight(.semibold))
+                Text(status.text).font(.caption).foregroundStyle(hookStatusColor(status))
+            }
+            Spacer()
+            Button(L("Open its page")) { pane = .agent(vendor.tool) }
+                .controlSize(.small)
+                .accessibilityLabel(L("Open %@'s page", vendor.tool.productName))
+        }
+        .help(hookRowHelp(vendor))
+    }
+
+    /// One vendor's hook on its assistant's page, under the section header that names it: where its file stands,
+    /// the snippet, Add or Repair as the status calls for, and what the last press did.
     @ViewBuilder
     private func hookRow(_ vendor: HookVendor) -> some View {
         let status = hookStatus[vendor] ?? .notInstalled
-        Text(L("%@ hook", vendor.displayName))
-            .font(.subheadline.weight(.semibold))
-            .help(hookRowHelp(vendor))
         Text(status.text).font(.caption).foregroundStyle(hookStatusColor(status))
         HStack {
             Button(L("Show snippet…")) { showHookSnippet = vendor }
             switch status {
+            case .notInstalled where vendor.shape == .pluginModule: Button(L("Add plugin…")) { installHook(vendor: vendor) }
             case .notInstalled: Button(L("Add to %@…", vendor.fileName)) { installHook(vendor: vendor) }
             case .stale, .partial: Button(L("Repair")) { repairHook(vendor: vendor) }
             case .installed: EmptyView()
@@ -1105,20 +1330,311 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - An assistant's page
+
+    /// Whether it is on, what it says about itself, and a read of it now. The switch is the Assistants list's own
+    /// (`UsageStore.setEnabled`), so the two can never disagree; its label carries the status, so VoiceOver reads
+    /// "Signed in · Max" with the switch rather than as a line of its own.
+    private func agentOverview(_ tool: ToolID) -> some View {
+        Section {
+            Toggle(isOn: Binding(get: { store.isShown(tool) }, set: { store.setEnabled(tool, $0) })) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L("Show %@ on the panel and the rings", tool.displayName))
+                    Text(subtitle(for: tool)).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .disabled(!store.isInstalled(tool))
+            .help(L("Off stops every read of its usage and takes its rings, its card and its menu bar figures away. Its hook and its sessions follow their own switches below."))
+            Button(L("Refresh now")) { Task { await store.refresh(tool, force: true, interactive: true) } }
+                .disabled(!store.isShown(tool))
+        }
+    }
+
+    /// Its rings and windows: the ring pickers and the Hide boxes once there is a reading to choose from (until
+    /// then, why there is none, in the overview's words), and the three per-assistant switches that need none —
+    /// the menu bar pin, peak hours, and whether the Cost card carries it (only where it can report spend at all;
+    /// one that is not on keeps its place in the set, so an afternoon signed out does not silently drop it from the
+    /// card it comes back to).
+    private func agentWindows(_ tool: ToolID) -> some View {
+        Section(L("Rings and windows")) {
+            // One window is still worth the pickers: requiring two made them vanish without a word when a vendor's
+            // reset left only one (Cursor Enterprise, 2026-09-18), which read as a bug rather than a choice.
+            if let reading = store.status(tool).reading, !reading.windows.isEmpty {
+                WindowChoices(tool: tool, reading: reading, prefs: prefs)
+            } else {
+                Text(subtitle(for: tool)).font(.caption).foregroundStyle(.secondary)
+            }
+            Toggle(L("Pin to menu bar"), isOn: Binding(
+                get: { prefs.menuBarPinnedTools.contains(tool) },
+                set: { if $0 { prefs.menuBarPinnedTools.insert(tool) } else { prefs.menuBarPinnedTools.remove(tool) } }
+            ))
+            Toggle(L("Peak hours"), isOn: Binding(
+                get: { prefs.peakHoursTools.contains(tool) },
+                set: { if $0 { prefs.peakHoursTools.insert(tool) } else { prefs.peakHoursTools.remove(tool) } }
+            ))
+            .help(L("Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections."))
+            if tool.reportsCost {
+                Toggle(L("In the Cost card"), isOn: Binding(
+                    get: { prefs.costCardTools.contains(tool) },
+                    set: { if $0 { prefs.costCardTools.insert(tool) } else { prefs.costCardTools.remove(tool) } }
+                ))
+                .disabled(!store.isShown(tool))
+                .help(L("Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card."))
+            }
+        }
+    }
+
+    /// Its hook: status, snippet, Add or Repair, with what the vendor's hook reports and cannot, and for Claude Code
+    /// the status line beside it, which is the other half of the same connection.
+    @ViewBuilder
+    private func agentHook(_ tool: ToolID) -> some View {
+        if let vendor = HookVendor.vendor(for: tool) {
+            Section {
+                hookRow(vendor)
+                // Whole, not cut to the form's two faint lines: on the assistant's own page what its hook reports and
+                // cannot is the answer the reader came for, and the vendor's own step (Codex's trust in /hooks) sits
+                // at the end of it.
+                pageText(hookRowHelp(vendor))
+                if tool == .claude {
+                    Text(L("Claude Code status line"))
+                        .font(.subheadline.weight(.semibold))
+                        .help(L("After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it."))
+                    Text(statuslineStatus.text).font(.caption).foregroundStyle(hookStatusColor(statuslineStatus))
+                    HStack {
+                        Button(L("Show snippet…")) { showStatuslineSnippet = true }
+                        Button(statuslineStatus == .notInstalled ? L("Install status line…") : L("Repair")) { installStatusline() }
+                            .disabled({ if case .installed = statuslineStatus { return true } else { return false } }())
+                    }
+                    if let statuslineMessage {
+                        Text(statuslineMessage).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text(vendor.shape == .pluginModule ? L("OpenCode plugin") : L("%@ hook", vendor.displayName))
+            }
+        }
+    }
+
+    /// Its sessions: whether they are read at all, and whether its requests are answered from the notch where its
+    /// hook has an event to answer. Each toggle shows what actually happens, so one the app-wide switch has turned
+    /// off reads off, disabled, with the line under it saying where that switch is — never a greyed "on" that
+    /// does nothing.
+    private func agentSessions(_ tool: ToolID) -> some View {
+        Section(L("Sessions")) {
+            Toggle(L("Read its sessions"), isOn: Binding(
+                get: { prefs.readsSessions(of: tool) },
+                set: { prefs.sessionReadingOff = Preferences.switching(prefs.sessionReadingOff, tool, on: $0) }
+            ))
+            .help(L("Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once."))
+            if tool.hasAnswerableHook {
+                Toggle(L("Answer from the notch"), isOn: Binding(
+                    get: { prefs.answersFromNotch(tool) },
+                    set: { prefs.notchAnswersOff = Preferences.switching(prefs.notchAnswersOff, tool, on: $0) }
+                ))
+                .disabled(!prefs.answerFromNotch || !prefs.readsSessions(of: tool))
+                .help(L("Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait."))
+                if !prefs.answerFromNotch {
+                    caption(L("Off for every assistant under Assistants › Sessions."))
+                } else if !prefs.readsSessions(of: tool) {
+                    caption(L("Its sessions are not read."))
+                }
+                if tool == .claude, !claudeHookIsCurrent {
+                    pageText(L("Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them."))
+                }
+            } else if let note = noAnswerNote(tool) {
+                pageText(note)
+            }
+        }
+    }
+
+    /// Its notices, inside what Notifications allows for every assistant: its limits (pace, run-out, limit hit,
+    /// reset, reminder, and the advice banners about it — extra usage, the cache tier, the metering) and its
+    /// sessions (a wait, a long turn finishing, and the glance or panel either opens).
+    private func agentNotifications(_ tool: ToolID) -> some View {
+        let sessionKinds = prefs.notifyWaiting || prefs.notifyFinished
+        return Section(L("Notifications")) {
+            Toggle(L("Notify about its limits"), isOn: Binding(
+                get: { prefs.notificationsEnabled && prefs.notifiesLimits(of: tool) },
+                set: { prefs.limitNoticesOff = Preferences.switching(prefs.limitNoticesOff, tool, on: $0) }
+            ))
+            .disabled(!prefs.notificationsEnabled)
+            .help(L("Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay."))
+            if !prefs.notificationsEnabled {
+                caption(L("Off for every assistant under Notifications."))
+            }
+            Toggle(L("Notify when it waits or finishes a turn"), isOn: Binding(
+                get: { sessionKinds && prefs.readsSessions(of: tool) && prefs.notifiesSessions(of: tool) },
+                set: { prefs.sessionNoticesOff = Preferences.switching(prefs.sessionNoticesOff, tool, on: $0) }
+            ))
+            .disabled(!sessionKinds || !prefs.readsSessions(of: tool))
+            .help(L("Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait."))
+            if !sessionKinds {
+                caption(L("Off for every assistant under Notifications."))
+            } else if !prefs.readsSessions(of: tool) {
+                caption(L("Its sessions are not read."))
+            }
+        }
+    }
+
+    /// Where its figures come from: the login it reads and the requests it makes, as `docs/accuracy.md` lists
+    /// them, and each window of its reading with the source that window carries — the reference half folded
+    /// away (`expansion(of:)`), the second reads the reader can switch beside it — and for Claude Code the
+    /// Keychain policy, which is about Claude Code's login and no one else's.
+    private func agentSources(_ tool: ToolID) -> some View {
+        Section(L("Sources")) {
+            DisclosureGroup(isExpanded: expansion(of: tool)) {
+                VStack(alignment: .leading, spacing: 8) {
+                    // Each window with its source in words, the answer the disclosure's label asks for; then the
+                    // login and the requests behind all of them.
+                    VStack(alignment: .leading, spacing: 3) {
+                        if let reading = store.status(tool).reading, !reading.windows.isEmpty {
+                            ForEach(reading.windows) { window in
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(window.label)
+                                    Spacer()
+                                    Text(window.source.name).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
+                                }
+                                .font(.caption)
+                                .accessibilityElement(children: .combine)
+                            }
+                        } else {
+                            Text(subtitle(for: tool)).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    note(L("Login"), loginNote(tool))
+                    note(L("Readings"), readingsNote(tool))
+                }
+                // A disclosure's rows are not stretched the way a section's are.
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } label: {
+                Text(L("Where each window comes from"))
+            }
+            .accessibilityLabel(L("Where each window comes from"))
+            switch tool {
+            case .claude:
+                Toggle(L("Also poll Claude's usage endpoint"), isOn: Binding(get: { prefs.pollClaudeEndpoint }, set: { prefs.pollClaudeEndpoint = $0; store.refreshAll() }))
+                    .help(L("On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked."))
+                Picker(L("Ask for Keychain access"), selection: Binding(get: { prefs.keychainPrompts }, set: { prefs.keychainPrompts = $0 })) {
+                    ForEach(KeychainPromptPolicy.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                .help(L("Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only."))
+            case .codex:
+                Toggle(L("Also read Codex reset credits"), isOn: Binding(get: { prefs.codexResetCredits }, set: { prefs.codexResetCredits = $0; store.refreshAll() }))
+                    .help(L("A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex."))
+            case .cursor:
+                Toggle(L("Also read Cursor's usage events"), isOn: Binding(get: { prefs.cursorUsageEvents }, set: { prefs.cursorUsageEvents = $0; store.refreshAll() }))
+                    .help(L("A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)."))
+            case .copilot:
+                Toggle(L("Also read organisation billing"), isOn: Binding(get: { prefs.copilotOrgBilling }, set: { prefs.copilotOrgBilling = $0; store.refreshAll() }))
+                    .help(L("One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month."))
+            case .opencode:
+                Toggle(L("Show sessions read from OpenCode's database"), isOn: Binding(get: { prefs.openCodeStorageSessions }, set: { prefs.openCodeStorageSessions = $0 }))
+                    .help(L("With nothing installed, OpenCode's own database on this Mac is read every few seconds while OpenCode writes to it, and never written: a session appears when it starts, works from its prompt until the answer closes, and goes idle a few seconds after. It cannot see OpenCode stop to ask your permission. The OpenCode plugin under Integrations reports that and each turn's end as they happen, and once it has, this reading stands down."))
+                pageText(L("OpenCode Go publishes no reading of its limits, so its meters are computed here from this Mac's own turns at the Go page's prices."))
+            case .gemini, .antigravity, .kimi:
+                EmptyView()
+            }
+        }
+    }
+
+    /// A titled note on a page: the title a step heavier than the text, the text whole rather than cut to two
+    /// lines, since on its own assistant's page this is the answer the reader came for, not a hint.
+    private func note(_ title: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.subheadline.weight(.semibold))
+            Text(text).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Why a toggle above it is off: shown, not only hovered, since a switch that cannot be moved has to say why.
+    private func caption(_ text: String) -> some View {
+        Text(text).font(.caption).foregroundStyle(.secondary)
+    }
+
+    /// Explanatory text on an assistant's page, whole and in the secondary colour. The form's `paragraph` is the
+    /// tertiary level cut to two lines, a hint beside a control; here the text is the page's own content, and the
+    /// tertiary grey sits under 4.5:1 on the dark form.
+    private func pageText(_ text: String) -> some View {
+        Text(text).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Where each assistant's login comes from (docs/accuracy.md, *How it reads each tool*). Literal keys per
+    /// assistant, for the reason `hookRowHelp` gives.
+    private func loginNote(_ tool: ToolID) -> String {
+        switch tool {
+        case .claude:
+            L("Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here.")
+        case .codex:
+            L("Codex's own login, from auth.json in its home folder; the plan name is Codex's own. Read only: the token is never refreshed or written.")
+        case .cursor:
+            L("The editor's own login, from Cursor's state database, sent the way cursor.com's dashboard sends it. Read only: never refreshed or written.")
+        case .gemini:
+            L("The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. Read only: never refreshed or written.")
+        case .antigravity:
+            L("The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. The Antigravity app keeps its own in the Keychain, out of reach, so one sign-in through Gemini CLI is needed. Read only: never refreshed or written.")
+        case .copilot:
+            L("The token Copilot's editor plugin or gh keeps: apps.json, then hosts.json, then gh's hosts.yml, each tried in turn. Read only: never refreshed or written.")
+        case .kimi:
+            L("Kimi Code's own login: the access token in credentials/kimi-code.json under $KIMI_SHARE_DIR or ~/.kimi; the refresh token beside it is never read. Read only: never refreshed or written.")
+        case .opencode:
+            L("No login: OpenCode's own database on this Mac, opened read-only. Nothing is sent, and no token is read.")
+        }
+    }
+
+    /// Where each assistant's figures come from, in one line (docs/accuracy.md, *How it reads each tool* and
+    /// *Who each request says it is*).
+    private func readingsNote(_ tool: ToolID) -> String {
+        switch tool {
+        case .claude:
+            L("The status line after every turn, Anthropic's usage endpoint while it is allowed below, and this Mac's transcripts for the cost.")
+        case .codex:
+            L("chatgpt.com's usage endpoint, else the newest rate-limit line in Codex's session files, and those files for the cost.")
+        case .cursor:
+            L("cursor.com's usage summary and the dashboard's own reads, and its usage events for the cost.")
+        case .gemini:
+            L("Google's Code Assist quota, under Gemini CLI's own identity. No cost: it meters quota, not money.")
+        case .antigravity:
+            L("Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money.")
+        case .copilot:
+            L("api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost.")
+        case .kimi:
+            L("api.kimi.com's usage endpoint, the read Kimi Code's own /usage command makes. No cost: it meters a request allowance, not money.")
+        case .opencode:
+            L("OpenCode's recorded turns and sessions, and on the Go plan a meter computed here from them at the Go page's prices and limits; its cost from the same records.")
+        }
+    }
+
+    /// Why an assistant whose hook has nothing to answer offers no *Answer from the notch*.
+    private func noAnswerNote(_ tool: ToolID) -> String? {
+        switch tool {
+        case .cursor: L("Cursor has no event that can be answered: its approvals are always answered in Cursor.")
+        case .gemini: L("Gemini CLI's hook only reports: its permission prompts are always answered in the terminal.")
+        case .kimi: L("Kimi Code has no event that can be answered: its approvals are always answered in the terminal.")
+        case .antigravity: L("Antigravity has no hook: its IDE reports no event the notch could read or answer.")
+        case .opencode: L("OpenCode's plugin reports its permission requests and their answers but cannot answer them: its approvals are always answered in OpenCode.")
+        case .claude, .codex, .copilot: nil
+        }
+    }
+
     /// Literal keys per vendor rather than a string on HookVendor: LocalizationTests only sees a quoted literal
     /// passed straight to `L`, so a key that lived on the vendor would be reported as shipped but unused.
     private func hookRowHelp(_ vendor: HookVendor) -> String {
         switch vendor {
         case .claude:
-            L("Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops.")
+            L("Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, subagent starts and stops, compactions, model switches, an MCP server asking for input and its answer, teammates going idle, failed and auto-refused tool calls, each finished batch of tool calls and a change of directory. It is never registered for WorktreeCreate, WorktreeRemove or PreModelSwitch, which would put the app in the way of worktrees and model switches.")
         case .codex:
             L("Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with.")
         case .cursor:
             L("Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved.")
-        case .antigravity:
-            L("Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring.")
+        case .gemini:
+            L("Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Gemini ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. An entry added before 0.9.0 lit the Antigravity ring and reads as out of date until Repair points it at Gemini CLI's own. The Antigravity IDE's own hooks report none of this, so Antigravity has no hook row.")
+        case .kimi:
+            L("Kimi Code reports session starts and ends, prompt sends, the end of each turn, a turn that failed, and subagent starts and stops. It has no event for a wait on your approval or a question, so the Kimi ring shows the finished tick and never the waiting hand, and a failed turn ends without the tick. The entries are [[hooks]] tables added to the end of config.toml, and the rest of the file is left exactly as it was; a file that already defines hooks another way is left alone, so paste the snippet instead. Kimi Code reads config.toml when it starts, and /hooks lists the entries.")
         case .copilot:
             L("GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it.")
+        case .opencode:
+            L("OpenCode's plugin reports session starts and ends, prompt sends, each turn's end and a failed one, subagent starts and stops, and the moment it stops to ask your permission and the moment that is answered, so the OpenCode ring shows the waiting hand only while it waits. It is not answered from the notch. The file is Notchmeter's own in ~/.config/opencode/plugins, so removing the plugin is deleting it; OpenCode loads it when it starts. Without it, OpenCode's sessions are read from its own database, a few seconds late and never waiting.")
         }
     }
 
@@ -1132,10 +1648,14 @@ struct SettingsView: View {
         switch vendor {
         case .codex:
             L("Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with.")
-        case .antigravity:
+        case .gemini:
             L("Gemini CLI reads settings.json when it starts: the hook works from the next session.")
         case .copilot:
             L("Copilot CLI reads its hooks when it starts: restart it, then /env lists the file.")
+        case .kimi:
+            L("Kimi Code reads config.toml when it starts: the hook works from the next session.")
+        case .opencode:
+            L("OpenCode loads its plugins when it starts: the plugin works from the next session.")
         case .claude, .cursor:
             nil
         }
@@ -1230,6 +1750,10 @@ struct SettingsView: View {
                             diagnosticsMessage = L("Copied %ld lines.", text.split(separator: "\n").count)
                         }
                         .help(L("The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token."))
+                        // Beside the copy, because this is where someone with a bug already is: the same report,
+                        // with names replaced as well, sent from here rather than pasted somewhere by hand.
+                        Button(L("Send Feedback…")) { requests.feedback = true }
+                            .help(feedbackHelp)
                         if let diagnosticsMessage {
                             Text(diagnosticsMessage).font(.caption).foregroundStyle(.secondary)
                         }
@@ -1237,12 +1761,18 @@ struct SettingsView: View {
                     // A disclosure's rows are not stretched the way a section's are, so the button would sit
                     // centred under the labelled rows above it.
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    if let feedbackMessage {
+                        Text(feedbackMessage).font(.caption).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     LabeledContent(L("Rate per dollar")) {
                         field($rateText, prompt: Self.ratePlaceholder, label: L("Rate per dollar"))
                             .onSubmit { applyRate() }
                         Button(L("Apply")) { applyRate() }
                     }
-                    .help(L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours."))
+                    .help(prefs.fetchCurrencyRate
+                        ? L("Your own rate: used while Fetch today's rate is off, and whenever the ECB's rate cannot be used.")
+                        : Self.currencyHelp)
                     crashReportRows
                 }
                 .opacity(searchOpacity(.diagnostics))
@@ -1313,12 +1843,27 @@ struct SettingsView: View {
         }
     }
 
+    /// The tooltip both Send Feedback buttons wear.
+    private var feedbackHelp: String {
+        L("Write to the developer: a message, and the diagnostics if you like, with every project name, branch, session title and your home folder replaced. You see all of it before it goes, and it goes only through GitHub in your browser or your own mail app.")
+    }
+
     private var aboutSection: some View {
         Section {
             Text(L("Version %@", AppInfo.version))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .help(L("%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.", AppInfo.name))
+            // An ordinary button rather than a link in the footer's quiet type: this is the one way a problem the
+            // developer cannot see reaches them, and it should not have to be found.
+            HStack {
+                Button(L("Send Feedback…")) { requests.feedback = true }
+                    .help(feedbackHelp)
+                if let feedbackMessage {
+                    Text(feedbackMessage).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             // The one ask the app makes, kept to the About footer where a happy user is already looking, in the
             // same quiet type as the version line: the app is free and stays free, and a button any louder than
             // this would make it read as if it were not.
@@ -1344,21 +1889,44 @@ struct SettingsView: View {
             hookStatus[vendor] = requests.renderedHookStatus?.hook[vendor] ?? HookSettings.status(vendor: vendor)
         }
         statuslineStatus = requests.renderedHookStatus?.statusline ?? HookSettings.statuslineStatus()
-        // What the Sessions card's empty state reads, kept current by the one place the user installs a hook.
-        store.hooksInstalled = hookStatus.values.contains { $0 != .notInstalled }
+        // What the Sessions card's empty state and its upgrade line read, kept current by the one place the user
+        // installs a hook.
+        store.hookInstalledTools = Set(hookStatus.filter { $0.value != .notInstalled }.map(\.key.tool))
+        store.hooksInstalled = !store.hookInstalledTools.isEmpty
     }
 
+    /// An assistant's standing in a line: under its name in the Assistants list, under its switch on its page, and
+    /// on its page wherever its windows would be listed while it has none. The last is the same line on purpose:
+    /// an assistant that is off or not on this Mac is not waiting for a reading, and a page whose overview says
+    /// "Off" two rows above a "Waiting for the first reading" promised one that was never coming.
     private func subtitle(for tool: ToolID) -> String {
-        guard store.isInstalled(tool) else { return L("Not installed on this Mac") }
-        switch store.status(tool) {
+        Self.statusText(installed: store.isInstalled(tool), status: store.status(tool))
+    }
+
+    /// `subtitle(for:)` as a function of what the store knows, so a test can hold it to its words without a window:
+    /// not installed first, whatever the status says, since a store with no provider for a tool leaves its status
+    /// at `.waiting`.
+    static func statusText(installed: Bool, status: ToolStatus) -> String {
+        guard installed else { return L("Not installed on this Mac") }
+        switch status {
         case .off: return L("Off")
         case .waiting: return L("Waiting for the first reading")
         case .idle(let message): return message
-        case .ready(let reading): return reading.plan.map { L("Signed in · %@", $0) } ?? L("Signed in")
+        case .ready(let reading): return Self.readySubtitle(reading)
         case .needsAttention(let message, _), .failed(let message, _), .rateLimited(let message, _): return message
         case .offline: return L("Offline, retrying")
         case .notInstalled: return L("Not installed on this Mac")
         }
+    }
+
+    /// "Signed in · Max" for a reading taken over a login. A reading computed here from the tool's own local
+    /// records (OpenCode Go, every window `computedLocally`) read no login at all, which the Welcome tour and
+    /// docs/privacy.md promise, so the row says where its figure came from rather than claiming one.
+    static func readySubtitle(_ reading: UsageReading) -> String {
+        if !reading.windows.isEmpty, reading.windows.allSatisfy({ $0.source == .computedLocally }) {
+            return reading.plan.map { L("%@ · computed from this Mac's turns", $0) } ?? L("Computed from this Mac's turns")
+        }
+        return reading.plan.map { L("Signed in · %@", $0) } ?? L("Signed in")
     }
 
     private func applyCurrency() {
@@ -1373,22 +1941,29 @@ struct SettingsView: View {
         rateText = prefs.currencyRate == 1 ? "1" : String(prefs.currencyRate)
     }
 
-    static func budgetText(_ usd: Double) -> String {
-        let amount = usd * Money.rate
+    /// The budget field's text: the amount as typed while the currency is the one it was typed in, whole units
+    /// where it was whole ("200", not "200.00"), and empty for no budget.
+    static func budgetText(_ budget: Budget?, at conversion: CurrencyConversion) -> String {
+        guard let amount = budget?.shown(at: conversion) else { return "" }
         return amount == amount.rounded() ? String(Int(amount)) : String(format: "%.2f", amount)
     }
 
-    /// The typed amount is in the user's currency; stored in US dollars.
-    static func budgetUSD(_ text: String, rate: Double) -> Double? {
-        guard let amount = Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")), amount > 0, rate > 0 else { return nil }
-        return amount / rate
+    /// The budget field's text once the rate in use has changed under an open window (the code or the typed rate
+    /// applied, the switch flipped, the ECB's answer landing, a held rate ageing past its week): the budget in the
+    /// currency now shown, which is what docs/accuracy.md promises and what the next Apply would keep. Left as it
+    /// was, "200" beside a new code would be re-read as 200 of the new currency by that Apply, a jump the user
+    /// never typed. A draft, text that is no longer what the budget read at the old rate, is the user's, and is
+    /// left alone to be applied at the new rate when it is sent.
+    static func budgetText(_ budget: Budget?, from old: CurrencyConversion, to new: CurrencyConversion, draft: String) -> String {
+        draft == budgetText(budget, at: old) ? budgetText(budget, at: new) : draft
     }
 
+    /// The typed amounts are kept in the currency shown, at the rate in use as they are typed (`Budget`).
     private func applyBudgets() {
-        prefs.monthlyBudgetUSD = Self.budgetUSD(monthlyBudgetText, rate: Money.rate)
-        prefs.weeklyBudgetUSD = Self.budgetUSD(weeklyBudgetText, rate: Money.rate)
-        monthlyBudgetText = prefs.monthlyBudgetUSD.map { Self.budgetText($0) } ?? ""
-        weeklyBudgetText = prefs.weeklyBudgetUSD.map { Self.budgetText($0) } ?? ""
+        prefs.monthlyBudget = Budget.parse(monthlyBudgetText, at: prefs.currencyConversion)
+        prefs.weeklyBudget = Budget.parse(weeklyBudgetText, at: prefs.currencyConversion)
+        monthlyBudgetText = Self.budgetText(prefs.monthlyBudget, at: prefs.currencyConversion)
+        weeklyBudgetText = Self.budgetText(prefs.weeklyBudget, at: prefs.currencyConversion)
     }
 
     private func applyProxy() {
@@ -1450,9 +2025,17 @@ struct SettingsView: View {
     private func installHook(vendor: HookVendor = .claude, at url: URL? = nil, dryRun: Bool = false) {
         let url = url ?? vendor.fileURL
         let alert = NSAlert()
-        alert.messageText = L("Add the Notchmeter hook to %@?", vendor.fileName)
-        alert.informativeText = L("%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@.",
-                                  url.path, vendor.fileName, vendor.events.joined(separator: ", "))
+        if vendor.shape == .pluginModule {
+            // The plugin is a file of Notchmeter's own rather than an entry merged into the user's, so the sheet says
+            // what is written, and that a file already at the path is backed up rather than merged.
+            alert.messageText = L("Add the Notchmeter plugin to OpenCode?")
+            alert.informativeText = L("Notchmeter writes its own plugin at %1$@. A file already there is copied to %2$@.bak-<date> first; nothing else in OpenCode's configuration changes.",
+                                      url.path, vendor.fileName)
+        } else {
+            alert.messageText = L("Add the Notchmeter hook to %@?", vendor.fileName)
+            alert.informativeText = L("%1$@ is copied to %2$@.bak-<date> first. Hooks already there are kept; Notchmeter's entry is appended under %3$@.",
+                                      url.path, vendor.fileName, vendor.events.joined(separator: ", "))
+        }
         alert.addButton(withTitle: L("Add"))
         alert.addButton(withTitle: L("Cancel"))
         let finish: (NSApplication.ModalResponse) -> Void = { response in
@@ -1599,45 +2182,114 @@ private struct WindowChoices: View {
     }
 }
 
-/// One event class's sound: the system alert sounds, the user's imported files, none, or a file to import.
+/// What each sound category is called on its row, and what the row says about which notices it covers. Here
+/// rather than beside `SoundCategory` because the Settings search index (SettingsSearch) is checked against the
+/// literals in this file.
+extension SoundCategory {
+    var title: String {
+        switch self {
+        case .completion: L("Turn finished")
+        case .waiting: L("Waiting reminder")
+        case .permission: L("Permission request")
+        case .question: L("Question")
+        case .plan: L("Plan ready to approve")
+        case .limit: L("Limit alert")
+        }
+    }
+
+    /// A standing line under the rows whose reach is not what their name suggests, shown rather than hovered:
+    /// the reminder is not a request, a plan that plays the permission sound looks like a fault until its hook
+    /// entry is known, and the limit sound is also what advice and the Test button play while the gentler pace
+    /// notices play nothing.
+    var caption: String? {
+        switch self {
+        case .waiting: L("Claude Code's reminder that you have been idle for a minute, and a Cursor turn gone quiet that may be waiting on an approval: a session that may need you, as against the three below, which have asked.")
+        case .plan: L("A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound.")
+        case .limit: L("A window almost out or out, and advice about money already being spent; Test notification plays it too. Cutting it close, Will run out, resets and reminders arrive without a sound.")
+        case .completion, .permission, .question: nil
+        }
+    }
+
+    /// The row's help: the notices it covers, in full.
+    var help: String {
+        switch self {
+        case .completion: L("A turn longer than the minimum above, when Notify when a turn finishes is on.")
+        case .waiting, .plan, .limit: caption ?? ""
+        case .permission: L("A tool waiting for your approval, and any wait that has stopped a session without saying what it wants.")
+        case .question: L("Claude Code's AskUserQuestion, an MCP server asking for input, and an agent asking for input.")
+        }
+    }
+}
+
+/// What one sound row wants and what it has, in points: the width its name, menu, Preview and Silence take on one
+/// line, and the width the form gives the row. Every SoundPicker reports its own, so the block can decide once for
+/// all six whether the rows go to two lines (SettingsView.soundRowsTwoLine).
+private struct SoundRowWidths: Equatable {
+    var ideal: CGFloat = 0
+    var available: CGFloat = 0
+    var fits: Bool { ideal <= available }
+}
+
+/// One category's sound: the system alert sounds and the user's imported files, with a file to import at the foot
+/// of the menu, a Preview, and the category's Silence box.
+///
+/// Choose file… is the menu's last entry rather than a button beside it, as Other… is in macOS's own sound menus:
+/// the row had room for the picker and two buttons, and the Silence box needed the space of the second. None is no
+/// longer an entry: the box is how a category goes quiet, and it keeps the chosen sound for when it comes back.
 private struct SoundPicker: View {
     let title: String
     @Binding var choice: String
-    /// The choice the Default entry stands for: the system alert, or a kind of wait's own sound
+    @Binding var silenced: Bool
+    /// The choice the Default entry stands for: the system alert, or a category's own sound
     /// (`NotificationSound.defaultChoice(for:)`), so choosing Default puts the row back where it started.
     var defaultTag: String = NotificationSound.defaultChoice
     /// A standing explanation under the row, always shown.
     var caption: String?
+    /// Whether the Preview and the Silence box go under the name and the menu rather than beside them. The
+    /// block's decision rather than the row's (SettingsView.soundRowsTwoLine), so that the six menus keep to one
+    /// column whichever layout the block is in.
+    var twoLine = false
+    /// Where the row reports what its one line wants and what it has (SoundRowWidths), for that decision. Called
+    /// from layout, whenever either width changes.
+    var measured: (SoundRowWidths) -> Void = { _ in }
     /// What the last import or fallback has to say, shown under the row; nil when there is nothing to report.
     @State private var note: String?
+    /// The row's two widths as last measured, kept so that a change to one is reported beside the other.
+    @State private var widths = SoundRowWidths()
     /// True from the moment a file is chosen until its import has been applied or refused. The import runs off the
     /// main actor (an mp3 is decoded whole), so the row stays live meanwhile and this keeps a second Choose file…
     /// from starting a parallel import that would race the first for the same name in ~/Library/Sounds.
     @State private var importing = false
+    /// Bumped whenever Choose file… is picked, to rebuild the menu. The pick changes no state (the binding refuses
+    /// it), so without a change of identity the pop-up button could go on showing "Choose file…" as its title after
+    /// a cancelled panel, over a choice that never moved.
+    @State private var menuGeneration = 0
+
+    /// The menu entry that opens the file panel instead of being chosen. No stored choice can take this form
+    /// (NotificationSound's are "default", "none", "system:…" and "custom:…"), so it can never be mistaken for one.
+    private static let chooseFileTag = "choose-file"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Picker(title, selection: $choice) {
-                    Text(NotificationSound.defaultTitle(for: defaultTag)).tag(defaultTag)
-                    Text(L("None")).tag(NotificationSound.none)
-                    Divider()
-                    // The default's own sound is listed once, as Default: two entries with one tag leave the Picker
-                    // unable to say which is chosen.
-                    ForEach(NotificationSound.systemSounds().filter { "system:\($0)" != defaultTag }, id: \.self) { name in
-                        Text(name).tag("system:\(name)")
+            // One line where every row's words fit. Where one row's do not — Russian's "По умолчанию (Glass)"
+            // beside "Прослушать" and "Без звука" at the window's narrowest — the name and the menu keep a line
+            // of their own and the two controls go under it, on every row alike, rather than the menu cutting off
+            // the very sound it names. The name is a Text of its own, not the Picker's label, because the fit is
+            // judged on ideal widths and a Form's labelled Picker asks for all the room there is.
+            if twoLine {
+                VStack(alignment: .trailing, spacing: 6) {
+                    HStack {
+                        name
+                        picker
                     }
-                    let custom = NotificationSound.customSounds()
-                    if !custom.isEmpty {
-                        Divider()
-                        ForEach(custom, id: \.self) { name in Text((name as NSString).deletingPathExtension).tag("custom:\(name)") }
-                    }
+                    HStack { controls }
                 }
-                // Four rows each carry a Preview and a Choose file…, so VoiceOver hears which row's it is on.
-                Button(L("Preview")) { NotificationSound.preview(choice) }.controlSize(.small)
-                    .accessibilityLabel(L("Preview the %@ sound", title))
-                Button(L("Choose file…")) { chooseFile() }.controlSize(.small).disabled(importing)
-                    .accessibilityLabel(L("Choose a file for the %@ sound", title))
+            } else {
+                HStack {
+                    name
+                    picker
+                    controls
+                }
             }
             if let caption {
                 Text(caption).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -1646,7 +2298,87 @@ private struct SoundPicker: View {
                 Text(note).font(.caption).foregroundStyle(.secondary)
             }
         }
+        // The one line at the width it wants, laid out under the row and never drawn, so the row can say whether
+        // it would fit: the line on screen is cut to the room it has, and tells nothing about what it wanted. A
+        // copy of the menu over a constant rather than the menu itself, so picking can open no panel; disabled
+        // and out of the accessibility tree, so neither Tab nor VoiceOver can land on a control nobody can see.
+        .background(alignment: .leading) {
+            HStack {
+                name
+                menu(selection: .constant(choice))
+                controls
+            }
+            .fixedSize()
+            .hidden()
+            .disabled(true)
+            .accessibilityHidden(true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { report(\.ideal, $0) }
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { report(\.available, $0) }
         .onAppear { settleMissingCustom() }
+    }
+
+    /// One width measured: the pair goes up whole, so the block never compares a new ideal with a stale room.
+    private func report(_ width: WritableKeyPath<SoundRowWidths, CGFloat>, _ value: CGFloat) {
+        widths[keyPath: width] = value
+        measured(widths)
+    }
+
+    /// The row's name, pushed away from the menu. Hidden from VoiceOver, which hears it as the menu's own label.
+    private var name: some View {
+        HStack {
+            Text(title)
+            Spacer(minLength: 12)
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// The sound menu. The selection never becomes the Choose file… entry: picking it opens the panel, and the menu
+    /// goes on showing the sound that was chosen until an import replaces it.
+    private var picker: some View {
+        menu(selection: Binding(get: { choice }, set: { picked in
+            if picked == Self.chooseFileTag {
+                menuGeneration += 1
+                chooseFile()
+            } else {
+                choice = picked
+            }
+        }))
+        .id(menuGeneration)
+    }
+
+    /// The menu over `selection`: the row's own choice on screen, a constant in the measuring copy.
+    private func menu(selection: Binding<String>) -> some View {
+        Picker(title, selection: selection) {
+            Text(NotificationSound.defaultTitle(for: defaultTag)).tag(defaultTag)
+            Divider()
+            // The default's own sound is listed once, as Default: two entries with one tag leave the Picker unable
+            // to say which is chosen.
+            ForEach(NotificationSound.systemSounds().filter { "system:\($0)" != defaultTag }, id: \.self) { name in
+                Text(name).tag("system:\(name)")
+            }
+            let custom = NotificationSound.customSounds()
+            if !custom.isEmpty {
+                Divider()
+                ForEach(custom, id: \.self) { name in Text((name as NSString).deletingPathExtension).tag("custom:\(name)") }
+            }
+            Divider()
+            Text(L("Choose file…")).tag(Self.chooseFileTag).disabled(importing)
+        }
+        .labelsHidden()
+        // At its own width, always: a menu Picker reports an ideal width short of what its title needs, so
+        // without this the one-line layout was chosen for German's "Standard (Basso)" and then cut it to "Ba…".
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    /// Six rows each carry a Preview and a Silence box, so VoiceOver hears which row's each one is. The box keeps
+    /// its word beside it: a crossed-out speaker alone would put a state on an icon.
+    @ViewBuilder private var controls: some View {
+        Button(L("Preview")) { NotificationSound.preview(choice) }
+            .accessibilityLabel(L("Preview the %@ sound", title))
+        Toggle(L("Silence"), isOn: $silenced)
+            .toggleStyle(.checkbox)
+            .accessibilityLabel(L("Silence the %@ sound", title))
     }
 
     /// A stored "custom:" choice whose file is gone, or was imported as an .mp3/.m4a that 0.5.0 stopped offering,
@@ -1666,6 +2398,9 @@ private struct SoundPicker: View {
     }
 
     private func chooseFile() {
+        // The menu entry is disabled while an import runs; this is the same rule for a menu that was open when it
+        // started.
+        guard !importing else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.audio]
         panel.allowsMultipleSelection = false
@@ -1699,7 +2434,7 @@ private struct PeakHoursEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Toggle(L("Peak hours (Anthropic's tighter session limits)"), isOn: Binding(get: { prefs.peakHours.enabled }, set: { prefs.peakHours.enabled = $0 }))
-                .help(L("Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants."))
+                .help(L("Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on."))
             if prefs.peakHours.enabled {
                 // Four controls in one row clipped the times to "5:0…" at the window's minimum width.
                 HStack {

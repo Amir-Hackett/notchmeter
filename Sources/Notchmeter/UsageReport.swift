@@ -3,8 +3,8 @@ import Foundation
 /// The machine-readable picture of everything the app knows, for `--probe --json`, the local API, the command-line
 /// tool, the MCP server and the Claude Code skill: one versioned object with sorted keys and no token anywhere.
 /// Additive keys since the first version: `source` per window (WindowSource), `runOut` (the interval's two edges),
-/// `hiddenByDefault`, `rawUsedPercent`, `amountUSD`; `agents`, `branch`, `pr`, `permissionMode` and `host` per
-/// session; the five `tokenBuckets` and `cacheWrite1hShare` per cost range, `metering`, `cursor` in the cost
+/// `hiddenByDefault`, `rawUsedPercent`, `amountUSD`; `agents`, `branch`, `pr`, `permissionMode`, `host` and
+/// `source` (SessionSource: `hook`; `storage` for a row read from OpenCode's database; `detected` or `statusline` for one found without the hook; `coworkLog` for a Claude Cowork task) per session; the five `tokenBuckets` and `cacheWrite1hShare` per cost range, `metering`, `cursor` in the cost
 /// object; `history` (the daily rows) when asked; `pid`, the writing process; `promptCache` (today's misses,
 /// requests, miss share, rewritten tokens and their price, the last cause, the sessions counted). Exit codes mirror
 /// Claude-Code-Usage-Monitor's: 0 fine, 10 near a limit, 11 a limit hit, 20 no session (nothing used), 30 no data.
@@ -108,7 +108,8 @@ struct UsageReport {
             "sessions": sessions.map { session -> [String: Any] in
                 ["id": session.id, "tool": session.tool.rawValue, "project": session.project as Any, "state": Self.stateName(session.state),
                  "stateSeconds": session.stateDuration(now: now).map { Int($0) } as Any, "agents": session.agents.count,
-                 "branch": session.branch as Any, "pr": session.prLink?.absoluteString as Any, "permissionMode": session.permissionMode as Any, "host": session.host as Any]
+                 "branch": session.branch as Any, "pr": session.prLink?.absoluteString as Any, "permissionMode": session.permissionMode as Any, "host": session.host as Any,
+                 "source": session.source.rawValue]
             },
         ]
         if let cost { root["cost"] = costObject(cost) }
@@ -173,11 +174,12 @@ struct UsageReport {
         func shares(_ list: [CostShare]) -> [[String: Any]] {
             list.map { ["name": $0.name, "cost": Self.money($0.cost)] }
         }
+        // `priceSources` is the range's own (PriceSource.key): the tables that priced the lines inside it.
         func range(_ totals: RangeTotals) -> [String: Any] {
             ["cost": Self.money(totals.cost), "tokens": totals.tokens.total, "cacheReadShare": totals.tokens.cacheReadShare.map(Oracle.fraction) as Any,
              "tokenBuckets": Self.buckets(totals.tokens), "cacheWrite1hShare": CacheTTL.oneHourShare(totals.tokens).map(Oracle.fraction) as Any,
              "costPerMillionTokens": totals.costPerMillionTokens.map(Self.money) as Any,
-             "byModel": shares(totals.models), "byProject": shares(totals.projects)]
+             "byModel": shares(totals.models), "byProject": shares(totals.projects), "priceSources": totals.priceSources.map(\.key).sorted()]
         }
         var object: [String: Any] = [
             "currency": "USD",
@@ -186,6 +188,8 @@ struct UsageReport {
             "lastHour": Self.money(cost.lastHour), "typicalHourly": Self.money(cost.typicalHourly),
             "burnMultiple": cost.burnMultiple.map { Oracle.fraction($0) } as Any,
             "unpricedModels": cost.unpricedModels.sorted(),
+            // The 30-day window's, the span the headline figures cover; each range below carries its own.
+            "priceSources": cost.totals(.last30Days).priceSources.map(\.key).sorted(),
             "sinceFirstUse": Self.money(cost.sinceFirstUse), "firstUse": cost.firstUse.map(Oracle.timestamp) as Any,
             "ranges": ["today": range(cost.totals(.today)), "yesterday": range(cost.totals(.yesterday)), "week": range(cost.totals(.week)),
                        "month": range(cost.totals(.month)), "last30Days": range(cost.totals(.last30Days)), "last90Days": range(cost.totals(.last90Days))],
@@ -209,6 +213,7 @@ struct UsageReport {
                     "week": Self.money(provider.totals(.week).cost), "month": Self.money(provider.totals(.month).cost),
                     "last30Days": Self.money(provider.totals(.last30Days).cost), "last90Days": Self.money(provider.totals(.last90Days).cost),
                     "byModel": shares(provider.totals(.last30Days).models), "unpricedModels": provider.unpricedModels.sorted(),
+                    "priceSources": provider.totals(.last30Days).priceSources.map(\.key).sorted(),
                 ]
                 if let lastHour = provider.lastHour { entry["lastHour"] = Self.money(lastHour) }
                 if let typical = provider.typicalHourly { entry["typicalHourly"] = Self.money(typical) }

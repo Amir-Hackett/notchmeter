@@ -180,8 +180,20 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
     var urgency: SimpleUrgency = .calm
     /// The row asks something of the reader: the calm wash and the bar down its leading edge (SessionsCard's).
     var needsYou = false
+    /// Under Gauges (UsageStyle), the assistant's windows as a small dial before the figure: the same rings, in the
+    /// same order, as the card's dial and the nest beside the notch (`UsageDial.rowRings`, which leaves the dial
+    /// out while every ring would be empty). The figure stays beside it; the dial is a picture of all the windows,
+    /// the figure the one that matters most. No hour clock here: the row names no reset for a clock to stand
+    /// beside, and a clock next to "14%" reads as a second picture of the usage; the clock is on the card the row
+    /// opens onto, beside the reset it draws.
+    var dial: (tool: ToolID, windows: [LimitWindow])? = nil
     /// What VoiceOver reads after the title, in words rather than the drawn abbreviations.
     var spoken: String? = nil
+    /// Drawn before the caption, beside the figure: the Cost row's week of bars (WeekSpendStrip).
+    var accessory: AnyView? = nil
+    /// The row's tooltip, where resting on it says more than the row draws (the Cost row's week, day by day). The
+    /// same words are in the detail the row opens onto and in its VoiceOver value, so nothing is hover-only.
+    var help: String? = nil
     let open: Bool
     let toggle: () -> Void
     @ViewBuilder let glyph: () -> Glyph
@@ -191,6 +203,8 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
     /// Where a row's title starts, from the row's own edge: the glyph's column and the gap after it. The line under
     /// the title starts here too.
     static var textInset: CGFloat { 26 }
+    /// The small dial's size: about the title's own line, so the dial sits in the row rather than stretching it.
+    static var dialSize: CGFloat { 20 }
 
     var body: some View {
         let contrast = AccessibilityDisplay.shared.contrast
@@ -203,8 +217,15 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                             .frame(width: 18)
                         Text(title).font(.body.weight(.semibold)).lineLimit(1)
                         Spacer(minLength: 8)
+                        if let accessory {
+                            accessory
+                        }
                         if let caption {
                             Text(caption).font(.caption).foregroundStyle(Caption.style).lineLimit(1).fixedSize()
+                        }
+                        if let dial, !dial.windows.isEmpty {
+                            UsageDialView(tool: dial.tool, windows: dial.windows, size: Self.dialSize, showsCentre: false)
+                                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
                         }
                         if let figure {
                             HStack(spacing: 3) {
@@ -213,7 +234,7 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                                 }
                                 Text(figure).font(.body.weight(.bold)).monospacedDigit()
                             }
-                            .foregroundStyle(urgency.color.map(AnyShapeStyle.init) ?? AnyShapeStyle(.primary))
+                            .foregroundStyle(urgency.color.map { AnyShapeStyle(Themed($0, .text)) } ?? AnyShapeStyle(Ink.primary))
                             .fixedSize()
                         }
                         Image(systemName: "chevron.right")
@@ -230,14 +251,14 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
                             if let symbol = line.symbol {
                                 Image(systemName: symbol).font(.caption2.weight(.semibold))
-                                    .foregroundStyle(line.symbolColor.map(AnyShapeStyle.init) ?? line.color.map(AnyShapeStyle.init) ?? AnyShapeStyle(Caption.style))
+                                    .foregroundStyle((line.symbolColor ?? line.color).map { AnyShapeStyle(Themed($0)) } ?? AnyShapeStyle(Caption.style))
                             }
                             // A non-breaking hyphen keeps "30-day" whole when the line wraps, as on the Cost card.
                             Text(line.text.keepingHyphensWhole)
                                 .monospacedDigit().fixedSize(horizontal: false, vertical: true)
                         }
                         .font(.caption)
-                        .foregroundStyle(line.color.map(AnyShapeStyle.init) ?? AnyShapeStyle(Caption.style))
+                        .foregroundStyle(line.color.map { AnyShapeStyle(Themed($0, .text)) } ?? AnyShapeStyle(Caption.style))
                         .padding(.leading, Self.textInset)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -247,12 +268,13 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .modifier(RowHelp(text: help))
             .background {
                 if needsYou {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Palette.calm.opacity(contrast ? 0.32 : 0.15))
+                        .fill(Themed.wash(Palette.calm, contrast ? 0.32 : 0.15))
                         .overlay(alignment: .leading) {
-                            Rectangle().fill(contrast ? .white : Palette.calm).frame(width: 3)
+                            Rectangle().fill(Themed(contrast ? .white : Palette.calm)).frame(width: 3)
                         }
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
@@ -278,6 +300,16 @@ struct SimpleRow<Glyph: View, Detail: View>: View {
     }
 }
 
+/// A row's tooltip where it has one, and no tooltip region at all where it does not.
+private struct RowHelp: ViewModifier {
+    let text: String?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let text { content.help(text) } else { content }
+    }
+}
+
 extension NotchExpandedView {
     /// Opens or closes one Simple row, animated unless motion is reduced, and tells the oracle.
     static func toggleRow(_ key: String, store: UsageStore) {
@@ -299,6 +331,7 @@ struct SimpleToolRow: View {
     let prefs: Preferences
     let actions: NotchActions
     let advice: [Advice]
+    @Environment(\.panelLook) private var look
 
     private var key: String { AdvicePlacement.Slot.tool(tool).key }
 
@@ -313,10 +346,11 @@ struct SimpleToolRow: View {
         SimpleRow(title: tool.displayName, line: line, figure: text?.figure, caption: text?.caption,
                   urgency: store.hidesFigures ? .calm : urgency,
                   needsYou: Self.needsYou(status: status, advice: advice),
+                  dial: look.usageStyle == .gauges ? status.reading.map { (tool, UsageDial.rowRings(prefs.panelWindows(of: $0))) } : nil,
                   spoken: Spoken.line(window.flatMap { w in prefs.usageLine(for: w).map { "\(w.label) \($0)" } }.flatMap { store.hidesFigures ? nil : $0 },
                                       line.map { Spoken.phrase($0.text) }),
                   open: open, toggle: { NotchExpandedView.toggleRow(key, store: store) }) {
-            Image(systemName: tool.symbolName).foregroundStyle(tool.color)
+            Image(systemName: tool.symbolName).foregroundStyle(Themed(tool.color))
         } detail: {
             VStack(alignment: .leading, spacing: 8) {
                 ToolCard(tool: tool, status: status, store: store, prefs: prefs, actions: actions, embedded: true)
@@ -364,9 +398,11 @@ struct SimpleToolRow: View {
     }
 }
 
-/// The cost as one row: what the Cost card's range comes to, in its unit, with the money advice under it. Opens
-/// onto the Cost card without its box or title. Only built while the Cost card would be (NotchExpandedView.spendCard),
-/// so it is gone under the same privacy and settings the card is.
+/// The cost as one row: what the Cost card's range comes to, in its unit, with the money advice under it, and the
+/// last seven days as a strip of bars beside the figure (WeekSpend): today and the six days before it, named day by
+/// day when the pointer rests on the row, and drawn as a chart split by assistant at the top of what the row opens
+/// onto. Opens onto the Cost card without its box or title. Only built while the Cost card would be
+/// (NotchExpandedView.spendCard), so it is gone under the same privacy and settings the card is.
 struct SimpleCostRow: View {
     let store: UsageStore
     let actions: NotchActions
@@ -382,16 +418,27 @@ struct SimpleCostRow: View {
         let mode = store.prefs.costCardMode
         let figure = SpendCard.headline(mode: mode, amount: totals?.cost, totals: totals)
         let first = open ? nil : advice.first
+        let now = Date()
+        let week = WeekSpend.of(selection, now: now)
+        // The one line under the row: the money advice where there is some, else the value framing (PlanValue),
+        // which the open card carries in full either way.
+        let line = first.map(SimpleLine.advice)
+            ?? (open ? nil : store.planValueLine(for: range.costRange).map { SimpleLine(id: "value", symbol: nil, text: $0) })
         SimpleRow(title: L("Cost"),
-                  line: first.map(SimpleLine.advice),
+                  line: line,
                   figure: figure, caption: range.title,
                   needsYou: advice.contains { $0.priority == .attention },
-                  spoken: Spoken.line(range.title, Spoken.phrase(figure), SpendCard.unit(mode: mode), first.map { Spoken.phrase($0.text) }),
+                  // The week's headline only: the row is read every time it is reached, and the days one by one
+                  // are the opened chart's to read.
+                  spoken: Spoken.line(range.title, Spoken.phrase(figure), SpendCard.unit(mode: mode), line.map { Spoken.phrase($0.text) },
+                                      week.map { $0.headline(mode: mode) }),
+                  accessory: week.map { AnyView(WeekSpendStrip(week: $0, mode: mode)) },
+                  help: week?.tooltip(mode: mode, now: now),
                   open: open, toggle: { NotchExpandedView.toggleRow(Self.key, store: store) }) {
             Image(systemName: "dollarsign.circle").foregroundStyle(Caption.style)
         } detail: {
             VStack(alignment: .leading, spacing: 8) {
-                SpendCard(store: store, embedded: true)
+                SpendCard(store: store, embedded: true, actions: actions)
                 if !advice.isEmpty {
                     AdviceLines(advice: advice, open: actions.open)
                 }
@@ -415,7 +462,7 @@ struct SimpleNotesRow: View {
                   spoken: Spoken.line("\(advice.count)", open ? nil : advice.map { Spoken.phrase($0.text) }.joined(separator: " ")),
                   open: open, toggle: { NotchExpandedView.toggleRow(Self.key, store: store) }) {
             Image(systemName: advice.first?.symbol ?? "lightbulb")
-                .foregroundStyle(top == .info ? AnyShapeStyle(Caption.style) : AnyShapeStyle(top.color))
+                .foregroundStyle(top == .info ? AnyShapeStyle(Caption.style) : AnyShapeStyle(Themed(top.color)))
         } detail: {
             AdviceLines(advice: advice, open: actions.open)
         }
@@ -453,7 +500,7 @@ struct SimpleDivider: View {
 
     var body: some View {
         Rectangle()
-            .fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.3 : 0.12))
+            .fill(Themed.wash(.white, AccessibilityDisplay.shared.contrast ? 0.3 : 0.12))
             .frame(height: 1)
             .padding(.horizontal, density.cardPadding)
             .accessibilityHidden(true)

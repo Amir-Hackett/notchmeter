@@ -1,9 +1,16 @@
 /* Notchmeter — site styles.
    The palette is the app's own: Wong's colour-blind-safe set, with #0072B2 as the accent because that is the
    blue the app already uses to mean "needs you, not running out". Dark by default, because the product lives in
-   a black notch and a light page would show it as a rectangle floating on white. */
+   a black notch and a light page would show it as a rectangle floating on white.
+   A reader whose Mac asks for light pages gets a light page (2026-09-24): the guides are long reading, and
+   white-on-black prose is the harder of the two for many people to read for ten minutes. The objection above
+   still decides one thing, the pictures: every .shot keeps its dark frame (--shot-bg) in both schemes, so the
+   panel is shown on the black it is drawn on and never as a rectangle floating on white. Nothing is stored and
+   there is no toggle, because a toggle would need browser storage and the privacy page promises none. Every
+   pair below was measured: text at 4.5:1 or better on every surface it sits on, in both schemes. */
 
 :root {
+  color-scheme: dark;
   --bg: #08090c;
   --bg-raised: #101218;
   --bg-card: #14161d;
@@ -21,11 +28,45 @@
   --warn: #E69F00;
   --danger: #D55E00;
   --claude: #d97757;
+  /* Was #0080c9, lighter than the button it hovers: white on it measures 4.26:1, under AA for the button's
+     15px label. #00649c darkens on hover instead and measures 6.36:1. */
+  --primary-hover: #00649c;
+  --header-bg: rgba(8, 9, 12, 0.82);
+  --code-bg: #0c0e13;
+  --ghost-hover-line: #39404e;
+  /* The pictures' frame, dark in both schemes (see the note at the top). */
+  --shot-bg: #101218;
+  --shot-line: #23262f;
+  --shot-shadow: rgba(0, 0, 0, 0.9);
   --radius: 14px;
   --radius-lg: 22px;
   --wrap: 1080px;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* The light page. Measured against --bg #f7f8fa, --bg-raised #eef0f4 and --bg-card #fff: --text 16.6:1 at worst,
+   --text-dim 7.8:1, --text-faint 5.45:1, --calm-lift (links, the advice lines, the ticks) 5.98:1, and white on
+   --calm, the primary button, 5.19:1 as in the dark scheme. --calm-lift is the darker step here because a link
+   has to hold 4.5:1 on white, where the dark scheme's #3897d8 would measure 3.2:1. */
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #f7f8fa;
+    --bg-raised: #eef0f4;
+    --bg-card: #ffffff;
+    --line: #c9cdd6;
+    --line-soft: #e1e4ea;
+    --text: #0e1116;
+    --text-dim: #434a58;
+    --text-faint: #5a6170;
+    --calm-lift: #005f96;
+    --header-bg: rgba(247, 248, 250, 0.86);
+    --code-bg: #eef0f4;
+    --ghost-hover-line: #9aa1ae;
+    --shot-line: #c9cdd6;
+    --shot-shadow: rgba(15, 20, 30, 0.28);
+  }
 }
 
 * { box-sizing: border-box; }
@@ -56,7 +97,7 @@ header.top {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(8, 9, 12, 0.82);
+  background: var(--header-bg);
   backdrop-filter: saturate(180%) blur(18px);
   -webkit-backdrop-filter: saturate(180%) blur(18px);
   border-bottom: 1px solid var(--line-soft);
@@ -99,10 +140,12 @@ nav.links a.here { color: var(--text); }
 .btn:active { transform: translateY(1px); }
 
 .btn-primary { background: var(--calm); color: #fff; }
-.btn-primary:hover { background: #0080c9; }
+/* The hover token is the darker step (white on it clears 4.5:1, which white on the old #0080c9 did not, 4.26:1),
+   with a lit border and no more. */
+.btn-primary:hover { background: var(--primary-hover); border-color: var(--calm-lift); }
 
 .btn-ghost { background: transparent; color: var(--text); border-color: var(--line); }
-.btn-ghost:hover { border-color: #39404e; background: var(--bg-raised); }
+.btn-ghost:hover { border-color: var(--ghost-hover-line); background: var(--bg-raised); }
 
 .btn-sm { padding: 8px 15px; font-size: 14px; }
 
@@ -126,22 +169,17 @@ nav.links a.here { color: var(--text); }
 
 h1 {
   font-size: clamp(2.3rem, 6vw, 3.7rem);
-  /* 1.06 is right for one line and too tight for three. The headline carries a
-     <br> between its two sentences, so at most widths it is already two lines
-     and the first sentence wraps into a third. */
+  /* 1.06 is right for one line and too tight for three, and the home page's
+     headline, one sentence of fourteen words, is two lines wide and three on a
+     phone. */
   line-height: 1.12;
   letter-spacing: -0.032em;
   margin: 0 0 20px;
   font-weight: 640;
-  /* Stops the orphan. Without it the first sentence wraps to leave "ago." alone
-     on a line, and the forced break under it makes that read as a mistake
-     rather than as a line. Unsupported engines simply wrap as before. */
+  /* Stops the orphan: without it a long headline wraps to leave its last word
+     alone on a line. Unsupported engines simply wrap as before. */
   text-wrap: balance;
 }
-
-/* The setup, one tone back from the payoff. --text-dim measures 8.36:1 on --bg,
-   so stepping back costs nothing in legibility. */
-h1 .h1-setup { color: var(--text-dim); }
 
 .lede {
   font-size: clamp(1.05rem, 2.2vw, 1.3rem);
@@ -151,6 +189,9 @@ h1 .h1-setup { color: var(--text-dim); }
   line-height: 1.55;
 }
 
+/* The proof under the home page's headline: one line, at full strength, with the document it names. */
+.lede.proof { color: var(--text); margin-bottom: 14px; }
+
 .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; align-items: center; }
 
 .cta-note { font-size: 13.5px; color: var(--text-faint); margin-top: 16px; }
@@ -159,10 +200,10 @@ h1 .h1-setup { color: var(--text-dim); }
 .shot {
   margin: 52px auto 0;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--shot-line);
   overflow: hidden;
-  background: var(--bg-raised);
-  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.9);
+  background: var(--shot-bg);
+  box-shadow: 0 30px 80px -30px var(--shot-shadow);
 }
 .shot img { width: 100%; }
 /* The hero is the one shot narrower than the column it sits in: demo.gif is 900px wide against 1032px of
@@ -271,7 +312,7 @@ h2 {
 .code {
   font-family: var(--mono);
   font-size: 14px;
-  background: #0c0e13;
+  background: var(--code-bg);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 14px 18px;
@@ -327,7 +368,10 @@ h2 {
 .plan li strong { color: var(--text); font-weight: 550; }
 
 .plan .foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
-.plan .btn { width: 100%; }
+/* The buttons may wrap here, and only here. "Support Notchmeter — pay what you want" is wider than a 320px
+   phone's column, and .btn's nowrap pushed the whole card 39px past the screen's edge (40 at 375px wide) until
+   2026-09-24, so the pricing page scrolled sideways on every phone. */
+.plan .btn { width: 100%; white-space: normal; text-align: center; }
 
 /* ---------- waitlist ---------- */
 
@@ -338,7 +382,7 @@ h2 {
   padding: 11px 14px;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: #0c0e13;
+  background: var(--code-bg);
   color: var(--text);
   font: inherit;
   font-size: 15px;
@@ -358,11 +402,106 @@ h2 {
 .faq .a { padding: 0 22px 20px; color: var(--text-dim); font-size: 15px; line-height: 1.65; margin: 0; }
 .faq .a + .a { padding-top: 0; }
 
+/* ---------- guides ----------
+   One reading column, the legal pages' measure, built from the tokens above. A guide is an <article class="guide">;
+   it uses no <section> inside, because every <section> on the site carries the page-band padding and rule. */
+
+.guide-head { padding: 64px 0 8px; }
+.guide-head .wrap, .guide-body { max-width: 760px; }
+.guide-head h1 { font-size: clamp(2rem, 5vw, 2.8rem); text-align: left; }
+.guide-head .lede { margin: 0 0 22px; max-width: none; text-align: left; }
+
+.crumbs { font-size: 14px; color: var(--text-dim); margin: 0 0 18px; }
+.crumbs a { color: var(--text-dim); text-decoration: underline; text-underline-offset: 3px; }
+.crumbs a:hover { color: var(--text); }
+
+.meta-strip { display: flex; gap: 8px 20px; flex-wrap: wrap; font-size: 14px; color: var(--text-dim); margin: 0 0 8px; padding: 0; list-style: none; }
+.meta-strip .stamp { display: flex; align-items: center; gap: 7px; color: var(--text); font-weight: 550; }
+.meta-strip .stamp::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--calm-lift); }
+
+.guide-body { padding-bottom: 64px; }
+.guide-body h2 { font-size: clamp(1.3rem, 2.8vw, 1.6rem); margin: 44px 0 12px; scroll-margin-top: 80px; }
+.guide-body h3 { font-size: 1.08rem; font-weight: 600; letter-spacing: -0.012em; margin: 30px 0 8px; }
+.guide-body p, .guide-body li { color: var(--text-dim); font-size: 16.5px; line-height: 1.72; }
+.guide-body p { margin: 0 0 16px; }
+.guide-body ul, .guide-body ol { margin: 0 0 18px; padding-left: 22px; }
+.guide-body li { margin-bottom: 8px; }
+.guide-body strong { color: var(--text); font-weight: 600; }
+.guide-body em { font-style: italic; }
+/* Links inside prose are underlined: the blue alone is a colour cue, and a link must not rest on colour. */
+.guide-body p a, .guide-body li a, .guide-body td a { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.guide-body code { font-family: var(--mono); font-size: 0.86em; color: var(--text); background: var(--bg-raised); border: 1px solid var(--line-soft); border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere; }
+.guide-body .code { margin: 0 0 18px; }
+.guide-body .code code { background: none; border: 0; padding: 0; color: inherit; overflow-wrap: normal; }
+
+/* The answer first: the paragraph a searcher came for, before the working. */
+.answer {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--calm);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--bg-card);
+  padding: 18px 22px;
+  margin: 28px 0 8px;
+}
+.answer .label { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); margin: 0 0 6px; font-weight: 600; }
+.answer p:last-child { margin-bottom: 0; }
+.answer p { color: var(--text); }
+
+.guide-body figure { margin: 8px 0 26px; }
+.guide-body .shot { margin: 0; }
+.guide-body .advice-list { margin: 4px 0 22px; }
+
+.note { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-card); padding: 16px 20px; margin: 0 0 18px; }
+.note p:last-child { margin-bottom: 0; }
+
+/* Tables scroll inside their own frame on a phone; the page itself never scrolls sideways. */
+.tablewrap { overflow-x: auto; margin: 0 0 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-card); }
+.tablewrap:focus-visible { outline-offset: 2px; }
+table.dtable { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 560px; }
+table.dtable caption { text-align: left; padding: 12px 16px 0; font-size: 13.5px; color: var(--text-dim); }
+table.dtable th, table.dtable td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line-soft); vertical-align: top; line-height: 1.55; }
+table.dtable thead th { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); font-weight: 600; }
+table.dtable tbody tr:last-child td, table.dtable tbody tr:last-child th { border-bottom: none; }
+table.dtable td { color: var(--text-dim); }
+table.dtable tbody th { color: var(--text); font-weight: 600; }
+table.dtable .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.dtable .date { font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.dtable tr.self td, table.dtable tr.self th { background: var(--bg-raised); }
+
+.sources { border-top: 1px solid var(--line-soft); margin-top: 44px; padding-top: 8px; }
+.sources h2 { font-size: 1.1rem; }
+.sources li, .sources p { font-size: 14.5px; }
+
+.related { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 8px; }
+
+/* The guides index, and the related-guides cards at a guide's foot. The whole card is the link. */
+.guide-index-head { padding: 64px 0 8px; }
+.guide-index-head h1 { font-size: clamp(2rem, 5vw, 2.8rem); }
+.guide-index-head .lede { margin: 0; max-width: 680px; }
+.guide-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.guide-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  padding: 20px 22px;
+  color: var(--text);
+  transition: border-color 0.15s ease-out, background 0.15s ease-out;
+}
+.guide-card:hover { text-decoration: none; border-color: var(--ghost-hover-line); background: var(--bg-raised); }
+.guide-card .q { font-weight: 600; font-size: 1.04rem; letter-spacing: -0.012em; line-height: 1.35; }
+.guide-card .what { color: var(--text-dim); font-size: 14.5px; line-height: 1.55; }
+.guide-card .when { color: var(--text-dim); font-size: 13px; margin-top: auto; padding-top: 6px; }
+
 /* ---------- footer ---------- */
 
 footer.bottom { border-top: 1px solid var(--line-soft); padding: 52px 0 40px; color: var(--text-faint); font-size: 14.5px; }
 .foot-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 28px; margin-bottom: 34px; }
-.foot-grid h4 { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-faint); margin: 0 0 12px; font-weight: 600; }
+/* The footer's column titles are h2, not h4, so the outline never jumps two levels after the last section;
+   the rule undoes the section-heading size. */
+.foot-grid h2 { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-faint); margin: 0 0 12px; font-weight: 600; line-height: 1.4; }
 .foot-grid ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
 .foot-grid a { color: var(--text-dim); }
 .foot-grid a:hover { color: var(--text); }
@@ -372,6 +511,21 @@ footer.bottom { border-top: 1px solid var(--line-soft); padding: 52px 0 40px; co
 /* ---------- accessibility & motion ---------- */
 
 :focus-visible { outline: 2px solid var(--calm-lift); outline-offset: 2px; border-radius: 4px; }
+
+/* The first stop for the keyboard: straight past the header to the page. Off screen until it has focus. */
+.skip {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--calm);
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+}
+.skip:focus, .skip:focus-visible { top: 12px; text-decoration: none; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -391,10 +545,13 @@ footer.bottom { border-top: 1px solid var(--line-soft); padding: 52px 0 40px; co
   body { font-size: 16px; }
   .hero { padding: 56px 0 40px; }
   section { padding: 56px 0; }
-  .pillars, .gap-grid, .tools, .plans { grid-template-columns: 1fr; }
+  .pillars, .gap-grid, .tools, .plans, .guide-list, .related { grid-template-columns: 1fr; }
+  .guide-head, .guide-index-head { padding-top: 40px; }
   .advice { grid-template-columns: 1fr; gap: 6px; }
   nav.links { gap: 16px; }
   nav.links a.hide-sm { display: none; }
+  /* The headline's break after "waiting," is for wide screens; a phone wraps it where it falls. */
+  .h1-break { display: none; }
 }
 
 /* On a phone the icon carries the brand: the wordmark and the nav were sharing a row that fits one of them, and
@@ -404,4 +561,13 @@ footer.bottom { border-top: 1px solid var(--line-soft); padding: 52px 0 40px; co
   .brand .brand-name { display: none; }
   .brand img { width: 30px; height: 30px; }
   nav.links { gap: 18px; }
+}
+
+/* A 320-375px phone: Guides, Pricing and Download fit beside the icon only with GitHub gone from the header (it
+   stays in the footer, twice) and the 16px gutter every narrow page uses. */
+@media (max-width: 420px) {
+  .wrap { padding: 0 16px; }
+  .top .wrap { gap: 16px; }
+  nav.links { gap: 14px; }
+  nav.links a.hide-xs { display: none; }
 }

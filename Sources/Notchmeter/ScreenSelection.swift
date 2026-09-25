@@ -24,10 +24,17 @@ struct ScreenInfo: Equatable, Sendable {
 /// the pointer's display is the one under it, else the main one. A named choice stored by an earlier version is a
 /// localizedName; it still matches on the name until the preference is written again with the identity key.
 enum ScreenSelection {
-    static func indices(for choice: DisplayChoice, screens: [ScreenInfo], pointer: CGPoint) -> [Int] {
-        guard !screens.isEmpty else { return [] }
+    /// The display a choice falls back to when it names none that is connected: the first with a notch, else the
+    /// main one. Nil only with no screens at all.
+    static func fallback(_ screens: [ScreenInfo]) -> Int? {
+        guard !screens.isEmpty else { return nil }
+        return screens.firstIndex(where: \.hasNotch) ?? screens.firstIndex(where: \.isMain) ?? 0
+    }
+
+    /// `switches` is `Preferences.displaySwitches`, read only under `.selected`.
+    static func indices(for choice: DisplayChoice, screens: [ScreenInfo], pointer: CGPoint, switches: [String: Bool] = [:]) -> [Int] {
+        guard let builtIn = fallback(screens) else { return [] }
         let main = screens.firstIndex(where: \.isMain) ?? 0
-        let builtIn = screens.firstIndex(where: \.hasNotch) ?? main
         switch choice {
         case .builtIn:
             return [builtIn]
@@ -37,9 +44,50 @@ enum ScreenSelection {
             return [screens.firstIndex { $0.frame.contains(pointer) } ?? main]
         case .all:
             return Array(screens.indices)
+        case .selected:
+            let on = DisplaySwitches.indices(screens: screens, switches: switches)
+            return on.isEmpty ? [builtIn] : on
         case .named(let key):
             return [screens.firstIndex { $0.key == key } ?? screens.firstIndex { $0.name == key } ?? builtIn]
         }
+    }
+}
+
+/// The switch per display under `DisplayChoice.selected`: which of the connected displays carry the notch's
+/// readouts and panel, each one on or off by itself, all of them at once where several are on (the way `.all` runs
+/// a presenter per display, with the panel opening on whichever one the pointer rests on).
+///
+/// A display the user never switched is on when it has a notch, because that is where the readouts were built to
+/// sit, and off otherwise; where no display has a notch (a desktop Mac, a closed lid), the main one stands in, so
+/// choosing this with nothing switched yet never leaves the app with nowhere to be. Nothing here can switch every
+/// display off: the last one on cannot be turned off (`canSwitchOff`), and a set whose every switched-on display is
+/// unplugged falls back to the built-in display in `ScreenSelection`, as a named display does.
+enum DisplaySwitches {
+    static func isOn(_ screen: ScreenInfo, in screens: [ScreenInfo], switches: [String: Bool]) -> Bool {
+        if let chosen = switches[screen.key] { return chosen }
+        if screens.contains(where: \.hasNotch) { return screen.hasNotch }
+        return screen.isMain
+    }
+
+    /// The displays switched on, in `screens` order.
+    static func indices(screens: [ScreenInfo], switches: [String: Bool]) -> [Int] {
+        screens.indices.filter { isOn(screens[$0], in: screens, switches: switches) }
+    }
+
+    /// Whether this display's switch may be turned off: not while it is the only one on, the floor that keeps the
+    /// app on at least one screen (the rule WindowFloor keeps for a tool's windows).
+    static func canSwitchOff(_ screen: ScreenInfo, in screens: [ScreenInfo], switches: [String: Bool]) -> Bool {
+        let on = indices(screens: screens, switches: switches)
+        return !(on.count == 1 && screens[on[0]].key == screen.key)
+    }
+
+    /// Whether the app is on this display although its switch is off: every switched-on display is unplugged, so
+    /// `ScreenSelection` fell back to this one. The switch stays off, since off is what the reader chose and what
+    /// comes back when a chosen display is plugged in again; Settings says under it that the app is here meanwhile,
+    /// so a switch reading off on the one display the notch is on is not a contradiction left unexplained.
+    static func standsIn(_ screen: ScreenInfo, in screens: [ScreenInfo], switches: [String: Bool]) -> Bool {
+        guard indices(screens: screens, switches: switches).isEmpty, let fallback = ScreenSelection.fallback(screens) else { return false }
+        return screens[fallback].key == screen.key
     }
 }
 
@@ -98,10 +146,11 @@ extension NSScreen {
         ScreenInfo(name: localizedName, key: identityKey, hasNotch: safeAreaInsets.top > 0, isMain: self == NSScreen.screens.first, frame: frame)
     }
 
-    /// The screens the panel is shown on for the choice, in NSScreen.screens order.
-    static func panelScreens(for choice: DisplayChoice, pointer: CGPoint = NSEvent.mouseLocation) -> [NSScreen] {
+    /// The screens the panel is shown on for the choice, in NSScreen.screens order; `switches` is
+    /// `Preferences.displaySwitches`, which only `.selected` reads.
+    static func panelScreens(for choice: DisplayChoice, pointer: CGPoint = NSEvent.mouseLocation, switches: [String: Bool] = [:]) -> [NSScreen] {
         let all = screens
-        return ScreenSelection.indices(for: choice, screens: all.map(\.info), pointer: pointer).map { all[$0] }
+        return ScreenSelection.indices(for: choice, screens: all.map(\.info), pointer: pointer, switches: switches).map { all[$0] }
     }
 
     /// Where the panel lives by default: the display with the notch when there is one, else the main screen.

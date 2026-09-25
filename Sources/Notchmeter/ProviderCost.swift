@@ -13,6 +13,10 @@ enum CostSource: String, Codable, Equatable, Sendable {
     /// each rise was observed (GitHub Copilot's AI credits, a cent each). The count is the vendor's; the day it
     /// lands on is this Mac's observation, so it stays an estimate rather than borrowing the export's standing.
     case vendorCredits
+    /// The tool's own record of each turn in its local database: a Go turn priced here at the Go page's rates, a
+    /// subscription login's zero at that vendor's list rate, and otherwise the cost the tool put on the turn
+    /// (OpenCode; OpenCodePricing gives the order).
+    case localMessages
 
     var label: String {
         switch self {
@@ -20,6 +24,7 @@ enum CostSource: String, Codable, Equatable, Sendable {
         case .localSessions: L("local sessions")
         case .billingExport: L("billing export")
         case .vendorCredits: L("AI credits")
+        case .localMessages: L("local messages")
         }
     }
 
@@ -31,6 +36,7 @@ enum CostSource: String, Codable, Equatable, Sendable {
         case .localSessions: L("sessions")
         case .billingExport: L("export")
         case .vendorCredits: L("credits")
+        case .localMessages: L("turns")
         }
     }
 
@@ -43,6 +49,7 @@ enum CostSource: String, Codable, Equatable, Sendable {
         case .localTranscripts, .localSessions: L("%@ priced here from local files at published list rates", tool.displayName)
         case .billingExport: L("%@ as the vendor's own usage export priced it", tool.displayName)
         case .vendorCredits: L("%@ from GitHub's own credit count at a cent a credit, on the day each rise was seen", tool.displayName)
+        case .localMessages: L("%@ at the Go page's rates for Go turns, a subscription's zero at list rate, otherwise the cost it recorded for each turn", tool.displayName)
         }
     }
 }
@@ -50,8 +57,8 @@ enum CostSource: String, Codable, Equatable, Sendable {
 /// One tool's spend: the ranges the Cost card offers, a daily series, the per-model shares of each range, the
 /// source the figures came from, when they were read and what went wrong if anything did.
 ///
-/// A tool whose spend cannot be derived from a source it publishes has no `ProviderCost` at all. Antigravity
-/// (quota, no dollars) never builds one, and GitHub Copilot builds one only on a seat GitHub meters in AI credits,
+/// A tool whose spend cannot be derived from a source it publishes has no `ProviderCost` at all. Gemini CLI,
+/// Antigravity and Kimi Code (quota, no dollars) never build one, and GitHub Copilot builds one only on a seat GitHub meters in AI credits,
 /// so the card shows nothing for them otherwise rather than a zero that would read as "you spent nothing".
 /// docs/accuracy.md says why.
 struct ProviderCost: Equatable, Sendable, Identifiable {
@@ -93,6 +100,8 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
         self.problem = problem
     }
 
+    /// The range's figures. Where the list prices that priced them came from is on the range itself
+    /// (`RangeTotals.priceSources`), since a source that priced this month's lines need not have priced today's.
     func totals(_ range: CostRange) -> RangeTotals { ranges[range] ?? RangeTotals() }
 
     /// True once any range holds something worth showing; a tool with nothing to say is left off the card.
@@ -227,7 +236,7 @@ struct HourlyBurn: Equatable, Sendable {
 extension RangeTotals {
     init(_ record: CostHistory.Record) {
         self.init(cost: record.cost, tokens: record.tokens, byModel: record.byModel, byProject: record.byProject,
-                  byModelTokens: record.byModelTokens, byProjectTokens: record.byProjectTokens)
+                  byModelTokens: record.byModelTokens, byProjectTokens: record.byProjectTokens, priceSources: record.priceSources)
     }
 
     /// A per-day series over `count` days from `first`, oldest first, with a zero day where nothing was recorded.

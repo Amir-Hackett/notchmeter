@@ -70,6 +70,8 @@ struct DashboardModel: Equatable {
     let models: [CostShare]
     let projects: [CostShare]
     let sources: [(tool: ToolID, source: CostSource)]
+    /// The list prices behind the range's locally priced lines, for the footnote (PriceSource.line).
+    let priceSources: Set<PriceSource>
 
     var bars: [Bar] {
         days.flatMap { day in day.byTool.map { Bar(day: day.day, tool: $0.tool, cost: $0.cost) } }
@@ -81,6 +83,7 @@ struct DashboardModel: Equatable {
         lhs.range == rhs.range && lhs.tools == rhs.tools && lhs.days == rhs.days && lhs.total == rhs.total && lhs.today == rhs.today
             && lhs.dailyAverage == rhs.dailyAverage && lhs.averageSince == rhs.averageSince && lhs.peak == rhs.peak && lhs.models == rhs.models && lhs.projects == rhs.projects
             && lhs.sources.map(\.tool) == rhs.sources.map(\.tool) && lhs.sources.map(\.source) == rhs.sources.map(\.source)
+            && lhs.priceSources == rhs.priceSources
     }
 
     /// `firstRecorded` is the earliest day the durable history holds spend for (CostSummary.firstUse), which can lie
@@ -145,6 +148,7 @@ struct DashboardModel: Equatable {
         self.today = todayTotals.cost
         models = totals.models
         projects = totals.projects
+        priceSources = totals.priceSources
 
         peak = days.filter { $0.total > 0 }.max { ($0.total, $1.day) < ($1.total, $0.day) }
         // Every calendar day of the range counts, quiet ones included; only days before the history's first spend
@@ -242,23 +246,25 @@ struct DashboardLimit: Identifiable, Equatable {
 }
 
 extension ToolID {
-    /// The identity colours stepped for a window's own surface rather than the black notch: the notch's lighter
-    /// steps fall under 3:1 on a light window. Both sets pass the dataviz validator (lightness band, chroma, CVD and
-    /// normal-vision separation, contrast) against their surface.
+    /// The identity colours stepped for a window's own surface rather than the black notch. The light window
+    /// takes the identity's own light value (`ToolID.identity`, 4.5:1 or better on white, which also clears the
+    /// 3:1 a chart mark needs); the dark window, at #1E1E1E rather than black, takes a step of its own for the
+    /// three older hues, whose notch values fall short of it. Both sets pass the dataviz validator (lightness band,
+    /// chroma, CVD and normal-vision separation, contrast) against their surface.
     var chartColor: Color {
-        let pair: (light: UInt32, dark: UInt32)
-        switch self {
-        case .claude: pair = (0xC0603F, 0xCC7555)
-        case .cursor: pair = (0x7F62E6, 0x8C74EA)
-        case .codex: pair = (0x23A06F, 0x34A874)
-        case .antigravity: pair = (0x2F7FB8, 0x56B4E9)
-        case .copilot: pair = (0x9A8A00, 0xF0E442)
+        let dark: UInt32 = switch self {
+        case .claude: 0xCC7555
+        case .cursor: 0x8C74EA
+        case .codex: 0x34A874
+        case .gemini, .antigravity, .copilot, .kimi: identity.dark  // each above 5.8:1 on the dark window as it is
+        // The notch's violet sits on top of Cursor's periwinkle once both are stepped for a window (1.6 under
+        // deuteranopia), so OpenCode's window step leans to the orchid side of the same purple: 17.9 normal and 7.9
+        // CVD from the dark set at 3.55:1 on its surface; the light window takes the identity's own light value, 5.5:1
+        // on white. The Dashboard names every series in its legend, which is the secondary encoding the 6–8 CVD
+        // band asks for.
+        case .opencode: 0xC818B8
         }
-        return Color(nsColor: NSColor(name: nil) { appearance in
-            let hex = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? pair.dark : pair.light
-            return NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
-                           blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
-        })
+        return Color(nsColor: .adaptive(light: identity.light, dark: dark))
     }
 }
 
@@ -269,10 +275,13 @@ struct DashboardView: View {
 
     /// Inside Settings, whose pane already carries the title: the header keeps its line, picker and refresh only.
     let embedded: Bool
+    /// For the header's share button (NotchActions.openShareCard); nil in a render, which has no window to open.
+    let actions: NotchActions?
 
-    init(store: UsageStore, range: DashboardRange = .week, embedded: Bool = false) {
+    init(store: UsageStore, range: DashboardRange = .week, embedded: Bool = false, actions: NotchActions? = nil) {
         self.store = store
         self.embedded = embedded
+        self.actions = actions
         _range = State(initialValue: range)
     }
 
@@ -300,6 +309,14 @@ struct DashboardView: View {
                 } else {
                     if !model.isEmpty {
                         tiles(model)
+                        // The value framing under the tiles (PlanValue): the range's API-equivalent dollars against
+                        // what the plans behind them cost, said only where both sides are known, and marked as the
+                        // estimate it is. The week has no fee of its own, so its line is the thirty days'.
+                        if let value = store.planValueLine(for: range.costRange) {
+                            Text(value.keepingHyphensWhole)
+                                .font(.caption).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         chartSection(model)
                     }
                     if !limits.isEmpty { limitsSection(limits) }
@@ -317,6 +334,10 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 if !embedded { Text(L("Usage")).font(.title2.weight(.semibold)) }
                 Text(updatedLine).font(.caption).foregroundStyle(.secondary)
+                // The rate every figure below was converted at, and its day, while *Fetch today's rate* is on.
+                if store.prefs.showSpend, let note = store.prefs.currencyConversion.note {
+                    Text(note).font(.caption).foregroundStyle(.secondary)
+                }
             }
             Spacer()
             Picker(L("Range"), selection: $range) {
@@ -333,6 +354,15 @@ struct DashboardView: View {
             .help(L("Refresh now"))
             .accessibilityLabel(L("Refresh now"))
             .disabled(store.costScanning)
+            if let actions {
+                Button {
+                    actions.openShareCard(.dashboard)
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .help(L("Share usage card…"))
+                .accessibilityLabel(L("Share usage card…"))
+            }
         }
     }
 
@@ -473,6 +503,9 @@ struct DashboardView: View {
                 Text(entry.source == .billingExport
                      ? L("%@ as billed, from its usage export", entry.tool.displayName)
                      : entry.source.provenance(of: entry.tool))
+            }
+            if let prices = PriceSource.line(model.priceSources) {
+                Text(prices)
             }
         }
         .font(.caption2)
@@ -687,11 +720,11 @@ final class DashboardWindowController: NSWindowController {
     private var panelLevel: NSWindow.Level?
     private var aside = false
 
-    init(store: UsageStore, prefs: Preferences) {
+    init(store: UsageStore, prefs: Preferences, actions: NotchActions? = nil) {
         self.prefs = prefs
         let panel = SettingsPanel(contentRect: NSRect(origin: .zero, size: Self.contentSize),
                                   styleMask: [.titled, .closable, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
-        let host = FirstMouseHostingView(rootView: DashboardView(store: store))
+        let host = FirstMouseHostingView(rootView: DashboardView(store: store, actions: actions))
         host.sizingOptions = []
         panel.title = L("%@ Usage", AppInfo.name)
         panel.contentView = host

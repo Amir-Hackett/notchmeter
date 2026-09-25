@@ -9,10 +9,20 @@ struct MCPServer {
 
     let report: () async -> UsageReport
 
+    /// The assistants as the schema names them, from the enum itself, so a tool added later is offered to a client
+    /// without a hand-written list to forget: the product names in the tool's description, the raw values the
+    /// `tool` argument takes (`ToolID(rawValue:)` is what parses it).
+    static let toolProductNames = ToolID.allCases.map(\.productName).joined(separator: ", ")
+    static let toolArguments: String = {
+        var names = ToolID.allCases.map(\.rawValue)
+        let last = names.removeLast()
+        return names.joined(separator: ", ") + " or " + last
+    }()
+
     static let tools: [[String: Any]] = [[
         "name": "get_limits",
-        "description": "This Mac's AI coding-tool usage windows (Claude Code, Codex, Cursor, Gemini CLI, Copilot), the local Claude Code cost estimate and Notchmeter's advice, as the notchmeter.limits.v1 object. Read it before long work to decide whether to switch models or wait for a reset.",
-        "inputSchema": ["type": "object", "properties": ["tool": ["type": "string", "description": "Limit the answer to one tool: claude, codex, cursor, antigravity or copilot."]], "additionalProperties": false],
+        "description": "This Mac's AI coding-tool usage windows (\(toolProductNames)), the local Claude Code cost estimate and Notchmeter's advice, as the notchmeter.limits.v1 object. Read it before long work to decide whether to switch models or wait for a reset.",
+        "inputSchema": ["type": "object", "properties": ["tool": ["type": "string", "description": "Limit the answer to one tool: \(toolArguments)."]], "additionalProperties": false],
     ]]
 
     /// The client's configuration snippet, for Settings.

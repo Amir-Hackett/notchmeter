@@ -1,0 +1,139 @@
+/* Notchmeter — the usage-tracker pages (usage-trackers/ and the nine pages it links).
+   Loaded after style.css and built only from its tokens and components (.tools, .faq, .split, .shot, .code,
+   .advice, .btn): this file adds what a long, left-aligned page answering one question needs and the home page
+   does not — a skip link, the breadcrumb, a left-aligned hero, a sources table, inline code, and cards that are
+   links. It is a file of its own so that none of it can change how the home, pricing, privacy or terms pages look,
+   and every colour is a style.css token (or a fallback for one it may grow), so a colour scheme defined there
+   reaches these pages without a line here. */
+
+/* ---------- skip link ---------- */
+
+/* Off screen until it takes the keyboard focus, then the first thing on the page: a way past the header's links
+   to the answer. White on --calm measures 5.1:1. style.css has no skip link of its own yet; if it grows this same
+   rule, this one is redundant and can go. */
+.skip {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--calm);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+}
+.skip:focus, .skip:focus-visible { top: 12px; text-decoration: none; }
+
+/* ---------- breadcrumb ---------- */
+
+.lp-crumbs ol { list-style: none; margin: 0 0 22px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 14px; color: var(--text-dim); }
+.lp-crumbs a { color: var(--text-dim); text-decoration: underline; text-underline-offset: 3px; }
+.lp-crumbs a:hover { color: var(--text); }
+/* The separator is decoration: the second `content` gives it empty alternative text where the engine supports
+   that, so a screen reader reads the trail as a list of three and not as "greater-than" twice. */
+.lp-crumbs li + li::before { content: "\203A"; content: "\203A" / ""; margin-right: 8px; color: var(--text-faint); }
+.lp-crumbs [aria-current="page"] { color: var(--text-dim); }
+
+/* ---------- hero ---------- */
+
+.lp-hero { padding: 64px 0 52px; }
+.lp-hero h1 { font-size: clamp(2rem, 5.2vw, 3.05rem); max-width: 860px; }
+.lp-hero .lede { margin: 0 0 16px; max-width: 720px; }
+.lp-hero .cta-row { justify-content: flex-start; margin-top: 30px; }
+.lp-hero .cta-note { margin-top: 14px; }
+
+/* ---------- prose ---------- */
+
+.lp-prose { max-width: 760px; }
+.lp-prose p { color: var(--text-dim); margin: 0 0 16px; }
+.lp-prose p:last-child { margin-bottom: 0; }
+main strong { color: var(--text); font-weight: 600; }
+/* Links inside prose are underlined: the blue alone is a colour cue, and a link must not rest on colour. */
+.lp-prose a, .lp-points a, .lp-table a, .faq .a a, .split p a { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+
+/* Paths, commands and field names are long unbroken strings; on a 320-pixel screen one of them would push the
+   page sideways, so inline code may break anywhere. */
+main code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--line-soft);
+  border-radius: 5px;
+  padding: 1px 5px;
+  overflow-wrap: anywhere;
+}
+/* The install block is already monospaced; inside it a <code> is plain. */
+main .code code { background: none; border: 0; padding: 0; color: inherit; font-size: inherit; overflow-wrap: normal; }
+
+.lp-points { margin: 18px 0 0; padding-left: 20px; color: var(--text-dim); }
+.lp-points li { margin-bottom: 10px; line-height: 1.6; }
+.lp-points li:last-child { margin-bottom: 0; }
+
+.split h3, .lp-prose h3 { font-size: 1.08rem; font-weight: 600; letter-spacing: -0.012em; margin: 30px 0 8px; }
+.split > div > p:first-of-type { margin-top: 0; }
+
+/* ---------- pictures ---------- */
+
+/* The renders are tall (the Detailed panel is 1280 × 2722) or very wide (the strip beside the notch is
+   2400 × 160), so each figure is capped at a width that keeps its text at about the size the app draws it; the
+   caption sits inside the figure, under the framed picture, as wide as the picture. */
+.lp-figure { margin: 0 auto; }
+.lp-figure.fit-narrow { max-width: 420px; }
+.lp-figure.fit-medium { max-width: 680px; }
+.lp-figure .shot { margin: 0; }
+
+/* ---------- sources table ---------- */
+
+/* Scrolls inside its own box on a phone rather than moving the page; the wrapper takes the keyboard focus so it
+   can be scrolled without a pointer, and says what it is. */
+.lp-tablewrap { overflow-x: auto; margin: 0 0 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-card); }
+.lp-tablewrap:focus-visible { outline-offset: 2px; }
+.lp-table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 620px; }
+.lp-table caption { text-align: left; padding: 12px 16px 0; font-size: 13.5px; color: var(--text-dim); }
+.lp-table th, .lp-table td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line-soft); vertical-align: top; line-height: 1.55; }
+.lp-table thead th { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); font-weight: 600; }
+.lp-table tbody tr:last-child > * { border-bottom: none; }
+.lp-table td { color: var(--text-dim); }
+.lp-table tbody th { color: var(--text); font-weight: 550; }
+
+/* ---------- cards that are links ---------- */
+
+/* --ghost-hover-line is the token the ghost button's hover may one day be named after in style.css; until then
+   the literal is the one .btn-ghost:hover uses. */
+a.tool { display: block; color: inherit; transition: border-color 0.15s ease-out, background 0.15s ease-out; }
+a.tool:hover { text-decoration: none; border-color: var(--ghost-hover-line, #39404e); background: var(--bg-raised); }
+a.tool h3 { color: var(--text); }
+a.tool .more { display: inline-block; margin-top: 10px; font-size: 14px; color: var(--calm-lift); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- advice cards ---------- */
+
+/* The home page's advice rows carry the line alone; here each also says when the rule fires, a step quieter. */
+.advice .when { display: block; margin-top: 4px; color: var(--text-dim); font-size: 14px; line-height: 1.55; }
+
+/* ---------- faq ---------- */
+
+/* .faq clips its corners with overflow: hidden, which also clipped the focus ring of the first and last
+   questions; drawn inside the row it is whole on every one. */
+.faq summary:focus-visible { outline-offset: -3px; border-radius: 10px; }
+
+/* ---------- install ---------- */
+
+.lp-brew { max-width: 520px; margin: 26px auto 0; text-align: left; }
+
+/* ---------- footer ---------- */
+
+@media (max-width: 700px) {
+  .lp-hero { padding: 44px 0 40px; }
+  .lp-hero .cta-row .btn { flex: 1 1 100%; }
+}
+
+/* A 320–375px phone: Pricing and Download fit beside the icon only with GitHub gone from the header (it stays in
+   the footer, twice) and a 16px gutter. */
+@media (max-width: 420px) {
+  .wrap { padding: 0 16px; }
+  .top .wrap { gap: 16px; }
+  nav.links { gap: 14px; }
+  nav.links a.hide-xs { display: none; }
+}

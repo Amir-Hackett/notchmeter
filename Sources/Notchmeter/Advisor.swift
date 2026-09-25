@@ -318,18 +318,22 @@ enum Advisor {
     }
 
     /// A per-model window nearly used up while another model, or the overall window, has room: the cheapest move
-    /// there is, so it is said once per tool for the fullest model.
+    /// there is, so it is said once per tool for the fullest model. Like is set against like: a tool that meters
+    /// each model over several windows (OpenCode Go's 5-hour, 7-day and 31-day; Codex Spark's session and weekly)
+    /// has a model's 5-hour share compared with another model's 5-hour share, or with the tool-wide 5-hour window,
+    /// never with a month, since a percentage of one says nothing about the other.
     static func modelRouting(_ context: Context) -> [Advice] {
         context.readings.compactMap { reading in
             let scoped = reading.windows.filter { $0.model != nil && $0.usedFraction != nil }
             guard let hot = scoped.filter({ ($0.usedFraction ?? 0) >= modelNearlyOut }).max(by: { ($0.usedFraction ?? 0) < ($1.usedFraction ?? 0) }),
                   let used = hot.usedFraction
             else { return nil }
+            let alike = scoped.filter { $0.periodDuration == hot.periodDuration }
             let alternative: (name: String, model: String?, used: Double)?
-            if let other = scoped.filter({ $0.model != hot.model && left(of: $0) >= modelHeadroom }).max(by: { left(of: $0) < left(of: $1) }),
+            if let other = alike.filter({ $0.model != hot.model && left(of: $0) >= modelHeadroom }).max(by: { left(of: $0) < left(of: $1) }),
                let otherModel = other.model, let otherUsed = other.usedFraction {
                 alternative = (otherModel, otherModel, otherUsed)
-            } else if let main = mainWindow(of: reading), let mainUsed = main.usedFraction, 1 - mainUsed >= modelHeadroom {
+            } else if let main = overallWindow(of: reading, period: hot.periodDuration), let mainUsed = main.usedFraction, 1 - mainUsed >= modelHeadroom {
                 alternative = (L("Overall %@", name(main)), nil, mainUsed)
             } else {
                 alternative = nil
@@ -586,6 +590,15 @@ enum Advisor {
             .max { ($0.periodDuration ?? 0) < ($1.periodDuration ?? 0) }
     }
 
+    /// The tool-wide window of `period`'s length, the one a per-model window of that length is a share of; with no
+    /// length declared (Antigravity's buckets), the main window.
+    static func overallWindow(of reading: UsageReading, period: TimeInterval?) -> LimitWindow? {
+        guard let period else { return mainWindow(of: reading) }
+        return reading.windows.first {
+            $0.usedFraction != nil && $0.model == nil && $0.periodDuration == period && !$0.id.hasPrefix("budget_") && !$0.isComparison
+        }
+    }
+
     /// The other tool with the most of its main window left, when that is at least the routing headroom; on a tie,
     /// the one the user placed first. A tool on a free plan is never the answer, however empty its window: its
     /// room is not worth routing a paid tool's work to (`UsageReading.isPaid`), so neither the headroom clause
@@ -604,9 +617,12 @@ enum Advisor {
     }
 
     /// "weekly", "session", "included usage"; a per-model window carries its cadence: "Fable weekly", "Gemini Pro
-    /// daily", or "Gemini Pro quota" while the tool declares no window length.
+    /// daily", or "Gemini Pro quota" while the tool declares no window length. A per-model window whose label
+    /// already names its window the way the card does ("Kimi K3 5-hour", "GPT 5.3 Codex Spark Session":
+    /// `WindowLabel.scoped`) is named as the card names it, so the sentence and the card agree.
     static func name(_ window: LimitWindow) -> String {
         guard let model = window.model else { return window.name.inSentence }
+        if case .scoped = window.name { return window.name.inSentence }
         return "\(model) \(cadence(window.periodDuration))"
     }
 
@@ -654,6 +670,42 @@ enum Advisor {
         }
         return Pace.secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: context.now)
     }
+}
+
+/// A spend budget as it was typed: an amount in a currency, with the rate per dollar that currency converted at
+/// when it was typed. Kept that way rather than in dollars so that the figure the user typed is the figure
+/// Settings, the Cost card and the Advice strip show back whatever the day's rate does; the dollar figure the
+/// spend is measured against is derived where it is used and follows the rate in use (docs/accuracy.md, *The
+/// budget*). Before 0.9.0 the dollar figure was the one kept, which held still only while the rate did.
+struct Budget: Codable, Equatable, Sendable {
+    var amount: Double
+    var code: String
+    var rate: Double
+
+    /// The budget field's text as a budget in the currency shown: a positive amount, a comma accepted for the
+    /// decimal point; nil for anything else, which is no budget.
+    static func parse(_ text: String, at conversion: CurrencyConversion) -> Budget? {
+        let number = Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
+        guard let amount = number, amount.isFinite, amount > 0 else { return nil }
+        return Budget(amount: amount, code: conversion.code, rate: conversion.rate)
+    }
+
+    /// In dollars: at the rate in use while the budget is in the currency shown, so the comparison follows the
+    /// day's rate; after a change of currency, at the rate it was typed at, the last one its own currency was
+    /// known at here.
+    func usd(at conversion: CurrencyConversion) -> Double {
+        let divisor = code == conversion.code ? conversion.rate : rate
+        return divisor > 0 ? amount / divisor : amount
+    }
+
+    /// In the currency shown: the amount as typed while it is that currency, and otherwise converted through
+    /// dollars, which is what the budget field shows after a change of currency until the budget is typed again.
+    func shown(at conversion: CurrencyConversion) -> Double {
+        code == conversion.code ? amount : usd(at: conversion) * conversion.rate
+    }
+
+    /// For the oracle's `pref` event: the amount and its currency, the two the user chose.
+    var oracleFields: [String: Any] { ["amount": amount, "code": code] }
 }
 
 /// The calendar month as a budget period: where it stands between its first and last moment.

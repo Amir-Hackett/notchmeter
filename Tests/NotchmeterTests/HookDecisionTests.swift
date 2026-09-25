@@ -315,9 +315,10 @@ import Testing
     }
 
     @Test func aSixPointZeroInstallIsPartialAndRepairUpgradesItOnce() throws {
-        // What 0.6.0 wrote: every event async with a five-second timeout, and no PreToolUse or PostToolUse.
+        // What 0.6.0 wrote: every event async with a five-second timeout, and no PreToolUse or PostToolUse, nor any
+        // of the events 0.11 added.
         var hooks: [String: Any] = [:]
-        for event in HookSettings.events where event != "PreToolUse" && event != "PostToolUse" {
+        for event in HookSettings.events where event != "PreToolUse" && event != "PostToolUse" && !HookEventInstallation.added.contains(event) {
             hooks[event] = [["hooks": [["type": "command", "command": "'\(executable)' --hook", "async": true, "timeout": 5]]]]
         }
         let older: [String: Any] = ["hooks": hooks, "model": "opus"]
@@ -326,7 +327,7 @@ import Testing
         #expect(status.needsRepair)
 
         let repaired = HookSettings.repair(older, executable: executable)
-        #expect(repaired.added == ["PreToolUse", "PostToolUse"])
+        #expect(repaired.added == ["PreToolUse", "PostToolUse"] + HookEventInstallation.added)
         #expect(repaired.repaired == ["PermissionRequest"], "only the deciding entry changes shape; the others are byte for byte what they were")
         #expect(HookSettings.status(settings: repaired.settings, executable: executable) == .installed(path: executable))
         let written = try #require(repaired.settings["hooks"] as? [String: Any])
@@ -435,7 +436,8 @@ import Testing
         let untimed: [String: Any] = ["type": "command", "command": "'\(executable)' --hook --tool copilot --event PermissionRequest"]
         #expect(!HookVendor.copilot.isCurrent(handler: untimed, element: untimed, event: "PermissionRequest"), "Copilot's default is 30 s, which would cancel the command before the user answers")
         #expect(HookVendor.cursor.decidingEvents.isEmpty)
-        #expect(HookVendor.antigravity.decidingEvents.isEmpty)
+        #expect(HookVendor.gemini.decidingEvents.isEmpty)
+        #expect(HookVendor.kimi.decidingEvents.isEmpty, "Kimi Code has no permission event to hold")
     }
 }
 

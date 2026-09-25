@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy policy · Notchmeter</title>
-<meta name="description" content="What the Notchmeter website collects, every request the Mac app makes and who receives it, and what rights you have. No server of ours, and here is the honest rest of it.">
+<meta name="description" content="What the Notchmeter website collects, every request the Mac app makes and who receives it, and your rights. No server of ours, and the honest rest of it.">
 <link rel="icon" href="img/icon.png">
 <link rel="stylesheet" href="style.css">
 
@@ -14,6 +14,7 @@
 <meta property="og:url" content="https://www.notchmeter.com/privacy.html">
 <link rel="canonical" href="https://www.notchmeter.com/privacy.html">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Notchmeter">
 
 <style>
 /* Long-form prose, built from the tokens already in style.css. Nothing new is introduced and
@@ -38,13 +39,13 @@
   padding: 28px 26px;
   margin-bottom: 8px;
 }
-.summary-card h3 { margin-top: 0; }
+.summary-card h2 { font-size: 1.08rem; font-weight: 600; letter-spacing: -0.012em; margin: 0 0 10px; }
 .summary-card ul { margin-bottom: 0; }
 
 .meta-strip { display: flex; gap: 22px; flex-wrap: wrap; font-size: 14px; color: var(--text-dim); margin-bottom: 34px; }
 
 .toc { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-card); padding: 22px 24px; margin: 34px 0 8px; }
-.toc h4 { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); margin: 0 0 12px; font-weight: 600; }
+.toc h3 { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); margin: 0 0 12px; font-weight: 600; }
 .toc ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 32px; font-size: 14.5px; }
 .toc li { margin-bottom: 7px; break-inside: avoid; }
 
@@ -67,21 +68,24 @@ table.dtable code { font-size: 12.4px; }
 </head>
 <body>
 
+<a class="skip" href="#main">Skip to content</a>
+
 <header class="top">
   <div class="wrap">
     <a class="brand" href="index.html" aria-label="Notchmeter"><img src="img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
-    <nav class="links">
+    <nav class="links" aria-label="Main">
       <a href="index.html#assistants" class="hide-sm">Assistants</a>
       <a href="index.html#advice" class="hide-sm">Advice</a>
       <a href="index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="guides/index.html">Guides</a>
       <a href="pricing.html">Pricing</a>
-      <a href="https://github.com/Amir-Hackett/notchmeter">GitHub</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
       <a class="btn btn-primary btn-sm" href="index.html#install">Download</a>
     </nav>
   </div>
 </header>
 
-<main>
+<main id="main">
 
 <section class="hero plain" style="text-align:left;padding-bottom:24px">
   <div class="wrap">
@@ -97,24 +101,28 @@ table.dtable code { font-size: 12.4px; }
     <div class="legal">
 
       <div class="meta-strip">
-        <span>Effective 19 September 2026</span>
+        <span>Effective 24 September 2026</span>
         <span>Hackett Labs LLC</span>
         <span>notchmeter.com and Notchmeter for macOS</span>
       </div>
 
+      <div class="callout">
+        <p><strong>Changed on 24 September 2026.</strong> Notchmeter 0.9.0 makes two new requests, and both are listed in section 4.1 with their off switches: the price catalog fetched from GitHub once a day (on by default), and the European Central Bank's daily exchange rate (off by default, and only for a currency other than US dollars). Section 5 gains a row for the catalog fetch, and Moonshot joins sections 4 and 6 as the vendor Kimi Code's usage is read from. Section 4.6 is new: <em>Send Feedback</em>, the one way anything you write in the app can reach us, and only through your own browser or mail app, after you have read every word of it. Section 5 gains the row for it, section 6 names GitHub as where an issue goes, and section 8 says how long we keep what you send.</p>
+      </div>
+
       <div class="summary-card">
-        <h3>The short version</h3>
+        <h2>The short version</h2>
         <ul>
-          <li><strong>No server of ours.</strong> There is no Notchmeter account, no Notchmeter backend, no telemetry, no analytics and no crash reporting. Nothing about your usage, your prompts, your transcripts or your projects ever reaches us. We could not look it up if we wanted to, because we hold no record of you at all.</li>
+          <li><strong>No server of ours.</strong> There is no Notchmeter account, no Notchmeter backend, no telemetry, no analytics and no crash reporting. Nothing about your usage, your prompts, your transcripts or your projects ever reaches us. We could not look it up if we wanted to, because we hold no record of you at all. The one exception is feedback you choose to send from the app, which you read in full first and which travels through your own browser or mail app (4.6).</li>
           <li><strong>The app is not silent on the network, and you should know who it talks to.</strong> Its whole job is to read your AI usage, and the only way to do that is to ask your providers. It reads the login each tool already saved on your Mac and makes that tool's own usage request to that tool's own vendor, with your own token. Section 4 lists every single request.</li>
           <li><strong>It also checks GitHub for updates, about once a day.</strong> That means GitHub sees the IP address of a running copy of Notchmeter roughly daily. You can switch it off in Settings › Updates › <em>Check for updates automatically</em>.</li>
-          <li><strong>This website has no analytics, no cookies and no browser storage.</strong> No script of any kind runs on these pages. The only thing recorded is the ordinary server log kept by our host, Vercel.</li>
+          <li><strong>This website has no analytics, no cookies and no browser storage.</strong> The one script on this site is the home page's inline check of your operating system, which shows a note to Windows visitors; it makes no request, sets no cookie and stores nothing. No other page runs any script. The only thing recorded is the ordinary server log kept by our host, Vercel.</li>
           <li><strong>Downloading the app tells GitHub your IP address</strong>, because GitHub hosts the download. Choosing to donate takes you to Stripe, which handles it under its own privacy policy.</li>
         </ul>
       </div>
 
       <div class="toc">
-        <h4>On this page</h4>
+        <h3>On this page</h3>
         <ol>
           <li><a href="#controller">1. Who is responsible</a></li>
           <li><a href="#scope">2. What this policy covers</a></li>
@@ -147,7 +155,7 @@ table.dtable code { font-size: 12.4px; }
         <li>The website at <strong>notchmeter.com</strong>, including this page.</li>
         <li>The <strong>Notchmeter app for macOS</strong>, distributed as a signed disk image and through Homebrew.</li>
       </ul>
-      <p>It does not cover the AI coding tools Notchmeter reads from. Anthropic, OpenAI, Cursor, Google and GitHub each have their own privacy policies, and those govern what happens once a request arrives with them. It does not cover GitHub, where the source, the issue tracker and the download live, or Stripe, which handles donations. Each of those companies is its own controller for what it does.</p>
+      <p>It does not cover the AI coding tools Notchmeter reads from. Anthropic, OpenAI, Cursor, Google, GitHub and Moonshot each have their own privacy policies, and those govern what happens once a request arrives with them. It does not cover GitHub, where the source, the issue tracker and the download live, or Stripe, which handles donations. Each of those companies is its own controller for what it does.</p>
 
       <hr>
 
@@ -159,7 +167,7 @@ table.dtable code { font-size: 12.4px; }
       <p>That is the entire list. There is no analytics product on this site, first party or third party.</p>
 
       <h3>3.2 Cookies and browser storage</h3>
-      <p class="strong-note"><strong>This website sets no cookies.</strong> It writes nothing to <code>localStorage</code>, <code>sessionStorage</code> or IndexedDB, registers no service worker, and does no fingerprinting. There is no JavaScript on these pages at all.</p>
+      <p class="strong-note"><strong>This website sets no cookies.</strong> It writes nothing to <code>localStorage</code>, <code>sessionStorage</code> or IndexedDB, registers no service worker, and does no fingerprinting. The only JavaScript on the site is the home page's inline check of your operating system, described in the summary above: it makes no request, sets no cookie and stores nothing, and no other page runs any script at all.</p>
       <p>That is why there is no consent banner. A banner asking permission for cookies that do not exist would be theatre, and on the site of an app sold on not phoning home it would be worse than nothing. If this ever changes, this section gets rewritten first and the change is announced at the top of this page.</p>
 
       <h3>3.3 What the site does not do</h3>
@@ -186,7 +194,7 @@ table.dtable code { font-size: 12.4px; }
       <h2 id="app">4. The Mac app</h2>
 
       <div class="callout">
-        <p><strong>Nothing the app does reaches us.</strong> There is no Notchmeter account, no Notchmeter server, no telemetry, no analytics, no crash reporter and no usage reporting. The app never sends a prompt, a response, a transcript or a file path anywhere. It never sends any token to us, because there is no "us" on the network for it to send one to.</p>
+        <p><strong>Nothing the app does reaches us.</strong> There is no Notchmeter account, no Notchmeter server, no telemetry, no analytics, no crash reporter and no usage reporting. The app never sends a prompt, a response, a transcript or a file path anywhere. It never sends any token to us, because there is no "us" on the network for it to send one to. The only way anything from the app reaches us is feedback you write and send yourself, described in 4.6.</p>
         <p>What follows is the honest other half. The app does make network requests. It talks only to providers you already have an account with, using the login their own tool already put on your Mac, and it is worth setting that out request by request rather than waving at it.</p>
       </div>
 
@@ -220,36 +228,53 @@ table.dtable code { font-size: 12.4px; }
             <tr>
               <td>Google<br><code>cloudcode-pa.googleapis.com</code></td>
               <td>Your IP address, the Gemini CLI access token already on your Mac, a fixed description of the client that identifies nobody, <strong>and your Google Cloud project id</strong>, which the quota request requires.</td>
-              <td>Same schedule. Two requests each time: one to learn the project and tier, one to read the quota.</td>
+              <td>Same schedule. Two requests each time: one to learn the project and tier, one to read the quota. With both Gemini CLI and Antigravity on your Mac, each has its own row and its own read, so twice that.</td>
+            </tr>
+            <tr>
+              <td>Moonshot (Kimi)<br><code>api.kimi.com</code></td>
+              <td>Your IP address and the Kimi Code access token already on your Mac. The token is sent only while it is current; an expired one is not sent, and never refreshed.</td>
+              <td>Same schedule. One request each time, the one Kimi Code's own <code>/usage</code> command makes.</td>
             </tr>
             <tr>
               <td>GitHub<br><code>github.com</code><br>(software updates)</td>
               <td>Your IP address and the updater's user agent, when the app checks whether a newer version exists. No account, no token and no identifier is sent, and the updater's optional anonymous system profile is not switched on.</td>
               <td><strong>Daily by default</strong>, and whenever you choose Check for Updates. Automatic checking can be switched off in Settings.</td>
             </tr>
+            <tr>
+              <td>GitHub<br><code>raw.githubusercontent.com</code><br>(the price catalog)</td>
+              <td>Your IP address and the app's user agent, when the app fetches this project's own list of per-model prices, so a model that launches between releases is priced at its published rate within a day. No account, no token, no usage figure and no identifier is sent; the request carries only the validators of the copy already held, so an unchanged file answers with no body.</td>
+              <td><strong>Daily by default</strong>, at most, and an hour after a failed attempt. It can be switched off in Settings › Appearance › Usage display, and the app then prices everything from the table built into it.</td>
+            </tr>
+            <tr>
+              <td>European Central Bank<br><code>www.ecb.europa.eu</code><br>(exchange rates, from 0.9.0)</td>
+              <td>Your IP address and the app's user agent, asking for the ECB's public daily euro reference rates: the same file anyone can open in a browser. No account, no token, no identifier, and not even which currency you chose, since the one file holds every currency the ECB publishes. The ECB learns that a machine at your IP address asked, and nothing else; the file is served through a content delivery network, which sees the same request.</td>
+              <td><strong>Only if you turn on Fetch today's rate</strong>, which is off by default and does nothing while costs are shown in US dollars. Then once a weekday, just after the ECB publishes its afternoon file (and once more on the day you turn it on; nothing on a weekend, when no newer file can exist), or an hour after a failed one, doubling up to a day. Turn it off and the rate you typed converts, with no request.</td>
+            </tr>
           </tbody>
         </table>
       </div>
-      <p class="strong-note"><strong>What that means in plain terms.</strong> Each vendor learns your IP address and, from your token, which of their accounts you are. That is exactly what happens when their own tool asks the same question, and no more. It is still a real disclosure to a real third party, and once a request arrives at Anthropic, OpenAI, Cursor, Google or GitHub, that company's privacy policy governs what it does with it, not this one. The update check in particular means <strong>GitHub can see, roughly once a day, that a machine at your IP address is running Notchmeter</strong>, whether or not you ever download anything from them again.</p>
+      <p class="strong-note"><strong>What that means in plain terms.</strong> Each vendor learns your IP address and, from your token, which of their accounts you are. That is exactly what happens when their own tool asks the same question, and no more. It is still a real disclosure to a real third party, and once a request arrives at Anthropic, OpenAI, Cursor, Google, GitHub or Moonshot, that company's privacy policy governs what it does with it, not this one. The update check and the price catalog in particular mean <strong>GitHub can see, roughly once a day, that a machine at your IP address is running Notchmeter</strong>, whether or not you ever download anything from them again.</p>
       <p>The updater is the Sparkle framework, and it only runs in properly signed release builds. What it sends is what Sparkle sends with its system profile feature off, which is how the app configures it. We wrote the configuration, not the updater.</p>
       <p>The app also opens ordinary links in your browser when you click them, such as a vendor's usage page, a status page, or the donation page. Those are handed to your browser with whatever cookies your browser already has. The app makes no request of its own for them.</p>
 
-      <h4>The three options that change what is sent</h4>
+      <h4>The four options that change what is sent</h4>
       <ul>
         <li><strong>Cursor usage events export: on by default.</strong> Switch it off in Settings and Cursor stops receiving the 30-day usage events request. The plain usage summary still works; the detailed cost breakdown does not.</li>
         <li><strong>Codex credit reset details: off by default.</strong> Turn it on and one extra request goes to OpenAI alongside the usage read.</li>
         <li><strong>GitHub organisation billing: off by default.</strong> Turn it on and the app asks GitHub for your organisation list and a usage summary for up to ten of them.</li>
+        <li><strong>Fetch today's rate: off by default</strong> (from 0.9.0). Turn it on, with costs shown in a currency other than US dollars, and the app asks the European Central Bank for its public daily reference rates, once a weekday after it publishes them (twice on the day you turn it on, and not on a weekend), so a converted cost is at the day's rate rather than one you typed. The cost card and the dashboard then name the rate and its date under the figures. Turn it off and the rate you typed converts, with no request.</li>
       </ul>
 
       <h3>4.2 What the app reads on your Mac</h3>
       <p>All of this stays on your Mac. It is listed because reading it is worth telling you about even when nothing is transmitted.</p>
       <ul>
-        <li><strong>Saved logins for the tools you enable.</strong> For Claude Code, from your Keychain first, and if it is not there, from the credentials file Claude Code keeps in your home folder, or from the <code>CLAUDE_CODE_OAUTH_TOKEN</code> environment variable if you have set one. For Codex, Cursor, Gemini CLI and GitHub Copilot, from the config files those tools already keep in your home folder. Cursor's database is copied to a temporary file and opened read only, so the live database is never touched. These tokens are read, used for the one request above, and never written, refreshed, copied into a Keychain or stored anywhere by us.</li>
-        <li><strong>Your local Claude Code and Codex transcripts</strong>, for the cost figures. For Claude Code it reads only files changed in the last 30 days. From each line it takes the timestamp, token counts, the model name, a message and request id used to avoid counting the same call twice, a cost figure, a session id, the speed and inference region labels the transcript records, any web search request count, and the <strong>last folder name</strong> of the working directory. It does not read prompt text, does not read response text, and does not keep full paths. None of it is transmitted anywhere.</li>
+        <li><strong>Saved logins for the tools you enable.</strong> For Claude Code, from your Keychain first, and if it is not there, from the credentials file Claude Code keeps in your home folder, or from the <code>CLAUDE_CODE_OAUTH_TOKEN</code> environment variable if you have set one. For Codex, Cursor, Gemini CLI, GitHub Copilot and Kimi Code, from the config files those tools already keep in your home folder. Cursor's database is copied to a temporary file and opened read only, so the live database is never touched. These tokens are read, used for the one request above, and never written, refreshed, copied into a Keychain or stored anywhere by us.</li>
+        <li><strong>Your local Claude Code and Codex transcripts</strong>, for the cost figures. For Claude Code it reads only files changed in the last 30 days. From each line it takes the timestamp, token counts, the model name, a message id used to avoid counting the same response twice, a cost figure, a session id, the speed and inference region labels the transcript records, any web search request count, and the <strong>last folder name</strong> of the working directory. It does not read prompt text, does not read response text, and does not keep full paths. None of it is transmitted anywhere.</li>
+        <li><strong>OpenCode's own database</strong>, if OpenCode is on your Mac, opened read-only and never written, for OpenCode's cost, its sessions and the Go plan meter the app works out from your own turns. From each assistant turn it takes the time, the model and provider, the token counts, the cost OpenCode recorded and the folder name; from each recent session its folder, and OpenCode's own title only while session titles are on and your screen is not shared. It never reads your prompts, OpenCode's replies, tool output or any stored login, and nothing about OpenCode leaves your Mac.</li>
         <li><strong>Pricing settings</strong> from Claude Code's own settings file, plus any overrides you write yourself. Model prices otherwise come from a table shipped inside the app. There is no pricing lookup over the network.</li>
         <li><strong>Modification times only</strong>, with no file contents, for a handful of folders, so the app knows when to slow its polling down.</li>
         <li><strong>Whether the screen is being shared</strong>, as a yes or no from macOS, and only while the "hide usage while the screen is shared" option is on.</li>
-        <li><strong>Menu bar geometry of the frontmost app</strong>, through the macOS Accessibility API, and only if you choose the Auto layout. It is measured when you switch apps and cached, never polled.</li>
+        <li><strong>Menu bar geometry of the frontmost app</strong>, through the macOS Accessibility API, and only if you set Readouts to Auto. It is measured when you switch apps and cached, never polled.</li>
         <li><strong>Hook and status line events</strong>, if you install the optional hooks. These carry an event name, a session id, a folder name, a git branch, a permission mode, a model name, context fill and a session cost. They explicitly exclude your prompt, the response, the transcript path, the full working directory and any email address.</li>
       </ul>
 
@@ -259,7 +284,7 @@ table.dtable code { font-size: 12.4px; }
         <table class="dtable">
           <thead><tr><th>Where</th><th>What is in it</th></tr></thead>
           <tbody>
-            <tr><td><code>~/Library/Preferences/</code></td><td>Your settings: layout, notifications, currency, hotkeys, opt-ins. Also the last successful reading for each tool, which notifications have already fired, and a note of when the Cursor export last ran.</td></tr>
+            <tr><td><code>~/Library/Preferences/</code></td><td>Your settings: layout, notifications, currency, hotkeys, opt-ins. Also the last successful reading for each tool, which notifications have already fired, a note of when the Cursor export last ran and, while Fetch today's rate has been on, the last exchange rates the ECB published with the time they were asked for.</td></tr>
             <tr><td><code>~/Library/Caches/Notchmeter/</code></td><td>The transcript scan cache: quarter-hour totals per transcript so relaunches are instant, with entry-level detail kept only for the current 5-hour block. Never a token, a prompt or a full path.</td></tr>
             <tr><td><code>~/Library/Application Support/Notchmeter/daily-history-v1.jsonl</code></td><td>Daily cost totals that outlive your transcripts, one line per day per tool, broken down by model and by folder name, with a small <code>.lock</code> file beside it. Builds before 0.5.0 kept this file in <code>~/Library/Caches/Notchmeter/</code>; whichever 0.5.0 process reads the history first &mdash; the app, the command line tool, the status line or the MCP server &mdash; moves it here. Never a token, a prompt or a full path.</td></tr>
             <tr><td><code>~/Library/Application Support/Notchmeter/drain-log-v1.jsonl</code></td><td>One line per successful usage read: time, tool, window, fraction used, reset time. Trimmed to the last 7 days. Never a token.</td></tr>
@@ -278,6 +303,9 @@ table.dtable code { font-size: 12.4px; }
       <h3>4.5 Copy diagnostics</h3>
       <p>Settings has a Copy diagnostics button. It reads the app's own last ten minutes of log lines, replaces your home folder path with <code>~</code>, and puts the text on your clipboard. <strong>Nothing is transmitted.</strong> If you paste it into a bug report, you are the one sending it, and you can read it first.</p>
 
+      <h3>4.6 Send feedback</h3>
+      <p>Settings › General › <em>Send Feedback…</em> (also in the Options menu) opens a form with a message, an optional copy of the Copy diagnostics report, and a choice of GitHub or email. Under it the app shows the exact text that would leave. Before showing it, the app replaces your home folder path with <code>~</code> and replaces every project name, git branch, session title, folder, pull request link, remote machine name and your account name that it is holding with a placeholder such as <code>[project 1]</code>, in your message as well as in the report. <strong>The app itself sends nothing.</strong> Pressing Send opens either the Feedback issue form on our GitHub repository in your browser, its fields filled from the page address, or a new email to <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a> in your mail app. Two things are worth knowing. A prefilled GitHub issue carries its text in the page address, so GitHub receives that text when the page loads, before you press <em>Submit new issue</em>; a browser that is not signed in to GitHub is sent through GitHub's sign-in page first, with the same address to come back to; nothing is published until you do, and a published issue is public and shows your GitHub account. An email is sent only when you press Send in your mail app, from your own address, and reaches us like any other email. Neither is anonymous.</p>
+
       <hr>
 
       <h2 id="basis">5. Legal basis for each use</h2>
@@ -289,7 +317,9 @@ table.dtable code { font-size: 12.4px; }
             <tr><td>Website server logs</td><td>Serving the site, keeping it up, and dealing with abuse or attacks</td><td>Article 6(1)(f), legitimate interests. Our interest is running a website that works. It is ordinary request metadata, it is not used to build a profile, and it is not combined with anything else.</td></tr>
             <tr><td>A donation, if you choose to make one</td><td>Taking the payment you asked to make</td><td>Article 6(1)(b), the transaction you asked for. Keeping the record afterwards rests on Article 6(1)(f), our interest in holding the accounting and tax records US law requires of us.</td></tr>
             <tr><td>App update check</td><td>Telling you when a fixed or safer version exists</td><td>Article 6(1)(f), legitimate interests in getting security fixes to installed software. You can switch automatic checking off.</td></tr>
+            <tr><td>Price catalog fetch</td><td>Pricing a model that launched after your version was built at its published rate, rather than at a guess</td><td>Article 6(1)(f), legitimate interests in the figures the app shows being right. It is public data and the request identifies nobody; you can switch it off.</td></tr>
             <tr><td>App usage reads to AI vendors</td><td>Showing you your own usage, which is the one thing you installed the app to do</td><td>These run on your machine, at your instruction, with your own credentials, and we receive nothing from them. To the extent a basis applies to us at all it is Article 6(1)(f). Each vendor is its own controller for what it does with the request.</td></tr>
+            <tr><td>Feedback you send from the app</td><td>Reading it, answering you, and fixing what you report</td><td>Article 6(1)(f), legitimate interests in answering people who write to us and in fixing the software. You decide whether to send anything and see every word first. A GitHub issue is also processed by GitHub under its own privacy statement.</td></tr>
             <tr><td>Everything else the app does</td><td>Showing your usage and cost locally</td><td>No basis is needed, because we do no processing. The data never leaves your Mac and we never see it.</td></tr>
           </tbody>
         </table>
@@ -306,8 +336,8 @@ table.dtable code { font-size: 12.4px; }
           <tbody>
             <tr><td>Vercel</td><td>Website server logs: IP address, user agent, the page requested, the time, the referrer</td><td>Every visit to notchmeter.com</td><td>Vercel is a United States company and serves the site from a global edge network</td></tr>
             <tr><td>Stripe</td><td>Your email address, the amount, and your payment details</td><td>Only if you click the support link and choose to donate</td><td>United States</td></tr>
-            <tr><td>GitHub (Microsoft)</td><td>IP address and browser or updater details</td><td>When you click through to the source, docs or issues, when you download the app, and when the app checks for updates</td><td>United States</td></tr>
-            <tr><td>Anthropic, OpenAI, Cursor, Google, and GitHub for Copilot</td><td>Your IP address and your own saved token for that tool, plus the account, project or organisation identifier that tool's request requires</td><td>Each time the app reads your usage for a provider you have enabled</td><td>United States, and wherever else that vendor operates</td></tr>
+            <tr><td>GitHub (Microsoft)</td><td>IP address and browser or updater details; and, if you send feedback as a GitHub issue, the text you saw in the app's feedback form</td><td>When you click through to the source, docs or issues, when you download the app, when the app checks for updates, and when you choose to send feedback as a GitHub issue</td><td>United States</td></tr>
+            <tr><td>Anthropic, OpenAI, Cursor, Google, GitHub for Copilot, and Moonshot for Kimi Code</td><td>Your IP address and your own saved token for that tool, plus the account, project or organisation identifier that tool's request requires</td><td>Each time the app reads your usage for a provider you have enabled</td><td>United States, and wherever else that vendor operates</td></tr>
           </tbody>
         </table>
       </div>
@@ -323,7 +353,7 @@ table.dtable code { font-size: 12.4px; }
         <li><strong>Vercel</strong> is certified under the EU-US Data Privacy Framework, and its <a href="https://vercel.com/legal/dpa">Data Processing Addendum</a> also incorporates the European Commission's 2021 Standard Contractual Clauses and, for UK transfers, the UK International Data Transfer Addendum.</li>
         <li><strong>Stripe</strong> is certified under the EU-US Data Privacy Framework and relies on the Standard Contractual Clauses and the UK Addendum. See <a href="https://stripe.com/legal/privacy-center">Stripe's privacy center</a>.</li>
         <li><strong>GitHub</strong> complies with the EU-US Data Privacy Framework, the UK Extension to it and the Swiss-US Data Privacy Framework, and also relies on Standard Contractual Clauses. See the <a href="https://docs.github.com/site-policy/privacy-policies/github-privacy-statement">GitHub Privacy Statement</a>.</li>
-        <li><strong>Anthropic, OpenAI, Cursor, Google, and GitHub when you use Copilot,</strong> receive requests only from your own machine, with your own credentials, under the account you already hold with them. The transfer terms of your relationship with each of them are the ones in their own privacy policies, not ours.</li>
+        <li><strong>Anthropic, OpenAI, Cursor, Google, GitHub when you use Copilot, and Moonshot when you use Kimi Code,</strong> receive requests only from your own machine, with your own credentials, under the account you already hold with them. The transfer terms of your relationship with each of them are the ones in their own privacy policies, not ours.</li>
       </ul>
       <p>Each provider's own notice is the authoritative source for what it does, and those terms can change without us knowing.</p>
 
@@ -331,7 +361,8 @@ table.dtable code { font-size: 12.4px; }
 
       <h2 id="retention">8. How long anything is kept</h2>
       <ul>
-        <li><strong>By us: nothing about you.</strong> There is no user database, no analytics warehouse and no log archive of our own. The one exception is the donation record described below.</li>
+        <li><strong>By us: nothing about you.</strong> There is no user database, no analytics warehouse and no log archive of our own. The exceptions are the donation record and any feedback you choose to send, both described below.</li>
+        <li><strong>Feedback you send.</strong> An email stays in our mailbox for as long as it is useful for answering you and fixing what you reported; ask and we delete it. A GitHub issue lives on GitHub, in public, until you or we delete it.</li>
         <li><strong>Donation records.</strong> If you donate, we keep the transaction record Stripe shows us, which includes the email address you entered, for as long as US tax and accounting rules require records of income to be kept, and then no longer. We do not use it for anything else, and we never add it to a mailing list, because there is no mailing list.</li>
         <li><strong>Website server logs</strong> are held by Vercel, not by us. Vercel does not publish a single retention period for them; its Data Processing Addendum commits it to anonymising or deleting personal data when it no longer needs it for the purpose it was collected for. We have no way to shorten that and no access to the raw logs.</li>
         <li><strong>Payment data</strong> is kept by Stripe under its own policy, which states that it generally retains this kind of data for five or more years from the last transaction or the end of the relationship, whichever is later.</li>
@@ -357,12 +388,12 @@ table.dtable code { font-size: 12.4px; }
       <ul>
         <li>Website server logs: Vercel.</li>
         <li>Payment details: Stripe. Our copy of the transaction record: us.</li>
-        <li>Downloads, issue comments and update checks: GitHub.</li>
-        <li>Your AI usage and account data: Anthropic, OpenAI, Cursor, Google or GitHub, whichever account it belongs to.</li>
+        <li>Downloads, issue comments, update checks and the price catalog: GitHub.</li>
+        <li>Your AI usage and account data: Anthropic, OpenAI, Cursor, Google, GitHub or Moonshot, whichever account it belongs to.</li>
       </ul>
       <p>Email <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a> and we will answer within one month, and help you route a request to the right provider if that is where the data actually is. There is no charge.</p>
 
-      <h4>Complaining to a regulator</h4>
+      <h3>Complaining to a regulator</h3>
       <p>If you are unhappy with how your data has been handled, you can complain to your data protection authority. You do not have to come to us first, though we would rather you did so we can fix it.</p>
       <ul>
         <li><strong>EU and EEA:</strong> your local supervisory authority, in the country where you live, where you work, or where you think the problem happened. The list is at <a href="https://www.edpb.europa.eu/about-edpb/about-edpb/members_en">edpb.europa.eu</a>.</li>
@@ -417,7 +448,7 @@ table.dtable code { font-size: 12.4px; }
         <li>Email: <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a></li>
         <li>Public issue tracker: <a href="https://github.com/Amir-Hackett/notchmeter/issues">github.com/Amir-Hackett/notchmeter/issues</a></li>
       </ul>
-      <p style="margin-top:26px">Effective 19 September 2026. See also the <a href="terms.html">terms of use</a>.</p>
+      <p style="margin-top:26px">Effective 24 September 2026. See also the <a href="terms.html">terms of use</a>.</p>
 
     </div>
   </div>
@@ -429,20 +460,21 @@ table.dtable code { font-size: 12.4px; }
   <div class="wrap">
     <div class="foot-grid">
       <div class="foot-about">
-        <h4>Notchmeter</h4>
+        <h2>Notchmeter</h2>
         <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
       </div>
       <div>
-        <h4>Product</h4>
+        <h2>Product</h2>
         <ul>
           <li><a href="index.html#assistants">Assistants</a></li>
           <li><a href="index.html#advice">Advice</a></li>
+          <li><a href="guides/index.html">Guides</a></li>
           <li><a href="pricing.html">Pricing</a></li>
           <li><a href="index.html#install">Download</a></li>
         </ul>
       </div>
       <div>
-        <h4>Docs</h4>
+        <h2>Docs</h2>
         <ul>
           <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
           <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
@@ -451,7 +483,7 @@ table.dtable code { font-size: 12.4px; }
         </ul>
       </div>
       <div>
-        <h4>Project</h4>
+        <h2>Project</h2>
         <ul>
           <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
           <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>

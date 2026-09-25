@@ -2,8 +2,10 @@ import SwiftUI
 
 /// The card at the top of the panel while an assistant is holding a session for a decision (`PendingRequest`):
 /// a permission to grant or refuse, with the tool's name, one line of what it wants and a bounded excerpt of it,
-/// or a question with its options. It draws the newest request only; the store keeps the rest and the panel
-/// redraws as each one is answered.
+/// a question with its options, or (since 0.11) an MCP server's form whose every field is a choice or a yes-or-no
+/// (Hook+Elicitation.swift), each value a button: a one-field form is answered by the click, a longer one is sent
+/// with ⌘↩, a form with no fields is accepted with ⌘Y, and any of them declined with ⌘N. It draws the newest
+/// request only; the store keeps the rest and the panel redraws as each one is answered.
 ///
 /// Every answer leaves through `decide` (`UsageStore.decide`), addressed to the request's id: the card never
 /// holds a socket or a session, and a request that ends under it (the session moved on, the hold ran out) simply
@@ -30,10 +32,13 @@ struct PromptCard: View {
     var unfolded = false
     var setUnfolded: (Bool) -> Void = { _ in }
     @Environment(\.density) private var density
+    @Environment(\.panelLook) private var look
     /// The options chosen per question, by index, while a question is being answered.
     @State private var chosen: [Int: Set<Int>] = [:]
     /// Which question of several is on screen.
     @State private var current = 0
+    /// The values chosen per field of an MCP server's form, by field key, while it is being filled.
+    @State private var filled: [String: ElicitationValue] = [:]
 
     /// How many lines of the excerpt are shown before it scrolls inside a fixed frame.
     static let detailLinesShown = 8
@@ -79,6 +84,16 @@ struct PromptCard: View {
                     questionBody(question, of: questions.count)
                 }
                 passLink
+            case .elicitation(let form):
+                header(symbol: NotchNews.Reason.input.symbolName,
+                       title: form.server.map { L("%@ asks for input", $0) } ?? L("An MCP server asks for input"), chips: placeChips)
+                if !form.message.isEmpty {
+                    Text(verbatim: form.message)
+                        .font(.callout.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                elicitationBody(form)
+                passLink
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -94,8 +109,10 @@ struct PromptCard: View {
 
     private func header(symbol: String, title: String, chips: [String]) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Palette.calm)
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(Palette.calm)
+            Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Themed(Palette.calm))
+            // Words in the "needs you" blue are held to 4.5:1, which Wong's blue is not on black (4.05:1): the text
+            // role lifts it by the least that reads (PanelLook), and the symbol beside it keeps the blue itself.
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(Themed(Palette.calm, .text))
             ForEach(chips, id: \.self) { Chip(text: $0) }
             Spacer(minLength: 0)
         }
@@ -106,13 +123,17 @@ struct PromptCard: View {
     private func buttonLabel(_ text: String, key: String) -> some View {
         HStack(spacing: 6) {
             Text(text)
-            Text(verbatim: key).font(.caption2.monospaced()).opacity(0.6)
+            Text(verbatim: key).font(.caption2.monospaced()).opacity(Self.hintOpacity(look))
         }
     }
 
+    /// How far a shortcut's key recedes beside its answer: 0.6 on the black panel, where white at 0.6 on a button's
+    /// well is 6.4:1, and 0.7 on Paper, where ink at 0.6 on the same well would be 4.0:1.
+    static func hintOpacity(_ look: PanelLook) -> Double { look.theme == .paper ? 0.7 : 0.6 }
+
     private var passLink: some View {
         Button { decide(request.id, .pass) } label: {
-            Text(L("Answer in the terminal")).font(.caption).foregroundStyle(.secondary)
+            Text(L("Answer in the terminal")).font(.caption).foregroundStyle(Ink.secondary)
         }
         .buttonStyle(.plain)
         .help(L("Hands the request back to the terminal, which asks as it always has; Escape does the same."))
@@ -175,7 +196,7 @@ struct PromptCard: View {
                     .truncationMode(.middle)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
-                Text(verbatim: key).font(.caption2.monospaced()).opacity(0.6)
+                Text(verbatim: key).font(.caption2.monospaced()).opacity(Self.hintOpacity(look))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -246,7 +267,7 @@ struct PromptCard: View {
                             Image(systemName: picked.contains(index) ? "checkmark.circle.fill" : "circle").font(.callout)
                         }
                         if let key {
-                            Text(verbatim: key).font(.caption2.monospaced()).opacity(0.6)
+                            Text(verbatim: key).font(.caption2.monospaced()).opacity(Self.hintOpacity(look))
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -304,6 +325,121 @@ struct PromptCard: View {
         return answers
     }
 
+    // MARK: - An MCP server's form
+
+    /// One button of a form: the field it fills, the value it sends, its words and its key (⌘1…⌘9, numbered across
+    /// the whole form in the order the fields are drawn; the form is only answerable here when that is enough).
+    struct ElicitationChoice: Equatable, Sendable {
+        let field: String
+        let value: ElicitationValue
+        let label: String
+        let key: Int?
+    }
+
+    /// Every button a form draws, field by field: a choice's options as the server listed them, a yes-or-no as Yes
+    /// and No.
+    static func elicitationChoices(_ form: PendingRequest.Elicitation) -> [[ElicitationChoice]] {
+        var number = 0
+        return form.fields.map { field in
+            let values: [(ElicitationValue, String)] = switch field.kind {
+            case .choice(let options): options.map { (.choice($0.value), $0.label) }
+            case .toggle: [(.flag(true), L("Yes")), (.flag(false), L("No"))]
+            }
+            return values.map { value, label in
+                number += 1
+                return ElicitationChoice(field: field.key, value: value, label: label, key: number <= 9 ? number : nil)
+            }
+        }
+    }
+
+    /// The accept the form's values make, or nil while a required field has none. Only the form's own fields go.
+    static func elicitationAnswer(_ form: PendingRequest.Elicitation, filled: [String: ElicitationValue]) -> ElicitationAnswer? {
+        let keys = Set(form.fields.map(\.key))
+        guard form.fields.filter(\.required).allSatisfy({ filled[$0.key] != nil }) else { return nil }
+        return .accept(filled.filter { keys.contains($0.key) })
+    }
+
+    /// A form of one field is answered by the click on its value, the way a single question is; a longer form is
+    /// filled in and sent, and a form with no fields is a confirmation, accepted or declined.
+    static func answersOnClick(_ form: PendingRequest.Elicitation) -> Bool { form.fields.count == 1 }
+
+    @ViewBuilder
+    private func elicitationBody(_ form: PendingRequest.Elicitation) -> some View {
+        let choices = Self.elicitationChoices(form)
+        ForEach(Array(form.fields.enumerated()), id: \.offset) { index, field in
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(verbatim: field.title).font(.caption.weight(.semibold))
+                    if !field.required { Text(L("optional")).modifier(Caption()) }
+                }
+                if let detail = field.detail {
+                    Text(verbatim: detail).modifier(Caption()).fixedSize(horizontal: false, vertical: true)
+                }
+                ForEach(Array(choices[index].enumerated()), id: \.offset) { _, choice in
+                    elicitationButton(choice, form: form)
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(field.title)
+        }
+        HStack(spacing: 8) {
+            Button { decide(request.id, .elicitation(.decline)) } label: { buttonLabel(L("Decline"), key: "⌘N") }
+                .buttonStyle(PromptButtonStyle(filled: false))
+                .keyboardShortcut("n", modifiers: .command)
+                .help(L("Decline (⌘N)"))
+                .accessibilityLabel(L("Decline (⌘N)"))
+                .accessibilityHint(L("Tells the server no, and the tool call goes on without the input."))
+            if form.fields.isEmpty {
+                Button { decide(request.id, .elicitation(.accept([:]))) } label: { buttonLabel(L("Accept"), key: "⌘Y") }
+                    .buttonStyle(PromptButtonStyle(filled: true))
+                    .keyboardShortcut("y", modifiers: .command)
+                    .help(L("Accept (⌘Y)"))
+                    .accessibilityLabel(L("Accept (⌘Y)"))
+            } else if !Self.answersOnClick(form) {
+                let answer = Self.elicitationAnswer(form, filled: filled)
+                Button { if let answer { decide(request.id, .elicitation(answer)) } } label: { buttonLabel(L("Send"), key: "⌘↩") }
+                    .buttonStyle(PromptButtonStyle(filled: true))
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .disabled(answer == nil)
+                    .help(L("Send (⌘↩)"))
+                    .accessibilityLabel(L("Send (⌘↩)"))
+            }
+        }
+    }
+
+    private func elicitationButton(_ choice: ElicitationChoice, form: PendingRequest.Elicitation) -> some View {
+        let selected = filled[choice.field] == choice.value
+        let button = Button {
+            if Self.answersOnClick(form) {
+                decide(request.id, .elicitation(.accept([choice.field: choice.value])))
+            } else {
+                filled[choice.field] = choice.value
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Text(verbatim: choice.label).font(.callout.weight(.semibold))
+                Spacer(minLength: 0)
+                if !Self.answersOnClick(form) {
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle").font(.callout)
+                }
+                if let key = choice.key {
+                    Text(verbatim: "⌘\(key)").font(.caption2.monospaced()).opacity(0.6)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(PromptButtonStyle(filled: selected, leading: true))
+        .accessibilityLabel(choice.label)
+        .accessibilityValue(Self.answersOnClick(form) ? "" : (selected ? L("Selected") : L("Not selected")))
+        return Group {
+            if let key = choice.key {
+                button.keyboardShortcut(KeyEquivalent(Character("\(key)")), modifiers: .command)
+            } else {
+                button
+            }
+        }
+    }
+
     /// The excerpt's lines, each with the tint its first two characters ask for: `- ` is what an edit removes
     /// (the vermillion), `+ ` what it adds (the green); everything else is plain. At most `detailLineCap`.
     static func lines(of detail: String) -> [DetailLine] {
@@ -346,17 +482,18 @@ struct PromptCard: View {
                 }
             }
             .padding(6)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.black.opacity(0.35)))
+            // A well darker than the card on the black panel, lighter than it on Paper: the ground's colour either way.
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Themed.wash(.black, 0.35)))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(L("Detail"))
             .accessibilityValue(lines.prefix(PromptCard.detailLinesShown).map(\.text).joined(separator: "\n"))
         }
 
-        private func colour(_ tint: DetailLine.Tint) -> Color {
+        private func colour(_ tint: DetailLine.Tint) -> Themed {
             switch tint {
-            case .plain: .white
-            case .removed: Palette.danger
-            case .added: Palette.pine
+            case .plain: Themed(.white, .text)
+            case .removed: Themed(Palette.danger, .text)
+            case .added: Themed(Palette.pine, .text)
             }
         }
     }
@@ -372,7 +509,7 @@ struct Chip: View {
             .lineLimit(1)
             .truncationMode(.middle)
             .padding(.horizontal, 5).padding(.vertical, 1.5)
-            .background(Capsule().fill(.white.opacity(0.14)))
+            .background(Capsule().fill(Themed.wash(.white, 0.14)))
     }
 }
 
@@ -382,6 +519,13 @@ struct PromptButtonStyle: ButtonStyle {
     var filled: Bool
     /// Left-aligned label for an option button, centred for Allow, Deny and Send.
     var leading = false
+    /// A Send with nothing chosen yet (a multi-select, an MCP form missing a required field) is drawn faded, so
+    /// the filled white that means "the answer that goes ahead" is not shown on a button that cannot go.
+    @Environment(\.isEnabled) private var isEnabled
+
+    /// How much of the button is left while it is disabled: enough to read the word, plainly less than a button
+    /// that goes (the 0.7 a press dips to is the nearest neighbour, and a disabled one sits well under it).
+    static let disabledOpacity = 0.45
 
     func makeBody(configuration: Configuration) -> some View {
         let contrast = AccessibilityDisplay.shared.contrast
@@ -390,10 +534,12 @@ struct PromptButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, alignment: leading ? .leading : .center)
             .padding(.vertical, 7)
             .padding(.horizontal, 10)
+            // The ink and the ground, so the filled answer is inverted on either face: white on black on the black
+            // panel, ink with paper-coloured words on Paper.
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(filled ? Color.white : Color.white.opacity(contrast ? 0.22 : 0.1)))
-            .foregroundStyle(filled ? Color.black : Color.white)
-            .opacity(configuration.isPressed ? 0.7 : 1)
+                .fill(filled ? Themed(.white) : Themed.wash(.white, contrast ? 0.22 : 0.1)))
+            .foregroundStyle(Themed(filled ? .black : .white, .text))
+            .opacity(!isEnabled ? Self.disabledOpacity : configuration.isPressed ? 0.7 : 1)
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }

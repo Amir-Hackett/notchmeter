@@ -8,6 +8,8 @@ enum DemoFixtures {
     /// The Welcome tour's previews, which run inside the app rather than in a render: a suite of their own so a
     /// tour open while `--render-assets` runs from the same account cannot have its preferences emptied under it.
     static let previewSuiteName = "com.amirhackett.notchmeter.welcome-preview"
+    /// Settings › Appearance › Theme's preview, for the same reason: the tour and Settings can both be open.
+    static let themePreviewSuiteName = "com.amirhackett.notchmeter.theme-preview"
 
     /// What the hook is reporting while a picture is drawn. A tool has one ring and `ToolSignal.resolve` gives a
     /// wait the better claim on it, so the two states cannot both be true of Claude Code at one instant and no
@@ -33,10 +35,29 @@ enum DemoFixtures {
         /// it explains the rings before it explains the marks, and a dot it has not yet named would be a question
         /// the page cannot answer.
         case working
+        /// The first launch, before any hook is installed (0.9.0): the sessions the scan found running without one
+        /// (SessionDetection), each marked detected, and the card's line offering the hook. A detected session
+        /// never waits and no turn's end is seen, so no ring carries a mark.
+        case firstLaunch
+        /// What Claude Code's 0.11 events put on the Sessions card (Hook+Events.swift), across three sessions: the
+        /// notchmeter session in a worktree, compacting by itself at 94 %, fallen back from Opus to Sonnet and
+        /// twice refused by auto mode; scout, whose last five tool calls failed in a row, with two teammates idle;
+        /// and atlas, waiting on an MCP server's sign-in that only the terminal can answer. For review
+        /// (`hook-events.png`); nothing in the README uses it.
+        case hookEvents
+        /// An MCP server's form a click can answer, held for the notch like a permission request
+        /// (`elicitation.png`, for review).
+        case elicitation
+        /// Both turns over, the notchmeter one three minutes ago: twice `ToolSignal.heldFor` past its finish, so
+        /// nothing is lit and every session idles. The closed notch's quiet phase, for the symbols mode while
+        /// nothing runs, where the hollow ring under an idle assistant is the picture.
+        case idle
     }
 
+    /// `cowork` adds two Claude Cowork tasks to the afternoon (`coworkTasks`), for `cowork.png` and
+    /// `cowork-news.png`; the README's own pictures leave them out, so they stay the pictures they were.
     @MainActor
-    static func store(now: Date = Date(), moment: Moment = .waiting, suite: String = suiteName) -> (store: UsageStore, prefs: Preferences) {
+    static func store(now: Date = Date(), moment: Moment = .waiting, cowork: Bool = false, suite: String = suiteName) -> (store: UsageStore, prefs: Preferences) {
         // A suite nothing writes to. The registration domain lives in memory only, so the countdown style the
         // pictures rely on is neither read from nor written to the user's own preferences. Peak hours are off: the
         // window is read against the wall clock, so a render during it grew an advice line and a footer word that
@@ -49,12 +70,16 @@ enum DemoFixtures {
         let readings = readings(now: now)
         let store = UsageStore(prefs: prefs, providers: readings.map { FixtureProvider(reading: $0) },
                                cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
+        var tracker = sessions(now: now, moment: moment)
+        if cowork { coworkTasks(into: &tracker, now: now) }
         store.seed(readings: readings, cost: cost(now: now), nextUpdate: now.addingTimeInterval(2 * 60 + 40),
-                   sessions: sessions(now: now, moment: moment), now: now)
-        // The afternoon has the Claude Code hook installed, which is what keeps the Sessions card on the panel.
-        store.hooksInstalled = true
+                   sessions: tracker, now: now)
+        // The afternoon has the Claude Code hook installed, which is what keeps the Sessions card on the panel; the
+        // first launch has none, and the card is there for the sessions the scan found.
+        store.hooksInstalled = moment != .firstLaunch
+        store.hookInstalledTools = moment == .firstLaunch ? [] : [.claude]
         // The task list open on the notchmeter row, so the pictures show the checklist and not only its count.
-        store.openSessionLists = [SessionsCard.listKey("notchmeter", .todos)]
+        store.openSessionLists = moment == .firstLaunch ? [] : [SessionsCard.listKey("notchmeter", .todos)]
         return (store, prefs)
     }
 
@@ -72,7 +97,13 @@ enum DemoFixtures {
     /// waiting in notchmeter" rather than "1 session", which is the count the README claims the hook keeps; its
     /// own turn ended six minutes ago, far outside the hold, so it adds nothing to the ring in either moment.
     static func sessions(now: Date, moment: Moment) -> SessionTracker {
+        if moment == .firstLaunch { return detectedSessions(now: now) }
         var tracker = SessionTracker()
+        // The hook-events moment is three sessions of its own, replayed whole (`hookEvents`).
+        if moment == .hookEvents {
+            hookEvents(&tracker, now: now)
+            return tracker
+        }
         func send(_ event: String, _ ago: TimeInterval, session: String, project: String, branch: String, type: String? = nil, title: String? = nil) {
             var message = Hook.Message(event: event, needsInput: Hook.needsInput(event: event, notificationType: type),
                                        sessionID: session, project: project, notificationType: type, branch: branch)
@@ -155,8 +186,119 @@ enum DemoFixtures {
         case .working:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+        case .firstLaunch:
+            break
+        case .hookEvents:
+            break
+        case .elicitation:
+            send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
+            send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            busy()
+            var message = Hook.Message(event: "Elicitation", needsInput: true, sessionID: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
+            message.mcpServer = "deploybot"
+            message.request = Hook.Request(id: requestID, kind: .elicitation(elicitationForm))
+            tracker.apply(message, now: now.addingTimeInterval(-35))
+        case .idle:
+            send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
+            send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
+            send("Stop", 3 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch")
         }
         return tracker
+    }
+
+    /// Three sessions a first launch finds without any hook, fed through `SessionTracker.statusline` and
+    /// `SessionTracker.detected` as the status line and a scan hand them over rather than set field by field, so
+    /// the picture is a state the merge can reach: Claude Code working in notchmeter under its own session id, with
+    /// the title and model its transcript carries; Codex idle in scout under its process, with nothing read of its
+    /// files; and a second Claude Code in scout that only the status line has reported (the Welcome flow installs
+    /// the status line even when the hook is declined), idle by the scan's guess, with the context fill and model
+    /// the status line gave it. All in a terminal the jump can reach.
+    static func detectedSessions(now: Date) -> SessionTracker {
+        var tracker = SessionTracker()
+        tracker.statusline(sessionID: statuslineSessionID, project: "scout", branch: "main", model: "Opus", contextUsed: 0.31,
+                           now: now.addingTimeInterval(-(2 * 60 + 5)))
+        tracker.detected([
+            DetectedSession(key: statuslineSessionID, tool: .claude, exact: true, project: "scout", branch: "main", model: "Opus 5.5",
+                            started: now.addingTimeInterval(-25 * 60), lastActivity: now.addingTimeInterval(-(2 * 60 + 5)), busy: false,
+                            terminal: TerminalRef(bundleID: "com.apple.Terminal", tty: "/dev/ttys005")),
+            DetectedSession(key: "5f0c1e2a-7b3d-4c8e-9a61-0d2f4b6c8e10", tool: .claude, exact: true, project: "notchmeter", branch: "feat/zero-config",
+                            model: "Opus 5.5", name: detectedTitle, started: now.addingTimeInterval(-41 * 60), lastActivity: now, busy: true,
+                            busySince: now.addingTimeInterval(-(3 * 60 + 12)),
+                            terminal: TerminalRef(bundleID: "com.googlecode.iterm2", tty: "/dev/ttys006")),
+            DetectedSession(key: SessionTracker.key(tool: .codex, session: "\(SessionDetection.processKeyMarker)4211-1790240000", host: nil),
+                            tool: .codex, exact: false, project: "scout", branch: "main", started: now.addingTimeInterval(-2 * 3600),
+                            lastActivity: now.addingTimeInterval(-(7 * 60 + 30)), busy: false,
+                            terminal: TerminalRef(bundleID: "com.apple.Terminal", tty: "/dev/ttys003")),
+        ], now: now)
+        return tracker
+    }
+
+    /// The form the elicitation moment holds: a choice and a yes-or-no, the kind a click can answer.
+    static let elicitationForm = PendingRequest.Elicitation(
+        server: "deploybot", message: "Where should the preview build go?",
+        fields: [
+            .init(key: "environment", title: "Environment", detail: nil, kind: .choice([
+                .init(value: "staging", label: "Staging"), .init(value: "preview", label: "Preview"), .init(value: "production", label: "Production"),
+            ]), required: true),
+            .init(key: "notify", title: "Tell the channel", detail: "Posts the link in #releases", kind: .toggle, required: false),
+        ])
+
+    /// The hook-events moment's three sessions, replayed as Claude Code's hook and status line send them. Each event
+    /// is laid down with its age and the whole list played oldest first, across the three sessions, because `apply`
+    /// expires against the clock it is handed (the note above `sessions`).
+    private static func hookEvents(_ tracker: inout SessionTracker, now: Date) {
+        var events: [(ago: TimeInterval, play: (inout SessionTracker, Date) -> Void)] = []
+        func send(_ ago: TimeInterval, _ event: String, _ session: String, branch: String = "main", worktree: Bool = false,
+                  _ configure: (inout Hook.Message) -> Void = { _ in }) {
+            var message = Hook.Message(event: event, needsInput: Hook.needsInput(event: event, notificationType: nil), sessionID: session,
+                                       project: session, branch: branch)
+            message.worktree = worktree
+            configure(&message)
+            let built = message
+            events.append((ago, { tracker, date in tracker.apply(built, now: date) }))
+        }
+        let notchmeter = (branch: "feat/hook-events", worktree: true)
+        send(20 * 60, "SessionStart", "notchmeter", branch: notchmeter.branch, worktree: notchmeter.worktree) {
+            $0.terminal = TerminalRef(program: "iTerm.app", bundleID: "com.googlecode.iterm2", tty: "/dev/ttys004")
+        }
+        send(12 * 60, "UserPromptSubmit", "notchmeter", branch: notchmeter.branch, worktree: notchmeter.worktree) {
+            $0.title = "Subscribe to the hook events nobody is using"
+        }
+        send(9 * 60, "PostModelSwitch", "notchmeter", branch: notchmeter.branch, worktree: notchmeter.worktree) {
+            $0.modelSwitch = ModelSwitch(from: "claude-opus-5", to: "claude-sonnet-5", source: .auto)
+        }
+        for (tool, ago) in [("Bash", 7.0 * 60), ("WebFetch", 4.0 * 60)] {
+            send(ago, "PermissionDenied", "notchmeter", branch: notchmeter.branch, worktree: notchmeter.worktree) { $0.denial = Denial(tool: tool, kind: .rule) }
+        }
+        events.append((80, { tracker, date in tracker.statusline(sessionID: "notchmeter", project: "notchmeter", contextUsed: 0.94, now: date) }))
+        send(20, "PreCompact", "notchmeter", branch: notchmeter.branch, worktree: notchmeter.worktree) { $0.compaction = .auto }
+
+        send(18 * 60, "SessionStart", "scout") {
+            $0.terminal = TerminalRef(program: "iTerm.app", bundleID: "com.googlecode.iterm2", tty: "/dev/ttys002")
+        }
+        send(10 * 60, "UserPromptSubmit", "scout") { $0.title = scoutTitle }
+        send(6 * 60, "TeammateIdle", "scout") { $0.teammate = Teammate(key: "researcher", name: "researcher") }
+        send(3 * 60, "TeammateIdle", "scout") { $0.teammate = Teammate(key: "fact-checker", name: "fact-checker") }
+        // Five failed calls across three batches, none of which succeeded: the run that makes a session look stuck.
+        var ago = 150.0
+        for calls in [2, 2, 1] {
+            for _ in 0..<calls {
+                send(ago, "PostToolUseFailure", "scout") { $0.toolFailure = ToolFailure(tool: "Bash", interrupt: false) }
+                ago -= 10
+            }
+            send(ago, Hook.batchEvent, "scout") { $0.batchSize = calls }
+            ago -= 10
+        }
+
+        send(9 * 60, "SessionStart", "atlas") {
+            $0.terminal = TerminalRef(program: "Apple_Terminal", bundleID: "com.apple.Terminal", tty: "/dev/ttys006")
+        }
+        send(5 * 60, "UserPromptSubmit", "atlas") { $0.title = "File the release checklist in Linear" }
+        send(15, "Elicitation", "atlas") { $0.mcpServer = "linear" }
+
+        for event in events.sorted(by: { $0.ago > $1.ago }) {
+            event.play(&tracker, now.addingTimeInterval(-event.ago))
+        }
     }
 
     /// The news the moment's last hook event raises (NotchNews.from), for the notch's peek and glow: the
@@ -171,15 +313,94 @@ enum DemoFixtures {
         case .waiting, .permissionRequest: reason = .approval
         case .question: reason = .question
         case .justFinished: reason = .finished
-        case .working: return nil
+        case .working, .firstLaunch, .idle: return nil
+        case .hookEvents: reason = .compacting
+        case .elicitation: reason = .input
         }
         return NotchNews(reason: reason, sessionID: session.id, tool: session.tool, project: session.project, at: now)
+    }
+
+    /// Two Claude Cowork tasks, put on the tracker the way the watch puts them there (SessionTracker.observeCowork),
+    /// from two reads thirty seconds apart, so the state drawn is the rule's own answer: the research task is still
+    /// running, its log written four seconds ago; the ticket summary was running at the first read and its log's
+    /// end line, twelve seconds ago, ended a turn of 7m 8s by the time of the second.
+    static func coworkTasks(into tracker: inout SessionTracker, now: Date) {
+        let researchBegan = now.addingTimeInterval(-(3 * 60 + 12))
+        let ticketsBegan = now.addingTimeInterval(-(7 * 60 + 20))
+        func research(_ lastWrite: TimeInterval) -> CoworkSessions.Observation {
+            CoworkSessions.Observation(id: coworkResearch, title: coworkResearchTitle, project: "Research", lastWrite: now.addingTimeInterval(-lastWrite),
+                                       turn: CoworkSessions.Turn(began: researchBegan, end: nil, open: true))
+        }
+        let ticketsTitle = "Summarise last week's support tickets"
+        tracker.observeCowork([
+            research(33),
+            CoworkSessions.Observation(id: coworkTickets, title: ticketsTitle, project: "Support", lastWrite: now.addingTimeInterval(-34),
+                                       turn: CoworkSessions.Turn(began: ticketsBegan, end: nil, open: true)),
+        ], now: now.addingTimeInterval(-30))
+        let ended = CoworkSessions.Turn.End(at: now.addingTimeInterval(-12), duration: 7 * 60 + 8, failed: false)
+        tracker.observeCowork([
+            research(4),
+            CoworkSessions.Observation(id: coworkTickets, title: ticketsTitle, project: "Support", lastWrite: now.addingTimeInterval(-12),
+                                       turn: CoworkSessions.Turn(began: ticketsBegan, end: ended, open: false)),
+        ], now: now)
+    }
+
+    /// The news the ticket summary's finish raised (NotchNews.finished), read off the tracker like `news(in:)`.
+    @MainActor
+    static func coworkNews(in store: UsageStore, now: Date) -> NotchNews? {
+        guard let session = store.sessions.sessions[CoworkSessions.key(coworkTickets)], let finished = session.finished else { return nil }
+        return NotchNews.finished(session, turn: finished.turn, now: now)
+    }
+
+    static let coworkResearch = "local_0d3f7a52-demo-research"
+    static let coworkTickets = "local_5b8e21c4-demo-tickets"
+    static let coworkResearchTitle = "Compare the three vendors' pricing pages"
+
+
+    /// A busier afternoon for the panel's own controls (`AssetRenderer.panelControls`): seven sessions across three
+    /// projects, more than the four rows the picture asks for, so the card counts the rest as "+3 more", and every
+    /// one titled so a row led by its project has a title to put under it. Built from hook events like `sessions`,
+    /// one working turn in each project and the rest idle, and nothing waiting, so the closed notch is in its work
+    /// phase without a wait making the rings urgent.
+    static func crowdedSessions(now: Date) -> SessionTracker {
+        var tracker = SessionTracker()
+        let rows: [(session: String, project: String, branch: String, title: String, working: Bool)] = [
+            ("n1", "notchmeter", "feat/panel-controls", "Scroll a ring to change its window", true),
+            ("n2", "notchmeter", "fix/week-strip", "Draw the last seven days on the Cost row", false),
+            ("n3", "notchmeter", "main", "Tag the 0.9.0 release notes", false),
+            ("s1", "scout", "main", "Draft the Friday sports recap", true),
+            ("s2", "scout", "feat/budget", "Reconcile the budget snapshot", false),
+            ("w1", "site", "guides", "Write the accuracy guide page", true),
+            ("w2", "site", "main", "Fix the pricing page's footnote", false),
+        ]
+        // Collected first and replayed oldest first: `apply` expires against the clock it is handed, so the events of
+        // seven sessions have to reach it in the order they happened rather than one session at a time.
+        var events: [(ago: TimeInterval, message: Hook.Message)] = []
+        for (index, row) in rows.enumerated() {
+            let base = TimeInterval((rows.count - index) * 60 + 600)
+            func add(_ event: String, _ ago: TimeInterval, title: String? = nil) {
+                var message = Hook.Message(event: event, needsInput: false, sessionID: row.session, project: row.project, branch: row.branch)
+                message.title = title
+                events.append((ago, message))
+            }
+            add("SessionStart", base)
+            add("UserPromptSubmit", base - 30, title: row.title)
+            if !row.working { add("Stop", base - 400) }
+        }
+        for event in events.sorted(by: { $0.ago > $1.ago }) {
+            tracker.apply(event.message, now: now.addingTimeInterval(-event.ago))
+        }
+        return tracker
     }
 
     /// The request id the two request moments carry, so a test or a renderer can address it.
     static let requestID = "demo-request"
     static let notchmeterTitle = "Add a Sessions card between the advice and the tool cards"
     static let scoutTitle = "Draft the Friday sports recap"
+    /// Claude Code's own title for the first launch's session, as its transcript carries it.
+    static let detectedTitle = "Find sessions without the hook"
+    /// The first launch's session that only the status line has reported.
+    static let statuslineSessionID = "9b4d7a3e-2c1f-4e6a-8d05-3f7b9c1e2a44"
     /// The notchmeter session's task list, as Claude Code's Task tools would leave it partway through the turn.
     static let todoItems = [
         TodoPlan.Item(content: "Read the Sessions card and its tests", status: .completed),
@@ -187,6 +408,53 @@ enum DemoFixtures {
         TodoPlan.Item(content: "Draw the context gauge on each row", status: .inProgress),
     ]
 
+
+    // MARK: - Send Feedback
+
+    /// The Mac the Send Feedback picture is of: a home folder and an account name that are not the renderer's,
+    /// which the sheet replaces the way it replaces the real ones.
+    static let home = "/Users/sam"
+    static let account = "sam"
+    /// A message that names what a real one would: a project, its branch and a path under the home folder, so the
+    /// picture shows each replaced.
+    static let feedbackMessage = "The scout row stayed on the Sessions card after I closed its terminal.\n\nSeen on feat/side-notch, with the session started in /Users/sam/Developer/scout."
+    /// The version line the picture carries, fixed so a developer build's stamp does not change the picture.
+    static let feedbackAbout = Feedback.about(version: AppInfo.version, macOS: "Version 26.0 (Build 25A354)", language: "en")
+    /// The instant the picture's report is stamped with (2026-09-24T20:00:00Z, four o'clock on the fixture
+    /// afternoon), fixed for the same reason: the report's first line carries it, and the clock would make every
+    /// render a different picture.
+    static let feedbackStamp = Date(timeIntervalSince1970: 1_790_280_000)
+
+    /// A Copy diagnostics report for the fixture afternoon, as `Diagnostics.report` writes one, with the home
+    /// folder and the projects in it for the sheet to replace. `extraLines` pads the log with the rescans a busy
+    /// ten minutes writes, for the picture of a report too long for a link.
+    static func diagnostics(now: Date, extraLines: Int = 0) -> String {
+        var facts = Diagnostics.Facts()
+        facts.version = AppInfo.version
+        facts.macOS = "Version 26.0 (Build 25A354)"
+        facts.edge = PanelEdge.top.rawValue
+        facts.display = DisplayChoice.builtIn.rawValue
+        facts.visibility = NotchVisibility.onHover.rawValue
+        facts.screens = ["Built-in Retina Display frame=(0.0, 0.0, 1512.0, 982.0) notch=true main=true"]
+        facts.tools = [("Claude", "ready (Max 5x) · Session 14% · Weekly 4%"), ("Codex", "ready (Free)"), ("Cursor", "ready (Free)"),
+                       ("Antigravity", "not installed"), ("Copilot", "not installed")]
+        facts.hook = "claude: Installed · pointing at /Applications/\(AppInfo.name).app; codex: Not installed; cursor: Not installed"
+        facts.statusline = "Installed · pointing at /Applications/\(AppInfo.name).app"
+        var lines = [
+            "15:48:02 [usage] hook SessionStart",
+            "15:48:03 [cost] rescanned \(home)/.claude/projects/-Users-sam-Developer-scout (1 file changed)",
+            "15:51:10 [usage] Claude usage -> ready (Max 5x)",
+        ]
+        for index in 0..<extraLines {
+            lines.append(String(format: "15:%02d:%02d [cost] rescanned %@/.claude/projects/-Users-sam-Developer-scout (1 file changed)",
+                                52 + index / 60 % 8, index % 60, home))
+        }
+        lines += [
+            "15:59:31 [usage] hook Stop",
+            "15:59:32 [jump] jump applescript for scout did not land",
+        ]
+        return Diagnostics.report(facts, log: lines, now: now, home: home)
+    }
 
     /// Claude on Max 5x a third of the way into a quiet session, Codex on a free plan with an untouched monthly
     /// window, Cursor on a free plan with nothing to meter: every ring under 40 % and on pace.
@@ -224,6 +492,33 @@ enum DemoFixtures {
         ]
     }
 
+    /// A week of the drain log for the Fable window the reading above carries, for the usage card's one line
+    /// (ShareCardAdvice.peak): the window climbed to 91 % over the four days before its weekly reset, two and a
+    /// half days ago, and has read a few per cent since, which is where the reading puts it now. Hourly rows, the
+    /// way a five-minute poll of a moving figure leaves them; nothing here is a token or a session.
+    static func drainSamples(now: Date) -> [DrainLog.Key: [DrainSample]] {
+        let reset = now.addingTimeInterval(-(2 * 86_400 + 12 * 3600))
+        let sinceReset = now.timeIntervalSince(reset)
+        var samples: [DrainSample] = []
+        for hour in stride(from: -7 * 24, through: 0, by: 1) {
+            let t = now.addingTimeInterval(TimeInterval(hour) * 3600)
+            let used: Double
+            if t < reset {
+                // Four days of climbing to the peak, which the last hourly row before the reset holds at 91 %.
+                let climb = min(1, max(0, t.timeIntervalSince(reset.addingTimeInterval(-97 * 3600)) / (96 * 3600)))
+                used = 0.08 + 0.83 * climb
+            } else {
+                used = 0.01 + 0.05 * t.timeIntervalSince(reset) / sinceReset
+            }
+            samples.append(DrainSample(t: t, used: used, resetsAt: t < reset ? reset : reset.addingTimeInterval(Period.week)))
+        }
+        return [DrainLog.Key(tool: .claude, window: "scoped_fable"): samples]
+    }
+
+    /// The published day of the catalog the pictures show in force: the day the tables were last read from the
+    /// vendors' pages, so the fixture claims no catalog newer than the one in the repository.
+    static let catalogDay = ModelPricing.snapshotDate
+
     /// $6,600 over 30 days of Claude Code with quiet weekends, a heavy $548.76 yesterday and $118.31 so far
     /// today, beside a Cursor export at a ninth of it. The last hour ran at 3.2x the 30-day average active hour,
     /// which is what puts a line in the Advice strip.
@@ -247,12 +542,17 @@ enum DemoFixtures {
             guard let day = calendar.date(byAdding: .day, value: offset - 29, to: start) else { continue }
             let cost = offset == 29 ? today : offset == 28 ? yesterday : weights[offset] * perWeight
             let tokens = Int(cost * 62_000)
+            // Priced by the build's table throughout and, over the last ten days, by a catalog entry that updated
+            // one of its rows: the two sources a month of transcripts ordinarily meets, so every range's price
+            // line is in the pictures.
+            let priceSources: Set<PriceSource> = offset >= 20 ? [.builtIn(ModelPricing.snapshotDate), .catalog(catalogDay)] : [.builtIn(ModelPricing.snapshotDate)]
             days[day] = CostHistory.Record(
                 cost: cost,
                 tokens: TokenBreakdown(input: tokens / 60, cacheWrite5m: tokens / 40, cacheWrite1h: tokens / 20,
                                        cacheRead: tokens - tokens / 60 - tokens / 40 - tokens / 20 - tokens / 100, output: tokens / 100),
                 byModel: models.mapValues { $0 * cost }, byProject: projects.mapValues { $0 * cost },
-                byModelTokens: models.mapValues { Int($0 * Double(tokens)) }, byProjectTokens: projects.mapValues { Int($0 * Double(tokens)) })
+                byModelTokens: models.mapValues { Int($0 * Double(tokens)) }, byProjectTokens: projects.mapValues { Int($0 * Double(tokens)) },
+                priceSources: priceSources)
         }
         // Cursor's own export, day-resolution, so it reports no hour of its own.
         let cursorDays = days.mapValues { record in
@@ -270,6 +570,184 @@ enum DemoFixtures {
                                week: WeekCost(start: weekStart, cost: 903, perPercent: 12.4),
                                firstUse: calendar.date(byAdding: .day, value: -212, to: start), sinceFirstUse: 41_300)
         return base.adding([claude, cursor].compactMap { $0 })
+    }
+
+    /// *Fetch today's rate* as it reads with a request answered two hours ago: the rates the ECB published for
+    /// 2026-09-24 (a few of its currencies, and the dollar every one is crossed through), dated `daysAgo` days
+    /// before the render, one by default so that a picture drawn next year is not of a rate a week out of use, and
+    /// past the week for the picture of a rate kept stale. Never fetched.
+    static func referenceRates(now: Date, daysAgo: Int = 1) -> ReferenceRates {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let then = utc.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+        let parts = utc.dateComponents([.year, .month, .day], from: then)
+        let day = String(format: "%04ld-%02ld-%02ld", parts.year ?? 2026, parts.month ?? 9, parts.day ?? 24)
+        return ReferenceRates(day: day, perEuro: ["USD": 1.1367, "GBP": 0.85986, "JPY": 180.57, "CHF": 0.9409, "KRW": 1555.69, "CNY": 7.6302],
+                              fetchedAt: now.addingTimeInterval(-2 * 3600 - Double(daysAgo - 1) * 86400))
+    }
+
+    // MARK: - OpenCode
+
+    /// The OpenCode afternoon `--render-assets` draws beside the README's: Claude Code on Max as above, and OpenCode on
+    /// the Go plan with no plugin installed. Every OpenCode figure comes from synthetic turns run through the code the
+    /// app uses — GoMeter for the meter, OpenCodeCostScanner's digest for the spend, OpenCodeSessions and the tracker for
+    /// the sessions — so a change to any rule changes the picture, and a figure the rules cannot produce cannot be drawn.
+    @MainActor
+    static func openCodeStore(now: Date = Date(), suite: String = suiteName) -> (store: UsageStore, prefs: Preferences) {
+        UserDefaults.standard.removePersistentDomain(forName: suite)
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
+        defaults.register(defaults: ["resetDisplay": ResetDisplay.countdown.rawValue, "peakHoursTools": [String]()])
+        let prefs = Preferences(defaults: defaults)
+        prefs.toolOrder = [.opencode, .claude, .codex, .cursor, .antigravity, .copilot]
+        prefs.settingsExpandedTools = [.opencode]
+        let usage = openCodeUsage(now: now)
+        var readings = Array(readings(now: now).prefix(1))
+        if let go = GoMeter.reading(usage, now: now) { readings.append(go) }
+        let store = UsageStore(prefs: prefs, providers: readings.map { FixtureProvider(reading: $0) },
+                               cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
+        store.seed(readings: readings, cost: openCodeCost(usage, now: now), nextUpdate: now.addingTimeInterval(2 * 60 + 40),
+                   sessions: openCodeSessions(now: now), now: now)
+        store.hooksInstalled = true
+        return (store, prefs)
+    }
+
+    /// A month of OpenCode turns: Kimi K3 and GLM-5.2 on Go, steady through the month and busier this afternoon, and
+    /// Claude Sonnet 5 on an Anthropic key whose cost OpenCode recorded itself.
+    static func openCodeUsage(now: Date) -> [OpenCodeUsage] {
+        var turns: [OpenCodeUsage] = []
+        func turn(_ ago: TimeInterval, provider: String, model: String, input: Int, output: Int, read: Int, cost: Double = 0, folder: String) {
+            let index = turns.count
+            turns.append(OpenCodeUsage(id: "msg_demo_\(index)", sessionID: "ses_demo_\(index % 3)", timestamp: now.addingTimeInterval(-ago),
+                                       providerID: provider, modelID: model, directory: "/Users/demo/Developer/\(folder)",
+                                       tokens: TokenBreakdown(input: input, cacheRead: read, output: output), contextTokens: input + read,
+                                       recordedCost: cost))
+        }
+        // Kimi K3 ($3 in, $15 out per million): $0.54 a turn, three this afternoon (54 % of its $3 five hours), two on each
+        // of two days this week (50 % of $7.50) and of five days before it (61 % of $15 over the month).
+        for hour in [0.5, 1.5, 3.0] { turn(hour * 3600, provider: GoPlan.providerID, model: "kimi-k3", input: 80_000, output: 20_000, read: 0, folder: "api-server") }
+        for day in [3, 5, 9, 12, 16, 20, 24] {
+            for slot in 0..<2 { turn(Double(day) * 86_400 + Double(slot) * 3600, provider: GoPlan.providerID, model: "kimi-k3", input: 80_000, output: 20_000, read: 0, folder: "api-server") }
+        }
+        // GLM-5.2 ($1.40 in, $4.40 out): cheaper turns against a $60 limit.
+        for day in 0...25 {
+            turn(Double(day) * 86_400 + 5400, provider: GoPlan.providerID, model: "glm-5.2", input: 120_000, output: 30_000, read: 400_000, folder: "notchmeter")
+        }
+        for day in 0...12 {
+            turn(Double(day) * 86_400 + 7200, provider: "anthropic", model: "claude-sonnet-5", input: 40_000, output: 12_000, read: 300_000, cost: 0.26, folder: "notchmeter")
+        }
+        return turns
+    }
+
+    /// The Claude Code figures of `cost(now:)` with OpenCode's own row beside them.
+    static func openCodeCost(_ usage: [OpenCodeUsage], now: Date) -> CostSummary {
+        let calendar = Calendar.current
+        let weekStart = CostEngine.weekStart(weeklyResetsAt: nil, now: now, calendar: calendar)
+        let digest = OpenCodeCostScanner.digest(usage, now: now, calendar: calendar)
+        let opencode = ProviderCost.build(tool: .opencode, source: .localMessages, days: digest.days, now: now, weekStart: weekStart, calendar: calendar,
+                                          hourly: HourlyBurn(lastHour: digest.lastHour, costByHour: digest.costByHour), unpricedModels: digest.unpriced,
+                                          scannedAt: now)
+        return cost(now: now).adding([opencode].compactMap { $0 })
+    }
+
+    /// One OpenCode session mid-turn, read from the database the way `OpenCodeSessions` reads it, and one idle, beside
+    /// the Claude Code session of the working moment.
+    static func openCodeSessions(now: Date) -> SessionTracker {
+        var tracker = sessions(now: now, moment: .working)
+        let states = [
+            OpenCodeSessionState(id: "ses_api", parentID: nil, directory: "/Users/demo/Developer/api-server", title: "Paginate the audit log endpoint",
+                                 updated: now.addingTimeInterval(-20), archived: false, turn: .working(since: now.addingTimeInterval(-3 * 60 - 10))),
+            OpenCodeSessionState(id: "ses_docs", parentID: nil, directory: "/Users/demo/Developer/notchmeter", title: nil,
+                                 updated: now.addingTimeInterval(-7 * 60), archived: false,
+                                 turn: .idle(finishedAt: now.addingTimeInterval(-7 * 60), turnStarted: now.addingTimeInterval(-9 * 60), failure: nil)),
+        ]
+        let read = OpenCodeSessions.events(previous: nil, current: states, now: now, branch: { _ in "main" })
+        for event in read.events { tracker.apply(event.message, now: event.at) }
+        for (key, name) in OpenCodeSessions.names(states) { tracker.name(key, name) }
+        return tracker
+    }
+}
+
+extension DemoFixtures {
+    static let assistantsSuiteName = "com.amirhackett.notchmeter.render-assets.assistants"
+    static let geminiTitle = "Port the quota parser to the summary shape"
+    static let kimiTitle = "Write the migration tests for the split rows"
+
+    /// The rows 0.9.0 added, drawn for review (`--render-assets` writes `assistants*.png`) rather than folded into
+    /// the afternoon above, whose pictures the README uses: Gemini CLI and Antigravity as two rows, each read under
+    /// its own identity and each showing its own figures, and Kimi Code with its session, weekly and monthly
+    /// windows. A Gemini CLI session is held on a tool permission, the one wait its hook documents, and a Kimi Code
+    /// session is mid-turn, which is as much as Kimi's hook can say. Nothing else is installed on this Mac, so the
+    /// picture is the new rows alone.
+    @MainActor
+    static func assistantsStore(now: Date = Date()) -> (store: UsageStore, prefs: Preferences) {
+        UserDefaults.standard.removePersistentDomain(forName: assistantsSuiteName)
+        let defaults = UserDefaults(suiteName: assistantsSuiteName) ?? .standard
+        defaults.register(defaults: ["resetDisplay": ResetDisplay.countdown.rawValue, "peakHoursTools": [String]()])
+        let prefs = Preferences(defaults: defaults)
+        let readings = assistantReadings(now: now)
+        let store = UsageStore(prefs: prefs, providers: readings.map { FixtureProvider(reading: $0) },
+                               cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
+        let empty = CostSummary(today: 0, yesterday: 0, last30Days: 0, daily: [], lastHour: 0, typicalHourly: 0, burnMultiple: nil,
+                                unpricedModels: [], scannedAt: now)
+        store.seed(readings: readings, cost: empty, nextUpdate: now.addingTimeInterval(2 * 60 + 40), sessions: assistantSessions(now: now), now: now)
+        store.hooksInstalled = true
+        return (store, prefs)
+    }
+
+    /// Gemini CLI on a Standard seat, its per-model buckets with no declared length (so the first read can only
+    /// say what the reset suggests, `InferredPeriods`); Antigravity on Google AI Pro, from the summary its own
+    /// panel shows; Kimi Code with a five-hour window from its counts, the week from its summary row and the month
+    /// from its ratio pools. Resets sit mid-unit for the reason `readings(now:)` gives.
+    static func assistantReadings(now: Date) -> [UsageReading] {
+        let daySeconds: Int = 14 * 3600 + 30 * 60
+        let sessionSeconds: Int = 2 * 3600 + 11 * 60 + 30
+        let weekSeconds: Int = 3 * 86_400 + 8 * 3600 + 30 * 60
+        let monthSeconds: Int = 22 * 86_400 + 4 * 3600 + 30 * 60
+        let dayReset = now.addingTimeInterval(TimeInterval(daySeconds))
+        let sessionReset = now.addingTimeInterval(TimeInterval(sessionSeconds))
+        let weekReset = now.addingTimeInterval(TimeInterval(weekSeconds))
+        let monthReset = now.addingTimeInterval(TimeInterval(monthSeconds))
+        let gemini = InferredPeriods.apply(UsageReading(tool: .gemini, windows: [
+            LimitWindow(id: "gemini_pro", label: .vendor("Gemini Pro"), usedFraction: 0.42, resetsAt: dayReset, note: "Gemini 3 Pro · Gemini 2.5 Pro", model: "Gemini Pro"),
+            LimitWindow(id: "gemini_flash", label: .vendor("Gemini Flash"), usedFraction: 0.18, resetsAt: dayReset, model: "Gemini Flash"),
+        ], plan: "Standard", fetchedAt: now, observedAt: nil), resets: [:], now: now)
+        let antigravity = UsageReading(tool: .antigravity, windows: [
+            LimitWindow(id: "gemini_session", label: .scoped(model: "Gemini", of: .key("Session")), usedFraction: 0.35, resetsAt: sessionReset,
+                        periodDuration: Period.fiveHours, model: "Gemini"),
+            LimitWindow(id: "gemini_weekly", label: .scoped(model: "Gemini", of: .key("Weekly")), usedFraction: 0.22, resetsAt: weekReset,
+                        periodDuration: Period.week, model: "Gemini"),
+            LimitWindow(id: "claude_and_gpt_session", label: .scoped(model: "Claude and GPT", of: .key("Session")), usedFraction: 0.6, resetsAt: sessionReset,
+                        periodDuration: Period.fiveHours, model: "Claude and GPT"),
+        ], plan: "Google AI Pro", fetchedAt: now, observedAt: nil)
+        let kimi = UsageReading(tool: .kimi, windows: [
+            LimitWindow(id: "session", label: .key("Session"), usedFraction: 0.31, resetsAt: sessionReset, note: L("%1$ld of %2$ld left", 138, 200),
+                        periodDuration: Period.fiveHours),
+            LimitWindow(id: "weekly", label: .key("Weekly"), usedFraction: 0.1, resetsAt: weekReset, note: L("%1$ld of %2$ld left", 1843, 2048),
+                        periodDuration: Period.week),
+            LimitWindow(id: "monthly_total", label: .key("Monthly total"), usedFraction: 0.12, resetsAt: monthReset, periodDuration: Period.month),
+        ], plan: nil, fetchedAt: now, observedAt: nil)
+        return [gemini, antigravity, kimi]
+    }
+
+    /// One Gemini CLI session held on a tool permission forty seconds ago, and one Kimi Code session three minutes
+    /// into a turn, each replayed as its hook would send it (`Hook.Gemini` and `Hook.Kimi` produce these messages).
+    static func assistantSessions(now: Date) -> SessionTracker {
+        var tracker = SessionTracker()
+        func send(_ tool: ToolID, _ event: String, _ ago: TimeInterval, session: String, project: String, type: String? = nil, title: String? = nil) {
+            var message = Hook.Message(event: event, needsInput: type != nil, sessionID: session, project: project, notificationType: type,
+                                       branch: "main", tool: tool)
+            message.title = title
+            if event == "SessionStart" {
+                message.terminal = TerminalRef(program: "ghostty", bundleID: "com.mitchellh.ghostty", tty: tool == .gemini ? "/dev/ttys006" : "/dev/ttys007")
+            }
+            tracker.apply(message, now: now.addingTimeInterval(-ago))
+        }
+        send(.gemini, "SessionStart", 12 * 60, session: "g-1", project: "quota-lab")
+        send(.kimi, "SessionStart", 8 * 60, session: "k-1", project: "notchmeter")
+        send(.gemini, "UserPromptSubmit", 7 * 60, session: "g-1", project: "quota-lab", title: geminiTitle)
+        send(.kimi, "UserPromptSubmit", 3 * 60, session: "k-1", project: "notchmeter", title: kimiTitle)
+        send(.gemini, "Notification", 40, session: "g-1", project: "quota-lab", type: "ToolPermission")
+        return tracker
     }
 }
 

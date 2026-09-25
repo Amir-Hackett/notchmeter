@@ -29,8 +29,10 @@ struct NoticeCard: View {
         let copy = Notifier.copy(for: notice.event, session: notice.session, hidingFigures: hideFigures)
         VStack(alignment: .leading, spacing: density.rowSpacing) {
             HStack(spacing: 6) {
-                Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(colour)
-                Text(copy.title).font(.caption.weight(.semibold)).foregroundStyle(colour)
+                Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Themed(colour))
+                // The title is words, so it takes the colour's text role: Wong's blue and the pine green are 4.0:1 on
+                // black as they stand, and are lifted by the least that reaches 4.5:1 (PanelLook).
+                Text(copy.title).font(.caption.weight(.semibold)).foregroundStyle(Themed(colour, .text))
                 ForEach(chips, id: \.self) { Chip(text: $0) }
                 Spacer(minLength: 0)
             }
@@ -46,9 +48,11 @@ struct NoticeCard: View {
                     .truncationMode(.tail)
             }
             if canJump {
-                Button(action: jump) { Text(L("Jump to the terminal")).frame(maxWidth: .infinity) }
+                // "Open Claude" for a Cowork task, which runs in the Claude app rather than a terminal.
+                let title = TerminalJump.jumpTitle(notice.session.terminal)
+                Button(action: jump) { Text(title).frame(maxWidth: .infinity) }
                     .buttonStyle(PromptButtonStyle(filled: true))
-                    .accessibilityLabel(L("Jump to the terminal"))
+                    .accessibilityLabel(title)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,13 +63,17 @@ struct NoticeCard: View {
         switch notice.event {
         case .waiting: "hand.raised.fill"
         case .finished: "checkmark.circle.fill"
+        case .trouble(let trouble): NotchNews.Reason(trouble).symbolName
         }
     }
 
+    /// A trouble takes the warning orange, which reads 9:1 on the card and is the colour a row's "may be stuck"
+    /// line uses; the symbol and the sentence say which trouble it is.
     private var colour: Color {
         switch notice.event {
         case .waiting: Palette.calm
         case .finished: Palette.pine
+        case .trouble: Palette.warn
         }
     }
 

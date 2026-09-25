@@ -1,7 +1,7 @@
 import Foundation
 
 /// The `--hook` half of the assistant integrations: a hook command that turns one Claude Code, Codex, Cursor,
-/// Gemini CLI or GitHub Copilot event into one line on the running app's socket carrying the event name, whether the
+/// Gemini CLI, GitHub Copilot or OpenCode event into one line on the running app's socket carrying the event name, whether the
 /// assistant is waiting on the user, the session id, the folder name of the working directory (or of the
 /// repository, when the working directory is a git worktree: ProjectName in ProviderCost.swift), the git branch
 /// checked out there, the permission mode, the subagent id, a stop failure's kind and — only when it is not
@@ -11,7 +11,7 @@ import Foundation
 /// Hook+Decision.swift), with a nonce the app's answer is addressed to; and on every event, where the hook's own
 /// terminal is, read from the hook process's environment and ancestry (TerminalIdentity.swift). Nothing else.
 /// Claude Code's command sends no tool; every other installer sends `--tool <id>` and each ToolID has a parser of
-/// its own (Hook+Codex.swift, Hook+Cursor.swift, Hook+Gemini.swift, Hook+Copilot.swift); failing the flag, a
+/// its own (Hook+Codex.swift, Hook+Cursor.swift, Hook+Gemini.swift, Hook+Copilot.swift, Hook+OpenCode.swift); failing the flag, a
 /// payload whose shape only one vendor produces is recognised by it. The running app listens in UsageStore, over
 /// the socket HookSocket.swift describes (until 0.6.0 it was a distributed notification, which any local process
 /// could read or forge); a remote host's hook posts the same fields to the local API instead (docs/hooks.md).
@@ -50,6 +50,23 @@ enum Hook {
     static let todosKey = "todos"
     /// One task tool call, on a `PostToolUse` for `TaskCreate` or `TaskUpdate` only (`taskChange(...)`).
     static let taskKey = "task"
+    /// The 0.11 events' fields (Hook+Events.swift), each on its own event only: a compaction's trigger; a model
+    /// switch's target, origin and source; the teammate that went idle; a failed tool and whether it was an abort; a
+    /// tool auto mode denied and the kind of denial; the size of a batch; and whether `cwd` is a git worktree.
+    static let compactionKey = "compaction"
+    static let modelKey = "model"
+    static let fromModelKey = "from_model"
+    static let modelSourceKey = "model_source"
+    static let teammateKey = "teammate"
+    static let failedToolKey = "failed_tool"
+    static let interruptKey = "interrupt"
+    static let deniedToolKey = "denied_tool"
+    static let denialKey = "denial"
+    static let batchKey = "batch"
+    static let worktreeKey = "worktree"
+    /// `true` when the command read the payload only to its head (`Hook.headObject`), so a field past the cut is
+    /// not absent but unread; written only then, so every whole line is byte for byte what it was.
+    static let truncatedKey = "truncated"
     /// The terminal keys, each written only when the hook could read it (TerminalIdentity.swift).
     static let terminalProgramKey = "terminal_program"
     static let terminalBundleKey = "terminal_bundle"
@@ -125,6 +142,34 @@ enum Hook {
         /// One task tool call on a `PostToolUse` for `TaskCreate` or `TaskUpdate` (`Hook.taskChange`); nil on every
         /// other event. Its subject is dropped by the store when *Show what a session is working on* is off.
         var task: TaskChange?
+        /// `.localStorage` for an event the app worked out from an assistant's own database (OpenCodeSessions) rather
+        /// than one a hook sent. Never written to or read from a socket line, so nothing outside the app can claim it.
+        var source: SessionSource = .hook
+        // The 0.11 events (Hook+Events.swift). Each is nil (or false) on every other event, and an absent one writes
+        // no key, so every line from before them is byte for byte what it was.
+        /// `trigger` on `PreCompact` and `PostCompact`.
+        var compaction: Compaction.Trigger?
+        /// The models and the source of a `PostModelSwitch`.
+        var modelSwitch: ModelSwitch?
+        /// The MCP server an `Elicitation` or `ElicitationResult` names.
+        var mcpServer: String?
+        /// The teammate a `TeammateIdle` names. Its name is dropped by the store when *Show what a session is
+        /// working on* is off, as the title is, and only an opaque key is kept.
+        var teammate: Teammate?
+        /// The tool a `PostToolUseFailure` names, and whether the failure was an abort.
+        var toolFailure: ToolFailure?
+        /// The tool a `PermissionDenied` names, and the kind of denial.
+        var denial: Denial?
+        /// How many tool calls a `PostToolBatch` resolved, when the command read the whole payload.
+        var batchSize: Int?
+        /// Whether `cwd` is a git worktree (ProjectName), read with `project`, so it says something whenever
+        /// `project` does. Claude Code's hook alone reads it.
+        var worktree = false
+        /// Whether the payload was read only to its head (`Hook.headEvents`, `headObject`): the fields before the
+        /// first bulky one are what they say, and every field after it is unread rather than absent, so a reader
+        /// of one of those (a failure's `is_interrupt`, the `agent_id` a subagent's event carries) must treat this
+        /// message as one that does not say. Never set on a payload read whole.
+        var truncated = false
 
         /// Whether the command holds the socket for the app's answer.
         var awaitsDecision: Bool { request != nil }
@@ -163,6 +208,20 @@ enum Hook {
             // Read back under the command's own limits, since a line on the socket may not be the command's.
             todos = Hook.todos(from: userInfo?[Hook.todosKey])
             task = Hook.task(userInfo: userInfo?[Hook.taskKey])
+            compaction = Hook.compactionTrigger(userInfo?[Hook.compactionKey])
+            if let to = Hook.modelID(userInfo?[Hook.modelKey]) {
+                modelSwitch = ModelSwitch(from: Hook.modelID(userInfo?[Hook.fromModelKey]), to: to,
+                                          source: (userInfo?[Hook.modelSourceKey] as? String).flatMap(ModelSwitch.Source.init(rawValue:)))
+            }
+            mcpServer = Hook.shortName(userInfo?[Hook.mcpServerKey])
+            teammate = Hook.shortName(userInfo?[Hook.teammateKey]).map { Teammate(key: $0, name: $0) }
+            toolFailure = Hook.toolName(userInfo?[Hook.failedToolKey]).map { ToolFailure(tool: $0, interrupt: userInfo?[Hook.interruptKey] as? Bool == true) }
+            denial = Hook.toolName(userInfo?[Hook.deniedToolKey]).map {
+                Denial(tool: $0, kind: (userInfo?[Hook.denialKey] as? String).flatMap(Denial.Kind.init(rawValue:)) ?? .other)
+            }
+            batchSize = (userInfo?[Hook.batchKey] as? Int).flatMap { $0 >= 0 ? $0 : nil }
+            worktree = userInfo?[Hook.worktreeKey] as? Bool == true
+            truncated = userInfo?[Hook.truncatedKey] as? Bool == true
         }
 
         var userInfo: [String: Any] {
@@ -186,10 +245,32 @@ enum Hook {
             if let terminal { info.merge(Hook.userInfo(terminal: terminal)) { _, new in new } }
             if let todos { info[Hook.todosKey] = Hook.userInfo(todos: todos) }
             if let task { info[Hook.taskKey] = Hook.userInfo(task: task) }
+            if let compaction { info[Hook.compactionKey] = compaction.rawValue }
+            if let modelSwitch {
+                info[Hook.modelKey] = modelSwitch.to
+                if let from = modelSwitch.from { info[Hook.fromModelKey] = from }
+                if let source = modelSwitch.source { info[Hook.modelSourceKey] = source.rawValue }
+            }
+            if let mcpServer { info[Hook.mcpServerKey] = mcpServer }
+            // The name only: the key is the name until the store replaces both (UsageStore.hookReceived).
+            if let name = teammate?.name { info[Hook.teammateKey] = name }
+            if let toolFailure {
+                info[Hook.failedToolKey] = toolFailure.tool
+                if toolFailure.interrupt { info[Hook.interruptKey] = true }
+            }
+            if let denial {
+                info[Hook.deniedToolKey] = denial.tool
+                info[Hook.denialKey] = denial.kind.rawValue
+            }
+            if let batchSize { info[Hook.batchKey] = batchSize }
+            if worktree { info[Hook.worktreeKey] = true }
+            if truncated { info[Hook.truncatedKey] = true }
             return info
         }
 
-        /// A notification that says the agent no longer needs the user: it finished, or the elicitation was answered.
+        /// A notification that says the agent no longer needs the user: it finished, or the elicitation was answered
+        /// (the `elicitation_complete` and `elicitation_response` types, and since 0.11 the `ElicitationResult` event,
+        /// which Claude Code runs the moment the user answers an MCP server).
         var clearsWaiting: Bool {
             Hook.clearingEvents.contains(event) || (event == "Notification" && notificationType.map(Hook.completionNotificationTypes.contains) == true)
         }
@@ -211,7 +292,7 @@ enum Hook {
     }
 
     /// Events after which Claude is no longer waiting on the user.
-    static let clearingEvents: Set<String> = ["Stop", "SessionEnd", "UserPromptSubmit", "StopFailure"]
+    static let clearingEvents: Set<String> = ["Stop", "SessionEnd", "UserPromptSubmit", "StopFailure", "ElicitationResult"]
 
     /// Notification types that mean Claude Code is waiting for the user, per the hooks reference.
     static let waitingNotificationTypes: Set<String> = ["permission_prompt", "idle_prompt", "elicitation_dialog", "elicitation_url_dialog", "agent_needs_input"]
@@ -223,9 +304,16 @@ enum Hook {
     /// by going unseen.
     static let idleNotificationType = "idle_prompt"
 
-    /// Notification types that end a wait without a Stop: a subagent finished, the elicitation was answered, or
-    /// Claude Code's own quota wait ended.
-    static let completionNotificationTypes: Set<String> = ["agent_completed", "elicitation_complete", "elicitation_response", "quota_auto_resume_fired"]
+    /// The one waiting type that is not the main loop's: "a background session starts waiting on your input while
+    /// agent view is open" (the hooks reference, 2026-09-24). The tracker remembers it (`AgentSession.waitsOnAgent`)
+    /// so the foreground loop's own progress — a batch resolving, a subagent starting — is not read as its end.
+    static let agentInputNotificationType = "agent_needs_input"
+
+    /// Notification types that end a wait without a Stop: a subagent finished, the elicitation was answered,
+    /// Claude Code's own quota wait ended, or OpenCode's permission request was answered (`permission.replied`,
+    /// Hook+OpenCode.swift), a type no other assistant sends.
+    static let completionNotificationTypes: Set<String> = ["agent_completed", "elicitation_complete", "elicitation_response", "quota_auto_resume_fired",
+                                                           Hook.OpenCode.permissionReplied]
 
     /// Claude Code is holding the session for a quota reset it will not resume from on its own.
     static let quotaWaitNotificationTypes: Set<String> = ["quota_auto_resume_stale", "quota_auto_resume_disabled"]
@@ -245,7 +333,15 @@ enum Hook {
     /// error, so a mistyped entry still posts the event as Claude's rather than dropping it).
     static func tool(in arguments: [String]) -> ToolID? {
         guard let index = arguments.firstIndex(of: "--tool"), index + 1 < arguments.count else { return nil }
-        return ToolID(rawValue: arguments[index + 1])
+        return sender(named: arguments[index + 1])
+    }
+
+    /// The tool a hook names itself as, on the command line or in a remote post's `"tool"` key. `antigravity` is
+    /// the name every Gemini CLI entry installed before 0.9.0 carries, from when Gemini CLI's hook lit the combined
+    /// Antigravity ring; the Antigravity IDE has never had a hook of ours, so that name can only be Gemini CLI's,
+    /// and it lands on Gemini CLI's row until Repair rewrites the entry to `--tool gemini`.
+    static func sender(named name: String) -> ToolID? {
+        name == ToolID.antigravity.rawValue ? .gemini : ToolID(rawValue: name)
     }
 
     /// `--event <name>` on the hook command line: the event a Copilot entry was registered under, because Copilot's
@@ -257,7 +353,8 @@ enum Hook {
 
     /// Reads one hook payload onto a Message. The sender is settled before any field is read: the `--tool` flag
     /// first, then a `"tool"` key in the JSON (what a remote post carries), then the shape of the payload, and
-    /// Claude Code otherwise. The shape is asked in a fixed order: Copilot's camelCase `sessionId` first, a key no
+    /// Claude Code otherwise. The shape is asked in a fixed order: OpenCode's dotted event names first, which no
+    /// other assistant's names are; then Copilot's camelCase `sessionId`, a key no
     /// other assistant sends, because eight of Copilot's camelCase names (`sessionStart`, `sessionEnd`,
     /// `subagentStart`, `subagentStop`, `preToolUse`, `postToolUse`, `postToolUseFailure`, `preCompact`) are Cursor's
     /// too; then Cursor's `conversation_id`, `cursor_version` or one of its own event names; then Gemini CLI's own
@@ -270,23 +367,32 @@ enum Hook {
     static func message(from payload: Data, tool: ToolID? = nil, event argumentEvent: String? = nil,
                         environment: [String: String] = ProcessInfo.processInfo.environment,
                         branch: (String) -> String? = gitBranch(cwd:), requestID: String = UUID().uuidString) -> Message? {
-        guard let object = try? JSONSerialization.jsonObject(with: payload) as? [String: Any],
+        // A payload cut short at the command's read limit is read up to its head, for the few events that carry
+        // their bulk after the fields kept (Hook.headEvents); any other event that does not parse is dropped, as ever.
+        let parsed = (try? JSONSerialization.jsonObject(with: payload)) as? [String: Any]
+        guard let object = parsed ?? headObject(of: payload).flatMap({ head in (head[eventKey] as? String).map(headEvents.contains) == true ? head : nil }),
               let event = (object[eventKey] as? String).flatMap({ $0.isEmpty ? nil : $0 }) ?? argumentEvent
         else { return nil }
-        let claimed = tool ?? (object[toolKey] as? String).flatMap(ToolID.init(rawValue:))
+        let claimed = tool ?? (object[toolKey] as? String).flatMap(sender(named:))
         let vendor: HookVendor = claimed.flatMap(HookVendor.vendor(for:))
-            ?? (Copilot.recognises(object: object) ? .copilot
+            ?? (OpenCode.recognises(event: event) ? .opencode
+                : Copilot.recognises(object: object) ? .copilot
                 : Cursor.recognises(event: event, object: object) ? .cursor
-                : Gemini.recognises(event: event, object: object, environment: environment) ? .antigravity
+                : Gemini.recognises(event: event, object: object, environment: environment) ? .gemini
                 : Copilot.recognises(event: event, object: object) ? .copilot
                 : .claude)
-        return switch vendor {
+        var message: Message? = switch vendor {
         case .claude: Claude.message(event: event, object: object, tool: claimed ?? .claude, branch: branch, requestID: requestID)
         case .codex: Codex.message(event: event, object: object, branch: branch, requestID: requestID)
         case .cursor: Cursor.message(event: event, object: object, environment: environment, branch: branch)
-        case .antigravity: Gemini.message(event: event, object: object, environment: environment, branch: branch)
+        case .gemini: Gemini.message(event: event, object: object, environment: environment, branch: branch)
         case .copilot: Copilot.message(event: event, object: object, branch: branch, requestID: requestID)
+        case .kimi: Kimi.message(event: event, object: object, branch: branch)
+        case .opencode: OpenCode.message(event: event, object: object, branch: branch)
         }
+        // A head-read message says so on the line, since the app is what weighs a field that sat past the cut.
+        message?.truncated = parsed == nil
+        return message
     }
 
     /// Claude Code's payload (docs/hooks.md). `needsInput(event:notificationType:)` is Claude Code's vocabulary
@@ -300,15 +406,23 @@ enum Hook {
         /// the display summary Hook+Decision.swift describes before it leaves the process. And on a `PostToolUse`
         /// for `TodoWrite`, `tool_input.todos` reduced to each item's status and one line of its text (`todos(from:)`);
         /// on one for `TaskCreate` or `TaskUpdate`, the task's id, status and one line of its subject (`taskChange`).
+        /// Since 0.11 (Hook+Events.swift, Hook+Elicitation.swift): a compaction's `trigger`; a model switch's
+        /// `to_model`, `from_model` and `source`; an MCP request's `mcp_server_name`, and on `Elicitation` its
+        /// `message` and `requested_schema` when a click can answer the form; `teammate_name`; a failed or denied
+        /// tool's `tool_name` (and a failure's `is_interrupt`, a denial's kind told from `reason`); the length of a
+        /// batch's `tool_calls`; `new_cwd` on `CwdChanged`; and whether `cwd` is a git worktree.
         /// Claude Code names no tool, so its events read as Claude's, which is what they have always been.
         static func message(event: String, object: [String: Any], tool: ToolID, branch: (String) -> String?, requestID: String) -> Message {
             let type = object["notification_type"] as? String
-            let cwd = object["cwd"] as? String
+            // A `CwdChanged` names the directory the session moved to; its `cwd` is documented as the current one,
+            // which is the same place, and `new_cwd` is read first so a move into a worktree is seen as it happens.
+            let cwd = (event == "CwdChanged" ? object["new_cwd"] as? String : nil) ?? object["cwd"] as? String
+            let place = cwd.map(Hook.place(ofPath:))
             let failure = (object["error"] as? String) ?? (object["error_type"] as? String) ?? ((object["error"] as? [String: Any])?["type"] as? String)
-            let request = Hook.request(event: event, object: object, id: requestID)
+            let request = event == "Elicitation" ? Hook.elicitationRequest(object: object, id: requestID) : Hook.request(event: event, object: object, id: requestID)
             var message = Message(event: event, needsInput: needsInput(event: event, notificationType: type) || request != nil,
                                   sessionID: (object["session_id"] as? String).flatMap { $0.isEmpty ? nil : $0 },
-                                  project: cwd.flatMap(ClaudeCostScanner.projectName(fromPath:)),
+                                  project: place?.project,
                                   notificationType: type,
                                   branch: cwd.flatMap(branch),
                                   permissionMode: (object["permission_mode"] as? String).flatMap { $0.isEmpty ? nil : $0 },
@@ -317,6 +431,17 @@ enum Hook {
                                   tool: tool)
             message.title = event == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
             message.request = request
+            message.worktree = place?.worktree ?? false
+            switch event {
+            case "PreCompact", "PostCompact": message.compaction = Hook.compactionTrigger(object["trigger"])
+            case "PostModelSwitch": message.modelSwitch = Hook.modelSwitch(object: object)
+            case "Elicitation", "ElicitationResult": message.mcpServer = Hook.shortName(object["mcp_server_name"])
+            case "TeammateIdle": message.teammate = Hook.shortName(object["teammate_name"]).map { Teammate(key: $0, name: $0) }
+            case "PostToolUseFailure": message.toolFailure = Hook.toolFailure(object: object)
+            case "PermissionDenied": message.denial = Hook.denial(object: object)
+            case Hook.batchEvent: message.batchSize = Hook.batchSize(object: object)
+            default: break
+            }
             if event == "PostToolUse" {
                 let tool = object["tool_name"] as? String
                 if tool == todoWriteTool {
@@ -456,7 +581,10 @@ enum Hook {
     static func runCommand(arguments: [String] = CommandLine.arguments) -> Never {
         let payload = readPayload()
         guard var message = message(from: payload, tool: tool(in: arguments), event: event(in: arguments)) else { exit(0) }
-        message.terminal = TerminalIdentity.capture(tool: message.tool)
+        // A batch boundary fires once per model step and says nothing about where the session runs that the
+        // session's other events have not already said, so it skips the ancestry walk, which is most of a hook's
+        // few milliseconds (docs/hooks.md gives the figures).
+        message.terminal = message.event == Hook.batchEvent ? nil : TerminalIdentity.capture(tool: message.tool)
         if TerminalJump.opensFolders(message.terminal?.bundleID) { message.terminal?.workspace = folder(in: payload) }
         if message.request != nil {
             if case .sent(let reply?) = HookSocket.send(.hook, message.userInfo, timeout: decisionWait),
@@ -496,7 +624,7 @@ enum Hook {
     /// Whether the head of a payload names a deciding event, judged on bytes because the whole of it is not in yet.
     static func looksDeciding(_ head: Data) -> Bool {
         let text = String(decoding: head.prefix(4096), as: UTF8.self)
-        return text.contains("\"PermissionRequest\"") || text.contains("\"AskUserQuestion\"")
+        return text.contains("\"PermissionRequest\"") || text.contains("\"AskUserQuestion\"") || text.contains("\"Elicitation\"")
     }
 
     /// Reads standard input without ever blocking on it: a closed pipe or a file returns at once, a terminal

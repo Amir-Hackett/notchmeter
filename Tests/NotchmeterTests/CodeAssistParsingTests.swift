@@ -18,7 +18,7 @@ import Testing
           {"modelId":"claude-opus-4-1","resetTime":"2026-09-01T17:00:00Z"}
         ]}
         """
-        let reading = try AntigravityProvider.parseQuota(Data(json.utf8), plan: "Standard", now: Date(timeIntervalSince1970: 0))
+        let reading = try CodeAssistProvider.parseQuota(Data(json.utf8), plan: "Standard", now: Date(timeIntervalSince1970: 0))
         #expect(reading.tool == .antigravity)
         #expect(reading.plan == "Standard")
         let labels = reading.windows.map(\.label)
@@ -51,7 +51,7 @@ import Testing
         {"buckets":[{"modelId":"gemini-2.5-pro","remainingFraction":0,"resetTime":"\(resetsAt)"},
                     {"modelId":"claude-sonnet-4-5","resetTime":"\(resetsAt)"}]}
         """
-        let reading = try AntigravityProvider.parseQuota(Data(mixed.utf8), plan: nil)
+        let reading = try CodeAssistProvider.parseQuota(Data(mixed.utf8), plan: nil)
         #expect(reading.windows.map(\.usedFraction) == [1, nil])
         #expect(reading.windows[1].resetsAt == DateParsing.iso8601(resetsAt))
 
@@ -60,27 +60,27 @@ import Testing
                     {"modelId":"gemini-2.5-flash","remainingFraction":1,"resetTime":"\(resetsAt)"},
                     {"modelId":"claude-sonnet-4-5","remainingFraction":1,"resetTime":"2026-09-02T07:00:30Z"}]}
         """
-        let unmetered = try AntigravityProvider.parseQuota(Data(untouched.utf8), plan: nil)
+        let unmetered = try CodeAssistProvider.parseQuota(Data(untouched.utf8), plan: nil)
         #expect(unmetered.windows.map(\.usedFraction) == [nil, nil, nil])
         #expect(unmetered.windows[0].note == "Reads untouched on every model, which this host also answers when it is not the one metering you")
         #expect(unmetered.windows[0].resetsAt == DateParsing.iso8601(resetsAt), "the reset is kept")
         let now = DateParsing.iso8601("2026-09-02T02:00:00Z")!
-        #expect(!AntigravityProvider.looksMetered(unmetered, now: now))
+        #expect(!CodeAssistProvider.looksMetered(unmetered, now: now))
 
-        let alone = try AntigravityProvider.parseQuota(Data(#"{"buckets":[{"modelId":"gemini-2.5-pro","remainingFraction":1,"resetTime":"\#(resetsAt)"}]}"#.utf8), plan: nil)
+        let alone = try CodeAssistProvider.parseQuota(Data(#"{"buckets":[{"modelId":"gemini-2.5-pro","remainingFraction":1,"resetTime":"\#(resetsAt)"}]}"#.utf8), plan: nil)
         #expect(alone.windows[0].usedFraction == 0)
         let staggered = untouched.replacingOccurrences(of: "2026-09-02T07:00:30Z", with: "2026-09-05T07:00:00Z")
-        #expect(try AntigravityProvider.parseQuota(Data(staggered.utf8), plan: nil).windows[0].usedFraction == 0, "different resets are a real quota")
+        #expect(try CodeAssistProvider.parseQuota(Data(staggered.utf8), plan: nil).windows[0].usedFraction == 0, "different resets are a real quota")
 
         // Liveness: something used, or a reset that is not the placeholder five hours from now.
         let placeholder = now.addingTimeInterval(Period.fiveHours)
         let fresh = UsageReading(tool: .antigravity, windows: [LimitWindow(id: "gemini_pro", label: "Gemini Pro", usedFraction: 0, resetsAt: placeholder)],
                                  plan: nil, fetchedAt: now, observedAt: nil)
-        #expect(!AntigravityProvider.looksMetered(fresh, now: now))
+        #expect(!CodeAssistProvider.looksMetered(fresh, now: now))
         let used = fresh.with(windows: [LimitWindow(id: "gemini_pro", label: "Gemini Pro", usedFraction: 0.02, resetsAt: placeholder)])
-        #expect(AntigravityProvider.looksMetered(used, now: now))
+        #expect(CodeAssistProvider.looksMetered(used, now: now))
         let realReset = fresh.with(windows: [LimitWindow(id: "gemini_pro", label: "Gemini Pro", usedFraction: 0, resetsAt: placeholder.addingTimeInterval(-1800))])
-        #expect(AntigravityProvider.looksMetered(realReset, now: now))
+        #expect(CodeAssistProvider.looksMetered(realReset, now: now))
     }
 
     /// `:retrieveUserQuotaSummary`: the groups Antigravity's own panel shows, with the window length declared, in
@@ -94,7 +94,7 @@ import Testing
                       {"bucketId":"claude-5h","window":"5h","resetTime":"2026-09-01T17:00:00Z","remaining":{"case":"remainingFraction","value":0.25}},
                       {"bucketId":"claude-daily","window":"daily","resetTime":"2026-09-02T00:00:00Z"}]}]}
         """
-        let reading = try AntigravityProvider.parseQuotaSummary(Data(json.utf8), plan: "Ultra", now: Date(timeIntervalSince1970: 0))
+        let reading = try CodeAssistProvider.parseQuotaSummary(Data(json.utf8), plan: "Ultra", now: Date(timeIntervalSince1970: 0))
         #expect(reading.plan == "Ultra")
         #expect(reading.windows.map(\.id) == ["gemini_session", "gemini_weekly", "claude_and_gpt_session", "claude_and_gpt_daily"])
         #expect(reading.windows.map(\.label) == ["Gemini Session", "Gemini Weekly", "Claude and GPT Session", "Claude and GPT Daily"])
@@ -104,12 +104,12 @@ import Testing
         #expect(reading.windows[1].resetsAt == DateParsing.iso8601(resetsAt))
         #expect(reading.windows.allSatisfy { $0.source == .vendorEndpoint })
         // Declared lengths are not inferred over.
-        let applied = AntigravityPeriods.apply(reading, resets: [:], now: Date(timeIntervalSince1970: 0))
+        let applied = InferredPeriods.apply(reading, resets: [:], now: Date(timeIntervalSince1970: 0))
         #expect(applied.windows[0].note == nil)
-        #expect(throws: ProviderError.self) { try AntigravityProvider.parseQuotaSummary(Data("{}".utf8), plan: nil) }
-        #expect(throws: ProviderError.self) { try AntigravityProvider.parseQuotaSummary(Data(#"{"groups":[{"displayName":"x","buckets":[]}]}"#.utf8), plan: nil) }
-        #expect(AntigravityProvider.groupName(nil) == "Models")
-        #expect(AntigravityProvider.groupName("Models") == "Models")
+        #expect(throws: ProviderError.self) { try CodeAssistProvider.parseQuotaSummary(Data("{}".utf8), plan: nil) }
+        #expect(throws: ProviderError.self) { try CodeAssistProvider.parseQuotaSummary(Data(#"{"groups":[{"displayName":"x","buckets":[]}]}"#.utf8), plan: nil) }
+        #expect(CodeAssistProvider.groupName(nil) == "Models")
+        #expect(CodeAssistProvider.groupName("Models") == "Models")
     }
 
     /// The host Antigravity's own CLI logged is the one the account is metered on; anything that is not a Code
@@ -120,12 +120,12 @@ import Testing
         [info] GET https://example.com/cloudcode-pa.googleapis.com.evil/ 200
         [info] POST https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent 200
         """
-        #expect(AntigravityProvider.loggedHost(inText: text) == AntigravityProvider.dailyHost)
-        #expect(AntigravityProvider.loggedHost(inText: "nothing here") == nil)
-        #expect(AntigravityProvider.loggedHost(inText: "https://notcloudcode-pa.googleapis.com.example.org/") == nil)
-        #expect(AntigravityProvider.loggedHost(in: URL(fileURLWithPath: "/nonexistent/cli.log")) == nil)
-        #expect(AntigravityProvider.hostsToTry == [AntigravityProvider.dailyHost, AntigravityProvider.productionHost])
-        #expect(AntigravityProvider.url(host: AntigravityProvider.dailyHost, method: "retrieveUserQuota").absoluteString
+        #expect(CodeAssistProvider.loggedHost(inText: text) == CodeAssistProvider.dailyHost)
+        #expect(CodeAssistProvider.loggedHost(inText: "nothing here") == nil)
+        #expect(CodeAssistProvider.loggedHost(inText: "https://notcloudcode-pa.googleapis.com.example.org/") == nil)
+        #expect(CodeAssistProvider.loggedHost(in: URL(fileURLWithPath: "/nonexistent/cli.log")) == nil)
+        #expect(CodeAssistProvider.hostsToTry == [CodeAssistProvider.dailyHost, CodeAssistProvider.productionHost])
+        #expect(CodeAssistProvider.url(host: CodeAssistProvider.dailyHost, method: "retrieveUserQuota").absoluteString
             == "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota")
     }
 
@@ -135,7 +135,7 @@ import Testing
                     {"modelId":"gemini-3-pro-preview","remainingFraction":0.3,"resetTime":"2026-09-01T20:00:00Z"},
                     {"modelId":"gemini-2.5-flash","remainingFraction":1.4}]}
         """
-        let reading = try AntigravityProvider.parseQuota(Data(json.utf8), plan: nil)
+        let reading = try CodeAssistProvider.parseQuota(Data(json.utf8), plan: nil)
         let labels = reading.windows.map(\.label)
         #expect(labels == ["Gemini Pro", "Gemini Flash"])
         let tightest = reading.windows[0].usedFraction ?? 0
@@ -147,9 +147,9 @@ import Testing
     }
 
     @Test func rejectsResponsesWithoutUsableBuckets() {
-        #expect(throws: ProviderError.self) { try AntigravityProvider.parseQuota(Data("{}".utf8), plan: nil) }
-        #expect(throws: ProviderError.self) { try AntigravityProvider.parseQuota(Data(#"{"buckets":[{"modelId":"gemini-2.5-pro"}]}"#.utf8), plan: nil) }
-        #expect(throws: ProviderError.self) { try AntigravityProvider.parseQuota(Data("not json".utf8), plan: nil) }
+        #expect(throws: ProviderError.self) { try CodeAssistProvider.parseQuota(Data("{}".utf8), plan: nil) }
+        #expect(throws: ProviderError.self) { try CodeAssistProvider.parseQuota(Data(#"{"buckets":[{"modelId":"gemini-2.5-pro"}]}"#.utf8), plan: nil) }
+        #expect(throws: ProviderError.self) { try CodeAssistProvider.parseQuota(Data("not json".utf8), plan: nil) }
     }
 
     @Test func parsesTheCachedGoogleLogin() throws {
@@ -157,41 +157,41 @@ import Testing
         {"access_token":"ya29.test","refresh_token":"1//refresh","scope":"https://www.googleapis.com/auth/cloud-platform",
          "token_type":"Bearer","id_token":"h.p.s","expiry_date":1756771200000}
         """
-        let credentials = try AntigravityProvider.parseCredentials(Data(json.utf8))
+        let credentials = try CodeAssistProvider.parseCredentials(Data(json.utf8))
         #expect(credentials.accessToken == "ya29.test")
         #expect(credentials.expiresAt == Date(timeIntervalSince1970: 1_756_771_200))
-        let withoutAnExpiry = try AntigravityProvider.parseCredentials(Data(#"{"access_token":"t"}"#.utf8))
+        let withoutAnExpiry = try CodeAssistProvider.parseCredentials(Data(#"{"access_token":"t"}"#.utf8))
         #expect(withoutAnExpiry.expiresAt == nil)
-        #expect(throws: ProviderError.self) { try AntigravityProvider.parseCredentials(Data(#"{"refresh_token":"r","access_token":""}"#.utf8)) }
-        #expect(throws: ProviderError.self) { try AntigravityProvider.parseCredentials(Data("[]".utf8)) }
+        #expect(throws: ProviderError.self) { try CodeAssistProvider.parseCredentials(Data(#"{"refresh_token":"r","access_token":""}"#.utf8)) }
+        #expect(throws: ProviderError.self) { try CodeAssistProvider.parseCredentials(Data("[]".utf8)) }
     }
 
     @Test func parsesTheAccountFromLoadCodeAssist() throws {
-        let free = try AntigravityProvider.parseAccount(Data(#"{"currentTier":{"id":"free-tier","name":"Gemini Code Assist for individuals"},"cloudaicompanionProject":"managed-project-123","allowedTiers":[]}"#.utf8))
-        #expect(free == AntigravityProvider.Account(project: "managed-project-123", plan: "Free", unsupported: false))
+        let free = try CodeAssistProvider.parseAccount(Data(#"{"currentTier":{"id":"free-tier","name":"Gemini Code Assist for individuals"},"cloudaicompanionProject":"managed-project-123","allowedTiers":[]}"#.utf8))
+        #expect(free == CodeAssistProvider.Account(project: "managed-project-123", plan: "Free", unsupported: false))
 
-        let paid = try AntigravityProvider.parseAccount(Data(#"{"currentTier":{"id":"standard-tier"},"paidTier":{"name":"Gemini Code Assist in Google One AI Pro"},"cloudaicompanionProject":{"id":"p-1"}}"#.utf8))
-        #expect(paid == AntigravityProvider.Account(project: "p-1", plan: "Google One AI Pro", unsupported: false))
+        let paid = try CodeAssistProvider.parseAccount(Data(#"{"currentTier":{"id":"standard-tier"},"paidTier":{"name":"Gemini Code Assist in Google One AI Pro"},"cloudaicompanionProject":{"id":"p-1"}}"#.utf8))
+        #expect(paid == CodeAssistProvider.Account(project: "p-1", plan: "Google One AI Pro", unsupported: false))
 
-        let shutdown = try AntigravityProvider.parseAccount(Data("""
+        let shutdown = try CodeAssistProvider.parseAccount(Data("""
         {"allowedTiers":[{"id":"standard-tier","name":"Gemini Code Assist","userDefinedCloudaicompanionProject":true,"isDefault":true}],
          "ineligibleTiers":[{"reasonCode":"UNSUPPORTED_CLIENT","reasonMessage":"This client is no longer supported for Gemini Code Assist for individuals.","tierId":"free-tier","tierName":"Gemini Code Assist for individuals"}]}
         """.utf8))
-        #expect(shutdown == AntigravityProvider.Account(project: nil, plan: nil, unsupported: true))
+        #expect(shutdown == CodeAssistProvider.Account(project: nil, plan: nil, unsupported: true))
 
-        let licensed = try AntigravityProvider.parseAccount(Data(#"{"currentTier":{"id":"standard-tier"},"ineligibleTiers":[{"reasonCode":"UNSUPPORTED_CLIENT","tierId":"free-tier"}]}"#.utf8))
+        let licensed = try CodeAssistProvider.parseAccount(Data(#"{"currentTier":{"id":"standard-tier"},"ineligibleTiers":[{"reasonCode":"UNSUPPORTED_CLIENT","tierId":"free-tier"}]}"#.utf8))
         #expect(licensed.plan == "Standard")
         #expect(!licensed.unsupported)
-        let empty = try AntigravityProvider.parseAccount(Data("{}".utf8))
-        #expect(empty == AntigravityProvider.Account(project: nil, plan: nil, unsupported: false))
+        let empty = try CodeAssistProvider.parseAccount(Data("{}".utf8))
+        #expect(empty == CodeAssistProvider.Account(project: nil, plan: nil, unsupported: false))
     }
 
     @Test func namesPlansAndModels() {
-        #expect(AntigravityProvider.planName(tier: ["id": "legacy-tier"], paidTier: nil) == "Legacy")
-        #expect(AntigravityProvider.planName(tier: ["id": "enterprise-tier"], paidTier: nil) == "Enterprise")
-        #expect(AntigravityProvider.planName(tier: ["name": "Something"], paidTier: nil) == "Something")
-        #expect(AntigravityProvider.planName(tier: ["id": "free-tier"], paidTier: ["name": "Plus"]) == "Plus")
-        #expect(AntigravityProvider.planName(tier: nil, paidTier: ["name": " "]) == nil)
+        #expect(CodeAssistProvider.planName(tier: ["id": "legacy-tier"], paidTier: nil) == "Legacy")
+        #expect(CodeAssistProvider.planName(tier: ["id": "enterprise-tier"], paidTier: nil) == "Enterprise")
+        #expect(CodeAssistProvider.planName(tier: ["name": "Something"], paidTier: nil) == "Something")
+        #expect(CodeAssistProvider.planName(tier: ["id": "free-tier"], paidTier: ["name": "Plus"]) == "Plus")
+        #expect(CodeAssistProvider.planName(tier: nil, paidTier: ["name": " "]) == nil)
 
         #expect(ModelNames.display("gemini-2.5-pro") == "Gemini 2.5 Pro")
         #expect(ModelNames.display("gemini-3-pro-preview") == "Gemini 3 Pro Preview")
@@ -199,8 +199,8 @@ import Testing
         #expect(ModelNames.display("claude-sonnet-4-5") == "Claude Sonnet 4.5")
         #expect(ModelNames.display("gpt-oss-120b") == "GPT OSS 120B")
         #expect(ModelNames.display("claude-opus-4-1-20250805") == "Claude Opus 4.1 20250805")
-        #expect(AntigravityProvider.pool(for: "gemini-embedding-001").label == "Gemini Embedding 001")
-        #expect(AntigravityProvider.pool(for: "GEMINI-3.1-PRO").id == "gemini_pro")
+        #expect(CodeAssistProvider.pool(for: "gemini-embedding-001").label == "Gemini Embedding 001")
+        #expect(CodeAssistProvider.pool(for: "GEMINI-3.1-PRO").id == "gemini_pro")
     }
 
     @Test func recognisesTheSubscriptionRequiredRefusal() {
@@ -208,9 +208,9 @@ import Testing
         {"error":{"code":403,"message":"You do not have a valid license of this product.","status":"PERMISSION_DENIED",
          "details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SUBSCRIPTION_REQUIRED","domain":"cloudaicompanion.googleapis.com"}]}}
         """
-        #expect(AntigravityProvider.isSubscriptionRequired(Data(refusal.utf8)))
-        #expect(!AntigravityProvider.isSubscriptionRequired(Data(#"{"error":{"code":403,"status":"PERMISSION_DENIED"}}"#.utf8)))
-        #expect(!AntigravityProvider.isSubscriptionRequired(Data()))
+        #expect(CodeAssistProvider.isSubscriptionRequired(Data(refusal.utf8)))
+        #expect(!CodeAssistProvider.isSubscriptionRequired(Data(#"{"error":{"code":403,"status":"PERMISSION_DENIED"}}"#.utf8)))
+        #expect(!CodeAssistProvider.isSubscriptionRequired(Data()))
     }
 
     @Test func installDetectionAndSignInStates() async throws {
@@ -221,22 +221,37 @@ import Testing
         let home = scratch.appendingPathComponent(".antigravity")
         try FileManager.default.createDirectory(at: gemini, withIntermediateDirectories: true)
 
-        let provider = AntigravityProvider(geminiHome: gemini, applicationBundle: app, antigravityHome: home)
+        // The two rows since 0.9.0: Gemini CLI's is here wherever its login is; Antigravity's wherever the app, its
+        // home folder or its CLI's folder is, and a Gemini CLI login alone never shows it.
+        let provider = CodeAssistProvider(tool: .gemini, geminiHome: gemini, applicationBundle: app, antigravityHome: home)
+        let antigravity = CodeAssistProvider(tool: .antigravity, geminiHome: gemini, applicationBundle: app, antigravityHome: home)
+        #expect(provider.tool == .gemini && antigravity.tool == .antigravity)
         #expect(!provider.isInstalled())
+        #expect(!antigravity.isInstalled())
         #expect(await failure(of: provider) == .notSignedIn)
+        #expect(await failure(of: antigravity) == .notSignedIn)
 
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-        #expect(provider.isInstalled())
+        #expect(antigravity.isInstalled())
+        #expect(!provider.isInstalled(), "Antigravity's own folder says nothing about Gemini CLI")
         try FileManager.default.removeItem(at: home)
         try FileManager.default.createDirectory(at: app, withIntermediateDirectories: true)
-        #expect(provider.isInstalled())
+        #expect(antigravity.isInstalled())
         try FileManager.default.removeItem(at: app)
+        #expect(!antigravity.isInstalled())
+        try FileManager.default.createDirectory(at: gemini.appendingPathComponent("antigravity-cli"), withIntermediateDirectories: true)
+        #expect(antigravity.isInstalled(), "the Antigravity CLI's folder under ~/.gemini is Antigravity's")
         #expect(!provider.isInstalled())
+        try FileManager.default.removeItem(at: gemini.appendingPathComponent("antigravity-cli"))
 
         let expired = Int(Date().addingTimeInterval(-3600).timeIntervalSince1970 * 1000)
         try Data(#"{"access_token":"ya29.old","expiry_date":\#(expired)}"#.utf8).write(to: gemini.appendingPathComponent("oauth_creds.json"))
         #expect(provider.isInstalled())
+        #expect(!antigravity.isInstalled(), "a Gemini CLI login alone shows only the Gemini CLI row")
         #expect(await failure(of: provider) == .tokenExpired)
+        #expect(await failure(of: antigravity) == .tokenExpired)
+        #expect(!provider.identifiesAsAntigravity)
+        #expect(antigravity.identifiesAsAntigravity)
 
         try Data(#"{"refresh_token":"only"}"#.utf8).write(to: gemini.appendingPathComponent("oauth_creds.json"))
         #expect(await failure(of: provider) == .notSignedIn)
@@ -304,20 +319,30 @@ import Testing
     }
 
     let scratch: URL
-    let provider: AntigravityProvider
+    /// Gemini CLI's row, on a Mac whose one login is Gemini CLI's.
+    let provider: CodeAssistProvider
     let exchange = Exchange()
+    let session: URLSession
+    let gemini: URL
 
     init() throws {
         scratch = FileManager.default.temporaryDirectory.appendingPathComponent("notchmeter-antigravity-\(UUID().uuidString)")
-        let gemini = scratch.appendingPathComponent(".gemini")
+        gemini = scratch.appendingPathComponent(".gemini")
         try FileManager.default.createDirectory(at: gemini, withIntermediateDirectories: true)
         let expiry = Int(Date().addingTimeInterval(3600).timeIntervalSince1970 * 1000)
         try Data(#"{"access_token":"ya29.live","refresh_token":"1//r","expiry_date":\#(expiry)}"#.utf8).write(to: gemini.appendingPathComponent("oauth_creds.json"))
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubProtocol.self]
-        provider = AntigravityProvider(session: URLSession(configuration: configuration), geminiHome: gemini,
-                                       applicationBundle: scratch.appendingPathComponent("none.app"), antigravityHome: scratch.appendingPathComponent("none"))
+        session = URLSession(configuration: configuration)
+        provider = CodeAssistProvider(tool: .gemini, session: session, geminiHome: gemini,
+                                      applicationBundle: scratch.appendingPathComponent("none.app"), antigravityHome: scratch.appendingPathComponent("none"))
         StubProtocol.exchange = exchange
+    }
+
+    /// Antigravity's row on the same Mac, reading the same login under its own identity.
+    var antigravity: CodeAssistProvider {
+        CodeAssistProvider(tool: .antigravity, session: session, geminiHome: gemini,
+                           applicationBundle: scratch.appendingPathComponent("none.app"), antigravityHome: scratch.appendingPathComponent("none"))
     }
 
     func json(_ object: [String: Any]) -> Data {
@@ -346,9 +371,9 @@ import Testing
         // CLI's own identity.
         let seen = exchange.seen
         let calledInTurn = seen.map { $0.request.url }
-        let daily = AntigravityProvider.dailyHost
-        #expect(calledInTurn == [AntigravityProvider.url(host: daily, method: "loadCodeAssist"), AntigravityProvider.url(host: daily, method: "retrieveUserQuotaSummary"),
-                                 AntigravityProvider.url(host: daily, method: "retrieveUserQuota")])
+        let daily = CodeAssistProvider.dailyHost
+        #expect(calledInTurn == [CodeAssistProvider.url(host: daily, method: "loadCodeAssist"), CodeAssistProvider.url(host: daily, method: "retrieveUserQuotaSummary"),
+                                 CodeAssistProvider.url(host: daily, method: "retrieveUserQuota")])
         let bodies = seen.map { $0.body as NSDictionary }
         let expectedBodies: [NSDictionary] = [
             ["metadata": ["ideType": "GEMINI_CLI", "platform": "PLATFORM_UNSPECIFIED", "pluginType": "GEMINI"]] as NSDictionary,
@@ -378,7 +403,7 @@ import Testing
         let quota = json(["buckets": [["modelId": "gemini-2.5-pro", "remainingFraction": 0.4, "resetTime": "2026-09-02T07:00:00Z"]]])
         let exchange = self.exchange
         exchange.answer = { url in
-            guard url.host == AntigravityProvider.productionHost else { return (500, Data()) }
+            guard url.host == CodeAssistProvider.productionHost else { return (500, Data()) }
             switch url.path {
             case "/v1internal:loadCodeAssist": return (200, account)
             case "/v1internal:retrieveUserQuota":
@@ -387,10 +412,11 @@ import Testing
             default: return (404, Data())
             }
         }
-        let reading = try await provider.fetch()
+        let reading = try await antigravity.fetch()
+        #expect(reading.tool == .antigravity)
         #expect(reading.windows[0].usedFraction == 0.6)
         let seen = exchange.seen
-        #expect(seen.map { $0.request.url?.host } == Array(repeating: AntigravityProvider.productionHost, count: 4))
+        #expect(seen.map { $0.request.url?.host } == Array(repeating: CodeAssistProvider.productionHost, count: 4))
         #expect(seen.map { $0.request.url?.path } == ["/v1internal:loadCodeAssist", "/v1internal:retrieveUserQuotaSummary", "/v1internal:retrieveUserQuota", "/v1internal:retrieveUserQuota"])
         let bodies = seen.map { $0.body as NSDictionary }
         let expectedBodies: [NSDictionary] = [
@@ -401,6 +427,21 @@ import Testing
         for (request, _) in seen {
             #expect(request.value(forHTTPHeaderField: "User-Agent") == "antigravity")
             #expect(request.value(forHTTPHeaderField: "Client-Metadata") == #"{"ideType":"ANTIGRAVITY","platform":"MACOS","pluginType":"GEMINI"}"#)
+        }
+
+        // Gemini CLI's row on the same Mac, since 0.9.0 a row of its own: Antigravity's folder and log are here,
+        // but they decide nothing for it. It asks as Gemini CLI, on both hosts in turn (the daily one first, which
+        // this account is not metered on), and shows its own figure, tagged as its own.
+        let before = exchange.seen.count
+        let geminiReading = try await provider.fetch()
+        #expect(geminiReading.tool == .gemini)
+        #expect(geminiReading.windows[0].usedFraction == 0.6)
+        let geminiCalls = exchange.seen.dropFirst(before)
+        #expect(geminiCalls.first?.request.url?.host == CodeAssistProvider.dailyHost, "the Antigravity CLI's log names no host for Gemini CLI")
+        #expect(geminiCalls.first?.body as NSDictionary? == ["metadata": ["ideType": "GEMINI_CLI", "platform": "PLATFORM_UNSPECIFIED", "pluginType": "GEMINI"]] as NSDictionary)
+        for (request, _) in geminiCalls {
+            #expect(request.value(forHTTPHeaderField: "User-Agent") == AppInfo.userAgent)
+            #expect(request.value(forHTTPHeaderField: "Client-Metadata") == nil)
         }
     }
 
@@ -417,7 +458,7 @@ import Testing
         exchange.answer = { url in
             switch url.path {
             case "/v1internal:loadCodeAssist": (200, account)
-            case "/v1internal:retrieveUserQuota": url.host == AntigravityProvider.dailyHost ? (200, untouched) : (200, live)
+            case "/v1internal:retrieveUserQuota": url.host == CodeAssistProvider.dailyHost ? (200, untouched) : (200, live)
             default: (404, Data())
             }
         }
@@ -425,8 +466,8 @@ import Testing
         let thirtyPercent = 0.3
         #expect(abs((reading.windows[0].usedFraction ?? 0) - thirtyPercent) < 1e-9)
         let hosts = exchange.seen.map { $0.request.url?.host }
-        #expect(hosts.first == AntigravityProvider.dailyHost)
-        #expect(hosts.last == AntigravityProvider.productionHost)
+        #expect(hosts.first == CodeAssistProvider.dailyHost)
+        #expect(hosts.last == CodeAssistProvider.productionHost)
 
         exchange.answer = { url in
             switch url.path {
@@ -448,7 +489,7 @@ import Testing
         let account = json(["currentTier": ["id": "standard-tier"]])
         let live = json(["buckets": [["modelId": "gemini-2.5-pro", "remainingFraction": 0.7, "resetTime": "2026-09-02T07:00:00Z"]]])
         exchange.answer = { url in
-            guard url.host == AntigravityProvider.productionHost else { return (-1, Data()) }
+            guard url.host == CodeAssistProvider.productionHost else { return (-1, Data()) }
             switch url.path {
             case "/v1internal:loadCodeAssist": return (200, account)
             case "/v1internal:retrieveUserQuota": return (200, live)
@@ -459,8 +500,8 @@ import Testing
         let thirtyPercent = 0.3
         #expect(abs((reading.windows[0].usedFraction ?? 0) - thirtyPercent) < 1e-9)
         let hosts = exchange.seen.map { $0.request.url?.host }
-        #expect(hosts.first == AntigravityProvider.dailyHost, "the daily host was tried, and failed")
-        #expect(hosts.last == AntigravityProvider.productionHost, "and the production host was still given its turn")
+        #expect(hosts.first == CodeAssistProvider.dailyHost, "the daily host was tried, and failed")
+        #expect(hosts.last == CodeAssistProvider.productionHost, "and the production host was still given its turn")
 
         // Neither reachable: the transport error is what is reported, so the footer says offline and the cached
         // reading stays, as for every other tool.
@@ -468,14 +509,20 @@ import Testing
         await #expect(throws: (any Error).self) { try await provider.fetch() }
     }
 
+    /// The shutdown is a calm state (`ProviderError.notServed`), not a fault: the answer is documented as permanent,
+    /// so the row reads idle with the sentence, can hide, and is not polled every five minutes for it.
     @Test func aPersonalAccountIsToldAboutTheShutdownWithoutAQuotaCall() async throws {
         defer { try? FileManager.default.removeItem(at: scratch) }
         let unsupported = json(["ineligibleTiers": [["reasonCode": "UNSUPPORTED_CLIENT", "tierId": "free-tier"]]])
         exchange.answer = { url in url.path == "/v1internal:loadCodeAssist" ? (200, unsupported) : (500, Data()) }
-        #expect(await failure(of: provider) == .unavailable)
+        #expect(await failure(of: provider) == .notServed)
+        let error = ProviderError.notServed(CodeAssistProvider.shutdownMessage)
+        #expect(error.isCalm && !error.needsAttention)
+        #expect(ToolStatus(error, cached: nil) == .idle(CodeAssistProvider.shutdownMessage))
+        #expect(ToolStatus(error, cached: nil).problem == nil, "no problem line on the card or in the footer")
         // Both hosts are asked who the account is, and only then is the shutdown reported; no quota call is made.
         let calledInTurn = exchange.seen.map { $0.request.url }
-        #expect(calledInTurn == [AntigravityProvider.url(host: AntigravityProvider.dailyHost, method: "loadCodeAssist"), AntigravityProvider.codeAssistURL])
+        #expect(calledInTurn == [CodeAssistProvider.url(host: CodeAssistProvider.dailyHost, method: "loadCodeAssist"), CodeAssistProvider.codeAssistURL])
     }
 
     @Test func refusalsAreMappedToTheirCauses() async throws {
@@ -483,7 +530,7 @@ import Testing
         let licensed = json(["currentTier": ["id": "standard-tier"]])
         let refusal = json(["error": ["code": 403, "status": "PERMISSION_DENIED", "details": [["reason": "SUBSCRIPTION_REQUIRED"]]]])
         exchange.answer = { url in url.path == "/v1internal:loadCodeAssist" ? (200, licensed) : (403, refusal) }
-        #expect(await failure(of: provider) == .unavailable)
+        #expect(await failure(of: provider) == .notServed, "SUBSCRIPTION_REQUIRED on the quota call is the same calm shutdown")
         #expect(exchange.seen.last?.body.isEmpty == true)
 
         exchange.answer = { url in url.path == "/v1internal:loadCodeAssist" ? (200, licensed) : (403, Data()) }
@@ -499,10 +546,10 @@ import Testing
 
 /// Which ProviderError a fetch ends in, by case; nil when it succeeds or fails some other way.
 enum ProviderFailure: Equatable {
-    case notSignedIn, tokenExpired, accessDenied, rateLimited, http, parse, unavailable, nothingYet, offline, apiKeyOnly
+    case notSignedIn, tokenExpired, accessDenied, rateLimited, http, parse, unavailable, nothingYet, offline, apiKeyOnly, notServed
 }
 
-func failure(of provider: AntigravityProvider) async -> ProviderFailure? {
+func failure(of provider: CodeAssistProvider) async -> ProviderFailure? {
     do {
         _ = try await provider.fetch()
         return nil
@@ -518,6 +565,7 @@ func failure(of provider: AntigravityProvider) async -> ProviderFailure? {
         case .nothingYet: return .nothingYet
         case .offline: return .offline
         case .apiKeyOnly: return .apiKeyOnly
+        case .notServed: return .notServed
         }
     } catch {
         return nil
@@ -536,23 +584,23 @@ func failure(of provider: AntigravityProvider) async -> ProviderFailure? {
         let fiveAndAHalfHours = 5.5 * 3600
         let aWeekLessAnHour = 7.0 * 86400 - 3600
         let threeHours = 3.0 * 3600
-        #expect(AntigravityPeriods.period(betweenResets: fiveHours) == Period.fiveHours)
-        #expect(AntigravityPeriods.period(betweenResets: fiveAndAHalfHours) == Period.fiveHours)
-        #expect(AntigravityPeriods.period(betweenResets: aWeekLessAnHour) == Period.week)
-        #expect(AntigravityPeriods.period(betweenResets: threeHours) == nil)
+        #expect(InferredPeriods.period(betweenResets: fiveHours) == Period.fiveHours)
+        #expect(InferredPeriods.period(betweenResets: fiveAndAHalfHours) == Period.fiveHours)
+        #expect(InferredPeriods.period(betweenResets: aWeekLessAnHour) == Period.week)
+        #expect(InferredPeriods.period(betweenResets: threeHours) == nil)
         let first = now.addingTimeInterval(-fiveHours)
         let resetsFiveHoursApart = [first, first, now, now.addingTimeInterval(30)]
-        #expect(AntigravityPeriods.confirmedPeriod(resets: resetsFiveHoursApart) == Period.fiveHours)
-        #expect(AntigravityPeriods.confirmedPeriod(resets: [now]) == nil)
+        #expect(InferredPeriods.confirmedPeriod(resets: resetsFiveHoursApart) == Period.fiveHours)
+        #expect(InferredPeriods.confirmedPeriod(resets: [now]) == nil)
         let resetsTwoDaysApart = [now.addingTimeInterval(-2.0 * 86400), now]
-        #expect(AntigravityPeriods.confirmedPeriod(resets: resetsTwoDaysApart) == nil)
+        #expect(InferredPeriods.confirmedPeriod(resets: resetsTwoDaysApart) == nil)
         let inThreeHours = now.addingTimeInterval(threeHours)
         let inTwentyHours = now.addingTimeInterval(20.0 * 3600)
         let inFiveDays = now.addingTimeInterval(5.0 * 86400)
-        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: inThreeHours, now: now) == Period.fiveHours)
-        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: inTwentyHours, now: now) == Period.day)
-        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: inFiveDays, now: now) == Period.week)
-        #expect(AntigravityPeriods.provisionalPeriod(resetsAt: now.addingTimeInterval(-1), now: now) == nil)
+        #expect(InferredPeriods.provisionalPeriod(resetsAt: inThreeHours, now: now) == Period.fiveHours)
+        #expect(InferredPeriods.provisionalPeriod(resetsAt: inTwentyHours, now: now) == Period.day)
+        #expect(InferredPeriods.provisionalPeriod(resetsAt: inFiveDays, now: now) == Period.week)
+        #expect(InferredPeriods.provisionalPeriod(resetsAt: now.addingTimeInterval(-1), now: now) == nil)
     }
 
     @Test func aConfirmedLengthGivesThePaceTickAndTheInferredTag() throws {
@@ -561,20 +609,20 @@ func failure(of provider: AntigravityProvider) async -> ProviderFailure? {
             LimitWindow(id: "gemini_pro", label: "Gemini Pro", usedFraction: 0.6, resetsAt: reset, model: "Gemini Pro"),
             LimitWindow(id: "gemini_flash", label: "Gemini Flash", usedFraction: 0.1, resetsAt: now.addingTimeInterval(6 * 86400), note: "a · b", model: "Gemini Flash"),
         ], plan: nil, fetchedAt: now, observedAt: nil)
-        let provisional = AntigravityPeriods.apply(reading, resets: [:], now: now)
+        let provisional = InferredPeriods.apply(reading, resets: [:], now: now)
         #expect(provisional.windows[0].periodDuration == nil)
         #expect(provisional.windows[0].note == "likely a 5-hour window")
         #expect(provisional.windows[0].source == .vendorEndpoint)
         #expect(provisional.windows[1].note == "a · b · likely a 7-day window")
         #expect(Pace.status(for: provisional.windows[0], now: now) == nil)
-        let confirmed = AntigravityPeriods.apply(reading, resets: ["gemini_pro": [reset.addingTimeInterval(-5 * 3600), reset.addingTimeInterval(-5 * 3600)]], now: now)
+        let confirmed = InferredPeriods.apply(reading, resets: ["gemini_pro": [reset.addingTimeInterval(-5 * 3600), reset.addingTimeInterval(-5 * 3600)]], now: now)
         #expect(confirmed.windows[0].periodDuration == Period.fiveHours)
         #expect(confirmed.windows[0].source == .localEstimate)
         #expect(confirmed.windows[0].source.tag == "inferred")
         #expect(confirmed.windows[0].note == "5-hour window inferred from its resets")
         #expect(Pace.status(for: confirmed.windows[0], now: now) == .onTrack)
         #expect(confirmed.windows[1].periodDuration == nil)
-        let other = AntigravityPeriods.apply(UsageReading(tool: .codex, windows: reading.windows, plan: nil, fetchedAt: now, observedAt: nil), resets: [:], now: now)
+        let other = InferredPeriods.apply(UsageReading(tool: .codex, windows: reading.windows, plan: nil, fetchedAt: now, observedAt: nil), resets: [:], now: now)
         #expect(other.windows[0].note == nil)
     }
 
@@ -587,32 +635,32 @@ func failure(of provider: AntigravityProvider) async -> ProviderFailure? {
                          plan: nil, fetchedAt: time, observedAt: nil)
         }
         let minute = 300.0
-        var runs: [String: AntigravityStaleness.Run] = [:]
+        var runs: [String: CodeAssistStaleness.Run] = [:]
         for poll in 0..<3 {
             let at = now.addingTimeInterval(Double(poll) * minute)
-            runs = AntigravityStaleness.runs(after: reading(0, at: at), previous: runs, now: at)
+            runs = CodeAssistStaleness.runs(after: reading(0, at: at), previous: runs, now: at)
             #expect(runs["gemini_pro"]?.count == poll + 1)
             #expect(runs["gemini_pro"]?.since == now)
         }
         let third = reading(0, at: now.addingTimeInterval(2 * minute))
         // Nothing worked, or the work predates the run: the figure stands.
-        #expect(AntigravityStaleness.unverified(third, runs: runs, activeSince: nil).windows[0].usedFraction == 0)
-        #expect(AntigravityStaleness.unverified(third, runs: runs, activeSince: now.addingTimeInterval(-60)).windows[0].usedFraction == 0)
+        #expect(CodeAssistStaleness.unverified(third, runs: runs, activeSince: nil).windows[0].usedFraction == 0)
+        #expect(CodeAssistStaleness.unverified(third, runs: runs, activeSince: now.addingTimeInterval(-60)).windows[0].usedFraction == 0)
         // The tool worked after the run began: unverified.
-        let flagged = AntigravityStaleness.unverified(third, runs: runs, activeSince: now.addingTimeInterval(minute))
+        let flagged = CodeAssistStaleness.unverified(third, runs: runs, activeSince: now.addingTimeInterval(minute))
         #expect(flagged.windows[0].usedFraction == nil)
         #expect(flagged.windows[0].note == "a · Unverified: read untouched across 3 polls while the tool was in use")
         #expect(flagged.windows[0].source == .localEstimate)
         #expect(flagged.windows[0].resetsAt == third.windows[0].resetsAt)
         // Two polls are not enough, and a figure that moves ends the run.
-        let twoPolls = ["gemini_pro": AntigravityStaleness.Run(count: 2, since: now)]
-        #expect(AntigravityStaleness.unverified(third, runs: twoPolls, activeSince: now.addingTimeInterval(minute)).windows[0].usedFraction == 0)
-        let moved = AntigravityStaleness.runs(after: reading(0.1, at: now), previous: runs, now: now)
+        let twoPolls = ["gemini_pro": CodeAssistStaleness.Run(count: 2, since: now)]
+        #expect(CodeAssistStaleness.unverified(third, runs: twoPolls, activeSince: now.addingTimeInterval(minute)).windows[0].usedFraction == 0)
+        let moved = CodeAssistStaleness.runs(after: reading(0.1, at: now), previous: runs, now: now)
         #expect(moved["gemini_pro"] == nil)
-        #expect(AntigravityStaleness.runs(after: reading(nil, at: now), previous: runs, now: now).isEmpty)
+        #expect(CodeAssistStaleness.runs(after: reading(nil, at: now), previous: runs, now: now).isEmpty)
         let codex = UsageReading(tool: .codex, windows: third.windows, plan: nil, fetchedAt: now, observedAt: nil)
-        #expect(AntigravityStaleness.runs(after: codex, previous: runs, now: now) == runs)
-        #expect(AntigravityStaleness.unverified(codex, runs: runs, activeSince: now.addingTimeInterval(minute)).windows[0].usedFraction == 0)
-        #expect(AntigravityStaleness.readsBeforeUnverified == 3)
+        #expect(CodeAssistStaleness.runs(after: codex, previous: runs, now: now) == runs)
+        #expect(CodeAssistStaleness.unverified(codex, runs: runs, activeSince: now.addingTimeInterval(minute)).windows[0].usedFraction == 0)
+        #expect(CodeAssistStaleness.readsBeforeUnverified == 3)
     }
 }

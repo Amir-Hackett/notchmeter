@@ -1,6 +1,6 @@
 {
   "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-  "snapshotDate": "2026-09-01",
+  "snapshotDate": "2026-09-24",
   "unit": "USD per million tokens",
   "models": {
     "claude-fable-5-1": {
@@ -22,6 +22,14 @@
       "input": 10,
       "output": 50,
       "cacheRead": 1.0
+    },
+    "claude-opus-5-5": {
+      "input": 4,
+      "output": 20,
+      "cacheRead": 0.2,
+      "fastInput": 8,
+      "fastOutput": 40,
+      "fastCacheRead": 0.4
     },
     "claude-opus-5": {
       "input": 5,
@@ -102,5 +110,5 @@
     "usResidency": 1.1
   },
   "webSearchPerRequest": 0.01,
-  "notes": "retired: no longer on the pricing page; kept for old transcripts at the last published rate."
+  "notes": "retired: no longer on the pricing page; kept for old transcripts at the last published rate. Opus 5.5 reads its cache at 0.05x input, the page's own exception to the 0.1x rule, and its fast row stacks that multiplier on the fast input rate."
 }

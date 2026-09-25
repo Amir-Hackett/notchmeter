@@ -34,6 +34,11 @@ enum AssetRenderer {
     static func render(into directory: URL, now: Date = Date()) -> Bool {
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            // The pictures the README does not use go under `review/`, which .gitignore lists: docs/install.md
+            // renders into docs/media, and a review-only picture written beside the README's left the tree dirty
+            // after every render, to be committed by mistake or known about and deleted.
+            let review = directory.appendingPathComponent("review")
+            try FileManager.default.createDirectory(at: review, withIntermediateDirectories: true)
             stillEveryAnimation()
             let (store, prefs) = DemoFixtures.store(now: now)
             let actions = NotchActions()
@@ -45,7 +50,13 @@ enum AssetRenderer {
             let (finished, finishedPrefs) = DemoFixtures.store(now: now, moment: .justFinished)
             try write(signalRings(waiting: stage, finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
                       png: directory.appendingPathComponent("signal-rings.png"))
-            try write(notchNews(now: now, actions: actions), png: directory.appendingPathComponent("notch-news.png"))
+            try write(notchNews(now: now, actions: actions), png: review.appendingPathComponent("notch-news.png"))
+            // Claude Cowork's tasks among the hook's sessions, and the notch announcing one's finish: drawn from a
+            // store of their own (DemoFixtures.coworkTasks), so the README's pictures stay as they were.
+            let (cowork, coworkPrefs) = DemoFixtures.store(now: now, moment: .working, cowork: true)
+            let coworkStage = try Stage(store: cowork, prefs: coworkPrefs, actions: actions)
+            try write(coworkStage.image(.expanded, canvas: coworkStage.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("cowork.png"))
+            try write(coworkNews(now: now, actions: actions), png: directory.appendingPathComponent("cowork-news.png"))
             // The two requests, each drawn the way a request actually arrives: the panel opened on the card alone
             // (UsageStore.panelOpenedForPrompt), which is what the reader will see and not a panel with a card on
             // top of the meters. A state the fixture machine cannot reach cannot be drawn, so both come from real
@@ -57,8 +68,43 @@ enum AssetRenderer {
                 try write(card.image(.expanded, canvas: card.panelCanvas, pixelScale: scale),
                           png: directory.appendingPathComponent("\(name).png"))
             }
+            // Claude Code's 0.11 hook events (DemoFixtures.Moment.hookEvents), for review: the Sessions card with a
+            // compaction, a fallback, auto-mode refusals, idle teammates, a session that may be stuck and an MCP
+            // wait, with their lists open; the peek the compaction raises; and an MCP server's form held for the notch.
+            let (events, eventsPrefs) = DemoFixtures.store(now: now, moment: .hookEvents)
+            events.openSessionLists = [SessionsCard.listKey("notchmeter", .models), SessionsCard.listKey("notchmeter", .denials),
+                                       SessionsCard.listKey("scout", .teammates)]
+            let eventsStage = try Stage(store: events, prefs: eventsPrefs, actions: actions)
+            try write(eventsStage.image(.expanded, canvas: eventsStage.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("hook-events.png"))
+            eventsPrefs.panelMode = .detailed
+            let eventsDetailed = try Stage(store: events, prefs: eventsPrefs, actions: actions)
+            try write(eventsDetailed.image(.expanded, canvas: eventsDetailed.panelCanvas, pixelScale: scale),
+                      png: directory.appendingPathComponent("hook-events-detailed.png"))
+            eventsPrefs.panelMode = .simple
+            events.seed(news: DemoFixtures.news(in: events, moment: .hookEvents, now: now))
+            let peek = try Stage(store: events, prefs: eventsPrefs, actions: actions, drawsGlow: true)
+            try write(peek.image(.compact, canvas: CGSize(width: peek.compactExtent + 2 * NotchGlowView.spread + 80,
+                                                          height: notch.height + NotchGlowView.depth + 8), pixelScale: scale),
+                      png: directory.appendingPathComponent("hook-events-peek.png"))
+            let (form, formPrefs) = DemoFixtures.store(now: now, moment: .elicitation)
+            form.panelOpenedForPrompt = true
+            let formStage = try Stage(store: form, prefs: formPrefs, actions: actions)
+            try write(formStage.image(.expanded, canvas: formStage.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("elicitation.png"))
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
-            try write(welcome(now: now), png: directory.appendingPathComponent("welcome.png"))
+            try write(sheet(assistantPages(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings-assistants.png"))
+            // The Sounds block, for review: the Notifications pane at the window's narrowest, where the six rows
+            // are tightest, with one category silenced and one on a sound of its own, dark and light.
+            let (sounding, soundingPrefs) = DemoFixtures.store(now: now)
+            soundingPrefs.setSilenced(true, .waiting)
+            soundingPrefs.soundChoices[.question] = "system:Tink"
+            for (name, appearance) in [("settings-sounds", NSAppearance.Name.darkAqua), ("settings-sounds-light", .aqua)] {
+                try write(settings(pane: .notifications, store: sounding, prefs: soundingPrefs, actions: actions,
+                                   width: SettingsWindowController.minSize.width, appearance: appearance),
+                          png: directory.appendingPathComponent("\(name).png"))
+            }
+            try write(welcome(now: now), png: review.appendingPathComponent("welcome.png"))
+            try write(feedback(store: store, prefs: prefs), png: review.appendingPathComponent("feedback.png"))
+            try openCode(into: directory, now: now, actions: actions)
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
             // The same moment on the Detailed panel (PanelMode): every card open, as the panel was before 0.8.0.
             prefs.panelMode = .detailed
@@ -69,18 +115,124 @@ enum AssetRenderer {
             // under their rows without a box.
             store.openPanelRows = [AdvicePlacement.Slot.tool(.claude).key, AdvicePlacement.Slot.cost.key]
             let opened = try Stage(store: store, prefs: prefs, actions: actions)
-            try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-open.png"))
+            try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: review.appendingPathComponent("expanded-open.png"))
             store.openPanelRows = []
+            // The rows 0.9.0 added, for review (DemoFixtures.assistantsStore): Gemini CLI and Antigravity apart,
+            // Kimi Code beside them, on the Simple panel, the strip, and the Detailed panel.
+            let (assistants, assistantsPrefs) = DemoFixtures.assistantsStore(now: now)
+            let assistantsStage = try Stage(store: assistants, prefs: assistantsPrefs, actions: actions)
+            try write(assistantsStage.image(.expanded, canvas: assistantsStage.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("assistants.png"))
+            try write(assistantsStage.image(.compact, canvas: CGSize(width: 1200, height: 80), pixelScale: scale), png: directory.appendingPathComponent("assistants-compact.png"))
+            // The edge pill under Light, for both fixtures: the one surface where the identity colours take their
+            // light values (ToolID.identity), so a reviewer sees every ring and readout against a light capsule.
+            try write(edgePill(store: store, light: true), png: directory.appendingPathComponent("pill-light.png"))
+            try write(edgePill(store: assistants, light: true), png: directory.appendingPathComponent("assistants-pill-light.png"))
+            assistantsPrefs.panelMode = .detailed
+            let assistantsDetailed = try Stage(store: assistants, prefs: assistantsPrefs, actions: actions)
+            try write(assistantsDetailed.image(.expanded, canvas: assistantsDetailed.panelCanvas, pixelScale: scale),
+                      png: directory.appendingPathComponent("assistants-detailed.png"))
+            assistantsPrefs.panelMode = .simple
+            // The first launch before any hook is installed (SessionDetection), for review: the Simple panel with the
+            // sessions the scan found, each marked detected, and the card's line offering the hook; the Detailed
+            // card on its own at the panel's width; and the card under Increase Contrast.
+            let (fresh, freshPrefs) = DemoFixtures.store(now: now, moment: .firstLaunch)
+            let firstLaunch = try Stage(store: fresh, prefs: freshPrefs, actions: actions)
+            try write(firstLaunch.image(.expanded, canvas: firstLaunch.panelCanvas, pixelScale: scale),
+                      png: directory.appendingPathComponent("expanded-detected.png"))
+            try write(panelCrop(SessionsCard(store: fresh, prefs: freshPrefs, actions: actions), prefs: freshPrefs).image,
+                      png: directory.appendingPathComponent("sessions-detected.png"))
+            AccessibilityDisplay.shared.force(contrast: true)
+            try write(panelCrop(SessionsCard(store: fresh, prefs: freshPrefs, actions: actions), prefs: freshPrefs).image,
+                      png: directory.appendingPathComponent("sessions-detected-contrast.png"))
+            AccessibilityDisplay.shared.force(contrast: nil)
+            try themes(into: directory, now: now, actions: actions)
+            // The panel's own controls, for review: the closed notch in each mode while a session works and a ring
+            // just scrolled onto another window; the Simple panel with four rows before "+3 more", rows led by their
+            // project and the Cost row open on its week; and the Settings rows that set them.
+            try write(closedNotch(now: now, actions: actions), png: directory.appendingPathComponent("closed-notch.png"))
+            try write(controlsPanel(now: now, actions: actions), png: directory.appendingPathComponent("expanded-controls.png"))
+            try write(controlsSettings(now: now, actions: actions), png: directory.appendingPathComponent("settings-controls.png"))
+            // *Fetch today's rate*, for review: the card and the pane in euros and in dong, at the ECB's rate and
+            // with the typed one standing in; the preferences are put back to dollars afterwards.
+            try currency(into: directory, store: store, prefs: prefs, actions: actions, now: now)
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
             AccessibilityDisplay.shared.force(contrast: true)
             defer { AccessibilityDisplay.shared.force(contrast: nil) }
             let contrast = try Stage(store: store, prefs: prefs, actions: actions)
             try write(contrast.image(.expanded, canvas: contrast.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-contrast.png"))
+            let assistantsContrast = try Stage(store: assistants, prefs: assistantsPrefs, actions: actions)
+            try write(assistantsContrast.image(.expanded, canvas: assistantsContrast.panelCanvas, pixelScale: scale),
+                      png: directory.appendingPathComponent("assistants-contrast.png"))
+            let eventsContrast = try Stage(store: events, prefs: eventsPrefs, actions: actions)
+            try write(eventsContrast.image(.expanded, canvas: eventsContrast.panelCanvas, pixelScale: scale),
+                      png: directory.appendingPathComponent("hook-events-contrast.png"))
+            AccessibilityDisplay.shared.force(contrast: nil)
+            // Last, because two of the cards are drawn in other languages and the pin is put back afterwards.
+            try shareCards(into: directory, store: store, now: now)
             return true
         } catch {
             Probe.emit("render-assets: \(error)")
             return false
         }
+    }
+
+    /// The usage card (ShareCard) over the same fixtures, under `share-cards/` in the output folder: the feed in
+    /// its three themes, the square and the story in the others, one on tokens, and four in German and Russian,
+    /// the two shipped languages that run longest. For review of legibility, contrast and clipping; the README
+    /// uses none of them, and the folder keeps them out of `docs/media` when the README's pictures are redrawn.
+    ///
+    /// The drain samples are the fixtures' own week for the Fable window (DemoFixtures.drainSamples), so the
+    /// card's one line is the peak the log really holds, and the signature is a placeholder rather than a name.
+    /// Each card is drawn by the same renderer Save PNG uses, so the file is the file a user gets.
+    @MainActor
+    static func shareCards(into directory: URL, store: UsageStore, now: Date) throws {
+        let folder = directory.appendingPathComponent("share-cards")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var input = store.shareCardInput(now: now)
+        input.samples = DemoFixtures.drainSamples(now: now)
+        input.signature = "@sample"
+        let pinned = Localization.current
+        defer { Localization.use(language: pinned) }
+        func card(_ name: String, language: String = "en", metric: ShareCardMetric, range: ShareCardRange,
+                  format: ShareCardFormat, theme: ShareCardTheme) throws {
+            Localization.use(language: language)
+            var chosen = input
+            chosen.metric = metric
+            chosen.range = range
+            let content = ShareCard.content(chosen)
+            guard let image = ShareCardRenderer.image(content, format: format, theme: theme) else { throw Failure.snapshot("the \(name) usage card") }
+            try write(image, png: folder.appendingPathComponent("\(name).png"))
+        }
+        try card("feed-black", metric: .value, range: .thirtyDays, format: .feed, theme: .black)
+        try card("feed-white", metric: .value, range: .thirtyDays, format: .feed, theme: .white)
+        try card("feed-blue", metric: .value, range: .thirtyDays, format: .feed, theme: .blue)
+        try card("square-blue-tokens", metric: .tokens, range: .sevenDays, format: .square, theme: .blue)
+        try card("square-black-today", metric: .value, range: .today, format: .square, theme: .black)
+        try card("story-black-month", metric: .value, range: .month, format: .story, theme: .black)
+        try card("story-white-90d", metric: .value, range: .ninetyDays, format: .story, theme: .white)
+        try card("feed-white-de", language: "de", metric: .value, range: .thirtyDays, format: .feed, theme: .white)
+        try card("square-black-de", language: "de", metric: .value, range: .thirtyDays, format: .square, theme: .black)
+        try card("story-blue-ru", language: "ru", metric: .value, range: .thirtyDays, format: .story, theme: .blue)
+        try card("square-white-ru", language: "ru", metric: .tokens, range: .month, format: .square, theme: .white)
+        // The studio itself (ShareCardWindow) at its window's size, with the after-update banner up, so the
+        // controls and the actual-size preview can be checked beside the cards they make.
+        Localization.use(language: pinned)
+        let session = ShareCardSession()
+        session.offered = true
+        let studio = ShareCardStudio(store: store, prefs: store.prefs, session: session, hostWindow: { nil })
+            .frame(width: ShareCardWindowController.contentSize.width, height: ShareCardWindowController.contentSize.height)
+            .background(Color(nsColor: .windowBackgroundColor))
+        try write(try snapshot(studio, what: "the usage card's studio").image, png: folder.appendingPathComponent("studio.png"))
+        // The same studio with every assistant unticked, for the note that takes the card's place: the preview's
+        // own words rather than the empty card's line (ShareCardContent.nothingTicked). The fixtures' own choice
+        // is put back afterwards.
+        let ticked = store.prefs.shareCardHidden
+        defer { store.prefs.shareCardHidden = ticked }
+        store.prefs.shareCardHidden = Set(ShareCard.available(providers: input.providers, order: input.order))
+        let unticked = ShareCardStudio(store: store, prefs: store.prefs, session: ShareCardSession(), hostWindow: { nil })
+            .frame(width: ShareCardWindowController.contentSize.width, height: ShareCardWindowController.contentSize.height)
+            .background(Color(nsColor: .windowBackgroundColor))
+        try write(try snapshot(unticked, what: "the usage card's studio with nothing ticked").image, png: folder.appendingPathComponent("studio-unticked.png"))
     }
 
     /// A still has no time axis, and one of these views moves on its own: `CompactReadout` fades to 40 % three
@@ -217,8 +369,9 @@ enum AssetRenderer {
                 ("07-edges", notchShape, L("A notch cut into the left or the right edge of any Mac."), []),
                 // The caption names things the frame has to contain. It named three that lived on the Appearance
                 // and Integrations panes while the capture was one window opened on General, so the sheet is
-                // every pane now (AssetRenderer.settings) and the caption says which frame it is a spread of.
-                ("08-settings", settingsImage, L("All six Settings panes: position, hover or always open, hook install with a backup."), []),
+                // every pane now (AssetRenderer.settings) and the caption says which frame it is a spread of. The
+                // hook install it names is on Claude Code's own page, the one assistant's page the sheet carries.
+                ("08-settings", settingsImage, L("The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup."), []),
             ]
             for frame in frames {
                 let image = try composite(frame.image, caption: frame.caption, lines: frame.lines, canvas: canvas,
@@ -300,6 +453,86 @@ enum AssetRenderer {
         }
     }
 
+    // MARK: - Themes
+
+    /// Settings › Appearance › Theme, drawn for review (the README uses none of them): Paper on the Simple panel,
+    /// with two rows open, on the Detailed panel, with the dials, in an edge layout's card and under Increase
+    /// Contrast; the two translucent materials over a desktop that runs from colour into a white window, the worst
+    /// backdrop they are chosen against; each of the two other accents; the dials with the hour clock on the
+    /// Simple and Detailed panels; and Settings' Theme section with a look chosen, its preview drawing that look.
+    /// Each is the demo afternoon in its own store, so one look never leaks into the
+    /// next, and each file is followed by a `contrast` line: the look's weakest text and mark against the grounds
+    /// the rules measure (PanelLook.audit, which fails the build's tests if any pairing is short), and for a
+    /// translucent material the colour actually drawn over the white window beside the colour the rules assume.
+    @MainActor
+    static func themes(into directory: URL, now: Date, actions: NotchActions) throws {
+        let claude = AdvicePlacement.Slot.tool(.claude).key
+        let cost = AdvicePlacement.Slot.cost.key
+        let renders: [(name: String, wallpaper: Wallpaper, configure: (UsageStore, Preferences) -> Void)] = [
+            ("theme-paper", .dark, { _, prefs in prefs.panelTheme = .paper }),
+            ("theme-paper-open", .dark, { store, prefs in prefs.panelTheme = .paper; store.openPanelRows = [claude, cost] }),
+            ("theme-paper-detailed", .dark, { _, prefs in prefs.panelTheme = .paper; prefs.panelMode = .detailed }),
+            ("theme-paper-gauges", .dark, { _, prefs in
+                prefs.panelTheme = .paper; prefs.panelMode = .detailed; prefs.usageStyle = .gauges; prefs.hourClock = true }),
+            ("theme-glassy", .desktop, { _, prefs in prefs.panelMaterial = .glassy }),
+            ("theme-smoked", .desktop, { _, prefs in prefs.panelMaterial = .smoked }),
+            ("theme-solid", .desktop, { _, prefs in prefs.panelMaterial = .solid }),
+            ("theme-accent-teal", .dark, { store, prefs in prefs.panelAccent = .teal; store.openPanelRows = [cost] }),
+            ("theme-accent-lilac", .dark, { store, prefs in prefs.panelAccent = .lilac; store.openPanelRows = [cost] }),
+            ("usage-gauges", .dark, { _, prefs in prefs.panelMode = .detailed; prefs.usageStyle = .gauges; prefs.hourClock = true }),
+            ("usage-gauges-simple", .dark, { store, prefs in prefs.usageStyle = .gauges; prefs.hourClock = true; store.openPanelRows = [claude] }),
+            ("usage-clock", .dark, { store, prefs in prefs.hourClock = true; store.openPanelRows = [claude] }),
+        ]
+        for render in renders {
+            let (store, prefs) = DemoFixtures.store(now: now)
+            render.configure(store, prefs)
+            let stage = try Stage(store: store, prefs: prefs, actions: actions, wallpaper: render.wallpaper)
+            let image = try stage.image(.expanded, canvas: stage.panelCanvas, pixelScale: scale)
+            try write(image, png: directory.appendingPathComponent("\(render.name).png"))
+            reportContrast(render.name, look: PanelLook.current(prefs, edgeCard: false), stage: stage, image: image)
+        }
+        // The Theme section itself with a look chosen, so its live preview is seen drawing something other than
+        // the default: Paper, the teal accent, the dials and the clock.
+        let (themedStore, themedPrefs) = DemoFixtures.store(now: now)
+        themedPrefs.panelTheme = .paper
+        themedPrefs.panelAccent = .teal
+        themedPrefs.usageStyle = .gauges
+        themedPrefs.hourClock = true
+        try write(settings(pane: .appearance, store: themedStore, prefs: themedPrefs, actions: actions),
+                  png: directory.appendingPathComponent("settings-theme.png"))
+        // Paper in an edge layout's card: the sheet in a frame of the card's black on every side.
+        let (edgeStore, edgePrefs) = DemoFixtures.store(now: now)
+        edgePrefs.panelTheme = .paper
+        let edgeStage = try Stage(store: edgeStore, prefs: edgePrefs, actions: actions)
+        try write(edgeNotchWithPanel(panel: edgeStage.content, store: edgeStore, sideFrame: EdgePanelCard.paperFrame),
+                  png: directory.appendingPathComponent("theme-paper-edge.png"))
+        // Paper under Increase Contrast: the washes, the tracks and the captions raised, the colours darkened to match.
+        AccessibilityDisplay.shared.force(contrast: true)
+        defer { AccessibilityDisplay.shared.force(contrast: nil) }
+        let (store, prefs) = DemoFixtures.store(now: now)
+        prefs.panelTheme = .paper
+        store.openPanelRows = [claude, cost]
+        let stage = try Stage(store: store, prefs: prefs, actions: actions)
+        let image = try stage.image(.expanded, canvas: stage.panelCanvas, pixelScale: scale)
+        try write(image, png: directory.appendingPathComponent("theme-paper-contrast.png"))
+        reportContrast("theme-paper-contrast", look: PanelLook.current(prefs, edgeCard: false), stage: stage, image: image)
+    }
+
+    /// One `contrast` line: the look, its weakest pairings, whether the audit found anything short, and on a
+    /// translucent panel the ground drawn over the white window against the ground the rules assume there.
+    @MainActor
+    private static func reportContrast(_ name: String, look: PanelLook, stage: Stage, image: CGImage) {
+        let weakest = look.weakest
+        let findings = look.audit()
+        var line = "contrast \(name): \(look.summary); weakest text \(String(format: "%.2f", weakest.text)):1, "
+            + "weakest mark \(String(format: "%.2f", weakest.mark)):1; "
+            + (findings.isEmpty ? "every pairing passes" : "SHORT: \(findings.map(\.description).joined(separator: "; "))")
+        if look.theme == .black, look.material.translucent, let drawn = stage.groundOverWhite(in: image) {
+            line += "; drawn over white \(drawn), assumed \(look.sheet)"
+        }
+        Probe.emit(line)
+    }
+
     // MARK: - Pictures
 
     /// The left-hand side notch on a strip of desktop, as it looks before Liquid Glass: the glass material samples
@@ -325,6 +558,37 @@ enum AssetRenderer {
         }
     }
 
+    /// The bottom-bar pill under the Light appearance, for review: the one surface the identity colours are drawn
+    /// on that is not dark (the pill follows *Appearance*, EdgePanelRoot; the notch, the panel, the edge card and
+    /// the flush side notch force dark), so it is where `ToolID.identity`'s light values are seen. The capsule is
+    /// painted with Core Graphics for the reason `edgeNotch` gives about its shape: from macOS 26 it is glass,
+    /// and glass off-screen has nothing behind it to sample. Its fill stands in for light glass over the
+    /// wallpaper; its padding is the four points `EdgeNotch` gives the capsule plus the readouts' own.
+    @MainActor
+    static func edgePill(store: UsageStore, light: Bool) throws -> CGImage {
+        let rings = try snapshot(EdgeCompactView(store: store, edge: .bottom).environment(\.colorScheme, light ? .light : .dark),
+                                 what: "the edge pill", appearance: light ? .aqua : .darkAqua)
+        let pad: CGFloat = 4
+        let pill = CGSize(width: rings.size.width + 2 * pad, height: rings.size.height + 2 * pad)
+        let canvas = CGSize(width: pill.width + 80, height: pill.height + 60)
+        return try bitmap(canvas, pixelScale: scale) { ctx in
+            wallpaper(in: ctx, canvas: canvas)
+            let rect = CGRect(x: (canvas.width - pill.width) / 2, y: (canvas.height - pill.height) / 2, width: pill.width, height: pill.height)
+            let capsule = CGPath(roundedRect: rect, cornerWidth: rect.height / 2, cornerHeight: rect.height / 2, transform: nil)
+            ctx.saveGState()
+            ctx.setShadow(offset: CGSize(width: 0, height: -4 * scale), blur: 16 * scale, color: CGColor(gray: 0, alpha: 0.35))
+            ctx.addPath(capsule)
+            ctx.setFillColor(light ? CGColor(gray: 0.96, alpha: 0.96) : CGColor(gray: 0, alpha: 1))
+            ctx.fillPath()
+            ctx.restoreGState()
+            ctx.addPath(capsule)
+            ctx.setStrokeColor(light ? CGColor(gray: 0, alpha: 0.12) : CGColor(gray: 1, alpha: 0.12))
+            ctx.setLineWidth(1)
+            ctx.strokePath()
+            draw(rings.image, in: CGRect(x: rect.minX + pad, y: rect.minY + pad, width: rings.size.width, height: rings.size.height), alpha: 1, into: ctx)
+        }
+    }
+
     /// The right-hand notch with the panel open beside it, which is what a side layout is for and the one thing no
     /// picture in `docs/media` showed: the readings stay on the glass while the detail is read inboard of them.
     ///
@@ -336,12 +600,13 @@ enum AssetRenderer {
     /// is the same arithmetic `EdgePanelController.arrangement` does, so the picture cannot promise a spacing the
     /// app does not lay out.
     @MainActor
-    static func edgeNotchWithPanel(panel: Snapshot, store: UsageStore) throws -> CGImage {
+    static func edgeNotchWithPanel(panel: Snapshot, store: UsageStore, sideFrame: CGFloat = 0) throws -> CGImage {
         let rings = try snapshot(EdgeCompactView(store: store, edge: .right), what: "the edge rings")
         let run = rings.size.height + 2 * SideNotchShape.flareCap
-        // EdgePanelCard: the panel's own content padded 6 pt top and bottom inside a 22 pt rounded rectangle, then
-        // 4 pt of window slack outside it, which shows as desktop between the card and the notch.
-        let card = CGSize(width: panel.size.width, height: panel.size.height + 12)
+        // EdgePanelCard: the panel's own content padded 6 pt top and bottom inside a 22 pt rounded rectangle (and
+        // `sideFrame` at the sides, which Paper takes), then 4 pt of window slack outside it, which shows as desktop
+        // between the card and the notch.
+        let card = CGSize(width: panel.size.width + 2 * sideFrame, height: panel.size.height + 12)
         let gap = EdgePanelController.besideGap + 4
         let desktop: CGFloat = 40
         let margin: CGFloat = 28
@@ -361,7 +626,7 @@ enum AssetRenderer {
             ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.12))
             ctx.setLineWidth(1)
             ctx.strokePath()
-            draw(panel.image, in: CGRect(x: cardRect.minX, y: cardRect.minY + 6, width: panel.size.width, height: panel.size.height), alpha: 1, into: ctx)
+            draw(panel.image, in: CGRect(x: cardRect.minX + sideFrame, y: cardRect.minY + 6, width: panel.size.width, height: panel.size.height), alpha: 1, into: ctx)
             drawSideNotch(rings, edge: .right, in: CGRect(x: canvas.width - rings.size.width, y: (canvas.height - run) / 2,
                                                           width: rings.size.width, height: run), into: ctx)
         }
@@ -455,6 +720,95 @@ enum AssetRenderer {
         }
     }
 
+    /// The collapsed notch announcing a Claude Cowork task's finish (DemoFixtures.coworkNews): the task's title
+    /// beside the notch, the finish on the other side, and the white bloom under it, drawn as `notchNews` draws its
+    /// rows.
+    @MainActor
+    static func coworkNews(now: Date, actions: NotchActions) throws -> CGImage {
+        let (store, prefs) = DemoFixtures.store(now: now, moment: .working, cowork: true)
+        store.seed(news: DemoFixtures.coworkNews(in: store, now: now))
+        let stage = try Stage(store: store, prefs: prefs, actions: actions, drawsGlow: true)
+        let row = CGSize(width: stage.compactExtent + 2 * NotchGlowView.spread + 80, height: notch.height + NotchGlowView.depth + 8)
+        let image = try stage.image(.compact, canvas: row, pixelScale: scale)
+        return try bitmap(row, pixelScale: scale) { ctx in
+            wallpaper(in: ctx, canvas: row)
+            draw(image, in: CGRect(origin: .zero, size: row), alpha: 1, into: ctx)
+        }
+    }
+
+    /// The closed notch while a session works (`DemoFixtures.Moment.working`), one row per mode it can be set to
+    /// show (ClosedNotchMode): the readouts, the assistants' symbols with the working bar under Claude Code's, and
+    /// nothing but the notch; then the symbols while nothing runs, the hollow ring under Claude Code's for its idle
+    /// sessions. A last row is the readouts a moment after a scroll moved Claude's outer ring onto the next
+    /// window, with the label that names it drawn where RingLabel puts it, under the readout and clear of the
+    /// band. Each row is its own store, as the signal pictures are, since a picture is one instant.
+    @MainActor
+    static func closedNotch(now: Date, actions: NotchActions) throws -> CGImage {
+        var stages: [Stage] = []
+        for mode in ClosedNotchMode.allCases {
+            let (store, prefs) = DemoFixtures.store(now: now, moment: .working)
+            prefs.closedWhileWorking = mode
+            stages.append(try Stage(store: store, prefs: prefs, actions: actions))
+        }
+        // The symbols while nothing runs (`DemoFixtures.Moment.idle`): Claude Code's sessions idle, so its symbol
+        // keeps its colour with the hollow ring under it, beside the grey symbols of the assistants with no session;
+        // the shape is what tells the two apart, so the row exists to be looked at for that.
+        let (quiet, quietPrefs) = DemoFixtures.store(now: now, moment: .idle)
+        quietPrefs.closedWhenQuiet = .agents
+        stages.append(try Stage(store: quiet, prefs: quietPrefs, actions: actions))
+        let (store, prefs) = DemoFixtures.store(now: now, moment: .working)
+        guard let window = store.cycleRing(.claude, by: 1, cause: .scroll) else { throw Failure.snapshot("a ring moved onto its next window") }
+        let model = RingLabelModel()
+        model.text = RingCycle.label(window, display: prefs.usageDisplay, hideFigures: false)
+        model.visible = true
+        let label = try snapshot(RingLabelView(model: model), what: "the ring label")
+        let moved = try Stage(store: store, prefs: prefs, actions: actions)
+        let width = ((stages + [moved]).map(\.compactExtent).max() ?? 0) + 160
+        let row = CGSize(width: width, height: 52)
+        var rows = try stages.map { try $0.image(.compact, canvas: row, pixelScale: scale) }
+        let labelled = CGSize(width: width, height: notch.height + RingLabel.gap + label.size.height + 10)
+        let base = try moved.image(.compact, canvas: labelled, pixelScale: scale)
+        // Claude Code is the first readout left of the notch: its ring's centre is the leading half's padding and
+        // half a ring in from the half's outer edge.
+        let ring = width / 2 - notch.width / 2 - moved.leading.size.width + 6 + CompactRings.side / 2
+        rows.append(try bitmap(labelled, pixelScale: scale) { ctx in
+            draw(base, in: CGRect(origin: .zero, size: labelled), alpha: 1, into: ctx)
+            draw(label.image, in: CGRect(x: ring - label.size.width / 2, y: notch.height + RingLabel.gap, width: label.size.width, height: label.size.height),
+                 alpha: 1, into: ctx)
+        })
+        return try stack(rows, gutter: 14)
+    }
+
+    /// The Simple panel on a busier afternoon (`DemoFixtures.crowdedSessions`): four rows before "+3 more", each
+    /// led by its project (here, under three project headers, its branch) with the conversation's title under it,
+    /// and the Cost row open on the week split by assistant, the strip of seven bars beside its figure.
+    @MainActor
+    static func controlsPanel(now: Date, actions: NotchActions) throws -> CGImage {
+        let (store, prefs) = DemoFixtures.store(now: now, moment: .working)
+        store.seed(readings: DemoFixtures.readings(now: now), cost: DemoFixtures.cost(now: now), nextUpdate: now.addingTimeInterval(160),
+                   sessions: DemoFixtures.crowdedSessions(now: now), now: now)
+        prefs.sessionRows = 4
+        prefs.sessionRowLead = .project
+        store.openPanelRows = [AdvicePlacement.Slot.cost.key]
+        let stage = try Stage(store: store, prefs: prefs, actions: actions)
+        return try stage.image(.expanded, canvas: stage.panelCanvas, pixelScale: scale)
+    }
+
+    /// The Appearance pane with Chosen displays picked, so the switch per display is on show, and the notch set to
+    /// the symbols while working and nothing while quiet; then the Assistants pane, where the rows at once and the
+    /// row's lead sit with the rest of the Sessions settings.
+    @MainActor
+    static func controlsSettings(now: Date, actions: NotchActions) throws -> CGImage {
+        let (store, prefs) = DemoFixtures.store(now: now, moment: .working)
+        prefs.display = .selected
+        prefs.closedWhileWorking = .agents
+        prefs.closedWhenQuiet = .nothing
+        prefs.sessionRows = 4
+        prefs.sessionRowLead = .project
+        return try stack([settings(pane: .appearance, store: store, prefs: prefs, actions: actions),
+                          settings(pane: .assistants, store: store, prefs: prefs, actions: actions)], gutter: 24)
+    }
+
     /// One or two of the panel's cards in the panel's own container: its width, its horizontal padding, and the
     /// black it is drawn on, at 2 px a point.
     ///
@@ -479,17 +833,64 @@ enum AssetRenderer {
             what: "a panel crop")
     }
 
+    /// *Fetch today's rate*, for review; the README does not use these. The Cost card in euros at the ECB's rate
+    /// with its day under the figures and a monthly budget typed in euros, and the Appearance pane with the switch
+    /// on, the rate in use and the budget as typed; then the same two for dong, which the ECB does not publish,
+    /// with the typed rate standing in and saying so; then dong again with no rate of the user's own, the 1 that
+    /// stands in named as no rate at all; then euros again with no rate of the user's own and the ECB's rate
+    /// twelve days old, kept and marked stale. The preferences are put back to dollars afterwards, so the
+    /// pictures drawn after these are the README's own.
+    @MainActor
+    static func currency(into directory: URL, store: UsageStore, prefs: Preferences, actions: NotchActions, now: Date) throws {
+        defer {
+            prefs.monthlyBudget = nil
+            prefs.fetchCurrencyRate = false
+            prefs.currencyCode = "USD"
+            prefs.currencyRate = 1
+        }
+        prefs.currencyCode = "EUR"
+        prefs.currencyRate = 0.9
+        prefs.fetchCurrencyRate = true
+        prefs.recordRates(DemoFixtures.referenceRates(now: now), now: now)
+        prefs.monthlyBudget = Budget.parse("200", at: prefs.currencyConversion)
+        let stale = DemoFixtures.referenceRates(now: now, daysAgo: 12)
+        for (code, rate, rates, name) in [("EUR", 0.9, nil, "currency"), ("VND", 25_000.0, nil, "currency-fallback"),
+                                          ("VND", 1, nil, "currency-no-rate"), ("EUR", 1, stale, "currency-stale")] {
+            prefs.currencyCode = code
+            prefs.currencyRate = rate
+            if let rates { prefs.recordRates(rates, now: now) }
+            let card = try panelCrop(SpendCard(store: store, range: .today), prefs: prefs)
+            try write(card.image, png: directory.appendingPathComponent("\(name)-card.png"))
+            try write(settings(pane: .appearance, store: store, prefs: prefs, actions: actions),
+                      png: directory.appendingPathComponent("\(name)-settings.png"))
+        }
+    }
+
     /// Every pane of the Settings window, one under another, in the dark appearance the notch panel always has.
     ///
     /// The window is a sidebar beside one pane, and `paneContent` builds only the pane that is selected: a single
-    /// capture is a picture of a sixth of this window, whichever sixth `@State` happens to start on. So the six
-    /// are captured in turn — each in its own window, opened on that pane by name — and stacked. The reader gets
-    /// all twelve sections, and `sheet` below cuts the ribbon into columns as it always did.
+    /// capture is a picture of one pane of this window, whichever one `@State` happens to start on. So the panes
+    /// are captured in turn — each in its own window, opened on that pane by name — and stacked, and `sheet` below
+    /// cuts the ribbon into columns as it always did. The app's six panes and one assistant's page, Claude Code's:
+    /// the other assistants' pages are the same page for another assistant, and five of them would crowd the
+    /// README's one picture to thumbnails. They are drawn for review in `settings-assistants.png`.
     @MainActor
     static func settings(store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
         // The Dashboard pane is left out: it is the Usage Dashboard itself, which --render-dashboard draws, and a
         // dashboard in the settings sheet would be the one pane of the sheet that is not a setting.
-        try stack(SettingsPane.allCases.filter { $0 != .dashboard }.map { try settings(pane: $0, store: store, prefs: prefs, actions: actions) })
+        let panes = SettingsPane.app.filter { $0 != .dashboard } + [.agent(.claude)]
+        return try stack(panes.map { try settings(pane: $0, store: store, prefs: prefs, actions: actions) })
+    }
+
+    /// Every assistant's own page, one under another, in the user's order, for review: the README does not use it.
+    /// Each page's *Where each window comes from* is drawn open, so its reference text is reviewed with the rest;
+    /// the choice is put back afterwards, since the pictures after this one share the preferences.
+    @MainActor
+    static func assistantPages(store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
+        let folded = prefs.settingsExpandedTools
+        prefs.settingsExpandedTools = Set(ToolID.allCases)
+        defer { prefs.settingsExpandedTools = folded }
+        return try stack(prefs.toolOrder.map { try settings(pane: .agent($0), store: store, prefs: prefs, actions: actions) })
     }
 
     /// One pane of the Settings window, title bar and sidebar included.
@@ -513,24 +914,39 @@ enum AssetRenderer {
     /// the view's minimum that would clip: a hosting view given less lays the pane out at 460 anyway and centres
     /// the overflow, losing rows off both ends. A pane shorter than that gets a little dead backing instead,
     /// which the stack below can carry and a cropped row cannot.
+    ///
+    /// `width` and `appearance` are the window's opening width and the dark appearance unless a review picture
+    /// asks for the narrowest window, or for the light one, to see a pane where it is tightest.
     @MainActor
-    static func settings(pane: SettingsPane, store: UsageStore, prefs: Preferences, actions: NotchActions) throws -> CGImage {
+    static func settings(pane: SettingsPane, store: UsageStore, prefs: Preferences, actions: NotchActions,
+                         width: CGFloat = SettingsWindowController.contentSize.width, appearance: NSAppearance.Name = .darkAqua) throws -> CGImage {
         let requests = SettingsRequests()
         // The Mac this is rendered on is not the Mac in the picture. `/Applications/Notchmeter.app` is where the
-        // DMG puts it and what `HookSettings.Status.shorten` prints for it, so the hook rows and the status-line
-        // row on the Integrations pane read as a machine with every integration in place, which is what the
-        // fixture sessions and the status-line arc elsewhere in these pictures already assume.
+        // DMG puts it and what `HookSettings.Status.shorten` prints for it, so the hook rows on each assistant's
+        // page, the status-line row on Claude Code's and the overview on the Integrations pane read as a machine
+        // with every integration in place, which is what the fixture sessions and the status-line arc elsewhere in
+        // these pictures already assume.
         let installed = "/Applications/\(AppInfo.name).app/Contents/MacOS/\(AppInfo.name)"
         requests.renderedHookStatus = (hook: Dictionary(uniqueKeysWithValues: HookVendor.allCases.map { ($0, HookSettings.Status.installed(path: installed)) }),
                                        statusline: .installed(path: installed))
+        // The catalog line under its switch, as a Mac that fetched it this morning reads; nothing is fetched here.
+        let catalog = PricingCatalogFetcher(prefs: prefs, load: { _ in .failed("rendering") })
+        catalog.seed(published: DemoFixtures.catalogDay, entries: ModelPricing.table.count + OpenAIPricing.table.count,
+                     confirmedAt: Date().addingTimeInterval(-3 * 3600))
+        requests.pricingCatalog = { catalog }
         let controller = SettingsWindowController(store: store, prefs: prefs, actions: actions, notifier: Notifier(available: false),
                                                   requests: requests, pane: pane)
         guard let window = controller.window, let frame = window.contentView?.superview else { throw Failure.snapshot("the Settings window") }
-        window.appearance = NSAppearance(named: .darkAqua)
+        window.appearance = NSAppearance(named: appearance)
         // The window opens at its own height and the pane scrolls; the picture shows the whole pane.
-        let width = SettingsWindowController.contentSize.width
         window.minSize = .zero
         window.setContentSize(NSSize(width: width, height: 9000))
+        window.contentView?.layoutSubtreeIfNeeded()
+        // The Sounds block lays itself out once to measure its rows and again on what it measured
+        // (SettingsView.soundRowsTwoLine), and the second pass lands on the run loop's next turn, as the Welcome
+        // previews' scaling does (`welcome`); a picture taken before it shows the rows as they were first guessed,
+        // and a height measured before it is a line short per row.
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         window.contentView?.layoutSubtreeIfNeeded()
         if let content = window.contentView, let form = formScroll(in: content), let document = form.documentView {
             let header = content.frame.height - form.frame.height
@@ -550,12 +966,12 @@ enum AssetRenderer {
     /// turned once before the capture; without it the picture is of the previews at their own size, overflowing
     /// the stage.
     @MainActor
-    static func welcome(now: Date) throws -> CGImage {
+    static func welcome(now: Date, steps: [WelcomeStep] = WelcomeStep.allCases, openCode: Bool = false) throws -> CGImage {
         let previews = WelcomePreviews(now: now)
         let size = WelcomeWindowController.contentSize
         var pages: [CGImage] = []
-        for step in WelcomeStep.allCases {
-            let host = NSHostingView(rootView: WelcomeView(start: step, previews: previews, install: {}, finish: {}))
+        for step in steps {
+            let host = NSHostingView(rootView: WelcomeView(start: step, previews: previews, openCode: openCode, install: {}, finish: {}))
             let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: .borderless, backing: .buffered, defer: false)
             window.appearance = NSAppearance(named: .darkAqua)
             window.backgroundColor = .windowBackgroundColor
@@ -565,6 +981,57 @@ enum AssetRenderer {
             host.layoutSubtreeIfNeeded()
             windows.append(window)
             pages.append(try bitmap(of: host, size: size, what: "the \(step.name) step of the Welcome tour"))
+        }
+        return try stack(pages, gutter: 24)
+    }
+
+    /// OpenCode's pictures. docs/features.md shows two: the Simple panel with OpenCode first and a session read from
+    /// its database (`opencode.png`), and the Detailed panel, where the Go meter's three windows and their "computed
+    /// here" tags sit on OpenCode's card (`opencode-detailed.png`). The rest are for review, like `expanded-open.png`
+    /// and `notch-news.png`: the same panel with OpenCode's row and the Cost card opened in place; the Assistants pane
+    /// with OpenCode's options open over the Integrations pane with its plugin row, where the OpenCode row's subtitle
+    /// must not claim a login; and the Welcome tour's last step as a Mac with OpenCode on it sees it.
+    @MainActor
+    static func openCode(into directory: URL, now: Date, actions: NotchActions) throws {
+        let (store, prefs) = DemoFixtures.openCodeStore(now: now)
+        let simple = try Stage(store: store, prefs: prefs, actions: actions)
+        try write(simple.image(.expanded, canvas: simple.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("opencode.png"))
+        store.openPanelRows = [AdvicePlacement.Slot.tool(.opencode).key, AdvicePlacement.Slot.cost.key]
+        let opened = try Stage(store: store, prefs: prefs, actions: actions)
+        try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("opencode-open.png"))
+        store.openPanelRows = []
+        prefs.panelMode = .detailed
+        let detailed = try Stage(store: store, prefs: prefs, actions: actions)
+        try write(detailed.image(.expanded, canvas: detailed.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("opencode-detailed.png"))
+        prefs.panelMode = .simple
+        try write(stack([try settings(pane: .assistants, store: store, prefs: prefs, actions: actions),
+                         try settings(pane: .integrations, store: store, prefs: prefs, actions: actions)]),
+                  png: directory.appendingPathComponent("opencode-settings.png"))
+        try write(welcome(now: now, steps: [.connect], openCode: true), png: directory.appendingPathComponent("opencode-welcome.png"))
+    }
+
+    /// The Send Feedback sheet, filled in over the fixture afternoon, twice: sent as a GitHub issue in the dark
+    /// appearance with a busy ten minutes of log, which is too long for a link and shows the cut, and sent by Mail
+    /// in the light one with a short log, which Mail takes whole. For review; the README does not use it.
+    ///
+    /// Nothing of this Mac is read: the names come from the demo store under a home folder and an account of the
+    /// fixture's own (DemoFixtures.home), the report is DemoFixtures.diagnostics stamped with the fixture's own
+    /// instant rather than the clock, and the route is fixed rather than asked of LaunchServices, so the picture is
+    /// the same on every machine and on every run.
+    @MainActor
+    static func feedback(store: UsageStore, prefs: Preferences) throws -> CGImage {
+        let names = FeedbackRedaction.gather(store: store, prefs: prefs, home: DemoFixtures.home, accounts: [DemoFixtures.account])
+        let chosen = prefs.feedbackDestination
+        defer { prefs.feedbackDestination = chosen }
+        var pages: [CGImage] = []
+        let cases: [(Feedback.Destination, Feedback.Route, NSAppearance.Name, Int)] = [(.github, .browser, .darkAqua, 240), (.email, .mailCompose, .aqua, 0)]
+        for (destination, route, appearance, extraLines) in cases {
+            prefs.feedbackDestination = destination
+            let report = DemoFixtures.diagnostics(now: DemoFixtures.feedbackStamp, extraLines: extraLines)
+            let sheet = FeedbackView(store: store, prefs: prefs, diagnostics: { report }, routeFor: { _ in route }, redaction: { names },
+                                     sent: { _ in }, close: {}, about: DemoFixtures.feedbackAbout, message: DemoFixtures.feedbackMessage, report: report)
+                .background(Color(nsColor: .windowBackgroundColor))
+            pages.append(try snapshot(sheet, what: "the Send Feedback sheet", appearance: appearance).image)
         }
         return try stack(pages, gutter: 24)
     }
@@ -766,12 +1233,23 @@ enum AssetRenderer {
         /// The light under the collapsed shape (NotchGlow), when the stage was asked to draw it and there is one.
         /// Off for the README's pictures, which are of the readouts and not of a moment's news.
         let glow: Snapshot?
+        /// What the panel is drawn over.
+        var wallpaper: Wallpaper = .dark
+        /// The black laid over the desktop under a translucent panel (PanelMaterial.tint), as the notch window lays
+        /// it over its blur; nil for the opaque black the panel has always been. An off-screen bitmap has nothing
+        /// behind it to blur, so the tint is drawn straight over the painted desktop — which is the case the
+        /// contrast rules count on anyway.
+        var tint: Double?
 
         @MainActor
-        init(store: UsageStore, prefs: Preferences, actions: NotchActions, drawsGlow: Bool = false) throws {
+        init(store: UsageStore, prefs: Preferences, actions: NotchActions, drawsGlow: Bool = false, wallpaper: Wallpaper = .dark) throws {
+            self.wallpaper = wallpaper
+            let look = PanelLook.current(prefs, edgeCard: false)
+            tint = look.theme == .black && look.material.translucent ? look.material.tint : nil
             content = try snapshot(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000), what: "the panel")
-            leading = try snapshot(NotchCompactView(store: store, side: .leading), what: "the leading rings")
-            trailing = try snapshot(NotchCompactView(store: store, side: .trailing), what: "the trailing rings")
+            // A half can be empty: the closed notch set to show nothing draws no readouts either side of it.
+            leading = try snapshot(NotchCompactView(store: store, side: .leading), what: "the leading rings", allowEmpty: true)
+            trailing = try snapshot(NotchCompactView(store: store, side: .trailing), what: "the trailing rings", allowEmpty: true)
             let waiting = !store.awaitingInput.filter(store.isShown).isEmpty
             if drawsGlow, let state = NotchGlow.state(news: store.glowNews, waiting: waiting, enabled: prefs.notchGlow, now: store.glowNews?.at ?? Date()) {
                 let model = NotchGlowModel()
@@ -838,9 +1316,29 @@ enum AssetRenderer {
             return frames
         }
 
+        /// The panel's ground as drawn at the right-hand end of its bottom margin, over the white half of the
+        /// desktop, read back out of the finished picture: the colour a translucent material actually comes to over a
+        /// white window, for the renderer's `contrast` line. Nil where the spot is not on the panel.
+        func groundOverWhite(in image: CGImage) -> String? {
+            let canvas = panelCanvas
+            let point = CGPoint(x: canvas.width / 2 + panelSize.width / 2 - expandedRadii.top - panelInset / 2, y: panelSize.height - panelInset / 2 - 4)
+            let x = Int(point.x * CGFloat(image.width) / canvas.width), y = Int(point.y * CGFloat(image.height) / canvas.height)
+            guard x >= 0, y >= 0, x < image.width, y < image.height, let cropped = image.cropping(to: CGRect(x: x, y: y, width: 1, height: 1)) else { return nil }
+            var pixel = [UInt8](repeating: 0, count: 4)
+            guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+                  let ctx = CGContext(data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: space,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            else { return nil }
+            ctx.draw(cropped, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+            return RGB(red: Double(pixel[0]) / 255, green: Double(pixel[1]) / 255, blue: Double(pixel[2]) / 255).description
+        }
+
         private func paint(_ pose: Pose, in ctx: CGContext, canvas: CGSize, pixelScale: CGFloat) {
             let centerX = canvas.width / 2
-            wallpaper(in: ctx, canvas: canvas)
+            switch wallpaper {
+            case .dark: AssetRenderer.wallpaper(in: ctx, canvas: canvas)
+            case .desktop: AssetRenderer.desktop(in: ctx, canvas: canvas)
+            }
             ctx.setFillColor(CGColor(srgbRed: 0.10, green: 0.11, blue: 0.13, alpha: 1))
             ctx.fill(CGRect(x: 0, y: 0, width: canvas.width, height: notch.height))
             ctx.setFillColor(CGColor(gray: 1, alpha: 0.06))
@@ -863,12 +1361,18 @@ enum AssetRenderer {
             let lift = min(1, max(0, pose.shape))
             ctx.setShadow(offset: CGSize(width: 0, height: -10 * pixelScale * lift), blur: 36 * pixelScale * lift, color: CGColor(gray: 0, alpha: 0.55 * lift))
             ctx.addPath(shape)
+            if let tint { ctx.setFillColor(CGColor(gray: 0, alpha: tint)) }
             ctx.fillPath()
             ctx.restoreGState()
 
             ctx.saveGState()
             ctx.addPath(shape)
             ctx.clip()
+            if tint != nil {
+                // The band the hardware notch sits in stays black, as the notch window draws it (NotchView).
+                ctx.setFillColor(CGColor(gray: 0, alpha: 1))
+                ctx.fill(CGRect(x: 0, y: 0, width: canvas.width, height: notch.height))
+            }
             if pose.contentAlpha > 0 {
                 let rect = CGRect(x: centerX - content.size.width / 2, y: notch.height, width: content.size.width, height: content.size.height * pose.contentScaleY)
                 draw(content.image, in: rect, alpha: pose.contentAlpha, into: ctx)
@@ -933,15 +1437,22 @@ enum AssetRenderer {
 
     /// A view at its fitting size, laid out in a window that is never shown. Going through the window rather
     /// than ImageRenderer draws the AppKit-backed controls too: the segmented picker, the buttons, the toggles.
+    /// `appearance` is the window's, which is what the AppKit-backed controls draw in; dark unless asked, as the
+    /// notch panel always is.
     @MainActor
-    static func snapshot<Content: View>(_ content: Content, what: String) throws -> Snapshot {
+    static func snapshot<Content: View>(_ content: Content, what: String, appearance: NSAppearance.Name = .darkAqua, allowEmpty: Bool = false) throws -> Snapshot {
         let host = NSHostingView(rootView: content)
         host.layoutSubtreeIfNeeded()
         let size = host.fittingSize
+        // A view that draws nothing measures nothing, and there is no bitmap of nothing: a one-pixel clear image
+        // stands in, at a size of zero, so whatever lays it out places nothing where it would have gone.
+        if allowEmpty, size.width < 1 || size.height < 1 {
+            return Snapshot(image: try bitmap(CGSize(width: 1, height: 1), pixelScale: 1) { _ in }, size: .zero)
+        }
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: .borderless, backing: .buffered, defer: false)
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.appearance = NSAppearance(named: .darkAqua)
+        window.appearance = NSAppearance(named: appearance)
         window.contentView = host
         host.layoutSubtreeIfNeeded()
         windows.append(window)
@@ -976,6 +1487,25 @@ enum AssetRenderer {
         body(ctx)
         guard let image = ctx.makeImage() else { throw Failure.snapshot("a \(Int(canvas.width))×\(Int(canvas.height)) canvas") }
         return image
+    }
+
+    /// What a stage is drawn over: the README's flat dark tone, or a desktop running from a wallpaper's colour into
+    /// a white window, for the translucent materials.
+    enum Wallpaper {
+        case dark
+        case desktop
+    }
+
+    /// A wallpaper's colour on the left running into a white window on the right, which the open panel straddles:
+    /// what a translucent material lets through on one side, and on the other the worst backdrop it is judged against.
+    static func desktop(in ctx: CGContext, canvas: CGSize) {
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let gradient = CGGradient(colorsSpace: space, colors: [CGColor(srgbRed: 0.86, green: 0.42, blue: 0.28, alpha: 1),
+                                                                    CGColor(srgbRed: 0.18, green: 0.5, blue: 0.72, alpha: 1),
+                                                                    CGColor(gray: 1, alpha: 1), CGColor(gray: 1, alpha: 1)] as CFArray,
+                                        locations: [0, 0.38, 0.52, 1])
+        else { return wallpaper(in: ctx, canvas: canvas) }
+        ctx.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: canvas.width, y: 0), options: [])
     }
 
     /// One flat tone: a gradient bands once the GIF is down to 256 colours.

@@ -48,8 +48,11 @@ extension ProviderRegistry {
         [ClaudeProvider(),
          CodexProvider(defaults: defaults),
          CursorProvider(defaults: defaults),
-         AntigravityProvider(),
-         CopilotProvider(defaults: defaults)]
+         CodeAssistProvider(tool: .gemini),
+         CodeAssistProvider(tool: .antigravity),
+         CopilotProvider(defaults: defaults),
+         KimiProvider(),
+         OpenCodeProvider()]
     }
 }
 
@@ -85,7 +88,8 @@ final class UsageStore {
     private(set) var lowPowerMode = false
     /// When each tool's files last changed, or its hook last fired (every assistant's).
     private(set) var lastActivity: [ToolID: Date] = [:]
-    /// The sessions the hooks report, each under its tool, and which are waiting on the user.
+    /// The sessions the hooks report and the ones the scan found without them, each under its tool, and which are
+    /// waiting on the user.
     private(set) var sessions = SessionTracker()
     /// The newest status-line payload from Claude Code, while a session runs.
     private(set) var statusline: Statusline.Message?
@@ -102,6 +106,13 @@ final class UsageStore {
     /// again whenever Settings looks), so the Sessions card can say "no sessions" rather than vanish before the
     /// first event arrives. A cached answer, because the view must not read files as it draws.
     var hooksInstalled = false
+    /// Which assistants' files carry Notchmeter's hook, current or not, cached where `hooksInstalled` is: the
+    /// Sessions card offers the hook (its upgrade line) only for a detected row whose assistant has none.
+    var hookInstalledTools: Set<ToolID> = []
+    /// Whether OpenCode's plugin file is in place, for the one line the Sessions card adds under rows read from
+    /// OpenCode's database: with the file there, the rows are waiting for OpenCode to restart and load it rather
+    /// than for the user to add it.
+    var openCodePluginInstalled: Bool { hookInstalledTools.contains(.opencode) }
     /// One line the footer shows beside the schedule: a hook repaired at launch, the awake assertion held.
     private(set) var footerNote: String?
     /// Extra-usage credits rose since the last reading (kept for an hour, for the advice strip).
@@ -114,8 +125,9 @@ final class UsageStore {
     private(set) var cursorExport: CursorExportRead?
     /// What GitHub last said about the Copilot seat's AI credits, for the same line on the card.
     private(set) var copilotCredits: CopilotCreditsRead?
-    /// How many polls in a row each Antigravity window has read untouched, for the staleness guard.
-    @ObservationIgnored private var antigravityRuns: [String: AntigravityStaleness.Run] = [:]
+    /// How many polls in a row each Gemini CLI and Antigravity window has read untouched, per row, for the
+    /// staleness guard (CodeAssistStaleness).
+    @ObservationIgnored private var untouchedRuns: [ToolID: [String: CodeAssistStaleness.Run]] = [:]
     /// The range the Cost card on the open panel is showing. It lived in the card as `@State` until 0.6.0, which
     /// left every other render of the card guessing: "Copy as image" on the whole panel rebuilt NotchExpandedView
     /// for the pasteboard, and the fresh card inside it opened on Today whatever the panel said, so a user reading
@@ -133,11 +145,28 @@ final class UsageStore {
     /// The read in progress for each tool, so a second one can wait for it rather than run beside it or be lost.
     @ObservationIgnored private var inflight: [ToolID: Task<Void, Never>] = [:]
     @ObservationIgnored private var backoff: [ToolID: TimeInterval] = [:]
+    /// How much longer than its base cadence a row waits after the vendor said it does not serve this account
+    /// (`ProviderError.notServed`): an hour on top of the five minutes, so a permanent answer is checked about
+    /// hourly rather than at every poll, and still checked, in case it stops being permanent.
+    static let notServedBackoff: TimeInterval = 3600
+
+    /// The extra wait the last read left on `tool`'s next poll: 0 after a good reading or a calm answer, the
+    /// vendor's Retry-After after a 429, an hour after `notServed`. Read by the tests that pin those rules; the
+    /// loop itself adds it in `waitUntilDue`.
+    func backoffAfterLastRead(_ tool: ToolID) -> TimeInterval { backoff[tool] ?? 0 }
     /// Cursor's chat names (CursorChatNames): when each conversation id was last read for, the read in flight, and
     /// the follow-up armed for a chat Cursor may name after its turn has ended.
     @ObservationIgnored private var cursorNamesTried: [String: Date] = [:]
     @ObservationIgnored private var cursorNameRead: Task<Void, Never>?
     @ObservationIgnored private var cursorNameFollowUp: Task<Void, Never>?
+    /// OpenCode's sessions read from its own database while its plugin is silent (OpenCodeSessions): the loop, what
+    /// the last read said of each session, the files' fingerprint at that read and when it was taken, and whether
+    /// the plugin has spoken this run, after which the reading stands down.
+    @ObservationIgnored private var openCodeWatch: Task<Void, Never>?
+    @ObservationIgnored private var openCodeSeen: [String: OpenCodeSessions.Seen]?
+    @ObservationIgnored private var openCodeFingerprint: String?
+    @ObservationIgnored private var openCodeReadAt: Date?
+    @ObservationIgnored private(set) var openCodePluginSpoke = false
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -148,6 +177,12 @@ final class UsageStore {
     @ObservationIgnored private var powerSourceWatch: CFRunLoopSource?
     @ObservationIgnored private var costEngine: CostEngine
     @ObservationIgnored private var activity: AgentActivity
+    /// Claude Cowork's watch (`startCoworkWatch`): the reader, which keeps its place in each task's log between
+    /// reads (over the Claude app's own folder, or a folder a test lays out), the loop that runs it, and whether
+    /// the Claude app is running, kept by the workspace's launch and quit notices so nothing is read while it is not.
+    @ObservationIgnored private let coworkReader: CoworkReader
+    @ObservationIgnored private var coworkWatch: Task<Void, Never>?
+    @ObservationIgnored private(set) var claudeAppRunning = false
     @ObservationIgnored private let drainLog: DrainLog?
     @ObservationIgnored private(set) var drainSamples: [DrainLog.Key: [DrainSample]] = [:]
     /// The drain log's boundary rows (DrainLog.Boundary), read once at launch; the newest Claude one floors the
@@ -163,9 +198,10 @@ final class UsageStore {
     @ObservationIgnored private var screensAsleep = false
     @ObservationIgnored private var sessionInactive = false
     /// When each tool's hook last fired (the status line counts as Claude's), and when a hook last forced that
-    /// tool's refresh; per tool, so a Cursor event nudges Cursor's cadence and never Claude's.
+    /// tool's refresh; per tool, so a Cursor event nudges Cursor's cadence and never Claude's. The refresh times
+    /// are readable so a test can hold `hookRefreshSpacing`, and the events that override it, to their word.
     @ObservationIgnored private var lastHook: [ToolID: Date] = [:]
-    @ObservationIgnored private var lastHookRefresh: [ToolID: Date] = [:]
+    @ObservationIgnored private(set) var lastHookRefresh: [ToolID: Date] = [:]
     /// Claude's last endpoint read beside a fresh status line failed, so a reading with nothing from the endpoint
     /// is a read to try again rather than an account with nothing more to say (PollingPolicy.endpointDue).
     @ObservationIgnored private var claudeEndpointFailedBesideStatusline = false
@@ -190,6 +226,11 @@ final class UsageStore {
     @ObservationIgnored var emitHookFacts: ([String: Any]) -> Void = { Oracle.shared.emit("hook", $0) }
     /// Notices whose state has passed, to withdraw from Notification Center.
     @ObservationIgnored var removeNotifications: ([String]) -> Void = { _ in }
+    /// The meter read a hook event asks for (`hookReceived`): that tool's endpoint, forced, and the loops
+    /// rescheduled after it. Set in `init` to the store's own read; a test swaps it for a count, which is what pins
+    /// that a `Stop` asks for one read and that no in-turn event (`Hook.quietEvents`) ever asks for any, a promise
+    /// the order of `hookReceived` alone would not keep through a refactor.
+    @ObservationIgnored var refreshForHook: (ToolID) -> Void = { _ in }
     /// True while the panel is open because a request opened it (App.promptRequested on a compact panel): the
     /// panel then draws the request's card alone, and closes again when the request ends. A panel the pointer
     /// had already opened keeps everything and takes the card on top. Cleared by every collapse, and by the
@@ -231,6 +272,14 @@ final class UsageStore {
     /// The news the glow under the notch is blooming for (NotchGlow), for `NotchGlow.bloomFor`; nil otherwise.
     /// Separate from `peek` because the two last different times and are switched off separately.
     private(set) var glowNews: NotchNews?
+    /// Whether the closed notch is in its work phase or quiet (ClosedNotch), the hold after the last activity
+    /// included. Stored and observed rather than computed in the view, because the notch is measured from the
+    /// view (NotchController.refreshRegions): a phase that ended on a clock with nothing observed changing would
+    /// leave the hover region the width of readouts the strip no longer draws.
+    private(set) var closedNotchPhase: ClosedNotch.Phase = .quiet
+    @ObservationIgnored private var closedNotchClock = ClosedNotchClock()
+    /// The one look the hold asks for, when it ends with nothing else having changed.
+    @ObservationIgnored private var closedNotchRecheck: Task<Void, Never>?
     /// The latest news announced, kept after its peek has gone so a repeat inside `NotchNews.repeatAfter` is known.
     @ObservationIgnored private(set) var latestNews: NotchNews?
     /// Whether a strip that can show the peek is on screen and collapsed; wired by the app delegate to its notch
@@ -253,6 +302,11 @@ final class UsageStore {
     @ObservationIgnored private var promptHolds: [String: Task<Void, Never>] = [:]
     /// The working-session count changed, or the power source did; the app applies the awake assertion.
     @ObservationIgnored var awakeChanged: (Bool) -> Void = { _ in }
+    /// The hook-free tier (SessionDetection): the scanner, its loop while *Find sessions without the hook* is on,
+    /// and whether the last scan saw any assistant running, which is what sets how soon the next one is.
+    @ObservationIgnored private let detector = SessionDetector()
+    @ObservationIgnored private var detectionLoop: Task<Void, Never>?
+    @ObservationIgnored private var detectionRunning = false
 
     static let costInterval: TimeInterval = 60
     static let hookRefreshSpacing: TimeInterval = 30
@@ -264,17 +318,19 @@ final class UsageStore {
     static let extraUsageRiseShownFor: TimeInterval = 3600
 
     init(prefs: Preferences, providers: [any UsageProvider] = ProviderRegistry.all(), cache: ReadingCache = ReadingCache(),
-         defaults: UserDefaults = .standard, drainLog: DrainLog? = DrainLog(), reportFile: URL? = Paths.reportFile) {
+         defaults: UserDefaults = .standard, drainLog: DrainLog? = DrainLog(), reportFile: URL? = Paths.reportFile,
+         coworkReader: CoworkReader = CoworkReader()) {
         self.prefs = prefs
         self.cache = cache
         self.defaults = defaults
         self.drainLog = drainLog
         self.reportFile = reportFile
+        self.coworkReader = coworkReader
         self.alertMemory = AlertMemory.load(from: defaults)
         self.providers = providers.reduce(into: [:]) { $0[$1.tool] = $1 }
         let roots = ClaudeCostScanner.defaultRoots(extra: prefs.extraTranscriptRoots)
         self.costEngine = CostEngine(claude: ClaudeCostScanner(roots: roots))
-        self.activity = AgentActivity(claudeRoots: roots)
+        self.activity = Self.activity(claudeRoots: roots, providers: self.providers)
         if let data = defaults.data(forKey: ExtraUsageMemory.defaultsKey) {
             extraUsageMemory = try? JSONDecoder().decode(ExtraUsageMemory.self, from: data)
         }
@@ -286,6 +342,14 @@ final class UsageStore {
         }
         // Armed here rather than in `start`: the setting governs what the tracker holds whether or not the loops run.
         observeSessionTitles()
+        observeSessionReading()
+        refreshForHook = { [weak self] tool in
+            Task { @MainActor in
+                guard let self else { return }
+                await self.refresh(tool, force: true)
+                self.reschedule()
+            }
+        }
     }
 
     /// The tools on screen, in the user's order (Preferences.toolOrder), less the ones with nothing to show while
@@ -330,6 +394,37 @@ final class UsageStore {
                                 cursorUsageEvents: prefs.cursorUsageEvents, cursorExport: cursorExport, copilotCredits: copilotCredits,
                                 problems: carried.reduce(into: [:]) { $0[$1] = status($1).problem },
                                 nothingLocal: Set(carried.filter { status($0).hasNothingYet }))
+    }
+
+    /// The plan each assistant's reading names, where it names one (a cached reading kept beside a fault included:
+    /// the plan does not change because a read failed).
+    var plans: [ToolID: String] {
+        ToolID.allCases.reduce(into: [:]) { plans, tool in
+            if let plan = status(tool).reading?.plan { plans[tool] = plan }
+        }
+    }
+
+    /// The Cost card's value line (PlanValue.line) for a card on `range`: the carried assistants' API-equivalent
+    /// value against what their plans cost, over that range when it is a month or longer and over the thirty days
+    /// otherwise. Nil under the same gate as the card itself (spend hidden, or figures hidden while the screen is
+    /// shared) and wherever the comparison cannot honestly be made.
+    func planValueLine(for range: CostRange) -> String? {
+        guard prefs.showSpend, !hidesFigures else { return nil }
+        let span = PlanValue.valueRange(for: range)
+        guard let value = PlanValue.make(selection: costSelection, plans: plans, range: span, firstUse: cost?.firstUse) else { return nil }
+        return PlanValue.line(value, range: span)
+    }
+
+    /// What the usage card is built from right now (ShareCard.Input): every assistant's spend, the plans and the
+    /// windows the readings name, the drain log's week of samples, and the card's choices from the preferences.
+    func shareCardInput(now: Date = Date()) -> ShareCard.Input {
+        let providers = cost?.providers ?? []
+        let available = ShareCard.available(providers: providers, order: prefs.toolOrder)
+        return ShareCard.Input(providers: providers, order: prefs.toolOrder, tools: Set(available).subtracting(prefs.shareCardHidden),
+                               plans: plans,
+                               windows: ToolID.allCases.reduce(into: [:]) { windows, tool in windows[tool] = status(tool).reading?.windows },
+                               samples: drainSamples, firstUse: cost?.firstUse, metric: prefs.shareCardMetric, range: prefs.shareCardRange,
+                               signature: prefs.shareCardSignature, now: now)
     }
 
     func isInstalled(_ tool: ToolID) -> Bool {
@@ -383,9 +478,12 @@ final class UsageStore {
         return found.first(where: { $0.signal.isWaiting }) ?? found.first
     }
 
-    /// The context window's fill from the status line, while its report is fresh.
+    /// The context window's fill from the status line, while its report is fresh, and until its session reports a
+    /// compaction after it (`PostCompact`): the figure then describes a conversation that has since been summarised,
+    /// and the arc waits for the next status line rather than show it.
     var contextUsed: Double? {
         guard let statusline, Date().timeIntervalSince(statusline.receivedAt) < PollingPolicy.statuslineFreshFor * 4 else { return nil }
+        if let id = statusline.sessionID, let compacted = sessions.sessions[id]?.lastCompaction?.at, compacted > statusline.receivedAt { return nil }
         return statusline.contextUsed
     }
 
@@ -426,7 +524,10 @@ final class UsageStore {
     /// is the one moment that geometry must not move. Once the look has released the finish the guard is false
     /// again, so a turn costs at most one publication however long the pointer plays over the rings.
     func wakeFromIdle() {
-        if showsFinish { attendedAt = Date() }
+        if showsFinish {
+            attendedAt = Date()
+            updateClosedNotch()
+        }
         guard prefs.visibility == .hideWhenIdle else { return }
         wokeAt = Date()
     }
@@ -558,14 +659,18 @@ final class UsageStore {
         }
         startTick()
         startResetTimer()
+        startOpenCodeWatch()
         observeEnvironment()
+        observeDetection()
+        startCoworkWatch()
     }
 
     /// Titles off is titles gone: the titles and session names the tracker already holds are cleared the moment
     /// *Show what a session is working on* turns off, not at each session's next event, which for an idle
-    /// session may never come (docs/hooks.md: with the setting off nothing of a prompt is held anywhere). The
-    /// tracking is one-shot, so it re-arms; the preference alone is read inside it, so a hook event does not
-    /// re-arm it.
+    /// session may never come (docs/hooks.md: with the setting off nothing of a prompt is held anywhere), and the
+    /// Cowork reader drops the task titles it holds between two polls the same moment, not at its next poll (up
+    /// to thirty seconds with nobody at the screen). The tracking is one-shot, so it re-arms; the preference alone
+    /// is read inside it, so a hook event does not re-arm it.
     private func observeSessionTitles() {
         let titles = withObservationTracking {
             prefs.sessionTitles
@@ -575,7 +680,43 @@ final class UsageStore {
         if !titles {
             sessions.clearTitles()
             cursorNamesTried = [:]
+            let reader = coworkReader
+            Task { await reader.dropTitles() }
         }
+    }
+
+    /// Reading off is sessions gone, the way titles off is titles gone: the moment an assistant's page stops
+    /// reading its sessions (Preferences.sessionReadingOff), the ones the tracker already holds go with their
+    /// waits and requests, rather than lingering until events that will now never arrive. Re-armed like the
+    /// titles' tracking; the set alone is read inside it. Cowork's tasks are Claude sessions, so the Claude page's
+    /// switch also decides whether the Cowork watch runs (`updateCoworkWatch`): stopping it is what keeps the next
+    /// poll from listing again what was just forgotten, and turning the switch back on starts it again.
+    private func observeSessionReading() {
+        let off = withObservationTracking {
+            prefs.sessionReadingOff
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeSessionReading() }
+        }
+        for tool in ToolID.allCases where off.contains(tool) { forgetSessions(of: tool) }
+        updateCoworkWatch()
+    }
+
+    /// Takes one assistant's sessions off every surface: the rows, the waits and their notices, the requests (each
+    /// parked reply released with nothing, so its terminal asks), a glance or a peek about one of them, and the
+    /// keep-awake count. Nothing happens for an assistant the tracker holds nothing of.
+    func forgetSessions(of tool: ToolID) {
+        var tracker = sessions
+        let forgotten = tracker.forget(tool)
+        guard tracker != sessions else { return }
+        sessions = tracker
+        for ended in forgotten.requests { endRequest(ended.requestID) }
+        withdrawWaiting(forgotten.waiting)
+        if let notice = attentionNotice, forgotten.sessions.contains(notice.session.id) { attentionNotice = nil }
+        if peek?.tool == tool { endPeek() }
+        pruneOpenSessionLists()
+        applyAwake()
+        armSignalRelease()
+        Oracle.shared.emit("session", ["action": "forgotten", "tool": tool.rawValue, "count": forgotten.sessions.count])
     }
 
     /// Reports the advice strip to the oracle whenever its lines change; the tracking is one-shot, so it re-arms.
@@ -613,11 +754,19 @@ final class UsageStore {
         }
     }
 
+    /// The activity check over these transcript roots, looking for Kimi Code's sessions in the share folder its
+    /// provider resolved (which also asks launchd's environment for `KIMI_SHARE_DIR`), so the two never disagree.
+    private static func activity(claudeRoots: [URL], providers: [ToolID: any UsageProvider]) -> AgentActivity {
+        var activity = AgentActivity(claudeRoots: claudeRoots)
+        if let kimi = providers[.kimi] as? KimiProvider { activity.kimiRoot = kimi.shareDirectory }
+        return activity
+    }
+
     /// The transcript roots changed in Settings: the scanner and the activity check follow, and the cost is rescanned.
     func reloadRoots() {
         let roots = ClaudeCostScanner.defaultRoots(extra: prefs.extraTranscriptRoots)
         costEngine = CostEngine(claude: ClaudeCostScanner(roots: roots))
-        activity = AgentActivity(claudeRoots: roots)
+        activity = Self.activity(claudeRoots: roots, providers: providers)
         lastCostScan = nil
         Task { await refreshCost() }
     }
@@ -762,7 +911,12 @@ final class UsageStore {
             // The status is one mapping shared with the probe (ToolStatus.init(_:cached:)); only the backoff is
             // decided here, because only the store has a loop to back off.
             statuses[tool] = ToolStatus(error, cached: cached)
-            if error.isCalm {
+            if case .notServed = error {
+                // Calm, but not worth the base cadence: the vendor's answer is documented as permanent, and for
+                // the Gemini CLI row it costs two loadCodeAssist calls a poll. Hourly keeps an ear open in case
+                // Google changes its mind, and Refresh still reads at once.
+                backoff[tool] = Self.notServedBackoff
+            } else if error.isCalm {
                 backoff[tool] = 0
             } else if case .offline = error {
                 backoff[tool] = min(300, max(30, (backoff[tool] ?? 15) * 2))
@@ -794,13 +948,17 @@ final class UsageStore {
     /// A good reading: on screen, cached, logged for the drain, watched for its reset, and checked for alerts.
     private func adopt(_ reading: UsageReading, now: Date = Date()) {
         var reading = reading
-        if reading.tool == .antigravity {
-            let resets = drainSamples.filter { $0.key.tool == .antigravity }.reduce(into: [String: [Date]]()) { $0[$1.key.window] = $1.value.compactMap(\.resetsAt) }
-            reading = AntigravityPeriods.apply(reading, resets: resets, now: now)
+        let tool = reading.tool
+        if InferredPeriods.tools.contains(tool) {
+            let resets = drainSamples.filter { $0.key.tool == tool }.reduce(into: [String: [Date]]()) { $0[$1.key.window] = $1.value.compactMap(\.resetsAt) }
+            reading = InferredPeriods.apply(reading, resets: resets, now: now)
+        }
+        if CodeAssistStaleness.tools.contains(tool) {
             // The run is counted from the figure as read, before the guard strips it, so a pinned meter keeps
-            // counting rather than restarting the moment it is first doubted (AntigravityStaleness).
-            antigravityRuns = AntigravityStaleness.runs(after: reading, previous: antigravityRuns, now: now)
-            reading = AntigravityStaleness.unverified(reading, runs: antigravityRuns, activeSince: lastActivity[.antigravity])
+            // counting rather than restarting the moment it is first doubted (CodeAssistStaleness).
+            let runs = CodeAssistStaleness.runs(after: reading, previous: untouchedRuns[tool] ?? [:], now: now)
+            untouchedRuns[tool] = runs
+            reading = CodeAssistStaleness.unverified(reading, runs: runs, activeSince: lastActivity[tool])
         }
         if reading.tool == .claude { noteExtraUsage(reading, now: now) }
         statuses[reading.tool] = .ready(reading)
@@ -910,6 +1068,7 @@ final class UsageStore {
         self.sessions = sessions
         self.cost = cost
         lastUpdated = now
+        updateClosedNotch(now: now)
     }
 
     /// Puts news on the strip and under it with no clock to take it down, for a still of it (`--render-assets`):
@@ -1032,18 +1191,25 @@ final class UsageStore {
     }
 
     /// Only new readings can make a pace worse, so this runs after each one; nothing is remembered while the
-    /// setting is off, so switching it on reports whatever is behind at that moment. The budget rides along as a
-    /// window of its own, and advice lines worth a banner go out here too.
+    /// setting is off, so switching it on reports whatever is behind at that moment. An assistant whose own page
+    /// has its limit notices off (Preferences.limitNoticesOff) is left out the same way, before anything is
+    /// planned, so it too reports whatever is behind when it is switched back on. The budget rides along as a
+    /// window of its own, spread across every assistant, so no one page's switch holds it back; advice lines
+    /// worth a banner go out here too, under the same page switch as the readings: Claude's extra-usage,
+    /// cache-tier and metering notices are its limit notices as much as its pace ones, and a line about no one
+    /// assistant (the burn across every card) belongs to no page and stays.
     private func evaluateAlerts(now: Date = Date()) {
         guard prefs.notificationsEnabled else { return }
-        var readings = readyReadings.map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
+        var readings = readyReadings.filter { prefs.notifiesLimits(of: $0.tool) }
+            .map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
         if let budget = NotificationScheduler.budgetReading(cost: prefs.showSpend ? cost : nil, monthlyUSD: prefs.monthlyBudgetUSD, weeklyUSD: prefs.weeklyBudgetUSD, now: now) {
             readings.append(budget)
         }
         let plan = NotificationScheduler.plan(memory: alertMemory, readings: readings, now: now, options: alertOptions, rates: drainRates, runOuts: runOutsByKey)
         remember(plan.memory)
         send(plan.alerts)
-        let lines = NotificationScheduler.planAdvice(memory: alertMemory, advice: advice, now: now) { line in
+        let heard = advice.filter { $0.tool.map(prefs.notifiesLimits(of:)) ?? true }
+        let lines = NotificationScheduler.planAdvice(memory: alertMemory, advice: heard, now: now) { line in
             if line.id.hasPrefix("extra/") { return prefs.notifyExtraUsage ? (line.id == "extra/room" ? 3600 : 30 * 86400) : nil }
             if line.id == "cache-ttl" { return prefs.notifyCacheShift ? 86400 : nil }
             if line.id == "metering" { return prefs.notifyCacheShift ? 86400 : nil }
@@ -1063,12 +1229,20 @@ final class UsageStore {
     /// absence would announce, the moment the tool came back, a reset that passed while nobody was metering it.
     /// The next reading re-watches whatever is still worth watching. Internal, not private, so a test can drive
     /// the clock past a reset without the thirty-second timer.
+    ///
+    /// A watch whose assistant has its limit notices off on its own page is held back from the plan and kept as
+    /// it is, not dropped: the tool is still on screen and still read, so the watch is still true, and the page's
+    /// switch turned back on before the reset should find it there. Once its reset has passed it goes the way a
+    /// heard watch goes at its reset, taking its period's pace notices down, but unannounced: switching the page
+    /// back on later must not announce a reset that passed while it was off.
     func checkResets(now: Date = Date()) {
         guard prefs.notificationsEnabled else { return }
-        dropWatches { !isShown($0.tool) }
+        dropWatches { !isShown($0.tool) || (!prefs.notifiesLimits(of: $0.tool) && ($0.window.resetsAt.map { $0 <= now } ?? true)) }
         guard !watchedResets.isEmpty else { return }
-        let plan = NotificationScheduler.planResets(memory: alertMemory, watched: Array(watchedResets.values), now: now, options: alertOptions)
-        watchedResets = plan.watched.reduce(into: [:]) { $0[AlertMemory.key($1.tool, $1.window)] = $1 }
+        let held = watchedResets.filter { !prefs.notifiesLimits(of: $0.value.tool) }
+        let heard = watchedResets.values.filter { prefs.notifiesLimits(of: $0.tool) }
+        let plan = NotificationScheduler.planResets(memory: alertMemory, watched: Array(heard), now: now, options: alertOptions)
+        watchedResets = plan.watched.reduce(into: held) { $0[AlertMemory.key($1.tool, $1.window)] = $1 }
         remember(plan.memory)
         send(plan.alerts)
         let passed = plan.alerts.filter { $0.stage == .reset }
@@ -1095,6 +1269,26 @@ final class UsageStore {
     private func withdrawWaiting(_ ids: [String]) {
         guard !ids.isEmpty else { return }
         removeNotifications(ids.map { Notifier.identifier(session: $0, kind: "waiting") })
+    }
+
+    /// Takes down the trouble notices whose state has passed (Notifier's contract: a notice is withdrawn once what
+    /// it announced is over): "may be stuck" for the sessions whose run of failures ended, however it ended, and
+    /// "is compacting" for the ones whose compaction did. Each caller hands in the sessions that were in the state
+    /// before its change and are not after it, so nothing is withdrawn that was not announced. The turn's first
+    /// auto-mode refusal has no notice to withdraw: a refusal is a thing that happened, not a state that passes.
+    private func withdrawTrouble(stuck: Set<String>, compacting: Set<String>) {
+        let identifiers = stuck.sorted().map { Notifier.identifier(session: $0, kind: SessionTrouble.stuck(failures: 0).name) }
+            + compacting.sorted().map { Notifier.identifier(session: $0, kind: SessionTrouble.compacting(context: nil).name) }
+        guard !identifiers.isEmpty else { return }
+        removeNotifications(identifiers)
+    }
+
+    /// The trouble notices standing for `ids` at `now`, for a removal that takes the sessions off the card
+    /// (`dismissSession`, `dismissIdleSessions`): a session the reader has removed is not one to keep a banner for.
+    private func withdrawTrouble(of ids: [String], now: Date) {
+        let removed = ids.compactMap { sessions.sessions[$0] }
+        withdrawTrouble(stuck: Set(removed.filter { $0.mayBeStuck(now: now) }.map(\.id)),
+                        compacting: Set(removed.filter { $0.compacting != nil }.map(\.id)))
     }
 
     private func remember(_ memory: AlertMemory) {
@@ -1278,32 +1472,39 @@ final class UsageStore {
     }
 
     /// The Sessions card's Remove (SessionTracker.dismiss): the row goes until the session sends another event.
-    func dismissSession(_ id: String) {
+    func dismissSession(_ id: String, now: Date = Date()) {
         var tracker = sessions
         let result = tracker.dismiss(id)
         guard result.removed else { return }
+        // Read before the tracker is replaced: the notices to take down are the ones the session stood in.
+        withdrawTrouble(of: [id], now: now)
         sessions = tracker
         pruneOpenSessionLists()
         if attentionNotice?.session.id == id { attentionNotice = nil }
         if result.wasWaiting { withdrawWaiting([id]) }
         applyAwake()
+        updateClosedNotch()
         Oracle.shared.emit("session", ["action": "dismissed", "session": id])
     }
 
     /// *Remove all idle sessions* from the card's menu.
-    func dismissIdleSessions() {
+    func dismissIdleSessions(now: Date = Date()) {
         var tracker = sessions
         let removed = tracker.dismissIdle()
         guard !removed.isEmpty else { return }
+        withdrawTrouble(of: removed, now: now)
         sessions = tracker
         pruneOpenSessionLists()
         if let notice = attentionNotice, removed.contains(notice.session.id) { attentionNotice = nil }
         applyAwake()
+        updateClosedNotch()
         Oracle.shared.emit("session", ["action": "dismissedIdle", "count": removed.count])
     }
 
     func sweepSessions(now: Date = Date()) {
         var expired = sessions
+        let stuckBefore = sessions.stuck(now: now)
+        let compactingBefore = sessions.compacting()
         let stopped = expired.expire(now: now)
         let nudged = expired.quietNudges(now: now)
         if expired != sessions {
@@ -1311,14 +1512,95 @@ final class UsageStore {
             pruneOpenSessionLists()
             applyAwake()
         }
+        updateClosedNotch(now: now)
         withdrawWaiting(stopped)
+        // A run of failures whose last one is now `SessionTracker.stuckFor` old says "may be stuck" no longer, a
+        // compaction that never reported its end is retired after ten minutes, and neither outlives a session that
+        // went: the clock ends them here.
+        withdrawTrouble(stuck: stuckBefore.subtracting(sessions.stuck(now: now)), compacting: compactingBefore.subtracting(sessions.compacting()))
         // A quiet Cursor turn (SessionTracker.quietNudges) is reported as a wait that may be one, through the same
         // notice, rules and attention setting as a wait a hook announced. As a blocking one: what it stands for is
         // an approval the turn has stopped for, and a non-blocking wait is held back while an editor is in front,
         // which for Cursor is exactly when it asks (the ten-minute ceiling on blocking banners still applies).
         if prefs.notifyWaiting {
-            for session in nudged { deliverSessionEvent(.waiting(blocking: true, kind: .permission), session) }
+            for session in nudged where prefs.notifiesSessions(of: session.tool) {
+                deliverSessionEvent(.waiting(blocking: true, kind: .permission), session)
+            }
         }
+    }
+
+    // MARK: - Sessions found without the hook
+
+    /// Starts or stops the scan as *Find sessions without the hook* says, taking the rows it found off the list
+    /// when it is turned off. The tracking is one-shot, so it re-arms; only the preference is read inside it.
+    private func observeDetection() {
+        let on = withObservationTracking {
+            prefs.detectSessions
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeDetection() }
+        }
+        if on { startDetection() } else { stopDetection() }
+    }
+
+    /// The scan's loop (SessionDetector), off the main thread for the scan itself and back on it for the tracker.
+    /// It waits out whatever `detectionInterval` says, and while that is nil (nobody can see the screen) it only
+    /// looks again at the discovery pace, scanning nothing.
+    private func startDetection() {
+        guard detectionLoop == nil else { return }
+        detectionLoop = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                guard self.detectionInterval() != nil else {
+                    try? await Task.sleep(for: .seconds(SessionDetection.discoveryInterval))
+                    continue
+                }
+                let scan = await self.detector.scan(titles: self.prefs.sessionTitles && !self.hidesFigures)
+                guard !Task.isCancelled else { return }
+                self.detectionReceived(scan.sessions, running: scan.running)
+                try? await Task.sleep(for: .seconds(self.detectionInterval() ?? SessionDetection.discoveryInterval))
+            }
+        }
+    }
+
+    private func stopDetection() {
+        detectionLoop?.cancel()
+        detectionLoop = nil
+        detectionReceived([], running: false)
+    }
+
+    /// Seconds to the next scan (SessionDetection.interval): three while an assistant runs and fifteen while none
+    /// does, doubled on battery or in Low Power Mode, and nil while the Mac or its displays sleep, the screen is
+    /// locked or another user's session is in front.
+    func detectionInterval() -> TimeInterval? {
+        SessionDetection.interval(running: detectionRunning, paused: asleep || screenLocked || screensAsleep || sessionInactive,
+                                  onBattery: onBattery, lowPower: lowPowerMode)
+    }
+
+    /// One scan's rows into the tracker (SessionTracker.detected), written back only when they changed something,
+    /// as the sweep is (`sweepSessions`): a scan every three seconds that republished an unchanged tracker would
+    /// lay out every panel as often. An assistant whose page has *Read its sessions* off is left out of the scan's
+    /// rows before the tracker sees them, the way its hook events are (`hookReceived`): otherwise the next scan
+    /// would put back, as a detected row, the sessions that switching it off had just taken away, and the tracker's
+    /// own pass takes any such row already listed off with the ones the scan no longer finds. The oracle hears
+    /// what changed and never a title or a path.
+    func detectionReceived(_ found: [DetectedSession], running: Bool = true, now: Date = Date()) {
+        detectionRunning = running
+        let found = found.filter { prefs.readsSessions(of: $0.tool) }
+        var tracker = sessions
+        let change = tracker.detected(found, now: now)
+        if tracker != sessions {
+            sessions = tracker
+            pruneOpenSessionLists()
+        }
+        if !change.isEmpty {
+            Oracle.shared.emit("detection", Self.detectionFields(added: change.added, removed: change.removed, working: change.working))
+        }
+    }
+
+    /// The oracle's `detection` line: the rows a scan added and took off, the detected rows working, and the ones a
+    /// hook's event took over (`adopted`); ids only.
+    nonisolated static func detectionFields(added: [String] = [], removed: [String] = [], working: [String], adopted: [String] = []) -> [String: Any] {
+        ["added": added, "removed": removed, "working": working, "adopted": adopted]
     }
 
     private func sampleEnvironment() async {
@@ -1513,10 +1795,171 @@ final class UsageStore {
 
     /// The rule in AwakeKeeper.swift over the working sessions and the power source; the app holds the assertion.
     func applyAwake() {
-        let hold = AwakeRule.shouldHold(working: sessions.working.count, enabled: prefs.keepAwake, onBattery: onBattery, allowOnBattery: prefs.keepAwakeOnBattery)
+        let hold = AwakeRule.shouldHold(working: sessions.hookWorking.count, enabled: prefs.keepAwake, onBattery: onBattery, allowOnBattery: prefs.keepAwakeOnBattery)
         guard hold != keepingAwake else { return }
         keepingAwake = hold
         awakeChanged(hold)
+    }
+
+    // MARK: - Claude Cowork
+
+    /// Follows Claude Cowork's tasks (CoworkSessions). The Claude app's launch and quit are watched, so the reader
+    /// runs only while the app is running and *Show Claude Cowork tasks* is on; the setting is watched too, so
+    /// switching it off takes every Cowork row away at once rather than at the next read.
+    private func startCoworkWatch() {
+        let center = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                guard app?.bundleIdentifier == CoworkSessions.bundleID else { return }
+                Task { @MainActor in self?.claudeAppChanged() }
+            })
+        }
+        claudeAppChanged()
+        observeCoworkSetting()
+    }
+
+    /// Reads whether the Claude app is running (this login's own apps only, so another account's copy of it is
+    /// never taken for this one's) and starts or stops the watch to match.
+    private func claudeAppChanged() {
+        claudeAppRunning = NSRunningApplication.runningApplications(withBundleIdentifier: CoworkSessions.bundleID).contains { !$0.isTerminated }
+        updateCoworkWatch()
+    }
+
+    /// The tracking is one-shot, so it re-arms, as `observeSessionTitles` does.
+    private func observeCoworkSetting() {
+        withObservationTracking {
+            _ = prefs.coworkSessions
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.updateCoworkWatch()
+                self?.observeCoworkSetting()
+            }
+        }
+    }
+
+    /// Runs the watch while the setting is on, the Claude app is running and Claude Code's page reads its sessions
+    /// (a Cowork task is a Claude session to the tracker, so *Read its sessions* off on that page is off for these
+    /// too), and stops it otherwise. Stopping takes every Cowork row away: with the app gone no task can be
+    /// running, and with either switch off none may be shown. Each pass reads off the main actor (CoworkReader)
+    /// and applies here, against the clock taken before the read, so a turn's end written during the read is never
+    /// older than the start the row was given.
+    private func updateCoworkWatch() {
+        let wanted = prefs.coworkSessions && claudeAppRunning && prefs.readsSessions(of: .claude)
+        if wanted, coworkWatch == nil {
+            let reader = coworkReader
+            coworkWatch = Task { [weak self] in
+                while !Task.isCancelled {
+                    guard let titles = self?.prefs.sessionTitles else { return }
+                    let now = Date()
+                    let tasks = await reader.poll(now: now, titles: titles)
+                    guard !Task.isCancelled, let self else { return }
+                    self.coworkObserved(tasks, now: now)
+                    let interval = self.coworkInterval
+                    try? await Task.sleep(for: .seconds(interval))
+                }
+            }
+            Oracle.shared.emit("cowork", ["action": "watch", "watching": true])
+        } else if !wanted, let watch = coworkWatch {
+            watch.cancel()
+            coworkWatch = nil
+            coworkObserved([])
+            Oracle.shared.emit("cowork", ["action": "watch", "watching": false])
+        }
+    }
+
+    /// CoworkSessions.pollInterval for the power source, whether anyone is at the screen, and whether any task is
+    /// listed (a task set aside with Clear still counts: its next write is what brings it back).
+    private var coworkInterval: TimeInterval {
+        let listed = sessions.all.contains { $0.source == .coworkLog } || sessions.dismissed.values.contains { $0.source == .coworkLog }
+        return CoworkSessions.pollInterval(onBattery: onBattery, lowPower: lowPowerMode, unattended: screenLocked || screensAsleep || sessionInactive,
+                                           listed: listed)
+    }
+
+    /// One read of Cowork's tasks, applied (SessionTracker.observeCowork) and written back only when it changed
+    /// something, since every write re-measures the panels (`sweepSessions`). A turn that ended is announced the way a
+    /// hook's `Stop` is: the finished banner past *Only turns longer than*, and only while Claude Code's page
+    /// notifies about its sessions, as a hook's finish is delivered (`hookReceived`), and the news in the notch past
+    /// twenty seconds while Claude is shown. Titles off is titles never held, as for a hook's prompt line
+    /// (`hookReceived`), and Claude Code's sessions not read is an empty read (every Cowork row goes), for a poll
+    /// already under way when the switch flipped and the watch was stopped. The oracle hears each change by its
+    /// kind and the task's key, never its title or its folder.
+    func coworkObserved(_ tasks: [CoworkSessions.Observation], now: Date = Date()) {
+        let read = prefs.readsSessions(of: .claude) ? tasks : []
+        let tasks = prefs.sessionTitles ? read : read.map { task in
+            var task = task
+            task.title = nil
+            return task
+        }
+        var tracker = sessions
+        let outcome = tracker.observeCowork(tasks, now: now)
+        withdrawWaiting(outcome.stoppedWaiting)
+        guard tracker != sessions else { return }
+        sessions = tracker
+        pruneOpenSessionLists()
+        applyAwake()
+        armSignalRelease(now: now)
+        for change in outcome.changes { Oracle.shared.emit("cowork", Self.coworkFacts(change)) }
+        for (session, turn) in outcome.finished {
+            if prefs.notifyFinished, prefs.notifiesSessions(of: .claude), turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
+                deliverSessionEvent(.finished(turn: turn), session)
+            }
+            if isShown(.claude), let news = NotchNews.finished(session, turn: turn, now: now) { announce(news, now: now) }
+        }
+    }
+
+    /// What the oracle records for a Cowork task's change: its kind, the task's key and a finished turn's length.
+    nonisolated static func coworkFacts(_ change: SessionTracker.CoworkChange) -> [String: Any] {
+        var facts: [String: Any] = ["action": change.kind.rawValue, "session": change.session]
+        if let turn = change.turn { facts["turn"] = Int(turn.rounded()) }
+        return facts
+    }
+
+    /// The self check's line for the watch: the setting, the Claude app, the reader, the folder and what is listed.
+    var coworkSummary: String {
+        let tasks = sessions.all.filter { $0.source == .coworkLog }
+        let root = FileManager.default.fileExists(atPath: CoworkSessions.root.path) ? "present" : "absent"
+        return "cowork: setting \(prefs.coworkSessions ? "on" : "off"); Claude app \(claudeAppRunning ? "running" : "not running"); "
+            + "watch \(coworkWatch == nil ? "stopped" : "running"); folder \(root); \(tasks.count) listed, \(tasks.filter(\.isWorking).count) working"
+    }
+
+    // MARK: - The closed notch
+
+    /// Re-reads whether anything is active (ClosedNotch.active) and moves the phase, with the hold after activity
+    /// ends; while a hold runs, one look is booked for when it ends. Every path that changes the sessions or the
+    /// signals comes through here: a hook event, the sweep and the signal release it runs, a row removed, and a
+    /// look at the rings that releases a finish. The phase is written only when it changes, since every write
+    /// re-measures the notch (NotchController.observeContent).
+    func updateClosedNotch(now: Date = Date()) {
+        let visible = Set(visibleTools)
+        let active = ClosedNotch.active(sessions: sessions.all.filter { visible.contains($0.tool) },
+                                        signalled: visible.contains { signal($0, now: now) != nil })
+        let recheck = closedNotchClock.update(active: active, now: now)
+        if closedNotchClock.phase != closedNotchPhase {
+            closedNotchPhase = closedNotchClock.phase
+            Oracle.shared.emit("closedNotch", ["phase": closedNotchPhase.rawValue, "shows": closedNotchShows.rawValue])
+        }
+        closedNotchRecheck?.cancel()
+        closedNotchRecheck = nil
+        guard let recheck else { return }
+        closedNotchRecheck = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(0.05, recheck.timeIntervalSince(now))))
+            guard !Task.isCancelled, let self else { return }
+            self.closedNotchRecheck = nil
+            self.updateClosedNotch()
+        }
+    }
+
+    /// What the closed notch draws now: the mode chosen for the phase, the readouts in place of nothing while the
+    /// rings are urgent (ClosedNotch.shows).
+    var closedNotchShows: ClosedNotchMode {
+        ClosedNotch.shows(phase: closedNotchPhase, whileWorking: prefs.closedWhileWorking, whenQuiet: prefs.closedWhenQuiet,
+                          urgent: presence == .urgent)
+    }
+
+    /// One assistant's state for the symbols mode (AgentGlyph).
+    func agentGlyphState(_ tool: ToolID, now: Date = Date()) -> AgentGlyphState {
+        AgentGlyphState.of(signal: signal(tool, now: now), working: sessions.isWorking(tool), sessions: sessions.knownCount(of: tool))
     }
 
     // MARK: - The hooks (every assistant's) and Claude Code's status line
@@ -1528,31 +1971,74 @@ final class UsageStore {
     /// the message awaits a decision: it is kept under the request's id for `decide`, or answered nothing at once
     /// when the request is not going to be shown (answering from the notch is off, or the tracker did not take
     /// it). The title, the summary and the terminal never reach the log or the oracle (`hookFacts`).
+    ///
+    /// Since 0.11 the in-turn events (`Hook.quietEvents`) take a quieter path through the same steps. None of them
+    /// asks for a meter read, and a batch boundary, which arrives once per model step, is published to the views
+    /// only when it changes something beyond the session's clock (`SessionTracker.differs`), logs at debug, and
+    /// moves the activity the polling policy reads at most once a minute: the batch boundary is where a turn's state
+    /// settles, not a reason to redraw the notch or read the vendor's endpoint every few seconds.
     func hookReceived(_ message: Hook.Message, now: Date = Date(), reply: HookSocket.Reply? = nil) {
+        guard prefs.readsSessions(of: message.tool) else {
+            meterOnly(message, now: now, reply: reply)
+            return
+        }
         var message = message
         if !prefs.sessionTitles {
             message.title = nil
             message.todos = message.todos?.withoutContent()
             message.task?.subject = nil
+            // A teammate's name is the lead's word for the work, so it goes with the titles; an opaque key keeps
+            // two teammates apart without it.
+            if let name = message.teammate?.name { message.teammate = Teammate(key: Teammate.opaqueKey(for: name), name: nil) }
         }
         // Settled before the request can be dropped below: with answering from the notch off, the request is the
         // only thing that says a permission is a plan's, and the sound for it should not depend on that setting.
         let waitKind = message.waitKind
-        if message.request != nil, !prefs.answerFromNotch {
+        if message.request != nil, !prefs.answersFromNotch(message.tool) {
             reply?.answer(nil)
             message.request = nil
         }
         let tool = message.tool
-        log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.request.map { " (\($0.kind.name) request)" } ?? "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
+        // The plugin reports exactly what the database reading can only infer, so its first event ends the reading,
+        // and the sessions the reading was still following end their turns before this event applies: they will
+        // not be read again, and a working row nothing will ever close is worse than one ended unseen. The session
+        // this event is about is left to the event, which knows better (a Stop for it is a finish, not a failure).
+        if tool == .opencode, message.source == .hook, !openCodePluginSpoke {
+            openCodePluginSpoke = true
+            standDownOpenCodeReading(except: [message.sessionID, message.agentID].compactMap { $0 }, now: now)
+        }
+        let quiet = Hook.quietEvents.contains(message.event)
+        let batch = message.event == Hook.batchEvent
+        let line = "hook \(message.event)\(tool == .claude ? "" : " (\(tool.rawValue))")\(message.needsInput ? " (needs input)" : "")\(message.request.map { " (\($0.kind.name) request)" } ?? "")\(message.host.map { " from \($0)" } ?? "")"
+        if batch { log.debug("\(line, privacy: .public)") } else { log.info("\(line, privacy: .public)") }
         emitHookFacts(Self.hookFacts(message, wait: waitKind))
+        let heardBefore = lastHook[tool]
         lastHook[tool] = now
-        lastActivity[tool] = now
+        if !batch || lastActivity[tool].map({ now.timeIntervalSince($0) >= Hook.batchSlack }) ?? true { lastActivity[tool] = now }
         wokeAt = now
-        let outcome = sessions.apply(message, now: now)
+        let scannedBefore = sessions.scanned
+        let stuckBefore = sessions.stuck(now: now)
+        let compactingBefore = sessions.compacting()
+        var tracker = sessions
+        let outcome = tracker.apply(message, now: now)
+        let publish = !batch || tracker.differs(from: sessions, slack: Hook.batchSlack)
+        if publish { sessions = tracker }
+        // A row the scan found that this event took over, by id or as its project's twin (SessionTracker.detected).
+        let adopted = scannedBefore.subtracting(sessions.scanned)
+        if !adopted.isEmpty {
+            Oracle.shared.emit("detection", Self.detectionFields(working: sessions.all.filter { $0.isDetected && $0.isWorking }.map(\.id).sorted(),
+                                                                 adopted: adopted.sorted()))
+        }
         if tool == .cursor { lookUpCursorNames(now: now) }
-        pruneOpenSessionLists()
-        applyAwake()
-        armSignalRelease(now: now)
+        if publish {
+            pruneOpenSessionLists()
+            applyAwake()
+            armSignalRelease(now: now)
+            updateClosedNotch(now: now)
+        }
+        // A "may be stuck" notice comes down the moment its streak ends, however it ends, and an "is compacting"
+        // one the moment the compaction does (`PostCompact`, or the turn ending first).
+        withdrawTrouble(stuck: stuckBefore.subtracting(sessions.stuck(now: now)), compacting: compactingBefore.subtracting(sessions.compacting()))
         // The withdrawal goes first because one message can end a wait and start another for the same session:
         // `apply` seeds stoppedWaiting from `expire`, so a needsInput arriving after its own wait timed out is
         // demoted and re-raised inside the one call, and both lists name it. Delivered first, the withdrawal took
@@ -1576,30 +2062,154 @@ final class UsageStore {
         } else {
             reply?.answer(nil)
         }
-        if let waiting = outcome.startedWaiting, prefs.notifyWaiting {
+        if let waiting = outcome.startedWaiting, prefs.notifyWaiting, prefs.notifiesSessions(of: tool) {
             deliverSessionEvent(.waiting(blocking: message.blocksSession, kind: waitKind), waiting)
         }
-        if let finished = outcome.finished, prefs.notifyFinished, finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
+        if let finished = outcome.finished, prefs.notifyFinished, prefs.notifiesSessions(of: tool),
+           finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
+        }
+        if let trouble = outcome.trouble, prefs.notifySessionTrouble, prefs.notifiesSessions(of: tool) {
+            deliverSessionEvent(.trouble(trouble.trouble), trouble.session)
         }
         guard isShown(tool) else { return }
         if let news = NotchNews.from(message, outcome: outcome, now: now) { announce(news, now: now) }
-        if outcome.limitHit != nil, prefs.notificationsEnabled {
+        if outcome.limitHit != nil, prefs.notificationsEnabled, prefs.notifiesLimits(of: tool) {
             let reading = status(tool).reading.map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
             let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: tool, reading: reading, now: now, options: alertOptions)
             remember(plan.memory)
             send(plan.alerts)
         }
-        let urgent = outcome.limitHit != nil || outcome.quotaResumed
+        // The quiet events never ask for a read, and reschedule the loops only when the tool's hook had gone quiet
+        // long enough for the polling policy's answer to change.
+        if quiet {
+            if heardBefore.map({ now.timeIntervalSince($0) >= Hook.batchSlack }) ?? true { reschedule() }
+            return
+        }
+        refreshAfterHook(tool, urgent: outcome.limitHit != nil || outcome.quotaResumed, now: now)
+    }
+
+    /// An event from an assistant whose sessions are not read (Preferences.sessionReadingOff): it is still proof
+    /// the assistant is at work, so its meter's cadence follows it as for any event, and nothing else of it is
+    /// kept. The tracker never sees it — no row, no wait, no news, no notice, no keep-awake — and a request is
+    /// answered nothing at once, so the terminal asks as it always has. The oracle hears the event's name and
+    /// that it was not read, and no more than `hookFacts` would ever carry.
+    private func meterOnly(_ message: Hook.Message, now: Date, reply: HookSocket.Reply?) {
+        reply?.answer(nil)
+        let tool = message.tool
+        if message.event == Hook.batchEvent {
+            log.debug("hook \(message.event, privacy: .public) (\(tool.rawValue, privacy: .public), sessions not read)")
+        } else {
+            log.info("hook \(message.event, privacy: .public) (\(tool.rawValue, privacy: .public), sessions not read)")
+        }
+        emitHookFacts(["name": message.event, "tool": tool.rawValue, "sessions": "off"])
+        lastHook[tool] = now
+        lastActivity[tool] = now
+        wokeAt = now
+        guard isShown(tool) else { return }
+        // The in-turn events 0.11 added never ask for a read, here as on the read path (`Hook.quietEvents`).
+        if Hook.quietEvents.contains(message.event) { return }
+        // A limit hit or a quota resume is news about the meter, not the session, and is read off the message
+        // itself (`hitRateLimit`, `resumesFromQuota`) where the read path reads it off the tracker's outcome: the
+        // meter refreshes at once for either, as it does with the sessions read, rather than waiting out the
+        // spacing on the one event that says the figure on the ring is wrong.
+        refreshAfterHook(tool, urgent: message.hitRateLimit || message.resumesFromQuota, now: now)
+    }
+
+    /// A hook event's refresh of its own tool's meter: at once for a limit hit or a quota resume, otherwise at
+    /// most every `hookRefreshSpacing`.
+    private func refreshAfterHook(_ tool: ToolID, urgent: Bool, now: Date) {
         if urgent || (lastHookRefresh[tool].map({ now.timeIntervalSince($0) >= Self.hookRefreshSpacing }) ?? true) {
             lastHookRefresh[tool] = now
-            Task {
-                await refresh(tool, force: true)
-                reschedule()
-            }
+            refreshForHook(tool)
         } else {
             reschedule()
         }
+    }
+
+    // MARK: - OpenCode without its plugin
+
+    /// The loop behind OpenCode's sessions read from its database (OpenCodeSessions), for the life of the app: every
+    /// few seconds, slower on battery or in Low Power Mode, the database's fingerprint is taken and the sessions are
+    /// read only when it moved, or a minute has passed (a turn can go quiet without a write). Each pass costs a few
+    /// `stat` calls while nothing changes, and nothing but a wake-up a minute while OpenCode is not on this Mac,
+    /// switched off under Assistants, read by its plugin, or every read is paused (asleep, locked, another user).
+    private func startOpenCodeWatch() {
+        openCodeWatch?.cancel()
+        openCodeWatch = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                await self.readOpenCodeSessions()
+                let pace = !self.readsOpenCodeSessions ? OpenCodeSessions.idleInterval
+                    : self.onBattery || self.lowPowerMode ? OpenCodeSessions.slowInterval : OpenCodeSessions.interval
+                try? await Task.sleep(for: .seconds(pace))
+            }
+        }
+    }
+
+    /// Whether OpenCode's sessions are read from its database right now.
+    var readsOpenCodeSessions: Bool {
+        prefs.openCodeStorageSessions && isShown(.opencode) && !openCodePluginSpoke && pauseReason == nil
+    }
+
+    /// One pass: off the main thread, the fingerprint, and when it moved the sessions and the events they imply,
+    /// then each event replayed through `hookReceived` at the moment the database says it happened, so a
+    /// session read this way lights the rings, counts and notifies exactly as a hooked one does. OpenCode's own titles
+    /// are read only while titles are on and the screen is not shared, and land as each session's name.
+    ///
+    /// A read with a problem (a database held past its busy timeout while OpenCode migrates or checkpoints, or one
+    /// that cannot be read at all) is not a read of no sessions: nothing is replayed and the last record stands, since
+    /// an empty read would end every working turn and the next good read would start them all again from now. The
+    /// fingerprint is kept, so an unchanged file is tried again a minute later rather than every few seconds.
+    func readOpenCodeSessions(now: Date = Date()) async {
+        guard readsOpenCodeSessions, let provider = providers[.opencode] as? OpenCodeProvider else { return }
+        let data = provider.reader.data
+        let environment = provider.reader.environment
+        let titles = CursorChatNames.allowed(titles: prefs.sessionTitles, hidesFigures: hidesFigures)
+        let previous = openCodeSeen
+        let known = openCodeFingerprint
+        let due = openCodeReadAt.map { now.timeIntervalSince($0) >= 60 } ?? true
+        struct Pass: Sendable {
+            let fingerprint: String
+            let events: [OpenCodeSessions.Event]
+            let seen: [String: OpenCodeSessions.Seen]
+            let names: [String: String]
+            let problem: String?
+        }
+        let pass = await Task.detached(priority: .utility) { () -> Pass? in
+            let fingerprint = OpenCodePaths.fingerprint(data: data, environment: environment)
+            guard fingerprint != known || due else { return nil }
+            let read = OpenCodeStore.sessions(data: data, environment: environment, since: now.addingTimeInterval(-OpenCodeSessions.lookBack),
+                                              titles: titles, now: now)
+            if let problem = read.problem { return Pass(fingerprint: fingerprint, events: [], seen: previous ?? [:], names: [:], problem: problem) }
+            let diff = OpenCodeSessions.events(previous: previous, current: read.sessions, now: now)
+            return Pass(fingerprint: fingerprint, events: diff.events, seen: diff.seen, names: OpenCodeSessions.names(read.sessions), problem: nil)
+        }.value
+        guard let pass, readsOpenCodeSessions else { return }
+        openCodeFingerprint = pass.fingerprint
+        openCodeReadAt = now
+        if let problem = pass.problem {
+            log.warning("OpenCode sessions not read: \(problem, privacy: .public)")
+            Oracle.shared.emit("session", ["action": "openCodeReadFailed", "problem": problem])
+            return
+        }
+        openCodeSeen = pass.seen
+        for event in pass.events { hookReceived(event.message, now: event.at) }
+        guard CursorChatNames.allowed(titles: prefs.sessionTitles, hidesFigures: hidesFigures) else { return }
+        for (key, name) in pass.names where sessions.sessions[key].map({ $0.sessionName != name }) == true {
+            sessions.name(key, name)
+        }
+    }
+
+    /// The reading's farewell on the plugin's first event: every session it last saw working, bar `except`, ends its
+    /// turn now with no finish claimed, exactly as a session that vanished between two reads does, and the record
+    /// is dropped. Nothing will read those sessions again; a plugin event for one of them makes it a hooked session
+    /// again as it arrives.
+    private func standDownOpenCodeReading(except: [String], now: Date) {
+        guard let seen = openCodeSeen else { return }
+        openCodeSeen = nil
+        let following = seen.filter { !except.contains($0.key) }
+        for event in OpenCodeSessions.events(previous: following, current: [], now: now).events { hookReceived(event.message, now: event.at) }
     }
 
     /// Cursor's own name for each Cursor chat that has no title yet (CursorChatNames), read from the running
@@ -1654,11 +2264,33 @@ final class UsageStore {
         var facts: [String: Any] = ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any,
                                     "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any]
         if message.tool != .claude { facts["tool"] = message.tool.rawValue }
+        // An event the app read from an assistant's own database rather than one its hook sent.
+        if message.source == .localStorage { facts["source"] = "storage" }
         if let request = message.request { facts["request"] = request.kind.name }
         // A task list is reported by its counts, never its words.
         if let todos = message.todos { facts["todos"] = ["done": todos.done, "total": todos.total] }
         if let task = message.task { facts["task"] = ["kind": task.kind.rawValue, "status": task.deleted ? "deleted" : task.status?.rawValue as Any] }
         if message.needsInput || message.request != nil { facts["wait"] = (wait ?? message.waitKind).rawValue }
+        // The 0.11 events: a trigger, a model id and its source, the MCP server's name, a tool's name, the kind of
+        // a denial, a batch's size. A teammate is reported as there being one, never by name.
+        if let compaction = message.compaction { facts["compaction"] = compaction.rawValue }
+        if let change = message.modelSwitch {
+            facts["model"] = change.to
+            facts["modelSource"] = change.source?.rawValue as Any
+        }
+        if let server = message.mcpServer { facts["mcpServer"] = server }
+        if message.teammate != nil { facts["teammate"] = true }
+        if let failure = message.toolFailure {
+            facts["failedTool"] = failure.tool
+            facts["interrupt"] = failure.interrupt
+        }
+        if let denial = message.denial {
+            facts["deniedTool"] = denial.tool
+            facts["denial"] = denial.kind.rawValue
+        }
+        if message.event == Hook.batchEvent { facts["batch"] = message.batchSize as Any }
+        if message.worktree { facts["worktree"] = true }
+        if message.truncated { facts["truncated"] = true }
         return facts
     }
 
@@ -1713,9 +2345,12 @@ final class UsageStore {
         Oracle.shared.emit("peek", Self.peekFacts(showing, action: "hidden"))
     }
 
-    /// What the oracle records for a peek: the reason, the session and the assistant, never the project.
+    /// What the oracle records for a peek: the reason, the session and the assistant, never the project; and
+    /// `source` on news no hook sent (a Claude Cowork task's finish).
     nonisolated static func peekFacts(_ news: NotchNews, action: String) -> [String: Any] {
-        ["action": action, "reason": news.reason.rawValue, "session": news.sessionID, "tool": news.tool.rawValue]
+        var facts: [String: Any] = ["action": action, "reason": news.reason.rawValue, "session": news.sessionID, "tool": news.tool.rawValue]
+        if news.source != .hook { facts["source"] = news.source.rawValue }
+        return facts
     }
 
     /// The user's answer to the request `requestID`, from the panel (or the hold running out, as a pass): the
@@ -1801,11 +2436,15 @@ final class UsageStore {
         statusline = message
         lastHook[.claude] = now
         lastActivity[.claude] = now
-        // The session's name is shown under the same setting as the prompt title (hookReceived drops that one).
-        sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL,
-                            model: message.model, sessionName: prefs.sessionTitles ? message.sessionName : nil,
-                            linesAdded: message.linesAdded, linesRemoved: message.linesRemoved,
-                            promptCache: message.promptCache, contextUsed: message.contextUsed, now: now)
+        // The session's name is shown under the same setting as the prompt title (hookReceived drops that one), and
+        // the session itself only while Claude Code's sessions are read: a status line would otherwise put back
+        // the row that switch took away. The windows below are the meter's, and are taken either way.
+        if prefs.readsSessions(of: .claude) {
+            sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL,
+                                model: message.model, sessionName: prefs.sessionTitles ? message.sessionName : nil,
+                                linesAdded: message.linesAdded, linesRemoved: message.linesRemoved,
+                                promptCache: message.promptCache, contextUsed: message.contextUsed, now: now)
+        }
         guard isShown(.claude) else { return }
         if let reading = statuslineReading(now: now) {
             adopt(reading, now: now)

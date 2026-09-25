@@ -40,6 +40,16 @@ import Testing
         #expect(!CommandLineTool.isOnPath(URL(fileURLWithPath: "/Users/me/.local/bin"), path: "/usr/bin"))
     }
 
+    /// `--help` names every tool `tool(in:)` accepts, from the enum, so a ninth assistant cannot be left out of it
+    /// as OpenCode was (0.9.0's first draft stopped at kimi).
+    @Test func theUsageLineNamesEveryTool() {
+        #expect(CommandLineTool.usage.hasPrefix("usage: notchmeter ["))
+        for tool in ToolID.allCases {
+            #expect(CommandLineTool.usage.contains(tool.rawValue), "--help names \(tool.rawValue)")
+            #expect(CommandLineTool.tool(in: ["notchmeter", tool.rawValue]) == tool)
+        }
+    }
+
     @Test func aCachedReportIsNarrowedAndDescribedWithItsSource() {
         let parsed = CommandLineTool.parsed(report(pid: nil, generatedAt: now), tool: .claude)
         #expect(parsed.exitCode == 10)
@@ -52,6 +62,33 @@ import Testing
         #expect(codex.text.contains("Codex: notInstalled"))
         #expect(!codex.text.contains("cost:"))
         #expect(!String(decoding: codex.data, as: UTF8.self).contains("\"cost\""))
+    }
+
+    /// The report carries the price sources behind the 30-day figure as `cost.priceSources` and per provider, and
+    /// each range its own, as `PriceSource.key`s; the probe's cost line prints the same clause. This is the
+    /// contract docs/accuracy.md and the Claude Code skill read, so a renamed key or a dropped clause fails here.
+    @Test func theReportAndTheProbeLineNameThePriceSources() throws {
+        let month = RangeTotals(cost: 6600, priceSources: [.builtIn("2026-09-24"), .catalog("2026-10-01")])
+        let today = RangeTotals(cost: 118.31, priceSources: [.builtIn("2026-09-24")])
+        let claude = ProviderCost(tool: .claude, source: .localTranscripts, ranges: [.today: today, .last30Days: month], daily: [], scannedAt: now)
+        let cost = CostSummary(today: 118.31, yesterday: 0, last30Days: 6600, daily: [], lastHour: 0, typicalHourly: 0, burnMultiple: nil,
+                               unpricedModels: [], scannedAt: now, ranges: [.today: today, .last30Days: month], providers: [claude])
+        let report = UsageReport(tools: [:], cost: cost, advice: [], now: now)
+        let reported = try #require(report.object["cost"] as? [String: Any])
+        #expect(reported["priceSources"] as? [String] == ["builtIn:2026-09-24", "catalog:2026-10-01"])
+        let ranges = try #require(reported["ranges"] as? [String: [String: Any]])
+        #expect(ranges["today"]?["priceSources"] as? [String] == ["builtIn:2026-09-24"])
+        #expect(ranges["last30Days"]?["priceSources"] as? [String] == ["builtIn:2026-09-24", "catalog:2026-10-01"])
+        #expect(ranges["yesterday"]?["priceSources"] as? [String] == [])
+        let provider = try #require((reported["providers"] as? [[String: Any]])?.first)
+        #expect(provider["priceSources"] as? [String] == ["builtIn:2026-09-24", "catalog:2026-10-01"])
+        let text = CommandLineTool.describe(report.object)
+        #expect(text.contains("cost: today "))
+        #expect(text.contains(" (prices: builtIn:2026-09-24, catalog:2026-10-01)"))
+        // Read back from its JSON, the same clause; a report with no source (vendor figures alone) carries none.
+        let decoded = try #require(UsageReport.decode(report.json))
+        #expect(CommandLineTool.describe(decoded.object).contains("(prices: builtIn:2026-09-24, catalog:2026-10-01)"))
+        #expect(!CommandLineTool.parsed(self.report(pid: nil, generatedAt: now), tool: .claude).text.contains("prices:"))
     }
 
     @Test func installsASymlinkAndReplacesAStaleOne() throws {

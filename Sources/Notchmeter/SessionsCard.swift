@@ -1,12 +1,15 @@
 import SwiftUI
 
-/// Every session the hooks know about, one row each (Preferences.sessionsCard): at the top of the panel while any
+/// Every session the hooks know about, and every one found running without them (SessionDetection), one row each
+/// (Preferences.sessionsCard): at the top of the panel while any
 /// of them is working, waiting or holding a request, and between the Advice strip and the tool cards otherwise
 /// (PanelLayout.sessionsLead). How many there are is the panel header's to say (PanelHeader), directly above
 /// the card whenever it leads, so the card's own title line no longer repeats it. A row says what its session is
 /// working on, which assistant, branch and terminal it runs in, how long the turn has run, and whether it is
 /// waiting on the reader. What needs the reader first, then what is working, then what just finished, then idle,
-/// newest first within each; `rowCap` rows and then a count of the rest. With more than one project live the rows
+/// newest first within each; as many rows as Preferences.sessionRows asks (four to ten, `rowCap` by default) and then
+/// a count of the rest. A row leads with its conversation's title or its project (Preferences.sessionRowLead,
+/// `line`). With more than one project live the rows
 /// sit under a small header per project ("notchmeter · 2"), the projects in the order of their most urgent row, so
 /// grouping never pushes a wait below something that is only working. Idle
 /// rows are drawn quieter and clock their silence, not their age, and *Clear* in the header sets every one of them
@@ -16,11 +19,24 @@ import SwiftUI
 ///
 /// Under the row's two lines sits what the session is carrying, each only when something reported it: a context
 /// gauge from the session's own status line (never estimated), a count of running subagents, and Claude Code's
-/// task list as "2/3"; the last two open in place to list what they count. With hooks installed and no session
-/// yet the card stays, with one quiet line, so an empty list reads as "nothing running" and not as "not set up".
+/// task list as "2/3"; the last two open in place to list what they count. Since 0.11 Claude Code's hook adds
+/// more (Hook+Events.swift): a compaction running beside the gauge, or the count of those done; the model the
+/// session runs on, opening onto the switches that got it there; the teammates of an agent team that went idle;
+/// and the tool calls auto mode refused this turn; the second line says "worktree" when the session runs in one,
+/// and the line under it names an MCP server waiting for input, or a run of failures that may mean the session is
+/// stuck. The chips wrap onto a second line when the row is too narrow for them (`ChipFlow`). With hooks installed
+/// and no session yet the card stays, with one quiet line, so an empty list reads as "nothing running" and not as
+/// "not set up".
 ///
 /// The card asserts only what a hook said: a title is the prompt's first line the hook sent and the store kept,
-/// a terminal is the one the hook's own environment named, and the clock is the turn's own start. One
+/// a terminal is the one the hook's own environment named, and the clock is the turn's own start. A row found
+/// without the hook, by the scan or by Claude Code's status line alone (AgentSession.isDetected), says so: a quiet
+/// *detected* mark beside the assistant's chip, whose help, and the row's spoken value and hint, say its working is
+/// a guess and a wait is never shown; and while any such row's assistant has no hook, the card
+/// ends on one line saying what the hook adds, with a button that opens its install flow (`HookUpgradeLine`). One
+/// Claude Cowork's tasks, which have no hook, sit among them with a "Cowork" chip that says where they were
+/// read from (CoworkSessions): the Claude app's own name for the task, its folder, and a turn clocked from its
+/// prompt that ends at the log's own end line; never a wait, and a click brings the Claude app forward. One
 /// `TimelineView` drives every row, at a second while anything is working or waiting and a minute otherwise,
 /// because a second timeline per row is a redraw per row per second for as long as the panel is open. Titles and
 /// task text go while the screen is shared (`UsageStore.hidesFigures`): they are the user's own words, or the
@@ -35,6 +51,8 @@ struct SessionsCard: View {
     var advice: [Advice] = []
     @Environment(\.density) private var density
 
+    /// The rows drawn before "+N more" when nothing else is asked: the cap the card had before Preferences.sessionRows
+    /// made it a choice, and that setting's default.
     static let rowCap = 6
 
     /// One row, computed once per tick from the session it stands for.
@@ -51,9 +69,13 @@ struct SessionsCard: View {
         let id: String
         let tool: ToolID
         let title: String
-        /// The assistant's name: the one chip on the title line.
+        /// The conversation's title on the second line, when the row leads with its project instead
+        /// (SessionRowLead.project); nil otherwise, and whenever titles are hidden.
+        var detail: String? = nil
+        /// The assistant's name: the one chip on the title line ("Cowork" for a Cowork task).
         let chips: [String]
-        /// The second line: the branch, the terminal or editor's short name, and the host for a remote session.
+        /// The second line: the branch, the terminal or editor's short name, the model when something reported it
+        /// (the status line, or a detected session's transcript), and the host for a remote session.
         let branch: String?
         let place: String?
         let host: String?
@@ -70,8 +92,47 @@ struct SessionsCard: View {
         let contextUsed: Double?
         /// Claude Code's task list; its text is gone when titles are hidden, and the counts stay.
         let todos: TodoPlan?
+        /// Where the session's state comes from (SessionSource), for the oracle's snapshot.
+        let source: SessionSource
+        /// A compaction running, or the ones done, for the mark beside the gauge.
+        var compaction: CompactionMark? = nil
+        /// The model the session runs on, and the switches that got it there.
+        var model: ModelMark? = nil
+        /// Teammates of an agent team that went idle, each with its name while titles are shown.
+        var teammates: [Stamped<Teammate>] = []
+        /// Tool calls auto mode refused this turn.
+        var denials: [Stamped<Denial>] = []
+        /// Whether the session runs in a git worktree.
+        var worktree = false
 
-        enum Note: Equatable, Sendable { case waitingForAnswer, doneJump, justFinished }
+        enum Note: Equatable, Sendable {
+            case waitingForAnswer, doneJump, justFinished
+            /// An MCP server is waiting for input that the notch cannot give it (a text field, a sign-in): the
+            /// terminal's dialog is where it is answered. The server's name while titles are shown.
+            case mcpInput(server: String?)
+            /// `failures` tool calls failed in a row (AgentSession.mayBeStuck).
+            case mayBeStuck(failures: Int)
+        }
+
+        enum CompactionMark: Equatable, Sendable {
+            case compacting(auto: Bool)
+            case compacted(count: Int, last: Date, auto: Bool)
+        }
+
+        struct ModelMark: Equatable, Sendable {
+            let name: String
+            /// The newest switch was Claude Code falling back by itself.
+            let fellBack: Bool
+            let switches: [Stamped<ModelSwitch>]
+        }
+
+        /// Found without the hook, by the scan or by the status line alone (AgentSession.isDetected): its working
+        /// is a guess and it never waits, so the row wears the mark and the card may offer the hook.
+        var detected: Bool { source == .detected || source == .statusline }
+
+        /// Read from OpenCode's own database rather than reported by its plugin (SessionSource.localStorage): the
+        /// row wears a chip that says so, and the card may offer the plugin.
+        var fromStorage: Bool { source == .localStorage }
 
         /// The row asks something of the reader: it takes the tinted wash and the accent bar.
         var needsYou: Bool { status == .waiting || note == .waitingForAnswer }
@@ -85,44 +146,80 @@ struct SessionsCard: View {
         let rows: [Row]
     }
 
-    /// The rows for `sessions` (newest first), live ones ahead of idle ones, and how many were left off. The sort
-    /// is stable, so recency still orders each group, and six idle terminals can no longer push a working one off.
-    static func rows(_ sessions: [AgentSession], hideTitles: Bool, jump: Bool, now: Date) -> (rows: [Row], more: Int) {
+    /// The rows for `sessions` (newest first), live ones ahead of idle ones, at most `cap` of them, and how many
+    /// were left off. The sort is stable, so recency still orders each group, and a run of idle terminals can no
+    /// longer push a working one off.
+    static func rows(_ sessions: [AgentSession], hideTitles: Bool, jump: Bool, now: Date, cap: Int = rowCap,
+                     lead: SessionRowLead = .title) -> (rows: [Row], more: Int) {
         func status(_ session: AgentSession) -> Row.Status {
             session.isWaiting ? .waiting : session.isWorking ? .working : session.finish(now: now) != nil ? .finished : .idle
         }
         // With more than one project live every row sits under its project's header (`groups`), so a row with no
         // title of its own says something the header does not rather than the project again.
         let grouped = Set(sessions.map(groupName(of:))).count > 1
-        let alike = alike(sessions, hideTitles: hideTitles, grouped: grouped)
+        let alike = alike(sessions, hideTitles: hideTitles, grouped: grouped, lead: lead)
+        // The model chip is drawn where it says something: on a row whose model differs from another row's, or one
+        // that has heard a switch and so opens onto how it got there. With the status line installed every Claude
+        // row knows its model, and a line of chips all naming the same one tells the rows apart by nothing while
+        // wrapping the extras sooner on the narrow panel.
+        let modelsDiffer = Set(sessions.compactMap(\.model)).count > 1
         let ordered = sessions.enumerated().sorted { a, b in
             let (ra, rb) = (status(a.element).rank, status(b.element).rank)
             return ra != rb ? ra < rb : a.offset < b.offset
         }.map(\.element)
-        let rows = ordered.prefix(rowCap).map { session -> Row in
+        let cap = max(1, cap)
+        let rows = ordered.prefix(cap).map { session -> Row in
             let status = status(session)
             let finished = status == .finished
             // A row is a button only where the resolver has somewhere to go: a reference that names a program and
             // nothing else (`TERM_PROGRAM=vscode` with no bundle id) is a reference, and not a jump.
             let canJump = jump && session.host == nil && session.terminal.map { TerminalJump.resolve($0) != .none } == true
-            let note: Row.Note? = session.pending != nil ? .waitingForAnswer : finished ? (canJump ? .doneJump : .justFinished) : nil
+            let note: Row.Note? = session.pending != nil ? .waitingForAnswer
+                : status == .waiting && session.waitsOnMCP ? .mcpInput(server: hideTitles ? nil : session.mcpServer)
+                : session.mayBeStuck(now: now) ? .mayBeStuck(failures: session.failureStreak)
+                : finished ? (canJump ? .doneJump : .justFinished) : nil
             let place = Self.place(of: session)
             let agents = session.agents.sorted { $0.value != $1.value ? $0.value < $1.value : $0.key < $1.key }
                 .map { Row.Agent(id: $0.key, since: $0.value) }
-            let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped, alike: alike.contains(session.id))
-            return Row(id: session.id, tool: session.tool, title: lines.title, chips: [session.tool.displayName],
-                       branch: lines.branch, place: lines.place, host: lines.host, group: groupName(of: session),
-                       since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
-                       status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
-                       todos: hideTitles ? session.todos?.withoutContent() : session.todos)
+            let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped, alike: alike.contains(session.id), lead: lead)
+            var row = Row(id: session.id, tool: session.tool, title: lines.title, detail: lines.detail, chips: [session.assistantName],
+                          branch: lines.branch, place: lines.place, host: lines.host, group: groupName(of: session),
+                          since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
+                          status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
+                          todos: hideTitles ? session.todos?.withoutContent() : session.todos, source: session.source)
+            row.compaction = compactionMark(of: session)
+            if let model = session.model, modelsDiffer || !session.modelSwitches.isEmpty {
+                row.model = Row.ModelMark(name: model, fellBack: session.fellBack, switches: session.modelSwitches)
+            }
+            row.teammates = hideTitles
+                ? session.idleTeammates.map { Stamped(value: Teammate(key: $0.value.key, name: nil), at: $0.at) }
+                : session.idleTeammates
+            row.denials = session.denials
+            row.worktree = session.worktree
+            return row
         }
-        return (rows, max(0, sessions.count - rowCap))
+        return (rows, max(0, sessions.count - cap))
+    }
+
+    /// The assistant the card's upgrade line offers the hook for: the first drawn row found without the hook whose
+    /// assistant has no hook of ours in its file (UsageStore.hookInstalledTools). Nil when there is none, and then
+    /// the line is not drawn: a detected row whose assistant already has the hook is a session idle since before the
+    /// app started, and its next event makes it the hook's.
+    static func upgradeTool(_ rows: [Row], installed: Set<ToolID>) -> ToolID? {
+        rows.first { $0.detected && !installed.contains($0.tool) }?.tool
+    }
+
+    /// The compaction mark a row carries: one running, else the count of those done, else none.
+    static func compactionMark(of session: AgentSession) -> Row.CompactionMark? {
+        if let compacting = session.compacting { return .compacting(auto: compacting.value == .auto) }
+        guard session.compactions > 0, let last = session.lastCompaction else { return nil }
+        return .compacted(count: session.compactions, last: last.at, auto: last.value == .auto)
     }
 
     /// The rows in project groups. One project, one headerless group. More than one, a group per project in the
     /// order of its most urgent row (the rows arrive worst first, so that is the order of each project's first
     /// row), and the rows keep their order inside it; so a wait still comes before any working row of another
-    /// project. The count is taken over every session, including the ones past `rowCap`.
+    /// project. The count is taken over every session, including the ones past the cap.
     static func groups(_ rows: [Row], sessions: [AgentSession]) -> [Group] {
         let counts = Dictionary(grouping: sessions, by: groupName(of:)).mapValues(\.count)
         guard counts.count > 1 else { return rows.isEmpty ? [] : [Group(name: nil, count: sessions.count, rows: rows)] }
@@ -135,9 +232,10 @@ struct SessionsCard: View {
         return order.map { Group(name: $0, count: counts[$0] ?? 0, rows: members[$0] ?? []) }
     }
 
-    /// What a project header calls the session: "notchmeter", "notchmeter@devbox", "@devbox"; else the assistant.
+    /// What a project header calls the session: "notchmeter", "notchmeter@devbox", "@devbox"; else the assistant
+    /// ("Cowork" for a Cowork task given no folder).
     static func groupName(of session: AgentSession) -> String {
-        session.displayName ?? session.tool.displayName
+        session.displayName ?? session.assistantName
     }
 
     /// The prompt's first line when the hook sent one (else the status line's session name) and the screen is not
@@ -145,7 +243,7 @@ struct SessionsCard: View {
     /// the row's second line, so it is not repeated here.
     static func title(of session: AgentSession, hideTitles: Bool) -> String {
         if !hideTitles, let title = session.displayTitle { return title }
-        return session.displayName ?? session.tool.displayName
+        return session.displayName ?? session.assistantName
     }
 
     /// The row's title and second line, each saying a thing once. A row with a title of its own shows it over the
@@ -155,17 +253,34 @@ struct SessionsCard: View {
     /// A row that would read word for word like another of its project's (`alike`: two Cursor chats on one
     /// branch, neither of which has a title) is told apart by when the app first heard of it instead, "First seen 2:04 PM", with the
     /// branch kept on the second line.
-    static func line(of session: AgentSession, place: String?, hideTitles: Bool, grouped: Bool, alike: Bool = false)
-        -> (title: String, branch: String?, place: String?, host: String?) {
+    ///
+    /// Leading with the project (SessionRowLead.project) turns a titled row over: the project leads, and the
+    /// conversation's title opens the second line (`detail`) before the branch and the terminal. Under a project
+    /// header the project is already said, so the row leads with its branch, else its terminal, with the title under
+    /// it; one with neither leads with its title as it would anyway, rather than repeat the header. A row with no
+    /// title of its own already leads with where it runs, so the setting leaves it as it is.
+    static func line(of session: AgentSession, place: String?, hideTitles: Bool, grouped: Bool, alike: Bool = false,
+                     lead: SessionRowLead = .title) -> (title: String, detail: String?, branch: String?, place: String?, host: String?) {
         let host = session.host.map { "@\($0)" }
-        if !hideTitles, let title = session.displayTitle { return (title, session.branch, place, grouped ? nil : host) }
-        if alike { return (firstSeen(session.started), session.branch, place, grouped ? nil : host) }
+        if !hideTitles, let title = session.displayTitle {
+            if lead == .project {
+                if grouped {
+                    if let branch = session.branch { return (branch, title, nil, place, nil) }
+                    if let place { return (place, title, nil, nil, nil) }
+                } else {
+                    let project = Self.title(of: session, hideTitles: true)
+                    return (project, title, session.branch, place, host.map(project.contains) == true ? nil : host)
+                }
+            }
+            return (title, nil, session.branch, place, grouped ? nil : host)
+        }
+        if alike { return (firstSeen(session.started), nil, session.branch, place, grouped ? nil : host) }
         if grouped {
-            if let branch = session.branch { return (branch, nil, place, nil) }
-            if let place { return (place, nil, nil, nil) }
+            if let branch = session.branch { return (branch, nil, nil, place, nil) }
+            if let place { return (place, nil, nil, nil, nil) }
         }
         let fallback = Self.title(of: session, hideTitles: true)
-        return (fallback, session.branch, place, grouped || host.map(fallback.contains) == true ? nil : host)
+        return (fallback, nil, session.branch, place, grouped || host.map(fallback.contains) == true ? nil : host)
     }
 
     /// "First seen 2:04 PM", in the reader's own time format.
@@ -182,11 +297,11 @@ struct SessionsCard: View {
     /// The sessions whose row, with no title of its own, would read word for word like another row of its
     /// project: same fallback title, same second line. Two such rows cannot be told apart, so each says when it
     /// was first seen instead (`line`).
-    static func alike(_ sessions: [AgentSession], hideTitles: Bool, grouped: Bool) -> Set<String> {
+    static func alike(_ sessions: [AgentSession], hideTitles: Bool, grouped: Bool, lead: SessionRowLead = .title) -> Set<String> {
         struct Key: Hashable { let group, title: String; let branch, place, host: String? }
         let untitled = sessions.filter { hideTitles || $0.displayTitle == nil }
         let byLine = Dictionary(grouping: untitled) { session -> Key in
-            let line = line(of: session, place: place(of: session), hideTitles: hideTitles, grouped: grouped)
+            let line = line(of: session, place: place(of: session), hideTitles: hideTitles, grouped: grouped, lead: lead)
             return Key(group: groupName(of: session), title: line.title, branch: line.branch, place: line.place, host: line.host)
         }
         return Set(byLine.values.filter { $0.count > 1 }.flatMap { $0.map(\.id) })
@@ -210,14 +325,20 @@ struct SessionsCard: View {
         }
     }
 
-    /// What the oracle's snapshot says of the card: the rows as drawn, in order, with their group, status and the
-    /// counts they carry, never a title or a task's text (docs/testing.md).
+    /// What the oracle's snapshot says of the card: the rows as drawn, in order, with their group, status, source
+    /// (`hook`, `storage`, `detected`, `statusline` or `coworkLog`) and the counts they carry, never a title, a
+    /// task's text, a teammate's name or an MCP server's (docs/testing.md).
     static func oracleRows(_ groups: [Group]) -> [[String: Any]] {
         groups.flatMap { group in
             group.rows.map { row -> [String: Any] in
                 ["id": row.id, "group": group.name as Any, "status": row.status.oracleName, "agents": row.agents.count,
+                 "source": row.source.rawValue,
                  "context": row.contextUsed.map(Oracle.fraction) as Any,
-                 "todos": row.todos.map { ["done": $0.done, "total": $0.total] } as Any]
+                 "todos": row.todos.map { ["done": $0.done, "total": $0.total] } as Any,
+                 "compaction": row.compaction.map(\.oracleName) as Any, "model": row.model?.name as Any,
+                 "fellBack": row.model?.fellBack ?? false, "switches": row.model?.switches.count ?? 0,
+                 "teammatesIdle": row.teammates.count, "denials": row.denials.count, "worktree": row.worktree,
+                 "note": row.note.map(\.oracleName) as Any]
             }
         }
     }
@@ -227,7 +348,8 @@ struct SessionsCard: View {
         TimelineView(.periodic(from: .now, by: sessions.working.isEmpty && sessions.waiting.isEmpty ? 60 : 1)) { context in
             // Titles off hides them here too, whatever the tracker still holds (the store clears it, but a value can
             // never be drawn under a setting that says not to).
-            let (rows, more) = Self.rows(sessions.all, hideTitles: store.hidesFigures || !prefs.sessionTitles, jump: prefs.jumpToTerminal, now: context.date)
+            let (rows, more) = Self.rows(sessions.all, hideTitles: store.hidesFigures || !prefs.sessionTitles, jump: prefs.jumpToTerminal, now: context.date,
+                                         cap: prefs.sessionRows, lead: prefs.sessionRowLead)
             let groups = Self.groups(rows, sessions: sessions.all)
             let lines = AdvicePlacement.sessionLines(advice, needsYou: rows.filter(\.needsYou).map { ($0.id, $0.tool) },
                                                      waiting: sessions.waiting.map { ($0.id, $0.tool) },
@@ -241,7 +363,7 @@ struct SessionsCard: View {
                     }
                 } else {
                     HStack(spacing: 6) {
-                        Image(systemName: "terminal").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                        Image(systemName: "terminal").font(.subheadline.weight(.semibold)).foregroundStyle(Ink.secondary)
                         Text(L("Sessions")).font(.headline)
                         Spacer()
                         clear(sessions)
@@ -267,12 +389,50 @@ struct SessionsCard: View {
                 if more > 0 {
                     Text(L("+%ld more", more)).modifier(Caption())
                 }
+                if let tool = Self.upgradeTool(rows, installed: store.hookInstalledTools) {
+                    HookUpgradeLine(tool: tool, offer: actions.offerHook)
+                }
+                if let offer = Self.pluginOffer(rows: rows, installed: store.openCodePluginInstalled, spoke: store.openCodePluginSpoke) {
+                    upgrade(offer)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .modifier(CardBackground(boxed: !embedded))
         // Bare, the section still keeps the rows' text on the sheet's margin, which the box's padding gave it.
         .padding(.horizontal, embedded ? density.cardPadding : 0)
+    }
+
+    /// What the card says under rows read from OpenCode's database: add the plugin, or that it takes over at the
+    /// next start.
+    enum PluginOffer: Equatable, Sendable { case add, nextStart }
+
+    /// The offer under the rows, if any: only under a row read from the database, and never once the plugin has
+    /// spoken, when it has taken over already and the rows still marked *from database* are the ones it will not
+    /// report on (UsageStore.standDownOpenCodeReading), so no start is coming that would change them.
+    static func pluginOffer(rows: [Row], installed: Bool, spoke: Bool) -> PluginOffer? {
+        guard rows.contains(where: \.fromStorage), !spoke else { return nil }
+        return installed ? .nextStart : .add
+    }
+
+    /// Under rows read from OpenCode's database, the one thing that would make them exact: the plugin, one click
+    /// away in Settings › Integrations; or, with the plugin already in place, that OpenCode loads it when it next
+    /// starts. A line rather than a banner, since the rows are right as far as they go.
+    @ViewBuilder
+    private func upgrade(_ offer: PluginOffer) -> some View {
+        if offer == .nextStart {
+            Text(L("OpenCode switches to its plugin when it next starts")).modifier(Caption())
+        } else {
+            Button { actions.openSettingsPane(.integrations) } label: {
+                Label(L("Add the OpenCode plugin for exact turn ends and waits"), systemImage: "puzzlepiece.extension")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Themed(.accent, .text))
+                    .frame(minHeight: 22, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(L("Opens Settings › Integrations, where Add plugin… writes Notchmeter's own plugin file for OpenCode after asking"))
+        }
     }
 
     /// Always drawn while there is something to clear, never only on hover: a panel read at a glance has no
@@ -282,7 +442,7 @@ struct SessionsCard: View {
         if sessions.all.contains(where: { !$0.isWorking && !$0.isWaiting && $0.pending == nil }) {
             Button(L("Clear")) { store.dismissIdleSessions() }
                 .buttonStyle(.plain)
-                .font(.caption.weight(.semibold)).foregroundStyle(Palette.accent)
+                .font(.caption.weight(.semibold)).foregroundStyle(Themed(.accent, .text))
                 .help(L("Clear the idle sessions; each comes back if it does anything"))
                 .accessibilityLabel(L("Remove all idle sessions"))
         }
@@ -290,8 +450,8 @@ struct SessionsCard: View {
 }
 
 extension SessionsCard {
-    /// The two lists a row can open in place.
-    enum Disclosure: String, CaseIterable, Sendable { case agents, todos }
+    /// The lists a row can open in place.
+    enum Disclosure: String, CaseIterable, Sendable { case agents, todos, models, teammates, denials }
 
     /// The key a row's open list is held under (UsageStore.openSessionLists).
     static func listKey(_ session: String, _ list: Disclosure) -> String { "\(session)/\(list.rawValue)" }
@@ -376,6 +536,15 @@ private struct SessionRow: View {
             if open.contains(.todos), let todos = row.todos, todos.hasContent {
                 checklist(todos).padding(.leading, SessionRow.textInset)
             }
+            if open.contains(.models), let model = row.model, !model.switches.isEmpty {
+                switchList(model.switches).padding(.leading, SessionRow.textInset)
+            }
+            if open.contains(.teammates), !row.teammates.isEmpty {
+                teammateList.padding(.leading, SessionRow.textInset)
+            }
+            if open.contains(.denials), !row.denials.isEmpty {
+                denialList.padding(.leading, SessionRow.textInset)
+            }
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 6)
@@ -387,9 +556,9 @@ private struct SessionRow: View {
             // go white there (`SessionRow.needsYouMark`) and the wash alone carries the blue.
             if row.needsYou {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Palette.calm.opacity(contrast ? 0.32 : 0.15))
+                    .fill(Themed.wash(Palette.calm, contrast ? 0.32 : 0.15))
                     .overlay(alignment: .leading) {
-                        Rectangle().fill(Self.needsYouMark).frame(width: 3)
+                        Rectangle().fill(Themed(Self.needsYouMark)).frame(width: 3)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
@@ -430,7 +599,10 @@ private struct SessionRow: View {
     /// dimmed further: at 0.8 opacity the secondary title, clock and context figure measured 3.7:1 on the black
     /// panel, under 4.5:1 for text, and Increase Contrast could not raise them.
 
-    private var hasExtras: Bool { row.contextUsed != nil || !row.agents.isEmpty || (row.todos?.total ?? 0) > 0 }
+    private var hasExtras: Bool {
+        row.contextUsed != nil || !row.agents.isEmpty || (row.todos?.total ?? 0) > 0 || row.compaction != nil || row.model != nil
+            || !row.teammates.isEmpty || !row.denials.isEmpty
+    }
 
     /// The turn's clock, or while the pointer is on the row, the control that removes it (the hover's exit is
     /// debounced above, so a click that makes the panel key cannot take the button away mid-click).
@@ -438,7 +610,7 @@ private struct SessionRow: View {
     private var trailing: some View {
         if hovering, removable {
             Button(action: remove) {
-                Image(systemName: "xmark.circle.fill").font(.callout).foregroundStyle(.secondary)
+                Image(systemName: "xmark.circle.fill").font(.callout).foregroundStyle(Ink.secondary)
                     .frame(minWidth: 22, minHeight: 20)
                     .contentShape(Rectangle())
             }
@@ -461,24 +633,37 @@ private struct SessionRow: View {
         return row.status == .idle ? L("idle %@", duration) : duration
     }
 
-    /// "feat/side-notch · iTerm · @devbox": whichever of the three the hook reported.
-    private var placeParts: [String] { [row.place, row.host].compactMap { $0 } }
+    /// "feat/side-notch · worktree · iTerm · @devbox": whichever of them the hook reported.
+    private var placeParts: [String] { [row.worktree ? L("worktree") : nil, row.place, row.host].compactMap { $0 } }
 
     private var content: some View {
         HStack(alignment: .top, spacing: 7) {
             StatusMark(status: row.status, symbol: symbol, colour: colour)
                 .frame(width: 13, alignment: .center)
                 .padding(.top, 3)
-                .help(statusText)
+                .help(row.detected ? L("%@, as far as the running process and its files show", statusText) : statusText)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
                     // On the Simple sheet the title matches its sibling rows' (SimpleRow): one title size a sheet.
                     Text(verbatim: row.title).font((embedded ? Font.body : .callout).weight(.semibold)).lineLimit(1).truncationMode(.tail)
-                        .foregroundStyle(row.status == .idle ? Caption.style : AnyShapeStyle(.primary))
-                    ForEach(row.chips, id: \.self) { Chip(text: $0).help(L("The assistant running this session")) }
+                        .foregroundStyle(row.status == .idle ? Caption.style : AnyShapeStyle(Ink.primary))
+                    ForEach(row.chips, id: \.self) { Chip(text: $0).help(chipHelp) }
+                    if row.detected {
+                        DetectedMark()
+                    }
+                    if row.fromStorage {
+                        Chip(text: L("from database"))
+                            .help(L("Read from OpenCode's own database without its plugin: a turn's end shows a few seconds late, and a wait for your permission does not show at all"))
+                    }
                 }
-                if row.branch != nil || !placeParts.isEmpty {
+                if row.detail != nil || row.branch != nil || !placeParts.isEmpty {
                     HStack(spacing: 4) {
+                        // The conversation's title, when the project leads: it gives way before the branch and the
+                        // terminal do, since the title line above already says where the session runs.
+                        if let detail = row.detail {
+                            Text(verbatim: detail).lineLimit(1).truncationMode(.tail).layoutPriority(-1)
+                            if row.branch != nil || !placeParts.isEmpty { Text(verbatim: "·") }
+                        }
                         if let branch = row.branch {
                             Image(systemName: "arrow.triangle.branch").font(.caption2)
                             Text(verbatim: branch).lineLimit(1).truncationMode(.middle)
@@ -491,7 +676,11 @@ private struct SessionRow: View {
                     .foregroundStyle(Caption.style)
                 }
                 if let note = row.note {
-                    Text(noteText(note)).font(.caption2.weight(.medium)).foregroundStyle(noteColour(note))
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
+                        if let symbol = noteSymbol(note) { Image(systemName: symbol).imageScale(.small) }
+                        Text(noteText(note)).fixedSize(horizontal: false, vertical: true)
+                    }
+                    .font(.caption2.weight(.medium)).foregroundStyle(noteColour(note))
                 }
             }
             Spacer(minLength: 0)
@@ -500,17 +689,38 @@ private struct SessionRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(row.title)
-        .accessibilityValue(Spoken.line(statusText, row.chips.joined(separator: ", "), row.branch, placeParts.joined(separator: ", "),
+        .accessibilityValue(Spoken.line(statusText, row.detail, row.chips.joined(separator: ", "), row.detected ? L("Found without the hook") : row.fromStorage ? L("from database") : nil,
+                                        row.branch, placeParts.joined(separator: ", "),
                                         ResetText.duration(max(0, now.timeIntervalSince(row.since))), row.note.map(noteText),
                                         advice.isEmpty ? nil : advice.map(Spoken.phrase).joined(separator: " ")))
+        // What the detected mark's tooltip says, for a reader who cannot hover: the spoken waiting state is what
+        // such a reader relies on, and this row will never speak one.
+        .accessibilityHint(row.detected ? L("Working is a guess, and a wait for your answer is not shown without the hook.") : "")
     }
 
     // MARK: The extras line
 
     private var extras: some View {
-        HStack(spacing: 6) {
+        ChipFlow(spacing: 6, lineSpacing: 4) {
             if let used = row.contextUsed {
                 ContextGauge(fraction: used, quiet: row.status == .idle)
+            }
+            if let compaction = row.compaction {
+                CompactionChip(mark: compaction, now: now)
+            }
+            if let model = row.model {
+                let value = model.fellBack ? L("%@, fell back by itself", model.name) : model.name
+                if model.switches.isEmpty {
+                    ExtraChip(symbol: "cpu", text: model.name, chevron: nil)
+                        .help(L("The model this session runs on"))
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(L("Model"))
+                        .accessibilityValue(value)
+                } else {
+                    disclosure(.models, symbol: model.fellBack ? "arrow.uturn.down" : "cpu", text: model.name, label: L("Model"),
+                               value: Spoken.line(value, model.switches.count == 1 ? L("1 switch") : L("%ld switches", model.switches.count)),
+                               help: L("The model this session runs on; click to list how it got there"))
+                }
             }
             if !row.agents.isEmpty {
                 disclosure(.agents, symbol: "person.2.fill", text: "\(row.agents.count)",
@@ -533,7 +743,18 @@ private struct SessionRow: View {
                         .accessibilityValue(value)
                 }
             }
-            Spacer(minLength: 0)
+            if !row.teammates.isEmpty {
+                let count = row.teammates.count
+                disclosure(.teammates, symbol: "person.3.fill", text: L("%ld idle", count), label: L("Idle teammates"),
+                           value: count == 1 ? L("1 teammate idle") : L("%ld teammates idle", count),
+                           help: L("Teammates of this session's agent team that finished their turn and went idle; click to list them"))
+            }
+            if !row.denials.isEmpty {
+                let count = row.denials.count
+                disclosure(.denials, symbol: "hand.raised.slash.fill", text: "\(count)", label: L("Refused by auto mode"),
+                           value: count == 1 ? L("1 tool call") : L("%ld tool calls", count),
+                           help: L("Tool calls auto mode refused in this turn; click to list them"))
+            }
         }
     }
 
@@ -567,6 +788,67 @@ private struct SessionRow: View {
         }
     }
 
+    /// The model switches, newest first: from what to what, how, and how long ago.
+    private func switchList(_ switches: [Stamped<ModelSwitch>]) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(switches.reversed().enumerated()), id: \.offset) { _, entry in
+                let change = entry.value
+                let words = change.from.map { L("%1$@ to %2$@", Hook.modelDisplayName($0), Hook.modelDisplayName(change.to)) } ?? Hook.modelDisplayName(change.to)
+                let how = SessionsCard.sourceText(change.source)
+                let ago = ResetText.duration(max(0, now.timeIntervalSince(entry.at)))
+                HStack(spacing: 5) {
+                    Image(systemName: change.isFallback ? "arrow.uturn.down" : "arrow.left.arrow.right").font(.caption2).foregroundStyle(Caption.style)
+                    Text(verbatim: words).font(.caption).lineLimit(1).truncationMode(.middle)
+                    if let how { Text(verbatim: "· \(how)").font(.caption).foregroundStyle(Caption.style).lineLimit(1) }
+                    Spacer(minLength: 8)
+                    Text(verbatim: ago).font(.caption).foregroundStyle(Caption.style).monospacedDigit()
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(words)
+                .accessibilityValue(Spoken.line(how, L("%@ ago", ago)))
+            }
+        }
+    }
+
+    /// The idle teammates, by name while titles are shown, else numbered, with how long each has been idle.
+    private var teammateList: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(row.teammates.enumerated()), id: \.offset) { index, entry in
+                let name = entry.value.name ?? L("Teammate %ld", index + 1)
+                let idle = ResetText.duration(max(0, now.timeIntervalSince(entry.at)))
+                HStack(spacing: 5) {
+                    Image(systemName: "person.fill").font(.caption2).foregroundStyle(Caption.style)
+                    Text(verbatim: name).font(.caption).lineLimit(1).truncationMode(.tail)
+                    Spacer(minLength: 8)
+                    Text(L("idle %@", idle)).font(.caption).foregroundStyle(Caption.style).monospacedDigit()
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(name)
+                .accessibilityValue(L("idle %@", idle))
+            }
+        }
+    }
+
+    /// The tool calls auto mode refused this turn, newest first, with the kind of refusal and how long ago.
+    private var denialList: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(row.denials.reversed().enumerated()), id: \.offset) { _, entry in
+                let kind = SessionsCard.denialText(entry.value.kind)
+                let ago = ResetText.duration(max(0, now.timeIntervalSince(entry.at)))
+                HStack(spacing: 5) {
+                    Image(systemName: "hand.raised.slash").font(.caption2).foregroundStyle(Caption.style)
+                    Text(verbatim: entry.value.tool).font(.caption.monospaced()).lineLimit(1).truncationMode(.middle)
+                    Text(verbatim: "· \(kind)").font(.caption).foregroundStyle(Caption.style).lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(verbatim: ago).font(.caption).foregroundStyle(Caption.style).monospacedDigit()
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(entry.value.tool)
+                .accessibilityValue(Spoken.line(kind, L("%@ ago", ago)))
+            }
+        }
+    }
+
     /// The plan's items in order. One with no words (the tool sent none, or an update for a task the app never
     /// saw created) is still an item the counts include, so it is drawn and read as "Untitled task", in the
     /// caption's quieter style, rather than as an empty line VoiceOver would read as nothing.
@@ -575,11 +857,11 @@ private struct SessionRow: View {
             ForEach(Array(todos.items.enumerated()), id: \.offset) { _, item in
                 let text = item.content.flatMap { $0.isEmpty ? nil : $0 }
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Image(systemName: item.status.symbol).font(.caption2.weight(.semibold)).foregroundStyle(item.status.colour)
+                    Image(systemName: item.status.symbol).font(.caption2.weight(.semibold)).foregroundStyle(Themed(item.status.colour))
                     Text(text ?? L("Untitled task")).font(.caption).lineLimit(2)
                         .italic(text == nil)
                         .strikethrough(item.status == .completed)
-                        .foregroundStyle(item.status == .completed || text == nil ? AnyShapeStyle(Caption.style) : AnyShapeStyle(.primary))
+                        .foregroundStyle(item.status == .completed || text == nil ? AnyShapeStyle(Caption.style) : AnyShapeStyle(Ink.primary))
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(text ?? L("Untitled task"))
@@ -617,20 +899,46 @@ private struct SessionRow: View {
         }
     }
 
+    /// The chip names the assistant; on a Cowork row it also says where the row came from and what that cannot
+    /// tell, since nothing else on the row does.
+    private var chipHelp: String {
+        switch row.source {
+        case .hook, .localStorage, .detected, .statusline: L("The assistant running this session")
+        case .coworkLog: L("Claude Cowork, read from the task's own log in the Claude app. It has no hook, so a task is never shown as waiting for you.")
+        }
+    }
+
     private func noteText(_ note: SessionsCard.Row.Note) -> String {
         switch note {
         case .waitingForAnswer: L("Waiting for your answer")
         case .doneJump: L("Done — click to jump")
         case .justFinished: L("Just finished")
+        case .mcpInput(let server?): L("%@ asks for input: answer in the terminal", server)
+        case .mcpInput(nil): L("An MCP server asks for input: answer in the terminal")
+        case .mayBeStuck(let failures): L("May be stuck: %ld tool calls failed in a row", failures)
+        }
+    }
+
+    /// A symbol in front of the two notes that are not the row's own status, so neither is told by colour alone.
+    private func noteSymbol(_ note: SessionsCard.Row.Note) -> String? {
+        switch note {
+        case .mcpInput: NotchNews.Reason.input.symbolName
+        case .mayBeStuck: NotchNews.Reason.stuck.symbolName
+        case .waitingForAnswer, .doneJump, .justFinished: nil
         }
     }
 
     /// The waiting line is a link, so it takes the app's accent like the tool card's own "Waiting for your answer"
-    /// (Palette.accent); the row's dot and symbol keep Palette.calm, the semantic "needs you" colour on signals.
-    private func noteColour(_ note: SessionsCard.Row.Note) -> Color {
+    /// (the accent chosen under Theme); the row's dot and symbol keep Palette.calm, the semantic "needs you" colour on
+    /// signals. Both are words, so both are held to 4.5:1: the pine green is lifted for them (PanelLook), 4.0:1 on
+    /// black as it stands.
+    private func noteColour(_ note: SessionsCard.Row.Note) -> Themed {
         switch note {
-        case .waitingForAnswer: AccessibilityDisplay.shared.contrast ? Palette.accentContrast : Palette.accent
-        case .doneJump, .justFinished: Palette.pine
+        case .waitingForAnswer, .mcpInput: Themed(AccessibilityDisplay.shared.contrast ? PanelInk.accentContrast : .accent, .text)
+        case .doneJump, .justFinished: Themed(Palette.pine, .text)
+        // The warning orange, 9:1 on the black panel and above 4.5:1 on the lighter card of Increase Contrast; Paper
+        // prints it darker (PanelInk.warn.onPaper).
+        case .mayBeStuck: Themed(Palette.warn, .text)
         }
     }
 }
@@ -655,7 +963,7 @@ private struct ExtraChip: View {
         }
         .padding(.horizontal, 7)
         .frame(minHeight: 20)
-        .background(Capsule().fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.26 : 0.14)))
+        .background(Capsule().fill(Themed.wash(.white, AccessibilityDisplay.shared.contrast ? 0.26 : 0.14)))
         .contentShape(Capsule())
     }
 }
@@ -672,15 +980,15 @@ private struct ContextGauge: View {
         let contrast = AccessibilityDisplay.shared.contrast
         let percent = Int((fraction * 100).rounded())
         let level = SessionsCard.contextLevel(fraction)
-        let tint = level.tint ?? .white.opacity(quiet ? 0.55 : contrast ? 0.95 : 0.75)
+        let bar = level.tint.map { Themed($0) } ?? Themed(.white, opacity: quiet ? 0.55 : contrast ? 0.95 : 0.75)
         HStack(spacing: 4) {
             ZStack(alignment: .leading) {
-                Capsule().fill(.white.opacity(contrast ? 0.3 : 0.15))
-                Capsule().fill(tint).frame(width: max(2, 34 * CGFloat(min(1, max(0, fraction)))))
+                Capsule().fill(Themed.wash(.white, contrast ? 0.3 : 0.15))
+                Capsule().fill(bar).frame(width: max(2, 34 * CGFloat(min(1, max(0, fraction)))))
             }
             .frame(width: 34, height: 4)
             Text(verbatim: "\(percent)%").font(.caption2.weight(.semibold)).monospacedDigit()
-                .foregroundStyle(level != .quiet ? AnyShapeStyle(tint) : AnyShapeStyle(Caption.style))
+                .foregroundStyle(level.tint.map { AnyShapeStyle(Themed($0, .text)) } ?? AnyShapeStyle(Caption.style))
         }
         .frame(minHeight: 20)
         .contentShape(Rectangle())
@@ -755,11 +1063,209 @@ private struct StatusMark: View {
     let colour: Color
 
     var body: some View {
-        let image = Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(colour)
+        let image = Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Themed(colour))
         if status == .working, !AccessibilityDisplay.shared.motionReduced {
             image.symbolEffect(.pulse, options: .repeating)
         } else {
             image
+        }
+    }
+}
+
+/// The quiet mark on a row found without the hook (AgentSession.isDetected: the scan's rows, and the status line's):
+/// the word in the caption's colour inside a dashed outline, so it reads as a note about the row rather than a
+/// second chip, and says what it says in words and not by a colour. Its help is what the scan cannot know;
+/// VoiceOver hears the same in the row's value and hint (`SessionRow.content`), so the mark itself is not a second
+/// stop.
+private struct DetectedMark: View {
+    var body: some View {
+        Text(L("detected"))
+            .font(.system(size: 9, weight: .medium))
+            .lineLimit(1)
+            .foregroundStyle(Caption.style)
+            .padding(.horizontal, 5).padding(.vertical, 1.5)
+            .overlay(Capsule().strokeBorder(Caption.style, style: StrokeStyle(lineWidth: 1, dash: [2, 2])))
+            .help(L("Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly."))
+            .accessibilityHidden(true)
+    }
+}
+
+/// The line a card with a detected row ends on while that row's assistant has no hook of ours
+/// (SessionsCard.upgradeTool): what the hook adds, and a button that opens the hook's install flow in Settings
+/// (NotchActions.offerHook). The button writes nothing: the assistant's file changes only on Add there, after its
+/// backup, which is the consent the app has always asked for. Cursor and Gemini CLI have no event an answer can go
+/// back through, so their line leaves answering out rather than promise it. Always drawn, never on hover, and the
+/// button is the whole line's height of 24 points.
+private struct HookUpgradeLine: View {
+    let tool: ToolID
+    let offer: (ToolID) -> Void
+
+    /// Whether this assistant's hook carries a decision back (HookVendor.decidingEvents).
+    private var answers: Bool { HookVendor.vendor(for: tool).map { !$0.decidingEvents.isEmpty } ?? false }
+
+    var body: some View {
+        let contrast = AccessibilityDisplay.shared.contrast
+        VStack(alignment: .leading, spacing: 2) {
+            Text(answers ? L("Install the hook for exact turn ends and answering from the notch.") : L("Install the hook for exact turn ends."))
+                .font(.caption)
+                .foregroundStyle(Caption.style)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { offer(tool) } label: {
+                Label(L("Install the hook…"), systemImage: "arrow.down.circle")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Themed(contrast ? PanelInk.accentContrast : .accent, .text))
+                    .frame(minHeight: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(L("Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first.",
+                    HookVendor.vendor(for: tool)?.displayName ?? tool.productName))
+        }
+        .padding(.top, 2)
+    }
+}
+
+extension SessionsCard {
+    /// How a model switch came about, in the words a switch list uses; nil for a source the hook did not name.
+    static func sourceText(_ source: ModelSwitch.Source?) -> String? {
+        switch source {
+        case .command: L("by /model")
+        case .picker: L("from the picker")
+        case .sdk: L("by a client")
+        case .auto: L("fell back by itself")
+        case .resume: L("restored on resume")
+        case nil: nil
+        }
+    }
+
+    /// The kind of an auto-mode refusal, told from the shape of its reason (Denial.Kind) and never its words.
+    static func denialText(_ kind: Denial.Kind) -> String {
+        switch kind {
+        case .rule: L("matched a rule")
+        case .noVerdict: L("could not be judged")
+        case .unavailable: L("classifier unavailable")
+        case .other: L("refused")
+        }
+    }
+}
+
+extension SessionsCard.Row.Note {
+    /// The oracle's word for a note.
+    var oracleName: String {
+        switch self {
+        case .waitingForAnswer: "waitingForAnswer"
+        case .doneJump: "doneJump"
+        case .justFinished: "justFinished"
+        case .mcpInput: "mcpInput"
+        case .mayBeStuck: "mayBeStuck"
+        }
+    }
+}
+
+extension SessionsCard.Row.CompactionMark {
+    /// The oracle's word for the mark: "compacting", or "compacted" once one is done.
+    var oracleName: String {
+        switch self {
+        case .compacting: "compacting"
+        case .compacted: "compacted"
+        }
+    }
+}
+
+/// The compaction beside the context gauge (PreCompact, PostCompact). While one runs: the compress symbol, which
+/// breathes unless motion is reduced, and "Compacting" in the warning orange, since the gauge beside it is about to
+/// be emptied and its figure with it. Once done, quietly, how many times this session has compacted while the app
+/// watched; the gauge is then gone until the status line reports again, because the fill it last showed described
+/// the conversation before its summary (AgentSession.contextUsed).
+private struct CompactionChip: View {
+    let mark: SessionsCard.Row.CompactionMark
+    let now: Date
+
+    var body: some View {
+        switch mark {
+        case .compacting(let auto):
+            HStack(spacing: 3) {
+                let symbol = Image(systemName: NotchNews.Reason.compacting.symbolName).font(.caption2.weight(.semibold)).imageScale(.small)
+                if AccessibilityDisplay.shared.motionReduced { symbol } else { symbol.symbolEffect(.pulse, options: .repeating) }
+                Text(L("Compacting")).font(.caption2.weight(.semibold))
+            }
+            .foregroundStyle(Themed(Palette.warn, .text))
+            .padding(.horizontal, 7)
+            .frame(minHeight: 20)
+            .background(Capsule().fill(Themed.wash(Palette.warn, AccessibilityDisplay.shared.contrast ? 0.3 : 0.16)))
+            .help(auto ? L("Claude Code is compacting this session's context by itself: the conversation so far is being replaced by a summary")
+                       : L("This session's context is being compacted, as /compact asked"))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(L("Compacting"))
+            .accessibilityValue(auto ? L("by itself") : L("as /compact asked"))
+        case .compacted(let count, let last, let auto):
+            let ago = ResetText.duration(max(0, now.timeIntervalSince(last)))
+            HStack(spacing: 3) {
+                Image(systemName: NotchNews.Reason.compacting.symbolName).font(.caption2.weight(.semibold)).imageScale(.small)
+                Text(verbatim: "\(count)").font(.caption2.weight(.semibold)).monospacedDigit()
+            }
+            .padding(.horizontal, 7)
+            .frame(minHeight: 20)
+            .background(Capsule().fill(Themed.wash(.white, AccessibilityDisplay.shared.contrast ? 0.26 : 0.14)))
+            .help(count == 1 ? L("Compacted once while the app watched, %@ ago", ago) : L("Compacted %1$ld times while the app watched, last %2$@ ago", count, ago))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(L("Compacted"))
+            .accessibilityValue(Spoken.line(count == 1 ? L("once") : L("%ld times", count), L("last %@ ago", ago),
+                                            auto ? L("by itself") : L("as /compact asked")))
+        }
+    }
+}
+
+/// The extras line's chips laid left to right, wrapping onto another line when the row is too narrow for them all,
+/// each line's chips centred on one another. A row carrying the gauge, a compaction, the model, agents, teammates, a
+/// task list and denials at once is wider than the narrowest panel, and a chip pushed past the card's edge is one
+/// nobody can click.
+struct ChipFlow: Layout {
+    var spacing: CGFloat = 6
+    var lineSpacing: CGFloat = 4
+
+    /// Each subview's frame within a width, line by line: pure, so the layout can be pinned without a view.
+    static func frames(sizes: [CGSize], width: CGFloat, spacing: CGFloat, lineSpacing: CGFloat) -> [CGRect] {
+        var lines: [[Int]] = []
+        var current: [Int] = []
+        var x: CGFloat = 0
+        for (index, size) in sizes.enumerated() {
+            if !current.isEmpty, x + spacing + size.width > width {
+                lines.append(current)
+                current = []
+                x = 0
+            }
+            x += (current.isEmpty ? 0 : spacing) + size.width
+            current.append(index)
+        }
+        if !current.isEmpty { lines.append(current) }
+        var frames = Array(repeating: CGRect.zero, count: sizes.count)
+        var y: CGFloat = 0
+        for line in lines {
+            let height = line.map { sizes[$0].height }.max() ?? 0
+            var x: CGFloat = 0
+            for index in line {
+                frames[index] = CGRect(x: x, y: y + (height - sizes[index].height) / 2, width: sizes[index].width, height: sizes[index].height)
+                x += sizes[index].width + spacing
+            }
+            y += height + lineSpacing
+        }
+        return frames
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        let frames = Self.frames(sizes: subviews.map { $0.sizeThatFits(.unspecified) }, width: width, spacing: spacing, lineSpacing: lineSpacing)
+        let used = frames.reduce(CGRect.null) { $0.union($1) }
+        guard !used.isNull else { return .zero }
+        return CGSize(width: proposal.width ?? used.maxX, height: used.maxY)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let frames = Self.frames(sizes: sizes, width: bounds.width, spacing: spacing, lineSpacing: lineSpacing)
+        for (subview, frame) in zip(subviews, frames) {
+            subview.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY), proposal: ProposedViewSize(frame.size))
         }
     }
 }

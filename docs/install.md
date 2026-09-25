@@ -45,10 +45,11 @@ build/Notchmeter.app/Contents/MacOS/Notchmeter --smoke --lang zh-Hans   # same, 
 build/Notchmeter.app/Contents/MacOS/Notchmeter --hook                # Claude Code hook command, see docs/hooks.md
 build/Notchmeter.app/Contents/MacOS/Notchmeter --hook --tool codex   # Codex hook command, same document
 build/Notchmeter.app/Contents/MacOS/Notchmeter --hook --tool cursor  # Cursor hook command
-build/Notchmeter.app/Contents/MacOS/Notchmeter --hook --tool antigravity              # Gemini CLI hook command (lights the Antigravity ring)
+build/Notchmeter.app/Contents/MacOS/Notchmeter --hook --tool gemini  # Gemini CLI hook command (lights the Gemini ring)
+build/Notchmeter.app/Contents/MacOS/Notchmeter --hook --tool kimi    # Kimi Code hook command
 build/Notchmeter.app/Contents/MacOS/Notchmeter --hook --tool copilot --event <name>  # Copilot CLI hook command (one entry per event)
 build/Notchmeter.app/Contents/MacOS/Notchmeter --statusline          # Claude Code status-line command, see docs/hooks.md
-build/Notchmeter.app/Contents/MacOS/Notchmeter --render-assets docs/media   # the README's pictures, from fixed readings (no Keychain, no network)
+build/Notchmeter.app/Contents/MacOS/Notchmeter --render-assets docs/media   # the README's pictures, from fixed readings (no Keychain, no network); review-only ones under docs/media/review, which git ignores
 build/Notchmeter.app/Contents/MacOS/Notchmeter --render-gallery build/gallery   # the launch gallery frames (one GIF, seven PNGs) and thumbnail
 build/Notchmeter.app/Contents/MacOS/Notchmeter --render-dashboard build/dashboard   # the Usage Dashboard, light and dark, week, 30 and 90 days
 ```

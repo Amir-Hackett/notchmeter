@@ -57,6 +57,57 @@ struct WaitBannerMemory: Equatable, Sendable {
     }
 }
 
+/// One sound per burst. A single refresh can hand over several banners at once — two windows running out
+/// together, three sessions finishing inside a second, a wait arriving on the heels of a finished turn — and with
+/// a sound each, one event became a chord, or a sound the user heard twice and looked round for twice. So a
+/// banner that would sound inside `interval` of the last one that did is delivered silent, and nothing else about
+/// it changes (the banner, its level, its place in Notification Center): the sound that did play has already
+/// turned the user round, and the banner is there to be read.
+///
+/// Unless it outranks the sound that played (`rank`). Session A's turn finishing at t must not silence session
+/// B's permission prompt at t+1: the prompt is the sound the docs say is answered by reflex, and a banner for a
+/// blocking wait spends that session's ten-minute allowance (`Notifier.blockingWaitInterval`) whether or not it
+/// sounded, so a prompt held here would not be heard from again for that session. A value type with an injected
+/// clock for the reason `WaitBannerMemory` is one: `deliver` cannot be reached from a test.
+struct SoundSpacing: Equatable, Sendable {
+    /// Two seconds: longer than any of the system alert sounds lasts, shorter than the gap between two things a
+    /// person would want to hear as two.
+    static let interval: TimeInterval = 2
+
+    /// The sound that last played: when, and under which category.
+    struct Played: Equatable, Sendable {
+        let at: Date
+        let category: SoundCategory
+    }
+
+    /// When a sound last played, and what it was. Read by the tests.
+    private(set) var last: Played?
+
+    /// How far a sound cuts into a burst. Two tiers: a wait the session has stopped for and a limit reached are
+    /// what the user has to act on, so each sounds even on the heels of a finished turn or the reminder, and
+    /// starts a burst of its own; a finished turn and the reminder are news to be read, and are held by anything.
+    /// Within a tier the earlier sound wins, so two prompts in a second are still one sound and not the chord this
+    /// exists to stop. The tiers are the categories', not the banners' interruption levels: the reminder is
+    /// delivered time-sensitive like every wait (`Notifier.level(for:)`), and is still only a reminder.
+    static func rank(_ category: SoundCategory) -> Int {
+        switch category {
+        case .completion, .waiting: 0
+        case .permission, .question, .plan, .limit: 1
+        }
+    }
+
+    /// Whether `category` may sound at `now`, stamping it when it may. Inside `interval` of the last sound it may
+    /// only if it outranks that sound. A stamp in the future is a clock stepped backwards and holds nothing, as in
+    /// `Notifier.within`, or an NTP correction would mute every banner until the clock caught up.
+    mutating func admit(_ category: SoundCategory, at now: Date) -> Bool {
+        if let last, (0 ..< Self.interval).contains(now.timeIntervalSince(last.at)), Self.rank(category) <= Self.rank(last.category) {
+            return false
+        }
+        last = Played(at: now, category: category)
+        return true
+    }
+}
+
 /// Pace alerts, resets, advice worth a banner, and Claude Code session events through Notification Center.
 /// Everything here is a no-op when the process is not a bundle (`swift run`, where UNUserNotificationCenter aborts
 /// for want of a bundle identifier) or is a `--probe` or `--smoke` run, which must never raise the permission
@@ -68,33 +119,45 @@ final class Notifier {
     enum SessionEvent {
         /// `blocking` is a wait the session has stopped for — a permission prompt, an elicitation, an agent
         /// asking — as against Claude Code's idle nudge, which only says the user has gone quiet (Hook.swift).
-        /// `kind` is what the wait asks for, and chooses its sound; the copy and the ceiling are the same for all.
+        /// `kind` is what the wait asks for, and with `blocking` chooses its sound (`soundCategory(for:)`); the copy
+        /// and the ceiling are the same for all.
         case waiting(blocking: Bool, kind: Hook.WaitKind = .permission)
         case finished(turn: TimeInterval)
+        /// Something the session ran into without stopping for it (SessionTrouble): a compaction Claude Code began by
+        /// itself, a run of failed tool calls, a tool auto mode refused. Never blocking, so held back while a
+        /// terminal or editor is in front like a finished turn, and silent: nothing about it needs an answer.
+        case trouble(SessionTrouble)
     }
 
-    /// The classes a sound is chosen for in Settings: a pace crossing, each kind of wait, a finished turn.
-    enum SoundEvent: Equatable, Sendable {
-        case pace
-        case waiting(Hook.WaitKind)
-        case finished
-
-        /// The word the oracle uses for the class: "pace", "finished", or the wait's kind.
-        var name: String {
-            switch self {
-            case .pace: "pace"
-            case .waiting(let kind): kind.rawValue
-            case .finished: "finished"
-            }
-        }
-    }
-
-    /// The sound class a session event plays under.
-    nonisolated static func soundEvent(for event: SessionEvent) -> SoundEvent {
+    /// The sound category a session event plays under. A wait that has stopped the session plays its kind's
+    /// sound. A wait that has not — Claude Code's idle reminder — and the possible wait read off a quiet Cursor
+    /// turn (`quietNudge`) play the waiting reminder: each says a session may need you, and neither is the request
+    /// the permission sound promises. The quiet turn is still a blocking wait to the banner rules, deliberately
+    /// (`UsageStore.sweepSessions`); what it sounds like is a separate question from whether it breaks through. A
+    /// session's trouble notice (compacting, may be stuck, refused; 0.11) is silent: nil.
+    nonisolated static func soundCategory(for event: SessionEvent, quietNudge: Bool = false) -> SoundCategory? {
         switch event {
-        case .waiting(_, let kind): .waiting(kind)
-        case .finished: .finished
+        case .finished: .completion
+        case .waiting(let blocking, _) where !blocking || quietNudge: .waiting
+        case .waiting(_, let kind): SoundCategory(kind)
+        case .trouble: nil
         }
+    }
+
+    /// The sound a pace alert plays at `stage`, or nil for a stage that arrives silently. Only the two that mean a
+    /// window is nearly or wholly gone make a sound, and they make the limit sound; on track, behind, a reset and
+    /// its reminder are worth reading, not worth turning round for.
+    nonisolated static func soundCategory(for stage: PaceAlert.Stage) -> SoundCategory? {
+        switch stage {
+        case .runningOut, .limitHit: .limit
+        case .onTrack, .behind, .reminder, .reset: nil
+        }
+    }
+
+    /// The sound an advice banner plays, or nil. Only a line about money already flowing (`Advice.Priority.danger`)
+    /// makes one, and it is the limit sound: extra usage being billed is the plan's limit reached by another road.
+    nonisolated static func soundCategory(for advice: Advice) -> SoundCategory? {
+        advice.priority == .danger ? .limit : nil
     }
 
     /// Terminal and editor apps: a notice about a session is usually pointless while one of them is in front.
@@ -124,11 +187,13 @@ final class Notifier {
     /// about what this object has sent: nothing upstream can see whether `deliver` was reached. Read below the
     /// `center` guard in `notify`, so a `--probe` or unbundled run records nothing.
     private var waitBanners = WaitBannerMemory()
+    /// When a banner last made a sound, so a burst of banners makes one (`SoundSpacing`). In memory only.
+    private var soundSpacing = SoundSpacing()
     /// The panel or Settings to open when a banner is clicked; wired by the app delegate.
     var onOpen: (ToolID?) -> Void = { _ in }
-    /// The sound choice per event class (NotificationSound), quiet hours and the frontmost-app check, read from
-    /// Preferences by the app delegate.
-    var sound: (SoundEvent) -> String = { _ in NotificationSound.defaultChoice }
+    /// The sound choice per category (NotificationSound, "none" while it is silenced), quiet hours and the
+    /// frontmost-app check, read from Preferences by the app delegate.
+    var sound: (SoundCategory) -> String = { _ in NotificationSound.defaultChoice }
     var quiet: () -> Bool = { false }
     /// Whether the frontmost-terminal rule is on at all (Preferences.quietWhileTerminalFrontmost).
     var terminalRule: () -> Bool = { true }
@@ -179,11 +244,10 @@ final class Notifier {
         requestProvisionalAuthorization()
         let hushed = quiet()
         for alert in alerts {
-            let loud = alert.stage == .runningOut || alert.stage == .limitHit
             deliver(identifier: alert.identifier, thread: alert.tool.rawValue, tool: alert.tool,
                     title: Advisor.alertTitle(alert), body: Self.body(for: alert, context: context, hidingFigures: hidingFigures),
                     level: hushed ? .passive : Self.level(for: alert.stage),
-                    sound: loud && !hushed ? NotificationSound.unSound(for: sound(.pace)) : nil)
+                    sound: hushed ? nil : Self.soundCategory(for: alert.stage))
         }
     }
 
@@ -196,7 +260,7 @@ final class Notifier {
         for line in advice {
             deliver(identifier: "advice/\(line.id)", thread: line.tool?.rawValue ?? "advice", tool: line.tool, title: L("%@ advice", AppInfo.name),
                     body: Self.body(for: line, hidingFigures: hidingFigures), level: hushed ? .passive : (line.priority == .danger ? .timeSensitive : .active),
-                    sound: line.priority == .danger && !hushed ? NotificationSound.unSound(for: sound(.pace)) : nil)
+                    sound: hushed ? nil : Self.soundCategory(for: line))
         }
     }
 
@@ -220,12 +284,13 @@ final class Notifier {
     }
 
     /// The title and body for a session event, named after the session's tool: "Cursor finished" / "Cursor finished
-    /// a 12m turn in notchmeter." Pure, so the copy is pinned. The waiting body is the same key Advisor's waiting
+    /// a 12m turn in notchmeter.", and "Claude Cowork finished" for a Cowork task (AgentSession.productName), a Claude
+    /// session that Claude Code did not run. Pure, so the copy is pinned. The waiting body is the same key Advisor's waiting
     /// line uses, so the banner and the advice read alike. While the screen is shared (`hidingFigures`), the project
     /// is left out the way it is for a session the hook never named: the directory a session runs in is the one
     /// thing in these banners a viewer of the call has no business reading, and the tool's name is still the news.
     nonisolated static func copy(for event: SessionEvent, session: AgentSession, hidingFigures: Bool = false) -> (title: String, body: String) {
-        let name = session.tool.productName
+        let name = session.productName
         let project = (hidingFigures ? nil : session.displayName) ?? L("a session")
         return switch event {
         case .waiting where session.quietNudge:
@@ -234,6 +299,18 @@ final class Notifier {
             (L("%@ is waiting", name), L("%1$@ is waiting in %2$@.", name, project))
         case .finished(let turn):
             (L("%@ finished", name), L("%1$@ finished a %2$@ turn in %3$@.", name, ResetText.duration(turn), project))
+        case .trouble(.compacting(let context)):
+            // The fill is a figure, so it goes while the screen is shared, as every figure does.
+            if let context, !hidingFigures {
+                (L("%@ is compacting", name), L("%1$@ is compacting its context in %2$@ by itself, at %3$ld%% full: the conversation so far is being replaced by a summary.",
+                                               name, project, Int((context * 100).rounded())))
+            } else {
+                (L("%@ is compacting", name), L("%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary.", name, project))
+            }
+        case .trouble(.stuck(let failures)):
+            (L("%@ may be stuck", name), L("%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them.", name, failures, project))
+        case .trouble(.blocked(let tool)):
+            (L("%@ was blocked", name), L("Auto mode refused a %1$@ call in %2$@. The session goes on without it.", tool, project))
         }
     }
 
@@ -261,10 +338,10 @@ final class Notifier {
         let identifier = switch event {
         case .waiting: Self.identifier(session: session.id, kind: "waiting")
         case .finished: Self.identifier(session: session.id, kind: "finished")
+        case .trouble(let trouble): Self.identifier(session: session.id, kind: trouble.name)
         }
-        let soundEvent = Self.soundEvent(for: event)
         deliver(identifier: identifier, thread: session.tool.rawValue, tool: session.tool, title: title, body: body, level: Self.level(for: event),
-                sound: NotificationSound.unSound(for: sound(soundEvent)), soundEvent: soundEvent)
+                sound: Self.soundCategory(for: event, quietNudge: session.quietNudge), now: now)
         return true
     }
 
@@ -343,7 +420,7 @@ final class Notifier {
     nonisolated static func level(for event: SessionEvent) -> UNNotificationInterruptionLevel {
         switch event {
         case .waiting: .timeSensitive
-        case .finished: .active
+        case .finished, .trouble: .active
         }
     }
 
@@ -371,11 +448,11 @@ final class Notifier {
             return L("Waiting for permission.")
         case .provisional:
             deliver(identifier: "test", thread: "test", tool: nil, title: L("%@ test", AppInfo.name), body: Self.sampleBody(timeFormat: timeFormat),
-                    level: .active, sound: NotificationSound.unSound(for: sound(.pace)))
+                    level: .active, sound: .limit, spaced: false)
             return L("Sent, but quietly: %@ has provisional permission, so notices go straight to Notification Center with no banner. Allow them under Notifications in System Settings.", AppInfo.name)
         default:
             deliver(identifier: "test", thread: "test", tool: nil, title: L("%@ test", AppInfo.name), body: Self.sampleBody(timeFormat: timeFormat),
-                    level: .active, sound: NotificationSound.unSound(for: sound(.pace)))
+                    level: .active, sound: .limit, spaced: false)
             return L("Sent.")
         }
     }
@@ -391,21 +468,41 @@ final class Notifier {
         return Advisor.runOutText(tool: .claude, window: claude, context: context) ?? ""
     }
 
-    /// `soundEvent` is the class the sound was chosen under. It goes to the oracle as `sound` when a sound plays,
-    /// so a test can tell a plan's banner from a permission's without listening for it; a silent banner (a quiet
-    /// hour, a stage that never sounds, a choice of None) carries no `sound`.
+    /// What a banner sounds: the sound `choice` names for its category, or nothing, the category `SoundSpacing`
+    /// held back, and the spacing as it stands afterwards. Pure, with the spacing passed in and handed back, for
+    /// the reason `WaitBannerMemory.verdict` is: `deliver` cannot be reached from a test, and the order of its
+    /// rules is the part that can be got wrong. A banner with no category (a quiet hour, a stage that never
+    /// sounds) or a silenced one neither stamps the burst nor is held by it — a silenced question at t must not
+    /// mute a finished turn at t+1. With `spaced` false, the Test button's case, the sound plays whatever the
+    /// burst and does not stretch it: a sound the user has just asked for is not part of one. And a held banner
+    /// names its category, so the oracle can say what it would have played.
+    nonisolated static func soundToPlay(category: SoundCategory?, choice: (SoundCategory) -> String, spaced: Bool,
+                                        spacing: SoundSpacing, now: Date) -> (sound: UNNotificationSound?, held: SoundCategory?, spacing: SoundSpacing) {
+        guard let category, let sound = NotificationSound.unSound(for: choice(category)) else { return (nil, nil, spacing) }
+        guard spaced else { return (sound, nil, spacing) }
+        var spacing = spacing
+        return spacing.admit(category, at: now) ? (sound, nil, spacing) : (nil, category, spacing)
+    }
+
+    /// `category` is the sound the banner is entitled to, nil for one that arrives silently (a quiet hour, a
+    /// stage that never sounds). It goes to the oracle as `sound` when a sound plays, so a test can tell a plan's
+    /// banner from a permission's without listening for it. A banner whose category is silenced carries no
+    /// `sound`; one whose sound `SoundSpacing` held back carries none either, and names the category it would
+    /// have played as `soundSpaced`. `spaced` is false for the Test button alone (`soundToPlay`).
     private func deliver(identifier: String, thread: String, tool: ToolID?, title: String, body: String,
-                         level: UNNotificationInterruptionLevel, sound: UNNotificationSound?, soundEvent: SoundEvent = .pace) {
+                         level: UNNotificationInterruptionLevel, sound category: SoundCategory?, spaced: Bool = true, now: Date = Date()) {
         guard let center else { return }
+        let (played, held, spacing) = Self.soundToPlay(category: category, choice: sound, spaced: spaced, spacing: soundSpacing, now: now)
+        soundSpacing = spacing
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        content.sound = sound
+        content.sound = played
         content.threadIdentifier = thread
         content.interruptionLevel = level
         content.categoryIdentifier = NotificationPresenter.category
         content.userInfo = ["tool": tool?.rawValue ?? "", "settings": tool == nil]
-        let soundName = sound == nil ? nil : soundEvent.name
+        let soundName = played == nil ? nil : category?.rawValue
         center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil)) { error in
             if let error {
                 log.error("\(identifier, privacy: .public) not delivered: \(error.localizedDescription, privacy: .public)")
@@ -413,6 +510,7 @@ final class Notifier {
                 log.info("notified \(identifier, privacy: .public)")
                 var facts: [String: Any] = ["action": "sent", "title": title, "level": String(describing: level), "identifier": identifier]
                 if let soundName { facts["sound"] = soundName }
+                if let held { facts["soundSpaced"] = held.rawValue }
                 Oracle.shared.emit("notification", facts)
             }
         }

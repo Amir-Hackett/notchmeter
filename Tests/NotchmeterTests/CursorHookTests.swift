@@ -154,9 +154,11 @@ import Testing
         #expect(HookVendor.cursor.fileURL.path.hasSuffix("/.cursor/hooks.json"))
         #expect(HookVendor.vendor(for: .cursor) == .cursor)
         #expect(HookVendor.vendor(for: .codex) == .codex)
-        #expect(HookVendor.vendor(for: .antigravity) == .antigravity, "Gemini CLI's hook lights the Antigravity ring")
+        #expect(HookVendor.vendor(for: .gemini) == .gemini, "Gemini CLI's hook lights its own ring since the rows split")
+        #expect(HookVendor.vendor(for: .antigravity) == nil, "the Antigravity IDE documents no hook the notch could act on")
         #expect(HookVendor.vendor(for: .copilot) == .copilot)
-        #expect(HookVendor.allCases.map(\.tool) == ToolID.allCases, "every ring has a hook now, in the rings' order")
+        #expect(HookVendor.vendor(for: .kimi) == .kimi)
+        #expect(HookVendor.allCases.map(\.tool) == ToolID.allCases.filter { $0 != .antigravity }, "every ring but Antigravity's has a hook, in the rings' order")
         #expect(HookSettings.executable(in: expected) == executable, "status reads the path back out of the longer command")
     }
 

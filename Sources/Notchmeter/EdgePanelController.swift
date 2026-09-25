@@ -39,6 +39,10 @@ final class EdgePanelController: NSObject, PanelPresenting {
     private var keyMonitor: Any?
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     private var transitionSerial = 0
+    /// The readouts in the notch or pill, for a scroll over one of them (RingRetarget), and the label that names the
+    /// window a scroll moved a ring to.
+    private let ringTargets = RingTargets()
+    private let ringLabel = RingLabelPresenter()
 
     init(edge: PanelEdge, screen: NSScreen, store: UsageStore, prefs: Preferences, actions: NotchActions) {
         self.edge = edge
@@ -54,7 +58,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
                                                      arrangement: .empty))
         notchProbe = NSHostingView(rootView: EdgeNotch(store: store, edge: edge, flush: false))
         cardProbe = NSHostingView(rootView: EdgePanelCard(store: store, prefs: prefs, actions: actions, screen: screen))
-        contentProbe = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen))
+        contentProbe = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, edgeCard: true))
         hover = HoverDriver(mode: prefs.visibility.hoverMode, dwell: prefs.hoverDelay)
         super.init()
 
@@ -75,6 +79,8 @@ final class EdgePanelController: NSObject, PanelPresenting {
         hover.holdsOpen = { [weak self] in self.map { $0.promptHeld && $0.expanded } ?? false }
         hover.isOffScreen = { [weak self] in self.map { $0.panel.isVisible && !$0.panel.isOnActiveSpace } ?? false }
         hover.pointerEnteredCompact = { [weak self] in self?.store.wakeFromIdle() }
+        hover.ringAt = { [weak self] point in self?.ringTargets.tool(at: point) }
+        hover.ringScrolled = { [weak self] tool, step in self?.retarget(tool, by: step) }
         clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.rightMouseDown, .leftMouseDown]) { [weak self] event in
             let secondary = event.type == .rightMouseDown || event.modifierFlags.contains(.control)
             let handled = MainActor.assumeIsolated {
@@ -127,7 +133,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
     var expandedIntrinsicContentSize: CGSize { measuredContentSize(unclamped: true) }
 
     private func measuredContentSize(unclamped: Bool) -> CGSize {
-        contentProbe.rootView = NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, unclamped: unclamped)
+        contentProbe.rootView = NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, unclamped: unclamped, edgeCard: true)
         contentProbe.layoutSubtreeIfNeeded()
         return contentProbe.fittingSize
     }
@@ -222,8 +228,18 @@ final class EdgePanelController: NSObject, PanelPresenting {
         // The discard path, as in NotchController.hide(): the watch and its poll end with the controller.
         fullScreenWatch?.stop()
         fullScreenWatch = nil
+        ringLabel.close()
         transitionSerial += 1
         panel.orderOut(nil)
+    }
+
+    /// A scroll over a readout moved its ring (UsageStore.cycleRing): name the new window beside it for a moment,
+    /// inboard of a side notch, above the bottom bar, under the top pill.
+    private func retarget(_ tool: ToolID, by step: Int) {
+        guard let window = store.cycleRing(tool, by: step, cause: .scroll) else { return }
+        let ring = ringTargets.rect(of: tool) ?? hover.regions.compact
+        ringLabel.show(RingCycle.label(window, display: prefs.usageDisplay, hideFigures: store.hidesFigures), near: ring, edge: edge,
+                       screen: screen.frame, behavior: Self.collectionBehavior(showOverFullScreen: !suppressedForFullScreen))
     }
 
     func showOptions() {
@@ -409,7 +425,7 @@ final class EdgePanelController: NSObject, PanelPresenting {
     }
 
     private func root(_ arrangement: EdgeArrangement) -> EdgePanelRoot {
-        EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, screen: screen, arrangement: arrangement)
+        EdgePanelRoot(store: store, prefs: prefs, actions: actions, edge: edge, screen: screen, arrangement: arrangement, ringTargets: ringTargets)
     }
 
     /// How far a top or bottom bar stands off its edge, and how far a side stands off when it has had to give the
@@ -539,9 +555,12 @@ final class EdgePanelController: NSObject, PanelPresenting {
                  prefs.showSpend, prefs.signalRings, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
-                 prefs.monthlyBudgetUSD, prefs.sessionsCard, prefs.jumpToTerminal, store.panelOpenedForPrompt,
-                 store.attentionNotice?.session.id, store.hooksInstalled, store.openSessionLists, store.promptFocus,
-                 store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows)
+                 // The conversion on its own: the Cost card's rate line comes and goes with it whether or not a
+                 // budget is set, and monthlyBudgetUSD reads it only while one is.
+                 prefs.monthlyBudgetUSD, prefs.currencyConversion, prefs.sessionsCard, prefs.jumpToTerminal, store.panelOpenedForPrompt,
+                 store.attentionNotice?.session.id, store.hooksInstalled, store.openCodePluginInstalled, store.openSessionLists, store.promptFocus,
+                 store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial, prefs.panelAccent,
+                 prefs.usageStyle, prefs.hourClock, prefs.sessionRows, prefs.sessionRowLead)
             layout(animated: false)
             hover.dwell = prefs.hoverDelay
             hover.gestures = prefs.gesturesEnabled && !AccessibilityDisplay.shared.motionReduced
@@ -601,6 +620,8 @@ struct EdgePanelRoot: View {
     let edge: PanelEdge
     let screen: NSScreen
     let arrangement: EdgePanelController.EdgeArrangement
+    /// The presenter's registry for scroll-to-retarget, handed to the readouts through the environment.
+    var ringTargets: RingTargets? = nil
 
     var body: some View {
         ZStack {
@@ -630,6 +651,7 @@ struct EdgePanelRoot: View {
         // The pill and the card are their own shapes on the desktop, so they can be light; the notch layout
         // cannot, and neither can the side notch, which forces dark inside its own shape.
         .environment(\.colorScheme, prefs.appearance.colorScheme ?? .dark)
+        .environment(\.ringTargets, ringTargets)
     }
 }
 
@@ -646,21 +668,32 @@ struct EdgePanelCard: View {
     var entrance = false
 
     var body: some View {
-        NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: entrance)
+        let look = PanelLook.current(prefs, edgeCard: true)
+        NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: entrance, edgeCard: true)
             .padding(.vertical, 6)
-            .modifier(PanelSurface(shape: RoundedRectangle(cornerRadius: 22, style: .continuous)))
-            // The card's text is white in every appearance (NotchExpandedView), so its glass is dark in every
+            // Paper's sheet sits in a frame of the card's black, as it sits in the notch's (PaperSheet): the six
+            // points above and below are already there, so the sides take the same.
+            .padding(.horizontal, look.theme == .paper ? Self.paperFrame : 0)
+            .modifier(PanelSurface(shape: RoundedRectangle(cornerRadius: 22, style: .continuous), card: look.material))
+            // The black panel's text is white in every appearance (NotchExpandedView), so its glass is dark in every
             // appearance too. Under Light the surface read the ambient scheme and drew that white text on light
             // glass (AppearanceChoice's note, 0.7.5). The pill beside it still follows the setting: its figures are
-            // drawn in colours that read on either.
+            // drawn in colours that read on either. Paper's sheet sets its own scheme inside this one.
             .environment(\.colorScheme, .dark)
             .padding(4)
             .fixedSize()
     }
+
+    /// The black round Paper's sheet at the card's sides.
+    static let paperFrame: CGFloat = 6
 }
 
-/// The pill and panel background. The floating shapes — the edge pill and the card the panel opens in — are
-/// Liquid Glass from macOS 26 and solid black before it and under Reduce Transparency. The flush side notch is
+/// The pill and panel background. The pill is Liquid Glass from macOS 26 and solid black before it and under Reduce
+/// Transparency. The card the panel opens in follows the material (Settings › Appearance › Theme; `card`): Solid is
+/// black on every OS; Glassy and Smoked lay the material's black over Liquid Glass from macOS 26 and over a
+/// behind-window blur before it, so the tint that keeps the text readable over a white window is there on both
+/// (PanelMaterial). Until a material is chosen the card keeps what it had: Glassy from macOS 26, solid before it.
+/// The flush side notch is
 /// opaque black on every OS, and so is the notch layout's own panel, which is drawn on an opaque black backdrop
 /// and leaves `expandedGlass` off (`NotchController.applyWindowBehaviour`) because glass over black renders pale
 /// grey and the panel stops reading as one shape with the hardware notch.
@@ -688,17 +721,39 @@ struct PanelSurface<S: Shape>: ViewModifier {
     /// rule sat beside `reachesTheGlass` with no caller, so nothing exercised it and nothing would have caught it
     /// drifting from the line the shape is actually drawn by — the two workings `EdgeArrangement`'s own doc warns about.
     var onTheBoundary = false
+    /// The card's resolved material (PanelLook.material); nil for the pill and the side notch, which keep their own
+    /// rule above.
+    var card: PanelMaterial? = nil
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *), !flush, !AccessibilityDisplay.shared.reduceTransparency {
+        if let card {
+            if card.translucent {
+                let tinted = content.background(shape.fill(Color.black.opacity(card.tint)))
+                if #available(macOS 26.0, *) {
+                    tinted.glassEffect(.regular, in: shape)
+                } else {
+                    tinted
+                        .background(BehindWindowBlur().clipShape(shape))
+                        .overlay(rim)
+                }
+            } else {
+                solid(content)
+            }
+        } else if #available(macOS 26.0, *), !flush, !AccessibilityDisplay.shared.reduceTransparency {
             content.glassEffect(.regular, in: shape)
         } else {
-            let line = shape.stroke(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.35 : 0.12),
-                                    lineWidth: onTheBoundary ? 1 : 0.5)
-            content
-                .background(shape.fill(.black))
-                .overlay(onTheBoundary ? AnyView(line.clipShape(shape)) : AnyView(line))
+            solid(content)
         }
+    }
+
+    private var rim: some View {
+        shape.stroke(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.35 : 0.12), lineWidth: onTheBoundary ? 1 : 0.5)
+    }
+
+    private func solid(_ content: Content) -> some View {
+        content
+            .background(shape.fill(.black))
+            .overlay(onTheBoundary ? AnyView(rim.clipShape(shape)) : AnyView(rim))
     }
 }

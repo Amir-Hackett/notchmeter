@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cursor, Copilot and Antigravity limits in one place · Notchmeter</title>
+<meta name="description" content="Cursor's billing cycle, Copilot's AI credits and Antigravity's quota, read from the logins already on your Mac and shown side by side with one pace tick.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
+
+<meta property="og:title" content="Cursor, Copilot and Antigravity limits in one place">
+<meta property="og:description" content="Three vendors, three ideas of what a limit is, one strip. What each figure is and where it comes from.">
+<meta property="og:image" content="https://www.notchmeter.com/img/dashboard.png">
+<meta property="og:url" content="https://www.notchmeter.com/guides/cursor-copilot-antigravity-limits.html">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-09-24">
+<link rel="canonical" href="https://www.notchmeter.com/guides/cursor-copilot-antigravity-limits.html">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="index.html" class="here">Guides</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<article class="guide">
+  <header class="guide-head">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Guides</a> <span aria-hidden="true">›</span> Cursor, Copilot and Antigravity limits</nav>
+      <h1>Cursor, Copilot and Antigravity limits in one place</h1>
+      <p class="lede">Three vendors, three ideas of what a limit is. Cursor bills a cycle in dollars, GitHub counts AI credits by the month, and Google meters Antigravity and Gemini CLI in quota windows with no money in them at all. Here is how each is read, what each figure actually is, and how they end up side by side.</p>
+      <ul class="meta-strip">
+        <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
+        <li class="stamp">Tested on Notchmeter 0.9.0</li>
+        <li>Vendor terms read 2026-09-20 and 2026-09-24</li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="wrap guide-body">
+    <div class="answer">
+      <p class="label">The short answer</p>
+      <p>Each is read from the login that tool already keeps on your Mac, with the request that tool's own editor or dashboard makes, and shown with the same pace tick, projection and reset as every other meter. Every figure says where it came from. Anything that cannot be read is shown as missing with the reason, never as a zero, because a zero is a claim.</p>
+    </div>
+
+    <div class="tablewrap" role="region" aria-label="The three vendors at a glance" tabindex="0">
+      <table class="dtable">
+        <thead><tr><th scope="col">Assistant</th><th scope="col">What it meters</th><th scope="col">Login read from</th><th scope="col">Money on the Cost card</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Cursor</th><td>Included usage and on-demand spend for the billing cycle; a Grok Bot weekly allowance where the seat has one</td><td>Cursor's access token in its <code>state.vscdb</code>, from a private read-only copy</td><td>Yes: the cost Cursor put on each event in its own usage export</td></tr>
+          <tr><th scope="row">GitHub Copilot</th><td>The month's AI-credit allowance; a legacy seat's premium requests; Copilot Free's quotas</td><td>The token Copilot's editor plugin or <code>gh</code> keeps</td><td>Yes: GitHub's credit count, a cent each, where the seat is metered in credits</td></tr>
+          <tr><th scope="row">Antigravity / Gemini CLI</th><td>Session and weekly quota per model group, or quota per model</td><td>Gemini CLI's Google login, <code>~/.gemini/oauth_creds.json</code></td><td>No: quota only, and no row rather than $0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>No token is refreshed, stored or sent anywhere but to the vendor that issued it, and nothing signs in.</p>
+
+    <h2 id="cursor">Cursor</h2>
+    <p>The included ring comes from the same usage summary cursor.com's dashboard reads, and on-demand spend is shown in dollars, filling against its cap where the plan sets one. Three things about Cursor's figures are worth knowing before you trust any meter of them.</p>
+    <h3>When Cursor gives two answers, the further one wins</h3>
+    <p>Cursor's summary states a plan window twice: as a percentage, and as dollars used against a limit. On most plans they agree. On one Enterprise account they read 55% and $20 of $20, and the account's own billing export settled it: Cursor had been marking requests <em>On-Demand</em>, which it does only once the included allowance is spent. So Notchmeter shows a window as spent as its furthest-along figure says, and prints the dollars under the bar as Cursor gave them, so the disagreement stays visible. Under-reporting a spent window would hide exactly the thing a meter exists to catch.</p>
+    <h3>The model meters are not shares</h3>
+    <p>Cursor's "Cursor models" and "Other models" percentages are metered apart from the included total. The same account read 47% and 100%, which add to 147% and so cannot be two slices of one allowance. The caption says <em>Metered apart from the included total</em> and nothing more, because what each is a percentage of is not established.</p>
+    <h3>A seat billed on-demand</h3>
+    <p>On a seat Cursor meters nothing for, its model meters read 0% however much is spent: on 2026-09-20 one read "Cursor models 0%" against $8.76 of spend that day. A zero that money is flowing past is not a figure, so it is not drawn as one. Notchmeter asks for the dashboard's own cycle figures first and fills the included ring from them where the seat has a limit; with none, <em>Today's spend</em> compares today's dollars from the export with your average day of the thirty before. That is a comparison, not a limit: it paces, but it never runs out, warns or notifies.</p>
+    <p>Cursor's usage export is day resolution and reaches back 30 days, so Cursor takes no part in last-hour burn figures, and older days are what Notchmeter has kept since it was installed. Its Terms of Service (effective 2026-09-03) list among things a user may not do: <em>"harvest, scrape, or extract data from the Service"</em>. These are the dashboard's own reads of your own usage, made by a program instead of a browser; whether the clause reaches them is Cursor's to say, and if Cursor asks, <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#if-a-vendor-asks-us-to-stop">the meter goes in the next release</a>.</p>
+
+    <h2 id="copilot">GitHub Copilot</h2>
+    <p>Since 2026-06-01 GitHub bills Copilot by usage in AI credits, <em>"1 AI credit = $0.01 USD"</em>, with a monthly allowance per plan that resets on the first and does not roll over. The endpoint Copilot's editor plugin reads carries the month's running count, and that count times a cent is the one Copilot figure that is money.</p>
+    <ul>
+      <li><strong>Allowances are not assumed.</strong> GitHub publishes them per plan (Pro 1,500, Pro+ 7,000, Max 20,000, Business 1,900 and Enterprise 3,900 credits a month), but no endpoint states a seat's own ceiling, so a bar appears only where GitHub's reading carries one.</li>
+      <li><strong>The day is this Mac's.</strong> GitHub reports one month-to-date total, not when each credit was spent. Each rise is laid on the day Notchmeter saw it; the first read of a month sets a baseline instead of charging the whole count to that day. The row is marked as an estimate for that reason, though nothing in it is priced here.</li>
+      <li><strong>A legacy seat stays in requests.</strong> Premium requests are shown as counts and never multiplied by an overage rate, which would invent a bill for requests inside the allowance.</li>
+      <li><strong>Organisation billing</strong> is opt-in, for owners and billing managers, and stays off the Cost card because it is the whole organisation's month rather than this seat's.</li>
+    </ul>
+    <p>One honest note: the quota endpoint answers only Copilot's own client, so that single request carries the Copilot Chat extension's identifiers instead of Notchmeter's. It is the one borrowed identity in the app besides Antigravity's, and both are stated in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#who-each-request-says-it-is">the accuracy document</a> rather than left in the code.</p>
+
+    <h2 id="antigravity">Antigravity and Gemini CLI</h2>
+    <p>Both meter against the same Google backend, and the only Google login on disk is the one Gemini CLI caches: the Antigravity app keeps its own in the Keychain and serves its quota only through a local server inside the running app, which Notchmeter does not attach to. So the meter needs one sign-in through Gemini CLI: run <code>gemini</code> and choose <em>Login with Google</em>. An API-key or Vertex AI setup has no quota to read.</p>
+    <ul>
+      <li><strong>Personal accounts.</strong> Since June 2026 Google serves Gemini CLI's quota only to Code Assist Standard and Enterprise accounts. A personal account gets a sentence saying so, not an error code.</li>
+      <li><strong>With Antigravity installed</strong>, the request carries Antigravity's own client identity, because Google's backend picks whose licence to check from the caller. The answer is the summary Antigravity's own panel shows: a session and a weekly window for each model group.</li>
+      <li><strong>Two deployments.</strong> Google meters the quota on one of two hosts, and the other answers every window untouched with a reset five hours out. Notchmeter prefers the host Antigravity's CLI last logged, and shows a placeholder answer with no figure and a caption, not as an unused quota.</li>
+      <li><strong>No declared length, no pace.</strong> Gemini CLI's per-model buckets declare no window length, so they carry no pace tick until Google declares one.</li>
+    </ul>
+    <p>There is no dollar figure because there is nothing to derive one from: the endpoints return fractions, no price and no token count, and a seat is not billed at Gemini's API rates.</p>
+
+    <h2 id="one-strip">Side by side</h2>
+    <p>Each assistant gets a ring beside the notch, showing up to three of its windows, chosen in Settings › Assistants. The panel gives each a row with its most urgent window; the Usage Dashboard (⌘U) lays every limit out with its pace tick and how much a day lasts until it resets; and <code>notchmeter --json</code> carries each window with a <code>source</code>: <code>vendorEndpoint</code> for the vendor's own figure, <code>localSnapshot</code> for the newest figure a tool wrote to disk, <code>localEstimate</code> for Notchmeter's own arithmetic.</p>
+    <p>Where a vendor splits a plan by model, an <strong>All models</strong> window can combine them, and it is the one window no vendor published, so it is labelled as derived. It adopts the vendor's own plan total exactly where there is one, takes the highest of the model windows rather than their average otherwise, uses the soonest reset, and adds up no money. The routing advice then compares the three with Claude Code and Codex on the same terms (see <a href="which-assistant-should-get-this-task.html">which assistant should get this task</a>).</p>
+
+    <div class="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>: <em>Cursor's usage events</em>, <em>Cursor's cycle figures</em>, <em>When a vendor publishes two figures for one window</em>, <em>GitHub Copilot's AI credits</em>, <em>Antigravity: quota, and no cost</em> and <em>Who each request says it is</em>.</li>
+        <li>GitHub Docs, <em>Billing for individuals</em>, read 2026-09-20: AI credits and their price.</li>
+        <li>Cursor, <a href="https://cursor.com/terms-of-service">Terms of Service</a>, effective 2026-09-03, read 2026-09-24.</li>
+        <li>Cursor forum thread 168210 (2026-08-13), on the dashboard's percentage fields, as cited in the accuracy document.</li>
+      </ul>
+    </div>
+  </div>
+</article>
+
+<section>
+  <div class="wrap">
+    <h2>Related guides</h2>
+    <div class="related">
+      <a class="guide-card" href="which-assistant-should-get-this-task.html"><span class="q">Which assistant should get this task?</span><span class="what">Routing by headroom: switch models before tools.</span></a>
+      <a class="guide-card" href="claude-code-cost-estimate-vs-bill.html"><span class="q">Why your Claude Code cost estimate doesn't match your bill</span><span class="what">Every rule behind the estimate, and where it differs.</span></a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap centered">
+    <h2>Every limit, one strip</h2>
+    <p class="section-lede">Free, MIT licensed, and it never signs in anywhere.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#who-each-request-says-it-is">What each request says it is</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h2>Notchmeter</h2>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h2>Product</h2>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="../usage-trackers/">Usage trackers</a></li>
+          <li><a href="index.html">Guides</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

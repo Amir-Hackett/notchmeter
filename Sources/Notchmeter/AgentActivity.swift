@@ -44,34 +44,84 @@ enum PowerSource {
 /// When each tool last touched its files, sampled with a few directory listings rather than a scan: Claude Code's
 /// three most recently changed project folders (in every transcript root, Cowork's and the user's extra ones
 /// included), Codex's rollouts for today and yesterday, the modification time of Cursor's state database, Gemini
-/// CLI's login file and per-project folders, and Copilot's config folder.
+/// CLI's login file and per-project folders, Antigravity's conversation folders, Copilot's config folder, Kimi
+/// Code's newest sessions, and OpenCode's databases.
 struct AgentActivity: Sendable {
     var claudeRoots: [URL] = ClaudeCostScanner.defaultRoots()
     var codexSessions: URL = Paths.home.appendingPathComponent(".codex/sessions")
     var cursorState: URL = Paths.home.appendingPathComponent("Library/Application Support/Cursor/User/globalStorage/state.vscdb")
     var geminiRoot: URL = Paths.home.appendingPathComponent(".gemini")
     var copilotRoot: URL = Paths.home.appendingPathComponent(".config/github-copilot")
+    var kimiRoot: URL = KimiProvider.shareDirectory(environment: ProcessInfo.processInfo.environment)
+    var opencodeData: URL = OpenCodePaths.dataDirectory()
 
     func sample(now: Date = Date()) -> [ToolID: Date] {
         var result: [ToolID: Date] = [:]
         result[.claude] = claudeRoots.compactMap { Self.newestClaude(projects: ClaudeCostScanner.transcriptFolder(of: $0)) }.max()
         result[.codex] = Self.newestCodex(sessions: codexSessions, now: now)
         result[.cursor] = Self.newestCursor(database: cursorState)
-        result[.antigravity] = Self.newestGemini(root: geminiRoot)
+        result[.gemini] = Self.newestGemini(root: geminiRoot)
+        result[.antigravity] = Self.newestAntigravity(root: geminiRoot)
         result[.copilot] = Self.newestCopilot(root: copilotRoot)
+        result[.kimi] = Self.newestKimi(root: kimiRoot)
+        result[.opencode] = Self.newestOpenCode(data: opencodeData)
         return result
+    }
+
+    /// OpenCode writes every turn to its database, so the database and its write-ahead log are its activity.
+    static func newestOpenCode(data: URL) -> Date? {
+        OpenCodePaths.databases(in: data).flatMap { database in
+            ["", "-wal"].compactMap { modified(URL(fileURLWithPath: database.path + $0)) }
+        }.max()
     }
 
     /// Gemini CLI rewrites its login file on every token refresh and keeps a folder per project under `tmp`;
     /// Antigravity's CLI keeps its conversations under `antigravity-cli`. Each folder is one listing, not a walk.
     static func newestGemini(root: URL) -> Date? {
-        var candidates = [modified(root.appendingPathComponent("oauth_creds.json"))]
-        for folder in ["tmp", "antigravity", "antigravity-cli/conversations"] {
-            let url = root.appendingPathComponent(folder)
-            guard let entries = try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) else { continue }
+        newest(in: [root.appendingPathComponent("tmp")], plus: [root.appendingPathComponent("oauth_creds.json")])
+    }
+
+    /// Antigravity's app keeps its conversations under `~/.gemini/antigravity` and its CLI under
+    /// `antigravity-cli/conversations`; Gemini CLI's login file is left to Gemini CLI's row, whose token it is.
+    static func newestAntigravity(root: URL) -> Date? {
+        newest(in: [root.appendingPathComponent("antigravity"), root.appendingPathComponent("antigravity-cli/conversations")])
+    }
+
+    /// Kimi Code keeps a folder per working directory under `sessions` (named by the directory's MD5) and a folder
+    /// per session inside it, holding `context.jsonl` and `wire.jsonl`, which grow as a turn runs; `kimi.json`
+    /// beside them is rewritten when a session starts. The three most recently changed project folders are listed,
+    /// and their three newest sessions' two files are looked at: a handful of stats, never a walk.
+    static func newestKimi(root: URL, folders: Int = 3, sessionsPerFolder: Int = 3) -> Date? {
+        var candidates = [modified(root.appendingPathComponent("kimi.json"))]
+        for project in newestEntries(in: root.appendingPathComponent("sessions"), limit: folders) {
+            candidates.append(project.date)
+            for session in newestEntries(in: project.url, limit: sessionsPerFolder) {
+                candidates.append(session.date)
+                candidates.append(modified(session.url.appendingPathComponent("context.jsonl")))
+                candidates.append(modified(session.url.appendingPathComponent("wire.jsonl")))
+            }
+        }
+        return candidates.compactMap { $0 }.max()
+    }
+
+    /// The newest modification among the entries of each folder (one listing each) and the extra files named.
+    private static func newest(in folders: [URL], plus files: [URL] = []) -> Date? {
+        var candidates = files.map(modified)
+        for folder in folders {
+            guard let entries = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) else { continue }
             candidates.append(contentsOf: entries.map(modified))
         }
         return candidates.compactMap { $0 }.max()
+    }
+
+    /// A folder's most recently changed entries, newest first, at most `limit` of them.
+    private static func newestEntries(in folder: URL, limit: Int) -> [(url: URL, date: Date)] {
+        guard let entries = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) else { return [] }
+        let dated: [(url: URL, date: Date)] = entries.compactMap { url in
+            guard let date = modified(url) else { return nil }
+            return (url: url, date: date)
+        }
+        return Array(dated.sorted { $0.date > $1.date }.prefix(limit))
     }
 
     /// Copilot's plugin rewrites its token files on refresh; that is the only trace it leaves on disk.

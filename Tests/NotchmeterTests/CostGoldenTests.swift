@@ -44,6 +44,21 @@ import Testing
         #expect(abs(total(jsonl).last30Days - 0.1095) < 1e-9)
     }
 
+    /// Claude Desktop's Cowork sessions write the same streamed lines, but spell the request id `request_id` on some
+    /// and leave it off others. Until 2026-09-24 the key was the message id plus `requestId`, so each of those lines
+    /// stood alone and the response was priced once per line; grouping by the message id alone, which is Anthropic's
+    /// own rule, prices it once whatever the request id is called.
+    @Test func coworkLinesCollapseWhateverTheRequestIdIsCalled() {
+        // Sonnet 5: 2 × $2 + 600 × $10 + 2000 × $2.50 + 250000 × $0.20, per million = $0.061004; the three lines each
+        // kept on their own would have priced to $0.171032.
+        let jsonl = """
+        {"type":"assistant","timestamp":"2026-09-01T14:50:00.000Z","request_id":"req_h","message":{"id":"msg_h","model":"claude-sonnet-5","usage":{"input_tokens":2,"output_tokens":1,"cache_read_input_tokens":250000,"cache_creation":{"ephemeral_5m_input_tokens":2000,"ephemeral_1h_input_tokens":0}}}}
+        {"type":"assistant","timestamp":"2026-09-01T14:50:01.000Z","message":{"id":"msg_h","model":"claude-sonnet-5","usage":{"input_tokens":2,"output_tokens":1,"cache_read_input_tokens":250000,"cache_creation":{"ephemeral_5m_input_tokens":2000,"ephemeral_1h_input_tokens":0}}}}
+        {"type":"assistant","timestamp":"2026-09-01T14:50:07.000Z","request_id":"req_h","message":{"id":"msg_h","model":"claude-sonnet-5","usage":{"input_tokens":2,"output_tokens":600,"cache_read_input_tokens":250000,"cache_creation":{"ephemeral_5m_input_tokens":2000,"ephemeral_1h_input_tokens":0}}}}
+        """
+        #expect(abs(total(jsonl).last30Days - 0.061004) < 1e-9)
+    }
+
     @Test func syntheticModelLineCostsNothingAndIsNotReportedAsUnpriced() {
         let jsonl = """
         {"type":"assistant","timestamp":"2026-09-01T14:30:00.000Z","message":{"id":"msg_e","model":"<synthetic>","usage":{"input_tokens":0,"output_tokens":0}}}
@@ -112,6 +127,19 @@ import Testing
         let tokens = TokenBreakdown(input: 1_000_000)
         #expect(ModelPricing.cost(of: tokens, model: "claude-sonnet-5", inferenceGeo: "us") == 2.2)
         #expect(ModelPricing.cost(of: tokens, model: "claude-sonnet-5") == 2)
+    }
+
+    @Test func theDedupeKeyIsTheMessageIdWhateverTheRequestIdIsCalled() throws {
+        func key(_ line: String) throws -> String? {
+            try #require(ClaudeCostScanner.parseLine(Data(line.utf8))).dedupeKey
+        }
+        let body = #""message":{"id":"msg_x","model":"claude-sonnet-5","usage":{"input_tokens":1,"output_tokens":1}}"#
+        #expect(try key(#"{"timestamp":"2026-09-01T15:00:00Z","requestId":"req_x",\#(body)}"#) == "msg_x")
+        #expect(try key(#"{"timestamp":"2026-09-01T15:00:00Z","request_id":"req_x",\#(body)}"#) == "msg_x")
+        #expect(try key(#"{"timestamp":"2026-09-01T15:00:00Z",\#(body)}"#) == "msg_x")
+        // A line with no message id is kept on its own, whatever else it carries.
+        let unnamed = #"{"timestamp":"2026-09-01T15:00:00Z","requestId":"req_x","message":{"model":"claude-sonnet-5","usage":{"input_tokens":1,"output_tokens":1}}}"#
+        #expect(try key(unnamed) == nil)
     }
 
     @Test func dedupeKeepsTheLineWithTheMostOutput() {

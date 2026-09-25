@@ -1,11 +1,20 @@
 name: Pricing snapshot
 
 # Once a week, fetch Anthropic's pricing page and diff its per-model rates against the committed snapshot next to
-# ModelPricing.swift, so a price change fails a job instead of drifting silently. Needs network in CI, which is the
-# honest caveat (docs/accuracy.md, "Snapshot and freshness").
+# ModelPricing.swift and against pricing/catalog.json, the catalog the app fetches daily, so a price change fails
+# a job instead of drifting silently. The same script first validates the catalog on the app's own rules and
+# checks that it agrees with the snapshot, which is also run, without the network, on every pull request that
+# touches either file. Needs network in CI for the weekly run, which is the honest caveat (docs/accuracy.md,
+# "Snapshot and freshness").
 on:
   schedule:
     - cron: "17 6 * * 1"
+  pull_request:
+    paths:
+      - 'pricing/catalog.json'
+      - 'Sources/Notchmeter/Resources/pricing-snapshot.json'
+      - 'scripts/pricing-check.sh'
+      - '.github/workflows/pricing.yml'
   workflow_dispatch:
 
 permissions:
@@ -16,5 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Compare the pricing page with the snapshot
+      - name: Validate the catalog against the snapshot
+        run: scripts/pricing-check.sh --offline
+      - name: Compare both with the pricing page
+        if: github.event_name != 'pull_request'
         run: scripts/pricing-check.sh

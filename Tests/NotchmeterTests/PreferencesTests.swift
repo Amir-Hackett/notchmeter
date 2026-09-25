@@ -83,12 +83,12 @@ import Testing
         withSuite("moves") { defaults in
             let prefs = Preferences(defaults: defaults)
             prefs.move(.cursor, by: -1)
-            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .antigravity, .copilot])
+            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .gemini, .antigravity, .copilot, .kimi, .opencode])
             prefs.move(.claude, by: -1)
-            prefs.move(.copilot, by: 1)
-            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .antigravity, .copilot])
+            prefs.move(.opencode, by: 1)
+            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .gemini, .antigravity, .copilot, .kimi, .opencode])
             prefs.move(.claude, by: 1)
-            #expect(prefs.toolOrder == [.cursor, .claude, .codex, .antigravity, .copilot])
+            #expect(prefs.toolOrder == [.cursor, .claude, .codex, .gemini, .antigravity, .copilot, .kimi, .opencode])
         }
     }
 
@@ -99,7 +99,8 @@ import Testing
             prefs.compactStyle = .numbers
             prefs.compactKeep = .numbers
             let reloaded = Preferences(defaults: defaults)
-            #expect(reloaded.toolOrder == [.claude, .codex, .antigravity, .cursor, .copilot])
+            let antigravityThird: [ToolID] = [.claude, .codex, .cursor, .antigravity, .gemini, .copilot, .kimi, .opencode]
+            #expect(reloaded.toolOrder == antigravityThird)
             #expect(reloaded.compactStyle == .numbers)
             #expect(reloaded.compactKeep == .numbers)
         }
@@ -107,11 +108,18 @@ import Testing
 
     @Test func aStoredOrderGainsNewToolsAtTheEndAndLosesStrangers() {
         #expect(ToolOrder.normalize(nil) == ToolID.allCases)
-        #expect(ToolOrder.normalize(["cursor", "claude"]) == [.cursor, .claude, .codex, .antigravity, .copilot])
-        #expect(ToolOrder.normalize(["codex", "gemini", "codex"]) == [.codex, .claude, .cursor, .antigravity, .copilot])
+        let cursorFirst: [ToolID] = [.cursor, .claude, .codex, .gemini, .antigravity, .copilot, .kimi, .opencode]
+        let codexFirst: [ToolID] = [.codex, .claude, .cursor, .gemini, .antigravity, .copilot, .kimi, .opencode]
+        #expect(ToolOrder.normalize(["cursor", "claude"]) == cursorFirst)
+        #expect(ToolOrder.normalize(["codex", "bard", "codex"]) == codexFirst)
+        // An order stored before OpenCode existed gains it at the end, as every tool added later has.
+        #expect(ToolOrder.normalize(["claude", "codex", "cursor", "antigravity", "copilot"]).last == .opencode)
         withSuite("stale") { defaults in
+            // An order written before 0.9.0: Gemini CLI takes the place just before the Antigravity row it came out of
+            // (ToolMigration), and Kimi Code and OpenCode, new, land at the end.
             defaults.set(["antigravity", "claude"], forKey: "toolOrder")
-            #expect(Preferences(defaults: defaults).toolOrder == [.antigravity, .claude, .codex, .cursor, .copilot])
+            let migrated: [ToolID] = [.gemini, .antigravity, .claude, .codex, .cursor, .copilot, .kimi, .opencode]
+            #expect(Preferences(defaults: defaults).toolOrder == migrated)
         }
     }
 
@@ -128,7 +136,7 @@ import Testing
             let asShipped: [ToolID] = [.claude, .codex, .cursor]
             let cursorSecond: [ToolID] = [.claude, .cursor, .codex]
             let claudeSecond: [ToolID] = [.cursor, .claude, .codex]
-            let wholeOrder: [ToolID] = [.claude, .cursor, .codex, .antigravity, .copilot]
+            let wholeOrder: [ToolID] = [.claude, .cursor, .codex, .gemini, .antigravity, .copilot, .kimi, .opencode]
             let spending: [ToolID] = [.cursor, .claude]
             #expect(store.visibleTools == asShipped)
             prefs.move(.cursor, by: -1)
@@ -188,14 +196,77 @@ import Testing
         }
     }
 
+    /// A budget a build before 0.9.0 kept in dollars is read once into the currency shown, at the rate in use, so
+    /// it goes on being the figure it was that day; the old key goes with it, so a budget cleared later stays
+    /// cleared; and the command-line report, which builds no Preferences, reads the same dollar figure.
+    @Test func aDollarBudgetFromBeforeIsReadOnceIntoTheCurrency() {
+        withSuite("budget-migration") { defaults in
+            defer { Money.configure(code: "USD", rate: 1) }
+            defaults.set("EUR", forKey: "currencyCode")
+            defaults.set(0.88, forKey: "currencyRate")
+            defaults.set(227.27, forKey: "monthlyBudgetUSD")
+            let prefs = Preferences(defaults: defaults)
+            let inEuros = 227.27 * 0.88
+            #expect(prefs.monthlyBudget == Budget(amount: inEuros, code: "EUR", rate: 0.88))
+            let drift = abs((prefs.monthlyBudgetUSD ?? 0) - 227.27)
+            #expect(drift < 1e-9)
+            #expect(prefs.weeklyBudget == nil)
+            #expect(defaults.object(forKey: "monthlyBudgetUSD") == nil)
+            #expect(defaults.data(forKey: "monthlyBudget") != nil)
+            #expect(Preferences.budgetsUSD(defaults: defaults).monthly == prefs.monthlyBudgetUSD)
+            #expect(Preferences.budgetsUSD(defaults: defaults).weekly == nil)
+            // Read again it is the kept budget, not a second migration; cleared, it stays cleared.
+            #expect(Preferences(defaults: defaults).monthlyBudget == prefs.monthlyBudget)
+            prefs.monthlyBudget = nil
+            #expect(Preferences(defaults: defaults).monthlyBudget == nil)
+            #expect(Preferences.budgetsUSD(defaults: defaults).monthly == nil)
+        }
+    }
+
+    /// The budget field follows a change of code or rate made while Settings is open, the way the window's
+    /// onChange moves it: 200 typed in euros reads back as its pound figure once pounds are shown, so the Apply
+    /// that follows keeps the same dollar figure rather than reading "200" as £200.
+    @Test func theBudgetFieldShowsTheConvertedFigureAfterTheCodeChanges() {
+        withSuite("budget-code-change") { defaults in
+            defer { Money.configure(code: "USD", rate: 1) }
+            let prefs = Preferences(defaults: defaults)
+            prefs.currencyCode = "EUR"
+            prefs.currencyRate = 0.88
+            prefs.monthlyBudget = Budget.parse("200", at: prefs.currencyConversion)
+            let euros = prefs.currencyConversion
+            var field = SettingsView.budgetText(prefs.monthlyBudget, at: euros)
+            #expect(field == "200")
+            let typedUSD = 200 / 0.88
+            // The code and then the rate, each a change of the conversion the window hears once.
+            prefs.currencyCode = "GBP"
+            let poundsAtTheOldRate = prefs.currencyConversion
+            field = SettingsView.budgetText(prefs.monthlyBudget, from: euros, to: poundsAtTheOldRate, draft: field)
+            prefs.currencyRate = 0.76
+            let pounds = prefs.currencyConversion
+            field = SettingsView.budgetText(prefs.monthlyBudget, from: poundsAtTheOldRate, to: pounds, draft: field)
+            let inPounds = String(format: "%.2f", typedUSD * 0.76)
+            #expect(field == inPounds)
+            #expect(field == SettingsView.budgetText(prefs.monthlyBudget, at: prefs.currencyConversion))
+            // The budget itself is still the one typed, measured at the rate it was typed at.
+            #expect(prefs.monthlyBudget == Budget(amount: 200, code: "EUR", rate: 0.88))
+            let drift = abs((prefs.monthlyBudgetUSD ?? 0) - typedUSD)
+            #expect(drift < 1e-9)
+            // Applied from the field, it is the same dollar figure to the cent the field shows, and in pounds now.
+            prefs.monthlyBudget = Budget.parse(field, at: prefs.currencyConversion)
+            #expect(prefs.monthlyBudget?.code == "GBP")
+            let reapplied = abs((prefs.monthlyBudgetUSD ?? 0) - typedUSD)
+            #expect(reapplied < 0.01)
+        }
+    }
+
     @Test func keychainPolicyBudgetsAndProxyPersist() {
         withSuite("policy") { defaults in
             let prefs = Preferences(defaults: defaults)
             #expect(prefs.keychainPrompts == .refreshOnly)
             #expect(prefs.settingsExpandedTools.isEmpty, "assistants start collapsed")
             prefs.keychainPrompts = .never
-            prefs.monthlyBudgetUSD = 200
-            prefs.weeklyBudgetUSD = 0
+            prefs.monthlyBudget = Budget(amount: 200, code: "USD", rate: 1)
+            prefs.weeklyBudget = Budget.parse("0", at: prefs.currencyConversion)
             prefs.proxyURL = "socks5://127.0.0.1:1080"
             prefs.sessionAttention = .glance
             prefs.menuBarStyle = .bars
@@ -204,10 +275,13 @@ import Testing
             prefs.settingsExpandedTools = [.cursor]
             prefs.peakHours.startMinute = 6 * 60
             prefs.costCardMode = .perMillionTokens
-            prefs.soundQuestion = "system:Glass"
+            prefs.soundChoices[.question] = "system:Glass"
+            prefs.setSilenced(true, .limit)
             let reloaded = Preferences(defaults: defaults)
             #expect(reloaded.keychainPrompts == .never)
+            #expect(reloaded.monthlyBudget == Budget(amount: 200, code: "USD", rate: 1))
             #expect(reloaded.monthlyBudgetUSD == 200)
+            #expect(reloaded.weeklyBudget == nil)
             #expect(reloaded.weeklyBudgetUSD == nil)
             #expect(reloaded.proxyURL == "socks5://127.0.0.1:1080")
             #expect(reloaded.sessionAttention == .glance)
@@ -219,9 +293,10 @@ import Testing
             #expect(reloaded.peakHours(for: .cursor) == nil)
             #expect(reloaded.peakHours(for: .claude)?.startMinute == 6 * 60)
             #expect(reloaded.costCardMode == .perMillionTokens)
-            #expect(reloaded.sound(for: .waiting(.question)) == "system:Glass")
+            #expect(reloaded.sound(for: .question) == "system:Glass")
+            #expect(reloaded.silencedSounds == [.limit])
             reloaded.notificationSound = false
-            #expect(reloaded.sound(for: .waiting(.question)) == NotificationSound.none)
+            #expect(reloaded.sound(for: .question) == NotificationSound.none)
             prefs.keychainPrompts = .refreshOnly
             prefs.proxyURL = ""
         }
@@ -231,6 +306,51 @@ import Testing
         #expect(ProxySettings.dictionary(for: "") == nil)
         #expect(ProxySettings.dictionary(for: "ftp://x:1") == nil)
         #expect(ProxySettings.dictionary(for: "http://noport") == nil)
+    }
+
+    /// The usage card's choices (ShareCardWindow) persist, its theme follows the metric until one is chosen by
+    /// hand, and the offer's bookkeeping survives a relaunch, which is what makes it once per version.
+    @Test func theUsageCardsChoicesPersistAndItsThemeFollowsTheMetricUntilChosen() {
+        withSuite("share-card") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            #expect(prefs.shareCardMetric == .value)
+            #expect(prefs.shareCardRange == .thirtyDays)
+            #expect(prefs.shareCardFormat == .feed)
+            #expect(prefs.shareCardTheme == nil)
+            #expect(prefs.shareCardThemeShown == .black)
+            #expect(prefs.shareCardSignature.isEmpty)
+            #expect(prefs.shareCardHidden.isEmpty)
+            #expect(prefs.offerShareCardAfterUpdate)
+            #expect(prefs.shareCardOfferPending == nil)
+            #expect(prefs.lastLaunchedVersion == nil)
+            prefs.shareCardMetric = .tokens
+            #expect(prefs.shareCardThemeShown == .blue, "money on black, tokens on blue")
+            prefs.shareCardTheme = .white
+            prefs.shareCardMetric = .value
+            #expect(prefs.shareCardThemeShown == .white, "a theme chosen by hand stays")
+            prefs.shareCardRange = .ninetyDays
+            prefs.shareCardFormat = .story
+            prefs.shareCardSignature = "@sample"
+            prefs.shareCardHidden = [.cursor]
+            prefs.offerShareCardAfterUpdate = false
+            prefs.shareCardOfferPending = "0.9.0"
+            prefs.lastLaunchedVersion = "0.9.0"
+            let reloaded = Preferences(defaults: defaults)
+            #expect(reloaded.shareCardMetric == .value)
+            #expect(reloaded.shareCardRange == .ninetyDays)
+            #expect(reloaded.shareCardFormat == .story)
+            #expect(reloaded.shareCardTheme == .white)
+            #expect(reloaded.shareCardSignature == "@sample")
+            #expect(reloaded.shareCardHidden == [.cursor])
+            #expect(!reloaded.offerShareCardAfterUpdate)
+            #expect(reloaded.shareCardOfferPending == "0.9.0")
+            #expect(reloaded.lastLaunchedVersion == "0.9.0")
+            reloaded.shareCardTheme = nil
+            #expect(defaults.object(forKey: "shareCardTheme") == nil)
+            #expect(Preferences(defaults: defaults).shareCardThemeShown == .black)
+            reloaded.shareCardOfferPending = nil
+            #expect(Preferences(defaults: defaults).shareCardOfferPending == nil)
+        }
     }
 }
 

@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>When does the Claude Code rate limit reset? · Notchmeter</title>
+<meta name="description" content="When Claude Code's 5-hour and 7-day limits reset, beside the notch as Anthropic reports it, with a warning if you run out first. Free, never signs in.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../landing.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. The two scripts below are JSON-LD data
+     blocks for search engines; nothing on this page runs. -->
+
+<meta property="og:title" content="When does the Claude Code rate limit reset?">
+<meta property="og:description" content="The reset moment Anthropic reports for the 5-hour session and the 7-day weekly window, as a countdown or an exact time, with a warning if you will run out first and a notification when it is back.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/claude-code-rate-limit-reset/">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://www.notchmeter.com/claude-code-rate-limit-reset/">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "SoftwareApplication",
+ "name": "Notchmeter",
+ "alternateName": [
+  "Notchmeter for Claude Code",
+  "Notchmeter usage tracker"
+ ],
+ "description": "When Claude Code's 5-hour and 7-day limits reset, beside the notch as Anthropic reports it, with a warning if you run out first. Free, never signs in.",
+ "url": "https://www.notchmeter.com/",
+ "operatingSystem": "macOS 15+",
+ "applicationCategory": "DeveloperApplication",
+ "offers": {
+  "@type": "Offer",
+  "price": "0",
+  "priceCurrency": "USD"
+ },
+ "isAccessibleForFree": true,
+ "downloadUrl": "https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg",
+ "license": "https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE",
+ "sameAs": [
+  "https://github.com/Amir-Hackett/notchmeter"
+ ],
+ "image": "https://www.notchmeter.com/img/expanded.png"
+}
+</script>
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "FAQPage",
+ "mainEntity": [
+  {
+   "@type": "Question",
+   "name": "How long is the Claude Code session limit, and when does it reset?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "The session limit is a 5-hour window and the weekly limit a 7-day window; a plan may add per-model weekly limits. Each reading Anthropic returns carries the moment each window resets, and Notchmeter shows that moment as “Resets in 3h 19m” or “Resets today at 1:07 PM” (Settings › Appearance › Reset times). It shows Anthropic's figure; it does not compute a reset from a schedule of its own."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Does the session window reset on a fixed schedule?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Notchmeter does not claim to know. What it has seen is that the reset moment is recomputed on every read and wanders by a second or two while the figure stays still, so it treats two resets within ten minutes as the same period. What Anthropic's metering does beyond what it reports is not guessed at."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Can it tell me whether I will run out before the reset?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. Every meter has a pace tick and a projection, and once the drain log holds four hourly rates it shows a run-out range measured from your own last seven days rather than an even-burn guess. The notifications fire when the pace crosses, and again when the run-out time comes within an hour."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Will it notify me when the limit resets?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes. When a window resets fires once for a window that was at least 80% used or behind pace, naming the window and the next reset, and a reminder can fire 10 minutes or an hour before. Both run on a timer, both have their own toggle under Settings › Notifications, and the quiet hours hush them for the morning rather than dropping them."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "What does /limit-reset do?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Users report that it clears the 5-hour session window and not the weekly cap. That is community-sourced and not in Anthropic's documentation as of 2026-09-20, so Notchmeter only mentions it, as a quieter advice line when the session was the window that was hit and the week still has 40% left. It never runs the command."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Are Claude's peak hours real, and does Notchmeter model them?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Tighter session limits on weekdays between 05:00 and 11:00 Pacific were reported by The Register on 2026-03-26 from Anthropic's announcement; Anthropic's support article on usage limits does not publish the hours. So they are a preference (Settings › Advanced › Peak hours, on for Claude only, editable) and not a constant the meter vouches for. Inside the window the projection assumes the peak rate your own drain log observed, and the advice names the next off-peak start for a long job."
+   }
+  }
+ ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="../guides/index.html" class="hide-sm">Guides</a>
+      <a href="../usage-trackers/" class="hide-sm">Usage trackers</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="lp-hero plain">
+  <div class="wrap">
+    <nav class="lp-crumbs" aria-label="Breadcrumb"><ol><li><a href="../index.html">Notchmeter</a></li><li><a href="../usage-trackers/">Usage trackers</a></li><li aria-current="page">When the limit resets</li></ol></nav>
+    <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
+    <h1>When does the Claude Code rate limit reset?</h1>
+    <p class="lede">Claude Code's session limit is a 5-hour window and its weekly limit a 7-day window, and every reading Anthropic returns carries the moment each one resets. Notchmeter shows that moment beside the notch as a countdown or an exact time, tells you whether you will run out before it, and notifies you when the window comes back. It shows Anthropic's reset, never one it computed itself.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#when-a-reset-is-not-a-fixed-instant">How the reset is read</a>
+    </div>
+    <p class="cta-note">macOS 15 or later · Apple silicon or Intel · no account, ever</p>
+  </div>
+</section>
+
+<section id="shows">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>The windows, and when each one resets</h2>
+        <p>Anthropic meters Claude Code in windows, and each window in a reading carries its own reset moment. Notchmeter shows the moment; it does not compute one.</p>
+        <ul class="lp-points">
+          <li><strong>Session</strong>: the 5-hour window (<code>five_hour.resets_at</code>). The Cost card's session block is aligned to the same moment, so the meter and the spend describe one period.</li>
+          <li><strong>Weekly</strong>: the 7-day window (<code>seven_day.resets_at</code>).</li>
+          <li><strong>Per-model weekly</strong> limits (Opus, Sonnet, Fable…), each carrying its own reset, shown on its own meter.</li>
+          <li><strong>The display</strong>: <em>Resets in 3h 40m</em> or <em>Resets today at 10:50 PM</em>, your choice under Settings › Appearance › Reset times, in your own time zone and time format.</li>
+          <li><strong>Not a fixed instant</strong>: across reads, one window's reset was seen to wander inside a two-second band while its figure never moved, the signature of a moment recomputed from a remaining duration. So two resets within ten minutes of each other are read as the same period, and a countdown never restarts on a wobble.</li>
+          <li><strong>Peak hours</strong>: tighter session limits on weekdays between 05:00 and 11:00 Pacific were reported, not documented (The Register, 2026-03-26, from Anthropic's announcement; Anthropic's support article does not publish the hours), so they are a preference under Settings › Advanced, on for Claude only, and never a constant the meter vouches for.</li>
+        </ul>
+      </div>
+      <figure class="lp-figure fit-medium">
+        <div class="shot"><img src="../img/dashboard.png" alt="The Limits section of the Usage Dashboard: Claude Session 14% used, resets today at 1:07 PM, about 26% an hour lasts to the reset; Claude Weekly 4% used, resets Sep 19 at 3:18 AM, about 20% a day lasts to the reset; the Fable per-model window with the same reset; Codex Monthly 0% used, resets Oct 2." loading="lazy"></div>
+        <figcaption>The Usage Dashboard's Limits over fixed readings: each window's reset as an exact time, and how much of the window an hour or a day lasts until it.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <h2>Will you make it to the reset?</h2>
+    <p class="section-lede">A percentage tells you where you are. These say whether you get there.</p>
+    <div class="lp-tablewrap" role="region" aria-label="Run-out figures and their sources" tabindex="0">
+      <table class="lp-table">
+        <caption>Each figure is described in docs/accuracy.md under the section named.</caption>
+        <thead><tr><th scope="col">Figure</th><th scope="col">How it is built</th><th scope="col">Where it shows</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Pace tick</th><td>Where an even burn would be right now: the elapsed share of the window, from the reset and the window's length</td><td>A tick on every meter, and the calm rule for the rings: small and dim while every window is under 40% and on pace</td></tr>
+          <tr><th scope="row">Projection</th><td>The used share extrapolated at an even burn to the reset, or the time the window runs out if that comes first</td><td>“~67% left at reset” or “Runs out in 2h” on the meter; “About 26% an hour lasts to the reset” in the dashboard</td></tr>
+          <tr><th scope="row">Run-out interval</th><td>The 20th and 80th percentiles of your own hourly rates over the last seven days, from the drain log; needs four rates, and keeps peak and off-peak hours apart when it has enough of each</td><td>“Runs out 2:10 PM–4:40 PM” on the card and the same times in the advice; a single time when the edges are within fifteen minutes</td></tr>
+          <tr><th scope="row">The drain</th><td>An append-only log of every successful read per window: time, window, used fraction, reset. Seven days, never a token</td><td>“12% → 61% in the last hour” under a meter that moved, and a 24-hour sparkline on the card</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="lp-prose">
+      <p>Notifications fire at pace crossings, not percentage crossings, because a percentage alert arrives when it is too late to change anything: one when the pace first reaches <em>on track</em>, one when it first reaches <em>behind</em>, and one when the run-out time first comes within an hour. None of the three is sent in the first tenth of a window, when the projection is noise. <em>Limit hit</em> is a measurement rather than a projection, so it is reported the moment it is seen. Each has its own toggle, and the quiet hours hush rather than drop them. The rules: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#the-run-out-interval">The run-out interval</a> and <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#the-drain-log">The drain log</a>.</p>
+      <p><strong>Told when it comes back.</strong> <em>When a window resets</em> fires once when a window that was at least 80% used or behind pace passes its reset (“Claude session reset — 100% until it resets today at 3:40 PM”), and an optional reminder fires 10 minutes or an hour before such a reset. Both run on a timer rather than on a reading, so they arrive on time whether or not the endpoint has been asked since.</p>
+    </div>
+  </div>
+</section>
+
+<section id="advice">
+  <div class="wrap">
+    <h2>What it says while you wait</h2>
+    <p class="section-lede">The Advice strip's lines about resets, each worded as an instruction.</p>
+    <div class="advice-list">
+      <div class="advice">
+        <div class="tag">Wait</div>
+        <div class="say"><em>Claude session resets in 40m; wait rather than switch.</em><span class="when">A window is out or behind pace, resets within the hour, and no other tool on a paid plan has room.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Limit hit</div>
+        <div class="say"><em>Claude Code hit its limit; session resets in 2h.</em><span class="when">The hook reports a session stopped on a rate limit; the reset is named.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Limit hit</div>
+        <div class="say"><em>Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap.</em><span class="when">A quieter line when the session window was the one hit and the week still has 40% left. Users report the command; it is community-sourced and not in Anthropic's documentation as of 2026-09-20. Notchmeter never runs it.</span></div>
+      </div>
+      <div class="advice">
+        <div class="tag">Peak hours</div>
+        <div class="say"><em>Off-peak in 1h 20m: start the long job then.</em><span class="when">With peak hours on, a long job would be cheaper started after the boundary; inside the window the session projection assumes the peak rate the drain log observed.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions</h2>
+    <div class="faq">
+      <details open>
+        <summary>How long is the Claude Code session limit, and when does it reset?</summary>
+        <p class="a">The session limit is a 5-hour window and the weekly limit a 7-day window; a plan may add per-model weekly limits. Each reading Anthropic returns carries the moment each window resets, and Notchmeter shows that moment as “Resets in 3h 19m” or “Resets today at 1:07 PM” (Settings › Appearance › Reset times). It shows Anthropic's figure; it does not compute a reset from a schedule of its own.</p>
+      </details>
+      <details>
+        <summary>Does the session window reset on a fixed schedule?</summary>
+        <p class="a">Notchmeter does not claim to know. What it has seen is that the reset moment is recomputed on every read and wanders by a second or two while the figure stays still, so it treats two resets within ten minutes as the same period. What Anthropic's metering does beyond what it reports is not guessed at.</p>
+      </details>
+      <details>
+        <summary>Can it tell me whether I will run out before the reset?</summary>
+        <p class="a">Yes. Every meter has a pace tick and a projection, and once the drain log holds four hourly rates it shows a run-out range measured from your own last seven days rather than an even-burn guess. The notifications fire when the pace crosses, and again when the run-out time comes within an hour.</p>
+      </details>
+      <details>
+        <summary>Will it notify me when the limit resets?</summary>
+        <p class="a">Yes. <em>When a window resets</em> fires once for a window that was at least 80% used or behind pace, naming the window and the next reset, and a reminder can fire 10 minutes or an hour before. Both run on a timer, both have their own toggle under Settings › Notifications, and the quiet hours hush them for the morning rather than dropping them.</p>
+      </details>
+      <details>
+        <summary>What does /limit-reset do?</summary>
+        <p class="a">Users report that it clears the 5-hour session window and not the weekly cap. That is community-sourced and not in Anthropic's documentation as of 2026-09-20, so Notchmeter only mentions it, as a quieter advice line when the session was the window that was hit and the week still has 40% left. It never runs the command.</p>
+      </details>
+      <details>
+        <summary>Are Claude's peak hours real, and does Notchmeter model them?</summary>
+        <p class="a">Tighter session limits on weekdays between 05:00 and 11:00 Pacific were reported by The Register on 2026-03-26 from Anthropic's announcement; Anthropic's support article on usage limits does not publish the hours. So they are a preference (Settings › Advanced › Peak hours, on for Claude only, editable) and not a constant the meter vouches for. Inside the window the projection assumes the peak rate your own drain log observed, and the advice names the next off-peak start for a long job.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap centered">
+    <h2>Install it</h2>
+    <p class="section-lede">macOS 15 Sequoia or later, Apple silicon or Intel. Signed, notarised, and it updates itself. Free forever, MIT licensed.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg">Download the DMG</a>
+      <a class="btn btn-ghost" href="../usage-trackers/">All usage trackers</a>
+    </div>
+    <div class="lp-brew">
+      <div class="code"><span class="p"># or with Homebrew</span>
+brew tap Amir-Hackett/tap
+brew trust --cask Amir-Hackett/tap/notchmeter
+brew install --cask notchmeter</div>
+    </div>
+    <p class="cta-note">Notchmeter is a Mac app. There is no Windows or Linux version; if you want a Windows one, <a href="https://github.com/Amir-Hackett/notchmeter/issues/32">the Windows issue</a> is where to say so. How every figure is built, with its source and its date: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h2>Notchmeter</h2>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h2>Product</h2>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="../guides/index.html">Guides</a></li>
+          <li><a href="../usage-trackers/">Usage trackers</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Project</h2>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

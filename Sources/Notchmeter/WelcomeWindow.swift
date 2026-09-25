@@ -149,7 +149,7 @@ struct WelcomePreviews {
 /// arrows are shortcuts on buttons rather than a key handler, because in a panel that never activates the app,
 /// focus is not something a view can count on having.
 struct WelcomeView: View {
-    /// Opens Settings on Integrations with the hook offer and the status line install queued (AppDelegate).
+    /// Opens Settings on Claude Code's page with the hook offer and the status line install queued (AppDelegate).
     let install: () -> Void
     /// Closes the window, whether by Skip, Done or Escape.
     let finish: () -> Void
@@ -157,6 +157,8 @@ struct WelcomeView: View {
     var onStep: (WelcomeStep) -> Void = { _ in }
     /// Claude Code's hook and status line are both already in, so the last step says so above the button.
     var connected = false
+    /// OpenCode is on this Mac, so the last step adds a row saying what it needs, which is nothing.
+    var openCode = false
     @State private var tour: WelcomeTour
     @State private var previews: WelcomePreviews
     /// Which way the next slide goes. It trails `tour.forward` by one render on a reversal (`move`), because the
@@ -172,12 +174,13 @@ struct WelcomeView: View {
     static let stageWidth: CGFloat = size.width - 40
 
     @MainActor
-    init(start: WelcomeStep = .rings, previews: WelcomePreviews? = nil, panelMode: PanelMode = .simple, connected: Bool = false,
+    init(start: WelcomeStep = .rings, previews: WelcomePreviews? = nil, panelMode: PanelMode = .simple, connected: Bool = false, openCode: Bool = false,
          install: @escaping () -> Void, finish: @escaping () -> Void, onStep: @escaping (WelcomeStep) -> Void = { _ in }) {
         self.install = install
         self.finish = finish
         self.onStep = onStep
         self.connected = connected
+        self.openCode = openCode
         let previews = previews ?? WelcomePreviews(panelMode: panelMode)
         _tour = State(initialValue: WelcomeTour(step: start))
         _previews = State(initialValue: previews)
@@ -315,7 +318,7 @@ struct WelcomeView: View {
         case .sessions:
             L("With the hook in, the panel lists your Claude Code sessions and what each one is doing. When one asks for permission or puts a question to you, answer it here; leave it, and it goes back to the terminal.")
         case .connect:
-            L("One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later.")
+            L("One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later.")
         }
     }
 
@@ -377,7 +380,7 @@ struct WelcomeView: View {
         case .rings:
             VStack(alignment: .leading, spacing: 8) {
                 permission("lock.shield.fill", L("What %@ reads", AppInfo.name),
-                           L("It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics."))
+                           L("It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code and OpenCode — and, where a vendor has one, asks its usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics."))
                 permission("key.fill", L("Keychain"),
                            L("To read Claude Code's saved login, once. Choose Always Allow so it stays quiet; the timed reads never raise the dialog."))
                 permission("accessibility", L("Accessibility"),
@@ -392,15 +395,20 @@ struct WelcomeView: View {
             permission("arrow.up.forward.app.fill", L("Automation"),
                        L("Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app."))
         case .connect:
-            // With both already in, the button offers only what pressing it does: Settings on Integrations, where
-            // they can be repaired or removed. Queuing an install of what is there would queue nothing.
+            // With both already in, the button offers only what pressing it does: Settings on Claude Code's page,
+            // where they can be repaired or removed. Queuing an install of what is there would queue nothing.
             VStack(alignment: .leading, spacing: 12) {
                 if connected {
                     Label(L("The hook and the status line are both installed."), systemImage: "checkmark.circle.fill")
                         .font(.callout)
                 }
-                Button(connected ? L("Open Integrations…") : L("Install the hook and status line…")) { install() }
+                Button(connected ? L("Open Claude Code in Settings…") : L("Install the hook and status line…")) { install() }
                     .controlSize(.large)
+                if openCode {
+                    // OpenCode's sessions, spend and Go plan need nothing installed; its plugin only makes them exact.
+                    permission(ToolID.opencode.symbolName, ToolID.opencode.productName,
+                               L("Nothing to install: its sessions, their spend and its Go plan are read from OpenCode's own database on this Mac, never written. Its plugin, under Settings › Integrations, adds each turn's exact end and its waits."))
+                }
             }
         }
     }
@@ -595,13 +603,13 @@ final class WelcomeWindowController: NSWindowController {
 
     /// `emit` is the oracle's, and a test's capture: the controller writes a line for each step as it comes on
     /// screen and one when the window closes, whichever way it closes.
-    init(connected: Bool = false, panelMode: PanelMode = .simple, install: @escaping () -> Void, finish: @escaping () -> Void,
+    init(connected: Bool = false, openCode: Bool = false, panelMode: PanelMode = .simple, install: @escaping () -> Void, finish: @escaping () -> Void,
          emit: @escaping (String, [String: Any]) -> Void = { Oracle.shared.emit($0, $1) }) {
         let panel = SettingsPanel(contentRect: NSRect(origin: .zero, size: Self.contentSize),
                                   styleMask: [.titled, .closable, .nonactivatingPanel], backing: .buffered, defer: false)
         let log = StepLog(emit: emit)
         self.log = log
-        let host = FirstMouseHostingView(rootView: WelcomeView(panelMode: panelMode, connected: connected, install: install, finish: finish,
+        let host = FirstMouseHostingView(rootView: WelcomeView(panelMode: panelMode, connected: connected, openCode: openCode, install: install, finish: finish,
                                                                onStep: { log.shown($0) }))
         host.sizingOptions = []
         panel.title = L("Welcome to %@", AppInfo.name)

@@ -8,7 +8,7 @@ enum NotchmeterMain {
     @MainActor
     static func main() {
         let arguments = CommandLine.arguments
-        // --hook [--tool codex|cursor|antigravity|copilot] [--event <name>]: an assistant's hook command; must
+        // --hook [--tool codex|cursor|gemini|copilot|kimi|opencode] [--event <name>]: an assistant's hook command; must
         // return within 50 ms, so nothing else is set up first.
         if arguments.contains("--hook") {
             Hook.runCommand(arguments: arguments)
@@ -33,6 +33,9 @@ enum NotchmeterMain {
             Oracle.shared.start(path: path)
         }
         ModelPricing.loadOverrides()
+        // The cached catalog, so the command-line tool and the MCP server price the way the app does; the app
+        // itself fetches a fresh one through PricingCatalogFetcher once it is up.
+        PricingCatalog.applyCached()
         NetworkSession.configure(proxy: UserDefaults.standard.string(forKey: "proxyURL"))
         if CommandLineTool.isInvokedAsTool(arguments: arguments) {
             CommandLineTool.run(arguments: arguments)
@@ -88,6 +91,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var welcomeObserver: NSObjectProtocol?
     private var dashboard: DashboardWindowController?
     private var dashboardObserver: NSObjectProtocol?
+    /// The usage card's studio (ShareCardWindow), built the first time it is asked for.
+    private var shareCard: ShareCardWindowController?
+    private var shareCardObserver: NSObjectProtocol?
+    /// The one-time offer of the card after an update (ShareCardOffer): looks every half minute until it has
+    /// opened the card or found a reason not to for this version.
+    private var shareCardOffer: Task<Void, Never>?
     private var snapshotObserver: NSObjectProtocol?
     private var reopenObserver: NSObjectProtocol?
     private var screenObserver: NSObjectProtocol?
@@ -106,6 +115,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pointerMonitor: Any?
     private var pointerSettle: Task<Void, Never>?
     private let awake = AwakeKeeper()
+    /// Notchmeter's published price catalog, fetched once a day while the switch is on (PricingCatalog.swift); a
+    /// catalog that changes a rate re-runs the cost scan.
+    private lazy var pricingCatalog = PricingCatalogFetcher(prefs: prefs, rescan: { [weak self] in
+        guard let self else { return }
+        Task { await self.store.refreshCost() }
+    })
+    /// The ECB's rate for *Fetch today's rate*; asks for nothing while that is off (ReferenceRates.swift).
+    private lazy var rateFetcher = ReferenceRateFetcher(prefs: prefs)
     /// The one jump at a time back to a session's terminal (TerminalJump.swift).
     private let jumper = TerminalJump.Executor()
     private lazy var autoSideProbe = CompactStripProbe(store: store)
@@ -218,16 +235,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notifier.terminalRule = { [weak self] in self?.prefs.quietWhileTerminalFrontmost ?? true }
         notifier.onOpen = { [weak self] tool in self?.openFromNotification(tool) }
         store.start()
+        pricingCatalog.start()
+        requests.pricingCatalog = { [weak self] in self?.pricingCatalog }
+        rateFetcher.start()
         actions.refresh = { [weak self] in self?.store.refreshAll(interactive: true) }
         actions.openSettings = { [weak self] in self?.showSettings() }
         actions.openSettingsPane = { [weak self] pane in self?.showSettings(pane: pane) }
         actions.openDashboard = { [weak self] in self?.showDashboard() }
+        actions.openShareCard = { [weak self] cause in self?.showShareCard(cause: cause) }
         actions.showOptions = { [weak self] in self?.pointerPresenter?.showOptions() }
         actions.applyLayout = { [weak self] in self?.applyLayout() }
         actions.fullScreenApps = { [weak self] in self?.pointerPresenter?.fullScreenApps ?? [] }
         actions.togglePanel = { [weak self] in self?.pointerPresenter?.toggle(cause: .hotkey) }
         actions.copyPanelImage = { [weak self] in self?.copyPanelImage() }
         actions.installCommandLineTool = { [weak self] in self?.installCommandLineTool() }
+        actions.sendFeedback = { [weak self] in self?.showFeedback() }
         actions.accessibilityIsStale = { [weak self] in
             guard let self, case .stale = self.autoSide.trust else { return false }
             return true
@@ -252,6 +274,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self, self.prefs.jumpToTerminal else { return }
             self.jumper.jump(session)
         }
+        actions.offerHook = { [weak self] tool in self?.offerHook(for: tool) }
         requests.rootsChanged = { [weak self] in self?.store.reloadRoots() }
         requests.menuBarChanged = { [weak self] in self?.applyMenuBarItem() }
         requests.hotkeysChanged = { [weak self] in self?.registerHotkeys() }
@@ -259,6 +282,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         requests.privacyChanged = { [weak self] in self?.applyPrivacy() }
         requests.awakeChanged = { [weak self] in self?.store.applyAwake() }
         requests.diagnostics = { [weak self] in self?.diagnostics() ?? "" }
+        requests.diagnosticsInBackground = { [weak self] in await self?.diagnosticsOffMain() ?? "" }
         requests.installCommandLineTool = { [weak self] in self?.installCommandLineTool() }
         requests.showWelcomeTour = { [weak self] in self?.showWelcomeTour() }
         requests.updater = { [weak self] in self?.updater }
@@ -302,7 +326,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reopenObserver = DistributedNotificationCenter.default().addObserver(forName: SingleInstance.reopenNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 // Not under a window of the app's own: the panel is held closed for it, so a glance could not close.
-                guard let self, !self.isSettingsVisible, !self.isDashboardVisible else { return }
+                guard let self, !self.isSettingsVisible, !self.isDashboardVisible, !self.isShareCardVisible else { return }
                 self.pointerPresenter?.glance()
             }
         }
@@ -322,7 +346,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 actions.checkForUpdates = { updater.checkForUpdates() }
             }
             autoRepairHooks()
-            store.hooksInstalled = HookSettings.anyInstalled()
+            store.hookInstalledTools = HookSettings.installedTools()
+            store.hooksInstalled = !store.hookInstalledTools.isEmpty
+            // Before the Welcome branch below marks a first launch welcomed: whether this copy has been through
+            // the Welcome or the hook offer is what tells an update from a first install (ShareCardOffer.updated).
+            noteLaunchedVersion()
             if Translocation.shouldOffer(bundlePath: Bundle.main.bundlePath) {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(1))
@@ -350,6 +378,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // Set up before the Welcome existed: it has been through the offer, so there is nothing to show.
                 prefs.welcomed = true
             }
+            scheduleShareCardOffer()
         }
     }
 
@@ -417,10 +446,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// nothing happens below this line at all.
     private func sessionEvent(_ event: Notifier.SessionEvent, session: AgentSession) {
         notifier.notify(event, session: session, hidingFigures: store.hidesFigures)
+        // A compaction, a run of failures or an auto-mode denial is a notice and a word beside the notch, never a
+        // glance or an opened panel: the attention setting is about a session that waits or has finished, and one
+        // that is still working needs nothing from the user's screen.
+        if case .trouble = event { return }
         let suppressed = Notifier.shouldSuppress(event: event, frontmost: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
                                                  quiet: prefs.isQuietHour(), host: session.host, terminalRule: prefs.quietWhileTerminalFrontmost)
         guard prefs.sessionAttention != .nothing, !suppressed,
-              !isSettingsVisible, !isDashboardVisible, let presenter = pointerPresenter else { return }
+              !isSettingsVisible, !isDashboardVisible, !isShareCardVisible, let presenter = pointerPresenter else { return }
         switch prefs.sessionAttention {
         case .glance:
             // The session's card alone (NoticeCard), not the whole panel. A panel already open is already being
@@ -462,6 +495,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func settingsDidClose() {
         ColourWell.closePanel()
+        // The window is kept for next time; a feedback sheet it was closed under is not, or it would come back up
+        // over whatever the next opening was for.
+        requests.feedback = false
         hold(.settings, false)
         Oracle.shared.emit("settings", settingsFields(action: "hidden"))
         reopenPendingPrompt()
@@ -470,7 +506,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Welcome
 
     /// The first-launch Welcome, held open the way Settings is. Its install button closes it and opens Settings
-    /// on Integrations with the hook offer and the status line queued (`offerClaudeSetup`). A second ask while it
+    /// on Claude Code's page with the hook offer and the status line queued (`offerClaudeSetup`). A second ask while it
     /// is up brings the one already open forward rather than stacking another.
     private func showWelcome() {
         if let welcome {
@@ -478,7 +514,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         let connected = WelcomeWindowController.connected(hook: HookSettings.status(), statusline: HookSettings.statuslineStatus())
-        let controller = WelcomeWindowController(connected: connected, panelMode: store.prefs.panelMode, install: { [weak self] in self?.offerClaudeSetup() },
+        let controller = WelcomeWindowController(connected: connected, openCode: store.isInstalled(.opencode), panelMode: store.prefs.panelMode,
+                                                 install: { [weak self] in self?.offerClaudeSetup() },
                                                  finish: { [weak self] in self?.welcome?.close() })
         welcome = controller
         if let window = controller.window {
@@ -506,14 +543,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reopenPendingPrompt()
     }
 
+    /// The Sessions card's upgrade line (SessionsCard, a row found without the hook): the hook's own install flow,
+    /// never an install. For Claude Code the offer sheet the first launch raises, over Integrations; for any other
+    /// assistant Integrations itself, where its row's Add button is the installer. Either way the file is written
+    /// only on the user's click there, after the usual backup (HookSettings.install).
+    private func offerHook(for tool: ToolID) {
+        if tool == .claude, HookSettings.status() == .notInstalled { requests.hookOffer = true }
+        showSettings(pane: .integrations)
+    }
+
     /// What the Welcome's install button asks for: the hook offer sheet where the hook is not installed, and the
     /// status line install once that sheet is answered — or at once when the hook is already there. Both run in
-    /// the Settings window, which is the one installer (SettingsView.installHook, installStatusline).
+    /// the Settings window, which is the one installer (SettingsView.installHook, installStatusline), on Claude
+    /// Code's own page, where the two rows they explain are.
     private func offerClaudeSetup() {
         welcome?.close()
         if case .installed = HookSettings.statuslineStatus() {} else { requests.statuslineOffer = true }
         if case .installed = HookSettings.status() {} else { requests.hookOffer = true }
-        showSettings(pane: .integrations)
+        showSettings(pane: .agent(.claude))
     }
 
     // MARK: - Dashboard
@@ -522,7 +569,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// full-height panel never covers it. It reads only this account's store.
     func showDashboard() {
         if dashboard == nil {
-            let controller = DashboardWindowController(store: store, prefs: prefs)
+            let controller = DashboardWindowController(store: store, prefs: prefs, actions: actions)
             dashboard = controller
             if let window = controller.window {
                 dashboardObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
@@ -540,6 +587,88 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Oracle.shared.emit("dashboard", ["action": "shown"])
     }
 
+    // MARK: - The usage card
+
+    /// The usage card's studio (ShareCardWindow), held open the way the dashboard is. `cause` says where it was
+    /// asked for; the app's own offer after an update is the one that puts a banner over the controls.
+    func showShareCard(cause: ShareCardCause) {
+        if shareCard == nil {
+            let controller = ShareCardWindowController(store: store, prefs: prefs)
+            shareCard = controller
+            if let window = controller.window {
+                shareCardObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                    Task { @MainActor in
+                        self?.hold(.shareCard, false)
+                        Oracle.shared.emit("shareCard", ["action": "hidden"])
+                        self?.reopenPendingPrompt()
+                    }
+                }
+            }
+        }
+        // The card has opened for this version, and that is all the offer exists to achieve (ShareCardOffer.afterOpening):
+        // a card opened by hand spends it and stops its loop, which would otherwise wait out this window and open
+        // the card again, banner and all, half a minute after it closes. The offer's own opening has already spent it.
+        let remaining = ShareCardOffer.afterOpening(pending: prefs.shareCardOfferPending, current: AppInfo.version)
+        if remaining != prefs.shareCardOfferPending {
+            prefs.shareCardOfferPending = remaining
+            shareCardOffer?.cancel()
+        }
+        hold(.shareCard, true)
+        shareCard?.present(on: .pointerScreen, below: presenter?.hover.regions.compact, above: presenter?.window?.level,
+                           aside: holds.contains(.update) || holds.contains(.alert), cause: cause)
+        Oracle.shared.emit("shareCard", ["action": "shown", "cause": cause.rawValue])
+    }
+
+    var isShareCardVisible: Bool {
+        shareCard?.window?.isVisible ?? false
+    }
+
+    /// Remembers which version this launch is, and leaves the card's offer pending when it is the first launch of
+    /// a new one on a Mac that ran an earlier one (ShareCardOffer.updated). A copy set up before 0.9.0 recorded no
+    /// version, so having been through the Welcome or the hook offer stands in for one.
+    private func noteLaunchedVersion() {
+        let existing = prefs.welcomed || prefs.hookOfferShown
+        if ShareCardOffer.updated(previous: prefs.lastLaunchedVersion, current: AppInfo.version, existingInstall: existing) {
+            prefs.shareCardOfferPending = AppInfo.version
+        }
+        prefs.lastLaunchedVersion = AppInfo.version
+    }
+
+    /// The offer's own loop: a first look once the cost scan has had a moment, then every half minute while the
+    /// rule says to wait (nothing scanned yet, figures hidden for a screen share, a full-screen app on the display,
+    /// or one of the app's own windows up). It opens the card once and clears the pending version, or clears it
+    /// without opening when the rule says the version gets no offer; a launch that quits mid-wait leaves the
+    /// version pending, so the next launch asks again, and only once the card has opened is it done for good,
+    /// whether this loop opened it or the reader did (showShareCard), which is the one thing that cancels it.
+    /// The card it opens takes no keystrokes (ShareCardWindowController.present): nobody asked for it just then.
+    private func scheduleShareCardOffer() {
+        shareCardOffer?.cancel()
+        guard prefs.shareCardOfferPending == AppInfo.version else { return }
+        shareCardOffer = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(20))
+            while !Task.isCancelled, let self {
+                switch self.shareCardOfferDecision() {
+                case .show:
+                    self.prefs.shareCardOfferPending = nil
+                    self.showShareCard(cause: .offer)
+                    return
+                case .drop:
+                    self.prefs.shareCardOfferPending = nil
+                    return
+                case .wait:
+                    try? await Task.sleep(for: .seconds(30))
+                }
+            }
+        }
+    }
+
+    private func shareCardOfferDecision() -> ShareCardOffer.Decision {
+        ShareCardOffer.decide(pending: prefs.shareCardOfferPending, current: AppInfo.version, enabled: prefs.offerShareCardAfterUpdate,
+                              showSpend: prefs.showSpend, costReady: store.cost != nil, activeDays: ShareCardOffer.activeDays(store.cost?.daily ?? []),
+                              hidesFigures: store.hidesFigures, fullScreen: !(pointerPresenter?.fullScreenApps.isEmpty ?? true),
+                              busy: holds.isHeld || holds.holdsOpen || welcome != nil || isShareCardVisible)
+    }
+
     /// Sparkle has a window on screen, or its last one has gone. Its windows are ordinary ones: the panel would
     /// draw over them from screen-saver level, and the Settings window from the level above that, so both stand
     /// down for as long as the update session lasts.
@@ -547,6 +676,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hold(.update, shown)
         settings?.standAside(shown)
         dashboard?.standAside(shown)
+        shareCard?.standAside(shown)
         Oracle.shared.emit("updateSession", ["action": shown ? "shown" : "hidden"])
     }
 
@@ -586,6 +716,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hold(.alert, true)
         settings?.standAside(true)
         dashboard?.standAside(true)
+        shareCard?.standAside(true)
         NSApp.activate()
         // The offer is made here, so it is remembered here (AutoSideWatcher.rememberAsked): a launch that reported
         // the stale entry but was quit before this line kept its turn. The rehearsal leaves the marker alone.
@@ -623,6 +754,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func answerAccessibilityReset(_ response: NSApplication.ModalResponse, replaced: Bool, simulated: Bool) {
         settings?.standAside(false)
         dashboard?.standAside(false)
+        shareCard?.standAside(false)
         hold(.alert, false)
         Oracle.shared.emit("accessibility", ["action": "staleEntry", "answer": response.rawValue, "replaced": replaced, "simulated": simulated])
         if simulated {
@@ -707,10 +839,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for pending in store.sessions.pending(now: Date()) { store.decide(pending.request.id, .pass) }
     }
 
-    /// The oracle's name for what holds the panel: the dashboard when it alone does, else Settings, which also
-    /// stands for the update session and an alert as it always has.
+    /// The oracle's name for what holds the panel: the dashboard or the usage card when it alone does, else
+    /// Settings, which also stands for the update session and an alert as it always has.
     private var holdCause: PanelCause {
-        holds.contains(.dashboard) && !holds.contains(.settings) ? .dashboard : .settings
+        guard !holds.contains(.settings) else { return .settings }
+        if holds.contains(.dashboard) { return .dashboard }
+        if holds.contains(.shareCard) { return .shareCard }
+        return .settings
     }
 
     var isDashboardVisible: Bool {
@@ -748,7 +883,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// "Keeping awake · 2 sessions", or the repair note, whichever is current.
     private func refreshFooterNote() {
         if store.keepingAwake {
-            store.setFooterNote(AwakeRule.footer(working: store.sessions.working.count))
+            store.setFooterNote(AwakeRule.footer(working: store.sessions.hookWorking.count))
         } else if store.footerNote?.hasPrefix(L("Keeping awake")) == true {
             store.setFooterNote(nil)
         }
@@ -769,7 +904,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func chosenScreens() -> [NSScreen] {
-        NSScreen.panelScreens(for: prefs.display)
+        NSScreen.panelScreens(for: prefs.display, switches: prefs.displaySwitches)
     }
 
     /// Hides the old presenters, then builds for the newest generation only; a rebuild asked for meanwhile
@@ -956,7 +1091,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func openFromNotification(_ tool: ToolID?) {
         if tool == nil {
             showSettings()
-        } else if !isSettingsVisible, !isDashboardVisible {
+        } else if !isSettingsVisible, !isDashboardVisible, !isShareCardVisible {
             pointerPresenter?.glance(for: HoverIntent.notificationGlance)
         }
     }
@@ -966,7 +1101,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// (`UsageStore.spendRange`), so the copy shows the range on screen; until 0.6.0 the card kept its range as
     /// `@State` and this fresh panel pasted Today's figure under a 90d reading.
     private func copyPanelImage() {
-        CardImage.copy(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000), width: prefs.panelWidth.points + 24)
+        let edgeCard = presenter is EdgePanelController
+        CardImage.copy(NotchExpandedView(store: store, prefs: prefs, actions: actions, maxHeight: 10_000, edgeCard: edgeCard),
+                       width: prefs.panelWidth.points + 24, look: PanelLook.current(prefs, edgeCard: edgeCard), wholePanel: true)
     }
 
     private func installCommandLineTool() {
@@ -985,6 +1122,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// "Copy diagnostics": everything Diagnostics gathers, from this delegate's state.
     private func diagnostics() -> String {
+        Diagnostics.report(diagnosticFacts(), log: Diagnostics.recentLog())
+    }
+
+    /// The same report for Send Feedback, with the unified log read on a background thread: the log store can take
+    /// a moment to open, and the sheet should be up and typeable meanwhile rather than wait for it.
+    private func diagnosticsOffMain() async -> String {
+        let facts = diagnosticFacts()
+        let lines = await Task.detached(priority: .userInitiated) { Diagnostics.recentLog() }.value
+        return Diagnostics.report(facts, log: lines)
+    }
+
+    /// The Options menu's Send Feedback…: the sheet is raised first, so the window is built (or brought forward)
+    /// with it already up over whichever pane it is on.
+    private func showFeedback() {
+        requests.feedback = true
+        showSettings()
+    }
+
+    private func diagnosticFacts() -> Diagnostics.Facts {
         var facts = Diagnostics.Facts()
         facts.edge = prefs.edge.rawValue
         facts.display = prefs.display.rawValue
@@ -995,19 +1151,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         facts.statusline = HookSettings.statuslineStatus().text
         facts.localAPI = localAPI?.isRunning == true
         facts.debugLogging = prefs.debugLogging
-        return Diagnostics.report(facts, log: Diagnostics.recentLog())
+        return facts
     }
 
     // MARK: - Oracle
 
     /// The Sessions card as it would draw now: whether it is on the panel, and its rows in order with their group,
-    /// status and counts (SessionsCard.oracleRows), so grouping, the gauge and the chips can be checked without a
-    /// screenshot. An empty `rows` with `shown` true is the card's empty state.
+    /// status, source and counts (SessionsCard.oracleRows), so grouping, the gauge and the chips can be checked
+    /// without a screenshot. An empty `rows` with `shown` true is the card's empty state. `upgrade` names the
+    /// assistant the card's upgrade line offers the hook for, or is null when the line is not drawn.
     private func sessionsCardFields() -> [String: Any] {
         let all = store.sessions.all
-        let rows = SessionsCard.rows(all, hideTitles: true, jump: prefs.jumpToTerminal, now: Date())
+        let rows = SessionsCard.rows(all, hideTitles: true, jump: prefs.jumpToTerminal, now: Date(), cap: prefs.sessionRows, lead: prefs.sessionRowLead)
         return ["shown": prefs.sessionsCard && (store.sessions.count > 0 || store.hooksInstalled),
-                "rows": SessionsCard.oracleRows(SessionsCard.groups(rows.rows, sessions: all)), "more": rows.more]
+                "rows": SessionsCard.oracleRows(SessionsCard.groups(rows.rows, sessions: all)), "more": rows.more,
+                "upgrade": SessionsCard.upgradeTool(rows.rows, installed: store.hookInstalledTools)?.rawValue as Any]
+    }
+
+    /// Each assistant's page switches as they take effect, the app-wide switches included: whether its sessions are
+    /// read, whether its requests are answered in the notch, and whether its limit and session notices go out.
+    /// What a tester checks after flipping one, without opening Settings to look.
+    private func agentFields() -> [String: Any] {
+        ToolID.allCases.reduce(into: [String: Any]()) { fields, tool in
+            let sessionNotices = (prefs.notifyWaiting || prefs.notifyFinished) && prefs.readsSessions(of: tool) && prefs.notifiesSessions(of: tool)
+            fields[tool.rawValue] = ["sessions": prefs.readsSessions(of: tool),
+                                     "answers": tool.hasAnswerableHook && prefs.answersFromNotch(tool),
+                                     "limitNotices": prefs.notificationsEnabled && prefs.notifiesLimits(of: tool),
+                                     "sessionNotices": sessionNotices]
+        }
     }
 
     /// Everything a tester could otherwise only see, in one line, on the distributed notification
@@ -1020,7 +1191,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "visibleTools": store.visibleTools.map(\.rawValue), "presence": String(describing: store.presence),
             "costCard": ["carried": store.costSelection.providers.map(\.tool.rawValue),
                          "leads": store.costSelection.providers.first?.tool.rawValue as Any,
-                         "gaps": store.costGaps.map { ["tool": $0.tool.rawValue, "reason": $0.text] }],
+                         "gaps": store.costGaps.map { ["tool": $0.tool.rawValue, "reason": $0.text] },
+                         "range": String(describing: store.spendRange.costRange),
+                         "prices": store.costSelection.priceSources(store.spendRange.costRange).map(\.key).sorted()],
+            "pricing": pricingCatalog.status.oracleFields.merging(["enabled": prefs.pricingCatalog]) { _, new in new },
+            "currency": prefs.currencyConversion.oracleFields,
             "awaitingInput": store.awaitingInput.map(\.rawValue).sorted(), "sessions": store.sessions.count,
             "sessionsCard": sessionsCardFields(),
             "signals": ToolID.allCases.compactMap { tool in store.signal(tool).map { "\(tool.rawValue):\(String(describing: $0))" } },
@@ -1028,13 +1203,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "advice": store.advice.map(\.text),
             "settingsVisible": isSettingsVisible,
             "dashboardVisible": isDashboardVisible,
+            "shareCardVisible": isShareCardVisible,
             "ringWindows": ToolID.allCases.reduce(into: [String: [String]]()) { rings, tool in
                 if let reading = store.status(tool).reading { rings[tool.rawValue] = prefs.ringWindows(of: reading).map(\.id) }
             },
+            "closedNotch": ["phase": store.closedNotchPhase.rawValue, "shows": store.closedNotchShows.rawValue],
             "screens": NSScreen.descriptions,
             "captured": store.screenCaptured,
             "presenters": presenters.map(\.screen.localizedName),
             "keepingAwake": store.keepingAwake,
+            "agents": agentFields(),
+            "sounds": prefs.soundFields,
+            "panelTheme": prefs.panelTheme.rawValue, "panelMaterial": prefs.panelMaterial?.rawValue as Any,
+            "panelAccent": prefs.panelAccent.rawValue, "usageStyle": prefs.usageStyle.rawValue, "hourClock": prefs.hourClock,
+            // What the panel is actually drawn in: the choices after the layout's default material and the
+            // accessibility settings that force a solid panel (PanelLook.resolve).
+            "look": PanelLook.current(prefs, edgeCard: presenter is EdgePanelController).oracleFields,
         ]
         if let presenter {
             fields["panelState"] = presenter.hover.state.rawValue
@@ -1102,7 +1286,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         Probe.emit("tool order: \(prefs.toolOrder.map(\.rawValue).joined(separator: ", ")); visible: \(store.visibleTools.map(\.rawValue).joined(separator: ", "))")
         Probe.emit("polling: \(store.scheduleDescription())")
-        Probe.emit("presence: \(store.presence); sessions: \(store.sessions.count) (\(store.sessions.agentCount) agents); reduce motion: \(AccessibilityDisplay.shared.motionReduced); keep awake: \(prefs.keepAwake) holding=\(store.keepingAwake)")
+        Probe.emit("presence: \(store.presence); sessions: \(store.sessions.count) (\(store.sessions.agentCount) agents, \(store.sessions.all.filter(\.isDetected).count) detected without the hook; scan \(prefs.detectSessions ? store.detectionInterval().map { "every \(Int($0)) s" } ?? "paused" : "off")); reduce motion: \(AccessibilityDisplay.shared.motionReduced); keep awake: \(prefs.keepAwake) holding=\(store.keepingAwake)")
         let signals = ToolID.allCases.compactMap { tool in store.signal(tool).map { "\(tool.rawValue) \($0)" } }
         Probe.emit("signals: \(signals.isEmpty ? "none" : signals.joined(separator: ", ")); ring colouring: \(prefs.signalRings ? "on" : "off"); finished held \(Int(ToolSignal.heldFor))s over \(Int(ToolSignal.finishedAfter))s")
         if let cost = store.cost {
@@ -1121,9 +1305,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("hooks: " + HookVendor.allCases.map { "\($0.rawValue): \(HookSettings.status(vendor: $0).text)" }.joined(separator: "; ") + "; status line: \(HookSettings.statuslineStatus().text); auto-repair: \(prefs.autoRepairHooks) (never under --smoke); command line tool: \(CommandLineTool.installedLink().map { "\($0.link.path) → \($0.destination)" } ?? "not installed"); transport: \(HookSocket.describe())")
         Probe.emit("prompts: pending=\(store.sessions.pending(now: Date()).count); answer from the notch=\(prefs.answerFromNotch ? "on" : "off") hold=\(prefs.promptHoldSeconds)s; sessions card=\(prefs.sessionsCard ? "on" : "off") titles=\(prefs.sessionTitles ? "on" : "off"); jump=\(prefs.jumpToTerminal ? "on" : "off") automation: "
                    + TerminalJump.scriptedApps.map { "\($0.name)=\(TerminalJump.automationStatus(bundleID: $0.bundleID).word)" }.joined(separator: " "))
+        // Each assistant's page, a word per switch: sessions read, answers in the notch ("-" where its hook has
+        // nothing to answer), limit notices, session notices; the page's own say, before the app-wide switches.
+        Probe.emit("assistant pages: " + ToolID.allCases.map { tool in
+            let answers = tool.hasAnswerableHook ? (prefs.notchAnswersOff.contains(tool) ? "off" : "on") : "-"
+            return "\(tool.rawValue) sessions=\(prefs.readsSessions(of: tool) ? "on" : "off") answers=\(answers) "
+                + "limits=\(prefs.notifiesLimits(of: tool) ? "on" : "off") session-notices=\(prefs.notifiesSessions(of: tool) ? "on" : "off")"
+        }.joined(separator: "; "))
+        Probe.emit(store.coworkSummary)
         Probe.emit("main menu: \(MainMenu.describe())")
         Probe.emit("readouts: \(autoSide.description)")
         Probe.emit("full screen: \(FullScreen.describe(on: .panelScreen))")
+        // The look the panel is drawn in (Settings › Appearance › Theme) after the layout's default material and
+        // the accessibility settings, and its weakest pairing by the contrast rules (PanelLook.audit).
+        let look = PanelLook.current(prefs, edgeCard: presenter is EdgePanelController)
+        let findings = look.audit()
+        Probe.emit("theme: \(look.summary) (material \(prefs.panelMaterial?.rawValue ?? "unchosen")); weakest text "
+                   + String(format: "%.2f:1, weakest mark %.2f:1; ", look.weakest.text, look.weakest.mark)
+                   + (findings.isEmpty ? "every pairing passes" : "SHORT: \(findings.map(\.description).joined(separator: "; "))"))
         Probe.emit("copy (\(Localization.current)): \(L("Session")) · \(L("Weekly")) · \(L("%@ Settings", AppInfo.name)) · "
                    + "\(L("Resets in %@", ResetText.duration(4 * 3600 + 17 * 60))) · \(L("Open at login"))")
         let settingsPassed = await smokeSettings()
@@ -1696,8 +1895,9 @@ enum Probe {
         let rates = drains.reduce(into: [String: Double]()) { if let rate = $1.value.perHour { $0["\($1.key.tool.rawValue)/\($1.key.window)"] = rate } }
         var context = Advisor.Context(readings: readings, cost: cost, drainRates: rates, now: now)
         context.runOuts = runOuts.reduce(into: [:]) { $0["\($1.key.tool.rawValue)/\($1.key.window)"] = $1.value }
-        context.monthlyBudgetUSD = defaults.object(forKey: "monthlyBudgetUSD") as? Double
-        context.weeklyBudgetUSD = defaults.object(forKey: "weeklyBudgetUSD") as? Double
+        let budgets = Preferences.budgetsUSD(defaults: defaults, now: now)
+        context.monthlyBudgetUSD = budgets.monthly
+        context.weeklyBudgetUSD = budgets.weekly
         context.metering = cost.sessionMetering
         let advice = Advisor.advise(context)
         return UsageReport(tools: statuses, cost: cost, advice: advice, drains: drains, runOuts: runOuts, history: history ? scanner.history?.load() : nil, now: now)

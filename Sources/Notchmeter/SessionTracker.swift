@@ -127,12 +127,15 @@ struct PendingRequest: Equatable, Sendable, Identifiable {
         /// `detail` a bounded excerpt of it, `suggestions` the permission updates the assistant proposed.
         case permission(tool: String, summary: String, detail: String?, suggestions: [Suggestion])
         case question([Question])
+        /// An MCP server's form that a click can answer (Hook+Elicitation.swift).
+        case elicitation(Elicitation)
 
-        /// "permission" or "question": the word the oracle and the log use, never the content.
+        /// "permission", "question" or "elicitation": the word the oracle and the log use, never the content.
         var name: String {
             switch self {
             case .permission: "permission"
             case .question: "question"
+            case .elicitation: "elicitation"
             }
         }
     }
@@ -160,15 +163,19 @@ enum Decision: Equatable, Sendable {
     case deny(message: String?)
     /// Question text → the chosen option's label (labels of a multi-select joined with ", ").
     case answers([String: String])
+    /// An MCP server's form accepted with the values chosen, or declined.
+    case elicitation(ElicitationAnswer)
     case pass
 
-    /// The word the oracle records: allow, deny, answers or pass. *Allow always* is an allow, since this call
-    /// goes ahead either way; `addsRule` says the rest.
+    /// The word the oracle records: allow, deny, answers, accept, decline or pass. *Allow always* is an allow,
+    /// since this call goes ahead either way; `addsRule` says the rest.
     var behavior: String {
         switch self {
         case .allow, .allowAlways: "allow"
         case .deny: "deny"
         case .answers: "answers"
+        case .elicitation(.accept): "accept"
+        case .elicitation(.decline): "decline"
         case .pass: "pass"
         }
     }
@@ -284,8 +291,31 @@ struct TaskChange: Equatable, Sendable {
     var deleted = false
 }
 
-/// One assistant session a hook has reported: which project it runs in and whether it is mid-turn, idle between
-/// turns, or waiting for the user; plus what the hook and status line know about where it runs.
+/// Where a session's state comes from. `.hook` once any hook event has been applied to it: its turns start, end and
+/// wait on the assistant's own word. `.localStorage` for OpenCode without its plugin: the app's own reading of
+/// OpenCode's database (OpenCodeSessions), which learns of a turn's end a few seconds late, never learns of a wait,
+/// and knows nothing of the terminal; the row says so (SessionsCard), and the oracle too. `.detected` while only the
+/// scan has seen it (SessionDetection): working or idle is a guess from the process and its files, it never waits,
+/// and a turn's end is not an event (docs/accuracy.md, *Sessions found without the hook*). `.statusline` while only
+/// Claude Code's status line has reported it: its figures (the model, the name, the context fill, the line counts)
+/// are Claude Code's own and stand, but the status line says nothing of a turn's start or end, so its working or
+/// idle is the scan's guess as for a detected row. The Welcome flow installs the status line even when the hook is
+/// declined, so this is the common half-set-up session, and until 0.9.0 it sat idle with no mark and no offer of
+/// the hook. The card marks those two as found without the hook (`AgentSession.isDetected`), and the hook's first
+/// event for the session makes it `.hook` for good. `.coworkLog` for a Claude Cowork task read from its log in the
+/// Claude app (CoworkSessions): a turn's end is the log's own line, a turn running is inferred from the log being
+/// written, and never a wait.
+enum SessionSource: String, Equatable, Sendable {
+    case hook
+    case localStorage = "storage"
+    case detected
+    case statusline
+    case coworkLog
+}
+
+/// One assistant session a hook has reported, or one found running without it (SessionDetection, OpenCodeSessions):
+/// which project it runs in and whether it is mid-turn, idle between turns, or waiting for the user; plus what the
+/// hook, the status line or the scan know about where it runs.
 struct AgentSession: Equatable, Sendable, Identifiable {
     enum State: Equatable, Sendable {
         case idle
@@ -294,6 +324,16 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     }
 
     let id: String
+    /// Where the session's state comes from (SessionSource), carried the way a window carries its WindowSource: on
+    /// the row's chip and its help, in the oracle's snapshot and in the report, so a reader can tell a state an
+    /// assistant sent from one the app worked out (docs/accuracy.md).
+    var source: SessionSource = .hook
+
+    /// Found without the hook and without any record of its turns: the scan's rows and the status line's, whose
+    /// working is a guess, never waits, never lights a finish and never holds the Mac awake; the card marks it so
+    /// and offers the hook. Not a row read from OpenCode's database or a Cowork task's log, whose turns are the
+    /// tool's own record, late.
+    var isDetected: Bool { source == .detected || source == .statusline }
     /// Which assistant this session belongs to. Claude Code's and Cursor's hooks both report, and each one's
     /// sessions light its own ring; the field is the typed home of that fact, so no view has to ask "is this
     /// Claude?" in order to know what a session means, and a third hook lights the same lamps without a change
@@ -329,8 +369,12 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// The decision the assistant is holding this session for, while its hook waits on the socket for it.
     var pending: PendingRequest?
     // From Claude Code's status line (0.7.0), so every one is nil for a session only the hook reports.
-    /// The model's display name as the status line carries it ("Opus").
+    /// The model's display name as the status line carries it ("Opus"), or for a detected session the short name
+    /// of its transcript's newest model ("Opus 5.5", SessionDetection.modelName).
     var model: String?
+    /// The status line has named the model: its word is Claude Code's own, so the scan no longer writes over it
+    /// (`detected`), and the row does not flick between two spellings of one model at every turn.
+    var modelFromStatusline = false
     /// `session_name`: the name set with `--name` or `/rename`, else Claude Code's own title for the session;
     /// never the default `my-app-3f` display name. For a Cursor chat, Cursor's own name for it (CursorChatNames). Shown only under the same setting as the prompt title
     /// (UsageStore.statuslineReceived drops it when Preferences.sessionTitles is off, as hookReceived drops `title`).
@@ -356,6 +400,41 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// This turn went quiet with nothing running and is shown as a possible wait. Set once per turn, cleared by the
     /// next prompt; the wait itself ends with the next activity.
     var quietNudge = false
+    // What Claude Code's 0.11 events report (Hook+Events.swift). Each is a fact a hook stated, kept only as long
+    // as it stays true, and none of it is ever inferred from a file.
+    /// A compaction begun (`PreCompact`) and not yet done (`PostCompact`), with its trigger when the hook named one.
+    var compacting: Stamped<Compaction.Trigger?>?
+    /// How many compactions finished while the app watched, and the last of them.
+    var compactions = 0
+    var lastCompaction: Stamped<Compaction.Trigger?>?
+    /// The switches `PostModelSwitch` reported, oldest first, at most `SessionTracker.switchLimit`; the newest
+    /// one's target is also what `model` says until the status line next names it.
+    var modelSwitches: [Stamped<ModelSwitch>] = []
+    /// Teammates of an agent team that went idle (`TeammateIdle`), oldest first, one entry per teammate.
+    var idleTeammates: [Stamped<Teammate>] = []
+    /// Tool calls that failed in a row (`PostToolUseFailure`), per agent: the main loop's under "", each subagent's
+    /// under its `agent_id`. A batch in which not every call failed puts an agent's count back to nothing.
+    var failureStreaks: [String: Int] = [:]
+    /// The failures heard since each agent's last batch boundary, which the next `PostToolBatch` is weighed against.
+    var failuresSinceBatch: [String: Int] = [:]
+    /// The tool that failed last, and when.
+    var lastFailure: Stamped<String>?
+    /// Whether this session reports batch boundaries (`PostToolBatch`). Without them a run of failures cannot be
+    /// told from failures with successes between them, so a session that has sent none is never called stuck.
+    var batches = false
+    /// Tool calls auto mode denied in this turn (`PermissionDenied`), oldest first, at most `SessionTracker.denialLimit`.
+    var denials: [Stamped<Denial>] = []
+    /// Whether the wait standing is an MCP server's request for input (`Elicitation`), and which server's.
+    var waitsOnMCP = false
+    var mcpServer: String?
+    /// Whether the wait standing is a background session's: the `agent_needs_input` notification, which the hooks
+    /// reference (2026-09-24) defines as "a background session starts waiting on your input while agent view is
+    /// open". It lands on the foreground session's id, whose own loop keeps running batches and starting agents
+    /// while that session is blocked, so neither is proof the wait is over; `agent_completed` is, and so is the
+    /// turn ending. Cleared with every end of the wait, like `waitsOnMCP`.
+    var waitsOnAgent = false
+    /// Whether the session's working directory is a git worktree, as its last event with a directory said.
+    var worktree = false
 
     init(id: String, tool: ToolID = .claude, project: String?, state: State, started: Date, lastEvent: Date, turnStarted: Date?, branch: String? = nil,
          prURL: String? = nil, permissionMode: String? = nil, host: String? = nil) {
@@ -381,6 +460,28 @@ struct AgentSession: Equatable, Sendable, Identifiable {
         if case .working = state { return true }
         return false
     }
+
+    /// The assistant's short name on the row's chip: the tool's, or "Cowork" for a Claude Cowork task, which is a
+    /// Claude session (it spends the Claude plan and lights the Claude ring) that Claude Code did not run.
+    var assistantName: String { source == .coworkLog ? CoworkSessions.shortName : tool.displayName }
+
+    /// The product's name in a sentence, a banner or an announcement: "Claude Code", or "Claude Cowork".
+    var productName: String { source == .coworkLog ? CoworkSessions.productName : tool.productName }
+    /// The longest run of failed tool calls among the session's agents.
+    var failureStreak: Int { failureStreaks.values.max() ?? 0 }
+
+    /// Whether the session may be stuck: it is mid-turn, it reports batch boundaries, `SessionTracker.stuckAfter`
+    /// tool calls or more have failed in a row with none succeeding between them, and the last of them failed
+    /// inside `SessionTracker.stuckFor`. "May", because an agent working through a stubborn failure looks the same
+    /// from here as one going round in a circle; the row and the notice both say so.
+    func mayBeStuck(now: Date) -> Bool {
+        guard batches, isWorking, failureStreak >= SessionTracker.stuckAfter, let lastFailure else { return false }
+        return now.timeIntervalSince(lastFailure.at) < SessionTracker.stuckFor
+    }
+
+    /// The newest model switch, when Claude Code made it by itself (a fallback), which is the one a reader did not
+    /// ask for.
+    var fellBack: Bool { modelSwitches.last?.value.isFallback == true }
 
     /// The finish this session is still entitled to claim, or nil. Guarding on `.idle` is what stops a mark left by
     /// an earlier turn being read as the present one; reading it against the clock rather than latching it is what
@@ -443,7 +544,8 @@ struct AgentSession: Equatable, Sendable, Identifiable {
 /// (or a StopFailure) ends the turn, SessionEnd removes it; SubagentStart and SubagentStop count the agents under
 /// it. The names are Claude Code's; Cursor's parser puts its events onto them before they arrive here, so there is
 /// one grammar. A wait expires after ten minutes, as does an agent nothing has been heard from; a session nothing
-/// has been heard from for four hours is dropped. Pure, so it is pinned by tests.
+/// has been heard from for four hours is dropped. Claude Cowork's tasks, which have no hook, come in beside them
+/// through `observeCowork`, read from the Claude app's own files. Pure, so it is pinned by tests.
 struct SessionTracker: Equatable, Sendable {
     struct Outcome: Equatable, Sendable {
         /// A turn ended: the session and how long the turn ran.
@@ -462,12 +564,17 @@ struct SessionTracker: Equatable, Sendable {
         /// Requests that ended without a decision from the app (the session moved on or ended), by session and
         /// request id, so their parked replies can be released and the panel told.
         var requestsEnded: [EndedRequest] = []
+        /// Something the session ran into that is worth a notice without being a wait (SessionTrouble): a
+        /// compaction Claude Code began by itself, a run of failures reaching `stuckAfter`, or the turn's first
+        /// auto-mode denial.
+        var trouble: (session: AgentSession, trouble: SessionTrouble)?
 
         static func == (lhs: Outcome, rhs: Outcome) -> Bool {
             lhs.finished?.session == rhs.finished?.session && lhs.finished?.turn == rhs.finished?.turn && lhs.startedWaiting == rhs.startedWaiting
                 && lhs.stoppedWaiting == rhs.stoppedWaiting && lhs.limitHit == rhs.limitHit && lhs.quotaResumed == rhs.quotaResumed
                 && lhs.requested?.session == rhs.requested?.session && lhs.requested?.request == rhs.requested?.request
                 && lhs.requestsEnded == rhs.requestsEnded
+                && lhs.trouble?.session == rhs.trouble?.session && lhs.trouble?.trouble == rhs.trouble?.trouble
         }
     }
 
@@ -491,13 +598,39 @@ struct SessionTracker: Equatable, Sendable {
     /// removal would (`dismissed`): a terminal left open and a Cursor conversation closed without a word both look
     /// like this, and four hours of rows for them was clutter. It comes back whole with its next event.
     static let idleAfter: TimeInterval = 30 * 60
+    /// How long after a hook's `SessionEnd` the scan leaves that session id alone (`ended`). Claude Code runs the
+    /// hook on its way out, while its process is still there and before its `sessions/<pid>.json` goes ("removed
+    /// when its session exits", the Claude directory page, read 2026-09-24), so a scan inside that window still
+    /// finds the session and put a fresh detected row where the ended one had been, for the one scan until the
+    /// next took it off again: a flicker on the card and an added/removed pair in the oracle. Fifteen seconds is
+    /// several scans at the running pace (3 s) and far past any teardown; a session file started after the end is
+    /// a new session under a reused id (`claude --resume`) and is taken whatever the clock says.
+    static let endedGrace: TimeInterval = 15
     static let unknownSession = "unknown"
+    /// How many tool calls must fail in a row, none succeeding between them, before a session is called one that
+    /// may be stuck. One failure is a test the agent is fixing; two or three are an agent trying variations; five
+    /// with nothing working between them is a loop worth a look. Measured as calls rather than batches, so five
+    /// parallel calls that all fail in one step count the same as five steps that each fail once.
+    static let stuckAfter = 5
+    /// How long after its last failure a streak still says "may be stuck": a turn that has gone quiet since is
+    /// doing something else, or waiting, and the flag would be stale.
+    static let stuckFor: TimeInterval = 600
+    /// The most model switches, idle teammates and denials a session keeps: a row lists them, and a list longer
+    /// than a notch can show says nothing the first few do not.
+    static let switchLimit = 8
+    static let teammateLimit = 16
+    static let denialLimit = 20
 
     private(set) var sessions: [String: AgentSession] = [:]
     /// Sessions the user removed from the list (`dismiss`, 0.7.7): out of every count, ring and row, but kept whole
     /// so the next event from one puts it back exactly as it was, turn and all. A conversation closed in Cursor
     /// sends no end, so without this it sat on the card for the four hours `staleAfter` allows.
     private(set) var dismissed: [String: AgentSession] = [:]
+    /// The detected sessions the last scan kept, on the list or set aside (`detected`): the ones the next scan
+    /// takes off again when their process is gone. A hook's event takes its session out of here for good.
+    private(set) var scanned: Set<String> = []
+    /// When a hook's `SessionEnd` last ended each session, for `endedGrace`; pruned by `expire`.
+    private(set) var ended: [String: Date] = [:]
     /// The tools whose hook has ever reported. Kept per tool because a hook is proof about its own tool only: a
     /// Cursor event says nothing about how many Claude Code sessions there are, and a Claude ring told "zero
     /// sessions" on Cursor's word would go quiet on a window that is being spent.
@@ -508,6 +641,10 @@ struct SessionTracker: Equatable, Sendable {
     var all: [AgentSession] { sessions.values.sorted { $0.lastEvent > $1.lastEvent } }
     var waiting: [AgentSession] { all.filter(\.isWaiting) }
     var working: [AgentSession] { all.filter(\.isWorking) }
+    /// The sessions working on the hook's word, which is what the awake assertion holds the Mac for: a detected
+    /// session's working, and a status line's row's, is a guess that can outlast its turn, and a guess does not
+    /// keep a Mac out of sleep.
+    var hookWorking: [AgentSession] { working.filter { !$0.isDetected } }
     var quotaWaiting: [AgentSession] { all.filter(\.quotaWait) }
     var count: Int { sessions.count }
     /// Subagents running under every session.
@@ -556,7 +693,7 @@ struct SessionTracker: Equatable, Sendable {
 
     /// The dictionary key. Claude Code's sessions keep the bare id (and `id@host`) they have always had, so nothing
     /// that logs, notifies or reports them changes; any other tool's id carries the tool's name in front
-    /// ("cursor:conv-1", "codex:<uuid>", "antigravity:<uuid>", "copilot:<id>", "cursor:conv-1@devbox", "cursor:unknown"),
+    /// ("cursor:conv-1", "codex:<uuid>", "gemini:<uuid>", "copilot:<id>", "kimi:<id>", "cursor:conv-1@devbox", "cursor:unknown"),
     /// so another assistant's session and a Claude session can never share an entry. The tool's typed home is still AgentSession.tool; the prefix is only a collision guard.
     /// The separator is a colon rather than a slash because `Notifier.identifier` is `session/<id>/<kind>`, and a
     /// slash inside the id would muddy it.
@@ -640,6 +777,37 @@ struct SessionTracker: Equatable, Sendable {
         return (true, session.isWaiting)
     }
 
+    /// What `forget` took away: every session id, the ones that were waiting (their notices come down) and the
+    /// requests they held (their parked replies are released, so the terminal asks).
+    struct Forgotten: Equatable, Sendable {
+        var sessions: [String] = []
+        var waiting: [String] = []
+        var requests: [EndedRequest] = []
+    }
+
+    /// One assistant's sessions gone at once, set-aside ones included, and its hook no longer counted as heard:
+    /// its session reading was switched off (Preferences.sessionReadingOff), and with it off nothing of its
+    /// sessions is held. Unlike `dismiss` nothing is kept to come back, and a session holding a request goes
+    /// too, with the request handed back. `hooksSeen` loses the tool so the calm rule (Presence.level) reads its
+    /// session count as unknown rather than as a proven zero, which would quieten a ring on a silence the app
+    /// chose not to hear.
+    @discardableResult
+    mutating func forget(_ tool: ToolID) -> Forgotten {
+        var forgotten = Forgotten()
+        for (id, session) in sessions where session.tool == tool {
+            forgotten.sessions.append(id)
+            if session.isWaiting { forgotten.waiting.append(id) }
+            if let pending = session.pending { forgotten.requests.append(EndedRequest(sessionID: id, requestID: pending.id)) }
+            sessions[id] = nil
+        }
+        dismissed = dismissed.filter { $0.value.tool != tool }
+        hooksSeen.remove(tool)
+        forgotten.sessions.sort()
+        forgotten.waiting.sort()
+        forgotten.requests.sort { $0.requestID < $1.requestID }
+        return forgotten
+    }
+
     /// Every idle session off the list at once: the ones not working, not waiting and not holding a request.
     @discardableResult
     mutating func dismissIdle() -> [String] {
@@ -656,15 +824,28 @@ struct SessionTracker: Equatable, Sendable {
         let id = Self.key(tool: message.tool, session: message.sessionID, host: message.host)
         // A removed session that speaks again comes back as it was, and this event applies to it as usual.
         if let returning = dismissed.removeValue(forKey: id) { sessions[id] = returning }
+        // The hook's word is the session's from here on: a row the scan found under the same id is taken over whole,
+        // its start and any turn it saw running kept, and the scan never touches it again (`detected`).
+        scanned.remove(id)
         if message.event == "SessionEnd" {
             if sessions[id]?.isWaiting == true { outcome.stoppedWaiting.append(id) }
             if let pending = sessions[id]?.pending { outcome.requestsEnded.append(EndedRequest(sessionID: id, requestID: pending.id)) }
             sessions[id] = nil
+            // The process is still going as this arrives; the scan leaves the id alone for `endedGrace`.
+            ended[id] = now
             return outcome
         }
+        ended[id] = nil
+        if sessions[id] == nil, message.host == nil { absorbDetected(tool: message.tool, project: message.project) }
         var session = sessions[id] ?? AgentSession(id: id, tool: message.tool, project: message.project, state: .idle, started: now, lastEvent: now,
                                                    turnStarted: nil, host: message.host)
+        session.source = message.source
         if let project = message.project { session.project = project }
+        if let project = message.project {
+            session.project = project
+            // Read from the same directory as the project, so a message that names the one says the other.
+            session.worktree = message.worktree
+        }
         if let branch = message.branch { session.branch = branch }
         if let mode = message.permissionMode { session.permissionMode = mode }
         if let terminal = message.terminal, !terminal.isEmpty { session.terminal = session.terminal?.merging(terminal) ?? terminal }
@@ -681,9 +862,12 @@ struct SessionTracker: Equatable, Sendable {
         session.lastEvent = now
         let wasWaiting = session.isWaiting
         let hadPending = session.pending
+        let wasStuck = session.mayBeStuck(now: now)
         switch message.event {
         case "SessionStart":
             session.pending = nil
+            session.failureStreaks = [:]
+            session.failuresSinceBatch = [:]
         case "UserPromptSubmit":
             session.state = .working(since: now)
             session.turnStarted = now
@@ -694,6 +878,14 @@ struct SessionTracker: Equatable, Sendable {
             session.finished = nil
             session.pending = nil
             session.title = message.title
+            // A new turn: the last one's denials and failures are the last one's, and a new instruction to the
+            // lead of a team is the lead's cue to set its idle teammates going again.
+            session.denials = []
+            session.failureStreaks = [:]
+            session.failuresSinceBatch = [:]
+            session.waitsOnMCP = false
+            session.waitsOnAgent = false
+            if message.agentID == nil { session.idleTeammates = [] }
         case "Stop", "StopFailure":
             // The mark is set inside the state machine and above the notification's gate, so `notifyFinished` and
             // its minutes cannot silently decide what the rings show. A StopFailure is deliberately not a finish:
@@ -708,6 +900,12 @@ struct SessionTracker: Equatable, Sendable {
             session.agents = [:]
             session.commandsInFlight = 0
             session.pending = nil
+            // A compaction that never reported its end did not outlive the turn it ran in.
+            session.compacting = nil
+            session.failureStreaks = [:]
+            session.failuresSinceBatch = [:]
+            session.waitsOnMCP = false
+            session.waitsOnAgent = false
             if message.hitRateLimit {
                 session.limitHitAt = now
                 outcome.limitHit = session
@@ -719,8 +917,9 @@ struct SessionTracker: Equatable, Sendable {
             // the prompt and never the answer, so without it an approved prompt — or one auto mode settled by
             // itself — kept the hand up for the ten-minute timeout, through a turn that was plainly working.
             // A SubagentStop is deliberately not the same proof: a background agent can finish while the main
-            // loop is genuinely held at a prompt.
-            if session.isWaiting { session.state = .working(since: now) }
+            // loop is genuinely held at a prompt. Nor is a start proof about a background session's wait
+            // (`waitsOnAgent`): the foreground loop that started the agent is not the one that is blocked.
+            if session.isWaiting, !session.waitsOnAgent { session.state = .working(since: now) }
             session.pending = nil
         case "SubagentStop":
             if let agentID = message.agentID, session.agents[agentID] != nil {
@@ -732,7 +931,81 @@ struct SessionTracker: Equatable, Sendable {
             // Registered for the task tools alone (HookVendor.matcher(for:)), and read for the task list only (above).
             // It is not taken as proof that a wait is over: Claude Code runs a batch of tool calls together, and a
             // task call, which never asks permission, can finish while another call in the same batch is held at a
-            // prompt, so ending the wait here would drop the hand from a session that is still waiting.
+            // prompt, so ending the wait here would drop the hand from a session that is still waiting. The batch
+            // boundary below is that proof.
+            break
+        case "PreCompact":
+            session.compacting = Stamped(value: message.compaction, at: now)
+            // Only a compaction Claude Code began by itself is news: `/compact` is the user's own doing. The fill
+            // the status line last reported goes with it, since that is the gauge the compaction is about to empty.
+            if message.compaction == .auto { outcome.trouble = (session, .compacting(context: session.contextUsed)) }
+        case "PostCompact":
+            session.compacting = nil
+            session.compactions += 1
+            session.lastCompaction = Stamped(value: message.compaction, at: now)
+            // The fill the status line last reported describes the conversation before it was summarised, so it is
+            // no longer this session's figure; the next status line says what is left. Never estimated meanwhile.
+            session.contextUsed = nil
+        case "PostModelSwitch":
+            if let change = message.modelSwitch {
+                session.model = Hook.modelDisplayName(change.to)
+                // A resume restoring the model it had, or a switch to the model already running, changes nothing
+                // worth a line in the record.
+                if change.from != change.to {
+                    session.modelSwitches.append(Stamped(value: change, at: now))
+                    if session.modelSwitches.count > Self.switchLimit { session.modelSwitches.removeFirst(session.modelSwitches.count - Self.switchLimit) }
+                }
+            }
+        case "TeammateIdle":
+            let teammate = message.teammate ?? Teammate(key: "", name: nil)
+            session.idleTeammates.removeAll { $0.value.key == teammate.key }
+            session.idleTeammates.append(Stamped(value: teammate, at: now))
+            if session.idleTeammates.count > Self.teammateLimit { session.idleTeammates.removeFirst(session.idleTeammates.count - Self.teammateLimit) }
+        case "PostToolUseFailure":
+            // An abort is something that happened to the agent rather than something it tried, so it is not
+            // counted towards a run of failures. Nor is a failure whose payload the command read only to its head
+            // (`Hook.Message.truncated`): `is_interrupt` sits past the cut, so an aborted large call would count as
+            // a try, and its `agent_id` may be past it too, so a subagent's failure would count on the main loop;
+            // an unknown is never what makes a session look stuck.
+            if let failure = message.toolFailure, !failure.interrupt, !message.truncated {
+                let agent = message.agentID ?? ""
+                session.failureStreaks[agent, default: 0] += 1
+                session.failuresSinceBatch[agent, default: 0] += 1
+                session.lastFailure = Stamped(value: failure.tool, at: now)
+            }
+        case Hook.batchEvent:
+            // Every call in the batch has resolved. For the agent it belongs to, a batch in which not every call
+            // failed is progress, and its run of failures starts again; a batch whose size is unknown (a payload
+            // too large to read whole, which a batch of failures rarely is) counts as progress too, so an unknown
+            // is never what makes a session look stuck.
+            session.batches = true
+            let agent = message.agentID ?? ""
+            let failed = session.failuresSinceBatch.removeValue(forKey: agent) ?? 0
+            if !(message.batchSize.map { $0 > 0 && failed >= $0 } ?? false) { session.failureStreaks[agent] = nil }
+            // And a permission prompt raised by a call in the main loop's batch has been answered, since the batch
+            // could not resolve without it: the one proof of an answered prompt besides a subagent starting (above).
+            // A request the notch is holding cannot be answered this way (its batch waits on it), a subagent's
+            // batch says nothing about the main loop's prompt, and a background session's wait (`waitsOnAgent`) is
+            // not the main loop's at all: the foreground keeps running batches while that session is blocked.
+            if message.agentID == nil, session.isWaiting, session.pending == nil, !session.waitsOnMCP, !session.waitsOnAgent, !session.quietNudge {
+                session.state = .working(since: now)
+            }
+        case "PermissionDenied":
+            if let denial = message.denial {
+                if session.denials.isEmpty { outcome.trouble = (session, .blocked(tool: denial.tool)) }
+                session.denials.append(Stamped(value: denial, at: now))
+                if session.denials.count > Self.denialLimit { session.denials.removeFirst(session.denials.count - Self.denialLimit) }
+            }
+        case "ElicitationResult":
+            // The user answered an MCP server: the wait its request began is over. A request of another kind
+            // standing on the session is a wait of its own and stays.
+            if session.pending == nil || session.pending?.kind.isElicitation == true {
+                if session.isWaiting { session.state = .working(since: now) }
+                session.pending = nil
+            }
+            session.waitsOnMCP = false
+        case "CwdChanged":
+            // The project, branch and worktree the new directory gives were taken above.
             break
         case _ where Self.heartbeatEvents.contains(message.event):
             // In-turn activity: a turn shown as a possible wait was not waiting after all, or has been answered.
@@ -747,6 +1020,21 @@ struct SessionTracker: Equatable, Sendable {
             if message.needsInput {
                 if !session.isWaiting { outcome.startedWaiting = session }
                 session.state = .waiting(since: now)
+                // An MCP server asking for input is named on the row for as long as its wait stands. The dialog's
+                // own notification follows the event a few seconds later and is the same wait (and, from an install
+                // without the event, the only word of it, naming no server); any other wait is not this one.
+                if message.event == "Elicitation" {
+                    session.waitsOnMCP = true
+                    session.mcpServer = message.mcpServer
+                } else if message.notificationType.map(Hook.elicitationNotificationTypes.contains) ?? false {
+                    if !session.waitsOnMCP { session.mcpServer = nil }
+                    session.waitsOnMCP = true
+                } else {
+                    session.waitsOnMCP = false
+                }
+                // A background session's wait is remembered for as long as any wait stands: a prompt of the main
+                // loop's own raised beside it is ended by its batch, and this one is not.
+                if message.notificationType == Hook.agentInputNotificationType { session.waitsOnAgent = true }
             } else if message.clearsWaiting, session.isWaiting {
                 session.state = .working(since: now)
             }
@@ -781,8 +1069,45 @@ struct SessionTracker: Equatable, Sendable {
             outcome.requestsEnded.append(EndedRequest(sessionID: id, requestID: hadPending.id))
         }
         if wasWaiting, !session.isWaiting { outcome.stoppedWaiting.append(id) }
+        if !session.isWaiting {
+            session.waitsOnMCP = false
+            session.waitsOnAgent = false
+        }
+        // A run of failures reaching the threshold is news once, the moment it does; the flag then stays on the row
+        // until a call succeeds, the turn ends or the last failure is `stuckFor` old.
+        if !wasStuck, session.mayBeStuck(now: now), outcome.trouble == nil {
+            outcome.trouble = (session, .stuck(failures: session.failureStreak))
+        }
         sessions[id] = session
         return outcome
+    }
+
+    /// Whether this tracker says anything `other` does not, once each session's `lastEvent` moving by less than
+    /// `slack` is set aside: what the store asks before it publishes a batch boundary, which arrives once per model
+    /// step and usually changes nothing but that clock (UsageStore.hookReceived). Every other field counts, so a
+    /// boundary that ends a wait, clears a run of failures or first says the session reports batches is published
+    /// at once.
+    func differs(from other: SessionTracker, slack: TimeInterval) -> Bool {
+        guard hooksSeen == other.hooksSeen, dismissed == other.dismissed, Set(sessions.keys) == Set(other.sessions.keys) else { return true }
+        for (id, session) in sessions {
+            guard var old = other.sessions[id] else { return true }
+            if abs(session.lastEvent.timeIntervalSince(old.lastEvent)) < slack { old.lastEvent = session.lastEvent }
+            if old != session { return true }
+        }
+        return false
+    }
+
+    /// The sessions that may be stuck at `now` (`AgentSession.mayBeStuck`), by id: what the store compares before
+    /// and after a change, so a "may be stuck" notice comes down the moment its streak ends, however it ends.
+    func stuck(now: Date) -> Set<String> {
+        Set(sessions.values.filter { $0.mayBeStuck(now: now) }.map(\.id))
+    }
+
+    /// The sessions with a compaction running (`AgentSession.compacting`), by id: compared the same way before and
+    /// after a change, so an "is compacting" notice comes down when the compaction ends, however it ends
+    /// (`PostCompact`, the turn's end, the sweep retiring one that never reported its end, or the session going).
+    func compacting() -> Set<String> {
+        Set(sessions.values.filter { $0.compacting != nil }.map(\.id))
     }
 
     /// Every request still standing, with the session it stands on, newest first.
@@ -802,6 +1127,10 @@ struct SessionTracker: Equatable, Sendable {
         var session = entry.value
         session.pending = nil
         if resumes, session.isWaiting { session.state = .working(since: now) }
+        if !session.isWaiting {
+            session.waitsOnMCP = false
+            session.waitsOnAgent = false
+        }
         session.lastEvent = now
         sessions[entry.key] = session
         return session
@@ -814,10 +1143,11 @@ struct SessionTracker: Equatable, Sendable {
         if sessions[id] != nil { sessions[id]?.sessionName = name } else if dismissed[id] != nil { dismissed[id]?.sessionName = name }
     }
 
-    /// Drops every title, session name and task-list text held: *Show what a session is working on* was turned off,
-    /// and with it off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only nothing new.
-    /// Set-aside sessions too: one that comes back must not bring a title the setting has since forbidden. A task
-    /// list keeps its statuses, which are counts and not words.
+    /// Drops every title, session name, task-list text and teammate name held: *Show what a session is working on*
+    /// was turned off, and with it off nothing of a prompt is held anywhere in the app (docs/hooks.md), not only
+    /// nothing new. Set-aside sessions too: one that comes back must not bring a title the setting has since
+    /// forbidden. A task list keeps its statuses, which are counts and not words, and an idle teammate its opaque
+    /// key, so the count of them stays right.
     mutating func clearTitles() {
         func cleared(_ table: [String: AgentSession]) -> [String: AgentSession] {
             table.mapValues { session in
@@ -825,6 +1155,10 @@ struct SessionTracker: Equatable, Sendable {
                 session.title = nil
                 session.sessionName = nil
                 session.todos = session.todos?.withoutContent()
+                session.idleTeammates = session.idleTeammates.map { entry in
+                    guard let name = entry.value.name else { return entry }
+                    return Stamped(value: Teammate(key: Teammate.opaqueKey(for: name), name: nil), at: entry.at)
+                }
                 return session
             }
         }
@@ -846,11 +1180,23 @@ struct SessionTracker: Equatable, Sendable {
         // A removed or aged-out session that redraws its status line is back, as `apply` brings one back: made anew
         // here, it lost its title and figures, and the set-aside copy overwrote it at the next hook event.
         if let returning = dismissed.removeValue(forKey: sessionID) { sessions[sessionID] = returning }
-        var session = sessions[sessionID] ?? AgentSession(id: sessionID, project: project, state: .idle, started: now, lastEvent: now, turnStarted: nil)
+        var session: AgentSession
+        if let existing = sessions[sessionID] {
+            session = existing
+        } else {
+            // Made by the status line alone: its figures are Claude Code's own, but nothing here says when a turn
+            // starts or ends, so the scan says whether it is working (`detected`) and the card marks it as found
+            // without the hook until a hook event makes it the hook's (SessionSource.statusline).
+            session = AgentSession(id: sessionID, project: project, state: .idle, started: now, lastEvent: now, turnStarted: nil)
+            session.source = .statusline
+        }
         if session.project == nil { session.project = project }
         if let branch { session.branch = branch }
         session.prURL = prURL ?? session.prURL
-        if let model { session.model = model }
+        if let model {
+            session.model = model
+            session.modelFromStatusline = true
+        }
         if let sessionName { session.sessionName = sessionName }
         if let linesAdded { session.linesAdded = linesAdded }
         if let linesRemoved { session.linesRemoved = linesRemoved }
@@ -858,6 +1204,274 @@ struct SessionTracker: Equatable, Sendable {
         if let promptCache { session.promptCache = PromptCacheStats(promptCache, model: model ?? session.model) }
         session.lastEvent = now
         sessions[sessionID] = session
+    }
+
+    // MARK: - Sessions found without the hook
+
+    /// What one scan changed, for the oracle's `detection` line (docs/testing.md): the rows it put on the list and
+    /// took off, and the detected rows working now.
+    struct DetectionChange: Equatable, Sendable {
+        var added: [String] = []
+        var removed: [String] = []
+        var working: [String] = []
+        var workingChanged = false
+
+        var isEmpty: Bool { added.isEmpty && removed.isEmpty && !workingChanged }
+    }
+
+    /// An assistant and a project on this Mac: what a process-keyed row and a hook's session are matched on.
+    private struct Slot: Hashable {
+        let tool: ToolID
+        let project: String?
+    }
+
+    /// Busy first, then the most recently active: the order a hook's session accounts for the processes of its
+    /// project in, since the one the hook is hearing from is the one doing something.
+    private static func busiestFirst(_ a: DetectedSession, _ b: DetectedSession) -> Bool {
+        if a.busy != b.busy { return a.busy }
+        if a.lastActivity != b.lastActivity { return a.lastActivity > b.lastActivity }
+        return a.key < b.key
+    }
+
+    /// Takes one scan's rows (SessionDetector). The hook always wins:
+    ///
+    /// - A row under an id the hook has reported (on the list or set aside) is not the scan's: the hook's session
+    ///   stands, however much more the scan knows about it. A row the status line alone made (`Source.statusline`)
+    ///   is the scan's for its state: the status line reports figures and never a turn, so the scan's working or
+    ///   idle goes onto it as onto a detected row, while the model, the name and the context fill the status line
+    ///   gave it stand.
+    /// - An id the hook ended inside `endedGrace` is left alone: Claude Code sends `SessionEnd` while its process
+    ///   and session file are still there, and a scan in that window would put the row straight back. A session
+    ///   file started after the end is a new session under a reused id, and is taken.
+    /// - A process-keyed row (`DetectedSession.exact` false) cannot be matched by id, so the hook's sessions of the
+    ///   same assistant and project on this Mac account for that many of its processes, busiest first, and only the
+    ///   rest are rows. Two Codex sessions in one repository with one of them reporting through the hook are one
+    ///   hook row and one detected row, never three. A hook session set aside still accounts for its process while
+    ///   it is working or has spoken inside `idleAfter`, so removing a hook row does not conjure a detected twin;
+    ///   older than that it accounts for nothing: Cursor and Codex send no end when a chat is closed, and a dead
+    ///   session set aside by the clock would otherwise hide a live process of the same assistant and project for
+    ///   the four hours `staleAfter` keeps it.
+    /// - A detected row is added only while it is working or was active inside `idleAfter`, which is the age an
+    ///   idle hook session is set aside at: a terminal left open all day with an assistant idle in it is not news
+    ///   at launch. One the user removed (`dismiss`) or that aged out comes back only when it has done something
+    ///   since.
+    /// - A row whose process has gone is taken off, on the list or set aside: a detected row, or a status line's
+    ///   row the scan had matched to its process. A hook's session is never taken off by the scan.
+    ///
+    /// A busy row stays working from the first scan that saw it busy (or from Claude Code's own `statusUpdatedAt`)
+    /// until a scan sees it idle, and its `lastEvent` moves at most once a minute while it works, so a working row
+    /// does not republish the tracker, and redraw every panel, on every scan.
+    @discardableResult
+    mutating func detected(_ found: [DetectedSession], now: Date) -> DetectionChange {
+        var change = DetectionChange()
+        let workingBefore = Set(sessions.values.filter { $0.isDetected && $0.isWorking }.map(\.id))
+        let named = Set(found.filter(\.exact).map(\.key))
+        var accounted: [Slot: Int] = [:]
+        let setAsideRecently = dismissed.values.filter { $0.isWorking || now.timeIntervalSince($0.lastEvent) < Self.idleAfter }
+        for session in Array(sessions.values) + setAsideRecently
+        where session.source != .detected && session.host == nil && !named.contains(session.id) {
+            accounted[Slot(tool: session.tool, project: session.project), default: 0] += 1
+        }
+        var kept: [DetectedSession] = []
+        for entry in found.sorted(by: Self.busiestFirst) {
+            if entry.exact {
+                if (sessions[entry.key] ?? dismissed[entry.key])?.source == .hook { continue }
+                if let endedAt = ended[entry.key], now.timeIntervalSince(endedAt) < Self.endedGrace, entry.started <= endedAt { continue }
+            } else {
+                let slot = Slot(tool: entry.tool, project: entry.project)
+                if let count = accounted[slot], count > 0 {
+                    accounted[slot] = count - 1
+                    continue
+                }
+            }
+            kept.append(entry)
+        }
+        let keys = Set(kept.map(\.key))
+        for key in scanned.sorted() where !keys.contains(key) {
+            if sessions[key]?.isDetected == true {
+                sessions[key] = nil
+                change.removed.append(key)
+            }
+            if dismissed[key]?.isDetected == true { dismissed[key] = nil }
+        }
+        var managed: Set<String> = []
+        for entry in kept {
+            if var setAside = dismissed[entry.key] {
+                managed.insert(entry.key)
+                // Set aside mid-turn, it stays aside for the rest of that turn and comes back with the next one, the
+                // way a removed hook session comes back with its next event; set aside idle, it comes back on any
+                // sign of life since.
+                let returns = entry.busy ? !setAside.isWorking : !setAside.isWorking && entry.lastActivity > setAside.lastEvent
+                guard returns else {
+                    if !entry.busy, setAside.isWorking {
+                        setAside.state = .idle
+                        setAside.turnStarted = nil
+                        setAside.lastEvent = entry.lastActivity
+                        dismissed[entry.key] = setAside
+                    }
+                    continue
+                }
+                dismissed[entry.key] = nil
+                sessions[entry.key] = setAside
+                change.added.append(entry.key)
+            }
+            var session: AgentSession
+            if let existing = sessions[entry.key] {
+                session = existing
+            } else {
+                guard entry.busy || now.timeIntervalSince(entry.lastActivity) < Self.idleAfter else { continue }
+                session = AgentSession(id: entry.key, tool: entry.tool, project: entry.project, state: .idle, started: entry.started,
+                                       lastEvent: entry.lastActivity, turnStarted: nil)
+                session.source = .detected
+                change.added.append(entry.key)
+            }
+            managed.insert(entry.key)
+            if let project = entry.project { session.project = project }
+            if let branch = entry.branch { session.branch = branch }
+            if let model = entry.model, !session.modelFromStatusline { session.model = model }
+            // The status line's name is Claude Code's own word for the same thing, and stands while it has one.
+            if let name = entry.name, session.source != .statusline || session.sessionName == nil { session.sessionName = name }
+            if let terminal = entry.terminal { session.terminal = session.terminal?.merging(terminal) ?? terminal }
+            if entry.busy {
+                if !session.isWorking {
+                    let since = entry.busySince ?? now
+                    session.state = .working(since: since)
+                    session.turnStarted = since
+                    session.lastEvent = now
+                } else if now.timeIntervalSince(session.lastEvent) >= 60 {
+                    session.lastEvent = now
+                }
+            } else {
+                session.state = .idle
+                session.turnStarted = nil
+                session.lastEvent = entry.lastActivity
+            }
+            sessions[entry.key] = session
+        }
+        scanned = managed
+        change.added.sort()
+        change.working = sessions.values.filter { $0.isDetected && $0.isWorking }.map(\.id).sorted()
+        change.workingChanged = Set(change.working) != workingBefore
+        return change
+    }
+
+    /// A new hook session on this Mac accounts at once for one process-keyed row of its assistant and project, the
+    /// busiest, rather than leaving both on the card until the next scan (`detected` pairs them the same way).
+    private mutating func absorbDetected(tool: ToolID, project: String?) {
+        let twins = (Array(sessions.values) + Array(dismissed.values)).filter {
+            $0.source == .detected && $0.tool == tool && $0.project == project && SessionDetection.isProcessKey($0.id)
+        }
+        guard let twin = twins.max(by: { ($0.isWorking ? 1 : 0, $0.lastEvent, $1.id) < ($1.isWorking ? 1 : 0, $1.lastEvent, $0.id) }) else { return }
+        sessions[twin.id] = nil
+        dismissed[twin.id] = nil
+        scanned.remove(twin.id)
+    }
+
+    /// A Cowork task's change, for the oracle: first seen, began a turn, finished one at the log's own end line,
+    /// went idle without one, or left the list.
+    struct CoworkChange: Equatable, Sendable {
+        enum Kind: String, Equatable, Sendable { case seen, working, finished, idle, gone }
+        let session: String
+        let kind: Kind
+        /// The finished turn's length.
+        var turn: TimeInterval?
+    }
+
+    struct CoworkOutcome: Sendable {
+        var changes: [CoworkChange] = []
+        /// Turns that ended at the log's own end line while the app watched them run, with the session as it stood
+        /// at the end: the finished banner and the news take these as they take a hook's `Stop`.
+        var finished: [(session: AgentSession, turn: TimeInterval)] = []
+        /// Waits `expire` timed out on the way, as `apply` reports them.
+        var stoppedWaiting: [String] = []
+    }
+
+    /// Claude Cowork's tasks as the reader last saw them (CoworkSessions), all of them at once: a Cowork session
+    /// not in `tasks` has left the list (archived, quiet past `CoworkSessions.listedFor`, or the Claude app quit,
+    /// for which the store passes none), and says so with a `gone` whether it was on the card or set aside. A
+    /// task the user set aside stays aside until its log is written again, as a hook's session does until its next
+    /// event. `hooksSeen` is never touched: a task read from a file is no proof about Claude Code's hook, and the
+    /// calm rule (Presence.level) reads that set.
+    ///
+    /// The rule (docs/accuracy.md, *Claude Cowork's tasks*): a task is working while its log has a turn open, was
+    /// written inside `CoworkSessions.busyWindow`, and has not stopped at a request to the user for longer than
+    /// `CoworkSessions.askGrace`. A working task whose log then shows the turn's end line has finished at that line,
+    /// for the line's own duration, unless the turn failed; one that goes quiet or stops at a request is idle and
+    /// claims nothing, and works again, on the same clock, when the log moves on. A turn's clock starts at its
+    /// prompt when the lines read reach back to it, and otherwise when the app first saw it running. Nothing here
+    /// makes a Cowork session wait.
+    @discardableResult
+    mutating func observeCowork(_ tasks: [CoworkSessions.Observation], now: Date) -> CoworkOutcome {
+        var outcome = CoworkOutcome()
+        outcome.stoppedWaiting = expire(now: now)
+        let live = Set(tasks.map { CoworkSessions.key($0.id) })
+        for (key, session) in sessions where session.source == .coworkLog && !live.contains(key) {
+            sessions[key] = nil
+            outcome.changes.append(CoworkChange(session: key, kind: .gone))
+        }
+        // A task set aside leaves the same way, and one that ages out is always here by now: `listedFor` is
+        // `idleAfter`, so the `expire` above sets an idle task aside on the very poll the reader stops listing it.
+        for (key, session) in dismissed where session.source == .coworkLog && !live.contains(key) {
+            dismissed[key] = nil
+            outcome.changes.append(CoworkChange(session: key, kind: .gone))
+        }
+        for task in tasks {
+            let key = CoworkSessions.key(task.id)
+            if let aside = dismissed[key] {
+                guard task.lastWrite > aside.lastEvent else { continue }
+                dismissed[key] = nil
+                sessions[key] = aside
+            }
+            var session: AgentSession
+            if let known = sessions[key] {
+                session = known
+            } else {
+                session = AgentSession(id: key, project: task.project, state: .idle, started: now, lastEvent: task.lastWrite, turnStarted: nil)
+                outcome.changes.append(CoworkChange(session: key, kind: .seen))
+            }
+            session.source = .coworkLog
+            // A click brings the Claude app forward (TerminalJump's `activate`): the one place the task is shown.
+            session.terminal = TerminalRef(bundleID: CoworkSessions.bundleID)
+            session.project = task.project
+            session.sessionName = task.title
+            session.lastEvent = Swift.max(session.lastEvent, task.lastWrite)
+            let turn = task.turn
+            let quiet = now.timeIntervalSince(task.lastWrite)
+            let running = turn.open && quiet < CoworkSessions.busyWindow && !(turn.asking && quiet >= CoworkSessions.askGrace)
+            // `turnStarted` outlives a quiet spell: a turn that went idle at a request or a long pause keeps its
+            // start, so its end line still finishes it and a resumed turn keeps its clock.
+            if let held = session.turnStarted {
+                if let end = turn.end, let at = end.at, at >= held {
+                    // The turn the row has been showing ended at the log's own line.
+                    let length = end.duration ?? at.timeIntervalSince(held)
+                    if end.failed {
+                        if session.isWorking { outcome.changes.append(CoworkChange(session: key, kind: .idle)) }
+                    } else {
+                        session.finished = ToolSignal.Finish(turn: length, at: at)
+                        outcome.finished.append((session, length))
+                        outcome.changes.append(CoworkChange(session: key, kind: .finished, turn: length))
+                    }
+                    session.state = .idle
+                    session.turnStarted = nil
+                } else if !running, session.isWorking {
+                    // Quiet with no end line, or stopped at a request to the user: idle, and nothing claimed about
+                    // how the turn will go.
+                    session.state = .idle
+                    outcome.changes.append(CoworkChange(session: key, kind: .idle))
+                }
+            }
+            if !session.isWorking, running {
+                // The held start, unless the log shows a prompt after it: then this is a turn of its own.
+                let began = turn.began.map { Swift.min($0, now) }
+                let start = session.turnStarted.map { held in began.map { $0 > held ? $0 : held } ?? held } ?? began ?? now
+                session.state = .working(since: start)
+                session.turnStarted = start
+                session.finished = nil
+                outcome.changes.append(CoworkChange(session: key, kind: .working))
+            }
+            sessions[key] = session
+        }
+        return outcome
     }
 
     /// Waits older than ten minutes fall back to idle, a finished turn's mark is dropped once its ninety seconds
@@ -872,6 +1486,7 @@ struct SessionTracker: Equatable, Sendable {
     mutating func expire(now: Date) -> [String] {
         var stoppedWaiting: [String] = []
         dismissed = dismissed.filter { now.timeIntervalSince($0.value.lastEvent) < Self.staleAfter }
+        ended = ended.filter { now.timeIntervalSince($0.value) < Self.endedGrace }
         for (id, var session) in sessions {
             if now.timeIntervalSince(session.lastEvent) >= Self.staleAfter {
                 if session.isWaiting { stoppedWaiting.append(id) }
@@ -889,6 +1504,10 @@ struct SessionTracker: Equatable, Sendable {
                 session.finished = nil
             }
             session.agents = session.agents.filter { now.timeIntervalSince($0.value) < Self.agentTimeout }
+            // A compaction that never reported its end, and idle teammates nothing has been heard of for as long as
+            // an idle session is kept, are retired the same way.
+            if let compacting = session.compacting, now.timeIntervalSince(compacting.at) >= Self.waitingTimeout { session.compacting = nil }
+            session.idleTeammates = session.idleTeammates.filter { now.timeIntervalSince($0.at) < Self.idleAfter }
             // Checked after the wait's own timeout above, so a wait nobody answered goes idle and then ages out.
             if case .idle = session.state, session.pending == nil, now.timeIntervalSince(session.lastEvent) >= Self.idleAfter {
                 sessions[id] = nil

@@ -55,7 +55,7 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "hoo
 /// is closed with one notice line naming its pid and path, and its line is left unread. A release build's
 /// requirement names the bundle identifier and the Developer ID certificate, so any copy of any Notchmeter release
 /// passes wherever it sits; an ad-hoc developer build's names its code directory hash, so the same build passes
-/// from any path and a different build does not — which is the case Settings › Integrations already flags as a
+/// from any path and a different build does not — which is the case each assistant's hook row in Settings flags as a
 /// hook pointing at a copy other than the running one. The launch-time repair rewrites it only when the running
 /// copy is an installed one, never from `build/` or `.build/` (`HookRepair.mayRepair`), so a developer build run
 /// beside an installed release refuses the release's hooks until the file is pointed at the build, by hand or by

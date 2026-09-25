@@ -463,3 +463,47 @@ import Testing
         #expect(Notifier.copy(for: .finished(turn: 125), session: session).body.contains("notchmeter"))
     }
 }
+
+/// The card's own button style draws a disabled button faded: a Send with nothing chosen (a multi-select, an MCP
+/// form missing a required field) is `.disabled`, and until 2026-09-25 it was drawn exactly like one that goes, the
+/// full white of "the answer that goes ahead" on a button a click did nothing to.
+@MainActor @Suite struct PromptButtonLook {
+    /// The mean brightness of the button drawn on the dark panel, so the faded one can be told from the live one.
+    func brightness(enabled: Bool) throws -> Double {
+        let button = Button {} label: { Text(verbatim: "Send") }
+            .buttonStyle(PromptButtonStyle(filled: true))
+            .disabled(!enabled)
+            .frame(width: 160)
+            .padding(8)
+            .background(Color.black)
+            .environment(\.colorScheme, .dark)
+        let renderer = ImageRenderer(content: button)
+        renderer.scale = 1
+        let image = try #require(renderer.cgImage)
+        let width = image.width, height = image.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        let context = try #require(CGContext(data: &pixels, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        let sum = stride(from: 0, to: pixels.count, by: 4).reduce(0.0) { $0 + Double(pixels[$1]) + Double(pixels[$1 + 1]) + Double(pixels[$1 + 2]) }
+        return sum / Double(width * height * 3)
+    }
+
+    @Test func aDisabledSendIsDrawnFaded() throws {
+        let live = try brightness(enabled: true)
+        let faded = try brightness(enabled: false)
+        #expect(live > 0)
+        #expect(faded < live * 0.7, "disabled \(faded) against enabled \(live): the faded button is plainly dimmer")
+        #expect(faded > live * 0.2, "and still there to read")
+        #expect(PromptButtonStyle.disabledOpacity == 0.45)
+    }
+
+    /// The form the elicitation moment holds has a required choice: with nothing picked, Send is the disabled one.
+    @Test func theElicitationFixtureStartsWithSendDisabled() {
+        let form = DemoFixtures.elicitationForm
+        #expect(form.fields.contains { $0.required })
+        #expect(!PromptCard.answersOnClick(form), "two fields: filled in and sent, not answered by a click")
+        #expect(PromptCard.elicitationAnswer(form, filled: [:]) == nil, "nothing to send until the required field is filled")
+        #expect(PromptCard.elicitationAnswer(form, filled: ["environment": .choice("staging")]) != nil)
+    }
+}

@@ -265,7 +265,8 @@ enum StaleReading {
 }
 
 /// Every amount on screen goes through here. Amounts are computed in US dollars; "Show costs in" converts them
-/// with the user's own rate and the locale's symbol for the code (docs/accuracy.md: the rate is never fetched).
+/// with the user's own rate, or the ECB's reference rate while *Fetch today's rate* is on
+/// (Preferences.currencyConversion), and the locale's symbol for the code (docs/accuracy.md, *Currency*).
 enum Money {
     private struct Currency {
         var code = "USD"
@@ -327,11 +328,30 @@ enum Money {
     /// "4.2M tokens", "310K tokens", "812 tokens".
     static func tokens(_ count: Int) -> String {
         if count >= 1_000_000 {
-            let millions = Double(count) / 1_000_000
-            return L("%@M tokens", millions >= 10 ? String(Int(millions.rounded())) : String(format: "%.1f", millions))
+            return L("%@M tokens", millions(count))
         }
-        if count >= 1000 { return L("%ldK tokens", Int((Double(count) / 1000).rounded())) }
+        if count >= 1000 { return L("%ldK tokens", thousands(count)) }
         return L("%ld tokens", count)
+    }
+
+    /// The count alone, "4.2M", "310K", "812", for a figure whose unit is said elsewhere (the week's bars beside
+    /// the Cost row, whose row already reads in tokens). The letters are the same in every language: they are
+    /// the ones every vendor's own dashboard uses, and a figure that is one width everywhere is what a strip
+    /// sized in points needs. `tokens` above is the sentence form, where German says "Mio." and "Tsd.".
+    static func compactCount(_ count: Int) -> String {
+        if count >= 1_000_000 { return "\(millions(count))M" }
+        if count >= 1000 { return "\(thousands(count))K" }
+        return String(count)
+    }
+
+    /// One decimal under ten million ("4.2"), none from there ("12").
+    private static func millions(_ count: Int) -> String {
+        let millions = Double(count) / 1_000_000
+        return millions >= 10 ? String(Int(millions.rounded())) : String(format: "%.1f", millions)
+    }
+
+    private static func thousands(_ count: Int) -> Int {
+        Int((Double(count) / 1000).rounded())
     }
 }
 

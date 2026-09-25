@@ -1,0 +1,369 @@
+{
+  "schema": 1,
+  "published": "2026-09-24",
+  "unit": "USD per million tokens",
+  "sources": {
+    "anthropic": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "openai": "https://developers.openai.com/api/docs/pricing"
+  },
+  "notes": "docs/accuracy.md, The pricing catalog: an entry applies from its effective day; an entry that repeats the build's own row changes nothing; a catalog that fails one check is refused whole. Anthropic rows are matched by longest id prefix, OpenAI rows by exact id; a missing cache rate derives from the input rate with the standard multipliers.",
+  "anthropic": [
+    {
+      "prefix": "claude-fable-5-1",
+      "effective": "2026-09-24",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 0.25
+    },
+    {
+      "prefix": "claude-mythos-5-1",
+      "effective": "2026-09-24",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 0.25
+    },
+    {
+      "prefix": "claude-fable-5",
+      "effective": "2026-09-24",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 1.0
+    },
+    {
+      "prefix": "claude-mythos-5",
+      "effective": "2026-09-24",
+      "input": 10,
+      "output": 50,
+      "cacheRead": 1.0
+    },
+    {
+      "prefix": "claude-opus-5-5",
+      "effective": "2026-09-24",
+      "input": 4,
+      "output": 20,
+      "cacheRead": 0.2,
+      "fastInput": 8,
+      "fastOutput": 40,
+      "fastCacheRead": 0.4
+    },
+    {
+      "prefix": "claude-opus-5",
+      "effective": "2026-09-24",
+      "input": 5,
+      "output": 25,
+      "fastInput": 10,
+      "fastOutput": 50
+    },
+    {
+      "prefix": "claude-opus-4-8",
+      "effective": "2026-09-24",
+      "input": 5,
+      "output": 25,
+      "fastInput": 10,
+      "fastOutput": 50
+    },
+    {
+      "prefix": "claude-opus-4-7",
+      "effective": "2026-09-24",
+      "input": 5,
+      "output": 25
+    },
+    {
+      "prefix": "claude-opus-4-6",
+      "effective": "2026-09-24",
+      "input": 5,
+      "output": 25
+    },
+    {
+      "prefix": "claude-opus-4-5",
+      "effective": "2026-09-24",
+      "input": 5,
+      "output": 25
+    },
+    {
+      "prefix": "claude-opus-4-1",
+      "effective": "2026-09-24",
+      "input": 15,
+      "output": 75
+    },
+    {
+      "prefix": "claude-opus-4",
+      "effective": "2026-09-24",
+      "input": 15,
+      "output": 75
+    },
+    {
+      "prefix": "claude-sonnet-5",
+      "effective": "2026-09-24",
+      "input": 2,
+      "output": 10
+    },
+    {
+      "prefix": "claude-sonnet-4-6",
+      "effective": "2026-09-24",
+      "input": 3,
+      "output": 15
+    },
+    {
+      "prefix": "claude-sonnet-4-5",
+      "effective": "2026-09-24",
+      "input": 3,
+      "output": 15
+    },
+    {
+      "prefix": "claude-sonnet-4",
+      "effective": "2026-09-24",
+      "input": 3,
+      "output": 15
+    },
+    {
+      "prefix": "claude-3-7-sonnet",
+      "effective": "2026-09-24",
+      "input": 3,
+      "output": 15
+    },
+    {
+      "prefix": "claude-3-5-sonnet",
+      "effective": "2026-09-24",
+      "input": 3,
+      "output": 15
+    },
+    {
+      "prefix": "claude-haiku-4-5",
+      "effective": "2026-09-24",
+      "input": 1,
+      "output": 5
+    },
+    {
+      "prefix": "claude-3-5-haiku",
+      "effective": "2026-09-24",
+      "input": 0.8,
+      "output": 4
+    },
+    {
+      "prefix": "claude-3-haiku",
+      "effective": "2026-09-24",
+      "input": 0.25,
+      "output": 1.25
+    }
+  ],
+  "openai": [
+    {
+      "id": "gpt-5.6-sol",
+      "effective": "2026-09-02",
+      "input": 4,
+      "cachedInput": 0.4,
+      "output": 20,
+      "cacheWrite": 5,
+      "longContext": 272000
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "effective": "2026-09-02",
+      "input": 2,
+      "cachedInput": 0.2,
+      "output": 12,
+      "cacheWrite": 2.5,
+      "longContext": 272000
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "effective": "2026-09-02",
+      "input": 0.2,
+      "cachedInput": 0.02,
+      "output": 1.2,
+      "cacheWrite": 0.25,
+      "longContext": 272000
+    },
+    {
+      "id": "gpt-5.6-cyber",
+      "effective": "2026-09-02",
+      "input": 12.5,
+      "cachedInput": 1.25,
+      "output": 75,
+      "cacheWrite": 15.625,
+      "longContext": 272000
+    },
+    {
+      "id": "gpt-5.5-cyber",
+      "effective": "2026-09-02",
+      "input": 12.5,
+      "cachedInput": 1.25,
+      "output": 75
+    },
+    {
+      "id": "gpt-5.5",
+      "effective": "2026-09-02",
+      "input": 5,
+      "cachedInput": 0.5,
+      "output": 30,
+      "longContext": 272000
+    },
+    {
+      "id": "gpt-5.5-pro",
+      "effective": "2026-09-02",
+      "input": 30,
+      "output": 180,
+      "longContext": 272000
+    },
+    {
+      "id": "gpt-5.4",
+      "effective": "2026-09-02",
+      "input": 2.5,
+      "cachedInput": 0.25,
+      "output": 15,
+      "longContext": 272000
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "effective": "2026-09-02",
+      "input": 0.75,
+      "cachedInput": 0.075,
+      "output": 4.5
+    },
+    {
+      "id": "gpt-5.4-nano",
+      "effective": "2026-09-02",
+      "input": 0.2,
+      "cachedInput": 0.02,
+      "output": 1.25
+    },
+    {
+      "id": "gpt-5.4-pro",
+      "effective": "2026-09-02",
+      "input": 30,
+      "output": 180,
+      "longContext": 272000
+    },
+    {
+      "id": "gpt-5.3-codex",
+      "effective": "2026-09-02",
+      "input": 1.75,
+      "cachedInput": 0.175,
+      "output": 14
+    },
+    {
+      "id": "gpt-5.2",
+      "effective": "2026-09-02",
+      "input": 1.75,
+      "cachedInput": 0.175,
+      "output": 14
+    },
+    {
+      "id": "gpt-5.2-codex",
+      "effective": "2026-09-02",
+      "input": 1.75,
+      "cachedInput": 0.175,
+      "output": 14
+    },
+    {
+      "id": "gpt-5.2-pro",
+      "effective": "2026-09-02",
+      "input": 21,
+      "output": 168
+    },
+    {
+      "id": "gpt-5.1",
+      "effective": "2026-09-02",
+      "input": 1.25,
+      "cachedInput": 0.125,
+      "output": 10
+    },
+    {
+      "id": "gpt-5.1-codex",
+      "effective": "2026-09-02",
+      "input": 1.25,
+      "cachedInput": 0.125,
+      "output": 10
+    },
+    {
+      "id": "gpt-5.1-codex-mini",
+      "effective": "2026-09-02",
+      "input": 0.25,
+      "cachedInput": 0.025,
+      "output": 2
+    },
+    {
+      "id": "gpt-5",
+      "effective": "2026-09-02",
+      "input": 1.25,
+      "cachedInput": 0.125,
+      "output": 10
+    },
+    {
+      "id": "gpt-5-codex",
+      "effective": "2026-09-02",
+      "input": 1.25,
+      "cachedInput": 0.125,
+      "output": 10
+    },
+    {
+      "id": "gpt-5-mini",
+      "effective": "2026-09-02",
+      "input": 0.25,
+      "cachedInput": 0.025,
+      "output": 2
+    },
+    {
+      "id": "gpt-5-nano",
+      "effective": "2026-09-02",
+      "input": 0.05,
+      "cachedInput": 0.005,
+      "output": 0.4
+    },
+    {
+      "id": "gpt-5-pro",
+      "effective": "2026-09-02",
+      "input": 15,
+      "output": 120
+    },
+    {
+      "id": "gpt-4.1",
+      "effective": "2026-09-02",
+      "input": 2,
+      "cachedInput": 0.5,
+      "output": 8
+    },
+    {
+      "id": "gpt-4.1-mini",
+      "effective": "2026-09-02",
+      "input": 0.4,
+      "cachedInput": 0.1,
+      "output": 1.6
+    },
+    {
+      "id": "gpt-4.1-nano",
+      "effective": "2026-09-02",
+      "input": 0.1,
+      "cachedInput": 0.025,
+      "output": 0.4
+    },
+    {
+      "id": "o3",
+      "effective": "2026-09-02",
+      "input": 2,
+      "cachedInput": 0.5,
+      "output": 8
+    },
+    {
+      "id": "o3-pro",
+      "effective": "2026-09-02",
+      "input": 20,
+      "output": 80
+    },
+    {
+      "id": "o3-mini",
+      "effective": "2026-09-02",
+      "input": 1.1,
+      "cachedInput": 0.55,
+      "output": 4.4
+    },
+    {
+      "id": "o4-mini",
+      "effective": "2026-09-02",
+      "input": 1.1,
+      "cachedInput": 0.275,
+      "output": 4.4
+    }
+  ]
+}

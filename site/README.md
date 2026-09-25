@@ -1,13 +1,20 @@
 # site
 
-The marketing site: two static pages, one stylesheet, no build step and no dependencies.
+The marketing site: static pages, two stylesheets, no build step and no dependencies.
 
 ```
 site/
-  index.html     the landing page
-  pricing.html   Free forever, pay what you want
-  style.css      the whole design
-  img/           copied from ../docs/media by scripts/site-assets.sh
+  index.html            the landing page
+  pricing.html          Free, pay what you want, and why
+  privacy.html          the privacy policy
+  terms.html            the terms of use, with the vendors' own words
+  guides/               index.html and one page per guide
+  usage-trackers/       the hub of the usage-tracker pages, one folder per page beside it
+  sitemap.xml           every page at its canonical URL
+  robots.txt            allows everything and names the sitemap
+  style.css             the whole design, dark and light
+  landing.css           what the usage-tracker pages add, built from style.css's tokens
+  img/                  copied from ../docs/media by scripts/site-assets.sh
 ```
 
 Open `index.html` in a browser to look at it, or serve the folder:
@@ -15,6 +22,28 @@ Open `index.html` in a browser to look at it, or serve the folder:
 ```bash
 python3 -m http.server -d site 8000
 ```
+
+## The guides
+
+Each guide in `guides/` answers one question people search for at the moment it matters (why the cost estimate
+does not match the bill, whether a window lasts to its reset, why a notification never came), and each carries the
+date it was written, *Tested on Notchmeter* with the version it was checked against, and a Sources list with the
+date every outside page was read. A guide says nothing the app and its documents cannot back: its figures and rules
+are quoted from `docs/accuracy.md`, `docs/features.md`, `docs/hooks.md` and the code, and it links to the rule rather
+than restating a number that could drift. When a rule changes, the guide quoting it changes in the same pull request.
+
+To add one: copy an existing guide (its head carries the title, description, canonical URL, Open Graph tags and the
+published date), add a card to `guides/index.html` and a line to `sitemap.xml`. `ReleasePackagingTests` (`SiteGuides`)
+fails when a guide is missing its stamp, its date, its canonical URL or its sitemap entry, when the index and the
+folder disagree, or when any page loads a script or a tracker. The comparison guide's star counts are dated
+2026-09-24; refresh them with `gh api repos/<owner>/<repo> --jq .stargazers_count` and change the date with them.
+
+## Light and dark
+
+Dark by default, since the product lives in a black notch. A reader whose Mac asks for light pages gets a light page
+(`prefers-color-scheme: light`), with every pair of colours measured at 4.5:1 or better for text; the pictures keep
+their dark frame in both, so the panel is never shown floating on white. There is no toggle, because a toggle would
+need browser storage and the privacy page promises none.
 
 ## Deploying
 
@@ -24,7 +53,8 @@ It is deployed by Vercel from `main` with `site` as the root directory, so a mer
 - **Vercel** — root directory `site`, output directory `.`, no build command; that is the live configuration.
 - **Netlify** — publish directory `site` (relative to the repository root), no build command.
 
-The site is at https://www.notchmeter.com; both pages carry that host in their canonical and share URLs.
+The site is at https://www.notchmeter.com; every page carries that host in its canonical and share URLs, and
+`sitemap.xml` lists each at the canonical URL it names.
 
 ## Keeping the pictures current
 
@@ -50,3 +80,30 @@ string, and on Windows shows that notice with the issue as the headline button a
 one, hides the DMG row and the static line, and rewrites the hero's platform line to say there is no Windows or
 Linux version; the check runs in the browser and the result goes nowhere, so the page still makes no request and
 sets nothing.
+
+## The usage-tracker pages
+
+`usage-trackers/` is a hub and the nine folders beside it are one page each, one per tool or question people search
+for (`claude-code-usage-tracker/`, `claude-code-rate-limit-reset/`, `claude-code-opus-weekly-limit/`,
+`codex-cli-usage-tracker/`, `cursor-usage-tracker/`, `copilot-usage-tracker/`, `gemini-cli-quota-tracker/`,
+`antigravity-usage-tracker/`, `ai-usage-tracker-mac/`). Each is a folder with an `index.html` so its URL is the
+folder on any static host, with no rewrite rule: `https://www.notchmeter.com/claude-code-usage-tracker/`. They share
+`landing.css`, loaded after `style.css` and built only from its tokens, so nothing in it can change the other pages.
+
+Each page says what Notchmeter shows for that tool, where every figure comes from (a table naming the endpoint or
+file, the login it uses and what the card labels it), what the Advice strip says about it, and four to six questions
+with answers. Nothing on a page goes past `docs/accuracy.md`, `docs/features.md`, `docs/hooks.md` and the code; a
+rule is quoted with the section it lives in, and the page links that section rather than restating a figure that
+could drift. The pages follow the site's two schemes (*Light and dark*, above): every colour in `landing.css` is a
+`style.css` token, and each page declares `<meta name="color-scheme" content="dark light">` so that what the browser
+draws for itself before the stylesheet arrives, the scrollbar under the sources table or a code block at phone
+width, follows the scheme the reader asked for rather than showing a white track across a dark card.
+Each page carries a canonical URL, Open Graph tags and two JSON-LD blocks for search engines: a
+`SoftwareApplication` (this app, free, macOS 15+, with aliases that are its own name and never another product's) and
+a `FAQPage` that repeats the visible questions and answers word for word. No page names a competitor, and none runs a
+script.
+
+`sitemap.xml` lists every page at its canonical URL and `robots.txt` allows everything and names the sitemap. To add
+a page: copy a folder, change its head, add it to the hub, to `sitemap.xml` and to `SiteLandingPages` in
+`Tests/NotchmeterTests/SiteLandingPagesTests.swift`, which holds the head, the JSON-LD against the visible FAQ, the
+links, the images, the heading order and the no-script rule.

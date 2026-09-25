@@ -1,6 +1,8 @@
 # Notchmeter
 
-**Every figure on this panel is sourced, dated and tested — here is the document: [docs/accuracy.md](docs/accuracy.md).** Usage meters for Claude Code, Codex, Cursor, Antigravity / Gemini CLI and GitHub Copilot that say what to do about the number, not only what it is.
+**Know which assistant is waiting, and whether you can afford the next task.**
+
+Every figure sourced, dated and tested — here is the document: [docs/accuracy.md](docs/accuracy.md). Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code and OpenCode, and the sessions they are running, that say what to do about the number, not only what it is.
 
 [![License: MIT](https://img.shields.io/github/license/Amir-Hackett/notchmeter)](LICENSE) [![CI](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml/badge.svg)](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml) [![Latest release](https://img.shields.io/github/v/release/Amir-Hackett/notchmeter)](https://github.com/Amir-Hackett/notchmeter/releases/latest) [![Downloads](https://img.shields.io/github/downloads/Amir-Hackett/notchmeter/total)](https://github.com/Amir-Hackett/notchmeter/releases)
 
@@ -12,19 +14,22 @@
 
 **Answer Claude Code from the notch.** When Claude Code stops for a permission, approve or deny it there; when it asks a multiple-choice question, pick the answer there; then jump back to the terminal window, tab or pane the session is running in. A request nobody answers falls back to the terminal's own prompt, as if the notch were not there, and each part has its own switch under Settings › Assistants › Sessions. What the hook sends for it, and how the channel fails open, is in [docs/hooks.md](docs/hooks.md).
 
-**[notchmeter.com](https://www.notchmeter.com)** · [Download](https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg) · [Support the project](https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800)
+**[notchmeter.com](https://www.notchmeter.com)** · [Download](https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg) · [Guides](https://www.notchmeter.com/guides/) · [Support the project](https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800)
 
 ## What it shows
 
 - **Claude Code** — the 5-hour session window, the weekly window and the per-model weekly limits, plus what your local sessions would have cost at API list prices.
 - **Codex** — the session, weekly or monthly rate-limit windows Codex itself reads.
 - **Cursor** — included plan usage and on-demand spend for the billing cycle, the way cursor.com's dashboard reads it.
-- **Antigravity / Gemini CLI** — the session and weekly quota Antigravity's panel shows, or Gemini CLI's per-model quota.
+- **Gemini CLI** — the per-model quota Google meters for Gemini CLI.
+- **Antigravity** — the session and weekly quota Antigravity's own panel shows, read under Antigravity's identity, so it can differ from Gemini CLI's on the same account.
 - **GitHub Copilot** — the month's AI-credit allowance, or a legacy seat's premium requests.
+- **Kimi Code** — the rolling five-hour window, the week and the monthly pools, the way Kimi Code's own `/usage` reads them.
+- **OpenCode** — its spend and its sessions, read from OpenCode's own database with nothing to install, and on the Go plan a 5-hour, 7-day and 31-day meter computed on this Mac from your own turns at the prices and limits Go publishes, because Go offers no reading of its own, and labelled *computed here*.
 
-Every meter shows a pace tick (where an even burn would be right now), a projection ("~67% left at reset" or "Runs out in 2h") and the reset time. An **Advice** strip and pace notifications say what to do about it — "Opus weekly is 91%. Sonnet is 34%. Switch models, not tools." — and the **Usage Dashboard** (⌘U) lays the week's spend and limits out in one window. With the optional [hooks](docs/hooks.md), the notch refreshes the moment a turn ends, counts your running sessions, and marks an assistant that is waiting for you.
+Every meter shows a pace tick (where an even burn would be right now), a projection ("~67% left at reset" or "Runs out in 2h") and the reset time. An **Advice** strip and pace notifications say what to do about it — "Opus weekly is 91%. Sonnet is 34%. Switch models, not tools." — and the **Usage Dashboard** (⌘U) lays the week's spend and limits out in one window. The Cost card says what the spend is worth against the plan's published price ("$412 of API-equivalent value on the $200 Claude Max 20x plan · 2.1x"), and **Share usage card…** turns a range of it into a picture to post, labelled the estimate it is. With the optional [hooks](docs/hooks.md), the notch refreshes the moment a turn ends, counts your running sessions, and marks an assistant that is waiting for you. Before any hook is installed, the Sessions card still lists the sessions running in your terminals, each marked as found without it.
 
-Everything, with the screenshots and every setting: [docs/features.md](docs/features.md). Energy, measured under a heavy Claude Code job on an M5 Pro: 1.4 to 1.6 % of one core and a physical footprint of 63 MB; the method and the raw numbers are in [docs/energy.md](docs/energy.md).
+Everything, with the screenshots and every setting: [docs/features.md](docs/features.md). Energy, measured under a heavy Claude Code job on an M5 Pro with the panel solid, which is how it ships (a translucent material's blur is in the window only while the panel is open): 1.4 to 1.6 % of one core and a physical footprint of 63 MB; the method and the raw numbers are in [docs/energy.md](docs/energy.md).
 
 ## Install
 
@@ -37,11 +42,11 @@ Pre-release builds, building from source (`scripts/build.sh`) and what the first
 
 ## Privacy and terms
 
-Notchmeter is a read-only instrument. It never signs in anywhere, never refreshes or stores a token, and never makes an inference request. Each reading is borrowed from the tool that owns the account — the login Claude Code, Codex, Cursor, Gemini CLI or Copilot already keeps on this Mac — and each token goes only to the vendor that issued it, over HTTPS, in the same read-only status request that vendor's own app or dashboard makes. There is no telemetry, no analytics, no crash reporting and no server of ours.
+Notchmeter is a read-only instrument. It never signs in anywhere, never refreshes or stores a token, and never makes an inference request. Each reading is borrowed from the tool that owns the account — the login Claude Code, Codex, Cursor, Gemini CLI, Copilot or Kimi Code already keeps on this Mac — and each token goes only to the vendor that issued it, over HTTPS, in the same read-only status request that vendor's own app or dashboard makes. There is no telemetry, no analytics, no crash reporting and no server of ours.
 
-Every request names itself with a `User-Agent: Notchmeter/<version>` header, with two exceptions, because those two endpoints answer only the vendor's own client: the Copilot quota read and Antigravity's Code Assist calls are made under those clients' own identity. Each vendor's endpoint, what it is sent and how each request identifies itself is tabled in [docs/accuracy.md](docs/accuracy.md#who-each-request-says-it-is), and if a vendor asks us to stop, [that meter goes](docs/accuracy.md#if-a-vendor-asks-us-to-stop) in the next release.
+Every request names itself with a `User-Agent: Notchmeter/<version>` header, with two exceptions, because those two endpoints answer only the vendor's own client: the Copilot quota read and the Antigravity row's Code Assist calls are made under those clients' own identity. Each vendor's endpoint, what it is sent and how each request identifies itself is tabled in [docs/accuracy.md](docs/accuracy.md#who-each-request-says-it-is), and if a vendor asks us to stop, [that meter goes](docs/accuracy.md#if-a-vendor-asks-us-to-stop) in the next release.
 
-The one request that is not a meter's is Sparkle's update check: once a day it fetches the release feed from GitHub, with no token, no usage figure and no system profile; Settings › Updates › *Check for updates automatically* turns it off ([docs/privacy.md](docs/privacy.md)).
+Two requests are not a meter's, both to GitHub, both plain GETs of public data with no token, no usage figure and no system profile, and each with its own switch: Sparkle's update check, once a day, fetching the release feed (Settings › Updates › *Check for updates automatically*), and since 0.9.0 the price catalog, once a day, fetching this repository's [`pricing/catalog.json`](pricing/catalog.json) so a model that launches between releases is priced at its published rate within a day (Settings › Appearance › Usage display › *Update model prices from notchmeter's catalog*; the Cost card names the prices it used) ([docs/privacy.md](docs/privacy.md)).
 
 **Terms.** Anthropic's are the most specific, so they are quoted rather than summarised. Claude Code's [Legal and compliance](https://code.claude.com/docs/en/legal-and-compliance) page (read 2026-09-20): "Moreover, developers may not collect, store, or intermediate Claude.ai credentials or session tokens — sign-in to a Claude account must complete through Anthropic's own flow." The [Consumer Terms of Service](https://www.anthropic.com/legal/consumer-terms), section 3, item 7, forbids using the Services "Except when you are accessing our Services via an Anthropic API Key or where we otherwise explicitly permit it, to access the Services through automated or non-human means, whether through a bot, script, or otherwise." Notchmeter offers no login, routes nothing through the token and keeps no credential; every request to Anthropic names itself, and the usage endpoint is asked at most every five minutes, and while a session's status line is fresh only on Refresh, at a reset, and at most every 30 minutes for figures the status line does not carry. That poll is still a script making a request, and the app does not pretend otherwise: the channel Anthropic documents is the [status line](docs/hooks.md#the-status-line), and with *Also poll Claude's usage endpoint* off (Settings › Assistants › Claude Code) Notchmeter makes no request to Anthropic whatever. Whether to run it under your account is your decision.
 
@@ -50,10 +55,11 @@ The whole of it — every file read, every host and path asked, what is kept on 
 ## Documentation
 
 - [docs/features.md](docs/features.md): every meter, the screenshots, every setting, the command line and MCP server, the Claude Code plugin, the languages, and the advice and notification rules.
+- [Guides](https://www.notchmeter.com/guides/) (sources in [site/guides/](site/guides)): eight answers to the questions people ask, from why the cost estimate does not match the bill to every agent-notch app compared, each dated and stamped with the version it was checked against.
 - [docs/install.md](docs/install.md): installing, testing a pre-release build, building from source, and the first launch.
 - [docs/privacy.md](docs/privacy.md): what is read, where it is sent, what is kept, how often, and the vendors' terms.
 - [docs/accuracy.md](docs/accuracy.md): every rule behind the cost estimate, the primary sources, where it is known to differ from a bill, and why there is no rate-limit-header probe.
-- [docs/hooks.md](docs/hooks.md): the optional hooks for Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot CLI, what each sends and what each cannot report, how to install and remove them, and the status line.
+- [docs/hooks.md](docs/hooks.md): the optional hooks for Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot CLI and Kimi Code, and the OpenCode plugin, what each sends and what each cannot report, how to install and remove them, and the status line.
 - [docs/permissions.md](docs/permissions.md): Accessibility for *Readouts › Auto*, Automation for the jump to a terminal, and why local builds lose their grants.
 - [docs/energy.md](docs/energy.md): CPU and memory, measured, with the commands to reproduce them.
 - [docs/troubleshooting.md](docs/troubleshooting.md): what each message on a card means and what to do about it.

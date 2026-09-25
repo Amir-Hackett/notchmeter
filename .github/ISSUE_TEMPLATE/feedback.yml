@@ -1,0 +1,24 @@
+name: Feedback
+description: A problem, a suggestion or a question. The app's Send Feedback fills this form in.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sent from the app's *Send Feedback* (Settings › General), this form arrives filled in with the text the app showed you, with project names, branches, session titles and your home folder already replaced. Written here by hand, paste from *Copy diagnostics* into Diagnostics and read it first for anything you would not put in public: a token, an account id, transcript text.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Version, macOS, language
+      description: e.g. Notchmeter 0.9.0 (312) · macOS Version 26.0 (Build 25A354) · en. The app fills this in.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: The app's report when Include diagnostics was ticked, or Settings › Advanced › Copy diagnostics pasted here. The last 10 minutes of the app's own log, each assistant's status, the hooks, the layout and the macOS version; never a token.
+      render: text
