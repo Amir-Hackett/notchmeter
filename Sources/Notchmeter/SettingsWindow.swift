@@ -504,12 +504,10 @@ struct SettingsView: View {
     /// Wide enough for a grouped amount with a decimal ("1,250.00") at the window's minimum width.
     private static let fieldWidth: CGFloat = 96
 
-    /// Help text, the lightest of the form's four levels and never more than two lines of it: what does not fit
-    /// is in the tooltip, which carries the whole thing in every language.
-    /// An explanatory line under a control. Two lines by default, the rest in the tooltip; `lines: nil` for a
-    /// paragraph that carries a rule the reader has to have whole (a switch that cannot be turned off, a choice
-    /// shared with another pane), which German and Russian run past two lines and an ellipsis would hand to the
-    /// pointer alone.
+    /// Help text, the lightest of the form's four levels. Two lines by default, with what does not fit in the
+    /// tooltip, which carries the whole thing in every language; `lines: nil` for a paragraph that carries a rule
+    /// the reader has to have whole (a switch that cannot be turned off, a choice shared with another pane), which
+    /// German and Russian run past two lines and an ellipsis would hand to the pointer alone.
     private func paragraph(_ text: String, lines: Int? = 2) -> some View {
         Text(text)
             .font(.caption)
