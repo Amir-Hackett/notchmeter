@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Every page of the site, at the canonical URL each page names for itself. A page added to site/ is added here
-     too; ReleasePackagingTests (SiteLandingPages) fails when a usage-tracker page is missing from this list or a
-     URL here does not match that page's canonical link. -->
+     too; SiteLandingPages (Tests/NotchmeterTests/SiteLandingPagesTests.swift) fails when a usage-tracker page is
+     missing from this list or a URL here does not match that page's canonical link. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://www.notchmeter.com/</loc><lastmod>2026-09-24</lastmod></url>
   <url><loc>https://www.notchmeter.com/pricing.html</loc><lastmod>2026-09-24</lastmod></url>

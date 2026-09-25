@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>Claude Code usage tracker for Mac · Notchmeter</title>
-<meta name="description" content="Claude Code's session, weekly and per-model limits beside the MacBook notch, with pace, projection and reset, plus what your local sessions would cost at API rates. Never signs in.">
+<meta name="description" content="Claude Code's session, weekly and per-model limits beside the Mac notch, with pace, projection and reset, and cost at API rates. Free, never signs in.">
 <link rel="icon" href="../img/icon.png">
 <link rel="stylesheet" href="../style.css">
 <link rel="stylesheet" href="../landing.css">
@@ -27,7 +28,7 @@
   "Notchmeter for Claude Code",
   "Notchmeter usage tracker"
  ],
- "description": "Claude Code's session, weekly and per-model limits beside the MacBook notch, with pace, projection and reset, plus what your local sessions would cost at API rates. Never signs in.",
+ "description": "Claude Code's session, weekly and per-model limits beside the Mac notch, with pace, projection and reset, and cost at API rates. Free, never signs in.",
  "url": "https://www.notchmeter.com/",
  "operatingSystem": "macOS 15+",
  "applicationCategory": "DeveloperApplication",
@@ -145,7 +146,7 @@
         <p>The rings beside the notch carry the figure; hover them and the panel opens on the Claude card.</p>
         <ul class="lp-points">
           <li><strong>Session and Weekly</strong>: the 5-hour and 7-day windows as Anthropic reports them, with the used share, a pace tick where an even burn would be right now, a projection (“~58% left at reset” or “Runs out in 2h”), and the reset as a countdown or an exact time.</li>
-          <li><strong>Per-model weekly limits</strong> (Opus, Sonnet, Fable…), each as its own meter, and the <em>All models</em> window combined from them and tagged <em>inferred</em>, because no vendor published it.</li>
+          <li><strong>Per-model weekly limits</strong> (Opus, Sonnet, Fable…), each as its own meter, and an <em>All models</em> window tagged <em>inferred</em>: where Anthropic's own weekly window covers the same period and reset as every per-model window and reads no lower than any of them, that figure, adopted exactly and never recomputed; otherwise the highest of the model windows, never their mean, with the soonest reset.</li>
           <li><strong>Extra usage</strong> against its monthly cap, on an account that has it, and a line the first time it rises in a month.</li>
           <li><strong>Cost</strong>: today, yesterday, the week, the month, 30 and 90 days, by model and by project, from this Mac's own transcripts at Anthropic's published rates; and a burn line when the last hour ran hot.</li>
           <li><strong>Context</strong>: with the status line installed, a thin arc around the Claude ring shows how full the session's context window is, and the card says “Context 62% · Opus · $1.23 this session”.</li>

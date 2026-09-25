@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>The Claude Code Opus weekly limit, as its own meter · Notchmeter</title>
-<meta name="description" content="Anthropic meters some plans' weekly usage per model. Notchmeter shows each per-model weekly limit, Opus, Sonnet or Fable, as its own meter and says in one line when to switch models.">
+<meta name="description" content="Each per-model weekly limit Anthropic reports (Opus, Sonnet, Fable) as its own meter beside the notch, and when to switch models. Free, never signs in.">
 <link rel="icon" href="../img/icon.png">
 <link rel="stylesheet" href="../style.css">
 <link rel="stylesheet" href="../landing.css">
@@ -27,7 +28,7 @@
   "Notchmeter for Claude Code",
   "Notchmeter usage tracker"
  ],
- "description": "Anthropic meters some plans' weekly usage per model. Notchmeter shows each per-model weekly limit, Opus, Sonnet or Fable, as its own meter and says in one line when to switch models.",
+ "description": "Each per-model weekly limit Anthropic reports (Opus, Sonnet, Fable) as its own meter beside the notch, and when to switch models. Free, never signs in.",
  "url": "https://www.notchmeter.com/",
  "operatingSystem": "macOS 15+",
  "applicationCategory": "DeveloperApplication",
@@ -145,7 +146,7 @@
         <p>The render on the right shows a Fable weekly meter under the Session and Weekly ones; an account with an Opus limit gets an Opus meter in the same place, and a Sonnet one beside it.</p>
         <ul class="lp-points">
           <li><strong>One meter per model</strong> Anthropic reports a weekly limit for, named for the model, with the used share, a pace tick, a projection (“~82% left at reset”) and the reset as a countdown or an exact time.</li>
-          <li><strong>All models</strong>: a combined window built from the per-model ones, tagged <em>inferred</em> and captioned “Combined from the windows below”, because no vendor published it. It takes the highest of the model windows, never their mean, and the soonest reset, so it cannot show headroom that does not exist.</li>
+          <li><strong>All models</strong>: one window standing for the per-model ones, tagged <em>inferred</em> and captioned “Combined from the windows below”, because it is derived in the app rather than read. Where Anthropic's own weekly window covers the same period and reset as every per-model window and reads no lower than any of them, its figure is adopted exactly and never recomputed; otherwise the figure is the highest of the model windows, never their mean, and the reset the soonest, so it cannot show headroom that does not exist.</li>
           <li><strong>The week's price</strong>: “$1.58 per 1% of weekly” on the Cost card, the week's spend from this Mac's transcripts divided by the weekly window's used share from the same reading, so you can see what a point of the cap is worth in API terms.</li>
           <li><strong>Which model spent it</strong>: the range's models ranked by cost, and the Usage Dashboard's “By model” bars.</li>
           <li><strong>The notifications</strong>: on track, behind, and run-out within an hour, per window, so the Opus meter warns on its own crossing.</li>
@@ -169,7 +170,7 @@
         <thead><tr><th scope="col">Figure</th><th scope="col">Source</th><th scope="col">Notes</th></tr></thead>
         <tbody>
           <tr><th scope="row">Opus, Sonnet, Fable… weekly</th><td><code>GET https://api.anthropic.com/api/oauth/usage</code>: the <code>limits[]</code> entries of kind <code>weekly_scoped</code>, and the older <code>seven_day_opus</code> and <code>seven_day_sonnet</code> fields</td><td>The status line carries only the session and weekly windows, so beside a fresh status line the endpoint is still read every thirty minutes, for these alone, and its answer is laid under the status line's figures.</td></tr>
-          <tr><th scope="row">All models</th><td>Combined from the per-model windows above: the highest used share, the soonest reset</td><td>The one window in the app no vendor published; tagged <em>inferred</em>. No money is added up across it.</td></tr>
+          <tr><th scope="row">All models</th><td>Anthropic's own weekly window, adopted exactly where it covers the same period and reset as every per-model window and reads no lower than any of them; otherwise the highest used share of the per-model windows above, with the soonest reset</td><td>Derived in the app rather than read from the endpoint, so tagged <em>inferred</em> either way (<code>CombinedWindow.swift</code>). No money is added up across it.</td></tr>
           <tr><th scope="row">$ per 1% of weekly</th><td>The week's cost from this Mac's transcripts (the week starts where the live weekly window started) over the weekly window's used share from the same reading</td><td>An estimate at API list price, not a bill.</td></tr>
           <tr><th scope="row">Tokens on each side of the tokenizer line</th><td>Anthropic's pricing page: Claude 4.7 and later, and the Mythos and Fable line, tokenize with a vocabulary that yields about 30% more tokens than Claude 4.6 and earlier for the same text</td><td>A model that cannot be placed, a bare “Opus” with no version, is placed on neither side and nothing is said.</td></tr>
         </tbody>

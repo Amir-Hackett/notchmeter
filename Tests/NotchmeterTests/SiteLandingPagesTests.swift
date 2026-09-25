@@ -78,6 +78,7 @@ import Testing
             #expect(Self.meta("og:url", in: html) == url, "\(slug): og:url is the canonical URL")
             #expect(Self.meta("og:type", in: html) == "website", "\(slug): og:type")
             #expect(Self.meta("og:site_name", in: html) == "Notchmeter", "\(slug): og:site_name")
+            #expect(Self.meta("color-scheme", in: html) == "dark", "\(slug): the pages are dark only, so the browser's own scrollbars and controls follow the palette")
             for key in ["description", "og:title", "og:description", "og:image"] {
                 #expect(!(Self.meta(key, in: html) ?? "").isEmpty, "\(slug): \(key)")
             }
@@ -96,6 +97,21 @@ import Testing
             if slug != Self.hub {
                 #expect(html.contains("href=\"../\(Self.hub)/\""), "\(slug): links the hub")
             }
+        }
+    }
+
+    /// A search result shows about 155 to 160 characters of a description on a desktop and fewer on a phone (read on
+    /// 2026-09-24), so a longer one is cut mid-sentence and whatever it ends on, here the line that the app is free and
+    /// never signs in, is the part that goes. Link cards show the Open Graph description whole up to about 200.
+    @Test func everyDescriptionFitsASearchSnippetAndALinkCard() throws {
+        let snippet = 155
+        let card = 200
+        for slug in Self.all {
+            let html = try Self.text(slug)
+            let description = try #require(Self.meta("description", in: html))
+            #expect(description.count <= snippet, "\(slug): the description is \(description.count) characters; a snippet shows \(snippet)")
+            let og = try #require(Self.meta("og:description", in: html))
+            #expect(og.count <= card, "\(slug): og:description is \(og.count) characters; a card shows \(card)")
         }
     }
 
@@ -238,6 +254,6 @@ import Testing
         // The folders on disk are exactly the pages this suite knows, so a page added without a test fails here.
         let folders = try FileManager.default.contentsOfDirectory(atPath: Self.site.path)
             .filter { FileManager.default.fileExists(atPath: Self.site.appendingPathComponent($0).appendingPathComponent("index.html").path) }
-        #expect(Set(folders).isSuperset(of: Self.all), "every page this suite names is on disk")
+        #expect(Set(folders) == Set(Self.all), "the folders under site/ are exactly the pages this suite knows")
     }
 }

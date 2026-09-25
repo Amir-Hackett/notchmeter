@@ -99,7 +99,9 @@ nav.links a.here { color: var(--text); }
 .btn:active { transform: translateY(1px); }
 
 .btn-primary { background: var(--calm); color: #fff; }
-.btn-primary:hover { background: #0080c9; }
+/* One step lighter and a lit border, no more: white on the old #0080c9 measured 4.26:1, under the 4.5:1 AA floor
+   for 15 px text, in the one state where the reader is about to click. White on #0078bd is 4.75:1 (2026-09-24). */
+.btn-primary:hover { background: #0078bd; border-color: var(--calm-lift); }
 
 .btn-ghost { background: transparent; color: var(--text); border-color: var(--line); }
 .btn-ghost:hover { border-color: #39404e; background: var(--bg-raised); }

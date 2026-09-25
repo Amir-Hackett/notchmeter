@@ -70,7 +70,11 @@ Each page says what Notchmeter shows for that tool, where every figure comes fro
 file, the login it uses and what the card labels it), what the Advice strip says about it, and four to six questions
 with answers. Nothing on a page goes past `docs/accuracy.md`, `docs/features.md`, `docs/hooks.md` and the code; a
 rule is quoted with the section it lives in, and the page links that section rather than restating a figure that
-could drift. Each page carries a canonical URL, Open Graph tags and two JSON-LD blocks for search engines: a
+could drift. The site is dark only, by decision (the head of `style.css`: the product lives in a black notch), and
+these pages declare it with `<meta name="color-scheme" content="dark">` so that what the browser draws for itself,
+the scrollbar under the sources table or a code block at phone width, follows the palette rather than the OS's
+light scheme; without it a light-mode Windows or Linux reader gets a white scrollbar track across a dark card.
+Each page carries a canonical URL, Open Graph tags and two JSON-LD blocks for search engines: a
 `SoftwareApplication` (this app, free, macOS 15+, with aliases that are its own name and never another product's) and
 a `FAQPage` that repeats the visible questions and answers word for word. No page names a competitor, and none runs a
 script.
