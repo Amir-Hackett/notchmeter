@@ -47,7 +47,7 @@
       <p class="lede">Most apps that watch coding agents do it by putting a command into the agent's settings file, and several do it on first launch without asking. That file also holds your permissions, your hooks and your status line. Here is what you can know without anything being written, what a hook adds, and exactly what is written, where, when you decide to add one.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
-        <li class="stamp">Tested on Notchmeter 0.8.0</li>
+        <li class="stamp">Tested on Notchmeter 0.9.0</li>
         <li>Other apps' READMEs read 2026-09-24</li>
       </ul>
     </div>
@@ -56,7 +56,7 @@
   <div class="wrap guide-body">
     <div class="answer">
       <p class="label">The short answer</p>
-      <p>Two tiers. With nothing written anywhere, Notchmeter 0.8.0 reads the login each tool already saved on the Mac and makes that tool's own read-only status request, and reads the transcripts the tools already keep for the cost. That tells you what each plan has left, when it resets, and what the work is costing. Sessions, the moment a turn ends, that an agent is waiting for you, and answering it from the notch need the agent to say so, which is what a hook is. Notchmeter adds one only when you press the button, after a timestamped backup, merged so nothing of yours changes, and removing it is deleting its entries or restoring the backup.</p>
+      <p>Two tiers. With nothing written anywhere, Notchmeter 0.9.0 reads the login each tool already saved on the Mac and makes that tool's own read-only status request, reads the transcripts the tools already keep for the cost, and lists the sessions running in your terminals from what your own processes and the agents' own files say, each marked as detected. That tells you what each plan has left, when it resets, what the work is costing and which sessions are running. The moment a turn ends, that an agent is waiting for you, and answering it from the notch need the agent to say so, which is what a hook is. Notchmeter adds one only when you press the button, after a timestamped backup, merged so nothing of yours changes, and removing it is deleting its entries or restoring the backup.</p>
     </div>
 
     <h2 id="approaches">How apps in this space find out what your agents are doing</h2>
@@ -67,7 +67,7 @@
           <tr><th scope="row">Write hooks on first launch</th><td>Vibe Notch: <em>"Hooks install automatically on first launch."</em> Notchi: <em>"it auto-installs Claude Code and Codex hooks on first launch."</em> Buddi: <em>"Hooks install automatically on first launch."</em></td><td>A command in your agent's config that you did not approve line by line</td></tr>
           <tr><th scope="row">Never write anything</th><td>agent-notch: <em>"No hooks, no APIs, no accounts."</em></td><td>Turn ends seen late, no waits, no answering; its README puts the lag at up to about 33 seconds</td></tr>
           <tr><th scope="row">You change your own environment</th><td>AppGram's AgentNotch: you set <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> and it receives the agents' telemetry</td><td>Nothing written for you, but the telemetry is only what the agent exports</td></tr>
-          <tr><th scope="row">Write only on your click</th><td>Notchmeter</td><td>Until you add the hook, the meters and the cost, and no sessions at all</td></tr>
+          <tr><th scope="row">Write only on your click</th><td>Notchmeter</td><td>Until you add the hook, sessions are detected rather than reported: their working is a guess, no wait is ever shown, and there is no answering</td></tr>
         </tbody>
       </table>
     </div>
@@ -79,13 +79,13 @@
       <li><strong>The login its tool already saved on the Mac</strong>: Claude Code's Keychain item or credentials file, Codex's <code>auth.json</code>, Cursor's editor state, Gemini CLI's <code>oauth_creds.json</code>, Copilot's config folder. With it Notchmeter makes the same read-only status request that tool's own app makes. The token is read into memory for that request and never refreshed, stored, logged or forwarded.</li>
       <li><strong>The transcripts and logs the tools already keep</strong>: the <code>usage</code> lines of Claude Code's and Cowork's transcripts and of Codex's session rollouts, for the Cost card; Cursor's own usage export, for its spend; and modification times alone, to decide how often to poll.</li>
     </ul>
-    <p>That is enough for what each plan has left, when each window resets, the pace, the run-out and the spend, every figure labelled with where it came from. It is not enough for sessions, and 0.8.0 does not pretend otherwise: with no hook installed the Sessions card says no session is running, whatever your terminals are doing. Three things need the agent to say so, which is what a hook is:</p>
+    <p>That is enough for what each plan has left, when each window resets, the pace, the run-out and the spend, every figure labelled with where it came from. It is enough to list a session, and no more, and 0.9.0 says which is which: with no hook installed the Sessions card lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in your terminals (this user's processes with a terminal, Claude Code's own session file and the tail of its transcript for the title, model and branch, and OpenCode's from its database), each marked <em>detected</em>, with working a guess from the agent's own status, a transcript written in the last thirty seconds, or its CPU. Three things still need the agent to say so, which is what a hook is:</p>
     <ul>
-      <li><strong>That a session exists at all,</strong> and which project and terminal it is in.</li>
+      <li><strong>That a session exists for certain,</strong> and which project it is in when no process and no file says: a detected row is a guess from the outside, and the hook's row replaces it the moment the hook speaks.</li>
       <li><strong>When a turn ends.</strong> agent-notch, which watches processes and transcripts and writes nothing, puts it plainly: <em>"only the agent knows when its turn ends."</em></li>
       <li><strong>That an agent is waiting for you,</strong> and answering it. There is no channel back to the agent without a hook.</li>
     </ul>
-    <p>Listing sessions before any hook is installed, from your own processes and the files the agents already keep, and marking each one as detected rather than reported, is on <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/roadmap.md">the roadmap</a> and not in 0.8.0. When it ships, this page will say what such a session can and cannot know; until then nothing here claims it.</p>
+    <p>A detected session can know that it is running, its project, its terminal and, for Claude Code, its title, model and branch; it cannot know that a turn has ended or that the agent is waiting, so it never shows a wait and never lights a finish, and the card ends with the one line that says what the hook adds: exact turn ends and answering from the notch. It is on by default (Settings › Assistants › Sessions › <em>Find sessions without the hook</em>), it reads and never writes, and the rules are in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#sessions-found-without-the-hook">docs/accuracy.md</a>.</p>
 
     <h2 id="tier-two">Tier two: the hook, on your click</h2>
     <p>A hook is the agent telling Notchmeter what happened, the moment it happens: a turn started, a turn ended, a permission is waiting, a question has options. That is what makes the waiting dot, the finished tick, the news in the notch and answering from the notch possible. Here is exactly how it is written.</p>
