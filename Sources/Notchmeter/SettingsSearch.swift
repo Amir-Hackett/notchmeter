@@ -77,7 +77,7 @@ enum SettingsSearch {
         }
         add(.general, L("General"), L("Show total spend"), L("Open at login"), L("Language"), L("Relaunch"),
             L("Show menu bar icon"), L("Pin figures beside the icon"), L("Icon style"), L("Icon colour"), L("Install command line tool…"),
-            L("Show the welcome tour again"))
+            L("Show the welcome tour again"), L("Offer the usage card after an update"))
         add(.updates, L("Updates"), L("Check for updates automatically"), L("Download updates automatically"), L("Beta updates"),
             L("Check for Updates…"))
         add(.about, L("Version %@", AppInfo.version), L("Send Feedback…"), L("Support %@…", AppInfo.name))

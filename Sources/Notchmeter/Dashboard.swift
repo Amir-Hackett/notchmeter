@@ -271,10 +271,13 @@ struct DashboardView: View {
 
     /// Inside Settings, whose pane already carries the title: the header keeps its line, picker and refresh only.
     let embedded: Bool
+    /// For the header's share button (NotchActions.openShareCard); nil in a render, which has no window to open.
+    let actions: NotchActions?
 
-    init(store: UsageStore, range: DashboardRange = .week, embedded: Bool = false) {
+    init(store: UsageStore, range: DashboardRange = .week, embedded: Bool = false, actions: NotchActions? = nil) {
         self.store = store
         self.embedded = embedded
+        self.actions = actions
         _range = State(initialValue: range)
     }
 
@@ -302,6 +305,14 @@ struct DashboardView: View {
                 } else {
                     if !model.isEmpty {
                         tiles(model)
+                        // The value framing under the tiles (PlanValue): the range's API-equivalent dollars against
+                        // what the plans behind them cost, said only where both sides are known, and marked as the
+                        // estimate it is. The week has no fee of its own, so its line is the thirty days'.
+                        if let value = store.planValueLine(for: range.costRange) {
+                            Text(value.keepingHyphensWhole)
+                                .font(.caption).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         chartSection(model)
                     }
                     if !limits.isEmpty { limitsSection(limits) }
@@ -335,6 +346,15 @@ struct DashboardView: View {
             .help(L("Refresh now"))
             .accessibilityLabel(L("Refresh now"))
             .disabled(store.costScanning)
+            if let actions {
+                Button {
+                    actions.openShareCard(.dashboard)
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .help(L("Share usage card…"))
+                .accessibilityLabel(L("Share usage card…"))
+            }
         }
     }
 
@@ -689,11 +709,11 @@ final class DashboardWindowController: NSWindowController {
     private var panelLevel: NSWindow.Level?
     private var aside = false
 
-    init(store: UsageStore, prefs: Preferences) {
+    init(store: UsageStore, prefs: Preferences, actions: NotchActions? = nil) {
         self.prefs = prefs
         let panel = SettingsPanel(contentRect: NSRect(origin: .zero, size: Self.contentSize),
                                   styleMask: [.titled, .closable, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
-        let host = FirstMouseHostingView(rootView: DashboardView(store: store))
+        let host = FirstMouseHostingView(rootView: DashboardView(store: store, actions: actions))
         host.sizingOptions = []
         panel.title = L("%@ Usage", AppInfo.name)
         panel.contentView = host

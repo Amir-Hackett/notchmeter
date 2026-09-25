@@ -420,13 +420,17 @@ struct SimpleCostRow: View {
         let first = open ? nil : advice.first
         let now = Date()
         let week = WeekSpend.of(selection, now: now)
+        // The one line under the row: the money advice where there is some, else the value framing (PlanValue),
+        // which the open card carries in full either way.
+        let line = first.map(SimpleLine.advice)
+            ?? (open ? nil : store.planValueLine(for: range.costRange).map { SimpleLine(id: "value", symbol: nil, text: $0) })
         SimpleRow(title: L("Cost"),
-                  line: first.map(SimpleLine.advice),
+                  line: line,
                   figure: figure, caption: range.title,
                   needsYou: advice.contains { $0.priority == .attention },
                   // The week's headline only: the row is read every time it is reached, and the days one by one
                   // are the opened chart's to read.
-                  spoken: Spoken.line(range.title, Spoken.phrase(figure), SpendCard.unit(mode: mode), first.map { Spoken.phrase($0.text) },
+                  spoken: Spoken.line(range.title, Spoken.phrase(figure), SpendCard.unit(mode: mode), line.map { Spoken.phrase($0.text) },
                                       week.map { $0.headline(mode: mode) }),
                   accessory: week.map { AnyView(WeekSpendStrip(week: $0, mode: mode)) },
                   help: week?.tooltip(mode: mode, now: now),
@@ -434,7 +438,7 @@ struct SimpleCostRow: View {
             Image(systemName: "dollarsign.circle").foregroundStyle(Caption.style)
         } detail: {
             VStack(alignment: .leading, spacing: 8) {
-                SpendCard(store: store, embedded: true)
+                SpendCard(store: store, embedded: true, actions: actions)
                 if !advice.isEmpty {
                     AdviceLines(advice: advice, open: actions.open)
                 }

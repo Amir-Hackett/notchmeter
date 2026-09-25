@@ -1234,6 +1234,65 @@ final class Preferences {
             report(Keys.accessibilityAsked, accessibilityAskedFor ?? "none", changed: accessibilityAskedFor != oldValue)
         }
     }
+    /// The usage card's choices (ShareCard.swift), kept so the card opens as it was last made.
+    var shareCardMetric: ShareCardMetric {
+        didSet { defaults.set(shareCardMetric.rawValue, forKey: Keys.shareCardMetric); report(Keys.shareCardMetric, shareCardMetric.rawValue, changed: shareCardMetric != oldValue) }
+    }
+    var shareCardRange: ShareCardRange {
+        didSet { defaults.set(shareCardRange.rawValue, forKey: Keys.shareCardRange); report(Keys.shareCardRange, shareCardRange.rawValue, changed: shareCardRange != oldValue) }
+    }
+    var shareCardFormat: ShareCardFormat {
+        didSet { defaults.set(shareCardFormat.rawValue, forKey: Keys.shareCardFormat); report(Keys.shareCardFormat, shareCardFormat.rawValue, changed: shareCardFormat != oldValue) }
+    }
+    /// The theme the reader picked; nil follows the metric (ShareCardMetric.defaultTheme), so a card switched from
+    /// dollars to tokens changes ground with it until a theme is chosen by hand.
+    var shareCardTheme: ShareCardTheme? {
+        didSet {
+            if let shareCardTheme { defaults.set(shareCardTheme.rawValue, forKey: Keys.shareCardTheme) } else { defaults.removeObject(forKey: Keys.shareCardTheme) }
+            report(Keys.shareCardTheme, shareCardTheme?.rawValue ?? "auto", changed: shareCardTheme != oldValue)
+        }
+    }
+    /// The theme a card is drawn in now.
+    var shareCardThemeShown: ShareCardTheme { shareCardTheme ?? shareCardMetric.defaultTheme }
+    /// The optional line under the card's figures. The oracle hears only whether one is set, not what it says,
+    /// and only when that changes, rather than a line per keystroke.
+    var shareCardSignature: String {
+        didSet {
+            defaults.set(shareCardSignature, forKey: Keys.shareCardSignature)
+            report(Keys.shareCardSignature, !shareCardSignature.isEmpty, changed: shareCardSignature.isEmpty != oldValue.isEmpty)
+        }
+    }
+    /// The assistants left off the card. Kept as the ones left off rather than the ones carried, so an assistant
+    /// that starts reporting after the choice was made is on the next card rather than silently missing from it.
+    var shareCardHidden: Set<ToolID> {
+        didSet {
+            defaults.set(shareCardHidden.map(\.rawValue).sorted(), forKey: Keys.shareCardHidden)
+            report(Keys.shareCardHidden, shareCardHidden.map(\.rawValue).sorted(), changed: shareCardHidden != oldValue)
+        }
+    }
+    /// The card offered by itself once after an update (ShareCardOffer); off for good from Settings or from the
+    /// offer's own "Don't offer after updates".
+    var offerShareCardAfterUpdate: Bool {
+        didSet {
+            defaults.set(offerShareCardAfterUpdate, forKey: Keys.offerShareCard)
+            report(Keys.offerShareCard, offerShareCardAfterUpdate, changed: offerShareCardAfterUpdate != oldValue)
+        }
+    }
+    /// The version an update left the offer waiting for; nil once it has been shown or dropped, which is what makes
+    /// it once per version.
+    var shareCardOfferPending: String? {
+        didSet {
+            defaults.set(shareCardOfferPending, forKey: Keys.shareCardOfferPending)
+            report(Keys.shareCardOfferPending, shareCardOfferPending ?? "none", changed: shareCardOfferPending != oldValue)
+        }
+    }
+    /// The version the last launch ran, so the next one can tell an update from a relaunch.
+    var lastLaunchedVersion: String? {
+        didSet {
+            defaults.set(lastLaunchedVersion, forKey: Keys.lastLaunchedVersion)
+            report(Keys.lastLaunchedVersion, lastLaunchedVersion ?? "none", changed: lastLaunchedVersion != oldValue)
+        }
+    }
     private(set) var launchAtLogin: Bool
     private(set) var launchAtLoginStatus: SMAppService.Status
 
@@ -1372,6 +1431,15 @@ final class Preferences {
         static let welcomed = "welcomed"
         static let accessibilityGrant = "accessibilityGrantedTo"
         static let accessibilityAsked = "accessibilityAskedFor"
+        static let shareCardMetric = "shareCardMetric"
+        static let shareCardRange = "shareCardRange"
+        static let shareCardFormat = "shareCardFormat"
+        static let shareCardTheme = "shareCardTheme"
+        static let shareCardSignature = "shareCardSignature"
+        static let shareCardHidden = "shareCardHidden"
+        static let offerShareCard = "offerShareCardAfterUpdate"
+        static let shareCardOfferPending = "shareCardOfferPending"
+        static let lastLaunchedVersion = "lastLaunchedVersion"
         static let launchAtLogin = "launchAtLogin"
     }
 
@@ -1520,6 +1588,15 @@ final class Preferences {
         welcomed = defaults.bool(forKey: Keys.welcomed)
         accessibilityGrantedTo = defaults.string(forKey: Keys.accessibilityGrant)
         accessibilityAskedFor = defaults.string(forKey: Keys.accessibilityAsked)
+        shareCardMetric = ShareCardMetric(rawValue: defaults.string(forKey: Keys.shareCardMetric) ?? "") ?? .value
+        shareCardRange = ShareCardRange(rawValue: defaults.string(forKey: Keys.shareCardRange) ?? "") ?? .thirtyDays
+        shareCardFormat = ShareCardFormat(rawValue: defaults.string(forKey: Keys.shareCardFormat) ?? "") ?? .feed
+        shareCardTheme = defaults.string(forKey: Keys.shareCardTheme).flatMap(ShareCardTheme.init(rawValue:))
+        shareCardSignature = defaults.string(forKey: Keys.shareCardSignature) ?? ""
+        shareCardHidden = Set((defaults.array(forKey: Keys.shareCardHidden) as? [String] ?? []).compactMap(ToolID.init(rawValue:)))
+        offerShareCardAfterUpdate = defaults.object(forKey: Keys.offerShareCard) as? Bool ?? true
+        shareCardOfferPending = defaults.string(forKey: Keys.shareCardOfferPending)
+        lastLaunchedVersion = defaults.string(forKey: Keys.lastLaunchedVersion)
         let status = SMAppService.mainApp.status
         launchAtLoginStatus = status
         launchAtLogin = status == .enabled

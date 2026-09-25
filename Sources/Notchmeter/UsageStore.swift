@@ -396,6 +396,37 @@ final class UsageStore {
                                 nothingLocal: Set(carried.filter { status($0).hasNothingYet }))
     }
 
+    /// The plan each assistant's reading names, where it names one (a cached reading kept beside a fault included:
+    /// the plan does not change because a read failed).
+    var plans: [ToolID: String] {
+        ToolID.allCases.reduce(into: [:]) { plans, tool in
+            if let plan = status(tool).reading?.plan { plans[tool] = plan }
+        }
+    }
+
+    /// The Cost card's value line (PlanValue.line) for a card on `range`: the carried assistants' API-equivalent
+    /// value against what their plans cost, over that range when it is a month or longer and over the thirty days
+    /// otherwise. Nil under the same gate as the card itself (spend hidden, or figures hidden while the screen is
+    /// shared) and wherever the comparison cannot honestly be made.
+    func planValueLine(for range: CostRange) -> String? {
+        guard prefs.showSpend, !hidesFigures else { return nil }
+        let span = PlanValue.valueRange(for: range)
+        guard let value = PlanValue.make(selection: costSelection, plans: plans, range: span, firstUse: cost?.firstUse) else { return nil }
+        return PlanValue.line(value, range: span)
+    }
+
+    /// What the usage card is built from right now (ShareCard.Input): every assistant's spend, the plans and the
+    /// windows the readings name, the drain log's week of samples, and the card's choices from the preferences.
+    func shareCardInput(now: Date = Date()) -> ShareCard.Input {
+        let providers = cost?.providers ?? []
+        let available = ShareCard.available(providers: providers, order: prefs.toolOrder)
+        return ShareCard.Input(providers: providers, order: prefs.toolOrder, tools: Set(available).subtracting(prefs.shareCardHidden),
+                               plans: plans,
+                               windows: ToolID.allCases.reduce(into: [:]) { windows, tool in windows[tool] = status(tool).reading?.windows },
+                               samples: drainSamples, firstUse: cost?.firstUse, metric: prefs.shareCardMetric, range: prefs.shareCardRange,
+                               signature: prefs.shareCardSignature, now: now)
+    }
+
     func isInstalled(_ tool: ToolID) -> Bool {
         providers[tool]?.isInstalled() ?? false
     }

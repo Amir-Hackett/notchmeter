@@ -163,11 +163,73 @@ enum AssetRenderer {
             let eventsContrast = try Stage(store: events, prefs: eventsPrefs, actions: actions)
             try write(eventsContrast.image(.expanded, canvas: eventsContrast.panelCanvas, pixelScale: scale),
                       png: directory.appendingPathComponent("hook-events-contrast.png"))
+            AccessibilityDisplay.shared.force(contrast: nil)
+            // Last, because two of the cards are drawn in other languages and the pin is put back afterwards.
+            try shareCards(into: directory, store: store, now: now)
             return true
         } catch {
             Probe.emit("render-assets: \(error)")
             return false
         }
+    }
+
+    /// The usage card (ShareCard) over the same fixtures, under `share-cards/` in the output folder: the feed in
+    /// its three themes, the square and the story in the others, one on tokens, and four in German and Russian,
+    /// the two shipped languages that run longest. For review of legibility, contrast and clipping; the README
+    /// uses none of them, and the folder keeps them out of `docs/media` when the README's pictures are redrawn.
+    ///
+    /// The drain samples are the fixtures' own week for the Fable window (DemoFixtures.drainSamples), so the
+    /// card's one line is the peak the log really holds, and the signature is a placeholder rather than a name.
+    /// Each card is drawn by the same renderer Save PNG uses, so the file is the file a user gets.
+    @MainActor
+    static func shareCards(into directory: URL, store: UsageStore, now: Date) throws {
+        let folder = directory.appendingPathComponent("share-cards")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var input = store.shareCardInput(now: now)
+        input.samples = DemoFixtures.drainSamples(now: now)
+        input.signature = "@sample"
+        let pinned = Localization.current
+        defer { Localization.use(language: pinned) }
+        func card(_ name: String, language: String = "en", metric: ShareCardMetric, range: ShareCardRange,
+                  format: ShareCardFormat, theme: ShareCardTheme) throws {
+            Localization.use(language: language)
+            var chosen = input
+            chosen.metric = metric
+            chosen.range = range
+            let content = ShareCard.content(chosen)
+            guard let image = ShareCardRenderer.image(content, format: format, theme: theme) else { throw Failure.snapshot("the \(name) usage card") }
+            try write(image, png: folder.appendingPathComponent("\(name).png"))
+        }
+        try card("feed-black", metric: .value, range: .thirtyDays, format: .feed, theme: .black)
+        try card("feed-white", metric: .value, range: .thirtyDays, format: .feed, theme: .white)
+        try card("feed-blue", metric: .value, range: .thirtyDays, format: .feed, theme: .blue)
+        try card("square-blue-tokens", metric: .tokens, range: .sevenDays, format: .square, theme: .blue)
+        try card("square-black-today", metric: .value, range: .today, format: .square, theme: .black)
+        try card("story-black-month", metric: .value, range: .month, format: .story, theme: .black)
+        try card("story-white-90d", metric: .value, range: .ninetyDays, format: .story, theme: .white)
+        try card("feed-white-de", language: "de", metric: .value, range: .thirtyDays, format: .feed, theme: .white)
+        try card("square-black-de", language: "de", metric: .value, range: .thirtyDays, format: .square, theme: .black)
+        try card("story-blue-ru", language: "ru", metric: .value, range: .thirtyDays, format: .story, theme: .blue)
+        try card("square-white-ru", language: "ru", metric: .tokens, range: .month, format: .square, theme: .white)
+        // The studio itself (ShareCardWindow) at its window's size, with the after-update banner up, so the
+        // controls and the actual-size preview can be checked beside the cards they make.
+        Localization.use(language: pinned)
+        let session = ShareCardSession()
+        session.offered = true
+        let studio = ShareCardStudio(store: store, prefs: store.prefs, session: session, hostWindow: { nil })
+            .frame(width: ShareCardWindowController.contentSize.width, height: ShareCardWindowController.contentSize.height)
+            .background(Color(nsColor: .windowBackgroundColor))
+        try write(try snapshot(studio, what: "the usage card's studio").image, png: folder.appendingPathComponent("studio.png"))
+        // The same studio with every assistant unticked, for the note that takes the card's place: the preview's
+        // own words rather than the empty card's line (ShareCardContent.nothingTicked). The fixtures' own choice
+        // is put back afterwards.
+        let ticked = store.prefs.shareCardHidden
+        defer { store.prefs.shareCardHidden = ticked }
+        store.prefs.shareCardHidden = Set(ShareCard.available(providers: input.providers, order: input.order))
+        let unticked = ShareCardStudio(store: store, prefs: store.prefs, session: ShareCardSession(), hostWindow: { nil })
+            .frame(width: ShareCardWindowController.contentSize.width, height: ShareCardWindowController.contentSize.height)
+            .background(Color(nsColor: .windowBackgroundColor))
+        try write(try snapshot(unticked, what: "the usage card's studio with nothing ticked").image, png: folder.appendingPathComponent("studio-unticked.png"))
     }
 
     /// A still has no time axis, and one of these views moves on its own: `CompactReadout` fades to 40 % three

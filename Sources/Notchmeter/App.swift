@@ -88,6 +88,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var welcomeObserver: NSObjectProtocol?
     private var dashboard: DashboardWindowController?
     private var dashboardObserver: NSObjectProtocol?
+    /// The usage card's studio (ShareCardWindow), built the first time it is asked for.
+    private var shareCard: ShareCardWindowController?
+    private var shareCardObserver: NSObjectProtocol?
+    /// The one-time offer of the card after an update (ShareCardOffer): looks every half minute until it has
+    /// opened the card or found a reason not to for this version.
+    private var shareCardOffer: Task<Void, Never>?
     private var snapshotObserver: NSObjectProtocol?
     private var reopenObserver: NSObjectProtocol?
     private var screenObserver: NSObjectProtocol?
@@ -222,6 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.openSettings = { [weak self] in self?.showSettings() }
         actions.openSettingsPane = { [weak self] pane in self?.showSettings(pane: pane) }
         actions.openDashboard = { [weak self] in self?.showDashboard() }
+        actions.openShareCard = { [weak self] cause in self?.showShareCard(cause: cause) }
         actions.showOptions = { [weak self] in self?.pointerPresenter?.showOptions() }
         actions.applyLayout = { [weak self] in self?.applyLayout() }
         actions.fullScreenApps = { [weak self] in self?.pointerPresenter?.fullScreenApps ?? [] }
@@ -305,7 +312,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reopenObserver = DistributedNotificationCenter.default().addObserver(forName: SingleInstance.reopenNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 // Not under a window of the app's own: the panel is held closed for it, so a glance could not close.
-                guard let self, !self.isSettingsVisible, !self.isDashboardVisible else { return }
+                guard let self, !self.isSettingsVisible, !self.isDashboardVisible, !self.isShareCardVisible else { return }
                 self.pointerPresenter?.glance()
             }
         }
@@ -327,6 +334,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             autoRepairHooks()
             store.hookInstalledTools = HookSettings.installedTools()
             store.hooksInstalled = !store.hookInstalledTools.isEmpty
+            // Before the Welcome branch below marks a first launch welcomed: whether this copy has been through
+            // the Welcome or the hook offer is what tells an update from a first install (ShareCardOffer.updated).
+            noteLaunchedVersion()
             if Translocation.shouldOffer(bundlePath: Bundle.main.bundlePath) {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(1))
@@ -354,6 +364,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // Set up before the Welcome existed: it has been through the offer, so there is nothing to show.
                 prefs.welcomed = true
             }
+            scheduleShareCardOffer()
         }
     }
 
@@ -428,7 +439,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let suppressed = Notifier.shouldSuppress(event: event, frontmost: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
                                                  quiet: prefs.isQuietHour(), host: session.host, terminalRule: prefs.quietWhileTerminalFrontmost)
         guard prefs.sessionAttention != .nothing, !suppressed,
-              !isSettingsVisible, !isDashboardVisible, let presenter = pointerPresenter else { return }
+              !isSettingsVisible, !isDashboardVisible, !isShareCardVisible, let presenter = pointerPresenter else { return }
         switch prefs.sessionAttention {
         case .glance:
             // The session's card alone (NoticeCard), not the whole panel. A panel already open is already being
@@ -544,7 +555,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// full-height panel never covers it. It reads only this account's store.
     func showDashboard() {
         if dashboard == nil {
-            let controller = DashboardWindowController(store: store, prefs: prefs)
+            let controller = DashboardWindowController(store: store, prefs: prefs, actions: actions)
             dashboard = controller
             if let window = controller.window {
                 dashboardObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
@@ -562,6 +573,88 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Oracle.shared.emit("dashboard", ["action": "shown"])
     }
 
+    // MARK: - The usage card
+
+    /// The usage card's studio (ShareCardWindow), held open the way the dashboard is. `cause` says where it was
+    /// asked for; the app's own offer after an update is the one that puts a banner over the controls.
+    func showShareCard(cause: ShareCardCause) {
+        if shareCard == nil {
+            let controller = ShareCardWindowController(store: store, prefs: prefs)
+            shareCard = controller
+            if let window = controller.window {
+                shareCardObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                    Task { @MainActor in
+                        self?.hold(.shareCard, false)
+                        Oracle.shared.emit("shareCard", ["action": "hidden"])
+                        self?.reopenPendingPrompt()
+                    }
+                }
+            }
+        }
+        // The card has opened for this version, and that is all the offer exists to achieve (ShareCardOffer.afterOpening):
+        // a card opened by hand spends it and stops its loop, which would otherwise wait out this window and open
+        // the card again, banner and all, half a minute after it closes. The offer's own opening has already spent it.
+        let remaining = ShareCardOffer.afterOpening(pending: prefs.shareCardOfferPending, current: AppInfo.version)
+        if remaining != prefs.shareCardOfferPending {
+            prefs.shareCardOfferPending = remaining
+            shareCardOffer?.cancel()
+        }
+        hold(.shareCard, true)
+        shareCard?.present(on: .pointerScreen, below: presenter?.hover.regions.compact, above: presenter?.window?.level,
+                           aside: holds.contains(.update) || holds.contains(.alert), cause: cause)
+        Oracle.shared.emit("shareCard", ["action": "shown", "cause": cause.rawValue])
+    }
+
+    var isShareCardVisible: Bool {
+        shareCard?.window?.isVisible ?? false
+    }
+
+    /// Remembers which version this launch is, and leaves the card's offer pending when it is the first launch of
+    /// a new one on a Mac that ran an earlier one (ShareCardOffer.updated). A copy set up before 0.9.0 recorded no
+    /// version, so having been through the Welcome or the hook offer stands in for one.
+    private func noteLaunchedVersion() {
+        let existing = prefs.welcomed || prefs.hookOfferShown
+        if ShareCardOffer.updated(previous: prefs.lastLaunchedVersion, current: AppInfo.version, existingInstall: existing) {
+            prefs.shareCardOfferPending = AppInfo.version
+        }
+        prefs.lastLaunchedVersion = AppInfo.version
+    }
+
+    /// The offer's own loop: a first look once the cost scan has had a moment, then every half minute while the
+    /// rule says to wait (nothing scanned yet, figures hidden for a screen share, a full-screen app on the display,
+    /// or one of the app's own windows up). It opens the card once and clears the pending version, or clears it
+    /// without opening when the rule says the version gets no offer; a launch that quits mid-wait leaves the
+    /// version pending, so the next launch asks again, and only once the card has opened is it done for good,
+    /// whether this loop opened it or the reader did (showShareCard), which is the one thing that cancels it.
+    /// The card it opens takes no keystrokes (ShareCardWindowController.present): nobody asked for it just then.
+    private func scheduleShareCardOffer() {
+        shareCardOffer?.cancel()
+        guard prefs.shareCardOfferPending == AppInfo.version else { return }
+        shareCardOffer = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(20))
+            while !Task.isCancelled, let self {
+                switch self.shareCardOfferDecision() {
+                case .show:
+                    self.prefs.shareCardOfferPending = nil
+                    self.showShareCard(cause: .offer)
+                    return
+                case .drop:
+                    self.prefs.shareCardOfferPending = nil
+                    return
+                case .wait:
+                    try? await Task.sleep(for: .seconds(30))
+                }
+            }
+        }
+    }
+
+    private func shareCardOfferDecision() -> ShareCardOffer.Decision {
+        ShareCardOffer.decide(pending: prefs.shareCardOfferPending, current: AppInfo.version, enabled: prefs.offerShareCardAfterUpdate,
+                              showSpend: prefs.showSpend, costReady: store.cost != nil, activeDays: ShareCardOffer.activeDays(store.cost?.daily ?? []),
+                              hidesFigures: store.hidesFigures, fullScreen: !(pointerPresenter?.fullScreenApps.isEmpty ?? true),
+                              busy: holds.isHeld || holds.holdsOpen || welcome != nil || isShareCardVisible)
+    }
+
     /// Sparkle has a window on screen, or its last one has gone. Its windows are ordinary ones: the panel would
     /// draw over them from screen-saver level, and the Settings window from the level above that, so both stand
     /// down for as long as the update session lasts.
@@ -569,6 +662,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hold(.update, shown)
         settings?.standAside(shown)
         dashboard?.standAside(shown)
+        shareCard?.standAside(shown)
         Oracle.shared.emit("updateSession", ["action": shown ? "shown" : "hidden"])
     }
 
@@ -608,6 +702,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hold(.alert, true)
         settings?.standAside(true)
         dashboard?.standAside(true)
+        shareCard?.standAside(true)
         NSApp.activate()
         // The offer is made here, so it is remembered here (AutoSideWatcher.rememberAsked): a launch that reported
         // the stale entry but was quit before this line kept its turn. The rehearsal leaves the marker alone.
@@ -645,6 +740,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func answerAccessibilityReset(_ response: NSApplication.ModalResponse, replaced: Bool, simulated: Bool) {
         settings?.standAside(false)
         dashboard?.standAside(false)
+        shareCard?.standAside(false)
         hold(.alert, false)
         Oracle.shared.emit("accessibility", ["action": "staleEntry", "answer": response.rawValue, "replaced": replaced, "simulated": simulated])
         if simulated {
@@ -729,10 +825,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for pending in store.sessions.pending(now: Date()) { store.decide(pending.request.id, .pass) }
     }
 
-    /// The oracle's name for what holds the panel: the dashboard when it alone does, else Settings, which also
-    /// stands for the update session and an alert as it always has.
+    /// The oracle's name for what holds the panel: the dashboard or the usage card when it alone does, else
+    /// Settings, which also stands for the update session and an alert as it always has.
     private var holdCause: PanelCause {
-        holds.contains(.dashboard) && !holds.contains(.settings) ? .dashboard : .settings
+        guard !holds.contains(.settings) else { return .settings }
+        if holds.contains(.dashboard) { return .dashboard }
+        if holds.contains(.shareCard) { return .shareCard }
+        return .settings
     }
 
     var isDashboardVisible: Bool {
@@ -978,7 +1077,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func openFromNotification(_ tool: ToolID?) {
         if tool == nil {
             showSettings()
-        } else if !isSettingsVisible, !isDashboardVisible {
+        } else if !isSettingsVisible, !isDashboardVisible, !isShareCardVisible {
             pointerPresenter?.glance(for: HoverIntent.notificationGlance)
         }
     }
@@ -1086,6 +1185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "advice": store.advice.map(\.text),
             "settingsVisible": isSettingsVisible,
             "dashboardVisible": isDashboardVisible,
+            "shareCardVisible": isShareCardVisible,
             "ringWindows": ToolID.allCases.reduce(into: [String: [String]]()) { rings, tool in
                 if let reading = store.status(tool).reading { rings[tool.rawValue] = prefs.ringWindows(of: reading).map(\.id) }
             },

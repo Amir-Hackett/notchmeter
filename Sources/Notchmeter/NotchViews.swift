@@ -1109,7 +1109,7 @@ struct NotchExpandedView: View {
     var spendCard: SpendCard? {
         let tools = store.visibleTools
         guard prefs.showSpend, !store.hidesFigures, tools.contains(where: { $0.reportsCost && prefs.costCardTools.contains($0) }) else { return nil }
-        return SpendCard(store: store)
+        return SpendCard(store: store, actions: actions)
     }
 
     /// The whole panel's parts, top to bottom, for what the store holds now (PanelLayout.parts), with the Sessions
@@ -1595,6 +1595,9 @@ struct SpendCard: View {
     private let seeded: Range?
     /// Drawn open under the Simple panel's cost row: no box and no title, which the row already carries.
     private let embedded: Bool
+    /// For the context menu's "Share usage card…" (NotchActions.openShareCard); nil on a copy or a still, which
+    /// have no window to open and no menu to open it from.
+    private let actions: NotchActions?
     @Environment(\.density) private var density
     @Environment(\.panelLook) private var look
 
@@ -1602,10 +1605,11 @@ struct SpendCard: View {
     /// lives as long as the app rather than as long as the panel. Until 0.6.0 it was the card's own `@State`,
     /// which died with the panel and left every detached render of the card on Today (see `imageCard`). Tests
     /// and rendered stills pass the range they want, and a copy passes the one on screen.
-    init(store: UsageStore, range: Range? = nil, embedded: Bool = false) {
+    init(store: UsageStore, range: Range? = nil, embedded: Bool = false, actions: NotchActions? = nil) {
         self.store = store
         seeded = range
         self.embedded = embedded
+        self.actions = actions
     }
 
     private var range: Range { seeded ?? store.spendRange }
@@ -1691,6 +1695,12 @@ struct SpendCard: View {
 
     private var burnLine: String? { detail?.burn }
 
+    /// The value framing (PlanValue): the range's API-equivalent dollars against what the carried assistants'
+    /// plans cost, over the range itself when it is a month or longer and over the thirty days otherwise, and only
+    /// where every spending assistant's plan has a published price. A total like the budget line, and marked as
+    /// the estimate it is.
+    private var valueLine: String? { store.planValueLine(for: range.costRange) }
+
     /// The month against the budget stays a total: the budget is set against every carried assistant at once, and
     /// one of them has no share of it to print.
     private var budgetLine: String? {
@@ -1751,6 +1761,9 @@ struct SpendCard: View {
     private var noteLines: [(text: String, quiet: Bool)] {
         var lines: [(text: String, quiet: Bool)] = problemLines.map { (text: $0, quiet: true) }
         lines += gaps.map { (text: $0.text, quiet: true) }
+        if let valueLine {
+            lines.append((text: valueLine.keepingHyphensWhole, quiet: false))
+        }
         if let burnLine {
             // A non-breaking hyphen keeps "30-day" whole when the line wraps.
             lines.append((text: burnLine.keepingHyphensWhole, quiet: false))
@@ -1889,7 +1902,7 @@ struct SpendCard: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L("Cost, %@", range.title))
-            .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, burnLine, problemLines.first, gaps.first?.text,
+            .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, valueLine, burnLine, problemLines.first, gaps.first?.text,
                                             store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine))
             // The week, day by day and split by assistant: always where the Simple panel's Cost row opens onto this
             // card, so the row's hover is never the only way to it, and behind Show details on the Detailed card,
@@ -1906,6 +1919,9 @@ struct SpendCard: View {
         .contextMenu {
             Button(L("Copy as image")) {
                 CardImage.copy(imageCard.environment(\.density, density), width: store.prefs.panelWidth.points - 28, look: look)
+            }
+            if let actions {
+                Button(L("Share usage card…")) { actions.openShareCard(.costCard) }
             }
         }
     }

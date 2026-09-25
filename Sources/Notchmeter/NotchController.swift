@@ -10,6 +10,8 @@ final class NotchActions {
     /// Settings open on a named pane: the panel's "Add a tool" row lands on Assistants.
     var openSettingsPane: (SettingsPane) -> Void = { _ in }
     var openDashboard: () -> Void = {}
+    /// The usage card (ShareCardWindow), from wherever it was asked for; the cause goes to the oracle.
+    var openShareCard: (ShareCardCause) -> Void = { _ in }
     var showOptions: () -> Void = {}
     var applyLayout: () -> Void = {}
     var togglePanel: () -> Void = {}
@@ -141,7 +143,7 @@ struct PanelReporter {
 /// and a window coming up while a request is showing still wins, because a panel the user cannot see behind
 /// Settings is no place to answer from.
 struct PanelHolds {
-    enum Reason { case settings, dashboard, update, alert, prompt, welcome }
+    enum Reason { case settings, dashboard, update, alert, prompt, welcome, shareCard }
 
     private var reasons: Set<Reason> = []
 
@@ -267,6 +269,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
             menu.addItem(.separator())
         }
         menu.addItem(item(L("Copy panel as image"), #selector(copyImage)))
+        menu.addItem(item(L("Share usage card…"), #selector(shareCard)))
         menu.addItem(item(L("Install command line tool…"), #selector(installCLI)))
         menu.addItem(.separator())
         let login = item(L("Open at login"), #selector(toggleLaunchAtLogin))
@@ -323,6 +326,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
     @objc private func refreshNow() { actions.refresh() }
     @objc private func togglePanel() { actions.togglePanel() }
     @objc private func copyImage() { actions.copyPanelImage() }
+    @objc private func shareCard() { actions.openShareCard(.menu) }
     @objc private func installCLI() { actions.installCommandLineTool() }
 
     @objc private func setVisibility(_ sender: NSMenuItem) {

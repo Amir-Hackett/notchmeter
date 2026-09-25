@@ -242,6 +242,51 @@ import Testing
         #expect(ProxySettings.dictionary(for: "ftp://x:1") == nil)
         #expect(ProxySettings.dictionary(for: "http://noport") == nil)
     }
+
+    /// The usage card's choices (ShareCardWindow) persist, its theme follows the metric until one is chosen by
+    /// hand, and the offer's bookkeeping survives a relaunch, which is what makes it once per version.
+    @Test func theUsageCardsChoicesPersistAndItsThemeFollowsTheMetricUntilChosen() {
+        withSuite("share-card") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            #expect(prefs.shareCardMetric == .value)
+            #expect(prefs.shareCardRange == .thirtyDays)
+            #expect(prefs.shareCardFormat == .feed)
+            #expect(prefs.shareCardTheme == nil)
+            #expect(prefs.shareCardThemeShown == .black)
+            #expect(prefs.shareCardSignature.isEmpty)
+            #expect(prefs.shareCardHidden.isEmpty)
+            #expect(prefs.offerShareCardAfterUpdate)
+            #expect(prefs.shareCardOfferPending == nil)
+            #expect(prefs.lastLaunchedVersion == nil)
+            prefs.shareCardMetric = .tokens
+            #expect(prefs.shareCardThemeShown == .blue, "money on black, tokens on blue")
+            prefs.shareCardTheme = .white
+            prefs.shareCardMetric = .value
+            #expect(prefs.shareCardThemeShown == .white, "a theme chosen by hand stays")
+            prefs.shareCardRange = .ninetyDays
+            prefs.shareCardFormat = .story
+            prefs.shareCardSignature = "@sample"
+            prefs.shareCardHidden = [.cursor]
+            prefs.offerShareCardAfterUpdate = false
+            prefs.shareCardOfferPending = "0.9.0"
+            prefs.lastLaunchedVersion = "0.9.0"
+            let reloaded = Preferences(defaults: defaults)
+            #expect(reloaded.shareCardMetric == .value)
+            #expect(reloaded.shareCardRange == .ninetyDays)
+            #expect(reloaded.shareCardFormat == .story)
+            #expect(reloaded.shareCardTheme == .white)
+            #expect(reloaded.shareCardSignature == "@sample")
+            #expect(reloaded.shareCardHidden == [.cursor])
+            #expect(!reloaded.offerShareCardAfterUpdate)
+            #expect(reloaded.shareCardOfferPending == "0.9.0")
+            #expect(reloaded.lastLaunchedVersion == "0.9.0")
+            reloaded.shareCardTheme = nil
+            #expect(defaults.object(forKey: "shareCardTheme") == nil)
+            #expect(Preferences(defaults: defaults).shareCardThemeShown == .black)
+            reloaded.shareCardOfferPending = nil
+            #expect(Preferences(defaults: defaults).shareCardOfferPending == nil)
+        }
+    }
 }
 
 /// A plan whose headline window publishes no limit — Cursor Free's "Included usage" — must not take the rings
