@@ -270,19 +270,25 @@ extension ToolID {
     /// three older hues, whose notch values fall short of it. Both sets pass the dataviz validator (lightness band,
     /// chroma, CVD and normal-vision separation, contrast) against their surface.
     var chartColor: Color {
-        let dark: UInt32 = switch self {
-        case .claude: 0xCC7555
-        case .cursor: 0x8C74EA
-        case .codex: 0x34A874
-        case .gemini, .antigravity, .copilot, .kimi: identity.dark  // each above 5.8:1 on the dark window as it is
+        Color(nsColor: .adaptive(light: chartInk(dark: false).hex, dark: chartInk(dark: true).hex))
+    }
+
+    /// The value `chartColor` takes under each appearance, which `DashboardPresentation` holds to 3:1 on its
+    /// window: the bars are drawn at full strength whatever day is chosen, so this is the contrast they are read at.
+    func chartInk(dark: Bool) -> RGB {
+        guard dark else { return RGB(hex: identity.light) }
+        return switch self {
+        case .claude: RGB(hex: 0xCC7555)
+        case .cursor: RGB(hex: 0x8C74EA)
+        case .codex: RGB(hex: 0x34A874)
+        case .gemini, .antigravity, .copilot, .kimi: RGB(hex: identity.dark)  // each above 5.8:1 on the dark window as it is
         // The notch's violet sits on top of Cursor's periwinkle once both are stepped for a window (1.6 under
         // deuteranopia), so OpenCode's window step leans to the orchid side of the same purple: 17.9 normal and 7.9
         // CVD from the dark set at 3.55:1 on its surface; the light window takes the identity's own light value, 5.5:1
         // on white. The Dashboard names every series in its legend, which is the secondary encoding the 6–8 CVD
         // band asks for.
-        case .opencode: 0xC818B8
+        case .opencode: RGB(hex: 0xC818B8)
         }
-        return Color(nsColor: .adaptive(light: identity.light, dark: dark))
     }
 }
 
@@ -317,6 +323,28 @@ enum DashboardLook {
     /// The accent as text on the window: the pin beside the chosen day's figures.
     static func pin(dark: Bool, accent: PanelAccent, contrast: Bool) -> RGB {
         look(dark: dark, accent: accent, contrast: contrast).rgb(accentInk(contrast: contrast), role: .text)
+    }
+
+    static func window(dark: Bool) -> RGB { dark ? darkWindow : lightWindow }
+
+    /// A card's box on the window: CardBackground's wash of the look's ink over the window's ground, at the
+    /// opacity the card names (stronger under Increase Contrast), scaled as the look scales it (`PanelLook.box`
+    /// is the same wash over the panel's own sheet). Measured from the dark render as #2E2E2E.
+    static func box(dark: Bool, contrast: Bool) -> RGB {
+        let look = look(dark: dark, accent: .terracotta, contrast: contrast)
+        return look.ink.over(window(dark: dark), alpha: look.washOpacity(contrast ? 0.16 : 0.07))
+    }
+
+    /// A status colour on the window (the spent line and the behind-pace note as words, the meter's fill as a
+    /// mark): the look's value for the role, moved in lightness by the least that reads on the window and on a
+    /// card's box there, at 4.5:1 for words and 3:1 for a mark, as the panel's palette moves it for the panel's own
+    /// grounds (`RGB.readable`). The black look's vermillion passes on black (5.4:1) and so comes back from the
+    /// panel as it is, but the dark window is #1E1E1E, where it reads at 4.3:1, and its card box 3.5:1. The status
+    /// colours are the same under every accent, so the look is taken for the default one.
+    static func status(_ name: PanelInk, role: PanelLook.Role, dark: Bool, contrast: Bool) -> RGB {
+        let grounds = [window(dark: dark), box(dark: dark, contrast: contrast)]
+        return look(dark: dark, accent: .terracotta, contrast: contrast).rgb(name, role: role)
+            .readable(against: grounds, target: role == .text ? 4.5 : 3, lighter: dark)
     }
 }
 
@@ -358,6 +386,11 @@ struct DashboardSelection: Equatable {
 
     /// Escape, the Unpin button, or a change of range.
     mutating func unpin() { pinned = nil }
+
+    /// A change of range: the chart is rebuilt for it (DashboardView.chartSection) and the old range's slots go
+    /// without reporting the pointer's leave, so the preview is let go with the pin rather than naming a day
+    /// the pointer is no longer over.
+    mutating func clearHover() { hovered = nil }
 }
 
 /// The hero and the three tiles as they are printed: the range's total, the value line under it, and the average,
@@ -454,7 +487,7 @@ struct DashboardView: View {
                     hero(DashboardHero(model: model, valueLine: store.planValueLine(for: range.costRange)))
                     chartSection(model, accent: accent, ink: ink, pinMark: DashboardLook.pin(dark: dark, accent: store.prefs.panelAccent, contrast: contrast).color)
                 }
-                if !limits.isEmpty { limitsSection(limits) }
+                if !limits.isEmpty { limitsSection(limits, dark: dark, contrast: contrast) }
                 if !model.isEmpty { breakdownSection(model, accent: accent) }
                 if !model.isEmpty { sourcesFootnote(model) }
             }
@@ -464,8 +497,10 @@ struct DashboardView: View {
         .environment(\.panelLook, look)
         .environment(\.density, store.prefs.density)
         .onChange(of: range) {
-            // The chart is rebuilt for the new range, and a pin on a day its bars may not hold goes with it.
+            // The chart is rebuilt for the new range: a pin on a day its bars may not hold goes with it, and so
+            // does the preview, since the old range's slots are torn down without reporting the pointer's leave.
             if selection.isPinned { unpin() }
+            selection.clearHover()
         }
         if scrolls {
             ScrollView { content }
@@ -559,7 +594,8 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(L("Total")).font(.caption).foregroundStyle(Caption.style)
             Text(figures.total).font(.largeTitle.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
-            Text(figures.range).font(.caption).foregroundStyle(Caption.style)
+            // The caption under a figure, at the step the tiles' captions take; "Total" above is a title, like theirs.
+            Text(figures.range).modifier(Caption())
             if let value = figures.value {
                 Text(value)
                     .font(.subheadline).foregroundStyle(Caption.style)
@@ -578,7 +614,9 @@ struct DashboardView: View {
             Text(tile.value).font(.title2.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
             Text(tile.caption.isEmpty ? " " : tile.caption).modifier(Caption()).lineLimit(1).fixedSize()
         }
-        .frame(minWidth: 100, maxWidth: .infinity, alignment: .leading)
+        // As tall as the row: the hero's value line wraps to two lines in English at the window's width and three
+        // in Russian, and a tile that kept its own height would leave the row's bottom ragged beside it.
+        .frame(minWidth: 100, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .modifier(CardBackground())
         .accessibilityElement(children: .combine)
     }
@@ -635,14 +673,22 @@ struct DashboardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else {
-            Text(day.map(Self.dayLine) ?? L("Hover a bar for that day's figures; click it to keep them."))
+            Text(day.map { Self.dayLine($0) } ?? L("Hover a bar for that day's figures; click it to keep them."))
                 .font(.caption).foregroundStyle(Caption.style)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    static func dayLine(_ day: DashboardModel.Day) -> String {
-        var parts = [ResetText.dayPhrase(day.day, now: Date(), calendar: .current), Money.dollars(day.total)]
+    /// "yesterday · $609.12 · Claude $548.76 · Cursor $60.36": the day, then its figures.
+    static func dayLine(_ day: DashboardModel.Day, now: Date = Date(), calendar: Calendar = .current) -> String {
+        "\(ResetText.dayPhrase(day.day, now: now, calendar: calendar)) · \(dayFigures(day))"
+    }
+
+    /// The day's figures without the day: the total, whether the bar holds only part of the day, and the split by
+    /// assistant where more than one spent. A slot's VoiceOver value, whose label is the day already, so a slot
+    /// does not name its day twice.
+    static func dayFigures(_ day: DashboardModel.Day) -> String {
+        var parts = [Money.dollars(day.total)]
         // The Today tile counts the whole day; this bar only what came after the week reset.
         if day.partial { parts.append(L("since the week reset")) }
         if day.byTool.count > 1 {
@@ -675,13 +721,13 @@ struct DashboardView: View {
 
     // MARK: Limits
 
-    private func limitsSection(_ limits: [DashboardLimit]) -> some View {
+    private func limitsSection(_ limits: [DashboardLimit], dark: Bool, contrast: Bool) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionTitle(L("Limits"))
             VStack(spacing: 0) {
                 ForEach(Array(limits.enumerated()), id: \.element.id) { index, limit in
                     if index > 0 { Divider() }
-                    LimitRow(limit: limit, timeFormat: store.prefs.timeFormat)
+                    LimitRow(limit: limit, timeFormat: store.prefs.timeFormat, dark: dark, contrast: contrast)
                         .padding(.vertical, 10)
                 }
             }
@@ -737,9 +783,12 @@ private struct Line: Shape {
 }
 
 /// Stacked daily bars, one colour per assistant, a dashed line at the daily average, and a band in the accent over
-/// the day whose figures are under the chart, stronger while that day is pinned. The bars themselves say nothing to
-/// VoiceOver: an invisible element over each day's slot speaks for them (the day, the total, the split) and takes
-/// the hover and the click, so what a pointer can pin a VoiceOver reader can pin too, and no figure is hover-only.
+/// the day whose figures are under the chart, stronger while that day is pinned. The band is the only mark of the
+/// day: the other days' bars keep their colour, since dimming them (as a hover once did) put six of seven bars
+/// under 3:1 on either window and off the legend's swatches for as long as a pin held. The bars, the band and the
+/// rule say nothing to VoiceOver: an invisible element over each day's slot speaks for them (the day, the total,
+/// the split) and takes the hover and the click, so what a pointer can pin a VoiceOver reader can pin too, and no
+/// figure is hover-only.
 private struct DailySpendChart: View {
     let model: DashboardModel
     let shown: DashboardModel.Day?
@@ -770,20 +819,22 @@ private struct DailySpendChart: View {
     var body: some View {
         Chart {
             if let shown {
-                // First, so it lies under the bars.
+                // First, so it lies under the bars. Hidden from VoiceOver like the bars: the day's slot speaks for it.
                 RectangleMark(x: .value(L("Day"), shown.day, unit: .day))
                     .foregroundStyle(accent.opacity(pinned ? 0.3 : 0.16))
+                    .accessibilityHidden(true)
             }
             ForEach(model.bars) { bar in
                 BarMark(x: .value(L("Day"), bar.day, unit: .day), y: .value(L("Spend"), bar.cost))
                     .foregroundStyle(by: .value(L("Assistant"), bar.tool.displayName))
-                    .opacity(shown.map { calendar.isDate(bar.day, inSameDayAs: $0.day) } ?? true ? 1 : 0.45)
                     .accessibilityHidden(true)
             }
             if let average = model.dailyAverage {
+                // Its figure is in the legend above the chart ("avg $281"), so the rule itself says nothing.
                 RuleMark(y: .value(L("Daily average"), average))
                     .foregroundStyle(ink)
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .accessibilityHidden(true)
             }
         }
         .chartForegroundStyleScale(domain: model.tools.map(\.displayName), range: model.tools.map(\.chartColor))
@@ -841,22 +892,37 @@ private struct DailySpendChart: View {
             .accessibilityElement()
             .accessibilityAction { click(day.day) }
             .accessibilityLabel(ResetText.dayPhrase(day.day, now: Date(), calendar: calendar))
-            .accessibilityValue(Spoken.line(isPinned ? L("Pinned") : nil, DashboardView.dayLine(day)))
+            // The figures alone: the label is the day, and the line under the chart is the one that repeats it.
+            .accessibilityValue(Spoken.line(isPinned ? L("Pinned") : nil, DashboardView.dayFigures(day)))
             .accessibilityHint(L("Pins or unpins this day's figures under the chart"))
             .accessibilityAddTraits(.isButton)
     }
 }
 
+/// One limit: the meter, the reset and the allowance, and the pace note. The status colours are the window's own
+/// (`DashboardLook.status`), resolved here rather than through `Themed`, whose look is derived against the panel's
+/// grounds and not the window's.
 private struct LimitRow: View {
     let limit: DashboardLimit
     let timeFormat: TimeFormatPreference
+    let dark: Bool
+    let contrast: Bool
+
+    private func status(_ name: PanelInk, _ role: PanelLook.Role) -> Color {
+        DashboardLook.status(name, role: role, dark: dark, contrast: contrast).color
+    }
 
     private var fillColor: Color {
         switch limit.status {
-        case .behind: Palette.danger
-        case .onTrack: Palette.warn
-        default: limit.used >= 1 ? Palette.danger : limit.tool.chartColor
+        case .behind: status(.danger, .mark)
+        case .onTrack: status(.warn, .mark)
+        default: limit.used >= 1 ? status(.danger, .mark) : limit.tool.chartColor
         }
+    }
+
+    /// "The tick marks an even pace: 33% of the window has passed", the tick's figure in words.
+    private var tickLine: String? {
+        limit.elapsed.map { L("The tick marks an even pace: %ld%% of the window has passed", Int(($0 * 100).rounded())) }
     }
 
     var body: some View {
@@ -867,9 +933,14 @@ private struct LimitRow: View {
                 Text(L("%ld%% used", Int((limit.used * 100).rounded()))).font(.subheadline).monospacedDigit()
             }
             // The panel's own meter (the bar under every window on the cards): the fill in the pace colour or the
-            // tool's own, the tick where an even burn would be now, the track the look gives it.
+            // tool's own, the tick where an even burn would be now, the track the look gives it. The tick's figure
+            // is the tooltip for a pointer and the meter's own words for VoiceOver, which the row's combined
+            // element reads with the rest, so the one number the tick encodes is never a hover's alone.
             Meter(fraction: limit.used, tick: limit.elapsed, color: fillColor)
-                .help(limit.elapsed.map { L("The tick marks an even pace: %ld%% of the window has passed", Int(($0 * 100).rounded())) } ?? "")
+                .help(tickLine ?? "")
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(tickLine ?? "")
+                .accessibilityHidden(tickLine == nil)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 if let reset = limit.window.resetsAt {
                     Text(ResetText.line(resetsAt: reset, hasLimit: true, display: .exact, timeFormat: timeFormat, stale: limit.staleLine != nil))
@@ -879,7 +950,7 @@ private struct LimitRow: View {
                     Text(verbatim: "·").foregroundStyle(Ink.tertiary)
                     if limit.used >= 1 {
                         // The spent bar is vermillion; the words and a symbol say why, never the fill alone.
-                        Label(line, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Themed(Palette.danger, .text))
+                        Label(line, systemImage: "exclamationmark.triangle.fill").foregroundStyle(status(.danger, .text))
                     } else {
                         Text(line).foregroundStyle(Caption.style)
                     }
@@ -890,7 +961,7 @@ private struct LimitRow: View {
             if let note = limit.note, let status = limit.status, let symbol = status.symbolName {
                 Label(note, systemImage: symbol)
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(Themed(status == .behind ? Palette.danger : Palette.warn, .text))
+                    .foregroundStyle(self.status(status == .behind ? .danger : .warn, .text))
             }
             if let stale = limit.staleLine {
                 Text(stale).font(.caption).foregroundStyle(Caption.style)

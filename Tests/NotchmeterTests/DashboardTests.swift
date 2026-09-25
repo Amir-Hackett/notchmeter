@@ -346,6 +346,44 @@ import Testing
         #expect(DashboardLook.look(dark: false, accent: .lilac, contrast: true).contrast)
     }
 
+    /// The bars are drawn at full strength whatever day is chosen (a pin once dimmed the other days to 0.45, which
+    /// put Claude at 2.0:1 and Cursor at 1.9:1 on either window), so the contrast a bar is read at is its colour's
+    /// own against the window it is on, and every assistant's clears the 3:1 a mark owes there.
+    @Test func everyAssistantsBarsReadOnEitherWindow() {
+        let minimumMark = 3.0
+        for tool in ToolID.allCases {
+            #expect(tool.chartInk(dark: true).contrast(DashboardLook.darkWindow) >= minimumMark, "\(tool) on the dark window")
+            #expect(tool.chartInk(dark: false).contrast(DashboardLook.lightWindow) >= minimumMark, "\(tool) on the light window")
+        }
+    }
+
+    /// The status colours on the limits card are held to the window's own grounds, not the panel's: the black
+    /// look's vermillion passes as text on black (5.4:1) and so the panel leaves it, but the dark window is #1E1E1E
+    /// (4.3:1) and a card's box on it #2E2E2E (3.5:1), both under the 4.5:1 words owe. Measured in both roles on
+    /// both windows and both card boxes, with and without Increase Contrast.
+    @Test func theStatusColoursReadOnEitherWindowAndItsCards() {
+        #expect(DashboardLook.box(dark: true, contrast: false).description == "#2E2E2E", "the card box the dark render measured")
+        for dark in [true, false] {
+            for contrast in [false, true] {
+                let window = DashboardLook.window(dark: dark)
+                let box = DashboardLook.box(dark: dark, contrast: contrast)
+                for name in [PanelInk.danger, .warn] {
+                    let text = DashboardLook.status(name, role: .text, dark: dark, contrast: contrast)
+                    let mark = DashboardLook.status(name, role: .mark, dark: dark, contrast: contrast)
+                    let pairing = "\(name) \(dark ? "dark" : "light")\(contrast ? " contrast" : "")"
+                    #expect(text.contrast(window) >= 4.5, "\(pairing) as text on the window")
+                    #expect(text.contrast(box) >= 4.5, "\(pairing) as text on the card box")
+                    #expect(mark.contrast(window) >= 3, "\(pairing) as a mark on the window")
+                    #expect(mark.contrast(box) >= 3, "\(pairing) as a mark on the card box")
+                }
+            }
+        }
+        let panels = PanelInk.danger.onBlack
+        let lifted = DashboardLook.status(.danger, role: .text, dark: true, contrast: false)
+        #expect(lifted != panels, "the dark window's vermillion is lifted from the panel's, which reads 4.3:1 there")
+        #expect(lifted.contrast(panels) < 2, "and lifted in lightness alone, so it is still the vermillion")
+    }
+
     /// The system accent is the one colour on the Mac that says nothing about this app, and the audit of the 0.9.0
     /// render found it on the breakdown's bars: the only blue on the page, and a blue the panel never draws.
     @Test func nothingOnTheDashboardIsDrawnInTheSystemAccent() throws {
@@ -395,6 +433,34 @@ import Testing
         selection.unpin()
         #expect(selection.isPinned == false)
         #expect(selection.shown == day(0), "with the pin gone, the day under the pointer is back")
+    }
+
+    /// A change of range rebuilds the chart, and the old range's slots go without reporting the pointer's leave:
+    /// the preview is let go with the pin, or the line under the chart would name a day the pointer has left.
+    @Test func aChangeOfRangeLetsThePreviewGoWithThePin() {
+        var selection = DashboardSelection(calendar: utc)
+        selection.hover(day(-1), inside: true)
+        selection.click(day(-2))
+        selection.unpin()
+        selection.clearHover()
+        #expect(selection.isPinned == false)
+        #expect(selection.shown == nil, "neither the pin nor the day the pointer was over")
+    }
+
+    /// A day's slot is one VoiceOver element whose label is the day and whose value is the figures, so the day is
+    /// spoken once; the line under the chart is the one that carries both.
+    @Test func aSlotSpeaksItsDayOnceAndItsFiguresAsTheValue() throws {
+        let claude = provider(.claude, source: .localTranscripts, days: [day(0): record(60)])
+        let cursor = provider(.cursor, source: .billingExport, days: [day(0): record(30, model: "gpt-5.6")])
+        let model = DashboardModel(providers: [claude, cursor], range: .week, weekStart: day(-3), now: now, calendar: utc)
+        let today = try #require(model.days.last)
+        let phrase = ResetText.dayPhrase(today.day, now: now, calendar: utc)
+        let figures = DashboardView.dayFigures(today)
+        #expect(figures == "$90.00 · \(ToolID.claude.displayName) $60.00 · \(ToolID.cursor.displayName) $30.00")
+        #expect(!figures.hasPrefix(phrase), "the value does not start with the label")
+        #expect(DashboardView.dayLine(today, now: now, calendar: utc) == "\(phrase) · \(figures)")
+        let spoken = Spoken.line("Pinned", figures)
+        #expect(spoken.hasPrefix("Pinned, $90.00"), "pinned, then the figures, and no day: \(spoken)")
     }
 
     @Test func thePinnedDayIsMatchedByCalendarDayInTheModel() {
