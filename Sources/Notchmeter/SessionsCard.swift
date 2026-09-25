@@ -335,7 +335,7 @@ struct SessionsCard: View {
                     }
                 } else {
                     HStack(spacing: 6) {
-                        Image(systemName: "terminal").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                        Image(systemName: "terminal").font(.subheadline.weight(.semibold)).foregroundStyle(Ink.secondary)
                         Text(L("Sessions")).font(.headline)
                         Spacer()
                         clear(sessions)
@@ -398,7 +398,7 @@ struct SessionsCard: View {
             Button { actions.openSettingsPane(.integrations) } label: {
                 Label(L("Add the OpenCode plugin for exact turn ends and waits"), systemImage: "puzzlepiece.extension")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(Palette.accent)
+                    .foregroundStyle(Themed(.accent, .text))
                     .frame(minHeight: 22, alignment: .leading)
                     .contentShape(Rectangle())
             }
@@ -414,7 +414,7 @@ struct SessionsCard: View {
         if sessions.all.contains(where: { !$0.isWorking && !$0.isWaiting && $0.pending == nil }) {
             Button(L("Clear")) { store.dismissIdleSessions() }
                 .buttonStyle(.plain)
-                .font(.caption.weight(.semibold)).foregroundStyle(Palette.accent)
+                .font(.caption.weight(.semibold)).foregroundStyle(Themed(.accent, .text))
                 .help(L("Clear the idle sessions; each comes back if it does anything"))
                 .accessibilityLabel(L("Remove all idle sessions"))
         }
@@ -528,9 +528,9 @@ private struct SessionRow: View {
             // go white there (`SessionRow.needsYouMark`) and the wash alone carries the blue.
             if row.needsYou {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Palette.calm.opacity(contrast ? 0.32 : 0.15))
+                    .fill(Themed.wash(Palette.calm, contrast ? 0.32 : 0.15))
                     .overlay(alignment: .leading) {
-                        Rectangle().fill(Self.needsYouMark).frame(width: 3)
+                        Rectangle().fill(Themed(Self.needsYouMark)).frame(width: 3)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
@@ -582,7 +582,7 @@ private struct SessionRow: View {
     private var trailing: some View {
         if hovering, removable {
             Button(action: remove) {
-                Image(systemName: "xmark.circle.fill").font(.callout).foregroundStyle(.secondary)
+                Image(systemName: "xmark.circle.fill").font(.callout).foregroundStyle(Ink.secondary)
                     .frame(minWidth: 22, minHeight: 20)
                     .contentShape(Rectangle())
             }
@@ -618,7 +618,7 @@ private struct SessionRow: View {
                 HStack(spacing: 5) {
                     // On the Simple sheet the title matches its sibling rows' (SimpleRow): one title size a sheet.
                     Text(verbatim: row.title).font((embedded ? Font.body : .callout).weight(.semibold)).lineLimit(1).truncationMode(.tail)
-                        .foregroundStyle(row.status == .idle ? Caption.style : AnyShapeStyle(.primary))
+                        .foregroundStyle(row.status == .idle ? Caption.style : AnyShapeStyle(Ink.primary))
                     ForEach(row.chips, id: \.self) { Chip(text: $0).help(chipHelp) }
                     if row.detected {
                         DetectedMark()
@@ -823,11 +823,11 @@ private struct SessionRow: View {
             ForEach(Array(todos.items.enumerated()), id: \.offset) { _, item in
                 let text = item.content.flatMap { $0.isEmpty ? nil : $0 }
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Image(systemName: item.status.symbol).font(.caption2.weight(.semibold)).foregroundStyle(item.status.colour)
+                    Image(systemName: item.status.symbol).font(.caption2.weight(.semibold)).foregroundStyle(Themed(item.status.colour))
                     Text(text ?? L("Untitled task")).font(.caption).lineLimit(2)
                         .italic(text == nil)
                         .strikethrough(item.status == .completed)
-                        .foregroundStyle(item.status == .completed || text == nil ? AnyShapeStyle(Caption.style) : AnyShapeStyle(.primary))
+                        .foregroundStyle(item.status == .completed || text == nil ? AnyShapeStyle(Caption.style) : AnyShapeStyle(Ink.primary))
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(text ?? L("Untitled task"))
@@ -895,13 +895,16 @@ private struct SessionRow: View {
     }
 
     /// The waiting line is a link, so it takes the app's accent like the tool card's own "Waiting for your answer"
-    /// (Palette.accent); the row's dot and symbol keep Palette.calm, the semantic "needs you" colour on signals.
-    private func noteColour(_ note: SessionsCard.Row.Note) -> Color {
+    /// (the accent chosen under Theme); the row's dot and symbol keep Palette.calm, the semantic "needs you" colour on
+    /// signals. Both are words, so both are held to 4.5:1: the pine green is lifted for them (PanelLook), 4.0:1 on
+    /// black as it stands.
+    private func noteColour(_ note: SessionsCard.Row.Note) -> Themed {
         switch note {
-        case .waitingForAnswer, .mcpInput: AccessibilityDisplay.shared.contrast ? Palette.accentContrast : Palette.accent
-        case .doneJump, .justFinished: Palette.pine
-        // The warning orange, 9:1 on the black panel and above 4.5:1 on the lighter card of Increase Contrast.
-        case .mayBeStuck: Palette.warn
+        case .waitingForAnswer, .mcpInput: Themed(AccessibilityDisplay.shared.contrast ? PanelInk.accentContrast : .accent, .text)
+        case .doneJump, .justFinished: Themed(Palette.pine, .text)
+        // The warning orange, 9:1 on the black panel and above 4.5:1 on the lighter card of Increase Contrast; Paper
+        // prints it darker (PanelInk.warn.onPaper).
+        case .mayBeStuck: Themed(Palette.warn, .text)
         }
     }
 }
@@ -926,7 +929,7 @@ private struct ExtraChip: View {
         }
         .padding(.horizontal, 7)
         .frame(minHeight: 20)
-        .background(Capsule().fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.26 : 0.14)))
+        .background(Capsule().fill(Themed.wash(.white, AccessibilityDisplay.shared.contrast ? 0.26 : 0.14)))
         .contentShape(Capsule())
     }
 }
@@ -943,15 +946,15 @@ private struct ContextGauge: View {
         let contrast = AccessibilityDisplay.shared.contrast
         let percent = Int((fraction * 100).rounded())
         let level = SessionsCard.contextLevel(fraction)
-        let tint = level.tint ?? .white.opacity(quiet ? 0.55 : contrast ? 0.95 : 0.75)
+        let bar = level.tint.map { Themed($0) } ?? Themed(.white, opacity: quiet ? 0.55 : contrast ? 0.95 : 0.75)
         HStack(spacing: 4) {
             ZStack(alignment: .leading) {
-                Capsule().fill(.white.opacity(contrast ? 0.3 : 0.15))
-                Capsule().fill(tint).frame(width: max(2, 34 * CGFloat(min(1, max(0, fraction)))))
+                Capsule().fill(Themed.wash(.white, contrast ? 0.3 : 0.15))
+                Capsule().fill(bar).frame(width: max(2, 34 * CGFloat(min(1, max(0, fraction)))))
             }
             .frame(width: 34, height: 4)
             Text(verbatim: "\(percent)%").font(.caption2.weight(.semibold)).monospacedDigit()
-                .foregroundStyle(level != .quiet ? AnyShapeStyle(tint) : AnyShapeStyle(Caption.style))
+                .foregroundStyle(level.tint.map { AnyShapeStyle(Themed($0, .text)) } ?? AnyShapeStyle(Caption.style))
         }
         .frame(minHeight: 20)
         .contentShape(Rectangle())
@@ -1026,7 +1029,7 @@ private struct StatusMark: View {
     let colour: Color
 
     var body: some View {
-        let image = Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(colour)
+        let image = Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Themed(colour))
         if status == .working, !AccessibilityDisplay.shared.motionReduced {
             image.symbolEffect(.pulse, options: .repeating)
         } else {
@@ -1076,7 +1079,7 @@ private struct HookUpgradeLine: View {
             Button { offer(tool) } label: {
                 Label(L("Install the hook…"), systemImage: "arrow.down.circle")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(contrast ? Palette.accentContrast : Palette.accent)
+                    .foregroundStyle(Themed(contrast ? PanelInk.accentContrast : .accent, .text))
                     .frame(minHeight: 24)
                     .contentShape(Rectangle())
             }
@@ -1152,10 +1155,10 @@ private struct CompactionChip: View {
                 if AccessibilityDisplay.shared.motionReduced { symbol } else { symbol.symbolEffect(.pulse, options: .repeating) }
                 Text(L("Compacting")).font(.caption2.weight(.semibold))
             }
-            .foregroundStyle(Palette.warn)
+            .foregroundStyle(Themed(Palette.warn, .text))
             .padding(.horizontal, 7)
             .frame(minHeight: 20)
-            .background(Capsule().fill(Palette.warn.opacity(AccessibilityDisplay.shared.contrast ? 0.3 : 0.16)))
+            .background(Capsule().fill(Themed.wash(Palette.warn, AccessibilityDisplay.shared.contrast ? 0.3 : 0.16)))
             .help(auto ? L("Claude Code is compacting this session's context by itself: the conversation so far is being replaced by a summary")
                        : L("This session's context is being compacted, as /compact asked"))
             .accessibilityElement(children: .ignore)
@@ -1169,7 +1172,7 @@ private struct CompactionChip: View {
             }
             .padding(.horizontal, 7)
             .frame(minHeight: 20)
-            .background(Capsule().fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.26 : 0.14)))
+            .background(Capsule().fill(Themed.wash(.white, AccessibilityDisplay.shared.contrast ? 0.26 : 0.14)))
             .help(count == 1 ? L("Compacted once while the app watched, %@ ago", ago) : L("Compacted %1$ld times while the app watched, last %2$@ ago", count, ago))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(L("Compacted"))

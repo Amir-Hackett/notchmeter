@@ -247,12 +247,11 @@ private struct NotServedProvider: UsageProvider {
         #expect(ProviderLinks.status(.kimi) == nil)
     }
 
-    /// The identity colours stay apart and legible on both surfaces they are drawn on. Under the dark scheme,
-    /// which the notch, the panel and the edge card force, the dark value: 4.5:1 at least against black, so a
-    /// figure drawn in one reads as text (every one clears 6.5:1, and the two added in 0.9.0 clear 7:1). Under
-    /// the light scheme, which only a floating edge pill takes, the light value: 4.5:1 at least against white,
-    /// where the dark leaf green sat at 1.6:1 and the orchid at 2.6:1 before the pair. And the chart pair 3:1
-    /// against the light and dark windows the Dashboard draws on.
+    /// The identity colours stay apart and legible on both surfaces they are drawn on (`PanelInk.tool`). On the
+    /// black panel, the dark value: 4.5:1 at least against black, so a figure drawn in one reads as text (every one
+    /// clears 4.9:1, and the two 0.9.0 rows on Wong's gaps clear 7:1). On Paper, the light value: 4.5:1 at least
+    /// against white, where the dark leaf green sat at 1.6:1 and the orchid at 2.6:1 before the pair. And the chart
+    /// pair 3:1 against the light and dark windows the Dashboard draws on.
     @Test func coloursAreDistinctAndLegible() throws {
         let black = NSColor.black
         let white = NSColor.white
@@ -267,26 +266,29 @@ private struct NotServedProvider: UsageProvider {
         func hex(_ colour: NSColor) -> String {
             String(format: "%02X%02X%02X", Int((colour.redComponent * 255).rounded()), Int((colour.greenComponent * 255).rounded()), Int((colour.blueComponent * 255).rounded()))
         }
-        var onDark: [String] = []
-        var onLight: [String] = []
+        func nsColor(_ value: UInt32) -> NSColor {
+            NSColor(srgbRed: CGFloat((value >> 16) & 0xFF) / 255, green: CGFloat((value >> 8) & 0xFF) / 255, blue: CGFloat(value & 0xFF) / 255, alpha: 1)
+        }
+        var onDark: [UInt32] = []
+        var onLight: [UInt32] = []
         for tool in ToolID.allCases {
-            let dark = try resolved(tool.color, under: darkAqua)
-            let light = try resolved(tool.color, under: aqua)
-            onDark.append(hex(dark))
-            onLight.append(hex(light))
-            #expect(hex(dark) == String(format: "%06X", tool.identity.dark), "\(tool) under Dark is its dark value")
-            #expect(hex(light) == String(format: "%06X", tool.identity.light), "\(tool) under Light is its light value")
+            let dark = nsColor(tool.identity.dark)
+            let light = nsColor(tool.identity.light)
+            onDark.append(tool.identity.dark)
+            onLight.append(tool.identity.light)
+            // The colour a view draws is the dark value; a Paper look prints the light one in its place (PanelLook).
+            #expect(hex(try resolved(tool.color, under: darkAqua)) == String(format: "%06X", tool.identity.dark), "\(tool) draws its dark value")
             #expect(SettingsSidebarTiles.contrast(dark, black) >= 4.5, "\(tool) on the notch")
             if tool == .gemini || tool == .kimi { #expect(SettingsSidebarTiles.contrast(dark, black) >= 7, "\(tool) on the notch") }
-            #expect(SettingsSidebarTiles.contrast(light, white) >= 4.5, "\(tool) readout on a light pill")
+            #expect(SettingsSidebarTiles.contrast(light, white) >= 4.5, "\(tool) readout on Paper")
             let chartLight = try resolved(tool.chartColor, under: aqua)
             let chartDark = try resolved(tool.chartColor, under: darkAqua)
-            #expect(hex(chartLight) == hex(light), "\(tool): the chart's light value is the identity's")
+            #expect(hex(chartLight) == String(format: "%06X", tool.identity.light), "\(tool): the chart's light value is the identity's")
             #expect(SettingsSidebarTiles.contrast(chartLight, white) >= 3, "\(tool) chart on the light window")
             #expect(SettingsSidebarTiles.contrast(chartDark, darkWindow) >= 3, "\(tool) chart on the dark window")
         }
         #expect(Set(onDark).count == ToolID.allCases.count, "no two assistants share a colour on the notch")
-        #expect(Set(onLight).count == ToolID.allCases.count, "nor on a light pill")
+        #expect(Set(onLight).count == ToolID.allCases.count, "nor on Paper")
     }
 
     /// Since the per-assistant pages, a product's name finds its own page (its overview block first) and its hook

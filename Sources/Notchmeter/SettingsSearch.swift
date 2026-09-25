@@ -13,12 +13,12 @@ enum AgentBlock: CaseIterable, Hashable {
 /// disclosure inside Advanced, and each block of each assistant's page. The search field dims every section a
 /// query does not touch, and a hit inside a disclosure opens it.
 enum SettingsSection: Hashable, CaseIterable {
-    case general, updates, about, panel, usage, shortcuts, assistants, sessions, notifications, sounds, hooks, otherTools,
+    case general, updates, about, theme, panel, usage, shortcuts, assistants, sessions, notifications, sounds, hooks, otherTools,
          privacy, advanced, diagnostics
     case agent(ToolID, AgentBlock)
 
     /// The app's own blocks, in the window's order.
-    static let app: [SettingsSection] = [.general, .updates, .about, .panel, .usage, .shortcuts, .assistants, .sessions, .notifications,
+    static let app: [SettingsSection] = [.general, .updates, .about, .theme, .panel, .usage, .shortcuts, .assistants, .sessions, .notifications,
                                          .sounds, .hooks, .otherTools, .privacy, .advanced, .diagnostics]
 
     /// Every block, every assistant's page included; written out because a case with a payload gets no
@@ -30,7 +30,7 @@ enum SettingsSection: Hashable, CaseIterable {
     var pane: SettingsPane {
         switch self {
         case .general, .updates, .about: .general
-        case .panel, .usage, .shortcuts: .appearance
+        case .theme, .panel, .usage, .shortcuts: .appearance
         case .assistants, .sessions: .assistants
         case .notifications, .sounds: .notifications
         case .hooks, .otherTools: .integrations
@@ -81,6 +81,7 @@ enum SettingsSearch {
         add(.updates, L("Updates"), L("Check for updates automatically"), L("Download updates automatically"), L("Beta updates"),
             L("Check for Updates…"))
         add(.about, L("Version %@", AppInfo.version), L("Support %@…", AppInfo.name))
+        add(.theme, L("Theme"), L("Surface"), L("Material"), L("Accent"), L("Usage style"), L("Draw hour limits on a clock"))
         add(.panel, L("Appearance"), L("Panel"), L("Readouts"), L("When crowded"), L("Show details"), L("Position"), L("Display"),
             L("Show"), L("Hover delay"), L("Show reset countdown beside the figures"), L("Show the main figure beside the rings"),
             L("Show assistant symbols in the rings"), L("Panel layout"), L("Density"), L("Panel width"), L("Show over full-screen apps"), L("Gestures: swipe down to open, swipe up to close"),

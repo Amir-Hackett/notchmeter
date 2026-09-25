@@ -27,7 +27,7 @@
 
 Every meter shows a pace tick (where an even burn would be right now), a projection ("~67% left at reset" or "Runs out in 2h") and the reset time. An **Advice** strip and pace notifications say what to do about it — "Opus weekly is 91%. Sonnet is 34%. Switch models, not tools." — and the **Usage Dashboard** (⌘U) lays the week's spend and limits out in one window. With the optional [hooks](docs/hooks.md), the notch refreshes the moment a turn ends, counts your running sessions, and marks an assistant that is waiting for you. Before any hook is installed, the Sessions card still lists the sessions running in your terminals, each marked as found without it.
 
-Everything, with the screenshots and every setting: [docs/features.md](docs/features.md). Energy, measured under a heavy Claude Code job on an M5 Pro: 1.4 to 1.6 % of one core and a physical footprint of 63 MB; the method and the raw numbers are in [docs/energy.md](docs/energy.md).
+Everything, with the screenshots and every setting: [docs/features.md](docs/features.md). Energy, measured under a heavy Claude Code job on an M5 Pro with the panel solid, which is how it ships (a translucent material's blur is in the window only while the panel is open): 1.4 to 1.6 % of one core and a physical footprint of 63 MB; the method and the raw numbers are in [docs/energy.md](docs/energy.md).
 
 ## Install
 

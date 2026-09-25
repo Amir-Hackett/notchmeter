@@ -591,6 +591,33 @@ final class Preferences {
     var appearance: AppearanceChoice {
         didSet { defaults.set(appearance.rawValue, forKey: Keys.appearance); report(Keys.appearance, appearance.rawValue, changed: appearance != oldValue) }
     }
+    /// The open panel's face (PanelTheme): Black, the panel as it has always been, or Paper. Settings › Appearance ›
+    /// Theme; nothing outside the open panel follows it.
+    var panelTheme: PanelTheme {
+        didSet { defaults.set(panelTheme.rawValue, forKey: Keys.panelTheme); report(Keys.panelTheme, panelTheme.rawValue, changed: panelTheme != oldValue) }
+    }
+    /// How much of the desktop shows through the open panel (PanelMaterial). Nil until chosen: each layout then
+    /// keeps what it has always drawn (`PanelMaterial.unchosen`), so an install that never opens the Theme section
+    /// sees no change. Paper, Reduce Transparency and Increase Contrast draw it solid whatever it holds.
+    var panelMaterial: PanelMaterial? {
+        didSet {
+            if let panelMaterial { defaults.set(panelMaterial.rawValue, forKey: Keys.panelMaterial) } else { defaults.removeObject(forKey: Keys.panelMaterial) }
+            report(Keys.panelMaterial, panelMaterial?.rawValue as Any, changed: panelMaterial != oldValue)
+        }
+    }
+    /// The app's own colour on the open panel (PanelAccent); terracotta, the icon's, unless chosen.
+    var panelAccent: PanelAccent {
+        didSet { defaults.set(panelAccent.rawValue, forKey: Keys.panelAccent); report(Keys.panelAccent, panelAccent.rawValue, changed: panelAccent != oldValue) }
+    }
+    /// Meters or nested dials on the Simple rows and the cards (UsageStyle); meters, the panel as it was, unless chosen.
+    var usageStyle: UsageStyle {
+        didSet { defaults.set(usageStyle.rawValue, forKey: Keys.usageStyle); report(Keys.usageStyle, usageStyle.rawValue, changed: usageStyle != oldValue) }
+    }
+    /// A small clock beside the reset of a window measured in hours (HourClock). Off by default: it is a picture of
+    /// a figure the reset line already states, for a reader who takes in a clock faster than a countdown.
+    var hourClock: Bool {
+        didSet { defaults.set(hourClock, forKey: Keys.hourClock); report(Keys.hourClock, hourClock, changed: hourClock != oldValue) }
+    }
 
     var compactSide: CompactSide {
         didSet {
@@ -1160,6 +1187,11 @@ final class Preferences {
         static let compactSide = "compactSide"
         static let compactKeep = "compactKeep"
         static let appearance = "appearance"
+        static let panelTheme = "panelTheme"
+        static let panelMaterial = "panelMaterial"
+        static let panelAccent = "panelAccent"
+        static let usageStyle = "usageStyle"
+        static let hourClock = "hourClock"
         static let usageDisplay = "usageDisplay"
         static let resetDisplay = "resetDisplay"
         static let timeFormat = "timeFormat"
@@ -1299,6 +1331,11 @@ final class Preferences {
         compactSide = CompactSide(rawValue: defaults.string(forKey: Keys.compactSide) ?? "") ?? .split
         compactKeep = CompactKeep(rawValue: defaults.string(forKey: Keys.compactKeep) ?? "") ?? .tools
         appearance = AppearanceChoice(rawValue: defaults.string(forKey: Keys.appearance) ?? "") ?? .system
+        panelTheme = PanelTheme(rawValue: defaults.string(forKey: Keys.panelTheme) ?? "") ?? .black
+        panelMaterial = PanelMaterial(rawValue: defaults.string(forKey: Keys.panelMaterial) ?? "")
+        panelAccent = PanelAccent(rawValue: defaults.string(forKey: Keys.panelAccent) ?? "") ?? .terracotta
+        usageStyle = UsageStyle(rawValue: defaults.string(forKey: Keys.usageStyle) ?? "") ?? .bars
+        hourClock = defaults.bool(forKey: Keys.hourClock)
         usageDisplay = UsageDisplay(rawValue: defaults.string(forKey: Keys.usageDisplay) ?? "") ?? .used
         resetDisplay = ResetDisplay(rawValue: defaults.string(forKey: Keys.resetDisplay) ?? "") ?? .exact
         timeFormat = TimeFormatPreference(rawValue: defaults.string(forKey: Keys.timeFormat) ?? "") ?? .auto
