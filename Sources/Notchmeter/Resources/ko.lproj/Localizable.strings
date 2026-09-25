@@ -934,6 +934,7 @@
 "Money on black, tokens on blue, until a theme is chosen here." = "여기서 테마를 고르기 전까지 금액은 블랙, 토큰은 블루로 표시됩니다.";
 "New in %1$@ %2$@: your usage as a card to share." = "%1$@ %2$@의 새 기능: 사용량을 공유용 카드로.";
 "No assistant has reported spend yet" = "아직 지출을 보고한 어시스턴트가 없습니다";
+"No assistant is ticked; tick one under Assistants to draw the card." = "선택된 어시스턴트가 없습니다. 어시스턴트에서 하나를 체크하면 카드가 그려집니다.";
 "Nothing recorded in this range" = "이 기간에 기록된 내용이 없습니다";
 "Offer the usage card after an update" = "업데이트 후 사용량 카드 제안";
 "Once per version, after an update, Share usage card… opens by itself with the last thirty days as a card, when they hold at least a week of use; never while the screen is shared or a full-screen app has the display. The card is always in the Options menu." = "버전마다 한 번, 업데이트 후 최근 30일에 최소 일주일의 사용이 있으면 ‘사용량 카드 공유…’가 그 기간의 카드와 함께 자동으로 열립니다. 화면을 공유 중이거나 전체 화면 앱이 디스플레이를 차지한 동안에는 열리지 않습니다. 카드는 언제나 옵션 메뉴에 있습니다.";

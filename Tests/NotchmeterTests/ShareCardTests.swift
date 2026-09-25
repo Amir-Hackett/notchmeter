@@ -115,8 +115,15 @@ import Testing
         #expect(empty.isEmpty)
         #expect(empty.rows.isEmpty)
         #expect(empty.advice == nil, "an empty card has nothing true to say")
-        // Yesterday's spend alone: today's card is empty too.
-        #expect(ShareCard.content(input([try provider(.claude, spend: [1: 10])], range: .today)).isEmpty)
+        // Empty by the reader's choice: every assistant with a figure unticked, which the studio names as the
+        // cause, where a range with nothing in it (or nothing at all) is the card's own "nothing recorded".
+        #expect(empty.nothingTicked)
+        #expect(!ShareCard.content(input([claude, cursor])).nothingTicked)
+        #expect(!ShareCard.content(input([])).nothingTicked, "no assistant to tick is not a choice")
+        // Yesterday's spend alone: today's card is empty too, with every assistant ticked.
+        let quiet = ShareCard.content(input([try provider(.claude, spend: [1: 10])], range: .today))
+        #expect(quiet.isEmpty)
+        #expect(!quiet.nothingTicked)
     }
 
     @Test func theSignatureIsOneTrimmedLineOrNothing() {
@@ -333,5 +340,16 @@ import Testing
         let daily = (0..<30).map { DailySpend(day: Date(timeIntervalSince1970: Double($0) * 86_400), cost: $0 % 4 == 0 ? 1 : 0, tokens: 0) }
         #expect(ShareCardOffer.activeDays(daily) == 8)
         #expect(ShareCardOffer.activeDays([DailySpend(day: Date(), cost: 0, tokens: 12)]) == 1, "tokens without a price still count as use")
+    }
+
+    /// A card the reader opened by hand before the offer fired is the card the offer exists to show: it spends
+    /// the version's offer, so the loop never opens the card again after they close it.
+    @Test func aCardOpenedByHandSpendsTheVersionsOffer() {
+        #expect(ShareCardOffer.afterOpening(pending: "0.9.0", current: "0.9.0") == nil)
+        #expect(ShareCardOffer.afterOpening(pending: nil, current: "0.9.0") == nil, "nothing pending stays nothing")
+        #expect(ShareCardOffer.afterOpening(pending: "0.8.0", current: "0.9.0") == "0.8.0", "another version's leftover is the rule's to drop")
+        // Spent, the rule has nothing to show: the loop's next look would find no offer pending.
+        #expect(ShareCardOffer.decide(pending: ShareCardOffer.afterOpening(pending: "0.9.0", current: "0.9.0"), current: "0.9.0", enabled: true,
+                                      showSpend: true, costReady: true, activeDays: 30, hidesFigures: false, fullScreen: false, busy: false) == .drop)
     }
 }

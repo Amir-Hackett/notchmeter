@@ -228,6 +228,10 @@ struct ShareCardContent: Equatable {
     let plan: PlanValue?
     let advice: String?
     let signature: String?
+    /// Every assistant with a figure left unticked: the card is empty by the reader's choice rather than by the
+    /// span, and the studio says so in the card's place instead of drawing the empty card's line, which would
+    /// send them to the range picker when the checkboxes are the cause.
+    let nothingTicked: Bool
 
     var isEmpty: Bool { total <= 0 }
 
@@ -351,7 +355,8 @@ enum ShareCard {
     static func content(_ input: Input) -> ShareCardContent {
         let days = input.range.days(now: input.now, calendar: input.calendar)
         let keys = days.map { CostHistory.key($0, calendar: input.calendar) }
-        let chosen = available(providers: input.providers, order: input.order).filter { input.tools?.contains($0) ?? true }
+        let available = available(providers: input.providers, order: input.order)
+        let chosen = available.filter { input.tools?.contains($0) ?? true }
         var perDay: [(tool: ToolID, values: [Double])] = []
         for tool in chosen {
             guard let provider = input.providers.first(where: { $0.tool == tool }) else { continue }
@@ -385,7 +390,8 @@ enum ShareCard {
             : nil
         let advice = ShareCardAdvice.line(tools: rows.map(\.tool), perDay: perDay, days: days, input: input)
         return ShareCardContent(metric: input.metric, range: input.range, days: days, rows: rows, cumulative: cumulative, total: total,
-                                plan: plan, advice: advice, signature: signature(input.signature))
+                                plan: plan, advice: advice, signature: signature(input.signature),
+                                nothingTicked: !available.isEmpty && chosen.isEmpty)
     }
 
     /// The signature as the card prints it: one line, trimmed, at most `signatureLimit` characters; nil when empty.
@@ -531,6 +537,15 @@ enum ShareCardOffer {
         guard costReady else { return .wait }
         guard activeDays >= minimumActiveDays else { return .drop }
         return hidesFigures || fullScreen || busy ? .wait : .show
+    }
+
+    /// What stays pending once the card has opened, whichever way it was asked for: nothing, when it was this
+    /// version's. The offer exists to put the card in front of the reader once, and a card they opened by hand
+    /// before it fired has done that; left pending, the loop would wait out the window and open the card again
+    /// half a minute after they closed it. An offer left over from another version is not this launch's to
+    /// spend, and `decide` drops it.
+    static func afterOpening(pending: String?, current: String) -> String? {
+        pending == current ? nil : pending
     }
 
     /// Days in the series with anything spent.

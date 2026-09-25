@@ -934,6 +934,7 @@
 "Money on black, tokens on blue, until a theme is chosen here." = "在此處選定主題之前，金額用黑色，token 用藍色。";
 "New in %1$@ %2$@: your usage as a card to share." = "%1$@ %2$@ 新功能：把你的用量做成可分享的卡片。";
 "No assistant has reported spend yet" = "尚無助理回報支出";
+"No assistant is ticked; tick one under Assistants to draw the card." = "未勾選任何助理；在「助理」下勾選一個即可繪製卡片。";
 "Nothing recorded in this range" = "此範圍內沒有記錄";
 "Offer the usage card after an update" = "更新後推薦用量卡片";
 "Once per version, after an update, Share usage card… opens by itself with the last thirty days as a card, when they hold at least a week of use; never while the screen is shared or a full-screen app has the display. The card is always in the Options menu." = "每個版本一次，在更新後，當最近三十天至少有一週的使用時，「分享用量卡片…」會帶著這三十天的卡片自動打開；共享螢幕或全螢幕 App 佔據顯示器時絕不會打開。卡片始終在「選項」選單中。";

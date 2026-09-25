@@ -187,10 +187,12 @@ Since 0.9.0 the Cost card, the Simple panel's Cost row, the Usage Dashboard and 
 | Cursor | Pro | $20 | [cursor.com/docs/account/pricing](https://cursor.com/docs/account/pricing) |
 | Cursor | Pro Plus | $60 | the same page |
 | Cursor | Ultra | $200 | the same page |
-| GitHub Copilot | Free | $0 | [github.com/features/copilot/plans](https://github.com/features/copilot/plans) |
-| GitHub Copilot | Pro | $10 | the same page |
-| GitHub Copilot | Pro Plus | $39 | the same page |
-| GitHub Copilot | Max | $100 | the same page |
+| GitHub Copilot | Free | $0 | [github.com/features/copilot/plans](https://github.com/features/copilot/plans), the plan cards' subscription price; the credits row further down the page is not the fee (below) |
+| GitHub Copilot | Pro | $10 (the plan card's *"$10 per month"*, not the credits row's *"$15 per month"*) | the same page |
+| GitHub Copilot | Pro Plus | $39 (the plan card's *"$39 per month"*, not the credits row's *"$70 per month"*) | the same page |
+| GitHub Copilot | Max | $100 (the plan card's *"$100 per month"*, not the credits row's *"$200 per month"*) | the same page |
+
+**Two figures on GitHub's page.** The Copilot plans page carries each plan's price on its card and, in the comparison table below the cards, a *Total GitHub AI Credits* row reading Pro *"$15 per month"* (the page's own words for it: *"$10 base + $5 flex"*), Pro+ *"$70 per month"* and Max *"$200 per month"*, with a variant of the page giving Pro+ *"$31 per month"* (both read 2026-09-24). Those are the monthly value of the credits a plan includes, the fee plus the flex credits on top of it, and not what the plan costs; a reader who searches the page for a plan's name can land on the credits row first. The table above takes the card's subscription price, which is what the person on the plan pays and what the value is set against. `PlanValue.swift` carries the same note beside the prices.
 
 **What is deliberately not priced.** Claude Team and Enterprise, ChatGPT Business and Enterprise, Cursor Teams and Enterprise, and Copilot Business and Enterprise: a seat an organisation pays for, at a price that depends on its billing. A Claude reading that says "Max" with no tier: Max is sold at two prices. A Copilot seat reported as "individual": one name for Pro and Pro+. Every paid ChatGPT plan: OpenAI's pricing and help pages refused a plain GET when the table was read, and the secondary sources disagreed about Plus ($20 against $24), so no price could be sourced to OpenAI itself. Antigravity: it reports quota, never a cost, so there is no value to set against a price. A plan the table does not hold gets **no ratio anywhere**, never a guess: the usage card then shows the value alone, and the Cost card and the dashboard show no line.
 

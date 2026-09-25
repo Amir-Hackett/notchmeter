@@ -133,6 +133,16 @@ enum AssetRenderer {
             .frame(width: ShareCardWindowController.contentSize.width, height: ShareCardWindowController.contentSize.height)
             .background(Color(nsColor: .windowBackgroundColor))
         try write(try snapshot(studio, what: "the usage card's studio").image, png: folder.appendingPathComponent("studio.png"))
+        // The same studio with every assistant unticked, for the note that takes the card's place: the preview's
+        // own words rather than the empty card's line (ShareCardContent.nothingTicked). The fixtures' own choice
+        // is put back afterwards.
+        let ticked = store.prefs.shareCardHidden
+        defer { store.prefs.shareCardHidden = ticked }
+        store.prefs.shareCardHidden = Set(ShareCard.available(providers: input.providers, order: input.order))
+        let unticked = ShareCardStudio(store: store, prefs: store.prefs, session: ShareCardSession(), hostWindow: { nil })
+            .frame(width: ShareCardWindowController.contentSize.width, height: ShareCardWindowController.contentSize.height)
+            .background(Color(nsColor: .windowBackgroundColor))
+        try write(try snapshot(unticked, what: "the usage card's studio with nothing ticked").image, png: folder.appendingPathComponent("studio-unticked.png"))
     }
 
     /// A still has no time axis, and one of these views moves on its own: `CompactReadout` fades to 40 % three

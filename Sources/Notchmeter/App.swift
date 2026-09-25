@@ -569,6 +569,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+        // The card has opened for this version, and that is all the offer exists to achieve (ShareCardOffer.afterOpening):
+        // a card opened by hand spends it and stops its loop, which would otherwise wait out this window and open
+        // the card again, banner and all, half a minute after it closes. The offer's own opening has already spent it.
+        let remaining = ShareCardOffer.afterOpening(pending: prefs.shareCardOfferPending, current: AppInfo.version)
+        if remaining != prefs.shareCardOfferPending {
+            prefs.shareCardOfferPending = remaining
+            shareCardOffer?.cancel()
+        }
         hold(.shareCard, true)
         shareCard?.present(on: .pointerScreen, below: presenter?.hover.regions.compact, above: presenter?.window?.level,
                            aside: holds.contains(.update) || holds.contains(.alert), cause: cause)
@@ -594,7 +602,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// rule says to wait (nothing scanned yet, figures hidden for a screen share, a full-screen app on the display,
     /// or one of the app's own windows up). It opens the card once and clears the pending version, or clears it
     /// without opening when the rule says the version gets no offer; a launch that quits mid-wait leaves the
-    /// version pending, so the next launch asks again, and only once the card has opened is it done for good.
+    /// version pending, so the next launch asks again, and only once the card has opened is it done for good,
+    /// whether this loop opened it or the reader did (showShareCard), which is the one thing that cancels it.
+    /// The card it opens takes no keystrokes (ShareCardWindowController.present): nobody asked for it just then.
     private func scheduleShareCardOffer() {
         shareCardOffer?.cancel()
         guard prefs.shareCardOfferPending == AppInfo.version else { return }

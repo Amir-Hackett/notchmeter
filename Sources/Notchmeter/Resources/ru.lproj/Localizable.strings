@@ -951,6 +951,7 @@
 "Money on black, tokens on blue, until a theme is chosen here." = "Деньги на чёрном, токены на синем, пока здесь не выбрана тема.";
 "New in %1$@ %2$@: your usage as a card to share." = "Новое в %1$@ %2$@: ваше использование в виде карточки, которой можно поделиться.";
 "No assistant has reported spend yet" = "Ни один ассистент ещё не сообщил о расходах";
+"No assistant is ticked; tick one under Assistants to draw the card." = "Ни один ассистент не отмечен; отметьте одного в разделе «Ассистенты», чтобы нарисовать карточку.";
 "Nothing recorded in this range" = "За этот период ничего не записано";
 "Offer the usage card after an update" = "Предлагать карточку использования после обновления";
 "Once per version, after an update, Share usage card… opens by itself with the last thirty days as a card, when they hold at least a week of use; never while the screen is shared or a full-screen app has the display. The card is always in the Options menu." = "Один раз на версию, после обновления, «Поделиться карточкой использования…» открывается сама с последними тридцатью днями в виде карточки, если в них есть хотя бы неделя использования; никогда во время демонстрации экрана или пока полноэкранное приложение занимает дисплей. Карточка всегда есть в меню «Параметры».";

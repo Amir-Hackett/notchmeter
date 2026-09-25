@@ -934,6 +934,7 @@
 "Money on black, tokens on blue, until a theme is chosen here." = "Tiền trên nền đen, token trên nền xanh, cho đến khi bạn chọn chủ đề ở đây.";
 "New in %1$@ %2$@: your usage as a card to share." = "Mới trong %1$@ %2$@: mức sử dụng của bạn dưới dạng thẻ để chia sẻ.";
 "No assistant has reported spend yet" = "Chưa có trợ lý nào báo cáo chi tiêu";
+"No assistant is ticked; tick one under Assistants to draw the card." = "Chưa chọn trợ lý nào; đánh dấu một trợ lý trong mục Trợ lý để vẽ thẻ.";
 "Nothing recorded in this range" = "Không có gì được ghi lại trong khoảng này";
 "Offer the usage card after an update" = "Gợi ý thẻ sử dụng sau khi cập nhật";
 "Once per version, after an update, Share usage card… opens by itself with the last thirty days as a card, when they hold at least a week of use; never while the screen is shared or a full-screen app has the display. The card is always in the Options menu." = "Mỗi phiên bản một lần, sau khi cập nhật, “Chia sẻ thẻ sử dụng…” tự mở với thẻ của ba mươi ngày gần nhất, khi có ít nhất một tuần sử dụng; không bao giờ mở khi đang chia sẻ màn hình hoặc khi một ứng dụng toàn màn hình chiếm màn hình. Thẻ luôn có trong menu Tùy chọn.";

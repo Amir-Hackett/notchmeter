@@ -951,6 +951,7 @@
 "Money on black, tokens on blue, until a theme is chosen here." = "L'argent sur noir, les jetons sur bleu, jusqu'à ce qu'un thème soit choisi ici.";
 "New in %1$@ %2$@: your usage as a card to share." = "Nouveau dans %1$@ %2$@ : votre usage en carte à partager.";
 "No assistant has reported spend yet" = "Aucun assistant n'a encore signalé de dépense";
+"No assistant is ticked; tick one under Assistants to draw the card." = "Aucun assistant n'est coché ; cochez-en un sous Assistants pour dessiner la carte.";
 "Nothing recorded in this range" = "Rien d'enregistré sur cette période";
 "Offer the usage card after an update" = "Proposer la carte d'usage après une mise à jour";
 "Once per version, after an update, Share usage card… opens by itself with the last thirty days as a card, when they hold at least a week of use; never while the screen is shared or a full-screen app has the display. The card is always in the Options menu." = "Une fois par version, après une mise à jour, « Partager la carte d'usage… » s'ouvre d'elle-même avec les trente derniers jours en carte, lorsqu'ils comptent au moins une semaine d'usage ; jamais pendant un partage d'écran ni quand une app en plein écran occupe l'affichage. La carte reste toujours dans le menu Options.";

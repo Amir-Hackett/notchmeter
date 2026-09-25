@@ -40,7 +40,10 @@ enum PlanCatalog {
         PlanPrice(tool: .cursor, plan: "Pro", monthlyUSD: 20, source: "https://cursor.com/docs/account/pricing"),
         PlanPrice(tool: .cursor, plan: "Pro Plus", monthlyUSD: 60, source: "https://cursor.com/docs/account/pricing"),
         PlanPrice(tool: .cursor, plan: "Ultra", monthlyUSD: 200, source: "https://cursor.com/docs/account/pricing"),
-        // github.com/features/copilot/plans: Free "$0", Pro "$10 per month", Pro+ "$39 per month", Max "$100 per month".
+        // github.com/features/copilot/plans, the plan cards: Free "$0", Pro "$10 per month", Pro+ "$39 per month",
+        // Max "$100 per month". The same page's "Total GitHub AI Credits" row reads "$15 per month", "$70 per month"
+        // and "$200 per month" for the three paid plans (Pro: "$10 base + $5 flex"), and one variant of the page
+        // "$31 per month" for Pro+: the value of the credits each plan includes, not its fee (docs/accuracy.md).
         PlanPrice(tool: .copilot, plan: "Free", monthlyUSD: 0, source: "https://github.com/features/copilot/plans"),
         PlanPrice(tool: .copilot, plan: "Pro", monthlyUSD: 10, source: "https://github.com/features/copilot/plans"),
         PlanPrice(tool: .copilot, plan: "Pro Plus", monthlyUSD: 39, source: "https://github.com/features/copilot/plans"),

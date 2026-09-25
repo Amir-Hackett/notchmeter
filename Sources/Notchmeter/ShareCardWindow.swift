@@ -237,10 +237,11 @@ struct ShareCardStudio: View {
                 }
                 .frame(width: size.width / scale)
                 if store.hidesFigures {
-                    Text(L("Figures are hidden while the screen is shared; the card is here once it ends."))
-                        .font(.callout).foregroundStyle(.secondary)
-                        .frame(width: size.width / scale, height: size.height / scale)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)))
+                    note(L("Figures are hidden while the screen is shared; the card is here once it ends."), size: size, scale: scale)
+                } else if content.nothingTicked {
+                    // Empty by choice, not by the span (ShareCardContent.nothingTicked): the card's own line would
+                    // say nothing was recorded, and the buttons under the checkboxes have just gone grey.
+                    note(L("No assistant is ticked; tick one under Assistants to draw the card."), size: size, scale: scale)
                 } else {
                     ShareCardView(content: content, format: format, theme: theme)
                         .scaleEffect(1 / scale, anchor: .topLeading)
@@ -256,6 +257,16 @@ struct ShareCardStudio: View {
             }
             .padding(20)
         }
+    }
+
+    /// The card's place with a line of words in it, while there is no card to draw.
+    private func note(_ text: String, size: CGSize, scale: CGFloat) -> some View {
+        Text(text)
+            .font(.callout).foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 24)
+            .frame(width: size.width / scale, height: size.height / scale)
+            .background(RoundedRectangle(cornerRadius: 8).fill(.quaternary.opacity(0.5)))
     }
 }
 
@@ -284,12 +295,15 @@ struct ShareSheetButton: NSViewRepresentable {
         Coordinator(items: items)
     }
 
-    /// Not main-actor isolated, the way `UpdateSession` is not: the picker's delegate calls arrive on the main
-    /// thread and are stepped onto the actor where they need it, which language mode 5 lets a plain NSObject do.
-    final class Coordinator: NSObject, NSSharingServicePickerDelegate {
+    /// Not main-actor isolated, the way `UpdateSession` is not: the picker's and the service's delegate calls
+    /// arrive on the main thread and are stepped onto the actor where they need it, which language mode 5 lets a
+    /// plain NSObject do.
+    final class Coordinator: NSObject, NSSharingServicePickerDelegate, NSSharingServiceDelegate {
         var items: () -> [Any]
         /// The sheet on screen, held for as long as it is: the picker keeps no reference to itself.
         private var picker: NSSharingServicePicker?
+        /// The button the picker opened from, for the window the chosen service's own UI belongs to.
+        private weak var anchor: NSView?
 
         init(items: @escaping () -> [Any]) {
             self.items = items
@@ -299,6 +313,7 @@ struct ShareSheetButton: NSViewRepresentable {
             MainActor.assumeIsolated {
                 let list = items()
                 guard !list.isEmpty else { return }
+                anchor = sender
                 let picker = NSSharingServicePicker(items: list)
                 picker.delegate = self
                 self.picker = picker
@@ -310,6 +325,21 @@ struct ShareSheetButton: NSViewRepresentable {
             // The service's own name only: which app the card went to, never what was in it.
             Oracle.shared.emit("shareCard", ["action": "shared", "service": service?.title ?? "none"])
             picker = nil
+        }
+
+        /// The chosen service asks its delegate, this one, which window it is sharing from (below).
+        func sharingServicePicker(_ sharingServicePicker: NSSharingServicePicker, delegateFor sharingService: NSSharingService) -> NSSharingServiceDelegate? {
+            self
+        }
+
+        /// The studio is the window the card leaves from, so a service with a compose window of its own (Messages,
+        /// Notes, Reminders, AirDrop's list of who is near) attaches it to the studio as a sheet, at the studio's
+        /// own level. Left unanswered, the service opens an ordinary window of its own in the middle of the screen,
+        /// under the studio: it sits a level above the notch panel (ShareCardWindowController.present) and spans
+        /// most of a laptop's display, so from outside nothing would seem to have happened.
+        func sharingService(_ sharingService: NSSharingService, sourceWindowForShareItems items: [Any],
+                            sharingContentScope: UnsafeMutablePointer<NSSharingService.SharingContentScope>) -> NSWindow? {
+            MainActor.assumeIsolated { anchor?.window }
         }
     }
 }
@@ -363,6 +393,12 @@ final class ShareCardWindowController: NSWindowController {
     /// `cause` is what the banner reads: a card the app offered after an update says so and offers the off
     /// switch; one the reader asked for does not. `aside` is whether an update session or an alert is up as the
     /// window opens (DashboardWindowController.present says why).
+    ///
+    /// A card the reader asked for is made key, as Settings and the dashboard are. The offer's is only ordered
+    /// front: it arrives at a moment nobody chose, twenty seconds after launch or on a poll after a full-screen
+    /// app was left, and this panel takes keystrokes without the app activating (SettingsPanel.canBecomeKey), so
+    /// made key it would take the next words typed in a terminal into the Signature field or a picker. The
+    /// first click on it makes it key, as on any panel, and FirstMouseHostingView lets that click act.
     func present(on screen: NSScreen, below readouts: CGRect? = nil, above panelLevel: NSWindow.Level? = nil, aside: Bool? = nil,
                  cause: ShareCardCause) {
         guard let window else { return }
@@ -380,8 +416,12 @@ final class ShareCardWindowController: NSWindowController {
             window.setFrame(SettingsWindowController.frame(for: window.frame.size, screen: screen.frame, safeAreaTop: screen.safeAreaInsets.top,
                                                            visible: visible, readouts: readouts), display: false)
         }
-        showWindow(nil)
-        window.makeKeyAndOrderFront(nil)
+        if cause == .offer {
+            window.orderFrontRegardless()
+        } else {
+            showWindow(nil)
+            window.makeKeyAndOrderFront(nil)
+        }
     }
 
     func standAside(_ aside: Bool) {

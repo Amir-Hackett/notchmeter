@@ -934,6 +934,7 @@
 "Money on black, tokens on blue, until a theme is chosen here." = "ここでテーマを選ぶまで、金額は黒、トークンは青で表示します。";
 "New in %1$@ %2$@: your usage as a card to share." = "%1$@ %2$@ の新機能：使用状況を共有用カードに。";
 "No assistant has reported spend yet" = "まだ支出を報告したアシスタントはありません";
+"No assistant is ticked; tick one under Assistants to draw the card." = "アシスタントが選択されていません。「アシスタント」でいずれかにチェックを入れるとカードが描画されます。";
 "Nothing recorded in this range" = "この期間には記録がありません";
 "Offer the usage card after an update" = "アップデート後に使用状況カードを提案";
 "Once per version, after an update, Share usage card… opens by itself with the last thirty days as a card, when they hold at least a week of use; never while the screen is shared or a full-screen app has the display. The card is always in the Options menu." = "バージョンごとに一度、アップデート後に「使用状況カードを共有…」が直近 30 日分のカードとともに自動で開きます（少なくとも 1 週間分の使用がある場合）。画面共有中やフルスクリーン App がディスプレイを占有している間は開きません。カードはいつでもオプションメニューから開けます。";

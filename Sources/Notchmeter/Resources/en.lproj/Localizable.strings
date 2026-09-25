@@ -951,6 +951,7 @@
 "Money on black, tokens on blue, until a theme is chosen here." = "Money on black, tokens on blue, until a theme is chosen here.";
 "New in %1$@ %2$@: your usage as a card to share." = "New in %1$@ %2$@: your usage as a card to share.";
 "No assistant has reported spend yet" = "No assistant has reported spend yet";
+"No assistant is ticked; tick one under Assistants to draw the card." = "No assistant is ticked; tick one under Assistants to draw the card.";
 "Nothing recorded in this range" = "Nothing recorded in this range";
 "Offer the usage card after an update" = "Offer the usage card after an update";
 "Once per version, after an update, Share usage card… opens by itself with the last thirty days as a card, when they hold at least a week of use; never while the screen is shared or a full-screen app has the display. The card is always in the Options menu." = "Once per version, after an update, Share usage card… opens by itself with the last thirty days as a card, when they hold at least a week of use; never while the screen is shared or a full-screen app has the display. The card is always in the Options menu.";
