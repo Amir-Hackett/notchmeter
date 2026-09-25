@@ -220,12 +220,13 @@ final class Notifier {
     }
 
     /// The title and body for a session event, named after the session's tool: "Cursor finished" / "Cursor finished
-    /// a 12m turn in notchmeter." Pure, so the copy is pinned. The waiting body is the same key Advisor's waiting
+    /// a 12m turn in notchmeter.", and "Claude Cowork finished" for a Cowork task (AgentSession.productName), a Claude
+    /// session that Claude Code did not run. Pure, so the copy is pinned. The waiting body is the same key Advisor's waiting
     /// line uses, so the banner and the advice read alike. While the screen is shared (`hidingFigures`), the project
     /// is left out the way it is for a session the hook never named: the directory a session runs in is the one
     /// thing in these banners a viewer of the call has no business reading, and the tool's name is still the news.
     nonisolated static func copy(for event: SessionEvent, session: AgentSession, hidingFigures: Bool = false) -> (title: String, body: String) {
-        let name = session.tool.productName
+        let name = session.productName
         let project = (hidingFigures ? nil : session.displayName) ?? L("a session")
         return switch event {
         case .waiting where session.quietNudge:

@@ -294,13 +294,16 @@ struct TaskChange: Equatable, Sendable {
 /// are Claude Code's own and stand, but the status line says nothing of a turn's start or end, so its working or
 /// idle is the scan's guess as for a detected row. The Welcome flow installs the status line even when the hook is
 /// declined, so this is the common half-set-up session, and until 0.9.0 it sat idle with no mark and no offer of
-/// the hook. The card marks the last two as found without the hook (`AgentSession.isDetected`), and the hook's
-/// first event for the session makes it `.hook` for good.
+/// the hook. The card marks those two as found without the hook (`AgentSession.isDetected`), and the hook's first
+/// event for the session makes it `.hook` for good. `.coworkLog` for a Claude Cowork task read from its log in the
+/// Claude app (CoworkSessions): a turn's end is the log's own line, a turn running is inferred from the log being
+/// written, and never a wait.
 enum SessionSource: String, Equatable, Sendable {
     case hook
     case localStorage = "storage"
     case detected
     case statusline
+    case coworkLog
 }
 
 /// One assistant session a hook has reported, or one found running without it (SessionDetection, OpenCodeSessions):
@@ -314,13 +317,15 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     }
 
     let id: String
-    /// Where the session's state comes from (SessionSource).
+    /// Where the session's state comes from (SessionSource), carried the way a window carries its WindowSource: on
+    /// the row's chip and its help, in the oracle's snapshot and in the report, so a reader can tell a state an
+    /// assistant sent from one the app worked out (docs/accuracy.md).
     var source: SessionSource = .hook
 
-    /// Found without the hook, by the scan or by the status line: its working is a guess, it never waits, never
-    /// lights a finish and never holds the Mac awake, and the card marks it so and offers the hook.
     /// Found without the hook and without any record of its turns: the scan's rows and the status line's, whose
-    /// working is a guess. Not a row read from OpenCode's database, whose turns are OpenCode's own record, late.
+    /// working is a guess, never waits, never lights a finish and never holds the Mac awake; the card marks it so
+    /// and offers the hook. Not a row read from OpenCode's database or a Cowork task's log, whose turns are the
+    /// tool's own record, late.
     var isDetected: Bool { source == .detected || source == .statusline }
     /// Which assistant this session belongs to. Claude Code's and Cursor's hooks both report, and each one's
     /// sessions light its own ring; the field is the typed home of that fact, so no view has to ask "is this
@@ -414,6 +419,13 @@ struct AgentSession: Equatable, Sendable, Identifiable {
         return false
     }
 
+    /// The assistant's short name on the row's chip: the tool's, or "Cowork" for a Claude Cowork task, which is a
+    /// Claude session (it spends the Claude plan and lights the Claude ring) that Claude Code did not run.
+    var assistantName: String { source == .coworkLog ? CoworkSessions.shortName : tool.displayName }
+
+    /// The product's name in a sentence, a banner or an announcement: "Claude Code", or "Claude Cowork".
+    var productName: String { source == .coworkLog ? CoworkSessions.productName : tool.productName }
+
     /// The finish this session is still entitled to claim, or nil. Guarding on `.idle` is what stops a mark left by
     /// an earlier turn being read as the present one; reading it against the clock rather than latching it is what
     /// means a Mac that slept through the hold wakes with the state already over rather than with a colour to
@@ -475,7 +487,8 @@ struct AgentSession: Equatable, Sendable, Identifiable {
 /// (or a StopFailure) ends the turn, SessionEnd removes it; SubagentStart and SubagentStop count the agents under
 /// it. The names are Claude Code's; Cursor's parser puts its events onto them before they arrive here, so there is
 /// one grammar. A wait expires after ten minutes, as does an agent nothing has been heard from; a session nothing
-/// has been heard from for four hours is dropped. Pure, so it is pinned by tests.
+/// has been heard from for four hours is dropped. Claude Cowork's tasks, which have no hook, come in beside them
+/// through `observeCowork`, read from the Claude app's own files. Pure, so it is pinned by tests.
 struct SessionTracker: Equatable, Sendable {
     struct Outcome: Equatable, Sendable {
         /// A turn ended: the session and how long the turn ran.
@@ -1119,6 +1132,113 @@ struct SessionTracker: Equatable, Sendable {
         sessions[twin.id] = nil
         dismissed[twin.id] = nil
         scanned.remove(twin.id)
+    }
+
+    /// A Cowork task's change, for the oracle: first seen, began a turn, finished one at the log's own end line,
+    /// went idle without one, or left the list.
+    struct CoworkChange: Equatable, Sendable {
+        enum Kind: String, Equatable, Sendable { case seen, working, finished, idle, gone }
+        let session: String
+        let kind: Kind
+        /// The finished turn's length.
+        var turn: TimeInterval?
+    }
+
+    struct CoworkOutcome: Sendable {
+        var changes: [CoworkChange] = []
+        /// Turns that ended at the log's own end line while the app watched them run, with the session as it stood
+        /// at the end: the finished banner and the news take these as they take a hook's `Stop`.
+        var finished: [(session: AgentSession, turn: TimeInterval)] = []
+        /// Waits `expire` timed out on the way, as `apply` reports them.
+        var stoppedWaiting: [String] = []
+    }
+
+    /// Claude Cowork's tasks as the reader last saw them (CoworkSessions), all of them at once: a Cowork session
+    /// not in `tasks` has left the list (archived, quiet past `CoworkSessions.listedFor`, or the Claude app quit,
+    /// for which the store passes none), and says so with a `gone` whether it was on the card or set aside. A
+    /// task the user set aside stays aside until its log is written again, as a hook's session does until its next
+    /// event. `hooksSeen` is never touched: a task read from a file is no proof about Claude Code's hook, and the
+    /// calm rule (Presence.level) reads that set.
+    ///
+    /// The rule (docs/accuracy.md, *Claude Cowork's tasks*): a task is working while its log has a turn open, was
+    /// written inside `CoworkSessions.busyWindow`, and has not stopped at a request to the user for longer than
+    /// `CoworkSessions.askGrace`. A working task whose log then shows the turn's end line has finished at that line,
+    /// for the line's own duration, unless the turn failed; one that goes quiet or stops at a request is idle and
+    /// claims nothing, and works again, on the same clock, when the log moves on. A turn's clock starts at its
+    /// prompt when the lines read reach back to it, and otherwise when the app first saw it running. Nothing here
+    /// makes a Cowork session wait.
+    @discardableResult
+    mutating func observeCowork(_ tasks: [CoworkSessions.Observation], now: Date) -> CoworkOutcome {
+        var outcome = CoworkOutcome()
+        outcome.stoppedWaiting = expire(now: now)
+        let live = Set(tasks.map { CoworkSessions.key($0.id) })
+        for (key, session) in sessions where session.source == .coworkLog && !live.contains(key) {
+            sessions[key] = nil
+            outcome.changes.append(CoworkChange(session: key, kind: .gone))
+        }
+        // A task set aside leaves the same way, and one that ages out is always here by now: `listedFor` is
+        // `idleAfter`, so the `expire` above sets an idle task aside on the very poll the reader stops listing it.
+        for (key, session) in dismissed where session.source == .coworkLog && !live.contains(key) {
+            dismissed[key] = nil
+            outcome.changes.append(CoworkChange(session: key, kind: .gone))
+        }
+        for task in tasks {
+            let key = CoworkSessions.key(task.id)
+            if let aside = dismissed[key] {
+                guard task.lastWrite > aside.lastEvent else { continue }
+                dismissed[key] = nil
+                sessions[key] = aside
+            }
+            var session: AgentSession
+            if let known = sessions[key] {
+                session = known
+            } else {
+                session = AgentSession(id: key, project: task.project, state: .idle, started: now, lastEvent: task.lastWrite, turnStarted: nil)
+                outcome.changes.append(CoworkChange(session: key, kind: .seen))
+            }
+            session.source = .coworkLog
+            // A click brings the Claude app forward (TerminalJump's `activate`): the one place the task is shown.
+            session.terminal = TerminalRef(bundleID: CoworkSessions.bundleID)
+            session.project = task.project
+            session.sessionName = task.title
+            session.lastEvent = Swift.max(session.lastEvent, task.lastWrite)
+            let turn = task.turn
+            let quiet = now.timeIntervalSince(task.lastWrite)
+            let running = turn.open && quiet < CoworkSessions.busyWindow && !(turn.asking && quiet >= CoworkSessions.askGrace)
+            // `turnStarted` outlives a quiet spell: a turn that went idle at a request or a long pause keeps its
+            // start, so its end line still finishes it and a resumed turn keeps its clock.
+            if let held = session.turnStarted {
+                if let end = turn.end, let at = end.at, at >= held {
+                    // The turn the row has been showing ended at the log's own line.
+                    let length = end.duration ?? at.timeIntervalSince(held)
+                    if end.failed {
+                        if session.isWorking { outcome.changes.append(CoworkChange(session: key, kind: .idle)) }
+                    } else {
+                        session.finished = ToolSignal.Finish(turn: length, at: at)
+                        outcome.finished.append((session, length))
+                        outcome.changes.append(CoworkChange(session: key, kind: .finished, turn: length))
+                    }
+                    session.state = .idle
+                    session.turnStarted = nil
+                } else if !running, session.isWorking {
+                    // Quiet with no end line, or stopped at a request to the user: idle, and nothing claimed about
+                    // how the turn will go.
+                    session.state = .idle
+                    outcome.changes.append(CoworkChange(session: key, kind: .idle))
+                }
+            }
+            if !session.isWorking, running {
+                // The held start, unless the log shows a prompt after it: then this is a turn of its own.
+                let began = turn.began.map { Swift.min($0, now) }
+                let start = session.turnStarted.map { held in began.map { $0 > held ? $0 : held } ?? held } ?? began ?? now
+                session.state = .working(since: start)
+                session.turnStarted = start
+                session.finished = nil
+                outcome.changes.append(CoworkChange(session: key, kind: .working))
+            }
+            sessions[key] = session
+        }
+        return outcome
     }
 
     /// Waits older than ten minutes fall back to idle, a finished turn's mark is dropped once its ninety seconds

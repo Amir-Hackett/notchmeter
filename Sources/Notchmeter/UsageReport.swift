@@ -4,7 +4,7 @@ import Foundation
 /// tool, the MCP server and the Claude Code skill: one versioned object with sorted keys and no token anywhere.
 /// Additive keys since the first version: `source` per window (WindowSource), `runOut` (the interval's two edges),
 /// `hiddenByDefault`, `rawUsedPercent`, `amountUSD`; `agents`, `branch`, `pr`, `permissionMode`, `host` and
-/// `source` (`hook`, or `detected` for one found without the hook: SessionDetection) per session; the five `tokenBuckets` and `cacheWrite1hShare` per cost range, `metering`, `cursor` in the cost
+/// `source` (SessionSource: `hook`; `storage` for a row read from OpenCode's database; `detected` or `statusline` for one found without the hook; `coworkLog` for a Claude Cowork task) per session; the five `tokenBuckets` and `cacheWrite1hShare` per cost range, `metering`, `cursor` in the cost
 /// object; `history` (the daily rows) when asked; `pid`, the writing process; `promptCache` (today's misses,
 /// requests, miss share, rewritten tokens and their price, the last cause, the sessions counted). Exit codes mirror
 /// Claude-Code-Usage-Monitor's: 0 fine, 10 near a limit, 11 a limit hit, 20 no session (nothing used), 30 no data.

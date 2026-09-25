@@ -906,8 +906,8 @@ final class Preferences {
             Keychain.setPolicy(keychainPrompts)
         }
     }
-    /// A power assertion while an assistant session (Claude Code's or Cursor's, per its hook) is working; mains power only
-    /// unless the override is on.
+    /// A power assertion while an assistant session (any assistant's, per its hook, or a Claude Cowork task, per its
+    /// log) is working; mains power only unless the override is on.
     var keepAwake: Bool {
         didSet { defaults.set(keepAwake, forKey: Keys.keepAwake); report(Keys.keepAwake, keepAwake, changed: keepAwake != oldValue) }
     }
@@ -928,6 +928,12 @@ final class Preferences {
     /// default, so the Sessions card has rows on the first launch; off, the scan stops and its rows go.
     var detectSessions: Bool {
         didSet { defaults.set(detectSessions, forKey: Keys.detectSessions); report(Keys.detectSessions, detectSessions, changed: detectSessions != oldValue) }
+    }
+    /// Whether Claude Cowork's tasks are read from the Claude app's own files and listed as sessions
+    /// (CoworkSessions). On by default: it needs no hook and writes nothing, and the files are the ones the cost
+    /// scan already reads. Off, the watch stops and every Cowork row goes at once.
+    var coworkSessions: Bool {
+        didSet { defaults.set(coworkSessions, forKey: Keys.coworkSessions); report(Keys.coworkSessions, coworkSessions, changed: coworkSessions != oldValue) }
     }
     /// Whether a prompt's first line is kept as the session's title. Off, the store drops the title before it
     /// reaches the tracker (UsageStore.hookReceived), so nothing of the prompt is held anywhere in the app.
@@ -1194,6 +1200,7 @@ final class Preferences {
         static let autoRepair = "autoRepairHooks"
         static let sessionsCard = "sessionsCard"
         static let detectSessions = "detectSessions"
+        static let coworkSessions = "coworkSessions"
         static let sessionTitles = "sessionTitles"
         static let openCodeStorageSessions = "openCodeStorageSessions"
         static let answerFromNotch = "answerFromNotch"
@@ -1328,6 +1335,7 @@ final class Preferences {
         autoRepairHooks = defaults.object(forKey: Keys.autoRepair) as? Bool ?? true
         sessionsCard = defaults.object(forKey: Keys.sessionsCard) as? Bool ?? true
         detectSessions = defaults.object(forKey: Keys.detectSessions) as? Bool ?? true
+        coworkSessions = defaults.object(forKey: Keys.coworkSessions) as? Bool ?? true
         sessionTitles = defaults.object(forKey: Keys.sessionTitles) as? Bool ?? true
         openCodeStorageSessions = defaults.object(forKey: Keys.openCodeStorageSessions) as? Bool ?? true
         answerFromNotch = defaults.object(forKey: Keys.answerFromNotch) as? Bool ?? true

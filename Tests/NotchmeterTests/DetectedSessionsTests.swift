@@ -22,6 +22,27 @@ import Testing
                      notificationType: type, tool: tool)
     }
 
+    /// A Claude Cowork task and a process the scan found in the same project are one row, not two: the task's row,
+    /// read from its log, accounts for the process-keyed row the way a hook's session does, whichever came first
+    /// (0.9.0 added both readers).
+    @Test func aCoworkTaskAccountsForAScannedProcessInItsProject() {
+        let process = found("detected-40-1", exact: false, project: "Research", busy: true)
+        let task = CoworkSessions.Observation(id: "local_1", title: "Compare vendors", project: "Research", lastWrite: t0.addingTimeInterval(-2),
+                                              turn: CoworkSessions.Turn(began: t0.addingTimeInterval(-70), end: nil, open: true))
+        var tracker = SessionTracker()
+        tracker.detected([process], now: t0)
+        #expect(tracker.all.count == 1)
+        tracker.observeCowork([task], now: t0)
+        tracker.detected([process], now: t0.addingTimeInterval(3))
+        #expect(tracker.all.count == 1, "one row for the project, the task's")
+        #expect(tracker.all.first?.source == .coworkLog)
+        var reversed = SessionTracker()
+        reversed.observeCowork([task], now: t0)
+        reversed.detected([process], now: t0.addingTimeInterval(3))
+        #expect(reversed.all.count == 1)
+        #expect(reversed.all.first?.source == .coworkLog)
+    }
+
     @Test func aFoundSessionIsARowMarkedDetected() throws {
         var tracker = SessionTracker()
         let change = tracker.detected([found("s1", busy: true, busySince: t0.addingTimeInterval(-40), name: "Fix the card", model: "Opus 5.5")], now: t0)

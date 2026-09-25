@@ -1157,6 +1157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return "\(tool.rawValue) sessions=\(prefs.readsSessions(of: tool) ? "on" : "off") answers=\(answers) "
                 + "limits=\(prefs.notifiesLimits(of: tool) ? "on" : "off") session-notices=\(prefs.notifiesSessions(of: tool) ? "on" : "off")"
         }.joined(separator: "; "))
+        Probe.emit(store.coworkSummary)
         Probe.emit("main menu: \(MainMenu.describe())")
         Probe.emit("readouts: \(autoSide.description)")
         Probe.emit("full screen: \(FullScreen.describe(on: .panelScreen))")

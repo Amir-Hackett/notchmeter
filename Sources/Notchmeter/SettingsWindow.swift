@@ -984,14 +984,17 @@ struct SettingsView: View {
     /// The 0.7.0 two-way features, for every assistant at once: the Sessions card, the titles it shows, answering a
     /// request from the notch and the hold before it goes back to the terminal, the jump to a session's terminal
     /// with the Automation grant it may need (docs/hooks.md, docs/permissions.md), and keeping the Mac awake while
-    /// a session works, which counts every assistant's sessions and so was never Claude Code's alone. Which
-    /// assistants' sessions are read and answered is on each one's page.
+    /// a session works, which counts every assistant's sessions and so was never Claude Code's alone; since 0.9.0
+    /// the sessions found without a hook (SessionDetection) and Claude Cowork's tasks (CoworkSessions), which need
+    /// none. Which assistants' sessions are read and answered is on each one's page.
     private var sessionsSection: some View {
         Section {
             Toggle(L("Show a Sessions card on the panel"), isOn: Binding(get: { prefs.sessionsCard }, set: { prefs.sessionsCard = $0 }))
                 .help(L("One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest."))
             Toggle(L("Find sessions without the hook"), isOn: Binding(get: { prefs.detectSessions }, set: { prefs.detectSessions = $0 }))
                 .help(L("Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's."))
+            Toggle(L("Show Claude Cowork tasks"), isOn: Binding(get: { prefs.coworkSessions }, set: { prefs.coworkSessions = $0 }))
+                .help(L("Cowork has no hook. While the Claude app is running, Notchmeter reads each task it keeps on this Mac every few seconds, without changing anything: the task's title (only while Show what a session is working on is on), the folder you gave it, and its log. A task is working from its prompt until the log's own end-of-turn line, and shows as idle while its log is quiet for four minutes or it has stopped to ask you something in Claude. It is never shown as waiting for you."))
             Toggle(L("Show what a session is working on"), isOn: Binding(get: { prefs.sessionTitles }, set: { prefs.sessionTitles = $0 }))
                 .help(L("The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says."))
             Toggle(L("Answer from the notch"), isOn: Binding(get: { prefs.answerFromNotch }, set: { prefs.answerFromNotch = $0 }))
@@ -1009,7 +1012,7 @@ struct SettingsView: View {
             Toggle(L("Jump to the terminal on click"), isOn: Binding(get: { prefs.jumpToTerminal }, set: { prefs.jumpToTerminal = $0 }))
                 .help(L("A click on a session row brings its terminal tab or pane forward, from what the hook read in its own environment: Warp by its focus link, iTerm2, Terminal and Ghostty by AppleScript, kitty and WezTerm by their own command, a tmux pane on its socket, anything else by raising the app. It never launches a terminal that is not running, and a session on another Mac has nothing to jump to."))
             Toggle(L("Keep the Mac awake while an assistant is working"), isOn: Binding(get: { prefs.keepAwake }, set: { prefs.keepAwake = $0; requests.awakeChanged() }))
-                .help(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held."))
+                .help(L("A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held. A Claude Cowork task at work holds it too, until its log shows the turn ended or goes quiet."))
             if prefs.keepAwake {
                 Toggle(L("Also on battery"), isOn: Binding(get: { prefs.keepAwakeOnBattery }, set: { prefs.keepAwakeOnBattery = $0; requests.awakeChanged() }))
             }
@@ -1031,7 +1034,7 @@ struct SettingsView: View {
             }
         } header: {
             Text(L("Sessions"))
-                .help(L("What the panel shows of each session, and what you can do to it from there, for every assistant. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook, on its page, and each assistant's page can stop reading its sessions or answering its requests."))
+                .help(L("What the panel shows of each session, and what you can do to it from there, for every assistant. Sessions are found without the hook too, and Claude Cowork's tasks are read from the Claude app's own files; exact turn ends, waits, answers and the task list need the assistant's hook, on its page, and each assistant's page can stop reading its sessions or answering its requests."))
         }
     }
 

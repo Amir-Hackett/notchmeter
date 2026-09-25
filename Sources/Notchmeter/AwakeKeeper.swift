@@ -5,7 +5,7 @@ import os
 private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "awake")
 
 /// Whether a power assertion should be held right now: only while the setting is on, at least one assistant
-/// session (Claude Code's or Cursor's, per its hook) is working, and the Mac is on mains power unless the battery
+/// session (any assistant's, per its hook, or a Claude Cowork task, per its log) is working, and the Mac is on mains power unless the battery
 /// override is on. Pure, so it is pinned.
 enum AwakeRule {
     static func shouldHold(working: Int, enabled: Bool, onBattery: Bool, allowOnBattery: Bool) -> Bool {

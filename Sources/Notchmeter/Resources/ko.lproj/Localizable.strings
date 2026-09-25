@@ -209,7 +209,7 @@
 "Metered apart from the included total" = "포함 총량과 별도로 측정";
 "Reads 0% on this seat however much it spends; Today's spend carries the reading" = "이 좌석은 아무리 써도 0%로 읽힙니다. 오늘 지출이 대신 보여 줍니다";
 "a session" = "세션";
-"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held." = "훅이 보고한 세션이 턴 진행 중일 때만 잠자기 방지를 유지하고 Stop에서 해제합니다. 전원 연결 시 휴대폰이나 SSH로 시작한 세션이 덮개를 닫아도 계속 실행됩니다. 유지 중에는 푸터에 \"깨어 있음 유지 · 세션 2개\"가 표시됩니다.";
+"A sleep assertion held only while a session the hook reports is mid-turn, released at its Stop, so a session started from a phone or over SSH keeps running with the lid closed on power. The footer says \"Keeping awake · 2 sessions\" while it is held. A Claude Cowork task at work holds it too, until its log shows the turn ended or goes quiet." = "훅이 보고한 세션이 턴 진행 중일 때만 잠자기 방지를 유지하고 Stop에서 해제합니다. 전원 연결 시 휴대폰이나 SSH로 시작한 세션이 덮개를 닫아도 계속 실행됩니다. 유지 중에는 푸터에 \"깨어 있음 유지 · 세션 2개\"가 표시됩니다. 작업 중인 Claude Cowork 작업도 로그에 턴 종료가 나타나거나 기록이 멈출 때까지 유지합니다.";
 "about " = "약 ";
 "Accessibility is off, so Auto stays on the side chosen before it. Notchmeter reads the frontmost app's menu bar geometry and nothing else; no other part of the app asks for Accessibility." = "손쉬운 사용이 꺼져 있어 자동은 선택하기 전의 쪽에 머뭅니다. Notchmeter는 맨 앞 앱 메뉴 막대의 위치와 크기만 읽고 그 밖의 것은 읽지 않으며, 앱의 다른 부분은 손쉬운 사용을 요구하지 않습니다.";
 "Add" = "추가";
@@ -904,7 +904,7 @@
 "Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections." = "고급에서 설정하는 Anthropic의 평일 혼잡 시간대를 이 어시스턴트의 조언과 예측에 적용합니다.";
 "Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card." = "비용 카드의 도넛, 범례, 합계에 이 어시스턴트를 포함할지 여부입니다. 순서는 어시스턴트 설정을 따릅니다. 제외해도 자기 카드에는 비용을 표시합니다.";
 "Read its sessions" = "세션 읽기";
-"What the panel shows of each session, and what you can do to it from there, for every assistant. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook, on its page, and each assistant's page can stop reading its sessions or answering its requests." = "패널이 각 세션에 대해 무엇을 보여 주고, 거기서 무엇을 할 수 있는지. 모든 어시스턴트 공통입니다. 세션은 훅 없이도 찾습니다. 정확한 턴 종료, 대기, 답변, 작업 목록에는 어시스턴트 페이지에 있는 그 훅이 필요하며, 각 어시스턴트 페이지에서 세션 읽기나 요청 답하기를 멈출 수 있습니다.";
+"What the panel shows of each session, and what you can do to it from there, for every assistant. Sessions are found without the hook too, and Claude Cowork's tasks are read from the Claude app's own files; exact turn ends, waits, answers and the task list need the assistant's hook, on its page, and each assistant's page can stop reading its sessions or answering its requests." = "패널이 각 세션에 대해 무엇을 보여 주고, 거기서 무엇을 할 수 있는지. 모든 어시스턴트 공통입니다. 세션은 훅 없이도 찾고, Claude Cowork 작업은 Claude 앱 자체 파일에서 읽습니다. 정확한 턴 종료, 대기, 답변, 작업 목록에는 어시스턴트 페이지에 있는 그 훅이 필요하며, 각 어시스턴트 페이지에서 세션 읽기나 요청 답하기를 멈출 수 있습니다.";
 "Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once." = "끄면 훅은 계속 미터를 새로 고치지만 이벤트의 다른 것은 아무것도 남기지 않습니다. 세션 카드의 행, 링의 기다림이나 완료, 소식, 알림, 패널의 요청, 깨어 있음 유지가 모두 없습니다. 이미 목록에 있는 세션은 바로 사라집니다.";
 "Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait." = "권한 요청과 질문이 답 선택지와 함께 패널을 열고, 어시스턴트는 사용자의 답을 기다립니다. 끄면 예전처럼 터미널이 묻고 패널은 기다림만 보여 줍니다.";
 "Off for every assistant under Assistants › Sessions." = "어시스턴트 › 세션에서 모든 어시스턴트에 대해 꺼져 있습니다.";
@@ -1011,3 +1011,9 @@
 "Install the hook for exact turn ends." = "훅을 설치하면 턴이 끝나는 때를 정확히 알 수 있습니다.";
 "Install the hook…" = "훅 설치…";
 "Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first." = "설정 › 연동에서 %@ 훅을 엽니다. 거기서 추가를 선택하기 전에는 아무것도 기록되지 않으며, 파일은 먼저 백업됩니다.";
+/* Claude Cowork's tasks as sessions (CoworkSessions, Settings, SessionsCard, TerminalJump, NoticeCard) */
+"Show Claude Cowork tasks" = "Claude Cowork 작업 표시";
+"Cowork has no hook. While the Claude app is running, Notchmeter reads each task it keeps on this Mac every few seconds, without changing anything: the task's title (only while Show what a session is working on is on), the folder you gave it, and its log. A task is working from its prompt until the log's own end-of-turn line, and shows as idle while its log is quiet for four minutes or it has stopped to ask you something in Claude. It is never shown as waiting for you." = "Cowork에는 훅이 없습니다. Claude 앱이 실행 중인 동안 Notchmeter는 이 Mac에 보관된 각 작업을 몇 초마다 읽으며, 아무것도 바꾸지 않습니다. 읽는 것은 작업 제목('세션이 하고 있는 일 표시'가 켜져 있을 때만), 작업에 지정한 폴더, 그리고 로그입니다. 작업은 프롬프트부터 로그 자체의 턴 종료 줄까지 작업 중이며, 로그가 4분 동안 기록되지 않거나 Claude에서 사용자에게 무언가를 묻기 위해 멈춘 동안에는 유휴로 표시됩니다. 사용자를 기다리는 중으로 표시되지는 않습니다.";
+"Claude Cowork, read from the task's own log in the Claude app. It has no hook, so a task is never shown as waiting for you." = "Claude Cowork. Claude 앱에 있는 작업 자체의 로그에서 읽습니다. 훅이 없으므로 작업이 사용자를 기다리는 중으로 표시되지 않습니다.";
+"Brings the Claude app forward (Notchmeter can't open one Cowork task in it)" = "Claude 앱을 앞으로 가져옵니다(Notchmeter는 그 안의 특정 Cowork 작업을 열 수 없습니다)";
+"Open Claude" = "Claude 열기";

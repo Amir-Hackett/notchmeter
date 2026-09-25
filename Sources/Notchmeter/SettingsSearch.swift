@@ -89,7 +89,7 @@ enum SettingsSearch {
             L("Weekly budget"), L("Cost card shows"))
         add(.shortcuts, L("Keyboard shortcuts"), L("Toggle the panel"), L("Open Settings"), L("Show over the full-screen app"))
         add(.assistants, L("Assistants"), L("Hide assistants with nothing to show"), L("Refresh now"))
-        add(.sessions, L("Sessions"), L("Show a Sessions card on the panel"), L("Find sessions without the hook"), L("Show what a session is working on"),
+        add(.sessions, L("Sessions"), L("Show a Sessions card on the panel"), L("Find sessions without the hook"), L("Show Claude Cowork tasks"), L("Show what a session is working on"),
             L("Answer from the notch"), L("Hand a request back to the terminal after"), L("Jump to the terminal on click"),
             L("Automation"), L("Open Automation settings…"), L("Check again"), L("Keep the Mac awake while an assistant is working"),
             L("Also on battery"))

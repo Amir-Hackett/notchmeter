@@ -6,7 +6,9 @@ import Foundation
 /// the reason, briefly, beside the notch (the peek, `NotchPeek`), and lights the glow under it (`NotchGlow`).
 ///
 /// It is built from what the hook already told the session tracker, never from a file's modification time, for
-/// the reason ToolSignal gives: a line in the strip asserting a wait has to be a wait some hook said began.
+/// the reason ToolSignal gives: a line in the strip asserting a wait has to be a wait some hook said began. A Claude
+/// Cowork task, which has no hook, is news only when it finishes, and its finish is the end line its own log wrote
+/// (SessionTracker.observeCowork), not the log going quiet.
 struct NotchNews: Equatable, Sendable {
     /// Why the session wants the user. The two kinds of wait an assistant can name are kept apart, because "go
     /// and approve something" and "go and answer something" are different errands; a wait it does not name is
@@ -44,6 +46,11 @@ struct NotchNews: Equatable, Sendable {
     /// The folder the session runs in (ProjectName), as the Sessions card shows it; nil when the hook sent none.
     let project: String?
     let at: Date
+    /// A hook's session, or a Claude Cowork task (AgentSession.Source), which is announced under its own name.
+    var source: SessionSource = .hook
+
+    /// "Claude Code", or "Claude Cowork" for a Cowork task: the name the announcement speaks.
+    var productName: String { source == .coworkLog ? CoworkSessions.productName : tool.productName }
 
     /// How long the peek stays beside the notch: long enough to read two words at a glance, short enough that the
     /// readouts it displaced are back before anyone goes looking for them.
@@ -84,11 +91,15 @@ struct NotchNews: Equatable, Sendable {
                                request: outcome.requested?.request.kind ?? message.request?.kind) {
             return NotchNews(reason: reason, sessionID: waiting.id, tool: waiting.tool, project: waiting.project, at: now)
         }
-        if let finished = outcome.finished, finished.turn >= ToolSignal.finishedAfter {
-            return NotchNews(reason: .finished, sessionID: finished.session.id, tool: finished.session.tool,
-                             project: finished.session.project, at: now)
-        }
+        if let finished = outcome.finished { return self.finished(finished.session, turn: finished.turn, now: now) }
         return nil
+    }
+
+    /// A turn that ended, as news: a hook's `Stop`, or the end line of a Claude Cowork task's log
+    /// (SessionTracker.observeCowork). Nil for a turn shorter than `ToolSignal.finishedAfter`, the ring's own rule.
+    static func finished(_ session: AgentSession, turn: TimeInterval, now: Date) -> NotchNews? {
+        guard turn >= ToolSignal.finishedAfter else { return nil }
+        return NotchNews(reason: .finished, sessionID: session.id, tool: session.tool, project: session.project, at: now, source: session.source)
     }
 
     /// Whether `candidate` earns an announcement. `showing` is the peek on screen now, `last` the most recent
@@ -140,7 +151,7 @@ struct NotchNews: Equatable, Sendable {
         let chosen = title.flatMap { $0.isEmpty ? nil : $0 } ?? project.flatMap { $0.isEmpty ? nil : $0 }
         let name = hidesFigures ? nil : chosen
         return Words(name: name, reason: reason.text, reasonSymbol: reason.symbolName, toolSymbol: tool.symbolName,
-                     spoken: Spoken.line(tool.productName, name, reason.text))
+                     spoken: Spoken.line(productName, name, reason.text))
     }
 }
 

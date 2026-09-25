@@ -46,6 +46,12 @@ enum AssetRenderer {
             try write(signalRings(waiting: stage, finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
                       png: directory.appendingPathComponent("signal-rings.png"))
             try write(notchNews(now: now, actions: actions), png: directory.appendingPathComponent("notch-news.png"))
+            // Claude Cowork's tasks among the hook's sessions, and the notch announcing one's finish: drawn from a
+            // store of their own (DemoFixtures.coworkTasks), so the README's pictures stay as they were.
+            let (cowork, coworkPrefs) = DemoFixtures.store(now: now, moment: .working, cowork: true)
+            let coworkStage = try Stage(store: cowork, prefs: coworkPrefs, actions: actions)
+            try write(coworkStage.image(.expanded, canvas: coworkStage.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("cowork.png"))
+            try write(coworkNews(now: now, actions: actions), png: directory.appendingPathComponent("cowork-news.png"))
             // The two requests, each drawn the way a request actually arrives: the panel opened on the card alone
             // (UsageStore.panelOpenedForPrompt), which is what the reader will see and not a panel with a card on
             // top of the meters. A state the fixture machine cannot reach cannot be drawn, so both come from real
@@ -517,6 +523,22 @@ enum AssetRenderer {
             for (index, image) in rows.enumerated() {
                 draw(image, in: CGRect(x: 0, y: CGFloat(index) * (row.height + gap), width: row.width, height: row.height), alpha: 1, into: ctx)
             }
+        }
+    }
+
+    /// The collapsed notch announcing a Claude Cowork task's finish (DemoFixtures.coworkNews): the task's title
+    /// beside the notch, the finish on the other side, and the white bloom under it, drawn as `notchNews` draws its
+    /// rows.
+    @MainActor
+    static func coworkNews(now: Date, actions: NotchActions) throws -> CGImage {
+        let (store, prefs) = DemoFixtures.store(now: now, moment: .working, cowork: true)
+        store.seed(news: DemoFixtures.coworkNews(in: store, now: now))
+        let stage = try Stage(store: store, prefs: prefs, actions: actions, drawsGlow: true)
+        let row = CGSize(width: stage.compactExtent + 2 * NotchGlowView.spread + 80, height: notch.height + NotchGlowView.depth + 8)
+        let image = try stage.image(.compact, canvas: row, pixelScale: scale)
+        return try bitmap(row, pixelScale: scale) { ctx in
+            wallpaper(in: ctx, canvas: row)
+            draw(image, in: CGRect(origin: .zero, size: row), alpha: 1, into: ctx)
         }
     }
 

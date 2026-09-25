@@ -26,6 +26,9 @@ import SwiftUI
 /// *detected* mark beside the assistant's chip, whose help, and the row's spoken value and hint, say its working is
 /// a guess and a wait is never shown; and while any such row's assistant has no hook, the card
 /// ends on one line saying what the hook adds, with a button that opens its install flow (`HookUpgradeLine`). One
+/// Claude Cowork's tasks, which have no hook, sit among them with a "Cowork" chip that says where they were
+/// read from (CoworkSessions): the Claude app's own name for the task, its folder, and a turn clocked from its
+/// prompt that ends at the log's own end line; never a wait, and a click brings the Claude app forward. One
 /// `TimelineView` drives every row, at a second while anything is working or waiting and a minute otherwise,
 /// because a second timeline per row is a redraw per row per second for as long as the panel is open. Titles and
 /// task text go while the screen is shared (`UsageStore.hidesFigures`): they are the user's own words, or the
@@ -56,7 +59,7 @@ struct SessionsCard: View {
         let id: String
         let tool: ToolID
         let title: String
-        /// The assistant's name: the one chip on the title line.
+        /// The assistant's name: the one chip on the title line ("Cowork" for a Cowork task).
         let chips: [String]
         /// The second line: the branch, the terminal or editor's short name, the model when something reported it
         /// (the status line, or a detected session's transcript), and the host for a remote session.
@@ -127,7 +130,7 @@ struct SessionsCard: View {
             let agents = session.agents.sorted { $0.value != $1.value ? $0.value < $1.value : $0.key < $1.key }
                 .map { Row.Agent(id: $0.key, since: $0.value) }
             let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped, alike: alike.contains(session.id))
-            return Row(id: session.id, tool: session.tool, title: lines.title, chips: [session.tool.displayName],
+            return Row(id: session.id, tool: session.tool, title: lines.title, chips: [session.assistantName],
                        branch: lines.branch, place: lines.place, model: session.model, host: lines.host, group: groupName(of: session),
                        since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
                        status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
@@ -160,9 +163,10 @@ struct SessionsCard: View {
         return order.map { Group(name: $0, count: counts[$0] ?? 0, rows: members[$0] ?? []) }
     }
 
-    /// What a project header calls the session: "notchmeter", "notchmeter@devbox", "@devbox"; else the assistant.
+    /// What a project header calls the session: "notchmeter", "notchmeter@devbox", "@devbox"; else the assistant
+    /// ("Cowork" for a Cowork task given no folder).
     static func groupName(of session: AgentSession) -> String {
-        session.displayName ?? session.tool.displayName
+        session.displayName ?? session.assistantName
     }
 
     /// The prompt's first line when the hook sent one (else the status line's session name) and the screen is not
@@ -170,7 +174,7 @@ struct SessionsCard: View {
     /// the row's second line, so it is not repeated here.
     static func title(of session: AgentSession, hideTitles: Bool) -> String {
         if !hideTitles, let title = session.displayTitle { return title }
-        return session.displayName ?? session.tool.displayName
+        return session.displayName ?? session.assistantName
     }
 
     /// The row's title and second line, each saying a thing once. A row with a title of its own shows it over the
@@ -236,8 +240,8 @@ struct SessionsCard: View {
     }
 
     /// What the oracle's snapshot says of the card: the rows as drawn, in order, with their group, status, source
-    /// (`hook`, `storage`, `detected` or `statusline`) and the counts they carry, never a title or a task's text
-    /// (docs/testing.md).
+    /// (`hook`, `storage`, `detected`, `statusline` or `coworkLog`) and the counts they carry, never a title or a
+    /// task's text (docs/testing.md).
     static func oracleRows(_ groups: [Group]) -> [[String: Any]] {
         groups.flatMap { group in
             group.rows.map { row -> [String: Any] in
@@ -540,7 +544,7 @@ private struct SessionRow: View {
                     // On the Simple sheet the title matches its sibling rows' (SimpleRow): one title size a sheet.
                     Text(verbatim: row.title).font((embedded ? Font.body : .callout).weight(.semibold)).lineLimit(1).truncationMode(.tail)
                         .foregroundStyle(row.status == .idle ? Caption.style : AnyShapeStyle(.primary))
-                    ForEach(row.chips, id: \.self) { Chip(text: $0).help(L("The assistant running this session")) }
+                    ForEach(row.chips, id: \.self) { Chip(text: $0).help(chipHelp) }
                     if row.detected {
                         DetectedMark()
                     }
@@ -690,6 +694,15 @@ private struct SessionRow: View {
         case .waiting: L("Waiting")
         case .idle: L("Idle")
         case .finished: L("Just finished")
+        }
+    }
+
+    /// The chip names the assistant; on a Cowork row it also says where the row came from and what that cannot
+    /// tell, since nothing else on the row does.
+    private var chipHelp: String {
+        switch row.source {
+        case .hook, .localStorage, .detected, .statusline: L("The assistant running this session")
+        case .coworkLog: L("Claude Cowork, read from the task's own log in the Claude app. It has no hook, so a task is never shown as waiting for you.")
         }
     }
 

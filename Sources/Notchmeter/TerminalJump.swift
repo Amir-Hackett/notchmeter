@@ -74,9 +74,18 @@ enum TerminalJump {
 
     /// What a row that jumps says it will do. Cursor can be asked to open a folder but not one of its chats (its
     /// deeplinks start a prompt, a command or an MCP install, never an existing conversation), so a Cursor row
-    /// promises the window and no more.
+    /// promises the window and no more. A Claude Cowork task runs in the Claude app, which is raised and nothing
+    /// more: no way to open one task from outside it is documented, so the row promises the app.
     static func jumpHelp(_ ref: TerminalRef?) -> String {
-        isCursor(ref?.bundleID) ? L("Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)") : L("Jump to the terminal")
+        if isCursor(ref?.bundleID) { return L("Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)") }
+        if ref?.bundleID == CoworkSessions.bundleID { return L("Brings the Claude app forward (Notchmeter can't open one Cowork task in it)") }
+        return L("Jump to the terminal")
+    }
+
+    /// The words on a button that jumps (NoticeCard): "Open Claude" for a Cowork task, whose place is the Claude
+    /// app rather than a terminal.
+    static func jumpTitle(_ ref: TerminalRef?) -> String {
+        ref?.bundleID == CoworkSessions.bundleID ? L("Open Claude") : L("Jump to the terminal")
     }
 
     /// The terminal app's short name for a chip on a session row, from the bundle id the hook read. Proper nouns,
