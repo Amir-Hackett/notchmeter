@@ -103,10 +103,12 @@ import Testing
     }
 
     /// The tool that publishes neither a price nor a priced count never reaches the engine at all. Copilot joined
-    /// the four with GitHub's June 2026 move to AI credits, a cent a credit at GitHub's published rate.
-    @Test func onlyFourToolsCanReportSpend() {
+    /// with GitHub's June 2026 move to AI credits, a cent a credit at GitHub's published rate, and OpenCode with its
+    /// own database, whose every turn records its tokens, its model and the cost OpenCode put on it.
+    @Test func onlyTheToolsWithASourceCanReportSpend() {
         let reportingCost = ToolID.allCases.filter(\.reportsCost)
-        #expect(reportingCost == [.claude, .codex, .cursor, .copilot])
+        let withASource: [ToolID] = [.claude, .codex, .cursor, .copilot, .opencode]
+        #expect(reportingCost == withASource)
         #expect(ToolID.copilot.reportsCost == true)
         #expect(ToolID.antigravity.reportsCost == false)
         #expect(ToolID.gemini.reportsCost == false, "Gemini CLI meters the same Google quota, in requests, not dollars")

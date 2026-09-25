@@ -4,9 +4,9 @@ import SwiftUI
 import Testing
 @testable import Notchmeter
 
-/// 0.9.0 split the one Antigravity row into Gemini CLI's and Antigravity's and added Kimi Code. A preference an
-/// earlier build wrote is brought forward once (ToolMigration): the Gemini CLI row inherits the combined row's
-/// settings, a new tool starts switched on, and nothing is migrated twice.
+/// 0.9.0 split the one Antigravity row into Gemini CLI's and Antigravity's and added Kimi Code and OpenCode. A
+/// preference an earlier build wrote is brought forward once (ToolMigration): the Gemini CLI row inherits the
+/// combined row's settings, a new tool starts switched on, and nothing is migrated twice.
 @Suite struct ToolMigrationRules {
     func withSuite(_ name: String, _ body: (UserDefaults) throws -> Void) rethrows {
         let suite = "NotchmeterTests.ToolMigration.\(name)"
@@ -32,10 +32,10 @@ import Testing
         withSuite("inherit") { defaults in
             legacy(defaults)
             let outcome = ToolMigration.migrate(defaults)
-            #expect(outcome.added == [.gemini, .kimi])
+            #expect(outcome.added == [.gemini, .kimi, .opencode])
             #expect(outcome.inherited == [.gemini: .antigravity])
             let enabled = Set(defaults.stringArray(forKey: "enabledTools") ?? [])
-            #expect(enabled == ["antigravity", "claude", "gemini", "kimi"], "on because the combined row was, and a new tool starts on")
+            #expect(enabled == ["antigravity", "claude", "gemini", "kimi", "opencode"], "on because the combined row was, and a new tool starts on")
             #expect(defaults.stringArray(forKey: "toolOrder") == ["claude", "gemini", "antigravity", "codex", "cursor", "copilot"],
                     "just before Antigravity, where a new install has it")
             #expect(defaults.stringArray(forKey: "menuBarPinnedTools") == ["antigravity", "gemini"])
@@ -55,8 +55,8 @@ import Testing
         withSuite("prefs") { defaults in
             legacy(defaults)
             let prefs = Preferences(defaults: defaults)
-            #expect(prefs.enabledTools == [.claude, .gemini, .antigravity, .kimi])
-            let order: [ToolID] = [.claude, .gemini, .antigravity, .codex, .cursor, .copilot, .kimi]
+            #expect(prefs.enabledTools == [.claude, .gemini, .antigravity, .kimi, .opencode])
+            let order: [ToolID] = [.claude, .gemini, .antigravity, .codex, .cursor, .copilot, .kimi, .opencode]
             #expect(prefs.toolOrder == order)
             #expect(prefs.menuBarPinnedTools == [.gemini, .antigravity])
             #expect(prefs.peakHoursTools == [.claude, .gemini, .antigravity])
@@ -70,7 +70,7 @@ import Testing
         withSuite("off") { defaults in
             legacy(defaults, antigravityOn: false)
             ToolMigration.migrate(defaults)
-            #expect(Set(defaults.stringArray(forKey: "enabledTools") ?? []) == ["claude", "kimi"])
+            #expect(Set(defaults.stringArray(forKey: "enabledTools") ?? []) == ["claude", "kimi", "opencode"])
         }
     }
 
@@ -111,9 +111,9 @@ import Testing
             defaults.set(["claude"], forKey: "enabledTools")
             defaults.set(["kimi-was-not-known"], forKey: "menuBarPinnedTools")
             let outcome = ToolMigration.migrate(defaults)
-            #expect(outcome.added == [.kimi])
+            #expect(outcome.added == [.kimi, .opencode])
             #expect(outcome.inherited.isEmpty)
-            #expect(defaults.stringArray(forKey: "enabledTools") == ["claude", "kimi"])
+            #expect(defaults.stringArray(forKey: "enabledTools") == ["claude", "kimi", "opencode"])
             #expect(defaults.stringArray(forKey: "menuBarPinnedTools") == ["kimi-was-not-known"], "nothing else is touched")
         }
     }

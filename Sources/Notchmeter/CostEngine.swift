@@ -58,13 +58,16 @@ struct CostEngine: Sendable {
     let codex: CodexCostScanner
     let cursor: CursorCostReader
     let copilot: CopilotCostReader
+    let opencode: OpenCodeCostScanner
 
     init(claude: ClaudeCostScanner = ClaudeCostScanner(), codex: CodexCostScanner = CodexCostScanner(),
-         cursor: CursorCostReader = CursorCostReader(), copilot: CopilotCostReader = CopilotCostReader()) {
+         cursor: CursorCostReader = CursorCostReader(), copilot: CopilotCostReader = CopilotCostReader(),
+         opencode: OpenCodeCostScanner = OpenCodeCostScanner()) {
         self.claude = claude
         self.codex = codex
         self.cursor = cursor
         self.copilot = copilot
+        self.opencode = opencode
     }
 
     /// The week every tool's spend is measured against: where the live Claude weekly window started, else the
@@ -94,6 +97,7 @@ struct CostEngine: Sendable {
                                              weeklyUsed: weeklyUsed, sessionResetsAt: sessionResetsAt, sessionUsed: sessionUsed,
                                              meteringSince: meteringSince, calendar: calendar)
         async let codexCost = codexCost(tools: tools, now: now, daysBack: daysBack, weekStart: week, calendar: calendar)
+        async let opencodeCost = opencodeCost(tools: tools, now: now, daysBack: daysBack, weekStart: week, calendar: calendar)
         let cursorCost = tools.contains(.cursor)
             ? cursor.read(now: now, daysBack: daysBack, weekStart: week, calendar: calendar, state: reads[.cursor] ?? ProviderReadState())
             : nil
@@ -101,7 +105,12 @@ struct CostEngine: Sendable {
             ? copilot.read(now: now, daysBack: daysBack, weekStart: week, calendar: calendar, state: reads[.copilot] ?? ProviderReadState())
             : nil
         let summary = await claudeSummary ?? CostSummary.empty.with(scannedAt: now)
-        return summary.adding([await codexCost, cursorCost, copilotCost].compactMap { $0 })
+        return summary.adding([await codexCost, cursorCost, copilotCost, await opencodeCost].compactMap { $0 })
+    }
+
+    private func opencodeCost(tools: Set<ToolID>, now: Date, daysBack: Int, weekStart: Date, calendar: Calendar) async -> ProviderCost? {
+        guard tools.contains(.opencode) else { return nil }
+        return await opencode.scan(now: now, daysBack: daysBack, weekStart: weekStart, calendar: calendar)
     }
 
     private func claudeCost(tools: Set<ToolID>, now: Date, daysBack: Int, weeklyResetsAt: Date?, weeklyUsed: Double?,

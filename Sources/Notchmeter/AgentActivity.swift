@@ -44,8 +44,8 @@ enum PowerSource {
 /// When each tool last touched its files, sampled with a few directory listings rather than a scan: Claude Code's
 /// three most recently changed project folders (in every transcript root, Cowork's and the user's extra ones
 /// included), Codex's rollouts for today and yesterday, the modification time of Cursor's state database, Gemini
-/// CLI's login file and per-project folders, Antigravity's conversation folders, Copilot's config folder, and Kimi
-/// Code's newest sessions.
+/// CLI's login file and per-project folders, Antigravity's conversation folders, Copilot's config folder, Kimi
+/// Code's newest sessions, and OpenCode's databases.
 struct AgentActivity: Sendable {
     var claudeRoots: [URL] = ClaudeCostScanner.defaultRoots()
     var codexSessions: URL = Paths.home.appendingPathComponent(".codex/sessions")
@@ -53,6 +53,7 @@ struct AgentActivity: Sendable {
     var geminiRoot: URL = Paths.home.appendingPathComponent(".gemini")
     var copilotRoot: URL = Paths.home.appendingPathComponent(".config/github-copilot")
     var kimiRoot: URL = KimiProvider.shareDirectory(environment: ProcessInfo.processInfo.environment)
+    var opencodeData: URL = OpenCodePaths.dataDirectory()
 
     func sample(now: Date = Date()) -> [ToolID: Date] {
         var result: [ToolID: Date] = [:]
@@ -63,11 +64,19 @@ struct AgentActivity: Sendable {
         result[.antigravity] = Self.newestAntigravity(root: geminiRoot)
         result[.copilot] = Self.newestCopilot(root: copilotRoot)
         result[.kimi] = Self.newestKimi(root: kimiRoot)
+        result[.opencode] = Self.newestOpenCode(data: opencodeData)
         return result
     }
 
-    /// Gemini CLI rewrites its login file on every token refresh and keeps a folder per project under `tmp`. Each
-    /// folder is one listing, not a walk.
+    /// OpenCode writes every turn to its database, so the database and its write-ahead log are its activity.
+    static func newestOpenCode(data: URL) -> Date? {
+        OpenCodePaths.databases(in: data).flatMap { database in
+            ["", "-wal"].compactMap { modified(URL(fileURLWithPath: database.path + $0)) }
+        }.max()
+    }
+
+    /// Gemini CLI rewrites its login file on every token refresh and keeps a folder per project under `tmp`;
+    /// Antigravity's CLI keeps its conversations under `antigravity-cli`. Each folder is one listing, not a walk.
     static func newestGemini(root: URL) -> Date? {
         newest(in: [root.appendingPathComponent("tmp")], plus: [root.appendingPathComponent("oauth_creds.json")])
     }

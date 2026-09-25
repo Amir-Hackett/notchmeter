@@ -51,7 +51,8 @@ extension ProviderRegistry {
          CodeAssistProvider(tool: .gemini),
          CodeAssistProvider(tool: .antigravity),
          CopilotProvider(defaults: defaults),
-         KimiProvider()]
+         KimiProvider(),
+         OpenCodeProvider()]
     }
 }
 
@@ -104,6 +105,10 @@ final class UsageStore {
     /// again whenever Settings looks), so the Sessions card can say "no sessions" rather than vanish before the
     /// first event arrives. A cached answer, because the view must not read files as it draws.
     var hooksInstalled = false
+    /// Whether OpenCode's plugin file is in place, read at launch and whenever Settings looks, for the one line the
+    /// Sessions card adds under rows read from OpenCode's database: with the file there, the rows are waiting for
+    /// OpenCode to restart and load it rather than for the user to add it.
+    var openCodePluginInstalled = false
     /// One line the footer shows beside the schedule: a hook repaired at launch, the awake assertion held.
     private(set) var footerNote: String?
     /// Extra-usage credits rose since the last reading (kept for an hour, for the advice strip).
@@ -150,6 +155,14 @@ final class UsageStore {
     @ObservationIgnored private var cursorNamesTried: [String: Date] = [:]
     @ObservationIgnored private var cursorNameRead: Task<Void, Never>?
     @ObservationIgnored private var cursorNameFollowUp: Task<Void, Never>?
+    /// OpenCode's sessions read from its own database while its plugin is silent (OpenCodeSessions): the loop, what
+    /// the last read said of each session, the files' fingerprint at that read and when it was taken, and whether
+    /// the plugin has spoken this run, after which the reading stands down.
+    @ObservationIgnored private var openCodeWatch: Task<Void, Never>?
+    @ObservationIgnored private var openCodeSeen: [String: OpenCodeSessions.Seen]?
+    @ObservationIgnored private var openCodeFingerprint: String?
+    @ObservationIgnored private var openCodeReadAt: Date?
+    @ObservationIgnored private(set) var openCodePluginSpoke = false
     @ObservationIgnored private var lastFetch: [ToolID: Date] = [:]
     @ObservationIgnored private let cache: ReadingCache
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -572,6 +585,7 @@ final class UsageStore {
         }
         startTick()
         startResetTimer()
+        startOpenCodeWatch()
         observeEnvironment()
     }
 
@@ -1626,6 +1640,14 @@ final class UsageStore {
             message.request = nil
         }
         let tool = message.tool
+        // The plugin reports exactly what the database reading can only infer, so its first event ends the reading,
+        // and the sessions the reading was still following end their turns before this event applies: they will
+        // not be read again, and a working row nothing will ever close is worse than one ended unseen. The session
+        // this event is about is left to the event, which knows better (a Stop for it is a finish, not a failure).
+        if tool == .opencode, message.source == .hook, !openCodePluginSpoke {
+            openCodePluginSpoke = true
+            standDownOpenCodeReading(except: [message.sessionID, message.agentID].compactMap { $0 }, now: now)
+        }
         log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.request.map { " (\($0.kind.name) request)" } ?? "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
         emitHookFacts(Self.hookFacts(message, wait: waitKind))
         lastHook[tool] = now
@@ -1712,6 +1734,91 @@ final class UsageStore {
         }
     }
 
+    // MARK: - OpenCode without its plugin
+
+    /// The loop behind OpenCode's sessions read from its database (OpenCodeSessions), for the life of the app: every
+    /// few seconds, slower on battery or in Low Power Mode, the database's fingerprint is taken and the sessions are
+    /// read only when it moved, or a minute has passed (a turn can go quiet without a write). Each pass costs a few
+    /// `stat` calls while nothing changes, and nothing but a wake-up a minute while OpenCode is not on this Mac,
+    /// switched off under Assistants, read by its plugin, or every read is paused (asleep, locked, another user).
+    private func startOpenCodeWatch() {
+        openCodeWatch?.cancel()
+        openCodeWatch = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                await self.readOpenCodeSessions()
+                let pace = !self.readsOpenCodeSessions ? OpenCodeSessions.idleInterval
+                    : self.onBattery || self.lowPowerMode ? OpenCodeSessions.slowInterval : OpenCodeSessions.interval
+                try? await Task.sleep(for: .seconds(pace))
+            }
+        }
+    }
+
+    /// Whether OpenCode's sessions are read from its database right now.
+    var readsOpenCodeSessions: Bool {
+        prefs.openCodeStorageSessions && isShown(.opencode) && !openCodePluginSpoke && pauseReason == nil
+    }
+
+    /// One pass: off the main thread, the fingerprint, and when it moved the sessions and the events they imply,
+    /// then each event replayed through `hookReceived` at the moment the database says it happened, so a
+    /// session read this way lights the rings, counts and notifies exactly as a hooked one does. OpenCode's own titles
+    /// are read only while titles are on and the screen is not shared, and land as each session's name.
+    ///
+    /// A read with a problem (a database held past its busy timeout while OpenCode migrates or checkpoints, or one
+    /// that cannot be read at all) is not a read of no sessions: nothing is replayed and the last record stands, since
+    /// an empty read would end every working turn and the next good read would start them all again from now. The
+    /// fingerprint is kept, so an unchanged file is tried again a minute later rather than every few seconds.
+    func readOpenCodeSessions(now: Date = Date()) async {
+        guard readsOpenCodeSessions, let provider = providers[.opencode] as? OpenCodeProvider else { return }
+        let data = provider.reader.data
+        let environment = provider.reader.environment
+        let titles = CursorChatNames.allowed(titles: prefs.sessionTitles, hidesFigures: hidesFigures)
+        let previous = openCodeSeen
+        let known = openCodeFingerprint
+        let due = openCodeReadAt.map { now.timeIntervalSince($0) >= 60 } ?? true
+        struct Pass: Sendable {
+            let fingerprint: String
+            let events: [OpenCodeSessions.Event]
+            let seen: [String: OpenCodeSessions.Seen]
+            let names: [String: String]
+            let problem: String?
+        }
+        let pass = await Task.detached(priority: .utility) { () -> Pass? in
+            let fingerprint = OpenCodePaths.fingerprint(data: data, environment: environment)
+            guard fingerprint != known || due else { return nil }
+            let read = OpenCodeStore.sessions(data: data, environment: environment, since: now.addingTimeInterval(-OpenCodeSessions.lookBack),
+                                              titles: titles, now: now)
+            if let problem = read.problem { return Pass(fingerprint: fingerprint, events: [], seen: previous ?? [:], names: [:], problem: problem) }
+            let diff = OpenCodeSessions.events(previous: previous, current: read.sessions, now: now)
+            return Pass(fingerprint: fingerprint, events: diff.events, seen: diff.seen, names: OpenCodeSessions.names(read.sessions), problem: nil)
+        }.value
+        guard let pass, readsOpenCodeSessions else { return }
+        openCodeFingerprint = pass.fingerprint
+        openCodeReadAt = now
+        if let problem = pass.problem {
+            log.warning("OpenCode sessions not read: \(problem, privacy: .public)")
+            Oracle.shared.emit("session", ["action": "openCodeReadFailed", "problem": problem])
+            return
+        }
+        openCodeSeen = pass.seen
+        for event in pass.events { hookReceived(event.message, now: event.at) }
+        guard CursorChatNames.allowed(titles: prefs.sessionTitles, hidesFigures: hidesFigures) else { return }
+        for (key, name) in pass.names where sessions.sessions[key].map({ $0.sessionName != name }) == true {
+            sessions.name(key, name)
+        }
+    }
+
+    /// The reading's farewell on the plugin's first event: every session it last saw working, bar `except`, ends its
+    /// turn now with no finish claimed, exactly as a session that vanished between two reads does, and the record
+    /// is dropped. Nothing will read those sessions again; a plugin event for one of them makes it a hooked session
+    /// again as it arrives.
+    private func standDownOpenCodeReading(except: [String], now: Date) {
+        guard let seen = openCodeSeen else { return }
+        openCodeSeen = nil
+        let following = seen.filter { !except.contains($0.key) }
+        for event in OpenCodeSessions.events(previous: following, current: [], now: now).events { hookReceived(event.message, now: event.at) }
+    }
+
     /// Cursor's own name for each Cursor chat that has no title yet (CursorChatNames), read from the running
     /// user's Cursor state database off the main thread, one read at a time and each id at most every 30 s. Only
     /// while titles are on and the screen is not shared, checked again when the read comes back; a store with no
@@ -1764,6 +1871,8 @@ final class UsageStore {
         var facts: [String: Any] = ["name": message.event, "needsInput": message.needsInput, "session": message.sessionID as Any, "project": message.project as Any,
                                     "host": message.host as Any, "branch": message.branch as Any, "agent": message.agentID as Any, "failure": message.failure as Any]
         if message.tool != .claude { facts["tool"] = message.tool.rawValue }
+        // An event the app read from an assistant's own database rather than one its hook sent.
+        if message.source == .localStorage { facts["source"] = "storage" }
         if let request = message.request { facts["request"] = request.kind.name }
         // A task list is reported by its counts, never its words.
         if let todos = message.todos { facts["todos"] = ["done": todos.done, "total": todos.total] }

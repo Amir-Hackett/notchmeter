@@ -60,6 +60,7 @@ enum AssetRenderer {
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
             try write(sheet(assistantPages(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings-assistants.png"))
             try write(welcome(now: now), png: directory.appendingPathComponent("welcome.png"))
+            try openCode(into: directory, now: now, actions: actions)
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
             // The same moment on the Detailed panel (PanelMode): every card open, as the panel was before 0.8.0.
             prefs.panelMode = .detailed
@@ -616,12 +617,12 @@ enum AssetRenderer {
     /// turned once before the capture; without it the picture is of the previews at their own size, overflowing
     /// the stage.
     @MainActor
-    static func welcome(now: Date) throws -> CGImage {
+    static func welcome(now: Date, steps: [WelcomeStep] = WelcomeStep.allCases, openCode: Bool = false) throws -> CGImage {
         let previews = WelcomePreviews(now: now)
         let size = WelcomeWindowController.contentSize
         var pages: [CGImage] = []
-        for step in WelcomeStep.allCases {
-            let host = NSHostingView(rootView: WelcomeView(start: step, previews: previews, install: {}, finish: {}))
+        for step in steps {
+            let host = NSHostingView(rootView: WelcomeView(start: step, previews: previews, openCode: openCode, install: {}, finish: {}))
             let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: .borderless, backing: .buffered, defer: false)
             window.appearance = NSAppearance(named: .darkAqua)
             window.backgroundColor = .windowBackgroundColor
@@ -633,6 +634,31 @@ enum AssetRenderer {
             pages.append(try bitmap(of: host, size: size, what: "the \(step.name) step of the Welcome tour"))
         }
         return try stack(pages, gutter: 24)
+    }
+
+    /// OpenCode's pictures. docs/features.md shows two: the Simple panel with OpenCode first and a session read from
+    /// its database (`opencode.png`), and the Detailed panel, where the Go meter's three windows and their "computed
+    /// here" tags sit on OpenCode's card (`opencode-detailed.png`). The rest are for review, like `expanded-open.png`
+    /// and `notch-news.png`: the same panel with OpenCode's row and the Cost card opened in place; the Assistants pane
+    /// with OpenCode's options open over the Integrations pane with its plugin row, where the OpenCode row's subtitle
+    /// must not claim a login; and the Welcome tour's last step as a Mac with OpenCode on it sees it.
+    @MainActor
+    static func openCode(into directory: URL, now: Date, actions: NotchActions) throws {
+        let (store, prefs) = DemoFixtures.openCodeStore(now: now)
+        let simple = try Stage(store: store, prefs: prefs, actions: actions)
+        try write(simple.image(.expanded, canvas: simple.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("opencode.png"))
+        store.openPanelRows = [AdvicePlacement.Slot.tool(.opencode).key, AdvicePlacement.Slot.cost.key]
+        let opened = try Stage(store: store, prefs: prefs, actions: actions)
+        try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("opencode-open.png"))
+        store.openPanelRows = []
+        prefs.panelMode = .detailed
+        let detailed = try Stage(store: store, prefs: prefs, actions: actions)
+        try write(detailed.image(.expanded, canvas: detailed.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("opencode-detailed.png"))
+        prefs.panelMode = .simple
+        try write(stack([try settings(pane: .assistants, store: store, prefs: prefs, actions: actions),
+                         try settings(pane: .integrations, store: store, prefs: prefs, actions: actions)]),
+                  png: directory.appendingPathComponent("opencode-settings.png"))
+        try write(welcome(now: now, steps: [.connect], openCode: true), png: directory.appendingPathComponent("opencode-welcome.png"))
     }
 
     /// Images one under another, left-aligned, on the same ground the sheet's gutters use.

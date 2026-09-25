@@ -177,6 +177,42 @@ import Testing
         #expect(Advisor.cadence(Period.week) == "weekly")
         #expect(Advisor.cadence(Period.fiveHours) == "session")
         #expect(Advisor.cadence(30 * 86400) == "30-day window")
+        // A label that already names its window is used as the card uses it: "Kimi K3 5-hour", never "Kimi K3 session".
+        let scoped = window("go_5h:kimi-k3", label: .scoped(model: "Kimi K3", of: .filled("%ld-hour", [.number(5)])), used: 0.9, elapsed: 3600,
+                            period: Period.fiveHours, model: "Kimi K3")
+        #expect(Advisor.name(scoped) == "Kimi K3 5-hour")
+        #expect(Advisor.name(scoped, of: .opencode) == "Kimi K3 5-hour")
+    }
+
+    /// OpenCode Go meters each model over three windows, so the advice sets a model's 5-hour share against another
+    /// model's 5-hour share, never its month, and names both the way the card does. Kimi K3: five $0.54 turns in the
+    /// last five hours, $2.70 of its $3 share; GLM-5.2: one $0.18 turn of its $12.
+    @Test func goModelsAreComparedWindowForWindowAndNamedAsTheCardNamesThem() throws {
+        func turn(_ model: String, hoursAgo: Double, input: Int, output: Int) -> OpenCodeUsage {
+            OpenCodeUsage(id: UUID().uuidString, sessionID: "s", timestamp: now.addingTimeInterval(-hoursAgo * 3600), providerID: GoPlan.providerID,
+                          modelID: model, directory: nil, tokens: TokenBreakdown(input: input, output: output), contextTokens: input, recordedCost: nil)
+        }
+        let turns = (0..<5).map { turn("kimi-k3", hoursAgo: Double($0) * 0.5 + 0.25, input: 80_000, output: 20_000) }
+            + [turn("glm-5.2", hoursAgo: 1, input: 100_000, output: 10_000)]
+        let go = try #require(GoMeter.reading(turns, now: now))
+        #expect(Advisor.modelRouting(context([go])).map(\.text) == ["Kimi K3 5-hour is 90%. GLM-5.2 is 2%. Switch models, not tools."])
+        // With GLM-5.2 as full as Kimi K3 in the five hours, its empty month is no alternative, and the tool-wide
+        // 5-hour window is Kimi K3's own figure, so there is nowhere to route to.
+        let both = turns + (0..<70).map { turn("glm-5.2", hoursAgo: Double($0) * 0.05 + 0.25, input: 100_000, output: 10_000) }
+        #expect(Advisor.modelRouting(context([try #require(GoMeter.reading(both, now: now))])).isEmpty)
+    }
+
+    /// Codex Spark's session window is a share of Codex's own session window, not of its week.
+    @Test func aPerModelSessionWindowFallsBackToTheOverallSessionNotTheWeek() {
+        let codex = reading(.codex, [
+            window("session", label: "Session", used: 0.12, elapsed: 3600, period: Period.fiveHours),
+            window("weekly", label: "Weekly", used: 0.4, elapsed: 3 * 86400),
+            window("spark_session", label: .scoped(model: "Spark", of: "Session"), used: 0.91, elapsed: 3600, period: Period.fiveHours, model: "Spark"),
+            window("spark_weekly", label: .scoped(model: "Spark", of: "Weekly"), used: 0.3, elapsed: 3 * 86400, model: "Spark"),
+        ])
+        #expect(Advisor.modelRouting(context([codex])).map(\.text) == ["Spark session is 91%. Overall session is 12%. Switch models, not tools."])
+        #expect(Advisor.overallWindow(of: codex, period: Period.week)?.id == "weekly")
+        #expect(Advisor.overallWindow(of: codex, period: nil)?.id == "weekly", "with no length declared, the main window as before")
     }
 
     /// Cursor labels half its plan "Cursor models", so a sentence that opens with the tool's name used to say it

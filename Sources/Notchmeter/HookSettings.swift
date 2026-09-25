@@ -7,7 +7,9 @@ import Foundation
 /// for all of them. This writes only on a Settings button or the launch repair, after a backup. A JSON file that is
 /// not strict JSON (Gemini CLI's settings.json may carry comments) is refused rather than flattened; Kimi Code's
 /// TOML file is edited as text (KimiHookFile), appending tables and rewriting a command in place, and one that
-/// already defines `hooks` in another form is refused the same way.
+/// already defines `hooks` in another form is refused the same way. OpenCode's integration is a plugin module rather
+/// than an entry in a file, so its status, install, repair and snippet are OpenCodePlugin's, reached through the
+/// same four functions so that every caller stays vendor-blind.
 enum HookSettings {
     /// SubagentStart, SubagentStop and StopFailure joined in round 2, PreToolUse (matched to AskUserQuestion) in
     /// 0.7.0, PostToolUse (matched to the task tools, for the Sessions card's task list) after 0.7.9; Repair adds them to
@@ -142,6 +144,7 @@ enum HookSettings {
     /// failure), no loop_limit (no followup_message is ever emitted) and no matcher. Kimi Code's is TOML: the
     /// `[[hooks]]` tables Add appends, byte for byte (KimiHookFile.table).
     static func snippet(vendor: HookVendor = .claude, executable: String = executablePath) -> String {
+        if vendor.shape == .pluginModule { return OpenCodePlugin.source(executable: executable) }
         if vendor.shape == .tomlTables {
             return vendor.events.map { event in
                 KimiHookFile.table(event: event, handler: vendor.handler(command: command(executable: executable, flag: vendor.flag(for: event)), event: event))
@@ -159,6 +162,8 @@ enum HookSettings {
                 """
             case .flatCommands, .tomlTables:
                 return "    \"\(event)\": [ \(handler) ]"
+            case .pluginModule:
+                return ""
             }
         }
         let rootKeys = vendor.shape.requiredRootKeys.sorted { $0.key < $1.key }.map { "  \"\($0.key)\": \(render(value: $0.value)),\n" }.joined()
@@ -342,7 +347,8 @@ enum HookSettings {
 
     /// The vendor's file on disk, or another at `url` (tests and `--smoke`).
     static func status(vendor: HookVendor = .claude, at url: URL? = nil, executable: String = executablePath) -> Status {
-        ((try? hooks(of: vendor, at: url ?? vendor.fileURL)).map { status(settings: $0, vendor: vendor, executable: executable) }) ?? .notInstalled
+        if vendor.shape == .pluginModule { return OpenCodePlugin.status(at: url ?? vendor.fileURL, executable: executable) }
+        return ((try? hooks(of: vendor, at: url ?? vendor.fileURL)).map { status(settings: $0, vendor: vendor, executable: executable) }) ?? .notInstalled
     }
 
     /// The file's hooks as a JSON-shaped object whatever the file is written in: the JSON itself, or Kimi Code's
@@ -360,6 +366,7 @@ enum HookSettings {
     /// file's own permissions. Nothing is written when every event already has the hook.
     static func install(vendor: HookVendor = .claude, at url: URL? = nil, executable: String = executablePath, now: Date = Date()) throws -> Installed {
         let url = url ?? vendor.fileURL
+        if vendor.shape == .pluginModule { return try OpenCodePlugin.install(at: url, executable: executable, now: now) }
         if vendor.shape == .tomlTables { return try installTables(vendor: vendor, at: url, executable: executable, now: now) }
         let settings = try readSettings(at: url)
         let merged = merge(into: settings, vendor: vendor, executable: executable)
@@ -372,6 +379,8 @@ enum HookSettings {
     /// lacks one, after a backup.
     static func repairInstall(vendor: HookVendor = .claude, at url: URL? = nil, executable: String = executablePath, now: Date = Date()) throws -> Installed {
         let url = url ?? vendor.fileURL
+        // The plugin is rewritten whole for this executable and version, after the same backup.
+        if vendor.shape == .pluginModule { return try OpenCodePlugin.install(at: url, executable: executable, now: now) }
         if vendor.shape == .tomlTables { return try repairTables(vendor: vendor, at: url, executable: executable, now: now) }
         let settings = try readSettings(at: url)
         let result = repair(settings, vendor: vendor, executable: executable)

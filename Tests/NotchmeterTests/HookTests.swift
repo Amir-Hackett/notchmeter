@@ -139,6 +139,8 @@ import Testing
     let executable = "/Applications/Notchmeter.app/Contents/MacOS/Notchmeter"
 
     @Test func snippetIsValidJSONForEveryEvent() throws {
+        // OpenCode's "snippet" is its plugin module, JavaScript rather than JSON (OpenCodePluginFile covers it).
+        #expect(HookVendor.allCases.filter { $0.shape == .pluginModule } == [.opencode])
         let snippet = HookSettings.snippet(executable: "/Users/me/My Apps/Notchmeter.app/Contents/MacOS/Notchmeter")
         let root = try #require(try JSONSerialization.jsonObject(with: Data(snippet.utf8)) as? [String: Any])
         let hooks = try #require(root["hooks"] as? [String: Any])
@@ -151,8 +153,9 @@ import Testing
         #expect(HookSettings.command(executable: "/it's/here") == "'/it'\\''s/here' --hook")
 
         // Every vendor's snippet parses, covers exactly its events, and every handler carries that event's flag.
-        // Kimi Code's is TOML, read back by the same scanner Add and Repair use.
-        for vendor in HookVendor.allCases {
+        // Kimi Code's is TOML, read back by the same scanner Add and Repair use; OpenCode's is a plugin module, not a
+        // hooks file, so it is checked in OpenCodeHookTests instead.
+        for vendor in HookVendor.allCases where vendor.shape != .pluginModule {
             let rendered = HookSettings.snippet(vendor: vendor, executable: "/Users/me/My Apps/Notchmeter.app/Contents/MacOS/Notchmeter")
             let object: [String: Any]
             if vendor.shape == .tomlTables {

@@ -189,7 +189,8 @@ import Testing
         #expect(reading.windows[3].periodDuration == 604_800)
         let context = Advisor.Context(readings: [reading], now: Date(timeIntervalSince1970: 1_759_000_000))
         let routing = Advisor.modelRouting(context).map(\.text)
-        #expect(routing == ["GPT 5.3 Codex Spark session is 91%. Overall weekly is 40%. Switch models, not tools."])
+        // Spark's session window is a share of the session window, so that is the overall figure it is set against.
+        #expect(routing == ["GPT 5.3 Codex Spark session is 91%. Overall session is 12%. Switch models, not tools."])
     }
 
     @Test func resetCreditsAreShownNeverClaimed() throws {

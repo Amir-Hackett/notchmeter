@@ -4,7 +4,7 @@ This folder is the whole Claude Code plugin: the manifest in [`.claude-plugin/pl
 
 ## What it does
 
-- **The `notchmeter` skill.** Before long work, or when you ask how much quota is left, Claude runs `notchmeter --json` and reads back the usage windows of Claude Code (session, weekly and per-model), Codex, Cursor, Antigravity / Gemini CLI and GitHub Copilot, the local Claude Code cost estimate, and Notchmeter's advice ("switch models, not tools", "wait for the reset at 4:10 PM").
+- **The `notchmeter` skill.** Before long work, or when you ask how much quota is left, Claude runs `notchmeter --json` and reads back the usage windows of Claude Code (session, weekly and per-model), Codex, Cursor, Antigravity / Gemini CLI, GitHub Copilot and OpenCode (whose Go meter is computed on this Mac, and says so), the local Claude Code cost estimate, and Notchmeter's advice ("switch models, not tools", "wait for the reset at 4:10 PM").
 - **The `get_limits` MCP tool.** The plugin starts `notchmeter --mcp`, a stdio MCP server with one tool that answers with the same JSON object.
 
 ## Requirements

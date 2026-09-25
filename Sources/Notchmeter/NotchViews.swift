@@ -5,12 +5,12 @@ import SwiftUI
 extension ToolID {
     /// Each assistant's identity colour, as a pair: on a dark surface and on a light one. The dark values are the
     /// rings' colours on the black notch, every one above 6.5:1 against it and the two added in 0.9.0 above 7:1;
-    /// the seven sit in the hues the status colours (`Palette`) leave free, and those two take the two gaps that
-    /// were left, Gemini CLI the orchid end of Gemini's own gradient, Kimi Code a leaf green clear of Codex's
-    /// mint. The light values are the same hues stepped down until a figure drawn in one reads as text on white,
+    /// the eight sit in the hues the status colours (`Palette`) leave free, and the three added in 0.9.0 take the
+    /// gaps that were left, Gemini CLI the orchid end of Gemini's own gradient, Kimi Code a leaf green clear of
+    /// Codex's mint, OpenCode a violet apart from Cursor's. The light values are the same hues stepped down until a figure drawn in one reads as text on white,
     /// 4.5:1 or better for every one of them: the edge pill follows *Appearance* and can be light, and on it the
     /// dark leaf green sat at 1.6:1 and the orchid at 2.6:1, invisible in sunlight. The Dashboard's charts take
-    /// the light values for their light window too (`chartColor`), so one table serves both. Seven hues cannot all
+    /// the light values for their light window too (`chartColor`), so one table serves both. Eight hues cannot all
     /// stay apart for every reader, which is why the symbol, the name and the position carry identity too
     /// (Preferences.ringSymbols). NewRowsPresentation pins both sets against their surfaces.
     var identity: (light: UInt32, dark: UInt32) {
@@ -22,6 +22,15 @@ extension ToolID {
         case .antigravity: (0x2C79B0, 0x56B4E9)  // sky blue, from Wong's set; 4.7:1 on white
         case .copilot: (0x857700, 0xF0E442)      // yellow, from Wong's set; 4.5:1 on white
         case .kimi: (0x3A8527, 0x7ED957)         // leaf green: 4.6:1 on white, 11.9:1 on black
+        // #BE3CE6 violet, Wong's one unused hue set aside: reddish purple #CC79A7 sits 11 ΔE (OKLab×100) from Claude's
+        // terracotta under normal vision and 5 under deuteranopia, the one pair on the strip a reader could confuse.
+        // This violet was chosen by sweeping sRGB against every colour the notch draws (the identities and Palette's
+        // three status hues) with the dataviz validator's arithmetic: at least 15.6 from every one of them under
+        // normal vision and 9.4 under every deutan, protan and tritan simulation, and 4.98:1 on the panel's black. A
+        // magenta scored better against the identities and fell to 1.7 from Palette.calm, the waiting blue, which is
+        // the one confusion the strip can least afford. The light value is the same hue stepped down to 5.5:1 on white and,
+        // as the Settings sidebar's tile carries a black glyph, 3.8:1 against black.
+        case .opencode: (0xA52ACB, 0xBE3CE6)
         }
     }
 
@@ -45,6 +54,7 @@ extension ToolID {
         case .antigravity: [Color(hex: 0x9FA8FF), Color(hex: 0x7FE3CF)]  // indigo, mint
         case .copilot: [Color(hex: 0xC6E86A), Color(hex: 0xFFF4B0)]      // lime, cream
         case .kimi: [Color(hex: 0xC3F08E), Color(hex: 0x7FE0B5)]         // pale lime, seafoam
+        case .opencode: [Color(hex: 0xE59BFF), Color(hex: 0xF6D2FF)]     // orchid, lilac
         }
         return companions[min(index, companions.count) - 1]
     }
@@ -2255,7 +2265,7 @@ struct MeterRow: View {
                         .padding(.horizontal, 4).padding(.vertical, 1)
                         .background(Capsule().fill(.white.opacity(0.12)))
                         .foregroundStyle(.secondary)
-                        .help(L("Source: %@", tag))
+                        .help(window.source.explanation ?? L("Source: %@", tag))
                 }
                 Spacer(minLength: 8)
                 if let pace, !hideFigures {
@@ -2312,7 +2322,7 @@ struct MeterRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(toolName) \(window.label)")
         .accessibilityValue(Spoken.line(unused ?? usage, unused == nil ? reset : nil, detail, hideFigures ? nil : pace?.text, drainLine, meteringLine,
-                                        window.source.tag.map { L("Source: %@", $0) }))
+                                        window.source.tag.map { L("Source: %@", $0) }, window.source.explanation))
     }
 
     private func flipUsage() {

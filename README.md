@@ -1,6 +1,6 @@
 # Notchmeter
 
-**Every figure on this panel is sourced, dated and tested — here is the document: [docs/accuracy.md](docs/accuracy.md).** Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot and Kimi Code that say what to do about the number, not only what it is.
+**Every figure on this panel is sourced, dated and tested — here is the document: [docs/accuracy.md](docs/accuracy.md).** Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code and OpenCode that say what to do about the number, not only what it is.
 
 [![License: MIT](https://img.shields.io/github/license/Amir-Hackett/notchmeter)](LICENSE) [![CI](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml/badge.svg)](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml) [![Latest release](https://img.shields.io/github/v/release/Amir-Hackett/notchmeter)](https://github.com/Amir-Hackett/notchmeter/releases/latest) [![Downloads](https://img.shields.io/github/downloads/Amir-Hackett/notchmeter/total)](https://github.com/Amir-Hackett/notchmeter/releases)
 
@@ -23,6 +23,7 @@
 - **Antigravity** — the session and weekly quota Antigravity's own panel shows, read under Antigravity's identity, so it can differ from Gemini CLI's on the same account.
 - **GitHub Copilot** — the month's AI-credit allowance, or a legacy seat's premium requests.
 - **Kimi Code** — the rolling five-hour window, the week and the monthly pools, the way Kimi Code's own `/usage` reads them.
+- **OpenCode** — its spend and its sessions, read from OpenCode's own database with nothing to install, and on the Go plan a 5-hour, 7-day and 31-day meter computed on this Mac from your own turns at the prices and limits Go publishes, because Go offers no reading of its own, and labelled *computed here*.
 
 Every meter shows a pace tick (where an even burn would be right now), a projection ("~67% left at reset" or "Runs out in 2h") and the reset time. An **Advice** strip and pace notifications say what to do about it — "Opus weekly is 91%. Sonnet is 34%. Switch models, not tools." — and the **Usage Dashboard** (⌘U) lays the week's spend and limits out in one window. With the optional [hooks](docs/hooks.md), the notch refreshes the moment a turn ends, counts your running sessions, and marks an assistant that is waiting for you.
 
@@ -55,7 +56,7 @@ The whole of it — every file read, every host and path asked, what is kept on 
 - [docs/install.md](docs/install.md): installing, testing a pre-release build, building from source, and the first launch.
 - [docs/privacy.md](docs/privacy.md): what is read, where it is sent, what is kept, how often, and the vendors' terms.
 - [docs/accuracy.md](docs/accuracy.md): every rule behind the cost estimate, the primary sources, where it is known to differ from a bill, and why there is no rate-limit-header probe.
-- [docs/hooks.md](docs/hooks.md): the optional hooks for Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot CLI and Kimi Code, what each sends and what each cannot report, how to install and remove them, and the status line.
+- [docs/hooks.md](docs/hooks.md): the optional hooks for Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot CLI and Kimi Code, and the OpenCode plugin, what each sends and what each cannot report, how to install and remove them, and the status line.
 - [docs/permissions.md](docs/permissions.md): Accessibility for *Readouts › Auto*, Automation for the jump to a terminal, and why local builds lose their grants.
 - [docs/energy.md](docs/energy.md): CPU and memory, measured, with the commands to reproduce them.
 - [docs/troubleshooting.md](docs/troubleshooting.md): what each message on a card means and what to do about it.

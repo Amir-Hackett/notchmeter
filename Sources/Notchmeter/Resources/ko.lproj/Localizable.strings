@@ -172,7 +172,7 @@
 "Idle" = "유휴";
 "Install the hook and status line…" = "훅과 상태 표시줄 설치…";
 "Installed, but an entry is out of date: Repair updates it" = "설치되었지만 오래된 항목이 있습니다: 복구가 업데이트합니다";
-"It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot and Kimi Code — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "각 어시스턴트가 이 Mac에 이미 보관하는 사용량(Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code)을 읽고, 그 도구가 저장한 로그인으로 각 공급업체의 사용량 엔드포인트에 묻습니다. 로그인하지 않고, 토큰을 보관하지 않으며, 다른 어디로도 보내지 않습니다. 계정도 분석도 없습니다.";
+"It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code and OpenCode — and, where a vendor has one, asks its usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "각 어시스턴트가 이 Mac에 이미 보관하는 사용량(Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code, OpenCode)을 읽고, 공급업체에 사용량 엔드포인트가 있으면 그 도구가 저장한 로그인으로 묻습니다. 로그인하지 않고, 토큰을 보관하지 않으며, 다른 어디로도 보내지 않습니다. 계정도 분석도 없습니다.";
 "Jump to the terminal" = "터미널로 이동";
 "Jump to the terminal on click" = "클릭하면 터미널로 이동";
 "Just finished" = "방금 끝남";
@@ -204,7 +204,7 @@
 "Keep the numbers" = "숫자 유지";
 "Keep the tools" = "도구 유지";
 "Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "「도구 유지」는 숫자를 먼저 줄입니다. 링 옆에 숫자가 있으면 주요 수치 외의 숫자를 먼저, 다음에 주요 수치까지 빼서 각 표시가 링만 남은 뒤에야 마지막에 둔 어시스턴트를 뺍니다. 「숫자 유지」는 그 어시스턴트를 먼저 빼고, 표시가 하나도 들어가지 않을 때에만 남은 것을 줄입니다.";
-"Let Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot and Kimi Code tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor and Kimi Code have no event for that, so their rings show the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "세션이 시작되거나 끝날 때, 프롬프트를 보낼 때, 턴이 멈출 때, 하위 에이전트가 실행될 때 Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Kimi Code가 노치에 알리게 합니다. 미터가 즉시 새로 고쳐지고 카드가 세션과 에이전트를 셉니다. Claude Code, Codex, Gemini CLI, Copilot은 무언가를 물으려 멈춘 때도 보고하지만 Cursor와 Kimi Code에는 그런 이벤트가 없어 그 링은 완료 체크만 보이고 대기 손 모양은 절대 보이지 않습니다. 권한 모드는 Claude Code와 Codex가 보고하고, 속도 제한으로 인한 중지는 Claude Code만 보고합니다.";
+"Let Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Kimi Code and OpenCode tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI, Copilot and OpenCode also report when they stop to ask you something; Cursor and Kimi Code have no event for that, so their rings show the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; Claude Code and OpenCode report a stop on a rate limit." = "세션이 시작되거나 끝날 때, 프롬프트를 보낼 때, 턴이 멈출 때, 하위 에이전트가 실행될 때 Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Kimi Code, OpenCode가 노치에 알리게 합니다. 미터가 즉시 새로 고쳐지고 카드가 세션과 에이전트를 셉니다. Claude Code, Codex, Gemini CLI, Copilot, OpenCode는 무언가를 물으려 멈춘 때도 보고하지만 Cursor와 Kimi Code에는 그런 이벤트가 없어 그 링은 완료 체크만 보이고 대기 손 모양은 절대 보이지 않습니다. 권한 모드는 Claude Code와 Codex가 보고하고, 속도 제한으로 인한 중지는 Claude Code와 OpenCode가 보고합니다.";
 "Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "이것을 %1$@에 병합하거나 '%2$@에 추가…'로 자동 병합하세요. 각 항목은 %3$@ %4$@을(를) 실행해 실행 중인 앱에 이벤트 이름을 보내고 종료합니다.";
 "Metered apart from the included total" = "포함 총량과 별도로 측정";
 "Reads 0% on this seat however much it spends; Today's spend carries the reading" = "이 좌석은 아무리 써도 0%로 읽힙니다. 오늘 지출이 대신 보여 줍니다";
@@ -918,6 +918,10 @@
 "api.kimi.com's usage endpoint, the read Kimi Code's own /usage command makes. No cost: it meters a request allowance, not money." = "api.kimi.com의 사용량 엔드포인트로, Kimi Code 자체 /usage 명령이 하는 것과 같은 읽기입니다. 비용은 없습니다. 돈이 아니라 요청 할당량을 측정합니다.";
 "Kimi Code has no event that can be answered: its approvals are always answered in the terminal." = "Kimi Code에는 답할 수 있는 이벤트가 없습니다. 승인은 항상 터미널에서 합니다.";
 "Antigravity has no hook: its IDE reports no event the notch could read or answer." = "Antigravity에는 훅이 없습니다. 그 IDE는 노치가 읽거나 답할 수 있는 이벤트를 보고하지 않습니다.";
+/* 0.9.0: OpenCode's page (SettingsWindow loginNote, readingsNote, noAnswerNote) */
+"No login: OpenCode's own database on this Mac, opened read-only. Nothing is sent, and no token is read." = "로그인 없음: 이 Mac에 있는 OpenCode 자체 데이터베이스를 읽기 전용으로 엽니다. 아무것도 보내지 않고 토큰도 읽지 않습니다.";
+"OpenCode's recorded turns and sessions, and on the Go plan a meter computed here from them at the Go page's prices and limits; its cost from the same records." = "OpenCode가 기록한 턴과 세션이며, Go 플랜에서는 그것으로부터 Go 페이지의 가격과 한도로 여기서 계산한 미터입니다. 비용도 같은 기록에서 나옵니다.";
+"OpenCode's plugin reports its permission requests and their answers but cannot answer them: its approvals are always answered in OpenCode." = "OpenCode의 플러그인은 권한 요청과 그 답을 보고하지만 답할 수는 없습니다. 승인은 항상 OpenCode에서 합니다.";
 "Notify about its limits" = "한도 알림";
 "Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "속도, 소진, 한도 도달, 초기화, 미리 알림 알림과 추가 사용, 캐시 계층이나 측정 알림으로, 알림에서 고른 대로입니다. 끄면 이 어시스턴트의 것만 빠지며, 예산 알림은 모든 어시스턴트에 해당하므로 남습니다.";
 "Off for every assistant under Notifications." = "알림에서 모든 어시스턴트에 대해 꺼져 있습니다.";
@@ -930,6 +934,7 @@
 "From the vendor's usage endpoint" = "공급자의 사용량 엔드포인트 기준";
 "From a file the tool wrote on this Mac" = "도구가 이 Mac에 쓴 파일 기준";
 "Worked out on this Mac" = "이 Mac에서 계산";
+"Computed here, from the tool's own records on this Mac" = "이 Mac에 있는 도구 자체 기록으로 여기서 계산";
 "Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Claude Code 자체의 로그인: 키체인 항목, 없으면 자격 증명 파일, 없으면 CLAUDE_CODE_OAUTH_TOKEN. 읽기만 하며, 여기서 로그인하거나 갱신하거나 기록하는 것은 없습니다.";
 "Codex's own login, from auth.json in its home folder; the plan name is Codex's own. Read only: the token is never refreshed or written." = "Codex 자체의 로그인으로, 홈 폴더의 auth.json에서 읽으며 요금제 이름도 Codex의 것입니다. 읽기만 하며 토큰을 갱신하거나 기록하지 않습니다.";
 "The editor's own login, from Cursor's state database, sent the way cursor.com's dashboard sends it. Read only: never refreshed or written." = "편집기 자체의 로그인으로, Cursor의 상태 데이터베이스에서 읽어 cursor.com 대시보드가 보내는 방식 그대로 보냅니다. 읽기만 하며 갱신하거나 기록하지 않습니다.";
@@ -965,3 +970,32 @@
 "Monthly total" = "월간 전체";
 "Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "플랜 사용량을 읽으려면 Kimi Code에 로그인하세요 (`kimi` 실행 후 /login)";
 "No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage" = "이 Mac에 Kimi Code 로그인이 없습니다 (API 키에는 측정할 플랜이 없습니다). 멤버십 사용량을 읽으려면 `kimi` 실행 후 /login 하세요";
+/* OpenCode: the Go meter, its cost, its sessions read from its database, its plugin (OpenCodeProvider, OpenCodePricing,
+   OpenCodeSessions, OpenCodePlugin, SessionsCard, SettingsWindow, WelcomeWindow) */
+"%1$@ · %2$@ of %3$@" = "%1$@ · %2$@ / %3$@";
+"%1$@ · %2$@ spent, no published limit" = "%1$@ · %2$@ 사용, 공개된 한도 없음";
+"%@ at the Go page's rates for Go turns, a subscription's zero at list rate, otherwise the cost it recorded for each turn" = "%@ 은(는) Go 턴은 Go 페이지 요금으로, 구독의 0은 정가로, 그 외에는 턴마다 기록한 비용으로 산출";
+"Add plugin…" = "플러그인 추가…";
+"Add the Notchmeter plugin to OpenCode?" = "OpenCode에 Notchmeter 플러그인을 추가할까요?";
+"Add the OpenCode plugin for exact turn ends and waits" = "정확한 턴 종료와 대기를 위해 OpenCode 플러그인 추가";
+"%@ · computed from this Mac's turns" = "%@ · 이 Mac의 턴에서 계산됨";
+"Computed from this Mac's turns" = "이 Mac의 턴에서 계산됨";
+"Computed on this Mac from your own turns at the vendor's published prices and limits, over a trailing window that holds whichever window the vendor is counting, so it can read higher than the vendor's own figure and never lower; the vendor sent no figure, and turns on another machine are not counted" = "이 Mac에서 사용자의 턴을 바탕으로 공급업체가 공표한 가격과 한도로 계산했습니다. 공급업체가 세는 기간을 포함하는 최근 기간으로 집계하므로 공급업체 수치보다 높게 나올 수는 있어도 낮게 나오지는 않습니다. 공급업체가 보낸 수치가 아니며, 다른 컴퓨터의 턴은 포함되지 않습니다";
+"No OpenCode Go turns on this Mac in the last 31 days; its spend is on the Cost card" = "지난 31일 동안 이 Mac에 OpenCode Go 턴이 없습니다. 지출은 비용 카드에 있습니다";
+"Notchmeter writes its own plugin at %1$@. A file already there is copied to %2$@.bak-<date> first; nothing else in OpenCode's configuration changes." = "Notchmeter는 자체 플러그인을 %1$@에 씁니다. 이미 있는 파일은 먼저 %2$@.bak-<날짜>로 복사되며, OpenCode 구성의 다른 부분은 바뀌지 않습니다.";
+"Nothing to install: its sessions, their spend and its Go plan are read from OpenCode's own database on this Mac, never written. Its plugin, under Settings › Integrations, adds each turn's exact end and its waits." = "설치할 것이 없습니다. 세션, 그 지출, Go 요금제는 이 Mac에 있는 OpenCode 자체 데이터베이스에서 읽으며 절대 쓰지 않습니다. 설정 › 연동의 플러그인을 추가하면 각 턴의 정확한 종료와 대기가 더해집니다.";
+"OpenCode Go publishes no reading of its limits, so its meters are computed here from this Mac's own turns at the Go page's prices." = "OpenCode Go는 한도의 사용량을 공개하지 않으므로, 미터는 이 Mac의 턴에서 Go 페이지 가격으로 여기서 계산합니다.";
+"OpenCode loads its plugins when it starts: the plugin works from the next session." = "OpenCode는 시작할 때 플러그인을 불러옵니다: 플러그인은 다음 세션부터 동작합니다.";
+"OpenCode plugin" = "OpenCode 플러그인";
+"OpenCode switches to its plugin when it next starts" = "OpenCode는 다음에 시작할 때 플러그인으로 바뀝니다";
+"OpenCode's database %@ could not be read" = "OpenCode 데이터베이스 %@을(를) 읽을 수 없습니다";
+"OpenCode's plugin reports session starts and ends, prompt sends, each turn's end and a failed one, subagent starts and stops, and the moment it stops to ask your permission and the moment that is answered, so the OpenCode ring shows the waiting hand only while it waits. It is not answered from the notch. The file is Notchmeter's own in ~/.config/opencode/plugins, so removing the plugin is deleting it; OpenCode loads it when it starts. Without it, OpenCode's sessions are read from its own database, a few seconds late and never waiting." = "OpenCode 플러그인은 세션의 시작과 끝, 프롬프트 전송, 각 턴의 종료와 실패, 하위 에이전트의 시작과 중지, 그리고 권한을 묻기 위해 멈춘 순간과 그에 답한 순간을 보고합니다. 그래서 OpenCode 링은 기다리는 동안에만 대기 손 모양을 보입니다. 노치에서 답할 수는 없습니다. 파일은 ~/.config/opencode/plugins에 있는 Notchmeter 자체의 것이므로 플러그인을 없애려면 그 파일을 지우면 됩니다. OpenCode는 시작할 때 이를 불러옵니다. 플러그인이 없으면 OpenCode 세션은 자체 데이터베이스에서 읽으며, 몇 초 늦고 대기는 표시되지 않습니다.";
+"Opens Settings › Integrations, where Add plugin… writes Notchmeter's own plugin file for OpenCode after asking" = "설정 › 연동을 엽니다. 그곳의 플러그인 추가…는 확인을 받은 뒤 OpenCode용 Notchmeter 자체 플러그인 파일을 씁니다";
+"Read from OpenCode's own database without its plugin: a turn's end shows a few seconds late, and a wait for your permission does not show at all" = "플러그인 없이 OpenCode 자체 데이터베이스에서 읽었습니다: 턴의 종료가 몇 초 늦게 보이고, 권한 대기는 전혀 보이지 않습니다";
+"Save this as %1$@, or use Add plugin… to have it written for you. OpenCode loads it when it starts, and for each event it runs %2$@ %3$@, which posts the event to the running app and exits." = "이것을 %1$@로 저장하거나 플러그인 추가…로 대신 쓰게 하세요. OpenCode는 시작할 때 이를 불러오고, 이벤트마다 %2$@ %3$@을(를) 실행하며, 이 명령은 이벤트를 실행 중인 앱에 전달하고 종료합니다.";
+"Show sessions read from OpenCode's database" = "OpenCode 데이터베이스에서 읽은 세션 표시";
+"With nothing installed, OpenCode's own database on this Mac is read every few seconds while OpenCode writes to it, and never written: a session appears when it starts, works from its prompt until the answer closes, and goes idle a few seconds after. It cannot see OpenCode stop to ask your permission. The OpenCode plugin under Integrations reports that and each turn's end as they happen, and once it has, this reading stands down." = "아무것도 설치하지 않아도 OpenCode가 쓰는 동안 이 Mac의 OpenCode 자체 데이터베이스를 몇 초마다 읽으며, 절대 쓰지 않습니다. 세션은 시작할 때 나타나고, 프롬프트부터 답변이 끝날 때까지 작업 중이며, 몇 초 뒤 유휴 상태가 됩니다. OpenCode가 권한을 묻기 위해 멈춘 것은 알 수 없습니다. 연동의 OpenCode 플러그인은 그것과 각 턴의 종료를 즉시 보고하며, 플러그인이 보고하기 시작하면 이 읽기는 멈춥니다.";
+"computed here" = "여기서 계산";
+"from database" = "데이터베이스";
+"local messages" = "로컬 메시지";
+"turns" = "턴";

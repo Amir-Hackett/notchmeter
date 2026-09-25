@@ -806,7 +806,7 @@ final class NotchController: NSObject, PanelPresenting {
                  prefs.showSpend, prefs.signalRings, prefs.toolOrder,
                  prefs.compactStyle, prefs.usageDisplay, prefs.density, prefs.panelWidth, prefs.showResetCountdown, prefs.ringWindows, prefs.hiddenWindows,
                  prefs.revealedWindows, prefs.visibility, prefs.hoverDelay, prefs.gesturesEnabled, prefs.showOverFullScreenApps, prefs.costCardMode,
-                 prefs.monthlyBudgetUSD, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal, store.hooksInstalled,
+                 prefs.monthlyBudgetUSD, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal, store.hooksInstalled, store.openCodePluginInstalled,
                  store.openSessionLists, store.peek, store.glowNews, prefs.notchNews, prefs.notchGlow, prefs.ringSymbols,
                  prefs.autoCompactRoom, store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows)
             refreshRegions()

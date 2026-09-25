@@ -1,6 +1,6 @@
-# Hooks (Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Kimi Code)
+# Hooks (Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Kimi Code, OpenCode)
 
-Notchmeter polls each vendor's usage endpoint on a schedule ([Privacy and terms, *How often*](privacy.md#privacy-and-terms)). Claude Code can do better than a schedule: its hooks run a command of your choosing whenever a session starts, a turn ends, or Claude stops to ask you something. Wiring one hook line into `~/.claude/settings.json` gives the notch three things it cannot get by polling. Codex, Cursor, Gemini CLI, GitHub Copilot CLI and Kimi Code have hooks too, and the same command reads them; what each lights, and what it cannot, is under its own heading below ([Codex](#codex), [Cursor](#cursor), [Gemini CLI](#gemini-cli), [GitHub Copilot CLI](#github-copilot-cli), [Kimi Code](#kimi-code)), in the rings' order. Antigravity is the one ring with no hook: its IDE reports none of what the notch needs ([The Antigravity IDE](#gemini-cli)). Everything up to there is Claude Code's hook:
+Notchmeter polls each vendor's usage endpoint on a schedule ([Privacy and terms, *How often*](privacy.md#privacy-and-terms)). Claude Code can do better than a schedule: its hooks run a command of your choosing whenever a session starts, a turn ends, or Claude stops to ask you something. Wiring one hook line into `~/.claude/settings.json` gives the notch three things it cannot get by polling. Codex, Cursor, Gemini CLI, GitHub Copilot CLI and Kimi Code have hooks too, and OpenCode a plugin, and the same command reads them all; what each lights, and what it cannot, is under its own heading below ([Codex](#codex), [Cursor](#cursor), [Gemini CLI](#gemini-cli), [GitHub Copilot CLI](#github-copilot-cli), [Kimi Code](#kimi-code), [OpenCode](#opencode)), in the rings' order. Antigravity is the one ring with no hook: its IDE reports none of what the notch needs ([The Antigravity IDE](#gemini-cli)). Everything up to there is Claude Code's hook:
 
 - **A refresh the moment a turn ends**, instead of up to five minutes later.
 - **The right polling cadence.** A hook event is proof an agent is active, so the meter stays on its base interval while you work and backs off when you stop, even when the file check in [PollingPolicy.swift](../Sources/Notchmeter/PollingPolicy.swift) would lag.
@@ -387,6 +387,62 @@ timeout = 5
 …and the same for `UserPromptSubmit`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop` and `SessionEnd`. `timeout` is in seconds (Kimi's default is 30, and it fails open when one runs out); Kimi runs every matching hook to completion before it goes on, which is why it matters that the command returns in milliseconds and prints nothing, since Kimi adds a hook's standard output to the model's context when it exits 0. No `matcher` is written, so each table matches every occurrence of its event. Kimi reads `config.toml` when it starts, so the hook works from the next session, and `/hooks` inside Kimi lists it.
 
 **What the command reads, and what it never reads.** From Kimi's JSON the command keeps `hook_event_name`, `session_id`, `cwd` for the project name and the branch, and the first line of `prompt` on `UserPromptSubmit` as `title`. It never reads `source`, `reason`, `stop_hook_active`, `error_type`, `error_message`, `agent_name`, a subagent's `prompt` or `response`, or any tool field. The payload therefore carries no `needsInput`, `permission_mode`, `agent_id`, `failure` or request, and `tool` is `kimi`. The payload is shaped like Claude Code's, so nothing recognises it by shape: an entry on a plain `--hook` reads as Claude Code's, which is what the flag is for. A session's id reads `kimi:<session_id>`. The code is [Hook+Kimi.swift](../Sources/Notchmeter/Hook+Kimi.swift).
+## OpenCode
+
+OpenCode has no hooks file; it has [plugins](https://opencode.ai/docs/plugins/), JavaScript modules it loads when it starts from `~/.config/opencode/plugins/` (or `$XDG_CONFIG_HOME/opencode/plugins/`): "Files in these directories are automatically loaded at startup", and a plain `.js` file needs no `package.json` (read 2026-09-24). So OpenCode's integration is a plugin of Notchmeter's own, `notchmeter.js`, which subscribes to OpenCode's own bus events and, for the handful the notch acts on, runs the same `Notchmeter --hook --tool opencode` command every other assistant runs, with a small JSON object on its standard input.
+
+It is optional in a way the others are not: with nothing installed, OpenCode's sessions are already read from its own database a few seconds late ([accuracy](accuracy.md#sessions-read-from-the-database)), and each such row says *from database*. The plugin makes them exact: the turn's end as it happens, and the one thing the database never holds, OpenCode stopping to ask your permission. Once the plugin has reported anything, the database reading stands down for the rest of the run, and the sessions it was still following end their turns then, unseen and with no finish claimed, except the one the plugin's first event is about; the card's offer of the plugin goes with it.
+
+- **Sessions and presence.** A session is tracked from `session.created`, working from the prompt, idle from `session.idle` (or `session.status` idle), gone at `session.deleted`. OpenCode events are proof OpenCode is active, and the meter's cadence follows them.
+- **The waiting hand, and its end.** `permission.asked` is the one wait: OpenCode is holding a tool call for your answer, so the OpenCode ring takes the dot and the blue, the card says *Waiting for your answer*, and the notice goes out. Unlike Claude Code, OpenCode also reports the answer: `permission.replied` ends the wait the moment you reply in the terminal, rather than at the turn's end.
+- **The finished tick.** The turn's end after twenty seconds or more gives the ring the tick for ninety seconds, and the *Notify when a turn finishes* banner names OpenCode.
+- **A failed turn, and the limit.** `session.error` ends the turn without the tick; a `MessageAbortedError` (you stopped it) is `aborted`, an API error with status 429 is `rate_limit`, which plans the limit-hit alert as Claude Code's `StopFailure` does, and anything else is `error`.
+- **Subagents.** A session OpenCode creates with a `parentID` (a task run by a subagent) is counted as an agent of the session it works for: its creation is a `SubagentStart`, its end a `SubagentStop`, its permission requests the parent's wait, and its own prompt is not sent at all.
+- **The title.** The `chat.message` plugin hook OpenCode runs as a prompt arrives sends the prompt's first text part, cut to 500 characters by the plugin and then to one line of at most 96 by the command, as the session's title while *Show what a session is working on* is on.
+
+**Nothing is answered from the notch.** The plugin observes permission requests and never replies to them, so OpenCode has no deciding event and the terminal (or OpenCode's own TUI) is always where you answer. OpenCode's server does expose an endpoint to reply to a permission, and a plugin could hold a request and call it; that is left for a later version, because a plugin that answers is a plugin that can wrongly allow something, and this one is built to be unable to.
+
+**The file.** **Add plugin…** (Settings › Integrations, the OpenCode plugin row) shows a sheet first and writes `notchmeter.js` only on **Add**; a file already at that path is copied beside it as `notchmeter.js.bak-<yyyyMMdd-HHmmss>` first, a name OpenCode does not load. Nothing else in OpenCode's configuration is touched: no `opencode.json` entry, no npm package. Removing the plugin is deleting the file, and OpenCode needs a restart to load or drop it. The row reads *Installed* when the file names the running copy of Notchmeter and carries the current `notchmeter-plugin-version:` line, *Installed but points at an old path* when it names another copy (which **Repair**, or the launch repair of an entry pointing at an old copy, rewrites after the same backup), and *out of date* when an older plugin version is there. A file the user edited keeps its edits until the version changes; one that is not Notchmeter's at all reads as not installed. **Show snippet…** shows the whole module, which is short:
+
+```js
+// Notchmeter plugin for OpenCode (notchmeter-plugin-version: 1).
+import { spawn } from "node:child_process"
+
+const NOTCHMETER = "/Applications/Notchmeter.app/Contents/MacOS/Notchmeter"
+
+function send(payload) {
+  try {
+    const child = spawn(NOTCHMETER, ["--hook", "--tool", "opencode"], { stdio: ["pipe", "ignore", "ignore"] })
+    child.on("error", () => {})
+    child.stdin.on("error", () => {})
+    child.stdin.end(JSON.stringify(payload))
+    child.unref()
+  } catch {}
+}
+
+export const NotchmeterPlugin = async ({ directory }) => {
+  // … one handler for "chat.message" and one for the bus events below, each calling send()
+}
+```
+
+The executable is written as a JSON string literal, so a path with a quote in it cannot break out of it. A failure to start the command (no app, a moved app) is swallowed, and the child is unreferenced, so OpenCode never waits on Notchmeter and never exits later because of it.
+
+**The events.** OpenCode's names are dotted, which no other assistant's are, so a payload that arrived on a plain `--hook` is still recognised as OpenCode's; the installer's `--tool opencode` settles it first anyway.
+
+| OpenCode event | Notchmeter reads it as | Effect |
+|---|---|---|
+| `session.created` | `SessionStart` (`SubagentStart` on the parent for a subagent's session) | the session is tracked, idle |
+| `chat.message` (plugin hook) | `UserPromptSubmit`, with the prompt's first line as the title | working; the turn's clock starts |
+| `session.status` busy, only when no prompt started the turn | `UserPromptSubmit`, no title | working |
+| `session.idle`, or `session.status` idle (each sent once per turn) | `Stop` (`SubagentStop` for a subagent's session) | the tick after a turn of twenty seconds or more |
+| `session.error` | `StopFailure` with `aborted`, `rate_limit` or `error` | the turn ends without the tick; a 429 plans the limit-hit alert |
+| `permission.asked` (and the older `permission.updated`) | `Notification`, `needsInput` true, `permission_prompt` | waiting: the dot, the blue, *Waiting for your answer*, the notification |
+| `permission.replied` | `Notification` of type `permission_replied` | the wait ends at once |
+| `session.deleted` | `SessionEnd` (`SubagentStop` for a subagent's session) | the session is dropped |
+
+**What the plugin sends, and what it never sends.** Each payload carries `hook_event_name`, `session_id` (the parent's for a subagent's session, with the child's as `agent_id`), `cwd` (the directory OpenCode gave the plugin, reduced by the command to the project's name and read for its branch), and only where the table says so: `status`, the error's `name` and `statusCode`, the permission's kind (`bash`, `edit`, …), and the prompt's first 500 characters. It never sends the permission's patterns or metadata (a command line, a path), the model, the reply, a tool's output, or anything from OpenCode's configuration, and it contacts nothing but the app's own command on this Mac.
+
+**Around the app.** An OpenCode session's id reads `opencode:<sessionID>` in the reports and notification identifiers, whether the plugin or the database reading made it, so the plugin's first event continues a row the database reading began.
 
 ## The status line
 
@@ -458,7 +514,7 @@ The MCP server is declared as the `notchmeter` command, which Settings › Gener
 
 ## Removing it
 
-Delete the groups whose command contains `Notchmeter … --hook` from `~/.claude/settings.json`, and the `statusLine` entry (restoring the `--then` command as your own if you had one), or restore the `settings.json.bak-…` copy; for Codex, delete the groups whose command contains `--hook --tool codex` from `hooks.json` in its home folder, or restore the `hooks.json.bak-…` copy (Codex drops the trust record with the entry); for Cursor, delete the entries whose command contains `Notchmeter … --hook --tool cursor` from `~/.cursor/hooks.json`, or restore the `hooks.json.bak-…` copy; for Gemini CLI, delete the groups whose command contains `--hook --tool gemini` (or, from before 0.9.0, `--hook --tool antigravity`) from the `hooks` object of `~/.gemini/settings.json`, or restore the `settings.json.bak-…` copy; for Copilot CLI, delete `~/.copilot/hooks/notchmeter.json`, which is Notchmeter's own file, and restart Copilot; for Kimi Code, delete the `[[hooks]]` tables whose command contains `--hook --tool kimi`, and the comment line above them, from `config.toml` in `~/.kimi`, or restore the `config.toml.bak-…` copy. Turning the assistant off in Notchmeter's Settings, or quitting Notchmeter, also stops its hook from having any effect; the commands still run and exit at once.
+Delete the groups whose command contains `Notchmeter … --hook` from `~/.claude/settings.json`, and the `statusLine` entry (restoring the `--then` command as your own if you had one), or restore the `settings.json.bak-…` copy; for Codex, delete the groups whose command contains `--hook --tool codex` from `hooks.json` in its home folder, or restore the `hooks.json.bak-…` copy (Codex drops the trust record with the entry); for Cursor, delete the entries whose command contains `Notchmeter … --hook --tool cursor` from `~/.cursor/hooks.json`, or restore the `hooks.json.bak-…` copy; for Gemini CLI, delete the groups whose command contains `--hook --tool gemini` (or, from before 0.9.0, `--hook --tool antigravity`) from the `hooks` object of `~/.gemini/settings.json`, or restore the `settings.json.bak-…` copy; for Copilot CLI, delete `~/.copilot/hooks/notchmeter.json`, which is Notchmeter's own file, and restart Copilot; for Kimi Code, delete the `[[hooks]]` tables whose command contains `--hook --tool kimi`, and the comment line above them, from `config.toml` in `~/.kimi`, or restore the `config.toml.bak-…` copy; for OpenCode, delete `~/.config/opencode/plugins/notchmeter.js`, also Notchmeter's own, and restart OpenCode. Turning the assistant off in Notchmeter's Settings, or quitting Notchmeter, also stops its hook from having any effect; the commands still run and exit at once.
 
 ## Troubleshooting
 

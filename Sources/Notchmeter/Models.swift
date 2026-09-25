@@ -8,7 +8,7 @@ import os
 /// backend; they are two since, each reading under its own client identity and each lighting its own ring, and
 /// ToolMigration carries the combined row's preferences over to both so an existing setup keeps its shape.
 enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
-    case claude, codex, cursor, gemini, antigravity, copilot, kimi
+    case claude, codex, cursor, gemini, antigravity, copilot, kimi, opencode
 
     var displayName: String {
         switch self {
@@ -19,6 +19,7 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
         case .antigravity: "Antigravity"
         case .copilot: "Copilot"
         case .kimi: "Kimi"
+        case .opencode: "OpenCode"
         }
     }
 
@@ -34,6 +35,9 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
         case .antigravity: "sparkles.rectangle.stack"
         case .copilot: "airplane"
         case .kimi: "moon.stars"
+        // Braces for the code in the name: `terminal` is Gemini CLI's since the 0.9.0 split, and two rings wearing the
+        // same mark would defeat the mark.
+        case .opencode: "curlybraces"
         }
     }
 
@@ -44,19 +48,20 @@ enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
         case .gemini: "Gemini CLI"
         case .copilot: "GitHub Copilot"
         case .kimi: "Kimi Code"
-        case .codex, .cursor, .antigravity: displayName
+        case .codex, .cursor, .antigravity, .opencode: displayName
         }
     }
 
     /// Whether this tool's spend can be derived from something it publishes: Claude Code's transcripts, Codex's
-    /// session rollouts, Cursor's priced usage-events export, and since GitHub's June 2026 move to usage-based
-    /// billing the AI credit count on a Copilot seat, a cent a credit at GitHub's published rate (a seat GitHub
-    /// does not meter in credits still produces no figure and no row). Gemini CLI, Antigravity and Kimi meter a
-    /// request allowance rather than money, with no price and no token count a published rate could be applied
-    /// to, so they cannot produce a dollar figure and never appear on the Cost card (docs/accuracy.md).
+    /// session rollouts, Cursor's priced usage-events export, since GitHub's June 2026 move to usage-based billing
+    /// the AI credit count on a Copilot seat, a cent a credit at GitHub's published rate (a seat GitHub does not
+    /// meter in credits still produces no figure and no row), and OpenCode's own database, whose every assistant
+    /// message records its tokens, its model and the cost OpenCode put on it. Gemini CLI, Antigravity and Kimi
+    /// meter a request allowance rather than money, with no price and no token count a published rate could be
+    /// applied to, so they cannot produce a dollar figure and never appear on the Cost card (docs/accuracy.md).
     var reportsCost: Bool {
         switch self {
-        case .claude, .codex, .cursor, .copilot: true
+        case .claude, .codex, .cursor, .copilot, .opencode: true
         case .gemini, .antigravity, .kimi: false
         }
     }
@@ -74,6 +79,12 @@ enum WindowSource: String, Codable, Equatable, Sendable {
     case localSnapshot
     /// Built here from local observation (an inferred window length); not something the vendor said.
     case localEstimate
+    /// Worked out on this Mac from the tool's own local records of your turns, at the prices and against the limits
+    /// the vendor publishes, because the vendor offers no reading of its own (OpenCode Go). The vendor never saw
+    /// this figure; its rule, sources and dates are in docs/accuracy.md, it counts only this Mac's turns, and it is
+    /// taken over a trailing window that contains whichever window the vendor is counting, so it can read higher
+    /// than the vendor's own figure and never lower.
+    case computedLocally
 
     /// The small tag on the card; nil for the endpoint, which needs no explanation.
     var tag: String? {
@@ -83,6 +94,16 @@ enum WindowSource: String, Codable, Equatable, Sendable {
         case .rateLimitHeaders: L("headers")
         case .localSnapshot: L("snapshot")
         case .localEstimate: L("inferred")
+        case .computedLocally: L("computed here")
+        }
+    }
+
+    /// What the tag's tooltip and VoiceOver say where its one or two words would undersell what kind of figure this
+    /// is; nil where "Source: <tag>" says enough.
+    var explanation: String? {
+        switch self {
+        case .computedLocally: L("Computed on this Mac from your own turns at the vendor's published prices and limits, over a trailing window that holds whichever window the vendor is counting, so it can read higher than the vendor's own figure and never lower; the vendor sent no figure, and turns on another machine are not counted")
+        default: nil
         }
     }
 
@@ -98,6 +119,7 @@ enum WindowSource: String, Codable, Equatable, Sendable {
         case .rateLimitHeaders: L("From rate-limit headers")
         case .localSnapshot: L("From a file the tool wrote on this Mac")
         case .localEstimate: L("Worked out on this Mac")
+        case .computedLocally: L("Computed here, from the tool's own records on this Mac")
         }
     }
 }
@@ -685,6 +707,8 @@ enum ProviderLinks {
         case .copilot: URL(string: "https://github.com/settings/copilot")!
         // The Kimi Code console, where Moonshot shows the same remaining quota and rate-limit status.
         case .kimi: URL(string: "https://www.kimi.com/code/console")!
+        // The console the Go page itself points at for "your current usage".
+        case .opencode: URL(string: "https://opencode.ai/auth")!
         }
     }
 
@@ -693,7 +717,8 @@ enum ProviderLinks {
         case .claude: URL(string: "https://status.anthropic.com")
         case .codex: URL(string: "https://status.openai.com")
         case .cursor: URL(string: "https://status.cursor.com")
-        case .gemini, .antigravity, .kimi: nil
+        // Neither publishes a status page this app could name with confidence.
+        case .gemini, .antigravity, .kimi, .opencode: nil
         case .copilot: URL(string: "https://www.githubstatus.com")
         }
     }

@@ -927,6 +927,15 @@ final class Preferences {
     var sessionTitles: Bool {
         didSet { defaults.set(sessionTitles, forKey: Keys.sessionTitles); report(Keys.sessionTitles, sessionTitles, changed: sessionTitles != oldValue) }
     }
+    /// Whether OpenCode's sessions are read from its own database while its plugin is not reporting
+    /// (OpenCodeSessions). On by default: it is a local, read-only reading that needs nothing installed, and each
+    /// row it makes says where it came from. Off, OpenCode's sessions appear only once the plugin reports them.
+    var openCodeStorageSessions: Bool {
+        didSet {
+            defaults.set(openCodeStorageSessions, forKey: Keys.openCodeStorageSessions)
+            report(Keys.openCodeStorageSessions, openCodeStorageSessions, changed: openCodeStorageSessions != oldValue)
+        }
+    }
     /// Whether a permission request or a question is answered from the notch. Off, the store answers the hook
     /// nothing at once, so the terminal asks as it always has, and the panel shows only the wait.
     var answerFromNotch: Bool {
@@ -1178,6 +1187,7 @@ final class Preferences {
         static let autoRepair = "autoRepairHooks"
         static let sessionsCard = "sessionsCard"
         static let sessionTitles = "sessionTitles"
+        static let openCodeStorageSessions = "openCodeStorageSessions"
         static let answerFromNotch = "answerFromNotch"
         static let sessionReadingOff = "sessionReadingOffTools"
         static let notchAnswersOff = "answerFromNotchOffTools"
@@ -1206,8 +1216,11 @@ final class Preferences {
             Oracle.shared.emit("toolMigration", ["added": migrated.added.map(\.rawValue),
                                                  "inherited": migrated.inherited.reduce(into: [String: String]()) { $0[$1.key.rawValue] = $1.value.rawValue }])
         }
+        // A tool met for the first time, minus one that took another's row (ToolMigration decides that one), joins
+        // the lists below the way a new install has every tool on.
+        let introduced = Set(migrated.added).subtracting(migrated.inherited.keys)
         if let raw = defaults.array(forKey: Keys.enabledTools) as? [String] {
-            enabledTools = Set(raw.compactMap(ToolID.init(rawValue:)))
+            enabledTools = Set(raw.compactMap(ToolID.init(rawValue:))).union(introduced)
         } else {
             enabledTools = Set(ToolID.allCases)
         }
@@ -1250,7 +1263,8 @@ final class Preferences {
         weeklyBudgetUSD = defaults.object(forKey: Keys.weeklyBudget) as? Double
         costCardMode = CostCardMode(rawValue: defaults.string(forKey: Keys.costCardMode) ?? "") ?? .cost
         costCardTools = (defaults.array(forKey: Keys.costCardTools) as? [String])
-            .map { Set($0.compactMap(ToolID.init(rawValue:)).filter(\.reportsCost)) } ?? Set(ToolID.allCases.filter(\.reportsCost))
+            .map { Set($0.compactMap(ToolID.init(rawValue:)).filter(\.reportsCost)).union(introduced.filter(\.reportsCost)) }
+            ?? Set(ToolID.allCases.filter(\.reportsCost))
         ringWindows = (defaults.dictionary(forKey: Keys.ringWindows) as? [String: [String]] ?? [:])
             .reduce(into: [:]) { if let tool = ToolID(rawValue: $1.key) { $0[tool] = $1.value } }
         hiddenWindows = (defaults.dictionary(forKey: Keys.hiddenWindows) as? [String: [String]] ?? [:])
@@ -1306,6 +1320,7 @@ final class Preferences {
         autoRepairHooks = defaults.object(forKey: Keys.autoRepair) as? Bool ?? true
         sessionsCard = defaults.object(forKey: Keys.sessionsCard) as? Bool ?? true
         sessionTitles = defaults.object(forKey: Keys.sessionTitles) as? Bool ?? true
+        openCodeStorageSessions = defaults.object(forKey: Keys.openCodeStorageSessions) as? Bool ?? true
         answerFromNotch = defaults.object(forKey: Keys.answerFromNotch) as? Bool ?? true
         sessionReadingOff = Self.tools(defaults, Keys.sessionReadingOff)
         notchAnswersOff = Self.tools(defaults, Keys.notchAnswersOff)
@@ -1331,6 +1346,13 @@ final class Preferences {
         Keychain.setPolicy(keychainPrompts)
         NetworkSession.configure(proxy: proxyURL)
         DiagnosticLog.verbose = debugLogging
+        // Written here rather than by the observers, which do not run in an initialiser: a tool switched on for this
+        // install once is on the stored lists, and ToolMigration's record of the tools met means switching it off
+        // afterwards sticks.
+        if !introduced.isEmpty {
+            if defaults.array(forKey: Keys.enabledTools) != nil { defaults.set(enabledTools.map(\.rawValue).sorted(), forKey: Keys.enabledTools) }
+            if defaults.array(forKey: Keys.costCardTools) != nil { defaults.set(costCardTools.map(\.rawValue).sorted(), forKey: Keys.costCardTools) }
+        }
     }
 
     /// A stored set of assistants, names that are no assistant dropped.

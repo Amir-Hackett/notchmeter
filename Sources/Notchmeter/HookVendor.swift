@@ -3,8 +3,9 @@ import Foundation
 /// One assistant's hook contract: the ring it lights, where its user-level hooks file lives, that file's shape,
 /// the events Notchmeter registers, the flag its command carries so the app knows the sender before it reads a
 /// byte of payload, and the handler dictionary its file wants. Claude Code, Codex, Cursor, Gemini CLI, GitHub
-/// Copilot and Kimi Code ship. A vendor adds a case here, a parser in Hook+<Tool>.swift and one `case` in
-/// Hook.message(from:), and nothing above Hook.Message changes.
+/// Copilot, Kimi Code and OpenCode ship. A vendor adds a case here, a parser in Hook+<Tool>.swift and one `case`
+/// in Hook.message(from:), and nothing above Hook.Message changes. OpenCode is the one whose "file" is not a hooks
+/// file: it is a plugin module of Notchmeter's own (OpenCodePlugin.swift), which HookSettings hands the file work to.
 ///
 /// Antigravity has no case: the IDE's own hooks file documents no session, prompt or wait event the notch could act
 /// on. Until 0.9.0 Gemini CLI's hook lit the Antigravity ring under a case named `antigravity`; since the two rows
@@ -13,7 +14,7 @@ import Foundation
 enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     // The raw values are ToolID's raw values on purpose: `vendor(for:)` is a plain lookup and the two never drift.
     // The declaration order is ToolID's order, which is the rings' order and the Settings rows' order.
-    case claude, codex, cursor, gemini, copilot, kimi
+    case claude, codex, cursor, gemini, copilot, kimi, opencode
 
     var id: String { rawValue }
 
@@ -26,6 +27,7 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         case .gemini: .gemini
         case .copilot: .copilot
         case .kimi: .kimi
+        case .opencode: .opencode
         }
     }
 
@@ -39,6 +41,7 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         case .codex, .cursor: "hooks.json"
         case .copilot: "notchmeter.json"
         case .kimi: "config.toml"
+        case .opencode: OpenCodePlugin.fileName
         }
     }
 
@@ -53,6 +56,8 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// CLI: GEMINI_CLI_HOME replaces the home directory that `.gemini` is appended to. Copilot: $COPILOT_HOME/hooks/,
     /// else ~/.copilot/hooks/. Kimi Code: `config.toml` in $KIMI_SHARE_DIR, else ~/.kimi (`get_share_dir` and
     /// `get_config_file` in kimi-cli's share.py and config.py), the one file its `[[hooks]]` tables are read from.
+    /// else ~/.copilot/hooks/. OpenCode: its global plugin folder, `$XDG_CONFIG_HOME/opencode/plugins/`, else
+    /// ~/.config/opencode/plugins/ (OpenCodePlugin.fileURL).
     func fileURL(environment: [String: String], home: URL = Paths.home) -> URL {
         switch self {
         case .claude: return HookSettings.settingsURL(environment: environment, home: home)
@@ -67,6 +72,8 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
             return root.appendingPathComponent("hooks/notchmeter.json")
         case .kimi:
             return KimiProvider.shareDirectory(environment: environment, home: home).appendingPathComponent("config.toml")
+        case .opencode:
+            return OpenCodePlugin.fileURL(environment: environment, home: home)
         }
     }
 
@@ -75,6 +82,7 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         case .claude, .codex, .gemini: .nestedGroups
         case .cursor, .copilot: .flatCommands
         case .kimi: .tomlTables
+        case .opencode: .pluginModule
         }
     }
 
@@ -99,6 +107,8 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         case .gemini: ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "SessionEnd"]
         case .copilot: ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "sessionEnd"]
         case .kimi: ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd"]
+        // The bus events the plugin forwards; its source is the one place they are subscribed to.
+        case .opencode: OpenCodePlugin.events
         }
     }
 
@@ -107,12 +117,13 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// and its `PreToolUse` matched to `AskUserQuestion`; Codex's `PermissionRequest`; Copilot's PascalCase
     /// `PermissionRequest`, which documents the same decision shape. Cursor has no event that waits for the user,
     /// Gemini CLI's hook is observability only, and Kimi Code has no permission event at all, so none of the three
-    /// has one.
+    /// has one. OpenCode's plugin reports its permission requests and their answers but does not answer them, so it
+    /// has none either (docs/hooks.md, *OpenCode*).
     var decidingEvents: Set<String> {
         switch self {
         case .claude: ["PermissionRequest", "PreToolUse"]
         case .codex, .copilot: ["PermissionRequest"]
-        case .cursor, .gemini, .kimi: []
+        case .cursor, .gemini, .kimi, .opencode: []
         }
     }
 
@@ -163,6 +174,7 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         case .gemini: "--hook --tool gemini"
         case .copilot: "--hook --tool copilot"
         case .kimi: "--hook --tool kimi"
+        case .opencode: "--hook --tool opencode"
         }
     }
 
@@ -202,6 +214,8 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
             return event == "notification"
                 ? ["type": "command", "command": command, "matcher": "permission_prompt|elicitation_dialog", "timeoutSec": 5]
                 : ["type": "command", "command": command, "timeoutSec": 5]
+        // Never written: the plugin module carries the command itself (OpenCodePlugin.source).
+        case .opencode: return ["command": command]
         }
     }
 
@@ -239,7 +253,7 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// Whether the vendor picks a saved file up without a restart; drives the note after Add and Repair. Cursor
     /// reloads hooks.json as soon as it is saved; Codex reads hooks.json when a session starts and skips a new or
     /// changed entry until it is trusted in /hooks; Gemini CLI reads settings.json when it starts; Copilot reads its
-    /// hooks directory when it starts; Kimi Code reads config.toml when it starts.
+    /// hooks directory when it starts; Kimi Code reads config.toml when it starts; OpenCode loads its plugins when it starts.
     var reloadsLive: Bool { self == .cursor }
 
     /// The vendor whose hook lights `tool`: nil for Antigravity alone, whose IDE documents no hook event the notch
@@ -264,8 +278,10 @@ extension ToolID {
 /// `handlers(in:)` returns whole and `settingHandlers` writes back whole, so Repair keeps it. Kimi Code's file is
 /// TOML, one `[[hooks]]` table per entry with the event inside it; it is read and written as text by
 /// KimiHookFile, which hands the status rules the same flat {command, timeout} elements Cursor's file holds.
+/// OpenCode's is no JSON at all but a module Notchmeter writes whole (`pluginModule`, OpenCodePlugin.swift):
+/// HookSettings never merges into it, and the cases below are what an empty JSON file of that shape would be.
 enum HookFileShape: Equatable, Sendable {
-    case nestedGroups, flatCommands, tomlTables
+    case nestedGroups, flatCommands, tomlTables, pluginModule
 
     /// The element appended under an event on install: the vendor's handler, wrapped in a group for the nested
     /// shape, with the group's `matcher` when the event wants one (HookVendor.matcher(for:)).
@@ -275,7 +291,7 @@ enum HookFileShape: Equatable, Sendable {
             var group: [String: Any] = ["hooks": [handler]]
             if let matcher { group["matcher"] = matcher }
             return group
-        case .flatCommands, .tomlTables:
+        case .flatCommands, .tomlTables, .pluginModule:
             return handler
         }
     }
@@ -285,6 +301,7 @@ enum HookFileShape: Equatable, Sendable {
         switch self {
         case .nestedGroups: element["hooks"] as? [[String: Any]] ?? []
         case .flatCommands, .tomlTables: [element]
+        case .pluginModule: []
         }
     }
 
@@ -297,13 +314,15 @@ enum HookFileShape: Equatable, Sendable {
             return updated
         case .flatCommands, .tomlTables:
             return handlers.first ?? element
+        case .pluginModule:
+            return element
         }
     }
 
     /// Root keys the file must carry besides "hooks", added only when absent.
     var requiredRootKeys: [String: Any] {
         switch self {
-        case .nestedGroups, .tomlTables: [:]
+        case .nestedGroups, .tomlTables, .pluginModule: [:]
         case .flatCommands: ["version": 1]
         }
     }

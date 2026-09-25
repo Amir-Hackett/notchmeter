@@ -323,6 +323,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             autoRepairHooks()
             store.hooksInstalled = HookSettings.anyInstalled()
+            store.openCodePluginInstalled = HookSettings.status(vendor: .opencode) != .notInstalled
             if Translocation.shouldOffer(bundlePath: Bundle.main.bundlePath) {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(1))
@@ -478,7 +479,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         let connected = WelcomeWindowController.connected(hook: HookSettings.status(), statusline: HookSettings.statuslineStatus())
-        let controller = WelcomeWindowController(connected: connected, panelMode: store.prefs.panelMode, install: { [weak self] in self?.offerClaudeSetup() },
+        let controller = WelcomeWindowController(connected: connected, openCode: store.isInstalled(.opencode), panelMode: store.prefs.panelMode,
+                                                 install: { [weak self] in self?.offerClaudeSetup() },
                                                  finish: { [weak self] in self?.welcome?.close() })
         welcome = controller
         if let window = controller.window {

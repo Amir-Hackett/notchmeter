@@ -123,7 +123,9 @@ enum SettingsSearch {
         add(.overview, tool.productName, L("Show %@ on the panel and the rings", tool.displayName))
         add(.windows, L("Rings and windows"), L("Outer ring"), L("Inner ring"), L("Third ring"), L("Hide"), L("Pin to menu bar"), L("Peak hours"))
         if tool.reportsCost { add(.windows, L("In the Cost card")) }
-        if let vendor = HookVendor.vendor(for: tool) { add(.hook, L("%@ hook", vendor.displayName)) }
+        if let vendor = HookVendor.vendor(for: tool) {
+            add(.hook, vendor.shape == .pluginModule ? L("OpenCode plugin") : L("%@ hook", vendor.displayName))
+        }
         if tool == .claude { add(.hook, L("Claude Code status line"), L("Install status line…")) }
         add(.sessions, L("Read its sessions"))
         if tool.hasAnswerableHook { add(.sessions, L("Answer from the notch")) }
@@ -136,6 +138,7 @@ enum SettingsSearch {
         case .codex: add(.sources, L("Also read Codex reset credits"))
         case .cursor: add(.sources, L("Also read Cursor's usage events"))
         case .copilot: add(.sources, L("Also read organisation billing"))
+        case .opencode: add(.sources, L("Show sessions read from OpenCode's database"))
         case .gemini, .antigravity, .kimi: break
         }
         return rows

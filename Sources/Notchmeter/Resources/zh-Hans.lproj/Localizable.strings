@@ -189,7 +189,7 @@
 "Idle" = "空闲";
 "Install the hook and status line…" = "安装钩子和状态行…";
 "Installed, but an entry is out of date: Repair updates it" = "已安装，但有一个条目已过时：“修复”会更新它";
-"It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot and Kimi Code — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "它读取每个助手已保存在这台 Mac 上的用量——Claude Code、Codex、Cursor、Gemini CLI、Antigravity、GitHub Copilot 和 Kimi Code——并用该工具保存的登录信息向各厂商的用量接口查询。它从不登录，不保存令牌，也不把任何内容发往别处：没有账户，没有分析统计。";
+"It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code and OpenCode — and, where a vendor has one, asks its usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "它读取每个助手已保存在这台 Mac 上的用量——Claude Code、Codex、Cursor、Gemini CLI、Antigravity、GitHub Copilot、Kimi Code 和 OpenCode——并在厂商提供用量接口时，用该工具保存的登录信息向其查询。它从不登录，不保存令牌，也不把任何内容发往别处：没有账户，没有分析统计。";
 "Jump to the terminal" = "跳转到终端";
 "Jump to the terminal on click" = "点击时跳转到终端";
 "Just finished" = "刚刚完成";
@@ -221,7 +221,7 @@
 "Keep the numbers" = "保留数字";
 "Keep the tools" = "保留工具";
 "Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "「保留工具」会先舍去数字——数字旁有圆环时先舍去主要数字以外的数字，再舍去主要数字——直到每个读数只剩圆环，然后才省去你排在最后的助手。「保留数字」会先省去这些助手，只有在单个读数也放不下时才缩减剩下的读数。";
-"Let Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot and Kimi Code tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor and Kimi Code have no event for that, so their rings show the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "让 Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot 和 Kimi Code 在会话开始或结束、发送提示、一轮停止以及子代理运行时告知刘海：仪表立即刷新，卡片统计会话与代理数。Claude Code、Codex、Gemini CLI 和 Copilot 还会报告它们停下来向你提问的时刻；Cursor 和 Kimi Code 没有这种事件，因此它们的圆环只显示完成的勾号，绝不会显示等待的手形。Claude Code 和 Codex 会报告其权限模式；只有 Claude Code 会报告因速率限制而停止。";
+"Let Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Kimi Code and OpenCode tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI, Copilot and OpenCode also report when they stop to ask you something; Cursor and Kimi Code have no event for that, so their rings show the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; Claude Code and OpenCode report a stop on a rate limit." = "让 Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot、Kimi Code 和 OpenCode 在会话开始或结束、发送提示、一轮停止以及子代理运行时告知刘海：仪表立即刷新，卡片统计会话与代理数。Claude Code、Codex、Gemini CLI、Copilot 和 OpenCode 还会报告它们停下来向你提问的时刻；Cursor 和 Kimi Code 没有这种事件，因此它们的圆环只显示完成的勾号，绝不会显示等待的手形。Claude Code 和 Codex 会报告其权限模式；Claude Code 和 OpenCode 会报告因速率限制而停止。";
 "Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "将其合并到 %1$@，或使用“添加到 %2$@…”自动合并。每个条目运行 %3$@ %4$@，它会把事件名称发送给正在运行的应用后退出。";
 "Metered apart from the included total" = "与套餐内总量分开计量";
 "Reads 0% on this seat however much it spends; Today's spend carries the reading" = "此席位无论用量多少都读作 0%，由“今日支出”代为显示";
@@ -935,6 +935,10 @@
 "api.kimi.com's usage endpoint, the read Kimi Code's own /usage command makes. No cost: it meters a request allowance, not money." = "api.kimi.com 的用量接口，与 Kimi Code 自己的 /usage 命令读取的相同。没有成本：它计量的是请求额度，而不是金额。";
 "Kimi Code has no event that can be answered: its approvals are always answered in the terminal." = "Kimi Code 没有可以回答的事件：它的审批总是在终端中回答。";
 "Antigravity has no hook: its IDE reports no event the notch could read or answer." = "Antigravity 没有钩子：它的 IDE 不报告任何刘海可以读取或回答的事件。";
+/* 0.9.0: OpenCode's page (SettingsWindow loginNote, readingsNote, noAnswerNote) */
+"No login: OpenCode's own database on this Mac, opened read-only. Nothing is sent, and no token is read." = "无需登录：这台 Mac 上 OpenCode 自己的数据库，以只读方式打开。不发送任何内容，也不读取任何令牌。";
+"OpenCode's recorded turns and sessions, and on the Go plan a meter computed here from them at the Go page's prices and limits; its cost from the same records." = "OpenCode 记录的轮次和会话；在 Go 套餐上，还有据此按 Go 页面的价格和限额在本地计算出的仪表。它的成本也来自同样的记录。";
+"OpenCode's plugin reports its permission requests and their answers but cannot answer them: its approvals are always answered in OpenCode." = "OpenCode 的插件会报告它的权限请求及其回答，但无法作答：它的审批总是在 OpenCode 中回答。";
 "Notify about its limits" = "限额相关通知";
 "Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "它的进度、用尽、达到上限、重置和提醒通知，以及额外用量和缓存档位或计量通知，内容按“通知”中的选择。关闭后仅对该助手省略；预算通知涵盖所有助手，仍会保留。";
 "Off for every assistant under Notifications." = "已在“通知”中对所有助手关闭。";
@@ -947,6 +951,7 @@
 "From the vendor's usage endpoint" = "来自供应商的用量端点";
 "From a file the tool wrote on this Mac" = "来自该工具在这台 Mac 上写入的文件";
 "Worked out on this Mac" = "在这台 Mac 上推算";
+"Computed here, from the tool's own records on this Mac" = "在本地根据工具自己在这台 Mac 上的记录计算得出";
 "Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Claude Code 自己的登录信息：它的钥匙串项目，其次是它的凭据文件，再次是 CLAUDE_CODE_OAUTH_TOKEN。只读：这里不会登录、刷新或写入任何内容。";
 "Codex's own login, from auth.json in its home folder; the plan name is Codex's own. Read only: the token is never refreshed or written." = "Codex 自己的登录信息，读自其主文件夹中的 auth.json；套餐名称沿用 Codex 自己的。只读：令牌从不刷新或写入。";
 "The editor's own login, from Cursor's state database, sent the way cursor.com's dashboard sends it. Read only: never refreshed or written." = "编辑器自己的登录信息，读自 Cursor 的状态数据库，按 cursor.com 控制台的方式发送。只读：从不刷新或写入。";
@@ -982,3 +987,32 @@
 "Monthly total" = "每月总计";
 "Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "登录 Kimi Code（运行 `kimi`，然后使用 /login）以读取你的套餐用量";
 "No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage" = "此 Mac 上没有 Kimi Code 登录（API 密钥没有可计量的套餐）。运行 `kimi`，然后使用 /login，以读取会员套餐的用量";
+/* OpenCode: the Go meter, its cost, its sessions read from its database, its plugin (OpenCodeProvider, OpenCodePricing,
+   OpenCodeSessions, OpenCodePlugin, SessionsCard, SettingsWindow, WelcomeWindow) */
+"%1$@ · %2$@ of %3$@" = "%1$@ · %2$@ / %3$@";
+"%1$@ · %2$@ spent, no published limit" = "%1$@ · 已花费 %2$@，未公布上限";
+"%@ at the Go page's rates for Go turns, a subscription's zero at list rate, otherwise the cost it recorded for each turn" = "%@ 的 Go 轮次按 Go 页面价格计算，订阅记录的零按标价计算，其余按其为每一轮记录的费用计算";
+"Add plugin…" = "添加插件…";
+"Add the Notchmeter plugin to OpenCode?" = "要将 Notchmeter 插件添加到 OpenCode 吗？";
+"Add the OpenCode plugin for exact turn ends and waits" = "添加 OpenCode 插件，获得准确的每轮结束与等待";
+"%@ · computed from this Mac's turns" = "%@ · 由这台 Mac 的轮次计算";
+"Computed from this Mac's turns" = "由这台 Mac 的轮次计算";
+"Computed on this Mac from your own turns at the vendor's published prices and limits, over a trailing window that holds whichever window the vendor is counting, so it can read higher than the vendor's own figure and never lower; the vendor sent no figure, and turns on another machine are not counted" = "由这台 Mac 根据你自己的每一轮、按厂商公布的价格与上限计算，统计的是包含厂商所计窗口的滚动窗口，因此可能高于厂商自己的数字，但不会更低；厂商并未发送此数字，其他机器上的轮次不计入";
+"No OpenCode Go turns on this Mac in the last 31 days; its spend is on the Cost card" = "过去 31 天这台 Mac 上没有 OpenCode Go 的轮次；其花费在费用卡片上";
+"Notchmeter writes its own plugin at %1$@. A file already there is copied to %2$@.bak-<date> first; nothing else in OpenCode's configuration changes." = "Notchmeter 会在 %1$@ 写入自己的插件。该位置已有的文件会先复制为 %2$@.bak-<日期>；OpenCode 配置的其他部分不会改变。";
+"Nothing to install: its sessions, their spend and its Go plan are read from OpenCode's own database on this Mac, never written. Its plugin, under Settings › Integrations, adds each turn's exact end and its waits." = "无需安装：它的会话、会话花费和 Go 方案都从这台 Mac 上 OpenCode 自己的数据库读取，从不写入。设置 › 集成中的插件会补上每一轮的准确结束与等待。";
+"OpenCode Go publishes no reading of its limits, so its meters are computed here from this Mac's own turns at the Go page's prices." = "OpenCode Go 不提供上限用量读数，因此其仪表由本机根据这台 Mac 的轮次、按 Go 页面的价格计算。";
+"OpenCode loads its plugins when it starts: the plugin works from the next session." = "OpenCode 在启动时加载插件：插件从下一个会话开始生效。";
+"OpenCode plugin" = "OpenCode 插件";
+"OpenCode switches to its plugin when it next starts" = "OpenCode 下次启动时会改用插件";
+"OpenCode's database %@ could not be read" = "无法读取 OpenCode 的数据库 %@";
+"OpenCode's plugin reports session starts and ends, prompt sends, each turn's end and a failed one, subagent starts and stops, and the moment it stops to ask your permission and the moment that is answered, so the OpenCode ring shows the waiting hand only while it waits. It is not answered from the notch. The file is Notchmeter's own in ~/.config/opencode/plugins, so removing the plugin is deleting it; OpenCode loads it when it starts. Without it, OpenCode's sessions are read from its own database, a few seconds late and never waiting." = "OpenCode 的插件会报告会话的开始与结束、发送提示、每一轮的结束与失败、子代理的开始与停止，以及它停下来请求你的许可和该请求得到回答的时刻，因此 OpenCode 的圆环只在它等待时显示等待的手形。无法在刘海中回答。该文件是 Notchmeter 自己的，位于 ~/.config/opencode/plugins，移除插件就是删除它；OpenCode 在启动时加载它。没有它时，OpenCode 的会话从其自己的数据库读取，会晚几秒，且从不显示等待。";
+"Opens Settings › Integrations, where Add plugin… writes Notchmeter's own plugin file for OpenCode after asking" = "打开设置 › 集成，在那里“添加插件…”会在询问后写入 Notchmeter 自己的 OpenCode 插件文件";
+"Read from OpenCode's own database without its plugin: a turn's end shows a few seconds late, and a wait for your permission does not show at all" = "在没有插件的情况下从 OpenCode 自己的数据库读取：一轮的结束会晚几秒显示，等待你许可的状态则完全不会显示";
+"Save this as %1$@, or use Add plugin… to have it written for you. OpenCode loads it when it starts, and for each event it runs %2$@ %3$@, which posts the event to the running app and exits." = "将其保存为 %1$@，或使用“添加插件…”代为写入。OpenCode 在启动时加载它，并针对每个事件运行 %2$@ %3$@，该命令把事件发送给正在运行的应用后退出。";
+"Show sessions read from OpenCode's database" = "显示从 OpenCode 数据库读取的会话";
+"With nothing installed, OpenCode's own database on this Mac is read every few seconds while OpenCode writes to it, and never written: a session appears when it starts, works from its prompt until the answer closes, and goes idle a few seconds after. It cannot see OpenCode stop to ask your permission. The OpenCode plugin under Integrations reports that and each turn's end as they happen, and once it has, this reading stands down." = "无需安装任何东西，OpenCode 写入时每隔几秒读取这台 Mac 上 OpenCode 自己的数据库，从不写入：会话在开始时出现，从提示起工作到回答结束，几秒后变为空闲。它看不到 OpenCode 停下来请求你的许可。集成中的 OpenCode 插件会即时报告这一点和每一轮的结束，一旦插件开始报告，这种读取就会停止。";
+"computed here" = "本机计算";
+"from database" = "来自数据库";
+"local messages" = "本地消息";
+"turns" = "轮次";

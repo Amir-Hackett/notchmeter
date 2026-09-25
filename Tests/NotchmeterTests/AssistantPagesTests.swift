@@ -421,6 +421,8 @@ import Testing
         #expect(try lands("Claude Code status line").sections == [.agent(.claude, .hook)])
         #expect(try lands("Gemini CLI hook").pane == .agent(.gemini))
         #expect(try lands("Kimi Code hook").pane == .agent(.kimi))
+        #expect(try lands("OpenCode plugin").pane == .agent(.opencode), "the plugin is named for what it is, on its page")
+        #expect(try lands("Show sessions read from OpenCode's database").sections == [.agent(.opencode, .sources)])
         #expect(try lands("In the Cost card").pane == .agent(.claude))
         #expect(try lands("Keep the Mac awake").sections == [.sessions], "it counts every assistant's sessions")
         #expect(try lands("Repair an out-of-date hook").pane == .integrations)
@@ -471,7 +473,7 @@ import Testing
 
     /// The user's order decides which page a row every page has lands on, as it decides the sidebar's.
     @Test func aRowEveryPageHasLandsOnTheFirstAssistantInTheUsersOrder() throws {
-        let entries = SettingsSearch.entries(order: [.codex, .claude, .cursor, .gemini, .antigravity, .copilot, .kimi])
+        let entries = SettingsSearch.entries(order: [.codex, .claude, .cursor, .gemini, .antigravity, .copilot, .kimi, .opencode])
         let hit = try #require(SettingsSearch.hit(for: "pin to menu bar", current: .general, in: entries))
         #expect(hit.pane == .agent(.codex))
         #expect(hit.sections.count == ToolID.allCases.count)

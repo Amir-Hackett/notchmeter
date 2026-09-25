@@ -13,6 +13,10 @@ enum CostSource: String, Codable, Equatable, Sendable {
     /// each rise was observed (GitHub Copilot's AI credits, a cent each). The count is the vendor's; the day it
     /// lands on is this Mac's observation, so it stays an estimate rather than borrowing the export's standing.
     case vendorCredits
+    /// The tool's own record of each turn in its local database: a Go turn priced here at the Go page's rates, a
+    /// subscription login's zero at that vendor's list rate, and otherwise the cost the tool put on the turn
+    /// (OpenCode; OpenCodePricing gives the order).
+    case localMessages
 
     var label: String {
         switch self {
@@ -20,6 +24,7 @@ enum CostSource: String, Codable, Equatable, Sendable {
         case .localSessions: L("local sessions")
         case .billingExport: L("billing export")
         case .vendorCredits: L("AI credits")
+        case .localMessages: L("local messages")
         }
     }
 
@@ -31,6 +36,7 @@ enum CostSource: String, Codable, Equatable, Sendable {
         case .localSessions: L("sessions")
         case .billingExport: L("export")
         case .vendorCredits: L("credits")
+        case .localMessages: L("turns")
         }
     }
 
@@ -43,6 +49,7 @@ enum CostSource: String, Codable, Equatable, Sendable {
         case .localTranscripts, .localSessions: L("%@ priced here from local files at published list rates", tool.displayName)
         case .billingExport: L("%@ as the vendor's own usage export priced it", tool.displayName)
         case .vendorCredits: L("%@ from GitHub's own credit count at a cent a credit, on the day each rise was seen", tool.displayName)
+        case .localMessages: L("%@ at the Go page's rates for Go turns, a subscription's zero at list rate, otherwise the cost it recorded for each turn", tool.displayName)
         }
     }
 }

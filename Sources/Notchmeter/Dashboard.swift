@@ -253,6 +253,12 @@ extension ToolID {
         case .cursor: 0x8C74EA
         case .codex: 0x34A874
         case .gemini, .antigravity, .copilot, .kimi: identity.dark  // each above 5.8:1 on the dark window as it is
+        // The notch's violet sits on top of Cursor's periwinkle once both are stepped for a window (1.6 under
+        // deuteranopia), so OpenCode's window step leans to the orchid side of the same purple: 17.9 normal and 7.9
+        // CVD from the dark set at 3.55:1 on its surface; the light window takes the identity's own light value, 5.5:1
+        // on white. The Dashboard names every series in its legend, which is the secondary encoding the 6–8 CVD
+        // band asks for.
+        case .opencode: 0xC818B8
         }
         return Color(nsColor: .adaptive(light: identity.light, dark: dark))
     }
