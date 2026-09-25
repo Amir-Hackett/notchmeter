@@ -296,7 +296,7 @@ enum AssetRenderer {
                                width: CGFloat = DashboardWindowController.contentSize.width, now: Date = Date()) throws -> CGImage {
         let weekStart = store.cost?.week?.start ?? now
         let pinned = pinPeak ? DashboardModel(providers: store.costSelection.providers, range: range, weekStart: weekStart, now: now).peak?.day : nil
-        let host = NSHostingView(rootView: DashboardView(store: store, range: range, scrolls: false, pinned: pinned)
+        let host = NSHostingView(rootView: DashboardView(store: store, range: range, scrolls: false, pinned: pinned, now: now)
             .frame(width: width).background(Color(nsColor: .windowBackgroundColor)))
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: CGSize(width: width, height: 1)), styleMask: .borderless, backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: appearance)

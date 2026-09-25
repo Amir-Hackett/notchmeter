@@ -363,6 +363,15 @@ struct DashboardSelection: Equatable {
     var shown: Date? { pinned ?? hovered }
     var isPinned: Bool { pinned != nil }
 
+    /// The day the line under the chart describes, found in the range on show, and whether it is the pinned one. A
+    /// pin whose day has left the range is not treated as a pin: a 30- or 90-day range drops its first day at
+    /// midnight and a week range starts over, so a window left open can hold a pinned date the model no longer has,
+    /// and read as `shown` it would hide the hover, the pinned line and the Unpin button while the chart drew nothing.
+    func resolved(in model: DashboardModel) -> (day: DashboardModel.Day?, isPinned: Bool) {
+        if let day = model.day(pinned, calendar: calendar) { return (day, true) }
+        return (model.day(hovered, calendar: calendar), false)
+    }
+
     /// A click pins the day, or lets the pinned day go when it is the one clicked. Whether a day is pinned after.
     @discardableResult
     mutating func click(_ day: Date) -> Bool {
@@ -441,10 +450,15 @@ struct DashboardView: View {
     /// hosting view's fitting size is the height of every section (AssetRenderer.dashboardImage).
     let scrolls: Bool
 
-    /// `pinned` is a day held under the chart from the start, for a render: a picture cannot click.
+    /// The clock a render draws at; nil in the window, which reads the time afresh each time it draws.
+    let fixedNow: Date?
+
+    /// `pinned` is a day held under the chart from the start, for a render: a picture cannot click. `now` is the
+    /// render's clock, so the range drawn is the one `pinned` was chosen from (AssetRenderer.dashboardImage).
     init(store: UsageStore, range: DashboardRange = .week, embedded: Bool = false, actions: NotchActions? = nil, scrolls: Bool = true,
-         pinned: Date? = nil) {
+         pinned: Date? = nil, now: Date? = nil) {
         self.store = store
+        self.fixedNow = now
         self.embedded = embedded
         self.actions = actions
         self.scrolls = scrolls
@@ -454,15 +468,17 @@ struct DashboardView: View {
         _selection = State(initialValue: selection)
     }
 
+    private var now: Date { fixedNow ?? Date() }
+
     private var weekStart: Date {
-        store.cost?.week?.start ?? Calendar.current.dateInterval(of: .weekOfYear, for: Date())?.start ?? Calendar.current.startOfDay(for: Date())
+        store.cost?.week?.start ?? Calendar.current.dateInterval(of: .weekOfYear, for: now)?.start ?? Calendar.current.startOfDay(for: now)
     }
 
     var body: some View {
         // Show spend off in Settings hides every dollar, here as on the panel; the store keeps its last scan either way.
         let spendShown = store.prefs.showSpend
         let model = DashboardModel(providers: spendShown ? store.costSelection.providers : [], range: range, weekStart: weekStart,
-                                   firstRecorded: store.cost?.firstUse)
+                                   firstRecorded: store.cost?.firstUse, now: now)
         let limits = DashboardLimit.all(store: store)
         // The panel's look for this appearance, so CardBackground, Meter and the accent draw here as they do there.
         let dark = colorScheme == .dark
@@ -624,7 +640,7 @@ struct DashboardView: View {
     // MARK: Chart
 
     private func chartSection(_ model: DashboardModel, ink: Color, pinMark: Color) -> some View {
-        let shown = model.day(selection.shown, calendar: selection.calendar)
+        let (shown, isPinned) = selection.resolved(in: model)
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 sectionTitle(L("Daily spend"))
@@ -643,11 +659,11 @@ struct DashboardView: View {
             }
             // Rebuilt per range: Swift Charts in this hosting view kept drawing the previous range's marks and scale
             // until the window was resized, while the tiles above had already moved on.
-            DailySpendChart(model: model, shown: shown, pinned: selection.isPinned, ink: ink, calendar: selection.calendar,
+            DailySpendChart(model: model, shown: shown, pinned: isPinned, ink: ink, calendar: selection.calendar,
                             hover: { day, inside in selection.hover(day, inside: inside) }, click: click)
                 .id(range)
                 .frame(height: 220)
-            dayLine(shown, pinMark: pinMark)
+            dayLine(shown, isPinned: isPinned, pinMark: pinMark)
         }
         .accessibilityElement(children: .contain)
     }
@@ -656,8 +672,8 @@ struct DashboardView: View {
     /// nothing is pinned, else how to get either. The pin is a symbol and a word, not a colour: the band over the
     /// bars is the same accent for a hover and a pin, only stronger.
     @ViewBuilder
-    private func dayLine(_ day: DashboardModel.Day?, pinMark: Color) -> some View {
-        if let day, selection.isPinned {
+    private func dayLine(_ day: DashboardModel.Day?, isPinned: Bool, pinMark: Color) -> some View {
+        if let day, isPinned {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Image(systemName: "pin.fill").foregroundStyle(pinMark)

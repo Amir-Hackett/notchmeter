@@ -175,8 +175,14 @@ that now, keeps this repository's copy in step, and proves the result on this Ma
 ```bash
 shasum -a 256 /tmp/nm-verify/Notchmeter.dmg
 gh workflow run bump-notchmeter.yml -R Amir-Hackett/homebrew-tap
-gh run watch "$(gh run list -R Amir-Hackett/homebrew-tap --workflow=bump-notchmeter.yml --limit 1 --json databaseId -q '.[0].databaseId')"
+sleep 10   # the dispatched run takes a moment to be listed
+BUMP_RUN=$(gh run list -R Amir-Hackett/homebrew-tap --workflow=bump-notchmeter.yml --event workflow_dispatch --limit 1 \
+  --json databaseId -q '.[0].databaseId')
+gh run watch "$BUMP_RUN" -R Amir-Hackett/homebrew-tap --exit-status
 ```
+
+`--event workflow_dispatch` picks the run just started rather than a scheduled one, `-R` watches it in the tap
+rather than in this repository, and `--exit-status` makes a failed bump fail here.
 
 Its log says `latest $VERSION, cask at <old>` and commits `notchmeter $VERSION`, or `cask at $VERSION` if it already
 ran. Then update `version` and `sha256` in `packaging/homebrew/notchmeter.rb` to the same two values and merge that as

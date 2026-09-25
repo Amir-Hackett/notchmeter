@@ -471,6 +471,22 @@ import Testing
         #expect(model.day(day(-40), calendar: utc) == nil, "a day outside the range shows nothing")
     }
 
+    @Test func aPinWhoseDayHasLeftTheRangeIsNoPinAndTheHoverShows() {
+        let claude = provider(.claude, source: .localTranscripts, days: [day(-1): record(40), day(0): record(4)])
+        let model = DashboardModel(providers: [claude], range: .week, weekStart: day(-3), now: now, calendar: utc)
+        var selection = DashboardSelection(calendar: utc)
+        selection.click(day(-1))
+        #expect(selection.resolved(in: model).isPinned, "a pinned day in the range is a pin")
+        #expect(selection.resolved(in: model).day?.total == 40)
+        // The range moved on while the window was open: the pinned date is no longer one of its days.
+        selection.click(day(-40))
+        selection.hover(day(0), inside: true)
+        let resolved = selection.resolved(in: model)
+        #expect(selection.isPinned, "the stale date is still held")
+        #expect(!resolved.isPinned, "but it is not shown as a pin")
+        #expect(resolved.day?.total == 4, "and the hovered day shows instead of nothing")
+    }
+
     // MARK: The hero
 
     @Test func theHeroPrintsTheTotalTheRangeAndTheValueLine() {
