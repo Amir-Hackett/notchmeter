@@ -149,7 +149,6 @@
 "Add the Notchmeter hook to %@?" = "将 Notchmeter 钩子添加到 %@？";
 "Add to %@…" = "添加到 %@…";
 "AI credits" = "AI 额度";
-"All six Settings panes: position, hover or always open, hook install with a backup." = "设置的全部六个面板：位置、悬停或始终打开、带备份的钩子安装。";
 "Allow" = "允许";
 "Allow (⌘Y)" = "允许（⌘Y）";
 "Also poll Claude's usage endpoint" = "同时轮询 Claude 的用量端点";
@@ -159,7 +158,6 @@
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "尚无内容可显示的助手不出现在面板上。打开“设置 › 助手”，每一行都会说明它在等什么。";
 "Automation" = "自动化";
 "Check again" = "重新检查";
-"Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them." = "只有装了 0.7.0 的钩子条目，Claude Code 才能从刘海处回答：在装好之前，集成里的钩子行会显示修复（或添加）。";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code 报告会话的开始与结束、提示的发送、等待你的输入、停止与停止失败，以及子代理的启动与停止。";
 "Claude's usage endpoint is not polled; install the status line and run a turn for a reading" = "未轮询 Claude 的用量端点；安装状态行并运行一轮以获得读数";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex 报告会话的开始与结束、提示的发送、停止、被中断的一轮、子代理的启动与停止，以及它即将请求你批准的时刻。那个批准提示是它唯一的等待：Codex 圆环为此显示等待的手形，并在下一次提示、停止或子代理时，或十分钟后放开。Codex 没有提问或速率限制的事件，因此触及限制要等到下一次轮询。Codex 会跳过新增或更改的钩子，直到你在 Codex 内打开 /hooks 并信任它；正在运行的会话保留它启动时的钩子。";
@@ -187,11 +185,9 @@
 "Hand a request back to the terminal after" = "多久后把请求交还给终端";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "把请求交还给终端，由终端照常询问；按 Escape 效果相同。";
 "Hide assistants with nothing to show" = "隐藏尚无内容可显示的助手";
-"Hide options" = "隐藏选项";
 "Hooks" = "钩子";
 "Idle" = "空闲";
 "Install the hook and status line…" = "安装钩子和状态行…";
-"Open Integrations…" = "打开集成…";
 "Installed, but an entry is out of date: Repair updates it" = "已安装，但有一个条目已过时：“修复”会更新它";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "它读取每个助手已保存在这台 Mac 上的用量——Claude Code、Codex、Cursor、Gemini CLI 和 GitHub Copilot——并用该工具保存的登录信息向各厂商的用量接口查询。它从不登录，不保存令牌，也不把任何内容发往别处：没有账户，没有分析统计。";
 "Jump to the terminal" = "跳转到终端";
@@ -207,7 +203,7 @@
 "Not selected" = "未选中";
 "On a trial" = "试用中";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "开启时，应用在没有新鲜状态行替代的情况下，每五分钟用 Claude Code 自己的登录读取 api.anthropic.com 的用量端点。关闭时只依赖状态行，即 Anthropic 记录在案的渠道：Claude 环只在 Claude Code 完成一轮后填充，且从不请求该端点。";
-"One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later." = "在 ~/.claude/settings.json 中加入一条记录，Claude Code 就能在会话开始、一轮结束或等待你时通知刘海；状态行则在每一轮之后交出上下文占用和官方限额。两者都会先备份；之后可在“设置 › 集成”中修复或移除。";
+"One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "在 ~/.claude/settings.json 中加入一条记录，Claude Code 就能在会话开始、一轮结束或等待你时通知刘海；状态行则在每一轮之后交出上下文占用和官方限额。两者都会先备份；之后可在“设置”中 Claude Code 的页面修复或移除。";
 "One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "钩子报告的每个会话一行，最新的在前：它在做什么、运行在哪个助手和哪个终端里、本轮已运行多久，以及是否在等你。显示六行，其余以数量计。";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "仅当你选择“读数 › 自动”时需要，它让读数避开最前面应用的菜单标题。它只读取菜单栏的几何位置，别无其他。";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "仅用于跳转到某个会话的终端窗口，且只在你第一次跳转时请求。应用中没有其他部分会操控别的应用。";
@@ -220,7 +216,6 @@
 "Send" = "发送";
 "Send (⌘↩)" = "发送（⌘↩）";
 "Show a Sessions card on the panel" = "在面板上显示会话卡片";
-"Show options" = "显示选项";
 "just finished a turn" = "刚刚完成一轮工作";
 "Keep the Mac awake while an assistant is working" = "助手工作时保持 Mac 唤醒";
 "Keep the numbers" = "保留数字";
@@ -513,10 +508,12 @@
 "Only turns longer than" = "仅限时长超过";
 "Open" = "打开";
 "Open %@" = "打开 %@";
+"Open %@'s page" = "打开 %@ 的页面";
 "Open %@'s status page" = "打开 %@ 的状态页";
 "Open %@'s usage page" = "打开 %@ 的用量页";
 "Open Accessibility settings…" = "打开辅助功能设置…";
 "Open at login" = "登录时打开";
+"Open its page" = "打开它的页面";
 "Open on click" = "点按打开";
 "Open on hover" = "悬停时展开";
 "Open panel" = "打开面板";
@@ -647,7 +644,7 @@
 "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage" = "在编辑器中登录 GitHub Copilot（或运行 `gh auth login`）以读取你的用量";
 "Signed in" = "已登录";
 "Signed in · %@" = "已登录 · %@";
-"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "自 2026 年 3 月起，Anthropic 在工作日太平洋时间 5:00 至 11:00 施行更严格的 5 小时会话限额（媒体报道，非官方文档；见 docs/accuracy.md）。其间建议会说明非高峰何时开始，消耗日志分别记录高峰与非高峰速率，页脚显示“高峰时段”。适用于“助手”中勾选的助手。";
+"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on." = "自 2026 年 3 月起，Anthropic 在工作日太平洋时间 5:00 至 11:00 施行更严格的 5 小时会话限额（媒体报道，非官方文档；见 docs/accuracy.md）。其间建议会说明非高峰何时开始，消耗日志分别记录高峰与非高峰速率，页脚显示“高峰时段”。适用于在自己页面上打开了“高峰时段”的助手。";
 "snapshot" = "快照";
 "Sound" = "声音";
 "Source: %@" = "来源：%@";
@@ -670,7 +667,6 @@
 "The %1$@'s %2$@ is past the %3$@ budget." = "本%1$@已花费 %2$@，超出 %3$@ 的预算。";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "费用卡片上圆环、图例和消耗速率之外的内容（预算、本周和模型明细），以及会话区块、令牌、主要项目和迷你图。关闭后面板足够短，无需滚动。";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "每日总计文件导出为 CSV 或 JSON：每天一行，含费用、五类 token 计数、最高模型以及按模型和按项目的费用。";
-"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "第一个助手位于刘海左侧，其余位于右侧；面板卡片和边缘药丸沿用同一顺序。“高峰时段”将 Anthropic 的工作日时段（高级）应用于该助手的建议和预测。";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "钥匙串请求已被取消。在设置中关闭再打开 Claude 可重新询问";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "本应用统一日志的最近 10 分钟、各助手状态、钩子和状态栏状态、布局和 macOS 版本，去除个人文件夹路径，用于错误报告。绝不包含令牌。";
 "The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one." = "工具显示的最后一个窗口会留在卡片上：没有它，圆环和菜单栏就无从绘制。请先显示另一个窗口，再隐藏这一个。";
@@ -732,13 +728,11 @@
 "Weekly budget" = "每周预算";
 "Welcome to %@" = "欢迎使用 %@";
 "What %@ reads" = "%@ 读取什么";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "面板对钩子报告的每个会话显示什么，以及你可以在那里对它做什么。这一切都需要助手的钩子（集成）。";
 "When crowded" = "空间不足时";
 "When a window resets" = "窗口重置时";
 "When an assistant waits for you, or a turn finishes" = "当助手等待你，或一轮结束时";
 "When the cache tier or the metering shifts" = "缓存档位或计量发生变化时";
 "When you start paying (extra usage rises)" = "当你开始付费时（额外用量上涨）";
-"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "卡片的圆环、图例和总额包含哪些助手，顺序与“助手”中设置的一致。无法报告成本的助手，以及你未登录的助手，不会出现在这里；未勾选的助手仍会在自己的卡片上显示成本。";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "当 Zoom、Meet、QuickTime 或屏幕共享在捕获屏幕时，圆环保留形状但隐藏数字，面板隐藏花费卡片，此时弹出的横幅不含数字和项目名称。每五秒检查一次。";
 "Wide" = "加宽";
 "Will run out (behind pace)" = "将会用完（节奏落后）";
@@ -784,7 +778,7 @@
 "Custom colour" = "自定颜色";
 "Icon colour" = "图标颜色";
 "Colour" = "颜色";
-"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "固定哪些助手在下方逐个选择；一个都不选时使用第一个显示的助手。条形把每个固定的窗口画成小条，圆环沿用刘海旁的形状，圆点只表示用量节奏。";
+"Which assistants are pinned is chosen on each assistant's page; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "固定哪些助手在各助手的页面上选择；一个都不选时使用第一个显示的助手。条形把每个固定的窗口画成小条，圆环沿用刘海旁的形状，圆点只表示用量节奏。";
 "By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "“按用量节奏”使用本应用自己的琥珀色与朱红色，因此图标会指出某个窗口接近节奏或已经落后。“单色”始终保持菜单栏本身的颜色，并保持为模板图像，由 macOS 像绘制其他图标一样绘制。自定颜色保留数值，但放弃警示。";
 
 /* The peak window read on the reader's own clock, when their zone is not the window's (PeakHours, SettingsWindow) */
@@ -919,3 +913,45 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "将此项目的 Cursor 窗口移到前面（无法让 Cursor 打开某一个对话）";
 "First seen %@" = "首次发现于 %@";
+
+/* Each assistant's own Settings page, and the panes that point at it (SettingsWindow, SettingsSearch, Models, WelcomeWindow, AssetRenderer) */
+"Show %@ on the panel and the rings" = "在面板和圆环中显示 %@";
+"Off stops every read of its usage and takes its rings, its card and its menu bar figures away. Its hook and its sessions follow their own switches below." = "关闭后停止读取它的一切用量，并移除它的圆环、卡片和菜单栏数字。它的钩子和会话由下方各自的开关决定。";
+"Rings and windows" = "圆环与窗口";
+"Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections." = "将在“高级”中设置的 Anthropic 工作日高峰时段应用于该助手的建议和预测。";
+"Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card." = "费用卡片的圆环、图例和总额是否包含该助手，顺序与“助手”中设置的一致。不包含时，它仍会在自己的卡片上显示成本。";
+"Read its sessions" = "读取它的会话";
+"Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once." = "关闭后，它的钩子仍会刷新计量，但事件的其他内容一概不保留：会话卡片中没有行，圆环上没有等待或完成，没有动态、通知、面板上的请求，也不会保持唤醒。已列出的会话会立即消失。";
+"Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait." = "它的权限请求和问题会带着可选答案打开面板，并等待你的回答；关闭后由它的终端照常询问，面板只显示等待。";
+"Off for every assistant under Assistants › Sessions." = "已在“助手 › 会话”中对所有助手关闭。";
+"Its sessions are not read." = "不读取它的会话。";
+"Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them." = "只有装了 0.7.0 的钩子条目，Claude Code 才能从刘海处回答：在装好之前，上方的钩子一节会显示修复（或添加）。";
+"Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor 没有可以回答的事件：它的审批总是在 Cursor 中回答。";
+"Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Gemini CLI 的钩子只负责报告：它的权限请求总是在终端中回答。";
+"Notify about its limits" = "限额相关通知";
+"Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "它的进度、用尽、达到上限、重置和提醒通知，以及额外用量和缓存档位或计量通知，内容按“通知”中的选择。关闭后仅对该助手省略；预算通知涵盖所有助手，仍会保留。";
+"Off for every assistant under Notifications." = "已在“通知”中对所有助手关闭。";
+"Notify when it waits or finishes a turn" = "等待或完成一轮时通知";
+"Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "它的等待和一轮完成通知，以及它们打开的一瞥或面板，内容按“通知”中的选择。关闭后仅对该助手省略；它的圆环仍会显示等待。";
+"Sources" = "来源";
+"Login" = "登录信息";
+"Readings" = "读数来源";
+"Where each window comes from" = "每个窗口的来源";
+"From the vendor's usage endpoint" = "来自供应商的用量端点";
+"From a file the tool wrote on this Mac" = "来自该工具在这台 Mac 上写入的文件";
+"Worked out on this Mac" = "在这台 Mac 上推算";
+"Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Claude Code 自己的登录信息：它的钥匙串项目，其次是它的凭据文件，再次是 CLAUDE_CODE_OAUTH_TOKEN。只读：这里不会登录、刷新或写入任何内容。";
+"Codex's own login, from auth.json in its home folder; the plan name is Codex's own. Read only: the token is never refreshed or written." = "Codex 自己的登录信息，读自其主文件夹中的 auth.json；套餐名称沿用 Codex 自己的。只读：令牌从不刷新或写入。";
+"The editor's own login, from Cursor's state database, sent the way cursor.com's dashboard sends it. Read only: never refreshed or written." = "编辑器自己的登录信息，读自 Cursor 的状态数据库，按 cursor.com 控制台的方式发送。只读：从不刷新或写入。";
+"The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. The Antigravity app keeps its own in the Keychain, out of reach, so one sign-in through Gemini CLI is needed. Read only: never refreshed or written." = "Gemini CLI 保存在 ~/.gemini/oauth_creds.json 中的 Google 登录信息。Antigravity 应用把自己的登录信息存放在钥匙串中，无法读取，因此需要通过 Gemini CLI 登录一次。只读：从不刷新或写入。";
+"The token Copilot's editor plugin or gh keeps: apps.json, then hosts.json, then gh's hosts.yml, each tried in turn. Read only: never refreshed or written." = "Copilot 编辑器插件或 gh 保存的令牌：依次尝试 apps.json、hosts.json，然后是 gh 的 hosts.yml。只读：从不刷新或写入。";
+"The status line after every turn, Anthropic's usage endpoint while it is allowed below, and this Mac's transcripts for the cost." = "每轮之后的状态行、在下方允许时的 Anthropic 用量端点，以及用于计算成本的本机记录。";
+"chatgpt.com's usage endpoint, else the newest rate-limit line in Codex's session files, and those files for the cost." = "chatgpt.com 的用量端点，其次是 Codex 会话文件中最新的限流记录；成本也取自这些文件。";
+"cursor.com's usage summary and the dashboard's own reads, and its usage events for the cost." = "cursor.com 的用量摘要和控制台自身的读取，成本则取自它的用量事件。";
+"Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money." = "Google 的 Code Assist 配额；若这台 Mac 上装有 Antigravity 应用，则以 Antigravity 自己的身份读取。没有成本：它计量的是配额，而不是金额。";
+"api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost." = "api.github.com 的 Copilot 配额（与其编辑器插件的读取相同），成本则按 AI 点数计算，每点一美分。";
+"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "第一个助手位于刘海左侧，其余位于右侧；面板卡片和边缘药丸沿用同一顺序。助手的其他一切设置都在它自己的页面上，列在侧边栏的“助手”下。";
+"What the panel shows of each session the hooks report, and what you can do to it from there, for every assistant. All of it needs the assistant's hook; each assistant's page can stop reading its sessions or answering its requests." = "面板对钩子报告的每个会话显示什么，以及你可以在那里对它做什么，适用于所有助手。这一切都需要助手的钩子；每个助手的页面都可以停止读取它的会话或停止回答它的请求。";
+"These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "这些设置适用于所有助手。每个助手的页面都可以省略它自己的限额通知，以及它的等待和一轮完成通知。";
+"Open Claude Code in Settings…" = "在设置中打开 Claude Code…";
+"The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "设置的六个面板和 Claude Code 自己的页面：位置、悬停或始终打开、带备份的钩子安装。";

@@ -163,9 +163,10 @@ final class UsageStore {
     @ObservationIgnored private var screensAsleep = false
     @ObservationIgnored private var sessionInactive = false
     /// When each tool's hook last fired (the status line counts as Claude's), and when a hook last forced that
-    /// tool's refresh; per tool, so a Cursor event nudges Cursor's cadence and never Claude's.
+    /// tool's refresh; per tool, so a Cursor event nudges Cursor's cadence and never Claude's. The refresh times
+    /// are readable so a test can hold `hookRefreshSpacing`, and the events that override it, to their word.
     @ObservationIgnored private var lastHook: [ToolID: Date] = [:]
-    @ObservationIgnored private var lastHookRefresh: [ToolID: Date] = [:]
+    @ObservationIgnored private(set) var lastHookRefresh: [ToolID: Date] = [:]
     /// Claude's last endpoint read beside a fresh status line failed, so a reading with nothing from the endpoint
     /// is a read to try again rather than an account with nothing more to say (PollingPolicy.endpointDue).
     @ObservationIgnored private var claudeEndpointFailedBesideStatusline = false
@@ -286,6 +287,7 @@ final class UsageStore {
         }
         // Armed here rather than in `start`: the setting governs what the tracker holds whether or not the loops run.
         observeSessionTitles()
+        observeSessionReading()
     }
 
     /// The tools on screen, in the user's order (Preferences.toolOrder), less the ones with nothing to show while
@@ -576,6 +578,37 @@ final class UsageStore {
             sessions.clearTitles()
             cursorNamesTried = [:]
         }
+    }
+
+    /// Reading off is sessions gone, the way titles off is titles gone: the moment an assistant's page stops
+    /// reading its sessions (Preferences.sessionReadingOff), the ones the tracker already holds go with their
+    /// waits and requests, rather than lingering until events that will now never arrive. Re-armed like the
+    /// titles' tracking; the set alone is read inside it.
+    private func observeSessionReading() {
+        let off = withObservationTracking {
+            prefs.sessionReadingOff
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeSessionReading() }
+        }
+        for tool in ToolID.allCases where off.contains(tool) { forgetSessions(of: tool) }
+    }
+
+    /// Takes one assistant's sessions off every surface: the rows, the waits and their notices, the requests (each
+    /// parked reply released with nothing, so its terminal asks), a glance or a peek about one of them, and the
+    /// keep-awake count. Nothing happens for an assistant the tracker holds nothing of.
+    func forgetSessions(of tool: ToolID) {
+        var tracker = sessions
+        let forgotten = tracker.forget(tool)
+        guard tracker != sessions else { return }
+        sessions = tracker
+        for ended in forgotten.requests { endRequest(ended.requestID) }
+        withdrawWaiting(forgotten.waiting)
+        if let notice = attentionNotice, forgotten.sessions.contains(notice.session.id) { attentionNotice = nil }
+        if peek?.tool == tool { endPeek() }
+        pruneOpenSessionLists()
+        applyAwake()
+        armSignalRelease()
+        Oracle.shared.emit("session", ["action": "forgotten", "tool": tool.rawValue, "count": forgotten.sessions.count])
     }
 
     /// Reports the advice strip to the oracle whenever its lines change; the tracking is one-shot, so it re-arms.
@@ -1032,18 +1065,25 @@ final class UsageStore {
     }
 
     /// Only new readings can make a pace worse, so this runs after each one; nothing is remembered while the
-    /// setting is off, so switching it on reports whatever is behind at that moment. The budget rides along as a
-    /// window of its own, and advice lines worth a banner go out here too.
+    /// setting is off, so switching it on reports whatever is behind at that moment. An assistant whose own page
+    /// has its limit notices off (Preferences.limitNoticesOff) is left out the same way, before anything is
+    /// planned, so it too reports whatever is behind when it is switched back on. The budget rides along as a
+    /// window of its own, spread across every assistant, so no one page's switch holds it back; advice lines
+    /// worth a banner go out here too, under the same page switch as the readings: Claude's extra-usage,
+    /// cache-tier and metering notices are its limit notices as much as its pace ones, and a line about no one
+    /// assistant (the burn across every card) belongs to no page and stays.
     private func evaluateAlerts(now: Date = Date()) {
         guard prefs.notificationsEnabled else { return }
-        var readings = readyReadings.map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
+        var readings = readyReadings.filter { prefs.notifiesLimits(of: $0.tool) }
+            .map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
         if let budget = NotificationScheduler.budgetReading(cost: prefs.showSpend ? cost : nil, monthlyUSD: prefs.monthlyBudgetUSD, weeklyUSD: prefs.weeklyBudgetUSD, now: now) {
             readings.append(budget)
         }
         let plan = NotificationScheduler.plan(memory: alertMemory, readings: readings, now: now, options: alertOptions, rates: drainRates, runOuts: runOutsByKey)
         remember(plan.memory)
         send(plan.alerts)
-        let lines = NotificationScheduler.planAdvice(memory: alertMemory, advice: advice, now: now) { line in
+        let heard = advice.filter { $0.tool.map(prefs.notifiesLimits(of:)) ?? true }
+        let lines = NotificationScheduler.planAdvice(memory: alertMemory, advice: heard, now: now) { line in
             if line.id.hasPrefix("extra/") { return prefs.notifyExtraUsage ? (line.id == "extra/room" ? 3600 : 30 * 86400) : nil }
             if line.id == "cache-ttl" { return prefs.notifyCacheShift ? 86400 : nil }
             if line.id == "metering" { return prefs.notifyCacheShift ? 86400 : nil }
@@ -1063,12 +1103,20 @@ final class UsageStore {
     /// absence would announce, the moment the tool came back, a reset that passed while nobody was metering it.
     /// The next reading re-watches whatever is still worth watching. Internal, not private, so a test can drive
     /// the clock past a reset without the thirty-second timer.
+    ///
+    /// A watch whose assistant has its limit notices off on its own page is held back from the plan and kept as
+    /// it is, not dropped: the tool is still on screen and still read, so the watch is still true, and the page's
+    /// switch turned back on before the reset should find it there. Once its reset has passed it goes the way a
+    /// heard watch goes at its reset, taking its period's pace notices down, but unannounced: switching the page
+    /// back on later must not announce a reset that passed while it was off.
     func checkResets(now: Date = Date()) {
         guard prefs.notificationsEnabled else { return }
-        dropWatches { !isShown($0.tool) }
+        dropWatches { !isShown($0.tool) || (!prefs.notifiesLimits(of: $0.tool) && ($0.window.resetsAt.map { $0 <= now } ?? true)) }
         guard !watchedResets.isEmpty else { return }
-        let plan = NotificationScheduler.planResets(memory: alertMemory, watched: Array(watchedResets.values), now: now, options: alertOptions)
-        watchedResets = plan.watched.reduce(into: [:]) { $0[AlertMemory.key($1.tool, $1.window)] = $1 }
+        let held = watchedResets.filter { !prefs.notifiesLimits(of: $0.value.tool) }
+        let heard = watchedResets.values.filter { prefs.notifiesLimits(of: $0.tool) }
+        let plan = NotificationScheduler.planResets(memory: alertMemory, watched: Array(heard), now: now, options: alertOptions)
+        watchedResets = plan.watched.reduce(into: held) { $0[AlertMemory.key($1.tool, $1.window)] = $1 }
         remember(plan.memory)
         send(plan.alerts)
         let passed = plan.alerts.filter { $0.stage == .reset }
@@ -1317,7 +1365,9 @@ final class UsageStore {
         // an approval the turn has stopped for, and a non-blocking wait is held back while an editor is in front,
         // which for Cursor is exactly when it asks (the ten-minute ceiling on blocking banners still applies).
         if prefs.notifyWaiting {
-            for session in nudged { deliverSessionEvent(.waiting(blocking: true, kind: .permission), session) }
+            for session in nudged where prefs.notifiesSessions(of: session.tool) {
+                deliverSessionEvent(.waiting(blocking: true, kind: .permission), session)
+            }
         }
     }
 
@@ -1529,6 +1579,10 @@ final class UsageStore {
     /// when the request is not going to be shown (answering from the notch is off, or the tracker did not take
     /// it). The title, the summary and the terminal never reach the log or the oracle (`hookFacts`).
     func hookReceived(_ message: Hook.Message, now: Date = Date(), reply: HookSocket.Reply? = nil) {
+        guard prefs.readsSessions(of: message.tool) else {
+            meterOnly(message, now: now, reply: reply)
+            return
+        }
         var message = message
         if !prefs.sessionTitles {
             message.title = nil
@@ -1538,7 +1592,7 @@ final class UsageStore {
         // Settled before the request can be dropped below: with answering from the notch off, the request is the
         // only thing that says a permission is a plan's, and the sound for it should not depend on that setting.
         let waitKind = message.waitKind
-        if message.request != nil, !prefs.answerFromNotch {
+        if message.request != nil, !prefs.answersFromNotch(message.tool) {
             reply?.answer(nil)
             message.request = nil
         }
@@ -1576,21 +1630,48 @@ final class UsageStore {
         } else {
             reply?.answer(nil)
         }
-        if let waiting = outcome.startedWaiting, prefs.notifyWaiting {
+        if let waiting = outcome.startedWaiting, prefs.notifyWaiting, prefs.notifiesSessions(of: tool) {
             deliverSessionEvent(.waiting(blocking: message.blocksSession, kind: waitKind), waiting)
         }
-        if let finished = outcome.finished, prefs.notifyFinished, finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
+        if let finished = outcome.finished, prefs.notifyFinished, prefs.notifiesSessions(of: tool),
+           finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
         }
         guard isShown(tool) else { return }
         if let news = NotchNews.from(message, outcome: outcome, now: now) { announce(news, now: now) }
-        if outcome.limitHit != nil, prefs.notificationsEnabled {
+        if outcome.limitHit != nil, prefs.notificationsEnabled, prefs.notifiesLimits(of: tool) {
             let reading = status(tool).reading.map { NotificationScheduler.pinned($0, memory: alertMemory, watched: watchedResets) }
             let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: tool, reading: reading, now: now, options: alertOptions)
             remember(plan.memory)
             send(plan.alerts)
         }
-        let urgent = outcome.limitHit != nil || outcome.quotaResumed
+        refreshAfterHook(tool, urgent: outcome.limitHit != nil || outcome.quotaResumed, now: now)
+    }
+
+    /// An event from an assistant whose sessions are not read (Preferences.sessionReadingOff): it is still proof
+    /// the assistant is at work, so its meter's cadence follows it as for any event, and nothing else of it is
+    /// kept. The tracker never sees it — no row, no wait, no news, no notice, no keep-awake — and a request is
+    /// answered nothing at once, so the terminal asks as it always has. The oracle hears the event's name and
+    /// that it was not read, and no more than `hookFacts` would ever carry.
+    private func meterOnly(_ message: Hook.Message, now: Date, reply: HookSocket.Reply?) {
+        reply?.answer(nil)
+        let tool = message.tool
+        log.info("hook \(message.event, privacy: .public) (\(tool.rawValue, privacy: .public), sessions not read)")
+        emitHookFacts(["name": message.event, "tool": tool.rawValue, "sessions": "off"])
+        lastHook[tool] = now
+        lastActivity[tool] = now
+        wokeAt = now
+        guard isShown(tool) else { return }
+        // A limit hit or a quota resume is news about the meter, not the session, and is read off the message
+        // itself (`hitRateLimit`, `resumesFromQuota`) where the read path reads it off the tracker's outcome: the
+        // meter refreshes at once for either, as it does with the sessions read, rather than waiting out the
+        // spacing on the one event that says the figure on the ring is wrong.
+        refreshAfterHook(tool, urgent: message.hitRateLimit || message.resumesFromQuota, now: now)
+    }
+
+    /// A hook event's refresh of its own tool's meter: at once for a limit hit or a quota resume, otherwise at
+    /// most every `hookRefreshSpacing`.
+    private func refreshAfterHook(_ tool: ToolID, urgent: Bool, now: Date) {
         if urgent || (lastHookRefresh[tool].map({ now.timeIntervalSince($0) >= Self.hookRefreshSpacing }) ?? true) {
             lastHookRefresh[tool] = now
             Task {
@@ -1801,11 +1882,15 @@ final class UsageStore {
         statusline = message
         lastHook[.claude] = now
         lastActivity[.claude] = now
-        // The session's name is shown under the same setting as the prompt title (hookReceived drops that one).
-        sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL,
-                            model: message.model, sessionName: prefs.sessionTitles ? message.sessionName : nil,
-                            linesAdded: message.linesAdded, linesRemoved: message.linesRemoved,
-                            promptCache: message.promptCache, contextUsed: message.contextUsed, now: now)
+        // The session's name is shown under the same setting as the prompt title (hookReceived drops that one), and
+        // the session itself only while Claude Code's sessions are read: a status line would otherwise put back
+        // the row that switch took away. The windows below are the meter's, and are taken either way.
+        if prefs.readsSessions(of: .claude) {
+            sessions.statusline(sessionID: message.sessionID, project: message.project, branch: message.branch, prURL: message.prURL,
+                                model: message.model, sessionName: prefs.sessionTitles ? message.sessionName : nil,
+                                linesAdded: message.linesAdded, linesRemoved: message.linesRemoved,
+                                promptCache: message.promptCache, contextUsed: message.contextUsed, now: now)
+        }
         guard isShown(.claude) else { return }
         if let reading = statuslineReading(now: now) {
             adopt(reading, now: now)

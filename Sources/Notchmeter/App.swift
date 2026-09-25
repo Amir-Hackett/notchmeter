@@ -470,7 +470,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Welcome
 
     /// The first-launch Welcome, held open the way Settings is. Its install button closes it and opens Settings
-    /// on Integrations with the hook offer and the status line queued (`offerClaudeSetup`). A second ask while it
+    /// on Claude Code's page with the hook offer and the status line queued (`offerClaudeSetup`). A second ask while it
     /// is up brings the one already open forward rather than stacking another.
     private func showWelcome() {
         if let welcome {
@@ -508,12 +508,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// What the Welcome's install button asks for: the hook offer sheet where the hook is not installed, and the
     /// status line install once that sheet is answered — or at once when the hook is already there. Both run in
-    /// the Settings window, which is the one installer (SettingsView.installHook, installStatusline).
+    /// the Settings window, which is the one installer (SettingsView.installHook, installStatusline), on Claude
+    /// Code's own page, where the two rows they explain are.
     private func offerClaudeSetup() {
         welcome?.close()
         if case .installed = HookSettings.statuslineStatus() {} else { requests.statuslineOffer = true }
         if case .installed = HookSettings.status() {} else { requests.hookOffer = true }
-        showSettings(pane: .integrations)
+        showSettings(pane: .agent(.claude))
     }
 
     // MARK: - Dashboard
@@ -1010,6 +1011,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 "rows": SessionsCard.oracleRows(SessionsCard.groups(rows.rows, sessions: all)), "more": rows.more]
     }
 
+    /// Each assistant's page switches as they take effect, the app-wide switches included: whether its sessions are
+    /// read, whether its requests are answered in the notch, and whether its limit and session notices go out.
+    /// What a tester checks after flipping one, without opening Settings to look.
+    private func agentFields() -> [String: Any] {
+        ToolID.allCases.reduce(into: [String: Any]()) { fields, tool in
+            let sessionNotices = (prefs.notifyWaiting || prefs.notifyFinished) && prefs.readsSessions(of: tool) && prefs.notifiesSessions(of: tool)
+            fields[tool.rawValue] = ["sessions": prefs.readsSessions(of: tool),
+                                     "answers": tool.hasAnswerableHook && prefs.answersFromNotch(tool),
+                                     "limitNotices": prefs.notificationsEnabled && prefs.notifiesLimits(of: tool),
+                                     "sessionNotices": sessionNotices]
+        }
+    }
+
     /// Everything a tester could otherwise only see, in one line, on the distributed notification
     /// com.amirhackett.notchmeter.oracle.snapshot.
     private func emitSnapshot() {
@@ -1035,6 +1049,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "captured": store.screenCaptured,
             "presenters": presenters.map(\.screen.localizedName),
             "keepingAwake": store.keepingAwake,
+            "agents": agentFields(),
         ]
         if let presenter {
             fields["panelState"] = presenter.hover.state.rawValue
@@ -1121,6 +1136,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Probe.emit("hooks: " + HookVendor.allCases.map { "\($0.rawValue): \(HookSettings.status(vendor: $0).text)" }.joined(separator: "; ") + "; status line: \(HookSettings.statuslineStatus().text); auto-repair: \(prefs.autoRepairHooks) (never under --smoke); command line tool: \(CommandLineTool.installedLink().map { "\($0.link.path) → \($0.destination)" } ?? "not installed"); transport: \(HookSocket.describe())")
         Probe.emit("prompts: pending=\(store.sessions.pending(now: Date()).count); answer from the notch=\(prefs.answerFromNotch ? "on" : "off") hold=\(prefs.promptHoldSeconds)s; sessions card=\(prefs.sessionsCard ? "on" : "off") titles=\(prefs.sessionTitles ? "on" : "off"); jump=\(prefs.jumpToTerminal ? "on" : "off") automation: "
                    + TerminalJump.scriptedApps.map { "\($0.name)=\(TerminalJump.automationStatus(bundleID: $0.bundleID).word)" }.joined(separator: " "))
+        // Each assistant's page, a word per switch: sessions read, answers in the notch ("-" where its hook has
+        // nothing to answer), limit notices, session notices; the page's own say, before the app-wide switches.
+        Probe.emit("assistant pages: " + ToolID.allCases.map { tool in
+            let answers = tool.hasAnswerableHook ? (prefs.notchAnswersOff.contains(tool) ? "off" : "on") : "-"
+            return "\(tool.rawValue) sessions=\(prefs.readsSessions(of: tool) ? "on" : "off") answers=\(answers) "
+                + "limits=\(prefs.notifiesLimits(of: tool) ? "on" : "off") session-notices=\(prefs.notifiesSessions(of: tool) ? "on" : "off")"
+        }.joined(separator: "; "))
         Probe.emit("main menu: \(MainMenu.describe())")
         Probe.emit("readouts: \(autoSide.description)")
         Probe.emit("full screen: \(FullScreen.describe(on: .panelScreen))")

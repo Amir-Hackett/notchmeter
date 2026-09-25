@@ -132,7 +132,6 @@
 "Add the Notchmeter hook to %@?" = "Notchmeter のフックを %@ に追加しますか？";
 "Add to %@…" = "%@ に追加…";
 "AI credits" = "AI クレジット";
-"All six Settings panes: position, hover or always open, hook install with a backup." = "設定の6つのペインすべて：位置、ホバーまたは常時表示、バックアップ付きのフック導入。";
 "Allow" = "許可";
 "Allow (⌘Y)" = "許可（⌘Y）";
 "Also poll Claude's usage endpoint" = "Claude の使用量エンドポイントも問い合わせる";
@@ -142,7 +141,6 @@
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "まだ表示するものがないアシスタントはパネルに出ません。「設定 › アシスタント」を開くと、各行が何を待っているかを示します。";
 "Automation" = "オートメーション";
 "Check again" = "再確認";
-"Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them." = "Claude Code がノッチから回答できるのは 0.7.0 のフック項目がある場合だけです。それまで、統合の Hooks 行には修復（または追加）が表示されます。";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code はセッションの開始と終了、プロンプトの送信、入力待ち、停止と停止の失敗、サブエージェントの開始と停止を報告します。";
 "Claude's usage endpoint is not polled; install the status line and run a turn for a reading" = "Claude の使用量エンドポイントは問い合わせていません。ステータスラインを入れて 1 ターン実行すると読み取れます";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex はセッションの開始と終了、プロンプトの送信、停止、中断されたターン、サブエージェントの開始と停止、そして承認を求めようとする瞬間を報告します。その承認プロンプトが唯一の待機です。Codex のリングはそのとき待機の手を示し、次のプロンプト、停止、サブエージェント、または 10 分後に下ろします。Codex には質問やレート制限のイベントがないため、制限到達は次のポーリングまで待ちます。Codex は新規または変更されたフックを、Codex 内で /hooks を開いて信頼するまで無視し、実行中のセッションは開始時のフックを使い続けます。";
@@ -170,11 +168,9 @@
 "Hand a request back to the terminal after" = "リクエストをターミナルに戻すまでの時間";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "リクエストをターミナルに戻し、従来どおりターミナルが尋ねます。Escape でも同じです。";
 "Hide assistants with nothing to show" = "表示するものがないアシスタントを隠す";
-"Hide options" = "オプションを隠す";
 "Hooks" = "フック";
 "Idle" = "アイドル";
 "Install the hook and status line…" = "フックとステータスラインをインストール…";
-"Open Integrations…" = "連携を開く…";
 "Installed, but an entry is out of date: Repair updates it" = "インストール済みですが、古い項目があります。「修復」で更新します";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "各アシスタントがこの Mac にすでに保存している利用状況（Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot）を読み、そのツールが保存したログインで各ベンダーの利用状況エンドポイントに問い合わせます。サインインすることも、トークンを保持することも、他のどこかへ送ることもありません。アカウントも解析もありません。";
 "Jump to the terminal" = "ターミナルへジャンプ";
@@ -190,7 +186,7 @@
 "Not selected" = "未選択";
 "On a trial" = "トライアル中";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "オンのとき、新しいステータスラインが代わりにない間は 5 分ごとに Claude Code 自身のログインで api.anthropic.com の使用量エンドポイントを読み取ります。オフのときは Anthropic が文書化した経路であるステータスラインだけに頼ります。Claude のリングは Claude Code のターンの後にのみ埋まり、エンドポイントは一切問い合わせません。";
-"One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later." = "~/.claude/settings.json の一項目で、セッションの開始、ターンの終了、あなたを待っているときに Claude Code がノッチへ知らせ、ステータスラインは毎ターン後にコンテキストの使用率と公式の上限を渡します。どちらも先にバックアップされ、「設定 › 連携」から後で修復や削除ができます。";
+"One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "~/.claude/settings.json の一項目で、セッションの開始、ターンの終了、あなたを待っているときに Claude Code がノッチへ知らせ、ステータスラインは毎ターン後にコンテキストの使用率と公式の上限を渡します。どちらも先にバックアップされ、設定の Claude Code のページから後で修復や削除ができます。";
 "One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "フックが報告したセッションごとに 1 行、新しい順に表示します。何に取り組んでいるか、どのアシスタントとどのターミナルで動いているか、ターンの経過時間、あなたを待っているかどうか。6 行まで表示し、残りは件数で示します。";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "「表示 › 自動」を選んだときだけ。最前面のアプリのメニュータイトルを避けて表示をずらすためで、メニューバーの位置と大きさ以外は何も読みません。";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "セッションのターミナルウインドウへ移動するときだけ、その最初の一回。アプリの他の部分が別のアプリを操作することはありません。";
@@ -203,7 +199,6 @@
 "Send" = "送信";
 "Send (⌘↩)" = "送信（⌘↩）";
 "Show a Sessions card on the panel" = "パネルにセッションカードを表示する";
-"Show options" = "オプションを表示";
 "just finished a turn" = "ターンが完了しました";
 "Keep the Mac awake while an assistant is working" = "アシスタントの作業中は Mac をスリープさせない";
 "Keep the numbers" = "数値を残す";
@@ -496,10 +491,12 @@
 "Only turns longer than" = "次より長いターンのみ";
 "Open" = "開く";
 "Open %@" = "%@ を開く";
+"Open %@'s page" = "%@ のページを開く";
 "Open %@'s status page" = "%@ のステータスページを開く";
 "Open %@'s usage page" = "%@ の使用量ページを開く";
 "Open Accessibility settings…" = "アクセシビリティ設定を開く…";
 "Open at login" = "ログイン時に開く";
+"Open its page" = "そのページを開く";
 "Open on click" = "クリックで開く";
 "Open on hover" = "ホバーで開く";
 "Open panel" = "パネルを開く";
@@ -630,7 +627,7 @@
 "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage" = "利用状況を読むにはエディタで GitHub Copilot にサインインしてください（または `gh auth login` を実行）";
 "Signed in" = "サインイン済み";
 "Signed in · %@" = "サインイン済み · %@";
-"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "2026 年 3 月以降、Anthropic は平日の太平洋時間 5:00〜11:00 に 5 時間セッションの上限を厳しくしています（報道であり公式文書ではありません。docs/accuracy.md 参照）。その間はアドバイスがオフピークの開始時刻を示し、ドレインログはピークとオフピークのレートを分け、フッターに「ピーク時間」と出ます。「アシスタント」でチェックしたアシスタントに適用されます。";
+"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on." = "2026 年 3 月以降、Anthropic は平日の太平洋時間 5:00〜11:00 に 5 時間セッションの上限を厳しくしています（報道であり公式文書ではありません。docs/accuracy.md 参照）。その間はアドバイスがオフピークの開始時刻を示し、ドレインログはピークとオフピークのレートを分け、フッターに「ピーク時間」と出ます。自身のページで「ピーク時間」をオンにしたアシスタントに適用されます。";
 "snapshot" = "スナップショット";
 "Sound" = "サウンド";
 "Source: %@" = "ソース: %@";
@@ -653,7 +650,6 @@
 "The %1$@'s %2$@ is past the %3$@ budget." = "%1$@の %2$@ は予算 %3$@ を超えています。";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "コストカードのドーナツ・凡例・消費ペース以外の行（予算、今週、モデル別）と、セッションブロック、トークン、主なプロジェクト、スパークライン。オフにするとパネルが短くなり、スクロールが不要になります。";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "日次合計ファイルを CSV または JSON で書き出します。1 日 1 行で、コスト、5 つのトークン区分、最多モデル、モデル別とプロジェクト別のコストを含みます。";
-"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "最初のアシスタントはノッチの左に、残りは右に並びます。パネルのカードとエッジのピルも同じ順序です。「ピーク時間」は Anthropic の平日ウィンドウ（詳細）をそのアシスタントのアドバイスと予測に適用します。";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "キーチェーンの要求が閉じられました。設定で Claude をオフにしてから再度オンにすると再度確認します";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "このアプリの統合ログの直近 10 分、各アシスタントの状態、フックとステータスラインの状態、レイアウトと macOS のバージョンを、ホームフォルダのパスを除いて、バグ報告用にまとめます。トークンは含みません。";
 "The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one." = "ツールが表示している最後のウィンドウはカードに残ります。これがなければリングもメニューバーも描くものがなくなります。これを隠す前に、別のウィンドウを表示してください。";
@@ -715,13 +711,11 @@
 "Weekly budget" = "週次予算";
 "Welcome to %@" = "%@ へようこそ";
 "What %@ reads" = "%@ が読むもの";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "フックが報告した各セッションについてパネルが何を表示し、そこから何ができるか。すべてアシスタントのフックが必要です（統合）。";
 "When crowded" = "余白が足りないとき";
 "When a window resets" = "ウィンドウがリセットされたとき";
 "When an assistant waits for you, or a turn finishes" = "アシスタントが待機したとき、またはターンが終わったとき";
 "When the cache tier or the metering shifts" = "キャッシュ層や計測が変わったとき";
 "When you start paying (extra usage rises)" = "支払いが始まったとき（追加使用の増加）";
-"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "カードのドーナツ、凡例、合計に含めるアシスタント。並び順は「アシスタント」の設定に従います。コストを報告できないアシスタント、およびサインインしていないアシスタントはここに現れません。外したアシスタントも自身のカードにはコストを表示します。";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "Zoom、Meet、QuickTime、画面共有が画面をキャプチャしている間、リングは形を保ったまま数値を隠し、パネルはコストカードを隠し、その間に表示される通知には数値もプロジェクト名も含まれません。5 秒ごとに確認します。";
 "Wide" = "ワイド";
 "Will run out (behind pace)" = "使い切る見込み（ペースより遅れ）";
@@ -767,7 +761,7 @@
 "Custom colour" = "任意の色";
 "Icon colour" = "アイコンの色";
 "Colour" = "色";
-"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "どのアシスタントをピン留めするかは下のアシスタントごとに選びます。何も選ばなければ、表示中の最初のものになります。バーはピン留めした各ウインドウをミニバーで、リングはノッチ横と同じ形で、ドットはペースだけを描きます。";
+"Which assistants are pinned is chosen on each assistant's page; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "どのアシスタントをピン留めするかは各アシスタントのページで選びます。何も選ばなければ、表示中の最初のものになります。バーはピン留めした各ウインドウをミニバーで、リングはノッチ横と同じ形で、ドットはペースだけを描きます。";
 "By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "「ペースに応じて」はこのアプリのアンバーとバーミリオンを使い、ウインドウがペースに近づいたとき、遅れているときをアイコンが伝えます。「モノクロ」は常にメニューバー自身の色のままで、macOS が他のアイコンと同じように描くテンプレート画像を保ちます。任意の色は数値は残しますが、警告は失われます。";
 
 /* The peak window read on the reader's own clock, when their zone is not the window's (PeakHours, SettingsWindow) */
@@ -902,3 +896,45 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "このプロジェクトの Cursor ウインドウを前面に出します（Cursor に特定のチャットを開かせることはできません）";
 "First seen %@" = "最初に検出：%@";
+
+/* Each assistant's own Settings page, and the panes that point at it (SettingsWindow, SettingsSearch, Models, WelcomeWindow, AssetRenderer) */
+"Show %@ on the panel and the rings" = "%@ をパネルとリングに表示";
+"Off stops every read of its usage and takes its rings, its card and its menu bar figures away. Its hook and its sessions follow their own switches below." = "オフにすると使用量の読み取りをすべて止め、リング、カード、メニューバーの数値を消します。フックとセッションは下にあるそれぞれのスイッチに従います。";
+"Rings and windows" = "リングとウィンドウ";
+"Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections." = "「詳細」で設定する Anthropic の平日ピーク時間帯を、このアシスタントのアドバイスと予測に適用します。";
+"Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card." = "コストカードのドーナツ、凡例、合計にこのアシスタントを含めるかどうか。並び順は「アシスタント」の設定に従います。外しても、自身のカードにはコストを表示します。";
+"Read its sessions" = "セッションを読み取る";
+"Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once." = "オフにしても、フックはメーターを更新し続けますが、イベントのそれ以外は何も保持しません。セッションカードの行、リングの待機や完了、お知らせ、通知、パネルのリクエスト、スリープ抑止はありません。一覧にあるセッションはすぐに消えます。";
+"Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait." = "権限リクエストと質問が回答の選択肢付きでパネルを開き、アシスタントはあなたの回答を待ちます。オフにすると、これまでどおりターミナルが尋ね、パネルは待機を表示するだけです。";
+"Off for every assistant under Assistants › Sessions." = "「アシスタント › セッション」ですべてのアシスタントに対してオフになっています。";
+"Its sessions are not read." = "このアシスタントのセッションは読み取っていません。";
+"Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them." = "Claude Code がノッチから回答できるのは 0.7.0 のフック項目がある場合だけです。それまで、上のフックの欄には修復（または追加）が表示されます。";
+"Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor には回答できるイベントがありません。承認は常に Cursor の中で行います。";
+"Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Gemini CLI のフックは報告するだけです。権限の確認は常にターミナルで回答します。";
+"Notify about its limits" = "上限の通知";
+"Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "ペース、使い切り、上限到達、リセット、リマインダーの通知と、追加使用やキャッシュ層・計測の通知で、内容は「通知」で選んだとおりです。オフにするとこのアシスタントの分だけを省きます。予算の通知はすべてのアシスタントが対象なので残ります。";
+"Off for every assistant under Notifications." = "「通知」ですべてのアシスタントに対してオフになっています。";
+"Notify when it waits or finishes a turn" = "待機やターン完了のときに通知";
+"Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "待機とターン完了の通知、およびそれが開くちら見やパネルで、内容は「通知」で選んだとおりです。オフにするとこのアシスタントの分だけを省きます。リングは引き続き待機を表示します。";
+"Sources" = "取得元";
+"Login" = "ログイン情報";
+"Readings" = "読み取り元";
+"Where each window comes from" = "各ウィンドウの取得元";
+"From the vendor's usage endpoint" = "ベンダーの使用量エンドポイントより";
+"From a file the tool wrote on this Mac" = "ツールがこの Mac に書いたファイルより";
+"Worked out on this Mac" = "この Mac で算出";
+"Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Claude Code 自身のログイン情報：キーチェーン項目、なければ認証情報ファイル、なければ CLAUDE_CODE_OAUTH_TOKEN。読み取りのみで、ここでサインイン、更新、書き込みをすることはありません。";
+"Codex's own login, from auth.json in its home folder; the plan name is Codex's own. Read only: the token is never refreshed or written." = "Codex 自身のログイン情報。ホームフォルダの auth.json から読み、プラン名も Codex 自身のものです。読み取りのみで、トークンを更新したり書き込んだりすることはありません。";
+"The editor's own login, from Cursor's state database, sent the way cursor.com's dashboard sends it. Read only: never refreshed or written." = "エディター自身のログイン情報で、Cursor の状態データベースから読み、cursor.com のダッシュボードと同じ形で送ります。読み取りのみで、更新や書き込みはしません。";
+"The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. The Antigravity app keeps its own in the Keychain, out of reach, so one sign-in through Gemini CLI is needed. Read only: never refreshed or written." = "Gemini CLI が ~/.gemini/oauth_creds.json に保存する Google ログイン情報です。Antigravity アプリは自分の情報をキーチェーンに保存しており読み取れないため、Gemini CLI で一度サインインする必要があります。読み取りのみで、更新や書き込みはしません。";
+"The token Copilot's editor plugin or gh keeps: apps.json, then hosts.json, then gh's hosts.yml, each tried in turn. Read only: never refreshed or written." = "Copilot のエディタープラグインまたは gh が保存するトークン：apps.json、次に hosts.json、次に gh の hosts.yml を順に試します。読み取りのみで、更新や書き込みはしません。";
+"The status line after every turn, Anthropic's usage endpoint while it is allowed below, and this Mac's transcripts for the cost." = "毎ターン後のステータスライン、下で許可している間の Anthropic の使用量エンドポイント、そしてコストにはこの Mac の記録。";
+"chatgpt.com's usage endpoint, else the newest rate-limit line in Codex's session files, and those files for the cost." = "chatgpt.com の使用量エンドポイント、なければ Codex のセッションファイルにある最新のレート制限行。コストにもそのファイルを使います。";
+"cursor.com's usage summary and the dashboard's own reads, and its usage events for the cost." = "cursor.com の使用量サマリーとダッシュボード自身の読み取り、そしてコストには使用イベント。";
+"Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money." = "Google の Code Assist クォータ。この Mac に Antigravity のアプリがあれば、Antigravity 自身の ID で読み取ります。コストはありません。計るのは金額ではなくクォータです。";
+"api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost." = "api.github.com の Copilot クォータ（エディタープラグインと同じ読み取り）、そしてコストには 1 クレジット 1 セントの AI クレジット。";
+"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "最初のアシスタントはノッチの左に、残りは右に並びます。パネルのカードとエッジのピルも同じ順序です。アシスタントのそれ以外の設定は、サイドバーの「アシスタント」の下にあるそれぞれのページにあります。";
+"What the panel shows of each session the hooks report, and what you can do to it from there, for every assistant. All of it needs the assistant's hook; each assistant's page can stop reading its sessions or answering its requests." = "フックが報告した各セッションについて、すべてのアシスタント共通でパネルが何を表示し、そこから何ができるか。すべてアシスタントのフックが必要です。各アシスタントのページでは、セッションの読み取りやリクエストへの回答を止められます。";
+"These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "これらはすべてのアシスタントに適用されます。各アシスタントのページでは、そのアシスタントの上限の通知と、待機・ターン完了の通知を省けます。";
+"Open Claude Code in Settings…" = "設定で Claude Code を開く…";
+"The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "設定の6つのペインと Claude Code 専用のページ：位置、ホバーまたは常時表示、バックアップ付きのフック導入。";

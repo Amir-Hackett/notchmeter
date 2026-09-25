@@ -640,6 +640,37 @@ struct SessionTracker: Equatable, Sendable {
         return (true, session.isWaiting)
     }
 
+    /// What `forget` took away: every session id, the ones that were waiting (their notices come down) and the
+    /// requests they held (their parked replies are released, so the terminal asks).
+    struct Forgotten: Equatable, Sendable {
+        var sessions: [String] = []
+        var waiting: [String] = []
+        var requests: [EndedRequest] = []
+    }
+
+    /// One assistant's sessions gone at once, set-aside ones included, and its hook no longer counted as heard:
+    /// its session reading was switched off (Preferences.sessionReadingOff), and with it off nothing of its
+    /// sessions is held. Unlike `dismiss` nothing is kept to come back, and a session holding a request goes
+    /// too, with the request handed back. `hooksSeen` loses the tool so the calm rule (Presence.level) reads its
+    /// session count as unknown rather than as a proven zero, which would quieten a ring on a silence the app
+    /// chose not to hear.
+    @discardableResult
+    mutating func forget(_ tool: ToolID) -> Forgotten {
+        var forgotten = Forgotten()
+        for (id, session) in sessions where session.tool == tool {
+            forgotten.sessions.append(id)
+            if session.isWaiting { forgotten.waiting.append(id) }
+            if let pending = session.pending { forgotten.requests.append(EndedRequest(sessionID: id, requestID: pending.id)) }
+            sessions[id] = nil
+        }
+        dismissed = dismissed.filter { $0.value.tool != tool }
+        hooksSeen.remove(tool)
+        forgotten.sessions.sort()
+        forgotten.waiting.sort()
+        forgotten.requests.sort { $0.requestID < $1.requestID }
+        return forgotten
+    }
+
     /// Every idle session off the list at once: the ones not working, not waiting and not holding a request.
     @discardableResult
     mutating func dismissIdle() -> [String] {

@@ -236,6 +236,15 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     }
 }
 
+extension ToolID {
+    /// Whether this assistant's hook has an event the notch can answer (`HookVendor.decidingEvents`): Claude Code,
+    /// Codex and Copilot today. Its Settings page offers *Answer from the notch* only then, and says why not
+    /// otherwise, rather than offering a switch that could never do anything.
+    var hasAnswerableHook: Bool {
+        HookVendor.vendor(for: self).map { !$0.decidingEvents.isEmpty } ?? false
+    }
+}
+
 /// How a hooks file nests its command entries. Claude Code, Codex and Gemini CLI nest a `hooks` array of
 /// {type, command, …} handlers inside each group; Cursor and GitHub Copilot list command objects directly under
 /// the event and want a top-level "version": 1. Copilot's `matcher` sits on the flat element itself, which

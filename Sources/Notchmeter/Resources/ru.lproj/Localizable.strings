@@ -149,7 +149,6 @@
 "Add the Notchmeter hook to %@?" = "Добавить хук Notchmeter в %@?";
 "Add to %@…" = "Добавить в %@…";
 "AI credits" = "AI-кредиты";
-"All six Settings panes: position, hover or always open, hook install with a backup." = "Все шесть разделов настроек: положение, открытие при наведении или всегда, установка хука с резервной копией.";
 "Allow" = "Разрешить";
 "Allow (⌘Y)" = "Разрешить (⌘Y)";
 "Also poll Claude's usage endpoint" = "Также опрашивать эндпоинт использования Claude";
@@ -159,7 +158,6 @@
 "Assistants with nothing to show yet stay off the panel. Opens Settings › Assistants, where each one's row says what it is waiting for." = "Ассистенты, которым пока нечего показать, не отображаются на панели. Открывает Настройки › Ассистенты, где в строке каждого указано, чего он ждёт.";
 "Automation" = "Автоматизация";
 "Check again" = "Проверить снова";
-"Claude Code answers from the notch only with the 0.7.0 hook entries: the Hooks row under Integrations shows Repair (or Add) until it has them." = "Claude Code отвечает из выреза только с записями хука версии 0.7.0: строка «Хуки» в разделе «Интеграции» показывает «Исправить» (или «Добавить»), пока их нет.";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, and subagent starts and stops." = "Claude Code сообщает о начале и завершении сессий, отправке промптов, ожидании вашего ввода, остановках и сбоях остановки, а также о запуске и остановке субагентов.";
 "Claude's usage endpoint is not polled; install the status line and run a turn for a reading" = "Эндпоинт использования Claude не опрашивается; установите строку состояния и выполните один ход, чтобы получить показания";
 "Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with." = "Codex сообщает о начале и завершении сессий, отправке промптов, остановках, прерванных ходах, запуске и остановке субагентов и о моменте, когда он собирается запросить ваше подтверждение. Этот запрос — его единственное ожидание: кольцо Codex показывает для него значок руки и снимает его при следующем промпте, остановке или субагенте либо через десять минут. У Codex нет событий для вопроса или лимита запросов, поэтому достижение лимита будет видно только при следующем опросе. Codex пропускает новый или изменённый хук, пока вы не откроете /hooks в Codex и не отметите его как доверенный, а запущенная сессия сохраняет хуки, с которыми стартовала.";
@@ -187,11 +185,9 @@
 "Hand a request back to the terminal after" = "Возвращать запрос в терминал через";
 "Hands the request back to the terminal, which asks as it always has; Escape does the same." = "Возвращает запрос в терминал, который спрашивает как обычно; Escape делает то же самое.";
 "Hide assistants with nothing to show" = "Скрывать ассистентов, которым нечего показать";
-"Hide options" = "Скрыть варианты";
 "Hooks" = "Хуки";
 "Idle" = "Бездействует";
 "Install the hook and status line…" = "Установить хук и строку состояния…";
-"Open Integrations…" = "Открыть «Интеграции»…";
 "Installed, but an entry is out of date: Repair updates it" = "Установлено, но одна из записей устарела: «Исправить» обновит её";
 "It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "Он читает данные об использовании, которые каждый ассистент уже хранит на этом Mac, — Claude Code, Codex, Cursor, Gemini CLI и GitHub Copilot — и обращается к эндпоинту использования каждого поставщика с учётными данными, сохранёнными этим инструментом. Он никогда не входит в аккаунты, не хранит токены и больше ничего никуда не отправляет: ни аккаунта, ни аналитики.";
 "Jump to the terminal" = "Перейти в терминал";
@@ -207,7 +203,7 @@
 "Not selected" = "Не выбрано";
 "On a trial" = "Пробный период";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "Если включено, приложение каждые пять минут опрашивает эндпоинт использования api.anthropic.com с учётными данными Claude Code, пока нет свежих данных от строки состояния. Если выключено, используется только строка состояния — канал, который документирует Anthropic: кольцо Claude тогда заполняется только после хода Claude Code, а эндпоинт никогда не опрашивается.";
-"One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Settings › Integrations can repair or remove them later." = "Одна запись в ~/.claude/settings.json позволяет Claude Code сообщать вырезу, когда начинается сессия, заканчивается ход или он ждёт вас, а строка состояния после каждого хода передаёт заполнение контекста и официальные лимиты. Для обоих сначала создаётся резервная копия; позже их можно исправить или удалить в Настройках › Интеграции.";
+"One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "Одна запись в ~/.claude/settings.json позволяет Claude Code сообщать вырезу, когда начинается сессия, заканчивается ход или он ждёт вас, а строка состояния после каждого хода передаёт заполнение контекста и официальные лимиты. Для обоих сначала создаётся резервная копия; позже их можно исправить или удалить на странице Claude Code в Настройках.";
 "One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "По строке на каждую сессию, о которой сообщают хуки, новые сверху: над чем она работает, какой ассистент и в каком терминале, сколько длится ход и ждёт ли она вас. Шесть строк, затем число остальных.";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "Только если вы выберете Показатели › Авто: показатели смещаются так, чтобы не перекрывать меню активного приложения. Считывается только геометрия строки меню, и ничего больше.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "Только для перехода к окну терминала сессии, при первом переходе. Больше ничто в приложении не управляет другими приложениями.";
@@ -220,7 +216,6 @@
 "Send" = "Отправить";
 "Send (⌘↩)" = "Отправить (⌘↩)";
 "Show a Sessions card on the panel" = "Показывать карточку «Сессии» на панели";
-"Show options" = "Показать варианты";
 "just finished a turn" = "ход только что завершён";
 "Keep the Mac awake while an assistant is working" = "Не давать Mac засыпать, пока ассистент работает";
 "Keep the numbers" = "Сохранять цифры";
@@ -513,10 +508,12 @@
 "Only turns longer than" = "Только ходы длиннее";
 "Open" = "Открыть";
 "Open %@" = "Открыть %@";
+"Open %@'s page" = "Открыть страницу %@";
 "Open %@'s status page" = "Открыть страницу статуса %@";
 "Open %@'s usage page" = "Открыть страницу использования %@";
 "Open Accessibility settings…" = "Открыть настройки Универсального доступа…";
 "Open at login" = "Открывать при входе";
+"Open its page" = "Открыть его страницу";
 "Open on click" = "Открывать по щелчку";
 "Open on hover" = "Открывать при наведении";
 "Open panel" = "Открыть панель";
@@ -647,7 +644,7 @@
 "Sign in to GitHub Copilot in your editor (or run `gh auth login`) to read your usage" = "Войдите в GitHub Copilot в редакторе (или выполните `gh auth login`), чтобы видеть использование";
 "Signed in" = "Вход выполнен";
 "Signed in · %@" = "Вход выполнен · %@";
-"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants ticked under Assistants." = "С марта 2026 года Anthropic применяет более жёсткие 5-часовые лимиты сессий по будням с 5:00 до 11:00 по тихоокеанскому времени (по сообщениям, не документировано; docs/accuracy.md). В это время советы называют, когда начнутся непиковые часы, журнал расхода разделяет пиковый и непиковый темп, а нижняя строка пишет «часы пик». Применяется к ассистентам, отмеченным в разделе «Ассистенты».";
+"Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on." = "С марта 2026 года Anthropic применяет более жёсткие 5-часовые лимиты сессий по будням с 5:00 до 11:00 по тихоокеанскому времени (по сообщениям, не документировано; docs/accuracy.md). В это время советы называют, когда начнутся непиковые часы, журнал расхода разделяет пиковый и непиковый темп, а нижняя строка пишет «часы пик». Применяется к ассистентам, у которых на их собственной странице включены «Часы пик».";
 "snapshot" = "снимок";
 "Sound" = "Звук";
 "Source: %@" = "Источник: %@";
@@ -670,7 +667,6 @@
 "The %1$@'s %2$@ is past the %3$@ budget." = "За %1$@ потрачено %2$@ — это больше бюджета %3$@.";
 "The Cost card past its donut, legend and burn line (the budget, week and model lines), the session block, tokens, top projects and the sparklines. Off keeps the panel short enough not to scroll." = "Карточка «Стоимость» помимо диаграммы, легенды и строки расхода (строки бюджета, недели и моделей), блок сессии, токены, основные проекты и мини-графики. Если выключено, панель остаётся достаточно короткой, чтобы не прокручиваться.";
 "The daily-totals file as CSV or JSON: one row per day with the cost, the five token buckets, the top model and the per-model and per-project cost." = "Файл дневных итогов в формате CSV или JSON: по строке на день со стоимостью, пятью группами токенов, основной моделью и стоимостью по моделям и проектам.";
-"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Peak hours applies Anthropic's weekday window (Advanced) to that assistant's advice and projections." = "Первый ассистент располагается слева от выреза, остальные — справа; карточки панели и капсулы на краях следуют тому же порядку. «Часы пик» применяет будний интервал Anthropic (Дополнительно) к советам и прогнозам этого ассистента.";
 "The Keychain request was dismissed. Switch Claude off and on in Settings to ask again" = "Запрос к Связке ключей отклонён. Выключите и снова включите Claude в Настройках, чтобы запросить ещё раз";
 "The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token." = "Последние 10 минут единого журнала этого приложения, состояние каждого ассистента, состояние хука и строки состояния, раскладка и версия macOS — без пути к вашей домашней папке — для отчёта об ошибке. Токены — никогда.";
 "The last window a tool shows stays on the card: the rings and the menu bar would have nothing to draw without it. Show another window before hiding this one." = "Последнее окно, которое показывает инструмент, остаётся на карточке: без него кольцам и строке меню нечего рисовать. Покажите другое окно, прежде чем скрывать это.";
@@ -732,13 +728,11 @@
 "Weekly budget" = "Бюджет на неделю";
 "Welcome to %@" = "Добро пожаловать в %@";
 "What %@ reads" = "Что читает %@";
-"What the panel shows of each session the hooks report, and what you can do to it from there. All of it needs the assistant's hook (Integrations)." = "Что панель показывает о каждой сессии, о которой сообщают хуки, и что с ней можно оттуда сделать. Для всего этого нужен хук ассистента (Интеграции).";
 "When crowded" = "Когда не хватает места";
 "When a window resets" = "Когда окно сбрасывается";
 "When an assistant waits for you, or a turn finishes" = "Когда ассистент ждёт вас или ход завершён";
 "When the cache tier or the metering shifts" = "Когда меняется уровень кэша или темп расхода";
 "When you start paying (extra usage rises)" = "Когда вы начинаете платить (растёт доп. использование)";
-"Which assistants the card's donut, legend and total carry, in the order set under Assistants. One that cannot report spend, or that you are not signed in to, is never offered; one left out still shows its own spend on its own card." = "Каких ассистентов учитывают диаграмма, легенда и итог карточки, в порядке, заданном в разделе «Ассистенты». Ассистент, который не сообщает расходы или в который вы не вошли, не предлагается; исключённый по-прежнему показывает свои расходы на своей карточке.";
 "While Zoom, Meet, QuickTime or Screen Sharing capture the screen, the rings keep their shape but lose their digits, the panel hides the Cost card, and a banner that fires carries no figure and no project name. Checked every five seconds." = "Пока Zoom, Meet, QuickTime или «Общий экран» захватывают экран, кольца сохраняют форму, но теряют цифры, панель скрывает карточку «Стоимость», а сработавший баннер не содержит ни цифр, ни названия проекта. Проверяется каждые пять секунд.";
 "Wide" = "Широкая";
 "Will run out (behind pace)" = "Закончится (перерасход)";
@@ -784,7 +778,7 @@
 "Custom colour" = "Свой цвет";
 "Icon colour" = "Цвет значка";
 "Colour" = "Цвет";
-"Which assistants are pinned is chosen per assistant below; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "Какие ассистенты закреплены, выбирается ниже для каждого; если не выбран ни один, закрепляется первый видимый. «Полосы» рисуют каждое закреплённое окно мини-полосой, «Кольца» — фигурой, как рядом с вырезом, «Точки» — только темпом.";
+"Which assistants are pinned is chosen on each assistant's page; with none chosen, the first visible one is. Bars draws each pinned window as a mini bar, Rings as the shape beside the notch, Dots as the pace alone." = "Какие ассистенты закреплены, выбирается на странице каждого; если не выбран ни один, закрепляется первый видимый. «Полосы» рисуют каждое закреплённое окно мини-полосой, «Кольца» — фигурой, как рядом с вырезом, «Точки» — только темпом.";
 "By pace uses the app's own amber and vermillion, so the icon says when a window is close to its pace or behind it. Monochrome keeps the menu bar's own colour whatever happens, and stays a template icon macOS paints like every other one. A colour of your own keeps the figures and gives up the warning." = "«По темпу» использует собственные янтарный и алый цвета приложения, чтобы значок показывал, когда окно расходуется впритык или с перерасходом. «Монохромный» всегда сохраняет цвет строки меню и остаётся шаблонным значком, который macOS окрашивает, как и все остальные. Собственный цвет сохраняет цифры, но отказывается от предупреждения.";
 
 /* The peak window read on the reader's own clock, when their zone is not the window's (PeakHours, SettingsWindow) */
@@ -919,3 +913,45 @@
 /* Cursor sessions: the jump's help, and a row told apart by when it was first seen (TerminalJump, SessionsCard) */
 "Brings Cursor's window for this project forward (Cursor can't be asked to open one chat)" = "Выводит на передний план окно Cursor с этим проектом (Cursor нельзя попросить открыть конкретный чат)";
 "First seen %@" = "Впервые замечен в %@";
+
+/* Each assistant's own Settings page, and the panes that point at it (SettingsWindow, SettingsSearch, Models, WelcomeWindow, AssetRenderer) */
+"Show %@ on the panel and the rings" = "Показывать %@ на панели и в кольцах";
+"Off stops every read of its usage and takes its rings, its card and its menu bar figures away. Its hook and its sessions follow their own switches below." = "Выключено — любое чтение его использования прекращается, а его кольца, карточка и цифры в строке меню исчезают. Его хук и сессии подчиняются своим переключателям ниже.";
+"Rings and windows" = "Кольца и окна";
+"Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections." = "Применяет будний интервал часов пик Anthropic, заданный в разделе «Дополнительно», к советам и прогнозам этого ассистента.";
+"Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card." = "Учитывают ли диаграмма, легенда и итог карточки «Стоимость» этого ассистента, в порядке, заданном в разделе «Ассистенты». Исключённый, он по-прежнему показывает свои расходы на своей карточке.";
+"Read its sessions" = "Читать его сессии";
+"Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once." = "Выключено — его хук по-прежнему обновляет счётчик, но больше ничего из события не сохраняется: ни строки в карточке «Сессии», ни ожидания или завершения на его кольце, ни новостей, ни уведомлений, ни запросов на панели, ни удержания Mac от сна. Уже показанные сессии сразу исчезают.";
+"Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait." = "Его запросы разрешений и вопросы открывают панель с вариантами ответа, и он ждёт вашего; выключено — его терминал спрашивает, как всегда, а панель только показывает ожидание.";
+"Off for every assistant under Assistants › Sessions." = "Выключено для всех ассистентов в разделе «Ассистенты › Сессии».";
+"Its sessions are not read." = "Его сессии не читаются.";
+"Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them." = "Claude Code отвечает из выреза только с записями хука версии 0.7.0: раздел хука выше показывает «Исправить» (или «Добавить»), пока их нет.";
+"Cursor has no event that can be answered: its approvals are always answered in Cursor." = "У Cursor нет события, на которое можно ответить: его подтверждения всегда даются в самом Cursor.";
+"Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Хук Gemini CLI только сообщает: на его запросы разрешений всегда отвечают в терминале.";
+"Notify about its limits" = "Уведомлять о его лимитах";
+"Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "Его уведомления о темпе, исчерпании, достигнутом лимите, сбросе и напоминания, а также о доп. использовании и смене уровня кэша или темпа расхода, как выбрано в разделе «Уведомления». Выключено — они не приходят только для этого ассистента; уведомления о бюджете касаются всех ассистентов и остаются.";
+"Off for every assistant under Notifications." = "Выключено для всех ассистентов в разделе «Уведомления».";
+"Notify when it waits or finishes a turn" = "Уведомлять, когда он ждёт или завершает ход";
+"Its waiting and finished-turn notices, and the glance or panel they open, as chosen under Notifications. Off leaves them out for this assistant alone; its ring still shows the wait." = "Его уведомления об ожидании и завершённом ходе, а также взгляд мельком или панель, которые они открывают, как выбрано в разделе «Уведомления». Выключено — они не приходят только для этого ассистента; его кольцо по-прежнему показывает ожидание.";
+"Sources" = "Источники";
+"Login" = "Вход";
+"Readings" = "Данные";
+"Where each window comes from" = "Откуда берётся каждое окно";
+"From the vendor's usage endpoint" = "Из эндпоинта использования поставщика";
+"From a file the tool wrote on this Mac" = "Из файла, который инструмент записал на этом Mac";
+"Worked out on this Mac" = "Вычислено на этом Mac";
+"Claude Code's own login: its Keychain item, else its credentials file, else CLAUDE_CODE_OAUTH_TOKEN. Read only: nothing is signed in, refreshed or written here." = "Собственный вход Claude Code: его элемент в Связке ключей, иначе файл учётных данных, иначе CLAUDE_CODE_OAUTH_TOKEN. Только чтение: здесь ничего не входит в систему, не обновляется и не записывается.";
+"Codex's own login, from auth.json in its home folder; the plan name is Codex's own. Read only: the token is never refreshed or written." = "Собственный вход Codex из auth.json в его домашней папке; название тарифа — от Codex. Только чтение: токен никогда не обновляется и не записывается.";
+"The editor's own login, from Cursor's state database, sent the way cursor.com's dashboard sends it. Read only: never refreshed or written." = "Собственный вход редактора из базы состояния Cursor, отправляемый так же, как его отправляет панель cursor.com. Только чтение: никогда не обновляется и не записывается.";
+"The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. The Antigravity app keeps its own in the Keychain, out of reach, so one sign-in through Gemini CLI is needed. Read only: never refreshed or written." = "Вход Google, который Gemini CLI хранит в ~/.gemini/oauth_creds.json. Приложение Antigravity хранит свой в Связке ключей, вне досягаемости, поэтому нужен один вход через Gemini CLI. Только чтение: никогда не обновляется и не записывается.";
+"The token Copilot's editor plugin or gh keeps: apps.json, then hosts.json, then gh's hosts.yml, each tried in turn. Read only: never refreshed or written." = "Токен, который хранит плагин редактора Copilot или gh: apps.json, затем hosts.json, затем hosts.yml от gh, по очереди. Только чтение: никогда не обновляется и не записывается.";
+"The status line after every turn, Anthropic's usage endpoint while it is allowed below, and this Mac's transcripts for the cost." = "Строка состояния после каждого хода, эндпоинт использования Anthropic, пока он разрешён ниже, и транскрипты этого Mac для стоимости.";
+"chatgpt.com's usage endpoint, else the newest rate-limit line in Codex's session files, and those files for the cost." = "Эндпоинт использования chatgpt.com, иначе самая свежая строка rate-limit в файлах сессий Codex, и эти же файлы для стоимости.";
+"cursor.com's usage summary and the dashboard's own reads, and its usage events for the cost." = "Сводка использования с cursor.com и собственные запросы панели, а для стоимости — его события использования.";
+"Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money." = "Квота Code Assist от Google, под собственным идентификатором Antigravity, если его приложение есть на этом Mac. Без стоимости: учитывается квота, а не деньги.";
+"api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost." = "Квота Copilot с api.github.com — тот же запрос, что делает его плагин редактора, — и для стоимости его ИИ-кредиты по центу за каждый.";
+"The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "Первый ассистент располагается слева от выреза, остальные — справа; карточки панели и капсулы на краях следуют тому же порядку. Всё остальное об ассистенте — на его собственной странице, в боковой панели под «Ассистентами».";
+"What the panel shows of each session the hooks report, and what you can do to it from there, for every assistant. All of it needs the assistant's hook; each assistant's page can stop reading its sessions or answering its requests." = "Что панель показывает о каждой сессии, о которой сообщают хуки, и что с ней можно оттуда сделать, для всех ассистентов. Для всего этого нужен хук ассистента; на странице каждого ассистента можно перестать читать его сессии или отвечать на его запросы.";
+"These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "Это действует для всех ассистентов. На странице каждого ассистента можно отключить его собственные уведомления о лимитах, об ожидании и о завершённых ходах.";
+"Open Claude Code in Settings…" = "Открыть Claude Code в Настройках…";
+"The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "Шесть разделов настроек и собственная страница Claude Code: положение, открытие при наведении или всегда, установка хука с резервной копией.";
