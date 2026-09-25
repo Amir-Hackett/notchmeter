@@ -17,8 +17,14 @@ import SwiftUI
 ///
 /// Under the row's two lines sits what the session is carrying, each only when something reported it: a context
 /// gauge from the session's own status line (never estimated), a count of running subagents, and Claude Code's
-/// task list as "2/3"; the last two open in place to list what they count. With hooks installed and no session
-/// yet the card stays, with one quiet line, so an empty list reads as "nothing running" and not as "not set up".
+/// task list as "2/3"; the last two open in place to list what they count. Since 0.11 Claude Code's hook adds
+/// more (Hook+Events.swift): a compaction running beside the gauge, or the count of those done; the model the
+/// session runs on, opening onto the switches that got it there; the teammates of an agent team that went idle;
+/// and the tool calls auto mode refused this turn; the second line says "worktree" when the session runs in one,
+/// and the line under it names an MCP server waiting for input, or a run of failures that may mean the session is
+/// stuck. The chips wrap onto a second line when the row is too narrow for them (`ChipFlow`). With hooks installed
+/// and no session yet the card stays, with one quiet line, so an empty list reads as "nothing running" and not as
+/// "not set up".
 ///
 /// The card asserts only what a hook said: a title is the prompt's first line the hook sent and the store kept,
 /// a terminal is the one the hook's own environment named, and the clock is the turn's own start. A row found
@@ -65,7 +71,6 @@ struct SessionsCard: View {
         /// (the status line, or a detected session's transcript), and the host for a remote session.
         let branch: String?
         let place: String?
-        let model: String?
         let host: String?
         /// The project header the row sits under when the card groups ("notchmeter", "notchmeter@devbox").
         let group: String
@@ -82,8 +87,37 @@ struct SessionsCard: View {
         let todos: TodoPlan?
         /// Where the session's state comes from (SessionSource), for the oracle's snapshot.
         let source: SessionSource
+        /// A compaction running, or the ones done, for the mark beside the gauge.
+        var compaction: CompactionMark? = nil
+        /// The model the session runs on, and the switches that got it there.
+        var model: ModelMark? = nil
+        /// Teammates of an agent team that went idle, each with its name while titles are shown.
+        var teammates: [Stamped<Teammate>] = []
+        /// Tool calls auto mode refused this turn.
+        var denials: [Stamped<Denial>] = []
+        /// Whether the session runs in a git worktree.
+        var worktree = false
 
-        enum Note: Equatable, Sendable { case waitingForAnswer, doneJump, justFinished }
+        enum Note: Equatable, Sendable {
+            case waitingForAnswer, doneJump, justFinished
+            /// An MCP server is waiting for input that the notch cannot give it (a text field, a sign-in): the
+            /// terminal's dialog is where it is answered. The server's name while titles are shown.
+            case mcpInput(server: String?)
+            /// `failures` tool calls failed in a row (AgentSession.mayBeStuck).
+            case mayBeStuck(failures: Int)
+        }
+
+        enum CompactionMark: Equatable, Sendable {
+            case compacting(auto: Bool)
+            case compacted(count: Int, last: Date, auto: Bool)
+        }
+
+        struct ModelMark: Equatable, Sendable {
+            let name: String
+            /// The newest switch was Claude Code falling back by itself.
+            let fellBack: Bool
+            let switches: [Stamped<ModelSwitch>]
+        }
 
         /// Found without the hook, by the scan or by the status line alone (AgentSession.isDetected): its working
         /// is a guess and it never waits, so the row wears the mark and the card may offer the hook.
@@ -115,6 +149,11 @@ struct SessionsCard: View {
         // title of its own says something the header does not rather than the project again.
         let grouped = Set(sessions.map(groupName(of:))).count > 1
         let alike = alike(sessions, hideTitles: hideTitles, grouped: grouped)
+        // The model chip is drawn where it says something: on a row whose model differs from another row's, or one
+        // that has heard a switch and so opens onto how it got there. With the status line installed every Claude
+        // row knows its model, and a line of chips all naming the same one tells the rows apart by nothing while
+        // wrapping the extras sooner on the narrow panel.
+        let modelsDiffer = Set(sessions.compactMap(\.model)).count > 1
         let ordered = sessions.enumerated().sorted { a, b in
             let (ra, rb) = (status(a.element).rank, status(b.element).rank)
             return ra != rb ? ra < rb : a.offset < b.offset
@@ -125,16 +164,29 @@ struct SessionsCard: View {
             // A row is a button only where the resolver has somewhere to go: a reference that names a program and
             // nothing else (`TERM_PROGRAM=vscode` with no bundle id) is a reference, and not a jump.
             let canJump = jump && session.host == nil && session.terminal.map { TerminalJump.resolve($0) != .none } == true
-            let note: Row.Note? = session.pending != nil ? .waitingForAnswer : finished ? (canJump ? .doneJump : .justFinished) : nil
+            let note: Row.Note? = session.pending != nil ? .waitingForAnswer
+                : status == .waiting && session.waitsOnMCP ? .mcpInput(server: hideTitles ? nil : session.mcpServer)
+                : session.mayBeStuck(now: now) ? .mayBeStuck(failures: session.failureStreak)
+                : finished ? (canJump ? .doneJump : .justFinished) : nil
             let place = Self.place(of: session)
             let agents = session.agents.sorted { $0.value != $1.value ? $0.value < $1.value : $0.key < $1.key }
                 .map { Row.Agent(id: $0.key, since: $0.value) }
             let lines = Self.line(of: session, place: place, hideTitles: hideTitles, grouped: grouped, alike: alike.contains(session.id))
-            return Row(id: session.id, tool: session.tool, title: lines.title, chips: [session.assistantName],
-                       branch: lines.branch, place: lines.place, model: session.model, host: lines.host, group: groupName(of: session),
-                       since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
-                       status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
-                       todos: hideTitles ? session.todos?.withoutContent() : session.todos, source: session.source)
+            var row = Row(id: session.id, tool: session.tool, title: lines.title, chips: [session.assistantName],
+                          branch: lines.branch, place: lines.place, host: lines.host, group: groupName(of: session),
+                          since: status == .idle || status == .finished ? session.lastEvent : session.turnStarted ?? session.started,
+                          status: status, note: note, canJump: canJump, agents: agents, contextUsed: session.contextUsed,
+                          todos: hideTitles ? session.todos?.withoutContent() : session.todos, source: session.source)
+            row.compaction = compactionMark(of: session)
+            if let model = session.model, modelsDiffer || !session.modelSwitches.isEmpty {
+                row.model = Row.ModelMark(name: model, fellBack: session.fellBack, switches: session.modelSwitches)
+            }
+            row.teammates = hideTitles
+                ? session.idleTeammates.map { Stamped(value: Teammate(key: $0.value.key, name: nil), at: $0.at) }
+                : session.idleTeammates
+            row.denials = session.denials
+            row.worktree = session.worktree
+            return row
         }
         return (rows, max(0, sessions.count - rowCap))
     }
@@ -145,6 +197,13 @@ struct SessionsCard: View {
     /// app started, and its next event makes it the hook's.
     static func upgradeTool(_ rows: [Row], installed: Set<ToolID>) -> ToolID? {
         rows.first { $0.detected && !installed.contains($0.tool) }?.tool
+    }
+
+    /// The compaction mark a row carries: one running, else the count of those done, else none.
+    static func compactionMark(of session: AgentSession) -> Row.CompactionMark? {
+        if let compacting = session.compacting { return .compacting(auto: compacting.value == .auto) }
+        guard session.compactions > 0, let last = session.lastCompaction else { return nil }
+        return .compacted(count: session.compactions, last: last.at, auto: last.value == .auto)
     }
 
     /// The rows in project groups. One project, one headerless group. More than one, a group per project in the
@@ -240,15 +299,19 @@ struct SessionsCard: View {
     }
 
     /// What the oracle's snapshot says of the card: the rows as drawn, in order, with their group, status, source
-    /// (`hook`, `storage`, `detected`, `statusline` or `coworkLog`) and the counts they carry, never a title or a
-    /// task's text (docs/testing.md).
+    /// (`hook`, `storage`, `detected`, `statusline` or `coworkLog`) and the counts they carry, never a title, a
+    /// task's text, a teammate's name or an MCP server's (docs/testing.md).
     static func oracleRows(_ groups: [Group]) -> [[String: Any]] {
         groups.flatMap { group in
             group.rows.map { row -> [String: Any] in
                 ["id": row.id, "group": group.name as Any, "status": row.status.oracleName, "agents": row.agents.count,
                  "source": row.source.rawValue,
                  "context": row.contextUsed.map(Oracle.fraction) as Any,
-                 "todos": row.todos.map { ["done": $0.done, "total": $0.total] } as Any]
+                 "todos": row.todos.map { ["done": $0.done, "total": $0.total] } as Any,
+                 "compaction": row.compaction.map(\.oracleName) as Any, "model": row.model?.name as Any,
+                 "fellBack": row.model?.fellBack ?? false, "switches": row.model?.switches.count ?? 0,
+                 "teammatesIdle": row.teammates.count, "denials": row.denials.count, "worktree": row.worktree,
+                 "note": row.note.map(\.oracleName) as Any]
             }
         }
     }
@@ -359,8 +422,8 @@ struct SessionsCard: View {
 }
 
 extension SessionsCard {
-    /// The two lists a row can open in place.
-    enum Disclosure: String, CaseIterable, Sendable { case agents, todos }
+    /// The lists a row can open in place.
+    enum Disclosure: String, CaseIterable, Sendable { case agents, todos, models, teammates, denials }
 
     /// The key a row's open list is held under (UsageStore.openSessionLists).
     static func listKey(_ session: String, _ list: Disclosure) -> String { "\(session)/\(list.rawValue)" }
@@ -445,6 +508,15 @@ private struct SessionRow: View {
             if open.contains(.todos), let todos = row.todos, todos.hasContent {
                 checklist(todos).padding(.leading, SessionRow.textInset)
             }
+            if open.contains(.models), let model = row.model, !model.switches.isEmpty {
+                switchList(model.switches).padding(.leading, SessionRow.textInset)
+            }
+            if open.contains(.teammates), !row.teammates.isEmpty {
+                teammateList.padding(.leading, SessionRow.textInset)
+            }
+            if open.contains(.denials), !row.denials.isEmpty {
+                denialList.padding(.leading, SessionRow.textInset)
+            }
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 6)
@@ -499,7 +571,10 @@ private struct SessionRow: View {
     /// dimmed further: at 0.8 opacity the secondary title, clock and context figure measured 3.7:1 on the black
     /// panel, under 4.5:1 for text, and Increase Contrast could not raise them.
 
-    private var hasExtras: Bool { row.contextUsed != nil || !row.agents.isEmpty || (row.todos?.total ?? 0) > 0 }
+    private var hasExtras: Bool {
+        row.contextUsed != nil || !row.agents.isEmpty || (row.todos?.total ?? 0) > 0 || row.compaction != nil || row.model != nil
+            || !row.teammates.isEmpty || !row.denials.isEmpty
+    }
 
     /// The turn's clock, or while the pointer is on the row, the control that removes it (the hover's exit is
     /// debounced above, so a click that makes the panel key cannot take the button away mid-click).
@@ -530,8 +605,8 @@ private struct SessionRow: View {
         return row.status == .idle ? L("idle %@", duration) : duration
     }
 
-    /// "feat/side-notch · iTerm · Opus 5.5 · @devbox": whichever of them something reported.
-    private var placeParts: [String] { [row.place, row.model, row.host].compactMap { $0 } }
+    /// "feat/side-notch · worktree · iTerm · @devbox": whichever of them the hook reported.
+    private var placeParts: [String] { [row.worktree ? L("worktree") : nil, row.place, row.host].compactMap { $0 } }
 
     private var content: some View {
         HStack(alignment: .top, spacing: 7) {
@@ -567,7 +642,11 @@ private struct SessionRow: View {
                     .foregroundStyle(Caption.style)
                 }
                 if let note = row.note {
-                    Text(noteText(note)).font(.caption2.weight(.medium)).foregroundStyle(noteColour(note))
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
+                        if let symbol = noteSymbol(note) { Image(systemName: symbol).imageScale(.small) }
+                        Text(noteText(note)).fixedSize(horizontal: false, vertical: true)
+                    }
+                    .font(.caption2.weight(.medium)).foregroundStyle(noteColour(note))
                 }
             }
             Spacer(minLength: 0)
@@ -588,9 +667,26 @@ private struct SessionRow: View {
     // MARK: The extras line
 
     private var extras: some View {
-        HStack(spacing: 6) {
+        ChipFlow(spacing: 6, lineSpacing: 4) {
             if let used = row.contextUsed {
                 ContextGauge(fraction: used, quiet: row.status == .idle)
+            }
+            if let compaction = row.compaction {
+                CompactionChip(mark: compaction, now: now)
+            }
+            if let model = row.model {
+                let value = model.fellBack ? L("%@, fell back by itself", model.name) : model.name
+                if model.switches.isEmpty {
+                    ExtraChip(symbol: "cpu", text: model.name, chevron: nil)
+                        .help(L("The model this session runs on"))
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(L("Model"))
+                        .accessibilityValue(value)
+                } else {
+                    disclosure(.models, symbol: model.fellBack ? "arrow.uturn.down" : "cpu", text: model.name, label: L("Model"),
+                               value: Spoken.line(value, model.switches.count == 1 ? L("1 switch") : L("%ld switches", model.switches.count)),
+                               help: L("The model this session runs on; click to list how it got there"))
+                }
             }
             if !row.agents.isEmpty {
                 disclosure(.agents, symbol: "person.2.fill", text: "\(row.agents.count)",
@@ -613,7 +709,18 @@ private struct SessionRow: View {
                         .accessibilityValue(value)
                 }
             }
-            Spacer(minLength: 0)
+            if !row.teammates.isEmpty {
+                let count = row.teammates.count
+                disclosure(.teammates, symbol: "person.3.fill", text: L("%ld idle", count), label: L("Idle teammates"),
+                           value: count == 1 ? L("1 teammate idle") : L("%ld teammates idle", count),
+                           help: L("Teammates of this session's agent team that finished their turn and went idle; click to list them"))
+            }
+            if !row.denials.isEmpty {
+                let count = row.denials.count
+                disclosure(.denials, symbol: "hand.raised.slash.fill", text: "\(count)", label: L("Refused by auto mode"),
+                           value: count == 1 ? L("1 tool call") : L("%ld tool calls", count),
+                           help: L("Tool calls auto mode refused in this turn; click to list them"))
+            }
         }
     }
 
@@ -643,6 +750,67 @@ private struct SessionRow: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(L("Subagent %ld", index + 1))
                 .accessibilityValue(Spoken.line(elapsed))
+            }
+        }
+    }
+
+    /// The model switches, newest first: from what to what, how, and how long ago.
+    private func switchList(_ switches: [Stamped<ModelSwitch>]) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(switches.reversed().enumerated()), id: \.offset) { _, entry in
+                let change = entry.value
+                let words = change.from.map { L("%1$@ to %2$@", Hook.modelDisplayName($0), Hook.modelDisplayName(change.to)) } ?? Hook.modelDisplayName(change.to)
+                let how = SessionsCard.sourceText(change.source)
+                let ago = ResetText.duration(max(0, now.timeIntervalSince(entry.at)))
+                HStack(spacing: 5) {
+                    Image(systemName: change.isFallback ? "arrow.uturn.down" : "arrow.left.arrow.right").font(.caption2).foregroundStyle(Caption.style)
+                    Text(verbatim: words).font(.caption).lineLimit(1).truncationMode(.middle)
+                    if let how { Text(verbatim: "· \(how)").font(.caption).foregroundStyle(Caption.style).lineLimit(1) }
+                    Spacer(minLength: 8)
+                    Text(verbatim: ago).font(.caption).foregroundStyle(Caption.style).monospacedDigit()
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(words)
+                .accessibilityValue(Spoken.line(how, L("%@ ago", ago)))
+            }
+        }
+    }
+
+    /// The idle teammates, by name while titles are shown, else numbered, with how long each has been idle.
+    private var teammateList: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(row.teammates.enumerated()), id: \.offset) { index, entry in
+                let name = entry.value.name ?? L("Teammate %ld", index + 1)
+                let idle = ResetText.duration(max(0, now.timeIntervalSince(entry.at)))
+                HStack(spacing: 5) {
+                    Image(systemName: "person.fill").font(.caption2).foregroundStyle(Caption.style)
+                    Text(verbatim: name).font(.caption).lineLimit(1).truncationMode(.tail)
+                    Spacer(minLength: 8)
+                    Text(L("idle %@", idle)).font(.caption).foregroundStyle(Caption.style).monospacedDigit()
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(name)
+                .accessibilityValue(L("idle %@", idle))
+            }
+        }
+    }
+
+    /// The tool calls auto mode refused this turn, newest first, with the kind of refusal and how long ago.
+    private var denialList: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(row.denials.reversed().enumerated()), id: \.offset) { _, entry in
+                let kind = SessionsCard.denialText(entry.value.kind)
+                let ago = ResetText.duration(max(0, now.timeIntervalSince(entry.at)))
+                HStack(spacing: 5) {
+                    Image(systemName: "hand.raised.slash").font(.caption2).foregroundStyle(Caption.style)
+                    Text(verbatim: entry.value.tool).font(.caption.monospaced()).lineLimit(1).truncationMode(.middle)
+                    Text(verbatim: "· \(kind)").font(.caption).foregroundStyle(Caption.style).lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(verbatim: ago).font(.caption).foregroundStyle(Caption.style).monospacedDigit()
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(entry.value.tool)
+                .accessibilityValue(Spoken.line(kind, L("%@ ago", ago)))
             }
         }
     }
@@ -711,6 +879,18 @@ private struct SessionRow: View {
         case .waitingForAnswer: L("Waiting for your answer")
         case .doneJump: L("Done — click to jump")
         case .justFinished: L("Just finished")
+        case .mcpInput(let server?): L("%@ asks for input: answer in the terminal", server)
+        case .mcpInput(nil): L("An MCP server asks for input: answer in the terminal")
+        case .mayBeStuck(let failures): L("May be stuck: %ld tool calls failed in a row", failures)
+        }
+    }
+
+    /// A symbol in front of the two notes that are not the row's own status, so neither is told by colour alone.
+    private func noteSymbol(_ note: SessionsCard.Row.Note) -> String? {
+        switch note {
+        case .mcpInput: NotchNews.Reason.input.symbolName
+        case .mayBeStuck: NotchNews.Reason.stuck.symbolName
+        case .waitingForAnswer, .doneJump, .justFinished: nil
         }
     }
 
@@ -718,8 +898,10 @@ private struct SessionRow: View {
     /// (Palette.accent); the row's dot and symbol keep Palette.calm, the semantic "needs you" colour on signals.
     private func noteColour(_ note: SessionsCard.Row.Note) -> Color {
         switch note {
-        case .waitingForAnswer: AccessibilityDisplay.shared.contrast ? Palette.accentContrast : Palette.accent
+        case .waitingForAnswer, .mcpInput: AccessibilityDisplay.shared.contrast ? Palette.accentContrast : Palette.accent
         case .doneJump, .justFinished: Palette.pine
+        // The warning orange, 9:1 on the black panel and above 4.5:1 on the lighter card of Increase Contrast.
+        case .mayBeStuck: Palette.warn
         }
     }
 }
@@ -903,5 +1085,150 @@ private struct HookUpgradeLine: View {
                     HookVendor.vendor(for: tool)?.displayName ?? tool.productName))
         }
         .padding(.top, 2)
+    }
+}
+
+extension SessionsCard {
+    /// How a model switch came about, in the words a switch list uses; nil for a source the hook did not name.
+    static func sourceText(_ source: ModelSwitch.Source?) -> String? {
+        switch source {
+        case .command: L("by /model")
+        case .picker: L("from the picker")
+        case .sdk: L("by a client")
+        case .auto: L("fell back by itself")
+        case .resume: L("restored on resume")
+        case nil: nil
+        }
+    }
+
+    /// The kind of an auto-mode refusal, told from the shape of its reason (Denial.Kind) and never its words.
+    static func denialText(_ kind: Denial.Kind) -> String {
+        switch kind {
+        case .rule: L("matched a rule")
+        case .noVerdict: L("could not be judged")
+        case .unavailable: L("classifier unavailable")
+        case .other: L("refused")
+        }
+    }
+}
+
+extension SessionsCard.Row.Note {
+    /// The oracle's word for a note.
+    var oracleName: String {
+        switch self {
+        case .waitingForAnswer: "waitingForAnswer"
+        case .doneJump: "doneJump"
+        case .justFinished: "justFinished"
+        case .mcpInput: "mcpInput"
+        case .mayBeStuck: "mayBeStuck"
+        }
+    }
+}
+
+extension SessionsCard.Row.CompactionMark {
+    /// The oracle's word for the mark: "compacting", or "compacted" once one is done.
+    var oracleName: String {
+        switch self {
+        case .compacting: "compacting"
+        case .compacted: "compacted"
+        }
+    }
+}
+
+/// The compaction beside the context gauge (PreCompact, PostCompact). While one runs: the compress symbol, which
+/// breathes unless motion is reduced, and "Compacting" in the warning orange, since the gauge beside it is about to
+/// be emptied and its figure with it. Once done, quietly, how many times this session has compacted while the app
+/// watched; the gauge is then gone until the status line reports again, because the fill it last showed described
+/// the conversation before its summary (AgentSession.contextUsed).
+private struct CompactionChip: View {
+    let mark: SessionsCard.Row.CompactionMark
+    let now: Date
+
+    var body: some View {
+        switch mark {
+        case .compacting(let auto):
+            HStack(spacing: 3) {
+                let symbol = Image(systemName: NotchNews.Reason.compacting.symbolName).font(.caption2.weight(.semibold)).imageScale(.small)
+                if AccessibilityDisplay.shared.motionReduced { symbol } else { symbol.symbolEffect(.pulse, options: .repeating) }
+                Text(L("Compacting")).font(.caption2.weight(.semibold))
+            }
+            .foregroundStyle(Palette.warn)
+            .padding(.horizontal, 7)
+            .frame(minHeight: 20)
+            .background(Capsule().fill(Palette.warn.opacity(AccessibilityDisplay.shared.contrast ? 0.3 : 0.16)))
+            .help(auto ? L("Claude Code is compacting this session's context by itself: the conversation so far is being replaced by a summary")
+                       : L("This session's context is being compacted, as /compact asked"))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(L("Compacting"))
+            .accessibilityValue(auto ? L("by itself") : L("as /compact asked"))
+        case .compacted(let count, let last, let auto):
+            let ago = ResetText.duration(max(0, now.timeIntervalSince(last)))
+            HStack(spacing: 3) {
+                Image(systemName: NotchNews.Reason.compacting.symbolName).font(.caption2.weight(.semibold)).imageScale(.small)
+                Text(verbatim: "\(count)").font(.caption2.weight(.semibold)).monospacedDigit()
+            }
+            .padding(.horizontal, 7)
+            .frame(minHeight: 20)
+            .background(Capsule().fill(.white.opacity(AccessibilityDisplay.shared.contrast ? 0.26 : 0.14)))
+            .help(count == 1 ? L("Compacted once while the app watched, %@ ago", ago) : L("Compacted %1$ld times while the app watched, last %2$@ ago", count, ago))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(L("Compacted"))
+            .accessibilityValue(Spoken.line(count == 1 ? L("once") : L("%ld times", count), L("last %@ ago", ago),
+                                            auto ? L("by itself") : L("as /compact asked")))
+        }
+    }
+}
+
+/// The extras line's chips laid left to right, wrapping onto another line when the row is too narrow for them all,
+/// each line's chips centred on one another. A row carrying the gauge, a compaction, the model, agents, teammates, a
+/// task list and denials at once is wider than the narrowest panel, and a chip pushed past the card's edge is one
+/// nobody can click.
+struct ChipFlow: Layout {
+    var spacing: CGFloat = 6
+    var lineSpacing: CGFloat = 4
+
+    /// Each subview's frame within a width, line by line: pure, so the layout can be pinned without a view.
+    static func frames(sizes: [CGSize], width: CGFloat, spacing: CGFloat, lineSpacing: CGFloat) -> [CGRect] {
+        var lines: [[Int]] = []
+        var current: [Int] = []
+        var x: CGFloat = 0
+        for (index, size) in sizes.enumerated() {
+            if !current.isEmpty, x + spacing + size.width > width {
+                lines.append(current)
+                current = []
+                x = 0
+            }
+            x += (current.isEmpty ? 0 : spacing) + size.width
+            current.append(index)
+        }
+        if !current.isEmpty { lines.append(current) }
+        var frames = Array(repeating: CGRect.zero, count: sizes.count)
+        var y: CGFloat = 0
+        for line in lines {
+            let height = line.map { sizes[$0].height }.max() ?? 0
+            var x: CGFloat = 0
+            for index in line {
+                frames[index] = CGRect(x: x, y: y + (height - sizes[index].height) / 2, width: sizes[index].width, height: sizes[index].height)
+                x += sizes[index].width + spacing
+            }
+            y += height + lineSpacing
+        }
+        return frames
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        let frames = Self.frames(sizes: subviews.map { $0.sizeThatFits(.unspecified) }, width: width, spacing: spacing, lineSpacing: lineSpacing)
+        let used = frames.reduce(CGRect.null) { $0.union($1) }
+        guard !used.isNull else { return .zero }
+        return CGSize(width: proposal.width ?? used.maxX, height: used.maxY)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let frames = Self.frames(sizes: sizes, width: bounds.width, spacing: spacing, lineSpacing: lineSpacing)
+        for (subview, frame) in zip(subviews, frames) {
+            subview.place(at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY), proposal: ProposedViewSize(frame.size))
+        }
     }
 }

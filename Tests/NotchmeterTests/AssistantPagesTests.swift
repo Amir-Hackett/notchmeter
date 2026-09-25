@@ -250,6 +250,7 @@ import Testing
                 switch event {
                 case .waiting: raised.append("wait \(session.id)")
                 case .finished: raised.append("finish \(session.id)")
+                case .trouble: raised.append("trouble \(session.id)")
                 }
             }
             for (tool, id) in [(ToolID.codex, "c1"), (.claude, "a1")] {

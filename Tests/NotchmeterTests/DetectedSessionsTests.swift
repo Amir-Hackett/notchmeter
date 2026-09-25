@@ -384,7 +384,10 @@ import Testing
         let (rows, _) = SessionsCard.rows(tracker.all, hideTitles: false, jump: false, now: t0)
         let detected = try #require(rows.first { $0.id == "s1" })
         #expect(detected.detected)
-        #expect(detected.model == "Opus 5.5")
+        // The model is the session's; the row names it only where the rows' models differ or a switch was heard
+        // (SessionsCard.Row.ModelMark, 0.11), and here nothing else has a model to differ from.
+        #expect(tracker.sessions["s1"]?.model == "Opus 5.5")
+        #expect(detected.model == nil)
         #expect(rows.first { $0.id == "hooked" }?.detected == false)
         let oracle = SessionsCard.oracleRows(SessionsCard.groups(rows, sessions: tracker.all))
         #expect(Set(oracle.compactMap { $0["source"] as? String }) == ["hook", "detected"])

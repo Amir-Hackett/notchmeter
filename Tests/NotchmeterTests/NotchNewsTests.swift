@@ -45,8 +45,10 @@ import Testing
         #expect(NotchNews.reason(event: "Notification", notificationType: "permission_prompt", request: nil) == .approval)
         #expect(NotchNews.reason(event: "Notification", notificationType: "ToolPermission", request: nil) == .approval)
         #expect(NotchNews.reason(event: "PermissionRequest", notificationType: nil, request: nil) == .approval)
-        #expect(NotchNews.reason(event: "Elicitation", notificationType: nil, request: nil) == .question)
-        #expect(NotchNews.reason(event: "Notification", notificationType: "elicitation_dialog", request: nil) == .question)
+        // An MCP server asking for input is its own errand since 0.11: the event, and the dialog's notification.
+        #expect(NotchNews.reason(event: "Elicitation", notificationType: nil, request: nil) == .input)
+        #expect(NotchNews.reason(event: "Notification", notificationType: "elicitation_dialog", request: nil) == .input)
+        #expect(NotchNews.reason(event: "Notification", notificationType: "elicitation_url_dialog", request: nil) == .input)
         #expect(NotchNews.reason(event: "Notification", notificationType: "agent_needs_input", request: nil) == .question)
         #expect(NotchNews.reason(event: "Notification", notificationType: nil, request: nil) == .waiting,
                 "A wait the vendor gives no type for is still a wait; it is only not named.")

@@ -419,6 +419,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// nothing happens below this line at all.
     private func sessionEvent(_ event: Notifier.SessionEvent, session: AgentSession) {
         notifier.notify(event, session: session, hidingFigures: store.hidesFigures)
+        // A compaction, a run of failures or an auto-mode denial is a notice and a word beside the notch, never a
+        // glance or an opened panel: the attention setting is about a session that waits or has finished, and one
+        // that is still working needs nothing from the user's screen.
+        if case .trouble = event { return }
         let suppressed = Notifier.shouldSuppress(event: event, frontmost: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
                                                  quiet: prefs.isQuietHour(), host: session.host, terminalRule: prefs.quietWhileTerminalFrontmost)
         guard prefs.sessionAttention != .nothing, !suppressed,

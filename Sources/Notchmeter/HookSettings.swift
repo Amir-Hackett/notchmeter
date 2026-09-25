@@ -14,9 +14,16 @@ enum HookSettings {
     /// SubagentStart, SubagentStop and StopFailure joined in round 2, PreToolUse (matched to AskUserQuestion) in
     /// 0.7.0, PostToolUse (matched to the task tools, for the Sessions card's task list) after 0.7.9; Repair adds them to
     /// an older install, and brings a 0.6.0 PermissionRequest entry to the synchronous shape the decision channel
-    /// needs (HookVendor.isCurrent).
+    /// needs (HookVendor.isCurrent). The ten after SessionEnd joined in 0.11 (Hook+Events.swift says what each keeps,
+    /// and why WorktreeCreate, WorktreeRemove and PreModelSwitch are left out); an install from before them reads as
+    /// partial, and Repair or the launch repair adds them after the usual backup. Every one but Elicitation is
+    /// asynchronous, which is also what makes the four that could block something (PreCompact, TeammateIdle,
+    /// PostToolBatch, ElicitationResult) unable to: an async hook's output "has no effect", and the command exits 0
+    /// having printed nothing whatever happens.
     static let events = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "PreToolUse", "PostToolUse", "Notification", "Stop", "StopFailure",
-                         "SubagentStart", "SubagentStop", "SessionEnd"]
+                         "SubagentStart", "SubagentStop", "SessionEnd",
+                         "PreCompact", "PostCompact", "PostModelSwitch", "Elicitation", "ElicitationResult", "TeammateIdle",
+                         "PostToolUseFailure", "PermissionDenied", "PostToolBatch", "CwdChanged"]
 
     struct Installed: Equatable {
         let backup: URL?

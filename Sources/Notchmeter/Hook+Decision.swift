@@ -81,7 +81,7 @@ extension Hook {
     /// question, and anything else is a permission, which is what every wait was before the kinds were told apart.
     static func waitKind(event: String, notificationType: String?, request: Request?) -> WaitKind {
         switch request?.kind {
-        case .question?: return .question
+        case .question?, .elicitation?: return .question
         case .permission(let tool, _, _, _)? where tool == exitPlanModeTool: return .plan
         case .permission?: return .permission
         case nil: break
@@ -247,6 +247,8 @@ extension Hook {
                      return entry
                  }]
             }
+        case .elicitation(let form):
+            info[elicitationKey] = userInfo(elicitation: form)
         }
         return info
     }
@@ -259,6 +261,9 @@ extension Hook {
         if let tool = userInfo?[toolNameKey] as? String, let summary = userInfo?[toolSummaryKey] as? String {
             return Request(id: id, kind: .permission(tool: tool, summary: summary, detail: userInfo?[toolDetailKey] as? String,
                                                       suggestions: (userInfo?[suggestionsKey] as? [Any] ?? []).compactMap(suggestion(wire:))))
+        }
+        if userInfo?[elicitationKey] != nil {
+            return elicitation(wire: userInfo?[elicitationKey]).map { Request(id: id, kind: .elicitation($0)) }
         }
         let questions = questions(from: userInfo?[questionsKey])
         return questions.isEmpty ? nil : Request(id: id, kind: .question(questions))
@@ -329,7 +334,7 @@ extension Hook {
 
     /// The reply line the app writes back on the socket, `{"decision":{…}}`, and what the command prints to the
     /// assistant on reading it. The app's line is the app's own vocabulary (allow, deny with a message, answers by
-    /// question, or nothing for a pass); the printed JSON is the vendor's, and one shape serves Claude Code,
+    /// question, an MCP server's form accepted or declined, or nothing for a pass); the printed JSON is the vendor's, and one shape serves Claude Code,
     /// Codex and Copilot's PascalCase event alike, which is why the command and not the app renders it: the app
     /// says what the user chose, and the command, which knows the event, says it in the vendor's words.
     enum Answer {
@@ -343,6 +348,7 @@ extension Hook {
             case .allowAlways(let index): body = ["behavior": "allow", "suggestion": index]
             case .deny(let message): body = ["behavior": "deny", "message": message ?? deniedMessage]
             case .answers(let answers): body = ["answers": answers]
+            case .elicitation(let answer): body = Self.body(for: answer)
             case .pass: return nil
             }
             guard var data = try? JSONSerialization.data(withJSONObject: ["decision": body], options: [.sortedKeys]) else { return nil }
@@ -355,6 +361,7 @@ extension Hook {
             guard let object = try? JSONSerialization.jsonObject(with: reply) as? [String: Any],
                   let body = object["decision"] as? [String: Any] else { return nil }
             if let answers = body["answers"] as? [String: String], !answers.isEmpty { return .answers(answers) }
+            if body["elicitation"] != nil { return elicitationAnswer(from: body).map(Decision.elicitation) }
             switch body["behavior"] as? String {
             case "allow":
                 if let index = body["suggestion"] as? Int, index >= 0 { return .allowAlways(suggestion: index) }
@@ -367,7 +374,8 @@ extension Hook {
         /// What the command prints for `event` given the app's reply and the payload it read: Claude Code's
         /// `PermissionRequest` decision (the shape Codex and Copilot's PascalCase event document too; *Allow always*
         /// adds `updatedPermissions` with the one suggestion chosen, `offeredEntry(at:payload:)`), or a
-        /// `PreToolUse` allow whose `updatedInput` is the tool's input unchanged plus the `answers`. nil, and so
+        /// `PreToolUse` allow whose `updatedInput` is the tool's input unchanged plus the `answers`, or an
+        /// `Elicitation`'s `action` and `content`, checked against the form (`elicitationOutput`). nil, and so
         /// nothing printed, for a pass, a reply that is no decision, an answer to a permission or a permission to a
         /// question, or a payload the command can no longer read; the terminal then asks.
         static func output(event: String, reply: Data, payload: Data) -> String? {
@@ -387,6 +395,9 @@ extension Hook {
                       var input = payload["tool_input"] as? [String: Any] else { return nil }
                 input["answers"] = answers
                 object = ["hookSpecificOutput": ["hookEventName": "PreToolUse", "permissionDecision": "allow", "updatedInput": input]]
+            case ("Elicitation", .elicitation(let answer)):
+                guard let output = elicitationOutput(answer, payload: payload) else { return nil }
+                object = output
             default:
                 return nil
             }

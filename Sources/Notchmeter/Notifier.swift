@@ -71,6 +71,10 @@ final class Notifier {
         /// `kind` is what the wait asks for, and chooses its sound; the copy and the ceiling are the same for all.
         case waiting(blocking: Bool, kind: Hook.WaitKind = .permission)
         case finished(turn: TimeInterval)
+        /// Something the session ran into without stopping for it (SessionTrouble): a compaction Claude Code began by
+        /// itself, a run of failed tool calls, a tool auto mode refused. Never blocking, so held back while a
+        /// terminal or editor is in front like a finished turn, and silent: nothing about it needs an answer.
+        case trouble(SessionTrouble)
     }
 
     /// The classes a sound is chosen for in Settings: a pace crossing, each kind of wait, a finished turn.
@@ -89,11 +93,12 @@ final class Notifier {
         }
     }
 
-    /// The sound class a session event plays under.
-    nonisolated static func soundEvent(for event: SessionEvent) -> SoundEvent {
+    /// The sound class a session event plays under; nil for one that plays none.
+    nonisolated static func soundEvent(for event: SessionEvent) -> SoundEvent? {
         switch event {
         case .waiting(_, let kind): .waiting(kind)
         case .finished: .finished
+        case .trouble: nil
         }
     }
 
@@ -235,6 +240,18 @@ final class Notifier {
             (L("%@ is waiting", name), L("%1$@ is waiting in %2$@.", name, project))
         case .finished(let turn):
             (L("%@ finished", name), L("%1$@ finished a %2$@ turn in %3$@.", name, ResetText.duration(turn), project))
+        case .trouble(.compacting(let context)):
+            // The fill is a figure, so it goes while the screen is shared, as every figure does.
+            if let context, !hidingFigures {
+                (L("%@ is compacting", name), L("%1$@ is compacting its context in %2$@ by itself, at %3$ld%% full: the conversation so far is being replaced by a summary.",
+                                               name, project, Int((context * 100).rounded())))
+            } else {
+                (L("%@ is compacting", name), L("%1$@ is compacting its context in %2$@ by itself: the conversation so far is being replaced by a summary.", name, project))
+            }
+        case .trouble(.stuck(let failures)):
+            (L("%@ may be stuck", name), L("%1$@ has had %2$ld tool calls fail in a row in %3$@, with none succeeding between them.", name, failures, project))
+        case .trouble(.blocked(let tool)):
+            (L("%@ was blocked", name), L("Auto mode refused a %1$@ call in %2$@. The session goes on without it.", tool, project))
         }
     }
 
@@ -262,10 +279,11 @@ final class Notifier {
         let identifier = switch event {
         case .waiting: Self.identifier(session: session.id, kind: "waiting")
         case .finished: Self.identifier(session: session.id, kind: "finished")
+        case .trouble(let trouble): Self.identifier(session: session.id, kind: trouble.name)
         }
         let soundEvent = Self.soundEvent(for: event)
         deliver(identifier: identifier, thread: session.tool.rawValue, tool: session.tool, title: title, body: body, level: Self.level(for: event),
-                sound: NotificationSound.unSound(for: sound(soundEvent)), soundEvent: soundEvent)
+                sound: soundEvent.flatMap { NotificationSound.unSound(for: sound($0)) }, soundEvent: soundEvent ?? .pace)
         return true
     }
 
@@ -344,7 +362,7 @@ final class Notifier {
     nonisolated static func level(for event: SessionEvent) -> UNNotificationInterruptionLevel {
         switch event {
         case .waiting: .timeSensitive
-        case .finished: .active
+        case .finished, .trouble: .active
         }
     }
 

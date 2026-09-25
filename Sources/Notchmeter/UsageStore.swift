@@ -226,6 +226,11 @@ final class UsageStore {
     @ObservationIgnored var emitHookFacts: ([String: Any]) -> Void = { Oracle.shared.emit("hook", $0) }
     /// Notices whose state has passed, to withdraw from Notification Center.
     @ObservationIgnored var removeNotifications: ([String]) -> Void = { _ in }
+    /// The meter read a hook event asks for (`hookReceived`): that tool's endpoint, forced, and the loops
+    /// rescheduled after it. Set in `init` to the store's own read; a test swaps it for a count, which is what pins
+    /// that a `Stop` asks for one read and that no in-turn event (`Hook.quietEvents`) ever asks for any, a promise
+    /// the order of `hookReceived` alone would not keep through a refactor.
+    @ObservationIgnored var refreshForHook: (ToolID) -> Void = { _ in }
     /// True while the panel is open because a request opened it (App.promptRequested on a compact panel): the
     /// panel then draws the request's card alone, and closes again when the request ends. A panel the pointer
     /// had already opened keeps everything and takes the card on top. Cleared by every collapse, and by the
@@ -330,6 +335,13 @@ final class UsageStore {
         // Armed here rather than in `start`: the setting governs what the tracker holds whether or not the loops run.
         observeSessionTitles()
         observeSessionReading()
+        refreshForHook = { [weak self] tool in
+            Task { @MainActor in
+                guard let self else { return }
+                await self.refresh(tool, force: true)
+                self.reschedule()
+            }
+        }
     }
 
     /// The tools on screen, in the user's order (Preferences.toolOrder), less the ones with nothing to show while
@@ -427,9 +439,12 @@ final class UsageStore {
         return found.first(where: { $0.signal.isWaiting }) ?? found.first
     }
 
-    /// The context window's fill from the status line, while its report is fresh.
+    /// The context window's fill from the status line, while its report is fresh, and until its session reports a
+    /// compaction after it (`PostCompact`): the figure then describes a conversation that has since been summarised,
+    /// and the arc waits for the next status line rather than show it.
     var contextUsed: Double? {
         guard let statusline, Date().timeIntervalSince(statusline.receivedAt) < PollingPolicy.statuslineFreshFor * 4 else { return nil }
+        if let id = statusline.sessionID, let compacted = sessions.sessions[id]?.lastCompaction?.at, compacted > statusline.receivedAt { return nil }
         return statusline.contextUsed
     }
 
@@ -1210,6 +1225,26 @@ final class UsageStore {
         removeNotifications(ids.map { Notifier.identifier(session: $0, kind: "waiting") })
     }
 
+    /// Takes down the trouble notices whose state has passed (Notifier's contract: a notice is withdrawn once what
+    /// it announced is over): "may be stuck" for the sessions whose run of failures ended, however it ended, and
+    /// "is compacting" for the ones whose compaction did. Each caller hands in the sessions that were in the state
+    /// before its change and are not after it, so nothing is withdrawn that was not announced. The turn's first
+    /// auto-mode refusal has no notice to withdraw: a refusal is a thing that happened, not a state that passes.
+    private func withdrawTrouble(stuck: Set<String>, compacting: Set<String>) {
+        let identifiers = stuck.sorted().map { Notifier.identifier(session: $0, kind: SessionTrouble.stuck(failures: 0).name) }
+            + compacting.sorted().map { Notifier.identifier(session: $0, kind: SessionTrouble.compacting(context: nil).name) }
+        guard !identifiers.isEmpty else { return }
+        removeNotifications(identifiers)
+    }
+
+    /// The trouble notices standing for `ids` at `now`, for a removal that takes the sessions off the card
+    /// (`dismissSession`, `dismissIdleSessions`): a session the reader has removed is not one to keep a banner for.
+    private func withdrawTrouble(of ids: [String], now: Date) {
+        let removed = ids.compactMap { sessions.sessions[$0] }
+        withdrawTrouble(stuck: Set(removed.filter { $0.mayBeStuck(now: now) }.map(\.id)),
+                        compacting: Set(removed.filter { $0.compacting != nil }.map(\.id)))
+    }
+
     private func remember(_ memory: AlertMemory) {
         if memory != alertMemory {
             alertMemory = memory
@@ -1391,10 +1426,12 @@ final class UsageStore {
     }
 
     /// The Sessions card's Remove (SessionTracker.dismiss): the row goes until the session sends another event.
-    func dismissSession(_ id: String) {
+    func dismissSession(_ id: String, now: Date = Date()) {
         var tracker = sessions
         let result = tracker.dismiss(id)
         guard result.removed else { return }
+        // Read before the tracker is replaced: the notices to take down are the ones the session stood in.
+        withdrawTrouble(of: [id], now: now)
         sessions = tracker
         pruneOpenSessionLists()
         if attentionNotice?.session.id == id { attentionNotice = nil }
@@ -1404,10 +1441,11 @@ final class UsageStore {
     }
 
     /// *Remove all idle sessions* from the card's menu.
-    func dismissIdleSessions() {
+    func dismissIdleSessions(now: Date = Date()) {
         var tracker = sessions
         let removed = tracker.dismissIdle()
         guard !removed.isEmpty else { return }
+        withdrawTrouble(of: removed, now: now)
         sessions = tracker
         pruneOpenSessionLists()
         if let notice = attentionNotice, removed.contains(notice.session.id) { attentionNotice = nil }
@@ -1417,6 +1455,8 @@ final class UsageStore {
 
     func sweepSessions(now: Date = Date()) {
         var expired = sessions
+        let stuckBefore = sessions.stuck(now: now)
+        let compactingBefore = sessions.compacting()
         let stopped = expired.expire(now: now)
         let nudged = expired.quietNudges(now: now)
         if expired != sessions {
@@ -1425,6 +1465,10 @@ final class UsageStore {
             applyAwake()
         }
         withdrawWaiting(stopped)
+        // A run of failures whose last one is now `SessionTracker.stuckFor` old says "may be stuck" no longer, a
+        // compaction that never reported its end is retired after ten minutes, and neither outlives a session that
+        // went: the clock ends them here.
+        withdrawTrouble(stuck: stuckBefore.subtracting(sessions.stuck(now: now)), compacting: compactingBefore.subtracting(sessions.compacting()))
         // A quiet Cursor turn (SessionTracker.quietNudges) is reported as a wait that may be one, through the same
         // notice, rules and attention setting as a wait a hook announced. As a blocking one: what it stands for is
         // an approval the turn has stopped for, and a non-blocking wait is held back while an editor is in front,
@@ -1828,6 +1872,12 @@ final class UsageStore {
     /// the message awaits a decision: it is kept under the request's id for `decide`, or answered nothing at once
     /// when the request is not going to be shown (answering from the notch is off, or the tracker did not take
     /// it). The title, the summary and the terminal never reach the log or the oracle (`hookFacts`).
+    ///
+    /// Since 0.11 the in-turn events (`Hook.quietEvents`) take a quieter path through the same steps. None of them
+    /// asks for a meter read, and a batch boundary, which arrives once per model step, is published to the views
+    /// only when it changes something beyond the session's clock (`SessionTracker.differs`), logs at debug, and
+    /// moves the activity the polling policy reads at most once a minute: the batch boundary is where a turn's state
+    /// settles, not a reason to redraw the notch or read the vendor's endpoint every few seconds.
     func hookReceived(_ message: Hook.Message, now: Date = Date(), reply: HookSocket.Reply? = nil) {
         guard prefs.readsSessions(of: message.tool) else {
             meterOnly(message, now: now, reply: reply)
@@ -1838,6 +1888,9 @@ final class UsageStore {
             message.title = nil
             message.todos = message.todos?.withoutContent()
             message.task?.subject = nil
+            // A teammate's name is the lead's word for the work, so it goes with the titles; an opaque key keeps
+            // two teammates apart without it.
+            if let name = message.teammate?.name { message.teammate = Teammate(key: Teammate.opaqueKey(for: name), name: nil) }
         }
         // Settled before the request can be dropped below: with answering from the notch off, the request is the
         // only thing that says a permission is a plan's, and the sound for it should not depend on that setting.
@@ -1855,13 +1908,22 @@ final class UsageStore {
             openCodePluginSpoke = true
             standDownOpenCodeReading(except: [message.sessionID, message.agentID].compactMap { $0 }, now: now)
         }
-        log.info("hook \(message.event, privacy: .public)\(tool == .claude ? "" : " (\(tool.rawValue))", privacy: .public)\(message.needsInput ? " (needs input)" : "", privacy: .public)\(message.request.map { " (\($0.kind.name) request)" } ?? "", privacy: .public)\(message.host.map { " from \($0)" } ?? "", privacy: .public)")
+        let quiet = Hook.quietEvents.contains(message.event)
+        let batch = message.event == Hook.batchEvent
+        let line = "hook \(message.event)\(tool == .claude ? "" : " (\(tool.rawValue))")\(message.needsInput ? " (needs input)" : "")\(message.request.map { " (\($0.kind.name) request)" } ?? "")\(message.host.map { " from \($0)" } ?? "")"
+        if batch { log.debug("\(line, privacy: .public)") } else { log.info("\(line, privacy: .public)") }
         emitHookFacts(Self.hookFacts(message, wait: waitKind))
+        let heardBefore = lastHook[tool]
         lastHook[tool] = now
-        lastActivity[tool] = now
+        if !batch || lastActivity[tool].map({ now.timeIntervalSince($0) >= Hook.batchSlack }) ?? true { lastActivity[tool] = now }
         wokeAt = now
         let scannedBefore = sessions.scanned
-        let outcome = sessions.apply(message, now: now)
+        let stuckBefore = sessions.stuck(now: now)
+        let compactingBefore = sessions.compacting()
+        var tracker = sessions
+        let outcome = tracker.apply(message, now: now)
+        let publish = !batch || tracker.differs(from: sessions, slack: Hook.batchSlack)
+        if publish { sessions = tracker }
         // A row the scan found that this event took over, by id or as its project's twin (SessionTracker.detected).
         let adopted = scannedBefore.subtracting(sessions.scanned)
         if !adopted.isEmpty {
@@ -1869,9 +1931,14 @@ final class UsageStore {
                                                                  adopted: adopted.sorted()))
         }
         if tool == .cursor { lookUpCursorNames(now: now) }
-        pruneOpenSessionLists()
-        applyAwake()
-        armSignalRelease(now: now)
+        if publish {
+            pruneOpenSessionLists()
+            applyAwake()
+            armSignalRelease(now: now)
+        }
+        // A "may be stuck" notice comes down the moment its streak ends, however it ends, and an "is compacting"
+        // one the moment the compaction does (`PostCompact`, or the turn ending first).
+        withdrawTrouble(stuck: stuckBefore.subtracting(sessions.stuck(now: now)), compacting: compactingBefore.subtracting(sessions.compacting()))
         // The withdrawal goes first because one message can end a wait and start another for the same session:
         // `apply` seeds stoppedWaiting from `expire`, so a needsInput arriving after its own wait timed out is
         // demoted and re-raised inside the one call, and both lists name it. Delivered first, the withdrawal took
@@ -1902,6 +1969,9 @@ final class UsageStore {
            finished.turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
             deliverSessionEvent(.finished(turn: finished.turn), finished.session)
         }
+        if let trouble = outcome.trouble, prefs.notifySessionTrouble, prefs.notifiesSessions(of: tool) {
+            deliverSessionEvent(.trouble(trouble.trouble), trouble.session)
+        }
         guard isShown(tool) else { return }
         if let news = NotchNews.from(message, outcome: outcome, now: now) { announce(news, now: now) }
         if outcome.limitHit != nil, prefs.notificationsEnabled, prefs.notifiesLimits(of: tool) {
@@ -1909,6 +1979,12 @@ final class UsageStore {
             let plan = NotificationScheduler.planLimitHit(memory: alertMemory, tool: tool, reading: reading, now: now, options: alertOptions)
             remember(plan.memory)
             send(plan.alerts)
+        }
+        // The quiet events never ask for a read, and reschedule the loops only when the tool's hook had gone quiet
+        // long enough for the polling policy's answer to change.
+        if quiet {
+            if heardBefore.map({ now.timeIntervalSince($0) >= Hook.batchSlack }) ?? true { reschedule() }
+            return
         }
         refreshAfterHook(tool, urgent: outcome.limitHit != nil || outcome.quotaResumed, now: now)
     }
@@ -1921,12 +1997,18 @@ final class UsageStore {
     private func meterOnly(_ message: Hook.Message, now: Date, reply: HookSocket.Reply?) {
         reply?.answer(nil)
         let tool = message.tool
-        log.info("hook \(message.event, privacy: .public) (\(tool.rawValue, privacy: .public), sessions not read)")
+        if message.event == Hook.batchEvent {
+            log.debug("hook \(message.event, privacy: .public) (\(tool.rawValue, privacy: .public), sessions not read)")
+        } else {
+            log.info("hook \(message.event, privacy: .public) (\(tool.rawValue, privacy: .public), sessions not read)")
+        }
         emitHookFacts(["name": message.event, "tool": tool.rawValue, "sessions": "off"])
         lastHook[tool] = now
         lastActivity[tool] = now
         wokeAt = now
         guard isShown(tool) else { return }
+        // The in-turn events 0.11 added never ask for a read, here as on the read path (`Hook.quietEvents`).
+        if Hook.quietEvents.contains(message.event) { return }
         // A limit hit or a quota resume is news about the meter, not the session, and is read off the message
         // itself (`hitRateLimit`, `resumesFromQuota`) where the read path reads it off the tracker's outcome: the
         // meter refreshes at once for either, as it does with the sessions read, rather than waiting out the
@@ -1939,10 +2021,7 @@ final class UsageStore {
     private func refreshAfterHook(_ tool: ToolID, urgent: Bool, now: Date) {
         if urgent || (lastHookRefresh[tool].map({ now.timeIntervalSince($0) >= Self.hookRefreshSpacing }) ?? true) {
             lastHookRefresh[tool] = now
-            Task {
-                await refresh(tool, force: true)
-                reschedule()
-            }
+            refreshForHook(tool)
         } else {
             reschedule()
         }
@@ -2092,6 +2171,26 @@ final class UsageStore {
         if let todos = message.todos { facts["todos"] = ["done": todos.done, "total": todos.total] }
         if let task = message.task { facts["task"] = ["kind": task.kind.rawValue, "status": task.deleted ? "deleted" : task.status?.rawValue as Any] }
         if message.needsInput || message.request != nil { facts["wait"] = (wait ?? message.waitKind).rawValue }
+        // The 0.11 events: a trigger, a model id and its source, the MCP server's name, a tool's name, the kind of
+        // a denial, a batch's size. A teammate is reported as there being one, never by name.
+        if let compaction = message.compaction { facts["compaction"] = compaction.rawValue }
+        if let change = message.modelSwitch {
+            facts["model"] = change.to
+            facts["modelSource"] = change.source?.rawValue as Any
+        }
+        if let server = message.mcpServer { facts["mcpServer"] = server }
+        if message.teammate != nil { facts["teammate"] = true }
+        if let failure = message.toolFailure {
+            facts["failedTool"] = failure.tool
+            facts["interrupt"] = failure.interrupt
+        }
+        if let denial = message.denial {
+            facts["deniedTool"] = denial.tool
+            facts["denial"] = denial.kind.rawValue
+        }
+        if message.event == Hook.batchEvent { facts["batch"] = message.batchSize as Any }
+        if message.worktree { facts["worktree"] = true }
+        if message.truncated { facts["truncated"] = true }
         return facts
     }
 
