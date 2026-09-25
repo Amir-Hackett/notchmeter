@@ -2,6 +2,14 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.2](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.2) — 2026-09-25
+
+### Settings, one set of icons
+
+- Every tile in the Settings sidebar now carries a white symbol. The assistants' pages had black symbols on the light colours their rings wear beside the notch, under white symbols on the rest of the list, which made the sidebar read as two lists. Each assistant keeps its own colour, in the deeper tone its rings wear on the Paper theme, and every symbol clears 5:1 against its tile in light and dark.
+- Symbols are drawn filled wherever they have a filled form, as the rest of the list already was.
+- The Assistants row has its own grid symbol. It wore the terminal, which is Gemini CLI's own mark, one row above Gemini's page.
+
 ## [0.9.1](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.1) — 2026-09-25
 
 ### The Usage Dashboard, redrawn

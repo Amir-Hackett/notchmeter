@@ -122,7 +122,9 @@ enum SettingsPane: Hashable, Identifiable, CaseIterable {
         case .general: return "gearshape.fill"
         case .dashboard: return "chart.bar.fill"
         case .appearance: return "paintpalette.fill"
-        case .assistants: return "terminal.fill"
+        // Not `terminal.fill`: Gemini CLI's own mark is the terminal, and the Assistants row sits directly above
+        // Gemini's page, so the two read as one row drawn twice. A grid is the pages under it.
+        case .assistants: return "square.grid.2x2.fill"
         case .notifications: return "bell.fill"
         case .integrations: return "powerplug.fill"
         case .advanced: return "wrench.adjustable.fill"
@@ -130,19 +132,17 @@ enum SettingsPane: Hashable, Identifiable, CaseIterable {
         }
     }
 
-    /// The glyph's colour on its tile. White on the app's chrome tiles, which were chosen dark enough to carry
-    /// it; black on an assistant's own colour, every one of which is a light tint picked to read on the panel's
-    /// black, and clears 6.8:1 under a black glyph (Claude's terracotta, the darkest) where white would fail on
-    /// Copilot's yellow at 1.3:1. `SettingsSidebarTiles` measures both.
-    var glyph: Color {
-        tool == nil ? .white : .black
-    }
+    /// The glyph's colour on its tile: white on every tile, the chrome's and the assistants' alike. A black glyph
+    /// on the assistants' light ring colours once sat under white glyphs on saturated chrome tiles in the same
+    /// list, two icon systems stacked on top of each other, and the sidebar read as two lists. The assistants'
+    /// tiles wear their deep tone for it (`tint`). `SettingsSidebarTiles` measures every one.
+    var glyph: Color { .white }
 
     /// The tile behind the glyph. Palette.warn and Palette.danger are deliberately absent: they mean "needs
     /// attention" and "out" a few rows to the right in this same window, and a sidebar that wore them at rest
     /// would read as alarmed.
     ///
-    /// Every tile carries an 11 pt semibold glyph (`glyph`: white on these, black on an assistant's own colour), so
+    /// Every tile carries an 11 pt semibold white glyph (`glyph`), so
     /// every tile owes it the 3:1 WCAG 1.4.11 asks of a graphical object. Measured against white under `performAsCurrentDrawingAppearance`, light then dark:
     /// purple 4.17/3.63, calm 5.19/5.19, pink 3.65/3.52, indigo 5.09/3.51, brown 3.53/3.07, slate 6.45/6.45.
     /// The system colours do **not** buy adaptivity here: they shift a little between `.aqua` and `.darkAqua`
@@ -162,8 +162,11 @@ enum SettingsPane: Hashable, Identifiable, CaseIterable {
         case .notifications: return .pink
         case .integrations: return .indigo
         case .advanced: return .brown
-        // The colour its rings and card wear, so the page and the ring beside the notch are one thing to the eye.
-        case .agent(let tool): return tool.color
+        // Its own hue in the deep tone its rings wear on Paper, not the light tone they wear on the notch's black:
+        // the light tones carry only a black glyph (white is 1.3:1 on Copilot's yellow), and a black-glyph tile
+        // among the white-glyph chrome tiles broke the list in two. The deep tones carry white at 5.1 to 5.9:1,
+        // the band the chrome tiles sit in (5.2 to 6.5), so all fifteen read as one set and each keeps its hue.
+        case .agent(let tool): return PanelInk.tool(tool).onPaper.color
         }
     }
 }
@@ -342,7 +345,9 @@ struct SettingsView: View {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .fill(item.tint)
                     .frame(width: 20, height: 20)
-                    .overlay(Image(systemName: item.symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(item.glyph))
+                    // Filled where the symbol has a fill, as every chrome glyph is, so an assistant's outline mark
+                    // (Kimi's moon, Gemini's terminal) carries the same weight of white as the tiles around it.
+                    .overlay(Image(systemName: item.symbol).symbolVariant(.fill).font(.system(size: 11, weight: .semibold)).foregroundStyle(item.glyph))
                     // Decoration: the row already says "General" in words, and VoiceOver would otherwise read
                     // the pane name twice, once as the glyph's own name.
                     .accessibilityHidden(true)
