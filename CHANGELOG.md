@@ -67,6 +67,16 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 - notchmeter.com has eight guides, each written to one question and stamped with the version it was checked on, and a page per assistant saying what the app shows for it and where every figure comes from.
 - The privacy notice, in the app's docs and on the site, lists the two new requests (the price catalog and the ECB rate) and the two new vendors (Moonshot for Kimi Code; OpenCode is never asked anything) beside the ones it already named.
 
+### Also in this update: everything from 0.8.0
+
+0.8.0 was merged on 2026-09-24 but never tagged, so this is the first update to carry it. Its notes are in full in CHANGELOG.md; the short version:
+
+- The panel opens on a **Simple** layout: one row per assistant with its most urgent figure, cost on one line and your sessions below. Click a row for everything behind it. The previous panel is still there as **Detailed** in Settings › Appearance › Panel layout. A header replaces the footer, and warnings sit on the row they are about.
+- Sessions are grouped by project with the branch and terminal on a second line; the one that needs you is highlighted; each shows its context fill, its subagents and its task list; a Cursor chat that started before the app did is named from Cursor's own state.
+- News in the notch: when a session needs you or finishes, the notch briefly widens to say so, with a soft glow underneath. Hover or click opens the panel on that session. Both can be turned off.
+- **Allow always**: allow a request and add the rule Claude Code suggests in one step.
+- A short guided tour on first launch, and again from Settings. Advice lines hide their figures while your screen is shared. Claude Desktop's Cowork sessions are priced once per response.
+
 ## [0.8.0](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.8.0) — 2026-09-24
 
 ### A simpler panel
