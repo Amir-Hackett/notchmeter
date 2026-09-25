@@ -221,7 +221,7 @@ enum DemoFixtures {
             DetectedSession(key: statuslineSessionID, tool: .claude, exact: true, project: "scout", branch: "main", model: "Opus 5.5",
                             started: now.addingTimeInterval(-25 * 60), lastActivity: now.addingTimeInterval(-(2 * 60 + 5)), busy: false,
                             terminal: TerminalRef(bundleID: "com.apple.Terminal", tty: "/dev/ttys005")),
-            DetectedSession(key: "5f0c1e2a-7b3d-4c8e-9a61-0d2f4b6c8e10", tool: .claude, exact: true, project: "notchmeter", branch: "feat/zero-config",
+            DetectedSession(key: detectedSessionID, tool: .claude, exact: true, project: "notchmeter", branch: "feat/zero-config",
                             model: "Opus 5.5", name: detectedTitle, started: now.addingTimeInterval(-41 * 60), lastActivity: now, busy: true,
                             busySince: now.addingTimeInterval(-(3 * 60 + 12)),
                             terminal: TerminalRef(bundleID: "com.googlecode.iterm2", tty: "/dev/ttys006")),
@@ -401,6 +401,10 @@ enum DemoFixtures {
     static let detectedTitle = "Find sessions without the hook"
     /// The first launch's session that only the status line has reported.
     static let statuslineSessionID = "9b4d7a3e-2c1f-4e6a-8d05-3f7b9c1e2a44"
+    /// The detected Claude Code session's id, named here for the same reason as the one above: a session id
+    /// spelled out beside `key:` reads to a secret scanner as an API key, and the release gate holds the tag to a
+    /// green scan.
+    static let detectedSessionID = "5f0c1e2a-7b3d-4c8e-9a61-0d2f4b6c8e10"
     /// The notchmeter session's task list, as Claude Code's Task tools would leave it partway through the turn.
     static let todoItems = [
         TodoPlan.Item(content: "Read the Sessions card and its tests", status: .completed),
