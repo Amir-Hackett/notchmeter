@@ -806,7 +806,10 @@
 "Daily average" = "Trung bình mỗi ngày";
 "Daily spend" = "Chi tiêu theo ngày";
 "Day" = "Ngày";
-"Hover a bar for that day's figures." = "Di chuột lên một cột để xem số liệu ngày đó.";
+"Hover a bar for that day's figures; click it to keep them." = "Di chuột lên một cột để xem số liệu ngày đó; nhấp vào cột để giữ lại.";
+"Pinned" = "Đã ghim";
+"Unpin" = "Bỏ ghim";
+"Pins or unpins this day's figures under the chart" = "Ghim hoặc bỏ ghim số liệu ngày này bên dưới biểu đồ";
 "Limits" = "Giới hạn";
 "No usage recorded yet" = "Chưa có mức dùng nào";
 "Peak day" = "Ngày cao nhất";

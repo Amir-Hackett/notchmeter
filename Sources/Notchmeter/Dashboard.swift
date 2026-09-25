@@ -69,6 +69,9 @@ struct DashboardModel: Equatable {
     let peak: Day?
     let models: [CostShare]
     let projects: [CostShare]
+    /// The assistant behind each model row, for the row's colour: the one that spent most on the name in the
+    /// range, since Cursor's export can name the same model Claude Code's transcripts do. "Other" belongs to none.
+    let modelTools: [String: ToolID]
     let sources: [(tool: ToolID, source: CostSource)]
     /// The list prices behind the range's locally priced lines, for the footnote (PriceSource.line).
     let priceSources: Set<PriceSource>
@@ -79,9 +82,18 @@ struct DashboardModel: Equatable {
 
     var isEmpty: Bool { total <= 0 && days.allSatisfy { $0.total <= 0 } }
 
+    func tool(ofModel name: String) -> ToolID? { modelTools[name] }
+
+    /// The day a selection names, matched by calendar day: a hover reports the bar's own date and a pin holds it.
+    func day(_ date: Date?, calendar: Calendar = .current) -> Day? {
+        guard let date else { return nil }
+        return days.first { calendar.isDate($0.day, inSameDayAs: date) }
+    }
+
     static func == (lhs: DashboardModel, rhs: DashboardModel) -> Bool {
         lhs.range == rhs.range && lhs.tools == rhs.tools && lhs.days == rhs.days && lhs.total == rhs.total && lhs.today == rhs.today
             && lhs.dailyAverage == rhs.dailyAverage && lhs.averageSince == rhs.averageSince && lhs.peak == rhs.peak && lhs.models == rhs.models && lhs.projects == rhs.projects
+            && lhs.modelTools == rhs.modelTools
             && lhs.sources.map(\.tool) == rhs.sources.map(\.tool) && lhs.sources.map(\.source) == rhs.sources.map(\.source)
             && lhs.priceSources == rhs.priceSources
     }
@@ -140,14 +152,20 @@ struct DashboardModel: Equatable {
 
         var totals = RangeTotals()
         var todayTotals = RangeTotals()
+        var spenders: [String: (tool: ToolID, cost: Double)] = [:]
         for provider in providers {
-            totals.add(provider.totals(range.costRange))
+            let inRange = provider.totals(range.costRange)
+            totals.add(inRange)
             todayTotals.add(provider.totals(.today))
+            for (name, cost) in inRange.byModel where cost > (spenders[name]?.cost ?? 0) {
+                spenders[name] = (provider.tool, cost)
+            }
         }
         total = totals.cost
         self.today = todayTotals.cost
         models = totals.models
         projects = totals.projects
+        modelTools = spenders.mapValues(\.tool)
         priceSources = totals.priceSources
 
         peak = days.filter { $0.total > 0 }.max { ($0.total, $1.day) < ($1.total, $0.day) }
@@ -268,21 +286,139 @@ extension ToolID {
     }
 }
 
+/// The panel's look, borrowed for the dashboard's window so what it shares with the panel (CardBackground, Meter,
+/// the accent) draws here as it does there. The window follows the system appearance rather than the panel's
+/// theme: under Dark it borrows the black panel's look, under Light the Paper one, whose measured inks and marks
+/// are made for a light sheet; only the accent is the reader's own choice (Settings › Appearance › Theme), the one
+/// the Cost card's range control and the panel's Clear are drawn in. Solid either way, since a window has no
+/// desktop showing through it. The system's own accent is never used: it is the one colour on the Mac that says
+/// nothing about this app.
+enum DashboardLook {
+    /// The window's own ground under each appearance (`NSColor.windowBackgroundColor`, measured from the renders:
+    /// white under Light on macOS 26, #1E1E1E under Dark), which the audit holds the accent to: the panel's rules
+    /// measure against the black panel and the paper sheet, and a window is neither. Older releases drew the light
+    /// window a shade darker (#ECECEC), which `DashboardPresentation` holds the accent to as well.
+    static let darkWindow = RGB(hex: 0x1E1E1E)
+    static let lightWindow = RGB.white
+
+    static func look(dark: Bool, accent: PanelAccent, contrast: Bool) -> PanelLook {
+        PanelLook(theme: dark ? .black : .paper, material: .solid, accent: accent, contrast: contrast)
+    }
+
+    /// The accent's name on the look: the lifted or darkened one under Increase Contrast, as the panel's own views
+    /// choose it (the Cost card's range control, the line that says a session is waiting).
+    static func accentInk(contrast: Bool) -> PanelInk { contrast ? .accentContrast : .accent }
+
+    /// The accent as a mark on the window: the project bars and the band over the chart's chosen day.
+    static func accent(dark: Bool, accent: PanelAccent, contrast: Bool) -> RGB {
+        look(dark: dark, accent: accent, contrast: contrast).rgb(accentInk(contrast: contrast), role: .mark)
+    }
+
+    /// The accent as text on the window: the pin beside the chosen day's figures.
+    static func pin(dark: Bool, accent: PanelAccent, contrast: Bool) -> RGB {
+        look(dark: dark, accent: accent, contrast: contrast).rgb(accentInk(contrast: contrast), role: .text)
+    }
+}
+
+/// Which day the line under the chart describes: the pinned day while there is one, else the day under the
+/// pointer. A click pins, so the figures can be read with the pointer elsewhere or reached with no pointer at all;
+/// a hover only previews, and never moves a pin.
+struct DashboardSelection: Equatable {
+    private(set) var pinned: Date?
+    private(set) var hovered: Date?
+    let calendar: Calendar
+
+    init(calendar: Calendar = .current) {
+        self.calendar = calendar
+    }
+
+    var shown: Date? { pinned ?? hovered }
+    var isPinned: Bool { pinned != nil }
+
+    /// A click pins the day, or lets the pinned day go when it is the one clicked. Whether a day is pinned after.
+    @discardableResult
+    mutating func click(_ day: Date) -> Bool {
+        if let pinned, calendar.isDate(pinned, inSameDayAs: day) {
+            self.pinned = nil
+            return false
+        }
+        pinned = day
+        return true
+    }
+
+    /// The pointer entering or leaving a day's slot. Neighbouring slots report in either order as the pointer
+    /// crosses from one to the next, so a leave clears the preview only while it is still that day's.
+    mutating func hover(_ day: Date, inside: Bool) {
+        if inside {
+            hovered = day
+        } else if let hovered, calendar.isDate(hovered, inSameDayAs: day) {
+            self.hovered = nil
+        }
+    }
+
+    /// Escape, the Unpin button, or a change of range.
+    mutating func unpin() { pinned = nil }
+}
+
+/// The hero and the three tiles as they are printed: the range's total, the value line under it, and the average,
+/// the peak and today beside them. Pure, so the wording is pinned without a view.
+struct DashboardHero: Equatable {
+    struct Tile: Equatable {
+        let title: String
+        let value: String
+        let caption: String
+    }
+
+    let total: String
+    /// The range's name, the total's caption.
+    let range: String
+    /// The value framing (PlanValue): the range's API-equivalent dollars against what the plans behind them cost,
+    /// said only where both sides are known, and marked as the estimate it is. The week has no fee of its own, so
+    /// its line is the thirty days'.
+    let value: String?
+    let average: Tile
+    let peak: Tile
+    let today: Tile
+
+    init(model: DashboardModel, valueLine: String?, now: Date = Date(), calendar: Calendar = .current) {
+        total = Money.dollars(model.total, cents: false)
+        range = model.range.title
+        value = valueLine?.keepingHyphensWhole
+        // Named by its first day where the history starts inside the range, so a 90-day average over 39 days of
+        // history does not read as spread across all ninety.
+        let averageCaption = model.averageSince.map { L("per day since %@", ResetText.dayPhrase($0, now: now, calendar: calendar)) } ?? L("per calendar day")
+        average = Tile(title: L("Daily average"), value: model.dailyAverage.map { Money.dollars($0, cents: false) } ?? "—", caption: averageCaption)
+        peak = Tile(title: L("Peak day"), value: model.peak.map { Money.dollars($0.total, cents: false) } ?? "—",
+                    caption: model.peak.map { ResetText.dayPhrase($0.day, now: now, calendar: calendar) } ?? "")
+        today = Tile(title: L("Today"), value: Money.dollars(model.today, cents: false), caption: "")
+    }
+}
+
 struct DashboardView: View {
     let store: UsageStore
     @State private var range: DashboardRange
-    @State private var selectedDay: Date?
+    @State private var selection: DashboardSelection
+    @Environment(\.colorScheme) private var colorScheme
 
     /// Inside Settings, whose pane already carries the title: the header keeps its line, picker and refresh only.
     let embedded: Bool
     /// For the header's share button (NotchActions.openShareCard); nil in a render, which has no window to open.
     let actions: NotchActions?
+    /// Whether the sections sit in a scroll view, as they do in the window. A render lays them out bare, so the
+    /// hosting view's fitting size is the height of every section (AssetRenderer.dashboardImage).
+    let scrolls: Bool
 
-    init(store: UsageStore, range: DashboardRange = .week, embedded: Bool = false, actions: NotchActions? = nil) {
+    /// `pinned` is a day held under the chart from the start, for a render: a picture cannot click.
+    init(store: UsageStore, range: DashboardRange = .week, embedded: Bool = false, actions: NotchActions? = nil, scrolls: Bool = true,
+         pinned: Date? = nil) {
         self.store = store
         self.embedded = embedded
         self.actions = actions
+        self.scrolls = scrolls
         _range = State(initialValue: range)
+        var selection = DashboardSelection()
+        if let pinned { selection.click(pinned) }
+        _selection = State(initialValue: selection)
     }
 
     private var weekStart: Date {
@@ -295,37 +431,46 @@ struct DashboardView: View {
         let model = DashboardModel(providers: spendShown ? store.costSelection.providers : [], range: range, weekStart: weekStart,
                                    firstRecorded: store.cost?.firstUse)
         let limits = DashboardLimit.all(store: store)
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header
-                if !spendShown {
-                    Text(L("Spend is hidden in Settings, so only limits are shown."))
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                if model.isEmpty && limits.isEmpty {
-                    // With spend hidden the account may well have some: the note above says so, the empty state
-                    // would claim nothing was ever used.
-                    if spendShown { empty }
-                } else {
-                    if !model.isEmpty {
-                        tiles(model)
-                        // The value framing under the tiles (PlanValue): the range's API-equivalent dollars against
-                        // what the plans behind them cost, said only where both sides are known, and marked as the
-                        // estimate it is. The week has no fee of its own, so its line is the thirty days'.
-                        if let value = store.planValueLine(for: range.costRange) {
-                            Text(value.keepingHyphensWhole)
-                                .font(.caption).foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        chartSection(model)
-                    }
-                    if !limits.isEmpty { limitsSection(limits) }
-                    if !model.isEmpty { breakdownSection(model) }
-                    if !model.isEmpty { sourcesFootnote(model) }
-                }
+        // The panel's look for this appearance, so CardBackground, Meter and the accent draw here as they do there.
+        let dark = colorScheme == .dark
+        let contrast = AccessibilityDisplay.shared.contrast
+        let look = DashboardLook.look(dark: dark, accent: store.prefs.panelAccent, contrast: contrast)
+        let accent = DashboardLook.accent(dark: dark, accent: store.prefs.panelAccent, contrast: contrast).color
+        // A concrete colour for the chart's rule and grid: a hierarchical style inside a chart resolves against the
+        // chart's own foreground, which is the system accent, and the average came out blue.
+        let ink = look.inkColour(.secondary)
+        let content = VStack(alignment: .leading, spacing: 20) {
+            header
+            if !spendShown {
+                Text(L("Spend is hidden in Settings, so only limits are shown."))
+                    .font(.caption).foregroundStyle(Caption.style)
             }
-            .padding(24)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            if model.isEmpty && limits.isEmpty {
+                // With spend hidden the account may well have some: the note above says so, the empty state
+                // would claim nothing was ever used.
+                if spendShown { empty }
+            } else {
+                if !model.isEmpty {
+                    hero(DashboardHero(model: model, valueLine: store.planValueLine(for: range.costRange)))
+                    chartSection(model, accent: accent, ink: ink, pinMark: DashboardLook.pin(dark: dark, accent: store.prefs.panelAccent, contrast: contrast).color)
+                }
+                if !limits.isEmpty { limitsSection(limits) }
+                if !model.isEmpty { breakdownSection(model, accent: accent) }
+                if !model.isEmpty { sourcesFootnote(model) }
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .environment(\.panelLook, look)
+        .environment(\.density, store.prefs.density)
+        .onChange(of: range) {
+            // The chart is rebuilt for the new range, and a pin on a day its bars may not hold goes with it.
+            if selection.isPinned { unpin() }
+        }
+        if scrolls {
+            ScrollView { content }
+        } else {
+            content
         }
     }
 
@@ -333,10 +478,10 @@ struct DashboardView: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 if !embedded { Text(L("Usage")).font(.title2.weight(.semibold)) }
-                Text(updatedLine).font(.caption).foregroundStyle(.secondary)
+                Text(updatedLine).font(.caption).foregroundStyle(Caption.style)
                 // The rate every figure below was converted at, and its day, while *Fetch today's rate* is on.
                 if store.prefs.showSpend, let note = store.prefs.currencyConversion.note {
-                    Text(note).font(.caption).foregroundStyle(.secondary)
+                    Text(note).font(.caption).foregroundStyle(Caption.style)
                 }
             }
             Spacer()
@@ -378,45 +523,70 @@ struct DashboardView: View {
             .frame(maxWidth: .infinity, minHeight: 280)
     }
 
-    // MARK: Tiles
+    // MARK: Hero and tiles
 
-    private func tiles(_ model: DashboardModel) -> some View {
-        let peakValue = model.peak.map { Money.dollars($0.total, cents: false) } ?? "—"
-        let peakCaption = model.peak.map { ResetText.dayPhrase($0.day, now: Date(), calendar: .current) } ?? ""
-        let total = tile(L("Total"), Money.dollars(model.total, cents: false), caption: range.title)
-        // Named by its first day where the history starts inside the range, so a 90-day average over 39 days of
-        // history does not read as spread across all ninety.
-        let averageCaption = model.averageSince.map { L("per day since %@", ResetText.dayPhrase($0, now: Date(), calendar: .current)) } ?? L("per calendar day")
-        let average = tile(L("Daily average"), model.dailyAverage.map { Money.dollars($0, cents: false) } ?? "—", caption: averageCaption)
-        let peak = tile(L("Peak day"), peakValue, caption: peakCaption)
-        let today = tile(L("Today"), Money.dollars(model.today, cents: false), caption: "")
-        // One row where the captions fit on a line, two rows of two where a narrow window or a longer language
-        // would cut them short.
+    /// The total with the value line, and the three smaller figures beside it where the row fits (the window's own
+    /// width, DashboardWindowController.contentSize) or under it where a narrow window or a longer language would
+    /// cut a caption short (its minimum width).
+    private func hero(_ figures: DashboardHero) -> some View {
+        let total = heroCard(figures)
+        let average = tile(figures.average)
+        let peak = tile(figures.peak)
+        let today = tile(figures.today)
         return ViewThatFits(in: .horizontal) {
-            HStack(spacing: 12) { total; average; peak; today }
-            Grid(horizontalSpacing: 12, verticalSpacing: 12) {
-                GridRow { total; average }
-                GridRow { peak; today }
+            HStack(alignment: .top, spacing: 12) {
+                // First claim on the width: the tiles take what their captions need and the total the rest.
+                total.layoutPriority(1)
+                average
+                peak
+                today
+            }
+            VStack(alignment: .leading, spacing: 12) {
+                total
+                HStack(alignment: .top, spacing: 12) {
+                    average
+                    peak
+                    today
+                }
             }
         }
     }
 
-    private func tile(_ title: String, _ value: String, caption: String) -> some View {
+    /// The range's total, the one figure the page is about, in the largest type on it; the range under it, and
+    /// under that the value framing, in the same card because the two are one thought: what was spent, and what
+    /// that spend is worth against the plan.
+    private func heroCard(_ figures: DashboardHero) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.title3.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
-            Text(caption.isEmpty ? " " : caption).font(.caption2).foregroundStyle(.secondary).lineLimit(1).fixedSize()
+            Text(L("Total")).font(.caption).foregroundStyle(Caption.style)
+            Text(figures.total).font(.largeTitle.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+            Text(figures.range).font(.caption).foregroundStyle(Caption.style)
+            if let value = figures.value {
+                Text(value)
+                    .font(.subheadline).foregroundStyle(Caption.style)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+            }
         }
-        .frame(minWidth: 110, maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 10).fill(.quaternary.opacity(0.5)))
+        .frame(minWidth: 200, idealWidth: 200, maxWidth: .infinity, alignment: .leading)
+        .modifier(CardBackground())
+        .accessibilityElement(children: .combine)
+    }
+
+    private func tile(_ tile: DashboardHero.Tile) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(tile.title).font(.caption).foregroundStyle(Caption.style)
+            Text(tile.value).font(.title2.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+            Text(tile.caption.isEmpty ? " " : tile.caption).modifier(Caption()).lineLimit(1).fixedSize()
+        }
+        .frame(minWidth: 100, maxWidth: .infinity, alignment: .leading)
+        .modifier(CardBackground())
         .accessibilityElement(children: .combine)
     }
 
     // MARK: Chart
 
-    private func chartSection(_ model: DashboardModel) -> some View {
-        let selected = selectedDay.flatMap { day in model.days.first { Calendar.current.isDate($0.day, inSameDayAs: day) } }
+    private func chartSection(_ model: DashboardModel, accent: Color, ink: Color, pinMark: Color) -> some View {
+        let shown = model.day(selection.shown, calendar: selection.calendar)
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 sectionTitle(L("Daily spend"))
@@ -426,8 +596,8 @@ struct DashboardView: View {
                 HStack(spacing: 12) {
                     if let average = model.dailyAverage {
                         HStack(spacing: 5) {
-                            Line().stroke(Color.secondary, style: StrokeStyle(lineWidth: 1, dash: [3, 2])).frame(width: 14, height: 1)
-                            Text(L("avg %@", Money.dollars(average, cents: false))).font(.caption).foregroundStyle(.secondary)
+                            Line().stroke(ink, style: StrokeStyle(lineWidth: 1, dash: [3, 2])).frame(width: 14, height: 1)
+                            Text(L("avg %@", Money.dollars(average, cents: false))).font(.caption).foregroundStyle(Caption.style)
                         }
                     }
                     if model.tools.count > 1 { legend(model.tools) }
@@ -435,17 +605,43 @@ struct DashboardView: View {
             }
             // Rebuilt per range: Swift Charts in this hosting view kept drawing the previous range's marks and scale
             // until the window was resized, while the tiles above had already moved on.
-            DailySpendChart(model: model, selected: selected, selection: $selectedDay)
+            DailySpendChart(model: model, shown: shown, pinned: selection.isPinned, accent: accent, ink: ink, calendar: selection.calendar,
+                            hover: { day, inside in selection.hover(day, inside: inside) }, click: click)
                 .id(range)
                 .frame(height: 220)
-            Text(selected.map(Self.dayLine) ?? L("Hover a bar for that day's figures."))
-                .font(.caption).foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            dayLine(shown, pinMark: pinMark)
         }
         .accessibilityElement(children: .contain)
     }
 
-    private static func dayLine(_ day: DashboardModel.Day) -> String {
+    /// The line under the chart: the pinned day's figures with a pin and the way out, the hovered day's while
+    /// nothing is pinned, else how to get either. The pin is a symbol and a word, not a colour: the band over the
+    /// bars is the same accent for a hover and a pin, only stronger.
+    @ViewBuilder
+    private func dayLine(_ day: DashboardModel.Day?, pinMark: Color) -> some View {
+        if let day, selection.isPinned {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Image(systemName: "pin.fill").foregroundStyle(pinMark)
+                    Text(Self.dayLine(day))
+                }
+                .font(.caption).foregroundStyle(Caption.style)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(L("Pinned"))
+                .accessibilityValue(Spoken.phrase(Self.dayLine(day)))
+                Button(L("Unpin"), action: unpin)
+                    .controlSize(.small)
+                    .keyboardShortcut(.cancelAction)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            Text(day.map(Self.dayLine) ?? L("Hover a bar for that day's figures; click it to keep them."))
+                .font(.caption).foregroundStyle(Caption.style)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    static func dayLine(_ day: DashboardModel.Day) -> String {
         var parts = [ResetText.dayPhrase(day.day, now: Date(), calendar: .current), Money.dollars(day.total)]
         // The Today tile counts the whole day; this bar only what came after the week reset.
         if day.partial { parts.append(L("since the week reset")) }
@@ -455,12 +651,23 @@ struct DashboardView: View {
         return parts.joined(separator: " · ")
     }
 
+    private func click(_ day: Date) {
+        let pinned = selection.click(day)
+        Oracle.shared.emit("dashboard", ["action": pinned ? "pinned" : "unpinned", "day": CostHistory.key(day, calendar: selection.calendar)])
+    }
+
+    private func unpin() {
+        guard let day = selection.pinned else { return }
+        selection.unpin()
+        Oracle.shared.emit("dashboard", ["action": "unpinned", "day": CostHistory.key(day, calendar: selection.calendar)])
+    }
+
     private func legend(_ tools: [ToolID]) -> some View {
         HStack(spacing: 12) {
             ForEach(tools, id: \.self) { tool in
                 HStack(spacing: 5) {
                     RoundedRectangle(cornerRadius: 2).fill(tool.chartColor).frame(width: 10, height: 10)
-                    Text(tool.displayName).font(.caption).foregroundStyle(.secondary)
+                    Text(tool.displayName).font(.caption).foregroundStyle(Caption.style)
                 }
             }
         }
@@ -478,21 +685,24 @@ struct DashboardView: View {
                         .padding(.vertical, 10)
                 }
             }
-            .padding(.horizontal, 12)
-            .background(RoundedRectangle(cornerRadius: 10).fill(.quaternary.opacity(0.5)))
+            .modifier(CardBackground())
         }
     }
 
     // MARK: Breakdown
 
-    private func breakdownSection(_ model: DashboardModel) -> some View {
+    private func breakdownSection(_ model: DashboardModel, accent: Color) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionTitle(L("Where it went"))
             HStack(alignment: .top, spacing: 16) {
-                ShareList(title: L("By model"), shares: model.models, total: model.total, name: ModelNames.display)
-                // Cursor's export names no folder, so its spend has no project: said as a row, or the shares stop
-                // short of 100% with nothing to say where the rest went.
-                ShareList(title: L("By project"), shares: model.projects, total: model.total, name: { $0 }, remainder: L("No project"))
+                // A model's bar in its assistant's own colour, as the chart's bars and the legend are.
+                ShareList(title: L("By model"), shares: model.models, total: model.total, name: ModelNames.display,
+                          fill: { share in model.tool(ofModel: share.name).map { AnyShapeStyle($0.chartColor) } ?? AnyShapeStyle(Ink.secondary) })
+                // A project is no assistant's, so its bar takes the app's own accent. Cursor's export names no
+                // folder, so its spend has no project: said as a row, or the shares stop short of 100% with nothing
+                // to say where the rest went.
+                ShareList(title: L("By project"), shares: model.projects, total: model.total, name: { $0 },
+                          fill: { _ in AnyShapeStyle(accent) }, remainder: L("No project"))
             }
         }
     }
@@ -508,8 +718,7 @@ struct DashboardView: View {
                 Text(prices)
             }
         }
-        .font(.caption2)
-        .foregroundStyle(.secondary)
+        .modifier(Caption())
     }
 
     private func sectionTitle(_ text: String) -> some View {
@@ -527,16 +736,24 @@ private struct Line: Shape {
     }
 }
 
-/// Stacked daily bars, one colour per assistant, with a dashed line at the daily average and a hover rule.
+/// Stacked daily bars, one colour per assistant, a dashed line at the daily average, and a band in the accent over
+/// the day whose figures are under the chart, stronger while that day is pinned. The bars themselves say nothing to
+/// VoiceOver: an invisible element over each day's slot speaks for them (the day, the total, the split) and takes
+/// the hover and the click, so what a pointer can pin a VoiceOver reader can pin too, and no figure is hover-only.
 private struct DailySpendChart: View {
     let model: DashboardModel
-    let selected: DashboardModel.Day?
-    @Binding var selection: Date?
+    let shown: DashboardModel.Day?
+    let pinned: Bool
+    let accent: Color
+    /// The secondary ink as a colour, for the average's rule and, faintly, the grid.
+    let ink: Color
+    let calendar: Calendar
+    let hover: (Date, Bool) -> Void
+    let click: (Date) -> Void
 
     /// The whole span, the week included when only part of it has happened: seven slots whatever day it is, so a
     /// Monday's one bar is a seventh of the width and the empty days read as still to come.
     private var xDomain: ClosedRange<Date> {
-        let calendar = Calendar.current
         guard let first = model.days.first?.day, let last = model.days.last?.day else { return Date()...Date() }
         let end = model.range == .week ? max(last, calendar.date(byAdding: .day, value: 6, to: first) ?? last) : last
         return first...(calendar.date(byAdding: .day, value: 1, to: end) ?? end)
@@ -552,25 +769,28 @@ private struct DailySpendChart: View {
 
     var body: some View {
         Chart {
+            if let shown {
+                // First, so it lies under the bars.
+                RectangleMark(x: .value(L("Day"), shown.day, unit: .day))
+                    .foregroundStyle(accent.opacity(pinned ? 0.3 : 0.16))
+            }
             ForEach(model.bars) { bar in
                 BarMark(x: .value(L("Day"), bar.day, unit: .day), y: .value(L("Spend"), bar.cost))
                     .foregroundStyle(by: .value(L("Assistant"), bar.tool.displayName))
-                    .opacity(selected.map { Calendar.current.isDate(bar.day, inSameDayAs: $0.day) } ?? true ? 1 : 0.45)
-                    .accessibilityLabel(ResetText.dayPhrase(bar.day, now: Date(), calendar: .current))
-                    .accessibilityValue("\(bar.tool.displayName) \(Money.dollars(bar.cost))")
+                    .opacity(shown.map { calendar.isDate(bar.day, inSameDayAs: $0.day) } ?? true ? 1 : 0.45)
+                    .accessibilityHidden(true)
             }
             if let average = model.dailyAverage {
                 RuleMark(y: .value(L("Daily average"), average))
-                    .foregroundStyle(Color.secondary)
+                    .foregroundStyle(ink)
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
             }
         }
         .chartForegroundStyleScale(domain: model.tools.map(\.displayName), range: model.tools.map(\.chartColor))
         .chartLegend(.hidden)
-        .chartXSelection(value: $selection)
         .chartYAxis {
             AxisMarks(position: .leading) { value in
-                AxisGridLine().foregroundStyle(.quaternary)
+                AxisGridLine().foregroundStyle(ink.opacity(0.3))
                 AxisValueLabel {
                     if let amount = value.as(Double.self) { Text(Money.dollars(amount, cents: false)) }
                 }
@@ -580,20 +800,50 @@ private struct DailySpendChart: View {
         .chartXAxis {
             if model.range == .week {
                 AxisMarks(values: .stride(by: .day)) { _ in
-                    AxisGridLine().foregroundStyle(.quaternary)
+                    AxisGridLine().foregroundStyle(ink.opacity(0.3))
                     AxisValueLabel(format: .dateTime.weekday(.abbreviated).day(), centered: true)
                 }
             } else {
                 AxisMarks(values: axisDays) { _ in
-                    AxisGridLine().foregroundStyle(.quaternary)
+                    AxisGridLine().foregroundStyle(ink.opacity(0.3))
                     AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                }
+            }
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                if let anchor = proxy.plotFrame {
+                    let plot = geometry[anchor]
+                    ForEach(model.days) { day in
+                        if let start = proxy.position(forX: day.day), let next = calendar.date(byAdding: .day, value: 1, to: day.day),
+                           let end = proxy.position(forX: next) {
+                            daySlot(day, in: CGRect(x: plot.minX + start, y: plot.minY, width: max(1, end - start), height: plot.height))
+                        }
+                    }
                 }
             }
         }
         .accessibilityLabel(L("Daily spend"))
         .accessibilityValue(model.days.filter { $0.total > 0 }.map {
-            "\(ResetText.dayPhrase($0.day, now: Date(), calendar: .current)) \(Money.dollars($0.total, cents: false))"
+            "\(ResetText.dayPhrase($0.day, now: Date(), calendar: calendar)) \(Money.dollars($0.total, cents: false))"
         }.joined(separator: ", "))
+    }
+
+    /// One day's slot, the plot's full height: the hover and click target, and the element VoiceOver reads and acts on.
+    private func daySlot(_ day: DashboardModel.Day, in frame: CGRect) -> some View {
+        let isPinned = pinned && shown?.id == day.id
+        return Color.clear
+            .contentShape(Rectangle())
+            .frame(width: frame.width, height: frame.height)
+            .position(x: frame.midX, y: frame.midY)
+            .onHover { inside in hover(day.day, inside) }
+            .onTapGesture { click(day.day) }
+            .accessibilityElement()
+            .accessibilityAction { click(day.day) }
+            .accessibilityLabel(ResetText.dayPhrase(day.day, now: Date(), calendar: calendar))
+            .accessibilityValue(Spoken.line(isPinned ? L("Pinned") : nil, DashboardView.dayLine(day)))
+            .accessibilityHint(L("Pins or unpins this day's figures under the chart"))
+            .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -616,33 +866,22 @@ private struct LimitRow: View {
                 Spacer()
                 Text(L("%ld%% used", Int((limit.used * 100).rounded()))).font(.subheadline).monospacedDigit()
             }
-            GeometryReader { geometry in
-                let width = geometry.size.width
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.quaternary).frame(height: 8)
-                    Capsule().fill(fillColor).frame(width: limit.used > 0 ? max(6, width * CGFloat(min(1, limit.used))) : 0, height: 8)
-                    if let elapsed = limit.elapsed {
-                        Rectangle().fill(.primary.opacity(0.75)).frame(width: 2, height: 14)
-                            .offset(x: Meter.tickOffset(width: width, tick: elapsed))
-                    }
-                }
-                .frame(height: 14)
-            }
-            .frame(height: 14)
-            .environment(\.layoutDirection, .leftToRight)
-            .help(limit.elapsed.map { L("The tick marks an even pace: %ld%% of the window has passed", Int(($0 * 100).rounded())) } ?? "")
+            // The panel's own meter (the bar under every window on the cards): the fill in the pace colour or the
+            // tool's own, the tick where an even burn would be now, the track the look gives it.
+            Meter(fraction: limit.used, tick: limit.elapsed, color: fillColor)
+                .help(limit.elapsed.map { L("The tick marks an even pace: %ld%% of the window has passed", Int(($0 * 100).rounded())) } ?? "")
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 if let reset = limit.window.resetsAt {
                     Text(ResetText.line(resetsAt: reset, hasLimit: true, display: .exact, timeFormat: timeFormat, stale: limit.staleLine != nil))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Caption.style)
                 }
                 if let line = limit.allowanceLine {
-                    Text(verbatim: "·").foregroundStyle(.tertiary)
+                    Text(verbatim: "·").foregroundStyle(Ink.tertiary)
                     if limit.used >= 1 {
                         // The spent bar is vermillion; the words and a symbol say why, never the fill alone.
-                        Label(line, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Palette.danger)
+                        Label(line, systemImage: "exclamationmark.triangle.fill").foregroundStyle(Themed(Palette.danger, .text))
                     } else {
-                        Text(line).foregroundStyle(.secondary)
+                        Text(line).foregroundStyle(Caption.style)
                     }
                 }
             }
@@ -651,10 +890,10 @@ private struct LimitRow: View {
             if let note = limit.note, let status = limit.status, let symbol = status.symbolName {
                 Label(note, systemImage: symbol)
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(status == .behind ? Palette.danger : Palette.warn)
+                    .foregroundStyle(Themed(status == .behind ? Palette.danger : Palette.warn, .text))
             }
             if let stale = limit.staleLine {
-                Text(stale).font(.caption).foregroundStyle(.secondary)
+                Text(stale).font(.caption).foregroundStyle(Caption.style)
             }
         }
         .accessibilityElement(children: .combine)
@@ -666,6 +905,9 @@ private struct ShareList: View {
     let shares: [CostShare]
     let total: Double
     let name: (String) -> String
+    /// The colour of a named row's bar: the assistant's own for a model, the accent for a project. "Other" and the
+    /// remainder are nobody's and draw in the caption's grey.
+    let fill: (CostShare) -> AnyShapeStyle
     /// The label for spend none of the shares account for; nil where the shares always add up to the total.
     var remainder: String? = nil
 
@@ -680,11 +922,15 @@ private struct ShareList: View {
         share.name == CostShare.other ? L("Other") : share.name == remainder ? share.name : name(share.name)
     }
 
+    private func bar(_ share: CostShare) -> AnyShapeStyle {
+        share.name == CostShare.other || share.name == remainder ? AnyShapeStyle(Ink.secondary) : fill(share)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(title).font(.caption).foregroundStyle(Caption.style)
             if rows.isEmpty {
-                Text(verbatim: "—").font(.caption).foregroundStyle(.secondary)
+                Text(verbatim: "—").font(.caption).foregroundStyle(Caption.style)
             }
             ForEach(rows) { share in
                 let fraction = total > 0 ? share.cost / total : 0
@@ -692,11 +938,11 @@ private struct ShareList: View {
                     HStack {
                         Text(label(share)).font(.caption).lineLimit(1).truncationMode(.middle).help(label(share))
                         Spacer(minLength: 8)
-                        Text(verbatim: "\(Int((fraction * 100).rounded()))%").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                        Text(verbatim: "\(Int((fraction * 100).rounded()))%").font(.caption).foregroundStyle(Caption.style).monospacedDigit()
                         Text(Money.dollars(share.cost, cents: false)).font(.caption).monospacedDigit().frame(minWidth: 56, alignment: .trailing)
                     }
                     GeometryReader { geometry in
-                        Capsule().fill(Color.accentColor.opacity(0.7))
+                        Capsule().fill(bar(share))
                             .frame(width: max(2, geometry.size.width * CGFloat(fraction)))
                     }
                     .frame(height: 4)
@@ -705,8 +951,7 @@ private struct ShareList: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 10).fill(.quaternary.opacity(0.5)))
+        .modifier(CardBackground())
     }
 }
 
@@ -715,6 +960,8 @@ private struct ShareList: View {
 @MainActor
 final class DashboardWindowController: NSWindowController {
     nonisolated static let contentSize = NSSize(width: 720, height: 760)
+    /// The narrowest the window goes: the width at which the hero's tiles move under the total (DashboardView.hero).
+    nonisolated static let minSize = NSSize(width: 560, height: 480)
 
     private let prefs: Preferences
     private var panelLevel: NSWindow.Level?
@@ -730,7 +977,7 @@ final class DashboardWindowController: NSWindowController {
         panel.contentView = host
         panel.setContentSize(Self.contentSize)
         // Content, not frame: the frame's minimum includes the title bar and left the view 28 pt short of its own.
-        panel.contentMinSize = NSSize(width: 560, height: 480)
+        panel.contentMinSize = Self.minSize
         panel.level = .floating
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false

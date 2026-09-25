@@ -823,7 +823,10 @@
 "Daily average" = "Daily average";
 "Daily spend" = "Daily spend";
 "Day" = "Day";
-"Hover a bar for that day's figures." = "Hover a bar for that day's figures.";
+"Hover a bar for that day's figures; click it to keep them." = "Hover a bar for that day's figures; click it to keep them.";
+"Pinned" = "Pinned";
+"Unpin" = "Unpin";
+"Pins or unpins this day's figures under the chart" = "Pins or unpins this day's figures under the chart";
 "Limits" = "Limits";
 "No usage recorded yet" = "No usage recorded yet";
 "Peak day" = "Peak day";

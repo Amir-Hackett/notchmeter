@@ -823,7 +823,10 @@
 "Daily average" = "В среднем за день";
 "Daily spend" = "Расходы за день";
 "Day" = "День";
-"Hover a bar for that day's figures." = "Наведите на столбец, чтобы увидеть данные за этот день.";
+"Hover a bar for that day's figures; click it to keep them." = "Наведите на столбец, чтобы увидеть данные за этот день; щёлкните по нему, чтобы закрепить их.";
+"Pinned" = "Закреплено";
+"Unpin" = "Открепить";
+"Pins or unpins this day's figures under the chart" = "Закрепляет или открепляет данные этого дня под диаграммой";
 "Limits" = "Лимиты";
 "No usage recorded yet" = "Использование ещё не записано";
 "Peak day" = "Пиковый день";

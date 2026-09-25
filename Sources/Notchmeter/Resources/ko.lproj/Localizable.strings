@@ -806,7 +806,10 @@
 "Daily average" = "일평균";
 "Daily spend" = "일별 지출";
 "Day" = "일";
-"Hover a bar for that day's figures." = "막대에 포인터를 올리면 그날의 수치가 표시됩니다.";
+"Hover a bar for that day's figures; click it to keep them." = "막대에 포인터를 올리면 그날의 수치가 표시됩니다. 클릭하면 고정됩니다.";
+"Pinned" = "고정됨";
+"Unpin" = "고정 해제";
+"Pins or unpins this day's figures under the chart" = "이 날의 수치를 차트 아래에 고정하거나 고정을 해제합니다";
 "Limits" = "한도";
 "No usage recorded yet" = "아직 사용 기록이 없습니다";
 "Peak day" = "최고 지출일";
