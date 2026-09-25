@@ -252,6 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self, self.prefs.jumpToTerminal else { return }
             self.jumper.jump(session)
         }
+        actions.offerHook = { [weak self] tool in self?.offerHook(for: tool) }
         requests.rootsChanged = { [weak self] in self?.store.reloadRoots() }
         requests.menuBarChanged = { [weak self] in self?.applyMenuBarItem() }
         requests.hotkeysChanged = { [weak self] in self?.registerHotkeys() }
@@ -322,8 +323,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 actions.checkForUpdates = { updater.checkForUpdates() }
             }
             autoRepairHooks()
-            store.hooksInstalled = HookSettings.anyInstalled()
-            store.openCodePluginInstalled = HookSettings.status(vendor: .opencode) != .notInstalled
+            store.hookInstalledTools = HookSettings.installedTools()
+            store.hooksInstalled = !store.hookInstalledTools.isEmpty
             if Translocation.shouldOffer(bundlePath: Bundle.main.bundlePath) {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(1))
@@ -506,6 +507,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         welcomeObserver = nil
         welcome = nil
         reopenPendingPrompt()
+    }
+
+    /// The Sessions card's upgrade line (SessionsCard, a row found without the hook): the hook's own install flow,
+    /// never an install. For Claude Code the offer sheet the first launch raises, over Integrations; for any other
+    /// assistant Integrations itself, where its row's Add button is the installer. Either way the file is written
+    /// only on the user's click there, after the usual backup (HookSettings.install).
+    private func offerHook(for tool: ToolID) {
+        if tool == .claude, HookSettings.status() == .notInstalled { requests.hookOffer = true }
+        showSettings(pane: .integrations)
     }
 
     /// What the Welcome's install button asks for: the hook offer sheet where the hook is not installed, and the
@@ -751,7 +761,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// "Keeping awake · 2 sessions", or the repair note, whichever is current.
     private func refreshFooterNote() {
         if store.keepingAwake {
-            store.setFooterNote(AwakeRule.footer(working: store.sessions.working.count))
+            store.setFooterNote(AwakeRule.footer(working: store.sessions.hookWorking.count))
         } else if store.footerNote?.hasPrefix(L("Keeping awake")) == true {
             store.setFooterNote(nil)
         }
@@ -1004,13 +1014,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Oracle
 
     /// The Sessions card as it would draw now: whether it is on the panel, and its rows in order with their group,
-    /// status and counts (SessionsCard.oracleRows), so grouping, the gauge and the chips can be checked without a
-    /// screenshot. An empty `rows` with `shown` true is the card's empty state.
+    /// status, source and counts (SessionsCard.oracleRows), so grouping, the gauge and the chips can be checked
+    /// without a screenshot. An empty `rows` with `shown` true is the card's empty state. `upgrade` names the
+    /// assistant the card's upgrade line offers the hook for, or is null when the line is not drawn.
     private func sessionsCardFields() -> [String: Any] {
         let all = store.sessions.all
         let rows = SessionsCard.rows(all, hideTitles: true, jump: prefs.jumpToTerminal, now: Date())
         return ["shown": prefs.sessionsCard && (store.sessions.count > 0 || store.hooksInstalled),
-                "rows": SessionsCard.oracleRows(SessionsCard.groups(rows.rows, sessions: all)), "more": rows.more]
+                "rows": SessionsCard.oracleRows(SessionsCard.groups(rows.rows, sessions: all)), "more": rows.more,
+                "upgrade": SessionsCard.upgradeTool(rows.rows, installed: store.hookInstalledTools)?.rawValue as Any]
     }
 
     /// Each assistant's page switches as they take effect, the app-wide switches included: whether its sessions are
@@ -1119,7 +1131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         Probe.emit("tool order: \(prefs.toolOrder.map(\.rawValue).joined(separator: ", ")); visible: \(store.visibleTools.map(\.rawValue).joined(separator: ", "))")
         Probe.emit("polling: \(store.scheduleDescription())")
-        Probe.emit("presence: \(store.presence); sessions: \(store.sessions.count) (\(store.sessions.agentCount) agents); reduce motion: \(AccessibilityDisplay.shared.motionReduced); keep awake: \(prefs.keepAwake) holding=\(store.keepingAwake)")
+        Probe.emit("presence: \(store.presence); sessions: \(store.sessions.count) (\(store.sessions.agentCount) agents, \(store.sessions.all.filter(\.isDetected).count) detected without the hook; scan \(prefs.detectSessions ? store.detectionInterval().map { "every \(Int($0)) s" } ?? "paused" : "off")); reduce motion: \(AccessibilityDisplay.shared.motionReduced); keep awake: \(prefs.keepAwake) holding=\(store.keepingAwake)")
         let signals = ToolID.allCases.compactMap { tool in store.signal(tool).map { "\(tool.rawValue) \($0)" } }
         Probe.emit("signals: \(signals.isEmpty ? "none" : signals.joined(separator: ", ")); ring colouring: \(prefs.signalRings ? "on" : "off"); finished held \(Int(ToolSignal.heldFor))s over \(Int(ToolSignal.finishedAfter))s")
         if let cost = store.cost {

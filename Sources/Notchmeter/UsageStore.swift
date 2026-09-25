@@ -88,7 +88,8 @@ final class UsageStore {
     private(set) var lowPowerMode = false
     /// When each tool's files last changed, or its hook last fired (every assistant's).
     private(set) var lastActivity: [ToolID: Date] = [:]
-    /// The sessions the hooks report, each under its tool, and which are waiting on the user.
+    /// The sessions the hooks report and the ones the scan found without them, each under its tool, and which are
+    /// waiting on the user.
     private(set) var sessions = SessionTracker()
     /// The newest status-line payload from Claude Code, while a session runs.
     private(set) var statusline: Statusline.Message?
@@ -105,10 +106,13 @@ final class UsageStore {
     /// again whenever Settings looks), so the Sessions card can say "no sessions" rather than vanish before the
     /// first event arrives. A cached answer, because the view must not read files as it draws.
     var hooksInstalled = false
-    /// Whether OpenCode's plugin file is in place, read at launch and whenever Settings looks, for the one line the
-    /// Sessions card adds under rows read from OpenCode's database: with the file there, the rows are waiting for
-    /// OpenCode to restart and load it rather than for the user to add it.
-    var openCodePluginInstalled = false
+    /// Which assistants' files carry Notchmeter's hook, current or not, cached where `hooksInstalled` is: the
+    /// Sessions card offers the hook (its upgrade line) only for a detected row whose assistant has none.
+    var hookInstalledTools: Set<ToolID> = []
+    /// Whether OpenCode's plugin file is in place, for the one line the Sessions card adds under rows read from
+    /// OpenCode's database: with the file there, the rows are waiting for OpenCode to restart and load it rather
+    /// than for the user to add it.
+    var openCodePluginInstalled: Bool { hookInstalledTools.contains(.opencode) }
     /// One line the footer shows beside the schedule: a hook repaired at launch, the awake assertion held.
     private(set) var footerNote: String?
     /// Extra-usage credits rose since the last reading (kept for an hour, for the advice strip).
@@ -279,6 +283,11 @@ final class UsageStore {
     @ObservationIgnored private var promptHolds: [String: Task<Void, Never>] = [:]
     /// The working-session count changed, or the power source did; the app applies the awake assertion.
     @ObservationIgnored var awakeChanged: (Bool) -> Void = { _ in }
+    /// The hook-free tier (SessionDetection): the scanner, its loop while *Find sessions without the hook* is on,
+    /// and whether the last scan saw any assistant running, which is what sets how soon the next one is.
+    @ObservationIgnored private let detector = SessionDetector()
+    @ObservationIgnored private var detectionLoop: Task<Void, Never>?
+    @ObservationIgnored private var detectionRunning = false
 
     static let costInterval: TimeInterval = 60
     static let hookRefreshSpacing: TimeInterval = 30
@@ -587,6 +596,7 @@ final class UsageStore {
         startResetTimer()
         startOpenCodeWatch()
         observeEnvironment()
+        observeDetection()
     }
 
     /// Titles off is titles gone: the titles and session names the tracker already holds are cleared the moment
@@ -1414,6 +1424,75 @@ final class UsageStore {
         }
     }
 
+    // MARK: - Sessions found without the hook
+
+    /// Starts or stops the scan as *Find sessions without the hook* says, taking the rows it found off the list
+    /// when it is turned off. The tracking is one-shot, so it re-arms; only the preference is read inside it.
+    private func observeDetection() {
+        let on = withObservationTracking {
+            prefs.detectSessions
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeDetection() }
+        }
+        if on { startDetection() } else { stopDetection() }
+    }
+
+    /// The scan's loop (SessionDetector), off the main thread for the scan itself and back on it for the tracker.
+    /// It waits out whatever `detectionInterval` says, and while that is nil (nobody can see the screen) it only
+    /// looks again at the discovery pace, scanning nothing.
+    private func startDetection() {
+        guard detectionLoop == nil else { return }
+        detectionLoop = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                guard self.detectionInterval() != nil else {
+                    try? await Task.sleep(for: .seconds(SessionDetection.discoveryInterval))
+                    continue
+                }
+                let scan = await self.detector.scan(titles: self.prefs.sessionTitles && !self.hidesFigures)
+                guard !Task.isCancelled else { return }
+                self.detectionReceived(scan.sessions, running: scan.running)
+                try? await Task.sleep(for: .seconds(self.detectionInterval() ?? SessionDetection.discoveryInterval))
+            }
+        }
+    }
+
+    private func stopDetection() {
+        detectionLoop?.cancel()
+        detectionLoop = nil
+        detectionReceived([], running: false)
+    }
+
+    /// Seconds to the next scan (SessionDetection.interval): three while an assistant runs and fifteen while none
+    /// does, doubled on battery or in Low Power Mode, and nil while the Mac or its displays sleep, the screen is
+    /// locked or another user's session is in front.
+    func detectionInterval() -> TimeInterval? {
+        SessionDetection.interval(running: detectionRunning, paused: asleep || screenLocked || screensAsleep || sessionInactive,
+                                  onBattery: onBattery, lowPower: lowPowerMode)
+    }
+
+    /// One scan's rows into the tracker (SessionTracker.detected), written back only when they changed something,
+    /// as the sweep is (`sweepSessions`): a scan every three seconds that republished an unchanged tracker would
+    /// lay out every panel as often. The oracle hears what changed and never a title or a path.
+    func detectionReceived(_ found: [DetectedSession], running: Bool = true, now: Date = Date()) {
+        detectionRunning = running
+        var tracker = sessions
+        let change = tracker.detected(found, now: now)
+        if tracker != sessions {
+            sessions = tracker
+            pruneOpenSessionLists()
+        }
+        if !change.isEmpty {
+            Oracle.shared.emit("detection", Self.detectionFields(added: change.added, removed: change.removed, working: change.working))
+        }
+    }
+
+    /// The oracle's `detection` line: the rows a scan added and took off, the detected rows working, and the ones a
+    /// hook's event took over (`adopted`); ids only.
+    nonisolated static func detectionFields(added: [String] = [], removed: [String] = [], working: [String], adopted: [String] = []) -> [String: Any] {
+        ["added": added, "removed": removed, "working": working, "adopted": adopted]
+    }
+
     private func sampleEnvironment() async {
         let activity = self.activity
         var sampled = await Task.detached(priority: .utility) { activity.sample() }.value
@@ -1606,7 +1685,7 @@ final class UsageStore {
 
     /// The rule in AwakeKeeper.swift over the working sessions and the power source; the app holds the assertion.
     func applyAwake() {
-        let hold = AwakeRule.shouldHold(working: sessions.working.count, enabled: prefs.keepAwake, onBattery: onBattery, allowOnBattery: prefs.keepAwakeOnBattery)
+        let hold = AwakeRule.shouldHold(working: sessions.hookWorking.count, enabled: prefs.keepAwake, onBattery: onBattery, allowOnBattery: prefs.keepAwakeOnBattery)
         guard hold != keepingAwake else { return }
         keepingAwake = hold
         awakeChanged(hold)
@@ -1653,7 +1732,14 @@ final class UsageStore {
         lastHook[tool] = now
         lastActivity[tool] = now
         wokeAt = now
+        let scannedBefore = sessions.scanned
         let outcome = sessions.apply(message, now: now)
+        // A row the scan found that this event took over, by id or as its project's twin (SessionTracker.detected).
+        let adopted = scannedBefore.subtracting(sessions.scanned)
+        if !adopted.isEmpty {
+            Oracle.shared.emit("detection", Self.detectionFields(working: sessions.all.filter { $0.isDetected && $0.isWorking }.map(\.id).sorted(),
+                                                                 adopted: adopted.sorted()))
+        }
         if tool == .cursor { lookUpCursorNames(now: now) }
         pruneOpenSessionLists()
         applyAwake()

@@ -187,7 +187,7 @@
 "On a trial" = "トライアル中";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "オンのとき、新しいステータスラインが代わりにない間は 5 分ごとに Claude Code 自身のログインで api.anthropic.com の使用量エンドポイントを読み取ります。オフのときは Anthropic が文書化した経路であるステータスラインだけに頼ります。Claude のリングは Claude Code のターンの後にのみ埋まり、エンドポイントは一切問い合わせません。";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "~/.claude/settings.json の一項目で、セッションの開始、ターンの終了、あなたを待っているときに Claude Code がノッチへ知らせ、ステータスラインは毎ターン後にコンテキストの使用率と公式の上限を渡します。どちらも先にバックアップされ、設定の Claude Code のページから後で修復や削除ができます。";
-"One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "フックが報告したセッションごとに 1 行、新しい順に表示します。何に取り組んでいるか、どのアシスタントとどのターミナルで動いているか、ターンの経過時間、あなたを待っているかどうか。6 行まで表示し、残りは件数で示します。";
+"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "セッションごとに 1 行、フックが報告したものもフックなしで見つけたものも、新しい順に表示します。何に取り組んでいるか、どのアシスタントとどのターミナルで動いているか、ターンの経過時間、あなたを待っているかどうか。6 行まで表示し、残りは件数で示します。";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "「表示 › 自動」を選んだときだけ。最前面のアプリのメニュータイトルを避けて表示をずらすためで、メニューバーの位置と大きさ以外は何も読みません。";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "セッションのターミナルウインドウへ移動するときだけ、その最初の一回。アプリの他の部分が別のアプリを操作することはありません。";
 "Open Automation settings…" = "オートメーション設定を開く…";
@@ -904,6 +904,7 @@
 "Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections." = "「詳細」で設定する Anthropic の平日ピーク時間帯を、このアシスタントのアドバイスと予測に適用します。";
 "Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card." = "コストカードのドーナツ、凡例、合計にこのアシスタントを含めるかどうか。並び順は「アシスタント」の設定に従います。外しても、自身のカードにはコストを表示します。";
 "Read its sessions" = "セッションを読み取る";
+"What the panel shows of each session, and what you can do to it from there, for every assistant. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook, on its page, and each assistant's page can stop reading its sessions or answering its requests." = "パネルが各セッションについて何を表示し、そこから何ができるか。すべてのアシスタント共通です。セッションはフックなしでも見つかります。ターンの正確な終わり、回答待ち、回答、タスクリストには、各アシスタントのページにあるそのフックが必要です。各アシスタントのページでは、セッションの読み取りやリクエストへの回答を止められます。";
 "Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once." = "オフにしても、フックはメーターを更新し続けますが、イベントのそれ以外は何も保持しません。セッションカードの行、リングの待機や完了、お知らせ、通知、パネルのリクエスト、スリープ抑止はありません。一覧にあるセッションはすぐに消えます。";
 "Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait." = "権限リクエストと質問が回答の選択肢付きでパネルを開き、アシスタントはあなたの回答を待ちます。オフにすると、これまでどおりターミナルが尋ね、パネルは待機を表示するだけです。";
 "Off for every assistant under Assistants › Sessions." = "「アシスタント › セッション」ですべてのアシスタントに対してオフになっています。";
@@ -946,7 +947,6 @@
 "Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money." = "Google の Code Assist クォータ。この Mac に Antigravity のアプリがあれば、Antigravity 自身の ID で読み取ります。コストはありません。計るのは金額ではなくクォータです。";
 "api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost." = "api.github.com の Copilot クォータ（エディタープラグインと同じ読み取り）、そしてコストには 1 クレジット 1 セントの AI クレジット。";
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "最初のアシスタントはノッチの左に、残りは右に並びます。パネルのカードとエッジのピルも同じ順序です。アシスタントのそれ以外の設定は、サイドバーの「アシスタント」の下にあるそれぞれのページにあります。";
-"What the panel shows of each session the hooks report, and what you can do to it from there, for every assistant. All of it needs the assistant's hook; each assistant's page can stop reading its sessions or answering its requests." = "フックが報告した各セッションについて、すべてのアシスタント共通でパネルが何を表示し、そこから何ができるか。すべてアシスタントのフックが必要です。各アシスタントのページでは、セッションの読み取りやリクエストへの回答を止められます。";
 "These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "これらはすべてのアシスタントに適用されます。各アシスタントのページでは、そのアシスタントの上限の通知と、待機・ターン完了の通知を省けます。";
 "Open Claude Code in Settings…" = "設定で Claude Code を開く…";
 "The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "設定の6つのペインと Claude Code 専用のページ：位置、ホバーまたは常時表示、バックアップ付きのフック導入。";
@@ -999,3 +999,15 @@
 "from database" = "データベースから";
 "local messages" = "ローカルのメッセージ";
 "turns" = "ターン";
+/* Sessions found without the hook: the setting, the detected mark and the card's upgrade line (SessionDetection, SessionsCard) */
+"Find sessions without the hook" = "フックなしでセッションを見つける";
+"Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's." = "フックをインストールする前から、ターミナルで実行中の Claude Code、Codex、Cursor、Gemini CLI、Copilot のセッションを、プロセス、そのフォルダ、Claude Code 自身のセッションファイル、トランスクリプトの末尾から一覧にします。読み取るだけで、書き込むことはありません。こうした行には「検出」の印が付きます。作業中かどうかは推測で、ターンより数秒遅れることがあり、回答待ちは表示されません。フックが報告するセッションは常にフックのものです。";
+"detected" = "検出";
+"Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly." = "フックなしで、実行中のプロセスとそのファイルから見つけたセッションです。作業中かどうかは推測で、ターンより数秒遅れることがあり、回答待ちは表示されません。フックなら両方を正確に報告します。";
+"Found without the hook" = "フックなしで検出";
+"Working is a guess, and a wait for your answer is not shown without the hook." = "「作業中」は推測であり、フックがなければ回答待ちは表示されません。";
+"%@, as far as the running process and its files show" = "%@（実行中のプロセスとそのファイルからわかる範囲）";
+"Install the hook for exact turn ends and answering from the notch." = "フックをインストールすると、ターンの終わりが正確にわかり、ノッチから回答できます。";
+"Install the hook for exact turn ends." = "フックをインストールすると、ターンの終わりが正確にわかります。";
+"Install the hook…" = "フックをインストール…";
+"Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first." = "設定 › 連携 で %@ のフックを開きます。そこで「追加」を選ぶまで何も書き込まれず、ファイルは先にバックアップされます。";

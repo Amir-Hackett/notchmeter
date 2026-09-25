@@ -41,6 +41,9 @@ final class NotchActions {
     /// A click on a session row: jump to the terminal the session's hook reported (TerminalJump.swift). Wired by
     /// the app delegate, which owns the executor; the view never activates another app itself.
     var jump: (AgentSession) -> Void = { _ in }
+    /// The Sessions card's upgrade line under a row found without the hook: opens the hook's install flow for that
+    /// assistant in Settings (AppDelegate.offerHook). It never installs anything itself.
+    var offerHook: (ToolID) -> Void = { _ in }
     /// The news peek beside the notch was pressed with VoiceOver (NotchCompactView): the panel under the pointer
     /// opens on that session. A mouse click never comes this way; the hover machine hands it to the presenter it
     /// landed on (HoverDriver.claimsCompactClick).

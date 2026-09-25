@@ -88,6 +88,19 @@ enum AssetRenderer {
             try write(assistantsDetailed.image(.expanded, canvas: assistantsDetailed.panelCanvas, pixelScale: scale),
                       png: directory.appendingPathComponent("assistants-detailed.png"))
             assistantsPrefs.panelMode = .simple
+            // The first launch before any hook is installed (SessionDetection), for review: the Simple panel with the
+            // sessions the scan found, each marked detected, and the card's line offering the hook; the Detailed
+            // card on its own at the panel's width; and the card under Increase Contrast.
+            let (fresh, freshPrefs) = DemoFixtures.store(now: now, moment: .firstLaunch)
+            let firstLaunch = try Stage(store: fresh, prefs: freshPrefs, actions: actions)
+            try write(firstLaunch.image(.expanded, canvas: firstLaunch.panelCanvas, pixelScale: scale),
+                      png: directory.appendingPathComponent("expanded-detected.png"))
+            try write(panelCrop(SessionsCard(store: fresh, prefs: freshPrefs, actions: actions), prefs: freshPrefs).image,
+                      png: directory.appendingPathComponent("sessions-detected.png"))
+            AccessibilityDisplay.shared.force(contrast: true)
+            try write(panelCrop(SessionsCard(store: fresh, prefs: freshPrefs, actions: actions), prefs: freshPrefs).image,
+                      png: directory.appendingPathComponent("sessions-detected-contrast.png"))
+            AccessibilityDisplay.shared.force(contrast: nil)
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
             AccessibilityDisplay.shared.force(contrast: true)
             defer { AccessibilityDisplay.shared.force(contrast: nil) }

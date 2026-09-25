@@ -918,9 +918,16 @@ final class Preferences {
     var autoRepairHooks: Bool {
         didSet { defaults.set(autoRepairHooks, forKey: Keys.autoRepair); report(Keys.autoRepair, autoRepairHooks, changed: autoRepairHooks != oldValue) }
     }
-    /// The Sessions card on the panel: one row per session the hooks report.
+    /// The Sessions card on the panel: one row per session, the hooks' and the ones found without them
+    /// (`detectSessions`).
     var sessionsCard: Bool {
         didSet { defaults.set(sessionsCard, forKey: Keys.sessionsCard); report(Keys.sessionsCard, sessionsCard, changed: sessionsCard != oldValue) }
+    }
+    /// Whether running sessions are found without the hook (SessionDetection): the assistants' processes in a
+    /// terminal, Claude Code's own session files and the end of its transcripts, read and never written. On by
+    /// default, so the Sessions card has rows on the first launch; off, the scan stops and its rows go.
+    var detectSessions: Bool {
+        didSet { defaults.set(detectSessions, forKey: Keys.detectSessions); report(Keys.detectSessions, detectSessions, changed: detectSessions != oldValue) }
     }
     /// Whether a prompt's first line is kept as the session's title. Off, the store drops the title before it
     /// reaches the tracker (UsageStore.hookReceived), so nothing of the prompt is held anywhere in the app.
@@ -1186,6 +1193,7 @@ final class Preferences {
         static let keepAwakeBattery = "keepAwakeOnBattery"
         static let autoRepair = "autoRepairHooks"
         static let sessionsCard = "sessionsCard"
+        static let detectSessions = "detectSessions"
         static let sessionTitles = "sessionTitles"
         static let openCodeStorageSessions = "openCodeStorageSessions"
         static let answerFromNotch = "answerFromNotch"
@@ -1319,6 +1327,7 @@ final class Preferences {
         keepAwakeOnBattery = defaults.bool(forKey: Keys.keepAwakeBattery)
         autoRepairHooks = defaults.object(forKey: Keys.autoRepair) as? Bool ?? true
         sessionsCard = defaults.object(forKey: Keys.sessionsCard) as? Bool ?? true
+        detectSessions = defaults.object(forKey: Keys.detectSessions) as? Bool ?? true
         sessionTitles = defaults.object(forKey: Keys.sessionTitles) as? Bool ?? true
         openCodeStorageSessions = defaults.object(forKey: Keys.openCodeStorageSessions) as? Bool ?? true
         answerFromNotch = defaults.object(forKey: Keys.answerFromNotch) as? Bool ?? true

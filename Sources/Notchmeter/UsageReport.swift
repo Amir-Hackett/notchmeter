@@ -3,8 +3,8 @@ import Foundation
 /// The machine-readable picture of everything the app knows, for `--probe --json`, the local API, the command-line
 /// tool, the MCP server and the Claude Code skill: one versioned object with sorted keys and no token anywhere.
 /// Additive keys since the first version: `source` per window (WindowSource), `runOut` (the interval's two edges),
-/// `hiddenByDefault`, `rawUsedPercent`, `amountUSD`; `agents`, `branch`, `pr`, `permissionMode` and `host` per
-/// session; the five `tokenBuckets` and `cacheWrite1hShare` per cost range, `metering`, `cursor` in the cost
+/// `hiddenByDefault`, `rawUsedPercent`, `amountUSD`; `agents`, `branch`, `pr`, `permissionMode`, `host` and
+/// `source` (`hook`, or `detected` for one found without the hook: SessionDetection) per session; the five `tokenBuckets` and `cacheWrite1hShare` per cost range, `metering`, `cursor` in the cost
 /// object; `history` (the daily rows) when asked; `pid`, the writing process; `promptCache` (today's misses,
 /// requests, miss share, rewritten tokens and their price, the last cause, the sessions counted). Exit codes mirror
 /// Claude-Code-Usage-Monitor's: 0 fine, 10 near a limit, 11 a limit hit, 20 no session (nothing used), 30 no data.
@@ -108,7 +108,8 @@ struct UsageReport {
             "sessions": sessions.map { session -> [String: Any] in
                 ["id": session.id, "tool": session.tool.rawValue, "project": session.project as Any, "state": Self.stateName(session.state),
                  "stateSeconds": session.stateDuration(now: now).map { Int($0) } as Any, "agents": session.agents.count,
-                 "branch": session.branch as Any, "pr": session.prLink?.absoluteString as Any, "permissionMode": session.permissionMode as Any, "host": session.host as Any]
+                 "branch": session.branch as Any, "pr": session.prLink?.absoluteString as Any, "permissionMode": session.permissionMode as Any, "host": session.host as Any,
+                 "source": session.source.rawValue]
             },
         ]
         if let cost { root["cost"] = costObject(cost) }

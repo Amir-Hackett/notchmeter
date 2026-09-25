@@ -187,7 +187,7 @@
 "On a trial" = "체험 중";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "켜면 신선한 상태 표시줄이 대신하지 않는 동안 5분마다 Claude Code 자체 로그인으로 api.anthropic.com 사용량 엔드포인트를 읽습니다. 끄면 Anthropic 이 문서화한 채널인 상태 표시줄에만 의존합니다. Claude 링은 Claude Code 턴 이후에만 채워지고 엔드포인트는 절대 요청하지 않습니다.";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "~/.claude/settings.json의 항목 하나로 Claude Code가 세션 시작, 턴 종료, 사용자를 기다릴 때 노치에 알리고, 상태 표시줄은 매 턴 후 컨텍스트 사용률과 공식 한도를 전달합니다. 둘 다 먼저 백업되며, 설정의 Claude Code 페이지에서 나중에 복구하거나 제거할 수 있습니다.";
-"One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "훅이 보고한 세션마다 한 줄씩, 최신 순으로: 무엇을 하고 있는지, 어느 어시스턴트와 어느 터미널에서 실행 중인지, 턴이 얼마나 지났는지, 그리고 당신을 기다리는지. 여섯 줄을 보여 주고 나머지는 개수로 표시합니다.";
+"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "세션마다 한 줄씩, 훅이 보고한 세션과 훅 없이 찾은 세션 모두 최신 순으로: 무엇을 하고 있는지, 어느 어시스턴트와 어느 터미널에서 실행 중인지, 턴이 얼마나 지났는지, 그리고 당신을 기다리는지. 여섯 줄을 보여 주고 나머지는 개수로 표시합니다.";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "표시 › 자동을 고른 경우에만. 맨 앞 앱의 메뉴 제목을 피해 표시를 옮기기 위한 것으로, 메뉴 막대의 위치와 크기 외에는 아무것도 읽지 않습니다.";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "세션의 터미널 창으로 이동할 때만, 처음 한 번. 앱의 다른 어떤 부분도 다른 앱을 조작하지 않습니다.";
 "Open Automation settings…" = "자동화 설정 열기…";
@@ -904,6 +904,7 @@
 "Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections." = "고급에서 설정하는 Anthropic의 평일 혼잡 시간대를 이 어시스턴트의 조언과 예측에 적용합니다.";
 "Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card." = "비용 카드의 도넛, 범례, 합계에 이 어시스턴트를 포함할지 여부입니다. 순서는 어시스턴트 설정을 따릅니다. 제외해도 자기 카드에는 비용을 표시합니다.";
 "Read its sessions" = "세션 읽기";
+"What the panel shows of each session, and what you can do to it from there, for every assistant. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook, on its page, and each assistant's page can stop reading its sessions or answering its requests." = "패널이 각 세션에 대해 무엇을 보여 주고, 거기서 무엇을 할 수 있는지. 모든 어시스턴트 공통입니다. 세션은 훅 없이도 찾습니다. 정확한 턴 종료, 대기, 답변, 작업 목록에는 어시스턴트 페이지에 있는 그 훅이 필요하며, 각 어시스턴트 페이지에서 세션 읽기나 요청 답하기를 멈출 수 있습니다.";
 "Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once." = "끄면 훅은 계속 미터를 새로 고치지만 이벤트의 다른 것은 아무것도 남기지 않습니다. 세션 카드의 행, 링의 기다림이나 완료, 소식, 알림, 패널의 요청, 깨어 있음 유지가 모두 없습니다. 이미 목록에 있는 세션은 바로 사라집니다.";
 "Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait." = "권한 요청과 질문이 답 선택지와 함께 패널을 열고, 어시스턴트는 사용자의 답을 기다립니다. 끄면 예전처럼 터미널이 묻고 패널은 기다림만 보여 줍니다.";
 "Off for every assistant under Assistants › Sessions." = "어시스턴트 › 세션에서 모든 어시스턴트에 대해 꺼져 있습니다.";
@@ -946,7 +947,6 @@
 "Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money." = "Google의 Code Assist 할당량으로, 이 Mac에 Antigravity 앱이 있으면 Antigravity 자체 신원으로 읽습니다. 비용은 없습니다. 돈이 아니라 할당량을 측정합니다.";
 "api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost." = "api.github.com의 Copilot 할당량(편집기 플러그인과 같은 읽기), 그리고 비용에는 크레딧당 1센트인 AI 크레딧.";
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "첫 어시스턴트는 노치 왼쪽에, 나머지는 오른쪽에 놓입니다. 패널 카드와 가장자리 알약도 같은 순서를 따릅니다. 어시스턴트의 나머지 설정은 사이드바의 어시스턴트 아래에 있는 각자의 페이지에 있습니다.";
-"What the panel shows of each session the hooks report, and what you can do to it from there, for every assistant. All of it needs the assistant's hook; each assistant's page can stop reading its sessions or answering its requests." = "훅이 보고한 각 세션에 대해 모든 어시스턴트 공통으로 패널이 무엇을 보여 주고, 거기서 무엇을 할 수 있는지. 모두 어시스턴트의 훅이 필요하며, 각 어시스턴트 페이지에서 세션 읽기나 요청 답하기를 멈출 수 있습니다.";
 "These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "이 설정은 모든 어시스턴트에 적용됩니다. 각 어시스턴트 페이지에서 그 어시스턴트의 한도 알림과 기다림·턴 종료 알림을 뺄 수 있습니다.";
 "Open Claude Code in Settings…" = "설정에서 Claude Code 열기…";
 "The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "설정의 여섯 개 창과 Claude Code 전용 페이지: 위치, 마우스 오버 또는 항상 열림, 백업이 있는 훅 설치.";
@@ -999,3 +999,15 @@
 "from database" = "데이터베이스";
 "local messages" = "로컬 메시지";
 "turns" = "턴";
+/* Sessions found without the hook: the setting, the detected mark and the card's upgrade line (SessionDetection, SessionsCard) */
+"Find sessions without the hook" = "훅 없이 세션 찾기";
+"Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's." = "훅을 설치하기 전에도 터미널에서 실행 중인 Claude Code, Codex, Cursor, Gemini CLI, Copilot 세션을 프로세스, 그 폴더, Claude Code 자체 세션 파일, 트랜스크립트의 끝에서 찾아 나열합니다. 모두 읽기만 하고 쓰지 않습니다. 이런 행에는 감지됨 표시가 붙습니다. 작업 중인지는 추정이라 턴보다 몇 초 늦을 수 있고, 답변을 기다리는 상태는 표시되지 않습니다. 훅이 보고하는 세션은 항상 훅의 것입니다.";
+"detected" = "감지됨";
+"Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly." = "훅 없이 실행 중인 프로세스와 그 파일에서 찾은 세션입니다. 작업 중인지는 추정이라 턴보다 몇 초 늦을 수 있고, 답변을 기다리는 상태는 표시되지 않습니다. 훅은 둘 다 정확히 알려 줍니다.";
+"Found without the hook" = "훅 없이 찾음";
+"Working is a guess, and a wait for your answer is not shown without the hook." = "'작업 중'은 추측이며, 훅 없이는 답변을 기다리는 상태가 표시되지 않습니다.";
+"%@, as far as the running process and its files show" = "%@ (실행 중인 프로세스와 그 파일로 알 수 있는 범위)";
+"Install the hook for exact turn ends and answering from the notch." = "훅을 설치하면 턴이 끝나는 때를 정확히 알 수 있고 노치에서 답할 수 있습니다.";
+"Install the hook for exact turn ends." = "훅을 설치하면 턴이 끝나는 때를 정확히 알 수 있습니다.";
+"Install the hook…" = "훅 설치…";
+"Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first." = "설정 › 연동에서 %@ 훅을 엽니다. 거기서 추가를 선택하기 전에는 아무것도 기록되지 않으며, 파일은 먼저 백업됩니다.";

@@ -989,7 +989,9 @@ struct SettingsView: View {
     private var sessionsSection: some View {
         Section {
             Toggle(L("Show a Sessions card on the panel"), isOn: Binding(get: { prefs.sessionsCard }, set: { prefs.sessionsCard = $0 }))
-                .help(L("One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest."))
+                .help(L("One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest."))
+            Toggle(L("Find sessions without the hook"), isOn: Binding(get: { prefs.detectSessions }, set: { prefs.detectSessions = $0 }))
+                .help(L("Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's."))
             Toggle(L("Show what a session is working on"), isOn: Binding(get: { prefs.sessionTitles }, set: { prefs.sessionTitles = $0 }))
                 .help(L("The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says."))
             Toggle(L("Answer from the notch"), isOn: Binding(get: { prefs.answerFromNotch }, set: { prefs.answerFromNotch = $0 }))
@@ -1029,7 +1031,7 @@ struct SettingsView: View {
             }
         } header: {
             Text(L("Sessions"))
-                .help(L("What the panel shows of each session the hooks report, and what you can do to it from there, for every assistant. All of it needs the assistant's hook; each assistant's page can stop reading its sessions or answering its requests."))
+                .help(L("What the panel shows of each session, and what you can do to it from there, for every assistant. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook, on its page, and each assistant's page can stop reading its sessions or answering its requests."))
         }
     }
 
@@ -1659,9 +1661,10 @@ struct SettingsView: View {
             hookStatus[vendor] = requests.renderedHookStatus?.hook[vendor] ?? HookSettings.status(vendor: vendor)
         }
         statuslineStatus = requests.renderedHookStatus?.statusline ?? HookSettings.statuslineStatus()
-        // What the Sessions card's empty state reads, kept current by the one place the user installs a hook.
-        store.hooksInstalled = hookStatus.values.contains { $0 != .notInstalled }
-        store.openCodePluginInstalled = (hookStatus[.opencode] ?? .notInstalled) != .notInstalled
+        // What the Sessions card's empty state and its upgrade line read, kept current by the one place the user
+        // installs a hook.
+        store.hookInstalledTools = Set(hookStatus.filter { $0.value != .notInstalled }.map(\.key.tool))
+        store.hooksInstalled = !store.hookInstalledTools.isEmpty
     }
 
     /// An assistant's standing in a line: under its name in the Assistants list, under its switch on its page, and

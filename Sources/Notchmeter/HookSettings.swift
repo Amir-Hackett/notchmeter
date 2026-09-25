@@ -282,7 +282,13 @@ enum HookSettings {
     /// Whether any assistant's file carries an entry of ours at all, current or not: what the Sessions card asks
     /// before it says there are no sessions rather than staying away.
     static func anyInstalled() -> Bool {
-        HookVendor.allCases.contains { status(vendor: $0) != .notInstalled }
+        !installedTools().isEmpty
+    }
+
+    /// The assistants whose file carries an entry of ours, current or not: the Sessions card offers the hook for a
+    /// row found without it only where this says there is none.
+    static func installedTools() -> Set<ToolID> {
+        Set(HookVendor.allCases.filter { status(vendor: $0) != .notInstalled }.map(\.tool))
     }
 
     /// Where the hook stands: absent; naming another executable (stale); installed for every event with the

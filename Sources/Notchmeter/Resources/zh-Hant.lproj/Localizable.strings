@@ -187,7 +187,7 @@
 "On a trial" = "試用中";
 "On, the app reads api.anthropic.com's usage endpoint with Claude Code's own login every five minutes while no fresh status line stands in for it. Off relies on the status line alone, the channel Anthropic documents: the Claude ring then fills only after a Claude Code turn, and the endpoint is never asked." = "開啟時，應用程式在沒有新鮮狀態列替代的情況下，每五分鐘用 Claude Code 自己的登入讀取 api.anthropic.com 的用量端點。關閉時只依賴狀態列，即 Anthropic 記錄在案的管道：Claude 環只在 Claude Code 完成一輪後填滿，且從不請求該端點。";
 "One entry in ~/.claude/settings.json lets Claude Code tell the notch when a session starts, a turn ends or it waits for you, and a status line hands over the context fill and the official limits after every turn. Both are backed up first; Claude Code's page in Settings can repair or remove them later." = "在 ~/.claude/settings.json 中加入一筆項目，Claude Code 就能在工作階段開始、一輪結束或等待你時通知瀏海；狀態列則在每一輪之後交出上下文佔用和官方限額。兩者都會先備份；之後可在「設定」中 Claude Code 的頁面修復或移除。";
-"One row per session the hooks report, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "hook 回報的每個工作階段一列，最新的在前：它在做什麼、在哪個助理和哪個終端機中執行、這一輪已跑多久，以及是否在等你。顯示六列，其餘以數量計。";
+"One row per session, the hooks' and the ones found without them, newest first: what it is working on, which assistant and which terminal it runs in, how long the turn has run, and whether it is waiting for you. Six rows, then a count of the rest." = "每個工作階段一列，hook 回報的和未透過 hook 找到的都在內，最新的在前：它在做什麼、在哪個助理和哪個終端機中執行、這一輪已跑多久，以及是否在等你。顯示六列，其餘以數量計。";
 "Only if you pick Readouts › Auto, which shifts the readouts clear of the frontmost app's menu titles. It reads the menu bar's geometry and nothing else." = "僅當你選擇「讀數 › 自動」時需要，它讓讀數避開最前方 App 的選單標題。它只讀取選單列的幾何位置，別無其他。";
 "Only to jump to a session's terminal window, the first time you do. Nothing else in the app drives another app." = "僅用於跳至某個工作階段的終端機視窗，且只在你第一次跳轉時要求。App 中沒有其他部分會操控別的 App。";
 "Open Automation settings…" = "打開自動化設定…";
@@ -904,6 +904,7 @@
 "Applies Anthropic's weekday peak window, set under Advanced, to this assistant's advice and projections." = "將在「進階」中設定的 Anthropic 平日尖峰時段套用於該助理的建議和預測。";
 "Whether the Cost card's donut, legend and total carry this assistant, in the order set under Assistants. Left out, it still shows its own spend on its own card." = "費用卡片的圓環、圖例和總額是否包含該助理，順序與「助理」中設定的一致。不包含時，它仍會在自己的卡片上顯示花費。";
 "Read its sessions" = "讀取它的工作階段";
+"What the panel shows of each session, and what you can do to it from there, for every assistant. Sessions are found without the hook too; exact turn ends, waits, answers and the task list need the assistant's hook, on its page, and each assistant's page can stop reading its sessions or answering its requests." = "面板對每個工作階段顯示什麼，以及你可以在那裡對它做什麼，適用於所有助理。即使沒有 hook 也能找到工作階段；準確的每輪結束、等待、回答和任務清單需要助理的 hook（在它的頁面上），每個助理的頁面都可以停止讀取它的工作階段或停止回答它的請求。";
 "Off, its hook still refreshes its meter, and nothing else of an event is kept: no row on the Sessions card, no wait or finish on its ring, no news, no notice, no request on the panel and no keep-awake. The sessions already listed go at once." = "關閉後，它的 hook 仍會更新計量，但事件的其他內容一概不保留：工作階段卡片中沒有列，圓環上沒有等待或完成，沒有動態、通知、面板上的請求，也不會保持喚醒。已列出的工作階段會立即消失。";
 "Its permission requests and questions open the panel with their answers, and it waits on yours; off, its terminal asks as it always has and the panel only shows the wait." = "它的權限請求和問題會帶著可選答案開啟面板，並等待你的回答；關閉後由它的終端機照常詢問，面板只顯示等待。";
 "Off for every assistant under Assistants › Sessions." = "已在「助理 › 工作階段」中對所有助理關閉。";
@@ -946,7 +947,6 @@
 "Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money." = "Google 的 Code Assist 配額；若這台 Mac 上裝有 Antigravity 應用程式，則以 Antigravity 自己的身分讀取。沒有花費：它計量的是配額，而不是金額。";
 "api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost." = "api.github.com 的 Copilot 配額（與其編輯器外掛的讀取相同），花費則按 AI 點數計算，每點一美分。";
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "第一個助理位於瀏海左側，其餘位於右側；面板卡片和邊緣膠囊沿用同一順序。助理的其他一切設定都在它自己的頁面上，列在側邊欄的「助理」下。";
-"What the panel shows of each session the hooks report, and what you can do to it from there, for every assistant. All of it needs the assistant's hook; each assistant's page can stop reading its sessions or answering its requests." = "面板對 hook 回報的每個工作階段顯示什麼，以及你可以在那裡對它做什麼，適用於所有助理。這一切都需要助理的 hook；每個助理的頁面都可以停止讀取它的工作階段或停止回答它的請求。";
 "These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "這些設定適用於所有助理。每個助理的頁面都可以省略它自己的限額通知，以及它的等待和一輪完成通知。";
 "Open Claude Code in Settings…" = "在設定中開啟 Claude Code…";
 "The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "設定的六個面板和 Claude Code 自己的頁面：位置、懸停或永遠開啟、附備份的掛鉤安裝。";
@@ -999,3 +999,15 @@
 "from database" = "來自資料庫";
 "local messages" = "本機訊息";
 "turns" = "輪次";
+/* Sessions found without the hook: the setting, the detected mark and the card's upgrade line (SessionDetection, SessionsCard) */
+"Find sessions without the hook" = "無需 hook 也尋找工作階段";
+"Lists the Claude Code, Codex, Cursor, Gemini CLI and Copilot sessions running in a terminal before any hook is installed, from the process, its folder, Claude Code's own session files and the end of its transcript, all read and never written. Such a row is marked detected: whether it is working is a guess that can trail the turn by a few seconds, and it never shows a wait for your answer. A session the hook reports is always the hook's." = "在安裝任何 hook 之前，就列出終端機中正在執行的 Claude Code、Codex、Cursor、Gemini CLI 和 Copilot 工作階段，依據是程序、其資料夾、Claude Code 自己的工作階段檔案及其記錄的末尾；全部只讀取，從不寫入。這樣的列會標為「已偵測」：是否在工作只是推測，可能比這一輪晚幾秒，也從不顯示等待你回應的狀態。hook 回報的工作階段一律以 hook 為準。";
+"detected" = "已偵測";
+"Found without the hook, from the running process and its files. Whether it is working is a guess that can trail the turn by a few seconds, and a wait for your answer is not shown. The hook reports both exactly." = "未透過 hook，從正在執行的程序及其檔案中找到。是否在工作只是推測，可能比這一輪晚幾秒，也不會顯示等待你回應的狀態。hook 會準確回報這兩者。";
+"Found without the hook" = "未透過 hook 找到";
+"Working is a guess, and a wait for your answer is not shown without the hook." = "「工作中」只是推測，沒有 hook 時不會顯示等待你回答的狀態。";
+"%@, as far as the running process and its files show" = "%@（根據正在執行的程序及其檔案判斷）";
+"Install the hook for exact turn ends and answering from the notch." = "安裝 hook，即可準確知道每輪何時結束，並從瀏海處回答。";
+"Install the hook for exact turn ends." = "安裝 hook，即可準確知道每輪何時結束。";
+"Install the hook…" = "安裝 hook…";
+"Opens the %@ hook in Settings › Integrations. Nothing is written until you choose Add there, and the file is backed up first." = "在「設定 › 整合」中開啟 %@ hook。在你於該處選擇「加入」之前不會寫入任何內容，並且會先備份該檔案。";
