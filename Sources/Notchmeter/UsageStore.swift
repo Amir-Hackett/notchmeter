@@ -85,7 +85,8 @@ final class UsageStore {
     private(set) var lowPowerMode = false
     /// When each tool's files last changed, or its hook last fired (every assistant's).
     private(set) var lastActivity: [ToolID: Date] = [:]
-    /// The sessions the hooks report, each under its tool, and which are waiting on the user.
+    /// The sessions the hooks report and the ones the scan found without them, each under its tool, and which are
+    /// waiting on the user.
     private(set) var sessions = SessionTracker()
     /// The newest status-line payload from Claude Code, while a session runs.
     private(set) var statusline: Statusline.Message?

@@ -824,7 +824,8 @@ final class Preferences {
     var autoRepairHooks: Bool {
         didSet { defaults.set(autoRepairHooks, forKey: Keys.autoRepair); report(Keys.autoRepair, autoRepairHooks, changed: autoRepairHooks != oldValue) }
     }
-    /// The Sessions card on the panel: one row per session the hooks report.
+    /// The Sessions card on the panel: one row per session, the hooks' and the ones found without them
+    /// (`detectSessions`).
     var sessionsCard: Bool {
         didSet { defaults.set(sessionsCard, forKey: Keys.sessionsCard); report(Keys.sessionsCard, sessionsCard, changed: sessionsCard != oldValue) }
     }
