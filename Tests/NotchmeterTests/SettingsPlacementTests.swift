@@ -100,9 +100,9 @@ import Testing
         }
     }
 
-    /// An assistant's page wears its own card's symbol and its own ring colour, so the sidebar and the notch name
-    /// it the same way; a new drawing for Settings alone would have to be learned twice.
-    @Test func anAssistantsPageWearsItsCardsSymbolAndColour() throws {
+    /// An assistant's page wears its own card's symbol and its own hue, in the deep tone its rings wear on Paper,
+    /// so the sidebar and the notch name it the same way and the tile carries the white glyph every other tile does.
+    @Test func anAssistantsPageWearsItsCardsSymbolInItsDeepTone() throws {
         // `ToolID.color` is adaptive since 0.9.0, a fresh provider on every read, so two reads are never equal as
         // `Color` values: the tint and the ring colour are compared as the sRGB values they resolve to under each
         // appearance instead.
@@ -117,13 +117,14 @@ import Testing
         for tool in ToolID.allCases {
             let pane = SettingsPane.agent(tool)
             #expect(pane.symbol == tool.symbolName)
-            #expect(try resolved(pane.tint, under: aqua) == resolved(tool.color, under: aqua), "\(tool)'s page in light")
-            #expect(try resolved(pane.tint, under: darkAqua) == resolved(tool.color, under: darkAqua), "\(tool)'s page in dark")
+            let deep = PanelInk.tool(tool).onPaper.color
+            #expect(try resolved(pane.tint, under: aqua) == resolved(deep, under: aqua), "\(tool)'s page in light")
+            #expect(try resolved(pane.tint, under: darkAqua) == resolved(deep, under: darkAqua), "\(tool)'s page in dark")
             #expect(pane.title == tool.productName)
         }
     }
 
-    /// White on the chrome tiles, black on an assistant's light identity colour: each glyph against its own tile.
+    /// White on every tile, measured against each tile in both appearances.
     @Test func everyTileClearsThreeToOneAgainstItsGlyphInBothAppearances() throws {
         for name in [NSAppearance.Name.aqua, .darkAqua] {
             let appearance = try #require(NSAppearance(named: name))
@@ -136,11 +137,27 @@ import Testing
         }
     }
 
-    /// The reason the assistants' tiles carry a black glyph rather than the chrome's white: their colours are light
-    /// tints chosen for the panel's black, and a white glyph would vanish on the lightest of them.
+    /// The reason the assistants' tiles wear their deep tone rather than their ring colour on the notch: those are
+    /// light tints chosen for the panel's black, and a white glyph would vanish on the lightest of them.
     @Test func aWhiteGlyphWouldFailOnAnAssistantsOwnColour() {
         let ratios = ToolID.allCases.map { Self.contrast(NSColor($0.color), .white) }
         #expect(ratios.contains { $0 < 3 }, "every identity colour now carries white: \(ratios)")
+    }
+
+    /// One glyph colour down the whole list: a black glyph on some tiles and white on others read as two lists.
+    @Test func everyTileWearsTheSameWhiteGlyph() {
+        for pane in SettingsPane.allCases {
+            #expect(NSColor(pane.glyph).usingColorSpace(.sRGB) == NSColor.white.usingColorSpace(.sRGB), "\(pane.title)'s glyph is not white")
+        }
+    }
+
+    /// No chrome pane borrows an assistant's mark: the Assistants row once wore the terminal, Gemini CLI's own
+    /// symbol, one row above Gemini's page.
+    @Test func noAppPaneWearsAnAssistantsSymbol() {
+        let marks = Set(ToolID.allCases.map { $0.symbolName.replacingOccurrences(of: ".fill", with: "") })
+        for pane in SettingsPane.app {
+            #expect(!marks.contains(pane.symbol.replacingOccurrences(of: ".fill", with: "")), "\(pane.title) wears \(pane.symbol), an assistant's mark")
+        }
     }
 
     /// General is the pane the window opens on, so its tile is the first one a low-vision reader meets. It wears a
