@@ -230,7 +230,7 @@ table.dtable code { font-size: 12.4px; }
             <tr>
               <td>European Central Bank<br><code>www.ecb.europa.eu</code><br>(exchange rates, from 0.9.0)</td>
               <td>Your IP address and the app's user agent, asking for the ECB's public daily euro reference rates: the same file anyone can open in a browser. No account, no token, no identifier, and not even which currency you chose, since the one file holds every currency the ECB publishes. The ECB learns that a machine at your IP address asked, and nothing else; the file is served through a content delivery network, which sees the same request.</td>
-              <td><strong>Only if you turn on Fetch today's rate</strong>, which is off by default and does nothing while costs are shown in US dollars. Then at most once a day after an answer, or an hour after a failed one, doubling up to a day. Turn it off and the rate you typed converts, with no request.</td>
+              <td><strong>Only if you turn on Fetch today's rate</strong>, which is off by default and does nothing while costs are shown in US dollars. Then once a day, just after the ECB publishes its afternoon file (and once more on the day you turn it on), or an hour after a failed one, doubling up to a day. Turn it off and the rate you typed converts, with no request.</td>
             </tr>
           </tbody>
         </table>
@@ -244,7 +244,7 @@ table.dtable code { font-size: 12.4px; }
         <li><strong>Cursor usage events export: on by default.</strong> Switch it off in Settings and Cursor stops receiving the 30-day usage events request. The plain usage summary still works; the detailed cost breakdown does not.</li>
         <li><strong>Codex credit reset details: off by default.</strong> Turn it on and one extra request goes to OpenAI alongside the usage read.</li>
         <li><strong>GitHub organisation billing: off by default.</strong> Turn it on and the app asks GitHub for your organisation list and a usage summary for up to ten of them.</li>
-        <li><strong>Fetch today's rate: off by default</strong> (from 0.9.0). Turn it on, with costs shown in a currency other than US dollars, and the app asks the European Central Bank for its public daily reference rates, at most once a day, so a converted cost is at the day's rate rather than one you typed. The cost card and the dashboard then name the rate and its date under the figures. Turn it off and the rate you typed converts, with no request.</li>
+        <li><strong>Fetch today's rate: off by default</strong> (from 0.9.0). Turn it on, with costs shown in a currency other than US dollars, and the app asks the European Central Bank for its public daily reference rates, once a day after it publishes them (twice on the day you turn it on), so a converted cost is at the day's rate rather than one you typed. The cost card and the dashboard then name the rate and its date under the figures. Turn it off and the rate you typed converts, with no request.</li>
       </ul>
 
       <h3>4.2 What the app reads on your Mac</h3>

@@ -1700,8 +1700,9 @@ enum Probe {
         let rates = drains.reduce(into: [String: Double]()) { if let rate = $1.value.perHour { $0["\($1.key.tool.rawValue)/\($1.key.window)"] = rate } }
         var context = Advisor.Context(readings: readings, cost: cost, drainRates: rates, now: now)
         context.runOuts = runOuts.reduce(into: [:]) { $0["\($1.key.tool.rawValue)/\($1.key.window)"] = $1.value }
-        context.monthlyBudgetUSD = defaults.object(forKey: "monthlyBudgetUSD") as? Double
-        context.weeklyBudgetUSD = defaults.object(forKey: "weeklyBudgetUSD") as? Double
+        let budgets = Preferences.budgetsUSD(defaults: defaults, now: now)
+        context.monthlyBudgetUSD = budgets.monthly
+        context.weeklyBudgetUSD = budgets.weekly
         context.metering = cost.sessionMetering
         let advice = Advisor.advise(context)
         return UsageReport(tools: statuses, cost: cost, advice: advice, drains: drains, runOuts: runOuts, history: history ? scanner.history?.load() : nil, now: now)

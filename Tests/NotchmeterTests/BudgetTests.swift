@@ -102,10 +102,42 @@ import Testing
         #expect(body.hasPrefix("At this rate you pass the monthly budget Sep 20 at 08:3"))
         #expect(body.hasSuffix(" before it resets."))
         #expect(!body.contains("Claude"))
-        #expect(SettingsView.budgetUSD("150", rate: 1) == 150)
-        #expect(SettingsView.budgetUSD("300", rate: 1.5) == 200)
-        #expect(SettingsView.budgetUSD("", rate: 1) == nil)
-        #expect(SettingsView.budgetUSD("-4", rate: 1) == nil)
+    }
+
+    /// A budget is kept in the currency it was typed in: 200 typed in euros at 0.88 reads back as 200 at 0.90 the
+    /// next day, while the dollar figure the spend is measured against follows the rate. After a change of currency
+    /// it converts at the rate it was typed at, and the field shows that, until it is typed again.
+    @Test func theBudgetIsKeptInTheCurrencyItWasTypedIn() throws {
+        let typedAt = CurrencyConversion(code: "EUR", rate: 0.88, source: .reference(day: "2026-09-24", fetchedAt: now))
+        let budget = try #require(Budget.parse("200", at: typedAt))
+        #expect(budget == Budget(amount: 200, code: "EUR", rate: 0.88))
+        let typedUSD = 200 / 0.88
+        #expect(budget.usd(at: typedAt) == typedUSD)
+        let nextDay = CurrencyConversion(code: "EUR", rate: 0.90, source: .reference(day: "2026-09-25", fetchedAt: now))
+        let nextDayUSD = 200 / 0.90
+        #expect(budget.shown(at: nextDay) == 200)
+        #expect(budget.usd(at: nextDay) == nextDayUSD)
+        #expect(SettingsView.budgetText(budget, at: nextDay) == "200")
+        // Another currency shown: through dollars at the rate it was typed at.
+        let pounds = CurrencyConversion(code: "GBP", rate: 0.76, source: .typed)
+        let inPounds = typedUSD * 0.76
+        #expect(budget.usd(at: pounds) == typedUSD)
+        #expect(budget.shown(at: pounds) == inPounds)
+        #expect(SettingsView.budgetText(budget, at: pounds) == String(format: "%.2f", inPounds))
+        #expect(SettingsView.budgetText(nil, at: pounds) == "")
+        // The field's text: a comma for the point, whole units shown whole, and nothing for what is not an amount.
+        let dollars = CurrencyConversion(code: "USD", rate: 1, source: .dollars)
+        #expect(Budget.parse("150", at: dollars) == Budget(amount: 150, code: "USD", rate: 1))
+        #expect(Budget.parse(" 12,50 ", at: dollars)?.amount == 12.5)
+        #expect(SettingsView.budgetText(Budget.parse("12,50", at: dollars), at: dollars) == "12.50")
+        #expect(Budget.parse("", at: dollars) == nil)
+        #expect(Budget.parse("-4", at: dollars) == nil)
+        #expect(Budget.parse("0", at: dollars) == nil)
+        #expect(Budget.parse("abc", at: dollars) == nil)
+        #expect(Budget.parse("inf", at: dollars) == nil)
+        let oracle = budget.oracleFields
+        #expect(oracle["amount"] as? Double == 200)
+        #expect(oracle["code"] as? String == "EUR")
     }
 
     @Test func extraUsageRisesAreSaidOnceAMonthAndLouderWhileThePlanHasRoom() {

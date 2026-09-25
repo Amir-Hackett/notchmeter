@@ -206,8 +206,8 @@ struct SettingsView: View {
             prefs.refreshLaunchAtLogin()
             currencyText = prefs.currencyCode
             rateText = prefs.currencyRate == 1 ? "1" : String(prefs.currencyRate)
-            monthlyBudgetText = prefs.monthlyBudgetUSD.map { Self.budgetText($0) } ?? ""
-            weeklyBudgetText = prefs.weeklyBudgetUSD.map { Self.budgetText($0) } ?? ""
+            monthlyBudgetText = Self.budgetText(prefs.monthlyBudget, at: prefs.currencyConversion)
+            weeklyBudgetText = Self.budgetText(prefs.weeklyBudget, at: prefs.currencyConversion)
             proxyText = prefs.proxyURL
             accessibilityTrusted = MenuBarExtent.isTrusted
             refreshHookStatus()
@@ -530,7 +530,7 @@ struct SettingsView: View {
 
     /// The whole of the request *Fetch today's rate* makes, where the switch is (docs/privacy.md says it again).
     private static var fetchRateHelp: String {
-        L("Once a day, a plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, carrying the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old.")
+        L("Once a day, a plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, carrying the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old; with no rate of your own set, a rate past its week stays in use and is marked so.")
     }
 
     /// One explanation for both budget rows.
@@ -733,8 +733,12 @@ struct SettingsView: View {
                 .disabled(prefs.currencyConversion.code == "USD")
                 .help(Self.fetchRateHelp)
             // Off, the paragraph says nothing is fetched, which is then true; on, it is the rate in use and its day,
-            // or why the typed rate stands in.
+            // or why the typed rate stands in, and, when that rate was never typed, where to type one: the 1 that
+            // stands in then converts nothing, and a figure marked EUR that is a dollar figure needs saying.
             paragraph(prefs.fetchCurrencyRate ? prefs.currencyConversion.settingsLine() ?? Self.currencyHelp : Self.currencyHelp)
+            if prefs.fetchCurrencyRate, prefs.currencyConversion.standsInWithoutOwnRate {
+                paragraph(L("No rate of your own is set, so 1 per US dollar stands in: type one under Advanced › Diagnostics › Rate per dollar."))
+            }
             LabeledContent(L("Monthly budget")) {
                 field($monthlyBudgetText, prompt: Money.code, label: L("Monthly budget"))
                     .onSubmit { applyBudgets() }
@@ -1391,22 +1395,19 @@ struct SettingsView: View {
         rateText = prefs.currencyRate == 1 ? "1" : String(prefs.currencyRate)
     }
 
-    static func budgetText(_ usd: Double) -> String {
-        let amount = usd * Money.rate
+    /// The budget field's text: the amount as typed while the currency is the one it was typed in, whole units
+    /// where it was whole ("200", not "200.00"), and empty for no budget.
+    static func budgetText(_ budget: Budget?, at conversion: CurrencyConversion) -> String {
+        guard let amount = budget?.shown(at: conversion) else { return "" }
         return amount == amount.rounded() ? String(Int(amount)) : String(format: "%.2f", amount)
     }
 
-    /// The typed amount is in the user's currency; stored in US dollars.
-    static func budgetUSD(_ text: String, rate: Double) -> Double? {
-        guard let amount = Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")), amount > 0, rate > 0 else { return nil }
-        return amount / rate
-    }
-
+    /// The typed amounts are kept in the currency shown, at the rate in use as they are typed (`Budget`).
     private func applyBudgets() {
-        prefs.monthlyBudgetUSD = Self.budgetUSD(monthlyBudgetText, rate: Money.rate)
-        prefs.weeklyBudgetUSD = Self.budgetUSD(weeklyBudgetText, rate: Money.rate)
-        monthlyBudgetText = prefs.monthlyBudgetUSD.map { Self.budgetText($0) } ?? ""
-        weeklyBudgetText = prefs.weeklyBudgetUSD.map { Self.budgetText($0) } ?? ""
+        prefs.monthlyBudget = Budget.parse(monthlyBudgetText, at: prefs.currencyConversion)
+        prefs.weeklyBudget = Budget.parse(weeklyBudgetText, at: prefs.currencyConversion)
+        monthlyBudgetText = Self.budgetText(prefs.monthlyBudget, at: prefs.currencyConversion)
+        weeklyBudgetText = Self.budgetText(prefs.weeklyBudget, at: prefs.currencyConversion)
     }
 
     private func applyProxy() {

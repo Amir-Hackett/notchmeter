@@ -481,12 +481,15 @@ enum AssetRenderer {
     }
 
     /// *Fetch today's rate*, for review; the README does not use these. The Cost card in euros at the ECB's rate
-    /// with its day under the figures, and the Appearance pane with the switch on and the rate in use; then the
-    /// same two for dong, which the ECB does not publish, with the typed rate standing in and saying so. The
-    /// preferences are put back to dollars afterwards, so the pictures drawn after these are the README's own.
+    /// with its day under the figures and a monthly budget typed in euros, and the Appearance pane with the switch
+    /// on, the rate in use and the budget as typed; then the same two for dong, which the ECB does not publish,
+    /// with the typed rate standing in and saying so; then euros again with no rate of the user's own and the
+    /// ECB's rate twelve days old, kept and marked stale. The preferences are put back to dollars afterwards, so
+    /// the pictures drawn after these are the README's own.
     @MainActor
     static func currency(into directory: URL, store: UsageStore, prefs: Preferences, actions: NotchActions, now: Date) throws {
         defer {
+            prefs.monthlyBudget = nil
             prefs.fetchCurrencyRate = false
             prefs.currencyCode = "USD"
             prefs.currencyRate = 1
@@ -495,9 +498,12 @@ enum AssetRenderer {
         prefs.currencyRate = 0.9
         prefs.fetchCurrencyRate = true
         prefs.recordRates(DemoFixtures.referenceRates(now: now), now: now)
-        for (code, rate, name) in [("EUR", 0.9, "currency"), ("VND", 25_000.0, "currency-fallback")] {
+        prefs.monthlyBudget = Budget.parse("200", at: prefs.currencyConversion)
+        let stale = DemoFixtures.referenceRates(now: now, daysAgo: 12)
+        for (code, rate, rates, name) in [("EUR", 0.9, nil, "currency"), ("VND", 25_000.0, nil, "currency-fallback"), ("EUR", 1, stale, "currency-stale")] {
             prefs.currencyCode = code
             prefs.currencyRate = rate
+            if let rates { prefs.recordRates(rates, now: now) }
             let card = try panelCrop(SpendCard(store: store, range: .today), prefs: prefs)
             try write(card.image, png: directory.appendingPathComponent("\(name)-card.png"))
             try write(settings(pane: .appearance, store: store, prefs: prefs, actions: actions),

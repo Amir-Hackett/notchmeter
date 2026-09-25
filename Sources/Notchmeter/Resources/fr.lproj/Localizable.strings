@@ -342,7 +342,7 @@
 
 /* Currency: Fetch today's rate, the ECB's reference rate beside converted figures (ReferenceRates, SettingsWindow, SpendCard) */
 "Fetch today's rate" = "Récupérer le taux du jour";
-"Once a day, a plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, carrying the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old." = "Une fois par jour, une simple requête des taux de référence publics de l'euro de la Banque centrale européenne sur ecb.europa.eu, qui transmet le nom et la version de l'app et rien sur vous. Votre propre taux, dans Avancé › Diagnostics, prend le relais tant qu'elle n'a pas répondu, pour une devise que la BCE ne publie pas, et dès que son dernier taux date de plus d'une semaine.";
+"Once a day, a plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, carrying the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old; with no rate of your own set, a rate past its week stays in use and is marked so." = "Une fois par jour, une simple requête des taux de référence publics de l'euro de la Banque centrale européenne sur ecb.europa.eu, qui transmet le nom et la version de l'app et rien sur vous. Votre propre taux, dans Avancé › Diagnostics, prend le relais tant qu'elle n'a pas répondu, pour une devise que la BCE ne publie pas, et dès que son dernier taux date de plus d'une semaine ; sans taux à vous, un taux passé sa semaine reste utilisé et est signalé comme tel.";
 "Your own rate: used while Fetch today's rate is off, and whenever the ECB's rate cannot be used." = "Votre propre taux : utilisé tant que Récupérer le taux du jour est désactivé, et chaque fois que le taux de la BCE ne peut pas servir.";
 "%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@" = "%1$@ à %2$@ par dollar américain, taux de référence de la BCE du %3$@";
 "%1$@ at your own rate of %2$@ per US dollar" = "%1$@ à votre propre taux de %2$@ par dollar américain";
@@ -351,6 +351,9 @@
 "The ECB could not be reached; your own rate (%@) stands in until it can." = "La BCE n'a pas pu être jointe ; votre propre taux (%@) prend le relais en attendant.";
 "The ECB publishes no rate for %1$@; your own rate (%2$@) stands in." = "La BCE ne publie aucun taux pour %1$@ ; votre propre taux (%2$@) prend le relais.";
 "The ECB's latest rate is from %1$@, over a week ago; your own rate (%2$@) stands in." = "Le dernier taux de la BCE date du %1$@, il y a plus d'une semaine ; votre propre taux (%2$@) prend le relais.";
+"%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@, over a week old" = "%1$@ à %2$@ par dollar américain, taux de référence de la BCE du %3$@, vieux de plus d'une semaine";
+"%1$@ per US dollar, the ECB reference rate of %2$@, over a week old and still in use: no rate of your own is set to stand in." = "%1$@ par dollar américain, taux de référence de la BCE du %2$@, vieux de plus d'une semaine et toujours utilisé : aucun taux à vous n'est défini pour prendre le relais.";
+"No rate of your own is set, so 1 per US dollar stands in: type one under Advanced › Diagnostics › Rate per dollar." = "Aucun taux à vous n'est défini, donc 1 par dollar américain prend le relais : saisissez-en un dans Avancé › Diagnostics › Taux par dollar.";
 
 "Could not install the command line tool: %@" = "Impossible d'installer l'outil de ligne de commande : %@";
 "Could not move %@" = "Impossible de déplacer %@";

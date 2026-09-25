@@ -1,4 +1,5 @@
 import Foundation
+import os
 import Testing
 @testable import Notchmeter
 
@@ -117,10 +118,32 @@ import Testing
         #expect(rates.perEuro == ["USD": 1.1367, "NOK": 10.7895])
     }
 
-    @Test func theDayIsNamedWithoutAYearInTheAppsLanguage() {
+    /// No year while it is this one; a rate kept stale can be from last year, and then "Dec 30" would read as
+    /// this year's.
+    @Test func theDayIsNamedWithTheYearOnlyWhenItIsNotThisOne() {
         Localization.use(language: "en")
-        #expect(ReferenceRates.dayText("2026-09-24") == "Sep 24")
-        #expect(ReferenceRates.dayText("not a day") == "not a day")
+        let today = ReferenceRateStaleness.noon("2026-09-25")
+        #expect(ReferenceRates.dayText("2026-09-24", now: today) == "Sep 24")
+        #expect(ReferenceRates.dayText("2025-12-30", now: ReferenceRateStaleness.noon("2026-01-05")) == "Dec 30, 2025")
+        #expect(ReferenceRates.dayText("not a day", now: today) == "not a day")
+        // The same day named twice comes from one formatter, not one per call.
+        #expect(ReferenceRates.dayText("2026-09-24", now: today) == ReferenceRates.dayText("2026-09-24", now: today))
+    }
+
+    /// The ECB publishes around 16:00 CET on TARGET working days: the next publication after a day's rates is
+    /// 16:30 in Frankfurt on the next weekday, summer time included.
+    @Test func theNextPublicationIsTheNextWeekdayAfternoonInFrankfurt() {
+        func rates(_ day: String) -> ReferenceRates { ReferenceRateStaleness.rates(day: day) }
+        // Thursday to Friday, in CEST (UTC+2): 16:30 is 14:30 UTC.
+        let friday = ReferenceRates.date(of: "2026-09-25")!.addingTimeInterval(14.5 * 3600)
+        #expect(rates("2026-09-24").nextPublication() == friday)
+        // Friday to Monday over the weekend.
+        let monday = ReferenceRates.date(of: "2026-09-21")!.addingTimeInterval(14.5 * 3600)
+        #expect(rates("2026-09-18").nextPublication() == monday)
+        // In winter (CET, UTC+1): 16:30 is 15:30 UTC.
+        let februaryMonday = ReferenceRates.date(of: "2026-02-02")!.addingTimeInterval(15.5 * 3600)
+        #expect(rates("2026-01-30").nextPublication() == februaryMonday)
+        #expect(ReferenceRates(day: "never", perEuro: [:], fetchedAt: Self.fetchedAt).nextPublication() == nil)
     }
 }
 
@@ -173,6 +196,47 @@ import Testing
         let ahead = ReferenceRateCache(rates: nil, lastAttempt: now.addingTimeInterval(10 * hour), failures: 0)
         #expect(RateRefresh.isDue(fetch: true, code: "EUR", cache: ahead, now: now))
     }
+
+    /// A request that was started and never answered (the app quit while it was in flight) has not failed, so a
+    /// relaunch asks at once rather than treating it as one and waiting the hour; a request that came back empty
+    /// is the failure and waits.
+    @Test func aRequestNeverAnsweredIsAskedAgainAtOnce() {
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
+        let unanswered = ReferenceRateCache(rates: nil, lastAttempt: now.addingTimeInterval(-5), failures: 0)
+        #expect(unanswered.isUnanswered)
+        #expect(RateRefresh.isDue(fetch: true, code: "EUR", cache: unanswered, now: now))
+        let answeredEmpty = ReferenceRateCache(rates: nil, lastAttempt: now.addingTimeInterval(-5), failures: 1)
+        #expect(!answeredEmpty.isUnanswered)
+        #expect(!RateRefresh.isDue(fetch: true, code: "EUR", cache: answeredEmpty, now: now))
+        // With rates held, a refresh that never came back is not an emergency: the held rate serves for the day.
+        let refreshing = ReferenceRateCache(rates: Self.rates(day: "2026-09-24"), lastAttempt: now.addingTimeInterval(-5), failures: 0)
+        #expect(!refreshing.isUnanswered)
+        #expect(!RateRefresh.isDue(fetch: true, code: "EUR", cache: refreshing, now: now))
+    }
+
+    /// The day's wait alone would anchor every request to the hour the switch was turned on, and a Mac asking each
+    /// morning would never see the day's rate on the day. So a request is also due once the ECB is expected to have
+    /// published a newer file than the one held, unless one was made since; and that fires once per publication.
+    @Test func aRequestIsDueOnceTheECBHasPublishedANewerDay() {
+        func cest(_ day: String, _ hour: Double) -> Date { ReferenceRates.date(of: day)!.addingTimeInterval((hour - 2) * 3600) }
+        func due(held: String, asked: Date, now: Date, failures: Int = 0) -> Bool {
+            RateRefresh.isDue(fetch: true, code: "EUR", cache: ReferenceRateCache(rates: Self.rates(day: held), lastAttempt: asked, failures: failures), now: now)
+        }
+        // Monday's rate held, asked Tuesday 09:00 CEST: not due at 15:00, due at 16:45 once Tuesday's is out.
+        #expect(!due(held: "2026-09-21", asked: cest("2026-09-22", 9), now: cest("2026-09-22", 15)))
+        #expect(due(held: "2026-09-21", asked: cest("2026-09-22", 9), now: cest("2026-09-22", 16.75)))
+        // Asked after the publication already (and got Monday's again, a holiday): not again that day.
+        #expect(!due(held: "2026-09-21", asked: cest("2026-09-22", 16.6), now: cest("2026-09-22", 16.85)))
+        // A failed answer since the publication is the backoff's to retry, not this rule's.
+        #expect(!due(held: "2026-09-21", asked: cest("2026-09-22", 16.6), now: cest("2026-09-22", 16.85), failures: 1))
+        #expect(due(held: "2026-09-21", asked: cest("2026-09-22", 16.6), now: cest("2026-09-22", 17.7), failures: 1))
+        // Friday's rate held over the weekend: nothing is published on Sunday, so nothing is due before Monday.
+        #expect(!due(held: "2026-09-18", asked: cest("2026-09-19", 17), now: cest("2026-09-20", 16.75)))
+        #expect(due(held: "2026-09-18", asked: cest("2026-09-21", 9), now: cest("2026-09-21", 16.75)))
+        // Nothing held: only the daily wait applies.
+        let bare = ReferenceRateCache(rates: nil, lastAttempt: cest("2026-09-22", 9), failures: 1)
+        #expect(!RateRefresh.isDue(fetch: true, code: "EUR", cache: bare, now: cest("2026-09-22", 9.5)))
+    }
 }
 
 /// What converts the figures: the typed rate by default, the ECB's when it is on and usable, and the typed rate
@@ -214,6 +278,46 @@ import Testing
         #expect(resolve("EUR", cache, now: later) == CurrencyConversion(code: "EUR", rate: 0.9, source: .fallback(.tooOld(day: "2026-09-24"))))
     }
 
+    /// *Rate per dollar* starts at 1, which converts nothing, so it is no rate of the user's own. With none set, a
+    /// held ECB rate past its week stays in use and is marked stale rather than giving way to 1:1; where there is
+    /// no ECB rate at all, 1 stands in and the conversion says a rate is wanted.
+    @Test func withNoRateOfTheirOwnAWeekOldECBRateStaysInUseAndIsMarkedStale() {
+        #expect(CurrencyConversion.ownRate(0.9) == 0.9)
+        #expect(CurrencyConversion.ownRate(1) == nil)
+        #expect(CurrencyConversion.ownRate(0) == nil)
+        #expect(CurrencyConversion.ownRate(-2) == nil)
+        #expect(CurrencyConversion.ownRate(.infinity) == nil)
+        let cache = ReferenceRateCache(rates: Self.fresh, lastAttempt: Self.now, failures: 0)
+        let later = ReferenceRateStaleness.noon("2026-10-02")
+        let euro = 1 / 1.1367
+        let stale = CurrencyConversion.resolve(code: "EUR", typed: 1, fetch: true, cache: cache, now: later)
+        #expect(stale == CurrencyConversion(code: "EUR", rate: euro, source: .stale(day: "2026-09-24", fetchedAt: Self.fresh.fetchedAt)))
+        #expect(!stale.standsInWithoutOwnRate)
+        // Months on it is still the ECB's rate, and still says so.
+        let muchLater = ReferenceRateStaleness.noon("2026-12-24")
+        #expect(CurrencyConversion.resolve(code: "EUR", typed: 1, fetch: true, cache: cache, now: muchLater).source == .stale(day: "2026-09-24", fetchedAt: Self.fresh.fetchedAt))
+        // A rate of their own, and the week's rule holds as before.
+        #expect(CurrencyConversion.resolve(code: "EUR", typed: 0.9, fetch: true, cache: cache, now: later).source == .fallback(.tooOld(day: "2026-09-24")))
+        // Within the week the ECB's rate is simply the ECB's rate, whatever the typed one.
+        #expect(CurrencyConversion.resolve(code: "EUR", typed: 1, fetch: true, cache: cache, now: Self.now).source == .reference(day: "2026-09-24", fetchedAt: Self.fresh.fetchedAt))
+        // No ECB rate and none of their own: 1 stands in, and Settings is told to ask for one.
+        let notYet = CurrencyConversion.resolve(code: "EUR", typed: 1, fetch: true, cache: ReferenceRateCache(), now: Self.now)
+        #expect(notYet == CurrencyConversion(code: "EUR", rate: 1, source: .fallback(.notYet)))
+        #expect(notYet.standsInWithoutOwnRate)
+        let dong = CurrencyConversion.resolve(code: "VND", typed: 1, fetch: true, cache: cache, now: Self.now)
+        #expect(dong.standsInWithoutOwnRate)
+        #expect(!CurrencyConversion.resolve(code: "VND", typed: 25_000, fetch: true, cache: cache, now: Self.now).standsInWithoutOwnRate)
+        #expect(!CurrencyConversion.resolve(code: "EUR", typed: 1, fetch: false, cache: cache, now: Self.now).standsInWithoutOwnRate)
+        // What the figures and Settings say of a stale rate, and the oracle.
+        Localization.use(language: "en")
+        let rate = CurrencyConversion.rateText(euro)
+        #expect(stale.note == "EUR at \(rate) per US dollar, the ECB reference rate of Sep 24, over a week old")
+        #expect(stale.settingsLine(now: later) == "\(rate) per US dollar, the ECB reference rate of Sep 24, over a week old and still in use: no rate of your own is set to stand in.")
+        #expect(stale.oracleFields["source"] as? String == "stale")
+        #expect(stale.oracleFields["day"] as? String == "2026-09-24")
+        #expect(Set(stale.oracleFields.keys) == ["code", "rate", "source", "day"])
+    }
+
     /// The line beside converted figures names the rate and its day; with fetching off there is no line, which is
     /// the card as it was before the switch existed.
     @Test func theNoteNamesTheRateAndItsDay() {
@@ -230,6 +334,20 @@ import Testing
         #expect(CurrencyConversion(code: "EUR", rate: 0.9, source: .fallback(.notYet)).settingsLine() == "Not fetched yet; your own rate (\(CurrencyConversion.rateText(0.9))) stands in.")
         #expect(CurrencyConversion(code: "EUR", rate: 0.9, source: .fallback(.tooOld(day: "2026-09-10"))).settingsLine()?.contains("Sep 10") == true)
         #expect(CurrencyConversion(code: "EUR", rate: 0.9, source: .fallback(.unreachable)).settingsLine()?.contains("could not be reached") == true)
+        // German, French, Portuguese and Russian abbreviate the month with a full stop of their own ("24. Sept.",
+        // "24 sept.", "24 de set.", "24 сент."), and German its hours too ("vor 2 Std."), so no line may end on the
+        // day or the time, or it ends "Sept.." on the screen. Every language, every line that names the day.
+        defer { Localization.use(language: "en") }
+        let stale = CurrencyConversion(code: "EUR", rate: 1 / 1.1367, source: .stale(day: "2025-12-30", fetchedAt: Self.fresh.fetchedAt))
+        let tooOld = CurrencyConversion(code: "EUR", rate: 0.9, source: .fallback(.tooOld(day: "2026-09-10")))
+        for language in Localization.languages {
+            Localization.use(language: language)
+            for line in [reference.note, reference.settingsLine(now: Self.now), stale.note, stale.settingsLine(now: Self.now), tooOld.settingsLine(now: Self.now)] {
+                #expect(line?.contains("..") == false, "\(language): \(line ?? "nil")")
+            }
+        }
+        Localization.use(language: "de")
+        #expect(reference.settingsLine(now: Self.now) == "Referenzkurs der EZB vom 24. Sept., abgerufen vor 2 Std.: \(CurrencyConversion.rateText(1 / 1.1367)) pro US-Dollar.")
     }
 
     @Test func theOracleHearsTheSourceAndTheReasonNeverMore() {
@@ -331,5 +449,154 @@ import Testing
             #expect(prefs.currencyConversion == CurrencyConversion(code: "EUR", rate: 0.9, source: .fallback(.tooOld(day: "2026-09-24"))))
             #expect(Money.rate == 0.9)
         }
+    }
+
+    /// Holds the stubbed request open until the test lets it answer.
+    @MainActor final class Gate {
+        private var continuation: CheckedContinuation<Void, Never>?
+        func wait() async { await withCheckedContinuation { continuation = $0 } }
+        func open() { continuation?.resume(); continuation = nil }
+    }
+
+    /// Lets the main actor turn over until the condition holds, or a couple of seconds pass, whichever is first.
+    func until(_ condition: () -> Bool) async {
+        for _ in 0..<200 where !condition() { try? await Task.sleep(for: .milliseconds(10)) }
+    }
+
+    /// Lets whatever the last change queued on the main actor run.
+    func settle() async {
+        try? await Task.sleep(for: .milliseconds(100))
+    }
+
+    /// While the first request is in flight nothing has failed: a re-resolve meanwhile (the code changing) reads
+    /// "not fetched yet", not "could not be reached"; a second look makes no second request; and the answer lands
+    /// when it comes. A request the app quit during is the same cache with nobody in flight, and is asked again at
+    /// once (`ReferenceRateStaleness`).
+    @Test func aRequestInFlightHasNotFailed() async throws {
+        let rates = try ReferenceRateParsing.rates()
+        await withSuite("inflight") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            prefs.currencyCode = "EUR"
+            prefs.fetchCurrencyRate = true
+            let gate = Gate()
+            var asked = 0
+            let fetcher = ReferenceRateFetcher(prefs: prefs) { asked += 1; await gate.wait(); return rates }
+            let now = ReferenceRateStaleness.noon("2026-09-24")
+            let request = Task { await fetcher.refreshIfDue(now: now) }
+            await until { asked == 1 }
+            #expect(asked == 1)
+            #expect(prefs.referenceRateCache.isUnanswered)
+            #expect(prefs.referenceRateCache.failures == 0)
+            prefs.currencyCode = "GBP"
+            #expect(prefs.currencyConversion == CurrencyConversion(code: "GBP", rate: 1, source: .fallback(.notYet)))
+            #expect(prefs.currencyConversion.standsInWithoutOwnRate)
+            #expect(await fetcher.refreshIfDue(now: now) == false)
+            #expect(asked == 1)
+            gate.open()
+            #expect(await request.value)
+            #expect(prefs.currencyConversion.source == .reference(day: "2026-09-24", fetchedAt: rates.fetchedAt))
+            #expect(!prefs.referenceRateCache.isUnanswered)
+        }
+    }
+
+    /// Started, the fetcher watches the switch and the code: turning the switch on asks at once rather than at the
+    /// next quarter hour, and the watch re-arms, so a later change is looked at too.
+    @Test func turningTheSwitchOnAsksAtOnce() async {
+        await withSuite("observe") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            prefs.currencyCode = "EUR"
+            // Dated against the clock, since the fetcher looks at the real one here.
+            let rates = DemoFixtures.referenceRates(now: Date())
+            var asked = 0
+            let fetcher = ReferenceRateFetcher(prefs: prefs) { asked += 1; return rates }
+            fetcher.start()
+            defer { fetcher.stop() }
+            await settle()
+            #expect(asked == 0)
+            prefs.fetchCurrencyRate = true
+            await until { asked == 1 }
+            #expect(asked == 1)
+            #expect(prefs.currencyConversion.source == .reference(day: rates.day, fetchedAt: rates.fetchedAt))
+            // Still watched after the first change: a code the file holds is looked at and needs no request.
+            prefs.currencyCode = "GBP"
+            await settle()
+            #expect(asked == 1)
+            let pound = 0.85986 / 1.1367
+            #expect(prefs.currencyConversion.rate == pound)
+        }
+    }
+}
+
+/// The request itself, against a session whose protocol is a stub of the ECB: the headers it carries and no
+/// others, no cookie though one is held for the host, and nothing read from a wrong status or a body too large.
+/// docs/privacy.md states each of these as fact.
+@Suite struct ReferenceRateRequest {
+    final class ECBStub: URLProtocol {
+        struct Exchange {
+            var status = 200
+            var body = Data()
+            var seen: [URLRequest] = []
+        }
+        static let exchange = OSAllocatedUnfairLock(initialState: Exchange())
+
+        override class func canInit(with request: URLRequest) -> Bool { true }
+        override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+        override func stopLoading() {}
+
+        override func startLoading() {
+            let (status, body) = Self.exchange.withLock { state -> (Int, Data) in
+                state.seen.append(request)
+                return (state.status, state.body)
+            }
+            let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/xml"])!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: body)
+            client?.urlProtocolDidFinishLoading(self)
+        }
+    }
+
+    /// An ephemeral session like the app's, answered by the stub.
+    static func session() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ECBStub.self]
+        return URLSession(configuration: configuration)
+    }
+
+    func answer(status: Int, body: Data) async -> (rates: ReferenceRates?, request: URLRequest?) {
+        ECBStub.exchange.withLock { $0 = ECBStub.Exchange(status: status, body: body) }
+        let rates = await ECBRates.fetch(session: Self.session())
+        return (rates, ECBStub.exchange.withLock { $0.seen.last })
+    }
+
+    @Test func theRequestIsOneGETWithThreeHeadersAndNoCookie() async throws {
+        let answered = await answer(status: 200, body: Data(ReferenceRateParsing.daily.utf8))
+        #expect(answered.rates?.day == "2026-09-24")
+        #expect(answered.rates?.perEuro.count == 29)
+        let request = try #require(answered.request)
+        #expect(request.httpMethod == "GET")
+        #expect(request.url == ECBRates.url)
+        #expect(request.httpBody == nil)
+        #expect(request.allHTTPHeaderFields?.keys.sorted() == ["Accept", "Accept-Language", "User-Agent"])
+        #expect(request.value(forHTTPHeaderField: "User-Agent") == AppInfo.userAgent)
+        #expect(request.value(forHTTPHeaderField: "Accept-Language") == "en")
+        #expect(request.value(forHTTPHeaderField: "Accept") == "application/xml, text/xml")
+        #expect(request.value(forHTTPHeaderField: "Cookie") == nil)
+        #expect(request.timeoutInterval == 20)
+        // A protocol class sees the request as the app made it, before the loader's own cookie handling, so what
+        // pins "no cookie sent or kept" is the flag that handling reads: off, the loader neither adds the jar's
+        // cookies to the request nor keeps a Set-Cookie from the answer. And the jar the app's session would use
+        // is an ephemeral one of its own, never the Mac's shared one.
+        #expect(!request.httpShouldHandleCookies)
+        #expect(NetworkSession.shared.configuration.httpCookieStorage !== HTTPCookieStorage.shared)
+    }
+
+    @Test func aWrongStatusOrAnOversizeBodyReadsAsNothing() async {
+        let file = Data(ReferenceRateParsing.daily.utf8)
+        #expect(await answer(status: 500, body: file).rates == nil)
+        #expect(await answer(status: 304, body: Data()).rates == nil)
+        #expect(await answer(status: 404, body: Data("<html>not here</html>".utf8)).rates == nil)
+        let oversize = Data(repeating: 0x20, count: 300 * 1024)
+        #expect(await answer(status: 200, body: oversize).rates == nil)
+        #expect(await answer(status: 200, body: Data("<html>Maintenance</html>".utf8)).rates == nil)
     }
 }
