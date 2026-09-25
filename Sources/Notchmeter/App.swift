@@ -228,6 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.togglePanel = { [weak self] in self?.pointerPresenter?.toggle(cause: .hotkey) }
         actions.copyPanelImage = { [weak self] in self?.copyPanelImage() }
         actions.installCommandLineTool = { [weak self] in self?.installCommandLineTool() }
+        actions.sendFeedback = { [weak self] in self?.showFeedback() }
         actions.accessibilityIsStale = { [weak self] in
             guard let self, case .stale = self.autoSide.trust else { return false }
             return true
@@ -260,6 +261,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         requests.privacyChanged = { [weak self] in self?.applyPrivacy() }
         requests.awakeChanged = { [weak self] in self?.store.applyAwake() }
         requests.diagnostics = { [weak self] in self?.diagnostics() ?? "" }
+        requests.diagnosticsInBackground = { [weak self] in await self?.diagnosticsOffMain() ?? "" }
         requests.installCommandLineTool = { [weak self] in self?.installCommandLineTool() }
         requests.showWelcomeTour = { [weak self] in self?.showWelcomeTour() }
         requests.updater = { [weak self] in self?.updater }
@@ -468,6 +470,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func settingsDidClose() {
         ColourWell.closePanel()
+        // The window is kept for next time; a feedback sheet it was closed under is not, or it would come back up
+        // over whatever the next opening was for.
+        requests.feedback = false
         hold(.settings, false)
         Oracle.shared.emit("settings", settingsFields(action: "hidden"))
         reopenPendingPrompt()
@@ -1004,6 +1009,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// "Copy diagnostics": everything Diagnostics gathers, from this delegate's state.
     private func diagnostics() -> String {
+        Diagnostics.report(diagnosticFacts(), log: Diagnostics.recentLog())
+    }
+
+    /// The same report for Send Feedback, with the unified log read on a background thread: the log store can take
+    /// a moment to open, and the sheet should be up and typeable meanwhile rather than wait for it.
+    private func diagnosticsOffMain() async -> String {
+        let facts = diagnosticFacts()
+        let lines = await Task.detached(priority: .userInitiated) { Diagnostics.recentLog() }.value
+        return Diagnostics.report(facts, log: lines)
+    }
+
+    /// The Options menu's Send Feedback…: the sheet is raised first, so the window is built (or brought forward)
+    /// with it already up over whichever pane it is on.
+    private func showFeedback() {
+        requests.feedback = true
+        showSettings()
+    }
+
+    private func diagnosticFacts() -> Diagnostics.Facts {
         var facts = Diagnostics.Facts()
         facts.edge = prefs.edge.rawValue
         facts.display = prefs.display.rawValue
@@ -1014,7 +1038,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         facts.statusline = HookSettings.statuslineStatus().text
         facts.localAPI = localAPI?.isRunning == true
         facts.debugLogging = prefs.debugLogging
-        return Diagnostics.report(facts, log: Diagnostics.recentLog())
+        return facts
     }
 
     // MARK: - Oracle

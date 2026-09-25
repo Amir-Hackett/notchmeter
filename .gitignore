@@ -1,6 +1,8 @@
 .build/
 build/
 dist/
+# --render-assets draws its review-only pictures here (AssetRenderer.render), beside the README's.
+docs/media/review/
 .swiftpm/
 *.xcodeproj
 .DS_Store

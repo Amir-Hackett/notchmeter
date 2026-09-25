@@ -34,6 +34,11 @@ enum AssetRenderer {
     static func render(into directory: URL, now: Date = Date()) -> Bool {
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            // The pictures the README does not use go under `review/`, which .gitignore lists: docs/install.md
+            // renders into docs/media, and a review-only picture written beside the README's left the tree dirty
+            // after every render, to be committed by mistake or known about and deleted.
+            let review = directory.appendingPathComponent("review")
+            try FileManager.default.createDirectory(at: review, withIntermediateDirectories: true)
             stillEveryAnimation()
             let (store, prefs) = DemoFixtures.store(now: now)
             let actions = NotchActions()
@@ -45,7 +50,7 @@ enum AssetRenderer {
             let (finished, finishedPrefs) = DemoFixtures.store(now: now, moment: .justFinished)
             try write(signalRings(waiting: stage, finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
                       png: directory.appendingPathComponent("signal-rings.png"))
-            try write(notchNews(now: now, actions: actions), png: directory.appendingPathComponent("notch-news.png"))
+            try write(notchNews(now: now, actions: actions), png: review.appendingPathComponent("notch-news.png"))
             // Claude Cowork's tasks among the hook's sessions, and the notch announcing one's finish: drawn from a
             // store of their own (DemoFixtures.coworkTasks), so the README's pictures stay as they were.
             let (cowork, coworkPrefs) = DemoFixtures.store(now: now, moment: .working, cowork: true)
@@ -97,7 +102,8 @@ enum AssetRenderer {
                                    width: SettingsWindowController.minSize.width, appearance: appearance),
                           png: directory.appendingPathComponent("\(name).png"))
             }
-            try write(welcome(now: now), png: directory.appendingPathComponent("welcome.png"))
+            try write(welcome(now: now), png: review.appendingPathComponent("welcome.png"))
+            try write(feedback(store: store, prefs: prefs), png: review.appendingPathComponent("feedback.png"))
             try openCode(into: directory, now: now, actions: actions)
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
             // The same moment on the Detailed panel (PanelMode): every card open, as the panel was before 0.8.0.
@@ -109,7 +115,7 @@ enum AssetRenderer {
             // under their rows without a box.
             store.openPanelRows = [AdvicePlacement.Slot.tool(.claude).key, AdvicePlacement.Slot.cost.key]
             let opened = try Stage(store: store, prefs: prefs, actions: actions)
-            try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-open.png"))
+            try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: review.appendingPathComponent("expanded-open.png"))
             store.openPanelRows = []
             // The rows 0.9.0 added, for review (DemoFixtures.assistantsStore): Gemini CLI and Antigravity apart,
             // Kimi Code beside them, on the Simple panel, the strip, and the Detailed panel.
@@ -901,6 +907,32 @@ enum AssetRenderer {
         try write(welcome(now: now, steps: [.connect], openCode: true), png: directory.appendingPathComponent("opencode-welcome.png"))
     }
 
+    /// The Send Feedback sheet, filled in over the fixture afternoon, twice: sent as a GitHub issue in the dark
+    /// appearance with a busy ten minutes of log, which is too long for a link and shows the cut, and sent by Mail
+    /// in the light one with a short log, which Mail takes whole. For review; the README does not use it.
+    ///
+    /// Nothing of this Mac is read: the names come from the demo store under a home folder and an account of the
+    /// fixture's own (DemoFixtures.home), the report is DemoFixtures.diagnostics stamped with the fixture's own
+    /// instant rather than the clock, and the route is fixed rather than asked of LaunchServices, so the picture is
+    /// the same on every machine and on every run.
+    @MainActor
+    static func feedback(store: UsageStore, prefs: Preferences) throws -> CGImage {
+        let names = FeedbackRedaction.gather(store: store, prefs: prefs, home: DemoFixtures.home, accounts: [DemoFixtures.account])
+        let chosen = prefs.feedbackDestination
+        defer { prefs.feedbackDestination = chosen }
+        var pages: [CGImage] = []
+        let cases: [(Feedback.Destination, Feedback.Route, NSAppearance.Name, Int)] = [(.github, .browser, .darkAqua, 240), (.email, .mailCompose, .aqua, 0)]
+        for (destination, route, appearance, extraLines) in cases {
+            prefs.feedbackDestination = destination
+            let report = DemoFixtures.diagnostics(now: DemoFixtures.feedbackStamp, extraLines: extraLines)
+            let sheet = FeedbackView(store: store, prefs: prefs, diagnostics: { report }, routeFor: { _ in route }, redaction: { names },
+                                     sent: { _ in }, close: {}, about: DemoFixtures.feedbackAbout, message: DemoFixtures.feedbackMessage, report: report)
+                .background(Color(nsColor: .windowBackgroundColor))
+            pages.append(try snapshot(sheet, what: "the Send Feedback sheet", appearance: appearance).image)
+        }
+        return try stack(pages, gutter: 24)
+    }
+
     /// Images one under another, left-aligned, on the same ground the sheet's gutters use.
     static func stack(_ images: [CGImage], gutter: CGFloat = 0) throws -> CGImage {
         guard !images.isEmpty else { throw Failure.snapshot("an empty stack") }
@@ -1302,6 +1334,8 @@ enum AssetRenderer {
 
     /// A view at its fitting size, laid out in a window that is never shown. Going through the window rather
     /// than ImageRenderer draws the AppKit-backed controls too: the segmented picker, the buttons, the toggles.
+    /// `appearance` is the window's, which is what the AppKit-backed controls draw in; dark unless asked, as the
+    /// notch panel always is.
     @MainActor
     static func snapshot<Content: View>(_ content: Content, what: String, appearance: NSAppearance.Name = .darkAqua, allowEmpty: Bool = false) throws -> Snapshot {
         let host = NSHostingView(rootView: content)

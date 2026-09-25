@@ -549,6 +549,22 @@ None of these requests signs in, refreshes a token, or asks a model anything; ea
 
 If a vendor asks the project to stop reading its service, whether through a GitHub issue, the contact in [SECURITY.md](../SECURITY.md) or any other channel, that vendor's meter is removed in the next release, and the release notes say so and why. The app is not argued back in through another route: a meter that loses its endpoint reports the error and waits, and one the vendor has asked us to drop goes. Until that release is out, switching the assistant off in Settings › Assistants stops every request to it at once.
 
+## Send Feedback's link
+
+Send Feedback hands a GitHub issue to the browser as a link, and a link can only carry so much, so the sheet cuts the text to a cap and says what it cut (`Feedback.payload`). The cap is not GitHub's own limit on a link. GitHub's documentation names no figure and the server cuts a link off at 8,191 bytes ([github/docs#5136](https://github.com/github/docs/issues/5136), 2021), but a browser that is not signed in to GitHub never reaches the issue page with the link: it is sent to `https://github.com/login?return_to=` with the whole link percent-encoded once more as the return address, and that page fails first. Measured 2026-09-24 with curl against this repository's new-issue page, signed out, with a link of plain letters and one of `%20` escapes:
+
+| Link | Bytes | Issue page | Return address | Sign-in page |
+|---|---|---|---|---|
+| plain | 4,500 | 302 | 4,561 | 200 |
+| plain | 6,500 | 302 | 6,561 | 200 |
+| plain | 6,900 | 302 | 6,961 | 500 |
+| plain | 7,000 | 500 | | |
+| escapes | 4,500 | 302 | 7,505 | 500 |
+| escapes | 5,298 to 6,498 | 302 | 24 (a bare `https://github.com/login`; the text discarded) | 200, on an empty sign-in page |
+| escapes | 6,900 | 500 | | |
+
+A finer pass on the same day put the sign-in page's edge between a return address of 6,928 bytes (200) and 6,953 (500). So the figure that counts is the return address, and the sheet measures a new-issue link that way (`Feedback.loginRedirectLength`: 35 bytes of prefix, the link, and two more bytes for every `%`, `:`, `/`, `?`, `=` and `&` in it, which the second encoding turns into three) and holds it to **6,500 bytes** of return address (`Feedback.browserLimit`), 400 under the edge. The formula reproduces both measured addresses exactly (4,561 and 7,505; `FeedbackLinks` pins them). Text that encodes heavily is held shorter than text that does not: a character of Japanese is nine bytes in the link and fifteen in the return address. A signed-in browser skips the redirect and would take a longer link, but the app cannot tell which browser it is handing the link to, so every browser gets the shorter one. A `mailto:` link is held to 8,000 bytes of its own (`Feedback.mailtoLimit`), the figure every link was held to before the redirect was measured: mail apps publish no limit, and nothing has shown one taking less. Mail's compose window takes the text directly and is never cut.
+
 ## The golden tests
 
 `Tests/NotchmeterTests/CostGoldenTests.swift` feeds transcript excerpts, written inline as JSONL, through the same `parseFile → dedupe → summarize` path the app uses, with a fixed `now`, and pins each total to nine decimal places:

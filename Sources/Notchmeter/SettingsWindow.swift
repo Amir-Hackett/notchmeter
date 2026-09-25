@@ -37,6 +37,11 @@ final class SettingsRequests {
     var privacyChanged: () -> Void = {}
     var awakeChanged: () -> Void = {}
     var diagnostics: () -> String = { "" }
+    /// The same report for Send Feedback, its log read off the main thread so the sheet is up before it is.
+    var diagnosticsInBackground: () async -> String = { "" }
+    /// Send Feedback's sheet is up (FeedbackView). The About and Diagnostics buttons raise it; the Options menu's
+    /// Send Feedback… raises it and then opens the window, which is built with it up.
+    var feedback = false
     var installCommandLineTool: () -> Void = {}
     /// Settings › General › "Show the welcome tour again" (AppDelegate.showWelcomeTour).
     var showWelcomeTour: () -> Void = {}
@@ -175,6 +180,8 @@ struct SettingsView: View {
     @State private var statuslineMessage: String?
     @State private var notificationMessage: String?
     @State private var diagnosticsMessage: String?
+    /// What the last Send Feedback handed over to, under the buttons that raise the sheet.
+    @State private var feedbackMessage: String?
     @State private var exportMessage: String?
     @State private var hookStatus: [HookVendor: HookSettings.Status] = [:]
     @State private var statuslineStatus = HookSettings.statuslineStatus()
@@ -259,6 +266,13 @@ struct SettingsView: View {
         .sheet(isPresented: Binding(get: { requests.hookOffer }, set: { requests.hookOffer = $0 })) {
             HookOfferView(install: { requests.hookOffer = false; installHook() },
                           later: { requests.hookOffer = false; requests.statuslineOffer = false })
+        }
+        .sheet(isPresented: Binding(get: { requests.feedback }, set: { requests.feedback = $0 })) {
+            FeedbackView(store: store, prefs: prefs, diagnostics: requests.diagnosticsInBackground,
+                         routeFor: { Feedback.liveRoute(for: $0) },
+                         redaction: { FeedbackRedaction.gather(store: store, prefs: prefs) },
+                         sent: { feedbackMessage = $0 },
+                         close: { requests.feedback = false })
         }
         .onAppear {
             prefs.refreshLaunchAtLogin()
@@ -1693,6 +1707,10 @@ struct SettingsView: View {
                             diagnosticsMessage = L("Copied %ld lines.", text.split(separator: "\n").count)
                         }
                         .help(L("The last 10 minutes of this app's unified log, each assistant's status, the hook and status-line state, the layout and the macOS version, scrubbed of your home folder, for a bug report. Never a token."))
+                        // Beside the copy, because this is where someone with a bug already is: the same report,
+                        // with names replaced as well, sent from here rather than pasted somewhere by hand.
+                        Button(L("Send Feedback…")) { requests.feedback = true }
+                            .help(feedbackHelp)
                         if let diagnosticsMessage {
                             Text(diagnosticsMessage).font(.caption).foregroundStyle(.secondary)
                         }
@@ -1700,6 +1718,10 @@ struct SettingsView: View {
                     // A disclosure's rows are not stretched the way a section's are, so the button would sit
                     // centred under the labelled rows above it.
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    if let feedbackMessage {
+                        Text(feedbackMessage).font(.caption).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     LabeledContent(L("Rate per dollar")) {
                         field($rateText, prompt: Self.ratePlaceholder, label: L("Rate per dollar"))
                             .onSubmit { applyRate() }
@@ -1776,12 +1798,27 @@ struct SettingsView: View {
         }
     }
 
+    /// The tooltip both Send Feedback buttons wear.
+    private var feedbackHelp: String {
+        L("Write to the developer: a message, and the diagnostics if you like, with every project name, branch, session title and your home folder replaced. You see all of it before it goes, and it goes only through GitHub in your browser or your own mail app.")
+    }
+
     private var aboutSection: some View {
         Section {
             Text(L("Version %@", AppInfo.version))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .help(L("%@ never signs in. It reads usage from tools already signed in on this Mac and keeps no tokens. macOS asks once per tool for permission to read its saved login; choose Always Allow so it stays quiet.", AppInfo.name))
+            // An ordinary button rather than a link in the footer's quiet type: this is the one way a problem the
+            // developer cannot see reaches them, and it should not have to be found.
+            HStack {
+                Button(L("Send Feedback…")) { requests.feedback = true }
+                    .help(feedbackHelp)
+                if let feedbackMessage {
+                    Text(feedbackMessage).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             // The one ask the app makes, kept to the About footer where a happy user is already looking, in the
             // same quiet type as the version line: the app is free and stays free, and a button any louder than
             // this would make it read as if it were not.

@@ -49,7 +49,7 @@ build/Notchmeter.app/Contents/MacOS/Notchmeter --hook --tool gemini  # Gemini CL
 build/Notchmeter.app/Contents/MacOS/Notchmeter --hook --tool kimi    # Kimi Code hook command
 build/Notchmeter.app/Contents/MacOS/Notchmeter --hook --tool copilot --event <name>  # Copilot CLI hook command (one entry per event)
 build/Notchmeter.app/Contents/MacOS/Notchmeter --statusline          # Claude Code status-line command, see docs/hooks.md
-build/Notchmeter.app/Contents/MacOS/Notchmeter --render-assets docs/media   # the README's pictures, from fixed readings (no Keychain, no network)
+build/Notchmeter.app/Contents/MacOS/Notchmeter --render-assets docs/media   # the README's pictures, from fixed readings (no Keychain, no network); review-only ones under docs/media/review, which git ignores
 build/Notchmeter.app/Contents/MacOS/Notchmeter --render-gallery build/gallery   # the launch gallery frames (one GIF, seven PNGs) and thumbnail
 build/Notchmeter.app/Contents/MacOS/Notchmeter --render-dashboard build/dashboard   # the Usage Dashboard, light and dark, week, 30 and 90 days
 ```

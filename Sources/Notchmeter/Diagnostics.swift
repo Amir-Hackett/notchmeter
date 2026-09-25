@@ -7,6 +7,10 @@ import OSLog
 /// labels and fractions.
 enum Diagnostics {
     static let subsystem = "com.amirhackett.notchmeter"
+    /// The start of the line that separates the facts from the log lines under them. Send Feedback splits the
+    /// report here (Feedback.Report), so that a report too long for a link loses its oldest log lines first and
+    /// keeps every fact; the two read the one constant so the split cannot drift from the report.
+    static let logHeading = "unified log, last "
 
     struct Facts {
         var version = AppInfo.versionWithBuild
@@ -33,7 +37,7 @@ enum Diagnostics {
         out.append("status line: \(facts.statusline)")
         out.append("local API: \(facts.localAPI ? "on" : "off"); debug logging: \(facts.debugLogging ? "on" : "off")")
         out.append("")
-        out.append("unified log, last 10 minutes (\(lines.count) lines):")
+        out.append("\(logHeading)10 minutes (\(lines.count) lines):")
         out.append(contentsOf: lines)
         let text = out.joined(separator: "\n")
         return (Oracle.scrub(text, home: home) as? String) ?? text

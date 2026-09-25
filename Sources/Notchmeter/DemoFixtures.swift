@@ -409,6 +409,53 @@ enum DemoFixtures {
     ]
 
 
+    // MARK: - Send Feedback
+
+    /// The Mac the Send Feedback picture is of: a home folder and an account name that are not the renderer's,
+    /// which the sheet replaces the way it replaces the real ones.
+    static let home = "/Users/sam"
+    static let account = "sam"
+    /// A message that names what a real one would: a project, its branch and a path under the home folder, so the
+    /// picture shows each replaced.
+    static let feedbackMessage = "The scout row stayed on the Sessions card after I closed its terminal.\n\nSeen on feat/side-notch, with the session started in /Users/sam/Developer/scout."
+    /// The version line the picture carries, fixed so a developer build's stamp does not change the picture.
+    static let feedbackAbout = Feedback.about(version: AppInfo.version, macOS: "Version 26.0 (Build 25A354)", language: "en")
+    /// The instant the picture's report is stamped with (2026-09-24T20:00:00Z, four o'clock on the fixture
+    /// afternoon), fixed for the same reason: the report's first line carries it, and the clock would make every
+    /// render a different picture.
+    static let feedbackStamp = Date(timeIntervalSince1970: 1_790_280_000)
+
+    /// A Copy diagnostics report for the fixture afternoon, as `Diagnostics.report` writes one, with the home
+    /// folder and the projects in it for the sheet to replace. `extraLines` pads the log with the rescans a busy
+    /// ten minutes writes, for the picture of a report too long for a link.
+    static func diagnostics(now: Date, extraLines: Int = 0) -> String {
+        var facts = Diagnostics.Facts()
+        facts.version = AppInfo.version
+        facts.macOS = "Version 26.0 (Build 25A354)"
+        facts.edge = PanelEdge.top.rawValue
+        facts.display = DisplayChoice.builtIn.rawValue
+        facts.visibility = NotchVisibility.onHover.rawValue
+        facts.screens = ["Built-in Retina Display frame=(0.0, 0.0, 1512.0, 982.0) notch=true main=true"]
+        facts.tools = [("Claude", "ready (Max 5x) · Session 14% · Weekly 4%"), ("Codex", "ready (Free)"), ("Cursor", "ready (Free)"),
+                       ("Antigravity", "not installed"), ("Copilot", "not installed")]
+        facts.hook = "claude: Installed · pointing at /Applications/\(AppInfo.name).app; codex: Not installed; cursor: Not installed"
+        facts.statusline = "Installed · pointing at /Applications/\(AppInfo.name).app"
+        var lines = [
+            "15:48:02 [usage] hook SessionStart",
+            "15:48:03 [cost] rescanned \(home)/.claude/projects/-Users-sam-Developer-scout (1 file changed)",
+            "15:51:10 [usage] Claude usage -> ready (Max 5x)",
+        ]
+        for index in 0..<extraLines {
+            lines.append(String(format: "15:%02d:%02d [cost] rescanned %@/.claude/projects/-Users-sam-Developer-scout (1 file changed)",
+                                52 + index / 60 % 8, index % 60, home))
+        }
+        lines += [
+            "15:59:31 [usage] hook Stop",
+            "15:59:32 [jump] jump applescript for scout did not land",
+        ]
+        return Diagnostics.report(facts, log: lines, now: now, home: home)
+    }
+
     /// Claude on Max 5x a third of the way into a quiet session, Codex on a free plan with an untouched monthly
     /// window, Cursor on a free plan with nothing to meter: every ring under 40 % and on pace.
     ///

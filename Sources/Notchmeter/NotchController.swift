@@ -15,6 +15,8 @@ final class NotchActions {
     var togglePanel: () -> Void = {}
     var copyPanelImage: () -> Void = {}
     var installCommandLineTool: () -> Void = {}
+    /// The Options menu's Send Feedback…: Settings, with the feedback sheet up over it (FeedbackView).
+    var sendFeedback: () -> Void = {}
     /// The user picking which side of the notch the readouts sit on. Not `prefs.compactSide = side` directly:
     /// picking Auto is what asks for Accessibility (AutoSideWatcher.sideChosen).
     var chooseCompactSide: (CompactSide) -> Void = { _ in }
@@ -281,6 +283,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
         if actions.checkForUpdates != nil {
             menu.addItem(item(L("Check for Updates…"), #selector(checkForUpdates)))
         }
+        menu.addItem(item(L("Send Feedback…"), #selector(sendFeedback)))
         menu.addItem(.separator())
         let quit = item(L("Quit %@", AppInfo.name), #selector(quit))
         quit.keyEquivalent = "q"
@@ -348,6 +351,7 @@ final class OptionsMenu: NSObject, NSMenuDelegate {
     @objc private func showSettings() { actions.openSettings() }
     @objc private func showDashboard() { actions.openDashboard() }
     @objc private func checkForUpdates() { actions.checkForUpdates?() }
+    @objc private func sendFeedback() { actions.sendFeedback() }
     @objc private func quit() { NSApp.terminate(nil) }
 }
 
