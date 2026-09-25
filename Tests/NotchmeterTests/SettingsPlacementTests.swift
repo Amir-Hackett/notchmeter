@@ -160,6 +160,20 @@ import Testing
         }
     }
 
+    /// Every disclosure in Settings is drawn as a settings row (SettingsDisclosureStyle) rather than with the system's
+    /// 9 pt triangle in the leading margin, which read as a stray mark beside its title. A new DisclosureGroup has to
+    /// wear the style too, and this counts them against the style's uses so one cannot slip back in.
+    @Test func everyDisclosureInSettingsIsDrawnAsASettingsRow() throws {
+        let source = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/Notchmeter/SettingsWindow.swift")
+        let text = try String(contentsOf: source, encoding: .utf8)
+        let groups = text.components(separatedBy: "DisclosureGroup(isExpanded:").count - 1
+        let styled = text.components(separatedBy: ".disclosureGroupStyle(SettingsDisclosureStyle(").count - 1
+        #expect(groups > 0, "no disclosure found; the scan is looking at the wrong file")
+        #expect(groups == styled, "\(groups) disclosures, \(styled) wear SettingsDisclosureStyle")
+    }
+
     /// General is the pane the window opens on, so its tile is the first one a low-vision reader meets. It wears a
     /// fixed sRGB grey rather than `.gray`, which is the worst tile in the sidebar at 2.87:1 in the dark.
     @Test func theDefaultPanesTileIsTheOneSystemGreyCouldNotBe() throws {

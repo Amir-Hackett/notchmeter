@@ -1514,6 +1514,7 @@ struct SettingsView: View {
             } label: {
                 Text(L("Where each window comes from"))
             }
+            .disclosureGroupStyle(SettingsDisclosureStyle(reduceAnimations: prefs.reduceAnimations))
             .accessibilityLabel(L("Where each window comes from"))
             switch tool {
             case .claude:
@@ -1784,6 +1785,7 @@ struct SettingsView: View {
             } label: {
                 Text(L("Diagnostics")).opacity(searchOpacity(.diagnostics))
             }
+            .disclosureGroupStyle(SettingsDisclosureStyle(reduceAnimations: prefs.reduceAnimations))
             .accessibilityLabel(L("Diagnostics"))
             Button(L("Reset All Settings…")) { resetAll() }
                 .help(L("Puts every setting back to its default, forgets the cached readings and which notifications were sent, and relaunches. Transcripts, the cost cache and the drain log are kept."))
@@ -2607,6 +2609,59 @@ struct HookSnippetView: View {
         }
         .padding(16)
         .frame(width: 560)
+    }
+}
+
+/// A disclosure drawn the way a settings row reads. The system's own style puts a 9 pt grey triangle in the leading
+/// margin, apart from its title and smaller than every control on the page, so a row that opens looked like a
+/// stray mark beside a label. Here the whole row is the button, the title sits where every other row's title does,
+/// and a chevron at the trailing edge, where the pop-ups and switches around it keep their affordances, turns down
+/// as the group opens: straight away under Reduce Motion or the app's own Reduce animations, in 200 ms otherwise.
+/// VoiceOver hears the title and whether the group is expanded, and Space or Return opens it from the keyboard.
+struct SettingsDisclosureStyle: DisclosureGroupStyle {
+    let reduceAnimations: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        SettingsDisclosureRow(configuration: configuration, reduceAnimations: reduceAnimations)
+    }
+}
+
+private struct SettingsDisclosureRow: View {
+    let configuration: DisclosureGroupStyleConfiguration
+    let reduceAnimations: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(reduceMotion || reduceAnimations ? nil : .easeOut(duration: 0.2)) {
+                    configuration.isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    configuration.label
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(configuration.isExpanded ? 90 : 0))
+                        // A fixed box, so the chevron turns about its own centre and the title does not shift.
+                        .frame(width: 14, height: 14)
+                        .accessibilityHidden(true)
+                }
+                // A point above and below, so a closed disclosure is as tall as the switch and pop-up rows under it
+                // (36 pt) rather than two points short of them.
+                .padding(.vertical, 1)
+                // The gaps between the words and the chevron click too, not only the ink.
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(configuration.isExpanded ? L("Expanded") : L("Collapsed"))
+            if configuration.isExpanded {
+                configuration.content
+                    .padding(.top, 10)
+            }
+        }
     }
 }
 
