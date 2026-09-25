@@ -168,24 +168,36 @@ release, so this is the moment installed copies begin to see the update.
 
 ### 8. Homebrew
 
-The tap is what users install from; this repository's copy is not.
+The tap is what users install from; this repository's copy is not. `Amir-Hackett/homebrew-tap` points its cask at the
+latest promoted release on its own (`.github/workflows/bump-notchmeter.yml`, every 30 minutes), so this step starts
+that now, keeps this repository's copy in step, and proves the result on this Mac.
 
 ```bash
 shasum -a 256 /tmp/nm-verify/Notchmeter.dmg
+gh workflow run bump-notchmeter.yml -R Amir-Hackett/homebrew-tap
+gh run watch "$(gh run list -R Amir-Hackett/homebrew-tap --workflow=bump-notchmeter.yml --limit 1 --json databaseId -q '.[0].databaseId')"
 ```
 
-Update `version` and `sha256` in `packaging/homebrew/notchmeter.rb`, commit, then copy that file to
-`Casks/notchmeter.rb` in `Amir-Hackett/homebrew-tap` and push there. Verify:
+Its log says `latest $VERSION, cask at <old>` and commits `notchmeter $VERSION`, or `cask at $VERSION` if it already
+ran. Then update `version` and `sha256` in `packaging/homebrew/notchmeter.rb` to the same two values and merge that as
+`point the cask at $VERSION`. Verify by version, not by the upgrade's exit status:
 
 ```bash
 brew update && brew upgrade --cask notchmeter
+brew list --cask --versions notchmeter        # must print notchmeter $VERSION
 ```
+
+An upgrade that prints nothing is not a pass. 0.7.9's cask reached the tap but this Mac stayed on 0.7.8 until 0.9.0,
+because the check was `brew upgrade` succeeding rather than the installed version. If `brew` still names the old
+version, the tap did not take the bump: read `Casks/notchmeter.rb` on the tap's `main`.
 
 ### 9. Record it
 
-Update the state row in the project's notes with the version, that it was installed from the DMG and launched
-before being promoted, and anything that went wrong. Then report to the user: version, release URL, what the
-launch check showed, feed confirmed, cask updated.
+Add the release's row at the top of the table in `docs/release-state.md` in the private `Amir-Hackett/notchmeter-internal`
+repository: version, the commit the tag is on, the date promoted, whether it was installed from the DMG and launched
+before promotion (and what the launch check showed), the tap commit, and anything that went wrong with what was changed
+because of it, however small. The next release reads that table first. Then report to the user: version, release URL,
+what the launch check showed, feed confirmed, cask updated and the version `brew list` printed.
 
 ## When a release is already tagged and you are asked to finish it
 

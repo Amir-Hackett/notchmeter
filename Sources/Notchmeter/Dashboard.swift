@@ -315,7 +315,7 @@ enum DashboardLook {
     /// choose it (the Cost card's range control, the line that says a session is waiting).
     static func accentInk(contrast: Bool) -> PanelInk { contrast ? .accentContrast : .accent }
 
-    /// The accent as a mark on the window: the project bars and the band over the chart's chosen day.
+    /// The accent as a mark on the window: the project bars and the pin under the chart.
     static func accent(dark: Bool, accent: PanelAccent, contrast: Bool) -> RGB {
         look(dark: dark, accent: accent, contrast: contrast).rgb(accentInk(contrast: contrast), role: .mark)
     }
@@ -485,7 +485,7 @@ struct DashboardView: View {
             } else {
                 if !model.isEmpty {
                     hero(DashboardHero(model: model, valueLine: store.planValueLine(for: range.costRange)))
-                    chartSection(model, accent: accent, ink: ink, pinMark: DashboardLook.pin(dark: dark, accent: store.prefs.panelAccent, contrast: contrast).color)
+                    chartSection(model, ink: ink, pinMark: DashboardLook.pin(dark: dark, accent: store.prefs.panelAccent, contrast: contrast).color)
                 }
                 if !limits.isEmpty { limitsSection(limits, dark: dark, contrast: contrast) }
                 if !model.isEmpty { breakdownSection(model, accent: accent) }
@@ -623,7 +623,7 @@ struct DashboardView: View {
 
     // MARK: Chart
 
-    private func chartSection(_ model: DashboardModel, accent: Color, ink: Color, pinMark: Color) -> some View {
+    private func chartSection(_ model: DashboardModel, ink: Color, pinMark: Color) -> some View {
         let shown = model.day(selection.shown, calendar: selection.calendar)
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -643,7 +643,7 @@ struct DashboardView: View {
             }
             // Rebuilt per range: Swift Charts in this hosting view kept drawing the previous range's marks and scale
             // until the window was resized, while the tiles above had already moved on.
-            DailySpendChart(model: model, shown: shown, pinned: selection.isPinned, accent: accent, ink: ink, calendar: selection.calendar,
+            DailySpendChart(model: model, shown: shown, pinned: selection.isPinned, ink: ink, calendar: selection.calendar,
                             hover: { day, inside in selection.hover(day, inside: inside) }, click: click)
                 .id(range)
                 .frame(height: 220)
@@ -782,9 +782,11 @@ private struct Line: Shape {
     }
 }
 
-/// Stacked daily bars, one colour per assistant, a dashed line at the daily average, and a band in the accent over
-/// the day whose figures are under the chart, stronger while that day is pinned. The band is the only mark of the
-/// day: the other days' bars keep their colour, since dimming them (as a hover once did) put six of seven bars
+/// Stacked daily bars, one colour per assistant, a dashed line at the daily average, and a band in the secondary ink
+/// over the day whose figures are under the chart, stronger while that day is pinned. The band is neutral on purpose:
+/// in the accent it was the default terracotta, Claude's own series colour, so the part of a pinned day's column
+/// above its bar read as another stacked segment of spend reaching the top of the chart. The band is the only mark
+/// of the day: the other days' bars keep their colour, since dimming them (as a hover once did) put six of seven bars
 /// under 3:1 on either window and off the legend's swatches for as long as a pin held. The bars, the band and the
 /// rule say nothing to VoiceOver: an invisible element over each day's slot speaks for them (the day, the total,
 /// the split) and takes the hover and the click, so what a pointer can pin a VoiceOver reader can pin too, and no
@@ -793,7 +795,6 @@ private struct DailySpendChart: View {
     let model: DashboardModel
     let shown: DashboardModel.Day?
     let pinned: Bool
-    let accent: Color
     /// The secondary ink as a colour, for the average's rule and, faintly, the grid.
     let ink: Color
     let calendar: Calendar
@@ -821,7 +822,7 @@ private struct DailySpendChart: View {
             if let shown {
                 // First, so it lies under the bars. Hidden from VoiceOver like the bars: the day's slot speaks for it.
                 RectangleMark(x: .value(L("Day"), shown.day, unit: .day))
-                    .foregroundStyle(accent.opacity(pinned ? 0.3 : 0.16))
+                    .foregroundStyle(ink.opacity(pinned ? 0.22 : 0.12))
                     .accessibilityHidden(true)
             }
             ForEach(model.bars) { bar in

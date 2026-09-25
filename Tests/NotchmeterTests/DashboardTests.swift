@@ -280,7 +280,7 @@ import Testing
 }
 
 /// How the dashboard presents its figures: the hero's wording, which assistant a model row is coloured for, the
-/// accent the project rows and the chart's band take (the theme's, never the system's), and the pin under the chart.
+/// accent the project rows take (the theme's, never the system's), and the pin under the chart.
 @Suite struct DashboardPresentation {
     init() { Localization.use(language: "en") }
 
