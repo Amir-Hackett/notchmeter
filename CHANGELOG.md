@@ -77,7 +77,7 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 - **Allow always**: allow a request and add the rule Claude Code suggests in one step.
 - A short guided tour on first launch, and again from Settings. Advice lines hide their figures while your screen is shared. Claude Desktop's Cowork sessions are priced once per response.
 
-## [0.8.0](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.8.0) — 2026-09-24
+## 0.8.0 — 2026-09-24, merged as [#87](https://github.com/Amir-Hackett/notchmeter/pull/87) and never tagged; its changes first shipped in 0.9.0
 
 ### A simpler panel
 
