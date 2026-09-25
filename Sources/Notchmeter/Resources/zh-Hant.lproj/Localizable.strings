@@ -1239,3 +1239,16 @@
 "on the %1$@ %2$@ plan" = "對比 %2$@ 方案（%1$@）";
 "the plan's price" = "方案價格";
 "what the plans cost" = "方案總費用";
+/* The pricing catalog: its switch and status line in Settings, and the Cost card's price line (PricingCatalog, PriceSource) */
+"Update model prices from notchmeter's catalog" = "從 notchmeter 的目錄更新模型價格";
+"Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used." = "每天一次，以簡單的 GET 從本專案的 GitHub 儲存庫取得 pricing/catalog.json，使版本之間推出的新模型在一天內按公布價格計價。公開資料，請求中不含任何關於你的資訊；費用卡片會標明所用的價格。";
+"Off. Prices come from this build (%@) and your own overrides." = "已關閉。價格來自此版本（%@）和你自己的覆寫設定。";
+"Catalog of %1$@ in use, last confirmed %2$@." = "正在使用 %1$@ 的目錄，最近一次確認於%2$@。";
+"The catalog could not be used; this build's prices (%@) stand until it can be." = "目錄無法使用；在可用之前沿用此版本的價格（%@）。";
+"Not fetched yet; this build's prices (%@) are in use." = "尚未取得；正在使用此版本的價格（%@）。";
+"Prices: %@" = "價格：%@";
+"your pricing-overrides.json" = "你的 pricing-overrides.json";
+"Claude Code's modelPricing" = "Claude Code 的 modelPricing";
+"Notchmeter's catalog of %@" = "Notchmeter %@ 的目錄";
+"this build's table of %@" = "此版本 %@ 的價格表";
+"a family guess" = "按模型系列估算";

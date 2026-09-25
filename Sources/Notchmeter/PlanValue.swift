@@ -48,12 +48,17 @@ enum PlanCatalog {
         PlanPrice(tool: .copilot, plan: "Pro", monthlyUSD: 10, source: "https://github.com/features/copilot/plans"),
         PlanPrice(tool: .copilot, plan: "Pro Plus", monthlyUSD: 39, source: "https://github.com/features/copilot/plans"),
         PlanPrice(tool: .copilot, plan: "Max", monthlyUSD: 100, source: "https://github.com/features/copilot/plans"),
+        // opencode.ai/docs/go, read 2026-09-24 (the page says "Last updated: Sep 24, 2026"): Go is "$10 a month",
+        // the one plan OpenCode's reading names (OpenCodeProvider) and the one OpenCodePricing meters against.
+        // OpenCode Zen, its pay-as-you-go gateway, has no monthly fee and no plan name, so a Zen turn is spend on
+        // no plan and the reading never names it.
+        PlanPrice(tool: .opencode, plan: "Go", monthlyUSD: 10, source: "https://opencode.ai/docs/go/"),
     ]
 
     /// The price of the plan a reading names, matched whole and without regard to case or to how the vendor
     /// punctuates it: GitHub writes "Pro+" on its plans page and Cursor's slug may hyphenate, so "Pro+", "Pro-Plus"
     /// and "Pro Plus" are one name (`spelled`). Nil for a plan the table does not carry, a reading that names none,
-    /// and every Antigravity plan (it reports quota, never a cost).
+    /// and every Gemini CLI, Antigravity and Kimi Code plan (they report quota, never a cost).
     static func price(tool: ToolID, plan: String?) -> PlanPrice? {
         guard let plan = plan.map(spelled), !plan.isEmpty else { return nil }
         return prices.first { $0.tool == tool && $0.plan.caseInsensitiveCompare(plan) == .orderedSame }
@@ -74,7 +79,8 @@ enum PlanCatalog {
 /// on the $200 Claude Max 20x plan · 2.1x".
 ///
 /// Both sides are stated rather than inferred. The value is the Cost card's own figure for the span, the priced
-/// estimate for Claude Code and Codex and the vendor's own dollars for Cursor and Copilot (docs/accuracy.md), and
+/// estimate for Claude Code and Codex, the vendor's own dollars for Cursor and Copilot, and OpenCode's own recorded
+/// figure or the Go rates computed here (docs/accuracy.md), and
 /// the fee is the catalogue's published price times the months the span covers. Nothing is prorated: a span
 /// shorter than a month has no fee to set against it, so it has no ratio, and a day's value is never compared
 /// with a slice of a month the app would have had to cut itself.

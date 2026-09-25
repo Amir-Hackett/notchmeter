@@ -1239,3 +1239,16 @@
 "on the %1$@ %2$@ plan" = "%1$@ の %2$@ プランに対して";
 "the plan's price" = "プラン価格";
 "what the plans cost" = "プランの合計費用";
+/* The pricing catalog: its switch and status line in Settings, and the Cost card's price line (PricingCatalog, PriceSource) */
+"Update model prices from notchmeter's catalog" = "notchmeter のカタログからモデル価格を更新";
+"Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used." = "1 日 1 回、このプロジェクトの GitHub リポジトリから pricing/catalog.json を単純な GET で取得し、リリース間に登場したモデルも 1 日以内に公表価格で計算します。公開データのみで、リクエストにあなたに関する情報は含まれません。コストカードに使用した価格が表示されます。";
+"Off. Prices come from this build (%@) and your own overrides." = "オフ。価格はこのビルド (%@) と自分の上書き設定から取得します。";
+"Catalog of %1$@ in use, last confirmed %2$@." = "%1$@ のカタログを使用中、最終確認 %2$@。";
+"The catalog could not be used; this build's prices (%@) stand until it can be." = "カタログを使用できませんでした。使用できるまでこのビルドの価格 (%@) を使います。";
+"Not fetched yet; this build's prices (%@) are in use." = "まだ取得していません。このビルドの価格 (%@) を使用中です。";
+"Prices: %@" = "価格: %@";
+"your pricing-overrides.json" = "自分の pricing-overrides.json";
+"Claude Code's modelPricing" = "Claude Code の modelPricing";
+"Notchmeter's catalog of %@" = "%@ の Notchmeter カタログ";
+"this build's table of %@" = "%@ のこのビルドの表";
+"a family guess" = "モデルファミリーによる推定";

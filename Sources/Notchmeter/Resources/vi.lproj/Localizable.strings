@@ -1239,3 +1239,16 @@
 "on the %1$@ %2$@ plan" = "trên gói %2$@ giá %1$@";
 "the plan's price" = "giá của gói";
 "what the plans cost" = "chi phí các gói";
+/* The pricing catalog: its switch and status line in Settings, and the Cost card's price line (PricingCatalog, PriceSource) */
+"Update model prices from notchmeter's catalog" = "Cập nhật giá mô hình từ danh mục của notchmeter";
+"Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used." = "Mỗi ngày một lần, một yêu cầu GET đơn giản lấy pricing/catalog.json từ kho GitHub của dự án này, để một mô hình ra mắt giữa hai bản phát hành được tính theo giá công bố trong vòng một ngày. Dữ liệu công khai, không có gì về bạn trong yêu cầu; thẻ chi phí nêu rõ giá đã dùng.";
+"Off. Prices come from this build (%@) and your own overrides." = "Tắt. Giá lấy từ bản dựng này (%@) và các ghi đè của riêng bạn.";
+"Catalog of %1$@ in use, last confirmed %2$@." = "Đang dùng danh mục ngày %1$@, xác nhận lần cuối %2$@.";
+"The catalog could not be used; this build's prices (%@) stand until it can be." = "Không dùng được danh mục; giá của bản dựng này (%@) được giữ cho đến khi dùng được.";
+"Not fetched yet; this build's prices (%@) are in use." = "Chưa tải; đang dùng giá của bản dựng này (%@).";
+"Prices: %@" = "Giá: %@";
+"your pricing-overrides.json" = "pricing-overrides.json của bạn";
+"Claude Code's modelPricing" = "modelPricing của Claude Code";
+"Notchmeter's catalog of %@" = "danh mục Notchmeter ngày %@";
+"this build's table of %@" = "bảng của bản dựng này ngày %@";
+"a family guess" = "ước tính theo họ mô hình";

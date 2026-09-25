@@ -1778,8 +1778,12 @@ struct SpendCard: View {
             lines.append((text: L("Unpriced: %@", selection.unpricedModels.sorted().joined(separator: ", ")), quiet: true))
         }
         if let sourceLine { lines.append((text: sourceLine, quiet: true)) }
+        // Which list prices did the pricing: the build's table, the catalog, an override (docs/accuracy.md).
+        if let pricesLine { lines.append((text: pricesLine, quiet: true)) }
         return lines
     }
+
+    private var pricesLine: String? { PriceSource.line(selection.priceSources(range.costRange)) }
 
     /// The legend as one spoken phrase.
     private var providerSpoken: String {
@@ -1903,7 +1907,7 @@ struct SpendCard: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L("Cost, %@", range.title))
             .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, valueLine, burnLine, problemLines.first, gaps.first?.text,
-                                            store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine))
+                                            store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine, pricesLine))
             // The week, day by day and split by assistant: always where the Simple panel's Cost row opens onto this
             // card, so the row's hover is never the only way to it, and behind Show details on the Detailed card,
             // which keeps its height budget without it. Outside the element above, which VoiceOver reads as one

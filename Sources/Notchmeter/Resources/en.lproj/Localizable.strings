@@ -1256,3 +1256,16 @@
 "on the %1$@ %2$@ plan" = "on the %1$@ %2$@ plan";
 "the plan's price" = "the plan's price";
 "what the plans cost" = "what the plans cost";
+/* The pricing catalog: its switch and status line in Settings, and the Cost card's price line (PricingCatalog, PriceSource) */
+"Update model prices from notchmeter's catalog" = "Update model prices from notchmeter's catalog";
+"Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used." = "Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used.";
+"Off. Prices come from this build (%@) and your own overrides." = "Off. Prices come from this build (%@) and your own overrides.";
+"Catalog of %1$@ in use, last confirmed %2$@." = "Catalog of %1$@ in use, last confirmed %2$@.";
+"The catalog could not be used; this build's prices (%@) stand until it can be." = "The catalog could not be used; this build's prices (%@) stand until it can be.";
+"Not fetched yet; this build's prices (%@) are in use." = "Not fetched yet; this build's prices (%@) are in use.";
+"Prices: %@" = "Prices: %@";
+"your pricing-overrides.json" = "your pricing-overrides.json";
+"Claude Code's modelPricing" = "Claude Code's modelPricing";
+"Notchmeter's catalog of %@" = "Notchmeter's catalog of %@";
+"this build's table of %@" = "this build's table of %@";
+"a family guess" = "a family guess";

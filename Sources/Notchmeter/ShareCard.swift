@@ -166,23 +166,35 @@ enum ShareCardTheme: String, CaseIterable, Codable, Sendable {
         }
     }
 
+    /// Each assistant in the hue its ring wears (PanelInk.tool): on White the Paper tones, on Black the panel's
+    /// own, and on Blue a tint of each light enough to clear 3:1 over the ground. Gemini CLI, Kimi Code and
+    /// OpenCode take the hues 0.9.0 gave their rings, so a card's legend matches the notch.
     func tool(_ tool: ToolID) -> UInt32 {
         switch (self, tool) {
         case (.white, .claude): 0xC0603F
         case (.white, .codex): 0x23A06F
         case (.white, .cursor): 0x7F62E6
+        case (.white, .gemini): 0xB8378F
         case (.white, .antigravity): 0x2F7FB8
         case (.white, .copilot): 0x9A8A00
+        case (.white, .kimi): 0x367D24
+        case (.white, .opencode): 0xA52ACB
         case (.black, .claude): 0xCC7555
         case (.black, .codex): 0x34A874
         case (.black, .cursor): 0x8C74EA
+        case (.black, .gemini): 0xE36FC0
         case (.black, .antigravity): 0x56B4E9
         case (.black, .copilot): 0xF0E442
+        case (.black, .kimi): 0x7ED957
+        case (.black, .opencode): 0xBE3CE6
         case (.blue, .claude): 0xF4A582
         case (.blue, .codex): 0x6EE7A8
         case (.blue, .cursor): 0xC3B3FF
+        case (.blue, .gemini): 0xF5A3DC
         case (.blue, .antigravity): 0x9ED8FF
         case (.blue, .copilot): 0xF0E442
+        case (.blue, .kimi): 0xA6EB86
+        case (.blue, .opencode): 0xDDA6F2
         }
     }
 

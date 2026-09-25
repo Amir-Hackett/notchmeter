@@ -31,6 +31,43 @@ import Testing
         return dir
     }
 
+    /// A day's price sources are written with it and read back; a line an older build wrote names none. The day is
+    /// appended again when the lines still on disk are priced under a source the line on file does not name (a
+    /// catalog update re-priced them after half the transcripts were gone), keeping the larger total and naming
+    /// both sources, and not again on the next scan, whose sources the file already names.
+    @Test func aDaysPriceSourcesAreKeptAndGrowWithoutRewritingTheDayEachScan() throws {
+        let dir = try Self.directory("history-sources")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("daily.jsonl")
+        let history = CostHistory(url: file, tool: .claude)
+        let day = Self.utc.startOfDay(for: DateParsing.iso8601("2026-09-20T12:00:00Z")!)
+        let built = PriceSource.builtIn("2026-09-24")
+        let catalog = PriceSource.catalog("2026-10-01")
+        func record(_ cost: Double, _ sources: Set<PriceSource>) -> CostHistory.Record {
+            CostHistory.Record(cost: cost, tokens: TokenBreakdown(input: 10), byModel: [:], byProject: [:], priceSources: sources)
+        }
+        func lines() throws -> [String] { String(decoding: try Data(contentsOf: file), as: UTF8.self).split(separator: "\n").map(String.init) }
+        history.record([day: record(10, [built])], existing: [:], calendar: Self.utc)
+        #expect(history.load(calendar: Self.utc)[day]?.priceSources == [built])
+        #expect(try lines().count == 1)
+        #expect(try lines().first?.contains(#""priceSources":["builtIn:2026-09-24"]"#) == true)
+        var known = history.load(calendar: Self.utc)
+        history.record([day: record(4.5, [catalog])], existing: known, calendar: Self.utc)
+        #expect(try lines().count == 2)
+        #expect(try lines().last?.contains(#""priceSources":["builtIn:2026-09-24","catalog:2026-10-01"]"#) == true)
+        known = history.load(calendar: Self.utc)
+        #expect(known[day]?.cost == 10)
+        #expect(known[day]?.priceSources == [built, catalog])
+        history.record([day: record(4.5, [catalog])], existing: known, calendar: Self.utc)
+        #expect(try lines().count == 2)
+        // Lines as an older build wrote them, and as this one does, both read.
+        let tokens = #""tokens":{"input":1,"cacheWrite5m":0,"cacheWrite1h":0,"cacheRead":0,"output":0}"#
+        let older = Data(#"{"day":"2026-09-19","tool":"claude","cost":1,\#(tokens),"byModel":{},"byProject":{}}"#.utf8)
+        #expect(CostHistory.parse(older, tool: .claude, calendar: Self.utc).values.first?.priceSources == [])
+        let dated = Data(#"{"day":"2026-09-19","tool":"claude","cost":1,\#(tokens),"byModel":{},"byProject":{},"priceSources":["builtIn:2026-09-24","family"]}"#.utf8)
+        #expect(CostHistory.parse(dated, tool: .claude, calendar: Self.utc).values.first?.priceSources == [built, .family])
+    }
+
     /// The file exists but cannot be opened for writing. The days already in it must survive; the new ones may wait.
     @Test func anAppendThatCannotOpenTheFileLeavesTheHistoryAlone() throws {
         let fm = FileManager.default

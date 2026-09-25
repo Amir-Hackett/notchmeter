@@ -33,6 +33,9 @@ enum NotchmeterMain {
             Oracle.shared.start(path: path)
         }
         ModelPricing.loadOverrides()
+        // The cached catalog, so the command-line tool and the MCP server price the way the app does; the app
+        // itself fetches a fresh one through PricingCatalogFetcher once it is up.
+        PricingCatalog.applyCached()
         NetworkSession.configure(proxy: UserDefaults.standard.string(forKey: "proxyURL"))
         if CommandLineTool.isInvokedAsTool(arguments: arguments) {
             CommandLineTool.run(arguments: arguments)
@@ -112,6 +115,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pointerMonitor: Any?
     private var pointerSettle: Task<Void, Never>?
     private let awake = AwakeKeeper()
+    /// Notchmeter's published price catalog, fetched once a day while the switch is on (PricingCatalog.swift); a
+    /// catalog that changes a rate re-runs the cost scan.
+    private lazy var pricingCatalog = PricingCatalogFetcher(prefs: prefs, rescan: { [weak self] in
+        guard let self else { return }
+        Task { await self.store.refreshCost() }
+    })
     /// The one jump at a time back to a session's terminal (TerminalJump.swift).
     private let jumper = TerminalJump.Executor()
     private lazy var autoSideProbe = CompactStripProbe(store: store)
@@ -224,6 +233,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notifier.terminalRule = { [weak self] in self?.prefs.quietWhileTerminalFrontmost ?? true }
         notifier.onOpen = { [weak self] tool in self?.openFromNotification(tool) }
         store.start()
+        pricingCatalog.start()
+        requests.pricingCatalog = { [weak self] in self?.pricingCatalog }
         actions.refresh = { [weak self] in self?.store.refreshAll(interactive: true) }
         actions.openSettings = { [weak self] in self?.showSettings() }
         actions.openSettingsPane = { [weak self] pane in self?.showSettings(pane: pane) }
@@ -1177,7 +1188,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "visibleTools": store.visibleTools.map(\.rawValue), "presence": String(describing: store.presence),
             "costCard": ["carried": store.costSelection.providers.map(\.tool.rawValue),
                          "leads": store.costSelection.providers.first?.tool.rawValue as Any,
-                         "gaps": store.costGaps.map { ["tool": $0.tool.rawValue, "reason": $0.text] }],
+                         "gaps": store.costGaps.map { ["tool": $0.tool.rawValue, "reason": $0.text] },
+                         "range": String(describing: store.spendRange.costRange),
+                         "prices": store.costSelection.priceSources(store.spendRange.costRange).map(\.key).sorted()],
+            "pricing": pricingCatalog.status.oracleFields.merging(["enabled": prefs.pricingCatalog]) { _, new in new },
             "awaitingInput": store.awaitingInput.map(\.rawValue).sorted(), "sessions": store.sessions.count,
             "sessionsCard": sessionsCardFields(),
             "signals": ToolID.allCases.compactMap { tool in store.signal(tool).map { "\(tool.rawValue):\(String(describing: $0))" } },

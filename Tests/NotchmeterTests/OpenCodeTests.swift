@@ -106,8 +106,11 @@ private func utc(_ text: String) -> Date { DateParsing.iso8601(text)! }
         let anthropic = OpenCodePricing.price(turn(at: date, provider: "anthropic", model: "claude-sonnet-5", input: 1_000_000, cost: 0))
         #expect(anthropic.basis == .anthropicList)
         #expect(anthropic.cost == 2, "Sonnet 5 input is $2 per million in ModelPricing")
+        // The table that priced it travels with the figure, so the Cost card's price line can name it for OpenCode's
+        // lines as it does for Claude Code's; with no catalog applied that is this build's own table.
+        #expect(anthropic.source == .builtIn(ModelPricing.snapshotDate))
         let openai = OpenCodePricing.price(turn(at: date, provider: "openai", model: "gpt-5.3-codex", input: 1_000_000, cost: 0))
-        #expect(openai == .init(cost: 1.75, basis: .openAIList))
+        #expect(openai == .init(cost: 1.75, basis: .openAIList, source: .builtIn(OpenAIPricing.snapshotDate)))
     }
 
     @Test func zenRecordsItsOwnPriceEvenAtZero() {

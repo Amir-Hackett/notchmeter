@@ -100,6 +100,8 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
         self.problem = problem
     }
 
+    /// The range's figures. Where the list prices that priced them came from is on the range itself
+    /// (`RangeTotals.priceSources`), since a source that priced this month's lines need not have priced today's.
     func totals(_ range: CostRange) -> RangeTotals { ranges[range] ?? RangeTotals() }
 
     /// True once any range holds something worth showing; a tool with nothing to say is left off the card.
@@ -234,7 +236,7 @@ struct HourlyBurn: Equatable, Sendable {
 extension RangeTotals {
     init(_ record: CostHistory.Record) {
         self.init(cost: record.cost, tokens: record.tokens, byModel: record.byModel, byProject: record.byProject,
-                  byModelTokens: record.byModelTokens, byProjectTokens: record.byProjectTokens)
+                  byModelTokens: record.byModelTokens, byProjectTokens: record.byProjectTokens, priceSources: record.priceSources)
     }
 
     /// A per-day series over `count` days from `first`, oldest first, with a zero day where nothing was recorded.

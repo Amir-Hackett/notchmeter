@@ -1239,3 +1239,16 @@
 "on the %1$@ %2$@ plan" = "%1$@ %2$@ 요금제 기준";
 "the plan's price" = "요금제 가격";
 "what the plans cost" = "요금제 합계 비용";
+/* The pricing catalog: its switch and status line in Settings, and the Cost card's price line (PricingCatalog, PriceSource) */
+"Update model prices from notchmeter's catalog" = "notchmeter 카탈로그에서 모델 가격 업데이트";
+"Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used." = "하루에 한 번 이 프로젝트의 GitHub 저장소에서 pricing/catalog.json 을 단순 GET 으로 가져와, 릴리스 사이에 출시된 모델도 하루 안에 공표 가격으로 산출합니다. 공개 데이터이며 요청에 사용자에 관한 정보는 없습니다. 비용 카드에 사용한 가격이 표시됩니다.";
+"Off. Prices come from this build (%@) and your own overrides." = "꺼짐. 가격은 이 빌드(%@)와 직접 설정한 재정의에서 가져옵니다.";
+"Catalog of %1$@ in use, last confirmed %2$@." = "%1$@ 카탈로그 사용 중, 마지막 확인 %2$@.";
+"The catalog could not be used; this build's prices (%@) stand until it can be." = "카탈로그를 사용할 수 없습니다. 사용할 수 있을 때까지 이 빌드의 가격(%@)을 사용합니다.";
+"Not fetched yet; this build's prices (%@) are in use." = "아직 가져오지 않았습니다. 이 빌드의 가격(%@)을 사용 중입니다.";
+"Prices: %@" = "가격: %@";
+"your pricing-overrides.json" = "직접 설정한 pricing-overrides.json";
+"Claude Code's modelPricing" = "Claude Code 의 modelPricing";
+"Notchmeter's catalog of %@" = "%@ Notchmeter 카탈로그";
+"this build's table of %@" = "%@ 이 빌드의 표";
+"a family guess" = "모델 계열에 따른 추정";

@@ -515,6 +515,10 @@ enum DemoFixtures {
         return [DrainLog.Key(tool: .claude, window: "scoped_fable"): samples]
     }
 
+    /// The published day of the catalog the pictures show in force: the day the tables were last read from the
+    /// vendors' pages, so the fixture claims no catalog newer than the one in the repository.
+    static let catalogDay = ModelPricing.snapshotDate
+
     /// $6,600 over 30 days of Claude Code with quiet weekends, a heavy $548.76 yesterday and $118.31 so far
     /// today, beside a Cursor export at a ninth of it. The last hour ran at 3.2x the 30-day average active hour,
     /// which is what puts a line in the Advice strip.
@@ -538,12 +542,17 @@ enum DemoFixtures {
             guard let day = calendar.date(byAdding: .day, value: offset - 29, to: start) else { continue }
             let cost = offset == 29 ? today : offset == 28 ? yesterday : weights[offset] * perWeight
             let tokens = Int(cost * 62_000)
+            // Priced by the build's table throughout and, over the last ten days, by a catalog entry that updated
+            // one of its rows: the two sources a month of transcripts ordinarily meets, so every range's price
+            // line is in the pictures.
+            let priceSources: Set<PriceSource> = offset >= 20 ? [.builtIn(ModelPricing.snapshotDate), .catalog(catalogDay)] : [.builtIn(ModelPricing.snapshotDate)]
             days[day] = CostHistory.Record(
                 cost: cost,
                 tokens: TokenBreakdown(input: tokens / 60, cacheWrite5m: tokens / 40, cacheWrite1h: tokens / 20,
                                        cacheRead: tokens - tokens / 60 - tokens / 40 - tokens / 20 - tokens / 100, output: tokens / 100),
                 byModel: models.mapValues { $0 * cost }, byProject: projects.mapValues { $0 * cost },
-                byModelTokens: models.mapValues { Int($0 * Double(tokens)) }, byProjectTokens: projects.mapValues { Int($0 * Double(tokens)) })
+                byModelTokens: models.mapValues { Int($0 * Double(tokens)) }, byProjectTokens: projects.mapValues { Int($0 * Double(tokens)) },
+                priceSources: priceSources)
         }
         // Cursor's own export, day-resolution, so it reports no hour of its own.
         let cursorDays = days.mapValues { record in

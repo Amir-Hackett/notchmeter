@@ -159,8 +159,10 @@ enum GoPlan {
 ///    OpenCode Zen (`opencode`), OpenCode's own pay-as-you-go gateway, the recorded figure is the price even at
 ///    zero, since Zen's free models are free.
 /// 3. **A published list rate** where the recorded cost is zero and this app holds the vendor's table: Anthropic's
-///    (ModelPricing) for `anthropic`, OpenAI's (OpenAIPricing) for `openai`. OpenCode records zero for a turn run on
-///    a subscription login, and the card, as it does for Claude Code, shows the API-equivalent value of the work.
+///    (ModelPricing) for `anthropic`, OpenAI's (OpenAIPricing) for `openai`, each looked up at the turn's own time,
+///    so a catalog entry (PricingCatalog) prices only the turns from its effective day on, as it does Claude Code's
+///    and Codex's lines. OpenCode records zero for a turn run on a subscription login, and the card, as it does for
+///    Claude Code, shows the API-equivalent value of the work and names the table that priced it (`source`).
 /// 4. Otherwise **unpriced**: the turn's tokens count, its dollars do not, and its model is named on the card.
 enum OpenCodePricing {
     enum Basis: String, Equatable, Sendable {
@@ -170,6 +172,9 @@ enum OpenCodePricing {
     struct Priced: Equatable, Sendable {
         let cost: Double?
         let basis: Basis?
+        /// Where a list rate came from (rule 3), for the Cost card's price line; nil on the other rules, whose
+        /// figure is the Go page's or OpenCode's own and no table's.
+        var source: PriceSource? = nil
 
         static let unpriced = Priced(cost: nil, basis: nil)
     }
@@ -186,9 +191,13 @@ enum OpenCodePricing {
         }
         switch provider {
         case "anthropic":
-            if let cost = ModelPricing.cost(of: usage.tokens, model: usage.modelID) { return Priced(cost: cost, basis: .anthropicList) }
+            if let model = usage.modelID, let priced = ModelPricing.resolve(model, at: usage.timestamp) {
+                return Priced(cost: priced.rates.cost(usage.tokens), basis: .anthropicList, source: priced.source)
+            }
         case "openai":
-            if let cost = OpenAIPricing.cost(of: usage.tokens, model: usage.modelID) { return Priced(cost: cost, basis: .openAIList) }
+            if let model = usage.modelID, let priced = OpenAIPricing.resolve(model, at: usage.timestamp) {
+                return Priced(cost: priced.rates.cost(usage.tokens), basis: .openAIList, source: priced.source)
+            }
         default:
             break
         }

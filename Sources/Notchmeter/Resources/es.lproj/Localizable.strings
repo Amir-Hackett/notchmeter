@@ -1256,3 +1256,16 @@
 "on the %1$@ %2$@ plan" = "con el plan %2$@ de %1$@";
 "the plan's price" = "el precio del plan";
 "what the plans cost" = "lo que cuestan los planes";
+/* The pricing catalog: its switch and status line in Settings, and the Cost card's price line (PricingCatalog, PriceSource) */
+"Update model prices from notchmeter's catalog" = "Actualizar los precios de los modelos desde el catálogo de notchmeter";
+"Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used." = "Una vez al día, un GET simple de pricing/catalog.json desde el repositorio de GitHub de este proyecto, para que un modelo lanzado entre versiones se calcule a su precio publicado en menos de un día. Datos públicos, nada sobre ti en la petición; la tarjeta Coste indica qué precios usó.";
+"Off. Prices come from this build (%@) and your own overrides." = "Desactivado. Los precios vienen de esta compilación (%@) y de tus propias sustituciones.";
+"Catalog of %1$@ in use, last confirmed %2$@." = "Catálogo del %1$@ en uso, confirmado por última vez %2$@.";
+"The catalog could not be used; this build's prices (%@) stand until it can be." = "El catálogo no se pudo usar; los precios de esta compilación (%@) se mantienen hasta que se pueda.";
+"Not fetched yet; this build's prices (%@) are in use." = "Aún no se ha descargado; se usan los precios de esta compilación (%@).";
+"Prices: %@" = "Precios: %@";
+"your pricing-overrides.json" = "tu pricing-overrides.json";
+"Claude Code's modelPricing" = "modelPricing de Claude Code";
+"Notchmeter's catalog of %@" = "el catálogo de Notchmeter del %@";
+"this build's table of %@" = "la tabla de esta compilación del %@";
+"a family guess" = "una estimación por familia";

@@ -88,7 +88,7 @@ enum SettingsSearch {
             L("Panel layout"), L("Density"), L("Panel width"), L("Show over full-screen apps"), L("Gestures: swipe down to open, swipe up to close"),
             L("Reduce animations"))
         add(.usage, L("Usage display"), L("Show usage as"), L("Reset times"), L("Time format"), L("Show costs in"), L("Monthly budget"),
-            L("Weekly budget"), L("Cost card shows"))
+            L("Weekly budget"), L("Cost card shows"), L("Update model prices from notchmeter's catalog"))
         add(.shortcuts, L("Keyboard shortcuts"), L("Toggle the panel"), L("Open Settings"), L("Show over the full-screen app"))
         add(.assistants, L("Assistants"), L("Hide assistants with nothing to show"), L("Refresh now"))
         add(.sessions, L("Sessions"), L("Show a Sessions card on the panel"), L("Sessions shown at once"), L("A row leads with"), L("Find sessions without the hook"), L("Show Claude Cowork tasks"), L("Show what a session is working on"),

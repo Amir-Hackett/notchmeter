@@ -56,6 +56,9 @@ actor OpenCodeCostScanner {
             var record = digest.days[day] ?? CostHistory.Record(cost: 0, tokens: TokenBreakdown(), byModel: [:], byProject: [:])
             record.cost += cost
             record.tokens += turn.tokens
+            // A turn priced at a list rate names its table (rule 3), so the Cost card's price line covers OpenCode's
+            // lines as it does Claude Code's and Codex's; the Go page's and OpenCode's own figures are no table's.
+            if let source = priced.source { record.priceSources.insert(source) }
             if let model = turn.modelID {
                 record.byModel[model, default: 0] += cost
                 record.byModelTokens[model, default: 0] += turn.tokens.total

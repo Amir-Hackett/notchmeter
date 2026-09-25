@@ -70,6 +70,8 @@ struct DashboardModel: Equatable {
     let models: [CostShare]
     let projects: [CostShare]
     let sources: [(tool: ToolID, source: CostSource)]
+    /// The list prices behind the range's locally priced lines, for the footnote (PriceSource.line).
+    let priceSources: Set<PriceSource>
 
     var bars: [Bar] {
         days.flatMap { day in day.byTool.map { Bar(day: day.day, tool: $0.tool, cost: $0.cost) } }
@@ -81,6 +83,7 @@ struct DashboardModel: Equatable {
         lhs.range == rhs.range && lhs.tools == rhs.tools && lhs.days == rhs.days && lhs.total == rhs.total && lhs.today == rhs.today
             && lhs.dailyAverage == rhs.dailyAverage && lhs.averageSince == rhs.averageSince && lhs.peak == rhs.peak && lhs.models == rhs.models && lhs.projects == rhs.projects
             && lhs.sources.map(\.tool) == rhs.sources.map(\.tool) && lhs.sources.map(\.source) == rhs.sources.map(\.source)
+            && lhs.priceSources == rhs.priceSources
     }
 
     /// `firstRecorded` is the earliest day the durable history holds spend for (CostSummary.firstUse), which can lie
@@ -145,6 +148,7 @@ struct DashboardModel: Equatable {
         self.today = todayTotals.cost
         models = totals.models
         projects = totals.projects
+        priceSources = totals.priceSources
 
         peak = days.filter { $0.total > 0 }.max { ($0.total, $1.day) < ($1.total, $0.day) }
         // Every calendar day of the range counts, quiet ones included; only days before the history's first spend
@@ -495,6 +499,9 @@ struct DashboardView: View {
                 Text(entry.source == .billingExport
                      ? L("%@ as billed, from its usage export", entry.tool.displayName)
                      : entry.source.provenance(of: entry.tool))
+            }
+            if let prices = PriceSource.line(model.priceSources) {
+                Text(prices)
             }
         }
         .font(.caption2)

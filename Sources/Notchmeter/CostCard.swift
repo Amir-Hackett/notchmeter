@@ -57,6 +57,12 @@ struct CostSelection: Equatable, Sendable {
         providers.reduce(into: Set<String>()) { $0.formUnion($1.unpricedModels) }
     }
 
+    /// Every list price behind the carried providers' figures in the range on show, for the card's price line:
+    /// the sources of the lines inside that range, and no other (RangeTotals.priceSources).
+    func priceSources(_ range: CostRange) -> Set<PriceSource> {
+        totals(range).priceSources
+    }
+
     /// What sizes each provider's slice, in the mode's own unit: tokens under Tokens, dollars otherwise. A rate
     /// per million tokens cannot be shared out (the shares would not add up to the whole), so $/MTok is sized by
     /// its dollars. A provider with nothing in the range is left out, so no slice is a zero-width sliver.

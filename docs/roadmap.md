@@ -99,6 +99,7 @@ Built from the 2026-09-20 audit of 0.6.1. The rows are what the release ships an
 | Web search per-request fee, fast-mode rates | shipped (modelled) | accuracy doc "Web search", "Fast mode" |
 | Claude Code's `modelPricing` and a pricing-overrides file | shipped | `ModelPricing.loadOverrides` |
 | Price-table freshness check | shipped, with the network-in-CI caveat | `.github/workflows/pricing.yml`, `scripts/pricing-check.sh`, `Resources/pricing-snapshot.json` and its unit test |
+| Remote pricing catalog: a model launched between releases priced within a day | shipped 0.9.0 | `PricingCatalog.swift`, `pricing/catalog.json`, the switch in Settings › Usage display, `PricingCatalogTests` |
 | Incremental cost summing (per-file quarter-hour digests; entries read only inside the current block) | shipped | `FileDigest`; README "Energy" (re-measured 2026-09-02) |
 | Durable daily history that outlives transcript cleanup; 90-day range; "since first use" | shipped | `CostHistory` |
 | Per-model, per-project and per-block cost; "this week" from the weekly reset with "$ per 1% of weekly"; month to date; tokens and cache-read share | shipped | `CostSummary.ranges`, `SpendCard` |
