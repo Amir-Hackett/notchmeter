@@ -215,6 +215,42 @@ import Testing
         }
     }
 
+    /// The budget field follows a change of code or rate made while Settings is open, the way the window's
+    /// onChange moves it: 200 typed in euros reads back as its pound figure once pounds are shown, so the Apply
+    /// that follows keeps the same dollar figure rather than reading "200" as £200.
+    @Test func theBudgetFieldShowsTheConvertedFigureAfterTheCodeChanges() {
+        withSuite("budget-code-change") { defaults in
+            defer { Money.configure(code: "USD", rate: 1) }
+            let prefs = Preferences(defaults: defaults)
+            prefs.currencyCode = "EUR"
+            prefs.currencyRate = 0.88
+            prefs.monthlyBudget = Budget.parse("200", at: prefs.currencyConversion)
+            let euros = prefs.currencyConversion
+            var field = SettingsView.budgetText(prefs.monthlyBudget, at: euros)
+            #expect(field == "200")
+            let typedUSD = 200 / 0.88
+            // The code and then the rate, each a change of the conversion the window hears once.
+            prefs.currencyCode = "GBP"
+            let poundsAtTheOldRate = prefs.currencyConversion
+            field = SettingsView.budgetText(prefs.monthlyBudget, from: euros, to: poundsAtTheOldRate, draft: field)
+            prefs.currencyRate = 0.76
+            let pounds = prefs.currencyConversion
+            field = SettingsView.budgetText(prefs.monthlyBudget, from: poundsAtTheOldRate, to: pounds, draft: field)
+            let inPounds = String(format: "%.2f", typedUSD * 0.76)
+            #expect(field == inPounds)
+            #expect(field == SettingsView.budgetText(prefs.monthlyBudget, at: prefs.currencyConversion))
+            // The budget itself is still the one typed, measured at the rate it was typed at.
+            #expect(prefs.monthlyBudget == Budget(amount: 200, code: "EUR", rate: 0.88))
+            let drift = abs((prefs.monthlyBudgetUSD ?? 0) - typedUSD)
+            #expect(drift < 1e-9)
+            // Applied from the field, it is the same dollar figure to the cent the field shows, and in pounds now.
+            prefs.monthlyBudget = Budget.parse(field, at: prefs.currencyConversion)
+            #expect(prefs.monthlyBudget?.code == "GBP")
+            let reapplied = abs((prefs.monthlyBudgetUSD ?? 0) - typedUSD)
+            #expect(reapplied < 0.01)
+        }
+    }
+
     @Test func keychainPolicyBudgetsAndProxyPersist() {
         withSuite("policy") { defaults in
             let prefs = Preferences(defaults: defaults)

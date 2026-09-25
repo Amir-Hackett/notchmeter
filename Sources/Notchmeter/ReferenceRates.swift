@@ -227,6 +227,11 @@ struct ReferenceRateCache: Codable, Equatable, Sendable {
 /// also due once the ECB is expected to have published a newer file than the one held (`ReferenceRates
 /// .nextPublication`), unless one was made since that moment. That fires at most once per publication, after
 /// which the daily wait and the publication coincide at the same afternoon hour.
+///
+/// And until that publication nothing is due at all, whatever the day's wait says: no newer file than the one
+/// held can exist yet, so a request would only read the held file again. That is what keeps a weekend quiet
+/// (Friday's file is the newest until Monday afternoon) and holds the day's wait to its one job, asking again a
+/// day after a request made past the publication that brought no newer day (a TARGET holiday, a late file).
 enum RateRefresh {
     static let interval: TimeInterval = 24 * 3600
     static let firstRetry: TimeInterval = 3600
@@ -243,9 +248,11 @@ enum RateRefresh {
         guard fetch, CurrencyConversion.normalized(code) != "USD" else { return false }
         guard let last = cache.lastAttempt, last <= now else { return true }
         if cache.isUnanswered { return true }
+        let publication = cache.rates?.nextPublication()
+        if let publication, now < publication { return false }
         if now.timeIntervalSince(last) >= wait(after: cache.failures) { return true }
-        guard let publication = cache.rates?.nextPublication() else { return false }
-        return now >= publication && last < publication
+        guard let publication else { return false }
+        return last < publication
     }
 }
 
@@ -326,7 +333,9 @@ struct CurrencyConversion: Equatable, Sendable {
 
     /// The line beside converted figures (the Cost card's notes, the dashboard's header) while fetching is on:
     /// which rate, and for the ECB's, which day it is for. Nil with fetching off, which keeps the card as it has
-    /// always been, and in dollars, where nothing was converted.
+    /// always been, and in dollars, where nothing was converted. The 1 that stands in where no rate of the user's
+    /// own is set is not called their own rate: those figures are dollar figures under another sign, and the line
+    /// says so, as Settings does.
     var note: String? {
         switch source {
         case .dollars, .typed: nil
@@ -334,6 +343,8 @@ struct CurrencyConversion: Equatable, Sendable {
             L("%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@", code, Self.rateText(rate), ReferenceRates.dayText(day))
         case .stale(let day, _):
             L("%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@, over a week old", code, Self.rateText(rate), ReferenceRates.dayText(day))
+        case .fallback where standsInWithoutOwnRate:
+            L("%@ at 1 per US dollar: no rate of your own is set", code)
         case .fallback:
             L("%1$@ at your own rate of %2$@ per US dollar", code, Self.rateText(rate))
         }

@@ -220,6 +220,12 @@ struct SettingsView: View {
         }
         .onChange(of: requests.showPane) { _, _ in takeRequestedPane() }
         .onChange(of: requests.statuslineOffer) { _, _ in runStatuslineOffer() }
+        // On the window rather than the pane, so a rate applied under Advanced still moves the budget fields on
+        // Appearance, and the ECB's answer landing while the window is open does too.
+        .onChange(of: prefs.currencyConversion) { old, new in
+            monthlyBudgetText = Self.budgetText(prefs.monthlyBudget, from: old, to: new, draft: monthlyBudgetText)
+            weeklyBudgetText = Self.budgetText(prefs.weeklyBudget, from: old, to: new, draft: weeklyBudgetText)
+        }
         // Typing pulls the window to the first pane with a match — unless the pane on screen has one — and opens
         // the Diagnostics disclosure when the match is inside it; the sections without one dim (`searchOpacity`).
         .onChange(of: query) { _, text in
@@ -528,9 +534,11 @@ struct SettingsView: View {
         L("Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours.")
     }
 
-    /// The whole of the request *Fetch today's rate* makes, where the switch is (docs/privacy.md says it again).
+    /// The whole of the request *Fetch today's rate* makes, where the switch is (docs/privacy.md says it again),
+    /// and how often: after each weekday publication, so about once a day, and twice on the day the switch goes
+    /// on, when the first request reads the file already out (`RateRefresh`).
     private static var fetchRateHelp: String {
-        L("Once a day, a plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, carrying the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old; with no rate of your own set, a rate past its week stays in use and is marked so.")
+        L("A plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, just after it publishes them on a weekday: about once a day, and twice on the day you turn the switch on. It carries the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old; with no rate of your own set, a rate past its week stays in use and is marked so.")
     }
 
     /// One explanation for both budget rows.
@@ -1400,6 +1408,16 @@ struct SettingsView: View {
     static func budgetText(_ budget: Budget?, at conversion: CurrencyConversion) -> String {
         guard let amount = budget?.shown(at: conversion) else { return "" }
         return amount == amount.rounded() ? String(Int(amount)) : String(format: "%.2f", amount)
+    }
+
+    /// The budget field's text once the rate in use has changed under an open window (the code or the typed rate
+    /// applied, the switch flipped, the ECB's answer landing, a held rate ageing past its week): the budget in the
+    /// currency now shown, which is what docs/accuracy.md promises and what the next Apply would keep. Left as it
+    /// was, "200" beside a new code would be re-read as 200 of the new currency by that Apply, a jump the user
+    /// never typed. A draft, text that is no longer what the budget read at the old rate, is the user's, and is
+    /// left alone to be applied at the new rate when it is sent.
+    static func budgetText(_ budget: Budget?, from old: CurrencyConversion, to new: CurrencyConversion, draft: String) -> String {
+        draft == budgetText(budget, at: old) ? budgetText(budget, at: new) : draft
     }
 
     /// The typed amounts are kept in the currency shown, at the rate in use as they are typed (`Budget`).

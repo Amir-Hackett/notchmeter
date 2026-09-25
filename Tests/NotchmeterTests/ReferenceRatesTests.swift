@@ -178,10 +178,12 @@ import Testing
         #expect(!RateRefresh.isDue(fetch: true, code: "USD", cache: never, now: now))
         #expect(!RateRefresh.isDue(fetch: true, code: "", cache: never, now: now))
         #expect(RateRefresh.isDue(fetch: true, code: "EUR", cache: never, now: now))
-        // A read is good for a day.
-        let read = ReferenceRateCache(rates: Self.rates(day: "2026-09-24"), lastAttempt: now, failures: 0)
-        #expect(!RateRefresh.isDue(fetch: true, code: "EUR", cache: read, now: now.addingTimeInterval(23 * hour)))
-        #expect(RateRefresh.isDue(fetch: true, code: "EUR", cache: read, now: now.addingTimeInterval(24 * hour)))
+        // A read is good for a day, counted from a request made past the ECB's publication that brought no newer
+        // day (a late file, a TARGET holiday): Thursday's file read again on Friday at 16:45 in Frankfurt.
+        let fridayAfternoon = ReferenceRates.date(of: "2026-09-25")!.addingTimeInterval(14.75 * hour)
+        let read = ReferenceRateCache(rates: Self.rates(day: "2026-09-24"), lastAttempt: fridayAfternoon, failures: 0)
+        #expect(!RateRefresh.isDue(fetch: true, code: "EUR", cache: read, now: fridayAfternoon.addingTimeInterval(23 * hour)))
+        #expect(RateRefresh.isDue(fetch: true, code: "EUR", cache: read, now: fridayAfternoon.addingTimeInterval(24 * hour)))
         // A failure is tried again after an hour, doubling each time, never more than a day apart.
         let failed = ReferenceRateCache(rates: nil, lastAttempt: now, failures: 1)
         #expect(!RateRefresh.isDue(fetch: true, code: "EUR", cache: failed, now: now.addingTimeInterval(59 * 60)))
@@ -230,9 +232,17 @@ import Testing
         // A failed answer since the publication is the backoff's to retry, not this rule's.
         #expect(!due(held: "2026-09-21", asked: cest("2026-09-22", 16.6), now: cest("2026-09-22", 16.85), failures: 1))
         #expect(due(held: "2026-09-21", asked: cest("2026-09-22", 16.6), now: cest("2026-09-22", 17.7), failures: 1))
-        // Friday's rate held over the weekend: nothing is published on Sunday, so nothing is due before Monday.
-        #expect(!due(held: "2026-09-18", asked: cest("2026-09-19", 17), now: cest("2026-09-20", 16.75)))
+        // Friday's rate held over the weekend: no newer file can exist before Monday afternoon, so the day's wait
+        // asks nothing on Saturday or Sunday, whatever hour Friday's request was made, and Monday's request is
+        // the publication's.
+        #expect(!due(held: "2026-09-18", asked: cest("2026-09-18", 17), now: cest("2026-09-19", 17)))
+        #expect(!due(held: "2026-09-18", asked: cest("2026-09-18", 17), now: cest("2026-09-20", 17)))
+        #expect(!due(held: "2026-09-18", asked: cest("2026-09-18", 17), now: cest("2026-09-21", 16)))
+        #expect(due(held: "2026-09-18", asked: cest("2026-09-18", 17), now: cest("2026-09-21", 16.75)))
         #expect(due(held: "2026-09-18", asked: cest("2026-09-21", 9), now: cest("2026-09-21", 16.75)))
+        // The same on a weekday: Thursday's file, read once it was out, is not read again before Friday's is.
+        #expect(!due(held: "2026-09-24", asked: cest("2026-09-24", 17), now: cest("2026-09-25", 15)))
+        #expect(due(held: "2026-09-24", asked: cest("2026-09-24", 17), now: cest("2026-09-25", 16.6)))
         // Nothing held: only the daily wait applies.
         let bare = ReferenceRateCache(rates: nil, lastAttempt: cest("2026-09-22", 9), failures: 1)
         #expect(!RateRefresh.isDue(fetch: true, code: "EUR", cache: bare, now: cest("2026-09-22", 9.5)))
@@ -329,6 +339,12 @@ import Testing
         let own = CurrencyConversion(code: "VND", rate: 25_000, source: .fallback(.unpublished))
         #expect(own.note == "VND at your own rate of \(CurrencyConversion.rateText(25_000)) per US dollar")
         #expect(own.settingsLine()?.hasPrefix("The ECB publishes no rate for VND") == true)
+        // The 1 that stands in where no rate was typed is not the user's own rate, and the line does not call it
+        // one: those figures are dollar figures under another sign, which is what it says.
+        let none = CurrencyConversion(code: "VND", rate: 1, source: .fallback(.unpublished))
+        #expect(none.standsInWithoutOwnRate)
+        #expect(none.note == "VND at 1 per US dollar: no rate of your own is set")
+        #expect(CurrencyConversion(code: "EUR", rate: 1, source: .fallback(.notYet)).note == "EUR at 1 per US dollar: no rate of your own is set")
         #expect(CurrencyConversion(code: "EUR", rate: 0.9, source: .typed).note == nil)
         #expect(CurrencyConversion(code: "USD", rate: 1, source: .dollars).note == nil)
         #expect(CurrencyConversion(code: "EUR", rate: 0.9, source: .fallback(.notYet)).settingsLine() == "Not fetched yet; your own rate (\(CurrencyConversion.rateText(0.9))) stands in.")
@@ -439,10 +455,13 @@ import Testing
             #expect(await fetcher.refreshIfDue(now: now.addingTimeInterval(3600)))
             #expect(prefs.referenceRateCache.failures == 0)
             #expect(prefs.currencyConversion.rate == 1 / 1.1367)
-            // A later failure leaves the rate that read in use, until it is a week old.
+            // A later failure leaves the rate that read in use, until it is a week old. The next request is due
+            // once Friday's file is expected, 16:30 in Frankfurt, not a day after Thursday's read, which falls
+            // before that and could only read Thursday's file again.
             answer = nil
-            let tomorrow = now.addingTimeInterval(25 * 3600)
-            #expect(await fetcher.refreshIfDue(now: tomorrow))
+            #expect(await fetcher.refreshIfDue(now: now.addingTimeInterval(25 * 3600)) == false)
+            let fridayAfternoon = now.addingTimeInterval(27 * 3600)
+            #expect(await fetcher.refreshIfDue(now: fridayAfternoon))
             #expect(prefs.currencyConversion.source == .reference(day: "2026-09-24", fetchedAt: rates.fetchedAt))
             let tenDaysOn = ReferenceRateStaleness.noon("2026-10-04")
             await fetcher.refreshIfDue(now: tenDaysOn)
@@ -544,6 +563,9 @@ import Testing
         override func stopLoading() {}
 
         override func startLoading() {
+            // Read before the lock's closure, which is @Sendable and would otherwise capture self, a URLProtocol
+            // and so not Sendable: a warning in Swift 5 mode and an error in 6.
+            let request = self.request
             let (status, body) = Self.exchange.withLock { state -> (Int, Data) in
                 state.seen.append(request)
                 return (state.status, state.body)

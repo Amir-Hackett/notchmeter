@@ -140,6 +140,34 @@ import Testing
         #expect(oracle["code"] as? String == "EUR")
     }
 
+    /// With Settings open, a change of the rate in use moves the budget field to the budget's figure in the
+    /// currency now shown, and a draft being typed is left alone: 200 typed in euros reads 172.73 once pounds are
+    /// shown, which the next Apply keeps at the same dollar figure, where the "200" left in the field would have
+    /// been re-read as £200, a jump the user never typed.
+    @Test func theBudgetFieldFollowsAChangeOfCurrencyUnlessADraftIsBeingTyped() throws {
+        let euros = CurrencyConversion(code: "EUR", rate: 0.88, source: .reference(day: "2026-09-24", fetchedAt: now))
+        let pounds = CurrencyConversion(code: "GBP", rate: 0.76, source: .typed)
+        let budget = try #require(Budget.parse("200", at: euros))
+        let typedUSD = 200 / 0.88
+        let inPounds = String(format: "%.2f", typedUSD * 0.76)
+        #expect(SettingsView.budgetText(budget, from: euros, to: pounds, draft: "200") == inPounds)
+        #expect(SettingsView.budgetText(nil, from: euros, to: pounds, draft: "") == "")
+        // Applied from that field, it is the same dollar figure to the cent the field shows, not 200 of the new
+        // currency.
+        let reapplied = try #require(Budget.parse(inPounds, at: pounds))
+        let drift = abs(reapplied.usd(at: pounds) - typedUSD)
+        #expect(drift < 0.01)
+        let asTwoHundredPounds = 200 / 0.76
+        #expect(Budget.parse("200", at: pounds)?.usd(at: pounds) == asTwoHundredPounds)
+        // A draft is the user's: "300" typed and not yet sent stays "300", with or without a budget behind it.
+        #expect(SettingsView.budgetText(budget, from: euros, to: pounds, draft: "300") == "300")
+        #expect(SettingsView.budgetText(nil, from: euros, to: pounds, draft: "50") == "50")
+        // The same currency at a new day's rate: the figure typed is the figure shown, and a draft still stands.
+        let nextDay = CurrencyConversion(code: "EUR", rate: 0.90, source: .reference(day: "2026-09-25", fetchedAt: now))
+        #expect(SettingsView.budgetText(budget, from: euros, to: nextDay, draft: "200") == "200")
+        #expect(SettingsView.budgetText(budget, from: euros, to: nextDay, draft: "250") == "250")
+    }
+
     @Test func extraUsageRisesAreSaidOnceAMonthAndLouderWhileThePlanHasRoom() {
         var context = Advisor.Context(readings: [], now: now)
         context.extraUsageRise = ExtraUsageRise(amountUSD: 4.2, over: 3600, planUsed: 0.13, firstThisMonth: true)
