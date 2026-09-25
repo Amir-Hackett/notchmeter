@@ -1,6 +1,8 @@
 # Notchmeter
 
-**Every figure on this panel is sourced, dated and tested — here is the document: [docs/accuracy.md](docs/accuracy.md).** Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code and OpenCode that say what to do about the number, not only what it is.
+**Know which assistant is waiting, and whether you can afford the next task.**
+
+Every figure sourced, dated and tested — here is the document: [docs/accuracy.md](docs/accuracy.md). Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code and OpenCode, and the sessions they are running, that say what to do about the number, not only what it is.
 
 [![License: MIT](https://img.shields.io/github/license/Amir-Hackett/notchmeter)](LICENSE) [![CI](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml/badge.svg)](https://github.com/Amir-Hackett/notchmeter/actions/workflows/ci.yml) [![Latest release](https://img.shields.io/github/v/release/Amir-Hackett/notchmeter)](https://github.com/Amir-Hackett/notchmeter/releases/latest) [![Downloads](https://img.shields.io/github/downloads/Amir-Hackett/notchmeter/total)](https://github.com/Amir-Hackett/notchmeter/releases)
 
@@ -12,7 +14,7 @@
 
 **Answer Claude Code from the notch.** When Claude Code stops for a permission, approve or deny it there; when it asks a multiple-choice question, pick the answer there; then jump back to the terminal window, tab or pane the session is running in. A request nobody answers falls back to the terminal's own prompt, as if the notch were not there, and each part has its own switch under Settings › Assistants › Sessions. What the hook sends for it, and how the channel fails open, is in [docs/hooks.md](docs/hooks.md).
 
-**[notchmeter.com](https://www.notchmeter.com)** · [Download](https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg) · [Support the project](https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800)
+**[notchmeter.com](https://www.notchmeter.com)** · [Download](https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg) · [Guides](https://www.notchmeter.com/guides/) · [Support the project](https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800)
 
 ## What it shows
 
@@ -53,6 +55,7 @@ The whole of it — every file read, every host and path asked, what is kept on 
 ## Documentation
 
 - [docs/features.md](docs/features.md): every meter, the screenshots, every setting, the command line and MCP server, the Claude Code plugin, the languages, and the advice and notification rules.
+- [Guides](https://www.notchmeter.com/guides/) (sources in [site/guides/](site/guides)): eight answers to the questions people ask, from why the cost estimate does not match the bill to every agent-notch app compared, each dated and stamped with the version it was checked against.
 - [docs/install.md](docs/install.md): installing, testing a pre-release build, building from source, and the first launch.
 - [docs/privacy.md](docs/privacy.md): what is read, where it is sent, what is kept, how often, and the vendors' terms.
 - [docs/accuracy.md](docs/accuracy.md): every rule behind the cost estimate, the primary sources, where it is known to differ from a bill, and why there is no rate-limit-header probe.

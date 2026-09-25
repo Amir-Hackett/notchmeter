@@ -37,6 +37,7 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 - A short guided tour on first launch, and again from Settings.
 - While your screen is shared, advice lines no longer show money or other figures.
 - Cursor's Cost line no longer reports an unreadable export when you simply haven't used Cursor in the last 30 days.
+- Claude Desktop's Cowork sessions are priced once per response. Their transcripts name the request id differently from Claude Code's, or leave it out, so a streamed Cowork response was counted once per content line, two or three times over. Responses are now grouped by message id alone, which is the rule Anthropic documents; Claude Code's own figures do not change, and the cost cache is rebuilt once on first launch.
 
 ## [0.7.9](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.7.9) — 2026-09-24
 

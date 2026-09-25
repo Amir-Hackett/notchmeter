@@ -14,6 +14,7 @@
 <meta property="og:url" content="https://www.notchmeter.com/privacy.html">
 <link rel="canonical" href="https://www.notchmeter.com/privacy.html">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Notchmeter">
 
 <style>
 /* Long-form prose, built from the tokens already in style.css. Nothing new is introduced and
@@ -67,21 +68,24 @@ table.dtable code { font-size: 12.4px; }
 </head>
 <body>
 
+<a class="skip" href="#main">Skip to content</a>
+
 <header class="top">
   <div class="wrap">
     <a class="brand" href="index.html" aria-label="Notchmeter"><img src="img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
-    <nav class="links">
+    <nav class="links" aria-label="Main">
       <a href="index.html#assistants" class="hide-sm">Assistants</a>
       <a href="index.html#advice" class="hide-sm">Advice</a>
       <a href="index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="guides/index.html">Guides</a>
       <a href="pricing.html">Pricing</a>
-      <a href="https://github.com/Amir-Hackett/notchmeter">GitHub</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
       <a class="btn btn-primary btn-sm" href="index.html#install">Download</a>
     </nav>
   </div>
 </header>
 
-<main>
+<main id="main">
 
 <section class="hero plain" style="text-align:left;padding-bottom:24px">
   <div class="wrap">
@@ -112,7 +116,7 @@ table.dtable code { font-size: 12.4px; }
           <li><strong>No server of ours.</strong> There is no Notchmeter account, no Notchmeter backend, no telemetry, no analytics and no crash reporting. Nothing about your usage, your prompts, your transcripts or your projects ever reaches us. We could not look it up if we wanted to, because we hold no record of you at all. The one exception is feedback you choose to send from the app, which you read in full first and which travels through your own browser or mail app (4.6).</li>
           <li><strong>The app is not silent on the network, and you should know who it talks to.</strong> Its whole job is to read your AI usage, and the only way to do that is to ask your providers. It reads the login each tool already saved on your Mac and makes that tool's own usage request to that tool's own vendor, with your own token. Section 4 lists every single request.</li>
           <li><strong>It also checks GitHub for updates, about once a day.</strong> That means GitHub sees the IP address of a running copy of Notchmeter roughly daily. You can switch it off in Settings › Updates › <em>Check for updates automatically</em>.</li>
-          <li><strong>This website has no analytics, no cookies and no browser storage.</strong> No script of any kind runs on these pages. The only thing recorded is the ordinary server log kept by our host, Vercel.</li>
+          <li><strong>This website has no analytics, no cookies and no browser storage.</strong> The one script on this site is the home page's inline check of your operating system, which shows a note to Windows visitors; it makes no request, sets no cookie and stores nothing. No other page runs any script. The only thing recorded is the ordinary server log kept by our host, Vercel.</li>
           <li><strong>Downloading the app tells GitHub your IP address</strong>, because GitHub hosts the download. Choosing to donate takes you to Stripe, which handles it under its own privacy policy.</li>
         </ul>
       </div>
@@ -163,7 +167,7 @@ table.dtable code { font-size: 12.4px; }
       <p>That is the entire list. There is no analytics product on this site, first party or third party.</p>
 
       <h3>3.2 Cookies and browser storage</h3>
-      <p class="strong-note"><strong>This website sets no cookies.</strong> It writes nothing to <code>localStorage</code>, <code>sessionStorage</code> or IndexedDB, registers no service worker, and does no fingerprinting. There is no JavaScript on these pages at all.</p>
+      <p class="strong-note"><strong>This website sets no cookies.</strong> It writes nothing to <code>localStorage</code>, <code>sessionStorage</code> or IndexedDB, registers no service worker, and does no fingerprinting. The only JavaScript on the site is the home page's inline check of your operating system, described in the summary above: it makes no request, sets no cookie and stores nothing, and no other page runs any script at all.</p>
       <p>That is why there is no consent banner. A banner asking permission for cookies that do not exist would be theatre, and on the site of an app sold on not phoning home it would be worse than nothing. If this ever changes, this section gets rewritten first and the change is announced at the top of this page.</p>
 
       <h3>3.3 What the site does not do</h3>
@@ -254,7 +258,7 @@ table.dtable code { font-size: 12.4px; }
       <p>All of this stays on your Mac. It is listed because reading it is worth telling you about even when nothing is transmitted.</p>
       <ul>
         <li><strong>Saved logins for the tools you enable.</strong> For Claude Code, from your Keychain first, and if it is not there, from the credentials file Claude Code keeps in your home folder, or from the <code>CLAUDE_CODE_OAUTH_TOKEN</code> environment variable if you have set one. For Codex, Cursor, Gemini CLI, GitHub Copilot and Kimi Code, from the config files those tools already keep in your home folder. Cursor's database is copied to a temporary file and opened read only, so the live database is never touched. These tokens are read, used for the one request above, and never written, refreshed, copied into a Keychain or stored anywhere by us.</li>
-        <li><strong>Your local Claude Code and Codex transcripts</strong>, for the cost figures. For Claude Code it reads only files changed in the last 30 days. From each line it takes the timestamp, token counts, the model name, a message and request id used to avoid counting the same call twice, a cost figure, a session id, the speed and inference region labels the transcript records, any web search request count, and the <strong>last folder name</strong> of the working directory. It does not read prompt text, does not read response text, and does not keep full paths. None of it is transmitted anywhere.</li>
+        <li><strong>Your local Claude Code and Codex transcripts</strong>, for the cost figures. For Claude Code it reads only files changed in the last 30 days. From each line it takes the timestamp, token counts, the model name, a message id used to avoid counting the same response twice, a cost figure, a session id, the speed and inference region labels the transcript records, any web search request count, and the <strong>last folder name</strong> of the working directory. It does not read prompt text, does not read response text, and does not keep full paths. None of it is transmitted anywhere.</li>
         <li><strong>OpenCode's own database</strong>, if OpenCode is on your Mac, opened read-only and never written, for OpenCode's cost, its sessions and the Go plan meter the app works out from your own turns. From each assistant turn it takes the time, the model and provider, the token counts, the cost OpenCode recorded and the folder name; from each recent session its folder, and OpenCode's own title only while session titles are on and your screen is not shared. It never reads your prompts, OpenCode's replies, tool output or any stored login, and nothing about OpenCode leaves your Mac.</li>
         <li><strong>Pricing settings</strong> from Claude Code's own settings file, plus any overrides you write yourself. Model prices otherwise come from a table shipped inside the app. There is no pricing lookup over the network.</li>
         <li><strong>Modification times only</strong>, with no file contents, for a handful of folders, so the app knows when to slow its polling down.</li>
@@ -452,6 +456,7 @@ table.dtable code { font-size: 12.4px; }
         <ul>
           <li><a href="index.html#assistants">Assistants</a></li>
           <li><a href="index.html#advice">Advice</a></li>
+          <li><a href="guides/index.html">Guides</a></li>
           <li><a href="pricing.html">Pricing</a></li>
           <li><a href="index.html#install">Download</a></li>
         </ul>

@@ -14,24 +14,29 @@
 <meta property="og:url" content="https://www.notchmeter.com/pricing.html">
 <link rel="canonical" href="https://www.notchmeter.com/pricing.html">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
 </head>
 <body>
+
+<a class="skip" href="#main">Skip to content</a>
 
 <header class="top">
   <div class="wrap">
     <a class="brand" href="index.html" aria-label="Notchmeter"><img src="img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
-    <nav class="links">
+    <nav class="links" aria-label="Main">
       <a href="index.html#assistants" class="hide-sm">Assistants</a>
       <a href="index.html#advice" class="hide-sm">Advice</a>
       <a href="index.html#privacy" class="hide-sm">Privacy</a>
-      <a href="pricing.html" class="here">Pricing</a>
-      <a href="https://github.com/Amir-Hackett/notchmeter">GitHub</a>
+      <a href="guides/index.html">Guides</a>
+      <a href="pricing.html" class="here" aria-current="page">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
       <a class="btn btn-primary btn-sm" href="index.html#install">Download</a>
     </nav>
   </div>
 </header>
 
-<main>
+<main id="main">
 
 <section class="hero plain">
   <div class="wrap">
@@ -82,9 +87,13 @@
         <h3>Because you can already read the source</h3>
         <p style="color:var(--text-dim);margin:0;font-size:15px;line-height:1.65">Notchmeter is MIT licensed and the whole repository is public. <code>scripts/build.sh install</code> builds it in twenty seconds. A licence check on top of that would be theatre, and it would tax the one thing an open tool needs, which is people trying it.</p>
       </div>
+      <!-- Until 2026-09-24 this card argued that "a paid tier would need an account to check. So there is no tier."
+           That was wrong: a licence can be a signed file with an issue date, checked on the Mac with no account and
+           no server, so the privacy model never ruled a paid tier out. The card now gives the real reason, which is
+           a choice, and says when the choice will be looked at again. -->
       <div class="gap-card">
-        <h3>Because a meter should not have a login</h3>
-        <p style="color:var(--text-dim);margin:0;font-size:15px;line-height:1.65">The app never signs in anywhere and sends nothing to a server of ours, and a paid tier would need an account to check. So there is no tier. What support pays for is the boring part of shipping a Mac app — Apple's developer programme, notarisation, the domain — and the time to keep five vendors' readings accurate as they change.</p>
+        <h3>Because the project chose it</h3>
+        <p style="color:var(--text-dim);margin:0;font-size:15px;line-height:1.65">Not because it had to be. The app never signs in anywhere and sends nothing to a server of ours, and charging would not have to change either: a licence can be a signed file with an issue date that the app checks on your Mac, with no account and no server to ask. Notchmeter is free because the project chose to be free and open while what it needs most is people using it, and that choice will be looked at again once there are real download numbers to decide with. What support pays for is the boring part of shipping a Mac app — Apple's developer programme, notarisation, the domain — and the time to keep five vendors' readings accurate as they change.</p>
       </div>
     </div>
   </div>
@@ -108,7 +117,7 @@
       </details>
       <details>
         <summary>Will there be a paid version later?</summary>
-        <p class="a">Not of this. The personal meter stays free and MIT; that is the point of it. If something for teams ever exists it will be a separate thing with its own page, and it will not change what this app does or costs.</p>
+        <p class="a">Nothing is planned. What the app does today stays free and MIT, and every version already released stays under the MIT licence it shipped with. Whether anything paid should exist beside it is the choice this page says will be revisited once there are real download numbers to decide with; if it ever does, this page will say so first, and it will not change what this app does or costs. If something for teams ever exists it will be a separate thing with its own page.</p>
       </details>
     </div>
   </div>
@@ -144,6 +153,7 @@
         <ul>
           <li><a href="index.html#assistants">Assistants</a></li>
           <li><a href="index.html#advice">Advice</a></li>
+          <li><a href="guides/index.html">Guides</a></li>
           <li><a href="pricing.html">Pricing</a></li>
           <li><a href="index.html#install">Download</a></li>
         </ul>

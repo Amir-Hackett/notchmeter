@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guides · Notchmeter</title>
+<meta name="description" content="Answers to the questions people ask about Claude Code, Codex, Cursor, Copilot and Antigravity usage: cost against the bill, running out before a reset, routing work, notifications, the prompt cache, and monitoring agents without config writes. Dated, sourced and tested.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
+
+<meta property="og:title" content="Notchmeter guides">
+<meta property="og:description" content="Eight answers about AI coding usage and agents, each dated, sourced and stamped with the version it was tested on.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/guides/">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://www.notchmeter.com/guides/">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="index.html" class="here" aria-current="page">Guides</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="plain guide-index-head">
+  <div class="wrap">
+    <h1>Guides</h1>
+    <p class="lede">Each one answers a question people ask at the moment it matters: when the bill does not match, when a limit is closing in, when a notification never came. Each is dated and stamped with the version it was tested on, and every figure in it links to the rule behind it.</p>
+  </div>
+</section>
+
+<section class="plain" style="padding-top:24px">
+  <div class="wrap">
+    <h2>Cost and limits</h2>
+    <div class="guide-list">
+      <a class="guide-card" href="claude-code-cost-estimate-vs-bill.html">
+        <span class="q">Why your Claude Code cost estimate doesn't match your bill</span>
+        <span class="what">Every rule behind the estimate, its primary sources, and the seven places it is known to differ from what Anthropic bills.</span>
+        <span class="when">24 September 2026 · Tested on Notchmeter 0.8.0</span>
+      </a>
+      <a class="guide-card" href="will-you-run-out-before-the-reset.html">
+        <span class="q">Will you run out before the window resets?</span>
+        <span class="what">Pace instead of percentage, a run-out range from your own recent hours, and what Claude's peak hours change.</span>
+        <span class="when">24 September 2026 · Tested on Notchmeter 0.8.0</span>
+      </a>
+      <a class="guide-card" href="which-assistant-should-get-this-task.html">
+        <span class="q">Which assistant should get this task?</span>
+        <span class="what">Switch models before tools, wait when the reset is close, and route by the room each plan has left.</span>
+        <span class="when">24 September 2026 · Tested on Notchmeter 0.8.0</span>
+      </a>
+      <a class="guide-card" href="prompt-cache-cost.html">
+        <span class="q">How much is your prompt cache actually costing you?</span>
+        <span class="what">What a cache miss costs against a hit, the four causes Claude Code reports, and the tier shift nobody mentions.</span>
+        <span class="when">24 September 2026 · Tested on Notchmeter 0.8.0</span>
+      </a>
+      <a class="guide-card" href="cursor-copilot-antigravity-limits.html">
+        <span class="q">Cursor, Copilot and Antigravity limits in one place</span>
+        <span class="what">Three vendors, three ideas of what a limit is: what each figure is, where it comes from, and what is never shown as zero.</span>
+        <span class="when">24 September 2026 · Tested on Notchmeter 0.8.0</span>
+      </a>
+    </div>
+
+    <h2 style="margin-top:56px">Sessions and hooks</h2>
+    <div class="guide-list">
+      <a class="guide-card" href="claude-code-notifications-not-working.html">
+        <span class="q">Claude Code notifications not working?</span>
+        <span class="what">Fix Claude Code's own notifications first, then what a hook adds, how to fix one that went quiet, and when not to install it.</span>
+        <span class="when">24 September 2026 · Tested on Notchmeter 0.8.0</span>
+      </a>
+      <a class="guide-card" href="monitor-coding-agents-without-config-writes.html">
+        <span class="q">Monitoring coding agents without letting an app write to your config</span>
+        <span class="what">The meters write nothing; the hook is added only on your click, after a backup. What each tier can know.</span>
+        <span class="when">24 September 2026 · Tested on Notchmeter 0.8.0</span>
+      </a>
+    </div>
+
+    <h2 style="margin-top:56px">The field</h2>
+    <div class="guide-list">
+      <a class="guide-card" href="macos-agent-notch-apps-compared.html">
+        <span class="q">Every macOS agent-notch app compared (2026)</span>
+        <span class="what">Ten other apps, their licences, prices and star counts as of 24 September 2026, and where each one beats Notchmeter.</span>
+        <span class="when">24 September 2026 · Tested on Notchmeter 0.8.0</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap centered">
+    <h2>The rules behind every figure</h2>
+    <p class="section-lede">The guides quote it; the accuracy document is where each rule, its source and its date are written down, and where a test pins it.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">Read docs/accuracy.md</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h4>Notchmeter</h4>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="index.html">Guides</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

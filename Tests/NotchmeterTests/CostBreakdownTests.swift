@@ -269,8 +269,8 @@ import Testing
         let superseded = dir.appendingPathComponent("claude-usage-cache-v3.json")
         try Data("{}".utf8).write(to: superseded)
         let cacheName = try #require(ClaudeCostScanner.defaultCacheURL()).lastPathComponent
-        let currentCacheName = "claude-usage-cache-v4.json"
-        #expect(cacheName == currentCacheName, "0.6.0 changed the per-project digest, so the version moved on")
+        let currentCacheName = "claude-usage-cache-v5.json"
+        #expect(cacheName == currentCacheName, "0.8.0 changed the dedupe key, so the version moved on and older digests re-parse")
         let cacheURL = dir.appendingPathComponent(cacheName)
         let scanner = ClaudeCostScanner(roots: [dir], cacheURL: cacheURL, history: nil)
         let first = await scanner.scan(now: now)

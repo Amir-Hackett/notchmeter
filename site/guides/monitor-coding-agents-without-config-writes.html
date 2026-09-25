@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitoring coding agents without letting an app write to your config · Notchmeter</title>
+<meta name="description" content="Two tiers for watching Claude Code, Codex, Cursor, Gemini CLI and Copilot: the meters, which write nothing, and the hook, added only on your click, after a backup. What each can know, what is written where, and how to undo it.">
+<link rel="icon" href="../img/icon.png">
+<link rel="stylesheet" href="../style.css">
+<!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
+
+<meta property="og:title" content="Monitoring coding agents without letting an app write to your config">
+<meta property="og:description" content="The meters write nothing; the hook is added only on your click, after a backup. What each tier can know.">
+<meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
+<meta property="og:url" content="https://www.notchmeter.com/guides/monitor-coding-agents-without-config-writes.html">
+<meta property="og:site_name" content="Notchmeter">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2026-09-24">
+<link rel="canonical" href="https://www.notchmeter.com/guides/monitor-coding-agents-without-config-writes.html">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html" aria-label="Notchmeter"><img src="../img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
+    <nav class="links" aria-label="Main">
+      <a href="../index.html#assistants" class="hide-sm">Assistants</a>
+      <a href="../index.html#advice" class="hide-sm">Advice</a>
+      <a href="../index.html#privacy" class="hide-sm">Privacy</a>
+      <a href="index.html" class="here">Guides</a>
+      <a href="../pricing.html">Pricing</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
+      <a class="btn btn-primary btn-sm" href="../index.html#install">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<article class="guide">
+  <header class="guide-head">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Guides</a> <span aria-hidden="true">›</span> Monitoring without config writes</nav>
+      <h1>Monitoring coding agents without letting an app write to your config</h1>
+      <p class="lede">Most apps that watch coding agents do it by putting a command into the agent's settings file, and several do it on first launch without asking. That file also holds your permissions, your hooks and your status line. Here is what you can know without anything being written, what a hook adds, and exactly what is written, where, when you decide to add one.</p>
+      <ul class="meta-strip">
+        <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
+        <li class="stamp">Tested on Notchmeter 0.8.0</li>
+        <li>Other apps' READMEs read 2026-09-24</li>
+      </ul>
+    </div>
+  </header>
+
+  <div class="wrap guide-body">
+    <div class="answer">
+      <p class="label">The short answer</p>
+      <p>Two tiers. With nothing written anywhere, Notchmeter 0.8.0 reads the login each tool already saved on the Mac and makes that tool's own read-only status request, and reads the transcripts the tools already keep for the cost. That tells you what each plan has left, when it resets, and what the work is costing. Sessions, the moment a turn ends, that an agent is waiting for you, and answering it from the notch need the agent to say so, which is what a hook is. Notchmeter adds one only when you press the button, after a timestamped backup, merged so nothing of yours changes, and removing it is deleting its entries or restoring the backup.</p>
+    </div>
+
+    <h2 id="approaches">How apps in this space find out what your agents are doing</h2>
+    <div class="tablewrap" role="region" aria-label="Approaches to monitoring agents" tabindex="0">
+      <table class="dtable">
+        <thead><tr><th scope="col">Approach</th><th scope="col">Who does it, in their own words</th><th scope="col">What you give up</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Write hooks on first launch</th><td>Vibe Notch: <em>"Hooks install automatically on first launch."</em> Notchi: <em>"it auto-installs Claude Code and Codex hooks on first launch."</em> Buddi: <em>"Hooks install automatically on first launch."</em></td><td>A command in your agent's config that you did not approve line by line</td></tr>
+          <tr><th scope="row">Never write anything</th><td>agent-notch: <em>"No hooks, no APIs, no accounts."</em></td><td>Turn ends seen late, no waits, no answering; its README puts the lag at up to about 33 seconds</td></tr>
+          <tr><th scope="row">You change your own environment</th><td>AppGram's AgentNotch: you set <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> and it receives the agents' telemetry</td><td>Nothing written for you, but the telemetry is only what the agent exports</td></tr>
+          <tr><th scope="row">Write only on your click</th><td>Notchmeter</td><td>Until you add the hook, the meters and the cost, and no sessions at all</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The risk is real enough that AgentNotch's changelog, read the same day, records: <em>"Live Prompts can no longer overwrite your agent's configuration, and every write leaves a backup."</em> Backups and merges are the minimum; asking first is the point.</p>
+
+    <h2 id="tier-one">Tier one: nothing written</h2>
+    <p>Every meter and the Cost card work with nothing written anywhere. Each reads, and never writes:</p>
+    <ul>
+      <li><strong>The login its tool already saved on the Mac</strong>: Claude Code's Keychain item or credentials file, Codex's <code>auth.json</code>, Cursor's editor state, Gemini CLI's <code>oauth_creds.json</code>, Copilot's config folder. With it Notchmeter makes the same read-only status request that tool's own app makes. The token is read into memory for that request and never refreshed, stored, logged or forwarded.</li>
+      <li><strong>The transcripts and logs the tools already keep</strong>: the <code>usage</code> lines of Claude Code's and Cowork's transcripts and of Codex's session rollouts, for the Cost card; Cursor's own usage export, for its spend; and modification times alone, to decide how often to poll.</li>
+    </ul>
+    <p>That is enough for what each plan has left, when each window resets, the pace, the run-out and the spend, every figure labelled with where it came from. It is not enough for sessions, and 0.8.0 does not pretend otherwise: with no hook installed the Sessions card says no session is running, whatever your terminals are doing. Three things need the agent to say so, which is what a hook is:</p>
+    <ul>
+      <li><strong>That a session exists at all,</strong> and which project and terminal it is in.</li>
+      <li><strong>When a turn ends.</strong> agent-notch, which watches processes and transcripts and writes nothing, puts it plainly: <em>"only the agent knows when its turn ends."</em></li>
+      <li><strong>That an agent is waiting for you,</strong> and answering it. There is no channel back to the agent without a hook.</li>
+    </ul>
+    <p>Listing sessions before any hook is installed, from your own processes and the files the agents already keep, and marking each one as detected rather than reported, is on <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/roadmap.md">the roadmap</a> and not in 0.8.0. When it ships, this page will say what such a session can and cannot know; until then nothing here claims it.</p>
+
+    <h2 id="tier-two">Tier two: the hook, on your click</h2>
+    <p>A hook is the agent telling Notchmeter what happened, the moment it happens: a turn started, a turn ended, a permission is waiting, a question has options. That is what makes the waiting dot, the finished tick, the news in the notch and answering from the notch possible. Here is exactly how it is written.</p>
+    <ol>
+      <li><strong>Only when you press it.</strong> Settings › Integrations › Hooks has a row per assistant with <em>Add</em>, and <em>Show snippet…</em> if you would rather paste it yourself. The first launch offers the Claude Code hook once, as a button. No hook is ever installed without that click.</li>
+      <li><strong>A backup first,</strong> beside the file: <code>settings.json.bak-yyyyMMdd-HHmmss</code> (or <code>hooks.json.bak-…</code>).</li>
+      <li><strong>A merge, not a rewrite.</strong> Notchmeter's entry is appended under each event that lacks one. Hooks already there, their matchers and their order are kept, and so are the file's permissions. Nothing is written when every event already has the entry. A file that is not a JSON object is left untouched, and the button says why.</li>
+    </ol>
+    <div class="tablewrap" role="region" aria-label="Which file each hook goes into" tabindex="0">
+      <table class="dtable">
+        <thead><tr><th scope="col">Assistant</th><th scope="col">File</th><th scope="col">How it is written</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Claude Code</th><td><code>~/.claude/settings.json</code></td><td>Merged into your file</td></tr>
+          <tr><th scope="row">Codex</th><td><code>~/.codex/hooks.json</code></td><td>Merged; and Codex runs no new or changed hook until you trust it in <code>/hooks</code>, so nothing takes effect without you in any case</td></tr>
+          <tr><th scope="row">Cursor</th><td><code>~/.cursor/hooks.json</code></td><td>Merged; an existing <code>version</code> is never overwritten</td></tr>
+          <tr><th scope="row">Gemini CLI</th><td><code>~/.gemini/settings.json</code></td><td>Merged; a file with comments in it is refused, because rewriting it would strip them</td></tr>
+          <tr><th scope="row">GitHub Copilot CLI</th><td><code>~/.copilot/hooks/notchmeter.json</code></td><td>Notchmeter's own file; nothing of yours is touched</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The one write that is not a click</h3>
+    <p>If you move the app, a hook you installed points at the old path and goes quiet; if you update to a version that listens for more events, the entry you installed is out of date. So by default the app repairs its <em>own</em> entries at launch: after the same backup, it points them at the running copy and adds an entry for any event the current version listens for, leaves every other hook untouched, and never does it from a copy running out of a build folder. It never adds a hook for an assistant you have not installed one for. If you want no write at all after the one you pressed, turn off <em>Repair a hook that points at an old copy at launch</em> in Settings › Integrations › Hooks, and use the row's Repair button when you choose to.</p>
+
+    <h3>The status line and the plugin</h3>
+    <p><em>Install status line…</em> sets Claude Code's <code>statusLine</code> after the same backup. A status line you already had is kept: Notchmeter runs yours with the same input and passes its output through, so Claude Code's bar still shows your line. The Claude Code plugin installs no hook and no status line; those stay a button in Settings.</p>
+
+    <h2 id="what-crosses">What the hook sends</h2>
+    <p>The event's name, the session id, the project folder's name, the branch and the permission mode; the first line of a prompt, which the app drops on arrival unless <em>Show what a session is working on</em> is on; and for a permission, the tool's name and a bounded summary, never the raw input. It goes over a Unix socket on the Mac that accepts a connection only from a copy of Notchmeter whose code signature matches, and it fails open: with the app not running, or anything wrong, the agent carries on as if no hook existed. <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md#what-the-hook-sends">docs/hooks.md</a> lists every field for every assistant.</p>
+
+    <h2 id="undo">Undoing it</h2>
+    <ul>
+      <li><strong>Claude Code:</strong> delete the groups whose command contains <code>Notchmeter … --hook</code> from <code>~/.claude/settings.json</code>, and the <code>statusLine</code> entry, restoring your own if Notchmeter chained it; or restore the <code>.bak</code> copy.</li>
+      <li><strong>Codex, Cursor, Gemini CLI:</strong> delete the entries whose command contains <code>--hook --tool codex</code>, <code>--tool cursor</code> or <code>--tool antigravity</code>, or restore the backup.</li>
+      <li><strong>Copilot CLI:</strong> delete <code>~/.copilot/hooks/notchmeter.json</code> and restart Copilot.</li>
+    </ul>
+    <p>Switching an assistant off in Notchmeter, or quitting it, also stops its hook having any effect; the command still runs and exits at once.</p>
+
+    <h2 id="choosing">Choosing</h2>
+    <p>If you want to know what each plan has left and what the work is costing, tier one is enough and nothing is written. If you want to see your sessions, know the moment an agent needs you, and answer it without finding the terminal, add the hook for that one assistant. You can start with the first and add the second later, one assistant at a time, and take it out again whenever you like.</p>
+
+    <div class="sources">
+      <h2 id="sources">Sources</h2>
+      <ul>
+        <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">docs/hooks.md</a>: installing, the files, the backups, Repair, the socket and removal.</li>
+        <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/privacy.md">docs/privacy.md</a>: every file the meters read and every request they make, and <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/roadmap.md">docs/roadmap.md</a> for what is planned and not shipped.</li>
+        <li>READMEs read 2026-09-24: <a href="https://github.com/farouqaldori/vibe-notch">Vibe Notch</a>, <a href="https://github.com/sk-ruban/notchi">Notchi</a>, <a href="https://github.com/talkvalue/Buddi">Buddi</a>, <a href="https://github.com/realfishsam/agent-notch">agent-notch</a>, <a href="https://github.com/AppGram/agentnotch">AppGram/agentnotch</a>.</li>
+        <li>AgentNotch, <a href="https://www.agentnotch.app/changelog">changelog</a>, read 2026-09-24.</li>
+      </ul>
+    </div>
+  </div>
+</article>
+
+<section>
+  <div class="wrap">
+    <h2>Related guides</h2>
+    <div class="related">
+      <a class="guide-card" href="claude-code-notifications-not-working.html"><span class="q">Claude Code notifications not working?</span><span class="what">Fix the terminal first, then decide on a hook.</span></a>
+      <a class="guide-card" href="macos-agent-notch-apps-compared.html"><span class="q">Every macOS agent-notch app compared (2026)</span><span class="what">Ten other apps, and where each beats this one.</span></a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap centered">
+    <h2>Watch first, decide later</h2>
+    <p class="section-lede">Free, MIT licensed, and nothing is written until you press the button.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Read what the hook sends</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-about">
+        <h4>Notchmeter</h4>
+        <p>Usage meters for AI coding tools, in the MacBook notch or on any screen edge. Free and open source, MIT licensed.</p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="../index.html#assistants">Assistants</a></li>
+          <li><a href="../index.html#advice">Advice</a></li>
+          <li><a href="index.html">Guides</a></li>
+          <li><a href="../pricing.html">Pricing</a></li>
+          <li><a href="../index.html#install">Download</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Docs</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter#readme">README</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Hooks &amp; status line</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">How the numbers work</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/permissions.md">Permissions</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter">Source</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/issues">Issues</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/LICENSE">Licence</a></li>
+          <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/SECURITY.md">Security</a></li>
+          <li><a href="../privacy.html">Privacy</a></li>
+          <li><a href="../terms.html">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-note">
+      <span>No account · No server of ours · Pay nothing</span>
+      <span>macOS 15+ · Apple silicon or Intel</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -239,7 +239,8 @@ import Testing
         let line = #"{"type":"assistant","timestamp":"2026-09-01T15:00:00.000Z","requestId":"req_1","message":{"id":"msg_1","model":"claude-opus-4-1-20250805","usage":{"input_tokens":1000,"output_tokens":100,"cache_creation_input_tokens":200,"cache_read_input_tokens":50000}}}"#
         let entry = try #require(ClaudeCostScanner.parseLine(Data(line.utf8)))
         #expect(entry.tokens == TokenBreakdown(input: 1000, cacheWrite5m: 200, cacheWrite1h: 0, cacheRead: 50000, output: 100))
-        #expect(entry.dedupeKey == "msg_1:req_1")
+        // The message id alone; the request id beside it is not part of the key (docs/accuracy.md, "One entry per response").
+        #expect(entry.dedupeKey == "msg_1")
         let cost = try #require(ModelPricing.cost(of: entry.tokens, model: entry.model))
         // 1000 × $15 + 100 × $75 + 200 × $18.75 + 50000 × $1.50, all per million.
         let priced: Double = 0.015 + 0.0075 + 0.00375 + 0.075
@@ -257,7 +258,8 @@ import Testing
         #expect(entry.model == nil)
         #expect(entry.tokens.cacheWrite5m == 10)
         #expect(entry.tokens.cacheWrite1h == 20)
-        #expect(entry.dedupeKey == nil)
+        // A line with a message id and no request id is grouped by the id like any other.
+        #expect(entry.dedupeKey == "m")
     }
 
     @Test func summarizesByLocalDay() {

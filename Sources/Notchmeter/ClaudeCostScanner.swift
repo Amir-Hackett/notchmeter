@@ -8,7 +8,7 @@ struct UsageEntry: Codable, Equatable, Sendable {
     let model: String?
     let tokens: TokenBreakdown
     let costUSD: Double?
-    /// `message.id` + `requestId`; streaming writes the same message several times.
+    /// `message.id`: streaming writes the same response several times, once per content block.
     let dedupeKey: String?
     /// `usage.inference_geo`; "us" is billed at 1.1x list.
     let inferenceGeo: String?
@@ -341,9 +341,10 @@ actor ClaudeCostScanner {
     static let cachePrefix = "claude-usage-cache"
 
     /// Versioned: entries parsed by an older rule set must not be reused. v4 (0.6.0) folds a worktree's spend onto
-    /// its repository, which changes the per-project digest of every file a worktree wrote.
+    /// its repository, which changes the per-project digest of every file a worktree wrote. v5 (0.8.0) groups a
+    /// response's lines by message id alone, which changes every digest built from a Cowork transcript.
     static func defaultCacheURL() -> URL? {
-        Paths.caches.appendingPathComponent("\(cachePrefix)-v4.json")
+        Paths.caches.appendingPathComponent("\(cachePrefix)-v5.json")
     }
 
     private func loadCacheIfNeeded() {
@@ -565,9 +566,15 @@ actor ClaudeCostScanner {
 
         let rawModel = message["model"] as? String
         let model = rawModel == "<synthetic>" ? nil : rawModel
+        // The message id alone, which is the API's own and unique per response, and the key Anthropic's cost
+        // documentation says to deduplicate by. Until 2026-09-24 the key was the id plus Claude Code's `requestId`,
+        // the pair ccusage groups by; Claude Desktop's Cowork transcripts spell it `request_id` on some lines and
+        // leave it off others, so each of those lines stood alone and a streamed Cowork response was priced once per
+        // content line. No message id on this Mac was ever seen with two request ids, so nothing the pair told apart
+        // the id had joined (docs/accuracy.md, "One entry per response").
         var key: String?
-        if let id = message["id"] as? String, let request = object["requestId"] as? String, !id.isEmpty, !request.isEmpty {
-            key = "\(id):\(request)"
+        if let id = message["id"] as? String, !id.isEmpty {
+            key = id
         }
         let serverTools = usage["server_tool_use"] as? [String: Any]
         return UsageEntry(
@@ -584,8 +591,8 @@ actor ClaudeCostScanner {
         )
     }
 
-    /// One entry per message id + request id. A streamed message is written once per content block with the
-    /// `message_start` output count, then once more with the real count, so the line with the most output wins.
+    /// One entry per message id. A streamed message is written once per content block with the `message_start`
+    /// output count, then once more with the real count, so the line with the most output wins.
     static func dedupe(_ entries: [UsageEntry]) -> [UsageEntry] {
         var kept: [UsageEntry] = []
         var position: [String: Int] = [:]

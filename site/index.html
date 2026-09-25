@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Notchmeter — AI coding usage, in the notch</title>
-<meta name="description" content="Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, Copilot and Kimi Code, living in the MacBook notch. Pace, projections and what to do next. Free, open source, and it never signs in anywhere.">
+<title>Notchmeter — which assistant is waiting, and what you can afford</title>
+<meta name="description" content="Know which coding assistant is waiting, and whether you can afford the next task. Usage meters and sessions for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, Copilot, Kimi Code and OpenCode in the MacBook notch; every figure sourced, dated and tested. Free, open source, and it never signs in anywhere.">
 <link rel="icon" href="img/icon.png">
 <link rel="stylesheet" href="style.css">
 <!-- No analytics, by decision (2026-09-07). Vercel Analytics used to load here.
@@ -14,44 +14,47 @@
      measurement is. Removing it makes every claim on the page literally true
      rather than something the privacy policy has to qualify. -->
 
-<meta property="og:title" content="Notchmeter — AI coding usage, in the notch">
-<meta property="og:description" content="Every other meter tells you how much. Notchmeter tells you what to do about it.">
+<meta property="og:title" content="Notchmeter — know which assistant is waiting, and whether you can afford the next task">
+<meta property="og:description" content="Usage meters and sessions for Claude Code, Codex, Cursor, Antigravity and Copilot, in the MacBook notch. Every figure sourced, dated and tested.">
 <meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
 <meta property="og:url" content="https://www.notchmeter.com/">
 <link rel="canonical" href="https://www.notchmeter.com/">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Notchmeter">
 </head>
 <body>
+
+<a class="skip" href="#main">Skip to content</a>
 
 <header class="top">
   <div class="wrap">
     <a class="brand" href="index.html" aria-label="Notchmeter"><img src="img/icon.png" alt=""><span class="brand-name">Notchmeter</span></a>
-    <nav class="links">
+    <nav class="links" aria-label="Main">
       <a href="#assistants" class="hide-sm">Assistants</a>
       <a href="#advice" class="hide-sm">Advice</a>
       <a href="#privacy" class="hide-sm">Privacy</a>
+      <a href="guides/index.html">Guides</a>
       <a href="pricing.html">Pricing</a>
-      <a href="https://github.com/Amir-Hackett/notchmeter">GitHub</a>
+      <a href="https://github.com/Amir-Hackett/notchmeter" class="hide-xs">GitHub</a>
       <a class="btn btn-primary btn-sm" href="#install">Download</a>
     </nav>
   </div>
 </header>
 
-<main>
+<main id="main">
 
 <section class="hero plain">
   <div class="wrap">
     <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
-    <!-- Two sentences, two jobs: the first is the problem the reader already
-         has, the second is the whole pitch. Rendered identically they read as
-         one slab with nowhere for the eye to land, so the setup steps back a
-         tone and the payoff keeps full strength. -->
-    <!-- The README's first screen, mirrored: the accuracy line leads, the document it names is one click
-         away, the menu-bar line follows, then the two-way line. A test (ReleasePackagingTests, SiteParity)
-         holds the three sentences identical in both files. -->
-    <h1><span class="h1-setup">Every figure on this panel is sourced, dated and tested.</span><br>And it says what to do next.</h1>
-    <p class="lede" style="margin-bottom:14px">Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, Copilot and Kimi Code, living in the MacBook notch — or on any screen edge you prefer. The rule behind every number, with its source and its date, is written down in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>; hover the rings and the panel says what to do about them.</p>
-    <p class="lede" style="margin-bottom:14px">Your menu bar ran out of room three apps ago. This one doesn't take any.</p>
+    <!-- The job first, the proof second (2026-09-24). The page used to open on the accuracy claim, "Every figure on
+         this panel is sourced, dated and tested", which is the right claim in the wrong place: it answers "can I
+         trust the number" before the reader knows what the number is for. The headline is now the job the app
+         does, the first line under it is the proof with the document one click away, and the menu-bar line and
+         the two-way line follow. The README's first screen says the same things in the same order, and a test
+         (ReleasePackagingTests, SiteParity) holds the four sentences identical in both files. -->
+    <h1>Know which assistant is waiting,<br class="h1-break"> and whether you can afford the next task.</h1>
+    <p class="lede proof">Every figure sourced, dated and tested — here is the document: <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">docs/accuracy.md</a>.</p>
+    <p class="lede" style="margin-bottom:14px">Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, Copilot, Kimi Code and OpenCode, and the sessions they are running, living in the MacBook notch or on any screen edge you prefer. Your menu bar ran out of room three apps ago. This one doesn't take any.</p>
     <p class="lede">Answer Claude Code from the notch: approve or deny a permission request, pick the answer to a question, and jump back to the terminal it came from. Each part has its own switch in Settings; <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">docs/hooks.md</a> says what the hook sends and how it fails open.</p>
     <div class="cta-row">
       <a class="btn btn-primary" href="#install">Download for macOS</a>
@@ -297,6 +300,20 @@
   </div>
 </section>
 
+<section id="guides">
+  <div class="wrap">
+    <h2>Questions, answered</h2>
+    <p class="section-lede">Guides to the questions people ask at the moment they matter, each dated, stamped with the version it was tested on, and linked to the rule behind every figure.</p>
+    <div class="guide-list">
+      <a class="guide-card" href="guides/claude-code-cost-estimate-vs-bill.html"><span class="q">Why your Claude Code cost estimate doesn't match your bill</span><span class="what">Every rule behind the estimate, and the seven places it differs from a bill.</span></a>
+      <a class="guide-card" href="guides/will-you-run-out-before-the-reset.html"><span class="q">Will you run out before the window resets?</span><span class="what">Pace instead of percentage, and a run-out range from your own hours.</span></a>
+      <a class="guide-card" href="guides/claude-code-notifications-not-working.html"><span class="q">Claude Code notifications not working?</span><span class="what">Fix the terminal first, then decide whether you want a hook.</span></a>
+      <a class="guide-card" href="guides/macos-agent-notch-apps-compared.html"><span class="q">Every macOS agent-notch app compared (2026)</span><span class="what">Ten other apps, and where each one beats this one.</span></a>
+    </div>
+    <p style="margin:22px 0 0"><a href="guides/index.html">All eight guides</a></p>
+  </div>
+</section>
+
 <section id="install">
   <div class="wrap centered">
     <h2>Install it</h2>
@@ -344,6 +361,7 @@ brew install --cask notchmeter</div>
         <ul>
           <li><a href="#assistants">Assistants</a></li>
           <li><a href="#advice">Advice</a></li>
+          <li><a href="guides/index.html">Guides</a></li>
           <li><a href="pricing.html">Pricing</a></li>
           <li><a href="#install">Download</a></li>
         </ul>
