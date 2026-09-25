@@ -316,6 +316,23 @@
 "Cost card shows" = "비용 카드 표시";
 "Cost, %@" = "비용, %@";
 "Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours." = "비용은 API 정가 기준 미국 달러로 계산됩니다. 통화 코드(EUR, GBP, JPY)와 직접 입력한 환율로 환산합니다. 아무것도 가져오지 않습니다. 환율은 사용자의 것입니다.";
+
+/* Currency: Fetch today's rate, the ECB's reference rate beside converted figures (ReferenceRates, SettingsWindow, SpendCard) */
+"Fetch today's rate" = "오늘 환율 가져오기";
+"A plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, just after it publishes them on a weekday: about once a day, and twice on the day you turn the switch on. It carries the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old; with no rate of your own set, a rate past its week stays in use and is marked so." = "유럽중앙은행(ECB)이 ecb.europa.eu에 공개하는 유로 기준 환율을 평일 공표 직후에 간단히 요청합니다. 대략 하루에 한 번이며, 스위치를 켠 날에는 두 번입니다. 앱 이름과 버전만 보내며 사용자에 관한 정보는 보내지 않습니다. 응답이 올 때까지, ECB가 공표하지 않는 통화일 때, 최신 환율이 일주일보다 오래되었을 때는 고급 › 진단에서 직접 입력한 환율을 사용합니다. 직접 입력한 환율이 없으면 일주일이 지난 환율도 계속 사용되며 그렇게 표시됩니다.";
+"Your own rate: used while Fetch today's rate is off, and whenever the ECB's rate cannot be used." = "직접 입력한 환율: '오늘 환율 가져오기'가 꺼져 있을 때와 ECB 환율을 쓸 수 없을 때 사용됩니다.";
+"%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@" = "%1$@: 미국 달러당 %2$@, ECB 기준 환율(%3$@)";
+"%1$@ at your own rate of %2$@ per US dollar" = "%1$@: 미국 달러당 %2$@, 직접 입력한 환율";
+"%@ at 1 per US dollar: no rate of your own is set" = "%@: 미국 달러당 1, 직접 입력한 환율 없음";
+"%1$@ per US dollar, the ECB reference rate of %2$@, fetched %3$@." = "미국 달러당 %1$@, ECB 기준 환율(%2$@), %3$@ 가져옴.";
+"Not fetched yet; your own rate (%@) stands in." = "아직 가져오지 않았습니다. 직접 입력한 환율(%@)을 사용합니다.";
+"The ECB could not be reached; your own rate (%@) stands in until it can." = "ECB에 연결할 수 없습니다. 연결될 때까지 직접 입력한 환율(%@)을 사용합니다.";
+"The ECB publishes no rate for %1$@; your own rate (%2$@) stands in." = "ECB는 %1$@ 환율을 공표하지 않습니다. 직접 입력한 환율(%2$@)을 사용합니다.";
+"The ECB's latest rate is from %1$@, over a week ago; your own rate (%2$@) stands in." = "ECB의 최신 환율은 %1$@ 기준으로 일주일이 넘었습니다. 직접 입력한 환율(%2$@)을 사용합니다.";
+"%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@, over a week old" = "%1$@: 미국 달러당 %2$@, ECB 기준 환율(%3$@), 일주일 넘음";
+"%1$@ per US dollar, the ECB reference rate of %2$@, over a week old and still in use: no rate of your own is set to stand in." = "미국 달러당 %1$@, ECB 기준 환율(%2$@), 일주일이 넘었지만 계속 사용 중: 대신 쓸 직접 입력한 환율이 없습니다.";
+"No rate of your own is set, so 1 per US dollar stands in: type one under Advanced › Diagnostics › Rate per dollar." = "직접 입력한 환율이 없어 미국 달러당 1을 사용합니다. 고급 › 진단 › 달러당 환율에서 입력하세요.";
+
 "Could not install the command line tool: %@" = "명령줄 도구를 설치할 수 없습니다: %@";
 "Could not move %@" = "%@을(를) 이동할 수 없습니다";
 "Countdown" = "카운트다운";

@@ -488,8 +488,8 @@ import Testing
         Localization.use(language: "en")
         let (store, prefs) = DemoFixtures.store(now: Date())
         prefs.hideFromScreenShare = true
-        prefs.monthlyBudgetUSD = 1
-        prefs.weeklyBudgetUSD = 1
+        prefs.monthlyBudget = Budget(amount: 1, code: "USD", rate: 1)
+        prefs.weeklyBudget = Budget(amount: 1, code: "USD", rate: 1)
         store.setScreenCaptured(true)
         defer { store.setScreenCaptured(false) }
         #expect(store.hidesFigures)

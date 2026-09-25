@@ -245,6 +245,11 @@ table.dtable code { font-size: 12.4px; }
               <td>Your IP address and the app's user agent, when the app fetches this project's own list of per-model prices, so a model that launches between releases is priced at its published rate within a day. No account, no token, no usage figure and no identifier is sent; the request carries only the validators of the copy already held, so an unchanged file answers with no body.</td>
               <td><strong>Daily by default</strong>, at most, and an hour after a failed attempt. It can be switched off in Settings › Appearance › Usage display, and the app then prices everything from the table built into it.</td>
             </tr>
+            <tr>
+              <td>European Central Bank<br><code>www.ecb.europa.eu</code><br>(exchange rates, from 0.9.0)</td>
+              <td>Your IP address and the app's user agent, asking for the ECB's public daily euro reference rates: the same file anyone can open in a browser. No account, no token, no identifier, and not even which currency you chose, since the one file holds every currency the ECB publishes. The ECB learns that a machine at your IP address asked, and nothing else; the file is served through a content delivery network, which sees the same request.</td>
+              <td><strong>Only if you turn on Fetch today's rate</strong>, which is off by default and does nothing while costs are shown in US dollars. Then once a weekday, just after the ECB publishes its afternoon file (and once more on the day you turn it on; nothing on a weekend, when no newer file can exist), or an hour after a failed one, doubling up to a day. Turn it off and the rate you typed converts, with no request.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -252,11 +257,12 @@ table.dtable code { font-size: 12.4px; }
       <p>The updater is the Sparkle framework, and it only runs in properly signed release builds. What it sends is what Sparkle sends with its system profile feature off, which is how the app configures it. We wrote the configuration, not the updater.</p>
       <p>The app also opens ordinary links in your browser when you click them, such as a vendor's usage page, a status page, or the donation page. Those are handed to your browser with whatever cookies your browser already has. The app makes no request of its own for them.</p>
 
-      <h4>The three options that change what is sent</h4>
+      <h4>The four options that change what is sent</h4>
       <ul>
         <li><strong>Cursor usage events export: on by default.</strong> Switch it off in Settings and Cursor stops receiving the 30-day usage events request. The plain usage summary still works; the detailed cost breakdown does not.</li>
         <li><strong>Codex credit reset details: off by default.</strong> Turn it on and one extra request goes to OpenAI alongside the usage read.</li>
         <li><strong>GitHub organisation billing: off by default.</strong> Turn it on and the app asks GitHub for your organisation list and a usage summary for up to ten of them.</li>
+        <li><strong>Fetch today's rate: off by default</strong> (from 0.9.0). Turn it on, with costs shown in a currency other than US dollars, and the app asks the European Central Bank for its public daily reference rates, once a weekday after it publishes them (twice on the day you turn it on, and not on a weekend), so a converted cost is at the day's rate rather than one you typed. The cost card and the dashboard then name the rate and its date under the figures. Turn it off and the rate you typed converts, with no request.</li>
       </ul>
 
       <h3>4.2 What the app reads on your Mac</h3>
@@ -278,7 +284,7 @@ table.dtable code { font-size: 12.4px; }
         <table class="dtable">
           <thead><tr><th>Where</th><th>What is in it</th></tr></thead>
           <tbody>
-            <tr><td><code>~/Library/Preferences/</code></td><td>Your settings: layout, notifications, currency, hotkeys, opt-ins. Also the last successful reading for each tool, which notifications have already fired, and a note of when the Cursor export last ran.</td></tr>
+            <tr><td><code>~/Library/Preferences/</code></td><td>Your settings: layout, notifications, currency, hotkeys, opt-ins. Also the last successful reading for each tool, which notifications have already fired, a note of when the Cursor export last ran and, while Fetch today's rate has been on, the last exchange rates the ECB published with the time they were asked for.</td></tr>
             <tr><td><code>~/Library/Caches/Notchmeter/</code></td><td>The transcript scan cache: quarter-hour totals per transcript so relaunches are instant, with entry-level detail kept only for the current 5-hour block. Never a token, a prompt or a full path.</td></tr>
             <tr><td><code>~/Library/Application Support/Notchmeter/daily-history-v1.jsonl</code></td><td>Daily cost totals that outlive your transcripts, one line per day per tool, broken down by model and by folder name, with a small <code>.lock</code> file beside it. Builds before 0.5.0 kept this file in <code>~/Library/Caches/Notchmeter/</code>; whichever 0.5.0 process reads the history first &mdash; the app, the command line tool, the status line or the MCP server &mdash; moves it here. Never a token, a prompt or a full path.</td></tr>
             <tr><td><code>~/Library/Application Support/Notchmeter/drain-log-v1.jsonl</code></td><td>One line per successful usage read: time, tool, window, fraction used, reset time. Trimmed to the last 7 days. Never a token.</td></tr>

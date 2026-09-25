@@ -761,20 +761,36 @@ final class Preferences {
     var hideFromScreenShare: Bool {
         didSet { defaults.set(hideFromScreenShare, forKey: Keys.screenShare); report(Keys.screenShare, hideFromScreenShare, changed: hideFromScreenShare != oldValue) }
     }
-    /// ISO 4217 code and the user's own rate from a dollar; nothing is fetched.
+    /// ISO 4217 code and the user's own rate from a dollar. Nothing is fetched unless `fetchCurrencyRate` is on.
     var currencyCode: String {
-        didSet { defaults.set(currencyCode, forKey: Keys.currencyCode); report(Keys.currencyCode, currencyCode, changed: currencyCode != oldValue); Money.configure(code: currencyCode, rate: currencyRate) }
+        didSet { defaults.set(currencyCode, forKey: Keys.currencyCode); report(Keys.currencyCode, currencyCode, changed: currencyCode != oldValue); applyCurrency() }
     }
     var currencyRate: Double {
-        didSet { defaults.set(currencyRate, forKey: Keys.currencyRate); report(Keys.currencyRate, currencyRate, changed: currencyRate != oldValue); Money.configure(code: currencyCode, rate: currencyRate) }
+        didSet { defaults.set(currencyRate, forKey: Keys.currencyRate); report(Keys.currencyRate, currencyRate, changed: currencyRate != oldValue); applyCurrency() }
     }
-    /// A spend budget for the calendar month (and optionally the week), stored in US dollars, typed in the user's currency.
-    var monthlyBudgetUSD: Double? {
-        didSet { store(monthlyBudgetUSD, forKey: Keys.monthlyBudget); report(Keys.monthlyBudget, monthlyBudgetUSD as Any, changed: monthlyBudgetUSD != oldValue) }
+    /// Converts at the ECB's reference rate, fetched once a day (ReferenceRateFetcher), instead of the typed one.
+    /// Off by default: the typed rate and no request at all is how the app has always converted, and a request
+    /// the user did not ask for is one the privacy page would have to explain away.
+    var fetchCurrencyRate: Bool {
+        didSet { defaults.set(fetchCurrencyRate, forKey: Keys.fetchCurrencyRate); report(Keys.fetchCurrencyRate, fetchCurrencyRate, changed: fetchCurrencyRate != oldValue); applyCurrency() }
     }
-    var weeklyBudgetUSD: Double? {
-        didSet { store(weeklyBudgetUSD, forKey: Keys.weeklyBudget); report(Keys.weeklyBudget, weeklyBudgetUSD as Any, changed: weeklyBudgetUSD != oldValue) }
+    /// The rate `Money` converts at and where it came from, resolved from the three settings above and the cached
+    /// rates. Not a preference: derived, never written, and re-resolved whenever one of its inputs moves.
+    private(set) var currencyConversion: CurrencyConversion
+    /// The last ECB rates read and when a request was last made, kept in these defaults beside the switch.
+    private(set) var referenceRateCache: ReferenceRateCache
+    /// The spend budgets for the calendar month and the week, each as it was typed: an amount in the currency
+    /// shown then, at the rate then in use (`Budget`), so the figure typed is the figure shown back whatever the
+    /// day's rate does. What the spend is measured against is the dollar figure, `monthlyBudgetUSD` and
+    /// `weeklyBudgetUSD`, derived at the rate in use.
+    var monthlyBudget: Budget? {
+        didSet { storeCodable(monthlyBudget, forKey: Keys.monthlyBudget); report(Keys.monthlyBudget, monthlyBudget?.oracleFields as Any, changed: monthlyBudget != oldValue) }
     }
+    var weeklyBudget: Budget? {
+        didSet { storeCodable(weeklyBudget, forKey: Keys.weeklyBudget); report(Keys.weeklyBudget, weeklyBudget?.oracleFields as Any, changed: weeklyBudget != oldValue) }
+    }
+    var monthlyBudgetUSD: Double? { monthlyBudget?.usd(at: currencyConversion) }
+    var weeklyBudgetUSD: Double? { weeklyBudget?.usd(at: currencyConversion) }
     var costCardMode: CostCardMode {
         didSet { defaults.set(costCardMode.rawValue, forKey: Keys.costCardMode); report(Keys.costCardMode, costCardMode.rawValue, changed: costCardMode != oldValue) }
     }
@@ -1350,8 +1366,12 @@ final class Preferences {
         static let screenShare = "hideFromScreenShare"
         static let currencyCode = "currencyCode"
         static let currencyRate = "currencyRate"
-        static let monthlyBudget = "monthlyBudgetUSD"
-        static let weeklyBudget = "weeklyBudgetUSD"
+        static let fetchCurrencyRate = "fetchCurrencyRate"
+        static let monthlyBudget = "monthlyBudget"
+        static let weeklyBudget = "weeklyBudget"
+        /// The dollar figures builds before 0.9.0 kept, read once and re-expressed in the currency (`budget(_:key:legacy:at:)`).
+        static let legacyMonthlyBudget = "monthlyBudgetUSD"
+        static let legacyWeeklyBudget = "weeklyBudgetUSD"
         static let costCardMode = "costCardMode"
         static let costCardTools = "costCardTools"
         static let ringWindows = "ringWindows"
@@ -1509,8 +1529,12 @@ final class Preferences {
         hideFromScreenShare = defaults.bool(forKey: Keys.screenShare)
         currencyCode = defaults.string(forKey: Keys.currencyCode) ?? "USD"
         currencyRate = defaults.object(forKey: Keys.currencyRate) as? Double ?? 1
-        monthlyBudgetUSD = defaults.object(forKey: Keys.monthlyBudget) as? Double
-        weeklyBudgetUSD = defaults.object(forKey: Keys.weeklyBudget) as? Double
+        fetchCurrencyRate = defaults.bool(forKey: Keys.fetchCurrencyRate)
+        referenceRateCache = ReferenceRateCache.load(defaults)
+        let conversion = Self.currencyConversion(defaults, now: Date())
+        currencyConversion = conversion
+        monthlyBudget = Self.budget(defaults, key: Keys.monthlyBudget, legacy: Keys.legacyMonthlyBudget, at: conversion)
+        weeklyBudget = Self.budget(defaults, key: Keys.weeklyBudget, legacy: Keys.legacyWeeklyBudget, at: conversion)
         costCardMode = CostCardMode(rawValue: defaults.string(forKey: Keys.costCardMode) ?? "") ?? .cost
         costCardTools = (defaults.array(forKey: Keys.costCardTools) as? [String])
             .map { Set($0.compactMap(ToolID.init(rawValue:)).filter(\.reportsCost)).union(introduced.filter(\.reportsCost)) }
@@ -1608,7 +1632,7 @@ final class Preferences {
         let status = SMAppService.mainApp.status
         launchAtLoginStatus = status
         launchAtLogin = status == .enabled
-        Money.configure(code: currencyCode, rate: currencyRate)
+        Money.configure(code: currencyConversion.code, rate: currencyConversion.rate)
         Keychain.setPolicy(keychainPrompts)
         NetworkSession.configure(proxy: proxyURL)
         DiagnosticLog.verbose = debugLogging
@@ -1626,9 +1650,39 @@ final class Preferences {
         Set((defaults.array(forKey: key) as? [String] ?? []).compactMap(ToolID.init(rawValue:)))
     }
 
-    private static func codable<T: Decodable>(_ defaults: UserDefaults, _ key: String) -> T? {
+    private nonisolated static func codable<T: Decodable>(_ defaults: UserDefaults, _ key: String) -> T? {
         guard let data = defaults.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(T.self, from: data)
+    }
+
+    /// The rate the costs convert at, from the defaults alone: what `init` resolves, and what the command-line
+    /// report resolves without building a Preferences.
+    nonisolated static func currencyConversion(_ defaults: UserDefaults, now: Date) -> CurrencyConversion {
+        CurrencyConversion.resolve(code: defaults.string(forKey: Keys.currencyCode) ?? "USD",
+                                   typed: defaults.object(forKey: Keys.currencyRate) as? Double ?? 1,
+                                   fetch: defaults.bool(forKey: Keys.fetchCurrencyRate),
+                                   cache: ReferenceRateCache.load(defaults), now: now)
+    }
+
+    /// A budget from the defaults: as kept since 0.9.0 or, once, the dollar figure builds before it kept,
+    /// re-expressed in the currency shown at the rate in use and written back, so that it goes on being the figure
+    /// it was on the day it is first read. The old key is removed with it: a budget cleared later must not come
+    /// back from it at the next launch.
+    nonisolated static func budget(_ defaults: UserDefaults, key: String, legacy: String, at conversion: CurrencyConversion) -> Budget? {
+        if let budget: Budget = codable(defaults, key) { return budget }
+        guard let usd = defaults.object(forKey: legacy) as? Double else { return nil }
+        defaults.removeObject(forKey: legacy)
+        guard usd.isFinite, usd > 0 else { return nil }
+        let budget = Budget(amount: usd * conversion.rate, code: conversion.code, rate: conversion.rate)
+        if let data = try? JSONEncoder().encode(budget) { defaults.set(data, forKey: key) }
+        return budget
+    }
+
+    /// The budgets in dollars from the defaults alone, for the command-line report, which builds no Preferences.
+    nonisolated static func budgetsUSD(defaults: UserDefaults, now: Date = Date()) -> (monthly: Double?, weekly: Double?) {
+        let conversion = currencyConversion(defaults, now: now)
+        return (budget(defaults, key: Keys.monthlyBudget, legacy: Keys.legacyMonthlyBudget, at: conversion)?.usd(at: conversion),
+                budget(defaults, key: Keys.weeklyBudget, legacy: Keys.legacyWeeklyBudget, at: conversion)?.usd(at: conversion))
     }
 
     private func storeCodable<T: Encodable>(_ value: T?, forKey key: String) {
@@ -1637,10 +1691,6 @@ final class Preferences {
         } else {
             defaults.removeObject(forKey: key)
         }
-    }
-
-    private func store(_ value: Double?, forKey key: String) {
-        if let value, value > 0 { defaults.set(value, forKey: key) } else { defaults.removeObject(forKey: key) }
     }
 
     func setLaunchAtLogin(_ enabled: Bool) throws {
@@ -1887,6 +1937,39 @@ final class Preferences {
         let choice = stored.flatMap { $0 == NotificationSound.none ? nil : $0 }
             ?? NotificationSound.defaultChoice(for: category, installed: installed)
         return (choice, silenced)
+    }
+
+    /// Resolves the rate from the settings and the cached rates and hands it to `Money`. Written only on a change,
+    /// because every write to an observed property re-draws whatever reads it, and the fetcher calls this on each
+    /// of its checks so that a rate past its week gives way without waiting for a request.
+    func applyCurrency(now: Date = Date()) {
+        let resolved = CurrencyConversion.resolve(code: currencyCode, typed: currencyRate, fetch: fetchCurrencyRate,
+                                                  cache: referenceRateCache, now: now)
+        Money.configure(code: resolved.code, rate: resolved.rate)
+        guard resolved != currencyConversion else { return }
+        currencyConversion = resolved
+        Oracle.shared.emit("currency", resolved.oracleFields)
+    }
+
+    /// A request is about to be made: its time is written first, so one the app never comes back from still
+    /// leaves its mark, and nothing is counted as failed until an answer says so (ReferenceRateCache).
+    func recordRateRequest(at now: Date) {
+        referenceRateCache.lastAttempt = now
+        referenceRateCache.save(defaults)
+    }
+
+    /// The request came back: new rates replace the old and clear the failures. A request that brought nothing
+    /// counts as one more failure in a row and leaves the old rates in place, where they go on being used until
+    /// they are a week old.
+    func recordRates(_ rates: ReferenceRates?, now: Date = Date()) {
+        if let rates {
+            referenceRateCache.rates = rates
+            referenceRateCache.failures = 0
+        } else {
+            referenceRateCache.failures += 1
+        }
+        referenceRateCache.save(defaults)
+        applyCurrency(now: now)
     }
 
     /// Empties this app's defaults domain; the caller relaunches, so nothing here needs to be re-read.

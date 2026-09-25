@@ -121,6 +121,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let self else { return }
         Task { await self.store.refreshCost() }
     })
+    /// The ECB's rate for *Fetch today's rate*; asks for nothing while that is off (ReferenceRates.swift).
+    private lazy var rateFetcher = ReferenceRateFetcher(prefs: prefs)
     /// The one jump at a time back to a session's terminal (TerminalJump.swift).
     private let jumper = TerminalJump.Executor()
     private lazy var autoSideProbe = CompactStripProbe(store: store)
@@ -235,6 +237,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.start()
         pricingCatalog.start()
         requests.pricingCatalog = { [weak self] in self?.pricingCatalog }
+        rateFetcher.start()
         actions.refresh = { [weak self] in self?.store.refreshAll(interactive: true) }
         actions.openSettings = { [weak self] in self?.showSettings() }
         actions.openSettingsPane = { [weak self] pane in self?.showSettings(pane: pane) }
@@ -1192,6 +1195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                          "range": String(describing: store.spendRange.costRange),
                          "prices": store.costSelection.priceSources(store.spendRange.costRange).map(\.key).sorted()],
             "pricing": pricingCatalog.status.oracleFields.merging(["enabled": prefs.pricingCatalog]) { _, new in new },
+            "currency": prefs.currencyConversion.oracleFields,
             "awaitingInput": store.awaitingInput.map(\.rawValue).sorted(), "sessions": store.sessions.count,
             "sessionsCard": sessionsCardFields(),
             "signals": ToolID.allCases.compactMap { tool in store.signal(tool).map { "\(tool.rawValue):\(String(describing: $0))" } },
@@ -1891,8 +1895,9 @@ enum Probe {
         let rates = drains.reduce(into: [String: Double]()) { if let rate = $1.value.perHour { $0["\($1.key.tool.rawValue)/\($1.key.window)"] = rate } }
         var context = Advisor.Context(readings: readings, cost: cost, drainRates: rates, now: now)
         context.runOuts = runOuts.reduce(into: [:]) { $0["\($1.key.tool.rawValue)/\($1.key.window)"] = $1.value }
-        context.monthlyBudgetUSD = defaults.object(forKey: "monthlyBudgetUSD") as? Double
-        context.weeklyBudgetUSD = defaults.object(forKey: "weeklyBudgetUSD") as? Double
+        let budgets = Preferences.budgetsUSD(defaults: defaults, now: now)
+        context.monthlyBudgetUSD = budgets.monthly
+        context.weeklyBudgetUSD = budgets.weekly
         context.metering = cost.sessionMetering
         let advice = Advisor.advise(context)
         return UsageReport(tools: statuses, cost: cost, advice: advice, drains: drains, runOuts: runOuts, history: history ? scanner.history?.load() : nil, now: now)

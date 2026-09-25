@@ -672,6 +672,42 @@ enum Advisor {
     }
 }
 
+/// A spend budget as it was typed: an amount in a currency, with the rate per dollar that currency converted at
+/// when it was typed. Kept that way rather than in dollars so that the figure the user typed is the figure
+/// Settings, the Cost card and the Advice strip show back whatever the day's rate does; the dollar figure the
+/// spend is measured against is derived where it is used and follows the rate in use (docs/accuracy.md, *The
+/// budget*). Before 0.9.0 the dollar figure was the one kept, which held still only while the rate did.
+struct Budget: Codable, Equatable, Sendable {
+    var amount: Double
+    var code: String
+    var rate: Double
+
+    /// The budget field's text as a budget in the currency shown: a positive amount, a comma accepted for the
+    /// decimal point; nil for anything else, which is no budget.
+    static func parse(_ text: String, at conversion: CurrencyConversion) -> Budget? {
+        let number = Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
+        guard let amount = number, amount.isFinite, amount > 0 else { return nil }
+        return Budget(amount: amount, code: conversion.code, rate: conversion.rate)
+    }
+
+    /// In dollars: at the rate in use while the budget is in the currency shown, so the comparison follows the
+    /// day's rate; after a change of currency, at the rate it was typed at, the last one its own currency was
+    /// known at here.
+    func usd(at conversion: CurrencyConversion) -> Double {
+        let divisor = code == conversion.code ? conversion.rate : rate
+        return divisor > 0 ? amount / divisor : amount
+    }
+
+    /// In the currency shown: the amount as typed while it is that currency, and otherwise converted through
+    /// dollars, which is what the budget field shows after a change of currency until the budget is typed again.
+    func shown(at conversion: CurrencyConversion) -> Double {
+        code == conversion.code ? amount : usd(at: conversion) * conversion.rate
+    }
+
+    /// For the oracle's `pref` event: the amount and its currency, the two the user chose.
+    var oracleFields: [String: Any] { ["amount": amount, "code": code] }
+}
+
 /// The calendar month as a budget period: where it stands between its first and last moment.
 struct BudgetPeriod: Equatable, Sendable {
     let start: Date

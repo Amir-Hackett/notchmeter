@@ -196,14 +196,77 @@ import Testing
         }
     }
 
+    /// A budget a build before 0.9.0 kept in dollars is read once into the currency shown, at the rate in use, so
+    /// it goes on being the figure it was that day; the old key goes with it, so a budget cleared later stays
+    /// cleared; and the command-line report, which builds no Preferences, reads the same dollar figure.
+    @Test func aDollarBudgetFromBeforeIsReadOnceIntoTheCurrency() {
+        withSuite("budget-migration") { defaults in
+            defer { Money.configure(code: "USD", rate: 1) }
+            defaults.set("EUR", forKey: "currencyCode")
+            defaults.set(0.88, forKey: "currencyRate")
+            defaults.set(227.27, forKey: "monthlyBudgetUSD")
+            let prefs = Preferences(defaults: defaults)
+            let inEuros = 227.27 * 0.88
+            #expect(prefs.monthlyBudget == Budget(amount: inEuros, code: "EUR", rate: 0.88))
+            let drift = abs((prefs.monthlyBudgetUSD ?? 0) - 227.27)
+            #expect(drift < 1e-9)
+            #expect(prefs.weeklyBudget == nil)
+            #expect(defaults.object(forKey: "monthlyBudgetUSD") == nil)
+            #expect(defaults.data(forKey: "monthlyBudget") != nil)
+            #expect(Preferences.budgetsUSD(defaults: defaults).monthly == prefs.monthlyBudgetUSD)
+            #expect(Preferences.budgetsUSD(defaults: defaults).weekly == nil)
+            // Read again it is the kept budget, not a second migration; cleared, it stays cleared.
+            #expect(Preferences(defaults: defaults).monthlyBudget == prefs.monthlyBudget)
+            prefs.monthlyBudget = nil
+            #expect(Preferences(defaults: defaults).monthlyBudget == nil)
+            #expect(Preferences.budgetsUSD(defaults: defaults).monthly == nil)
+        }
+    }
+
+    /// The budget field follows a change of code or rate made while Settings is open, the way the window's
+    /// onChange moves it: 200 typed in euros reads back as its pound figure once pounds are shown, so the Apply
+    /// that follows keeps the same dollar figure rather than reading "200" as £200.
+    @Test func theBudgetFieldShowsTheConvertedFigureAfterTheCodeChanges() {
+        withSuite("budget-code-change") { defaults in
+            defer { Money.configure(code: "USD", rate: 1) }
+            let prefs = Preferences(defaults: defaults)
+            prefs.currencyCode = "EUR"
+            prefs.currencyRate = 0.88
+            prefs.monthlyBudget = Budget.parse("200", at: prefs.currencyConversion)
+            let euros = prefs.currencyConversion
+            var field = SettingsView.budgetText(prefs.monthlyBudget, at: euros)
+            #expect(field == "200")
+            let typedUSD = 200 / 0.88
+            // The code and then the rate, each a change of the conversion the window hears once.
+            prefs.currencyCode = "GBP"
+            let poundsAtTheOldRate = prefs.currencyConversion
+            field = SettingsView.budgetText(prefs.monthlyBudget, from: euros, to: poundsAtTheOldRate, draft: field)
+            prefs.currencyRate = 0.76
+            let pounds = prefs.currencyConversion
+            field = SettingsView.budgetText(prefs.monthlyBudget, from: poundsAtTheOldRate, to: pounds, draft: field)
+            let inPounds = String(format: "%.2f", typedUSD * 0.76)
+            #expect(field == inPounds)
+            #expect(field == SettingsView.budgetText(prefs.monthlyBudget, at: prefs.currencyConversion))
+            // The budget itself is still the one typed, measured at the rate it was typed at.
+            #expect(prefs.monthlyBudget == Budget(amount: 200, code: "EUR", rate: 0.88))
+            let drift = abs((prefs.monthlyBudgetUSD ?? 0) - typedUSD)
+            #expect(drift < 1e-9)
+            // Applied from the field, it is the same dollar figure to the cent the field shows, and in pounds now.
+            prefs.monthlyBudget = Budget.parse(field, at: prefs.currencyConversion)
+            #expect(prefs.monthlyBudget?.code == "GBP")
+            let reapplied = abs((prefs.monthlyBudgetUSD ?? 0) - typedUSD)
+            #expect(reapplied < 0.01)
+        }
+    }
+
     @Test func keychainPolicyBudgetsAndProxyPersist() {
         withSuite("policy") { defaults in
             let prefs = Preferences(defaults: defaults)
             #expect(prefs.keychainPrompts == .refreshOnly)
             #expect(prefs.settingsExpandedTools.isEmpty, "assistants start collapsed")
             prefs.keychainPrompts = .never
-            prefs.monthlyBudgetUSD = 200
-            prefs.weeklyBudgetUSD = 0
+            prefs.monthlyBudget = Budget(amount: 200, code: "USD", rate: 1)
+            prefs.weeklyBudget = Budget.parse("0", at: prefs.currencyConversion)
             prefs.proxyURL = "socks5://127.0.0.1:1080"
             prefs.sessionAttention = .glance
             prefs.menuBarStyle = .bars
@@ -216,7 +279,9 @@ import Testing
             prefs.setSilenced(true, .limit)
             let reloaded = Preferences(defaults: defaults)
             #expect(reloaded.keychainPrompts == .never)
+            #expect(reloaded.monthlyBudget == Budget(amount: 200, code: "USD", rate: 1))
             #expect(reloaded.monthlyBudgetUSD == 200)
+            #expect(reloaded.weeklyBudget == nil)
             #expect(reloaded.weeklyBudgetUSD == nil)
             #expect(reloaded.proxyURL == "socks5://127.0.0.1:1080")
             #expect(reloaded.sessionAttention == .glance)

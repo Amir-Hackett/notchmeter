@@ -316,6 +316,23 @@
 "Cost card shows" = "コストカードの表示";
 "Cost, %@" = "コスト、%@";
 "Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours." = "コストは API 定価の米ドルで計算されます。通貨コード（EUR、GBP、JPY）と自分のレートで換算できます。取得は行いません。レートはあなたのものです。";
+
+/* Currency: Fetch today's rate, the ECB's reference rate beside converted figures (ReferenceRates, SettingsWindow, SpendCard) */
+"Fetch today's rate" = "今日のレートを取得";
+"A plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, just after it publishes them on a weekday: about once a day, and twice on the day you turn the switch on. It carries the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old; with no rate of your own set, a rate past its week stays in use and is marked so." = "欧州中央銀行（ECB）が ecb.europa.eu で公開しているユーロ参照レートを、平日の公表直後にシンプルに要求します。おおむね 1 日 1 回で、スイッチを入れた当日は 2 回です。送るのはアプリ名とバージョンだけで、あなたに関する情報は含みません。応答があるまでと、ECB が公表していない通貨、そして最新レートが 1 週間より古いときは、詳細 › 診断の自分のレートが使われます。自分のレートが設定されていなければ、1 週間を過ぎたレートも引き続き使われ、その旨が表示されます。";
+"Your own rate: used while Fetch today's rate is off, and whenever the ECB's rate cannot be used." = "自分のレート：「今日のレートを取得」がオフのときと、ECB のレートが使えないときに使われます。";
+"%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@" = "%1$@：1 米ドルあたり %2$@（ECB 参照レート、%3$@）";
+"%1$@ at your own rate of %2$@ per US dollar" = "%1$@：1 米ドルあたり %2$@（自分のレート）";
+"%@ at 1 per US dollar: no rate of your own is set" = "%@：1 米ドルあたり 1（自分のレートは未設定）";
+"%1$@ per US dollar, the ECB reference rate of %2$@, fetched %3$@." = "1 米ドルあたり %1$@、ECB 参照レート（%2$@）、%3$@に取得。";
+"Not fetched yet; your own rate (%@) stands in." = "まだ取得していません。自分のレート（%@）を使っています。";
+"The ECB could not be reached; your own rate (%@) stands in until it can." = "ECB に接続できませんでした。接続できるまで自分のレート（%@）を使います。";
+"The ECB publishes no rate for %1$@; your own rate (%2$@) stands in." = "ECB は %1$@ のレートを公表していません。自分のレート（%2$@）を使っています。";
+"The ECB's latest rate is from %1$@, over a week ago; your own rate (%2$@) stands in." = "ECB の最新レートは %1$@ のもので、1 週間以上前です。自分のレート（%2$@）を使っています。";
+"%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@, over a week old" = "%1$@：1 米ドルあたり %2$@（ECB 参照レート、%3$@、1 週間以上前）";
+"%1$@ per US dollar, the ECB reference rate of %2$@, over a week old and still in use: no rate of your own is set to stand in." = "1 米ドルあたり %1$@、ECB 参照レート（%2$@）、1 週間以上前ですが引き続き使用中。代わりに使う自分のレートが設定されていません。";
+"No rate of your own is set, so 1 per US dollar stands in: type one under Advanced › Diagnostics › Rate per dollar." = "自分のレートが設定されていないため、1 米ドルあたり 1 を使っています。詳細 › 診断 › 1 ドルあたりのレートで入力してください。";
+
 "Could not install the command line tool: %@" = "コマンドラインツールをインストールできませんでした: %@";
 "Could not move %@" = "%@ を移動できませんでした";
 "Countdown" = "カウントダウン";

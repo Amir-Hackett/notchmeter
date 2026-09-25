@@ -572,6 +572,20 @@ enum DemoFixtures {
         return base.adding([claude, cursor].compactMap { $0 })
     }
 
+    /// *Fetch today's rate* as it reads with a request answered two hours ago: the rates the ECB published for
+    /// 2026-09-24 (a few of its currencies, and the dollar every one is crossed through), dated `daysAgo` days
+    /// before the render, one by default so that a picture drawn next year is not of a rate a week out of use, and
+    /// past the week for the picture of a rate kept stale. Never fetched.
+    static func referenceRates(now: Date, daysAgo: Int = 1) -> ReferenceRates {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let then = utc.date(byAdding: .day, value: -daysAgo, to: now) ?? now
+        let parts = utc.dateComponents([.year, .month, .day], from: then)
+        let day = String(format: "%04ld-%02ld-%02ld", parts.year ?? 2026, parts.month ?? 9, parts.day ?? 24)
+        return ReferenceRates(day: day, perEuro: ["USD": 1.1367, "GBP": 0.85986, "JPY": 180.57, "CHF": 0.9409, "KRW": 1555.69, "CNY": 7.6302],
+                              fetchedAt: now.addingTimeInterval(-2 * 3600 - Double(daysAgo - 1) * 86400))
+    }
+
     // MARK: - OpenCode
 
     /// The OpenCode afternoon `--render-assets` draws beside the README's: Claude Code on Max as above, and OpenCode on

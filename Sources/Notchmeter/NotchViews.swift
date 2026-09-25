@@ -1724,6 +1724,12 @@ struct SpendCard: View {
     /// reporting, where there is no figure to have a provenance.
     private var sourceLine: String? { detail?.source }
 
+    /// Which rate the amounts were converted at, and for the ECB's which day it is for, while *Fetch today's rate*
+    /// is on (CurrencyConversion.note). Not under Tokens, which shows no amount to have converted.
+    private var conversionLine: String? {
+        mode == .tokens || providers.isEmpty ? nil : store.prefs.currencyConversion.note
+    }
+
     /// A tool whose figures are stale or partial says so under its row.
     private var problemLines: [String] {
         providers.compactMap { provider in provider.problem.map { "\(provider.tool.displayName): \($0)" } }
@@ -1780,6 +1786,7 @@ struct SpendCard: View {
         if let sourceLine { lines.append((text: sourceLine, quiet: true)) }
         // Which list prices did the pricing: the build's table, the catalog, an override (docs/accuracy.md).
         if let pricesLine { lines.append((text: pricesLine, quiet: true)) }
+        if let conversionLine { lines.append((text: conversionLine, quiet: true)) }
         return lines
     }
 
@@ -1907,7 +1914,7 @@ struct SpendCard: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L("Cost, %@", range.title))
             .accessibilityValue(Spoken.line("\(headline) \(unit)", providerSpoken, valueLine, burnLine, problemLines.first, gaps.first?.text,
-                                            store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine, pricesLine))
+                                            store.prefs.showDetails ? (detailLines + detailCaptions).joined(separator: " · ") : nil, sourceLine, pricesLine, conversionLine))
             // The week, day by day and split by assistant: always where the Simple panel's Cost row opens onto this
             // card, so the row's hover is never the only way to it, and behind Show details on the Detailed card,
             // which keeps its height budget without it. Outside the element above, which VoiceOver reads as one

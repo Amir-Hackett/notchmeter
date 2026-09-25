@@ -152,6 +152,9 @@ enum AssetRenderer {
             try write(closedNotch(now: now, actions: actions), png: directory.appendingPathComponent("closed-notch.png"))
             try write(controlsPanel(now: now, actions: actions), png: directory.appendingPathComponent("expanded-controls.png"))
             try write(controlsSettings(now: now, actions: actions), png: directory.appendingPathComponent("settings-controls.png"))
+            // *Fetch today's rate*, for review: the card and the pane in euros and in dong, at the ECB's rate and
+            // with the typed one standing in; the preferences are put back to dollars afterwards.
+            try currency(into: directory, store: store, prefs: prefs, actions: actions, now: now)
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
             AccessibilityDisplay.shared.force(contrast: true)
             defer { AccessibilityDisplay.shared.force(contrast: nil) }
@@ -828,6 +831,39 @@ enum AssetRenderer {
                 .environment(\.density, prefs.density)
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1),
             what: "a panel crop")
+    }
+
+    /// *Fetch today's rate*, for review; the README does not use these. The Cost card in euros at the ECB's rate
+    /// with its day under the figures and a monthly budget typed in euros, and the Appearance pane with the switch
+    /// on, the rate in use and the budget as typed; then the same two for dong, which the ECB does not publish,
+    /// with the typed rate standing in and saying so; then dong again with no rate of the user's own, the 1 that
+    /// stands in named as no rate at all; then euros again with no rate of the user's own and the ECB's rate
+    /// twelve days old, kept and marked stale. The preferences are put back to dollars afterwards, so the
+    /// pictures drawn after these are the README's own.
+    @MainActor
+    static func currency(into directory: URL, store: UsageStore, prefs: Preferences, actions: NotchActions, now: Date) throws {
+        defer {
+            prefs.monthlyBudget = nil
+            prefs.fetchCurrencyRate = false
+            prefs.currencyCode = "USD"
+            prefs.currencyRate = 1
+        }
+        prefs.currencyCode = "EUR"
+        prefs.currencyRate = 0.9
+        prefs.fetchCurrencyRate = true
+        prefs.recordRates(DemoFixtures.referenceRates(now: now), now: now)
+        prefs.monthlyBudget = Budget.parse("200", at: prefs.currencyConversion)
+        let stale = DemoFixtures.referenceRates(now: now, daysAgo: 12)
+        for (code, rate, rates, name) in [("EUR", 0.9, nil, "currency"), ("VND", 25_000.0, nil, "currency-fallback"),
+                                          ("VND", 1, nil, "currency-no-rate"), ("EUR", 1, stale, "currency-stale")] {
+            prefs.currencyCode = code
+            prefs.currencyRate = rate
+            if let rates { prefs.recordRates(rates, now: now) }
+            let card = try panelCrop(SpendCard(store: store, range: .today), prefs: prefs)
+            try write(card.image, png: directory.appendingPathComponent("\(name)-card.png"))
+            try write(settings(pane: .appearance, store: store, prefs: prefs, actions: actions),
+                      png: directory.appendingPathComponent("\(name)-settings.png"))
+        }
     }
 
     /// Every pane of the Settings window, one under another, in the dark appearance the notch panel always has.

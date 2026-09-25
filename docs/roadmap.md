@@ -104,6 +104,7 @@ Built from the 2026-09-20 audit of 0.6.1. The rows are what the release ships an
 | Durable daily history that outlives transcript cleanup; 90-day range; "since first use" | shipped | `CostHistory` |
 | Per-model, per-project and per-block cost; "this week" from the weekly reset with "$ per 1% of weekly"; month to date; tokens and cache-read share | shipped | `CostSummary.ranges`, `SpendCard` |
 | Cost in the user's currency (own rate, never fetched) | shipped | `Money`, accuracy doc "Known divergences" 5 |
+| Opt-in daily ECB reference rate for the currency (off by default; the typed rate stands in, and says so, when it cannot be used) | shipped | `ReferenceRates.swift`, accuracy doc "Currency", `ReferenceRatesTests.swift` |
 | Extra transcript roots and Claude Desktop's Cowork sessions | shipped | `ClaudeCostScanner.defaultRoots(extra:)` |
 | Codex `additional_rate_limits` (Spark) as per-model windows; reset credits, opt-in, shown never claimed | shipped | `CodexProvider.swift`, `CopilotParsingTests.swift` (CodexExtras) |
 | GitHub Copilot provider | shipped | `CopilotProvider.swift` |

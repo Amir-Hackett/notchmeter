@@ -316,6 +316,23 @@
 "Cost card shows" = "Thẻ chi phí hiển thị";
 "Cost, %@" = "Chi phí, %@";
 "Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours." = "Chi phí được tính bằng đô la Mỹ theo giá niêm yết API; một mã (EUR, GBP, JPY) và tỷ giá của riêng bạn sẽ quy đổi chúng. Không tải gì về: tỷ giá là của bạn.";
+
+/* Currency: Fetch today's rate, the ECB's reference rate beside converted figures (ReferenceRates, SettingsWindow, SpendCard) */
+"Fetch today's rate" = "Lấy tỷ giá hôm nay";
+"A plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, just after it publishes them on a weekday: about once a day, and twice on the day you turn the switch on. It carries the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old; with no rate of your own set, a rate past its week stays in use and is marked so." = "Một yêu cầu đơn giản lấy tỷ giá tham chiếu công khai của đồng euro do Ngân hàng Trung ương châu Âu (ECB) đăng trên ecb.europa.eu, ngay sau khi ECB công bố vào ngày làm việc: khoảng mỗi ngày một lần, và hai lần vào ngày bạn bật công tắc. Yêu cầu chỉ mang tên và phiên bản của ứng dụng, không có gì về bạn. Tỷ giá của riêng bạn trong Nâng cao › Chẩn đoán được dùng thay cho đến khi có phản hồi, cho loại tiền ECB không công bố, và khi tỷ giá mới nhất của ECB đã quá một tuần; nếu chưa đặt tỷ giá của riêng bạn, tỷ giá đã quá tuần vẫn được dùng và được ghi rõ như vậy.";
+"Your own rate: used while Fetch today's rate is off, and whenever the ECB's rate cannot be used." = "Tỷ giá của riêng bạn: dùng khi Lấy tỷ giá hôm nay đang tắt, và bất cứ khi nào không dùng được tỷ giá của ECB.";
+"%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@" = "%1$@ theo %2$@ cho mỗi đô la Mỹ, tỷ giá tham chiếu ECB ngày %3$@";
+"%1$@ at your own rate of %2$@ per US dollar" = "%1$@ theo tỷ giá của riêng bạn, %2$@ cho mỗi đô la Mỹ";
+"%@ at 1 per US dollar: no rate of your own is set" = "%@ theo 1 cho mỗi đô la Mỹ: chưa đặt tỷ giá của riêng bạn";
+"%1$@ per US dollar, the ECB reference rate of %2$@, fetched %3$@." = "%1$@ cho mỗi đô la Mỹ, tỷ giá tham chiếu ECB ngày %2$@, lấy %3$@.";
+"Not fetched yet; your own rate (%@) stands in." = "Chưa lấy tỷ giá; đang dùng tỷ giá của riêng bạn (%@).";
+"The ECB could not be reached; your own rate (%@) stands in until it can." = "Không kết nối được ECB; đang dùng tỷ giá của riêng bạn (%@) cho đến khi kết nối được.";
+"The ECB publishes no rate for %1$@; your own rate (%2$@) stands in." = "ECB không công bố tỷ giá cho %1$@; đang dùng tỷ giá của riêng bạn (%2$@).";
+"The ECB's latest rate is from %1$@, over a week ago; your own rate (%2$@) stands in." = "Tỷ giá mới nhất của ECB là ngày %1$@, đã quá một tuần; đang dùng tỷ giá của riêng bạn (%2$@).";
+"%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@, over a week old" = "%1$@ theo %2$@ cho mỗi đô la Mỹ, tỷ giá tham chiếu ECB ngày %3$@, đã quá một tuần";
+"%1$@ per US dollar, the ECB reference rate of %2$@, over a week old and still in use: no rate of your own is set to stand in." = "%1$@ cho mỗi đô la Mỹ, tỷ giá tham chiếu ECB ngày %2$@, đã quá một tuần nhưng vẫn được dùng: chưa đặt tỷ giá của riêng bạn để thay thế.";
+"No rate of your own is set, so 1 per US dollar stands in: type one under Advanced › Diagnostics › Rate per dollar." = "Chưa đặt tỷ giá của riêng bạn, nên đang dùng 1 cho mỗi đô la Mỹ: hãy nhập một tỷ giá trong Nâng cao › Chẩn đoán › Tỷ giá cho mỗi đô la.";
+
 "Could not install the command line tool: %@" = "Không cài được công cụ dòng lệnh: %@";
 "Could not move %@" = "Không thể di chuyển %@";
 "Countdown" = "Đếm ngược";

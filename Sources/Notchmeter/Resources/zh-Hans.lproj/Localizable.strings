@@ -333,6 +333,23 @@
 "Cost card shows" = "费用卡片显示";
 "Cost, %@" = "成本，%@";
 "Costs are computed in US dollars at API list prices; a code (EUR, GBP, JPY) and your own rate convert them. Nothing is fetched: the rate is yours." = "花费按 API 标价以美元计算；填入货币代码（EUR、GBP、JPY）和你自己的汇率即可换算。不会联网获取：汇率由你决定。";
+
+/* Currency: Fetch today's rate, the ECB's reference rate beside converted figures (ReferenceRates, SettingsWindow, SpendCard) */
+"Fetch today's rate" = "获取今日汇率";
+"A plain request for the European Central Bank's public euro reference rates on ecb.europa.eu, just after it publishes them on a weekday: about once a day, and twice on the day you turn the switch on. It carries the app's name and version and nothing about you. Your own rate under Advanced › Diagnostics stands in until it answers, for a currency the ECB does not publish, and once its latest rate is more than a week old; with no rate of your own set, a rate past its week stays in use and is marked so." = "向 ecb.europa.eu 发出一个简单请求，获取欧洲央行公开的欧元参考汇率，在其工作日公布后随即发出：大约每天一次，打开开关的当天两次。请求只带上应用的名称和版本，不含任何关于你的信息。在它回应之前、对于欧洲央行不公布的货币，以及它的最新汇率超过一周时，改用你在“高级 › 诊断”中填写的汇率。若你没有填写自己的汇率，超过一周的汇率会继续使用，并如此标注。";
+"Your own rate: used while Fetch today's rate is off, and whenever the ECB's rate cannot be used." = "你自己的汇率：在“获取今日汇率”关闭时使用，也在无法使用欧洲央行汇率时使用。";
+"%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@" = "%1$@：每美元 %2$@，欧洲央行 %3$@ 参考汇率";
+"%1$@ at your own rate of %2$@ per US dollar" = "%1$@：每美元 %2$@，你自己的汇率";
+"%@ at 1 per US dollar: no rate of your own is set" = "%@：每美元 1，你没有填写自己的汇率";
+"%1$@ per US dollar, the ECB reference rate of %2$@, fetched %3$@." = "每美元 %1$@，欧洲央行 %2$@ 参考汇率，%3$@获取。";
+"Not fetched yet; your own rate (%@) stands in." = "尚未获取；暂用你自己的汇率（%@）。";
+"The ECB could not be reached; your own rate (%@) stands in until it can." = "无法连接欧洲央行；在连上之前暂用你自己的汇率（%@）。";
+"The ECB publishes no rate for %1$@; your own rate (%2$@) stands in." = "欧洲央行不公布 %1$@ 的汇率；改用你自己的汇率（%2$@）。";
+"The ECB's latest rate is from %1$@, over a week ago; your own rate (%2$@) stands in." = "欧洲央行的最新汇率是 %1$@ 的，已超过一周；改用你自己的汇率（%2$@）。";
+"%1$@ at %2$@ per US dollar, the ECB reference rate of %3$@, over a week old" = "%1$@：每美元 %2$@，欧洲央行 %3$@ 参考汇率，已超过一周";
+"%1$@ per US dollar, the ECB reference rate of %2$@, over a week old and still in use: no rate of your own is set to stand in." = "每美元 %1$@，欧洲央行 %2$@ 参考汇率，已超过一周但仍在使用：你没有填写自己的汇率来替代它。";
+"No rate of your own is set, so 1 per US dollar stands in: type one under Advanced › Diagnostics › Rate per dollar." = "你没有填写自己的汇率，因此暂用每美元 1：请在“高级 › 诊断 › 每美元汇率”中填写。";
+
 "Could not install the command line tool: %@" = "无法安装命令行工具：%@";
 "Could not move %@" = "无法移动 %@";
 "Countdown" = "倒计时";
