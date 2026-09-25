@@ -91,6 +91,10 @@ enum AssetRenderer {
             let formStage = try Stage(store: form, prefs: formPrefs, actions: actions)
             try write(formStage.image(.expanded, canvas: formStage.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("elicitation.png"))
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
+            // The Usage Dashboard, dark and this week with the peak day pinned, at the window's width and as tall as
+            // its sections: the README's picture, redrawn with the rest at every release rather than left behind.
+            try write(dashboardImage(store: store, range: .week, appearance: .darkAqua, pinPeak: true, now: now),
+                      png: directory.appendingPathComponent("dashboard.png"))
             try write(sheet(assistantPages(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings-assistants.png"))
             // The Sounds block, for review: the Notifications pane at the window's narrowest, where the six rows
             // are tightest, with one category silenced and one on a sound of its own, dark and light.
@@ -255,35 +259,55 @@ enum AssetRenderer {
         AccessibilityDisplay.shared.reduceAnimations = true
     }
 
-    /// `--render-dashboard <dir>`: the usage dashboard from the demo fixtures, the week light and dark and the 30- and
-    /// 90-day ranges once each, at the window's own
-    /// width and tall enough to show every section without scrolling. For review; nothing in the README uses it.
+    /// `--render-dashboard <dir>`: the usage dashboard from the demo fixtures for review, the week light and dark
+    /// and the 30- and 90-day ranges once each, the dark week with the peak day pinned under the chart as the
+    /// README's own picture has it (`dashboard.png`, drawn by `--render-assets`), and the week once more at the
+    /// window's narrowest (DashboardWindowController.minSize), where the tiles go under the total.
     @MainActor
     static func dashboard(into directory: URL, now: Date = Date()) -> Bool {
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             stillEveryAnimation()
             let (store, _) = DemoFixtures.store(now: now)
-            let renders: [(name: String, appearance: NSAppearance.Name, range: DashboardRange)] = [
-                ("dashboard-light", .aqua, .week), ("dashboard-dark", .darkAqua, .week),
-                ("dashboard-30d", .aqua, .thirtyDays), ("dashboard-90d", .darkAqua, .ninetyDays),
+            let full = DashboardWindowController.contentSize.width
+            let renders: [(name: String, appearance: NSAppearance.Name, range: DashboardRange, pinned: Bool, width: CGFloat)] = [
+                ("dashboard-light", .aqua, .week, false, full), ("dashboard-dark", .darkAqua, .week, true, full),
+                ("dashboard-30d", .aqua, .thirtyDays, false, full), ("dashboard-90d", .darkAqua, .ninetyDays, false, full),
+                ("dashboard-narrow", .aqua, .week, false, DashboardWindowController.minSize.width),
             ]
-            for (name, appearance, range) in renders {
-                let size = CGSize(width: DashboardWindowController.contentSize.width, height: 1180)
-                let host = NSHostingView(rootView: DashboardView(store: store, range: range).frame(width: size.width, height: size.height).background(Color(nsColor: .windowBackgroundColor)))
-                let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: .borderless, backing: .buffered, defer: false)
-                window.appearance = NSAppearance(named: appearance)
-                window.backgroundColor = .windowBackgroundColor
-                window.contentView = host
-                host.layoutSubtreeIfNeeded()
-                windows.append(window)
-                try write(bitmap(of: host, size: size, what: "the dashboard"), png: directory.appendingPathComponent("\(name).png"))
+            for (name, appearance, range, pinned, width) in renders {
+                try write(dashboardImage(store: store, range: range, appearance: appearance, pinPeak: pinned, width: width, now: now),
+                          png: directory.appendingPathComponent("\(name).png"))
             }
             return true
         } catch {
             Probe.emit("render-dashboard: \(error)")
             return false
         }
+    }
+
+    /// The dashboard at the window's own width (DashboardWindowController.contentSize, unless `width` says
+    /// otherwise) and as tall as its sections come to under `appearance`: the view laid out without its scroll
+    /// view, so the hosting view's fitting size is the height of everything on it and no section is cut however
+    /// the fixtures grow. `pinPeak` holds the range's costliest day under the chart, which is what a click does and
+    /// what a picture cannot.
+    @MainActor
+    static func dashboardImage(store: UsageStore, range: DashboardRange, appearance: NSAppearance.Name, pinPeak: Bool = false,
+                               width: CGFloat = DashboardWindowController.contentSize.width, now: Date = Date()) throws -> CGImage {
+        let weekStart = store.cost?.week?.start ?? now
+        let pinned = pinPeak ? DashboardModel(providers: store.costSelection.providers, range: range, weekStart: weekStart, now: now).peak?.day : nil
+        let host = NSHostingView(rootView: DashboardView(store: store, range: range, scrolls: false, pinned: pinned, now: now)
+            .frame(width: width).background(Color(nsColor: .windowBackgroundColor)))
+        let window = NSWindow(contentRect: CGRect(origin: .zero, size: CGSize(width: width, height: 1)), styleMask: .borderless, backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: appearance)
+        window.backgroundColor = .windowBackgroundColor
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        let size = CGSize(width: width, height: ceil(host.fittingSize.height))
+        window.setContentSize(size)
+        host.layoutSubtreeIfNeeded()
+        windows.append(window)
+        return try bitmap(of: host, size: size, what: "the dashboard")
     }
 
     /// `--render-gallery <dir>`: Product Hunt's eight 1270×760 frames and the 240×240 thumbnail, each one centred

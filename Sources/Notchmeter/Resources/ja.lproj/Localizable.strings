@@ -806,7 +806,10 @@
 "Daily average" = "1日平均";
 "Daily spend" = "日別の支出";
 "Day" = "日";
-"Hover a bar for that day's figures." = "バーにポインタを合わせるとその日の数値を表示します。";
+"Hover a bar for that day's figures; click it to keep them." = "バーにポインタを合わせるとその日の数値を表示します。クリックすると固定されます。";
+"Pinned" = "固定中";
+"Unpin" = "固定を解除";
+"Pins or unpins this day's figures under the chart" = "この日の数値をグラフの下に固定、または固定を解除します";
 "Limits" = "上限";
 "No usage recorded yet" = "まだ使用記録がありません";
 "Peak day" = "最多の日";

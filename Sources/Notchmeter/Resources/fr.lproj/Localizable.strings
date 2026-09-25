@@ -823,7 +823,10 @@
 "Daily average" = "Moyenne quotidienne";
 "Daily spend" = "Dépense quotidienne";
 "Day" = "Jour";
-"Hover a bar for that day's figures." = "Survolez une barre pour voir les chiffres de ce jour.";
+"Hover a bar for that day's figures; click it to keep them." = "Survolez une barre pour voir les chiffres de ce jour ; cliquez dessus pour les garder.";
+"Pinned" = "Épinglé";
+"Unpin" = "Détacher";
+"Pins or unpins this day's figures under the chart" = "Épingle ou détache les chiffres de ce jour sous le graphique";
 "Limits" = "Limites";
 "No usage recorded yet" = "Aucune utilisation enregistrée pour l'instant";
 "Peak day" = "Jour de pointe";

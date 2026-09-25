@@ -2,6 +2,19 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.1](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.1) — 2026-09-25
+
+### The Usage Dashboard, redrawn
+
+- **The total leads.** The range's total is the largest figure in the window, with the range under it and the value line in the same card: "30 days: $412 of API-equivalent value on the $200 Claude Max 20x plan · 2.1x (estimate)", still marked the estimate it is. Daily average, peak day and today sit beside it, and move under it when the window is narrow.
+- **The panel's colours, in place of the system blue.** Spend by model is drawn in each assistant's colour, and spend by project and the pin on a kept day in the accent chosen under Settings › Appearance › Theme, resolved the way the panel resolves it, under Increase Contrast too. Nothing in the window takes the system accent any more.
+- **The panel's meters for the limits.** Every live limit is drawn on the meter the panel uses, with its pace tick and how much a day (or an hour, for the session window) lasts to the reset. The cards and captions are the panel's as well. The window follows the system appearance, light or dark, and both were measured for contrast.
+- **Click a day to keep it.** Resting the pointer on a bar names that day under the chart, as before; a click keeps the day's figures there while you read the rest. A second click, Escape or *Unpin* lets it go. VoiceOver reads each day's bar as one element, with its total and its split by assistant, and pins it the same way.
+
+### Also
+
+- The dashboard's picture in docs/features.md and on notchmeter.com is current again. It was drawn on 2026-09-14 and showed the window before 0.9.0's value line; it is drawn from this version now.
+
 ## [0.9.0](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.0) — 2026-09-25
 
 ### Three more assistants

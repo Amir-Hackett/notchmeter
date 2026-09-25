@@ -823,7 +823,10 @@
 "Daily average" = "日均";
 "Daily spend" = "每日支出";
 "Day" = "日期";
-"Hover a bar for that day's figures." = "将指针悬停在柱上可查看当天数据。";
+"Hover a bar for that day's figures; click it to keep them." = "将指针悬停在柱上可查看当天数据；点击可固定显示。";
+"Pinned" = "已固定";
+"Unpin" = "取消固定";
+"Pins or unpins this day's figures under the chart" = "在图表下方固定或取消固定这一天的数据";
 "Limits" = "限额";
 "No usage recorded yet" = "尚无用量记录";
 "Peak day" = "最高的一天";
