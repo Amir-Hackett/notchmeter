@@ -37,34 +37,48 @@ import Testing
         }
     }
 
-    /// The catalog published with this build passes the build's own checks and, applied to it, changes nothing:
-    /// every entry repeats a row the build already has, which is what a catalog written the day the tables were
-    /// read should do. A row that drifts from ModelPricing or OpenAIPricing fails here before it is published.
-    @Test func theCommittedCatalogRepeatsTheBuildsTables() throws {
+    /// The catalog published with this build passes the build's own checks, and for every model its newest entry
+    /// in force today repeats the row the build has: the catalog restates the tables as they were read, so a row
+    /// that drifts from ModelPricing or OpenAIPricing fails here before it is published. Older entries are the
+    /// history the file exists to carry (pricing/README.md: date a change, never edit an old entry), so they are
+    /// held to nothing beyond the checks. Applied, today's lookups answer with the build's own number under the
+    /// build's own label, and the fingerprint moves only when some entry differs from the build.
+    @Test func theCommittedCatalogsNewestEntriesRepeatTheBuildsTables() throws {
         let data = try Data(contentsOf: Self.repository.appendingPathComponent("pricing/catalog.json"))
         let document = try PricingCatalog.parse(data)
-        #expect(document.anthropic.count == ModelPricing.table.count)
-        #expect(document.openai.count == OpenAIPricing.table.count)
+        let now = Date()
         #expect(Set(document.anthropic.map(\.prefix)) == Set(ModelPricing.table.map(\.prefix)))
         #expect(Set(document.openai.map(\.id)) == Set(OpenAIPricing.table.keys))
-        for entry in document.anthropic {
-            let row = try #require(ModelPricing.table.first { $0.prefix == entry.prefix }, Comment(rawValue: entry.prefix))
-            #expect(entry.rates == row.rates, Comment(rawValue: entry.prefix))
-            #expect(entry.fast == ModelPricing.fastTable.first { $0.prefix == entry.prefix }?.rates, Comment(rawValue: entry.prefix))
+        for (prefix, applied) in document.anthropicByPrefix {
+            let newest = try #require(applied.entry(at: now), Comment(rawValue: prefix))
+            let row = try #require(ModelPricing.table.first { $0.prefix == prefix }, Comment(rawValue: prefix))
+            #expect(newest.rates == row.rates, Comment(rawValue: prefix))
+            #expect(newest.fast == ModelPricing.fastTable.first { $0.prefix == prefix }?.rates, Comment(rawValue: prefix))
         }
-        for entry in document.openai {
-            #expect(entry.rates == OpenAIPricing.table[entry.id], Comment(rawValue: entry.id))
+        for (id, applied) in document.openaiByID {
+            let newest = try #require(applied.entry(at: now), Comment(rawValue: id))
+            #expect(newest.rates == OpenAIPricing.table[id], Comment(rawValue: id))
         }
+        let anthropicDiffers = document.anthropic.contains { entry in
+            entry.rates != ModelPricing.table.first { $0.prefix == entry.prefix }?.rates
+                || (entry.fast != nil && entry.fast != ModelPricing.fastTable.first { $0.prefix == entry.prefix }?.rates)
+        }
+        let openaiDiffers = document.openai.contains { $0.rates != OpenAIPricing.table[$0.id] }
         let anthropicBefore = ModelPricing.fingerprint
         let openaiBefore = OpenAIPricing.fingerprint
         defer { PricingCatalog.apply(nil) }
-        #expect(PricingCatalog.apply(document) == false)
-        #expect(ModelPricing.book.isBuiltIn)
-        #expect(OpenAIPricing.book.isBuiltIn)
-        #expect(ModelPricing.fingerprint == anthropicBefore)
-        #expect(OpenAIPricing.fingerprint == openaiBefore)
-        #expect(ModelPricing.resolve("claude-opus-5-5")?.source == .builtIn(ModelPricing.snapshotDate))
-        #expect(OpenAIPricing.resolve("gpt-5.5")?.source == .builtIn(OpenAIPricing.snapshotDate))
+        #expect(PricingCatalog.apply(document) == (anthropicDiffers || openaiDiffers))
+        #expect((ModelPricing.fingerprint == anthropicBefore) == !anthropicDiffers)
+        #expect((OpenAIPricing.fingerprint == openaiBefore) == !openaiDiffers)
+        for (prefix, _) in ModelPricing.table {
+            #expect(ModelPricing.resolve(prefix, at: now)?.source == .builtIn(ModelPricing.snapshotDate), Comment(rawValue: prefix))
+        }
+        for (prefix, _) in ModelPricing.fastTable {
+            #expect(ModelPricing.resolve(prefix, speed: "fast", at: now)?.source == .builtIn(ModelPricing.snapshotDate), Comment(rawValue: prefix))
+        }
+        for id in OpenAIPricing.table.keys {
+            #expect(OpenAIPricing.resolve(id, at: now)?.source == .builtIn(OpenAIPricing.snapshotDate), Comment(rawValue: id))
+        }
     }
 
     @Test func theSchemaThePublishedDayAndTheListsAreRequired() throws {
@@ -212,10 +226,52 @@ import Testing
         #expect(late.source == .catalog("2026-09-15"))
         // The longest-prefix rule still holds across the merged table: the new row does not shadow a longer one.
         #expect(ModelPricing.resolve("claude-sonnet-4-6", at: sept20)?.rates == ModelPricing.sonnetLegacy)
-        // Every source that priced the model over a span that straddles the day, and one that does not.
-        #expect(ModelPricing.sources(for: "claude-sonnet-5", from: sept1, to: sept20) == [.builtIn(ModelPricing.snapshotDate), .catalog("2026-09-15")])
-        #expect(ModelPricing.sources(for: "claude-sonnet-5", from: sept20, to: oct5) == [.catalog("2026-09-15")])
-        #expect(ModelPricing.sources(for: "claude-opus-4-6", from: sept1, to: oct5) == [.builtIn(ModelPricing.snapshotDate)])
+    }
+
+    /// The card, the dashboard, the report and the oracle name the sources of the lines inside the range on show
+    /// and no other: a source that priced no line there is not named, a line with its own `costUSD` names none,
+    /// and the sources travel with the day into the history so a day whose transcripts are gone still names its own.
+    @Test func aRangeNamesTheSourcesOfTheLinesInsideItAndNoOther() throws {
+        defer { PricingCatalog.apply(nil) }
+        #expect(try apply(anthropic: [PricingCatalogValidation.anthropic("claude-sonnet-5", effective: "2026-09-15", input: 3, output: 12)]))
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let now = DateParsing.iso8601("2026-09-20T15:00:00Z")!
+        func line(_ stamp: String, model: String, extra: String = "") -> String {
+            #"{"type":"assistant","timestamp":"\#(stamp)","requestId":"r-\#(stamp)",\#(extra)"message":{"id":"m-\#(stamp)","model":"\#(model)","usage":{"input_tokens":1000,"output_tokens":200}}}"#
+        }
+        let jsonl = [
+            // Before the update's day: the build's rate.
+            line("2026-09-01T13:30:00.000Z", model: "claude-sonnet-5"),
+            // Today: the catalog's.
+            line("2026-09-20T14:00:00.000Z", model: "claude-sonnet-5"),
+            // Its own figure: no list price touched it.
+            line("2026-09-20T13:00:00.000Z", model: "claude-sonnet-5", extra: #""costUSD":0.42,"#),
+            // Yesterday, a model no table has: the family guess.
+            line("2026-09-19T10:00:00.000Z", model: "claude-opus-9"),
+        ].joined(separator: "\n")
+        let entries = ClaudeCostScanner.dedupe(ClaudeCostScanner.parseFile(Data(jsonl.utf8)))
+        let digest = FileDigest.build(entries)
+        let ownFigure = try #require(digest.buckets[FileDigest.index(of: DateParsing.iso8601("2026-09-20T13:00:00Z")!)])
+        #expect(ownFigure.priceSources.isEmpty)
+        #expect(ownFigure.cost == 0.42)
+        #expect(digest.buckets[FileDigest.index(of: DateParsing.iso8601("2026-09-20T14:00:00Z")!)]?.priceSources == [.catalog("2026-09-15")])
+        let summary = ClaudeCostScanner.summarize(entries, now: now, daysBack: 30, calendar: utc)
+        #expect(summary.totals(.today).priceSources == [.catalog("2026-09-15")])
+        #expect(summary.totals(.yesterday).priceSources == [.family])
+        #expect(summary.totals(.last30Days).priceSources == [.builtIn(ModelPricing.snapshotDate), .catalog("2026-09-15"), .family])
+        let claude = try #require(summary.provider(.claude))
+        #expect(claude.totals(.today).priceSources == [.catalog("2026-09-15")])
+        let selection = CostSelection(providers: [claude])
+        #expect(selection.priceSources(.today) == [.catalog("2026-09-15")])
+        #expect(PriceSource.line(selection.priceSources(.today)) == "Prices: Notchmeter's catalog of Sep 15, 2026")
+        // The same sources through the report: the 30-day window's at the top, each range's own below.
+        let report = UsageReport(tools: [:], cost: summary, advice: [], now: now).object
+        let cost = try #require(report["cost"] as? [String: Any])
+        #expect(cost["priceSources"] as? [String] == ["builtIn:\(ModelPricing.snapshotDate)", "catalog:2026-09-15", "family"])
+        let ranges = try #require(cost["ranges"] as? [String: [String: Any]])
+        #expect(ranges["today"]?["priceSources"] as? [String] == ["catalog:2026-09-15"])
+        #expect(ranges["yesterday"]?["priceSources"] as? [String] == ["family"])
     }
 
     /// The golden Sonnet 5 line of CostGoldenTests, dated 2026-09-01, prices the same with an update dated later
@@ -323,8 +379,16 @@ import Testing
         let updated = try #require(OpenAIPricing.resolve("gpt-5.5", at: sept20))
         #expect(updated.rates.output == 24)
         #expect(updated.source == .catalog("2026-09-15"))
-        #expect(OpenAIPricing.sources(for: "gpt-5.5", from: sept1, to: sept20) == [.builtIn(OpenAIPricing.snapshotDate), .catalog("2026-09-15")])
         #expect(OpenAIPricing.cost(of: TokenBreakdown(input: 1_000_000), model: "openai/GPT-6", at: sept20) == 3)
+        // A Codex turn records the source it was priced under, as a transcript line does; an unpriced one names
+        // none. A hundred thousand tokens, under gpt-5.5's long-context threshold.
+        var unpriced: Set<String> = []
+        var sources: Set<PriceSource> = []
+        #expect(abs(CodexCostScanner.price(CodexUsage(timestamp: sept20, model: "gpt-6", tokens: TokenBreakdown(input: 100_000)), unpriced: &unpriced, sources: &sources) - 0.3) < 1e-9)
+        #expect(abs(CodexCostScanner.price(CodexUsage(timestamp: sept1, model: "gpt-5.5", tokens: TokenBreakdown(input: 100_000)), unpriced: &unpriced, sources: &sources) - 0.5) < 1e-9)
+        #expect(CodexCostScanner.price(CodexUsage(timestamp: sept20, model: "gpt-6-mini", tokens: TokenBreakdown(input: 1)), unpriced: &unpriced, sources: &sources) == 0)
+        #expect(sources == [.catalog("2026-09-10"), .builtIn(OpenAIPricing.snapshotDate)])
+        #expect(unpriced == ["gpt-6-mini"])
         // Repeating the build's row is the build's number, and from the build's tables alone it changes nothing.
         PricingCatalog.apply(nil)
         #expect(try apply(openai: [PricingCatalogValidation.openai("gpt-5", effective: "2026-09-15", input: 1.25, output: 10, extra: ["cachedInput": 0.125])]) == false)
@@ -332,13 +396,29 @@ import Testing
         #expect(OpenAIPricing.resolve("gpt-5", at: sept20)?.source == .builtIn(OpenAIPricing.snapshotDate))
     }
 
+    /// Joined by the middle dot, since a dated label has a comma of its own in English.
     @Test func theCardsPriceLineNamesEverySourceInPrecedenceOrder() {
         #expect(PriceSource.line([]) == nil)
         let line = PriceSource.line([.builtIn("2026-09-24"), .catalog("2026-10-01"), .overrides, .family])
-        #expect(line == "Prices: your pricing-overrides.json, Notchmeter's catalog of Oct 1, 2026, this build's table of Sep 24, 2026, a family guess")
+        #expect(line == "Prices: your pricing-overrides.json · Notchmeter's catalog of Oct 1, 2026 · this build's table of Sep 24, 2026 · a family guess")
         #expect(PriceSource.catalog("2026-10-01").key == "catalog:2026-10-01")
         #expect(PriceSource.builtIn("2026-09-24").key == "builtIn:2026-09-24")
         #expect(PriceSource.dayText("not a day") == "not a day")
+    }
+
+    /// A source is stored as its key, in the digest cache and the history line, and reads back as itself; a word
+    /// no build wrote reads as nothing rather than as some source.
+    @Test func aSourceRoundTripsThroughItsKey() throws {
+        let all: [PriceSource] = [.overrides, .claudeCode, .catalog("2026-10-01"), .builtIn("2026-09-24"), .family]
+        for source in all {
+            #expect(PriceSource(key: source.key) == source)
+        }
+        #expect(PriceSource(key: "vendor") == nil)
+        #expect(PriceSource(key: "") == nil)
+        let encoded = try JSONEncoder().encode(Set(all))
+        #expect(try JSONDecoder().decode(Set<PriceSource>.self, from: encoded) == Set(all))
+        #expect(String(decoding: try JSONEncoder().encode([PriceSource.builtIn("2026-09-24")]), as: UTF8.self) == #"["builtIn:2026-09-24"]"#)
+        #expect(throws: DecodingError.self) { try JSONDecoder().decode([PriceSource].self, from: Data(#"["vendor"]"#.utf8)) }
     }
 }
 
@@ -517,6 +597,22 @@ import Testing
         #expect(try #require(PricingCatalog.Cache.load(from: file)).cache.fetchedAt > twoDaysAgo)
         #expect(rescans == 1)
         #expect(fetcher.status.settingsLine(enabled: true, now: now).hasPrefix("Catalog of Sep 24, 2026 in use, last confirmed"))
+    }
+
+    /// German abbreviates the relative time with a full stop ("vor 3 Std."), so its line keeps the time out of
+    /// sentence-final position, where the sentence's own full stop doubled it ("vor 3 Std..") in every state but
+    /// "gerade eben". The other ten tables abbreviate without a stop, or not at all.
+    @Test func theGermanSettingsLineKeepsTheAbbreviatedTimeOutOfSentenceFinalPosition() {
+        Localization.use(language: "de")
+        defer { Localization.use(language: "en") }
+        let now = DateParsing.iso8601("2026-09-24T12:00:00Z")!
+        let status = PricingCatalogFetcher.Status(published: "2026-09-24", entries: 51, confirmedAt: now.addingTimeInterval(-3 * 3600), lastOutcome: .unchanged)
+        let line = status.settingsLine(enabled: true, now: now)
+        #expect(line.hasPrefix("Katalog vom "))
+        #expect(line.hasSuffix(" in Gebrauch (zuletzt bestätigt vor 3 Std.)."))
+        #expect(!line.contains(".."))
+        #expect(status.settingsLine(enabled: true, now: now.addingTimeInterval(-3 * 3600 + 30)).hasSuffix("(zuletzt bestätigt gerade eben)."))
+        #expect(status.settingsLine(enabled: true, now: now.addingTimeInterval(2 * 86_400)).hasSuffix("(zuletzt bestätigt vor 2 Tg.)."))
     }
 
     @Test func theSwitchTakesTheCatalogOutAndStopsTheRequests() async throws {

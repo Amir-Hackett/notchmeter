@@ -251,12 +251,17 @@ enum DemoFixtures {
             guard let day = calendar.date(byAdding: .day, value: offset - 29, to: start) else { continue }
             let cost = offset == 29 ? today : offset == 28 ? yesterday : weights[offset] * perWeight
             let tokens = Int(cost * 62_000)
+            // Priced by the build's table throughout and, over the last ten days, by a catalog entry that updated
+            // one of its rows: the two sources a month of transcripts ordinarily meets, so every range's price
+            // line is in the pictures.
+            let priceSources: Set<PriceSource> = offset >= 20 ? [.builtIn(ModelPricing.snapshotDate), .catalog(catalogDay)] : [.builtIn(ModelPricing.snapshotDate)]
             days[day] = CostHistory.Record(
                 cost: cost,
                 tokens: TokenBreakdown(input: tokens / 60, cacheWrite5m: tokens / 40, cacheWrite1h: tokens / 20,
                                        cacheRead: tokens - tokens / 60 - tokens / 40 - tokens / 20 - tokens / 100, output: tokens / 100),
                 byModel: models.mapValues { $0 * cost }, byProject: projects.mapValues { $0 * cost },
-                byModelTokens: models.mapValues { Int($0 * Double(tokens)) }, byProjectTokens: projects.mapValues { Int($0 * Double(tokens)) })
+                byModelTokens: models.mapValues { Int($0 * Double(tokens)) }, byProjectTokens: projects.mapValues { Int($0 * Double(tokens)) },
+                priceSources: priceSources)
         }
         // Cursor's own export, day-resolution, so it reports no hour of its own.
         let cursorDays = days.mapValues { record in
@@ -264,11 +269,9 @@ enum DemoFixtures {
                                byModel: ["claude-4.5-sonnet": record.cost * 0.08, "gpt-5.3-codex": record.cost * 0.03], byProject: [:])
         }
         let weekStart = CostEngine.weekStart(weeklyResetsAt: nil, now: now, calendar: calendar)
-        // Priced by the build's table and by the catalog that updated one of its rows, the two sources a month of
-        // transcripts ordinarily meets, so the card's price line is in the pictures.
         let claude = ProviderCost.build(tool: .claude, source: .localTranscripts, days: days, now: now, weekStart: weekStart,
                                         calendar: calendar, hourly: HourlyBurn(lastHour: 31.20, typicalHourly: 9.75, activeHours: 380),
-                                        priceSources: [.builtIn(ModelPricing.snapshotDate), .catalog(catalogDay)], scannedAt: now)
+                                        scannedAt: now)
         let cursor = ProviderCost.build(tool: .cursor, source: .billingExport, days: cursorDays, now: now, weekStart: weekStart,
                                         calendar: calendar, scannedAt: now.addingTimeInterval(-240))
         let base = CostSummary(today: 0, yesterday: 0, last30Days: 0, daily: [], lastHour: 0, typicalHourly: 0, burnMultiple: nil,

@@ -70,7 +70,7 @@ struct DashboardModel: Equatable {
     let models: [CostShare]
     let projects: [CostShare]
     let sources: [(tool: ToolID, source: CostSource)]
-    /// The list prices behind the locally priced providers, for the footnote (PriceSource.line).
+    /// The list prices behind the range's locally priced lines, for the footnote (PriceSource.line).
     let priceSources: Set<PriceSource>
 
     var bars: [Bar] {
@@ -93,7 +93,6 @@ struct DashboardModel: Equatable {
         self.range = range
         tools = providers.map(\.tool)
         sources = providers.map { (tool: $0.tool, source: $0.source) }
-        priceSources = providers.reduce(into: Set<PriceSource>()) { $0.formUnion($1.priceSources) }
 
         let today = calendar.startOfDay(for: now)
         let first: Date
@@ -149,6 +148,7 @@ struct DashboardModel: Equatable {
         self.today = todayTotals.cost
         models = totals.models
         projects = totals.projects
+        priceSources = totals.priceSources
 
         peak = days.filter { $0.total > 0 }.max { ($0.total, $1.day) < ($1.total, $0.day) }
         // Every calendar day of the range counts, quiet ones included; only days before the history's first spend

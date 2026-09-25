@@ -83,6 +83,10 @@ struct RangeTotals: Equatable, Sendable {
     var byProject: [String: Double] = [:]
     var byModelTokens: [String: Int] = [:]
     var byProjectTokens: [String: Int] = [:]
+    /// Every list price that priced a line inside this range (PriceSource): the union of what the lines
+    /// themselves were priced under, so a source that priced no line here is not named. Empty where the dollars
+    /// are the vendor's own, or where every line carried its own `costUSD`.
+    var priceSources: Set<PriceSource> = []
 
     var models: [CostShare] { CostShare.top(byModel, tokens: byModelTokens) }
     var projects: [CostShare] { CostShare.top(byProject, tokens: byProjectTokens) }
@@ -100,6 +104,7 @@ struct RangeTotals: Equatable, Sendable {
         byProject.merge(other.byProject, uniquingKeysWith: +)
         byModelTokens.merge(other.byModelTokens, uniquingKeysWith: +)
         byProjectTokens.merge(other.byProjectTokens, uniquingKeysWith: +)
+        priceSources.formUnion(other.priceSources)
     }
 }
 
@@ -194,11 +199,6 @@ struct CostSummary: Equatable, Sendable {
         providers.first { $0.tool == tool }
     }
 
-    /// Every list-price source behind the providers' figures (ProviderCost.priceSources).
-    var priceSources: Set<PriceSource> {
-        providers.reduce(into: Set<PriceSource>()) { $0.formUnion($1.priceSources) }
-    }
-
     /// The same summary with other tools' spend folded in: every top figure becomes the total across the
     /// providers, and each provider keeps its own ranges, series, source and freshness. The Claude-window
     /// figures (the week, the block, the metering, since first use) stay Claude's, because that is what they are.
@@ -268,6 +268,8 @@ struct FileDigest: Codable, Equatable, Sendable {
         var byProject: [String: Double] = [:]
         var byModelTokens: [String: Int] = [:]
         var byProjectTokens: [String: Int] = [:]
+        /// The list prices the bucket's lines were priced under; a line with its own `costUSD` adds none.
+        var priceSources: Set<PriceSource> = []
     }
 
     static let bucketSeconds: TimeInterval = 900
@@ -286,8 +288,8 @@ struct FileDigest: Codable, Equatable, Sendable {
     static func build(_ entries: [UsageEntry]) -> FileDigest {
         var digest = FileDigest()
         for entry in entries {
-            let cost = ClaudeCostScanner.price(entry, unpriced: &digest.unpriced)
             var bucket = digest.buckets[index(of: entry.timestamp)] ?? Bucket()
+            let cost = ClaudeCostScanner.price(entry, unpriced: &digest.unpriced, sources: &bucket.priceSources)
             bucket.cost += cost
             bucket.tokens += entry.tokens
             if let model = entry.model {
@@ -346,9 +348,11 @@ actor ClaudeCostScanner {
     static let cachePrefix = "claude-usage-cache"
 
     /// Versioned: entries parsed by an older rule set must not be reused. v4 (0.6.0) folds a worktree's spend onto
-    /// its repository, which changes the per-project digest of every file a worktree wrote.
+    /// its repository, which changes the per-project digest of every file a worktree wrote. v5 (0.9.0) records
+    /// the price source of every priced line in its bucket, which a v4 digest does not carry and the same
+    /// pricing fingerprint would otherwise have kept.
     static func defaultCacheURL() -> URL? {
-        Paths.caches.appendingPathComponent("\(cachePrefix)-v4.json")
+        Paths.caches.appendingPathComponent("\(cachePrefix)-v5.json")
     }
 
     private func loadCacheIfNeeded() {
@@ -613,10 +617,18 @@ actor ClaudeCostScanner {
     /// residency multiplier, plus the per-request web-search fee, which is never multiplied. The list price is the
     /// one in force when the line was written, which differs from today's only where the catalog updated a rate.
     static func price(_ entry: UsageEntry, unpriced: inout Set<String>) -> Double {
+        var sources: Set<PriceSource> = []
+        return price(entry, unpriced: &unpriced, sources: &sources)
+    }
+
+    /// The same, recording where the list price came from in `sources`. A line with its own `costUSD` names no
+    /// source, since no list price touched it; a line no table prices names none either, and is named unpriced.
+    static func price(_ entry: UsageEntry, unpriced: inout Set<String>, sources: inout Set<PriceSource>) -> Double {
         if let explicit = entry.costUSD { return explicit }
         let searches = Double(entry.webSearches) * ModelPricing.webSearchRequest
-        if let priced = ModelPricing.cost(of: entry.tokens, model: entry.model, inferenceGeo: entry.inferenceGeo, speed: entry.speed, at: entry.timestamp) {
-            return priced + searches
+        if let model = entry.model, let priced = ModelPricing.resolve(model, speed: entry.speed, at: entry.timestamp) {
+            sources.insert(priced.source)
+            return priced.rates.cost(entry.tokens) * ModelPricing.residencyMultiplier(inferenceGeo: entry.inferenceGeo) + searches
         }
         if let model = entry.model { unpriced.insert(model) }
         return searches
@@ -646,6 +658,7 @@ actor ClaudeCostScanner {
                 record.byModelTokens.merge(bucket.byModelTokens, uniquingKeysWith: +)
                 record.byProjectTokens.merge(bucket.byProjectTokens, uniquingKeysWith: +)
                 record.byProject.merge(bucket.byProject, uniquingKeysWith: +)
+                record.priceSources.formUnion(bucket.priceSources)
                 days[day] = record
             }
         }
@@ -659,10 +672,15 @@ actor ClaudeCostScanner {
               let start90 = calendar.date(byAdding: .day, value: -89, to: today)
         else { return .empty }
         let live = dayRecords(digests: digests, now: now, daysBack: daysBack, calendar: calendar)
-        // A day the transcripts no longer cover keeps the larger total the history remembers for it.
+        // A day the transcripts no longer cover keeps the larger total the history remembers for it, and the
+        // sources that priced the lines still here join the ones recorded for it: both priced the day.
         var days = history
-        for (day, record) in live where (history[day]?.cost ?? 0) <= record.cost + 1e-9 {
-            days[day] = record
+        for (day, record) in live {
+            if (history[day]?.cost ?? 0) <= record.cost + 1e-9 {
+                days[day] = record
+            } else {
+                days[day]?.priceSources.formUnion(record.priceSources)
+            }
         }
 
         var costByHour: [Int: Double] = [:]
@@ -684,7 +702,7 @@ actor ClaudeCostScanner {
         for digest in digests {
             for (index, bucket) in digest.buckets where FileDigest.start(of: index) >= weekStart {
                 weekTotals.add(RangeTotals(cost: bucket.cost, tokens: bucket.tokens, byModel: bucket.byModel, byProject: bucket.byProject,
-                                           byModelTokens: bucket.byModelTokens, byProjectTokens: bucket.byProjectTokens))
+                                           byModelTokens: bucket.byModelTokens, byProjectTokens: bucket.byProjectTokens, priceSources: bucket.priceSources))
             }
         }
         ranges[.week] = weekTotals
@@ -717,13 +735,11 @@ actor ClaudeCostScanner {
 
         let burn = HourlyBurn(lastHour: lastHour, costByHour: costByHour)
         let firstUse = days.filter { $0.value.cost > 0 }.keys.min()
-        // The list prices behind the window's transcripts: every source that priced a model seen in them over
-        // the window's span. Days older than the transcripts come from the history as they were recorded.
-        let models = live.values.reduce(into: Set<String>()) { $0.formUnion($1.byModel.keys) }
-        let priceSources = models.reduce(into: Set<PriceSource>()) { $0.formUnion(ModelPricing.sources(for: $1, from: windowStart, to: now)) }
+        // Each range carries the price sources of its own days (RangeTotals.priceSources), the live days' from
+        // their buckets and the days older than the transcripts from the history as they were recorded.
         let claude = ProviderCost(tool: .claude, source: .localTranscripts, ranges: ranges, daily: daily, daily90: daily90,
                                   lastHour: burn.lastHour, typicalHourly: burn.typicalHourly, burnMultiple: burn.multiple,
-                                  unpricedModels: unpriced, priceSources: priceSources, scannedAt: now)
+                                  unpricedModels: unpriced, scannedAt: now)
         return CostSummary(
             today: ranges[.today]?.cost ?? 0,
             yesterday: ranges[.yesterday]?.cost ?? 0,
@@ -749,7 +765,8 @@ actor ClaudeCostScanner {
 /// `daysBack` is thirty, so without this the 30-day figure shrinks as files go and nothing older is ever known.
 /// One JSON line per (day, tool) is appended after a scan whenever a day's total moved; the newest line per day
 /// wins on read, and the file is compacted to one line per day once it grows past a few thousand lines.
-/// Never a token, a prompt or a path: day, cost, five token counts, per-model and per-project cost.
+/// Never a token, a prompt or a path: day, cost, five token counts, per-model and per-project cost, and the
+/// names of the price tables the day's lines were priced under.
 struct CostHistory: Sendable {
     struct Record: Codable, Equatable, Sendable {
         var cost: Double
@@ -760,9 +777,13 @@ struct CostHistory: Sendable {
         var byProjectTokens: [String: Int]
         /// The day's session metering ratio (MeteringRatio), kept so it survives transcript cleanup.
         var sessionTokensPerPercent: Double?
+        /// The list prices the day's lines were priced under (PriceSource), kept so a range can still name them
+        /// once the transcripts are gone. Empty on a line an older build wrote, which then names none.
+        var priceSources: Set<PriceSource>
 
         init(cost: Double, tokens: TokenBreakdown, byModel: [String: Double], byProject: [String: Double],
-             byModelTokens: [String: Int] = [:], byProjectTokens: [String: Int] = [:], sessionTokensPerPercent: Double? = nil) {
+             byModelTokens: [String: Int] = [:], byProjectTokens: [String: Int] = [:], sessionTokensPerPercent: Double? = nil,
+             priceSources: Set<PriceSource> = []) {
             self.cost = cost
             self.tokens = tokens
             self.byModel = byModel
@@ -770,6 +791,7 @@ struct CostHistory: Sendable {
             self.byModelTokens = byModelTokens
             self.byProjectTokens = byProjectTokens
             self.sessionTokensPerPercent = sessionTokensPerPercent
+            self.priceSources = priceSources
         }
 
         var topModel: String? {
@@ -784,10 +806,12 @@ struct CostHistory: Sendable {
             byModelTokens.merge(other.byModelTokens, uniquingKeysWith: +)
             byProjectTokens.merge(other.byProjectTokens, uniquingKeysWith: +)
             sessionTokensPerPercent = sessionTokensPerPercent ?? other.sessionTokensPerPercent
+            priceSources.formUnion(other.priceSources)
         }
     }
 
-    /// The token maps are written only where they are non-empty, so a line an older build wrote still reads.
+    /// The token maps and the price sources are written only where they are non-empty, so a line an older build
+    /// wrote still reads. The sources are written in key order, so the same day writes the same bytes.
     private struct Line: Codable {
         let day: String
         let tool: String
@@ -798,6 +822,7 @@ struct CostHistory: Sendable {
         var byModelTokens: [String: Int]?
         var byProjectTokens: [String: Int]?
         var sessionTokensPerPercent: Double?
+        var priceSources: [PriceSource]?
 
         init(day: String, tool: String, record: Record) {
             self.day = day
@@ -809,6 +834,7 @@ struct CostHistory: Sendable {
             self.byModelTokens = record.byModelTokens.isEmpty ? nil : record.byModelTokens
             self.byProjectTokens = record.byProjectTokens.isEmpty ? nil : record.byProjectTokens
             self.sessionTokensPerPercent = record.sessionTokensPerPercent
+            self.priceSources = record.priceSources.isEmpty ? nil : record.priceSources.sorted { $0.key < $1.key }
         }
     }
 
@@ -955,12 +981,17 @@ struct CostHistory: Sendable {
             guard let parsed = try? decoder.decode(Line.self, from: line), parsed.tool == tool.rawValue, let day = day(parsed.day, calendar: calendar) else { continue }
             result[day] = Record(cost: parsed.cost, tokens: parsed.tokens, byModel: parsed.byModel, byProject: parsed.byProject,
                                  byModelTokens: parsed.byModelTokens ?? [:], byProjectTokens: parsed.byProjectTokens ?? [:],
-                                 sessionTokensPerPercent: parsed.sessionTokensPerPercent ?? result[day]?.sessionTokensPerPercent)
+                                 sessionTokensPerPercent: parsed.sessionTokensPerPercent ?? result[day]?.sessionTokensPerPercent,
+                                 priceSources: Set(parsed.priceSources ?? []))
         }
         return result
     }
 
-    /// Appends the days whose totals moved (a smaller total than remembered is a deleted transcript and is not written).
+    /// Appends the days whose totals moved (a smaller total than remembered is a deleted transcript and is not
+    /// written), and the days whose lines were priced under a source the line on file does not name yet: a
+    /// catalog update re-prices what is still on disk, and the day then names both the source recorded for the
+    /// lines since deleted and the one that priced the rest. A source already on file is not a change, so a day
+    /// whose transcripts are half gone is not rewritten on every scan.
     func record(_ days: [Date: Record], existing: [Date: Record], calendar: Calendar = .current) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
@@ -968,9 +999,16 @@ struct CostHistory: Sendable {
         var merged = existing
         for (day, record) in days where record.cost > 0 {
             if let known = existing[day], known.cost >= record.cost - 0.0005,
-               record.sessionTokensPerPercent == nil || known.sessionTokensPerPercent == record.sessionTokensPerPercent { continue }
+               record.sessionTokensPerPercent == nil || known.sessionTokensPerPercent == record.sessionTokensPerPercent,
+               record.priceSources.isSubset(of: known.priceSources) { continue }
             var record = record
-            if let known = existing[day], known.cost > record.cost { record = known }
+            if let known = existing[day], known.cost > record.cost {
+                // The larger figure is the line on file, priced when every transcript was still there; the lines
+                // still here were priced now, so both sets of sources priced the day.
+                let priced = record.priceSources
+                record = known
+                record.priceSources.formUnion(priced)
+            }
             if record.sessionTokensPerPercent == nil { record.sessionTokensPerPercent = existing[day]?.sessionTokensPerPercent }
             merged[day] = record
             guard let data = try? encoder.encode(Line(day: Self.key(day, calendar: calendar), tool: tool.rawValue, record: record)) else { continue }

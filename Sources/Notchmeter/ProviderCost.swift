@@ -70,9 +70,6 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
     let burnMultiple: Double?
     /// Model ids the source named that this build has no published rate for; their tokens contribute nothing.
     let unpricedModels: Set<String>
-    /// Where the list prices that priced the window's files came from (PriceSource): the build's table, the
-    /// catalog, an override. Empty for a source whose dollars are the vendor's own, which has no list price.
-    let priceSources: Set<PriceSource>
     /// When these figures were read from their source, which is not when the app last drew them.
     let scannedAt: Date
     /// Why the figures are missing or older than they should be; nil when the read was clean.
@@ -82,7 +79,7 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
 
     init(tool: ToolID, source: CostSource, ranges: [CostRange: RangeTotals], daily: [DailySpend], daily90: [DailySpend] = [],
          lastHour: Double? = nil, typicalHourly: Double? = nil, burnMultiple: Double? = nil, unpricedModels: Set<String> = [],
-         priceSources: Set<PriceSource> = [], scannedAt: Date, problem: String? = nil) {
+         scannedAt: Date, problem: String? = nil) {
         self.tool = tool
         self.source = source
         self.ranges = ranges
@@ -92,11 +89,12 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
         self.typicalHourly = typicalHourly
         self.burnMultiple = burnMultiple
         self.unpricedModels = unpricedModels
-        self.priceSources = priceSources
         self.scannedAt = scannedAt
         self.problem = problem
     }
 
+    /// The range's figures. Where the list prices that priced them came from is on the range itself
+    /// (`RangeTotals.priceSources`), since a source that priced this month's lines need not have priced today's.
     func totals(_ range: CostRange) -> RangeTotals { ranges[range] ?? RangeTotals() }
 
     /// True once any range holds something worth showing; a tool with nothing to say is left off the card.
@@ -108,7 +106,7 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
     /// nil when the records hold nothing, so an installed tool that has spent nothing shows no cost rather than $0.
     static func build(tool: ToolID, source: CostSource, days: [Date: CostHistory.Record], now: Date, daysBack: Int = 30,
                       weekStart: Date, calendar: Calendar = .current, hourly: HourlyBurn? = nil, unpricedModels: Set<String> = [],
-                      priceSources: Set<PriceSource> = [], scannedAt: Date, problem: String? = nil) -> ProviderCost? {
+                      scannedAt: Date, problem: String? = nil) -> ProviderCost? {
         let today = calendar.startOfDay(for: now)
         guard let windowStart = calendar.date(byAdding: .day, value: -(daysBack - 1), to: today),
               let start90 = calendar.date(byAdding: .day, value: -89, to: today)
@@ -118,7 +116,7 @@ struct ProviderCost: Equatable, Sendable, Identifiable {
         let ranges = RangeTotals.ranges(days: days, daily: daily, daily90: daily90, weekStart: weekStart, now: now, calendar: calendar)
         let cost = ProviderCost(tool: tool, source: source, ranges: ranges, daily: daily, daily90: daily90, lastHour: hourly?.lastHour,
                                 typicalHourly: hourly?.typicalHourly, burnMultiple: hourly?.multiple, unpricedModels: unpricedModels,
-                                priceSources: priceSources, scannedAt: scannedAt, problem: problem)
+                                scannedAt: scannedAt, problem: problem)
         return cost.hasFigures ? cost : nil
     }
 }
@@ -231,7 +229,7 @@ struct HourlyBurn: Equatable, Sendable {
 extension RangeTotals {
     init(_ record: CostHistory.Record) {
         self.init(cost: record.cost, tokens: record.tokens, byModel: record.byModel, byProject: record.byProject,
-                  byModelTokens: record.byModelTokens, byProjectTokens: record.byProjectTokens)
+                  byModelTokens: record.byModelTokens, byProjectTokens: record.byProjectTokens, priceSources: record.priceSources)
     }
 
     /// A per-day series over `count` days from `first`, oldest first, with a zero day where nothing was recorded.

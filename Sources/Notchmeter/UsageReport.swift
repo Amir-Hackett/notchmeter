@@ -173,11 +173,12 @@ struct UsageReport {
         func shares(_ list: [CostShare]) -> [[String: Any]] {
             list.map { ["name": $0.name, "cost": Self.money($0.cost)] }
         }
+        // `priceSources` is the range's own (PriceSource.key): the tables that priced the lines inside it.
         func range(_ totals: RangeTotals) -> [String: Any] {
             ["cost": Self.money(totals.cost), "tokens": totals.tokens.total, "cacheReadShare": totals.tokens.cacheReadShare.map(Oracle.fraction) as Any,
              "tokenBuckets": Self.buckets(totals.tokens), "cacheWrite1hShare": CacheTTL.oneHourShare(totals.tokens).map(Oracle.fraction) as Any,
              "costPerMillionTokens": totals.costPerMillionTokens.map(Self.money) as Any,
-             "byModel": shares(totals.models), "byProject": shares(totals.projects)]
+             "byModel": shares(totals.models), "byProject": shares(totals.projects), "priceSources": totals.priceSources.map(\.key).sorted()]
         }
         var object: [String: Any] = [
             "currency": "USD",
@@ -186,7 +187,8 @@ struct UsageReport {
             "lastHour": Self.money(cost.lastHour), "typicalHourly": Self.money(cost.typicalHourly),
             "burnMultiple": cost.burnMultiple.map { Oracle.fraction($0) } as Any,
             "unpricedModels": cost.unpricedModels.sorted(),
-            "priceSources": cost.priceSources.map(\.key).sorted(),
+            // The 30-day window's, the span the headline figures cover; each range below carries its own.
+            "priceSources": cost.totals(.last30Days).priceSources.map(\.key).sorted(),
             "sinceFirstUse": Self.money(cost.sinceFirstUse), "firstUse": cost.firstUse.map(Oracle.timestamp) as Any,
             "ranges": ["today": range(cost.totals(.today)), "yesterday": range(cost.totals(.yesterday)), "week": range(cost.totals(.week)),
                        "month": range(cost.totals(.month)), "last30Days": range(cost.totals(.last30Days)), "last90Days": range(cost.totals(.last90Days))],
@@ -210,7 +212,7 @@ struct UsageReport {
                     "week": Self.money(provider.totals(.week).cost), "month": Self.money(provider.totals(.month).cost),
                     "last30Days": Self.money(provider.totals(.last30Days).cost), "last90Days": Self.money(provider.totals(.last90Days).cost),
                     "byModel": shares(provider.totals(.last30Days).models), "unpricedModels": provider.unpricedModels.sorted(),
-                    "priceSources": provider.priceSources.map(\.key).sorted(),
+                    "priceSources": provider.totals(.last30Days).priceSources.map(\.key).sorted(),
                 ]
                 if let lastHour = provider.lastHour { entry["lastHour"] = Self.money(lastHour) }
                 if let typical = provider.typicalHourly { entry["typicalHourly"] = Self.money(typical) }

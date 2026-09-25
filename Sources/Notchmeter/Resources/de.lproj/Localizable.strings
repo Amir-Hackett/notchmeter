@@ -925,7 +925,7 @@
 "Update model prices from notchmeter's catalog" = "Modellpreise aus Notchmeters Katalog aktualisieren";
 "Once a day, a plain GET of pricing/catalog.json from this project's GitHub repository, so a model that launches between releases is priced at its published rate within a day. Public data, nothing about you in the request; the Cost card names the prices it used." = "Einmal täglich ein einfacher GET von pricing/catalog.json aus dem GitHub-Repository dieses Projekts, damit ein Modell, das zwischen zwei Versionen erscheint, innerhalb eines Tages zu seinem veröffentlichten Preis berechnet wird. Öffentliche Daten, nichts über dich in der Anfrage; die Kostenkarte nennt die verwendeten Preise.";
 "Off. Prices come from this build (%@) and your own overrides." = "Aus. Die Preise stammen aus diesem Build (%@) und deinen eigenen Überschreibungen.";
-"Catalog of %1$@ in use, last confirmed %2$@." = "Katalog vom %1$@ in Gebrauch, zuletzt bestätigt %2$@.";
+"Catalog of %1$@ in use, last confirmed %2$@." = "Katalog vom %1$@ in Gebrauch (zuletzt bestätigt %2$@).";
 "The catalog could not be used; this build's prices (%@) stand until it can be." = "Der Katalog konnte nicht verwendet werden; die Preise dieses Builds (%@) gelten, bis es geht.";
 "Not fetched yet; this build's prices (%@) are in use." = "Noch nicht abgerufen; die Preise dieses Builds (%@) sind in Gebrauch.";
 "Prices: %@" = "Preise: %@";

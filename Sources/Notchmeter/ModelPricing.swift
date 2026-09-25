@@ -55,7 +55,10 @@ struct ModelRates: Equatable, Sendable, Codable {
 /// Where the rate a line was priced at came from. The cases are in the order a lookup tries them, which is the
 /// precedence docs/accuracy.md writes out: the user's own file, Claude Code's table, then the build's rows and
 /// Notchmeter's catalog as one table, then the family guess.
-enum PriceSource: Hashable, Sendable {
+///
+/// Recorded per priced line into the digest buckets and the day records (FileDigest.Bucket, CostHistory.Record),
+/// so a range names the sources of the lines inside it and nothing else; stored as its `key`, never a case number.
+enum PriceSource: Hashable, Sendable, Codable {
     /// Notchmeter's `pricing-overrides.json`.
     case overrides
     /// Claude Code's `modelPricing` in its settings.json.
@@ -76,6 +79,33 @@ enum PriceSource: Hashable, Sendable {
         case .builtIn(let date): "builtIn:\(date)"
         case .family: "family"
         }
+    }
+
+    /// The source a key names; nil for a word no build has written, which a reader treats as a record it
+    /// cannot use rather than a source of some kind.
+    init?(key: String) {
+        switch key {
+        case "overrides": self = .overrides
+        case "claudeCode": self = .claudeCode
+        case "family": self = .family
+        default:
+            if key.hasPrefix("catalog:") { self = .catalog(String(key.dropFirst("catalog:".count))) }
+            else if key.hasPrefix("builtIn:") { self = .builtIn(String(key.dropFirst("builtIn:".count))) }
+            else { return nil }
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let key = try decoder.singleValueContainer().decode(String.self)
+        guard let source = PriceSource(key: key) else {
+            throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "not a price source: \(key)"))
+        }
+        self = source
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(key)
     }
 
     /// The order the Cost card names them in: precedence first, so the source that outranks the rest leads.
@@ -102,10 +132,12 @@ enum PriceSource: Hashable, Sendable {
 
     /// The card's line naming every source that priced the range, precedence first and, within a source, the
     /// newer day first; nil when nothing was priced here (a card of vendor figures alone has no list price).
+    /// Joined by the middle dot the card's other captions use, because a dated label has a comma of its own in
+    /// English ("Sep 24, 2026") and a comma between two of them left the reader parsing dates to find the seam.
     static func line(_ sources: Set<PriceSource>) -> String? {
         guard !sources.isEmpty else { return nil }
         let ordered = sources.sorted { ($0.rank, $1.key) < ($1.rank, $0.key) }
-        return L("Prices: %@", ordered.map(\.label).joined(separator: ", "))
+        return L("Prices: %@", ordered.map(\.label).joined(separator: " · "))
     }
 
     /// "Sep 24, 2026" in the app's own language for a `YYYY-MM-DD` snapshot day; the day as written when it is
@@ -297,13 +329,6 @@ enum ModelPricing {
 
     static func rates(for model: String, speed: String? = nil, at date: Date = Date()) -> ModelRates? {
         resolve(model, speed: speed, at: date)?.rates
-    }
-
-    /// Every source that priced `model` over `from...to`: the one at `from`, and the one at each catalog entry
-    /// that took effect inside the span, since a line before an update's date kept the build's rate.
-    static func sources(for model: String, from: Date, to: Date) -> Set<PriceSource> {
-        let moments = [from] + book.rows.flatMap { $0.catalog?.entries.map(\.start) ?? [] }.filter { $0 > from && $0 <= to }
-        return Set(moments.compactMap { resolve(model, at: $0)?.source })
     }
 
     /// Claude Code prices a response whose `usage.inference_geo` is "us" at 1.1x list on every token bucket;

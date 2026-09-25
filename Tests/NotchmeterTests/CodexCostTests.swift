@@ -262,9 +262,13 @@ import Testing
         // The entries carry a time of day, so Codex reports an hour of its own.
         #expect(abs((cost.lastHour ?? 0) - 0.0469) < 1e-9)
         #expect(cost.problem == nil)
-        // The day totals outlive the rollout, so the history keeps them.
-        let keptForToday = history.load(calendar: utc)[utc.startOfDay(for: now)]?.cost ?? 0
-        #expect(abs(keptForToday - 0.0469) < 1e-9)
+        // Every turn was priced by the build's table, and each range says so of its own lines.
+        #expect(cost.totals(.today).priceSources == [.builtIn(OpenAIPricing.snapshotDate)])
+        #expect(cost.totals(.last30Days).priceSources == [.builtIn(OpenAIPricing.snapshotDate)])
+        // The day totals outlive the rollout, so the history keeps them, and the sources with them.
+        let kept = history.load(calendar: utc)[utc.startOfDay(for: now)]
+        #expect(abs((kept?.cost ?? 0) - 0.0469) < 1e-9)
+        #expect(kept?.priceSources == [.builtIn(OpenAIPricing.snapshotDate)])
     }
 
     /// A session resumed for weeks keeps one rollout whose file is recent while most of its turns are older than
@@ -303,6 +307,7 @@ import Testing
         let cost = try #require(await scanner.scan(now: now, weekStart: utc.startOfDay(for: now), calendar: utc))
         #expect(cost.totals(.today).cost == 0)
         #expect(cost.totals(.today).tokens.total == 12_000)
+        #expect(cost.totals(.today).priceSources.isEmpty)
         #expect(cost.problem == "1 Codex turn(s) name no model and are not priced")
     }
 }

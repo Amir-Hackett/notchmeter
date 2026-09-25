@@ -108,10 +108,15 @@ actor CodexCostScanner {
         cache = cache.filter { live.contains($0.key) }
 
         let stored = history?.load(calendar: calendar) ?? [:]
-        // A day whose rollouts Codex has since removed keeps the larger total the history remembers for it.
+        // A day whose rollouts Codex has since removed keeps the larger total the history remembers for it, and
+        // the sources that priced the turns still here join the ones recorded for it (ClaudeCostScanner does the same).
         var merged = stored
-        for (day, record) in days where (stored[day]?.cost ?? 0) <= record.cost + 1e-9 {
-            merged[day] = record
+        for (day, record) in days {
+            if (stored[day]?.cost ?? 0) <= record.cost + 1e-9 {
+                merged[day] = record
+            } else {
+                merged[day]?.priceSources.formUnion(record.priceSources)
+            }
         }
         history?.record(days, existing: stored, calendar: calendar)
 
@@ -123,12 +128,10 @@ actor CodexCostScanner {
             lastHour += Self.price(entry, unpriced: &scratch)
         }
         let problem = unmodelled > 0 ? L("%ld Codex turn(s) name no model and are not priced", unmodelled) : nil
-        // The list prices behind the window's rollouts, as ClaudeCostScanner.summarize counts them for transcripts.
-        let models = days.values.reduce(into: Set<String>()) { $0.formUnion($1.byModel.keys) }
-        let priceSources = models.reduce(into: Set<PriceSource>()) { $0.formUnion(OpenAIPricing.sources(for: $1, from: cutoff, to: now)) }
+        // Each range names the price sources of its own days (RangeTotals.priceSources), recorded per priced turn.
         return ProviderCost.build(tool: .codex, source: .localSessions, days: merged, now: now, daysBack: daysBack, weekStart: weekStart,
                                   calendar: calendar, hourly: HourlyBurn(lastHour: lastHour, costByHour: costByHour),
-                                  unpricedModels: unpriced, priceSources: priceSources, scannedAt: now, problem: problem)
+                                  unpricedModels: unpriced, scannedAt: now, problem: problem)
     }
 
     /// A file's priced day records, hour buckets and unpriced models, held against its size and modification date.
@@ -138,10 +141,10 @@ actor CodexCostScanner {
         var unpriced: Set<String> = []
         var unmodelled = 0
         for entry in entries {
-            let cost = price(entry, unpriced: &unpriced)
-            if entry.model == nil { unmodelled += 1 }
             let day = calendar.startOfDay(for: entry.timestamp)
             var record = days[day] ?? CostHistory.Record(cost: 0, tokens: TokenBreakdown(), byModel: [:], byProject: [:])
+            let cost = price(entry, unpriced: &unpriced, sources: &record.priceSources)
+            if entry.model == nil { unmodelled += 1 }
             record.cost += cost
             record.tokens += entry.tokens
             if let model = entry.model {
@@ -159,7 +162,16 @@ actor CodexCostScanner {
 
     /// Tokens at OpenAI list price as of the turn. A model with no published rate contributes nothing and is named on the card.
     static func price(_ entry: CodexUsage, unpriced: inout Set<String>) -> Double {
-        if let priced = OpenAIPricing.cost(of: entry.tokens, model: entry.model, at: entry.timestamp) { return priced }
+        var sources: Set<PriceSource> = []
+        return price(entry, unpriced: &unpriced, sources: &sources)
+    }
+
+    /// The same, recording where the list price came from in `sources`; an unpriced turn names none.
+    static func price(_ entry: CodexUsage, unpriced: inout Set<String>, sources: inout Set<PriceSource>) -> Double {
+        if let model = entry.model, let priced = OpenAIPricing.resolve(model, at: entry.timestamp) {
+            sources.insert(priced.source)
+            return priced.rates.cost(entry.tokens)
+        }
         if let model = entry.model, !model.isEmpty { unpriced.insert(model) }
         return 0
     }

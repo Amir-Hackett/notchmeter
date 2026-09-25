@@ -1705,7 +1705,7 @@ struct SpendCard: View {
         return lines
     }
 
-    private var pricesLine: String? { PriceSource.line(selection.priceSources) }
+    private var pricesLine: String? { PriceSource.line(selection.priceSources(range.costRange)) }
 
     /// The legend as one spoken phrase.
     private var providerSpoken: String {

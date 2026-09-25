@@ -57,9 +57,10 @@ struct CostSelection: Equatable, Sendable {
         providers.reduce(into: Set<String>()) { $0.formUnion($1.unpricedModels) }
     }
 
-    /// Every list-price source behind the carried providers' figures, for the card's price line.
-    var priceSources: Set<PriceSource> {
-        providers.reduce(into: Set<PriceSource>()) { $0.formUnion($1.priceSources) }
+    /// Every list price behind the carried providers' figures in the range on show, for the card's price line:
+    /// the sources of the lines inside that range, and no other (RangeTotals.priceSources).
+    func priceSources(_ range: CostRange) -> Set<PriceSource> {
+        totals(range).priceSources
     }
 
     /// What sizes each provider's slice, in the mode's own unit: tokens under Tokens, dollars otherwise. A rate

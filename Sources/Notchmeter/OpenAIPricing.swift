@@ -182,12 +182,6 @@ enum OpenAIPricing {
         resolve(model, at: date)?.rates
     }
 
-    /// Every source that priced `model` over `from...to`, as `ModelPricing.sources` counts them.
-    static func sources(for model: String, from: Date, to: Date) -> Set<PriceSource> {
-        let moments = [from] + book.rows.values.flatMap { $0.catalog?.entries.map(\.start) ?? [] }.filter { $0 > from && $0 <= to }
-        return Set(moments.compactMap { resolve(model, at: $0)?.source })
-    }
-
     static func cost(of tokens: TokenBreakdown, model: String?, at date: Date = Date()) -> Double? {
         guard let model, let rates = rates(for: model, at: date) else { return nil }
         return rates.cost(tokens)
