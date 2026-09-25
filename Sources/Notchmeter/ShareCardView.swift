@@ -29,8 +29,8 @@ struct ShareCardView: View {
     private var secondary: Color { Color(card: theme.secondary) }
 
     var body: some View {
-        // Fixed gaps above and below, so the one flexible thing on the card is the chart (or, where there is no
-        // chart, the space it would have had): two Spacers and a chart would share the slack three ways.
+        // Fixed gaps above and below, so the one flexible thing on the card is the chart (or, on a one-day card,
+        // the room the share bar sits in): two Spacers and a chart would share the slack three ways.
         VStack(alignment: .leading, spacing: 0) {
             header
             Color.clear.frame(height: (square ? 28 : 48) * unit)
@@ -108,7 +108,12 @@ struct ShareCardView: View {
                 .frame(maxWidth: .infinity, minHeight: (square ? 120 : 200) * unit, maxHeight: .infinity)
                 .padding(.vertical, (square ? 24 : 40) * unit)
         } else {
-            Spacer(minLength: (square ? 24 : 40) * unit)
+            // One day has no series to draw, so the chart's place holds the day's split instead: one bar, each
+            // assistant's share in its colour, centred in the room the chart would have had rather than leaving
+            // it blank ground between the headline and the rows.
+            ShareCardShareBar(content: content, theme: theme, height: (square ? 36 : 44) * unit)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.vertical, (square ? 24 : 40) * unit)
         }
         rows
         if let advice = content.advice {
@@ -217,6 +222,39 @@ struct ShareCardChart: View {
             baseline.addLine(to: CGPoint(x: size.width, y: size.height))
             context.stroke(baseline, with: .color(Color(card: theme.rule)), lineWidth: separator * 2)
         }
+        .accessibilityHidden(true)
+    }
+}
+
+/// The one-day card's split: a bar the width of the card, each assistant's share of the day in its colour in the
+/// rows' order (ShareCardContent.segments), where the chart would be, since one day has no series to draw; a single
+/// assistant is the whole bar. The segments are parted by a hairline of the card's ground, as the chart's bands are.
+/// Decoration to VoiceOver, as the chart is: the rows under it carry the same shares in words.
+struct ShareCardShareBar: View {
+    let content: ShareCardContent
+    let theme: ShareCardTheme
+    let height: CGFloat
+
+    var body: some View {
+        Canvas { context, size in
+            let segments = content.segments
+            guard !segments.isEmpty else { return }
+            let separator = max(1, size.width / 540)
+            context.clip(to: Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: size.height / 2, style: .continuous))
+            var x: CGFloat = 0
+            for segment in segments {
+                let width = CGFloat(segment.fraction) * size.width
+                context.fill(Path(CGRect(x: x, y: 0, width: width, height: size.height)), with: .color(Color(card: theme.tool(segment.tool))))
+                if x > 0 {
+                    var edge = Path()
+                    edge.move(to: CGPoint(x: x, y: 0))
+                    edge.addLine(to: CGPoint(x: x, y: size.height))
+                    context.stroke(edge, with: .color(Color(card: theme.background)), lineWidth: separator)
+                }
+                x += width
+            }
+        }
+        .frame(height: height)
         .accessibilityHidden(true)
     }
 }

@@ -177,13 +177,46 @@ import Testing
         #expect(robots.contains("Allow: /"))
     }
 
-    /// A relative link or image on a generated page points at a file that exists, an anchor at an id on the page, and
-    /// every picture has alternative text; the headings never skip a level, so the outline reads in order.
+    /// The repository's documents on GitHub, where the site's "How X is read" buttons land.
+    static let documents = "https://github.com/Amir-Hackett/notchmeter/blob/main/docs/"
+
+    /// The anchor GitHub gives a Markdown heading: lower case, punctuation gone, spaces to hyphens (the rule its
+    /// renderer applies; a second heading with the same words gets a `-1` no page here links).
+    static func githubAnchor(_ heading: String) -> String {
+        let text = heading.replacingOccurrences(of: "`", with: "").lowercased()
+        let kept = text.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == " " || $0 == "-" || $0 == "_" }
+        return String(String.UnicodeScalarView(kept)).replacingOccurrences(of: " ", with: "-")
+    }
+
+    /// The anchors of every heading in one of `docs/`' Markdown files.
+    static func anchors(ofDocument name: String) throws -> Set<String> {
+        let file = ClaudeCodePlugin.root.appendingPathComponent("docs").appendingPathComponent(name)
+        let markdown = try String(contentsOf: file, encoding: .utf8)
+        var anchors: Set<String> = []
+        for line in markdown.components(separatedBy: "\n") where line.hasPrefix("#") {
+            let heading = line.drop { $0 == "#" }.trimmingCharacters(in: .whitespaces)
+            anchors.insert(githubAnchor(heading))
+        }
+        return anchors
+    }
+
+    /// A link into `docs/*.md` with a fragment lands on a heading that file has; any other link is not judged here.
+    static func expectDocumentAnchorResolves(_ href: String, on page: String) throws {
+        guard href.hasPrefix(documents), let hash = href.firstIndex(of: "#") else { return }
+        let name = String(href[documents.endIndex..<hash])
+        let fragment = String(href[href.index(after: hash)...])
+        #expect(try anchors(ofDocument: name).contains(fragment), "\(page): docs/\(name) has no heading at #\(fragment)")
+    }
+
+    /// A relative link or image on a generated page points at a file that exists, an anchor at an id on the page, a
+    /// link into one of the repository's documents at a heading it has, and every picture has alternative text; the
+    /// headings never skip a level, so the outline reads in order.
     @Test func everyLocalLinkAndImageResolvesAndHeadingsDoNotSkipALevel() throws {
         for slug in Self.all {
             let html = try Self.text(slug)
             let folder = Self.folder(slug)
             for href in Self.captures("<a [^>]*href=\"([^\"]+)\"", in: html).map({ $0[0] }) {
+                try Self.expectDocumentAnchorResolves(href, on: slug)
                 if href.hasPrefix("http://") || href.hasPrefix("https://") || href.hasPrefix("mailto:") { continue }
                 let parts = href.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)
                 let path = String(parts[0])

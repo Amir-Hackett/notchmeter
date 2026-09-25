@@ -688,7 +688,9 @@ final class UsageStore {
     /// Reading off is sessions gone, the way titles off is titles gone: the moment an assistant's page stops
     /// reading its sessions (Preferences.sessionReadingOff), the ones the tracker already holds go with their
     /// waits and requests, rather than lingering until events that will now never arrive. Re-armed like the
-    /// titles' tracking; the set alone is read inside it.
+    /// titles' tracking; the set alone is read inside it. Cowork's tasks are Claude sessions, so the Claude page's
+    /// switch also decides whether the Cowork watch runs (`updateCoworkWatch`): stopping it is what keeps the next
+    /// poll from listing again what was just forgotten, and turning the switch back on starts it again.
     private func observeSessionReading() {
         let off = withObservationTracking {
             prefs.sessionReadingOff
@@ -696,6 +698,7 @@ final class UsageStore {
             Task { @MainActor in self?.observeSessionReading() }
         }
         for tool in ToolID.allCases where off.contains(tool) { forgetSessions(of: tool) }
+        updateCoworkWatch()
     }
 
     /// Takes one assistant's sessions off every surface: the rows, the waits and their notices, the requests (each
@@ -1575,9 +1578,14 @@ final class UsageStore {
 
     /// One scan's rows into the tracker (SessionTracker.detected), written back only when they changed something,
     /// as the sweep is (`sweepSessions`): a scan every three seconds that republished an unchanged tracker would
-    /// lay out every panel as often. The oracle hears what changed and never a title or a path.
+    /// lay out every panel as often. An assistant whose page has *Read its sessions* off is left out of the scan's
+    /// rows before the tracker sees them, the way its hook events are (`hookReceived`): otherwise the next scan
+    /// would put back, as a detected row, the sessions that switching it off had just taken away, and the tracker's
+    /// own pass takes any such row already listed off with the ones the scan no longer finds. The oracle hears
+    /// what changed and never a title or a path.
     func detectionReceived(_ found: [DetectedSession], running: Bool = true, now: Date = Date()) {
         detectionRunning = running
+        let found = found.filter { prefs.readsSessions(of: $0.tool) }
         var tracker = sessions
         let change = tracker.detected(found, now: now)
         if tracker != sessions {
@@ -1830,12 +1838,14 @@ final class UsageStore {
         }
     }
 
-    /// Runs the watch while the setting is on and the Claude app is running, and stops it otherwise. Stopping takes
-    /// every Cowork row away: with the app gone no task can be running, and with the setting off none may be shown.
-    /// Each pass reads off the main actor (CoworkReader) and applies here, against the clock taken before the read,
-    /// so a turn's end written during the read is never older than the start the row was given.
+    /// Runs the watch while the setting is on, the Claude app is running and Claude Code's page reads its sessions
+    /// (a Cowork task is a Claude session to the tracker, so *Read its sessions* off on that page is off for these
+    /// too), and stops it otherwise. Stopping takes every Cowork row away: with the app gone no task can be
+    /// running, and with either switch off none may be shown. Each pass reads off the main actor (CoworkReader)
+    /// and applies here, against the clock taken before the read, so a turn's end written during the read is never
+    /// older than the start the row was given.
     private func updateCoworkWatch() {
-        let wanted = prefs.coworkSessions && claudeAppRunning
+        let wanted = prefs.coworkSessions && claudeAppRunning && prefs.readsSessions(of: .claude)
         if wanted, coworkWatch == nil {
             let reader = coworkReader
             coworkWatch = Task { [weak self] in
@@ -1868,11 +1878,15 @@ final class UsageStore {
 
     /// One read of Cowork's tasks, applied (SessionTracker.observeCowork) and written back only when it changed
     /// something, since every write re-measures the panels (`sweepSessions`). A turn that ended is announced the way a
-    /// hook's `Stop` is: the finished banner past *Only turns longer than*, and the news in the notch past twenty
-    /// seconds while Claude is shown. Titles off is titles never held, as for a hook's prompt line (`hookReceived`).
-    /// The oracle hears each change by its kind and the task's key, never its title or its folder.
+    /// hook's `Stop` is: the finished banner past *Only turns longer than*, and only while Claude Code's page
+    /// notifies about its sessions, as a hook's finish is delivered (`hookReceived`), and the news in the notch past
+    /// twenty seconds while Claude is shown. Titles off is titles never held, as for a hook's prompt line
+    /// (`hookReceived`), and Claude Code's sessions not read is an empty read (every Cowork row goes), for a poll
+    /// already under way when the switch flipped and the watch was stopped. The oracle hears each change by its
+    /// kind and the task's key, never its title or its folder.
     func coworkObserved(_ tasks: [CoworkSessions.Observation], now: Date = Date()) {
-        let tasks = prefs.sessionTitles ? tasks : tasks.map { task in
+        let read = prefs.readsSessions(of: .claude) ? tasks : []
+        let tasks = prefs.sessionTitles ? read : read.map { task in
             var task = task
             task.title = nil
             return task
@@ -1887,7 +1901,7 @@ final class UsageStore {
         armSignalRelease(now: now)
         for change in outcome.changes { Oracle.shared.emit("cowork", Self.coworkFacts(change)) }
         for (session, turn) in outcome.finished {
-            if prefs.notifyFinished, turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
+            if prefs.notifyFinished, prefs.notifiesSessions(of: .claude), turn >= TimeInterval(prefs.finishedAfterMinutes * 60) {
                 deliverSessionEvent(.finished(turn: turn), session)
             }
             if isShown(.claude), let news = NotchNews.finished(session, turn: turn, now: now) { announce(news, now: now) }

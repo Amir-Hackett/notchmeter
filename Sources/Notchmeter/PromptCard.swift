@@ -523,6 +523,10 @@ struct PromptButtonStyle: ButtonStyle {
     /// the filled white that means "the answer that goes ahead" is not shown on a button that cannot go.
     @Environment(\.isEnabled) private var isEnabled
 
+    /// How much of the button is left while it is disabled: enough to read the word, plainly less than a button
+    /// that goes (the 0.7 a press dips to is the nearest neighbour, and a disabled one sits well under it).
+    static let disabledOpacity = 0.45
+
     func makeBody(configuration: Configuration) -> some View {
         let contrast = AccessibilityDisplay.shared.contrast
         return configuration.label
@@ -535,7 +539,7 @@ struct PromptButtonStyle: ButtonStyle {
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(filled ? Themed(.white) : Themed.wash(.white, contrast ? 0.22 : 0.1)))
             .foregroundStyle(Themed(filled ? .black : .white, .text))
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .opacity(!isEnabled ? Self.disabledOpacity : configuration.isPressed ? 0.7 : 1)
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }

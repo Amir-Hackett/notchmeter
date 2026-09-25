@@ -733,6 +733,47 @@ enum CoworkLines {
         #expect(store.sessions.count == 0)
     }
 
+    /// A Cowork task is a Claude session, so Claude Code's page decides for it too: with *Read its sessions* off a
+    /// poll's tasks are an empty read and no row is listed, and with *Notify when it waits or finishes a turn*
+    /// off a turn's end delivers no banner, the way a hook's `Stop` is held to the same switch.
+    @MainActor @Test func theClaudePagesSwitchesGovernCoworkTasksToo() throws {
+        func store(_ name: String, configure: (Preferences) -> Void) -> UsageStore {
+            let suite = "NotchmeterTests.CoworkPage.\(name)"
+            let defaults = UserDefaults(suiteName: suite)!
+            defaults.removePersistentDomain(forName: suite)
+            let prefs = Preferences(defaults: defaults)
+            prefs.notifyFinished = true
+            prefs.finishedAfterMinutes = 1
+            configure(prefs)
+            let reading = UsageReading(tool: .claude, windows: [], plan: nil, fetchedAt: t0, observedAt: nil)
+            return UsageStore(prefs: prefs, providers: [FixtureProvider(reading: reading)], cache: ReadingCache(defaults: defaults), defaults: defaults,
+                              drainLog: nil, reportFile: nil)
+        }
+        let began = t0.addingTimeInterval(-120)
+        let open = CoworkSessions.Observation(id: "local_1", title: nil, project: "Support", lastWrite: t0,
+                                              turn: CoworkSessions.Turn(began: began, end: nil, open: true))
+        let later = t0.addingTimeInterval(5)
+        let ended = CoworkSessions.Observation(id: "local_1", title: nil, project: "Support", lastWrite: later,
+                                               turn: CoworkSessions.Turn(began: began, end: .init(at: later, duration: 125, failed: false), open: false))
+        let key = CoworkSessions.key("local_1")
+
+        let unread = store("readingOff") { $0.sessionReadingOff = [.claude] }
+        unread.coworkObserved([open], now: t0)
+        #expect(unread.sessions.all.isEmpty, "not read is not listed")
+        unread.prefs.sessionReadingOff = []
+        unread.coworkObserved([open], now: t0.addingTimeInterval(1))
+        #expect(unread.sessions.all.map(\.id) == [key], "read again, the next poll lists it")
+
+        let quiet = store("noticesOff") { $0.sessionNoticesOff = [.claude] }
+        var delivered: [Notifier.SessionEvent] = []
+        quiet.deliverSessionEvent = { event, _ in delivered.append(event) }
+        quiet.coworkObserved([open], now: t0)
+        quiet.coworkObserved([ended], now: later)
+        #expect(quiet.sessions.sessions[key]?.isWorking == false, "the finish itself is still read")
+        #expect(delivered.isEmpty, "no banner for an assistant whose notices are off")
+        for name in ["readingOff", "noticesOff"] { UserDefaults.standard.removePersistentDomain(forName: "NotchmeterTests.CoworkPage.\(name)") }
+    }
+
     /// Switching *Show what a session is working on* off reaches the reader at once: the titles it holds between
     /// two polls go with the tracker's, not at its next poll.
     @MainActor @Test func theStoreDropsTheReadersTitlesTheMomentTheSettingTurnsOff() async throws {

@@ -124,10 +124,6 @@ a.tool .more { display: inline-block; margin-top: 10px; font-size: 14px; color: 
 
 /* ---------- footer ---------- */
 
-/* The footer's column titles are h2 here, not h4 as on the other pages, so the outline never jumps two levels
-   after the last section; they look the same. */
-.foot-grid h2 { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-faint); margin: 0 0 12px; font-weight: 600; line-height: 1.4; }
-
 @media (max-width: 700px) {
   .lp-hero { padding: 44px 0 40px; }
   .lp-hero .cta-row .btn { flex: 1 1 100%; }

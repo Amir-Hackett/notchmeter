@@ -46,9 +46,12 @@ enum CommandLineTool {
         arguments.dropFirst().lazy.filter { !$0.hasPrefix("-") }.compactMap { ToolID(rawValue: $0.lowercased()) }.first
     }
 
+    /// The `--help` usage line, with the tools it takes read off the enum so it cannot fall behind it.
+    static let usage = "usage: notchmeter [\(ToolID.allCases.map(\.rawValue).joined(separator: "|"))] [--force] [--json]"
+
     static func run(arguments: [String]) -> Never {
         if arguments.contains("--help") || arguments.contains("-h") {
-            Probe.emit("usage: notchmeter [claude|codex|cursor|gemini|antigravity|copilot|kimi] [--force] [--json]")
+            Probe.emit(usage)
             Probe.emit("  reads the running app's cached report; --force reads every vendor afresh")
             Probe.emit("  exit codes: 0 fine, 10 near a limit, 11 limit hit, 20 nothing used, 30 no data")
             exit(0)

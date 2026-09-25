@@ -133,7 +133,7 @@
     <p class="lede">Notchmeter shows the session and weekly quota Antigravity's own panel shows for its model groups, Gemini models, and Claude and GPT models, beside the notch, each with a pace tick, a projection and its reset, from the same Code Assist endpoint Antigravity asks, under Antigravity's own client identity. It needs one Google sign-in through Gemini CLI, and it shows no cost, because Antigravity meters quota rather than money.</p>
     <div class="cta-row">
       <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
-      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#antigravity-quota-and-no-cost">How the quota is read</a>
+      <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#gemini-cli-and-antigravity-quota-and-no-cost">How the quota is read</a>
     </div>
     <p class="cta-note">macOS 15 or later · Apple silicon or Intel · no account, ever</p>
   </div>
@@ -180,7 +180,7 @@
     </div>
     <div class="lp-prose">
       <p>The login is <code>~/.gemini/oauth_creds.json</code>, the Google login Gemini CLI caches. The Antigravity app and its <code>agy</code> command keep theirs in the Keychain and publish quota only through a local server inside the running app, which Notchmeter does not attach to, so the Antigravity meter needs one Google sign-in through Gemini CLI (<code>gemini</code>, then <em>Login with Google</em>). The token is read, never refreshed or written, and sent only to Google as <code>Authorization: Bearer</code>.</p>
-      <p>Why there is no cost: the endpoint returns per-group and per-model windows and the fraction of each that is used, no price, and no token count that a published rate could be applied to. Gemini's API rates would not help, because an Antigravity seat is not billed at them. There is nothing to derive a dollar figure from, so none is shown. Every rule on this page is pinned by tests and written down in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#antigravity-quota-and-no-cost">Antigravity: quota, and no cost</a>.</p>
+      <p>Why there is no cost: the endpoint returns per-group and per-model windows and the fraction of each that is used, no price, and no token count that a published rate could be applied to. Gemini's API rates would not help, because an Antigravity seat is not billed at them. There is nothing to derive a dollar figure from, so none is shown. Every rule on this page is pinned by tests and written down in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#gemini-cli-and-antigravity-quota-and-no-cost">Antigravity: quota, and no cost</a>.</p>
     </div>
   </div>
 </section>

@@ -345,8 +345,11 @@ enum ToolMigration {
     /// A new tool that takes over part of an older one's row, with the row whose settings it starts from.
     static let inherits: [ToolID: ToolID] = [.gemini: .antigravity]
 
-    /// The keys that name tools: sets stored as arrays, and dictionaries keyed by tool.
-    static let setKeys = ["enabledTools", "menuBarPinnedTools", "peakHoursTools", "settingsExpandedTools",
+    /// The keys that name tools: sets stored as arrays, and dictionaries keyed by tool. `costCardTools` is one
+    /// of them: 0.8.0 stored it, so a user whose only per-tool choice was a Cost card tick would otherwise read
+    /// as a first launch, be recorded as knowing every tool, and never have OpenCode's spend join the card.
+    /// It is never inherited, since a tool that reports no cost is never in it.
+    static let setKeys = ["enabledTools", "menuBarPinnedTools", "peakHoursTools", "settingsExpandedTools", "costCardTools",
                           "sessionReadingOffTools", "answerFromNotchOffTools", "limitNoticesOffTools", "sessionNoticesOffTools"]
     static let dictionaryKeys = ["ringWindows", "hiddenWindows", "revealedWindows"]
 

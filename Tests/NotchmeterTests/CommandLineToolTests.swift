@@ -40,6 +40,16 @@ import Testing
         #expect(!CommandLineTool.isOnPath(URL(fileURLWithPath: "/Users/me/.local/bin"), path: "/usr/bin"))
     }
 
+    /// `--help` names every tool `tool(in:)` accepts, from the enum, so a ninth assistant cannot be left out of it
+    /// as OpenCode was (0.9.0's first draft stopped at kimi).
+    @Test func theUsageLineNamesEveryTool() {
+        #expect(CommandLineTool.usage.hasPrefix("usage: notchmeter ["))
+        for tool in ToolID.allCases {
+            #expect(CommandLineTool.usage.contains(tool.rawValue), "--help names \(tool.rawValue)")
+            #expect(CommandLineTool.tool(in: ["notchmeter", tool.rawValue]) == tool)
+        }
+    }
+
     @Test func aCachedReportIsNarrowedAndDescribedWithItsSource() {
         let parsed = CommandLineTool.parsed(report(pid: nil, generatedAt: now), tool: .claude)
         #expect(parsed.exitCode == 10)

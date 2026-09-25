@@ -351,7 +351,9 @@ struct SettingsView: View {
             .padding(.leading, item.tool == nil ? 0 : 10)
         }
         .listStyle(.sidebar)
-        .navigationSplitViewColumnWidth(190)
+        // Wide enough for the longest pane name in the shipped languages: at 190 the German "Erscheinungsbild"
+        // (Appearance) came out as "Erscheinun…", a pane whose own name was cut.
+        .navigationSplitViewColumnWidth(210)
         // The panel has no toolbar of its own and no way to show one, so a toggle that hides the sidebar would
         // hide it for good; the column visibility below is pinned for the same reason.
         .toolbar(removing: .sidebarToggle)

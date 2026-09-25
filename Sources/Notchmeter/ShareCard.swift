@@ -247,6 +247,19 @@ struct ShareCardContent: Equatable {
 
     var isEmpty: Bool { total <= 0 }
 
+    /// One assistant's part of a bar, 0...1.
+    struct Segment: Equatable {
+        let tool: ToolID
+        let fraction: Double
+    }
+
+    /// Each assistant's part of the total in the rows' order, for the bar the one-day card draws in the chart's
+    /// place (ShareCardShareBar): a single row is the whole bar, and nothing at all while there is nothing to split.
+    var segments: [Segment] {
+        guard total > 0 else { return [] }
+        return rows.map { Segment(tool: $0.tool, fraction: $0.amount / total) }
+    }
+
     /// "$7,326", or "18M tokens".
     var headline: String { Self.amount(total, metric: metric, cents: false) }
 

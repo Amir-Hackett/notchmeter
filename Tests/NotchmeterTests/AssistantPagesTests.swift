@@ -126,6 +126,31 @@ import Testing
         }
     }
 
+    /// The scan for sessions without the hook (SessionDetector) is held to the same switch: a row it finds for an
+    /// assistant whose sessions are not read never reaches the tracker, so the toggle is not undone by the next
+    /// scan. Another assistant's found sessions land as before, and a row already listed goes with the scan that
+    /// no longer offers it.
+    @Test func anAssistantWhoseSessionsAreNotReadIsLeftOutOfTheScan() throws {
+        try withSuite("readingOffScan") { defaults in
+            let store = store(defaults) { $0.sessionReadingOff = [.codex] }
+            let codex = DetectedSession(key: "codex:detected-4242-1", tool: .codex, exact: false, project: "notchmeter",
+                                        started: t0.addingTimeInterval(-600), lastActivity: t0, busy: true)
+            let claude = DetectedSession(key: "claude:detected-4243-1", tool: .claude, exact: false, project: "notchmeter",
+                                         started: t0.addingTimeInterval(-600), lastActivity: t0, busy: true)
+            store.detectionReceived([codex, claude], now: t0)
+            #expect(store.sessions.all.map(\.id) == ["claude:detected-4243-1"], "Codex's row is dropped before the tracker; Claude Code's lands")
+            #expect(store.sessions.knownCount(of: .codex) == nil)
+
+            store.prefs.sessionReadingOff = []
+            store.detectionReceived([codex, claude], now: t0.addingTimeInterval(3))
+            #expect(Set(store.sessions.all.map(\.id)) == ["claude:detected-4243-1", "codex:detected-4242-1"], "read again, the next scan lists it")
+
+            store.prefs.sessionReadingOff = [.codex]
+            store.detectionReceived([codex, claude], now: t0.addingTimeInterval(6))
+            #expect(store.sessions.all.map(\.id) == ["claude:detected-4243-1"], "off again, the listed row goes with the scan")
+        }
+    }
+
     /// Switching reading off takes what the tracker already holds of that assistant: its rows, its wait's notice,
     /// its request (the reply released, so the terminal asks), a glance about it, and its hook as heard. Another
     /// assistant's sessions stay.

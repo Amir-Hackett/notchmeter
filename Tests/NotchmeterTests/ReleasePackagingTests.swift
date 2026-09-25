@@ -54,6 +54,24 @@ import Testing
         #expect(shown["args"] as? [String] == server["args"] as? [String])
     }
 
+    /// What an MCP client and the plugin's manifest are told about `get_limits` names every assistant the `tool`
+    /// argument accepts: the schema is built from the enum, and the manifest's hand-written description is held to
+    /// it, so a tool the app reads is never one the client is told does not exist.
+    @Test func theToolSchemaAndTheManifestNameEveryAssistant() throws {
+        let tool = try #require(MCPServer.tools.first)
+        let description = try #require(tool["description"] as? String)
+        let schema = try #require(tool["inputSchema"] as? [String: Any])
+        let argument = try #require((schema["properties"] as? [String: Any])?["tool"] as? [String: Any])
+        let accepted = try #require(argument["description"] as? String)
+        let manifest = try #require(try Self.object("plugin/.claude-plugin/plugin.json")["description"] as? String)
+        for id in ToolID.allCases {
+            #expect(description.contains(id.productName), "the description names \(id.productName)")
+            #expect(accepted.contains(id.rawValue), "the tool argument offers \(id.rawValue)")
+            // The manifest's prose calls GitHub Copilot "Copilot", as the rings do.
+            #expect(manifest.contains(id.productName) || manifest.contains(id.displayName), "plugin.json names \(id.productName)")
+        }
+    }
+
     @Test func theMarketplaceListsThePluginFolder() throws {
         let marketplace = try Self.object(".claude-plugin/marketplace.json")
         #expect(marketplace["name"] as? String == "notchmeter")
@@ -333,6 +351,41 @@ import Testing
             from = tag.upperBound
         }
         return found
+    }
+
+    /// On every page the headings never skip a level, so the outline a screen reader walks reads in order (until
+    /// 2026-09-25 the footer's column titles were h4 under h2 sections, and the legal pages went h1 to h3 and h4),
+    /// and a link into one of the repository's documents lands on the section it promises: a `#fragment` on a
+    /// `docs/*.md` link is one of that file's headings, as GitHub anchors them, so a renamed heading fails here
+    /// rather than opening the top of a long document. `SiteLandingPages` holds the usage-tracker pages to the same
+    /// two rules; this covers the rest.
+    @Test func headingsDoNotSkipALevelAndDocumentAnchorsResolve() throws {
+        for page in try Self.pages() {
+            let html = try Self.text(page)
+            var previous = 0
+            for level in SiteLandingPages.captures("<h([1-6])[ >]", in: html).compactMap({ Int($0[0]) }) {
+                #expect(level <= previous + 1, "\(page): the headings jump from h\(previous) to h\(level)")
+                previous = level
+            }
+            for href in SiteLandingPages.captures("<a [^>]*href=\"([^\"]+)\"", in: html).map({ $0[0] }) {
+                try SiteLandingPages.expectDocumentAnchorResolves(href, on: page)
+            }
+        }
+    }
+
+    /// A search result shows about 155 to 160 characters of a description (the rule `SiteLandingPages` holds the
+    /// usage-tracker pages to, read on 2026-09-24), so every other page is held to the same: the home page's ran to
+    /// 309 characters and the guides' to 227, each cut mid-sentence in a result. Link cards show about 200.
+    @Test func everyDescriptionFitsASearchSnippetAndALinkCard() throws {
+        let snippet = 155
+        let card = 200
+        for page in try Self.pages() {
+            let html = try Self.text(page)
+            let description = try #require(Self.meta("description", in: html), "\(page): a description")
+            #expect(description.count <= snippet, "\(page): the description is \(description.count) characters; a snippet shows \(snippet)")
+            let og = try #require(Self.meta("og:description", in: html), "\(page): an og:description")
+            #expect(og.count <= card, "\(page): og:description is \(og.count) characters; a card shows \(card)")
+        }
     }
 
     /// Every page has the way in to the guides and the way past its own header: the Guides link in the header, and a

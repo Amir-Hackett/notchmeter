@@ -118,6 +118,20 @@ import Testing
         }
     }
 
+    /// A 0.8.0 user whose one per-tool choice was a Cost card tick: the stored `costCardTools` alone must say this
+    /// is not a first launch, or the tools it predates are recorded as known and OpenCode's spend never joins the
+    /// card. Gemini CLI still starts on, as for any stored setup.
+    @Test @MainActor func aStoredCostCardSetAloneIsNotAFirstLaunch() {
+        withSuite("costCard") { defaults in
+            defaults.set(["claude", "codex", "copilot"], forKey: "costCardTools")
+            let prefs = Preferences(defaults: defaults)
+            #expect(prefs.costCardTools == [.claude, .codex, .copilot, .opencode], "the tick stays, and the new tool joins")
+            #expect(prefs.enabledTools.contains(.gemini))
+            #expect(defaults.stringArray(forKey: ToolMigration.knownToolsKey) == ToolID.allCases.map(\.rawValue))
+            #expect(Set(defaults.stringArray(forKey: "costCardTools") ?? []) == ["claude", "codex", "copilot", "opencode"], "written back with it")
+        }
+    }
+
     @Test func insertingPlacesTheToolOnce() {
         #expect(ToolMigration.inserting("gemini", before: "antigravity", in: ["claude", "antigravity"]) == ["claude", "gemini", "antigravity"])
         #expect(ToolMigration.inserting("gemini", before: "antigravity", in: ["claude"]) == ["claude", "gemini"])

@@ -36,6 +36,24 @@ import Testing
         ShareCard.Input(providers: providers, order: ToolID.allCases, plans: plans, metric: metric, range: range, now: now, calendar: utc)
     }
 
+    /// A one-day card has no series to chart, so it draws the day's split as a bar in the chart's place: each
+    /// assistant's part of the total in the rows' order, a lone assistant the whole bar, and nothing on an empty day.
+    @Test func aOneDaySpanSplitsItsBarByAssistantInTheReadersOrder() throws {
+        let claude = try provider(.claude, spend: [0: 10])
+        let cursor = try provider(.cursor, spend: [0: 30])
+        let split = ShareCard.content(input([cursor, claude], range: .today))
+        #expect(split.days.count == 1)
+        let expected: [ShareCardContent.Segment] = [.init(tool: .claude, fraction: 0.25), .init(tool: .cursor, fraction: 0.75)]
+        #expect(split.segments == expected, "the reader's order, not the providers'")
+        let whole = split.segments.map(\.fraction).reduce(0, +)
+        #expect(whole == 1)
+        let alone = ShareCard.content(input([claude], range: .today))
+        #expect(alone.segments == [.init(tool: .claude, fraction: 1)])
+        let empty = ShareCard.content(input([try provider(.claude, spend: [3: 10])], range: .today))
+        #expect(empty.isEmpty)
+        #expect(empty.segments.isEmpty)
+    }
+
     @Test func rowsSeriesAndTotalsComeFromTheProvidersInTheReadersOrder() throws {
         let claude = try provider(.claude, spend: [0: 10, 1: 20, 3: 30])
         let cursor = try provider(.cursor, spend: [0: 5, 6: 5])
