@@ -509,7 +509,6 @@
 "Outer ring" = "Vòng ngoài";
 "over by %ld%%" = "vượt %ld%%";
 "Overall %@" = "Tổng %@";
-"Pace crossing" = "Vượt nhịp";
 "Step %1$ld of %2$ld" = "Bước %1$ld trên %2$ld";
 
 "Allow %@ for the rest of this session" = "Cho phép %@ đến hết phiên này";
@@ -628,7 +627,6 @@
 "Signed in · %@" = "Đã đăng nhập · %@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on." = "Từ tháng 3 năm 2026 Anthropic áp giới hạn phiên 5 giờ chặt hơn vào ngày thường từ 5:00 đến 11:00 giờ Thái Bình Dương (theo báo chí, không phải tài liệu; docs/accuracy.md). Trong đó lời khuyên nêu khi nào ngoài cao điểm bắt đầu, nhật ký tiêu hao tách tốc độ cao điểm và ngoài cao điểm, và chân trang ghi \"giờ cao điểm\". Áp dụng cho các trợ lý bật Giờ cao điểm trên trang riêng của chúng.";
 "snapshot" = "ảnh chụp";
-"Sound" = "Âm thanh";
 "Source: %@" = "Nguồn: %@";
 "Spend" = "Chi tiêu";
 "Spend limit" = "Giới hạn chi tiêu";
@@ -694,8 +692,22 @@
 "Question" = "Câu hỏi";
 "Plan ready to approve" = "Kế hoạch chờ duyệt";
 "Preview the %@ sound" = "Nghe thử âm thanh cho %@";
-"Choose a file for the %@ sound" = "Chọn tệp làm âm thanh cho %@";
 "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "Kế hoạch chỉ được nhận ra khi Claude Code xin duyệt qua hook; lần chờ nào không nói rõ cần gì sẽ phát âm thanh yêu cầu cấp quyền.";
+
+/* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
+"Sounds" = "Âm thanh";
+"Play sounds" = "Phát âm thanh";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder." = "Mỗi loại thông báo có âm thanh riêng và ô Tắt tiếng riêng ở bên dưới. Trung tâm thông báo phát chúng, nên Focus tắt tiếng chúng như với mọi ứng dụng, và giờ yên tĩnh cũng vậy; hai thông báo trong vòng hai giây chỉ phát một âm thanh, trừ yêu cầu hoặc cảnh báo giới hạn, vẫn phát ngay sau một lượt xong hay một lời nhắc.";
+"Waiting reminder" = "Nhắc khi chờ";
+"Limit alert" = "Cảnh báo giới hạn";
+"Silence" = "Tắt tiếng";
+"Silence the %@ sound" = "Tắt tiếng âm thanh cho %@";
+"Claude Code's reminder that you have been idle for a minute, and a Cursor turn gone quiet that may be waiting on an approval: a session that may need you, as against the three below, which have asked." = "Lời nhắc của Claude Code rằng bạn đã không thao tác trong một phút, và một lượt Cursor im lặng có thể đang chờ duyệt: một phiên có thể cần bạn, khác với ba mục bên dưới, vốn đã hỏi.";
+"A window almost out or out, and advice about money already being spent; Test notification plays it too. Cutting it close, Will run out, resets and reminders arrive without a sound." = "Một cửa sổ sắp hết hoặc đã hết, và lời khuyên về khoản tiền đang bị tiêu; thông báo thử cũng phát âm thanh này. Sát nút, Sẽ hết, đặt lại và lời nhắc đến mà không có âm thanh.";
+"A turn longer than the minimum above, when Notify when a turn finishes is on." = "Một lượt dài hơn mức tối thiểu ở trên, khi Thông báo khi một lượt kết thúc đang bật.";
+"A tool waiting for your approval, and any wait that has stopped a session without saying what it wants." = "Một công cụ đang chờ bạn duyệt, và mọi lần chờ đã làm dừng một phiên mà không nói rõ cần gì.";
+"Claude Code's AskUserQuestion, an MCP server asking for input, and an agent asking for input." = "AskUserQuestion của Claude Code, một máy chủ MCP yêu cầu nhập liệu, và một tác tử yêu cầu nhập liệu.";
+
 "Waiting for you" = "Đang chờ bạn";
 "Waiting for your answer" = "Đang chờ bạn trả lời";
 "Waiting for your approval in System Settings › General › Login Items." = "Đang chờ bạn phê duyệt trong Cài đặt hệ thống › Chung › Mục đăng nhập.";

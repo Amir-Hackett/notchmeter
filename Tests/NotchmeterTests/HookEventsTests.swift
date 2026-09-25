@@ -855,7 +855,7 @@ import UserNotifications
         #expect(!shared.body.contains("94") && !shared.body.contains("app"))
         #expect(Notifier.copy(for: .trouble(.stuck(failures: 5)), session: session).body.contains("5 tool calls"))
         #expect(Notifier.copy(for: .trouble(.blocked(tool: "Bash")), session: session).body.contains("Bash"))
-        #expect(Notifier.soundEvent(for: .trouble(.stuck(failures: 5))) == nil, "none of them needs an answer, so none of them sounds")
+        #expect(Notifier.soundCategory(for: .trouble(.stuck(failures: 5))) == nil, "none of them needs an answer, so none of them sounds")
         #expect(Notifier.level(for: .trouble(.blocked(tool: "Bash"))) == .active)
         #expect(Notifier.shouldSuppress(event: .trouble(.stuck(failures: 5)), frontmost: "com.googlecode.iterm2", quiet: false),
                 "held back while a terminal is in front, like a finished turn")

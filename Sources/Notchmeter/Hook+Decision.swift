@@ -58,13 +58,16 @@ extension Hook {
     /// plan waiting for a yes from any other permission.
     static let exitPlanModeTool = "ExitPlanMode"
 
-    /// What a wait is asking of the user, so each can sound different (Preferences.sound(for:)). Three and not
-    /// more because those are the three a hook can tell apart: a request names its tool or carries questions, and
-    /// a notification says only its type.
+    /// What a wait is asking of the user, so each can sound different (SoundCategory, Preferences.sound(for:)).
+    /// Three and not more because those are the three a hook can tell apart: a request names its tool or carries
+    /// questions, and a notification says only its type. Whether the wait has stopped the session at all is a
+    /// separate fact (`Message.blocksSession`), and a wait that has not plays the waiting reminder whatever its
+    /// kind (`Notifier.soundCategory(for:quietNudge:)`).
     enum WaitKind: String, CaseIterable, Sendable {
         /// A tool wants to run. Also everything that does not say otherwise: a `permission_prompt`, Gemini CLI's
         /// `ToolPermission`, Claude Code's idle nudge (whose banner says it may be waiting for your approval) and
-        /// a quiet Cursor turn.
+        /// a quiet Cursor turn; the last two sound as the waiting reminder, since neither is a request the assistant
+        /// reported.
         case permission
         /// `AskUserQuestion`, and the waits that are the same thing asked another way: an MCP server's
         /// elicitation, and an agent asking for input.

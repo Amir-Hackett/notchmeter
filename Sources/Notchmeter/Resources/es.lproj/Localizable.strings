@@ -526,7 +526,6 @@
 "Outer ring" = "Anillo exterior";
 "over by %ld%%" = "excedido un %ld%%";
 "Overall %@" = "Global (%@)";
-"Pace crossing" = "Cambio de ritmo";
 "Step %1$ld of %2$ld" = "Paso %1$ld de %2$ld";
 
 "Allow %@ for the rest of this session" = "Permitir %@ durante el resto de esta sesión";
@@ -645,7 +644,6 @@
 "Signed in · %@" = "Sesión iniciada · %@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on." = "Desde marzo de 2026, Anthropic aplica límites de sesión de 5 horas más estrictos los días laborables de 5:00 a 11:00, hora del Pacífico (según informes, no documentado; docs/accuracy.md). Dentro de esa franja, los consejos indican cuándo empiezan las horas valle, el registro de consumo separa los ritmos de horas punta y valle, y el pie dice «horas punta». Se aplica a los asistentes que tienen Horas punta activado en su propia página.";
 "snapshot" = "instantánea";
-"Sound" = "Sonido";
 "Source: %@" = "Fuente: %@";
 "Spend" = "Gasto";
 "Spend limit" = "Límite de gasto";
@@ -711,8 +709,22 @@
 "Question" = "Pregunta";
 "Plan ready to approve" = "Plan listo para aprobar";
 "Preview the %@ sound" = "Escuchar el sonido de %@";
-"Choose a file for the %@ sound" = "Elegir un archivo para el sonido de %@";
 "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "Un plan solo se distingue cuando Claude Code pide su aprobación a través del hook; una espera que no dice qué necesita reproduce el sonido de solicitud de permiso.";
+
+/* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
+"Sounds" = "Sonidos";
+"Play sounds" = "Reproducir sonidos";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder." = "Cada tipo de aviso tiene abajo su propio sonido y su propia casilla Silenciar. Los reproduce el centro de notificaciones, así que Concentración los silencia como a los de cualquier app, y también las horas de silencio; dos avisos en menos de dos segundos suenan una sola vez, salvo que una solicitud o una alerta de límite sigue sonando tras un turno terminado o un recordatorio.";
+"Waiting reminder" = "Recordatorio de espera";
+"Limit alert" = "Alerta de límite";
+"Silence" = "Silenciar";
+"Silence the %@ sound" = "Silenciar el sonido de %@";
+"Claude Code's reminder that you have been idle for a minute, and a Cursor turn gone quiet that may be waiting on an approval: a session that may need you, as against the three below, which have asked." = "El recordatorio de Claude Code de que llevas un minuto inactivo y un turno de Cursor que se ha quedado en silencio y quizá espera una aprobación: una sesión que quizá te necesita, a diferencia de las tres de abajo, que ya han preguntado.";
+"A window almost out or out, and advice about money already being spent; Test notification plays it too. Cutting it close, Will run out, resets and reminders arrive without a sound." = "Una ventana casi agotada o agotada, y consejos sobre dinero que ya se está gastando; la notificación de prueba también lo reproduce. Muy justo, Se agotará, los restablecimientos y los recordatorios llegan sin sonido.";
+"A turn longer than the minimum above, when Notify when a turn finishes is on." = "Un turno más largo que el mínimo de arriba, cuando Avisar cuando termine un turno está activado.";
+"A tool waiting for your approval, and any wait that has stopped a session without saying what it wants." = "Una herramienta que espera tu aprobación, y cualquier espera que haya detenido una sesión sin decir qué necesita.";
+"Claude Code's AskUserQuestion, an MCP server asking for input, and an agent asking for input." = "AskUserQuestion de Claude Code, un servidor MCP que pide información y un agente que pide información.";
+
 "Waiting for you" = "Te está esperando";
 "Waiting for your answer" = "Esperando tu respuesta";
 "Waiting for your approval in System Settings › General › Login Items." = "Esperando tu aprobación en Ajustes del Sistema › General › Ítems de inicio.";

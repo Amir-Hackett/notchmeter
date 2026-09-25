@@ -4,7 +4,8 @@ import Testing
 
 /// The waiting sound, split three ways. A wait is a permission, a question or a plan to approve, each with its
 /// own sound; these pin which hook payload is which kind, that each kind reaches its own preference, and that the
-/// single waiting sound a user chose before the split carries over to all three until they choose again.
+/// single waiting sound a user chose before the split carries over to all three until they choose again. The
+/// other three categories, the Silence boxes and 0.8.0's keys are pinned in SoundCategoryTests.swift.
 @MainActor @Suite struct EventSounds {
     func withSuite(_ name: String, _ body: (UserDefaults) throws -> Void) rethrows {
         let suite = "NotchmeterTests.EventSounds.\(name)"
@@ -119,17 +120,18 @@ import Testing
         #expect(NotificationSound.defaultTitle(for: "system:Hero").contains("Hero"))
     }
 
-    @Test func eachSessionEventPlaysUnderItsOwnClass() {
-        #expect(Notifier.soundEvent(for: .waiting(blocking: true, kind: .plan)) == .waiting(.plan))
-        #expect(Notifier.soundEvent(for: .waiting(blocking: false)) == .waiting(.permission), "a wait that says nothing is a permission")
-        #expect(Notifier.soundEvent(for: .finished(turn: 60)) == .finished)
-        #expect(Notifier.SoundEvent.waiting(.question).name == "question")
-        #expect(Notifier.SoundEvent.pace.name == "pace")
+    @Test func eachSessionEventPlaysUnderItsOwnCategory() {
+        #expect(Notifier.soundCategory(for: .waiting(blocking: true, kind: .plan)) == .plan)
+        #expect(Notifier.soundCategory(for: .waiting(blocking: true, kind: .question)) == .question)
+        #expect(Notifier.soundCategory(for: .waiting(blocking: true)) == .permission, "a stopped wait that says nothing is a permission")
+        #expect(Notifier.soundCategory(for: .finished(turn: 60)) == .completion)
+        #expect(SoundCategory.question.rawValue == "question", "the oracle's word for the sound")
+        #expect(SoundCategory.limit.rawValue == "limit")
     }
 
     @Test func theDefaultsAreDistinctAndInstalled() {
-        let choices = Hook.WaitKind.allCases.map { NotificationSound.defaultChoice(for: $0, installed: installed) }
-        #expect(Set(choices).count == Hook.WaitKind.allCases.count, "three kinds, three sounds")
+        let choices = SoundCategory.allCases.map { NotificationSound.defaultChoice(for: $0, installed: installed + ["Purr"]) }
+        #expect(Set(choices).count == SoundCategory.allCases.count, "six categories, six sounds")
         #expect(NotificationSound.defaultChoice(for: .permission, installed: installed) == NotificationSound.defaultChoice,
                 "a permission keeps the sound every wait played before the split")
         for choice in choices where choice.hasPrefix("system:") {
@@ -139,12 +141,14 @@ import Testing
                 "a sound the Mac does not have is never offered as a name the picker cannot show")
     }
 
-    @Test func aFreshInstallHearsThreeDifferentSounds() {
+    @Test func aFreshInstallHearsSixDifferentSounds() {
         withSuite("fresh") { defaults in
             let prefs = Preferences(defaults: defaults)
-            let sounds = Hook.WaitKind.allCases.map { prefs.sound(for: .waiting($0)) }
-            #expect(Set(sounds).count == 3)
-            #expect(prefs.sound(for: .waiting(.permission)) == NotificationSound.defaultChoice)
+            let sounds = SoundCategory.allCases.map { prefs.sound(for: $0) }
+            let count = SoundCategory.allCases.count
+            #expect(Set(sounds).count == count)
+            #expect(prefs.sound(for: .permission) == NotificationSound.defaultChoice)
+            #expect(prefs.silencedSounds.isEmpty, "nothing starts silenced")
         }
     }
 
@@ -152,13 +156,13 @@ import Testing
         withSuite("migrate") { defaults in
             defaults.set("custom:Chime.aiff", forKey: "soundWaiting")
             let prefs = Preferences(defaults: defaults)
-            for kind in Hook.WaitKind.allCases {
-                #expect(prefs.sound(for: .waiting(kind)) == "custom:Chime.aiff", "\(kind)")
+            for category in [SoundCategory.permission, .question, .plan, .waiting] {
+                #expect(prefs.sound(for: category) == "custom:Chime.aiff", "\(category)")
             }
-            prefs.soundPlan = "system:Hero"
+            prefs.soundChoices[.plan] = "system:Hero"
             let reloaded = Preferences(defaults: defaults)
-            #expect(reloaded.soundPlan == "system:Hero", "a choice of its own wins")
-            #expect(reloaded.soundPermission == "custom:Chime.aiff" && reloaded.soundQuestion == "custom:Chime.aiff",
+            #expect(reloaded.soundChoice(for: .plan) == "system:Hero", "a choice of its own wins")
+            #expect(reloaded.soundChoice(for: .permission) == "custom:Chime.aiff" && reloaded.soundChoice(for: .question) == "custom:Chime.aiff",
                     "and the other two still follow the choice they were migrated from")
             #expect(defaults.string(forKey: "soundWaiting") == "custom:Chime.aiff", "left for an earlier build run again")
         }
@@ -167,19 +171,27 @@ import Testing
     @Test func anOldChoiceOfNoneStaysSilent() {
         withSuite("none") { defaults in
             defaults.set(NotificationSound.none, forKey: "soundWaiting")
-            #expect(Hook.WaitKind.allCases.allSatisfy { Preferences.storedWaitSound($0, defaults: defaults, installed: installed) == NotificationSound.none },
-                    "someone who silenced waits does not start hearing Pop and Hero after an update")
+            for kind in Hook.WaitKind.allCases {
+                let stored = Preferences.storedSound(SoundCategory(kind), defaults: defaults, installed: installed)
+                #expect(stored.silenced, "someone who silenced waits does not start hearing Pop and Hero after an update: \(kind)")
+                #expect(stored.choice != NotificationSound.none, "the box is ticked instead, over a sound to come back to")
+            }
+            #expect(Preferences.storedSound(.question, defaults: defaults, installed: installed).choice == "system:Pop")
             defaults.removeObject(forKey: "soundWaiting")
-            #expect(Preferences.storedWaitSound(.question, defaults: defaults, installed: installed) == "system:Pop")
-            #expect(Preferences.storedWaitSound(.plan, defaults: defaults, installed: installed) == "system:Hero")
+            let question = Preferences.storedSound(.question, defaults: defaults, installed: installed)
+            #expect(question.choice == "system:Pop" && !question.silenced)
+            let plan = Preferences.storedSound(.plan, defaults: defaults, installed: installed)
+            #expect(plan.choice == "system:Hero" && !plan.silenced)
         }
     }
 
-    @Test func soundOffSilencesEveryKind() {
+    @Test func soundOffSilencesEveryCategory() {
         withSuite("off") { defaults in
             let prefs = Preferences(defaults: defaults)
             prefs.notificationSound = false
-            for kind in Hook.WaitKind.allCases { #expect(prefs.sound(for: .waiting(kind)) == NotificationSound.none) }
+            for category in SoundCategory.allCases { #expect(prefs.sound(for: category) == NotificationSound.none) }
+            #expect(prefs.silencedSounds.isEmpty, "the switch is over the boxes, not a tick in each")
+            #expect(prefs.soundChoice(for: .question) == "system:Pop", "and the choices are kept for when it comes back")
         }
     }
 }

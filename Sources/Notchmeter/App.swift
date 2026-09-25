@@ -1068,6 +1068,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "presenters": presenters.map(\.screen.localizedName),
             "keepingAwake": store.keepingAwake,
             "agents": agentFields(),
+            "sounds": prefs.soundFields,
         ]
         if let presenter {
             fields["panelState"] = presenter.hover.state.rawValue

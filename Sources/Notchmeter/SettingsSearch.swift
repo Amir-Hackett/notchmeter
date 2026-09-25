@@ -13,13 +13,13 @@ enum AgentBlock: CaseIterable, Hashable {
 /// disclosure inside Advanced, and each block of each assistant's page. The search field dims every section a
 /// query does not touch, and a hit inside a disclosure opens it.
 enum SettingsSection: Hashable, CaseIterable {
-    case general, updates, about, panel, usage, shortcuts, assistants, sessions, notifications, hooks, otherTools,
+    case general, updates, about, panel, usage, shortcuts, assistants, sessions, notifications, sounds, hooks, otherTools,
          privacy, advanced, diagnostics
     case agent(ToolID, AgentBlock)
 
     /// The app's own blocks, in the window's order.
     static let app: [SettingsSection] = [.general, .updates, .about, .panel, .usage, .shortcuts, .assistants, .sessions, .notifications,
-                                         .hooks, .otherTools, .privacy, .advanced, .diagnostics]
+                                         .sounds, .hooks, .otherTools, .privacy, .advanced, .diagnostics]
 
     /// Every block, every assistant's page included; written out because a case with a payload gets no
     /// synthesised list.
@@ -32,7 +32,7 @@ enum SettingsSection: Hashable, CaseIterable {
         case .general, .updates, .about: .general
         case .panel, .usage, .shortcuts: .appearance
         case .assistants, .sessions: .assistants
-        case .notifications: .notifications
+        case .notifications, .sounds: .notifications
         case .hooks, .otherTools: .integrations
         case .privacy, .advanced, .diagnostics: .advanced
         case .agent(let tool, _): .agent(tool)
@@ -101,8 +101,9 @@ enum SettingsSearch {
             L("Notify when a session compacts, may be stuck or is refused"),
             L("Stay quiet while a terminal or editor is in front"), L("Colour the rings when an assistant waits or finishes"),
             L("Show news in the notch"), L("Glow under the notch for news"), L("When an assistant waits for you, or a turn finishes"),
-            L("Sound"), L("Pace crossing"), L("Permission request"), L("Question"), L("Plan ready to approve"), L("Turn finished"),
             L("Quiet hours"), L("Test notification"))
+        add(.sounds, L("Sounds"), L("Play sounds"), L("Turn finished"), L("Waiting reminder"), L("Permission request"), L("Question"),
+            L("Plan ready to approve"), L("Limit alert"), L("Silence"))
         add(.hooks, L("Integrations"), L("Hooks"), L("Repair an out-of-date hook at launch"))
         add(.otherTools, L("Other tools"), L("MCP server"), L("Remote Claude Code over SSH"))
         add(.privacy, L("Advanced"), L("Privacy"), L("Hide usage while the screen is shared or recorded"),

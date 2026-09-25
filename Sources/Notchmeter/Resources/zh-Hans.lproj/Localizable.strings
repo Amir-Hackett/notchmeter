@@ -526,7 +526,6 @@
 "Outer ring" = "外环";
 "over by %ld%%" = "超出 %ld%%";
 "Overall %@" = "总体%@";
-"Pace crossing" = "进度越界";
 "Step %1$ld of %2$ld" = "第 %1$ld 步，共 %2$ld 步";
 
 "Allow %@ for the rest of this session" = "在本次会话剩余时间内允许 %@";
@@ -645,7 +644,6 @@
 "Signed in · %@" = "已登录 · %@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on." = "自 2026 年 3 月起，Anthropic 在工作日太平洋时间 5:00 至 11:00 施行更严格的 5 小时会话限额（媒体报道，非官方文档；见 docs/accuracy.md）。其间建议会说明非高峰何时开始，消耗日志分别记录高峰与非高峰速率，页脚显示“高峰时段”。适用于在自己页面上打开了“高峰时段”的助手。";
 "snapshot" = "快照";
-"Sound" = "声音";
 "Source: %@" = "来源：%@";
 "Spend" = "成本";
 "Spend limit" = "支出上限";
@@ -711,8 +709,22 @@
 "Question" = "提问";
 "Plan ready to approve" = "计划待批准";
 "Preview the %@ sound" = "试听“%@”的声音";
-"Choose a file for the %@ sound" = "为“%@”的声音选择文件";
 "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "只有当 Claude Code 通过钩子请求批准时，才能识别出计划；未说明需要什么的等待会播放权限请求的声音。";
+
+/* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
+"Sounds" = "声音";
+"Play sounds" = "播放声音";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder." = "每种通知在下方都有自己的声音和“静音”复选框。声音由通知中心播放，因此专注模式会像对待任何 App 一样将其静音，免打扰时段也是如此；两秒内的两条通知只响一次，但请求或限额警报在一轮结束或等待提醒之后仍会响。";
+"Waiting reminder" = "等待提醒";
+"Limit alert" = "限额警报";
+"Silence" = "静音";
+"Silence the %@ sound" = "将“%@”的声音静音";
+"Claude Code's reminder that you have been idle for a minute, and a Cursor turn gone quiet that may be waiting on an approval: a session that may need you, as against the three below, which have asked." = "Claude Code 在你一分钟没有操作时发出的提醒，以及安静下来、可能在等待批准的一轮 Cursor 工作：可能需要你的会话，不同于下面三种已经提出请求的情况。";
+"A window almost out or out, and advice about money already being spent; Test notification plays it too. Cutting it close, Will run out, resets and reminders arrive without a sound." = "某个窗口即将用尽或已经用尽，以及有关已经在花钱的建议；测试通知也播放此声音。接近节奏、将会用完、重置和提醒都不带声音。";
+"A turn longer than the minimum above, when Notify when a turn finishes is on." = "开启“一轮工作完成时通知”时，时长超过上方最短时间的一轮工作。";
+"A tool waiting for your approval, and any wait that has stopped a session without saying what it wants." = "等待你批准的工具，以及任何让会话停下却没说明需要什么的等待。";
+"Claude Code's AskUserQuestion, an MCP server asking for input, and an agent asking for input." = "Claude Code 的 AskUserQuestion、请求输入的 MCP 服务器，以及请求输入的代理。";
+
 "Waiting for you" = "等待你";
 "Waiting for your answer" = "正在等待你的回应";
 "Waiting for your approval in System Settings › General › Login Items." = "等待你在“系统设置 › 通用 › 登录项”中批准。";

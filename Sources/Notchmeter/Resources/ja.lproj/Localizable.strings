@@ -509,7 +509,6 @@
 "Outer ring" = "外側のリング";
 "over by %ld%%" = "%ld%% 超過";
 "Overall %@" = "全体の%@";
-"Pace crossing" = "ペース超過";
 "Step %1$ld of %2$ld" = "ステップ %1$ld / %2$ld";
 
 "Allow %@ for the rest of this session" = "このセッションの残りの間 %@ を許可";
@@ -628,7 +627,6 @@
 "Signed in · %@" = "サインイン済み · %@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on." = "2026 年 3 月以降、Anthropic は平日の太平洋時間 5:00〜11:00 に 5 時間セッションの上限を厳しくしています（報道であり公式文書ではありません。docs/accuracy.md 参照）。その間はアドバイスがオフピークの開始時刻を示し、ドレインログはピークとオフピークのレートを分け、フッターに「ピーク時間」と出ます。自身のページで「ピーク時間」をオンにしたアシスタントに適用されます。";
 "snapshot" = "スナップショット";
-"Sound" = "サウンド";
 "Source: %@" = "ソース: %@";
 "Spend" = "コスト";
 "Spend limit" = "支出上限";
@@ -694,8 +692,22 @@
 "Question" = "質問";
 "Plan ready to approve" = "承認待ちのプラン";
 "Preview the %@ sound" = "%@ のサウンドを試聴";
-"Choose a file for the %@ sound" = "%@ のサウンドにするファイルを選択";
 "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "プランを区別できるのは、Claude Code がフックを通じて承認を求めたときだけです。何を求めているかを示さない待機では、許可リクエストのサウンドが鳴ります。";
+
+/* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
+"Sounds" = "サウンド";
+"Play sounds" = "サウンドを再生";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder." = "通知の種類ごとに、下で個別のサウンドと「消音」チェックボックスを設定できます。再生するのは通知センターなので、集中モードでは他のアプリと同様に消音され、おやすみ時間も同様です。2 秒以内に届いた 2 つの通知はまとめて 1 回だけ鳴りますが、リクエストや上限アラートはターン完了やリマインダーの直後でも鳴ります。";
+"Waiting reminder" = "待機リマインダー";
+"Limit alert" = "上限アラート";
+"Silence" = "消音";
+"Silence the %@ sound" = "%@ のサウンドを消音";
+"Claude Code's reminder that you have been idle for a minute, and a Cursor turn gone quiet that may be waiting on an approval: a session that may need you, as against the three below, which have asked." = "1 分間操作がないときの Claude Code のリマインダーと、静かになった Cursor のターン（承認待ちの可能性あり）。あなたを必要としているかもしれないセッションで、実際に尋ねてきた下の 3 つとは異なります。";
+"A window almost out or out, and advice about money already being spent; Test notification plays it too. Cutting it close, Will run out, resets and reminders arrive without a sound." = "ほぼ尽きた、または尽きたウィンドウと、すでにお金がかかっていることについてのアドバイス。テスト通知でもこのサウンドが鳴ります。「ぎりぎり」「使い切る見込み」、リセットとリマインダーはサウンドなしで届きます。";
+"A turn longer than the minimum above, when Notify when a turn finishes is on." = "「ターンが完了したときに通知」がオンのとき、上の最短時間より長いターン。";
+"A tool waiting for your approval, and any wait that has stopped a session without saying what it wants." = "承認を待っているツールと、何を求めているかを示さずにセッションを止めたあらゆる待機。";
+"Claude Code's AskUserQuestion, an MCP server asking for input, and an agent asking for input." = "Claude Code の AskUserQuestion、入力を求める MCP サーバー、入力を求めるエージェント。";
+
 "Waiting for you" = "あなたを待機中";
 "Waiting for your answer" = "回答を待っています";
 "Waiting for your approval in System Settings › General › Login Items." = "システム設定 › 一般 › ログイン項目での承認を待っています。";

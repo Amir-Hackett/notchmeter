@@ -526,7 +526,6 @@
 "Outer ring" = "Outer ring";
 "over by %ld%%" = "over by %ld%%";
 "Overall %@" = "Overall %@";
-"Pace crossing" = "Pace crossing";
 "Step %1$ld of %2$ld" = "Step %1$ld of %2$ld";
 
 "Allow %@ for the rest of this session" = "Allow %@ for the rest of this session";
@@ -645,7 +644,6 @@
 "Signed in · %@" = "Signed in · %@";
 "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on." = "Since March 2026 Anthropic applies tighter 5-hour session limits on weekdays from 5:00 to 11:00 Pacific (reported, not documented; docs/accuracy.md). Inside it the advice names when off-peak starts, the drain log keeps peak and off-peak rates apart, and the footer says \"peak hours\". Applies to the assistants whose own page has Peak hours on.";
 "snapshot" = "snapshot";
-"Sound" = "Sound";
 "Source: %@" = "Source: %@";
 "Spend" = "Spend";
 "Spend limit" = "Spend limit";
@@ -711,8 +709,22 @@
 "Question" = "Question";
 "Plan ready to approve" = "Plan ready to approve";
 "Preview the %@ sound" = "Preview the %@ sound";
-"Choose a file for the %@ sound" = "Choose a file for the %@ sound";
 "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound." = "A plan is told apart only when Claude Code asks for its approval through the hook; a wait that does not say what it wants plays the permission sound.";
+
+/* Sounds: six categories, each with its own Silence box (SoundCategory; Settings › Notifications › Sounds) */
+"Sounds" = "Sounds";
+"Play sounds" = "Play sounds";
+"Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder." = "Each kind of notice has its own sound and its own Silence box below. Notification Center plays them, so Focus silences them as it does any app's, and so do the quiet hours; two notices inside two seconds make one sound between them, except that a request or a limit alert still sounds after a finished turn or a reminder.";
+"Waiting reminder" = "Waiting reminder";
+"Limit alert" = "Limit alert";
+"Silence" = "Silence";
+"Silence the %@ sound" = "Silence the %@ sound";
+"Claude Code's reminder that you have been idle for a minute, and a Cursor turn gone quiet that may be waiting on an approval: a session that may need you, as against the three below, which have asked." = "Claude Code's reminder that you have been idle for a minute, and a Cursor turn gone quiet that may be waiting on an approval: a session that may need you, as against the three below, which have asked.";
+"A window almost out or out, and advice about money already being spent; Test notification plays it too. Cutting it close, Will run out, resets and reminders arrive without a sound." = "A window almost out or out, and advice about money already being spent; Test notification plays it too. Cutting it close, Will run out, resets and reminders arrive without a sound.";
+"A turn longer than the minimum above, when Notify when a turn finishes is on." = "A turn longer than the minimum above, when Notify when a turn finishes is on.";
+"A tool waiting for your approval, and any wait that has stopped a session without saying what it wants." = "A tool waiting for your approval, and any wait that has stopped a session without saying what it wants.";
+"Claude Code's AskUserQuestion, an MCP server asking for input, and an agent asking for input." = "Claude Code's AskUserQuestion, an MCP server asking for input, and an agent asking for input.";
+
 "Waiting for you" = "Waiting for you";
 "Waiting for your answer" = "Waiting for your answer";
 "Waiting for your approval in System Settings › General › Login Items." = "Waiting for your approval in System Settings › General › Login Items.";

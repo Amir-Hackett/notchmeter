@@ -834,27 +834,48 @@ final class Preferences {
     var notchGlow: Bool {
         didSet { defaults.set(notchGlow, forKey: Keys.notchGlow); report(Keys.notchGlow, notchGlow, changed: notchGlow != oldValue) }
     }
+    /// Every notification sound at once: off, nothing plays whatever the six rows below it say.
     var notificationSound: Bool {
         didSet { defaults.set(notificationSound, forKey: Keys.notificationSound); report(Keys.notificationSound, notificationSound, changed: notificationSound != oldValue) }
     }
-    /// The sound per event class (NotificationSound): a pace crossing, each kind of wait (Hook.WaitKind), a turn
-    /// finishing.
-    var soundPace: String {
-        didSet { defaults.set(soundPace, forKey: Keys.soundPace); report(Keys.soundPace, soundPace, changed: soundPace != oldValue) }
+    /// The sound each category (SoundCategory) plays when it is not silenced, as NotificationSound stores a
+    /// choice; never "none", which is what `silencedSounds` is for. Every category has an entry from `init` on.
+    /// Only a category whose choice changed is written, under its own key (`soundKey(for:)`).
+    ///
+    /// Some of what `init` read was read off another category's key (`storedSound`): the waiting reminder off
+    /// the permission sound, and any Silence box off a None an earlier build stored. So before a key is
+    /// overwritten, every category that key was answering for is pinned under its own keys to what it reads now.
+    /// Without that, picking a permission sound on a fresh install would hand the same sound to the waiting
+    /// reminder at the next launch, and picking a sound on a row silenced by an old None would quietly clear its
+    /// box. The pin is the value on screen, so nothing anyone can see changes.
+    var soundChoices: [SoundCategory: String] {
+        didSet {
+            for category in SoundCategory.allCases where soundChoices[category] != oldValue[category] {
+                let key = Self.soundKey(for: category)
+                for reader in SoundCategory.allCases where Self.soundKeys(for: reader).contains(key) {
+                    let own = Self.soundKey(for: reader)
+                    if reader != category, defaults.object(forKey: own) == nil, let held = oldValue[reader] {
+                        defaults.set(held, forKey: own)
+                    }
+                    let silence = Self.silenceKey(for: reader)
+                    if defaults.object(forKey: silence) == nil { defaults.set(silencedSounds.contains(reader), forKey: silence) }
+                }
+                defaults.set(soundChoices[category], forKey: key)
+                report(key, soundChoices[category] ?? "", changed: true)
+            }
+        }
     }
-    /// Through 0.7.9 the three waits shared one sound, stored under `soundWaiting`; `storedWaitSound` carries that
-    /// choice over to each of them until the user picks one of its own.
-    var soundPermission: String {
-        didSet { defaults.set(soundPermission, forKey: Keys.soundPermission); report(Keys.soundPermission, soundPermission, changed: soundPermission != oldValue) }
-    }
-    var soundQuestion: String {
-        didSet { defaults.set(soundQuestion, forKey: Keys.soundQuestion); report(Keys.soundQuestion, soundQuestion, changed: soundQuestion != oldValue) }
-    }
-    var soundPlan: String {
-        didSet { defaults.set(soundPlan, forKey: Keys.soundPlan); report(Keys.soundPlan, soundPlan, changed: soundPlan != oldValue) }
-    }
-    var soundFinished: String {
-        didSet { defaults.set(soundFinished, forKey: Keys.soundFinished); report(Keys.soundFinished, soundFinished, changed: soundFinished != oldValue) }
+    /// The categories whose Silence box is ticked. Kept apart from the choice so that bringing a category back
+    /// returns the sound it had; each category's box is its own key (`silenceKey(for:)`), written once it has
+    /// been touched.
+    var silencedSounds: Set<SoundCategory> {
+        didSet {
+            for category in SoundCategory.allCases where silencedSounds.contains(category) != oldValue.contains(category) {
+                let key = Self.silenceKey(for: category)
+                defaults.set(silencedSounds.contains(category), forKey: key)
+                report(key, silencedSounds.contains(category), changed: true)
+            }
+        }
     }
     var quietHoursEnabled: Bool {
         didSet { defaults.set(quietHoursEnabled, forKey: Keys.quietHours); report(Keys.quietHours, quietHoursEnabled, changed: quietHoursEnabled != oldValue) }
@@ -1182,14 +1203,27 @@ final class Preferences {
         static let notchNews = "notchNews"
         static let notchGlow = "notchGlow"
         static let notificationSound = "notificationSound"
+        /// The limit category's sound. The name is from before the category was widened from pace crossings to
+        /// every limit notice, kept so the choice made under it is simply still there.
         static let soundPace = "soundPace"
-        /// The one waiting sound through 0.7.9. Read, never written: `storedWaitSound` falls back to it, and it is
+        /// The one waiting sound through 0.7.9. Read, never written: `storedSound` falls back to it, and it is
         /// left in place so an earlier build run again still finds the choice it made.
         static let soundWaiting = "soundWaiting"
         static let soundPermission = "soundPermission"
         static let soundQuestion = "soundQuestion"
         static let soundPlan = "soundPlan"
+        /// The completion category's sound, named for the Turn finished row it has always sat on.
         static let soundFinished = "soundFinished"
+        /// The waiting reminder's own sound, new in 0.9.0. Not `soundWaiting`, which is 0.7.9's shared sound for
+        /// every wait and which the three stopped kinds still fall back to: writing this category's pick there
+        /// would move theirs too.
+        static let soundWaitingReminder = "soundWaitingReminder"
+        static let silenceCompletion = "silenceCompletion"
+        static let silenceWaiting = "silenceWaiting"
+        static let silencePermission = "silencePermission"
+        static let silenceQuestion = "silenceQuestion"
+        static let silencePlan = "silencePlan"
+        static let silenceLimit = "silenceLimit"
         static let quietHours = "quietHoursEnabled"
         static let quietStart = "quietHoursStart"
         static let quietEnd = "quietHoursEnd"
@@ -1313,11 +1347,10 @@ final class Preferences {
         notchNews = defaults.object(forKey: Keys.notchNews) as? Bool ?? true
         notchGlow = defaults.object(forKey: Keys.notchGlow) as? Bool ?? true
         notificationSound = defaults.object(forKey: Keys.notificationSound) as? Bool ?? true
-        soundPace = defaults.string(forKey: Keys.soundPace) ?? NotificationSound.defaultChoice
-        soundPermission = Self.storedWaitSound(.permission, defaults: defaults)
-        soundQuestion = Self.storedWaitSound(.question, defaults: defaults)
-        soundPlan = Self.storedWaitSound(.plan, defaults: defaults)
-        soundFinished = defaults.string(forKey: Keys.soundFinished) ?? NotificationSound.defaultChoice
+        let installedSounds = NotificationSound.systemSounds()
+        let storedSounds = SoundCategory.allCases.map { ($0, Self.storedSound($0, defaults: defaults, installed: installedSounds)) }
+        soundChoices = Dictionary(uniqueKeysWithValues: storedSounds.map { ($0.0, $0.1.choice) })
+        silencedSounds = Set(storedSounds.filter(\.1.silenced).map(\.0))
         quietHoursEnabled = defaults.bool(forKey: Keys.quietHours)
         quietHoursStart = defaults.object(forKey: Keys.quietStart) as? Int ?? 22 * 60
         quietHoursEnd = defaults.object(forKey: Keys.quietEnd) as? Int ?? 8 * 60
@@ -1572,36 +1605,81 @@ final class Preferences {
         return tools
     }
 
-    /// The notification sound choice for one event class.
-    func sound(for event: Notifier.SoundEvent) -> String {
-        guard notificationSound else { return NotificationSound.none }
-        switch event {
-        case .pace: return soundPace
-        case .waiting(.permission): return soundPermission
-        case .waiting(.question): return soundQuestion
-        case .waiting(.plan): return soundPlan
-        case .finished: return soundFinished
+    /// What a notice of this category plays: its chosen sound, or "none" while the category is silenced or the
+    /// Play sounds switch is off.
+    func sound(for category: SoundCategory) -> String {
+        guard notificationSound, !silencedSounds.contains(category) else { return NotificationSound.none }
+        return soundChoice(for: category)
+    }
+
+    /// The category's chosen sound, silenced or not: what its picker shows.
+    func soundChoice(for category: SoundCategory) -> String {
+        soundChoices[category] ?? NotificationSound.defaultChoice(for: category)
+    }
+
+    /// Ticks or clears one category's Silence box.
+    func setSilenced(_ silenced: Bool, _ category: SoundCategory) {
+        if silenced { silencedSounds.insert(category) } else { silencedSounds.remove(category) }
+    }
+
+    /// Every category's sound as a notice would play it now, for the oracle's snapshot.
+    var soundFields: [String: String] {
+        Dictionary(uniqueKeysWithValues: SoundCategory.allCases.map { ($0.rawValue, sound(for: $0)) })
+    }
+
+    /// The key a category's choice is written under: the first of `soundKeys(for:)`.
+    static func soundKey(for category: SoundCategory) -> String {
+        soundKeys(for: category)[0]
+    }
+
+    /// Where a category's choice is read from, its own key first and then the keys of the earlier builds whose
+    /// choice it carries on. Completion and limit are the Turn finished and Pace crossing rows under their old
+    /// keys. The three stopped kinds of wait fall back to 0.7.9's single waiting sound. The waiting reminder falls
+    /// back to the permission sound, and through it to 0.7.9's: through 0.8.0 Claude Code's idle reminder and a
+    /// quiet Cursor turn played the permission sound, so someone who picked one hears it there until they pick
+    /// the reminder a sound of its own. Only a key the user actually wrote counts; a key never written is absent,
+    /// and the chain goes on past it.
+    static func soundKeys(for category: SoundCategory) -> [String] {
+        switch category {
+        case .completion: [Keys.soundFinished]
+        case .waiting: [Keys.soundWaitingReminder, Keys.soundPermission, Keys.soundWaiting]
+        case .permission: [Keys.soundPermission, Keys.soundWaiting]
+        case .question: [Keys.soundQuestion, Keys.soundWaiting]
+        case .plan: [Keys.soundPlan, Keys.soundWaiting]
+        case .limit: [Keys.soundPace]
         }
     }
 
-    /// The key each kind of wait keeps its sound under.
-    static func soundKey(for kind: Hook.WaitKind) -> String {
-        switch kind {
-        case .permission: Keys.soundPermission
-        case .question: Keys.soundQuestion
-        case .plan: Keys.soundPlan
+    /// The key a category's Silence box is kept under.
+    static func silenceKey(for category: SoundCategory) -> String {
+        switch category {
+        case .completion: Keys.silenceCompletion
+        case .waiting: Keys.silenceWaiting
+        case .permission: Keys.silencePermission
+        case .question: Keys.silenceQuestion
+        case .plan: Keys.silencePlan
+        case .limit: Keys.silenceLimit
         }
     }
 
-    /// A wait's sound as stored: its own choice once it has one; otherwise whatever the single waiting sound
-    /// was set to before the kinds were split, so someone who chose Glass for every wait still hears Glass for
-    /// each of them after the update; and only for someone who never chose at all, the kind's own default
-    /// (`NotificationSound.defaultChoice(for:)`), which is where the three first sound different. The old key is
-    /// consulted rather than copied: a user who later picks a sound for one kind changes that one alone, and the
-    /// other two keep following the choice they were migrated from.
-    static func storedWaitSound(_ kind: Hook.WaitKind, defaults: UserDefaults, installed: [String] = NotificationSound.systemSounds()) -> String {
-        defaults.string(forKey: soundKey(for: kind)) ?? defaults.string(forKey: Keys.soundWaiting)
-            ?? NotificationSound.defaultChoice(for: kind, installed: installed)
+    /// A category's sound and Silence box as stored. The choice is the first key of `soundKeys(for:)` that holds
+    /// one, so someone who chose Glass for every wait in 0.7.9 still hears Glass for each kind, and only someone
+    /// who never chose at all gets the category's own default (`NotificationSound.defaultChoice(for:)`), which is
+    /// where the six first sound different. The old keys are consulted rather than copied, so a pick on one row
+    /// changes that row alone.
+    ///
+    /// A stored None — the only way to quiet a kind before the boxes existed — is read as the box ticked, with the
+    /// category's default as the sound it returns to if the box is cleared: someone who silenced waits does not
+    /// start hearing them after an update, and the picker never has to show a choice it no longer offers. Once the
+    /// box has been touched its own key decides. Nothing here writes: the None stays where an earlier build can
+    /// still find it.
+    static func storedSound(_ category: SoundCategory, defaults: UserDefaults,
+                            installed: [String] = NotificationSound.systemSounds()) -> (choice: String, silenced: Bool) {
+        let stored = soundKeys(for: category).lazy.compactMap { defaults.string(forKey: $0) }.first
+        let silenced = defaults.object(forKey: silenceKey(for: category)) as? Bool ?? (stored == NotificationSound.none)
+        let choice = stored.flatMap { $0 == NotificationSound.none ? nil : $0 }
+            ?? NotificationSound.defaultChoice(for: category, installed: installed)
+        return (choice, silenced)
     }
 
     /// Empties this app's defaults domain; the caller relaunches, so nothing here needs to be re-read.
