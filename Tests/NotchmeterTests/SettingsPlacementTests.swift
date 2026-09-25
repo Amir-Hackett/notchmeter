@@ -160,6 +160,31 @@ import Testing
         }
     }
 
+    /// Every disclosure in Settings is drawn as a settings row (SettingsDisclosureStyle) rather than with the system's
+    /// 9 pt triangle in the leading margin, which read as a stray mark beside its title. Each disclosure is checked on
+    /// its own, however it is written (with `isExpanded:`, a title string or a trailing closure): the text from it to
+    /// the next one has to carry exactly one style modifier, so an unstyled disclosure cannot hide behind a
+    /// duplicated modifier elsewhere, as it could while the test compared totals.
+    @Test func everyDisclosureInSettingsIsDrawnAsASettingsRow() throws {
+        let source = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/Notchmeter/SettingsWindow.swift")
+        let text = try String(contentsOf: source, encoding: .utf8) as NSString
+        // `DisclosureGroup` followed by its arguments or its content, which leaves `DisclosureGroupStyle` and
+        // `DisclosureGroupStyleConfiguration` out.
+        let opener = try NSRegularExpression(pattern: #"\bDisclosureGroup\s*[({]"#)
+        let starts = opener.matches(in: text as String, range: NSRange(location: 0, length: text.length)).map(\.range.location)
+        #expect(!starts.isEmpty, "no disclosure found; the scan is looking at the wrong file")
+        let modifier = ".disclosureGroupStyle(SettingsDisclosureStyle("
+        for (index, start) in starts.enumerated() {
+            let end = index + 1 < starts.count ? starts[index + 1] : text.length
+            let segment = text.substring(with: NSRange(location: start, length: end - start))
+            let line = text.substring(to: start).components(separatedBy: "\n").count
+            let styled = segment.components(separatedBy: modifier).count - 1
+            #expect(styled == 1, "the disclosure at SettingsWindow.swift:\(line) wears SettingsDisclosureStyle \(styled) times")
+        }
+    }
+
     /// General is the pane the window opens on, so its tile is the first one a low-vision reader meets. It wears a
     /// fixed sRGB grey rather than `.gray`, which is the worst tile in the sidebar at 2.87:1 in the dark.
     @Test func theDefaultPanesTileIsTheOneSystemGreyCouldNotBe() throws {

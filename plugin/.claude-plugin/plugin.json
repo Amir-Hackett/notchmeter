@@ -1,7 +1,7 @@
 {
   "name": "notchmeter",
   "displayName": "Notchmeter",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "Lets Claude check this Mac's AI usage limits (Claude Code, Codex, Cursor, Gemini CLI, Antigravity, Copilot, Kimi Code, OpenCode), cost estimate and Notchmeter's advice before long work. Needs the Notchmeter app or its notchmeter command. It reads the app's cache; only when the app isn't running (or on --force) does it use the logins your AI tools saved on this Mac for one read-only request to each tool's own usage endpoint, never inference. Claude Code cost is priced from local transcripts' usage lines. No telemetry.",
   "author": {
     "name": "Amir Hackett",

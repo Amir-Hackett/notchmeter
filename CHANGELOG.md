@@ -2,6 +2,13 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.3](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.3) — 2026-09-25
+
+### Settings, rows that open
+
+- "Where each window comes from" on each assistant's page, and "Diagnostics" under Advanced, open like the rest of Settings reads: the whole row is the button, the title sits where every other title does, and a chevron at the right-hand edge, in line with the switches and menus below it, turns down as the row opens. It turns at once under Reduce Motion or Reduce animations. They used the small grey triangle in the left margin, which looked like a stray mark beside the label.
+- A closed row is the same height as the rows around it, and VoiceOver says whether it is expanded or collapsed.
+
 ## [0.9.2](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.2) — 2026-09-25
 
 ### Settings, one set of icons
