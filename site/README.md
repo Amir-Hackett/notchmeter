@@ -1,13 +1,19 @@
 # site
 
-The marketing site: two static pages, one stylesheet, no build step and no dependencies.
+The marketing site: static pages, two stylesheets, no build step and no dependencies.
 
 ```
 site/
-  index.html     the landing page
-  pricing.html   Free forever, pay what you want
-  style.css      the whole design
-  img/           copied from ../docs/media by scripts/site-assets.sh
+  index.html            the landing page
+  pricing.html          Free forever, pay what you want
+  privacy.html          the privacy policy
+  terms.html            the terms, with the vendors' own words
+  style.css             the whole design
+  landing.css           what the usage-tracker pages add, built from style.css's tokens
+  usage-trackers/       the hub of the usage-tracker pages, one folder per page beside it
+  sitemap.xml           every page at its canonical URL
+  robots.txt            allows everything and names the sitemap
+  img/                  copied from ../docs/media by scripts/site-assets.sh
 ```
 
 Open `index.html` in a browser to look at it, or serve the folder:

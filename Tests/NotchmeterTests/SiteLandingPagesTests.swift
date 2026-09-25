@@ -193,6 +193,19 @@ import Testing
         }
     }
 
+    /// A tag that names an attribute twice keeps the first and silently drops the second, so `class="here"
+    /// … class="hide-sm"` shows a link the small-screen rule meant to hide (the hub's header, 2026-09-24). No
+    /// validator runs on these pages, so the rule is held here: every attribute name on a tag appears once.
+    @Test func noTagRepeatsAnAttribute() throws {
+        for slug in Self.all {
+            let html = try Self.text(slug)
+            for tag in Self.captures("<([a-zA-Z][^>]*)>", in: html).map({ $0[0] }) {
+                let names = Self.captures("\\s([a-zA-Z-]+)=\"[^\"]*\"", in: tag).map { $0[0].lowercased() }
+                #expect(names.count == Set(names).count, "\(slug): <\(tag.prefix(60))…> repeats an attribute")
+            }
+        }
+    }
+
     /// No analytics, by decision (the note at the head of index.html): the only scripts on these pages are the two
     /// JSON-LD data blocks, which run nothing. And no page compares this app with a named competitor: the category
     /// pages say what this app does and let the reader judge.
