@@ -6,3 +6,6 @@ docs/media/review/
 .swiftpm/
 *.xcodeproj
 .DS_Store
+
+# Claude Code keeps its per-task git worktrees here; they are checkouts, never content.
+.claude/worktrees/
