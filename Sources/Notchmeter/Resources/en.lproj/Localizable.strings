@@ -938,7 +938,7 @@
 "Title" = "Title";
 "Subject" = "Subject";
 "Reading the diagnostics…" = "Reading the diagnostics…";
-"Puts the title and the text above on the clipboard, for pasting wherever you like." = "Puts the title and the text above on the clipboard, for pasting wherever you like.";
+"Puts the title and the whole text on the clipboard, not cut to fit a link and with the diagnostics in a code block, for pasting wherever you like." = "Puts the title and the whole text on the clipboard, not cut to fit a link and with the diagnostics in a code block, for pasting wherever you like.";
 "Copied." = "Copied.";
 "Send…" = "Send…";
 "Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "Opens the text above where it is going (⌘↩); nothing leaves until you send it there.";
@@ -947,7 +947,7 @@
 "Older log lines left out so the text fits in a link: %ld." = "Older log lines left out so the text fits in a link: %ld.";
 "The diagnostics are left out so the text fits in a link." = "The diagnostics are left out so the text fits in a link.";
 "The message is cut short so it fits in a link." = "The message is cut short so it fits in a link.";
-"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account.";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue; a browser not signed in to GitHub goes through its sign-in page first. Issues are public, and filed under your GitHub account." = "Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue; a browser not signed in to GitHub goes through its sign-in page first. Issues are public, and filed under your GitHub account.";
 "Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address.";
 "Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address.";
 "No browser took the link." = "No browser took the link.";

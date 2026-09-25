@@ -921,7 +921,7 @@
 "Title" = "標題";
 "Subject" = "主旨";
 "Reading the diagnostics…" = "正在讀取診斷資訊…";
-"Puts the title and the text above on the clipboard, for pasting wherever you like." = "把標題和上面的文字放到剪貼簿，隨處貼上。";
+"Puts the title and the whole text on the clipboard, not cut to fit a link and with the diagnostics in a code block, for pasting wherever you like." = "把標題和全部文字放到剪貼簿，不按連結長度截斷，診斷資訊放在程式碼區塊裡，隨處貼上。";
 "Copied." = "已拷貝。";
 "Send…" = "傳送…";
 "Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "在傳送目的地打開上面的文字（⌘↩）；在那裡傳送之前，什麼都不會送出。";
@@ -930,7 +930,7 @@
 "Older log lines left out so the text fits in a link: %ld." = "為讓文字放得進連結而省略的較早記錄行數：%ld。";
 "The diagnostics are left out so the text fits in a link." = "為讓文字放得進連結，省略了診斷資訊。";
 "The message is cut short so it fits in a link." = "為放得進連結，留言被截短了。";
-"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "「傳送」會在瀏覽器中打開 %@ 的新 Issue，並填好這段文字。GitHub 會在頁面載入時收到文字，但在你按下 Submit new issue 之前不會發佈任何內容。Issue 是公開的，並以你的 GitHub 帳號提交。";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue; a browser not signed in to GitHub goes through its sign-in page first. Issues are public, and filed under your GitHub account." = "「傳送」會在瀏覽器中打開 %@ 的新 Issue，並填好這段文字。GitHub 會在頁面載入時收到文字，但在你按下 Submit new issue 之前不會發佈任何內容；未登入 GitHub 的瀏覽器會先經過登入頁面。Issue 是公開的，並以你的 GitHub 帳號提交。";
 "Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "「傳送」會在「郵件」中打開寄給 %@ 的新郵件，並填好這段文字。在你在那裡按下「傳送」之前不會送出任何內容，寄件人是你自己的地址。";
 "Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "「傳送」會在你的郵件 App 中打開寄給 %@ 的新郵件，並填好這段文字。在你在那裡按下「傳送」之前不會送出任何內容，寄件人是你自己的地址。";
 "No browser took the link." = "沒有瀏覽器打開這個連結。";

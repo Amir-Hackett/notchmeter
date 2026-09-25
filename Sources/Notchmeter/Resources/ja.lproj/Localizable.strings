@@ -921,7 +921,7 @@
 "Title" = "タイトル";
 "Subject" = "件名";
 "Reading the diagnostics…" = "診断情報を読み込み中…";
-"Puts the title and the text above on the clipboard, for pasting wherever you like." = "タイトルと上のテキストをクリップボードに入れます。好きな場所に貼り付けられます。";
+"Puts the title and the whole text on the clipboard, not cut to fit a link and with the diagnostics in a code block, for pasting wherever you like." = "タイトルとテキスト全体をクリップボードに入れます。リンクに収めるための切り詰めはせず、診断情報はコードブロックに入れます。好きな場所に貼り付けられます。";
 "Copied." = "コピーしました。";
 "Send…" = "送信…";
 "Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "上のテキストを送信先で開きます（⌘↩）。そこで送信するまで何も送られません。";
@@ -930,7 +930,7 @@
 "Older log lines left out so the text fits in a link: %ld." = "テキストがリンクに収まるよう省いた古いログの行数：%ld";
 "The diagnostics are left out so the text fits in a link." = "テキストがリンクに収まるよう、診断情報を省いています。";
 "The message is cut short so it fits in a link." = "リンクに収まるよう、メッセージを途中で切っています。";
-"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "「送信」を押すと、この内容を入力済みの新しい Issue がブラウザーで %@ に開きます。GitHub はページの読み込み時にテキストを受け取りますが、「Submit new issue」を押すまで何も公開しません。Issue は公開され、あなたの GitHub アカウントで作成されます。";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue; a browser not signed in to GitHub goes through its sign-in page first. Issues are public, and filed under your GitHub account." = "「送信」を押すと、この内容を入力済みの新しい Issue がブラウザーで %@ に開きます。GitHub はページの読み込み時にテキストを受け取りますが、「Submit new issue」を押すまで何も公開しません。GitHub にサインインしていないブラウザーは先にサインインページを経由します。Issue は公開され、あなたの GitHub アカウントで作成されます。";
 "Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "「送信」を押すと、この内容を入力済みの %@ 宛て新規メッセージがメールで開きます。そこで送信を押すまで何も送られず、送信元はあなた自身のアドレスです。";
 "Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "「送信」を押すと、この内容を入力済みの %@ 宛て新規メッセージがお使いのメールアプリで開きます。そこで送信を押すまで何も送られず、送信元はあなた自身のアドレスです。";
 "No browser took the link." = "リンクを開けるブラウザーがありませんでした。";

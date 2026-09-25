@@ -921,7 +921,7 @@
 "Title" = "Tiêu đề";
 "Subject" = "Chủ đề";
 "Reading the diagnostics…" = "Đang đọc chẩn đoán…";
-"Puts the title and the text above on the clipboard, for pasting wherever you like." = "Đặt tiêu đề và văn bản ở trên vào bộ nhớ tạm để dán vào bất cứ đâu bạn muốn.";
+"Puts the title and the whole text on the clipboard, not cut to fit a link and with the diagnostics in a code block, for pasting wherever you like." = "Đặt tiêu đề và toàn bộ văn bản vào bộ nhớ tạm, không cắt cho vừa một liên kết và với phần chẩn đoán trong một khối mã, để dán vào bất cứ đâu bạn muốn.";
 "Copied." = "Đã sao chép.";
 "Send…" = "Gửi…";
 "Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "Mở văn bản ở trên tại nơi nó sẽ đến (⌘↩); không gì được gửi đi cho đến khi bạn gửi ở đó.";
@@ -930,7 +930,7 @@
 "Older log lines left out so the text fits in a link: %ld." = "Số dòng nhật ký cũ đã bỏ để văn bản vừa trong một liên kết: %ld.";
 "The diagnostics are left out so the text fits in a link." = "Đã bỏ chẩn đoán để văn bản vừa trong một liên kết.";
 "The message is cut short so it fits in a link." = "Tin nhắn đã bị cắt bớt để vừa trong một liên kết.";
-"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "Gửi sẽ mở một issue mới trên %@ trong trình duyệt với văn bản này đã điền sẵn. GitHub nhận văn bản khi trang tải và không đăng gì cho đến khi bạn bấm Submit new issue. Issue là công khai và được tạo dưới tài khoản GitHub của bạn.";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue; a browser not signed in to GitHub goes through its sign-in page first. Issues are public, and filed under your GitHub account." = "Gửi sẽ mở một issue mới trên %@ trong trình duyệt với văn bản này đã điền sẵn. GitHub nhận văn bản khi trang tải và không đăng gì cho đến khi bạn bấm Submit new issue; trình duyệt chưa đăng nhập GitHub sẽ đi qua trang đăng nhập trước. Issue là công khai và được tạo dưới tài khoản GitHub của bạn.";
 "Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "Gửi sẽ mở một thư mới tới %@ trong Mail với văn bản này đã điền sẵn. Không gì được gửi cho đến khi bạn bấm Gửi ở đó, từ địa chỉ của chính bạn.";
 "Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "Gửi sẽ mở một thư mới tới %@ trong ứng dụng thư của bạn với văn bản này đã điền sẵn. Không gì được gửi cho đến khi bạn bấm Gửi ở đó, từ địa chỉ của chính bạn.";
 "No browser took the link." = "Không trình duyệt nào mở được liên kết.";

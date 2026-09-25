@@ -938,7 +938,7 @@
 "Title" = "Заголовок";
 "Subject" = "Тема";
 "Reading the diagnostics…" = "Читаю диагностику…";
-"Puts the title and the text above on the clipboard, for pasting wherever you like." = "Помещает заголовок и текст выше в буфер обмена, чтобы вставить куда угодно.";
+"Puts the title and the whole text on the clipboard, not cut to fit a link and with the diagnostics in a code block, for pasting wherever you like." = "Помещает заголовок и весь текст в буфер обмена, не урезая под длину ссылки и с диагностикой в блоке кода, чтобы вставить куда угодно.";
 "Copied." = "Скопировано.";
 "Send…" = "Отправить…";
 "Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "Открывает текст выше там, куда он идёт (⌘↩); ничего не уходит, пока вы не отправите это там.";
@@ -947,7 +947,7 @@
 "Older log lines left out so the text fits in a link: %ld." = "Опущено старых строк журнала, чтобы текст поместился в ссылку: %ld.";
 "The diagnostics are left out so the text fits in a link." = "Диагностика опущена, чтобы текст поместился в ссылку.";
 "The message is cut short so it fits in a link." = "Сообщение обрезано, чтобы поместиться в ссылку.";
-"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "«Отправить» открывает в браузере новый issue в %@ с уже вписанным текстом. GitHub получает текст при загрузке страницы и ничего не публикует, пока вы не нажмёте Submit new issue. Issues публичны и создаются от вашей учётной записи GitHub.";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue; a browser not signed in to GitHub goes through its sign-in page first. Issues are public, and filed under your GitHub account." = "«Отправить» открывает в браузере новый issue в %@ с уже вписанным текстом. GitHub получает текст при загрузке страницы и ничего не публикует, пока вы не нажмёте Submit new issue; браузер без входа в GitHub сначала проходит через страницу входа. Issues публичны и создаются от вашей учётной записи GitHub.";
 "Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "«Отправить» открывает в Почте новое письмо на %@ с уже вписанным текстом. Ничего не отправится, пока вы не нажмёте там «Отправить», и уйдёт оно с вашего адреса.";
 "Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "«Отправить» открывает в вашем почтовом приложении новое письмо на %@ с уже вписанным текстом. Ничего не отправится, пока вы не нажмёте там «Отправить», и уйдёт оно с вашего адреса.";
 "No browser took the link." = "Ни один браузер не открыл ссылку.";

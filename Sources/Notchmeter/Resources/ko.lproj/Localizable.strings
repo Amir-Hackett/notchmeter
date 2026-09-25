@@ -921,7 +921,7 @@
 "Title" = "제목";
 "Subject" = "메일 제목";
 "Reading the diagnostics…" = "진단 정보를 읽는 중…";
-"Puts the title and the text above on the clipboard, for pasting wherever you like." = "제목과 위의 텍스트를 클립보드에 담아 원하는 곳에 붙여 넣을 수 있게 합니다.";
+"Puts the title and the whole text on the clipboard, not cut to fit a link and with the diagnostics in a code block, for pasting wherever you like." = "제목과 전체 텍스트를 클립보드에 담습니다. 링크 길이에 맞춰 자르지 않고 진단 정보는 코드 블록에 넣으니, 원하는 곳에 붙여 넣을 수 있습니다.";
 "Copied." = "복사했습니다.";
 "Send…" = "보내기…";
 "Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "위의 텍스트를 보낼 곳에서 엽니다(⌘↩). 그곳에서 보내기 전에는 아무것도 나가지 않습니다.";
@@ -930,7 +930,7 @@
 "Older log lines left out so the text fits in a link: %ld." = "텍스트가 링크에 들어가도록 뺀 오래된 로그 줄 수: %ld";
 "The diagnostics are left out so the text fits in a link." = "텍스트가 링크에 들어가도록 진단 정보를 뺐습니다.";
 "The message is cut short so it fits in a link." = "링크에 들어가도록 메시지를 잘랐습니다.";
-"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "보내기를 누르면 이 텍스트가 채워진 새 이슈가 브라우저에서 %@에 열립니다. GitHub는 페이지를 불러올 때 텍스트를 받지만 Submit new issue를 누르기 전에는 아무것도 게시하지 않습니다. 이슈는 공개되며 내 GitHub 계정으로 등록됩니다.";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue; a browser not signed in to GitHub goes through its sign-in page first. Issues are public, and filed under your GitHub account." = "보내기를 누르면 이 텍스트가 채워진 새 이슈가 브라우저에서 %@에 열립니다. GitHub는 페이지를 불러올 때 텍스트를 받지만 Submit new issue를 누르기 전에는 아무것도 게시하지 않습니다. GitHub에 로그인하지 않은 브라우저는 먼저 로그인 페이지를 거칩니다. 이슈는 공개되며 내 GitHub 계정으로 등록됩니다.";
 "Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "보내기를 누르면 이 텍스트가 채워진 %@ 앞 새 메시지가 Mail에서 열립니다. 그곳에서 보내기를 누르기 전에는 아무것도 보내지 않으며, 내 주소에서 보내집니다.";
 "Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "보내기를 누르면 이 텍스트가 채워진 %@ 앞 새 메시지가 사용 중인 메일 앱에서 열립니다. 그곳에서 보내기를 누르기 전에는 아무것도 보내지 않으며, 내 주소에서 보내집니다.";
 "No browser took the link." = "링크를 연 브라우저가 없습니다.";

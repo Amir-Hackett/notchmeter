@@ -938,7 +938,7 @@
 "Title" = "标题";
 "Subject" = "主题";
 "Reading the diagnostics…" = "正在读取诊断信息…";
-"Puts the title and the text above on the clipboard, for pasting wherever you like." = "把标题和上面的文字放到剪贴板，随处粘贴。";
+"Puts the title and the whole text on the clipboard, not cut to fit a link and with the diagnostics in a code block, for pasting wherever you like." = "把标题和全部文字放到剪贴板，不按链接长度截断，诊断信息放在代码块里，随处粘贴。";
 "Copied." = "已复制。";
 "Send…" = "发送…";
 "Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "在发送目的地打开上面的文字（⌘↩）；在那里发送之前，什么都不会发出。";
@@ -947,7 +947,7 @@
 "Older log lines left out so the text fits in a link: %ld." = "为让文字放得进链接而省略的较早日志行数：%ld。";
 "The diagnostics are left out so the text fits in a link." = "为让文字放得进链接，省略了诊断信息。";
 "The message is cut short so it fits in a link." = "为放得进链接，留言被截短了。";
-"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "“发送”会在浏览器中打开 %@ 的新 Issue，并填好这段文字。GitHub 会在页面加载时收到文字，但在你点按 Submit new issue 之前不会发布任何内容。Issue 是公开的，并以你的 GitHub 账户提交。";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue; a browser not signed in to GitHub goes through its sign-in page first. Issues are public, and filed under your GitHub account." = "“发送”会在浏览器中打开 %@ 的新 Issue，并填好这段文字。GitHub 会在页面加载时收到文字，但在你点按 Submit new issue 之前不会发布任何内容；未登录 GitHub 的浏览器会先经过登录页面。Issue 是公开的，并以你的 GitHub 账户提交。";
 "Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "“发送”会在“邮件”中打开发给 %@ 的新邮件，并填好这段文字。在你在那里点按“发送”之前不会发出任何内容，发件人是你自己的地址。";
 "Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "“发送”会在你的邮件应用中打开发给 %@ 的新邮件，并填好这段文字。在你在那里点按“发送”之前不会发出任何内容，发件人是你自己的地址。";
 "No browser took the link." = "没有浏览器打开这个链接。";

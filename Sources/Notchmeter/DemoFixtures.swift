@@ -199,6 +199,10 @@ enum DemoFixtures {
     static let feedbackMessage = "The scout row stayed on the Sessions card after I closed its terminal.\n\nSeen on feat/side-notch, with the session started in /Users/sam/Developer/scout."
     /// The version line the picture carries, fixed so a developer build's stamp does not change the picture.
     static let feedbackAbout = Feedback.about(version: AppInfo.version, macOS: "Version 26.0 (Build 25A354)", language: "en")
+    /// The instant the picture's report is stamped with (2026-09-24T20:00:00Z, four o'clock on the fixture
+    /// afternoon), fixed for the same reason: the report's first line carries it, and the clock would make every
+    /// render a different picture.
+    static let feedbackStamp = Date(timeIntervalSince1970: 1_790_280_000)
 
     /// A Copy diagnostics report for the fixture afternoon, as `Diagnostics.report` writes one, with the home
     /// folder and the projects in it for the sheet to replace. `extraLines` pads the log with the rescans a busy

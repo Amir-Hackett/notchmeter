@@ -34,6 +34,11 @@ enum AssetRenderer {
     static func render(into directory: URL, now: Date = Date()) -> Bool {
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            // The pictures the README does not use go under `review/`, which .gitignore lists: docs/install.md
+            // renders into docs/media, and a review-only picture written beside the README's left the tree dirty
+            // after every render, to be committed by mistake or known about and deleted.
+            let review = directory.appendingPathComponent("review")
+            try FileManager.default.createDirectory(at: review, withIntermediateDirectories: true)
             stillEveryAnimation()
             let (store, prefs) = DemoFixtures.store(now: now)
             let actions = NotchActions()
@@ -45,7 +50,7 @@ enum AssetRenderer {
             let (finished, finishedPrefs) = DemoFixtures.store(now: now, moment: .justFinished)
             try write(signalRings(waiting: stage, finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
                       png: directory.appendingPathComponent("signal-rings.png"))
-            try write(notchNews(now: now, actions: actions), png: directory.appendingPathComponent("notch-news.png"))
+            try write(notchNews(now: now, actions: actions), png: review.appendingPathComponent("notch-news.png"))
             // The two requests, each drawn the way a request actually arrives: the panel opened on the card alone
             // (UsageStore.panelOpenedForPrompt), which is what the reader will see and not a panel with a card on
             // top of the meters. A state the fixture machine cannot reach cannot be drawn, so both come from real
@@ -58,8 +63,8 @@ enum AssetRenderer {
                           png: directory.appendingPathComponent("\(name).png"))
             }
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
-            try write(welcome(now: now), png: directory.appendingPathComponent("welcome.png"))
-            try write(feedback(store: store, prefs: prefs, now: now), png: directory.appendingPathComponent("feedback.png"))
+            try write(welcome(now: now), png: review.appendingPathComponent("welcome.png"))
+            try write(feedback(store: store, prefs: prefs), png: review.appendingPathComponent("feedback.png"))
             try write(stage.demo(), gif: directory.appendingPathComponent("demo.gif"))
             // The same moment on the Detailed panel (PanelMode): every card open, as the panel was before 0.8.0.
             prefs.panelMode = .detailed
@@ -70,7 +75,7 @@ enum AssetRenderer {
             // under their rows without a box.
             store.openPanelRows = [AdvicePlacement.Slot.tool(.claude).key, AdvicePlacement.Slot.cost.key]
             let opened = try Stage(store: store, prefs: prefs, actions: actions)
-            try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("expanded-open.png"))
+            try write(opened.image(.expanded, canvas: opened.panelCanvas, pixelScale: scale), png: review.appendingPathComponent("expanded-open.png"))
             store.openPanelRows = []
             // The same panel under Increase Contrast, for review: brighter tracks and fills, secondary captions.
             AccessibilityDisplay.shared.force(contrast: true)
@@ -575,10 +580,11 @@ enum AssetRenderer {
     /// in the light one with a short log, which Mail takes whole. For review; the README does not use it.
     ///
     /// Nothing of this Mac is read: the names come from the demo store under a home folder and an account of the
-    /// fixture's own (DemoFixtures.home), the report is DemoFixtures.diagnostics, and the route is fixed rather
-    /// than asked of LaunchServices, so the picture is the same on every machine.
+    /// fixture's own (DemoFixtures.home), the report is DemoFixtures.diagnostics stamped with the fixture's own
+    /// instant rather than the clock, and the route is fixed rather than asked of LaunchServices, so the picture is
+    /// the same on every machine and on every run.
     @MainActor
-    static func feedback(store: UsageStore, prefs: Preferences, now: Date) throws -> CGImage {
+    static func feedback(store: UsageStore, prefs: Preferences) throws -> CGImage {
         let names = FeedbackRedaction.gather(store: store, prefs: prefs, home: DemoFixtures.home, accounts: [DemoFixtures.account])
         let chosen = prefs.feedbackDestination
         defer { prefs.feedbackDestination = chosen }
@@ -586,7 +592,7 @@ enum AssetRenderer {
         let cases: [(Feedback.Destination, Feedback.Route, NSAppearance.Name, Int)] = [(.github, .browser, .darkAqua, 240), (.email, .mailCompose, .aqua, 0)]
         for (destination, route, appearance, extraLines) in cases {
             prefs.feedbackDestination = destination
-            let report = DemoFixtures.diagnostics(now: now, extraLines: extraLines)
+            let report = DemoFixtures.diagnostics(now: DemoFixtures.feedbackStamp, extraLines: extraLines)
             let sheet = FeedbackView(store: store, prefs: prefs, diagnostics: { report }, routeFor: { _ in route }, redaction: { names },
                                      sent: { _ in }, close: {}, about: DemoFixtures.feedbackAbout, message: DemoFixtures.feedbackMessage, report: report)
                 .background(Color(nsColor: .windowBackgroundColor))

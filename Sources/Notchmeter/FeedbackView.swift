@@ -9,8 +9,9 @@ import SwiftUI
 /// preview is not a summary drawn beside the payload; it is the payload's own title and body (Feedback.Payload),
 /// so a cut to fit a link is visible before it is sent and not discovered after.
 ///
-/// Send is ⌘↩ rather than ↩, because ↩ in the message is a new line. The sheet takes no animation of its own, so
-/// there is nothing for Reduce Motion to switch off; the system's sheet presentation already follows it.
+/// Send is ⌘↩ rather than ↩, because ↩ in the message is a new line; Tab leaves the message for the checkbox, as
+/// it leaves any field in a dialog (FeedbackTextView). The sheet takes no animation of its own, so there is
+/// nothing for Reduce Motion to switch off; the system's sheet presentation already follows it.
 struct FeedbackView: View {
     let store: UsageStore
     let prefs: Preferences
@@ -31,12 +32,13 @@ struct FeedbackView: View {
     @State private var message: String
     /// The report as it came, before redaction; nil until it has been read.
     @State private var rawReport: String?
-    /// The report through the redaction, redone when the names change.
-    @State private var report: FeedbackRedaction.Result?
+    /// The report split and through the redaction, redone when the names change.
+    @State private var report: Feedback.Report?
+    /// The redaction under way for a change of names, so a second change cancels the first.
+    @State private var redacting: Task<Void, Never>?
     @State private var route: Feedback.Route
     @State private var failure: String?
     @State private var copied = false
-    @FocusState private var editing: Bool
 
     /// `about`, `message` and `report` are for `--render-assets`, which draws the sheet filled in, with a report of
     /// its own and a version line that does not change with every developer build; the app passes none of them.
@@ -54,11 +56,14 @@ struct FeedbackView: View {
         self.about = about
         _message = State(initialValue: message)
         _rawReport = State(initialValue: report)
-        _report = State(initialValue: report.map { redaction().apply($0) })
+        _report = State(initialValue: report.map { Feedback.Report(redacting: $0, with: redaction()) })
         _route = State(initialValue: routeFor(prefs.feedbackDestination))
     }
 
     static let width: CGFloat = 580
+    /// How long a change of names waits before the report is redacted again: a session posting its task list
+    /// changes the names on every item, and one pass at the end serves them all.
+    static let redactionDebounce: Duration = .milliseconds(300)
 
     private var includesDiagnostics: Bool { prefs.feedbackDiagnostics }
     /// The diagnostics carry the readings, and the privacy setting keeps readings off a shared screen; the
@@ -67,19 +72,21 @@ struct FeedbackView: View {
     private var loading: Bool { includesDiagnostics && report == nil }
     private var names: FeedbackRedaction { redaction() }
     private var redactedMessage: FeedbackRedaction.Result { names.apply(message) }
+    private var includedReport: Feedback.Report? { includesDiagnostics ? report : nil }
 
     private var payload: Feedback.Payload {
-        Feedback.payload(message: redactedMessage.text, about: about,
-                         report: includesDiagnostics ? report.map { Feedback.Report(text: $0.text) } : nil, route: route)
+        Feedback.payload(message: redactedMessage.text, about: about, report: includedReport, route: route)
     }
 
     private var replaced: Feedback.Replaced {
-        Feedback.Replaced([redactedMessage] + (includesDiagnostics ? [report].compactMap { $0 } : []))
+        Feedback.Replaced(message: redactedMessage, report: includedReport)
     }
 
-    private var canSend: Bool {
-        !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !loading && !hiddenBySharing
+    private var messageIsEmpty: Bool { message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var sendBlock: Feedback.SendBlock? {
+        Feedback.sendBlock(messageEmpty: messageIsEmpty, loading: loading, hiddenBySharing: hiddenBySharing)
     }
+    private var canSend: Bool { sendBlock == nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -115,7 +122,6 @@ struct FeedbackView: View {
         .padding(16)
         .frame(width: Self.width)
         .onAppear {
-            editing = true
             Oracle.shared.emit("feedback", Feedback.oracleFields(action: "shown", destination: prefs.feedbackDestination, includesDiagnostics: includesDiagnostics))
         }
         // A preview that changed is not the one Copy put on the clipboard, or the one Send failed to open.
@@ -137,12 +143,28 @@ struct FeedbackView: View {
             guard includesDiagnostics, rawReport == nil else { return }
             let text = await diagnostics()
             rawReport = text
-            report = names.apply(text)
+            await redact(text, with: names)
         }
         // A name the app learns while the sheet is up (a session starting) is replaced in the report as well.
         .onChange(of: names) { _, fresh in
-            if let rawReport { report = fresh.apply(rawReport) }
+            guard let rawReport else { return }
+            redacting?.cancel()
+            redacting = Task {
+                try? await Task.sleep(for: Self.redactionDebounce)
+                guard !Task.isCancelled else { return }
+                await redact(rawReport, with: fresh)
+            }
         }
+        .onDisappear { redacting?.cancel() }
+    }
+
+    /// The report through the names, off the main actor: it is the whole of the last ten minutes of log, and the
+    /// pass, quick as it is, has no business between two keystrokes. A pass overtaken by a newer set of names
+    /// leaves the newer one to set the report.
+    private func redact(_ raw: String, with names: FeedbackRedaction) async {
+        let redacted = await Task.detached(priority: .userInitiated) { Feedback.Report(redacting: raw, with: names) }.value
+        guard !Task.isCancelled else { return }
+        report = redacted
     }
 
     // MARK: - Parts
@@ -150,29 +172,26 @@ struct FeedbackView: View {
     private var messageField: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(L("Message")).font(.subheadline.weight(.semibold))
-            TextEditor(text: $message)
-                .font(.body)
-                .focused($editing)
-                .scrollContentBackground(.hidden)
-                .padding(4)
+            FeedbackEditor(text: $message, label: L("Message"), hint: placeholder)
                 .frame(height: 110)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .textBackgroundColor)))
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: .separatorColor)))
                 .overlay(alignment: .topLeading) {
                     if message.isEmpty {
-                        // A placeholder, which a TextEditor has not got: the label above names the field for
-                        // VoiceOver, so this is decoration to it.
-                        Text(L("What happened, and what did you expect? Or what would make it better?"))
+                        // A placeholder, which a text view has not got. VoiceOver hears the same words as the
+                        // field's help, so this is decoration to it.
+                        Text(placeholder)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 9)
-                            .padding(.vertical, 4)
+                            .padding(.vertical, 6)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
                     }
                 }
-                .accessibilityLabel(L("Message"))
         }
     }
+
+    private var placeholder: String { L("What happened, and what did you expect? Or what would make it better?") }
 
     @ViewBuilder private var preview: some View {
         let payload = payload
@@ -183,8 +202,7 @@ struct FeedbackView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if hiddenBySharing {
-                Label(L("The diagnostics are hidden while the screen is shared or recorded. Untick Include diagnostics, or send once sharing stops."),
-                      systemImage: "eye.slash")
+                Label(sharingNote, systemImage: "eye.slash")
                     .font(.callout)
                     .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
                     .padding(8)
@@ -210,7 +228,7 @@ struct FeedbackView: View {
                         if loading {
                             HStack(spacing: 6) {
                                 ProgressView().controlSize(.small)
-                                Text(L("Reading the diagnostics…")).font(.caption).foregroundStyle(.secondary)
+                                Text(loadingNote).font(.caption).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -239,7 +257,7 @@ struct FeedbackView: View {
         HStack {
             Button(L("Copy")) { copy() }
                 .disabled(loading || hiddenBySharing)
-                .help(L("Puts the title and the text above on the clipboard, for pasting wherever you like."))
+                .help(L("Puts the title and the whole text on the clipboard, not cut to fit a link and with the diagnostics in a code block, for pasting wherever you like."))
             if copied {
                 Text(L("Copied.")).font(.caption).foregroundStyle(.secondary)
             }
@@ -260,7 +278,7 @@ struct FeedbackView: View {
                 .keyboardShortcut(.return, modifiers: .command)
                 .buttonStyle(.borderedProminent)
                 .disabled(!canSend)
-                .help(canSend ? L("Opens the text above where it is going (⌘↩); nothing leaves until you send it there.") : L("Write a message first."))
+                .help(sendHelp)
         }
     }
 
@@ -271,6 +289,23 @@ struct FeedbackView: View {
         // A label and its count rather than a count and a noun, so one of a kind reads as well as three do.
         return L("Replaced: project names %1$ld · branches %2$ld · session titles %3$ld · other names and paths %4$ld. Your home folder reads ~.",
                  counts.projects, counts.branches, counts.titles, counts.other)
+    }
+
+    private var sharingNote: String {
+        L("The diagnostics are hidden while the screen is shared or recorded. Untick Include diagnostics, or send once sharing stops.")
+    }
+
+    private var loadingNote: String { L("Reading the diagnostics…") }
+
+    /// Send's tooltip names why it is off, when it is (Feedback.sendBlock): the preview's own sentence for a
+    /// shared screen and for a report still being read, and the missing message only when that is what is missing.
+    private var sendHelp: String {
+        switch sendBlock {
+        case .hiddenBySharing: sharingNote
+        case .loading: loadingNote
+        case .emptyMessage: L("Write a message first.")
+        case nil: L("Opens the text above where it is going (⌘↩); nothing leaves until you send it there.")
+        }
     }
 
     private func cutLine(_ cut: Feedback.Cut) -> String? {
@@ -285,7 +320,7 @@ struct FeedbackView: View {
     private var routeNote: String {
         switch route {
         case .browser:
-            L("Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account.", Feedback.repository)
+            L("Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue; a browser not signed in to GitHub goes through its sign-in page first. Issues are public, and filed under your GitHub account.", Feedback.repository)
         case .mailCompose:
             L("Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address.", Feedback.address)
         case .mailto:
@@ -296,9 +331,10 @@ struct FeedbackView: View {
     // MARK: - Actions
 
     private func copy() {
-        let payload = payload
+        let payload = Feedback.clipboard(message: redactedMessage.text, about: about, report: includedReport, route: route)
         Diagnostics.copy(payload.plainText, kind: "feedback")
         copied = true
+        Self.announce(L("Copied."), priority: .medium)
         Oracle.shared.emit("feedback", Feedback.oracleFields(action: "copied", destination: prefs.feedbackDestination,
                                                              includesDiagnostics: includesDiagnostics, payload: payload, replaced: replaced))
     }
@@ -312,7 +348,13 @@ struct FeedbackView: View {
         guard canSend else { return }
         let payload = payload
         guard Feedback.send(payload) else {
-            failure = payload.route == .browser ? L("No browser took the link.") : L("No mail app took the message.")
+            let failure = payload.route == .browser ? L("No browser took the link.") : L("No mail app took the message.")
+            self.failure = failure
+            Self.announce(failure, priority: .high)
+            // The route and the counts, as for a send that went, so a tester can tell a failed hand-over from a
+            // sheet still being edited; never the text.
+            Oracle.shared.emit("feedback", Feedback.oracleFields(action: "failed", destination: prefs.feedbackDestination,
+                                                                 includesDiagnostics: includesDiagnostics, payload: payload))
             return
         }
         Oracle.shared.emit("feedback", Feedback.oracleFields(action: "sent", destination: prefs.feedbackDestination,
@@ -322,5 +364,85 @@ struct FeedbackView: View {
         case .mailCompose, .mailto: sent(L("Opened in your mail app. Nothing is sent until you press Send there."))
         }
         close()
+    }
+
+    /// Tells VoiceOver what a sighted person sees appear beside the buttons: "Copied.", or why nothing opened. A
+    /// caption that appears is silent to a listener otherwise.
+    private static func announce(_ words: String, priority: NSAccessibilityPriorityLevel) {
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: words, .priority: priority.rawValue])
+    }
+}
+
+// MARK: - The message field
+
+/// The message field's text view: Tab and Shift-Tab move to the next and previous control instead of typing a
+/// tab, which is what a field in a dialog does. A TextEditor, being a text view for prose, types one, and from a
+/// field that has the keyboard as the sheet opens that left no way to Include diagnostics, the radio buttons or
+/// the buttons but the mouse. Return is still a new line, ⌘↩ is still Send and Escape still Cancel: both reach the
+/// window as key equivalents before the text view sees the key. Where the window has no other key view to go to
+/// (Full Keyboard Access off, which keeps checkboxes and buttons out of the Tab order), Tab does nothing, as it
+/// does in any dialog's one text field.
+final class FeedbackTextView: NSTextView {
+    override func insertTab(_ sender: Any?) { window?.selectNextKeyView(self) }
+    override func insertBacktab(_ sender: Any?) { window?.selectPreviousKeyView(self) }
+}
+
+/// A FeedbackTextView in a scroll view, bound to the message. Plain text only, with the automatic quotes and
+/// dashes off, since a message quotes paths and code more often than it quotes prose. It takes the keyboard when
+/// it appears, being the reason the sheet is open.
+struct FeedbackEditor: NSViewRepresentable {
+    @Binding var text: String
+    /// What VoiceOver calls the field.
+    let label: String
+    /// What VoiceOver says it is for: the placeholder's words, which the placeholder itself does not carry to it.
+    let hint: String
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSScrollView()
+        scroll.hasVerticalScroller = true
+        scroll.drawsBackground = false
+        scroll.borderType = .noBorder
+        let view = FeedbackTextView(frame: NSRect(origin: .zero, size: scroll.contentSize))
+        view.delegate = context.coordinator
+        view.isRichText = false
+        view.allowsUndo = true
+        view.isAutomaticQuoteSubstitutionEnabled = false
+        view.isAutomaticDashSubstitutionEnabled = false
+        view.font = NSFont.preferredFont(forTextStyle: .body)
+        view.drawsBackground = false
+        view.textContainerInset = NSSize(width: 4, height: 6)
+        view.minSize = NSSize(width: 0, height: scroll.contentSize.height)
+        view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        view.isVerticallyResizable = true
+        view.isHorizontallyResizable = false
+        view.autoresizingMask = [.width]
+        view.textContainer?.containerSize = NSSize(width: scroll.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
+        view.textContainer?.widthTracksTextView = true
+        view.setAccessibilityLabel(label)
+        view.setAccessibilityHelp(hint)
+        view.string = text
+        scroll.documentView = view
+        // The view has no window yet; on the next turn of the run loop it does.
+        DispatchQueue.main.async { view.window?.makeFirstResponder(view) }
+        return scroll
+    }
+
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        guard let view = scroll.documentView as? FeedbackTextView, view.string != text else { return }
+        view.string = text
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        let text: Binding<String>
+
+        init(text: Binding<String>) { self.text = text }
+
+        func textDidChange(_ notification: Notification) {
+            guard let view = notification.object as? NSTextView else { return }
+            text.wrappedValue = view.string
+        }
     }
 }

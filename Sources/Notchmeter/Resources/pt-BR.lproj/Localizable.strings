@@ -938,7 +938,7 @@
 "Title" = "Título";
 "Subject" = "Assunto";
 "Reading the diagnostics…" = "Lendo o diagnóstico…";
-"Puts the title and the text above on the clipboard, for pasting wherever you like." = "Coloca o título e o texto acima na área de transferência, para colar onde quiser.";
+"Puts the title and the whole text on the clipboard, not cut to fit a link and with the diagnostics in a code block, for pasting wherever you like." = "Coloca o título e o texto inteiro na área de transferência, sem cortar para caber num link e com o diagnóstico em um bloco de código, para colar onde quiser.";
 "Copied." = "Copiado.";
 "Send…" = "Enviar…";
 "Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "Abre o texto acima no destino (⌘↩); nada sai até você enviar por lá.";
@@ -947,7 +947,7 @@
 "Older log lines left out so the text fits in a link: %ld." = "Linhas de log antigas deixadas de fora para o texto caber num link: %ld.";
 "The diagnostics are left out so the text fits in a link." = "O diagnóstico ficou de fora para o texto caber num link.";
 "The message is cut short so it fits in a link." = "A mensagem foi cortada para caber num link.";
-"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "Enviar abre uma nova issue em %@ no seu navegador com este texto preenchido. O GitHub recebe o texto quando a página carrega e não publica nada até você clicar em Submit new issue. As issues são públicas e ficam na sua conta do GitHub.";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue; a browser not signed in to GitHub goes through its sign-in page first. Issues are public, and filed under your GitHub account." = "Enviar abre uma nova issue em %@ no seu navegador com este texto preenchido. O GitHub recebe o texto quando a página carrega e não publica nada até você clicar em Submit new issue; um navegador sem login no GitHub passa primeiro pela página de login. As issues são públicas e ficam na sua conta do GitHub.";
 "Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "Enviar abre no Mail uma nova mensagem para %@ com este texto preenchido. Nada é enviado até você clicar em Enviar lá, a partir do seu próprio endereço.";
 "Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "Enviar abre no seu app de e-mail uma nova mensagem para %@ com este texto preenchido. Nada é enviado até você clicar em Enviar lá, a partir do seu próprio endereço.";
 "No browser took the link." = "Nenhum navegador abriu o link.";

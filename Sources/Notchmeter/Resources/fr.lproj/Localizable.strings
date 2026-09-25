@@ -938,7 +938,7 @@
 "Title" = "Titre";
 "Subject" = "Objet";
 "Reading the diagnostics…" = "Lecture des diagnostics…";
-"Puts the title and the text above on the clipboard, for pasting wherever you like." = "Place le titre et le texte ci-dessus dans le presse-papiers, pour les coller où vous voulez.";
+"Puts the title and the whole text on the clipboard, not cut to fit a link and with the diagnostics in a code block, for pasting wherever you like." = "Place le titre et le texte entier dans le presse-papiers, sans le couper à la longueur d'un lien et avec le diagnostic dans un bloc de code, pour le coller où vous voulez.";
 "Copied." = "Copié.";
 "Send…" = "Envoyer…";
 "Opens the text above where it is going (⌘↩); nothing leaves until you send it there." = "Ouvre le texte ci-dessus là où il va (⌘↩) ; rien ne part tant que vous ne l'envoyez pas depuis là.";
@@ -947,7 +947,7 @@
 "Older log lines left out so the text fits in a link: %ld." = "Lignes de journal anciennes omises pour que le texte tienne dans un lien : %ld.";
 "The diagnostics are left out so the text fits in a link." = "Les diagnostics sont omis pour que le texte tienne dans un lien.";
 "The message is cut short so it fits in a link." = "Le message est raccourci pour tenir dans un lien.";
-"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue. Issues are public, and filed under your GitHub account." = "Envoyer ouvre un nouveau ticket sur %@ dans votre navigateur, avec ce texte déjà rempli. GitHub reçoit le texte au chargement de la page et ne publie rien tant que vous n'appuyez pas sur Submit new issue. Les tickets sont publics et créés sous votre compte GitHub.";
+"Send opens a new issue on %@ in your browser with this text filled in. GitHub receives the text as the page loads and publishes nothing until you press Submit new issue; a browser not signed in to GitHub goes through its sign-in page first. Issues are public, and filed under your GitHub account." = "Envoyer ouvre un nouveau ticket sur %@ dans votre navigateur, avec ce texte déjà rempli. GitHub reçoit le texte au chargement de la page et ne publie rien tant que vous n'appuyez pas sur Submit new issue ; un navigateur non connecté à GitHub passe d'abord par sa page de connexion. Les tickets sont publics et créés sous votre compte GitHub.";
 "Send opens a new message to %@ in Mail with this text filled in. Nothing is sent until you press Send there, from your own address." = "Envoyer ouvre dans Mail un nouveau message à %@, avec ce texte déjà rempli. Rien n'est envoyé tant que vous n'appuyez pas sur Envoyer dans Mail, depuis votre propre adresse.";
 "Send opens a new message to %@ in your mail app with this text filled in. Nothing is sent until you press Send there, from your own address." = "Envoyer ouvre dans votre app de messagerie un nouveau message à %@, avec ce texte déjà rempli. Rien n'est envoyé tant que vous n'appuyez pas sur Envoyer dans cette app, depuis votre propre adresse.";
 "No browser took the link." = "Aucun navigateur n'a ouvert le lien.";
