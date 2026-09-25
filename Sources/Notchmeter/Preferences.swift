@@ -305,6 +305,98 @@ enum ToolOrder {
     }
 }
 
+/// Brings the per-tool preferences an earlier build wrote up to the tools this build knows, once per tool, before
+/// Preferences reads them.
+///
+/// Two things need it. A stored `enabledTools` names every tool that was on when it was written, so a tool added in
+/// a later version was read as switched off for anyone who had ever ticked a box, where a user who never had came to
+/// it switched on; a new tool now starts switched on for both. And 0.9.0 split the one Antigravity row into Gemini
+/// CLI's and Antigravity's, so the new Gemini CLI row inherits everything the combined row had — switched on or off,
+/// its place in the order (just before Antigravity, where a new install has it), its pin beside the menu bar, peak
+/// hours, its ring and Hide choices, whether its Settings row was open — and a user whose one row was Gemini CLI's
+/// all along finds it as they left it. Antigravity keeps its own settings as they were.
+///
+/// `knownTools` records which tools the stored preferences have been brought up to, so each tool is migrated
+/// exactly once and a later choice to switch it off is never undone. Without it the stored preferences predate 0.9.0
+/// and were written against the five tools every build before then shipped.
+enum ToolMigration {
+    static let knownToolsKey = "knownTools"
+    /// The tools every build before 0.9.0 knew.
+    static let before090 = ["claude", "codex", "cursor", "antigravity", "copilot"]
+    /// A new tool that takes over part of an older one's row, with the row whose settings it starts from.
+    static let inherits: [ToolID: ToolID] = [.gemini: .antigravity]
+
+    /// The keys that name tools: sets stored as arrays, and dictionaries keyed by tool.
+    static let setKeys = ["enabledTools", "menuBarPinnedTools", "peakHoursTools", "settingsExpandedTools",
+                          "sessionReadingOffTools", "answerFromNotchOffTools", "limitNoticesOffTools", "sessionNoticesOffTools"]
+    static let dictionaryKeys = ["ringWindows", "hiddenWindows", "revealedWindows"]
+
+    struct Outcome: Equatable {
+        /// Tools this run met for the first time.
+        var added: [ToolID] = []
+        /// Of those, the ones that took another tool's settings, by the tool they took them from.
+        var inherited: [ToolID: ToolID] = [:]
+    }
+
+    /// Migrates `defaults` in place and records every tool as known. A first launch, with nothing stored, only
+    /// records; a run with nothing new is a no-op.
+    @discardableResult
+    static func migrate(_ defaults: UserDefaults) -> Outcome {
+        let current = ToolID.allCases.map(\.rawValue)
+        let stored = defaults.stringArray(forKey: knownToolsKey)
+        // Nothing recorded and no tool named anywhere: a first launch (or one that never changed a tool setting),
+        // whose defaults already cover every tool. An empty list counts as nothing, since that is also what a
+        // registered default looks like to a lookup that cannot tell the domains apart.
+        let namesATool = (setKeys + ["toolOrder"]).contains { !(defaults.stringArray(forKey: $0) ?? []).isEmpty }
+            || dictionaryKeys.contains { !(defaults.dictionary(forKey: $0) ?? [:]).isEmpty }
+        let firstLaunch = stored == nil && !namesATool
+        let known = firstLaunch ? current : stored ?? before090
+        let added = ToolID.allCases.filter { !known.contains($0.rawValue) }
+        var outcome = Outcome(added: added)
+        guard !added.isEmpty else {
+            if stored != current { defaults.set(current, forKey: knownToolsKey) }
+            return outcome
+        }
+        for tool in added {
+            let source = inherits[tool].flatMap { known.contains($0.rawValue) ? $0 : nil }
+            if let source { outcome.inherited[tool] = source }
+            if var enabled = defaults.stringArray(forKey: "enabledTools"), !enabled.contains(tool.rawValue) {
+                // A tool of its own starts switched on, as it does for a user who never changed the set; one that
+                // takes over part of another's row is on exactly when that row was.
+                if source.map({ enabled.contains($0.rawValue) }) ?? true {
+                    enabled.append(tool.rawValue)
+                    defaults.set(enabled, forKey: "enabledTools")
+                }
+            }
+            guard let source else { continue }
+            if let order = defaults.stringArray(forKey: "toolOrder") {
+                defaults.set(inserting(tool.rawValue, before: source.rawValue, in: order), forKey: "toolOrder")
+            }
+            for key in setKeys where key != "enabledTools" {
+                guard var set = defaults.stringArray(forKey: key), set.contains(source.rawValue), !set.contains(tool.rawValue) else { continue }
+                set.append(tool.rawValue)
+                defaults.set(set, forKey: key)
+            }
+            for key in dictionaryKeys {
+                guard var dictionary = defaults.dictionary(forKey: key), let value = dictionary[source.rawValue], dictionary[tool.rawValue] == nil else { continue }
+                dictionary[tool.rawValue] = value
+                defaults.set(dictionary, forKey: key)
+            }
+        }
+        defaults.set(current, forKey: knownToolsKey)
+        return outcome
+    }
+
+    /// `order` with `tool` placed just before `source`, or at the end when `source` is not in it; unchanged when
+    /// `tool` is already there.
+    static func inserting(_ tool: String, before source: String, in order: [String]) -> [String] {
+        guard !order.contains(tool) else { return order }
+        var result = order
+        result.insert(tool, at: order.firstIndex(of: source) ?? order.count)
+        return result
+    }
+}
+
 /// What the Settings window follows, and with it the shape the readouts sit in wherever that shape is a capsule
 /// floating on the desktop rather than a notch flush against the glass: the bottom bar, the top bar on a Mac with
 /// no hardware notch, and a side edge a pinned Dock or Stage Manager's strip already holds. `EdgePanelRoot` sets
@@ -1108,6 +1200,12 @@ final class Preferences {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        // Before anything tool-keyed is read, so the new rows start from the settings they inherit.
+        let migrated = ToolMigration.migrate(defaults)
+        if !migrated.added.isEmpty {
+            Oracle.shared.emit("toolMigration", ["added": migrated.added.map(\.rawValue),
+                                                 "inherited": migrated.inherited.reduce(into: [String: String]()) { $0[$1.key.rawValue] = $1.value.rawValue }])
+        }
         if let raw = defaults.array(forKey: Keys.enabledTools) as? [String] {
             enabledTools = Set(raw.compactMap(ToolID.init(rawValue:)))
         } else {

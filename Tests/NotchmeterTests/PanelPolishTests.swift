@@ -164,6 +164,9 @@ import Testing
         #expect(count > 80)
         // Every section a row can sit in has at least the pane it belongs to; no section is orphaned.
         for section in SettingsSection.allCases {
+            // The one block a page draws nothing in: the hook block of an assistant without a hook (Antigravity,
+            // whose IDE documents no event the notch could act on), which the page leaves out rather than fills.
+            if case .agent(let tool, .hook) = section, HookVendor.vendor(for: tool) == nil { continue }
             #expect(entries.contains { $0.section == section }, "\(section) has no entry to be found by")
         }
     }

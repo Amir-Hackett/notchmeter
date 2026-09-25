@@ -401,15 +401,15 @@ import Testing
     }
 
     @Test func geminiWaitsOnlyOnItsNotificationAndNeverDecides() throws {
-        let beforeTool = try #require(parse(#"{"hook_event_name":"BeforeTool","session_id":"s","notification_type":"ToolPermission","tool_name":"run_shell_command"}"#, tool: .antigravity))
+        let beforeTool = try #require(parse(#"{"hook_event_name":"BeforeTool","session_id":"s","notification_type":"ToolPermission","tool_name":"run_shell_command"}"#, tool: .gemini))
         #expect(!beforeTool.needsInput, "ToolPermission is a wait only on the Notification event")
         #expect(beforeTool.notificationType == nil)
-        let claudeShaped = try #require(parse(#"{"hook_event_name":"PermissionRequest","session_id":"s","tool_name":"Bash","tool_input":{"command":"ls"}}"#, tool: .antigravity))
+        let claudeShaped = try #require(parse(#"{"hook_event_name":"PermissionRequest","session_id":"s","tool_name":"Bash","tool_input":{"command":"ls"}}"#, tool: .gemini))
         #expect(claudeShaped.request == nil, "Gemini's alert is observability only; nothing a hook prints can grant it")
         #expect(!claudeShaped.needsInput)
-        let numericType = try #require(parse(#"{"hook_event_name":"Notification","session_id":"s","notification_type":true}"#, tool: .antigravity))
+        let numericType = try #require(parse(#"{"hook_event_name":"Notification","session_id":"s","notification_type":true}"#, tool: .gemini))
         #expect(!numericType.needsInput)
-        let stop = try #require(parse(#"{"hook_event_name":"AfterAgent","session_id":"s","prompt":"not a title"}"#, tool: .antigravity))
+        let stop = try #require(parse(#"{"hook_event_name":"AfterAgent","session_id":"s","prompt":"not a title"}"#, tool: .gemini))
         #expect(stop.title == nil, "AfterAgent carries the prompt too, but only the prompt's own event titles the session")
         #expect(!Hook.Gemini.recognises(event: "Notification", object: ["notification_type": "permission_prompt"], environment: [:]))
         #expect(!Hook.Gemini.recognises(event: "BeforeTool2", object: [:], environment: [:]))

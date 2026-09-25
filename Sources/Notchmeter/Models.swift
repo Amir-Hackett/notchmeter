@@ -1,43 +1,63 @@
 import Foundation
 import os
 
+/// One assistant: one ring, one card, one row under Settings › Assistants. The declaration order is the default
+/// order for a new install and the order a tool added in a later version is appended in (ToolOrder.normalize).
+///
+/// Gemini CLI and Antigravity were one `antigravity` row until 0.9.0, because they meter against the same Google
+/// backend; they are two since, each reading under its own client identity and each lighting its own ring, and
+/// ToolMigration carries the combined row's preferences over to both so an existing setup keeps its shape.
 enum ToolID: String, CaseIterable, Codable, Hashable, Sendable {
-    case claude, codex, cursor, antigravity, copilot
+    case claude, codex, cursor, gemini, antigravity, copilot, kimi
 
     var displayName: String {
         switch self {
         case .claude: "Claude"
         case .codex: "Codex"
         case .cursor: "Cursor"
+        case .gemini: "Gemini"
         case .antigravity: "Antigravity"
         case .copilot: "Copilot"
+        case .kimi: "Kimi"
         }
     }
 
+    /// The mark on the card and, with *Symbols on the rings*, in the middle of the rings. Gemini CLI's is a
+    /// terminal because Claude Code's four-pointed star is already the Gemini logo's shape, and Kimi's is
+    /// Moonshot's moon; neither leans on colour to be told from its neighbours.
     var symbolName: String {
         switch self {
         case .claude: "sparkle"
         case .codex: "chevron.left.forwardslash.chevron.right"
         case .cursor: "cursorarrow"
+        case .gemini: "terminal"
         case .antigravity: "sparkles.rectangle.stack"
         case .copilot: "airplane"
+        case .kimi: "moon.stars"
         }
     }
 
     /// The name the tool's own product carries where it differs from the short one on the rings.
     var productName: String {
-        self == .claude ? "Claude Code" : self == .copilot ? "GitHub Copilot" : displayName
+        switch self {
+        case .claude: "Claude Code"
+        case .gemini: "Gemini CLI"
+        case .copilot: "GitHub Copilot"
+        case .kimi: "Kimi Code"
+        case .codex, .cursor, .antigravity: displayName
+        }
     }
 
     /// Whether this tool's spend can be derived from something it publishes: Claude Code's transcripts, Codex's
     /// session rollouts, Cursor's priced usage-events export, and since GitHub's June 2026 move to usage-based
     /// billing the AI credit count on a Copilot seat, a cent a credit at GitHub's published rate (a seat GitHub
-    /// does not meter in credits still produces no figure and no row). Antigravity meters quota rather than money,
-    /// so it cannot produce a dollar figure and never appears on the Cost card (docs/accuracy.md).
+    /// does not meter in credits still produces no figure and no row). Gemini CLI, Antigravity and Kimi meter a
+    /// request allowance rather than money, with no price and no token count a published rate could be applied
+    /// to, so they cannot produce a dollar figure and never appear on the Cost card (docs/accuracy.md).
     var reportsCost: Bool {
         switch self {
         case .claude, .codex, .cursor, .copilot: true
-        case .antigravity: false
+        case .gemini, .antigravity, .kimi: false
         }
     }
 }
@@ -365,6 +385,12 @@ enum ProviderError: Error, Equatable {
     case offline(String)
     /// The tool is billed by API key: no plan windows exist to meter, and that is not a fault.
     case apiKeyOnly(String)
+    /// The vendor has said, in an answer documented as permanent, that it does not serve this account's figures
+    /// to this kind of client (Google's June 2026 shutdown of Gemini CLI quota for personal accounts). Nothing on
+    /// this Mac can change it and no retry will, so it is a calm state rather than a fault: the row reads idle
+    /// with the sentence as its note, can be hidden as one with nothing to show, and is asked again only rarely
+    /// (`UsageStore.notServedBackoff`), in case the vendor's answer changes.
+    case notServed(String)
 
     /// The shortest a rate-limit backoff is ever allowed to be. A vendor that answers `Retry-After: 0` still gets a
     /// minute, and one that answers `Retry-After: 1800` gets ten (`rateLimitCeiling`), so the wait the message names
@@ -386,7 +412,8 @@ enum ProviderError: Error, Equatable {
 
     var message: String {
         switch self {
-        case .notSignedIn(let m), .tokenExpired(let m), .accessDenied(let m), .parse(let m), .unavailable(let m), .nothingYet(let m), .offline(let m), .apiKeyOnly(let m):
+        case .notSignedIn(let m), .tokenExpired(let m), .accessDenied(let m), .parse(let m), .unavailable(let m), .nothingYet(let m), .offline(let m), .apiKeyOnly(let m),
+             .notServed(let m):
             m
         case .rateLimited(let retry):
             retry.map { L("Rate limited, retrying in %lds", Int(Self.rateLimitWait(retryAfter: $0))) } ?? L("Rate limited, backing off")
@@ -403,10 +430,11 @@ enum ProviderError: Error, Equatable {
         }
     }
 
-    /// A calm state rather than a fault: nothing is wrong, there is simply nothing to meter yet.
+    /// A calm state rather than a fault: nothing is wrong, there is simply nothing to meter yet, or nothing the
+    /// vendor will meter for this account.
     var isCalm: Bool {
         switch self {
-        case .nothingYet, .apiKeyOnly: true
+        case .nothingYet, .apiKeyOnly, .notServed: true
         default: false
         }
     }
@@ -651,8 +679,12 @@ enum ProviderLinks {
         case .claude: URL(string: "https://claude.ai/settings/usage")!
         case .codex: URL(string: "https://chatgpt.com/codex/settings/usage")!
         case .cursor: URL(string: "https://cursor.com/dashboard")!
-        case .antigravity: URL(string: "https://geminicli.com/docs/resources/quota-and-pricing/")!
+        case .gemini: URL(string: "https://geminicli.com/docs/resources/quota-and-pricing/")!
+        // Antigravity's own plans page; its quota figures live only inside the app, so this is the nearest page.
+        case .antigravity: URL(string: "https://antigravity.google/pricing")!
         case .copilot: URL(string: "https://github.com/settings/copilot")!
+        // The Kimi Code console, where Moonshot shows the same remaining quota and rate-limit status.
+        case .kimi: URL(string: "https://www.kimi.com/code/console")!
         }
     }
 
@@ -661,7 +693,7 @@ enum ProviderLinks {
         case .claude: URL(string: "https://status.anthropic.com")
         case .codex: URL(string: "https://status.openai.com")
         case .cursor: URL(string: "https://status.cursor.com")
-        case .antigravity: nil
+        case .gemini, .antigravity, .kimi: nil
         case .copilot: URL(string: "https://www.githubstatus.com")
         }
     }

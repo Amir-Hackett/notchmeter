@@ -147,7 +147,7 @@ table.dtable code { font-size: 12.4px; }
         <li>The website at <strong>notchmeter.com</strong>, including this page.</li>
         <li>The <strong>Notchmeter app for macOS</strong>, distributed as a signed disk image and through Homebrew.</li>
       </ul>
-      <p>It does not cover the AI coding tools Notchmeter reads from. Anthropic, OpenAI, Cursor, Google and GitHub each have their own privacy policies, and those govern what happens once a request arrives with them. It does not cover GitHub, where the source, the issue tracker and the download live, or Stripe, which handles donations. Each of those companies is its own controller for what it does.</p>
+      <p>It does not cover the AI coding tools Notchmeter reads from. Anthropic, OpenAI, Cursor, Google, GitHub and Moonshot each have their own privacy policies, and those govern what happens once a request arrives with them. It does not cover GitHub, where the source, the issue tracker and the download live, or Stripe, which handles donations. Each of those companies is its own controller for what it does.</p>
 
       <hr>
 
@@ -220,7 +220,12 @@ table.dtable code { font-size: 12.4px; }
             <tr>
               <td>Google<br><code>cloudcode-pa.googleapis.com</code></td>
               <td>Your IP address, the Gemini CLI access token already on your Mac, a fixed description of the client that identifies nobody, <strong>and your Google Cloud project id</strong>, which the quota request requires.</td>
-              <td>Same schedule. Two requests each time: one to learn the project and tier, one to read the quota.</td>
+              <td>Same schedule. Two requests each time: one to learn the project and tier, one to read the quota. With both Gemini CLI and Antigravity on your Mac, each has its own row and its own read, so twice that.</td>
+            </tr>
+            <tr>
+              <td>Moonshot (Kimi)<br><code>api.kimi.com</code></td>
+              <td>Your IP address and the Kimi Code access token already on your Mac. The token is sent only while it is current; an expired one is not sent, and never refreshed.</td>
+              <td>Same schedule. One request each time, the one Kimi Code's own <code>/usage</code> command makes.</td>
             </tr>
             <tr>
               <td>GitHub<br><code>github.com</code><br>(software updates)</td>
@@ -230,7 +235,7 @@ table.dtable code { font-size: 12.4px; }
           </tbody>
         </table>
       </div>
-      <p class="strong-note"><strong>What that means in plain terms.</strong> Each vendor learns your IP address and, from your token, which of their accounts you are. That is exactly what happens when their own tool asks the same question, and no more. It is still a real disclosure to a real third party, and once a request arrives at Anthropic, OpenAI, Cursor, Google or GitHub, that company's privacy policy governs what it does with it, not this one. The update check in particular means <strong>GitHub can see, roughly once a day, that a machine at your IP address is running Notchmeter</strong>, whether or not you ever download anything from them again.</p>
+      <p class="strong-note"><strong>What that means in plain terms.</strong> Each vendor learns your IP address and, from your token, which of their accounts you are. That is exactly what happens when their own tool asks the same question, and no more. It is still a real disclosure to a real third party, and once a request arrives at Anthropic, OpenAI, Cursor, Google, GitHub or Moonshot, that company's privacy policy governs what it does with it, not this one. The update check in particular means <strong>GitHub can see, roughly once a day, that a machine at your IP address is running Notchmeter</strong>, whether or not you ever download anything from them again.</p>
       <p>The updater is the Sparkle framework, and it only runs in properly signed release builds. What it sends is what Sparkle sends with its system profile feature off, which is how the app configures it. We wrote the configuration, not the updater.</p>
       <p>The app also opens ordinary links in your browser when you click them, such as a vendor's usage page, a status page, or the donation page. Those are handed to your browser with whatever cookies your browser already has. The app makes no request of its own for them.</p>
 
@@ -244,7 +249,7 @@ table.dtable code { font-size: 12.4px; }
       <h3>4.2 What the app reads on your Mac</h3>
       <p>All of this stays on your Mac. It is listed because reading it is worth telling you about even when nothing is transmitted.</p>
       <ul>
-        <li><strong>Saved logins for the tools you enable.</strong> For Claude Code, from your Keychain first, and if it is not there, from the credentials file Claude Code keeps in your home folder, or from the <code>CLAUDE_CODE_OAUTH_TOKEN</code> environment variable if you have set one. For Codex, Cursor, Gemini CLI and GitHub Copilot, from the config files those tools already keep in your home folder. Cursor's database is copied to a temporary file and opened read only, so the live database is never touched. These tokens are read, used for the one request above, and never written, refreshed, copied into a Keychain or stored anywhere by us.</li>
+        <li><strong>Saved logins for the tools you enable.</strong> For Claude Code, from your Keychain first, and if it is not there, from the credentials file Claude Code keeps in your home folder, or from the <code>CLAUDE_CODE_OAUTH_TOKEN</code> environment variable if you have set one. For Codex, Cursor, Gemini CLI, GitHub Copilot and Kimi Code, from the config files those tools already keep in your home folder. Cursor's database is copied to a temporary file and opened read only, so the live database is never touched. These tokens are read, used for the one request above, and never written, refreshed, copied into a Keychain or stored anywhere by us.</li>
         <li><strong>Your local Claude Code and Codex transcripts</strong>, for the cost figures. For Claude Code it reads only files changed in the last 30 days. From each line it takes the timestamp, token counts, the model name, a message and request id used to avoid counting the same call twice, a cost figure, a session id, the speed and inference region labels the transcript records, any web search request count, and the <strong>last folder name</strong> of the working directory. It does not read prompt text, does not read response text, and does not keep full paths. None of it is transmitted anywhere.</li>
         <li><strong>Pricing settings</strong> from Claude Code's own settings file, plus any overrides you write yourself. Model prices otherwise come from a table shipped inside the app. There is no pricing lookup over the network.</li>
         <li><strong>Modification times only</strong>, with no file contents, for a handful of folders, so the app knows when to slow its polling down.</li>
@@ -307,7 +312,7 @@ table.dtable code { font-size: 12.4px; }
             <tr><td>Vercel</td><td>Website server logs: IP address, user agent, the page requested, the time, the referrer</td><td>Every visit to notchmeter.com</td><td>Vercel is a United States company and serves the site from a global edge network</td></tr>
             <tr><td>Stripe</td><td>Your email address, the amount, and your payment details</td><td>Only if you click the support link and choose to donate</td><td>United States</td></tr>
             <tr><td>GitHub (Microsoft)</td><td>IP address and browser or updater details</td><td>When you click through to the source, docs or issues, when you download the app, and when the app checks for updates</td><td>United States</td></tr>
-            <tr><td>Anthropic, OpenAI, Cursor, Google, and GitHub for Copilot</td><td>Your IP address and your own saved token for that tool, plus the account, project or organisation identifier that tool's request requires</td><td>Each time the app reads your usage for a provider you have enabled</td><td>United States, and wherever else that vendor operates</td></tr>
+            <tr><td>Anthropic, OpenAI, Cursor, Google, GitHub for Copilot, and Moonshot for Kimi Code</td><td>Your IP address and your own saved token for that tool, plus the account, project or organisation identifier that tool's request requires</td><td>Each time the app reads your usage for a provider you have enabled</td><td>United States, and wherever else that vendor operates</td></tr>
           </tbody>
         </table>
       </div>
@@ -323,7 +328,7 @@ table.dtable code { font-size: 12.4px; }
         <li><strong>Vercel</strong> is certified under the EU-US Data Privacy Framework, and its <a href="https://vercel.com/legal/dpa">Data Processing Addendum</a> also incorporates the European Commission's 2021 Standard Contractual Clauses and, for UK transfers, the UK International Data Transfer Addendum.</li>
         <li><strong>Stripe</strong> is certified under the EU-US Data Privacy Framework and relies on the Standard Contractual Clauses and the UK Addendum. See <a href="https://stripe.com/legal/privacy-center">Stripe's privacy center</a>.</li>
         <li><strong>GitHub</strong> complies with the EU-US Data Privacy Framework, the UK Extension to it and the Swiss-US Data Privacy Framework, and also relies on Standard Contractual Clauses. See the <a href="https://docs.github.com/site-policy/privacy-policies/github-privacy-statement">GitHub Privacy Statement</a>.</li>
-        <li><strong>Anthropic, OpenAI, Cursor, Google, and GitHub when you use Copilot,</strong> receive requests only from your own machine, with your own credentials, under the account you already hold with them. The transfer terms of your relationship with each of them are the ones in their own privacy policies, not ours.</li>
+        <li><strong>Anthropic, OpenAI, Cursor, Google, GitHub when you use Copilot, and Moonshot when you use Kimi Code,</strong> receive requests only from your own machine, with your own credentials, under the account you already hold with them. The transfer terms of your relationship with each of them are the ones in their own privacy policies, not ours.</li>
       </ul>
       <p>Each provider's own notice is the authoritative source for what it does, and those terms can change without us knowing.</p>
 
@@ -358,7 +363,7 @@ table.dtable code { font-size: 12.4px; }
         <li>Website server logs: Vercel.</li>
         <li>Payment details: Stripe. Our copy of the transaction record: us.</li>
         <li>Downloads, issue comments and update checks: GitHub.</li>
-        <li>Your AI usage and account data: Anthropic, OpenAI, Cursor, Google or GitHub, whichever account it belongs to.</li>
+        <li>Your AI usage and account data: Anthropic, OpenAI, Cursor, Google, GitHub or Moonshot, whichever account it belongs to.</li>
       </ul>
       <p>Email <a href="mailto:privacy@notchmeter.com">privacy@notchmeter.com</a> and we will answer within one month, and help you route a request to the right provider if that is where the data actually is. There is no charge.</p>
 

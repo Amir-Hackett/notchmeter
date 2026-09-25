@@ -242,23 +242,19 @@ struct DashboardLimit: Identifiable, Equatable {
 }
 
 extension ToolID {
-    /// The identity colours stepped for a window's own surface rather than the black notch: the notch's lighter
-    /// steps fall under 3:1 on a light window. Both sets pass the dataviz validator (lightness band, chroma, CVD and
-    /// normal-vision separation, contrast) against their surface.
+    /// The identity colours stepped for a window's own surface rather than the black notch. The light window
+    /// takes the identity's own light value (`ToolID.identity`, 4.5:1 or better on white, which also clears the
+    /// 3:1 a chart mark needs); the dark window, at #1E1E1E rather than black, takes a step of its own for the
+    /// three older hues, whose notch values fall short of it. Both sets pass the dataviz validator (lightness band,
+    /// chroma, CVD and normal-vision separation, contrast) against their surface.
     var chartColor: Color {
-        let pair: (light: UInt32, dark: UInt32)
-        switch self {
-        case .claude: pair = (0xC0603F, 0xCC7555)
-        case .cursor: pair = (0x7F62E6, 0x8C74EA)
-        case .codex: pair = (0x23A06F, 0x34A874)
-        case .antigravity: pair = (0x2F7FB8, 0x56B4E9)
-        case .copilot: pair = (0x9A8A00, 0xF0E442)
+        let dark: UInt32 = switch self {
+        case .claude: 0xCC7555
+        case .cursor: 0x8C74EA
+        case .codex: 0x34A874
+        case .gemini, .antigravity, .copilot, .kimi: identity.dark  // each above 5.8:1 on the dark window as it is
         }
-        return Color(nsColor: NSColor(name: nil) { appearance in
-            let hex = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? pair.dark : pair.light
-            return NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
-                           blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
-        })
+        return Color(nsColor: .adaptive(light: identity.light, dark: dark))
     }
 }
 

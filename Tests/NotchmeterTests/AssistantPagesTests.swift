@@ -419,10 +419,11 @@ import Testing
         #expect(try lands("Ask for Keychain access").sections == [.agent(.claude, .sources)])
         #expect(try lands("Also read transcripts from").sections == [.agent(.claude, .sources)])
         #expect(try lands("Claude Code status line").sections == [.agent(.claude, .hook)])
-        #expect(try lands("Gemini CLI hook").pane == .agent(.antigravity))
+        #expect(try lands("Gemini CLI hook").pane == .agent(.gemini))
+        #expect(try lands("Kimi Code hook").pane == .agent(.kimi))
         #expect(try lands("In the Cost card").pane == .agent(.claude))
         #expect(try lands("Keep the Mac awake").sections == [.sessions], "it counts every assistant's sessions")
-        #expect(try lands("Repair a hook that points").pane == .integrations)
+        #expect(try lands("Repair an out-of-date hook").pane == .integrations)
         // The app-wide switch comes first in the window's order; on a page that has its own, the page's is found.
         #expect(try lands("Answer from the notch").pane == .assistants)
         #expect(try lands("Answer from the notch", from: .agent(.codex)).pane == .agent(.codex))
@@ -438,7 +439,12 @@ import Testing
         func titles(_ tool: ToolID) -> Set<String> { Set(SettingsSearch.agentEntries(tool).map(\.title)) }
         #expect(!titles(.cursor).contains(L("Answer from the notch")))
         #expect(!titles(.antigravity).contains(L("Answer from the notch")))
+        #expect(!titles(.gemini).contains(L("Answer from the notch")))
+        #expect(!titles(.kimi).contains(L("Answer from the notch")))
         #expect(titles(.copilot).contains(L("Answer from the notch")))
+        #expect(!titles(.antigravity).contains(L("Gemini CLI hook")), "the Gemini CLI hook is Gemini's row since 0.9.0")
+        #expect(titles(.gemini).contains(L("Gemini CLI hook")))
+        #expect(titles(.kimi).contains(L("Kimi Code hook")))
         #expect(!titles(.antigravity).contains(L("In the Cost card")))
         #expect(titles(.cursor).contains(L("In the Cost card")))
         #expect(!titles(.codex).contains(L("Also read Cursor's usage events")))
@@ -465,7 +471,7 @@ import Testing
 
     /// The user's order decides which page a row every page has lands on, as it decides the sidebar's.
     @Test func aRowEveryPageHasLandsOnTheFirstAssistantInTheUsersOrder() throws {
-        let entries = SettingsSearch.entries(order: [.codex, .claude, .cursor, .antigravity, .copilot])
+        let entries = SettingsSearch.entries(order: [.codex, .claude, .cursor, .gemini, .antigravity, .copilot, .kimi])
         let hit = try #require(SettingsSearch.hit(for: "pin to menu bar", current: .general, in: entries))
         #expect(hit.pane == .agent(.codex))
         #expect(hit.sections.count == ToolID.allCases.count)

@@ -2,13 +2,18 @@ import Foundation
 
 /// One assistant's hook contract: the ring it lights, where its user-level hooks file lives, that file's shape,
 /// the events Notchmeter registers, the flag its command carries so the app knows the sender before it reads a
-/// byte of payload, and the handler dictionary its file wants. Claude Code, Codex, Cursor, Gemini CLI and GitHub
-/// Copilot ship. A vendor adds a case here, a parser in Hook+<Tool>.swift and one `case` in Hook.message(from:),
-/// and nothing above Hook.Message changes.
+/// byte of payload, and the handler dictionary its file wants. Claude Code, Codex, Cursor, Gemini CLI, GitHub
+/// Copilot and Kimi Code ship. A vendor adds a case here, a parser in Hook+<Tool>.swift and one `case` in
+/// Hook.message(from:), and nothing above Hook.Message changes.
+///
+/// Antigravity has no case: the IDE's own hooks file documents no session, prompt or wait event the notch could act
+/// on. Until 0.9.0 Gemini CLI's hook lit the Antigravity ring under a case named `antigravity`; since the two rows
+/// split, it lights Gemini CLI's own, and an entry still carrying the old `--tool antigravity` flag is read as Gemini
+/// CLI's (Hook.sender(named:)) and reads as out of date, so Repair rewrites it to `--tool gemini`.
 enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     // The raw values are ToolID's raw values on purpose: `vendor(for:)` is a plain lookup and the two never drift.
     // The declaration order is ToolID's order, which is the rings' order and the Settings rows' order.
-    case claude, codex, cursor, antigravity, copilot
+    case claude, codex, cursor, gemini, copilot, kimi
 
     var id: String { rawValue }
 
@@ -18,28 +23,22 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         case .claude: .claude
         case .codex: .codex
         case .cursor: .cursor
-        case .antigravity: .antigravity
+        case .gemini: .gemini
         case .copilot: .copilot
+        case .kimi: .kimi
         }
     }
 
-    /// The product whose hook this is: the name the Settings rows and the snippet titles use. `.antigravity` is
-    /// the one case whose hook is not the ring's namesake: Gemini CLI's hook lights the Antigravity ring, because
-    /// the two meter against the same Google backend and the Antigravity IDE's own hooks file documents no
-    /// session, prompt or wait event that the notch could act on.
-    var displayName: String {
-        switch self {
-        case .antigravity: "Gemini CLI"
-        default: tool.productName
-        }
-    }
+    /// The product whose hook this is: the name the Settings rows and the snippet titles use.
+    var displayName: String { tool.productName }
 
     /// The basename of the hooks file, for button and alert copy.
     var fileName: String {
         switch self {
-        case .claude, .antigravity: "settings.json"
+        case .claude, .gemini: "settings.json"
         case .codex, .cursor: "hooks.json"
         case .copilot: "notchmeter.json"
+        case .kimi: "config.toml"
         }
     }
 
@@ -52,26 +51,30 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// that probe is not taken here, so a stray folder there can never make the row read Installed for a file
     /// Codex would not load. Cursor documents no override for `~/.cursor/hooks.json`, so none is invented. Gemini
     /// CLI: GEMINI_CLI_HOME replaces the home directory that `.gemini` is appended to. Copilot: $COPILOT_HOME/hooks/,
-    /// else ~/.copilot/hooks/.
+    /// else ~/.copilot/hooks/. Kimi Code: `config.toml` in $KIMI_SHARE_DIR, else ~/.kimi (`get_share_dir` and
+    /// `get_config_file` in kimi-cli's share.py and config.py), the one file its `[[hooks]]` tables are read from.
     func fileURL(environment: [String: String], home: URL = Paths.home) -> URL {
         switch self {
         case .claude: return HookSettings.settingsURL(environment: environment, home: home)
         case .codex: return CodexProvider.defaultHome(environment: environment, home: home, exists: { _ in false }).appendingPathComponent("hooks.json")
         case .cursor: return home.appendingPathComponent(".cursor/hooks.json")
-        case .antigravity:
+        case .gemini:
             let root = environment["GEMINI_CLI_HOME"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) } ?? home
             return root.appendingPathComponent(".gemini/settings.json")
         case .copilot:
             let root = environment["COPILOT_HOME"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
                 ?? home.appendingPathComponent(".copilot")
             return root.appendingPathComponent("hooks/notchmeter.json")
+        case .kimi:
+            return KimiProvider.shareDirectory(environment: environment, home: home).appendingPathComponent("config.toml")
         }
     }
 
     var shape: HookFileShape {
         switch self {
-        case .claude, .codex, .antigravity: .nestedGroups
+        case .claude, .codex, .gemini: .nestedGroups
         case .cursor, .copilot: .flatCommands
+        case .kimi: .tomlTables
         }
     }
 
@@ -80,7 +83,9 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// vendor's vocabulary (shell, MCP, model and file events) would only cost a process launch per tool call.
     /// Codex's Interrupt ends a turn without a tick; Gemini CLI's BeforeAgent and AfterAgent bracket a turn and its
     /// Notification carries the one documented wait; Copilot's notification is matched to its two waiting types
-    /// in `handler(command:event:)`.
+    /// in `handler(command:event:)`. Kimi Code's are Claude Code's names, and only the seven that bracket a session,
+    /// a turn and a subagent: its Notification is for background tasks, not a wait on the user, and its tool events
+    /// would cost a launch per tool call for nothing the tracker reads.
     var events: [String] {
         switch self {
         case .claude: HookSettings.events
@@ -91,21 +96,23 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         case .cursor: ["sessionStart", "beforeSubmitPrompt", "stop", "subagentStart", "subagentStop", "sessionEnd",
                        "beforeShellExecution", "afterShellExecution", "beforeMCPExecution", "afterMCPExecution",
                        "afterFileEdit", "afterAgentThought", "afterAgentResponse"]
-        case .antigravity: ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "SessionEnd"]
+        case .gemini: ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "SessionEnd"]
         case .copilot: ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "sessionEnd"]
+        case .kimi: ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd"]
         }
     }
 
     /// The events on which the command holds the socket for the app's answer (Hook+Decision.swift), and whose
     /// entries are therefore synchronous with a timeout of `decisionTimeout`: Claude Code's `PermissionRequest`
     /// and its `PreToolUse` matched to `AskUserQuestion`; Codex's `PermissionRequest`; Copilot's PascalCase
-    /// `PermissionRequest`, which documents the same decision shape. Cursor has no event that waits for the user
-    /// and Gemini CLI's hook is observability only, so neither has one.
+    /// `PermissionRequest`, which documents the same decision shape. Cursor has no event that waits for the user,
+    /// Gemini CLI's hook is observability only, and Kimi Code has no permission event at all, so none of the three
+    /// has one.
     var decidingEvents: Set<String> {
         switch self {
         case .claude: ["PermissionRequest", "PreToolUse"]
         case .codex, .copilot: ["PermissionRequest"]
-        case .cursor, .antigravity: []
+        case .cursor, .gemini, .kimi: []
         }
     }
 
@@ -153,8 +160,9 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         case .claude: "--hook"
         case .codex: "--hook --tool codex"
         case .cursor: "--hook --tool cursor"
-        case .antigravity: "--hook --tool antigravity"
+        case .gemini: "--hook --tool gemini"
         case .copilot: "--hook --tool copilot"
+        case .kimi: "--hook --tool kimi"
         }
     }
 
@@ -173,6 +181,9 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// both entries omit `async` and carry `"timeout": 3`. Gemini CLI's `timeout` is in milliseconds and it has no
     /// `async` field; the `name` is what its /hooks panel lists. Copilot's `timeoutSec` is its own unit, and its
     /// notification entry is matched to the two types that document a wait so the other four never cost a launch.
+    /// Kimi Code's table takes the event as a key of its own (KimiHookFile writes it) beside `command` and a
+    /// `timeout` in seconds: Kimi runs every hook to completion before it goes on and fails open when one times
+    /// out, so five seconds is a ceiling the command, which exits in milliseconds, never comes near.
     func handler(command: String, event: String) -> [String: Any] {
         if decidingEvents.contains(event) {
             return ["type": "command", "command": command, timeoutKey: Self.decisionTimeout]
@@ -185,7 +196,8 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
             case "SessionEnd", "Interrupt": return ["type": "command", "command": command, "timeout": 3]
             default: return ["type": "command", "command": command, "async": true, "timeout": 5]
             }
-        case .antigravity: return ["name": "notchmeter", "type": "command", "command": command, "timeout": 5000]
+        case .gemini: return ["name": "notchmeter", "type": "command", "command": command, "timeout": 5000]
+        case .kimi: return ["command": command, "timeout": 5]
         case .copilot:
             return event == "notification"
                 ? ["type": "command", "command": command, "matcher": "permission_prompt|elicitation_dialog", "timeoutSec": 5]
@@ -227,10 +239,11 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// Whether the vendor picks a saved file up without a restart; drives the note after Add and Repair. Cursor
     /// reloads hooks.json as soon as it is saved; Codex reads hooks.json when a session starts and skips a new or
     /// changed entry until it is trusted in /hooks; Gemini CLI reads settings.json when it starts; Copilot reads its
-    /// hooks directory when it starts.
+    /// hooks directory when it starts; Kimi Code reads config.toml when it starts.
     var reloadsLive: Bool { self == .cursor }
 
-    /// The vendor whose hook lights `tool`; non-nil for every ToolID now that each has a parser.
+    /// The vendor whose hook lights `tool`: nil for Antigravity alone, whose IDE documents no hook event the notch
+    /// could act on.
     static func vendor(for tool: ToolID) -> HookVendor? {
         HookVendor(rawValue: tool.rawValue)
     }
@@ -248,9 +261,11 @@ extension ToolID {
 /// How a hooks file nests its command entries. Claude Code, Codex and Gemini CLI nest a `hooks` array of
 /// {type, command, …} handlers inside each group; Cursor and GitHub Copilot list command objects directly under
 /// the event and want a top-level "version": 1. Copilot's `matcher` sits on the flat element itself, which
-/// `handlers(in:)` returns whole and `settingHandlers` writes back whole, so Repair keeps it.
+/// `handlers(in:)` returns whole and `settingHandlers` writes back whole, so Repair keeps it. Kimi Code's file is
+/// TOML, one `[[hooks]]` table per entry with the event inside it; it is read and written as text by
+/// KimiHookFile, which hands the status rules the same flat {command, timeout} elements Cursor's file holds.
 enum HookFileShape: Equatable, Sendable {
-    case nestedGroups, flatCommands
+    case nestedGroups, flatCommands, tomlTables
 
     /// The element appended under an event on install: the vendor's handler, wrapped in a group for the nested
     /// shape, with the group's `matcher` when the event wants one (HookVendor.matcher(for:)).
@@ -260,7 +275,7 @@ enum HookFileShape: Equatable, Sendable {
             var group: [String: Any] = ["hooks": [handler]]
             if let matcher { group["matcher"] = matcher }
             return group
-        case .flatCommands:
+        case .flatCommands, .tomlTables:
             return handler
         }
     }
@@ -269,7 +284,7 @@ enum HookFileShape: Equatable, Sendable {
     func handlers(in element: [String: Any]) -> [[String: Any]] {
         switch self {
         case .nestedGroups: element["hooks"] as? [[String: Any]] ?? []
-        case .flatCommands: [element]
+        case .flatCommands, .tomlTables: [element]
         }
     }
 
@@ -280,7 +295,7 @@ enum HookFileShape: Equatable, Sendable {
             var updated = element
             updated["hooks"] = handlers
             return updated
-        case .flatCommands:
+        case .flatCommands, .tomlTables:
             return handlers.first ?? element
         }
     }
@@ -288,7 +303,7 @@ enum HookFileShape: Equatable, Sendable {
     /// Root keys the file must carry besides "hooks", added only when absent.
     var requiredRootKeys: [String: Any] {
         switch self {
-        case .nestedGroups: [:]
+        case .nestedGroups, .tomlTables: [:]
         case .flatCommands: ["version": 1]
         }
     }

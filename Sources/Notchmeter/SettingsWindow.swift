@@ -869,7 +869,7 @@ struct SettingsView: View {
             Toggle(L("Stay quiet while a terminal or editor is in front"), isOn: Binding(get: { prefs.quietWhileTerminalFrontmost }, set: { prefs.quietWhileTerminalFrontmost = $0 }))
                 .help(L("On, a notice about a session is held back while a terminal or editor is frontmost, because you are probably looking at the session in it. Off, it arrives anyway — the answer when your sessions sit in tabs you are not looking at, since the app can only see which app is in front and never which window, and never reads a window's title to find out. A wait the session has stopped for, and a session on another Mac, ignore this setting; the quiet hours override it."))
             Toggle(L("Colour the rings when an assistant waits or finishes"), isOn: Binding(get: { prefs.signalRings }, set: { prefs.signalRings = $0 }))
-                .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not."))
+                .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's and Kimi Code's do not."))
             Toggle(L("Show news in the notch"), isOn: Binding(get: { prefs.notchNews }, set: { prefs.notchNews = $0 }))
                 .help(L("When a session starts waiting for you or finishes a turn, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out."))
             Toggle(L("Glow under the notch for news"), isOn: Binding(get: { prefs.notchGlow }, set: { prefs.notchGlow = $0 }))
@@ -986,7 +986,7 @@ struct SettingsView: View {
             Toggle(L("Show what a session is working on"), isOn: Binding(get: { prefs.sessionTitles }, set: { prefs.sessionTitles = $0 }))
                 .help(L("The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says."))
             Toggle(L("Answer from the notch"), isOn: Binding(get: { prefs.answerFromNotch }, set: { prefs.answerFromNotch = $0 }))
-                .help(L("A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered."))
+                .help(L("A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor, Gemini CLI and Kimi Code have no event that can be answered."))
             if prefs.answerFromNotch {
                 Stepper(value: Binding(get: { prefs.promptHoldSeconds }, set: { prefs.promptHoldSeconds = $0 }), in: Preferences.promptHoldRange, step: 15) {
                     HStack {
@@ -1064,13 +1064,17 @@ struct SettingsView: View {
                     hookSummary(vendor)
                     Divider()
                 }
-                Toggle(L("Repair a hook that points at an old copy at launch"), isOn: Binding(get: { prefs.autoRepairHooks }, set: { prefs.autoRepairHooks = $0 }))
+                // Named for everything the launch repair does, not only the moved path: it also rewrites an entry
+                // of ours that lacks an event or carries older flags (HookSettings.Status.partial), and 0.9.0's
+                // rewrite of a Gemini CLI entry from --tool antigravity is one of those. A toggle that is on by
+                // default is the consent for a config write at launch, so its label has to say what it consents to.
+                Toggle(L("Repair an out-of-date hook at launch"), isOn: Binding(get: { prefs.autoRepairHooks }, set: { prefs.autoRepairHooks = $0 }))
                     .font(.caption)
-                    .help(L("After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file."))
+                    .help(L("At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file."))
             }
         } header: {
             Text(L("Hooks"))
-                .help(L("Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit."))
+                .help(L("Let Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot and Kimi Code tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor and Kimi Code have no event for that, so their rings show the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit."))
         }
     }
 
@@ -1310,7 +1314,7 @@ struct SettingsView: View {
             case .copilot:
                 Toggle(L("Also read organisation billing"), isOn: Binding(get: { prefs.copilotOrgBilling }, set: { prefs.copilotOrgBilling = $0; store.refreshAll() }))
                     .help(L("One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month."))
-            case .antigravity:
+            case .gemini, .antigravity, .kimi:
                 EmptyView()
             }
         }
@@ -1348,10 +1352,14 @@ struct SettingsView: View {
             L("Codex's own login, from auth.json in its home folder; the plan name is Codex's own. Read only: the token is never refreshed or written.")
         case .cursor:
             L("The editor's own login, from Cursor's state database, sent the way cursor.com's dashboard sends it. Read only: never refreshed or written.")
+        case .gemini:
+            L("The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. Read only: never refreshed or written.")
         case .antigravity:
             L("The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. The Antigravity app keeps its own in the Keychain, out of reach, so one sign-in through Gemini CLI is needed. Read only: never refreshed or written.")
         case .copilot:
             L("The token Copilot's editor plugin or gh keeps: apps.json, then hosts.json, then gh's hosts.yml, each tried in turn. Read only: never refreshed or written.")
+        case .kimi:
+            L("Kimi Code's own login: the access token in credentials/kimi-code.json under $KIMI_SHARE_DIR or ~/.kimi; the refresh token beside it is never read. Read only: never refreshed or written.")
         }
     }
 
@@ -1365,10 +1373,14 @@ struct SettingsView: View {
             L("chatgpt.com's usage endpoint, else the newest rate-limit line in Codex's session files, and those files for the cost.")
         case .cursor:
             L("cursor.com's usage summary and the dashboard's own reads, and its usage events for the cost.")
+        case .gemini:
+            L("Google's Code Assist quota, under Gemini CLI's own identity. No cost: it meters quota, not money.")
         case .antigravity:
             L("Google's Code Assist quota, under Antigravity's own identity where its app is on this Mac. No cost: it meters quota, not money.")
         case .copilot:
             L("api.github.com's Copilot quota, the read its editor plugin makes, and its AI credits, a cent each, for the cost.")
+        case .kimi:
+            L("api.kimi.com's usage endpoint, the read Kimi Code's own /usage command makes. No cost: it meters a request allowance, not money.")
         }
     }
 
@@ -1376,7 +1388,9 @@ struct SettingsView: View {
     private func noAnswerNote(_ tool: ToolID) -> String? {
         switch tool {
         case .cursor: L("Cursor has no event that can be answered: its approvals are always answered in Cursor.")
-        case .antigravity: L("Gemini CLI's hook only reports: its permission prompts are always answered in the terminal.")
+        case .gemini: L("Gemini CLI's hook only reports: its permission prompts are always answered in the terminal.")
+        case .kimi: L("Kimi Code has no event that can be answered: its approvals are always answered in the terminal.")
+        case .antigravity: L("Antigravity has no hook: its IDE reports no event the notch could read or answer.")
         case .claude, .codex, .copilot: nil
         }
     }
@@ -1391,8 +1405,10 @@ struct SettingsView: View {
             L("Codex reports session starts and ends, prompt sends, stops, interrupted turns, subagent starts and stops, and the moment it is about to ask your approval. That approval prompt is its one wait: the Codex ring shows the waiting hand for it and lets go at the next prompt, stop or subagent, or after ten minutes. Codex has no event for a question or a rate limit, so a limit hit waits for the next poll. Codex skips a new or changed hook until you open /hooks inside Codex and trust it, and a running session keeps the hooks it started with.")
         case .cursor:
             L("Cursor reports when a conversation starts or ends, when you send a prompt, when a turn stops and when a subagent starts or stops. It has no event for a wait on your approval or for a rate limit, so the Cursor ring shows the finished tick and never the waiting hand, and a turn that was aborted or errored ends without the tick. Cursor reloads hooks.json as soon as it is saved.")
-        case .antigravity:
-            L("Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring.")
+        case .gemini:
+            L("Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Gemini ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. An entry added before 0.9.0 lit the Antigravity ring and reads as out of date until Repair points it at Gemini CLI's own. The Antigravity IDE's own hooks report none of this, so Antigravity has no hook row.")
+        case .kimi:
+            L("Kimi Code reports session starts and ends, prompt sends, the end of each turn, a turn that failed, and subagent starts and stops. It has no event for a wait on your approval or a question, so the Kimi ring shows the finished tick and never the waiting hand, and a failed turn ends without the tick. The entries are [[hooks]] tables added to the end of config.toml, and the rest of the file is left exactly as it was; a file that already defines hooks another way is left alone, so paste the snippet instead. Kimi Code reads config.toml when it starts, and /hooks lists the entries.")
         case .copilot:
             L("GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it.")
         }
@@ -1408,10 +1424,12 @@ struct SettingsView: View {
         switch vendor {
         case .codex:
             L("Codex skips a hook it has not been shown: open /hooks in Codex and trust the new entry. Sessions already running keep the hooks they started with.")
-        case .antigravity:
+        case .gemini:
             L("Gemini CLI reads settings.json when it starts: the hook works from the next session.")
         case .copilot:
             L("Copilot CLI reads its hooks when it starts: restart it, then /env lists the file.")
+        case .kimi:
+            L("Kimi Code reads config.toml when it starts: the hook works from the next session.")
         case .claude, .cursor:
             nil
         }

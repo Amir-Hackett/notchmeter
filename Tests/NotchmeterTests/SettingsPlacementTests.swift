@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Testing
 @testable import Notchmeter
 
@@ -101,11 +102,23 @@ import Testing
 
     /// An assistant's page wears its own card's symbol and its own ring colour, so the sidebar and the notch name
     /// it the same way; a new drawing for Settings alone would have to be learned twice.
-    @Test func anAssistantsPageWearsItsCardsSymbolAndColour() {
+    @Test func anAssistantsPageWearsItsCardsSymbolAndColour() throws {
+        // `ToolID.color` is adaptive since 0.9.0, a fresh provider on every read, so two reads are never equal as
+        // `Color` values: the tint and the ring colour are compared as the sRGB values they resolve to under each
+        // appearance instead.
+        func resolved(_ colour: Color, under appearance: NSAppearance) throws -> String {
+            var out: NSColor?
+            appearance.performAsCurrentDrawingAppearance { out = NSColor(colour).usingColorSpace(.sRGB) }
+            let c = try #require(out)
+            return String(format: "%02X%02X%02X", Int((c.redComponent * 255).rounded()), Int((c.greenComponent * 255).rounded()), Int((c.blueComponent * 255).rounded()))
+        }
+        let aqua = try #require(NSAppearance(named: .aqua))
+        let darkAqua = try #require(NSAppearance(named: .darkAqua))
         for tool in ToolID.allCases {
             let pane = SettingsPane.agent(tool)
             #expect(pane.symbol == tool.symbolName)
-            #expect(pane.tint == tool.color)
+            #expect(try resolved(pane.tint, under: aqua) == resolved(tool.color, under: aqua), "\(tool)'s page in light")
+            #expect(try resolved(pane.tint, under: darkAqua) == resolved(tool.color, under: darkAqua), "\(tool)'s page in dark")
             #expect(pane.title == tool.productName)
         }
     }

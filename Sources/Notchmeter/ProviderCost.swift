@@ -50,8 +50,8 @@ enum CostSource: String, Codable, Equatable, Sendable {
 /// One tool's spend: the ranges the Cost card offers, a daily series, the per-model shares of each range, the
 /// source the figures came from, when they were read and what went wrong if anything did.
 ///
-/// A tool whose spend cannot be derived from a source it publishes has no `ProviderCost` at all. Antigravity
-/// (quota, no dollars) never builds one, and GitHub Copilot builds one only on a seat GitHub meters in AI credits,
+/// A tool whose spend cannot be derived from a source it publishes has no `ProviderCost` at all. Gemini CLI,
+/// Antigravity and Kimi Code (quota, no dollars) never build one, and GitHub Copilot builds one only on a seat GitHub meters in AI credits,
 /// so the card shows nothing for them otherwise rather than a zero that would read as "you spent nothing".
 /// docs/accuracy.md says why.
 struct ProviderCost: Equatable, Sendable, Identifiable {

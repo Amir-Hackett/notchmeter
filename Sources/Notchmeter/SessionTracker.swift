@@ -556,7 +556,7 @@ struct SessionTracker: Equatable, Sendable {
 
     /// The dictionary key. Claude Code's sessions keep the bare id (and `id@host`) they have always had, so nothing
     /// that logs, notifies or reports them changes; any other tool's id carries the tool's name in front
-    /// ("cursor:conv-1", "codex:<uuid>", "antigravity:<uuid>", "copilot:<id>", "cursor:conv-1@devbox", "cursor:unknown"),
+    /// ("cursor:conv-1", "codex:<uuid>", "gemini:<uuid>", "copilot:<id>", "kimi:<id>", "cursor:conv-1@devbox", "cursor:unknown"),
     /// so another assistant's session and a Claude session can never share an entry. The tool's typed home is still AgentSession.tool; the prefix is only a collision guard.
     /// The separator is a colon rather than a slash because `Notifier.identifier` is `session/<id>/<kind>`, and a
     /// slash inside the id would muddy it.

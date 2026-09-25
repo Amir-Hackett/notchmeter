@@ -123,7 +123,7 @@
 "A named display is remembered by its hardware identity, so two monitors of one model are told apart and a rename does not lose it." = "이름으로 고른 디스플레이는 하드웨어 ID로 기억되어 같은 모델 두 대를 구분하고 이름이 바뀌어도 잃지 않습니다.";
 "A notch cut into the left-hand edge, with the panel opening beside it. It gives way to a Dock or Stage Manager's strip on that side." = "왼쪽 가장자리에 파낸 노치. 패널은 그 옆에 열립니다. 같은 쪽에 Dock이나 스테이지 매니저 띠가 있으면 자리를 내줍니다.";
 "A notch cut into the right-hand edge, with the panel opening beside it. It gives way to a Dock on that side." = "오른쪽 가장자리에 파낸 노치. 패널은 그 옆에 열립니다. 같은 쪽에 Dock이 있으면 자리를 내줍니다.";
-"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor and Gemini CLI have no event that can be answered." = "Claude Code, Codex 또는 Copilot의 권한 요청이나 질문이 오면 패널이 열려 허용과 거부(⌘Y, ⌘N) 또는 선택지(⌘1…⌘9)를 보여 주고, 어시스턴트는 답을 기다립니다. Escape를 누르면 터미널로 돌려보냅니다. 끄면 터미널이 늘 그랬듯 묻고 패널은 대기 중만 표시합니다. Cursor와 Gemini CLI에는 답할 수 있는 이벤트가 없습니다.";
+"A permission request or a question from Claude Code, Codex or Copilot opens the panel with Allow and Deny (⌘Y, ⌘N) or the options (⌘1…⌘9), and the assistant waits on your answer; Escape hands it back to the terminal. Off, the terminal asks as it always has and the panel only shows the wait. Cursor, Gemini CLI and Kimi Code have no event that can be answered." = "Claude Code, Codex 또는 Copilot의 권한 요청이나 질문이 오면 패널이 열려 허용과 거부(⌘Y, ⌘N) 또는 선택지(⌘1…⌘9)를 보여 주고, 어시스턴트는 답을 기다립니다. Escape를 누르면 터미널로 돌려보냅니다. 끄면 터미널이 늘 그랬듯 묻고 패널은 대기 중만 표시합니다. Cursor, Gemini CLI, Kimi Code에는 답할 수 있는 이벤트가 없습니다.";
 "A request nobody has answered in this long goes back to the terminal, which asks as usual; the hook's own ceiling is ten minutes, and the assistant sees no decision either way." = "이 시간 안에 아무도 답하지 않은 요청은 터미널로 돌아가고 터미널이 평소처럼 묻습니다. 훅 자체의 상한은 10분이며, 어느 쪽이든 어시스턴트에게는 결정이 전달되지 않습니다.";
 "A second read of chatgpt.com on the same login, showing a credit that would reset a window and when it expires. Claiming stays in Codex." = "같은 로그인으로 chatgpt.com을 한 번 더 읽어 창을 초기화할 수 있는 크레딧과 만료 시각을 표시합니다. 받는 것은 Codex에서 합니다.";
 "A second read of cursor.com on the same session cookie: the last 30 days of usage events, priced by their exported cost, folded into the daily-totals file as a Cursor series (Today, 30 days and the trend)." = "같은 세션 쿠키로 cursor.com을 한 번 더 읽습니다. 최근 30일의 사용 이벤트를 내보낸 비용으로 계산해 일별 합계 파일에 Cursor 계열(오늘, 30일, 추세)로 넣습니다.";
@@ -160,7 +160,7 @@
 "Done — click to jump" = "완료 — 클릭하면 이동";
 "Expanded" = "펼침";
 "Gemini CLI reads settings.json when it starts: the hook works from the next session." = "Gemini CLI는 시작할 때 settings.json을 읽습니다: 훅은 다음 세션부터 동작합니다.";
-"Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Antigravity ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. The Antigravity IDE's own hooks report none of this, so this row is Gemini CLI's and lights the same ring." = "Gemini CLI는 세션 시작과 종료, 프롬프트 전송, 각 턴의 끝, 그리고 도구 권한을 물으려 멈춘 순간을 보고합니다. 그 알림이 유일한 대기입니다: Antigravity 링은 그때 대기 손 모양을 보이고 턴이 끝나거나 다음 프롬프트를 보내거나 세션이 끝날 때, 아니면 10분 뒤에 놓습니다. 하위 에이전트, 속도 제한, 취소된 턴 이벤트는 없어 취소된 턴은 다음 프롬프트나 세션 종료까지 작업 중으로 표시됩니다. Gemini CLI는 시작할 때 settings.json을 읽습니다. 주석이 든 파일은 그대로 두므로 대신 스니펫을 붙여 넣으세요. Antigravity IDE 자체 훅은 이 중 어느 것도 보고하지 않으므로 이 행은 Gemini CLI의 것이며 같은 링을 밝힙니다.";
+"Gemini CLI reports session starts and ends, prompt sends, the end of each turn, and the moment it stops to ask your permission for a tool. That notice is its one wait: the Gemini ring shows the waiting hand for it and lets go when the turn ends, the next prompt is sent or the session ends, or after ten minutes. It has no event for a subagent, a rate limit or a cancelled turn, so a cancelled turn shows as working until the next prompt or the session ends. Gemini CLI reads settings.json when it starts; a file with comments in it is left alone, so paste the snippet instead. An entry added before 0.9.0 lit the Antigravity ring and reads as out of date until Repair points it at Gemini CLI's own. The Antigravity IDE's own hooks report none of this, so Antigravity has no hook row." = "Gemini CLI는 세션 시작과 종료, 프롬프트 전송, 각 턴의 끝, 그리고 도구 권한을 물으려 멈춘 순간을 보고합니다. 그 알림이 유일한 대기입니다: Gemini 링은 그때 대기 손 모양을 보이고 턴이 끝나거나 다음 프롬프트를 보내거나 세션이 끝날 때, 아니면 10분 뒤에 놓습니다. 하위 에이전트, 속도 제한, 취소된 턴 이벤트는 없어 취소된 턴은 다음 프롬프트나 세션 종료까지 작업 중으로 표시됩니다. Gemini CLI는 시작할 때 settings.json을 읽습니다. 주석이 든 파일은 그대로 두므로 대신 스니펫을 붙여 넣으세요. 0.9.0 이전에 추가된 항목은 Antigravity 링을 밝혔으며, 복구로 Gemini CLI 자신의 링을 가리키게 할 때까지 오래된 항목으로 표시됩니다. Antigravity IDE 자체 훅은 이 중 어느 것도 보고하지 않으므로 Antigravity에는 훅 행이 없습니다.";
 "GitHub Copilot reports session starts and ends, prompt sends, stops, subagent starts and stops, and the notices it raises when it asks your permission or a question. Those two notices are its wait: the Copilot ring shows the waiting hand for them and lets go at the next prompt or stop, or after ten minutes. It has no event for a rate limit or a failed turn, and its built-in general-purpose agent reports no subagents. The file is Notchmeter's own under ~/.copilot/hooks, so removing the hook is deleting it; Copilot reads it when it starts, and /env lists it. Copilot's cloud coding agent never sees it." = "GitHub Copilot은 세션 시작과 종료, 프롬프트 전송, 중지, 하위 에이전트 시작과 중지, 그리고 권한이나 질문을 물을 때 올리는 알림을 보고합니다. 그 두 알림이 대기입니다: Copilot 링은 그때 대기 손 모양을 보이고 다음 프롬프트나 중지에서, 아니면 10분 뒤에 놓습니다. 속도 제한이나 실패한 턴 이벤트는 없고, 내장 범용 에이전트는 하위 에이전트를 보고하지 않습니다. 파일은 ~/.copilot/hooks 아래 Notchmeter 자체의 것이므로 훅을 제거하는 것은 그 파일을 삭제하는 것입니다. Copilot은 시작할 때 그것을 읽고 /env가 나열합니다. Copilot의 클라우드 코딩 에이전트는 이를 결코 보지 않습니다.";
 "GitHub reports no AI credits for this seat" = "GitHub 가 이 시트의 AI 크레딧을 보고하지 않음";
 "Granted" = "허용됨";
@@ -172,7 +172,7 @@
 "Idle" = "유휴";
 "Install the hook and status line…" = "훅과 상태 표시줄 설치…";
 "Installed, but an entry is out of date: Repair updates it" = "설치되었지만 오래된 항목이 있습니다: 복구가 업데이트합니다";
-"It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "각 어시스턴트가 이 Mac에 이미 보관하는 사용량(Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot)을 읽고, 그 도구가 저장한 로그인으로 각 공급업체의 사용량 엔드포인트에 묻습니다. 로그인하지 않고, 토큰을 보관하지 않으며, 다른 어디로도 보내지 않습니다. 계정도 분석도 없습니다.";
+"It reads the usage each assistant already keeps on this Mac — Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot and Kimi Code — and asks each vendor's usage endpoint over the login that tool saved. It never signs in, keeps no token, and sends nothing anywhere else: no account, no analytics." = "각 어시스턴트가 이 Mac에 이미 보관하는 사용량(Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code)을 읽고, 그 도구가 저장한 로그인으로 각 공급업체의 사용량 엔드포인트에 묻습니다. 로그인하지 않고, 토큰을 보관하지 않으며, 다른 어디로도 보내지 않습니다. 계정도 분석도 없습니다.";
 "Jump to the terminal" = "터미널로 이동";
 "Jump to the terminal on click" = "클릭하면 터미널로 이동";
 "Just finished" = "방금 끝남";
@@ -204,7 +204,7 @@
 "Keep the numbers" = "숫자 유지";
 "Keep the tools" = "도구 유지";
 "Keep the tools gives up the figures first — every figure past the main one where a ring sits beside them, then the main one too — and leaves out the assistants you put last only once each readout is a bare ring. Keep the numbers leaves those assistants out first, and thins what is left only once a single readout no longer fits." = "「도구 유지」는 숫자를 먼저 줄입니다. 링 옆에 숫자가 있으면 주요 수치 외의 숫자를 먼저, 다음에 주요 수치까지 빼서 각 표시가 링만 남은 뒤에야 마지막에 둔 어시스턴트를 뺍니다. 「숫자 유지」는 그 어시스턴트를 먼저 빼고, 표시가 하나도 들어가지 않을 때에만 남은 것을 줄입니다.";
-"Let Claude Code, Codex, Cursor, Gemini CLI and GitHub Copilot tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor has no event for that, so its ring shows the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "세션이 시작되거나 끝날 때, 프롬프트를 보낼 때, 턴이 멈출 때, 하위 에이전트가 실행될 때 Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot이 노치에 알리게 합니다. 미터가 즉시 새로 고쳐지고 카드가 세션과 에이전트를 셉니다. Claude Code, Codex, Gemini CLI, Copilot은 무언가를 물으려 멈춘 때도 보고하지만 Cursor에는 그런 이벤트가 없어 그 링은 완료 체크만 보이고 대기 손 모양은 절대 보이지 않습니다. 권한 모드는 Claude Code와 Codex가 보고하고, 속도 제한으로 인한 중지는 Claude Code만 보고합니다.";
+"Let Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot and Kimi Code tell the notch when a session starts or ends, a prompt is sent, a turn stops and a subagent runs: the meter refreshes at once and the card counts sessions and agents. Claude Code, Codex, Gemini CLI and Copilot also report when they stop to ask you something; Cursor and Kimi Code have no event for that, so their rings show the finished tick and never the waiting hand. Claude Code and Codex report their permission mode; only Claude Code reports a stop on a rate limit." = "세션이 시작되거나 끝날 때, 프롬프트를 보낼 때, 턴이 멈출 때, 하위 에이전트가 실행될 때 Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Kimi Code가 노치에 알리게 합니다. 미터가 즉시 새로 고쳐지고 카드가 세션과 에이전트를 셉니다. Claude Code, Codex, Gemini CLI, Copilot은 무언가를 물으려 멈춘 때도 보고하지만 Cursor와 Kimi Code에는 그런 이벤트가 없어 그 링은 완료 체크만 보이고 대기 손 모양은 절대 보이지 않습니다. 권한 모드는 Claude Code와 Codex가 보고하고, 속도 제한으로 인한 중지는 Claude Code만 보고합니다.";
 "Merge this into %1$@, or use Add to %2$@… to have it merged for you. Each entry runs %3$@ %4$@, which posts the event name to the running app and exits." = "이것을 %1$@에 병합하거나 '%2$@에 추가…'로 자동 병합하세요. 각 항목은 %3$@ %4$@을(를) 실행해 실행 중인 앱에 이벤트 이름을 보내고 종료합니다.";
 "Metered apart from the included total" = "포함 총량과 별도로 측정";
 "Reads 0% on this seat however much it spends; Today's spend carries the reading" = "이 좌석은 아무리 써도 0%로 읽힙니다. 오늘 지출이 대신 보여 줍니다";
@@ -217,7 +217,7 @@
 "Added %@" = "%@ 추가됨";
 "Advanced" = "고급";
 "Advice" = "조언";
-"After a move to Applications or an update, an entry that names an old path of this app is rewritten to the running copy at launch, after the usual backup, and the footer says so once. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "응용 프로그램으로 옮기거나 업데이트한 뒤, 이 앱의 옛 경로를 가리키는 항목은 실행 시 평소 백업 후 실행 중인 복사본으로 다시 쓰이고 푸터에 한 번 표시됩니다. build 폴더나 --smoke에서는 절대 쓰지 않습니다. 모든 어시스턴트의 훅 파일에 적용됩니다.";
+"At launch, after the usual backup, an entry of Notchmeter's own that names an old path of this app (a move to Applications, an update), lacks an event, or carries older flags is rewritten to the running copy and its current form, and the footer says so once; 0.9.0 brings a Gemini CLI entry still on --tool antigravity to --tool gemini this way. Never from a build folder, never under --smoke. Applies to every assistant's hooks file." = "실행 시 평소 백업 후, 이 앱의 옛 경로를 가리키거나(응용 프로그램으로 이동, 업데이트), 이벤트가 빠졌거나, 오래된 플래그를 가진 Notchmeter 자체 항목을 실행 중인 복사본과 현재 형태로 다시 쓰고 바닥글에 한 번 알립니다. 0.9.0은 아직 --tool antigravity인 Gemini CLI 항목을 이 방식으로 --tool gemini로 바꿉니다. 빌드 폴더에서는 하지 않고, --smoke에서도 하지 않습니다. 모든 어시스턴트의 훅 파일에 적용됩니다.";
 "After every turn Claude Code hands its status line the context window's fill, the official session and weekly limits (Pro and Max), a gateway's spend limit, the model and its effort, the branch and pull request, and the session's cost. With it installed the Claude ring shows a context arc, the card a Context line, and the endpoint is not asked while a session runs. A status line already configured keeps running after it." = "Claude Code는 매 턴 후 컨텍스트 창 사용률, 공식 세션·주간 한도(Pro와 Max), 게이트웨이 지출 한도, 모델과 노력 수준, 브랜치와 풀 리퀘스트, 세션 비용을 상태 표시줄에 넘깁니다. 설치하면 Claude 링에 컨텍스트 호가, 카드에 컨텍스트 줄이 표시되고 세션 중에는 엔드포인트를 묻지 않습니다. 이미 설정된 상태 표시줄은 그 뒤에 계속 실행됩니다.";
 "All displays" = "모든 디스플레이";
 "All models" = "전체 모델";
@@ -231,8 +231,8 @@
 "Also read organisation billing" = "조직 결제 정보도 읽기";
 "Also read transcripts from" = "다음 위치의 기록도 읽기";
 "Always open" = "항상 열림";
-"Antigravity quota response unreadable" = "Antigravity 할당량 응답을 읽을 수 없습니다";
-"Antigravity reported no quota buckets" = "Antigravity가 할당량 버킷을 보고하지 않았습니다";
+"Google's quota response unreadable" = "Google 할당량 응답을 읽을 수 없습니다";
+"Google reported no quota buckets" = "Google이 할당량 버킷을 보고하지 않았습니다";
 "Antigravity's login has expired. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity 로그인이 만료되었습니다. Gemini CLI 또는 Antigravity를 한 번 실행해 다시 로그인하세요";
 "Antigravity's login was refused. Run Gemini CLI or Antigravity once so it signs back in" = "Antigravity 로그인이 거부되었습니다. Gemini CLI 또는 Antigravity를 한 번 실행해 다시 로그인하세요";
 "Appearance" = "모양";
@@ -400,7 +400,7 @@
 "inferred" = "추정";
 "Inner ring" = "안쪽 링";
 "Install" = "설치";
-"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI or GitHub Copilot; its meters appear here." = "Claude Code, Codex, Cursor, Gemini CLI 또는 GitHub Copilot을 설치하고 로그인하면 여기에 계량기가 표시됩니다.";
+"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here." = "Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot 또는 Kimi Code를 설치하고 로그인하면 여기에 계량기가 표시됩니다.";
 "Install command line tool…" = "명령줄 도구 설치…";
 "Install status line…" = "상태 표시줄 설치…";
 "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`." = "%1$@에 설치했습니다. `notchmeter`로 쓰려면 %2$@을(를) PATH에 추가하세요.";
@@ -576,7 +576,7 @@
 "Remote Claude Code over SSH" = "SSH를 통한 원격 Claude Code";
 "Remove" = "제거";
 "Repair" = "복구";
-"Repair a hook that points at an old copy at launch" = "실행 시 옛 복사본을 가리키는 훅 수리";
+"Repair an out-of-date hook at launch" = "실행 시 오래된 훅 수리";
 "Reset" = "초기화";
 "Reset all settings?" = "모든 설정을 재설정할까요?";
 "Reset All Settings…" = "모든 설정 재설정…";
@@ -656,7 +656,7 @@
 "The login item points at a copy of the app that has moved. Turn it off and on again." = "로그인 항목이 이동된 앱 복사본을 가리킵니다. 껐다가 다시 켜세요.";
 "The panel follows the pointer: it moves to the display the pointer has rested on for half a second." = "패널이 포인터를 따라갑니다. 포인터가 반 초 머문 디스플레이로 옮겨 갑니다.";
 "The panel's contents are white on black whatever you choose, and so is a notch cut into a side edge: both have to read as part of the screen rather than as something laid on top of it. Known limitation: on macOS 26 the glass behind the panel on an edge does follow the choice, so Light there puts that white text over light glass." = "무엇을 선택하든 패널의 내용은 검은 바탕에 흰 글씨로 유지되며, 화면 옆면에 그리는 노치 모양도 마찬가지입니다. 둘 다 화면 위에 얹힌 것이 아니라 화면의 일부로 보여야 하기 때문입니다. 알려진 제한: macOS 26에서는 가장자리에 열리는 패널 뒤의 유리가 선택을 따르므로, 라이트를 고르면 밝은 유리 위에 흰 글씨가 놓입니다.";
-"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's does not." = "어시스턴트가 승인을 기다리거나 방금 턴을 마쳤을 때 링은 소진이 아니라 당신이 필요하다는 뜻의 파란색이 되고, 옆의 표시가 둘 중 어느 쪽인지 알려 줍니다. 페이스는 호 끝의 캡을 그대로 유지하므로 거의 다 쓴 창은 여전히 그렇게 말합니다. 모든 훅은 턴이 끝난 것을 보고하고, 대기는 Claude Code, Codex, Gemini CLI, Copilot의 훅은 보고하지만 Cursor의 훅은 보고하지 않습니다.";
+"The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's and Kimi Code's do not." = "어시스턴트가 승인을 기다리거나 방금 턴을 마쳤을 때 링은 소진이 아니라 당신이 필요하다는 뜻의 파란색이 되고, 옆의 표시가 둘 중 어느 쪽인지 알려 줍니다. 페이스는 호 끝의 캡을 그대로 유지하므로 거의 다 쓴 창은 여전히 그렇게 말합니다. 모든 훅은 턴이 끝난 것을 보고하고, 대기는 Claude Code, Codex, Gemini CLI, Copilot의 훅은 보고하지만 Cursor와 Kimi Code의 훅은 보고하지 않습니다.";
 "The rings shrink to a dot once no assistant has been active for 30 minutes and every window is quiet; a hook event, file activity, a pace change or resting the pointer on them brings them back." = "30분 동안 어떤 어시스턴트도 활동하지 않고 모든 창이 조용하면 링이 점으로 줄어듭니다. 훅 이벤트, 파일 활동, 페이스 변화, 링 위에 포인터를 올리면 다시 나타납니다.";
 "The session is metering about %1$@ heavier than your norm: %2$@ per 1%% vs %3$@." = "세션 측정이 평소보다 약 %1$@ 무겁습니다: 1%%당 %2$@ 대 %3$@.";
 "Third ring" = "세 번째 링";
@@ -911,6 +911,13 @@
 "Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them." = "Claude Code는 0.7.0 훅 항목이 있어야 노치에서 답할 수 있습니다. 그 전까지 위의 훅 섹션에 복구(또는 추가)가 표시됩니다.";
 "Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor에는 답할 수 있는 이벤트가 없습니다. 승인은 항상 Cursor에서 합니다.";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Gemini CLI의 훅은 보고만 합니다. 권한 요청은 항상 터미널에서 답합니다.";
+/* 0.9.0: the Gemini CLI, Antigravity and Kimi Code pages (SettingsWindow loginNote, readingsNote, noAnswerNote) */
+"The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. Read only: never refreshed or written." = "Gemini CLI가 ~/.gemini/oauth_creds.json에 보관하는 Google 로그인입니다. 읽기만 하며 갱신하거나 기록하지 않습니다.";
+"Kimi Code's own login: the access token in credentials/kimi-code.json under $KIMI_SHARE_DIR or ~/.kimi; the refresh token beside it is never read. Read only: never refreshed or written." = "Kimi Code 자체 로그인입니다. $KIMI_SHARE_DIR 또는 ~/.kimi 아래 credentials/kimi-code.json의 액세스 토큰을 읽으며, 그 옆의 갱신 토큰은 절대 읽지 않습니다. 읽기만 하며 갱신하거나 기록하지 않습니다.";
+"Google's Code Assist quota, under Gemini CLI's own identity. No cost: it meters quota, not money." = "Google의 Code Assist 할당량으로, Gemini CLI 자체 신원으로 읽습니다. 비용은 없습니다. 돈이 아니라 할당량을 측정합니다.";
+"api.kimi.com's usage endpoint, the read Kimi Code's own /usage command makes. No cost: it meters a request allowance, not money." = "api.kimi.com의 사용량 엔드포인트로, Kimi Code 자체 /usage 명령이 하는 것과 같은 읽기입니다. 비용은 없습니다. 돈이 아니라 요청 할당량을 측정합니다.";
+"Kimi Code has no event that can be answered: its approvals are always answered in the terminal." = "Kimi Code에는 답할 수 있는 이벤트가 없습니다. 승인은 항상 터미널에서 합니다.";
+"Antigravity has no hook: its IDE reports no event the notch could read or answer." = "Antigravity에는 훅이 없습니다. 그 IDE는 노치가 읽거나 답할 수 있는 이벤트를 보고하지 않습니다.";
 "Notify about its limits" = "한도 알림";
 "Its pace, run-out, limit-hit, reset and reminder notices, and its extra-usage and cache or metering notices, as chosen under Notifications. Off leaves them out for this assistant alone; the budget's notices cover every assistant and stay." = "속도, 소진, 한도 도달, 초기화, 미리 알림 알림과 추가 사용, 캐시 계층이나 측정 알림으로, 알림에서 고른 대로입니다. 끄면 이 어시스턴트의 것만 빠지며, 예산 알림은 모든 어시스턴트에 해당하므로 남습니다.";
 "Off for every assistant under Notifications." = "알림에서 모든 어시스턴트에 대해 꺼져 있습니다.";
@@ -938,3 +945,23 @@
 "These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "이 설정은 모든 어시스턴트에 적용됩니다. 각 어시스턴트 페이지에서 그 어시스턴트의 한도 알림과 기다림·턴 종료 알림을 뺄 수 있습니다.";
 "Open Claude Code in Settings…" = "설정에서 Claude Code 열기…";
 "The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "설정의 여섯 개 창과 Claude Code 전용 페이지: 위치, 마우스 오버 또는 항상 열림, 백업이 있는 훅 설치.";
+/* 0.9.0: Gemini CLI and Antigravity as two rows, Kimi Code (CodeAssistProvider, KimiProvider, KimiHookFile, HookSettings, SettingsWindow) */
+"%@ already defines hooks in a form Notchmeter does not edit, so it was left untouched: paste the snippet instead" = "%@은(는) Notchmeter가 편집하지 않는 형식으로 이미 훅을 정의하고 있어 변경하지 않았습니다. 대신 스니펫을 붙여 넣으세요";
+"Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota" = "Antigravity는 자체 로그인을 키체인에 보관합니다. 그 할당량을 읽으려면 같은 Google 계정으로 Gemini CLI에 로그인하세요 (`gemini` 실행 후 Login with Google 선택)";
+"Gemini CLI's login has expired. Run Gemini CLI once so it signs back in" = "Gemini CLI 로그인이 만료되었습니다. Gemini CLI를 한 번 실행해 다시 로그인하세요";
+"Gemini CLI's login was refused. Run Gemini CLI once so it signs back in" = "Gemini CLI 로그인이 거부되었습니다. Gemini CLI를 한 번 실행해 다시 로그인하세요";
+"Kimi Code has not signed in. Run `kimi`, then /login" = "Kimi Code에 로그인되어 있지 않습니다. `kimi`를 실행한 뒤 /login을 사용하세요";
+"Kimi Code reads config.toml when it starts: the hook works from the next session." = "Kimi Code는 시작할 때 config.toml을 읽습니다: 훅은 다음 세션부터 동작합니다.";
+"Kimi Code reported no usage yet" = "Kimi Code가 아직 사용량을 보고하지 않았습니다";
+"Kimi Code reports session starts and ends, prompt sends, the end of each turn, a turn that failed, and subagent starts and stops. It has no event for a wait on your approval or a question, so the Kimi ring shows the finished tick and never the waiting hand, and a failed turn ends without the tick. The entries are [[hooks]] tables added to the end of config.toml, and the rest of the file is left exactly as it was; a file that already defines hooks another way is left alone, so paste the snippet instead. Kimi Code reads config.toml when it starts, and /hooks lists the entries." = "Kimi Code는 세션 시작과 종료, 프롬프트 전송, 각 턴의 끝, 실패한 턴, 하위 에이전트의 시작과 종료를 보고합니다. 승인이나 질문을 기다리는 이벤트는 없어 Kimi 링은 완료 체크만 보이고 대기 손 모양은 절대 보이지 않으며, 실패한 턴은 체크 없이 끝납니다. 항목은 config.toml 끝에 추가되는 [[hooks]] 테이블이며 파일의 나머지는 그대로 둡니다. 이미 다른 형식으로 훅을 정의한 파일은 그대로 두므로 대신 스니펫을 붙여 넣으세요. Kimi Code는 시작할 때 config.toml을 읽고, /hooks가 항목을 나열합니다.";
+"Kimi Code's login has expired. Run Kimi Code once so it signs back in" = "Kimi Code 로그인이 만료되었습니다. Kimi Code를 한 번 실행해 다시 로그인하세요";
+"Kimi Code's login was refused. Run Kimi Code once so it signs back in" = "Kimi Code 로그인이 거부되었습니다. Kimi Code를 한 번 실행해 다시 로그인하세요";
+"Kimi refused the usage read for this account" = "Kimi가 이 계정의 사용량 읽기를 거부했습니다";
+"Kimi's usage endpoint answered" = "Kimi 사용량 엔드포인트 응답 오류";
+"Kimi's usage endpoint answers only a Kimi Code membership" = "Kimi 사용량 엔드포인트는 Kimi Code 멤버십에만 응답합니다";
+"Kimi's usage response unreadable" = "Kimi 사용량 응답을 읽을 수 없습니다";
+"Limit %ld" = "한도 %ld";
+"Monthly coding" = "월간 코딩";
+"Monthly total" = "월간 전체";
+"Sign in to Kimi Code (run `kimi`, then /login) to read your plan usage" = "플랜 사용량을 읽으려면 Kimi Code에 로그인하세요 (`kimi` 실행 후 /login)";
+"No Kimi Code login on this Mac (an API key has no plan to meter). Run `kimi`, then /login, to read a membership's usage" = "이 Mac에 Kimi Code 로그인이 없습니다 (API 키에는 측정할 플랜이 없습니다). 멤버십 사용량을 읽으려면 `kimi` 실행 후 /login 하세요";

@@ -102,7 +102,7 @@ enum SettingsSearch {
             L("Show news in the notch"), L("Glow under the notch for news"), L("When an assistant waits for you, or a turn finishes"),
             L("Sound"), L("Pace crossing"), L("Permission request"), L("Question"), L("Plan ready to approve"), L("Turn finished"),
             L("Quiet hours"), L("Test notification"))
-        add(.hooks, L("Integrations"), L("Hooks"), L("Repair a hook that points at an old copy at launch"))
+        add(.hooks, L("Integrations"), L("Hooks"), L("Repair an out-of-date hook at launch"))
         add(.otherTools, L("Other tools"), L("MCP server"), L("Remote Claude Code over SSH"))
         add(.privacy, L("Advanced"), L("Privacy"), L("Hide usage while the screen is shared or recorded"),
             L("Local API on 127.0.0.1:%ld", Int(LocalAPI.port)))
@@ -136,7 +136,7 @@ enum SettingsSearch {
         case .codex: add(.sources, L("Also read Codex reset credits"))
         case .cursor: add(.sources, L("Also read Cursor's usage events"))
         case .copilot: add(.sources, L("Also read organisation billing"))
-        case .antigravity: break
+        case .gemini, .antigravity, .kimi: break
         }
         return rows
     }

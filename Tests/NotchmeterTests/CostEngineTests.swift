@@ -109,6 +109,8 @@ import Testing
         #expect(reportingCost == [.claude, .codex, .cursor, .copilot])
         #expect(ToolID.copilot.reportsCost == true)
         #expect(ToolID.antigravity.reportsCost == false)
+        #expect(ToolID.gemini.reportsCost == false, "Gemini CLI meters the same Google quota, in requests, not dollars")
+        #expect(ToolID.kimi.reportsCost == false, "Kimi publishes counts and ratios of an allowance, never a price")
     }
 
     /// Copilot's row is the credits the provider folded into the daily history, a cent a credit, tagged as the

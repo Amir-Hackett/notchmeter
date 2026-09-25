@@ -83,12 +83,12 @@ import Testing
         withSuite("moves") { defaults in
             let prefs = Preferences(defaults: defaults)
             prefs.move(.cursor, by: -1)
-            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .antigravity, .copilot])
+            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .gemini, .antigravity, .copilot, .kimi])
             prefs.move(.claude, by: -1)
-            prefs.move(.copilot, by: 1)
-            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .antigravity, .copilot])
+            prefs.move(.kimi, by: 1)
+            #expect(prefs.toolOrder == [.claude, .cursor, .codex, .gemini, .antigravity, .copilot, .kimi])
             prefs.move(.claude, by: 1)
-            #expect(prefs.toolOrder == [.cursor, .claude, .codex, .antigravity, .copilot])
+            #expect(prefs.toolOrder == [.cursor, .claude, .codex, .gemini, .antigravity, .copilot, .kimi])
         }
     }
 
@@ -99,7 +99,7 @@ import Testing
             prefs.compactStyle = .numbers
             prefs.compactKeep = .numbers
             let reloaded = Preferences(defaults: defaults)
-            #expect(reloaded.toolOrder == [.claude, .codex, .antigravity, .cursor, .copilot])
+            #expect(reloaded.toolOrder == [.claude, .codex, .cursor, .antigravity, .gemini, .copilot, .kimi])
             #expect(reloaded.compactStyle == .numbers)
             #expect(reloaded.compactKeep == .numbers)
         }
@@ -107,11 +107,14 @@ import Testing
 
     @Test func aStoredOrderGainsNewToolsAtTheEndAndLosesStrangers() {
         #expect(ToolOrder.normalize(nil) == ToolID.allCases)
-        #expect(ToolOrder.normalize(["cursor", "claude"]) == [.cursor, .claude, .codex, .antigravity, .copilot])
-        #expect(ToolOrder.normalize(["codex", "gemini", "codex"]) == [.codex, .claude, .cursor, .antigravity, .copilot])
+        #expect(ToolOrder.normalize(["cursor", "claude"]) == [.cursor, .claude, .codex, .gemini, .antigravity, .copilot, .kimi])
+        #expect(ToolOrder.normalize(["codex", "bard", "codex"]) == [.codex, .claude, .cursor, .gemini, .antigravity, .copilot, .kimi])
         withSuite("stale") { defaults in
+            // An order written before 0.9.0: Gemini CLI takes the place just before the Antigravity row it came out of
+            // (ToolMigration), and Kimi Code, new, lands at the end.
             defaults.set(["antigravity", "claude"], forKey: "toolOrder")
-            #expect(Preferences(defaults: defaults).toolOrder == [.antigravity, .claude, .codex, .cursor, .copilot])
+            let migrated: [ToolID] = [.gemini, .antigravity, .claude, .codex, .cursor, .copilot, .kimi]
+            #expect(Preferences(defaults: defaults).toolOrder == migrated)
         }
     }
 
@@ -128,7 +131,7 @@ import Testing
             let asShipped: [ToolID] = [.claude, .codex, .cursor]
             let cursorSecond: [ToolID] = [.claude, .cursor, .codex]
             let claudeSecond: [ToolID] = [.cursor, .claude, .codex]
-            let wholeOrder: [ToolID] = [.claude, .cursor, .codex, .antigravity, .copilot]
+            let wholeOrder: [ToolID] = [.claude, .cursor, .codex, .gemini, .antigravity, .copilot, .kimi]
             let spending: [ToolID] = [.cursor, .claude]
             #expect(store.visibleTools == asShipped)
             prefs.move(.cursor, by: -1)

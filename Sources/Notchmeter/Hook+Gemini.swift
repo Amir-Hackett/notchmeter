@@ -2,9 +2,10 @@ import Foundation
 
 extension Hook {
     /// Gemini CLI's hooks (geminicli.com/docs/hooks/reference) read onto the Message Claude Code's hook fills, and
-    /// light the Antigravity ring: the case is HookVendor.antigravity, because the two meter against the same
-    /// Google backend and the Antigravity IDE's own hooks file documents no session, prompt or wait event that the
-    /// notch could act on, so Gemini CLI's is the hook that ring gets. The names are put onto Claude Code's
+    /// light Gemini CLI's own ring (HookVendor.gemini). Until 0.9.0 they lit the Antigravity ring, which Gemini CLI
+    /// shared then; an entry still carrying that era's `--tool antigravity` is read as Gemini CLI's
+    /// (Hook.sender(named:)), since the Antigravity IDE's own hooks file documents no session, prompt or wait event
+    /// the notch could act on and so never had an entry of ours. The names are put onto Claude Code's
     /// vocabulary so the session tracker needs no second grammar: BeforeAgent is documented as "after a user
     /// submits a prompt", so it is the prompt; AfterAgent as "once per turn after the model generates its final
     /// response", so it is the stop; and Notification with notification_type ToolPermission is the CLI's
@@ -74,7 +75,7 @@ extension Hook {
                                   permissionMode: nil,
                                   agentID: nil,
                                   failure: nil,
-                                  host: nil, tool: .antigravity)
+                                  host: nil, tool: .gemini)
             // Since 0.7.0 the prompt's first line rides along on BeforeAgent as the session's title
             // (Hook.title(fromPrompt:)); the response and the alert's details stay unread.
             message.title = canonical == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
