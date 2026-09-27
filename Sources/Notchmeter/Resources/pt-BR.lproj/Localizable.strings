@@ -433,7 +433,7 @@
 "inferred" = "deduzido";
 "Inner ring" = "Anel interno";
 "Install" = "Instalar";
-"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here." = "Instale e inicie sessão no Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot ou Kimi Code; os medidores dele aparecem aqui.";
+"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code, or install OpenCode; its meters appear here." = "Instale e inicie sessão no Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot ou Kimi Code, ou instale o OpenCode; os medidores dele aparecem aqui.";
 "Install command line tool…" = "Instalar ferramenta de linha de comando…";
 "Install status line…" = "Instalar linha de status…";
 "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`." = "Instalado em %1$@. Adicione %2$@ ao seu PATH para usá-lo como `notchmeter`.";
@@ -1171,7 +1171,7 @@
 "At least one display stays on." = "Pelo menos uma tela continua ativada.";
 "A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "Uma tela que você não alternou fica ativada se tiver notch. A última tela ativada não pode ser desativada.";
 "Shown here while no chosen display is connected." = "Mostrado aqui enquanto nenhuma tela escolhida estiver conectada.";
-"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Role de lado sobre um anel, com dois dedos ou com a roda do mouse, para trocar a janela que ele acompanha. A escolha fica guardada e é a mesma das Opções do assistente em Assistentes.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with Rings and windows on the assistant's page." = "Role de lado sobre um anel, com dois dedos ou com a roda do mouse, para trocar a janela que ele acompanha. A escolha fica guardada e é a mesma de “Anéis e janelas”, na página do assistente.";
 "While an assistant works" = "Enquanto um assistente trabalha";
 "When nothing is running" = "Quando nada está rodando";
 "Rings or numbers" = "Anéis ou números";

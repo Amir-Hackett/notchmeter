@@ -831,7 +831,7 @@ struct SettingsView: View {
                 Toggle(L("Show assistant symbols in the rings"), isOn: Binding(get: { prefs.ringSymbols }, set: { prefs.ringSymbols = $0 }))
                     .help(L("Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart."))
             }
-            paragraph(L("Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants."), lines: nil)
+            paragraph(L("Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with Rings and windows on the assistant's page."), lines: nil)
             // The notch layout's alone, so only where a display has a notch for it: an edge or the pill with nothing
             // in it would be a stray capsule on the desktop.
             if prefs.edge == .top, NSScreen.screens.contains(where: { $0.safeAreaInsets.top > 0 }) {

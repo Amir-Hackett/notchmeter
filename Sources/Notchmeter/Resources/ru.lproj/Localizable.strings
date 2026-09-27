@@ -433,7 +433,7 @@
 "inferred" = "оценка";
 "Inner ring" = "Внутреннее кольцо";
 "Install" = "Установить";
-"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here." = "Установите Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot или Kimi Code и войдите в него — здесь появятся его показатели.";
+"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code, or install OpenCode; its meters appear here." = "Установите Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot или Kimi Code и войдите в него или установите OpenCode — здесь появятся его показатели.";
 "Install command line tool…" = "Установить инструмент командной строки…";
 "Install status line…" = "Установить строку состояния…";
 "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`." = "Установлено в %1$@. Добавьте %2$@ в PATH, чтобы вызывать его как `notchmeter`.";
@@ -1171,7 +1171,7 @@
 "At least one display stays on." = "Хотя бы один дисплей остаётся включённым.";
 "A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "Дисплей, который вы не переключали, включён, если у него есть вырез. Последний включённый дисплей выключить нельзя.";
 "Shown here while no chosen display is connected." = "Показывается здесь, пока не подключён ни один выбранный дисплей.";
-"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Прокрутите над кольцом вбок — двумя пальцами или колёсиком мыши, — чтобы сменить окно, которое оно показывает. Выбор сохраняется и совпадает с «Параметрами» ассистента в разделе «Ассистенты».";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with Rings and windows on the assistant's page." = "Прокрутите над кольцом вбок — двумя пальцами или колёсиком мыши, — чтобы сменить окно, которое оно показывает. Выбор сохраняется и совпадает с разделом «Кольца и окна» на странице ассистента.";
 "While an assistant works" = "Пока работает ассистент";
 "When nothing is running" = "Когда ничего не запущено";
 "Rings or numbers" = "Кольца или цифры";

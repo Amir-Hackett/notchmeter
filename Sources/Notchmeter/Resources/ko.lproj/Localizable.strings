@@ -416,7 +416,7 @@
 "inferred" = "추정";
 "Inner ring" = "안쪽 링";
 "Install" = "설치";
-"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here." = "Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot 또는 Kimi Code를 설치하고 로그인하면 여기에 계량기가 표시됩니다.";
+"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code, or install OpenCode; its meters appear here." = "Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot 또는 Kimi Code를 설치하고 로그인하거나 OpenCode를 설치하면 여기에 계량기가 표시됩니다.";
 "Install command line tool…" = "명령줄 도구 설치…";
 "Install status line…" = "상태 표시줄 설치…";
 "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`." = "%1$@에 설치했습니다. `notchmeter`로 쓰려면 %2$@을(를) PATH에 추가하세요.";
@@ -1154,7 +1154,7 @@
 "At least one display stays on." = "디스플레이 하나 이상은 켜 둡니다.";
 "A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "켜거나 끈 적이 없는 디스플레이는 노치가 있으면 켜집니다. 마지막으로 켜져 있는 디스플레이는 끌 수 없습니다.";
 "Shown here while no chosen display is connected." = "선택한 디스플레이가 연결되어 있지 않은 동안 여기에 표시됩니다.";
-"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "링 위에서 두 손가락 또는 마우스 휠로 옆으로 스크롤하면 링이 보여 주는 창이 바뀝니다. 선택은 유지되며, 어시스턴트 아래 해당 어시스턴트의 옵션과 같은 선택입니다.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with Rings and windows on the assistant's page." = "링 위에서 두 손가락 또는 마우스 휠로 옆으로 스크롤하면 링이 보여 주는 창이 바뀝니다. 선택은 유지되며, 해당 어시스턴트 페이지의 ‘링과 창’과 같은 선택입니다.";
 "While an assistant works" = "어시스턴트 작업 중";
 "When nothing is running" = "아무것도 실행 중이 아닐 때";
 "Rings or numbers" = "링 또는 숫자";
