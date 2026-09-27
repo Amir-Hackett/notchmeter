@@ -2,6 +2,13 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.5](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.5) — 2026-09-27
+
+### The Usage Dashboard
+
+- Resting the pointer on a bar now names that bar's day. Each day's hover area had come to cover the whole chart, so the tip named today whichever bar was under the pointer and kept it until the pointer left the chart; before 0.9.4 the line under the chart did the same.
+- VoiceOver's frame for each day is that day's column, where it was the whole chart.
+
 ## [0.9.4](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.4) — 2026-09-27
 
 ### A week paced by its last day, not its busiest hours

@@ -950,7 +950,6 @@ private struct DailySpendChart: View {
         return Color.clear
             .contentShape(Rectangle())
             .frame(width: frame.width, height: frame.height)
-            .position(x: frame.midX, y: frame.midY)
             .onHover { inside in hover(day.day, inside) }
             .onTapGesture { click(day.day) }
             .accessibilityElement()
@@ -960,6 +959,11 @@ private struct DailySpendChart: View {
             .accessibilityValue(Spoken.line(isPinned ? L("Pinned") : nil, DashboardView.dayFigures(day)))
             .accessibilityHint(L("Pins or unpins this day's figures under the chart"))
             .accessibilityAddTraits(.isButton)
+            // Last, and only last: `position` hands back a view the size of the whole overlay, and `onHover` tracks
+            // the frame of the view it is attached to. Until 0.9.5 the hover came after it, so every slot's hover
+            // covered the whole chart and the last day drawn, today, took the pointer wherever it was and kept it
+            // until it left the chart.
+            .position(x: frame.midX, y: frame.midY)
     }
 }
 
