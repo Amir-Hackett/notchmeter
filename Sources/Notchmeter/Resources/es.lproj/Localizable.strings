@@ -675,6 +675,11 @@
 "Team pooled" = "Fondo común del equipo";
 "Tells you what to do, not just how much." = "Te dice qué hacer, no solo cuánto.";
 "Test notification" = "Notificación de prueba";
+"Test in the notch" = "Probar en la muesca";
+"Show news in the notch and Glow under the notch for news are both off." = "«Mostrar novedades en la muesca» y «Brillo bajo la muesca para las novedades» están desactivados.";
+"Shown beside the notch." = "Mostrado junto a la muesca.";
+"Glowing under the notch. The words need the notch closed and on screen." = "Brilla bajo la muesca. El texto necesita la muesca cerrada y en pantalla.";
+"The notch can't show it right now: it is open, hidden by a full-screen app, or busy with a waiting session." = "La muesca no puede mostrarlo ahora: está abierta, oculta por una app a pantalla completa u ocupada con una sesión en espera.";
 "Text" = "Texto";
 "The %1$@ is close to pace: ~%2$ld%% left at reset." = "El %1$@ va al límite del ritmo: ~%2$ld%% restante al restablecerse.";
 "The %1$@ is spent. %2$@." = "El %1$@ se ha agotado. %2$@.";
@@ -826,6 +831,7 @@
 "Hover a bar for that day's figures; click it to keep them." = "Pasa el puntero por una barra para ver las cifras de ese día; haz clic en ella para fijarlas.";
 "Pinned" = "Fijado";
 "Unpin" = "Soltar";
+"Unpin all" = "Soltar todos";
 "Pins or unpins this day's figures under the chart" = "Fija o suelta las cifras de este día bajo el gráfico";
 "Limits" = "Límites";
 "No usage recorded yet" = "Aún no se ha registrado uso";
@@ -833,6 +839,7 @@
 "Reading this account's usage…" = "Leyendo el uso de esta cuenta…";
 "Spend and limits appear here once an assistant on this account has been used." = "El gasto y los límites aparecen aquí cuando se haya usado un asistente en esta cuenta.";
 "The tick marks an even pace: %ld%% of the window has passed" = "La marca indica un ritmo uniforme: ha pasado el %ld%% de la ventana";
+"The week in one window." = "La semana en una sola ventana.";
 "This account only · updated %@" = "Solo esta cuenta · actualizado a las %@";
 "This week" = "Esta semana";
 "Total" = "Total";

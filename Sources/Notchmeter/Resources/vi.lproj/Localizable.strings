@@ -658,6 +658,11 @@
 "Team pooled" = "Gộp chung của nhóm";
 "Tells you what to do, not just how much." = "Cho bạn biết nên làm gì, không chỉ đã dùng bao nhiêu.";
 "Test notification" = "Thông báo thử";
+"Test in the notch" = "Thử trên notch";
+"Show news in the notch and Glow under the notch for news are both off." = "“Hiện tin trong notch” và “Phát sáng dưới notch khi có tin” đều đang tắt.";
+"Shown beside the notch." = "Đã hiện bên cạnh notch.";
+"Glowing under the notch. The words need the notch closed and on screen." = "Đang phát sáng dưới notch. Chữ chỉ hiện khi notch đóng và có trên màn hình.";
+"The notch can't show it right now: it is open, hidden by a full-screen app, or busy with a waiting session." = "Notch chưa thể hiện lúc này: nó đang mở, bị ứng dụng toàn màn hình che, hoặc đang hiện một phiên đang chờ.";
 "Text" = "Chữ";
 "The %1$@ is close to pace: ~%2$ld%% left at reset." = "Bạn đang sát nhịp với %1$@: ~%2$ld%% còn lại khi đặt lại.";
 "The %1$@ is spent. %2$@." = "Bạn đã dùng hết %1$@. %2$@.";
@@ -809,6 +814,7 @@
 "Hover a bar for that day's figures; click it to keep them." = "Di chuột lên một cột để xem số liệu ngày đó; nhấp vào cột để giữ lại.";
 "Pinned" = "Đã ghim";
 "Unpin" = "Bỏ ghim";
+"Unpin all" = "Bỏ ghim tất cả";
 "Pins or unpins this day's figures under the chart" = "Ghim hoặc bỏ ghim số liệu ngày này bên dưới biểu đồ";
 "Limits" = "Giới hạn";
 "No usage recorded yet" = "Chưa có mức dùng nào";
@@ -816,6 +822,7 @@
 "Reading this account's usage…" = "Đang đọc mức dùng của tài khoản này…";
 "Spend and limits appear here once an assistant on this account has been used." = "Chi tiêu và giới hạn sẽ hiện ở đây khi một trợ lý trên tài khoản này được sử dụng.";
 "The tick marks an even pace: %ld%% of the window has passed" = "Vạch đánh dấu tốc độ đều: đã qua %ld%% khung thời gian";
+"The week in one window." = "Cả tuần trong một cửa sổ.";
 "This account only · updated %@" = "Chỉ tài khoản này · cập nhật lúc %@";
 "This week" = "Tuần này";
 "Total" = "Tổng";

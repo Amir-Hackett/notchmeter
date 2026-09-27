@@ -658,6 +658,11 @@
 "Team pooled" = "チーム共有プール";
 "Tells you what to do, not just how much." = "使用量だけでなく、何をすべきかも伝えます。";
 "Test notification" = "テスト通知";
+"Test in the notch" = "ノッチでテスト";
+"Show news in the notch and Glow under the notch for news are both off." = "「ノッチにお知らせを表示」と「お知らせのときにノッチの下を光らせる」がどちらもオフです。";
+"Shown beside the notch." = "ノッチの横に表示しました。";
+"Glowing under the notch. The words need the notch closed and on screen." = "ノッチの下が光っています。文字の表示には、ノッチが閉じていて画面に出ている必要があります。";
+"The notch can't show it right now: it is open, hidden by a full-screen app, or busy with a waiting session." = "ノッチは今は表示できません。開いているか、フルスクリーンのアプリに隠れているか、待機中のセッションを表示中です。";
 "Text" = "テキスト";
 "The %1$@ is close to pace: ~%2$ld%% left at reset." = "%1$@はペースに近づいています: リセット時に約 %2$ld%% 残る見込み。";
 "The %1$@ is spent. %2$@." = "%1$@を使い切りました。%2$@。";
@@ -809,6 +814,7 @@
 "Hover a bar for that day's figures; click it to keep them." = "バーにポインタを合わせるとその日の数値を表示します。クリックすると固定されます。";
 "Pinned" = "固定中";
 "Unpin" = "固定を解除";
+"Unpin all" = "すべての固定を解除";
 "Pins or unpins this day's figures under the chart" = "この日の数値をグラフの下に固定、または固定を解除します";
 "Limits" = "上限";
 "No usage recorded yet" = "まだ使用記録がありません";
@@ -816,6 +822,7 @@
 "Reading this account's usage…" = "このアカウントの使用状況を読み込み中…";
 "Spend and limits appear here once an assistant on this account has been used." = "このアカウントでアシスタントを使うと、支出と上限がここに表示されます。";
 "The tick marks an even pace: %ld%% of the window has passed" = "目盛りは均等なペースの位置です：期間の%ld%%が経過";
+"The week in one window." = "1週間をひとつのウィンドウで。";
 "This account only · updated %@" = "このアカウントのみ · %@ に更新";
 "This week" = "今週";
 "Total" = "合計";

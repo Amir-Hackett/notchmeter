@@ -351,6 +351,10 @@ enum Statusline {
         /// Today's prompt-cache miss share over the sessions the app has heard from (`promptCache.missShare` in
         /// the report), behind the same fifteen-minute gate; the payload's own figure wins over it in `line`.
         var cacheMissShare: Double?
+        /// The pace the app projects each Claude window of a day or longer at (`recentPerHour` in the report,
+        /// RecentPace), by window id, so the weekly here takes the colour the notch gives it rather than the even
+        /// burn's, which this process, with no drain log of its own, would otherwise fall back to.
+        var recentRates: [String: Double] = [:]
 
         /// The report the running app wrote beside its drain log, when under fifteen minutes old; failing that,
         /// today's total from the daily-totals file. Both are a few kilobytes and read in well under a millisecond.
@@ -367,6 +371,10 @@ enum Statusline {
                 }
                 if let cache = root["promptCache"] as? [String: Any] {
                     extras.cacheMissShare = JSON.number(cache["missShare"])
+                }
+                let claude = (root["tools"] as? [[String: Any]])?.first { $0["tool"] as? String == ToolID.claude.rawValue }
+                for window in claude?["windows"] as? [[String: Any]] ?? [] {
+                    if let id = window["id"] as? String, let rate = JSON.number(window["recentPerHour"]) { extras.recentRates[id] = rate }
                 }
             }
             if extras.today == nil, let history {
@@ -422,7 +430,7 @@ enum Statusline {
             parts.append(message.effort.map { "\(model) \($0)" } ?? model)
         }
         if let used = message.contextUsed { parts.append(paint("ctx \(Int((used * 100).rounded()))%", tint(context: used))) }
-        for window in message.windows {
+        for window in message.windows.map({ window in extras.recentRates[window.id].map { window.pacing(at: $0) } ?? window }) {
             guard let used = window.usedFraction else { continue }
             let name = windowSpecs.first { $0.id == window.id }?.short ?? window.id
             let percent = Int(((window.rawUsedPercent.map { $0 / 100 } ?? used) * 100).rounded())

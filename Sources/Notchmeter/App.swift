@@ -1885,10 +1885,13 @@ enum Probe {
         let samples = DrainLog().load(now: now)
         var drains: [DrainLog.Key: Drain] = [:]
         var runOuts: [DrainLog.Key: RunOutInterval] = [:]
+        // The pace the running app gives each window of a day or longer (UsageStore.adopt), from the same log.
+        readings = readings.map { RecentPace.apply($0, samples: samples, now: now) }
+        for reading in readings { statuses[reading.tool] = .ready(reading) }
         for (key, rows) in samples {
             if let drain = DrainLog.drain(rows, now: now) { drains[key] = drain }
             if let window = readings.first(where: { $0.tool == key.tool })?.windows.first(where: { $0.id == key.window }), let used = window.usedFraction, let resetsAt = window.resetsAt,
-               let interval = RunOutInterval.estimate(samples: rows, usedFraction: used, resetsAt: resetsAt, now: now) {
+               let interval = RunOutInterval.estimate(samples: rows, usedFraction: used, resetsAt: resetsAt, now: now, period: window.periodDuration) {
                 runOuts[key] = interval
             }
         }

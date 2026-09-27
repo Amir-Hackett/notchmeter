@@ -47,7 +47,7 @@
       <p class="lede">The dollar figure in Claude Code's <code>/usage</code>, in its status line and in Notchmeter's Cost card is worked out on your Mac from token counts and a price table. It is an estimate by construction. Here is exactly how Notchmeter's is built, where it comes from, and every place it is known to part company with the bill.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
-        <li class="stamp">Tested on Notchmeter 0.9.3</li>
+        <li class="stamp">Tested on Notchmeter 0.9.4</li>
         <li>Sources read 2026-09-01</li>
       </ul>
     </div>
@@ -113,9 +113,9 @@
     <ol>
       <li><strong>Interrupted responses.</strong> A response that never finished (you pressed Escape, the network dropped) has only placeholder lines, so its output is under-counted. Its input and cache counts are right. It cannot be told apart from a genuinely short reply, so nothing is guessed.</li>
       <li><strong>Contracted rates, regional cloud premiums and usage-credit rates</strong>, unless you tell the app about them (next section).</li>
-      <li><strong>Price changes.</strong> The table is a dated snapshot. A scheduled job fetches Anthropic's pricing page every week and fails when a row no longer matches.</li>
+      <li><strong>Price changes.</strong> The table compiled into the app is a dated snapshot. Once a day, unless you turn it off, the app also reads a price list this project publishes, so a model that launches between releases is priced at its published rate within a day; it can add a model or change a rate from a stated day, never remove one. A scheduled job fetches Anthropic's pricing page every week and fails when a row no longer matches.</li>
       <li><strong>Other machines and claude.ai.</strong> Only this Mac's transcripts, Cowork's and the folders you add are read. Chat on claude.ai is never priced.</li>
-      <li><strong>Currency.</strong> Everything is computed in US dollars. <em>Show costs in</em> converts with a rate you type; nothing is fetched, so a converted figure is only as current as that rate.</li>
+      <li><strong>Currency.</strong> Everything is computed in US dollars. <em>Show costs in</em> converts with a rate you type, so a converted figure is only as current as that rate, unless you turn on <em>Fetch today's rate</em> (off by default), which converts at the European Central Bank's daily reference rate instead.</li>
       <li><strong>Cursor's percentage fields</strong>, which Cursor's own staff describe as a different internal metric from spend (see the <a href="cursor-copilot-antigravity-limits.html">limits guide</a>).</li>
       <li><strong>Copilot's day series.</strong> GitHub reports a month-to-date count, so a day's credits land on the day this Mac saw them rise.</li>
     </ol>
@@ -126,9 +126,10 @@
     <div class="code" tabindex="0"><code>{"claude-opus-5": {"input": 4, "output": 20, "cacheRead": 0.4, "cacheWrite": 5, "cacheWrite1h": 8}}</code></div>
     <p>Rates are dollars per million tokens, and a cache rate you leave out is derived from your input rate with the standard multipliers. An override changes the pricing fingerprint the app's cache is keyed on, so every transcript is re-priced on the next scan.</p>
 
-    <h2 id="other-tools">Codex, Cursor, Copilot and Antigravity</h2>
+    <h2 id="other-tools">Codex, OpenCode, Cursor, Copilot and Antigravity</h2>
     <ul>
       <li><strong>Codex</strong> is priced from its session rollouts at OpenAI's published standard-tier rates, with cached input taken out of <code>input_tokens</code> before it is priced so it is not charged twice. On a ChatGPT plan it is, like Claude's, the value of the work and not a bill.</li>
+      <li><strong>OpenCode</strong> is read from its own database on this Mac, and nothing is asked of any server for it. A turn is worth the cost OpenCode recorded for it; a turn it recorded at zero on Anthropic or OpenAI, as it does on a subscription, is priced at that vendor's list rate, like Claude Code's; OpenCode Go's models at the Go page's rates. A turn priced none of those ways counts its tokens and not its dollars.</li>
       <li><strong>Cursor</strong> is not estimated at all. Every dollar on its row is the one Cursor itself put on that event in its own usage export, which is why the row says <em>billing export</em>.</li>
       <li><strong>GitHub Copilot</strong> is GitHub's own running count of AI credits, a cent each at GitHub's published rate, on seats GitHub meters that way.</li>
       <li><strong>Antigravity</strong> has no row. Its endpoints return quota fractions and no price and no token count, so there is nothing to derive a dollar from, and a $0 would be a claim that it cost nothing.</li>

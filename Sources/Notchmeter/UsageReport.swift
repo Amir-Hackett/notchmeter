@@ -152,6 +152,7 @@ struct UsageReport {
                     "projectedFraction": projected(window).map(Oracle.fraction) as Any,
                     "model": window.model as Any, "note": window.note as Any, "source": window.source.rawValue,
                     "hiddenByDefault": window.hiddenByDefault, "rawUsedPercent": window.rawUsedPercent as Any, "amountUSD": window.amountUSD.map(Self.money) as Any,
+                    "recentPerHour": window.recentRate.map(Oracle.fraction) as Any,
                     "drainLastHour": drain.map { ["from": Oracle.fraction($0.from), "to": Oracle.fraction($0.to), "perHour": $0.perHour.map(Oracle.fraction) as Any] } as Any,
                     "runOut": runOut.map { ["earliestAt": Oracle.timestamp(now.addingTimeInterval($0.earliest)), "latestAt": Oracle.timestamp(now.addingTimeInterval($0.latest)),
                                             "samples": $0.sampleCount] } as Any,
@@ -162,8 +163,7 @@ struct UsageReport {
     }
 
     private func projected(_ window: LimitWindow) -> Double? {
-        guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
-        return Pace.evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)?.projectedFraction
+        Pace.evaluate(window, now: now)?.projectedFraction
     }
 
     static func buckets(_ tokens: TokenBreakdown) -> [String: Any] {

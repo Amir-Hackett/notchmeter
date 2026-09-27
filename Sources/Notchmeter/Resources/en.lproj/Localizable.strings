@@ -675,6 +675,11 @@
 "Team pooled" = "Team pooled";
 "Tells you what to do, not just how much." = "Tells you what to do, not just how much.";
 "Test notification" = "Test notification";
+"Test in the notch" = "Test in the notch";
+"Show news in the notch and Glow under the notch for news are both off." = "Show news in the notch and Glow under the notch for news are both off.";
+"Shown beside the notch." = "Shown beside the notch.";
+"Glowing under the notch. The words need the notch closed and on screen." = "Glowing under the notch. The words need the notch closed and on screen.";
+"The notch can't show it right now: it is open, hidden by a full-screen app, or busy with a waiting session." = "The notch can't show it right now: it is open, hidden by a full-screen app, or busy with a waiting session.";
 "Text" = "Text";
 "The %1$@ is close to pace: ~%2$ld%% left at reset." = "The %1$@ is close to pace: ~%2$ld%% left at reset.";
 "The %1$@ is spent. %2$@." = "The %1$@ is spent. %2$@.";
@@ -826,6 +831,7 @@
 "Hover a bar for that day's figures; click it to keep them." = "Hover a bar for that day's figures; click it to keep them.";
 "Pinned" = "Pinned";
 "Unpin" = "Unpin";
+"Unpin all" = "Unpin all";
 "Pins or unpins this day's figures under the chart" = "Pins or unpins this day's figures under the chart";
 "Limits" = "Limits";
 "No usage recorded yet" = "No usage recorded yet";
@@ -833,6 +839,7 @@
 "Reading this account's usage…" = "Reading this account's usage…";
 "Spend and limits appear here once an assistant on this account has been used." = "Spend and limits appear here once an assistant on this account has been used.";
 "The tick marks an even pace: %ld%% of the window has passed" = "The tick marks an even pace: %ld%% of the window has passed";
+"The week in one window." = "The week in one window.";
 "This account only · updated %@" = "This account only · updated %@";
 "This week" = "This week";
 "Total" = "Total";

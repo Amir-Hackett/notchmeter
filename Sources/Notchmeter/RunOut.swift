@@ -1,11 +1,70 @@
 import Foundation
 
-/// A run-out estimate as an interval rather than a point: the 20th and 80th percentile of the hourly drain rates
-/// the log has seen for the window over the last seven days, in the same peak or off-peak state as now when
-/// enough of those exist, give the latest and the earliest moment the window runs out at those rates. How the two
-/// are shown is one rule, `presentation`, for the card and the advice alike: a range when they are more than
-/// fifteen minutes apart, one time at their midpoint when they are not. Notifications fire on the earliest edge,
-/// which is a threshold rather than a display. The method and its limits are in docs/accuracy.md.
+/// The pace a window of a day or longer is projected at: how far it rose over the last day, idle hours included,
+/// as a rate per hour (`LimitWindow.recentRate`, which `Pace` projects at in place of the even burn).
+///
+/// A week is not spent the way a five-hour session is. Until 0.9.4 a weekly window was forecast at the rates it
+/// had risen at while in use, which answers "if you work without stopping from now", and on 2026-09-27 it told a
+/// reader at 9 AM that the week would run out that afternoon: the window had risen 51 points on the night it reset
+/// and 5 in the two days since, and the forecast took the first night's hours as the pace. A day's rise counts the
+/// nights and the breaks, so it answers "if the next days go like the last one". The rise is the growth of the
+/// window's high-water mark, so the 1-point flicker between two reads of the same figure (50, 51, 50, 51) counts
+/// once, and a reset inside the day starts the new period from nothing. Until the log reaches back a day there is
+/// no rate, and `Pace` keeps the even burn.
+enum RecentPace {
+    static let span: TimeInterval = 86400
+
+    /// A fall this large inside one period is a vendor's correction, not the flicker, and the mark follows it down.
+    static let correction = 0.2
+
+    /// Windows of a day or longer, the ones projected at this pace; a shorter one (the five-hour session) is
+    /// projected at the pace of the hours it was used in (`RunOutInterval`), which is how such a window is spent.
+    static func applies(to window: LimitWindow) -> Bool {
+        !window.isComparison && (window.periodDuration ?? 0) >= Period.day
+    }
+
+    /// Fraction per hour over the span from the newest sample at least a day old to `now`; nil when the log does not
+    /// reach back that far. A gap in the log (the Mac asleep) widens the span rather than inventing a day.
+    static func rate(_ samples: [DrainSample], now: Date) -> Double? {
+        guard let start = samples.lastIndex(where: { $0.t <= now.addingTimeInterval(-span) }) else { return nil }
+        let base = samples[start]
+        var mark = base.used
+        var resetsAt = base.resetsAt
+        var rise = 0.0
+        for sample in samples[samples.index(after: start)...] where sample.t <= now {
+            if !ResetPeriod.same(sample.resetsAt, resetsAt) {
+                resetsAt = sample.resetsAt
+                mark = 0
+            } else if sample.used < mark - correction {
+                mark = sample.used
+            }
+            if sample.used > mark {
+                rise += sample.used - mark
+                mark = sample.used
+            }
+        }
+        let hours = now.timeIntervalSince(base.t) / 3600
+        return hours > 0 ? rise / hours : nil
+    }
+
+    /// The reading with each window of a day or longer carrying its rate from `samples`, which must already hold
+    /// this reading's own figures (UsageStore.recordDrain); the other windows as they came.
+    static func apply(_ reading: UsageReading, samples: [DrainLog.Key: [DrainSample]], now: Date) -> UsageReading {
+        let windows = reading.windows.map { window -> LimitWindow in
+            guard applies(to: window), let rows = samples[DrainLog.Key(tool: reading.tool, window: window.id)] else { return window }
+            return window.pacing(at: rate(rows, now: now))
+        }
+        return reading.replacing(windows: windows, fetchedAt: reading.fetchedAt)
+    }
+}
+
+/// A run-out estimate as an interval rather than a point, for a window shorter than a day (the five-hour session;
+/// a longer one is projected at `RecentPace`): the 20th and 80th percentile of the rates the window has risen at
+/// in use over the last seven days, in the same peak or off-peak state as now when enough of those exist, give the
+/// latest and the earliest moment the window runs out at those rates. How the two are shown is one rule,
+/// `presentation`, for the card and the advice alike: a range when they are more than fifteen minutes apart, one
+/// time at their midpoint when they are not. Notifications fire on the earliest edge, which is a threshold rather
+/// than a display. The method and its limits are in docs/accuracy.md.
 struct RunOutInterval: Equatable, Sendable {
     /// Seconds from now to the run-out at the fastest rate seen (the pessimistic edge).
     let earliest: TimeInterval
@@ -17,19 +76,37 @@ struct RunOutInterval: Equatable, Sendable {
     static let minimumSamples = 4
     static let lowerQuantile = 0.2
     static let upperQuantile = 0.8
+    /// A rise measured over less than this is timed by when the reads fell rather than by the work, so it waits
+    /// for the next one and the two are measured together.
+    static let shortestRise: TimeInterval = 300
+    /// A rise more than this after the last one spans a break, and says nothing about the pace of the work.
+    static let longestRise: TimeInterval = 3600
 
     var isWide: Bool { latest - earliest > Self.wideBeyond }
 
-    /// The measured hourly rates a window has moved at, one per pair of consecutive rows at least five minutes
-    /// apart that share a reset, newest last.
+    /// The rates a window has risen at while in use, newest last: each rise of its high-water mark over the time
+    /// since the mark last rose, when that was between five minutes and an hour before. Until 0.9.4 a rate was
+    /// taken between each pair of consecutive rows, which measured the log rather than the work: the figure moves
+    /// in whole points and a row is written at least every five minutes, so any 1-point step read as about 12% an
+    /// hour however slowly the window was really moving, and the 1-point flicker between two reads of the same
+    /// figure (50, 51, 50, 51) was counted as a fresh rise each time it came back up.
     static func hourlyRates(_ samples: [DrainSample], since: Date) -> [(t: Date, perHour: Double)] {
         var rates: [(Date, Double)] = []
-        for (previous, sample) in zip(samples, samples.dropFirst()) where sample.t >= since {
-            guard ResetPeriod.same(sample.resetsAt, previous.resetsAt), sample.used >= previous.used else { continue }
-            let hours = sample.t.timeIntervalSince(previous.t) / 3600
-            guard hours >= 5.0 / 60 else { continue }
-            let rate = (sample.used - previous.used) / hours
-            if rate > 0 { rates.append((sample.t, rate)) }
+        var mark: DrainSample?
+        var peak: DrainSample?
+        for sample in samples {
+            guard let from = mark, ResetPeriod.same(sample.resetsAt, from.resetsAt), sample.used >= from.used - RecentPace.correction else {
+                mark = sample
+                peak = nil
+                continue
+            }
+            if sample.used > (peak ?? from).used { peak = sample }
+            guard let to = peak else { continue }
+            let span = to.t.timeIntervalSince(from.t)
+            guard span >= shortestRise else { continue }
+            if span <= longestRise, to.t >= since { rates.append((to.t, (to.used - from.used) / (span / 3600))) }
+            mark = to
+            peak = nil
         }
         return rates
     }
@@ -43,9 +120,10 @@ struct RunOutInterval: Equatable, Sendable {
         return sorted[lower] + (sorted[upper] - sorted[lower]) * fraction
     }
 
-    static func estimate(samples: [DrainSample], usedFraction: Double, resetsAt: Date, now: Date, peak: PeakHours? = nil,
-                         days: Int = 7) -> RunOutInterval? {
-        guard usedFraction < 1, resetsAt > now else { return nil }
+    /// Nil for a window of a day or longer (`period`), which is projected at `RecentPace` instead.
+    static func estimate(samples: [DrainSample], usedFraction: Double, resetsAt: Date, now: Date, period: TimeInterval? = nil,
+                         peak: PeakHours? = nil, days: Int = 7) -> RunOutInterval? {
+        guard usedFraction < 1, resetsAt > now, (period ?? 0) < Period.day else { return nil }
         let since = now.addingTimeInterval(-TimeInterval(days) * 86400)
         var rates = hourlyRates(samples, since: since)
         if let peak, peak.enabled {

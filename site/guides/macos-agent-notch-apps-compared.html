@@ -47,7 +47,7 @@
       <p class="lede">At least ten apps now put coding agents in or beside the MacBook notch, every one of them released or updated this year. Notchmeter is one of them, and this page is ours, so read it with that in mind. It is written to be the fair one: every app below does something better than Notchmeter does, and its entry says what.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
-        <li class="stamp">Tested on Notchmeter 0.9.3</li>
+        <li class="stamp">Tested on Notchmeter 0.9.4</li>
         <li>Stars read from GitHub on 2026-09-24</li>
       </ul>
     </div>
@@ -79,7 +79,7 @@
           <tr><th scope="row"><a href="#buddi">Buddi</a></th><td class="num">92</td><td>GPL-3.0</td><td class="date">2026-08-22</td><td>Free</td><td>Hooks, installed on first launch</td></tr>
           <tr><th scope="row"><a href="#claude-stats">Claude Stats</a></th><td class="num">83</td><td>AGPL-3.0</td><td class="date">2026-08-27</td><td>Free</td><td>Local logs</td></tr>
           <tr><th scope="row"><a href="#agentnotch-app">AgentNotch (agentnotch.app)</a></th><td class="num">—</td><td>Closed source</td><td class="date">v2.1.5, 2026-09-23</td><td>$9.99 once</td><td>Not described on its site</td></tr>
-          <tr class="self"><th scope="row"><a href="#notchmeter">Notchmeter</a></th><td class="num">1</td><td>MIT</td><td class="date">2026-09-24</td><td>Free</td><td>Hooks, added only on your click, after a backup</td></tr>
+          <tr class="self"><th scope="row"><a href="#notchmeter">Notchmeter</a></th><td class="num">1</td><td>MIT</td><td class="date">2026-09-24</td><td>Free</td><td>Hooks, added only on your click, after a backup; terminal sessions without one are found and marked</td></tr>
         </tbody>
       </table>
     </div>
@@ -104,7 +104,7 @@
 
     <h3 id="codexisland">CodexIsland</h3>
     <p><a href="https://github.com/ericjypark/codex-island">ericjypark/codex-island</a>. <em>"Your AI usage limits, living in your notch"</em>: Claude Code's and Codex's 5-hour and weekly windows, local-log cost estimates, and a year of usage history.</p>
-    <p><strong>Where it beats Notchmeter:</strong> it is the app closest to Notchmeter's own pitch, and it is moving fast (pushed the day this was written). Its usage history is a year-at-a-glance calendar kept in its own database, it makes a shareable usage card, it offers five chart styles, and it estimates OpenCode's cost as well.</p>
+    <p><strong>Where it beats Notchmeter:</strong> it is the app closest to Notchmeter's own pitch, and it is moving fast (pushed the day this was written). Its usage history is a year-at-a-glance calendar kept in its own database, and it offers five chart styles. It also makes a shareable usage card and estimates OpenCode's cost, as Notchmeter has since 0.9.0.</p>
     <p><strong>Worth knowing:</strong> Claude and Codex only, and no sessions. Its README says the app is unsigned by Apple and its Homebrew cask removes the quarantine attribute. It reads credentials written by Claude Code or Claude Desktop.</p>
 
     <h3 id="agent-notch">agent-notch</h3>
@@ -134,11 +134,11 @@
 
     <h3 id="agentnotch-app">AgentNotch (agentnotch.app)</h3>
     <p><a href="https://www.agentnotch.app/">agentnotch.app</a>. <em>"Every coding agent. One place to look."</em> Sessions first, usage second, for Claude Code, Cursor, Codex, Kimi, OpenCode, Cowork, Antigravity, Pi and LM Studio, per its site.</p>
-    <p><strong>Where it beats Notchmeter:</strong> it feels finished, and it lets you make it yours: a choice of panel colours and of how much desktop shows through, and a light Paper theme. Five distinct sounds for completions, questions, approvals, ready plans and other requests. A locally computed meter for the OpenCode Go plan, which publishes no usage endpoint. Anonymous feedback from inside the app, and a switch per display.</p>
+    <p><strong>Where it beats Notchmeter:</strong> it feels finished, and its feedback from inside the app is anonymous, where Notchmeter's is filed under your own GitHub account or sent from your own address, because Notchmeter has no server to be anonymous through. The rest of what it had first, Notchmeter has matched since 0.9.0: a choice of panel colours and of how much desktop shows through, and a light Paper theme; distinct sounds for completions, questions, approvals, ready plans and other requests; a locally computed meter for the OpenCode Go plan, which publishes no usage endpoint; and a switch per display.</p>
     <p><strong>Worth knowing:</strong> closed source; $9.99 once, with a three-day trial that needs no card and a 14-day refund. Its site does not say how it reads sessions; its changelog records that its Live Prompts <em>"can no longer overwrite your agent's configuration, and every write leaves a backup"</em>. Not the AppGram project above.</p>
 
     <h3 id="notchmeter">Notchmeter</h3>
-    <p><a href="https://github.com/Amir-Hackett/notchmeter">Amir-Hackett/notchmeter</a>. Usage meters for Claude Code, Codex, Cursor, Antigravity / Gemini CLI and GitHub Copilot, with sessions, answering from the notch, and advice about what to do next.</p>
+    <p><a href="https://github.com/Amir-Hackett/notchmeter">Amir-Hackett/notchmeter</a>. Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code and OpenCode, with sessions, answering from the notch, and advice about what to do next.</p>
     <p><strong>Where it is behind:</strong> one star, so very few people have looked at it. Fewer agents than Vibe Island or AgentNotch. No mascot, no phone app, and remote sessions need a tunnel you set up yourself.</p>
     <p><strong>What it does that we did not find in the others' own documentation:</strong></p>
     <ul>

@@ -675,6 +675,11 @@
 "Team pooled" = "Pool d'équipe";
 "Tells you what to do, not just how much." = "Vous dit quoi faire, pas seulement combien.";
 "Test notification" = "Notification de test";
+"Test in the notch" = "Tester dans l'encoche";
+"Show news in the notch and Glow under the notch for news are both off." = "« Afficher les nouvelles dans l'encoche » et « Lueur sous l'encoche pour les nouvelles » sont tous deux désactivés.";
+"Shown beside the notch." = "Affiché à côté de l'encoche.";
+"Glowing under the notch. The words need the notch closed and on screen." = "La lueur est sous l'encoche. Le texte demande une encoche fermée et visible.";
+"The notch can't show it right now: it is open, hidden by a full-screen app, or busy with a waiting session." = "L’encoche ne peut pas l’afficher pour l’instant : elle est ouverte, masquée par une app en plein écran ou occupée par une session en attente.";
 "Text" = "Texte";
 "The %1$@ is close to pace: ~%2$ld%% left at reset." = "Le %1$@ est à la limite du rythme : ~%2$ld %% restant à la réinitialisation.";
 "The %1$@ is spent. %2$@." = "Le %1$@ est épuisé. %2$@.";
@@ -826,6 +831,7 @@
 "Hover a bar for that day's figures; click it to keep them." = "Survolez une barre pour voir les chiffres de ce jour ; cliquez dessus pour les garder.";
 "Pinned" = "Épinglé";
 "Unpin" = "Détacher";
+"Unpin all" = "Tout détacher";
 "Pins or unpins this day's figures under the chart" = "Épingle ou détache les chiffres de ce jour sous le graphique";
 "Limits" = "Limites";
 "No usage recorded yet" = "Aucune utilisation enregistrée pour l'instant";
@@ -833,6 +839,7 @@
 "Reading this account's usage…" = "Lecture de l'utilisation de ce compte…";
 "Spend and limits appear here once an assistant on this account has been used." = "Les dépenses et les limites apparaissent ici dès qu'un assistant de ce compte a été utilisé.";
 "The tick marks an even pace: %ld%% of the window has passed" = "Le repère indique un rythme régulier : %ld %% de la fenêtre est écoulé";
+"The week in one window." = "La semaine dans une seule fenêtre.";
 "This account only · updated %@" = "Ce compte uniquement · actualisé à %@";
 "This week" = "Cette semaine";
 "Total" = "Total";

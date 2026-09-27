@@ -397,22 +397,22 @@ import Testing
 
     // MARK: The pin
 
-    @Test func aClickPinsADayAndASecondClickLetsItGo() {
+    @Test func clicksPinSeveralDaysAndASecondClickLetsOneGo() {
         var selection = DashboardSelection(calendar: utc)
-        #expect(selection.shown == nil)
+        #expect(selection.hovered == nil)
         selection.hover(day(-1), inside: true)
-        #expect(selection.shown == day(-1), "a hover previews")
+        #expect(selection.hovered == day(-1), "a hover previews")
         #expect(selection.isPinned == false)
-        let pinned = selection.click(day(-2))
-        #expect(pinned)
-        #expect(selection.shown == day(-2), "the pin outranks the pointer")
+        let first = selection.click(day(-1))
+        let second = selection.click(day(-3))
+        #expect(first && second)
+        #expect(selection.pinned == [day(-3), day(-1)], "pins are kept side by side, in date order")
         selection.hover(day(0), inside: true)
-        #expect(selection.shown == day(-2), "a hover never moves a pin")
-        selection.hover(day(0), inside: false)
-        let again = selection.click(day(-2).addingTimeInterval(3600))
-        #expect(again == false, "a click on the pinned day, at any hour of it, unpins")
-        #expect(selection.isPinned == false)
-        #expect(selection.shown == nil)
+        #expect(selection.hovered == day(0), "a hover still names the day under the pointer while days are pinned")
+        #expect(selection.pinned == [day(-3), day(-1)], "and never moves a pin")
+        let again = selection.click(day(-3).addingTimeInterval(3600))
+        #expect(again == false, "a click on a pinned day, at any hour of it, unpins it")
+        #expect(selection.pinned == [day(-1)], "and only it")
     }
 
     @Test func aLeaveClearsOnlyItsOwnDaysPreview() {
@@ -421,30 +421,31 @@ import Testing
         selection.hover(day(-1), inside: true)
         selection.hover(day(0), inside: true)
         selection.hover(day(-1), inside: false)
-        #expect(selection.shown == day(0))
+        #expect(selection.hovered == day(0))
         selection.hover(day(0), inside: false)
-        #expect(selection.shown == nil)
+        #expect(selection.hovered == nil)
     }
 
-    @Test func escapeUnpinsAndTheHoverShowsAgain() {
+    @Test func escapeUnpinsEveryDayAndLeavesTheHover() {
         var selection = DashboardSelection(calendar: utc)
         selection.click(day(-1))
+        selection.click(day(-2))
         selection.hover(day(0), inside: true)
         selection.unpin()
         #expect(selection.isPinned == false)
-        #expect(selection.shown == day(0), "with the pin gone, the day under the pointer is back")
+        #expect(selection.hovered == day(0))
     }
 
     /// A change of range rebuilds the chart, and the old range's slots go without reporting the pointer's leave:
-    /// the preview is let go with the pin, or the line under the chart would name a day the pointer has left.
-    @Test func aChangeOfRangeLetsThePreviewGoWithThePin() {
+    /// the preview is let go with the pins, or the tip would name a day the pointer has left.
+    @Test func aChangeOfRangeLetsThePreviewGoWithThePins() {
         var selection = DashboardSelection(calendar: utc)
         selection.hover(day(-1), inside: true)
         selection.click(day(-2))
         selection.unpin()
         selection.clearHover()
         #expect(selection.isPinned == false)
-        #expect(selection.shown == nil, "neither the pin nor the day the pointer was over")
+        #expect(selection.hovered == nil, "neither the pins nor the day the pointer was over")
     }
 
     /// A day's slot is one VoiceOver element whose label is the day and whose value is the figures, so the day is
@@ -471,20 +472,19 @@ import Testing
         #expect(model.day(day(-40), calendar: utc) == nil, "a day outside the range shows nothing")
     }
 
-    @Test func aPinWhoseDayHasLeftTheRangeIsNoPinAndTheHoverShows() {
+    @Test func aPinWhoseDayHasLeftTheRangeIsNotListed() {
         let claude = provider(.claude, source: .localTranscripts, days: [day(-1): record(40), day(0): record(4)])
         let model = DashboardModel(providers: [claude], range: .week, weekStart: day(-3), now: now, calendar: utc)
         var selection = DashboardSelection(calendar: utc)
         selection.click(day(-1))
-        #expect(selection.resolved(in: model).isPinned, "a pinned day in the range is a pin")
-        #expect(selection.resolved(in: model).day?.total == 40)
-        // The range moved on while the window was open: the pinned date is no longer one of its days.
+        #expect(selection.resolved(in: model).pinned.map(\.total) == [40], "a pinned day in the range is listed")
+        // The range moved on while the window was open: this pinned date is no longer one of its days.
         selection.click(day(-40))
         selection.hover(day(0), inside: true)
         let resolved = selection.resolved(in: model)
-        #expect(selection.isPinned, "the stale date is still held")
-        #expect(!resolved.isPinned, "but it is not shown as a pin")
-        #expect(resolved.day?.total == 4, "and the hovered day shows instead of nothing")
+        #expect(selection.pinned.count == 2, "the stale date is still held")
+        #expect(resolved.pinned.map(\.total) == [40], "but only the day in the range is listed")
+        #expect(resolved.hovered?.total == 4)
     }
 
     // MARK: The hero

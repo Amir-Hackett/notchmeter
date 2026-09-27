@@ -393,6 +393,40 @@ import Testing
         #expect(box.spoken.count == 1)
     }
 
+    // MARK: Settings' Test in the notch
+
+    @Test func theNotchTestGoesThroughAnnounceAndSaysWhereItShowed() {
+        let (store, box) = makeStore()
+        #expect(store.testNotchNews() == "Shown beside the notch.")
+        #expect(store.peek?.reason == .finished)
+        #expect(store.glowNews == store.peek)
+        #expect(box.spoken.count == 1, "VoiceOver hears the test as it hears real news")
+        store.endPeek()
+    }
+
+    /// A second press inside `NotchNews.repeatAfter` has to show again: a test that went quiet on its second try
+    /// would read as a broken strip.
+    @Test func aSecondNotchTestIsNotDroppedAsARepeat() {
+        let (store, box) = makeStore()
+        let now = Date()
+        _ = store.testNotchNews(now: now)
+        store.endPeek()
+        #expect(store.testNotchNews(now: now.addingTimeInterval(2)) == "Shown beside the notch.")
+        #expect(box.spoken.count == 2)
+        store.endPeek()
+    }
+
+    @Test func theNotchTestSaysWhyItShowedNoWords() {
+        let (store, _) = makeStore(canPeek: false)
+        #expect(store.testNotchNews() == "Glowing under the notch. The words need the notch closed and on screen.")
+        #expect(store.peek == nil)
+        let (bare, _) = makeStore(glow: false, canPeek: false)
+        #expect(bare.testNotchNews().hasPrefix("The notch can't show it right now"))
+        let (off, box) = makeStore(news: false, glow: false)
+        #expect(off.testNotchNews() == "Show news in the notch and Glow under the notch for news are both off.")
+        #expect(box.spoken.isEmpty)
+    }
+
     @Test func withBothOffNothingIsAnnounced() {
         let (store, box) = makeStore(news: false, glow: false)
         store.announce(news())

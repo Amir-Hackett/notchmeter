@@ -135,13 +135,17 @@ enum Advisor {
     static func advise(_ context: Context) -> [Advice] {
         let runOuts = runOut(context)
         let alreadyRouted = Set(runOuts.compactMap(\.tool))
+        // A model already used up is the one line that says what to do now, so it goes ahead of the forecasts,
+        // which say what may happen later; a model nearly out keeps its place among the other moves.
+        let routing = modelRouting(context)
         let all = waiting(context)
             + extraUsage(context)
+            + routing.filter { $0.priority == .danger }
             + runOuts
             + limitHit(context)
             + limitReset(context)
             + budget(context)
-            + modelRouting(context)
+            + routing.filter { $0.priority != .danger }
             + waitForReset(context)
             + resetCredits(context)
             + burn(context)
@@ -339,7 +343,7 @@ enum Advisor {
                 alternative = nil
             }
             guard let alternative else { return nil }
-            return Advice(id: "model/\(reading.tool.rawValue)/\(hot.id)", tool: reading.tool, priority: .warn, symbol: "arrow.left.arrow.right",
+            return Advice(id: "model/\(reading.tool.rawValue)/\(hot.id)", tool: reading.tool, priority: used >= 1 ? .danger : .warn, symbol: "arrow.left.arrow.right",
                           text: L("%1$@ is %2$ld%%. %3$@ is %4$ld%%. Switch models, not tools.",
                                   name(hot), percent(used), alternative.name, percent(alternative.used))
                               + tokenizerCaveat(between: hot.model, and: alternative.model))
@@ -486,11 +490,7 @@ enum Advisor {
                                        now: context.now, calendar: context.calendar)
             return L("%1$@ %2$@ has run out. %3$@.%4$@", alert.tool.displayName, name(window, of: alert.tool), reset, suffix)
         case .onTrack:
-            let projected = window.usedFraction.flatMap { used in
-                window.resetsAt.flatMap { resetsAt in
-                    window.periodDuration.flatMap { Pace.evaluate(usedFraction: used, resetsAt: resetsAt, period: $0, now: context.now)?.projectedFraction }
-                }
-            } ?? 1
+            let projected = Pace.evaluate(window, now: context.now)?.projectedFraction ?? 1
             return L("%1$@ %2$@ is close to pace: ~%3$ld%% left at reset.%4$@", alert.tool.displayName, name(window, of: alert.tool), percent(max(0, 1 - projected)), suffix)
         case .reminder:
             let remaining = window.resetsAt.map { ResetText.duration($0.timeIntervalSince(context.now)) } ?? ""
@@ -523,11 +523,7 @@ enum Advisor {
                                        now: context.now, calendar: context.calendar)
             return L("The %1$@ is spent. %2$@.", name(window), reset)
         case .onTrack:
-            let projected = window.usedFraction.flatMap { used in
-                window.resetsAt.flatMap { resetsAt in
-                    window.periodDuration.flatMap { Pace.evaluate(usedFraction: used, resetsAt: resetsAt, period: $0, now: context.now)?.projectedFraction }
-                }
-            } ?? 1
+            let projected = Pace.evaluate(window, now: context.now)?.projectedFraction ?? 1
             return L("The %1$@ is close to pace: ~%2$ld%% left at reset.", name(window), percent(max(0, 1 - projected)))
         case .reminder, .reset:
             return nil
@@ -564,7 +560,8 @@ enum Advisor {
     static func runOutText(tool: ToolID, window: LimitWindow, context: Context, headroom: String) -> String? {
         guard let resetsAt = window.resetsAt, let eta = secondsToRunOut(window, tool: tool, context: context) else { return nil }
         let runsOutAt = context.now.addingTimeInterval(eta)
-        if case .range(let from, let to)? = context.runOuts["\(tool.rawValue)/\(window.id)"]?.presentation(now: context.now, resetsAt: resetsAt) {
+        if !RecentPace.applies(to: window),
+           case .range(let from, let to)? = context.runOuts["\(tool.rawValue)/\(window.id)"]?.presentation(now: context.now, resetsAt: resetsAt) {
             let fromText = ResetText.time(from, format: context.timeFormat, calendar: context.calendar)
             let toText = ResetText.time(to, format: context.timeFormat, calendar: context.calendar)
             let fromDay = ResetText.dayPhrase(from, now: context.now, calendar: context.calendar)
@@ -655,13 +652,16 @@ enum Advisor {
         1 - (window.usedFraction ?? 1)
     }
 
-    /// The moment the advice names and sorts on: the run-out interval's presented time when the log has one (the
-    /// midpoint of a narrow interval, the near edge of a wide one, which is the time the card shows, so the panel
-    /// names one time for one event), else the measured drain, else the even-burn projection. An interval with
-    /// nothing to show, because even its fast edge lasts past the reset, falls through like an absent one.
+    /// The moment the advice names and sorts on. A window of a day or longer has one answer, its own projection
+    /// (RecentPace, else the even burn), and never the last hour's rate, which would forecast a week from one busy
+    /// hour. A shorter one takes the run-out interval's presented time when the log has one (the midpoint of a
+    /// narrow interval, the near edge of a wide one, which is the time the card shows, so the panel names one time
+    /// for one event), else the measured drain, else the even-burn projection. An interval with nothing to show,
+    /// because even its fast edge lasts past the reset, falls through like an absent one.
     private static func secondsToRunOut(_ window: LimitWindow, tool: ToolID, context: Context) -> TimeInterval? {
         guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
         guard Pace.status(for: window, now: context.now) == .behind else { return nil }
+        if RecentPace.applies(to: window) { return Pace.secondsToRunOut(window, now: context.now) }
         if let shown = context.runOuts["\(tool.rawValue)/\(window.id)"]?.presentation(now: context.now, resetsAt: resetsAt) {
             return shown.at.timeIntervalSince(context.now)
         }
