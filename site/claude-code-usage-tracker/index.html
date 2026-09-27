@@ -80,7 +80,7 @@
    "name": "Does it work without the status line or the hook?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Yes. Without them the usage endpoint is read every five minutes and the meters show the same session, weekly and per-model figures. The status line makes the session and weekly figures local and instant and adds the context gauge; the hook adds sessions, waits and answering from the notch. Each has its own switch in Settings."
+    "text": "Yes. Without them the usage endpoint is read every five minutes and the meters show the same session, weekly and per-model figures, and sessions running in a terminal are still listed, each marked as found without the hook. The status line makes the session and weekly figures local and instant and adds the context gauge; the hook adds the live state (waits, finished turns and a refresh the moment a turn ends), sessions outside a terminal, and answering from the notch. Each has its own switch in Settings."
    }
   },
   {
@@ -151,7 +151,7 @@
           <li><strong>Extra usage</strong> against its monthly cap, on an account that has it, and a line the first time it rises in a month.</li>
           <li><strong>Cost</strong>: today, yesterday, the week, the month, 30 and 90 days, by model and by project, from this Mac's own transcripts at Anthropic's published rates; and a burn line when the last hour ran hot.</li>
           <li><strong>Context</strong>: with the status line installed, a thin arc around the Claude ring shows how full the session's context window is, and the card says “Context 62% · Opus · $1.23 this session”.</li>
-          <li><strong>Sessions</strong>: with the optional hook, every running session with its title, branch and terminal, a dot on the ring while one waits for you, and Allow, Deny or the answer to a question under your thumb.</li>
+          <li><strong>Sessions</strong>: every running session with its title, branch and terminal; one running in a terminal is listed without the hook, marked as found without it. The optional hook adds the live state: a dot on the ring while one waits for you, each finished turn and a refresh the moment it ends, and Allow, Deny or the answer to a question under your thumb.</li>
           <li><strong>The drain</strong>: “12% → 61% in the last hour” under a meter that moved, from an append-only log of every read, and a 24-hour sparkline.</li>
         </ul>
       </div>
@@ -175,9 +175,9 @@
           <tr><th scope="row">Session, Weekly</th><td>Claude Code's status line (<code>rate_limits.five_hour</code>, <code>seven_day</code>) while its last report is under three minutes old; otherwise <code>GET https://api.anthropic.com/api/oauth/usage</code>, on a five-minute cadence</td><td>The card says <em>From Claude Code's status line</em> when that is the source. The status line is local and costs no request.</td></tr>
           <tr><th scope="row">Per-model weekly (Opus, Sonnet, Fable…)</th><td>The usage endpoint's <code>limits[]</code> of kind <code>weekly_scoped</code> (older payloads: <code>seven_day_opus</code>, <code>seven_day_sonnet</code>)</td><td>The status line has no field for them, so beside a fresh status line the endpoint is still read every thirty minutes for these alone.</td></tr>
           <tr><th scope="row">Extra usage</th><td>The usage endpoint</td><td>Shown against the monthly cap the endpoint reports; never inferred.</td></tr>
-          <tr><th scope="row">Cost</th><td>This Mac's transcripts under <code>~/.claude/projects/</code>, priced at the rates on Anthropic's pricing page read 2026-09-01: five token buckets per model, ×1.1 when a response reports <code>inference_geo: "us"</code>, web searches at $0.01 each</td><td>An estimate at list price, and labelled <em>local transcripts</em>. On Pro, Max, Team or Enterprise nothing here is a bill.</td></tr>
+          <tr><th scope="row">Cost</th><td>This Mac's transcripts under <code>~/.claude/projects/</code>, priced at the rates on Anthropic's pricing page read 2026-09-24, the table built into the app, which a daily price catalog (on by default) can add a model to or update between releases: five token buckets per model, ×1.1 when a response reports <code>inference_geo: "us"</code>, web searches at $0.01 each</td><td>An estimate at list price, and labelled <em>local transcripts</em>. On Pro, Max, Team or Enterprise nothing here is a bill.</td></tr>
           <tr><th scope="row">Context, session cost, model</th><td>The status line</td><td>Only while Claude Code is sending reports; never estimated.</td></tr>
-          <tr><th scope="row">Sessions, waits</th><td>The optional hook</td><td>Documented events only; a wait is claimed only for an event that means the agent is asking you.</td></tr>
+          <tr><th scope="row">Sessions, waits</th><td>The optional hook; without it, the sessions running in a terminal, from the process, Claude Code's own session file and the end of its transcript, each marked as found without the hook</td><td>Documented events only; a wait is claimed only for an event that means the agent is asking you.</td></tr>
         </tbody>
       </table>
     </div>
@@ -195,7 +195,7 @@
     <div class="advice-list">
       <div class="advice">
         <div class="tag">Run-out</div>
-        <div class="say"><em>At this rate you hit the Claude weekly cap Thursday at 2:00 PM, 3d 4h before reset. Codex weekly is at 22%.</em><span class="when">A window is behind pace and has a run-out time: from the measured drain of the last hour when the log has one, else the even-burn projection. Another tool on a paid plan with half its main window left is named.</span></div>
+        <div class="say"><em>At this rate you hit the Claude weekly cap Thursday at 2:00 PM, 3d 4h before reset. Codex weekly is at 22%.</em><span class="when">A window is behind pace and has a run-out time: for the session, from the pace of the hours you worked, measured in the drain log; for a weekly window, from how far it rose over the last day, idle hours included; until the log has enough, from the even-burn projection. Another tool on a paid plan with half its main window left is named.</span></div>
       </div>
       <div class="advice">
         <div class="tag">Switch models</div>
@@ -231,7 +231,7 @@
       </details>
       <details>
         <summary>Does it work without the status line or the hook?</summary>
-        <p class="a">Yes. Without them the usage endpoint is read every five minutes and the meters show the same session, weekly and per-model figures. The status line makes the session and weekly figures local and instant and adds the context gauge; the hook adds sessions, waits and answering from the notch. Each has its own switch in Settings.</p>
+        <p class="a">Yes. Without them the usage endpoint is read every five minutes and the meters show the same session, weekly and per-model figures, and sessions running in a terminal are still listed, each marked as found without the hook. The status line makes the session and weekly figures local and instant and adds the context gauge; the hook adds the live state (waits, finished turns and a refresh the moment a turn ends), sessions outside a terminal, and answering from the notch. Each has its own switch in Settings.</p>
       </details>
       <details>
         <summary>Does it make inference requests or use up my limit?</summary>

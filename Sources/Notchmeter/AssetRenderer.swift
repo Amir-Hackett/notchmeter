@@ -91,9 +91,10 @@ enum AssetRenderer {
             let formStage = try Stage(store: form, prefs: formPrefs, actions: actions)
             try write(formStage.image(.expanded, canvas: formStage.panelCanvas, pixelScale: scale), png: directory.appendingPathComponent("elicitation.png"))
             try write(sheet(settings(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings.png"))
-            // The Usage Dashboard, dark and this week with the peak day pinned, at the window's width and as tall as
+            // The Usage Dashboard, dark and a whole week with the peak day pinned, at the window's width and as tall as
             // its sections: the README's picture, redrawn with the rest at every release rather than left behind.
-            try write(dashboardImage(store: store, range: .week, appearance: .darkAqua, pinPeak: true, now: now),
+            let weekDay = finishedWeek(before: now)
+            try write(dashboardImage(store: DemoFixtures.store(now: weekDay, suite: DemoFixtures.suiteName + ".week").store, range: .week, appearance: .darkAqua, pinPeak: true, now: weekDay),
                       png: directory.appendingPathComponent("dashboard.png"))
             try write(sheet(assistantPages(store: store, prefs: prefs, actions: actions)), png: directory.appendingPathComponent("settings-assistants.png"))
             // The Sounds block, for review: the Notifications pane at the window's narrowest, where the six rows
@@ -265,6 +266,7 @@ enum AssetRenderer {
     /// window's narrowest (DashboardWindowController.minSize), where the tiles go under the total.
     @MainActor
     static func dashboard(into directory: URL, now: Date = Date()) -> Bool {
+        let now = finishedWeek(before: now)
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             stillEveryAnimation()
@@ -291,6 +293,14 @@ enum AssetRenderer {
     /// view, so the hosting view's fitting size is the height of everything on it and no section is cut however
     /// the fixtures grow. `pinPeak` holds the range's costliest day under the chart, which is what a click does and
     /// what a picture cannot.
+    /// Noon on the last day of the calendar week before `now`'s, the moment the dashboard's pictures are drawn at. The
+    /// fixtures' week is the calendar week of the moment they are drawn at (CostEngine.weekStart), so a picture drawn
+    /// on a Sunday was a week of one bar and six empty days; drawn at the end of a finished week it has all seven.
+    static func finishedWeek(before now: Date, calendar: Calendar = .current) -> Date {
+        let start = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? calendar.startOfDay(for: now)
+        return start.addingTimeInterval(-12 * 3600)
+    }
+
     @MainActor
     static func dashboardImage(store: UsageStore, range: DashboardRange, appearance: NSAppearance.Name, pinPeak: Bool = false,
                                width: CGFloat = DashboardWindowController.contentSize.width, now: Date = Date()) throws -> CGImage {
@@ -358,7 +368,8 @@ enum AssetRenderer {
             // no sub-view that stands alone the way a panel card does, and `cropping(to:)` counts y from the top,
             // so the rect below is the top of the window: the total, the tiles beside it, and the week's chart.
             // The dark week with its peak day pinned is the same render the README's picture uses.
-            let dashboardWhole = try dashboardImage(store: store, range: .week, appearance: .darkAqua, pinPeak: true, now: now)
+            let weekDay = finishedWeek(before: now)
+            let dashboardWhole = try dashboardImage(store: DemoFixtures.store(now: weekDay, suite: DemoFixtures.suiteName + ".week").store, range: .week, appearance: .darkAqua, pinPeak: true, now: weekDay)
             let headHeight = Int((CGFloat(dashboardWhole.height) * 0.42).rounded())
             let dashboardHead = dashboardWhole.cropping(to: CGRect(x: 0, y: 0, width: dashboardWhole.width, height: headHeight))
 

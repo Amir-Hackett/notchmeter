@@ -483,7 +483,8 @@ struct DashboardView: View {
         let spendShown = store.prefs.showSpend
         let model = DashboardModel(providers: spendShown ? store.costSelection.providers : [], range: range, weekStart: weekStart,
                                    firstRecorded: store.cost?.firstUse, now: now)
-        let limits = DashboardLimit.all(store: store)
+        // At the view's own clock, so a render drawn at another moment keeps the windows whose reset is still ahead of it.
+        let limits = DashboardLimit.all(store: store, now: now)
         // The panel's look for this appearance, so CardBackground, Meter and the accent draw here as they do there.
         let dark = colorScheme == .dark
         let contrast = AccessibilityDisplay.shared.contrast
@@ -504,7 +505,7 @@ struct DashboardView: View {
                 if spendShown { empty }
             } else {
                 if !model.isEmpty {
-                    hero(DashboardHero(model: model, valueLine: store.planValueLine(for: range.costRange)))
+                    hero(DashboardHero(model: model, valueLine: store.planValueLine(for: range.costRange), now: now))
                     chartSection(model, ink: ink, pinMark: DashboardLook.pin(dark: dark, accent: store.prefs.panelAccent, contrast: contrast).color)
                 }
                 if !limits.isEmpty { limitsSection(limits, dark: dark, contrast: contrast) }
@@ -688,11 +689,11 @@ struct DashboardView: View {
                     ForEach(days) { day in
                         HStack(alignment: .firstTextBaseline, spacing: 5) {
                             Image(systemName: "pin.fill").foregroundStyle(pinMark)
-                            Text(Self.dayLine(day))
+                            Text(Self.dayLine(day, now: now))
                         }
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(L("Pinned"))
-                        .accessibilityValue(Spoken.phrase(Self.dayLine(day)))
+                        .accessibilityValue(Spoken.phrase(Self.dayLine(day, now: now)))
                     }
                 }
                 .font(.caption).foregroundStyle(Caption.style)
@@ -754,7 +755,7 @@ struct DashboardView: View {
             VStack(spacing: 0) {
                 ForEach(Array(limits.enumerated()), id: \.element.id) { index, limit in
                     if index > 0 { Divider() }
-                    LimitRow(limit: limit, timeFormat: store.prefs.timeFormat, dark: dark, contrast: contrast)
+                    LimitRow(limit: limit, timeFormat: store.prefs.timeFormat, dark: dark, contrast: contrast, now: now)
                         .padding(.vertical, 10)
                 }
             }
@@ -970,6 +971,8 @@ private struct LimitRow: View {
     let timeFormat: TimeFormatPreference
     let dark: Bool
     let contrast: Bool
+    /// The dashboard's clock (DashboardView.now), so a render's reset reads from the moment it is drawn at.
+    var now = Date()
 
     private func status(_ name: PanelInk, _ role: PanelLook.Role) -> Color {
         DashboardLook.status(name, role: role, dark: dark, contrast: contrast).color
@@ -1006,7 +1009,7 @@ private struct LimitRow: View {
                 .accessibilityHidden(tickLine == nil)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 if let reset = limit.window.resetsAt {
-                    Text(ResetText.line(resetsAt: reset, hasLimit: true, display: .exact, timeFormat: timeFormat, stale: limit.staleLine != nil))
+                    Text(ResetText.line(resetsAt: reset, hasLimit: true, display: .exact, timeFormat: timeFormat, stale: limit.staleLine != nil, now: now))
                         .foregroundStyle(Caption.style)
                 }
                 if let line = limit.allowanceLine {

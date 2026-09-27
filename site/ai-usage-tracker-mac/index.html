@@ -222,13 +222,13 @@
     <div class="split">
       <div>
         <h2>The whole picture, on hover</h2>
-        <p>Every meter shows a pace tick, where an even burn would be right now, a projection (“~67% left at reset” or “Runs out in 2h”) and the reset as a countdown or an exact time. The Cost card adds what your local Claude Code and Codex sessions would have cost at API list prices, and the dollars Cursor and GitHub Copilot themselves put on the month.</p>
-        <p>The Advice strip under it is worded as an instruction rather than a percentage: <em>Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.</em> The rules are pure functions over every visible tool's live reading, and each is pinned by a test.</p>
-        <p>Press ⌘U for the Usage Dashboard: the week's spend by day and by assistant, every limit with how much a day lasts to its reset, and where the money went by model and by project.</p>
+        <p>Every meter shows a pace tick, where an even burn would be right now, a projection (“~67% left at reset” or “Runs out in 2h”) and the reset as a countdown or an exact time. A week is projected at how far it rose over the last day, nights and breaks included, so a week spent on its first night and quiet since does not read as running out. The Cost card adds what your local Claude Code, Codex and OpenCode sessions would have cost at API list prices, and the dollars Cursor and GitHub Copilot themselves put on the month.</p>
+        <p>The advice, on the row each line is about (or as a strip under it in the Detailed layout), is worded as an instruction rather than a percentage: <em>Opus weekly is 91%. Sonnet is 34%. Switch models, not tools.</em> The rules are pure functions over every visible tool's live reading, and each is pinned by a test.</p>
+        <p>Press ⌘U for the Usage Dashboard: the week's spend by day and by assistant, with a day's figures in a tip under the pointer and any days you click pinned side by side, every limit with how much a day lasts to its reset, and where the money went by model and by project.</p>
       </div>
       <figure class="lp-figure fit-narrow">
         <div class="shot"><img src="../img/expanded.png" alt="The Simple panel: a row per assistant with its one figure, Claude with a session waiting for your answer, the Cost row with a burn line under it, and the Sessions grouped by project with the waiting one washed blue." loading="lazy"></div>
-        <figcaption>The Simple panel, the default since 0.8.0: one figure per assistant, the cost, the advice and your sessions. Drawn from fixed readings, so it shows nobody's usage.</figcaption>
+        <figcaption>The Simple panel, the default since 0.9.0: one figure per assistant, the cost, the advice and your sessions. Drawn from fixed readings, so it shows nobody's usage.</figcaption>
       </figure>
     </div>
   </div>
@@ -243,7 +243,7 @@
         <h3 class="who">What it does</h3>
         <ul>
           <li>One status read per tool, on that tool's own saved login</li>
-          <li>Reads your local Claude Code transcripts and Codex rollouts for the cost figures</li>
+          <li>Reads your local Claude Code transcripts, Codex rollouts and OpenCode's database for the cost figures</li>
           <li>Keeps everything on the Mac it runs on</li>
           <li>Asks for Accessibility only if you set Readouts to Auto</li>
         </ul>

@@ -64,7 +64,7 @@
    "name": "Does it work offline, or when the endpoint fails?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Yes. It falls back to the newest rate_limits snapshot Codex wrote into its own session rollouts, tagged “From Codex's last session file” so a figure from disk is never mistaken for a live one, and noted “Reset since Codex last reported” once that snapshot's reset has passed."
+    "text": "Yes. It falls back to the newest rate_limits snapshot Codex wrote into its own session rollouts, tagged “snapshot” so a figure from disk is never mistaken for a live one, and noted “Reset since Codex last reported” once that snapshot's reset has passed."
    }
   },
   {
@@ -130,7 +130,7 @@
     <nav class="lp-crumbs" aria-label="Breadcrumb"><ol><li><a href="../index.html">Notchmeter</a></li><li><a href="../usage-trackers/">Usage trackers</a></li><li aria-current="page">Codex</li></ol></nav>
     <span class="eyebrow"><span class="dot"></span>Free and open source · MIT</span>
     <h1>A Codex CLI usage tracker in the MacBook notch</h1>
-    <p class="lede">Notchmeter shows Codex's session, weekly or monthly rate-limit windows beside the notch, from the same backend Codex itself asks, each with a pace tick, a projection and its reset; prices this Mac's Codex sessions at OpenAI's published rates; and, with the optional hook, counts your running threads and lets you approve a Codex request from the notch. It reads the login Codex already keeps and never refreshes or stores it.</p>
+    <p class="lede">Notchmeter shows Codex's session, weekly or monthly rate-limit windows beside the notch, from the same backend Codex itself asks, each with a pace tick, a projection and its reset; prices this Mac's Codex sessions at OpenAI's published rates; lists the Codex sessions running in a terminal, each marked as found without the hook; and, with the optional hook, counts your running threads, shows their waits and finished turns as they happen, and lets you approve a Codex request from the notch. It reads the login Codex already keeps and never refreshes or stores it.</p>
     <div class="cta-row">
       <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
       <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#codex-sessions">How the sessions are priced</a>
@@ -147,10 +147,10 @@
         <p>The render on the right has Codex on a free plan, its Session with no data and its Monthly window untouched; a paid plan fills the same meters.</p>
         <ul class="lp-points">
           <li><strong>The windows your plan has</strong>: Session (5 hours), Weekly, or Monthly, named by the length the backend declares, with the used share, a pace tick, a projection and the reset as a countdown or an exact time, and the plan's name on the card.</li>
-          <li><strong>Offline</strong>: the newest <code>rate_limits</code> snapshot Codex wrote into its own session rollouts, tagged <em>From Codex's last session file</em> and noted “Reset since Codex last reported” once its reset has passed, because a figure from disk may be stale.</li>
+          <li><strong>Offline</strong>: the newest <code>rate_limits</code> snapshot Codex wrote into its own session rollouts, tagged <em>snapshot</em> and noted “Reset since Codex last reported” once its reset has passed, because a figure from disk may be stale.</li>
           <li><strong>Reset credits</strong>, opt-in: shown, with when each expires, and never claimed.</li>
           <li><strong>Cost</strong>: this Mac's Codex sessions priced at OpenAI's published rates, today, yesterday, the week, the month, 30 and 90 days, by model and by folder, with a burn line when the last hour ran hot.</li>
-          <li><strong>Sessions</strong>: with the hook, every running thread, a dot on the ring while Codex waits for an approval, and Allow or Deny from the notch.</li>
+          <li><strong>Sessions</strong>: every Codex session running in a terminal, listed without the hook and marked as found without it. With the hook, every running thread and its live state: a dot on the ring while Codex waits for an approval, each finished turn and a refresh the moment it ends, and Allow or Deny from the notch.</li>
         </ul>
       </div>
       <figure class="lp-figure fit-narrow">
@@ -171,10 +171,10 @@
         <thead><tr><th scope="col">Figure</th><th scope="col">Source</th><th scope="col">Notes</th></tr></thead>
         <tbody>
           <tr><th scope="row">Session, Weekly, Monthly</th><td><code>GET https://chatgpt.com/backend-api/wham/usage</code>, the backend Codex itself asks, on a five-minute cadence</td><td>Undocumented. The request carries Codex's token as <code>Authorization: Bearer</code>, <code>User-Agent: Notchmeter/&lt;version&gt;</code>, and <code>ChatGPT-Account-Id</code> when <code>auth.json</code> holds one.</td></tr>
-          <tr><th scope="row">The same, offline</th><td>The newest <code>rate_limits</code> line in <code>~/.codex/sessions/**/*.jsonl</code></td><td>Tagged <em>From Codex's last session file</em>; a weekly-only or monthly plan fills the primary slot by its declared length, as the backend read does.</td></tr>
+          <tr><th scope="row">The same, offline</th><td>The newest <code>rate_limits</code> line in <code>~/.codex/sessions/**/*.jsonl</code></td><td>Tagged <em>snapshot</em>; a weekly-only or monthly plan fills the primary slot by its declared length, as the backend read does.</td></tr>
           <tr><th scope="row">Reset credits</th><td><code>GET …/wham/rate-limit-reset-credits</code>, opt-in</td><td>Shown and never claimed.</td></tr>
           <tr><th scope="row">Cost</th><td>This Mac's rollouts under <code>$CODEX_HOME/sessions</code>: one <code>token_usage_record</code> per response, fresh input as <code>input_tokens</code> less <code>cached_input_tokens</code>, reasoning already inside <code>output_tokens</code>, priced at OpenAI's standard-tier rates read 2026-09-02</td><td>Cache writes are billed only on the GPT-5.6 rows, the long-context tier above 272K input tokens where a model publishes one, and a model with no published rate is named under “Unpriced” rather than valued at $0. A replayed <code>response_id</code> is counted once.</td></tr>
-          <tr><th scope="row">Sessions, waits</th><td>The optional hook: Codex's <code>PermissionRequest</code> is a documented wait; <code>Stop</code> has no failure kind</td><td>A limit hit waits for the next poll of the meter, because no Codex event fires for one; nothing is claimed that a documented signal does not prove.</td></tr>
+          <tr><th scope="row">Sessions, waits</th><td>The optional hook: Codex's <code>PermissionRequest</code> is a documented wait; <code>Stop</code> has no failure kind. Without it, the Codex sessions running in a terminal, each marked as found without the hook</td><td>A limit hit waits for the next poll of the meter, because no Codex event fires for one; nothing is claimed that a documented signal does not prove.</td></tr>
         </tbody>
       </table>
     </div>
@@ -220,7 +220,7 @@
       </details>
       <details>
         <summary>Does it work offline, or when the endpoint fails?</summary>
-        <p class="a">Yes. It falls back to the newest rate_limits snapshot Codex wrote into its own session rollouts, tagged “From Codex's last session file” so a figure from disk is never mistaken for a live one, and noted “Reset since Codex last reported” once that snapshot's reset has passed.</p>
+        <p class="a">Yes. It falls back to the newest rate_limits snapshot Codex wrote into its own session rollouts, tagged “snapshot” so a figure from disk is never mistaken for a live one, and noted “Reset since Codex last reported” once that snapshot's reset has passed.</p>
       </details>
       <details>
         <summary>Is the Codex cost my bill?</summary>

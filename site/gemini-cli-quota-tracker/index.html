@@ -80,7 +80,7 @@
    "name": "Why did a meter read untouched while I was using it?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter prefers the host Antigravity's CLI last logged, tries both otherwise, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption. If a window still reads untouched across three polls while the hook reports your turns, it loses its figure and says it is unverified."
+    "text": "Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter tries both, the daily one first, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption. If a window still reads untouched across three polls while Gemini CLI is at work, by its hook's turns or its own files changing, it loses its figure and says it is unverified."
    }
   },
   {
@@ -150,7 +150,7 @@
           <li><strong>Unknown is not untouched</strong>: a bucket Google sends no fraction for draws no figure, never 100% left. An explicit 0 is exhausted.</li>
           <li><strong>The reset</strong> on every window, as a countdown or an exact time. Google declares no window length for the per-model buckets, so at first a window shows its fraction and its reset and no pace tick; once two consecutive resets about five hours, a day or a week apart have been seen, the length is inferred, said to be (“daily window inferred from its resets”), tagged as an estimate, and the pace tick and projection appear.</li>
           <li><strong>No cost</strong>: Google meters quota, not money, and publishes no price and no token count a rate could be applied to, so the Cost card has no row for it, not a $0.</li>
-          <li><strong>Sessions</strong>: with the Gemini CLI hook, every running session, a tick when a turn ends, and a dot while Gemini CLI waits at a tool permission.</li>
+          <li><strong>Sessions</strong>: with the Gemini CLI hook, every running session, a tick and a refresh the moment a turn ends, and a dot while Gemini CLI waits at a tool permission. Without it, a Gemini CLI session running in a terminal is still listed, marked as found without the hook.</li>
         </ul>
       </div>
       <figure class="lp-figure fit-narrow">
@@ -171,10 +171,10 @@
         <thead><tr><th scope="col">Figure</th><th scope="col">Source</th><th scope="col">Notes</th></tr></thead>
         <tbody>
           <tr><th scope="row">The per-model buckets</th><td><code>POST …/v1internal:loadCodeAssist</code> for the project and tier, then <code>:retrieveUserQuotaSummary</code>, else <code>:retrieveUserQuota</code>, on <code>daily-cloudcode-pa.googleapis.com</code> or <code>cloudcode-pa.googleapis.com</code></td><td>Undocumented internal calls. With a Gemini CLI login the body says <code>ideType: GEMINI_CLI</code> and the request carries <code>User-Agent: Notchmeter/&lt;version&gt;</code>; a project-scoped refusal is retried project-less before it counts.</td></tr>
-          <tr><th scope="row">Which host</th><td>The host Antigravity's CLI last logged, else daily first and then the other, keeping the first answer with a live figure</td><td>The quota is metered on one of Google's two deployments, and the other answers every bucket untouched with a reset five hours off, whatever has been used; such an answer is shown with no figure and a caption, never as an untouched quota.</td></tr>
+          <tr><th scope="row">Which host</th><td>Both, daily first and then the other, keeping the first answer with a live figure; the host Antigravity's CLI logs steers only the Antigravity row, since that log says nothing about Gemini CLI's calls</td><td>The quota is metered on one of Google's two deployments, and the other answers every bucket untouched with a reset five hours off, whatever has been used; such an answer is shown with no figure and a caption, never as an untouched quota.</td></tr>
           <tr><th scope="row">Window length and pace</th><td>Inferred from two consecutive resets that agree with a five-hour, daily or weekly length; a first read only notes the likely length and drives nothing</td><td>Low confidence by design: Google's own documentation calls these per-day request limits, so even a confirmed length is labelled <em>inferred</em>.</td></tr>
           <tr><th scope="row">The staleness guard</th><td>A window read untouched across three consecutive polls while the hook reported a Gemini CLI turn loses its figure and says it is unverified</td><td>Judged by history, never by value, so a first read cannot fire it and a quiet Mac cannot either.</td></tr>
-          <tr><th scope="row">Sessions, waits</th><td>Gemini CLI's hooks in <code>~/.gemini/settings.json</code>, through the optional hook command</td><td>Its <code>ToolPermission</code> notification starts a wait; Gemini CLI's alert is observability only, so the wait is shown and cannot be answered from the notch.</td></tr>
+          <tr><th scope="row">Sessions, waits</th><td>Gemini CLI's hooks in <code>~/.gemini/settings.json</code>, through the optional hook command; without them, the Gemini CLI sessions running in a terminal, each marked as found without the hook</td><td>Its <code>ToolPermission</code> notification starts a wait; Gemini CLI's alert is observability only, so the wait is shown and cannot be answered from the notch.</td></tr>
         </tbody>
       </table>
     </div>
@@ -196,7 +196,7 @@
       </div>
       <div class="advice">
         <div class="tag">Run-out</div>
-        <div class="say"><em>At this rate you hit the Antigravity Gemini Pro daily cap today at 4:10 PM, 2h 20m before reset.</em><span class="when">A window with an inferred length is behind pace and has a run-out time.</span></div>
+        <div class="say"><em>At this rate you hit the Gemini Pro daily cap today at 4:10 PM, 2h 20m before reset.</em><span class="when">A window with an inferred length is behind pace and has a run-out time.</span></div>
       </div>
       <div class="advice">
         <div class="tag">Needs you</div>
@@ -224,7 +224,7 @@
       </details>
       <details>
         <summary>Why did a meter read untouched while I was using it?</summary>
-        <p class="a">Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter prefers the host Antigravity's CLI last logged, tries both otherwise, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption. If a window still reads untouched across three polls while the hook reports your turns, it loses its figure and says it is unverified.</p>
+        <p class="a">Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter tries both, the daily one first, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption. If a window still reads untouched across three polls while Gemini CLI is at work, by its hook's turns or its own files changing, it loses its figure and says it is unverified.</p>
       </details>
       <details>
         <summary>Does it need a separate login?</summary>
