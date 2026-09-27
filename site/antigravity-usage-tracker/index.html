@@ -88,7 +88,7 @@
    "name": "Why did a meter read untouched, or 100% left, while I was working?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter prefers the host Antigravity's CLI last logged, tries both otherwise, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption saying so. A window still untouched across three polls while the hook reports your turns loses its figure and says it is unverified."
+    "text": "Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter prefers the host Antigravity's CLI last logged, tries both otherwise, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption saying so. A window still untouched across three polls while Antigravity's own conversation files show it at work loses its figure and says it is unverified."
    }
   },
   {
@@ -174,7 +174,7 @@
           <tr><th scope="row">The per-model buckets</th><td><code>POST …/v1internal:retrieveUserQuota</code>, the fallback</td><td>A project-scoped 403 is retried with <code>{}</code> before it counts as a refusal: a licence is held by the user, not a project.</td></tr>
           <tr><th scope="row">The identity</th><td>With <code>~/.gemini/antigravity-cli</code>, <code>/Applications/Antigravity.app</code> or <code>~/.antigravity</code> present: <code>User-Agent: antigravity</code>, a <code>Client-Metadata</code> naming the IDE, and <code>ideType: ANTIGRAVITY</code></td><td>The backend picks which product's licence to check from the caller's identity, and answers an Antigravity-only account “no valid license” under any other. It is another client's identity, sent because the endpoint answers no other, and said here and in the privacy document.</td></tr>
           <tr><th scope="row">Which host</th><td>The host logged in <code>~/.gemini/antigravity-cli/cli.log</code>, else <code>daily-cloudcode-pa.googleapis.com</code> then <code>cloudcode-pa.googleapis.com</code>, keeping the first answer with a live figure</td><td>The other deployment answers every bucket untouched with a reset five hours off, whatever has been used.</td></tr>
-          <tr><th scope="row">The staleness guard</th><td>A window read untouched across three consecutive polls while the hook reported an Antigravity or Gemini CLI turn loses its figure and says it is unverified</td><td>Judged by history, never by value.</td></tr>
+          <tr><th scope="row">The staleness guard</th><td>A window read untouched across three consecutive polls while Antigravity was seen at work, its conversations under <code>~/.gemini/antigravity</code> or <code>~/.gemini/antigravity-cli/conversations</code> changing, loses its figure and says it is unverified</td><td>Judged by history, never by value. Antigravity has no hook, so its own files are the sign it was at work.</td></tr>
         </tbody>
       </table>
     </div>
@@ -196,7 +196,7 @@
       </div>
       <div class="advice">
         <div class="tag">Run-out</div>
-        <div class="say"><em>At this rate you hit the Antigravity Gemini models session cap today at 4:10 PM, 2h 20m before reset.</em><span class="when">A window is behind pace and has a run-out time: from the measured drain of the last hour when the log has one, else the even-burn projection.</span></div>
+        <div class="say"><em>At this rate you hit the Antigravity Gemini models session cap today at 4:10 PM, 2h 20m before reset.</em><span class="when">A window is behind pace and has a run-out time: for a session window, from the pace of the hours you worked, measured in the drain log; for a weekly or daily one, from how far it rose over the last day, idle hours included; until the log has enough, from the even-burn projection.</span></div>
       </div>
       <div class="advice">
         <div class="tag">Wait</div>
@@ -228,7 +228,7 @@
       </details>
       <details>
         <summary>Why did a meter read untouched, or 100% left, while I was working?</summary>
-        <p class="a">Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter prefers the host Antigravity's CLI last logged, tries both otherwise, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption saying so. A window still untouched across three polls while the hook reports your turns loses its figure and says it is unverified.</p>
+        <p class="a">Google meters the quota on one of two deployments, and the other answers every bucket untouched with a reset five hours from the moment it was asked. Notchmeter prefers the host Antigravity's CLI last logged, tries both otherwise, believes the first answer with a live figure, and shows a placeholder answer with no figure and a caption saying so. A window still untouched across three polls while Antigravity's own conversation files show it at work loses its figure and says it is unverified.</p>
       </details>
       <details>
         <summary>Does the June 2026 change to Gemini CLI quota affect Antigravity?</summary>

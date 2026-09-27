@@ -80,7 +80,7 @@
    "name": "Does it send another client's identity to GitHub?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "For the quota read, yes: the endpoint is keyed on the Copilot Chat extension's identifiers and answers no other, so the request carries them. The organisation reads carry Notchmeter's own name. It is the one borrowed identity in the app, and it is stated in docs/privacy.md and in the accuracy document rather than left in the code."
+    "text": "For the quota read, yes: the endpoint is keyed on the Copilot Chat extension's identifiers and answers no other, so the request carries them. The organisation reads carry Notchmeter's own name. It is one of two borrowed identities in the app, Antigravity's row carrying the other, and it is stated in docs/privacy.md and in the accuracy document rather than left in the code."
    }
   },
   {
@@ -150,7 +150,7 @@
           <li><strong>Premium requests</strong> on a legacy seat, and <strong>Chat</strong> and <strong>Completions</strong> where a plan meters them, Copilot Free's included. Request counts stay counts: multiplying them by an overage rate would invent a bill.</li>
           <li><strong>Cost</strong>: the credits used times a cent, on the Cost card as a row whose source reads <em>AI credits</em>, with the day series being what this Mac observed.</li>
           <li><strong>Organisation billing</strong>, opt-in for org admins: the month's organisation credits and spend as hidden-by-default windows, GitHub's own figures, and kept off the Cost card because they are the whole organisation's month rather than this seat's.</li>
-          <li><strong>Sessions</strong>: with the Copilot CLI hook, every running session, a dot on the ring while Copilot waits for a permission, and Allow or Deny from the notch.</li>
+          <li><strong>Sessions</strong>: with the Copilot CLI hook, every running session, a dot on the ring while Copilot waits for a permission, a tick and a refresh the moment a turn ends, and Allow or Deny from the notch. Without it, a Copilot CLI session running in a terminal is still listed, marked as found without the hook.</li>
         </ul>
       </div>
       <figure class="lp-figure fit-medium">
@@ -170,11 +170,11 @@
         <caption>Read on 2026-09-24 from the code and docs/accuracy.md.</caption>
         <thead><tr><th scope="col">Figure</th><th scope="col">Source</th><th scope="col">Notes</th></tr></thead>
         <tbody>
-          <tr><th scope="row">AI credits, Premium requests, Chat, Completions</th><td><code>GET https://api.github.com/copilot_internal/user</code>: the read Copilot's editor plugin makes to show its own quota (<code>quota_snapshots</code> with <code>credits_used</code> since June 2026; Copilot Free's <code>monthly_quotas</code> and <code>limited_user_quotas</code>)</td><td>Undocumented, and keyed on the client identity it answers to, so the request carries the Copilot Chat extension's identifiers (<code>Editor-Version: vscode/1.96.2</code>, <code>Editor-Plugin-Version: copilot-chat/0.26.7</code>, <code>User-Agent: GitHubCopilotChat/0.26.7</code>, <code>X-Github-Api-Version: 2025-04-01</code>). That is the one borrowed identity in the app, and it is said here rather than left in the code.</td></tr>
+          <tr><th scope="row">AI credits, Premium requests, Chat, Completions</th><td><code>GET https://api.github.com/copilot_internal/user</code>: the read Copilot's editor plugin makes to show its own quota (<code>quota_snapshots</code> with <code>credits_used</code> since June 2026; Copilot Free's <code>monthly_quotas</code> and <code>limited_user_quotas</code>)</td><td>Undocumented, and keyed on the client identity it answers to, so the request carries the Copilot Chat extension's identifiers (<code>Editor-Version: vscode/1.96.2</code>, <code>Editor-Plugin-Version: copilot-chat/0.26.7</code>, <code>User-Agent: GitHubCopilotChat/0.26.7</code>, <code>X-Github-Api-Version: 2025-04-01</code>). That is one of two borrowed identities in the app, Antigravity's row carrying the other, and it is said here rather than left in the code.</td></tr>
           <tr><th scope="row">Cost</th><td><code>credits_used</code> times $0.01: “1 AI credit = $0.01 USD” (docs.github.com, <em>Billing for individuals</em>, read 2026-09-20)</td><td>GitHub publishes the month-to-date count and not when each credit was spent, so every poll's rise is laid on the day it was seen, the first read of a month sets the baseline, and a count that falls is the month's reset. Tagged an estimate for that reason alone.</td></tr>
           <tr><th scope="row">Plan allowances</th><td>Only where a snapshot carries an <code>entitlement</code></td><td>GitHub publishes no per-seat ceiling on any endpoint, so the plan allowances (Pro 1,500, Pro+ 7,000, Max 20,000, Business 1,900, Enterprise 3,900 a month) are never assumed.</td></tr>
           <tr><th scope="row">Organisation billing</th><td><code>GET /user/orgs</code>, then <code>/orgs/&lt;org&gt;/settings/billing/usage/summary</code>: GitHub's public REST API, opt-in</td><td>With <code>User-Agent: Notchmeter/&lt;version&gt;</code> and the documented <code>X-GitHub-Api-Version: 2022-11-28</code>.</td></tr>
-          <tr><th scope="row">Sessions, waits</th><td>The Copilot CLI hook: <code>permission_prompt</code> and <code>elicitation_dialog</code> start a wait; its PascalCase <code>PermissionRequest</code> can be answered</td><td>A Copilot <code>agent_completed</code> is about a background subagent and never ends a wait it did not answer.</td></tr>
+          <tr><th scope="row">Sessions, waits</th><td>The Copilot CLI hook: <code>permission_prompt</code> and <code>elicitation_dialog</code> start a wait; its PascalCase <code>PermissionRequest</code> can be answered. Without it, the Copilot CLI sessions running in a terminal, each marked as found without the hook</td><td>A Copilot <code>agent_completed</code> is about a background subagent and never ends a wait it did not answer.</td></tr>
         </tbody>
       </table>
     </div>
@@ -224,7 +224,7 @@
       </details>
       <details>
         <summary>Does it send another client's identity to GitHub?</summary>
-        <p class="a">For the quota read, yes: the endpoint is keyed on the Copilot Chat extension's identifiers and answers no other, so the request carries them. The organisation reads carry Notchmeter's own name. It is the one borrowed identity in the app, and it is stated in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/privacy.md">docs/privacy.md</a> and in the accuracy document rather than left in the code.</p>
+        <p class="a">For the quota read, yes: the endpoint is keyed on the Copilot Chat extension's identifiers and answers no other, so the request carries them. The organisation reads carry Notchmeter's own name. It is one of two borrowed identities in the app, Antigravity's row carrying the other, and it is stated in <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/privacy.md">docs/privacy.md</a> and in the accuracy document rather than left in the code.</p>
       </details>
       <details>
         <summary>Does it need the gh command line tool?</summary>

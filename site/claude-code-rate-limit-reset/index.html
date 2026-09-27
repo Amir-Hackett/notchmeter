@@ -72,7 +72,7 @@
    "name": "Can it tell me whether I will run out before the reset?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Yes. Every meter has a pace tick and a projection, and once the drain log holds four hourly rates it shows a run-out range measured from your own last seven days rather than an even-burn guess. The notifications fire when the pace crosses, and again when the run-out time comes within an hour."
+    "text": "Yes. Every meter has a pace tick and a projection. For the session, once the drain log holds four hourly rates, it shows a run-out range measured from your own last seven days rather than an even-burn guess; a weekly window, once the app has a day of history, is projected at how far it rose over the last day, idle hours included. The notifications fire when the pace crosses, and again when the run-out time comes within an hour."
    }
   },
   {
@@ -96,7 +96,7 @@
    "name": "Are Claude's peak hours real, and does Notchmeter model them?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Tighter session limits on weekdays between 05:00 and 11:00 Pacific were reported by The Register on 2026-03-26 from Anthropic's announcement; Anthropic's support article on usage limits does not publish the hours. So they are a preference (Settings › Advanced › Peak hours, on for Claude only, editable) and not a constant the meter vouches for. Inside the window the projection assumes the peak rate your own drain log observed, and the advice names the next off-peak start for a long job."
+    "text": "Tighter session limits on weekdays between 05:00 and 11:00 Pacific were reported by The Register on 2026-03-26 from Anthropic's announcement; Anthropic's support article on usage limits does not publish the hours. So they are a preference (the hours, editable, under Settings › Advanced › Peak hours; the switch, on for Claude only, under Rings and windows on each assistant's page in Settings) and not a constant the meter vouches for. Inside the window the projection assumes the peak rate your own drain log observed, and the advice names the next off-peak start for a long job."
    }
   }
  ]
@@ -151,7 +151,7 @@
           <li><strong>Per-model weekly</strong> limits (Opus, Sonnet, Fable…), each carrying its own reset, shown on its own meter.</li>
           <li><strong>The display</strong>: <em>Resets in 3h 40m</em> or <em>Resets today at 10:50 PM</em>, your choice under Settings › Appearance › Reset times, in your own time zone and time format.</li>
           <li><strong>Not a fixed instant</strong>: across reads, one window's reset was seen to wander inside a two-second band while its figure never moved, the signature of a moment recomputed from a remaining duration. So two resets within ten minutes of each other are read as the same period, and a countdown never restarts on a wobble.</li>
-          <li><strong>Peak hours</strong>: tighter session limits on weekdays between 05:00 and 11:00 Pacific were reported, not documented (The Register, 2026-03-26, from Anthropic's announcement; Anthropic's support article does not publish the hours), so they are a preference under Settings › Advanced, on for Claude only, and never a constant the meter vouches for.</li>
+          <li><strong>Peak hours</strong>: tighter session limits on weekdays between 05:00 and 11:00 Pacific were reported, not documented (The Register, 2026-03-26, from Anthropic's announcement; Anthropic's support article does not publish the hours), so they are a preference and never a constant the meter vouches for: the hours are set under Settings › Advanced › Peak hours, and the <em>Peak hours</em> switch under <em>Rings and windows</em> on each assistant's page applies them to that assistant, on for Claude only.</li>
         </ul>
       </div>
       <figure class="lp-figure fit-medium">
@@ -172,8 +172,8 @@
         <thead><tr><th scope="col">Figure</th><th scope="col">How it is built</th><th scope="col">Where it shows</th></tr></thead>
         <tbody>
           <tr><th scope="row">Pace tick</th><td>Where an even burn would be right now: the elapsed share of the window, from the reset and the window's length</td><td>A tick on every meter, and the calm rule for the rings: small and dim while every window is under 40% and on pace</td></tr>
-          <tr><th scope="row">Projection</th><td>The used share extrapolated at an even burn to the reset, or the time the window runs out if that comes first</td><td>“~67% left at reset” or “Runs out in 2h” on the meter; “About 26% an hour lasts to the reset” in the dashboard</td></tr>
-          <tr><th scope="row">Run-out interval</th><td>The 20th and 80th percentiles of your own hourly rates over the last seven days, from the drain log; needs four rates, and keeps peak and off-peak hours apart when it has enough of each</td><td>“Runs out 2:10 PM–4:40 PM” on the card and the same times in the advice; a single time when the edges are within fifteen minutes</td></tr>
+          <tr><th scope="row">Projection</th><td>The used share extrapolated to the reset, or the time the window runs out if that comes first: the session at an even burn, and a weekly window, once the app has a day of history, at how far it rose over the last day, idle hours included</td><td>“~67% left at reset” or “Runs out in 2h” on the meter; “About 26% an hour lasts to the reset” in the dashboard</td></tr>
+          <tr><th scope="row">Run-out interval</th><td>For the session, the 20th and 80th percentiles of your own hourly rates over the last seven days, from the drain log; needs four rates, and keeps peak and off-peak hours apart when it has enough of each. A weekly window has none</td><td>“Runs out 2:10 PM–4:40 PM” on the card and the same times in the advice; a single time when the edges are within fifteen minutes</td></tr>
           <tr><th scope="row">The drain</th><td>An append-only log of every successful read per window: time, window, used fraction, reset. Seven days, never a token</td><td>“12% → 61% in the last hour” under a meter that moved, and a 24-hour sparkline on the card</td></tr>
         </tbody>
       </table>
@@ -224,7 +224,7 @@
       </details>
       <details>
         <summary>Can it tell me whether I will run out before the reset?</summary>
-        <p class="a">Yes. Every meter has a pace tick and a projection, and once the drain log holds four hourly rates it shows a run-out range measured from your own last seven days rather than an even-burn guess. The notifications fire when the pace crosses, and again when the run-out time comes within an hour.</p>
+        <p class="a">Yes. Every meter has a pace tick and a projection. For the session, once the drain log holds four hourly rates, it shows a run-out range measured from your own last seven days rather than an even-burn guess; a weekly window, once the app has a day of history, is projected at how far it rose over the last day, idle hours included. The notifications fire when the pace crosses, and again when the run-out time comes within an hour.</p>
       </details>
       <details>
         <summary>Will it notify me when the limit resets?</summary>
@@ -236,7 +236,7 @@
       </details>
       <details>
         <summary>Are Claude's peak hours real, and does Notchmeter model them?</summary>
-        <p class="a">Tighter session limits on weekdays between 05:00 and 11:00 Pacific were reported by The Register on 2026-03-26 from Anthropic's announcement; Anthropic's support article on usage limits does not publish the hours. So they are a preference (Settings › Advanced › Peak hours, on for Claude only, editable) and not a constant the meter vouches for. Inside the window the projection assumes the peak rate your own drain log observed, and the advice names the next off-peak start for a long job.</p>
+        <p class="a">Tighter session limits on weekdays between 05:00 and 11:00 Pacific were reported by The Register on 2026-03-26 from Anthropic's announcement; Anthropic's support article on usage limits does not publish the hours. So they are a preference (the hours, editable, under Settings › Advanced › Peak hours; the switch, on for Claude only, under <em>Rings and windows</em> on each assistant's page in Settings) and not a constant the meter vouches for. Inside the window the projection assumes the peak rate your own drain log observed, and the advice names the next off-peak start for a long job.</p>
       </details>
     </div>
   </div>
