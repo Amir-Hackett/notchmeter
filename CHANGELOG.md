@@ -2,6 +2,14 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.6](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.6) — 2026-09-27
+
+### Two lines brought up to date
+
+- The note under Settings › Appearance about scrolling over a ring now points at *Rings and windows* on each assistant's page, where the ring's choice is kept; it pointed at an Options section that no longer exists.
+- With no assistant set up yet, the panel's line on getting started names OpenCode too, which needs no sign-in: installing it is enough.
+- Both read the same way in all eleven languages.
+
 ## [0.9.5](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.5) — 2026-09-27
 
 ### The Usage Dashboard

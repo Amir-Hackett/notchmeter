@@ -434,7 +434,7 @@
 "inferred" = "abgeleitet";
 "Inner ring" = "Innerer Ring";
 "Install" = "Installieren";
-"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here." = "Installiere Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot oder Kimi Code und melde dich an; die Anzeigen erscheinen dann hier.";
+"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code, or install OpenCode; its meters appear here." = "Installiere Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot oder Kimi Code und melde dich an, oder installiere OpenCode; die Anzeigen erscheinen dann hier.";
 "Install command line tool…" = "Befehlszeilentool installieren …";
 "Install status line…" = "Statuszeile installieren …";
 "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`." = "Installiert unter %1$@. Füge %2$@ zu deinem PATH hinzu, um es als `notchmeter` zu nutzen.";
@@ -1172,7 +1172,7 @@
 "At least one display stays on." = "Mindestens ein Bildschirm bleibt eingeschaltet.";
 "A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "Ein Bildschirm, den du nicht umgeschaltet hast, ist eingeschaltet, wenn er eine Notch hat. Der letzte eingeschaltete Bildschirm lässt sich nicht ausschalten.";
 "Shown here while no chosen display is connected." = "Wird hier gezeigt, solange kein gewählter Bildschirm angeschlossen ist.";
-"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Scrolle seitwärts über einem Ring, mit zwei Fingern oder dem Mausrad, um das Fenster zu wechseln, das er zeigt. Die Wahl bleibt gespeichert und gilt auch in den Optionen des Assistenten unter Assistenten.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with Rings and windows on the assistant's page." = "Scrolle seitwärts über einem Ring, mit zwei Fingern oder dem Mausrad, um das Fenster zu wechseln, das er zeigt. Die Wahl bleibt gespeichert und gilt auch unter „Ringe und Fenster“ auf der Seite des Assistenten.";
 "While an assistant works" = "Während ein Assistent arbeitet";
 "When nothing is running" = "Wenn nichts läuft";
 "Rings or numbers" = "Ringe oder Zahlen";

@@ -416,7 +416,7 @@
 "inferred" = "推斷";
 "Inner ring" = "內環";
 "Install" = "安裝";
-"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here." = "安裝並登入 Claude Code、Codex、Cursor、Gemini CLI、Antigravity、GitHub Copilot 或 Kimi Code，其儀表會顯示在這裡。";
+"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code, or install OpenCode; its meters appear here." = "安裝並登入 Claude Code、Codex、Cursor、Gemini CLI、Antigravity、GitHub Copilot 或 Kimi Code，或安裝 OpenCode，其儀表會顯示在這裡。";
 "Install command line tool…" = "安裝命令列工具…";
 "Install status line…" = "安裝狀態列…";
 "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`." = "已安裝到 %1$@。將 %2$@ 加入 PATH 後即可以 `notchmeter` 使用。";
@@ -1154,7 +1154,7 @@
 "At least one display stays on." = "至少保留一台顯示器開啟。";
 "A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "未手動切換過的顯示器，有瀏海時預設開啟。最後一台開啟的顯示器無法關閉。";
 "Shown here while no chosen display is connected." = "在沒有已選顯示器連接時，顯示於此。";
-"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "在圓環上橫向捲動（雙指或滑鼠滾輪）可切換它顯示的視窗。選擇會被保留，並與「助理」中該助理的「選項」一致。";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with Rings and windows on the assistant's page." = "在圓環上橫向捲動（雙指或滑鼠滾輪）可切換它顯示的視窗。選擇會被保留，並與該助理頁面上的「圓環與視窗」一致。";
 "While an assistant works" = "助理工作時";
 "When nothing is running" = "沒有任務執行時";
 "Rings or numbers" = "圓環或數字";

@@ -433,7 +433,7 @@
 "inferred" = "inferred";
 "Inner ring" = "Inner ring";
 "Install" = "Install";
-"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here." = "Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here.";
+"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code, or install OpenCode; its meters appear here." = "Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code, or install OpenCode; its meters appear here.";
 "Install command line tool…" = "Install command line tool…";
 "Install status line…" = "Install status line…";
 "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`." = "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`.";
@@ -1171,7 +1171,7 @@
 "At least one display stays on." = "At least one display stays on.";
 "A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "A display you have not switched is on when it has a notch. The last display on cannot be switched off.";
 "Shown here while no chosen display is connected." = "Shown here while no chosen display is connected.";
-"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with Rings and windows on the assistant's page." = "Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with Rings and windows on the assistant's page.";
 "While an assistant works" = "While an assistant works";
 "When nothing is running" = "When nothing is running";
 "Rings or numbers" = "Rings or numbers";

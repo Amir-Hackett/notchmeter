@@ -433,7 +433,7 @@
 "inferred" = "déduit";
 "Inner ring" = "Anneau intérieur";
 "Install" = "Installer";
-"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here." = "Installez Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot ou Kimi Code et connectez-vous ; ses compteurs apparaîtront ici.";
+"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code, or install OpenCode; its meters appear here." = "Installez Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot ou Kimi Code et connectez-vous, ou installez OpenCode ; ses compteurs apparaîtront ici.";
 "Install command line tool…" = "Installer l'outil de ligne de commande…";
 "Install status line…" = "Installer la ligne d'état…";
 "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`." = "Installé dans %1$@. Ajoutez %2$@ à votre PATH pour l'utiliser en tant que `notchmeter`.";
@@ -1171,7 +1171,7 @@
 "At least one display stays on." = "Au moins un écran reste activé.";
 "A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "Un écran que vous n'avez pas basculé est activé s'il a une encoche. Le dernier écran activé ne peut pas être désactivé.";
 "Shown here while no chosen display is connected." = "Affiché ici tant qu'aucun écran choisi n'est branché.";
-"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Faites défiler latéralement sur un anneau, à deux doigts ou avec la molette, pour changer la fenêtre qu'il suit. Le choix est conservé et partagé avec les Options de l'assistant sous Assistants.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with Rings and windows on the assistant's page." = "Faites défiler latéralement sur un anneau, à deux doigts ou avec la molette, pour changer la fenêtre qu'il suit. Le choix est conservé et partagé avec « Anneaux et fenêtres » sur la page de l'assistant.";
 "While an assistant works" = "Pendant qu'un assistant travaille";
 "When nothing is running" = "Quand rien ne tourne";
 "Rings or numbers" = "Anneaux ou chiffres";

@@ -1252,7 +1252,7 @@ struct NotchExpandedView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(L("Connect an assistant to get started"))
                     .font(.callout)
-                Text(L("Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here."))
+                Text(L("Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code, or install OpenCode; its meters appear here."))
                     .modifier(Caption())
             }
             .modifier(CardBackground())
@@ -1303,7 +1303,7 @@ extension NotchExpandedView {
             VStack(alignment: .leading, spacing: 4) {
                 Text(L("Connect an assistant to get started"))
                     .font(.body.weight(.semibold))
-                Text(L("Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here."))
+                Text(L("Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code, or install OpenCode; its meters appear here."))
                     .modifier(Caption())
             }
             .padding(.horizontal, prefs.density.cardPadding)

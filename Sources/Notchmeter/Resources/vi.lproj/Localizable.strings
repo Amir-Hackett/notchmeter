@@ -416,7 +416,7 @@
 "inferred" = "suy ra";
 "Inner ring" = "Vòng trong";
 "Install" = "Cài đặt";
-"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code; its meters appear here." = "Cài và đăng nhập Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot hoặc Kimi Code; đồng hồ của nó sẽ hiện ở đây.";
+"Install and sign in to Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot or Kimi Code, or install OpenCode; its meters appear here." = "Cài và đăng nhập Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot hoặc Kimi Code, hoặc cài OpenCode; đồng hồ của nó sẽ hiện ở đây.";
 "Install command line tool…" = "Cài công cụ dòng lệnh…";
 "Install status line…" = "Cài dòng trạng thái…";
 "Installed at %1$@. Add %2$@ to your PATH to use it as `notchmeter`." = "Đã cài tại %1$@. Thêm %2$@ vào PATH để dùng dưới tên `notchmeter`.";
@@ -1154,7 +1154,7 @@
 "At least one display stays on." = "Luôn giữ bật ít nhất một màn hình.";
 "A display you have not switched is on when it has a notch. The last display on cannot be switched off." = "Màn hình bạn chưa bật tắt sẽ được bật nếu có tai thỏ. Màn hình cuối cùng còn bật không thể tắt.";
 "Shown here while no chosen display is connected." = "Hiển thị ở đây khi không có màn hình đã chọn nào được kết nối.";
-"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with the assistant's Options under Assistants." = "Cuộn ngang trên một vòng, bằng hai ngón hoặc con lăn chuột, để đổi cửa sổ mà vòng theo dõi. Lựa chọn được giữ lại và dùng chung với Tùy chọn của trợ lý trong mục Trợ lý.";
+"Scroll sideways over a ring, with two fingers or a mouse wheel, to change the window it watches. The choice is kept and shared with Rings and windows on the assistant's page." = "Cuộn ngang trên một vòng, bằng hai ngón hoặc con lăn chuột, để đổi cửa sổ mà vòng theo dõi. Lựa chọn được giữ lại và dùng chung với mục Vòng và cửa sổ trên trang của trợ lý.";
 "While an assistant works" = "Khi một trợ lý đang làm việc";
 "When nothing is running" = "Khi không có gì chạy";
 "Rings or numbers" = "Vòng hoặc số";
