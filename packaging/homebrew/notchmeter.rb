@@ -13,12 +13,12 @@
 # `brew install --cask --no-quarantine notchmeter` (docs/release.md, "Testing an unsigned build"). The published
 # release is notarised and needs neither.
 cask "notchmeter" do
-  version "0.9.3"
-  sha256 "901f610f13f7e459f742420b98d56789a2a1b9afb03db0ffef6adbea06cc4006"
+  version "0.9.4"
+  sha256 "7bce9c6c7cb1ef9be9a2c110eef395d90c64d30c75a501fdf81ed2f22d183594"
 
   url "https://github.com/Amir-Hackett/notchmeter/releases/download/v#{version}/Notchmeter.dmg"
   name "Notchmeter"
-  desc "Usage rings for Claude Code, Codex, Cursor, Gemini CLI and Copilot beside the MacBook notch or on a screen edge"
+  desc "Usage rings for Claude Code, Codex, Cursor and more, beside the MacBook notch or on a screen edge"
   homepage "https://github.com/Amir-Hackett/notchmeter"
 
   livecheck do
