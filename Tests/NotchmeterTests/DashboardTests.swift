@@ -395,6 +395,43 @@ import Testing
         #expect(!text.contains("controlAccentColor"), "Dashboard.swift draws NSColor.controlAccentColor")
     }
 
+    /// `position` hands back a view the size of its whole container, and `onHover` tracks the frame of the view it is
+    /// attached to, so a hover (or a tap) chained after it listens across the whole container. The dashboard's day
+    /// slots were built that way until 0.9.5: every slot's hover covered the chart, the last day drawn took the
+    /// pointer wherever it was, and the tip named today whichever bar was under it. Found by a recording, confirmed
+    /// with the pointer moved over both orders of the same four slots; this holds every view in the app to the order.
+    @Test func noViewListensForThePointerAfterBeingPositioned() throws {
+        let sources = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/Notchmeter")
+        let listeners = [".onHover", ".onContinuousHover", ".onTapGesture"]
+        for file in try FileManager.default.contentsOfDirectory(at: sources, includingPropertiesForKeys: nil) where file.pathExtension == "swift" {
+            let lines = try String(contentsOf: file, encoding: .utf8).components(separatedBy: "\n")
+            // How far a line opens or closes brackets, its comment left out, so a modifier whose argument or closure
+            // runs over several lines is followed to its end rather than taken for the end of the chain.
+            func balance(_ line: String) -> Int {
+                let code = line.components(separatedBy: "//").first ?? line
+                return code.reduce(0) { depth, character in
+                    "({[".contains(character) ? depth + 1 : ")}]".contains(character) ? depth - 1 : depth
+                }
+            }
+            for (index, line) in lines.enumerated() where line.contains(".position(") {
+                // The rest of the same modifier chain: at the chain's own depth, the lines that go on with a modifier or
+                // a comment; inside a modifier's own brackets, whatever its argument holds.
+                var depth = balance(String(line[line.range(of: ".position(")!.lowerBound...]))
+                for next in lines.dropFirst(index + 1) {
+                    let trimmed = next.trimmingCharacters(in: .whitespaces)
+                    if depth <= 0 {
+                        guard trimmed.hasPrefix(".") || trimmed.hasPrefix("//") else { break }
+                        #expect(!listeners.contains { trimmed.hasPrefix($0) },
+                                "\(file.lastPathComponent):\(index + 1): \(trimmed.prefix(40)) is chained after .position, so it listens across the whole container")
+                    }
+                    depth += balance(next)
+                }
+            }
+        }
+    }
+
     // MARK: The pin
 
     @Test func clicksPinSeveralDaysAndASecondClickLetsOneGo() {
