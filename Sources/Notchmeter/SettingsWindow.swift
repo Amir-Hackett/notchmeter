@@ -185,6 +185,7 @@ struct SettingsView: View {
     @State private var hookMessage: [HookVendor: String] = [:]
     @State private var statuslineMessage: String?
     @State private var notificationMessage: String?
+    @State private var notchTestMessage: String?
     @State private var diagnosticsMessage: String?
     /// What the last Send Feedback handed over to, under the buttons that raise the sheet.
     @State private var feedbackMessage: String?
@@ -410,6 +411,10 @@ struct SettingsView: View {
             .padding(.horizontal, 20)
             .padding(.top, 16)
             .padding(.bottom, -4)
+            // Over the Form, not under it: the pad above pulls the Form up into the header, and the search field,
+            // set on the title's baseline, hangs below the title's frame, so the Form (the later sibling, drawn
+            // over it) cut off the field's bottom border and the title's descenders.
+            .zIndex(1)
             Form {
                 paneContent
             }
@@ -1072,6 +1077,16 @@ struct SettingsView: View {
                 }
                 if let notificationMessage {
                     Text(notificationMessage).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            // The notch's own news (the peek and the glow) goes nowhere near Notification Center, so the button above
+            // says nothing about it: this one sends a sample finish through the same path a hook's news takes.
+            HStack {
+                Button(L("Test in the notch")) {
+                    notchTestMessage = store.testNotchNews()
+                }
+                if let notchTestMessage {
+                    Text(notchTestMessage).font(.caption).foregroundStyle(.secondary)
                 }
             }
             // The switches here choose which kinds of notice go out, for every assistant; which assistants they go

@@ -103,7 +103,7 @@ enum SettingsSearch {
             L("Notify when a session compacts, may be stuck or is refused"),
             L("Stay quiet while a terminal or editor is in front"), L("Colour the rings when an assistant waits or finishes"),
             L("Show news in the notch"), L("Glow under the notch for news"), L("When an assistant waits for you, or a turn finishes"),
-            L("Quiet hours"), L("Test notification"))
+            L("Quiet hours"), L("Test notification"), L("Test in the notch"))
         add(.sounds, L("Sounds"), L("Play sounds"), L("Turn finished"), L("Waiting reminder"), L("Permission request"), L("Question"),
             L("Plan ready to approve"), L("Limit alert"), L("Silence"))
         add(.hooks, L("Integrations"), L("Hooks"), L("Repair an out-of-date hook at launch"))

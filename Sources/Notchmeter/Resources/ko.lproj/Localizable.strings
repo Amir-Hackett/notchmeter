@@ -658,6 +658,11 @@
 "Team pooled" = "팀 공용 풀";
 "Tells you what to do, not just how much." = "얼마나 썼는지뿐 아니라 무엇을 해야 하는지 알려줍니다.";
 "Test notification" = "테스트 알림";
+"Test in the notch" = "노치에서 테스트";
+"Show news in the notch and Glow under the notch for news are both off." = "‘노치에 소식 표시’와 ‘소식이 있으면 노치 아래를 밝히기’가 모두 꺼져 있습니다.";
+"Shown beside the notch." = "노치 옆에 표시했습니다.";
+"Glowing under the notch. The words need the notch closed and on screen." = "노치 아래가 빛나고 있습니다. 글자는 노치가 닫혀 있고 화면에 보일 때 나타납니다.";
+"The notch can't show it right now: it is open, hidden by a full-screen app, or busy with a waiting session." = "지금은 노치에 표시할 수 없습니다. 노치가 열려 있거나, 전체 화면 앱에 가려져 있거나, 대기 중인 세션을 표시하고 있습니다.";
 "Text" = "텍스트";
 "The %1$@ is close to pace: ~%2$ld%% left at reset." = "%1$@이(가) 페이스에 근접: 초기화 시 약 %2$ld%% 남음.";
 "The %1$@ is spent. %2$@." = "%1$@이(가) 소진되었습니다. %2$@.";
@@ -809,6 +814,7 @@
 "Hover a bar for that day's figures; click it to keep them." = "막대에 포인터를 올리면 그날의 수치가 표시됩니다. 클릭하면 고정됩니다.";
 "Pinned" = "고정됨";
 "Unpin" = "고정 해제";
+"Unpin all" = "모두 고정 해제";
 "Pins or unpins this day's figures under the chart" = "이 날의 수치를 차트 아래에 고정하거나 고정을 해제합니다";
 "Limits" = "한도";
 "No usage recorded yet" = "아직 사용 기록이 없습니다";
@@ -816,6 +822,7 @@
 "Reading this account's usage…" = "이 계정의 사용량을 읽는 중…";
 "Spend and limits appear here once an assistant on this account has been used." = "이 계정에서 어시스턴트를 사용하면 지출과 한도가 여기에 표시됩니다.";
 "The tick marks an even pace: %ld%% of the window has passed" = "눈금은 균등한 속도의 위치입니다: 기간의 %ld%%가 지남";
+"The week in one window." = "한 주를 창 하나에.";
 "This account only · updated %@" = "이 계정만 · %@에 업데이트";
 "This week" = "이번 주";
 "Total" = "합계";

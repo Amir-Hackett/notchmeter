@@ -47,7 +47,7 @@
       <p class="lede">A percentage says how much is gone. It does not say whether the rest will last. Here are the three ways Notchmeter answers that question, from the weakest evidence to the strongest, and the things that can still make the answer wrong.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
-        <li class="stamp">Tested on Notchmeter 0.9.3</li>
+        <li class="stamp">Tested on Notchmeter 0.9.4</li>
         <li>Rules from docs/accuracy.md</li>
       </ul>
     </div>
@@ -56,7 +56,7 @@
   <div class="wrap guide-body">
     <div class="answer">
       <p class="label">The short answer</p>
-      <p>Compare how much is used with how much of the window has gone by. 62% used three days into a seven-day week runs out about two days early at the same rate; 62% used six days in is comfortably fine. Notchmeter draws that comparison as a pace tick on every meter and projects it to the reset. Once it has watched enough of your own hours, it gives the run-out as a range, from the pace of your slower hours to the pace of your faster ones, instead of one guessed time.</p>
+      <p>Compare how much is used with how much of the window has gone by. 62% used three days into a seven-day week runs out about two days early at the same rate; 62% used six days in is comfortably fine. Notchmeter draws that comparison as a pace tick on every meter and projects it to the reset. Once it has a day of your own history, it projects a week at how far the week rose over the last day, nights and breaks included, and the five-hour session at the pace of the hours you worked in it, as a range from your slower hours to your faster ones.</p>
     </div>
 
     <h2 id="pace">Pace, not percentage</h2>
@@ -79,13 +79,15 @@
       <figcaption>The Simple panel, drawn from sample data. Each assistant's row shows its most urgent window, the one furthest behind pace, and a figure behind pace carries a symbol as well as a colour.</figcaption>
     </figure>
 
-    <h2 id="three-answers">Three answers, from weakest to strongest</h2>
+    <h2 id="three-answers">Three answers, and which window gets which</h2>
     <h3>1. The even burn</h3>
-    <p>The projection above assumes the rest of the window goes the way the part so far went. It needs nothing but the vendor's figure, the reset and the window's length, so it is available from the first read. Its weakness is obvious: a morning of heavy work followed by an afternoon off looks, at noon, like a week that will run out.</p>
-    <h3>2. The measured drain</h3>
-    <p>Notchmeter keeps a small log of every successful read: the time, the window, the used fraction and the reset, never a token, for seven days. A meter that moved gets a line such as <em>12% → 61% in the last hour</em>, and the last hour's measured rate replaces the even-burn assumption in the projection and the notifications. It answers "at the rate I am going right now", which is the right question in the middle of a heavy job.</p>
-    <h3>3. The run-out interval</h3>
-    <p>With enough history the log answers with two times instead of one. Every hour of the last seven days in which the window moved gives a rate. The 20th percentile of those rates gives the latest run-out, the 80th the earliest. At least four rates are needed; fewer and there is no interval.</p>
+    <p>The projection above assumes the rest of the window goes the way the part so far went. It needs nothing but the vendor's figure, the reset and the window's length, so it is available from the first read, and the tick on the meter always shows it. Its weakness is obvious: a morning of heavy work followed by an afternoon off looks, at noon, like a week that will run out. So it is only the answer until the log below has something better.</p>
+    <h3>2. A day's rise, for a week or a month</h3>
+    <p>Notchmeter keeps a small log of every successful read: the time, the window, the used fraction and the reset, never a token, for seven days. Once the log reaches back a day, a window of a day or longer is projected at how far it rose over that day, nights and breaks included. The rise is the growth of the window's highest figure, so a figure that flickers a point either way between two reads counts once, and a reset inside the day starts the new week from nothing. That one projection colours the ring, writes the note beside the meter, words the advice and decides the notifications, so none of them can disagree. It answers "if the next days go like the last one", which is the question a week asks.</p>
+    <p>It replaced the pace of the hours you worked, which answered "if you work without stopping from now". On 27 September that told a reader at 9 AM that a week spent mostly on the night it reset, and barely touched in the two days since, would run out that afternoon.</p>
+    <h3>3. The pace of your working hours, for the session</h3>
+    <p>A five-hour window is spent while you work, so it is projected at the pace of the hours it was used in. A meter that moved gets a line such as <em>12% → 61% in the last hour</em>, and the last hour's measured rate replaces the even burn in the projection and the notifications. It answers "at the rate I am going right now", which is the right question in the middle of a heavy job.</p>
+    <p>With enough history the log answers with two times instead of one. Every rise of the window in the last seven days gives a rate: the rise over the time since it last rose, when that was between five minutes and an hour before, so a figure that moves in whole points is not mistaken for a sprint and a break is not counted as work. The 20th percentile of those rates gives the latest run-out, the 80th the earliest. At least four rates are needed; fewer and there is no interval.</p>
     <ul>
       <li>When the two edges are more than fifteen minutes apart, the card shows a range: <em>Runs out 2:10 PM–4:40 PM</em>.</li>
       <li>When they are closer than that, one time, their midpoint, because neither edge is the better guess inside a quarter of an hour.</li>
@@ -94,7 +96,7 @@
     <p>The interval is a description of your own recent hours, not a model of how the vendor meters. Notifications fire on its earliest edge, because a warning is a threshold and should come early.</p>
 
     <h2 id="peak-hours">Peak hours</h2>
-    <p>Anthropic applies tighter session limits on weekdays between 05:00 and 11:00 Pacific. That window is <strong>reporting, not documentation</strong>: The Register described it on 2026-03-26 from Anthropic's announcement, and Anthropic's support article on usage limits does not publish the hours. So in Notchmeter it is a setting you can edit or turn off: the hours under Settings › Advanced › Peak hours, and which assistants they apply to with the <em>Peak hours</em> switch in each assistant's Options under Settings › Assistants. It starts on for Claude only, and off for every other vendor because none has announced one.</p>
+    <p>Anthropic applies tighter session limits on weekdays between 05:00 and 11:00 Pacific. That window is <strong>reporting, not documentation</strong>: The Register described it on 2026-03-26 from Anthropic's announcement, and Anthropic's support article on usage limits does not publish the hours. So in Notchmeter it is a setting you can edit or turn off: the hours under Settings › Advanced › Peak hours, and which assistants they apply to with the <em>Peak hours</em> switch under <em>Rings and windows</em> on each assistant's page. It starts on for Claude only, and off for every other vendor because none has announced one.</p>
     <p>Inside the window, the session projection assumes the peak rate the log has observed, and the panel says so: <em>Peak hours until 11:00 AM: the session projection assumes the peak rate.</em> Within an hour of the end it turns into advice about timing: <em>Off-peak in 1h 20m: start the long job then.</em> And the run-out interval keeps peak and off-peak hours apart once it has at least four rates on each side.</p>
 
     <h2 id="warnings">Being told before it happens</h2>
@@ -112,6 +114,7 @@
 
     <h2 id="what-can-be-wrong">What can still make the forecast wrong</h2>
     <ul>
+      <li><strong>A long job just started.</strong> A week is projected at the last day's pace, so a job begun this morning shows in the projection as its hours go by, not before it starts. The session's own projection, at the pace of your working hours, is the one that answers for the next few hours.</li>
       <li><strong>Other machines.</strong> The vendor's used fraction is the whole account's. Work on another Mac or on claude.ai drains the same window, and the log sees the figure move without seeing why.</li>
       <li><strong>The metering itself moves.</strong> Anthropic meters the session window in something other than tokens, and the same work can cost a different share on different days. Notchmeter records how many of this Mac's tokens made 1% of the session each day, and when today's figure is half the 30-day median or less it says so: <em>The session is metering about 2.1x heavier than your norm.</em> It needs five days to compare against, and a gap of six times or more is not called heavier metering at all, because another machine explains that far better.</li>
       <li><strong>The 2026-09-14 weekly-cap change.</strong> Anthropic changed what the weekly window measures on that date while the percentage kept reading the same. The log marks the boundary, and the metering norm starts after it.</li>

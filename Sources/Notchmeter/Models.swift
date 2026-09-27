@@ -264,9 +264,14 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     let rawUsedPercent: Double?
     /// The money behind the fraction, in US dollars, for a window that meters spend (extra usage, on-demand).
     let amountUSD: Double?
+    /// How fast the window has risen over the last day, idle hours included, in fraction per hour
+    /// (`RecentPace`): set by the store from the drain log on a window of a day or longer once the log reaches back a
+    /// day, and what `Pace` projects that window at in place of the even burn. Derived, so it is never cached.
+    let recentRate: Double?
 
     init(id: String, label: WindowLabel, usedFraction: Double?, resetsAt: Date?, note: String? = nil, periodDuration: TimeInterval? = nil, model: String? = nil,
-         source: WindowSource = .vendorEndpoint, hiddenByDefault: Bool = false, rawUsedPercent: Double? = nil, amountUSD: Double? = nil) {
+         source: WindowSource = .vendorEndpoint, hiddenByDefault: Bool = false, rawUsedPercent: Double? = nil, amountUSD: Double? = nil,
+         recentRate: Double? = nil) {
         self.id = id
         self.name = label
         self.usedFraction = usedFraction
@@ -278,6 +283,7 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
         self.hiddenByDefault = hiddenByDefault
         self.rawUsedPercent = rawUsedPercent
         self.amountUSD = amountUSD
+        self.recentRate = recentRate
     }
 
     /// The same window with its reset at `resetsAt`, for a reading whose reset has wandered inside the period it
@@ -285,7 +291,13 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
     /// reset's instant, so a window that is kept for the life of a period keeps the instant it arrived with.
     func pinningReset(to resetsAt: Date) -> LimitWindow {
         LimitWindow(id: id, label: name, usedFraction: usedFraction, resetsAt: resetsAt, note: note, periodDuration: periodDuration, model: model,
-                    source: source, hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD)
+                    source: source, hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD, recentRate: recentRate)
+    }
+
+    /// The same window projected at `recentRate` (RecentPace.apply).
+    func pacing(at recentRate: Double?) -> LimitWindow {
+        LimitWindow(id: id, label: name, usedFraction: usedFraction, resetsAt: resetsAt, note: note, periodDuration: periodDuration, model: model,
+                    source: source, hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD, recentRate: recentRate)
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -307,13 +319,14 @@ struct LimitWindow: Identifiable, Codable, Equatable, Sendable {
         hiddenByDefault = try container.decodeIfPresent(Bool.self, forKey: .hiddenByDefault) ?? false
         rawUsedPercent = try container.decodeIfPresent(Double.self, forKey: .rawUsedPercent)
         amountUSD = try container.decodeIfPresent(Double.self, forKey: .amountUSD)
+        recentRate = nil
     }
 
     /// The same window with another source (a provider re-labelling what a parser built).
     func with(source: WindowSource, note: String? = nil, periodDuration: TimeInterval?? = nil) -> LimitWindow {
         LimitWindow(id: id, label: name, usedFraction: usedFraction, resetsAt: resetsAt, note: note ?? self.note,
                     periodDuration: periodDuration.map { $0 } ?? self.periodDuration, model: model, source: source,
-                    hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD)
+                    hiddenByDefault: hiddenByDefault, rawUsedPercent: rawUsedPercent, amountUSD: amountUSD, recentRate: recentRate)
     }
 }
 

@@ -310,22 +310,25 @@ enum AssetRenderer {
         return try bitmap(of: host, size: size, what: "the dashboard")
     }
 
-    /// `--render-gallery <dir>`: Product Hunt's eight 1270×760 frames and the 240×240 thumbnail, each one centred
+    /// `--render-gallery <dir>`: Product Hunt's nine 1270×760 frames and the 240×240 thumbnail, each one centred
     /// on a #1c1c1e canvas with its caption drawn into the image (the gallery strips captions on mobile).
     ///
-    /// Seven are stills and the first is the animated GIF the gallery spec always asked for. It was shipped as a
+    /// Eight are stills and the first is the animated GIF the gallery spec always asked for. It was shipped as a
     /// still of the open panel, which made frame 1 pixel-for-pixel the same picture as frame 4 above the caption
     /// band, and pointed "Hover the rings" at a frame with no rings in it: the app's expanded state has no
     /// compact readouts, so no still of the open panel can show the thing the caption names. The loop can, and
     /// Product Hunt accepts a GIF in the gallery.
     ///
-    /// Frames 1, 3 and 4 are crops rather than the whole picture, because 1270×760 with a caption band leaves 568
-    /// points of height and the picture of the open panel is 1039 tall: fitted whole it lands at 0.55 px a point,
-    /// which is what made the old frames 3 and 4 unreadable — "legible at 2×" delivered as two-pixel bars. Each
-    /// crop is laid out again from the same store rather than cut out of `expanded.png` by pixel coordinate, so
-    /// a frame cannot go on pointing at a rectangle the card inside it has moved out of, and each is drawn at
-    /// 2 px a point, so a crop the frame still has to shrink is a Retina render coming down rather than a coarse
-    /// one going up.
+    /// Frames 1, 3, 4 and 9 are crops rather than the whole picture, because 1270×760 with a caption band leaves
+    /// 568 points of height and the picture of the open panel is 1039 tall: fitted whole it lands at 0.55 px a
+    /// point, which is what made the old frames 3 and 4 unreadable — "legible at 2×" delivered as two-pixel bars.
+    /// Frames 1, 3 and 4 are laid out again from the same store rather than cut out of `expanded.png` by pixel
+    /// coordinate, so a frame cannot go on pointing at a rectangle the card inside it has moved out of, and each
+    /// is drawn at 2 px a point, so a crop the frame still has to shrink is a Retina render coming down rather
+    /// than a coarse one going up. Frame 9 is the one exception and is cut by rectangle, because the Usage
+    /// Dashboard has no sub-view that stands alone the way a panel card does; it takes the top 42% of the window,
+    /// which holds the total, the tiles and the chart, and it is the frame to check first after the dashboard's
+    /// layout changes.
     @MainActor
     static func gallery(into directory: URL, now: Date = Date()) -> Bool {
         do {
@@ -348,6 +351,16 @@ enum AssetRenderer {
                 AdviceStrip(advice: store.advice)
             }, prefs: prefs)
             let claudeCard = try panelCrop(ToolCard(tool: .claude, status: store.status(.claude), store: store, prefs: prefs), prefs: prefs)
+            // The Usage Dashboard's head, for frame 9. The whole window is about 1440x2360 at 1 px a point, an
+            // aspect of 0.61 against this frame's 1.67, so fitted whole into the 568 points a caption band leaves
+            // it lands near a fifth of a pixel a point and reads as a grey smear — the same fault frames 3 and 4
+            // were built as crops to avoid. This one is cut rather than laid out again because the dashboard has
+            // no sub-view that stands alone the way a panel card does, and `cropping(to:)` counts y from the top,
+            // so the rect below is the top of the window: the total, the tiles beside it, and the week's chart.
+            // The dark week with its peak day pinned is the same render the README's picture uses.
+            let dashboardWhole = try dashboardImage(store: store, range: .week, appearance: .darkAqua, pinPeak: true, now: now)
+            let headHeight = Int((CGFloat(dashboardWhole.height) * 0.42).rounded())
+            let dashboardHead = dashboardWhole.cropping(to: CGRect(x: 0, y: 0, width: dashboardWhole.width, height: headHeight))
 
             // The hover, animated: the rings at rest, the shape springing open, the Cost card, and back. The loop
             // is drawn again into a canvas cropped around the notch rather than scaled down from the README's
@@ -396,6 +409,15 @@ enum AssetRenderer {
                 // every pane now (AssetRenderer.settings) and the caption says which frame it is a spread of. The
                 // hook install it names is on Claude Code's own page, the one assistant's page the sheet carries.
                 ("08-settings", settingsImage, L("The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup."), []),
+                // The lines describe the rest of the window, below the crop, rather than restating what the
+                // picture already shows — and none of them asserts a figure the crop can contradict, which is the
+                // rule frame 3 was rewritten to obey.
+                ("09-dashboard", dashboardHead, L("The week in one window."), [
+                    "Press Cmd-U. The range's total leads, with the daily average, the peak day and today beside it.",
+                    "Each day's bar splits by assistant. Hover one for its figures; click several to keep them side by side.",
+                    "Below the chart: every live limit on the panel's own meters, then spend by model and by project.",
+                    "Ranges are this week, 30 days and 90 days.",
+                ]),
             ]
             for frame in frames {
                 let image = try composite(frame.image, caption: frame.caption, lines: frame.lines, canvas: canvas,

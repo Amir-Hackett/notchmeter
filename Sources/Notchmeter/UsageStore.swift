@@ -966,6 +966,13 @@ final class UsageStore {
         cache.store(reading)
         lastUpdated = now
         recordDrain(reading, now: now)
+        // A window of a day or longer is projected at how far it rose over the last day (RecentPace), read from the
+        // log this reading has just been written to, so every ring, note, alert and line below paces it alike.
+        let paced = RecentPace.apply(reading, samples: drainSamples, now: now)
+        if paced != reading {
+            reading = paced
+            statuses[reading.tool] = .ready(reading)
+        }
         // The notification pipeline sees one instant per period for each window, not the reset as this read
         // reported it (`NotificationScheduler.canonicalReset`). Every notification embeds its window's reset in its
         // identifier, and a Codex snapshot's reset is measured from when the snapshot was written, so it moves by
@@ -1162,7 +1169,8 @@ final class UsageStore {
             series[key] = DrainLog.hourly(samples, now: now)
             if let window = statuses[key.tool]?.reading?.windows.first(where: { $0.id == key.window }), !window.isComparison,
                let used = window.usedFraction, let resetsAt = window.resetsAt,
-               let interval = RunOutInterval.estimate(samples: samples, usedFraction: used, resetsAt: resetsAt, now: now, peak: prefs.peakHours(for: key.tool)) {
+               let interval = RunOutInterval.estimate(samples: samples, usedFraction: used, resetsAt: resetsAt, now: now, period: window.periodDuration,
+                                                      peak: prefs.peakHours(for: key.tool)) {
                 runOuts[key] = interval
             }
         }
@@ -2326,6 +2334,20 @@ final class UsageStore {
             }
         }
         announceNews(news.words(hidesFigures: hidesFigures, title: peekTitle(news)))
+    }
+
+    /// Settings' Test in the notch: a sample finished turn put through `announce`, the path a hook's news takes, so
+    /// the peek, the glow and the VoiceOver announcement are the real ones under the real settings. The session id
+    /// is new each second, or a second press inside `NotchNews.repeatAfter` would be dropped as a repeat; it names
+    /// no session, so a click on the peek opens the whole panel. Returns the line Settings shows under the button.
+    func testNotchNews(now: Date = Date()) -> String {
+        guard prefs.notchNews || prefs.notchGlow else { return L("Show news in the notch and Glow under the notch for news are both off.") }
+        let news = NotchNews(reason: .finished, sessionID: "notchmeter-test-\(Int(now.timeIntervalSince1970))", tool: .claude,
+                             project: L("%@ test", AppInfo.name), at: now)
+        announce(news, now: now)
+        if peek == news { return L("Shown beside the notch.") }
+        if glowNews == news { return L("Glowing under the notch. The words need the notch closed and on screen.") }
+        return L("The notch can't show it right now: it is open, hidden by a full-screen app, or busy with a waiting session.")
     }
 
     /// The title the peek may name `news`'s session by: its display title (the prompt's first line, Claude Code's

@@ -2,7 +2,10 @@ import Foundation
 import os
 
 /// Burn-rate projection for a bounded window (ported from OpenUsage's Pace): given how much is spent and
-/// how far through the window we are, project usage at the current rate to the reset.
+/// how far through the window we are, project usage at the current rate to the reset. The rate is the even burn,
+/// the window's own average since it started, unless the window carries a `recentRate` (RecentPace): a window of a
+/// day or longer is projected at how fast it rose over the last day, so a week front-loaded on its first night and
+/// quiet since does not read as running out.
 enum Pace {
     enum Status: Equatable {
         case ahead     // lands with at least 10% to spare
@@ -28,35 +31,46 @@ enum Pace {
         return min(1, elapsed / period)
     }
 
-    static func evaluate(usedFraction: Double, resetsAt: Date, period: TimeInterval, now: Date = Date()) -> Result? {
+    /// `recentRate`, in fraction per hour, projects from now to the reset at that rate in place of the even burn.
+    static func evaluate(usedFraction: Double, resetsAt: Date, period: TimeInterval, now: Date = Date(), recentRate: Double? = nil) -> Result? {
         guard period > 0, now < resetsAt else { return nil }
         let elapsed = now.timeIntervalSince(resetsAt.addingTimeInterval(-period))
         guard elapsed >= minimumElapsed(period: period) else { return nil }
         if usedFraction <= 0 { return Result(status: .ahead, projectedFraction: 0) }
-        let projected = usedFraction / elapsed * period
+        let projected = recentRate.map { usedFraction + max(0, $0) * resetsAt.timeIntervalSince(now) / 3600 } ?? usedFraction / elapsed * period
         if usedFraction >= 1 { return Result(status: .behind, projectedFraction: projected) }
         let status: Status = projected <= 0.9 ? .ahead : projected <= 1 ? .onTrack : .behind
         return Result(status: status, projectedFraction: projected)
     }
 
+    /// The window's own projection: at its recent rate when it carries one, else the even burn.
+    static func evaluate(_ window: LimitWindow, now: Date = Date()) -> Result? {
+        guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
+        return evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now, recentRate: window.recentRate)
+    }
+
     /// Seconds until the quota is gone at the current rate, only when that happens before the reset.
-    static func secondsToRunOut(usedFraction: Double, resetsAt: Date, period: TimeInterval, now: Date = Date()) -> TimeInterval? {
-        guard let result = evaluate(usedFraction: usedFraction, resetsAt: resetsAt, period: period, now: now),
+    static func secondsToRunOut(usedFraction: Double, resetsAt: Date, period: TimeInterval, now: Date = Date(), recentRate: Double? = nil) -> TimeInterval? {
+        guard let result = evaluate(usedFraction: usedFraction, resetsAt: resetsAt, period: period, now: now, recentRate: recentRate),
               result.status == .behind
         else { return nil }
-        let rate = result.projectedFraction / period
+        let rate = recentRate.map { $0 / 3600 } ?? result.projectedFraction / period
         guard rate > 0 else { return nil }
         let eta = (1 - usedFraction) / rate
         guard eta > 0, eta < resetsAt.timeIntervalSince(now) else { return nil }
         return eta
     }
 
+    static func secondsToRunOut(_ window: LimitWindow, now: Date = Date()) -> TimeInterval? {
+        guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
+        return secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: now, recentRate: window.recentRate)
+    }
+
     static func status(for window: LimitWindow, now: Date = Date()) -> Status? {
         // Nothing runs out on a comparison, so it takes the calm status: the assistant's own colour, never the orange
         // of a window on course to be used up, nor a cap, tint or urgency.
         if window.isComparison { return window.usedFraction == nil ? nil : .ahead }
-        guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration else { return nil }
-        return evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)?.status
+        return evaluate(window, now: now)?.status
     }
 
     /// The quiet note beside a meter: "~67% left at reset", or the run-out warning when behind. An untouched window
@@ -71,12 +85,10 @@ enum Pace {
         }
         // A spent window has nothing left to project: "~93% over at reset" beside 100% describes usage a hard limit
         // cannot reach, and the meter already reads full.
-        guard let used = window.usedFraction, used > 0, used < 1, let resetsAt = window.resetsAt, let period = window.periodDuration,
-              let result = evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
-        else { return nil }
+        guard let used = window.usedFraction, used > 0, used < 1, let result = evaluate(window, now: now) else { return nil }
         switch result.status {
         case .behind:
-            if let eta = secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: now) {
+            if let eta = secondsToRunOut(window, now: now) {
                 return (L("Runs out in %@", ResetText.duration(eta)), .behind)
             }
             return (L("~%ld%% over at reset", Int(((result.projectedFraction - 1) * 100).rounded())), .behind)

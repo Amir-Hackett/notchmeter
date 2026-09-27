@@ -47,7 +47,7 @@
       <p class="lede">If you pay for more than one coding assistant, the question before a long job is rarely "which is best at this". It is "which of them can afford it right now". That second question has an answer you can compute, and this is how Notchmeter computes it.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
-        <li class="stamp">Tested on Notchmeter 0.9.3</li>
+        <li class="stamp">Tested on Notchmeter 0.9.4</li>
         <li>Rules from Advisor.swift</li>
       </ul>
     </div>
@@ -75,7 +75,7 @@
         <thead><tr><th scope="col">Line</th><th scope="col">When it appears</th></tr></thead>
         <tbody>
           <tr><th scope="row">Run-out, with somewhere to go</th><td>A window is behind pace and has a run-out time; if another assistant on a paid plan has half its main window left, the line ends by naming it (<em>Codex weekly is at 22%</em>).</td></tr>
-          <tr><th scope="row">Switch models</th><td>A per-model window is at 85% or more, and another model's window, or the plan's overall window, has at least 40% left. Said once per assistant, for its fullest model.</td></tr>
+          <tr><th scope="row">Switch models</th><td>A per-model window is at 85% or more, and another model's window, or the plan's overall window, has at least 40% left. Said once per assistant, for its fullest model; a model already at 100% puts this line ahead of every forecast, since it is the one that says what to do now.</td></tr>
           <tr><th scope="row">Wait</th><td>A window is out or behind pace, resets within the hour, and no other assistant on a paid plan has room.</td></tr>
           <tr><th scope="row">Room elsewhere</th><td>An assistant's main window is on track or behind, and another assistant on a paid plan has at least 50% of its own main window left.</td></tr>
           <tr><th scope="row">Off-peak</th><td>Claude's peak hours end within the hour (see the <a href="will-you-run-out-before-the-reset.html#peak-hours">run-out guide</a>).</td></tr>
@@ -87,7 +87,7 @@
     <p>Moving a task to a different assistant costs you its context, its conventions and often its permissions. Moving it to a different model in the same assistant costs a <code>/model</code>. Anthropic and Google both meter some limits per model, so the cheap move is often available and easy to miss. One caveat travels with it: Anthropic's pricing page says Claude 4.7 and later count roughly 30% more tokens than 4.6 and earlier for the same text, so when the two models named sit either side of that line, the advice adds <em>… counts about 30% more tokens for the same text</em>. The same work will move the newer model's meter further.</p>
 
     <h3>What counts as "room"</h3>
-    <p>An assistant's <strong>main window</strong> is its longest plan-wide one: the weekly window for Claude Code and Codex, the billing cycle for Cursor, the month for Copilot. Antigravity publishes only per-model windows, so it has no main window and is never named as the place to go. Half of a main window left is the threshold, and a tie goes to the assistant you placed first in Settings.</p>
+    <p>An assistant's <strong>main window</strong> is its longest plan-wide one: the weekly window for Claude Code and Codex, the billing cycle for Cursor, the month for Copilot, and the longest of Kimi Code's, its 31-day window where the plan meters one. Antigravity publishes only per-model windows, so it has no main window and is never named as the place to go. Half of a main window left is the threshold, and a tie goes to the assistant you placed first in Settings.</p>
     <p>A <strong>free tier is never named as room</strong>, however empty it is: Codex's free plan, Copilot Free and a Claude free subscription meter so little that routing a paid tool's work there would stall it. A reading that names no plan counts as paid.</p>
 
     <h2 id="waiting">When waiting beats switching</h2>

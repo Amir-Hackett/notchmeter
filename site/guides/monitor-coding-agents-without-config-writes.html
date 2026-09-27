@@ -47,7 +47,7 @@
       <p class="lede">Most apps that watch coding agents do it by putting a command into the agent's settings file, and several do it on first launch without asking. That file also holds your permissions, your hooks and your status line. Here is what you can know without anything being written, what a hook adds, and exactly what is written, where, when you decide to add one.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
-        <li class="stamp">Tested on Notchmeter 0.9.3</li>
+        <li class="stamp">Tested on Notchmeter 0.9.4</li>
         <li>Other apps' READMEs read 2026-09-24</li>
       </ul>
     </div>
@@ -90,7 +90,7 @@
     <h2 id="tier-two">Tier two: the hook, on your click</h2>
     <p>A hook is the agent telling Notchmeter what happened, the moment it happens: a turn started, a turn ended, a permission is waiting, a question has options. That is what makes the waiting dot, the finished tick, the news in the notch and answering from the notch possible. Here is exactly how it is written.</p>
     <ol>
-      <li><strong>Only when you press it.</strong> Settings › Integrations › Hooks has a row per assistant with <em>Add</em>, and <em>Show snippet…</em> if you would rather paste it yourself. The first launch offers the Claude Code hook once, as a button. No hook is ever installed without that click.</li>
+      <li><strong>Only when you press it.</strong> Each assistant's page in Settings has its hook's <em>Add</em> button, and <em>Show snippet…</em> if you would rather paste it yourself; Settings › Integrations › Hooks lists where every assistant's hook stands, with a way to its page. The first launch offers the Claude Code hook once, as a button. No hook is ever installed without that click.</li>
       <li><strong>A backup first,</strong> beside the file: <code>settings.json.bak-yyyyMMdd-HHmmss</code> (or <code>hooks.json.bak-…</code>).</li>
       <li><strong>A merge, not a rewrite.</strong> Notchmeter's entry is appended under each event that lacks one. Hooks already there, their matchers and their order are kept, and so are the file's permissions. Nothing is written when every event already has the entry. A file that is not a JSON object is left untouched, and the button says why.</li>
     </ol>
@@ -103,12 +103,14 @@
           <tr><th scope="row">Cursor</th><td><code>~/.cursor/hooks.json</code></td><td>Merged; an existing <code>version</code> is never overwritten</td></tr>
           <tr><th scope="row">Gemini CLI</th><td><code>~/.gemini/settings.json</code></td><td>Merged; a file with comments in it is refused, because rewriting it would strip them</td></tr>
           <tr><th scope="row">GitHub Copilot CLI</th><td><code>~/.copilot/hooks/notchmeter.json</code></td><td>Notchmeter's own file; nothing of yours is touched</td></tr>
+          <tr><th scope="row">Kimi Code</th><td><code>~/.kimi/config.toml</code></td><td>Its own <code>[[hooks]]</code> tables appended to your file as text, so your comments, key order and spacing stay exactly as they were; a file that already defines <code>hooks</code> another way is refused</td></tr>
+          <tr><th scope="row">OpenCode</th><td><code>~/.config/opencode/plugins/notchmeter.js</code></td><td>Notchmeter's own plugin file; nothing of yours is touched, and OpenCode's sessions and spend are read from its database without it</td></tr>
         </tbody>
       </table>
     </div>
 
     <h3>The one write that is not a click</h3>
-    <p>If you move the app, a hook you installed points at the old path and goes quiet; if you update to a version that listens for more events, the entry you installed is out of date. So by default the app repairs its <em>own</em> entries at launch: after the same backup, it points them at the running copy and adds an entry for any event the current version listens for, leaves every other hook untouched, and never does it from a copy running out of a build folder. It never adds a hook for an assistant you have not installed one for. If you want no write at all after the one you pressed, turn off <em>Repair a hook that points at an old copy at launch</em> in Settings › Integrations › Hooks, and use the row's Repair button when you choose to.</p>
+    <p>If you move the app, a hook you installed points at the old path and goes quiet; if you update to a version that listens for more events, the entry you installed is out of date. So by default the app repairs its <em>own</em> entries at launch: after the same backup, it points them at the running copy and adds an entry for any event the current version listens for, leaves every other hook untouched, and never does it from a copy running out of a build folder. It never adds a hook for an assistant you have not installed one for. If you want no write at all after the one you pressed, turn off <em>Repair an out-of-date hook at launch</em> in Settings › Integrations › Hooks, and use the Repair button on the assistant's page when you choose to.</p>
 
     <h3>The status line and the plugin</h3>
     <p><em>Install status line…</em> sets Claude Code's <code>statusLine</code> after the same backup. A status line you already had is kept: Notchmeter runs yours with the same input and passes its output through, so Claude Code's bar still shows your line. The Claude Code plugin installs no hook and no status line; those stay a button in Settings.</p>
@@ -119,7 +121,9 @@
     <h2 id="undo">Undoing it</h2>
     <ul>
       <li><strong>Claude Code:</strong> delete the groups whose command contains <code>Notchmeter … --hook</code> from <code>~/.claude/settings.json</code>, and the <code>statusLine</code> entry, restoring your own if Notchmeter chained it; or restore the <code>.bak</code> copy.</li>
-      <li><strong>Codex, Cursor, Gemini CLI:</strong> delete the entries whose command contains <code>--hook --tool codex</code>, <code>--tool cursor</code> or <code>--tool antigravity</code>, or restore the backup.</li>
+      <li><strong>Codex, Cursor, Gemini CLI:</strong> delete the entries whose command contains <code>--hook --tool codex</code>, <code>--tool cursor</code> or <code>--tool gemini</code>, or restore the backup.</li>
+      <li><strong>Kimi Code:</strong> delete the <code>[[hooks]]</code> tables whose command contains <code>--hook --tool kimi</code> from <code>~/.kimi/config.toml</code>, or restore the backup.</li>
+      <li><strong>OpenCode:</strong> delete <code>~/.config/opencode/plugins/notchmeter.js</code>.</li>
       <li><strong>Copilot CLI:</strong> delete <code>~/.copilot/hooks/notchmeter.json</code> and restart Copilot.</li>
     </ul>
     <p>Switching an assistant off in Notchmeter, or quitting it, also stops its hook having any effect; the command still runs and exits at once.</p>

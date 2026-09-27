@@ -675,6 +675,11 @@
 "Team pooled" = "Pool da equipe";
 "Tells you what to do, not just how much." = "Diz o que fazer, não só quanto.";
 "Test notification" = "Notificação de teste";
+"Test in the notch" = "Testar no notch";
+"Show news in the notch and Glow under the notch for news are both off." = "“Mostrar novidades no notch” e “Brilho sob o notch para novidades” estão desativados.";
+"Shown beside the notch." = "Mostrado ao lado do notch.";
+"Glowing under the notch. The words need the notch closed and on screen." = "Brilhando sob o notch. O texto precisa do notch fechado e na tela.";
+"The notch can't show it right now: it is open, hidden by a full-screen app, or busy with a waiting session." = "O notch não pode mostrar agora: está aberto, oculto por um app em tela cheia ou ocupado com uma sessão aguardando.";
 "Text" = "Texto";
 "The %1$@ is close to pace: ~%2$ld%% left at reset." = "O %1$@ está perto do ritmo: ~%2$ld%% restantes na renovação.";
 "The %1$@ is spent. %2$@." = "O %1$@ se esgotou. %2$@.";
@@ -826,6 +831,7 @@
 "Hover a bar for that day's figures; click it to keep them." = "Passe o cursor sobre uma barra para ver os números daquele dia; clique nela para fixá-los.";
 "Pinned" = "Fixado";
 "Unpin" = "Soltar";
+"Unpin all" = "Soltar todos";
 "Pins or unpins this day's figures under the chart" = "Fixa ou solta os números deste dia abaixo do gráfico";
 "Limits" = "Limites";
 "No usage recorded yet" = "Nenhum uso registrado ainda";
@@ -833,6 +839,7 @@
 "Reading this account's usage…" = "Lendo o uso desta conta…";
 "Spend and limits appear here once an assistant on this account has been used." = "O gasto e os limites aparecem aqui assim que um assistente desta conta for usado.";
 "The tick marks an even pace: %ld%% of the window has passed" = "A marca indica um ritmo uniforme: %ld%% da janela já passou";
+"The week in one window." = "A semana em uma só janela.";
 "This account only · updated %@" = "Só esta conta · atualizado %@";
 "This week" = "Esta semana";
 "Total" = "Total";

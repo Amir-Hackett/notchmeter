@@ -2,6 +2,24 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.4](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.4) — 2026-09-27
+
+### A week paced by its last day, not its busiest hours
+
+- A weekly or monthly window is now projected at how far it rose over the last day, nights and breaks included, once the app has a day of its history. It used to be forecast at the pace of the hours you worked, which answers "if you work without stopping from now": a week spent mostly on the night it reset, and barely touched since, read as running out that afternoon. The ring's colour, the note beside the meter, the advice, the notifications, the dashboard, the command-line tool and the Claude Code status line all use this one projection, so none of them can disagree.
+- The five-hour session is still projected at the pace of the hours you worked in it, now measured from each rise of the window rather than between two reads a few minutes apart. The figure moves in whole points, so any one-point step used to read as about 12% an hour however slowly the window was moving, and a figure flickering a point either way between two reads counted as a fresh rise each time it came back.
+- A model already used up now leads the advice with where to go instead ("Fable weekly is 100%. Overall weekly is 56%. Switch models, not tools."), ahead of any forecast. It used to sit under one.
+
+### The Usage Dashboard
+
+- Resting the pointer on a bar names that day's figures in a tip over the chart, whatever else is pinned.
+- A click pins a day's figures under the chart, and each further click pins another, in date order, so days can be read side by side. A second click on a pinned day lets it go; *Unpin all* or Escape lets them all go.
+
+### Settings
+
+- **Test in the notch**, under Notifications beside Test notification, sends a sample finished turn through the notch's own news: the words beside the notch, the glow under it and the VoiceOver announcement, under your settings as they stand. The line under it says whether it showed beside the notch, only glowed, or could not show.
+- The search field's bottom edge is no longer cut off by the pane beneath it, in light or dark.
+
 ## [0.9.3](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.3) — 2026-09-25
 
 ### Settings, rows that open

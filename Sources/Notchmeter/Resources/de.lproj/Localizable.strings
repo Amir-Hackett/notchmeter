@@ -676,6 +676,11 @@
 "Team pooled" = "Team-Pool";
 "Tells you what to do, not just how much." = "Sagt dir, was zu tun ist, nicht nur wie viel.";
 "Test notification" = "Testmitteilung";
+"Test in the notch" = "In der Notch testen";
+"Show news in the notch and Glow under the notch for news are both off." = "„Neuigkeiten in der Notch zeigen“ und „Leuchten unter der Notch bei Neuigkeiten“ sind beide aus.";
+"Shown beside the notch." = "Neben der Notch angezeigt.";
+"Glowing under the notch. The words need the notch closed and on screen." = "Leuchtet unter der Notch. Für den Text muss die Notch geschlossen und sichtbar sein.";
+"The notch can't show it right now: it is open, hidden by a full-screen app, or busy with a waiting session." = "Die Notch kann es gerade nicht zeigen: Sie ist geöffnet, von einer Vollbild-App verdeckt oder mit einer wartenden Sitzung belegt.";
 "Text" = "Text";
 "The %1$@ is close to pace: ~%2$ld%% left at reset." = "Das %1$@ wird knapp: ~%2$ld%% übrig beim Reset.";
 "The %1$@ is spent. %2$@." = "Das %1$@ ist aufgebraucht. %2$@.";
@@ -827,6 +832,7 @@
 "Hover a bar for that day's figures; click it to keep them." = "Zeig auf einen Balken, um die Zahlen des Tages zu sehen; klick ihn an, um sie festzuhalten.";
 "Pinned" = "Angeheftet";
 "Unpin" = "Lösen";
+"Unpin all" = "Alle lösen";
 "Pins or unpins this day's figures under the chart" = "Heftet die Zahlen dieses Tages unter dem Diagramm an oder löst sie wieder";
 "Limits" = "Limits";
 "No usage recorded yet" = "Noch keine Nutzung aufgezeichnet";
@@ -834,6 +840,7 @@
 "Reading this account's usage…" = "Nutzung dieses Accounts wird gelesen …";
 "Spend and limits appear here once an assistant on this account has been used." = "Ausgaben und Limits erscheinen hier, sobald ein Assistent mit diesem Account genutzt wurde.";
 "The tick marks an even pace: %ld%% of the window has passed" = "Der Strich markiert das Soll: %ld%% des Fensters sind vergangen";
+"The week in one window." = "Die Woche in einem Fenster.";
 "This account only · updated %@" = "Nur dieser Account · aktualisiert %@";
 "This week" = "Diese Woche";
 "Total" = "Gesamt";

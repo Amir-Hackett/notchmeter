@@ -218,7 +218,7 @@ struct DashboardLimit: Identifiable, Equatable {
         unit = (period ?? Period.week) >= 2 * 86400 ? .day : .hour
         if let resetsAt = window.resetsAt, let period {
             elapsed = Pace.elapsedFraction(resetsAt: resetsAt, period: period, now: now)
-            status = Pace.evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)?.status
+            status = Pace.evaluate(window, now: now)?.status
         } else {
             elapsed = nil
             status = nil
@@ -348,11 +348,12 @@ enum DashboardLook {
     }
 }
 
-/// Which day the line under the chart describes: the pinned day while there is one, else the day under the
-/// pointer. A click pins, so the figures can be read with the pointer elsewhere or reached with no pointer at all;
-/// a hover only previews, and never moves a pin.
+/// Which days the chart marks: any number of pinned days, listed under the chart in date order, and the day under
+/// the pointer, which the chart names in a tip over its bar. A click pins or unpins one day and leaves the others,
+/// so days can be set side by side; a hover only previews, never moves a pin, and shows over a pinned day too.
 struct DashboardSelection: Equatable {
-    private(set) var pinned: Date?
+    /// In date order, one per calendar day.
+    private(set) var pinned: [Date] = []
     private(set) var hovered: Date?
     let calendar: Calendar
 
@@ -360,26 +361,29 @@ struct DashboardSelection: Equatable {
         self.calendar = calendar
     }
 
-    var shown: Date? { pinned ?? hovered }
-    var isPinned: Bool { pinned != nil }
+    var isPinned: Bool { !pinned.isEmpty }
 
-    /// The day the line under the chart describes, found in the range on show, and whether it is the pinned one. A
-    /// pin whose day has left the range is not treated as a pin: a 30- or 90-day range drops its first day at
-    /// midnight and a week range starts over, so a window left open can hold a pinned date the model no longer has,
-    /// and read as `shown` it would hide the hover, the pinned line and the Unpin button while the chart drew nothing.
-    func resolved(in model: DashboardModel) -> (day: DashboardModel.Day?, isPinned: Bool) {
-        if let day = model.day(pinned, calendar: calendar) { return (day, true) }
-        return (model.day(hovered, calendar: calendar), false)
+    /// The pinned days and the hovered one, found in the range on show. A pin whose day has left the range is
+    /// dropped here rather than listed with no figures: a 30- or 90-day range drops its first day at midnight and a
+    /// week range starts over, so a window left open can hold a pinned date the model no longer has.
+    func resolved(in model: DashboardModel) -> (pinned: [DashboardModel.Day], hovered: DashboardModel.Day?) {
+        (pinned.compactMap { model.day($0, calendar: calendar) }, model.day(hovered, calendar: calendar))
     }
 
-    /// A click pins the day, or lets the pinned day go when it is the one clicked. Whether a day is pinned after.
+    func isPinned(_ day: Date) -> Bool {
+        pinned.contains { calendar.isDate($0, inSameDayAs: day) }
+    }
+
+    /// A click pins the day, or lets it go when it is already pinned; the other pins stay. Whether it is pinned after.
     @discardableResult
     mutating func click(_ day: Date) -> Bool {
-        if let pinned, calendar.isDate(pinned, inSameDayAs: day) {
-            self.pinned = nil
+        if isPinned(day) {
+            let calendar = calendar
+            pinned.removeAll { calendar.isDate($0, inSameDayAs: day) }
             return false
         }
-        pinned = day
+        pinned.append(day)
+        pinned.sort()
         return true
     }
 
@@ -393,11 +397,11 @@ struct DashboardSelection: Equatable {
         }
     }
 
-    /// Escape, the Unpin button, or a change of range.
-    mutating func unpin() { pinned = nil }
+    /// Escape, the Unpin button, or a change of range: every pin goes.
+    mutating func unpin() { pinned = [] }
 
     /// A change of range: the chart is rebuilt for it (DashboardView.chartSection) and the old range's slots go
-    /// without reporting the pointer's leave, so the preview is let go with the pin rather than naming a day
+    /// without reporting the pointer's leave, so the preview is let go with the pins rather than naming a day
     /// the pointer is no longer over.
     mutating func clearHover() { hovered = nil }
 }
@@ -640,7 +644,7 @@ struct DashboardView: View {
     // MARK: Chart
 
     private func chartSection(_ model: DashboardModel, ink: Color, pinMark: Color) -> some View {
-        let (shown, isPinned) = selection.resolved(in: model)
+        let (pinned, hovered) = selection.resolved(in: model)
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 sectionTitle(L("Daily spend"))
@@ -659,39 +663,44 @@ struct DashboardView: View {
             }
             // Rebuilt per range: Swift Charts in this hosting view kept drawing the previous range's marks and scale
             // until the window was resized, while the tiles above had already moved on.
-            DailySpendChart(model: model, shown: shown, pinned: isPinned, ink: ink, calendar: selection.calendar,
+            DailySpendChart(model: model, pinned: pinned, hovered: hovered, ink: ink, calendar: selection.calendar,
                             hover: { day, inside in selection.hover(day, inside: inside) }, click: click)
                 .id(range)
                 .frame(height: 220)
-            dayLine(shown, isPinned: isPinned, pinMark: pinMark)
+            dayLines(pinned, pinMark: pinMark)
         }
         .accessibilityElement(children: .contain)
     }
 
-    /// The line under the chart: the pinned day's figures with a pin and the way out, the hovered day's while
-    /// nothing is pinned, else how to get either. The pin is a symbol and a word, not a colour: the band over the
-    /// bars is the same accent for a hover and a pin, only stronger.
+    /// The lines under the chart: each pinned day's figures, in date order, with a pin, and one way out for all of
+    /// them; else how to get them. The hovered day is named in a tip over its bar rather than here, so the pointer
+    /// moving across the bars never pushes the sections below up and down. The pin is a symbol and a word, not a
+    /// colour: the band over a pinned day's bar is the hover's, only stronger.
     @ViewBuilder
-    private func dayLine(_ day: DashboardModel.Day?, isPinned: Bool, pinMark: Color) -> some View {
-        if let day, isPinned {
+    private func dayLines(_ days: [DashboardModel.Day], pinMark: Color) -> some View {
+        if days.isEmpty {
+            Text(L("Hover a bar for that day's figures; click it to keep them."))
+                .font(.caption).foregroundStyle(Caption.style)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Image(systemName: "pin.fill").foregroundStyle(pinMark)
-                    Text(Self.dayLine(day))
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(days) { day in
+                        HStack(alignment: .firstTextBaseline, spacing: 5) {
+                            Image(systemName: "pin.fill").foregroundStyle(pinMark)
+                            Text(Self.dayLine(day))
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(L("Pinned"))
+                        .accessibilityValue(Spoken.phrase(Self.dayLine(day)))
+                    }
                 }
                 .font(.caption).foregroundStyle(Caption.style)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(L("Pinned"))
-                .accessibilityValue(Spoken.phrase(Self.dayLine(day)))
-                Button(L("Unpin"), action: unpin)
+                Button(days.count > 1 ? L("Unpin all") : L("Unpin"), action: unpin)
                     .controlSize(.small)
                     .keyboardShortcut(.cancelAction)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            Text(day.map { Self.dayLine($0) } ?? L("Hover a bar for that day's figures; click it to keep them."))
-                .font(.caption).foregroundStyle(Caption.style)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -719,9 +728,11 @@ struct DashboardView: View {
     }
 
     private func unpin() {
-        guard let day = selection.pinned else { return }
+        let days = selection.pinned
         selection.unpin()
-        Oracle.shared.emit("dashboard", ["action": "unpinned", "day": CostHistory.key(day, calendar: selection.calendar)])
+        for day in days {
+            Oracle.shared.emit("dashboard", ["action": "unpinned", "day": CostHistory.key(day, calendar: selection.calendar)])
+        }
     }
 
     private func legend(_ tools: [ToolID]) -> some View {
@@ -799,18 +810,18 @@ private struct Line: Shape {
 }
 
 /// Stacked daily bars, one colour per assistant, a dashed line at the daily average, and a band in the secondary ink
-/// over the day whose figures are under the chart, stronger while that day is pinned. The band is neutral on purpose:
-/// in the accent it was the default terracotta, Claude's own series colour, so the part of a pinned day's column
-/// above its bar read as another stacked segment of spend reaching the top of the chart. The band is the only mark
-/// of the day: the other days' bars keep their colour, since dimming them (as a hover once did) put six of seven bars
-/// under 3:1 on either window and off the legend's swatches for as long as a pin held. The bars, the band and the
-/// rule say nothing to VoiceOver: an invisible element over each day's slot speaks for them (the day, the total,
-/// the split) and takes the hover and the click, so what a pointer can pin a VoiceOver reader can pin too, and no
-/// figure is hover-only.
+/// over each pinned day and, fainter, over the day under the pointer, which a tip at the top of the plot names. The
+/// band is neutral on purpose: in the accent it was the default terracotta, Claude's own series colour, so the part
+/// of a pinned day's column above its bar read as another stacked segment of spend reaching the top of the chart.
+/// The band is the only mark of the day: the other days' bars keep their colour, since dimming them (as a hover once
+/// did) put six of seven bars under 3:1 on either window and off the legend's swatches for as long as a pin held.
+/// The bars, the band, the tip and the rule say nothing to VoiceOver: an invisible element over each day's slot
+/// speaks for them (the day, the total, the split) and takes the hover and the click, so what a pointer can pin a
+/// VoiceOver reader can pin too, and no figure is hover-only.
 private struct DailySpendChart: View {
     let model: DashboardModel
-    let shown: DashboardModel.Day?
-    let pinned: Bool
+    let pinned: [DashboardModel.Day]
+    let hovered: DashboardModel.Day?
     /// The secondary ink as a colour, for the average's rule and, faintly, the grid.
     let ink: Color
     let calendar: Calendar
@@ -835,10 +846,15 @@ private struct DailySpendChart: View {
 
     var body: some View {
         Chart {
-            if let shown {
-                // First, so it lies under the bars. Hidden from VoiceOver like the bars: the day's slot speaks for it.
-                RectangleMark(x: .value(L("Day"), shown.day, unit: .day))
-                    .foregroundStyle(ink.opacity(pinned ? 0.22 : 0.12))
+            // First, so they lie under the bars. Hidden from VoiceOver like the bars: the day's slot speaks for them.
+            ForEach(pinned) { day in
+                RectangleMark(x: .value(L("Day"), day.day, unit: .day))
+                    .foregroundStyle(ink.opacity(0.22))
+                    .accessibilityHidden(true)
+            }
+            if let hovered, !pinned.contains(where: { $0.id == hovered.id }) {
+                RectangleMark(x: .value(L("Day"), hovered.day, unit: .day))
+                    .foregroundStyle(ink.opacity(0.12))
                     .accessibilityHidden(true)
             }
             ForEach(model.bars) { bar in
@@ -883,10 +899,12 @@ private struct DailySpendChart: View {
                 if let anchor = proxy.plotFrame {
                     let plot = geometry[anchor]
                     ForEach(model.days) { day in
-                        if let start = proxy.position(forX: day.day), let next = calendar.date(byAdding: .day, value: 1, to: day.day),
-                           let end = proxy.position(forX: next) {
-                            daySlot(day, in: CGRect(x: plot.minX + start, y: plot.minY, width: max(1, end - start), height: plot.height))
+                        if let frame = slotFrame(day, proxy: proxy, plot: plot) {
+                            daySlot(day, in: frame)
                         }
+                    }
+                    if let hovered, let frame = slotFrame(hovered, proxy: proxy, plot: plot) {
+                        tip(hovered, over: frame, in: plot)
                     }
                 }
             }
@@ -897,9 +915,37 @@ private struct DailySpendChart: View {
         }.joined(separator: ", "))
     }
 
+    private func slotFrame(_ day: DashboardModel.Day, proxy: ChartProxy, plot: CGRect) -> CGRect? {
+        guard let start = proxy.position(forX: day.day), let next = calendar.date(byAdding: .day, value: 1, to: day.day),
+              let end = proxy.position(forX: next) else { return nil }
+        return CGRect(x: plot.minX + start, y: plot.minY, width: max(1, end - start), height: plot.height)
+    }
+
+    /// The hovered day's figures in a tip at the top of the plot, centred on its slot and held inside the plot so
+    /// the first and last days' tips are not cut by the chart's edges. It takes no pointer events: under the
+    /// pointer it would swallow the slot's hover and click. VoiceOver has the slot's own value, so it is hidden.
+    private func tip(_ day: DashboardModel.Day, over slot: CGRect, in plot: CGRect) -> some View {
+        Text(DashboardView.dayLine(day, calendar: calendar))
+            .font(.caption.monospacedDigit())
+            .fixedSize()
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(.regularMaterial))
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(ink.opacity(0.3)))
+            .alignmentGuide(.leading) { size in
+                // Centred on the slot, then clamped so the tip stays inside the plot's width.
+                let left = min(max(slot.midX - size.width / 2, plot.minX), max(plot.minX, plot.maxX - size.width))
+                return -left
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .offset(y: plot.minY + 4)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
     /// One day's slot, the plot's full height: the hover and click target, and the element VoiceOver reads and acts on.
     private func daySlot(_ day: DashboardModel.Day, in frame: CGRect) -> some View {
-        let isPinned = pinned && shown?.id == day.id
+        let isPinned = pinned.contains { $0.id == day.id }
         return Color.clear
             .contentShape(Rectangle())
             .frame(width: frame.width, height: frame.height)

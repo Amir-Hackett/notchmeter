@@ -47,7 +47,7 @@
       <p class="lede">When Claude Code stops for a permission and nothing tells you, the fix is usually in your terminal, not in another app. Start there. If you then want more than a banner, this is what a hook adds, how to fix one that has gone quiet, and when you are better off without it.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
-        <li class="stamp">Tested on Notchmeter 0.9.3</li>
+        <li class="stamp">Tested on Notchmeter 0.9.4</li>
         <li>Claude Code docs read 2026-09-24</li>
       </ul>
     </div>
@@ -76,7 +76,7 @@
     <p>A banner says something happened. It does not say which of four sessions is waiting, it is gone once dismissed, and answering it still means finding the right terminal tab. The hook sends Claude Code's session events to Notchmeter, which keeps them where you can see them:</p>
     <ul>
       <li><strong>A mark beside the notch.</strong> A white dot on the Claude ring while a session waits for your permission or your answer, with a count once more than one does, and a tick for ninety seconds after a turn longer than twenty seconds ends. The ring takes the blue that means <em>needs you, not running out</em>, and both marks stay if you turn the colour off.</li>
-      <li><strong>News in the notch.</strong> For four seconds the collapsed strip names the project and the reason (<em>Needs approval</em>, <em>Question</em>, <em>Finished</em>), with a glow under the notch.</li>
+      <li><strong>News in the notch.</strong> For four seconds the collapsed strip names the project and the reason (<em>Needs approval</em>, <em>Question</em>, <em>Finished</em>), with a glow under the notch. <em>Test in the notch</em>, under Settings › Notifications, sends a sample through it and says whether it showed.</li>
       <li><strong>A list of sessions</strong>, grouped by project, the one that needs you first, each a click away from its terminal tab or pane.</li>
       <li><strong>Answering from the notch.</strong> Allow, Deny or <em>Allow always</em> for a permission; pick the option for a question. The terminal shows its own prompt at the same time, and whichever you answer first wins.</li>
       <li><strong>A banner and a sound per kind of wait</strong>: a permission, a question, and a plan ready to approve each sound different.</li>
@@ -89,16 +89,17 @@
       <div class="shot"><img src="../img/permission.png" width="1280" height="700" alt="The panel open on a permission request alone: the Bash and project chips, the command, its excerpt, and Deny and Allow with their keyboard shortcuts." loading="lazy"></div>
       <figcaption>A permission request, answered from the notch. Escape, or <em>Answer in the terminal</em>, hands it straight back.</figcaption>
     </figure>
-    <p>Codex, Gemini CLI and GitHub Copilot CLI each document an event for a wait, so their hooks light the same dot. Cursor documents none, so its ring shows the tick and never claims a wait it cannot see; since 0.7.6 a Cursor turn quiet for 45 seconds with nothing running is shown as a <em>possible</em> wait, worded as "may be" because a slow model step looks the same.</p>
+    <p>Codex, Gemini CLI, GitHub Copilot CLI and OpenCode each report a wait, so their hooks light the same dot; Kimi Code has no event for one. Cursor documents none, so its ring shows the tick and never claims a wait it cannot see; since 0.7.6 a Cursor turn quiet for 45 seconds with nothing running is shown as a <em>possible</em> wait, worded as "may be" because a slow model step looks the same.</p>
 
     <h2 id="notchmeter-quiet">When Notchmeter's notification does not come</h2>
-    <p>The dot on the ring is always drawn. The banner is held back on purpose in three cases, and each has a switch.</p>
+    <p>The dot on the ring is always drawn. The banner is held back on purpose in four cases, and each has a switch.</p>
     <ul>
       <li><strong>A terminal or editor is in front.</strong> A session that has stopped for you still banners, but at most once every ten minutes per session, because Claude Code reports a permission prompt and never its answer, so a repository with no allow rules would otherwise banner at every prompt. A finished turn, and Claude Code's idle nudge, stay silent while a terminal or editor is frontmost. <em>Stay quiet while a terminal or editor is in front</em> (Settings › Notifications, on by default) turns that off.</li>
       <li><strong>Quiet hours.</strong> They override all of it.</li>
       <li><strong>The switch itself.</strong> <em>Notify when an assistant waits for you</em>, and macOS's own permission for Notchmeter, which is asked for when you turn the switch on and never at launch.</li>
+      <li><strong>That assistant's own switch.</strong> <em>Notify when it waits or finishes a turn</em>, on each assistant's page in Settings, leaves out one assistant's banners while the others keep theirs.</li>
     </ul>
-    <p>If the dot never appears either, the hook is not reaching the app. Settings › Integrations › Hooks says, per assistant, whether the entry is installed and whether it points at the copy that is running: <em>Installed, but an entry is out of date</em> and <em>Installed but points at an old path</em> each have a Repair button. Then try it by hand; with Notchmeter running this should print <code>exit 0</code> at once and put a line in the log:</p>
+    <p>If the dot never appears either, look first at <em>Read its sessions</em> on the assistant's page in Settings: with it off, the hook still refreshes the meter, but nothing else of an event is kept, so there is no wait on the ring, no news and no notice however well the hook works. With it on, the hook is not reaching the app. Settings › Integrations › Hooks says, per assistant, whether the entry is installed and whether it points at the copy that is running, and <em>Open its page</em> goes to that assistant's page, where <em>Installed, but an entry is out of date</em> and <em>Installed but points at an old path</em> each have a Repair button. Then try it by hand; with Notchmeter running this should print <code>exit 0</code> at once and put a line in the log:</p>
     <div class="code" tabindex="0"><code>echo '{"hook_event_name":"Stop"}' | /Applications/Notchmeter.app/Contents/MacOS/Notchmeter --hook; echo "exit $?"
 /usr/bin/log show --last 5m --info --predicate 'subsystem == "com.amirhackett.notchmeter" AND eventMessage BEGINSWITH "hook"' --style compact</code></div>
     <p>The app accepts a hook only from a copy of Notchmeter whose code signature matches its own, so a development build next to an installed release is refused, and the log names the refused path (<code>category == "hook-socket"</code>). If <code>Notchmeter --smoke</code> reports the transport as <em>stale</em>, the socket is a leftover from a crash: relaunch the app.</p>
@@ -119,7 +120,7 @@
     <p>Everything fails open. If Notchmeter is not running, if you do not answer within the hold (two minutes by default), or if anything at all goes wrong, the command prints nothing and Claude Code asks in the terminal exactly as it always has.</p>
 
     <h2 id="install-remove">Installing and removing it</h2>
-    <p>Settings › Integrations › Hooks › <em>Add to settings.json…</em> merges the entries after copying your file to <code>settings.json.bak-yyyyMMdd-HHmmss</code> beside it, and keeps every hook already there. <em>Show snippet…</em> gives you the JSON to paste yourself instead. The first launch offers this once, as a button; it is never done for you. To remove it, delete the groups whose command contains <code>Notchmeter … --hook</code>, or restore the backup.</p>
+    <p><em>Add to settings.json…</em>, on Claude Code's page in Settings, merges the entries after copying your file to <code>settings.json.bak-yyyyMMdd-HHmmss</code> beside it, and keeps every hook already there. <em>Show snippet…</em> gives you the JSON to paste yourself instead. The first launch offers this once, as a button; it is never done for you. To remove it, delete the groups whose command contains <code>Notchmeter … --hook</code>, or restore the backup.</p>
 
     <div class="sources">
       <h2 id="sources">Sources</h2>

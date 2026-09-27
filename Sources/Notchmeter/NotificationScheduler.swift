@@ -135,7 +135,9 @@ enum NotificationScheduler {
     }
 
     /// `rate` is a measured drain in fraction per hour (DrainLog) and `runOut` the interval from its history; with
-    /// either, the run-out time comes from it (the pessimistic edge of an interval) rather than the even-burn projection.
+    /// either, the run-out time of a window shorter than a day comes from it (the pessimistic edge of an interval)
+    /// rather than the even-burn projection. A longer one is judged on its own projection (`Pace.evaluate(_:)`, at
+    /// its `recentRate` when it carries one).
     static func stage(for window: LimitWindow, now: Date, rate: Double? = nil, runOut: RunOutInterval? = nil) -> PaceAlert.Stage? {
         guard let used = window.usedFraction, let resetsAt = window.resetsAt, let period = window.periodDuration,
               let elapsed = Pace.elapsedFraction(resetsAt: resetsAt, period: period, now: now)
@@ -147,18 +149,18 @@ enum NotificationScheduler {
         // 100 % after its reset would otherwise be reported as used up, and the escalation memory would then
         // hold every genuine lower stage of the new period behind it.
         if used >= 1 { return .limitHit }
-        guard elapsed >= minimumElapsedFraction,
-              let result = Pace.evaluate(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
-        else { return nil }
+        guard elapsed >= minimumElapsedFraction, let result = Pace.evaluate(window, now: now) else { return nil }
         switch result.status {
         case .ahead:
             return nil
         case .onTrack:
             return .onTrack
         case .behind:
-            let eta = runOut.map(\.earliest)
-                ?? Pace.secondsToRunOut(usedFraction: used, rate: rate, resetsAt: resetsAt, now: now)
-                ?? Pace.secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
+            // A window of a day or longer runs out on its own projection alone, as the advice says (Advisor.secondsToRunOut).
+            let eta = RecentPace.applies(to: window) ? Pace.secondsToRunOut(window, now: now)
+                : runOut.map(\.earliest)
+                    ?? Pace.secondsToRunOut(usedFraction: used, rate: rate, resetsAt: resetsAt, now: now)
+                    ?? Pace.secondsToRunOut(usedFraction: used, resetsAt: resetsAt, period: period, now: now)
             if let eta, eta < runningOutWithin { return .runningOut }
             return .behind
         }
