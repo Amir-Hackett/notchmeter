@@ -505,6 +505,8 @@
 "One entry in ~/.claude/settings.json makes Claude Code run %@ --hook when a session starts, a turn ends or it waits for you: the meter refreshes at once, the card counts sessions, and a dot shows while Claude waits. The file is backed up first, and you can remove it any time from this section." = "在 ~/.claude/settings.json 加入一個項目，Claude Code 便會在工作階段開始、一輪結束或等待你時執行 %@ --hook：儀表會立即重新整理，卡片會計算工作階段數，Claude 等待時會顯示圓點。檔案會先備份，你隨時可在本節移除它。";
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "同一權杖上再多一個介面：你所屬的每個有回應的組織（擁有者和帳單管理員）會新增本月預設隱藏的「組織額度」和「組織支出」視窗。";
 "Only turns longer than" = "僅限時長超過";
+"Call a quiet Cursor turn a possible wait after" = "將安靜的 Cursor 回合視為可能在等待，時長";
+"Cursor asks for a command's approval in its own window and sends no hook for it, so a turn with nothing running and no sign of life for this long is shown as a possible wait, once per turn. Shorter catches an approval sooner; longer leaves a slow model step alone." = "Cursor 在自己的視窗中請求指令批准，且不為此傳送任何掛鉤，因此一個回合若無任務執行、且在這段時間內毫無動靜，就會顯示為可能在等待，每回合一次。更短能更早發現批准請求；更長則不打擾較慢的模型步驟。";
 "Open" = "開啟";
 "Open %@" = "開啟 %@";
 "Open %@'s page" = "開啟 %@ 的頁面";

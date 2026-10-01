@@ -522,6 +522,8 @@
 "One entry in ~/.claude/settings.json makes Claude Code run %@ --hook when a session starts, a turn ends or it waits for you: the meter refreshes at once, the card counts sessions, and a dot shows while Claude waits. The file is backed up first, and you can remove it any time from this section." = "在 ~/.claude/settings.json 中添加一项，即可让 Claude Code 在会话开始、一轮结束或等待你时运行 %@ --hook：仪表会立即刷新，卡片会统计会话数，Claude 等待时会显示圆点。文件会先备份，你随时可以在本节移除它。";
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "同一令牌上再多一个接口：你所属的每个有响应的组织（所有者和账单管理员）会添加本月默认隐藏的“组织额度”和“组织支出”窗口。";
 "Only turns longer than" = "仅限时长超过";
+"Call a quiet Cursor turn a possible wait after" = "将安静的 Cursor 回合视为可能在等待，时长";
+"Cursor asks for a command's approval in its own window and sends no hook for it, so a turn with nothing running and no sign of life for this long is shown as a possible wait, once per turn. Shorter catches an approval sooner; longer leaves a slow model step alone." = "Cursor 在自己的窗口中请求命令批准，且不为此发送任何钩子，因此一个回合若无任务运行、且在这段时间内毫无动静，就会被显示为可能在等待，每回合一次。更短能更早发现批准请求；更长则不打扰较慢的模型步骤。";
 "Open" = "打开";
 "Open %@" = "打开 %@";
 "Open %@'s page" = "打开 %@ 的页面";

@@ -505,6 +505,8 @@
 "One entry in ~/.claude/settings.json makes Claude Code run %@ --hook when a session starts, a turn ends or it waits for you: the meter refreshes at once, the card counts sessions, and a dot shows while Claude waits. The file is backed up first, and you can remove it any time from this section." = "~/.claude/settings.json에 항목 하나를 추가하면 세션 시작, 턴 종료, 입력 대기 시 Claude Code가 %@ --hook을 실행합니다. 계량기가 즉시 새로 고쳐지고, 카드가 세션 수를 세며, Claude가 기다리는 동안 점이 표시됩니다. 파일은 먼저 백업되며 이 섹션에서 언제든 제거할 수 있습니다.";
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "같은 토큰으로 엔드포인트 하나를 더 읽습니다. 응답하는 소속 조직(소유자와 결제 관리자)마다 기본 숨김인 조직 크레딧과 조직 지출 창이 이번 달치로 추가됩니다.";
 "Only turns longer than" = "다음보다 긴 턴만";
+"Call a quiet Cursor turn a possible wait after" = "조용한 Cursor 턴을 대기 가능성으로 표시하기까지";
+"Cursor asks for a command's approval in its own window and sends no hook for it, so a turn with nothing running and no sign of life for this long is shown as a possible wait, once per turn. Shorter catches an approval sooner; longer leaves a slow model step alone." = "Cursor는 명령 승인을 자체 창에서 요청하고 이에 대한 훅을 보내지 않으므로, 실행 중인 것이 없고 이 시간 동안 아무 신호가 없는 턴은 턴마다 한 번 대기 가능성으로 표시됩니다. 짧게 하면 승인을 더 빨리 잡고, 길게 하면 느린 모델 단계를 건드리지 않습니다.";
 "Open" = "열기";
 "Open %@" = "%@ 열기";
 "Open %@'s page" = "%@ 페이지 열기";

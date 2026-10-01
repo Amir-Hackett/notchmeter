@@ -2,6 +2,14 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.7](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.7) — 2026-10-01
+
+### A nudge reads like a nudge
+
+- When a session only *may* be waiting, a Cursor turn gone quiet with nothing running or Claude Code's idle reminder, the glance in the notch is now one line: the assistant, the project, and a small jump back to the terminal. It settles after four seconds instead of six. A wait the session has actually stopped for, a permission prompt or a question, still opens the full card.
+- How long a Cursor turn has to go quiet before it counts as a possible wait is now a setting: Settings › Notifications, *Call a quiet Cursor turn a possible wait after*, from 15 seconds to 10 minutes. It stays at 45 seconds until you change it. Claude Code's idle reminder keeps its own timing, which Claude Code sets.
+- The new setting reads the same way in all eleven languages.
+
 ## [0.9.6](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.6) — 2026-09-27
 
 ### Two lines brought up to date

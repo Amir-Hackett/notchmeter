@@ -7,6 +7,13 @@ import SwiftUI
 struct AttentionNotice: Sendable {
     let session: AgentSession
     let event: Notifier.SessionEvent
+
+    /// A wait that may not be one: Claude Code's idle reminder or a Cursor turn gone quiet (`quietNudge`). Drawn
+    /// as one line rather than the full card.
+    var isNudge: Bool {
+        guard case .waiting(let blocking, _) = event else { return false }
+        return !blocking || session.quietNudge
+    }
 }
 
 /// The card itself: the assistant, whether it is waiting or done, the banner's own sentence
@@ -24,10 +31,47 @@ struct NoticeCard: View {
     /// How long the card stays before it settles, unless the pointer comes in. Longer than a bare glance: there
     /// is a sentence to read.
     static let duration: TimeInterval = 6
+    /// A nudge's card is one line with no sentence to read, so it settles sooner.
+    static let nudgeDuration: TimeInterval = 4
+
+    static func duration(for notice: AttentionNotice) -> TimeInterval { notice.isNudge ? nudgeDuration : duration }
 
     var body: some View {
+        if notice.isNudge { nudge } else { full }
+    }
+
+    /// A nudge — a wait the session may not have stopped for — on one line: the symbol, "Cursor may be waiting",
+    /// the project, and a small jump. It is a tap on the shoulder, not a request, so it takes no more room than one.
+    private var nudge: some View {
         let copy = Notifier.copy(for: notice.event, session: notice.session, hidingFigures: hideFigures)
-        VStack(alignment: .leading, spacing: density.rowSpacing) {
+        let project = hideFigures ? nil : notice.session.displayName
+        return HStack(spacing: 6) {
+            Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Themed(colour))
+            Text(copy.title).font(.caption.weight(.semibold)).foregroundStyle(Themed(colour, .text))
+                .lineLimit(1).layoutPriority(1)
+            if let project {
+                Text(verbatim: project).modifier(Caption()).lineLimit(1).truncationMode(.middle)
+            }
+            Spacer(minLength: 0)
+            if canJump {
+                let title = TerminalJump.jumpTitle(notice.session.terminal)
+                Button(action: jump) {
+                    Image(systemName: "arrow.up.forward.app").font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Themed(.white, .text))
+                .help(title)
+                .accessibilityLabel(title)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .modifier(CardBackground())
+    }
+
+    private var full: some View {
+        let copy = Notifier.copy(for: notice.event, session: notice.session, hidingFigures: hideFigures)
+        return VStack(alignment: .leading, spacing: density.rowSpacing) {
             HStack(spacing: 6) {
                 Image(systemName: symbol).font(.caption.weight(.semibold)).foregroundStyle(Themed(colour))
                 // The title is words, so it takes the colour's text role: Wong's blue and the pine green are 4.0:1 on

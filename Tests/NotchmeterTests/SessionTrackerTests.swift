@@ -590,7 +590,7 @@ import Testing
         var tracker = SessionTracker()
         tracker.apply(cursor("UserPromptSubmit"), now: t0)
         tracker.apply(cursor("afterAgentThought"), now: t0.addingTimeInterval(5))
-        #expect(tracker.nextRelease(now: t0.addingTimeInterval(6)) == t0.addingTimeInterval(5 + SessionTracker.quietAfter))
+        #expect(tracker.nextRelease(now: t0.addingTimeInterval(6)) == t0.addingTimeInterval(5 + SessionTracker.quietAfterDefault))
         #expect(tracker.quietNudges(now: t0.addingTimeInterval(30)).isEmpty, "not quiet long enough")
         let nudged = tracker.quietNudges(now: t0.addingTimeInterval(51))
         #expect(nudged.map(\.id) == ["cursor:c1"])
@@ -630,6 +630,16 @@ import Testing
         claude.apply(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s"), now: t0)
         claude.apply(Hook.Message(event: "afterAgentThought", needsInput: false, sessionID: "s"), now: t0.addingTimeInterval(1))
         #expect(claude.quietNudges(now: t0.addingTimeInterval(600)).isEmpty, "Claude Code says when it waits")
+    }
+
+    @Test func theQuietSpellIsTheOneSetInSettings() {
+        var tracker = SessionTracker()
+        tracker.quietAfter = 120
+        tracker.apply(cursor("UserPromptSubmit"), now: t0)
+        tracker.apply(cursor("afterAgentThought"), now: t0.addingTimeInterval(5))
+        #expect(tracker.nextRelease(now: t0.addingTimeInterval(6)) == t0.addingTimeInterval(125))
+        #expect(tracker.quietNudges(now: t0.addingTimeInterval(60)).isEmpty, "past the default, short of the setting")
+        #expect(tracker.quietNudges(now: t0.addingTimeInterval(126)).count == 1)
     }
 }
 

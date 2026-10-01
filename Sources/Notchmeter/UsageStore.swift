@@ -1511,6 +1511,7 @@ final class UsageStore {
 
     func sweepSessions(now: Date = Date()) {
         var expired = sessions
+        expired.quietAfter = TimeInterval(prefs.quietNudgeSeconds)
         let stuckBefore = sessions.stuck(now: now)
         let compactingBefore = sessions.compacting()
         let stopped = expired.expire(now: now)
@@ -1788,6 +1789,8 @@ final class UsageStore {
     /// cancel itself on the way out.
     private func armSignalRelease(now: Date = Date()) {
         signalRelease?.cancel()
+        let quietAfter = TimeInterval(prefs.quietNudgeSeconds)
+        if sessions.quietAfter != quietAfter { sessions.quietAfter = quietAfter }
         guard let due = sessions.nextRelease(now: now) else { return }
         let interval = max(0.25, due.timeIntervalSince(now))
         signalRelease = Task { [weak self] in

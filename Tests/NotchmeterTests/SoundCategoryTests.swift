@@ -63,7 +63,7 @@ import Testing
             func cursor(_ event: String) -> Hook.Message { Hook.Message(event: event, needsInput: false, sessionID: "c1", project: "p", tool: .cursor) }
             store.hookReceived(cursor("UserPromptSubmit"), now: t0.addingTimeInterval(100))
             store.hookReceived(cursor("afterAgentThought"), now: t0.addingTimeInterval(105))
-            store.sweepSessions(now: t0.addingTimeInterval(105 + SessionTracker.quietAfter + 1))
+            store.sweepSessions(now: t0.addingTimeInterval(105 + SessionTracker.quietAfterDefault + 1))
             #expect(played == [.waiting], "a quiet Cursor turn")
         }
     }
