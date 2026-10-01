@@ -878,6 +878,19 @@ final class Preferences {
             report(Keys.finishedAfter, finishedAfterMinutes, changed: finishedAfterMinutes != oldValue)
         }
     }
+    /// How long a Cursor turn may go quiet with nothing running before it is shown as a possible wait
+    /// (SessionTracker.quietAfter). Shorter catches an approval sooner; longer leaves a slow model step alone.
+    var quietNudgeSeconds: Int {
+        didSet {
+            // Same shape as finishedAfterMinutes above: the clamp writes back only when it changes the value.
+            let clamped = min(Self.quietNudgeRange.upperBound, max(Self.quietNudgeRange.lowerBound, quietNudgeSeconds))
+            if clamped != quietNudgeSeconds { quietNudgeSeconds = clamped; return }
+            defaults.set(quietNudgeSeconds, forKey: Keys.quietNudge)
+            report(Keys.quietNudge, quietNudgeSeconds, changed: quietNudgeSeconds != oldValue)
+        }
+    }
+    static let quietNudgeRange = 15...600
+    static let quietNudgeDefault = Int(SessionTracker.quietAfterDefault)
     /// The first time extra-usage credits rise in a month, and louder when the plan still has room.
     var notifyExtraUsage: Bool {
         didSet { defaults.set(notifyExtraUsage, forKey: Keys.notifyExtraUsage); report(Keys.notifyExtraUsage, notifyExtraUsage, changed: notifyExtraUsage != oldValue) }
@@ -1391,6 +1404,7 @@ final class Preferences {
         static let notifySessionTrouble = "notifySessionTrouble"
         static let quietWhileTerminal = "quietWhileTerminalFrontmost"
         static let finishedAfter = "finishedAfterMinutes"
+        static let quietNudge = "quietNudgeSeconds"
         static let notifyExtraUsage = "notifyExtraUsage"
         static let notifyCacheShift = "notifyCacheShift"
         static let notifyPromptCache = "notifyPromptCache"
@@ -1559,6 +1573,7 @@ final class Preferences {
         notifySessionTrouble = defaults.bool(forKey: Keys.notifySessionTrouble)
         quietWhileTerminalFrontmost = defaults.object(forKey: Keys.quietWhileTerminal) as? Bool ?? true
         finishedAfterMinutes = defaults.object(forKey: Keys.finishedAfter) as? Int ?? 2
+        quietNudgeSeconds = min(Self.quietNudgeRange.upperBound, max(Self.quietNudgeRange.lowerBound, defaults.object(forKey: Keys.quietNudge) as? Int ?? Self.quietNudgeDefault))
         notifyExtraUsage = defaults.object(forKey: Keys.notifyExtraUsage) as? Bool ?? true
         notifyCacheShift = defaults.bool(forKey: Keys.notifyCacheShift)
         notifyPromptCache = defaults.object(forKey: Keys.notifyPromptCache) as? Bool ?? true

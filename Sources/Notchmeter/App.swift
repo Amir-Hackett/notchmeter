@@ -459,8 +459,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // The session's card alone (NoticeCard), not the whole panel. A panel already open is already being
             // read: the session's row and the advice line say it there.
             guard presenter.hover.state != .expanded else { break }
-            store.attentionNotice = AttentionNotice(session: session, event: event)
-            presenter.glance(for: NoticeCard.duration)
+            let notice = AttentionNotice(session: session, event: event)
+            store.attentionNotice = notice
+            presenter.glance(for: NoticeCard.duration(for: notice))
         case .openPanel: presenter.expandNow(cause: .notification)
         case .nothing: break
         }

@@ -722,7 +722,7 @@ struct SessionTracker: Equatable, Sendable {
         var soonest: Date?
         for session in sessions.values {
             var due: Date?
-            if let quiet = Self.quietDue(session) {
+            if let quiet = quietDue(session) {
                 due = quiet
             } else if case .waiting(let since) = session.state {
                 due = since.addingTimeInterval(Self.waitingTimeout)
@@ -741,13 +741,15 @@ struct SessionTracker: Equatable, Sendable {
     static let heartbeatEvents: Set<String> = ["beforeShellExecution", "afterShellExecution", "beforeMCPExecution", "afterMCPExecution",
                                                "afterFileEdit", "afterAgentThought", "afterAgentResponse"]
 
-    /// How long a turn may go without a sign of life, with nothing running, before it is shown as a possible wait.
-    /// Long enough for a slow model step, short enough to be worth it for a command waiting on a click.
-    static let quietAfter: TimeInterval = 45
+    /// How long a turn may go without a sign of life, with nothing running, before it is shown as a possible wait,
+    /// by default. Long enough for a slow model step, short enough to be worth it for a command waiting on a click.
+    static let quietAfterDefault: TimeInterval = 45
+    /// The same, as set in Settings (Preferences.quietNudgeSeconds); the store keeps it in step.
+    var quietAfter: TimeInterval = SessionTracker.quietAfterDefault
 
     /// When `session` becomes a possible wait, if it can: a working turn of an assistant that sends heartbeats and
     /// no waits of its own, with nothing running and not already nudged this turn.
-    static func quietDue(_ session: AgentSession) -> Date? {
+    func quietDue(_ session: AgentSession) -> Date? {
         guard session.tool == .cursor, session.heartbeats, session.commandsInFlight == 0, !session.quietNudge,
               session.turnStarted != nil, case .working = session.state else { return nil }
         return session.lastEvent.addingTimeInterval(quietAfter)
@@ -758,7 +760,7 @@ struct SessionTracker: Equatable, Sendable {
     mutating func quietNudges(now: Date) -> [AgentSession] {
         var nudged: [AgentSession] = []
         for (id, var session) in sessions {
-            guard let due = Self.quietDue(session), due <= now else { continue }
+            guard let due = quietDue(session), due <= now else { continue }
             session.quietNudge = true
             session.state = .waiting(since: now)
             sessions[id] = session

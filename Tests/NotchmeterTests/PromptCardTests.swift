@@ -462,6 +462,25 @@ import Testing
         #expect(withJump > bare, "the jump button adds a row")
         #expect(Notifier.copy(for: .finished(turn: 125), session: session).body.contains("notchmeter"))
     }
+
+    @Test func aNudgeIsOneLineAndARealWaitIsTheFullCard() {
+        var session = AgentSession(id: "cursor:c1", tool: .cursor, project: "notchmeter", state: .waiting(since: t0), started: t0, lastEvent: t0, turnStarted: t0)
+        session.terminal = TerminalRef(bundleID: "com.googlecode.iterm2")
+        let wait = AttentionNotice(session: session, event: .waiting(blocking: true))
+        session.quietNudge = true
+        let quiet = AttentionNotice(session: session, event: .waiting(blocking: true))
+        let idle = AttentionNotice(session: AgentSession(id: "a", tool: .claude, project: "p", state: .waiting(since: t0), started: t0, lastEvent: t0, turnStarted: nil),
+                                   event: .waiting(blocking: false))
+        #expect(!wait.isNudge && quiet.isNudge && idle.isNudge)
+        #expect(NoticeCard.duration(for: quiet) < NoticeCard.duration(for: wait))
+        func height(_ card: NoticeCard) -> CGFloat {
+            let renderer = ImageRenderer(content: card.frame(width: 360).environment(\.colorScheme, .dark))
+            return renderer.nsImage?.size.height ?? 0
+        }
+        let nudge = height(NoticeCard(notice: quiet, canJump: true))
+        #expect(nudge > 0)
+        #expect(nudge * 2 < height(NoticeCard(notice: wait, canJump: true)), "a nudge takes a fraction of the room")
+    }
 }
 
 /// The card's own button style draws a disabled button faded: a Send with nothing chosen (a multi-select, an MCP
