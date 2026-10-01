@@ -505,6 +505,8 @@
 "One entry in ~/.claude/settings.json makes Claude Code run %@ --hook when a session starts, a turn ends or it waits for you: the meter refreshes at once, the card counts sessions, and a dot shows while Claude waits. The file is backed up first, and you can remove it any time from this section." = "~/.claude/settings.json に 1 項目追加すると、セッション開始、ターン終了、入力待ちのときに Claude Code が %@ --hook を実行します。メーターは即座に更新され、カードはセッション数を表示し、Claude が待つ間はドットが表示されます。ファイルは先にバックアップされ、このセクションからいつでも削除できます。";
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "同じトークンでエンドポイントをもう 1 つ読みます。応答があった所属組織（オーナーと課金管理者）ごとに、既定で非表示の「組織クレジット」と「組織支出」ウィンドウが今月分追加されます。";
 "Only turns longer than" = "次より長いターンのみ";
+"Call a quiet Cursor turn a possible wait after" = "静かな Cursor のターンを待機の可能性とみなすまで";
+"Cursor asks for a command's approval in its own window and sends no hook for it, so a turn with nothing running and no sign of life for this long is shown as a possible wait, once per turn. Shorter catches an approval sooner; longer leaves a slow model step alone." = "Cursor はコマンドの承認を自分のウィンドウで求め、そのためのフックを送りません。そのため、何も実行されず、この時間動きのないターンは、ターンごとに一度、待機の可能性として表示されます。短くすると承認を早く拾い、長くすると遅いモデルの処理をそっとしておきます。";
 "Open" = "開く";
 "Open %@" = "%@ を開く";
 "Open %@'s page" = "%@ のページを開く";
