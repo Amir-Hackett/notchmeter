@@ -379,6 +379,9 @@ struct SimpleToolRow: View {
         case .idle(let message): return SimpleLine(id: "status", symbol: nil, text: message)
         case .offline: return SimpleLine(id: "status", symbol: "wifi.slash", text: L("Offline, retrying"))
         case .rateLimited(let message, _): return SimpleLine(id: "status", symbol: "clock.badge.exclamationmark", text: message)
+        case .loginIdle(let message, let cached):
+            return SimpleLine(id: "status", symbol: "person.crop.circle.badge.clock",
+                              text: cached.map { StaleReading.notUpdated(fetchedAt: $0.fetchedAt, timeFormat: format, then: message) } ?? message)
         default: break
         }
         if let first = advice.first {

@@ -268,11 +268,22 @@ enum ResetText {
 /// may be out of date". The day is named once the reading is not from today.
 enum StaleReading {
     static func line(fetchedAt: Date, timeFormat: TimeFormatPreference, now: Date = Date(), calendar: Calendar = .current) -> String {
+        L("Last reading %@ · may be out of date", when(fetchedAt, timeFormat: timeFormat, now: now, calendar: calendar))
+    }
+
+    /// The one line a login gone idle leaves under its reading (ToolStatus.loginIdle), in place of this caption and
+    /// a warning: "Not updated since 4:52 PM." and then what renews it.
+    static func notUpdated(fetchedAt: Date, timeFormat: TimeFormatPreference, then reason: String, now: Date = Date(),
+                           calendar: Calendar = .current) -> String {
+        L("Not updated since %1$@. %2$@", when(fetchedAt, timeFormat: timeFormat, now: now, calendar: calendar), reason)
+    }
+
+    /// "4:52 PM", or with its day once the reading is not from today.
+    private static func when(_ fetchedAt: Date, timeFormat: TimeFormatPreference, now: Date, calendar: Calendar) -> String {
         let time = ResetText.time(fetchedAt, format: timeFormat, calendar: calendar)
-        let when = calendar.isDate(fetchedAt, inSameDayAs: now)
+        return calendar.isDate(fetchedAt, inSameDayAs: now)
             ? time
             : L("%1$@ at %2$@", ResetText.dayPhrase(fetchedAt, now: now, calendar: calendar), time)
-        return L("Last reading %@ · may be out of date", when)
     }
 }
 
@@ -421,6 +432,7 @@ enum Spoken {
             case .off: parts.append(L("off"))
             case .notInstalled: parts.append(L("not installed"))
             case .offline: parts.append(L("Offline, retrying"))
+            case .loginIdle(let message, _): parts.append(phrase(message))
             // A 429 with nothing cached arrives through `problem` above, so the wait is spoken once.
             case .ready, .needsAttention, .failed, .rateLimited: break
             }

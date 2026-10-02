@@ -2002,6 +2002,7 @@ enum Probe {
         case .failed(let message, _): "failed: \(message)"
         case .offline(let cached): "offline" + (cached.map { ", showing \(describe($0))" } ?? "")
         case .rateLimited(let message, let cached): "rate limited: \(message)" + (cached.map { ", showing \(describe($0))" } ?? "")
+        case .loginIdle(let message, let cached): "login idle: \(message)" + (cached.map { ", showing \(describe($0))" } ?? "")
         }
     }
 }

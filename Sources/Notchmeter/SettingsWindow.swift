@@ -1074,7 +1074,7 @@ struct SettingsView: View {
             Toggle(L("Colour the rings when an assistant waits or finishes"), isOn: Binding(get: { prefs.signalRings }, set: { prefs.signalRings = $0 }))
                 .help(L("The ring takes the blue that means needs you rather than running out while an assistant waits for your permission or has just finished a turn, and a mark beside it says which. Pace keeps the cap on the arc's end, so a window that is nearly gone still says so. Every hook reports a finished turn; Claude Code's, Codex's, Gemini CLI's and Copilot's report a wait, Cursor's and Kimi Code's do not."))
             Toggle(L("Show news in the notch"), isOn: Binding(get: { prefs.notchNews }, set: { prefs.notchNews = $0 }))
-                .help(L("When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip says so across the notch for four seconds: what happened on the left, the session on the right, over the menus beside the notch while it shows. Click it to open the panel on that session. While your screen is shared the session is left out."))
+                .help(L("When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip says so across the notch for four seconds: what happened on the left, the session's name on the right, over the menus beside the notch while it shows. Click it to open the panel on that session. While your screen is shared the name is left out."))
             if prefs.notchNews {
                 Picker(L("News style"), selection: Binding(get: { prefs.notchNewsStyle }, set: { prefs.notchNewsStyle = $0 })) {
                     ForEach(NotchNewsStyle.allCases, id: \.self) { Text($0.title).tag($0) }
@@ -1958,7 +1958,7 @@ struct SettingsView: View {
         case .waiting: return L("Waiting for the first reading")
         case .idle(let message): return message
         case .ready(let reading): return Self.readySubtitle(reading)
-        case .needsAttention(let message, _), .failed(let message, _), .rateLimited(let message, _): return message
+        case .needsAttention(let message, _), .failed(let message, _), .rateLimited(let message, _), .loginIdle(let message, _): return message
         case .offline: return L("Offline, retrying")
         case .notInstalled: return L("Not installed on this Mac")
         }

@@ -2136,10 +2136,14 @@ struct ToolCard: View {
             case .rateLimited(let message, _):
                 Label(message, systemImage: "clock.badge.exclamationmark")
                     .font(.caption).foregroundStyle(Ink.secondary).monospacedDigit()
+            case .loginIdle(let message, let cached):
+                Label(cached.map { StaleReading.notUpdated(fetchedAt: $0.fetchedAt, timeFormat: prefs.timeFormat, then: message) } ?? message,
+                      systemImage: "person.crop.circle.badge.clock")
+                    .font(.caption).foregroundStyle(Ink.secondary).monospacedDigit()
             default:
                 EmptyView()
             }
-            if let stale = status.staleReading {
+            if let stale = status.staleReading, !status.isLoginIdle {
                 Text(StaleReading.line(fetchedAt: stale.fetchedAt, timeFormat: prefs.timeFormat))
                     .modifier(Caption()).monospacedDigit()
             }
