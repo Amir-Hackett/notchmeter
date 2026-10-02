@@ -402,7 +402,8 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     var quietNudge = false
     /// Nudges this session's turns went on from without an approval: the next sign of life was not a command
     /// starting, so the quiet was a slow step rather than a wait. Each one doubles the quiet spell for this session
-    /// (`SessionTracker.quietSpell`), so a session that thinks slowly stops crying wolf.
+    /// (`SessionTracker.quietSpell`), so a session that thinks slowly stops crying wolf; a nudge that was right (a
+    /// command started next) takes one back.
     var quietFalseAlarms = 0
     // What Claude Code's 0.11 events report (Hook+Events.swift). Each is a fact a hook stated, kept only as long
     // as it stays true, and none of it is ever inferred from a file.
@@ -1032,9 +1033,14 @@ struct SessionTracker: Equatable, Sendable {
                 session.commandsInFlight = Swift.max(0, session.commandsInFlight - 1)
             }
             if session.quietNudge, session.isWaiting {
-                // A command starting is the approval the nudge was for; anything else means the turn was only
-                // slow, and the next quiet spell for this session is longer.
-                if message.event != "beforeShellExecution", message.event != "beforeMCPExecution" { session.quietFalseAlarms += 1 }
+                // A command starting is the approval the nudge was for, and takes one false alarm back, so a
+                // session that was slow once does not keep its longest spell for the rest of the conversation;
+                // anything else means the turn was only slow, and the next quiet spell for this session is longer.
+                if message.event == "beforeShellExecution" || message.event == "beforeMCPExecution" {
+                    session.quietFalseAlarms = Swift.max(0, session.quietFalseAlarms - 1)
+                } else {
+                    session.quietFalseAlarms += 1
+                }
                 session.state = .working(since: now)
             }
         default:

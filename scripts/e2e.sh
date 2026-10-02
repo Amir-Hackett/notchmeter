@@ -17,6 +17,11 @@ if [ -z "${CI:-}" ] && [ -z "${E2E_ALLOW_PREFS:-}" ]; then
   exit 2
 fi
 [ -x "$BIN" ] || { echo "e2e: no app at $APP (run scripts/build.sh)" >&2; exit 2; }
+# A copy already running holds the hook socket and Application Support: the events would reach it, not this run.
+if pgrep -U "$(id -u)" -x Notchmeter >/dev/null; then
+  echo "e2e: Notchmeter is already running for this user; quit it first" >&2
+  exit 2
+fi
 
 WORK="$(mktemp -d)"
 ORACLE="$WORK/oracle.jsonl"

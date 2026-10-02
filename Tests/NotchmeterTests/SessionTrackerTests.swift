@@ -657,7 +657,7 @@ import Testing
         #expect(tracker.quietNudges(now: t0.addingTimeInterval(150)).isEmpty, "past the set spell, short of the learned one")
         #expect(tracker.quietNudges(now: t0.addingTimeInterval(192)).count == 1)
         tracker.apply(cursor("beforeShellExecution"), now: t0.addingTimeInterval(200))
-        #expect(tracker.sessions["cursor:c1"]?.quietFalseAlarms == 1, "a command starting was the approval: no new alarm")
+        #expect(tracker.sessions["cursor:c1"]?.quietFalseAlarms == 0, "a command starting was the approval: the nudge was right, and takes one back")
 
         var slow = try #require(tracker.sessions["cursor:c1"])
         slow.quietFalseAlarms = 9
