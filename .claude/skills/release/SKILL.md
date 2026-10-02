@@ -47,16 +47,36 @@ Stop and report rather than guess if any of these is not true.
 git fetch origin --prune --tags
 grep -A1 CFBundleShortVersionString scripts/Info.plist   # must equal $VERSION
 git log --oneline origin/main -1                          # the commit to build
-gh run list --branch main --limit 3                       # CI green on it
+gh run list --branch main --workflow=secrets.yml --limit 1   # gitleaks green on it
 gh secret list | grep -E 'DEVELOPER_ID_APP|NOTARY|SPARKLE|PROVISION'
 ```
+
+CI (`ci.yml`) never builds `main`. It runs on pull requests and by hand, and skips a pull request that touches
+nothing but `docs/`, `packaging/`, `site/` or `*.md`, so `gh run list --branch main` shows only the Secrets check.
+The green that counts is the macOS build on the pull request that brought the code in, and it matters:
+`release.yml` runs the unit tests again but not `scripts/e2e.sh`, so this is the only place the end-to-end run is
+held to the code being tagged. Find the newest change CI would build, check that pull request's build, and check
+nothing CI would build has landed since its last head:
+
+```bash
+X=(-- . ':!docs' ':!packaging' ':!site' ':!*.md')     # the paths ci.yml ignores
+git log -1 --format='%h %s' origin/main "${X[@]}"     # ends "(#N)": the pull request to check
+gh pr checks N | grep macos                           # must be pass
+git diff --stat "$(gh pr view N --json headRefOid -q .headRefOid)" origin/main "${X[@]}"   # must print nothing
+```
+
+If the diff prints anything, another pull request changed code after this one's last build and the combination was
+never built; if the commit came from no pull request, nothing built it. Either way, build `main` itself and wait for
+green before tagging: `gh workflow run ci.yml --ref main`, then `gh run watch <id> --exit-status` on the run
+`gh run list --workflow=ci.yml --event workflow_dispatch --limit 1` names.
 
 Seven secrets are required to sign: `DEVELOPER_ID_APP`, `DEVELOPER_ID_APP_P12`, `DEVELOPER_ID_APP_P12_PASSWORD`,
 `NOTARY_API_KEY`, `NOTARY_API_KEY_ID`, `NOTARY_API_ISSUER`, `SPARKLE_PRIVATE_KEY`. `PROVISION_PROFILE_BASE64` is
 optional: with it the app claims the time-sensitive notifications entitlement, without it it claims none. Missing
 one of the seven means a `v*` tag builds an **unsigned prerelease** — say so and stop, do not tag.
 
-If `scripts/Info.plist` still needs the bump, make it, commit it, and let CI go green before tagging.
+If `scripts/Info.plist` still needs the bump, make it in a pull request, which is where CI runs, and let its macOS
+build go green before merging and tagging.
 
 Three more files carry the version or the release, and none of them reaches CI on its own:
 
