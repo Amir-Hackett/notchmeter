@@ -178,6 +178,21 @@ enum PanelWidth: String, CaseIterable, Codable {
     var points: CGFloat { self == .wide ? 460 : 380 }
 }
 
+/// How the news across the notch (NotchPeek) names the assistant: in words with what happened, "Claude Code
+/// finished", or by its symbol and the reason's alone, which leaves the line to the session's name. The owner
+/// chose between the two from drawings of each (2026-10-02) and asked for both; Full is the default because it
+/// reads without knowing the symbols.
+enum NotchNewsStyle: String, CaseIterable, Codable {
+    case full, compact
+
+    var title: String {
+        switch self {
+        case .full: L("Full: the assistant's name")
+        case .compact: L("Compact: its symbol")
+        }
+    }
+}
+
 /// What the notch does when an assistant waits for the user or a turn ends: nothing beyond the dot and the
 /// notification, a glance, or the panel opening. A glance is the session's own card (NoticeCard), settling by
 /// itself. Until 0.7.5 it was the whole panel for a few seconds, and 0.7.4 added the card as a fourth choice
@@ -674,14 +689,6 @@ final class Preferences {
     }
     /// What Auto has made of the menu bar (AutoSideWatcher); nil until it has looked.
     var autoCompactFit: CompactFit?
-    /// The room Auto last measured either side of the notch (AutoSideWatcher), which a news peek (NotchPeek) is
-    /// laid out in; nil until it has looked. Not saved, like the fit beside it.
-    var autoCompactRoom: NotchPeek.Room?
-    /// The room a peek may take: what Auto measured, or nothing measured under a fixed side, where the readouts
-    /// themselves are drawn without a measurement either.
-    var peekRoom: NotchPeek.Room {
-        compactSide == .auto ? autoCompactRoom ?? .unmeasured : .unmeasured
-    }
     /// The fit the readouts are actually drawn at. A fixed side keeps every tool at the chosen style; Auto uses
     /// what it last measured, and until it has measured anything it sits centred on the notch — the arrangement
     /// it returns to whenever there is room, so the strip starts where it spends most of its life.
@@ -932,6 +939,10 @@ final class Preferences {
     /// the notification settings either — a banner interrupts, a few words beside the notch do not.
     var notchNews: Bool {
         didSet { defaults.set(notchNews, forKey: Keys.notchNews); report(Keys.notchNews, notchNews, changed: notchNews != oldValue) }
+    }
+    /// Whether that news names the assistant in words or by its symbol (NotchNewsStyle).
+    var notchNewsStyle: NotchNewsStyle {
+        didSet { defaults.set(notchNewsStyle.rawValue, forKey: Keys.notchNewsStyle); report(Keys.notchNewsStyle, notchNewsStyle.rawValue, changed: notchNewsStyle != oldValue) }
     }
     /// A soft light under the notch for the same news (NotchGlow): blue for a wait, white for a finish, fading after
     /// a few seconds, with a faint blue kept while anything still waits. Separate from `notchNews` because the two
@@ -1421,6 +1432,7 @@ final class Preferences {
         static let sessionAttention = "sessionAttention"
         static let signalRings = "signalRings"
         static let notchNews = "notchNews"
+        static let notchNewsStyle = "notchNewsStyle"
         static let notchGlow = "notchGlow"
         static let notificationSound = "notificationSound"
         /// The limit category's sound. The name is from before the category was widened from pace crossings to
@@ -1591,6 +1603,7 @@ final class Preferences {
         sessionAttention = SessionAttention.stored(defaults.string(forKey: Keys.sessionAttention))
         signalRings = defaults.object(forKey: Keys.signalRings) as? Bool ?? true
         notchNews = defaults.object(forKey: Keys.notchNews) as? Bool ?? true
+        notchNewsStyle = NotchNewsStyle(rawValue: defaults.string(forKey: Keys.notchNewsStyle) ?? "") ?? .full
         notchGlow = defaults.object(forKey: Keys.notchGlow) as? Bool ?? true
         notificationSound = defaults.object(forKey: Keys.notificationSound) as? Bool ?? true
         let installedSounds = NotificationSound.systemSounds()
