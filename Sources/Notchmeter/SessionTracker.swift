@@ -400,6 +400,10 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// This turn went quiet with nothing running and is shown as a possible wait. Set once per turn, cleared by the
     /// next prompt; the wait itself ends with the next activity.
     var quietNudge = false
+    /// Nudges this session's turns went on from without an approval: the next sign of life was not a command
+    /// starting, so the quiet was a slow step rather than a wait. Each one doubles the quiet spell for this session
+    /// (`SessionTracker.quietSpell`), so a session that thinks slowly stops crying wolf.
+    var quietFalseAlarms = 0
     // What Claude Code's 0.11 events report (Hook+Events.swift). Each is a fact a hook stated, kept only as long
     // as it stays true, and none of it is ever inferred from a file.
     /// A compaction begun (`PreCompact`) and not yet done (`PostCompact`), with its trigger when the hook named one.
@@ -747,12 +751,22 @@ struct SessionTracker: Equatable, Sendable {
     /// The same, as set in Settings (Preferences.quietNudgeSeconds); the store keeps it in step.
     var quietAfter: TimeInterval = SessionTracker.quietAfterDefault
 
+    /// The longest a learned quiet spell grows to: the top of the setting's range.
+    static let quietSpellCap: TimeInterval = 600
+
+    /// How long `session` may go quiet before it is a possible wait: the set spell, doubled for each false alarm
+    /// it has given (three at most), never past `quietSpellCap` nor under the set spell.
+    func quietSpell(_ session: AgentSession) -> TimeInterval {
+        let doubled = quietAfter * Double(1 << Swift.min(session.quietFalseAlarms, 3))
+        return Swift.max(quietAfter, Swift.min(doubled, Self.quietSpellCap))
+    }
+
     /// When `session` becomes a possible wait, if it can: a working turn of an assistant that sends heartbeats and
     /// no waits of its own, with nothing running and not already nudged this turn.
     func quietDue(_ session: AgentSession) -> Date? {
         guard session.tool == .cursor, session.heartbeats, session.commandsInFlight == 0, !session.quietNudge,
               session.turnStarted != nil, case .working = session.state else { return nil }
-        return session.lastEvent.addingTimeInterval(quietAfter)
+        return session.lastEvent.addingTimeInterval(quietSpell(session))
     }
 
     /// The turns that have gone quiet (`quietDue`) by `now`, each moved to a wait marked as a nudge, so the
@@ -1017,7 +1031,12 @@ struct SessionTracker: Equatable, Sendable {
             } else if message.event == "afterShellExecution" || message.event == "afterMCPExecution" {
                 session.commandsInFlight = Swift.max(0, session.commandsInFlight - 1)
             }
-            if session.quietNudge, session.isWaiting { session.state = .working(since: now) }
+            if session.quietNudge, session.isWaiting {
+                // A command starting is the approval the nudge was for; anything else means the turn was only
+                // slow, and the next quiet spell for this session is longer.
+                if message.event != "beforeShellExecution", message.event != "beforeMCPExecution" { session.quietFalseAlarms += 1 }
+                session.state = .working(since: now)
+            }
         default:
             if message.needsInput {
                 if !session.isWaiting { outcome.startedWaiting = session }

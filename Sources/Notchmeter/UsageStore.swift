@@ -1532,7 +1532,7 @@ final class UsageStore {
         // an approval the turn has stopped for, and a non-blocking wait is held back while an editor is in front,
         // which for Cursor is exactly when it asks (the ten-minute ceiling on blocking banners still applies).
         if prefs.notifyWaiting {
-            for session in nudged where prefs.notifiesSessions(of: session.tool) {
+            for session in nudged where prefs.notifiesSessions(of: session.tool) && !prefs.mutesNudges(for: session) {
                 deliverSessionEvent(.waiting(blocking: true, kind: .permission), session)
             }
         }
@@ -2073,7 +2073,8 @@ final class UsageStore {
         } else {
             reply?.answer(nil)
         }
-        if let waiting = outcome.startedWaiting, prefs.notifyWaiting, prefs.notifiesSessions(of: tool) {
+        if let waiting = outcome.startedWaiting, prefs.notifyWaiting, prefs.notifiesSessions(of: tool),
+           message.blocksSession || !prefs.mutesNudges(for: waiting) {
             deliverSessionEvent(.waiting(blocking: message.blocksSession, kind: waitKind), waiting)
         }
         if let finished = outcome.finished, prefs.notifyFinished, prefs.notifiesSessions(of: tool),

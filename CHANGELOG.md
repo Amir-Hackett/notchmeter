@@ -2,6 +2,14 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.8](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.8) — 2026-10-02
+
+### Fewer nudges you didn't need
+
+- A session's right-click menu has *Don't nudge me for* its project. A possible wait there, a Cursor turn gone quiet or Claude Code's idle reminder, then sends no notification and no glance. A permission prompt or a question still reaches you. Settings › Notifications lists the muted projects, with *Nudge for all* to undo them.
+- A Cursor session that goes on by itself after a nudge, without a command starting, was only thinking slowly. Its next nudge waits twice as long, up to three doublings and never past ten minutes. A new conversation starts again from your setting.
+- Both read the same way in all eleven languages.
+
 ## [0.9.7](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.7) — 2026-10-01
 
 ### A nudge reads like a nudge

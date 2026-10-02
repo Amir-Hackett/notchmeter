@@ -890,6 +890,15 @@ final class Preferences {
         }
     }
     static let quietNudgeRange = 15...600
+    /// Projects whose sessions never nudge: a possible wait there (a Cursor turn gone quiet, Claude Code's idle
+    /// reminder) sends no notification and no glance. A wait the session has stopped for still does. Keyed by the
+    /// project name the session row shows.
+    var mutedNudgeProjects: Set<String> {
+        didSet {
+            defaults.set(mutedNudgeProjects.sorted(), forKey: Keys.mutedNudgeProjects)
+            report(Keys.mutedNudgeProjects, mutedNudgeProjects.sorted(), changed: mutedNudgeProjects != oldValue)
+        }
+    }
     static let quietNudgeDefault = Int(SessionTracker.quietAfterDefault)
     /// The first time extra-usage credits rise in a month, and louder when the plan still has room.
     var notifyExtraUsage: Bool {
@@ -1405,6 +1414,7 @@ final class Preferences {
         static let quietWhileTerminal = "quietWhileTerminalFrontmost"
         static let finishedAfter = "finishedAfterMinutes"
         static let quietNudge = "quietNudgeSeconds"
+        static let mutedNudgeProjects = "mutedNudgeProjects"
         static let notifyExtraUsage = "notifyExtraUsage"
         static let notifyCacheShift = "notifyCacheShift"
         static let notifyPromptCache = "notifyPromptCache"
@@ -1573,6 +1583,7 @@ final class Preferences {
         notifySessionTrouble = defaults.bool(forKey: Keys.notifySessionTrouble)
         quietWhileTerminalFrontmost = defaults.object(forKey: Keys.quietWhileTerminal) as? Bool ?? true
         finishedAfterMinutes = defaults.object(forKey: Keys.finishedAfter) as? Int ?? 2
+        mutedNudgeProjects = Set(defaults.stringArray(forKey: Keys.mutedNudgeProjects) ?? [])
         quietNudgeSeconds = min(Self.quietNudgeRange.upperBound, max(Self.quietNudgeRange.lowerBound, defaults.object(forKey: Keys.quietNudge) as? Int ?? Self.quietNudgeDefault))
         notifyExtraUsage = defaults.object(forKey: Keys.notifyExtraUsage) as? Bool ?? true
         notifyCacheShift = defaults.bool(forKey: Keys.notifyCacheShift)
@@ -1870,6 +1881,11 @@ final class Preferences {
     /// Whether this assistant's waiting and finished-turn notices may go out; the page's own part, as above.
     func notifiesSessions(of tool: ToolID) -> Bool {
         !sessionNoticesOff.contains(tool)
+    }
+
+    /// Whether a possible wait in `session`'s project is kept quiet (`mutedNudgeProjects`).
+    func mutesNudges(for session: AgentSession) -> Bool {
+        session.project.map(mutedNudgeProjects.contains) ?? false
     }
 
     /// The write behind each page's toggles: one assistant in or out of an off-set, the set left alone when it

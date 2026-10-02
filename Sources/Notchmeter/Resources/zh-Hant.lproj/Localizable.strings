@@ -506,6 +506,11 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "同一權杖上再多一個介面：你所屬的每個有回應的組織（擁有者和帳單管理員）會新增本月預設隱藏的「組織額度」和「組織支出」視窗。";
 "Only turns longer than" = "僅限時長超過";
 "Call a quiet Cursor turn a possible wait after" = "將安靜的 Cursor 回合視為可能在等待，時長";
+"Don't nudge me for %@" = "不再為 %@ 提醒我";
+"Nudge me again for %@" = "重新為 %@ 提醒我";
+"No nudges for %@" = "%@ 不提醒";
+"Nudge for all" = "全部提醒";
+"Set from a session's right-click menu. A possible wait in these projects sends nothing; a permission prompt or a question still does." = "在工作階段的右鍵選單中設定。這些專案中的可能等待不會傳送任何內容；權限請求或提問仍會傳送。";
 "Cursor asks for a command's approval in its own window and sends no hook for it, so a turn with nothing running and no sign of life for this long is shown as a possible wait, once per turn. Shorter catches an approval sooner; longer leaves a slow model step alone." = "Cursor 在自己的視窗中請求指令批准，且不為此傳送任何掛鉤，因此一個回合若無任務執行、且在這段時間內毫無動靜，就會顯示為可能在等待，每回合一次。更短能更早發現批准請求；更長則不打擾較慢的模型步驟。";
 "Open" = "開啟";
 "Open %@" = "開啟 %@";

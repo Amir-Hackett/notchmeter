@@ -68,6 +68,36 @@ import Testing
         }
     }
 
+    /// A project muted from the row's menu sends nothing for a possible wait, and still sends a real one.
+    @Test func aMutedProjectIsNotNudgedButStillAsked() {
+        withSuite("mute") { defaults in
+            let prefs = Preferences(defaults: defaults)
+            prefs.notifyWaiting = true
+            prefs.mutedNudgeProjects = ["p"]
+            let store = UsageStore(prefs: prefs, providers: [], cache: ReadingCache(defaults: defaults), defaults: defaults,
+                                   drainLog: nil, reportFile: nil)
+            var delivered = 0
+            store.deliverSessionEvent = { _, _ in delivered += 1 }
+            store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s", project: "p"), now: t0)
+            store.hookReceived(Hook.Message(event: "Stop", needsInput: false, sessionID: "s", project: "p"), now: t0.addingTimeInterval(5))
+            store.hookReceived(Hook.Message(event: "Notification", needsInput: true, sessionID: "s", project: "p", notificationType: "idle_prompt"),
+                               now: t0.addingTimeInterval(65))
+            #expect(delivered == 0, "the idle reminder in a muted project")
+
+            func cursor(_ event: String) -> Hook.Message { Hook.Message(event: event, needsInput: false, sessionID: "c1", project: "p", tool: .cursor) }
+            store.hookReceived(cursor("UserPromptSubmit"), now: t0.addingTimeInterval(100))
+            store.hookReceived(cursor("afterAgentThought"), now: t0.addingTimeInterval(105))
+            store.sweepSessions(now: t0.addingTimeInterval(105 + SessionTracker.quietAfterDefault + 1))
+            #expect(delivered == 0, "a quiet Cursor turn in a muted project")
+
+            store.hookReceived(Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s2", project: "p"), now: t0.addingTimeInterval(200))
+            store.hookReceived(Hook.Message(event: "Notification", needsInput: true, sessionID: "s2", project: "p", notificationType: "permission_prompt"),
+                               now: t0.addingTimeInterval(205))
+            #expect(delivered == 1, "a permission prompt is not a nudge")
+            #expect(prefs.mutesNudges(for: AgentSession(id: "x", tool: .claude, project: "q", state: .idle, started: t0, lastEvent: t0, turnStarted: nil)) == false)
+        }
+    }
+
     @Test func paceAlertsSoundAsALimitOnlyWhenAWindowIsNearlyOrWhollyGone() {
         #expect(Notifier.soundCategory(for: PaceAlert.Stage.runningOut) == .limit)
         #expect(Notifier.soundCategory(for: PaceAlert.Stage.limitHit) == .limit)

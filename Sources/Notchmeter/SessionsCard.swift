@@ -380,6 +380,10 @@ struct SessionsCard: View {
                         ForEach(group.rows, id: \.id) { row in
                             SessionRow(row: row, now: context.date, jump: { actions.jump($0) }, session: sessions.all.first { $0.id == row.id },
                                        remove: { store.dismissSession(row.id) }, removeIdle: { store.dismissIdleSessions() },
+                                       nudgesMuted: { store.prefs.mutedNudgeProjects.contains($0) },
+                                       muteNudges: { project, mute in
+                                           if mute { store.prefs.mutedNudgeProjects.insert(project) } else { store.prefs.mutedNudgeProjects.remove(project) }
+                                       },
                                        open: Set(Disclosure.allCases.filter { store.openSessionLists.contains(Self.listKey(row.id, $0)) }),
                                        toggle: { toggle(row.id, $0) }, embedded: embedded,
                                        advice: lines.onRow[row.id]?.map(\.text) ?? [])
@@ -496,6 +500,9 @@ private struct SessionRow: View {
     /// conversation closed in Cursor never says it ended, so it would otherwise stay for hours.
     var remove: () -> Void = {}
     var removeIdle: () -> Void = {}
+    /// Whether a project's nudges are kept quiet (Preferences.mutedNudgeProjects), and the switch for it.
+    var nudgesMuted: (String) -> Bool = { _ in false }
+    var muteNudges: (String, Bool) -> Void = { _, _ in }
     @State private var hovering = false
     /// Bumped on every hover change, so a pending "left" only lands if nothing came after it.
     @State private var hoverGeneration = 0
@@ -582,6 +589,13 @@ private struct SessionRow: View {
         .contextMenu {
             if removable { Button(L("Remove from the list"), action: remove) }
             Button(L("Remove all idle sessions"), action: removeIdle)
+            if let project = session?.project {
+                let muted = nudgesMuted(project)
+                Divider()
+                Button(muted ? L("Nudge me again for %@", project) : L("Don't nudge me for %@", project)) {
+                    muteNudges(project, !muted)
+                }
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityAction(named: L("Remove from the list")) { if removable { remove() } }
