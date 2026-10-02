@@ -54,6 +54,13 @@ jobs:
       - name: Assemble Notchmeter.app
         run: scripts/build.sh
 
+      - name: End to end (advisory)
+        # Launches the built app and drives it with real hook commands, checking the oracle (scripts/e2e.sh).
+        # Advisory until it has a record on the runners; then drop continue-on-error so it gates.
+        continue-on-error: true
+        timeout-minutes: 5
+        run: scripts/e2e.sh build/Notchmeter.app
+
       - name: Zip the app bundle
         run: ditto -c -k --keepParent build/Notchmeter.app build/Notchmeter.zip
 

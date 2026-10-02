@@ -136,14 +136,15 @@ hdiutil detach /Volumes/Notchmeter -quiet
 spctl --assess --type execute --verbose=2 /Applications/Notchmeter.app   # accepted, source=Notarized Developer ID
 xcrun stapler validate /Applications/Notchmeter.app
 /Applications/Notchmeter.app/Contents/MacOS/Notchmeter --cli --help; echo "exit $?"
-open -a Notchmeter && sleep 5 && pgrep -x Notchmeter
+open -a Notchmeter && sleep 5 && pgrep -U "$(id -u)" -x Notchmeter
 ```
 
 **`exit 137` on the `--cli --help` line means macOS killed it at exec.** That is AMFI refusing the signature —
 almost always an entitlement claimed without a provisioning profile granting it. Check
 `log show --predicate 'process == "amfid"' --last 5m`. Do not promote. Fix and ship a new patch version.
 
-`pgrep` printing nothing means it launched and died. Also a stop.
+`pgrep` printing nothing means it launched and died. Also a stop. It is limited to this user (`-U`) because a copy
+running in another account on the same Mac would otherwise answer for it, and the check would pass on a launch that died.
 
 Then look at it: menu bar item present, panel opens beside the notch, `--smoke` line sane.
 

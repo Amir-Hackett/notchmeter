@@ -273,7 +273,7 @@ of `.github/workflows/secrets.yml` on every push, so it is known before a tag, n
    spctl --assess --type execute --verbose=2 /Applications/Notchmeter.app   # accepted, source=Notarized Developer ID
    xcrun stapler validate /Applications/Notchmeter.app
    /Applications/Notchmeter.app/Contents/MacOS/Notchmeter --cli --help; echo "exit $?"
-   open -a Notchmeter && sleep 5 && pgrep -x Notchmeter
+   open -a Notchmeter && sleep 5 && pgrep -U "$(id -u)" -x Notchmeter
    ```
 
    **`exit 137` is macOS killing it at exec.** Do not promote; check `log show --predicate 'process == "amfid"'
