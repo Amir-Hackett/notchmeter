@@ -2,6 +2,19 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.9](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.9) — 2026-10-02
+
+### News reads across the notch
+
+- When a session waits for you or finishes a turn, the strip says so across the notch for four seconds: the assistant's symbol and what happened on the left, the session's name on the right. A long name ends in "…" where it runs out of room, instead of being cut off at the edge, which could turn "Finished" into "Fini".
+- *News style* in Settings › Notifications chooses *Full*, which names the assistant and what happened ("Claude Code finished", "Claude Code needs approval"), or *Compact*, the symbols alone, which leaves more of the line to the session.
+- While it shows, the line covers the menus beside the notch, and the readouts come back after.
+
+### A quiet card when a login goes idle
+
+- Claude Code renews its login only when claude runs in that Mac account, so in an account where it is rarely run, Notchmeter's Claude reading pauses. The card used to say so in orange, twice, with a warning beside the plan. Now the reading stays with one grey line saying how old it is and what renews it. Notchmeter still never renews the login itself, so nothing can sign Claude Code out.
+- Everything new reads the same way in all eleven languages.
+
 ## [0.9.8](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.8) — 2026-10-02
 
 ### Fewer nudges you didn't need

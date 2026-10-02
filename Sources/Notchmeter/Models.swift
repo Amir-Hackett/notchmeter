@@ -409,6 +409,11 @@ struct UsageReading: Codable, Equatable, Sendable {
 enum ProviderError: Error, Equatable {
     case notSignedIn(String)
     case tokenExpired(String)
+    /// The login is fine but its short-lived token has aged out because its tool has not run on this Mac account for
+    /// a while, and only the tool renews it (Notchmeter never does: a refresh from here rotates the refresh token
+    /// and can sign the tool out). Claude Code in an account where it is rarely run is in this state most of the
+    /// time, so it is no fault: the last reading stays, captioned with when it was taken, and nothing turns orange.
+    case loginIdle(String)
     case accessDenied(String)
     case rateLimited(retryAfter: TimeInterval?)
     case http(Int, String)
@@ -448,7 +453,7 @@ enum ProviderError: Error, Equatable {
     var message: String {
         switch self {
         case .notSignedIn(let m), .tokenExpired(let m), .accessDenied(let m), .parse(let m), .unavailable(let m), .nothingYet(let m), .offline(let m), .apiKeyOnly(let m),
-             .notServed(let m):
+             .notServed(let m), .loginIdle(let m):
             m
         case .rateLimited(let retry):
             retry.map { L("Rate limited, retrying in %lds", Int(Self.rateLimitWait(retryAfter: $0))) } ?? L("Rate limited, backing off")
@@ -460,7 +465,7 @@ enum ProviderError: Error, Equatable {
     /// True when the fix lives in the owning tool (sign in, refresh a login, allow Keychain) rather than a retry here.
     var needsAttention: Bool {
         switch self {
-        case .notSignedIn, .tokenExpired, .accessDenied: true
+        case .notSignedIn, .tokenExpired, .accessDenied, .loginIdle: true
         default: false
         }
     }
@@ -508,6 +513,12 @@ enum ToolStatus: Equatable {
     /// (`UsageStore.readyReadings`); with nothing cached the wait is all there is to show, so `problem` carries it
     /// and the ring wears the mark as it did for `.failed`, rather than dimming to the "no reading yet" look.
     case rateLimited(String, cached: UsageReading?)
+    /// The login has gone idle (ProviderError.loginIdle): the cached reading stays on screen without a problem mark,
+    /// as for a 429, and one quiet line says since when and what renews it. With nothing cached there is no mark
+    /// either; the line is all there is to show. Before 0.9.9 this was `needsAttention`, which put the same orange
+    /// sentence on the card twice and a warning triangle beside the plan, for a state that is ordinary in a Mac
+    /// account where the tool is rarely run.
+    case loginIdle(String, cached: UsageReading?)
 
     /// The status a provider's error leaves a tool in, for the store and the one-shot probe alike. One mapping so
     /// that a new kind of error cannot be wired into one producer and not the other: 0.5.0 gave the store
@@ -520,6 +531,8 @@ enum ToolStatus: Equatable {
             self = .offline(cached: cached)
         } else if case .rateLimited = error {
             self = .rateLimited(error.message, cached: cached)
+        } else if case .loginIdle = error {
+            self = .loginIdle(error.message, cached: cached)
         } else if error.needsAttention {
             self = .needsAttention(error.message, cached: cached)
         } else {
@@ -530,7 +543,7 @@ enum ToolStatus: Equatable {
     var reading: UsageReading? {
         switch self {
         case .ready(let r): r
-        case .needsAttention(_, let c), .failed(_, let c), .offline(let c), .rateLimited(_, let c): c
+        case .needsAttention(_, let c), .failed(_, let c), .offline(let c), .rateLimited(_, let c), .loginIdle(_, let c): c
         case .notInstalled, .off, .waiting, .idle: nil
         }
     }
@@ -554,13 +567,19 @@ enum ToolStatus: Equatable {
     /// The reading still on screen after the tool stopped answering; its numbers may be out of date.
     var staleReading: UsageReading? {
         switch self {
-        case .needsAttention(_, let c), .failed(_, let c), .offline(let c), .rateLimited(_, let c): c
+        case .needsAttention(_, let c), .failed(_, let c), .offline(let c), .rateLimited(_, let c), .loginIdle(_, let c): c
         default: nil
         }
     }
 
     var isOffline: Bool {
         if case .offline = self { return true }
+        return false
+    }
+
+    /// The login has gone idle; its line says since when the reading stands, so the stale caption is not repeated.
+    var isLoginIdle: Bool {
+        if case .loginIdle = self { return true }
         return false
     }
 }

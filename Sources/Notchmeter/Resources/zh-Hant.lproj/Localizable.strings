@@ -282,7 +282,8 @@
 "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap." = "Claude Code 本週或許還有一次 /limit-reset：它只清空 5 小時視窗，不清空每週上限。";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code 每次更新權杖都會重建鑰匙圈項目，從而忘記你給的「永遠允許」。定時讀取絕不彈出對話框：它先透過 Apple 的 security 工具（Claude Code 正是用它寫入該項目）讀取，再讀憑證檔案，再讀狀態列，否則保留上次讀數並標記「需要你的確認」。只有點擊 Claude 環、重新整理或助理開關才可能詢問，且僅在「僅重新整理時」下。";
 "Claude Code status line" = "Claude Code 狀態列";
-"Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code 的登入已過期。請在終端機執行一次 claude 以重新整理 — Notchmeter 從不自行更新權杖。";
+"Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it." = "Claude Code 只有在此 Mac 帳號中執行 claude 時才會更新登入。執行一次 claude 即可重新整理。";
+"Not updated since %1$@. %2$@" = "自 %1$@ 起未更新。%2$@";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Claude Code 的登入需要你的確認：點擊 Claude 環或重新整理以允許讀取鑰匙圈";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Claude Code 的登入被拒絕。請執行一次 Claude Code 以重新整理";
 "Claude reported no usage windows" = "Claude 未回報任何用量視窗";
@@ -910,6 +911,13 @@
 "Show assistant symbols in the rings" = "在圓環中顯示助手符號";
 "Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "每個助手的符號（即其卡片上的符號）以小尺寸畫在圓環中央；三個圓環留下的空間不夠時畫在圓環的角上。適用於難以分辨各助手顏色的情況。";
 "Show news in the notch" = "在瀏海處顯示動態";
+"%@ needs approval" = "%@ 需要核准";
+"%@ has a question" = "%@ 在提問";
+"%@ needs input" = "%@ 需要輸入";
+"News style" = "動態樣式";
+"Full: the assistant's name" = "完整：助理名稱";
+"Compact: its symbol" = "緊湊：僅符號";
+"Full names the assistant and what happened, \"Claude Code finished\". Compact shows only the assistant's symbol and the reason's, which leaves more of the line to the session." = "完整會寫出助理和發生的事，如「Claude Code 已完成」。緊湊只顯示助理和原因的符號，把一行中更多的空間留給工作階段。";
 "Glow under the notch for news" = "有動態時在瀏海下方發光";
 "A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "為同樣的動態在瀏海下方亮起光暈：等待為藍色，完成為白色，三秒後漸隱；工作階段仍在等待時保留淡淡的藍色。開啟「減少動態效果」時為靜止的色調。";
 
@@ -1127,7 +1135,7 @@
 "Notify when a session compacts, may be stuck or is refused" = "工作階段壓縮、可能卡住或被拒絕時通知";
 "Claude Code's hook only: once when a session starts compacting its context by itself, once when five tool calls in a row have failed with none succeeding between them, and the first time in a turn auto mode refuses a tool. Each arrives without a sound, stays in the background while a terminal or editor is in front, and follows the quiet hours. The session's row and the word beside the notch say all three without it." = "僅限 Claude Code 的掛鉤：工作階段自行開始壓縮上下文時一次，連續五次工具呼叫失敗且其間沒有成功時一次，以及一輪中自動模式首次拒絕某個工具時。每則通知都不帶聲音，終端機或編輯器在最前時留在背景，並遵守勿擾時段。沒有通知時，工作階段的列和瀏海旁的文字也會說明這三種情況。";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, subagent starts and stops, compactions, model switches, an MCP server asking for input and its answer, teammates going idle, failed and auto-refused tool calls, each finished batch of tool calls and a change of directory. It is never registered for WorktreeCreate, WorktreeRemove or PreModelSwitch, which would put the app in the way of worktrees and model switches." = "Claude Code 回報工作階段的開始與結束、提示的送出、等待你的輸入、停止與停止失敗、子代理的啟動與停止、上下文壓縮、模型切換、MCP 伺服器的輸入請求及其回答、隊友轉為閒置、失敗或被自動模式拒絕的工具呼叫、每批完成的工具呼叫，以及目錄的切換。它從不註冊 WorktreeCreate、WorktreeRemove 或 PreModelSwitch，否則 App 會擋住工作樹和模型切換。";
-"When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "當工作階段開始等待你、完成一輪、自行開始壓縮、可能卡住或被自動模式拒絕時，瀏海旁的條帶會在選單列留出的空間內顯示專案和原因，持續四秒。點按即可在該工作階段上打開面板。分享螢幕時不顯示專案。";
+"When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip says so across the notch for four seconds: what happened on the left, the session's name on the right, over the menus beside the notch while it shows. Click it to open the panel on that session. While your screen is shared the name is left out." = "當工作階段開始等待你、完成一輪、自行開始壓縮、可能卡住或被自動模式拒絕時，橫跨瀏海的條帶會顯示四秒：左邊是發生的事，右邊是工作階段名稱，顯示期間會蓋住瀏海旁的選單。點按即可在該工作階段上打開面板。分享螢幕時不顯示名稱。";
 /* Theming: the panel's colour, material, accent, usage style and hour clock (PanelTheme, UsageGauge, ThemePreview, SettingsWindow) */
 "Theme" = "主題";
 "Black" = "黑色";

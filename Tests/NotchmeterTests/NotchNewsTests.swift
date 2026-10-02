@@ -3,7 +3,7 @@ import Testing
 @testable import Notchmeter
 
 /// The news the collapsed notch announces: which hook messages make any, what reason they carry, when a second
-/// one is worth showing, what the peek says while the screen is shared, where its words go beside the notch, and
+/// one is worth showing, what the peek says while the screen is shared, where its words go across the notch, and
 /// what the glow under it is doing. All of it is pure, so it is pinned without a menu bar or a window.
 @Suite struct NotchNewsRules {
     init() { Localization.use(language: "en") }
@@ -143,49 +143,71 @@ import Testing
 
     // MARK: - Where the words go
 
-    @Test func theNameGoesLeftOfTheNotchAndTheReasonRightOfIt() {
-        let layout = NotchPeek.layout(room: .init(leading: 400, trailing: 90), hasName: true)
-        #expect(layout?.leading == [.tool, .name])
-        #expect(layout?.trailing == [.reason])
-        #expect(layout?.leadingWidth == NotchPeek.cap, "No half takes more than the cap, however much room there is.")
-        #expect(layout?.trailingWidth == 90, "A half takes no more than the gap Auto measured on its side.")
-    }
-
-    /// Widths as the strip would measure them: the tool's symbol 20, the name `name`, the reason's half 80, and
-    /// 100 more for the reason when it shares a half with the name.
+    /// Widths as the strip would measure them: the symbols' half 40, the name `name`.
     static func measure(name: CGFloat) -> ([NotchPeek.Part]) -> CGFloat {
-        { parts in
-            var total: CGFloat = 0
-            if parts.contains(.tool) { total += 20 }
-            if parts.contains(.name) { total += name }
-            if parts.contains(.reason) { total += 80 }
-            return total
-        }
+        { parts in parts.contains(.name) ? name : 40 }
     }
 
-    /// The owner's 0.8.0 screenshot: the Help menu left 70 pt beside the notch and the status items 300, and a
-    /// long folder name came out as "enr…ols" on the left beside a "Finished" with room to spare. The name now
-    /// goes where more of it shows, which is the whole line on the right.
-    @Test func aNameThatWouldBeCutShortMovesToTheSideWithRoom() {
-        let layout = NotchPeek.layout(room: .init(leading: 70, trailing: 300), hasName: true, nameWidth: 170, width: Self.measure(name: 170))
-        #expect(layout?.leading == [])
-        #expect(layout?.trailing == [.tool, .name, .reason])
-        #expect(layout?.trailingWidth == 300, "The half is given the whole gap, not a small fixed frame.")
+    @Test func theLineGoesAcrossTheNotch() {
+        let layout = NotchPeek.layout(room: .init(leading: 271, trailing: 271), hasName: true, width: Self.measure(name: 120))
+        #expect(layout.leading == [.tool, .reason])
+        #expect(layout.trailing == [.name])
+        #expect(layout.leadingWidth == 40)
+        #expect(layout.trailingWidth == 120, "A half takes what its words need, not the whole room.")
     }
 
-    @Test func aNameThatFitsOnTheLeftStaysThere() {
-        let layout = NotchPeek.layout(room: .init(leading: 200, trailing: 300), hasName: true, nameWidth: 170, width: Self.measure(name: 170))
-        #expect(layout?.leading == [.tool, .name])
-        #expect(layout?.trailing == [.reason])
+    /// The owner's screenshot (2026-10-02): a long chat's name ran past DynamicNotchKit's window and "Finished" was
+    /// cut to "Fini", square, at its edge. No half is wider than the window leaves it; the name truncates instead.
+    @Test func aLongNameStopsAtTheWindowsEdge() {
+        let layout = NotchPeek.layout(room: NotchPeek.builtIn, hasName: true, width: Self.measure(name: 900))
+        #expect(layout.trailingWidth == NotchPeek.builtIn.trailing)
     }
 
-    @Test func whenNoSideHoldsTheNameTheOneShowingMostOfItWins() {
-        // 180 on the left shows 160 of a 400-point name beside its symbol; the whole line in 250 on the right
-        // shows 150. The split wins, by what it shows, not by habit.
-        let split = NotchPeek.layout(room: .init(leading: 180, trailing: 250), hasName: true, nameWidth: 400, width: Self.measure(name: 400))
-        #expect(split?.leading == [.tool, .name])
-        let right = NotchPeek.layout(room: .init(leading: 100, trailing: 320), hasName: true, nameWidth: 400, width: Self.measure(name: 400))
-        #expect(right?.trailing == [.tool, .name, .reason])
+    @Test func withNoNameTheWholeLineIsLeftOfTheNotch() {
+        let layout = NotchPeek.layout(room: NotchPeek.builtIn, hasName: false, width: Self.measure(name: 0))
+        #expect(layout.leading == [.tool, .reason])
+        #expect(layout.trailing == [], "The right keeps its readouts.")
+        #expect(layout.trailingWidth == 0)
+    }
+
+    /// DynamicNotchKit's window is the middle half of the screen it is on, and the strip's own edge (an 8 pt inset
+    /// and a 6 pt corner) sits outside a half's content.
+    @Test func theRoomIsWhatTheWindowLeavesBesideTheNotch() {
+        let room = NotchPeek.windowRoom(screen: CGRect(x: 0, y: 0, width: 1512, height: 982),
+                                        notch: CGRect(x: 663.5, y: 950, width: 185, height: 32))
+        #expect(room == NotchPeek.Room(leading: 271.5, trailing: 271.5))
+        #expect(room == NotchPeek.builtIn)
+        // A second screen to the right of the first: its window is centred on that screen, not on zero.
+        let second = NotchPeek.windowRoom(screen: CGRect(x: 1512, y: 0, width: 1728, height: 1117),
+                                          notch: CGRect(x: 1512 + 771.5, y: 1085, width: 185, height: 32))
+        #expect(second == NotchPeek.Room(leading: 325.5, trailing: 325.5))
+    }
+
+    @Test func fullNamesTheAssistantAndWhatHappened() {
+        #expect(news(.finished).words(hidesFigures: false).headline == "Claude Code finished")
+        #expect(news(.approval).words(hidesFigures: false).headline == "Claude Code needs approval")
+        #expect(news(.question).words(hidesFigures: false).headline == "Claude Code has a question")
+        #expect(news(.input).words(hidesFigures: false).headline == "Claude Code needs input")
+        #expect(news(.waiting).words(hidesFigures: false).headline == "Claude Code is waiting")
+        #expect(news(.blocked).words(hidesFigures: false).headline == "Claude Code was blocked")
+    }
+
+    @Test @MainActor func compactLeavesTheWordsToTheNameUnlessThereIsNone() {
+        let named = news(.finished).words(hidesFigures: false)
+        #expect(NotchPeekHalf.label(named, style: .full) == "Claude Code finished")
+        #expect(NotchPeekHalf.label(named, style: .compact) == "", "The symbols say who and what; the name has the line.")
+        let shared = news(.finished).words(hidesFigures: true)
+        #expect(NotchPeekHalf.label(shared, style: .compact) == "Finished", "With no name, the reason's own word.")
+        #expect(NotchPeekHalf.label(shared, style: .full) == "Claude Code finished")
+    }
+
+    @Test @MainActor func compactTakesLessOfTheStripThanFull() {
+        let words = news(.finished).words(hidesFigures: false)
+        let compact = NotchPeekHalf.needed(parts: [.tool, .reason], words: words, style: .compact)
+        let full = NotchPeekHalf.needed(parts: [.tool, .reason], words: words, style: .full)
+        #expect(compact < full)
+        #expect(compact == 2 * NotchPeekHalf.padding + 2 * (NotchPeekHalf.symbolSize + 2) + NotchPeekHalf.spacing,
+                "Two symbols and nothing beside them.")
     }
 
     @Test func theSessionsTitleNamesThePeekBeforeTheFolder() {
@@ -195,33 +217,6 @@ import Testing
         #expect(news(.finished, project: "p").words(hidesFigures: false, title: "").name == "p")
         #expect(news(.finished, project: "p").words(hidesFigures: true, title: "Fix the queue sheet").name == nil,
                 "While the screen is shared no name at all, title or folder.")
-    }
-
-    @Test func aSideTooNarrowGivesItsWordsToTheOther() {
-        // The menus run past the notch on the left: the whole peek goes right of it.
-        let right = NotchPeek.layout(room: .init(leading: -252, trailing: 120), hasName: true)
-        #expect(right?.leading == [])
-        #expect(right?.trailing == [.tool, .name, .reason])
-        #expect(right?.leadingWidth == 0)
-        let left = NotchPeek.layout(room: .init(leading: 120, trailing: 20), hasName: true)
-        #expect(left?.leading == [.tool, .name, .reason])
-        #expect(left?.trailing == [])
-    }
-
-    @Test func withNoRoomEitherSideThereIsNoPeek() {
-        #expect(NotchPeek.layout(room: .init(leading: 30, trailing: 30), hasName: true) == nil)
-    }
-
-    @Test func withNoNameTheLeftKeepsTheToolsSymbol() {
-        let layout = NotchPeek.layout(room: .init(leading: 30, trailing: 120), hasName: false)
-        #expect(layout?.leading == [.tool], "A symbol fits where a word would not.")
-        #expect(layout?.trailing == [.reason])
-    }
-
-    @Test func unmeasuredRoomIsTheUnmeasuredHalfEitherSide() {
-        let layout = NotchPeek.layout(room: .unmeasured, hasName: true)
-        #expect(layout?.leadingWidth == NotchPeek.unmeasuredHalf)
-        #expect(layout?.trailingWidth == NotchPeek.unmeasuredHalf)
     }
 
     // MARK: - The glow
@@ -304,11 +299,10 @@ import Testing
     // MARK: - VoiceOver and timing
 
     @Test func aSplitPeekIsOneButtonToVoiceOver() {
-        let layout = NotchPeek.layout(room: .init(leading: 120, trailing: 120), hasName: true)
-        let speaking = [layout?.leading, layout?.trailing].compactMap { $0 }.filter(NotchPeek.speaks)
-        #expect(speaking.count == 1, "Only the half with the reason is an element; the other is hidden.")
-        #expect(NotchPeek.speaks([.tool, .name, .reason]))
-        #expect(!NotchPeek.speaks([.tool, .name]))
+        let layout = NotchPeek.layout(room: NotchPeek.builtIn, hasName: true, width: Self.measure(name: 120))
+        let speaking = [layout.leading, layout.trailing].filter(NotchPeek.speaks)
+        #expect(speaking == [[.tool, .reason]], "Only the half with the reason is an element; the name's is hidden.")
+        #expect(!NotchPeek.speaks([.name]))
     }
 
     @Test func thePeekStaysASecondLongerUnderReduceMotion() {

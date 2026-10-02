@@ -742,22 +742,18 @@ enum AssetRenderer {
         }
     }
 
-    /// The collapsed notch announcing news (NotchNews), three rows at three moments: a permission prompt just
-    /// raised, with its words beside the notch and the blue bloom under it; a long turn just finished, with the
-    /// white one; and the plain strip with the assistants' symbols in their rings (Preferences.ringSymbols). Each
-    /// row is its own store, the news seeded as `announce` would have raised it for the fixture's last hook
-    /// event, and the glow drawn from the real view the glow window hosts. The finish is laid out in the room of
-    /// a menu bar whose menus reach close to the notch (70 pt left of it, 300 right), so the picture shows the
-    /// session's long title moving to the side with room rather than cut to a few letters on the cramped one.
+    /// The collapsed notch announcing news (NotchNews), four rows: a permission prompt just raised, with its words
+    /// across the notch and the blue bloom under it; a long turn just finished, with the white one, the same finish
+    /// in Compact (NotchNewsStyle), its symbols alone left of the notch; and the plain strip with the assistants'
+    /// symbols in their rings (Preferences.ringSymbols). Each row is its own store, the news seeded as `announce`
+    /// would have raised it for the fixture's last hook event, and the glow drawn from the real view the glow
+    /// window hosts. The words keep to a 14-inch display's window (NotchPeek.builtIn), as they would on one.
     @MainActor
     static func notchNews(now: Date, actions: NotchActions) throws -> CGImage {
         var stages: [Stage] = []
-        for moment in [DemoFixtures.Moment.waiting, .justFinished] {
+        for (moment, style) in [(DemoFixtures.Moment.waiting, NotchNewsStyle.full), (.justFinished, .full), (.justFinished, .compact)] {
             let (store, prefs) = DemoFixtures.store(now: now, moment: moment)
-            if moment == .justFinished {
-                prefs.compactSide = .auto
-                prefs.autoCompactRoom = NotchPeek.Room(leading: 70, trailing: 300)
-            }
+            prefs.notchNewsStyle = style
             store.seed(news: DemoFixtures.news(in: store, moment: moment, now: now))
             stages.append(try Stage(store: store, prefs: prefs, actions: actions, drawsGlow: true))
         }

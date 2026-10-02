@@ -546,7 +546,7 @@ import Testing
 
 /// Which ProviderError a fetch ends in, by case; nil when it succeeds or fails some other way.
 enum ProviderFailure: Equatable {
-    case notSignedIn, tokenExpired, accessDenied, rateLimited, http, parse, unavailable, nothingYet, offline, apiKeyOnly, notServed
+    case notSignedIn, tokenExpired, accessDenied, rateLimited, http, parse, unavailable, nothingYet, offline, apiKeyOnly, notServed, loginIdle
 }
 
 func failure(of provider: CodeAssistProvider) async -> ProviderFailure? {
@@ -566,6 +566,7 @@ func failure(of provider: CodeAssistProvider) async -> ProviderFailure? {
         case .offline: return .offline
         case .apiKeyOnly: return .apiKeyOnly
         case .notServed: return .notServed
+        case .loginIdle: return .loginIdle
         }
     } catch {
         return nil

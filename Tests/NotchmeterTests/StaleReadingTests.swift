@@ -48,6 +48,34 @@ import Testing
         #expect(StaleReading.line(fetchedAt: try date(29, 9, 0, month: 8), timeFormat: .twentyFourHour, now: now, calendar: calendar) == "Last reading Aug 29 at 09:00 · may be out of date")
     }
 
+    /// The Personal account's card (2026-10-02): Claude Code is rarely run there, so its token is usually past its
+    /// expiry, and 0.9.8 said so in orange twice with a triangle beside the plan. That is ordinary, so the reading
+    /// stays with no problem mark, and one line says since when it stands and what renews it.
+    @Test func aLoginGoneIdleKeepsItsReadingWithoutAProblem() throws {
+        let reading = UsageReading(tool: .claude, windows: [], plan: nil, fetchedAt: try date(1, 16, 52), observedAt: nil)
+        let reason = "Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it."
+        let status = ToolStatus(.loginIdle(reason), cached: reading)
+        #expect(status == .loginIdle(reason, cached: reading))
+        #expect(status.problem == nil)
+        #expect(status.staleReading == reading)
+        #expect(status.isLoginIdle)
+        #expect(ToolStatus(.loginIdle(reason), cached: nil).problem == nil, "Nothing cached is no fault either; the line is all there is.")
+        #expect(Oracle.kind(status) == "loginIdle")
+        #expect(ProviderError.loginIdle(reason).needsAttention, "Still asked again every minute, so a renewed login shows within one.")
+        #expect(StaleReading.notUpdated(fetchedAt: reading.fetchedAt, timeFormat: .twelveHour, then: reason, now: try date(1, 23, 10), calendar: calendar)
+                == "Not updated since 4:52 PM. " + reason)
+    }
+
+    /// The Simple panel's row says since when in the stale caption, and leaves why to the card opened under it.
+    @Test @MainActor func aSimpleRowGivesAnIdleLoginItsTimeAlone() {
+        let reading = UsageReading(tool: .claude, windows: [], plan: nil, fetchedAt: Date().addingTimeInterval(-60), observedAt: nil)
+        let line = SimpleToolRow.line(status: .loginIdle("why", cached: reading), advice: [], window: nil, signal: nil, hideFigures: false, format: .twelveHour)
+        #expect(line?.text == StaleReading.line(fetchedAt: reading.fetchedAt, timeFormat: .twelveHour))
+        #expect(line?.color == nil, "The caption's grey, never the warning's orange.")
+        let bare = SimpleToolRow.line(status: .loginIdle("why", cached: nil), advice: [], window: nil, signal: nil, hideFigures: false, format: .twelveHour)
+        #expect(bare?.text == "why")
+    }
+
     @Test func aPassedResetReadsAsPassedOnlyWhenTheReadingIsStale() throws {
         let now = try date(1, 23, 10)
         let passed = try date(1, 23, 0)

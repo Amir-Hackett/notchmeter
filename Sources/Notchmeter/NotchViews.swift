@@ -858,15 +858,19 @@ struct NotchCompactView: View {
     /// Where each readout registers itself for scroll-to-retarget (RingTargets); nil where the view is only
     /// measured, so a probe's copy never answers for a ring on screen.
     var ringTargets: RingTargets? = nil
+    /// The room the news may take either side of the notch: what DynamicNotchKit's window leaves on this screen
+    /// (NotchPeek.windowRoom), or a 14-inch display's where there is no screen to ask.
+    var peekRoom: NotchPeek.Room = NotchPeek.builtIn
 
     /// The news this side names, and how: nil when there is no peek, when it is switched off, when this view was
     /// handed a run to measure (CompactStripProbe asks for readouts, never for a peek), or when the layout gives
-    /// this side nothing, in which case it keeps its readouts. `speaks` is whether this side is the one VoiceOver
-    /// meets: the side holding the reason, so a peek split across the notch is one button, not two alike.
+    /// this side nothing (the right, when there is no name to show), in which case it keeps its readouts. `speaks`
+    /// is whether this side is the one VoiceOver meets: the side holding the reason, so a peek split across the
+    /// notch is one button, not two alike.
     private var peek: (news: NotchNews, words: NotchNews.Words, parts: [NotchPeek.Part], room: CGFloat, speaks: Bool)? {
         guard run == nil, store.prefs.notchNews, let news = store.peek else { return nil }
         let words = news.words(hidesFigures: store.hidesFigures, title: store.peekTitle(news))
-        guard let layout = NotchPeekHalf.layout(words: words, room: store.prefs.peekRoom) else { return nil }
+        let layout = NotchPeekHalf.layout(words: words, style: store.prefs.notchNewsStyle, room: peekRoom)
         let parts = side == .leading ? layout.leading : layout.trailing
         guard !parts.isEmpty else { return nil }
         return (news, words, parts, side == .leading ? layout.leadingWidth : layout.trailingWidth, NotchPeek.speaks(parts))
@@ -883,7 +887,7 @@ struct NotchCompactView: View {
         ZStack {
             if let peek {
                 if peek.speaks {
-                    NotchPeekHalf(news: peek.news, words: peek.words, parts: peek.parts, room: peek.room, side: side)
+                    NotchPeekHalf(news: peek.news, words: peek.words, style: store.prefs.notchNewsStyle, parts: peek.parts, room: peek.room, side: side)
                         .transition(.opacity)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(peek.words.spoken)
@@ -891,7 +895,7 @@ struct NotchCompactView: View {
                         .accessibilityAddTraits(.isButton)
                         .accessibilityAction { openNews?(peek.news) }
                 } else {
-                    NotchPeekHalf(news: peek.news, words: peek.words, parts: peek.parts, room: peek.room, side: side)
+                    NotchPeekHalf(news: peek.news, words: peek.words, style: store.prefs.notchNewsStyle, parts: peek.parts, room: peek.room, side: side)
                         .transition(.opacity)
                         .accessibilityHidden(true)
                 }
@@ -2132,10 +2136,18 @@ struct ToolCard: View {
             case .rateLimited(let message, _):
                 Label(message, systemImage: "clock.badge.exclamationmark")
                     .font(.caption).foregroundStyle(Ink.secondary).monospacedDigit()
+            case .loginIdle(let message, let cached):
+                // Opened under a Simple row, whose line already gives the time (or, with nothing cached, all of
+                // it), the card says only why; on its own it says both, once.
+                if !(embedded && cached == nil) {
+                    Label(embedded ? message : cached.map { StaleReading.notUpdated(fetchedAt: $0.fetchedAt, timeFormat: prefs.timeFormat, then: message) } ?? message,
+                          systemImage: "person.crop.circle.badge.clock")
+                        .font(.caption).foregroundStyle(Ink.secondary).monospacedDigit()
+                }
             default:
                 EmptyView()
             }
-            if let stale = status.staleReading {
+            if let stale = status.staleReading, !status.isLoginIdle {
                 Text(StaleReading.line(fetchedAt: stale.fetchedAt, timeFormat: prefs.timeFormat))
                     .modifier(Caption()).monospacedDigit()
             }

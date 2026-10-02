@@ -379,6 +379,11 @@ struct SimpleToolRow: View {
         case .idle(let message): return SimpleLine(id: "status", symbol: nil, text: message)
         case .offline: return SimpleLine(id: "status", symbol: "wifi.slash", text: L("Offline, retrying"))
         case .rateLimited(let message, _): return SimpleLine(id: "status", symbol: "clock.badge.exclamationmark", text: message)
+        // The row says since when, in the caption a stale reading always has; the card opened under it says why
+        // (ToolCard), so neither repeats the other.
+        case .loginIdle(let message, let cached):
+            return SimpleLine(id: "status", symbol: "person.crop.circle.badge.clock",
+                              text: cached.map { StaleReading.line(fetchedAt: $0.fetchedAt, timeFormat: format) } ?? message)
         default: break
         }
         if let first = advice.first {

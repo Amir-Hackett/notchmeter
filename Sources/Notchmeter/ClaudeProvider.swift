@@ -64,7 +64,7 @@ actor ClaudeProvider: UsageProvider {
         let credentials = try loadCredentials(interactive: interactive)
         if let expiresAt = credentials.expiresAt, expiresAt.timeIntervalSinceNow < 30 {
             cached = nil
-            throw ProviderError.tokenExpired(L("Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself."))
+            throw ProviderError.loginIdle(L("Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it."))
         }
 
         var request = URLRequest(url: Self.usageURL)

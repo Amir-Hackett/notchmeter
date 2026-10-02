@@ -282,7 +282,8 @@
 "Claude Code may have a /limit-reset this week: it clears the 5-hour window, not the weekly cap." = "Claude Code には今週 /limit-reset が残っているかもしれません。5 時間ウィンドウをリセットしますが、週間上限はそのままです。";
 "Claude Code recreates its Keychain item on every token refresh, which forgets the Always Allow you gave. A timed read never raises the dialog: it reads the item through Apple's security tool, which Claude Code wrote it with, then the credentials file, then the status line, and otherwise keeps the last reading marked \"needs your OK\". Only a click on the Claude ring, Refresh or the Assistants toggle may ask, and only under On Refresh only." = "Claude Code はトークン更新のたびにキーチェーン項目を作り直すため、「常に許可」が忘れられます。タイマー読み取りはダイアログを出しません。Claude Code が書き込みに使う Apple の security ツールで項目を読み、次に認証情報ファイル、次にステータスラインを読み、どれもなければ最後の読み取りを「あなたの許可が必要」として保持します。Claude リングのクリック、更新、アシスタントのスイッチだけが尋ねることがあり、それも「更新時のみ」の場合だけです。";
 "Claude Code status line" = "Claude Code ステータスライン";
-"Claude Code's login has expired. Run claude in a terminal once so it refreshes — Notchmeter never refreshes tokens itself." = "Claude Code のログインが期限切れです。ターミナルで claude を一度実行して更新してください — Notchmeter がトークンを更新することはありません。";
+"Claude Code renews its login on this Mac account only when claude runs here. Run claude once to refresh it." = "Claude Code は、この Mac アカウントで claude を実行したときにだけログインを更新します。claude を一度実行すると更新されます。";
+"Not updated since %1$@. %2$@" = "%1$@ から更新されていません。%2$@";
 "Claude Code's login needs your OK: click the Claude ring or Refresh to allow the Keychain read" = "Claude Code のログインにはあなたの許可が必要です。Claude リングをクリックするか更新してキーチェーンの読み取りを許可してください";
 "Claude Code's login was refused. Run Claude Code once to refresh it" = "Claude Code のログインが拒否されました。Claude Code を一度実行して更新してください";
 "Claude reported no usage windows" = "Claude は利用ウィンドウを報告しませんでした";
@@ -910,6 +911,13 @@
 "Show assistant symbols in the rings" = "リングにアシスタントのシンボルを表示";
 "Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "各アシスタントのシンボル（カードにあるもの）をリングの中央に小さく描きます。リングが3本で余裕がないときはリングの角に描きます。アシスタントの色を見分けにくいときのための設定です。";
 "Show news in the notch" = "ノッチにお知らせを表示";
+"%@ needs approval" = "%@ が承認待ち";
+"%@ has a question" = "%@ から質問";
+"%@ needs input" = "%@ が入力待ち";
+"News style" = "お知らせの表示形式";
+"Full: the assistant's name" = "フル：アシスタント名";
+"Compact: its symbol" = "コンパクト：シンボルのみ";
+"Full names the assistant and what happened, \"Claude Code finished\". Compact shows only the assistant's symbol and the reason's, which leaves more of the line to the session." = "フルはアシスタントと起きたことを「Claude Code が完了」のように表示します。コンパクトはアシスタントと理由のシンボルだけを表示し、そのぶん行の多くをセッションに使います。";
 "Glow under the notch for news" = "お知らせのときにノッチの下を光らせる";
 "A light under the notch for the same news: blue for a wait, white for a finish, fading after three seconds; a faint blue stays while a session still waits. Under Reduce Motion it is a still tint." = "同じお知らせのためにノッチの下に光を灯します。待機は青、完了は白で、3秒後に消えます。セッションが待っている間は淡い青が残ります。「視差効果を減らす」がオンのときは動かない色になります。";
 
@@ -1127,7 +1135,7 @@
 "Notify when a session compacts, may be stuck or is refused" = "セッションの圧縮・停滞の可能性・拒否を通知";
 "Claude Code's hook only: once when a session starts compacting its context by itself, once when five tool calls in a row have failed with none succeeding between them, and the first time in a turn auto mode refuses a tool. Each arrives without a sound, stays in the background while a terminal or editor is in front, and follows the quiet hours. The session's row and the word beside the notch say all three without it." = "Claude Code のフックのみ：セッションが自動でコンテキストの圧縮を始めたときに1回、ツール呼び出しが間に成功なく5回続けて失敗したときに1回、ターン内で自動モードが初めてツールを拒否したときに通知します。どれも音は鳴らず、ターミナルやエディタが前面にある間は控えめにし、おやすみ時間に従います。通知がなくても、セッションの行とノッチ横の表示が3つとも伝えます。";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, subagent starts and stops, compactions, model switches, an MCP server asking for input and its answer, teammates going idle, failed and auto-refused tool calls, each finished batch of tool calls and a change of directory. It is never registered for WorktreeCreate, WorktreeRemove or PreModelSwitch, which would put the app in the way of worktrees and model switches." = "Claude Code はセッションの開始と終了、プロンプトの送信、入力待ち、停止と停止の失敗、サブエージェントの開始と停止、コンテキストの圧縮、モデルの切り替え、MCP サーバーからの入力要求とその回答、チームメイトの待機、失敗したツール呼び出しと自動モードに拒否されたツール呼び出し、ツール呼び出しのバッチの完了、ディレクトリの変更を報告します。WorktreeCreate、WorktreeRemove、PreModelSwitch には登録しません。登録するとワークツリーやモデルの切り替えの邪魔になるためです。";
-"When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip beside the notch names the project and the reason for four seconds, in the room the menu bar leaves. Click it to open the panel on that session. While your screen is shared the project is left out." = "セッションがあなたを待ち始めたとき、ターンを終えたとき、自動で圧縮を始めたとき、行き詰まっている可能性があるとき、自動モードに拒否されたとき、ノッチの横の帯にプロジェクトと理由を4秒間表示します。表示はメニューバーが空けている範囲に収まります。クリックするとそのセッションでパネルが開きます。画面共有中はプロジェクト名を表示しません。";
+"When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip says so across the notch for four seconds: what happened on the left, the session's name on the right, over the menus beside the notch while it shows. Click it to open the panel on that session. While your screen is shared the name is left out." = "セッションがあなたを待ち始めたとき、ターンを終えたとき、自動で圧縮を始めたとき、行き詰まっている可能性があるとき、自動モードに拒否されたとき、ノッチをまたぐ帯で4秒間お知らせします。左に起きたこと、右にセッション名を表示し、表示中はノッチ横のメニューの上に重なります。クリックするとそのセッションでパネルが開きます。画面共有中はセッション名を表示しません。";
 /* Theming: the panel's colour, material, accent, usage style and hour clock (PanelTheme, UsageGauge, ThemePreview, SettingsWindow) */
 "Theme" = "テーマ";
 "Black" = "ブラック";

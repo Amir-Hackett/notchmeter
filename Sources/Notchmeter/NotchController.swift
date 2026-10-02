@@ -420,15 +420,16 @@ final class NotchController: NSObject, PanelPresenting {
         self.actions = actions
         self.menu = OptionsMenu(prefs: prefs, actions: actions)
         let targets = ringTargets
+        let room = NotchPeek.windowRoom(screen: screen.frame, notch: Self.notchRect(on: screen))
         notch = DynamicNotch(hoverBehavior: [.increaseShadow], style: .notch) {
             NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen, entrance: true)
         } compactLeading: {
-            NotchCompactView(store: store, side: .leading, openNews: { actions.openNews($0) }, ringTargets: targets)
+            NotchCompactView(store: store, side: .leading, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room)
         } compactTrailing: {
-            NotchCompactView(store: store, side: .trailing, openNews: { actions.openNews($0) }, ringTargets: targets)
+            NotchCompactView(store: store, side: .trailing, openNews: { actions.openNews($0) }, ringTargets: targets, peekRoom: room)
         }
-        leadingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .leading))
-        trailingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .trailing))
+        leadingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .leading, peekRoom: room))
+        trailingProbe = NSHostingView(rootView: NotchCompactView(store: store, side: .trailing, peekRoom: room))
         expandedProbe = NSHostingView(rootView: NotchExpandedView(store: store, prefs: prefs, actions: actions, screen: screen))
         hover = HoverDriver(mode: prefs.visibility.hoverMode, dwell: prefs.hoverDelay)
         super.init()
@@ -848,7 +849,7 @@ final class NotchController: NSObject, PanelPresenting {
                  // budget is set, and monthlyBudgetUSD reads it only while one is.
                  prefs.monthlyBudgetUSD, prefs.currencyConversion, prefs.compactSide, prefs.autoCompactFit, prefs.sessionsCard, prefs.jumpToTerminal, store.hooksInstalled, store.openCodePluginInstalled,
                  store.openSessionLists, store.peek, store.glowNews, prefs.notchNews, prefs.notchGlow, prefs.ringSymbols,
-                 prefs.autoCompactRoom, store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial,
+                 prefs.notchNewsStyle, store.unfoldedSuggestions, prefs.panelMode, store.openPanelRows, prefs.panelTheme, prefs.panelMaterial,
                  prefs.panelTheme, prefs.panelMaterial, prefs.panelAccent, prefs.usageStyle, prefs.hourClock,
                  prefs.closedWhileWorking, prefs.closedWhenQuiet, store.closedNotchPhase, prefs.sessionRows, prefs.sessionRowLead)
             refreshRegions()

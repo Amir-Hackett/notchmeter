@@ -4,21 +4,20 @@ import SwiftUI
 
 // MARK: - The peek
 
-/// One side of the notch's share of a peek (NotchPeek.Layout): the assistant's symbol and the project on one
-/// side, the reason's symbol and its words on the other, or all of it on one side when the other has no room.
+/// One side of the notch's share of a peek (NotchPeek.Layout): the assistant's symbol and the reason's, with the
+/// headline in Full ("Claude Code finished"), on the left of the notch; the session's name on the right.
 ///
 /// The width is worked out here and set as a fixed frame rather than left to a `maxWidth`. DynamicNotchKit lays
 /// the compact halves out at their ideal size (`fixedSize`), and a text proposed no width draws whole whatever
-/// frame is round it; a fixed frame is what makes a long name truncate inside the gap Auto measured instead of
-/// running on over the menus. The frame is the parts' measured width up to that room, never a smaller fixed
-/// one, and the layout (NotchPeek.layout) has already put the name on whichever side shows the most of it.
+/// frame is round it; a fixed frame is what makes a long name truncate inside the room the window leaves instead
+/// of running on past its edge, where it is cut square (NotchPeek.windowRoom).
 ///
 /// The name is in the text colour and cut at its end, so what is left reads as the start of a name ("enrollhere-
-/// admin-su…"), not two scraps of one ("enr…ols"); the assistant's symbol is in the assistant's colour, and the
-/// reason keeps the higher layout priority, so it is the name that gives way when a half is short.
+/// admin-su…"); the assistant's symbol is in the assistant's colour.
 struct NotchPeekHalf: View {
     let news: NotchNews
     let words: NotchNews.Words
+    let style: NotchNewsStyle
     let parts: [NotchPeek.Part]
     let room: CGFloat
     let side: NotchCompactView.Side
@@ -29,9 +28,8 @@ struct NotchPeekHalf: View {
     static let padding: CGFloat = 6
 
     var body: some View {
-        let contrast = AccessibilityDisplay.shared.contrast
         HStack(spacing: Self.spacing) {
-            ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+            ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
                 switch part {
                 case .tool:
                     Image(systemName: words.toolSymbol)
@@ -41,43 +39,51 @@ struct NotchPeekHalf: View {
                     Text(verbatim: words.name ?? "")
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .layoutPriority(0)
                 case .reason:
-                    if index > 0, parts.contains(.name) {
-                        Text(verbatim: "·").foregroundStyle(.white.opacity(contrast ? 0.9 : 0.6))
-                    }
                     Image(systemName: words.reasonSymbol)
                         .font(.system(size: Self.symbolSize, weight: .semibold))
-                        .foregroundStyle(Self.reasonColour(news.reason, contrast: contrast))
-                    Text(verbatim: words.reason)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .layoutPriority(1)
+                        .foregroundStyle(Self.reasonColour(news.reason, contrast: AccessibilityDisplay.shared.contrast))
+                    let label = Self.label(words, style: style)
+                    if !label.isEmpty {
+                        Text(verbatim: label)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
                 }
             }
         }
         .font(.system(size: Self.fontSize, weight: .semibold, design: .rounded))
         .foregroundStyle(.white)
         .padding(.horizontal, Self.padding)
-        .frame(width: Self.width(parts: parts, words: words, room: room), alignment: side == .leading ? .trailing : .leading)
+        .frame(width: Self.width(parts: parts, words: words, style: style, room: room), alignment: side == .leading ? .trailing : .leading)
         .environment(\.layoutDirection, .leftToRight)
     }
 
     /// The reason's symbol takes the colour the rings take for it — blue for a wait, white for a finish — lifted
     /// under Increase Contrast, where Palette.calm on black is too dark to read at ten points. The symbol's shape
-    /// and the word beside it carry the reason either way.
+    /// and the words beside it carry the reason either way.
     static func reasonColour(_ reason: NotchNews.Reason, contrast: Bool) -> Color {
         guard reason.isWait else { return .white }
         return contrast ? Color(red: 0.55, green: 0.78, blue: 1) : Color(red: 0.34, green: 0.62, blue: 0.95)
     }
 
-    /// What the half needs for its parts, no more than the room it has.
-    static func width(parts: [NotchPeek.Part], words: NotchNews.Words, room: CGFloat) -> CGFloat {
-        min(needed(parts: parts, words: words), room)
+    /// What the reason's half says beside its symbol: in Full the headline; in Compact nothing while the name on
+    /// the other side says the rest, the symbols carrying who and what, and the reason's own word when there is no
+    /// name to say it.
+    static func label(_ words: NotchNews.Words, style: NotchNewsStyle) -> String {
+        switch style {
+        case .full: words.headline
+        case .compact: words.name == nil ? words.reason : ""
+        }
     }
 
-    /// What a half holding `parts` needs to draw them whole: the measure NotchPeek.layout chooses a side by.
-    static func needed(parts: [NotchPeek.Part], words: NotchNews.Words) -> CGFloat {
+    /// What the half needs for its parts, no more than the room it has.
+    static func width(parts: [NotchPeek.Part], words: NotchNews.Words, style: NotchNewsStyle, room: CGFloat) -> CGFloat {
+        min(needed(parts: parts, words: words, style: style), room)
+    }
+
+    /// What a half holding `parts` needs to draw them whole.
+    static func needed(parts: [NotchPeek.Part], words: NotchNews.Words, style: NotchNewsStyle) -> CGFloat {
         var total = 2 * padding
         for (index, part) in parts.enumerated() {
             if index > 0 { total += spacing }
@@ -85,16 +91,17 @@ struct NotchPeekHalf: View {
             case .tool: total += symbolSize + 2
             case .name: total += textWidth(words.name ?? "")
             case .reason:
-                if index > 0, parts.contains(.name) { total += textWidth("·") + spacing }
-                total += symbolSize + 2 + spacing + textWidth(words.reason)
+                total += symbolSize + 2
+                let label = label(words, style: style)
+                if !label.isEmpty { total += spacing + textWidth(label) }
             }
         }
         return ceil(total)
     }
 
     /// The peek's layout for `words` in `room`, measured in the strip's font.
-    static func layout(words: NotchNews.Words, room: NotchPeek.Room) -> NotchPeek.Layout? {
-        NotchPeek.layout(room: room, hasName: words.name != nil, nameWidth: words.name.map(textWidth) ?? 0) { needed(parts: $0, words: words) }
+    static func layout(words: NotchNews.Words, style: NotchNewsStyle, room: NotchPeek.Room) -> NotchPeek.Layout {
+        NotchPeek.layout(room: room, hasName: words.name != nil) { needed(parts: $0, words: words, style: style) }
     }
 
     /// The rounded semibold the half draws in, measured the way AppKit sets it.
