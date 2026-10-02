@@ -506,6 +506,11 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "Thêm một điểm cuối trên cùng token: mỗi tổ chức bạn thuộc về có trả lời (chủ sở hữu và quản lý thanh toán) thêm cửa sổ Tín dụng tổ chức và Chi tiêu tổ chức ẩn mặc định cho tháng.";
 "Only turns longer than" = "Chỉ các lượt dài hơn";
 "Call a quiet Cursor turn a possible wait after" = "Coi lượt Cursor im lặng là có thể đang chờ sau";
+"Don't nudge me for %@" = "Không nhắc tôi cho %@";
+"Nudge me again for %@" = "Nhắc lại tôi cho %@";
+"No nudges for %@" = "Không nhắc cho %@";
+"Nudge for all" = "Nhắc cho tất cả";
+"Set from a session's right-click menu. A possible wait in these projects sends nothing; a permission prompt or a question still does." = "Đặt từ menu chuột phải của một phiên. Một lần có thể đang chờ trong các dự án này không gửi gì; yêu cầu cấp quyền hoặc câu hỏi vẫn gửi.";
 "Cursor asks for a command's approval in its own window and sends no hook for it, so a turn with nothing running and no sign of life for this long is shown as a possible wait, once per turn. Shorter catches an approval sooner; longer leaves a slow model step alone." = "Cursor hỏi phê duyệt lệnh trong cửa sổ riêng và không gửi hook nào cho việc đó, nên một lượt không có gì đang chạy và không có dấu hiệu hoạt động trong khoảng này được hiển thị là có thể đang chờ, mỗi lượt một lần. Ngắn hơn bắt được yêu cầu phê duyệt sớm hơn; dài hơn để yên một bước mô hình chậm.";
 "Open" = "Mở";
 "Open %@" = "Mở %@";

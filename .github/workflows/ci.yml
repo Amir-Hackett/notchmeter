@@ -54,6 +54,12 @@ jobs:
       - name: Assemble Notchmeter.app
         run: scripts/build.sh
 
+      - name: End to end
+        # Launches the built app and drives it with real hook commands, checking the oracle (scripts/e2e.sh).
+        # About a minute; passed on its first run on macos-15 (2026-10-02) and gates from then on.
+        timeout-minutes: 5
+        run: scripts/e2e.sh build/Notchmeter.app
+
       - name: Zip the app bundle
         run: ditto -c -k --keepParent build/Notchmeter.app build/Notchmeter.zip
 

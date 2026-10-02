@@ -641,6 +641,30 @@ import Testing
         #expect(tracker.quietNudges(now: t0.addingTimeInterval(60)).isEmpty, "past the default, short of the setting")
         #expect(tracker.quietNudges(now: t0.addingTimeInterval(126)).count == 1)
     }
+
+    @Test func aNudgeTheTurnWentOnFromLengthensTheNextOne() throws {
+        var tracker = SessionTracker()
+        tracker.apply(cursor("UserPromptSubmit"), now: t0)
+        tracker.apply(cursor("afterAgentThought"), now: t0.addingTimeInterval(1))
+        #expect(tracker.quietNudges(now: t0.addingTimeInterval(47)).count == 1)
+        tracker.apply(cursor("afterAgentResponse"), now: t0.addingTimeInterval(50))
+        let session = try #require(tracker.sessions["cursor:c1"])
+        #expect(session.quietFalseAlarms == 1, "it went on without a command: a false alarm")
+        #expect(tracker.quietSpell(session) == 2 * SessionTracker.quietAfterDefault)
+
+        tracker.apply(cursor("UserPromptSubmit"), now: t0.addingTimeInterval(100))
+        tracker.apply(cursor("afterAgentThought"), now: t0.addingTimeInterval(101))
+        #expect(tracker.quietNudges(now: t0.addingTimeInterval(150)).isEmpty, "past the set spell, short of the learned one")
+        #expect(tracker.quietNudges(now: t0.addingTimeInterval(192)).count == 1)
+        tracker.apply(cursor("beforeShellExecution"), now: t0.addingTimeInterval(200))
+        #expect(tracker.sessions["cursor:c1"]?.quietFalseAlarms == 0, "a command starting was the approval: the nudge was right, and takes one back")
+
+        var slow = try #require(tracker.sessions["cursor:c1"])
+        slow.quietFalseAlarms = 9
+        #expect(tracker.quietSpell(slow) == 8 * SessionTracker.quietAfterDefault, "three doublings at most")
+        tracker.quietAfter = 120
+        #expect(tracker.quietSpell(slow) == SessionTracker.quietSpellCap, "never past the cap")
+    }
 }
 
 /// Removing a session from the list (0.7.7): gone from every count and row, back as it was on its next event.

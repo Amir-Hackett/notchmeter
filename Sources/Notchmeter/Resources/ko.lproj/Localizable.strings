@@ -506,6 +506,11 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "같은 토큰으로 엔드포인트 하나를 더 읽습니다. 응답하는 소속 조직(소유자와 결제 관리자)마다 기본 숨김인 조직 크레딧과 조직 지출 창이 이번 달치로 추가됩니다.";
 "Only turns longer than" = "다음보다 긴 턴만";
 "Call a quiet Cursor turn a possible wait after" = "조용한 Cursor 턴을 대기 가능성으로 표시하기까지";
+"Don't nudge me for %@" = "%@에서는 알리지 않기";
+"Nudge me again for %@" = "%@에서 다시 알리기";
+"No nudges for %@" = "%@ 알림 없음";
+"Nudge for all" = "모두 알리기";
+"Set from a session's right-click menu. A possible wait in these projects sends nothing; a permission prompt or a question still does." = "세션의 오른쪽 클릭 메뉴에서 설정합니다. 이 프로젝트에서 대기 가능성은 아무것도 보내지 않으며, 권한 요청이나 질문은 계속 보냅니다.";
 "Cursor asks for a command's approval in its own window and sends no hook for it, so a turn with nothing running and no sign of life for this long is shown as a possible wait, once per turn. Shorter catches an approval sooner; longer leaves a slow model step alone." = "Cursor는 명령 승인을 자체 창에서 요청하고 이에 대한 훅을 보내지 않으므로, 실행 중인 것이 없고 이 시간 동안 아무 신호가 없는 턴은 턴마다 한 번 대기 가능성으로 표시됩니다. 짧게 하면 승인을 더 빨리 잡고, 길게 하면 느린 모델 단계를 건드리지 않습니다.";
 "Open" = "열기";
 "Open %@" = "%@ 열기";

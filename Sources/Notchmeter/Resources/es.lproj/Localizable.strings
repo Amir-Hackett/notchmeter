@@ -523,6 +523,11 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "Un endpoint más con el mismo token: cada organización a la que perteneces que responda (propietarios y responsables de facturación) añade ventanas del mes de créditos y gasto de la organización, ocultas por omisión.";
 "Only turns longer than" = "Solo turnos de más de";
 "Call a quiet Cursor turn a possible wait after" = "Tratar un turno de Cursor en silencio como posible espera tras";
+"Don't nudge me for %@" = "No avisarme en %@";
+"Nudge me again for %@" = "Volver a avisarme en %@";
+"No nudges for %@" = "Sin avisos en %@";
+"Nudge for all" = "Avisar en todos";
+"Set from a session's right-click menu. A possible wait in these projects sends nothing; a permission prompt or a question still does." = "Se elige en el menú contextual de una sesión. Una posible espera en estos proyectos no envía nada; una solicitud de permiso o una pregunta sí.";
 "Cursor asks for a command's approval in its own window and sends no hook for it, so a turn with nothing running and no sign of life for this long is shown as a possible wait, once per turn. Shorter catches an approval sooner; longer leaves a slow model step alone." = "Cursor pide la aprobación de un comando en su propia ventana y no envía ningún hook por ello, así que un turno sin nada en marcha y sin señales de vida durante este tiempo se muestra como una posible espera, una vez por turno. Más corto detecta antes una aprobación; más largo deja en paz un paso lento del modelo.";
 "Open" = "Abrir";
 "Open %@" = "Abrir %@";

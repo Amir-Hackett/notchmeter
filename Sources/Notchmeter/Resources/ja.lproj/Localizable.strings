@@ -506,6 +506,11 @@
 "One more endpoint on the same token: each organisation you belong to that answers (owners and billing managers) adds hidden-by-default Org credits and Org spend windows for the month." = "同じトークンでエンドポイントをもう 1 つ読みます。応答があった所属組織（オーナーと課金管理者）ごとに、既定で非表示の「組織クレジット」と「組織支出」ウィンドウが今月分追加されます。";
 "Only turns longer than" = "次より長いターンのみ";
 "Call a quiet Cursor turn a possible wait after" = "静かな Cursor のターンを待機の可能性とみなすまで";
+"Don't nudge me for %@" = "%@ では通知しない";
+"Nudge me again for %@" = "%@ で再び通知する";
+"No nudges for %@" = "%@ は通知なし";
+"Nudge for all" = "すべて通知する";
+"Set from a session's right-click menu. A possible wait in these projects sends nothing; a permission prompt or a question still does." = "セッションの右クリックメニューで設定します。これらのプロジェクトでの待機の可能性は何も送りません。権限の確認や質問は引き続き届きます。";
 "Cursor asks for a command's approval in its own window and sends no hook for it, so a turn with nothing running and no sign of life for this long is shown as a possible wait, once per turn. Shorter catches an approval sooner; longer leaves a slow model step alone." = "Cursor はコマンドの承認を自分のウィンドウで求め、そのためのフックを送りません。そのため、何も実行されず、この時間動きのないターンは、ターンごとに一度、待機の可能性として表示されます。短くすると承認を早く拾い、長くすると遅いモデルの処理をそっとしておきます。";
 "Open" = "開く";
 "Open %@" = "%@ を開く";

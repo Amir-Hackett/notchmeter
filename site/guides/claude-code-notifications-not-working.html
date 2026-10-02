@@ -47,7 +47,7 @@
       <p class="lede">When Claude Code stops for a permission and nothing tells you, the fix is usually in your terminal, not in another app. Start there. If you then want more than a banner, this is what a hook adds, how to fix one that has gone quiet, and when you are better off without it.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
-        <li class="stamp">Tested on Notchmeter 0.9.7</li>
+        <li class="stamp">Tested on Notchmeter 0.9.8</li>
         <li>Claude Code docs read 2026-09-24</li>
       </ul>
     </div>
@@ -89,15 +89,16 @@
       <div class="shot"><img src="../img/permission.png" width="1280" height="700" alt="The panel open on a permission request alone: the Bash and project chips, the command, its excerpt, and Deny and Allow with their keyboard shortcuts." loading="lazy"></div>
       <figcaption>A permission request, answered from the notch. Escape, or <em>Answer in the terminal</em>, hands it straight back.</figcaption>
     </figure>
-    <p>Codex, Gemini CLI, GitHub Copilot CLI and OpenCode each report a wait, so their hooks light the same dot; Kimi Code has no event for one. Cursor documents none, so its ring shows the tick and never claims a wait it cannot see; since 0.7.6 a Cursor turn quiet for 45 seconds with nothing running is shown as a <em>possible</em> wait, worded as "may be" because a slow model step looks the same.</p>
+    <p>Codex, Gemini CLI, GitHub Copilot CLI and OpenCode each report a wait, so their hooks light the same dot; Kimi Code has no event for one. Cursor documents none, so its ring shows the tick and never claims a wait it cannot see; since 0.7.6 a Cursor turn quiet for 45 seconds with nothing running is shown as a <em>possible</em> wait, worded as "may be" because a slow model step looks the same. The 45 seconds is a setting (<em>Call a quiet Cursor turn a possible wait after</em>, Settings › Notifications), and since 0.9.8 a session that carries on by itself after a nudge waits twice as long before the next one, up to three doublings and never past ten minutes.</p>
 
     <h2 id="notchmeter-quiet">When Notchmeter's notification does not come</h2>
-    <p>The dot on the ring is always drawn. The banner is held back on purpose in four cases, and each has a switch.</p>
+    <p>The dot on the ring is always drawn. The banner is held back on purpose in five cases, and each has a switch.</p>
     <ul>
       <li><strong>A terminal or editor is in front.</strong> A session that has stopped for you still banners, but at most once every ten minutes per session, because Claude Code reports a permission prompt and never its answer, so a repository with no allow rules would otherwise banner at every prompt. A finished turn, and Claude Code's idle nudge, stay silent while a terminal or editor is frontmost. <em>Stay quiet while a terminal or editor is in front</em> (Settings › Notifications, on by default) turns that off.</li>
       <li><strong>Quiet hours.</strong> They override all of it.</li>
       <li><strong>The switch itself.</strong> <em>Notify when an assistant waits for you</em>, and macOS's own permission for Notchmeter, which is asked for when you turn the switch on and never at launch.</li>
       <li><strong>That assistant's own switch.</strong> <em>Notify when it waits or finishes a turn</em>, on each assistant's page in Settings, leaves out one assistant's banners while the others keep theirs.</li>
+      <li><strong>A muted project.</strong> <em>Don't nudge me for</em> a project, on a session's right-click menu, keeps that project's possible waits (a quiet Cursor turn, Claude Code's idle nudge) silent; a permission prompt or a question still comes. Settings › Notifications lists the muted projects, with <em>Nudge for all</em> to undo them.</li>
     </ul>
     <p>If the dot never appears either, look first at <em>Read its sessions</em> on the assistant's page in Settings: with it off, the hook still refreshes the meter, but nothing else of an event is kept, so there is no wait on the ring, no news and no notice however well the hook works. With it on, the hook is not reaching the app. Settings › Integrations › Hooks says, per assistant, whether the entry is installed and whether it points at the copy that is running, and <em>Open its page</em> goes to that assistant's page, where <em>Installed, but an entry is out of date</em> and <em>Installed but points at an old path</em> each have a Repair button. Then try it by hand; with Notchmeter running this should print <code>exit 0</code> at once and put a line in the log:</p>
     <div class="code" tabindex="0"><code>echo '{"hook_event_name":"Stop"}' | /Applications/Notchmeter.app/Contents/MacOS/Notchmeter --hook; echo "exit $?"
