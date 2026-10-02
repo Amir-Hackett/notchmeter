@@ -2137,9 +2137,13 @@ struct ToolCard: View {
                 Label(message, systemImage: "clock.badge.exclamationmark")
                     .font(.caption).foregroundStyle(Ink.secondary).monospacedDigit()
             case .loginIdle(let message, let cached):
-                Label(cached.map { StaleReading.notUpdated(fetchedAt: $0.fetchedAt, timeFormat: prefs.timeFormat, then: message) } ?? message,
-                      systemImage: "person.crop.circle.badge.clock")
-                    .font(.caption).foregroundStyle(Ink.secondary).monospacedDigit()
+                // Opened under a Simple row, whose line already gives the time (or, with nothing cached, all of
+                // it), the card says only why; on its own it says both, once.
+                if !(embedded && cached == nil) {
+                    Label(embedded ? message : cached.map { StaleReading.notUpdated(fetchedAt: $0.fetchedAt, timeFormat: prefs.timeFormat, then: message) } ?? message,
+                          systemImage: "person.crop.circle.badge.clock")
+                        .font(.caption).foregroundStyle(Ink.secondary).monospacedDigit()
+                }
             default:
                 EmptyView()
             }

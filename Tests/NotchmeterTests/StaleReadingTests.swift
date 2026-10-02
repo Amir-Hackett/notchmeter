@@ -66,6 +66,16 @@ import Testing
                 == "Not updated since 4:52 PM. " + reason)
     }
 
+    /// The Simple panel's row says since when in the stale caption, and leaves why to the card opened under it.
+    @Test @MainActor func aSimpleRowGivesAnIdleLoginItsTimeAlone() {
+        let reading = UsageReading(tool: .claude, windows: [], plan: nil, fetchedAt: Date().addingTimeInterval(-60), observedAt: nil)
+        let line = SimpleToolRow.line(status: .loginIdle("why", cached: reading), advice: [], window: nil, signal: nil, hideFigures: false, format: .twelveHour)
+        #expect(line?.text == StaleReading.line(fetchedAt: reading.fetchedAt, timeFormat: .twelveHour))
+        #expect(line?.color == nil, "The caption's grey, never the warning's orange.")
+        let bare = SimpleToolRow.line(status: .loginIdle("why", cached: nil), advice: [], window: nil, signal: nil, hideFigures: false, format: .twelveHour)
+        #expect(bare?.text == "why")
+    }
+
     @Test func aPassedResetReadsAsPassedOnlyWhenTheReadingIsStale() throws {
         let now = try date(1, 23, 10)
         let passed = try date(1, 23, 0)
