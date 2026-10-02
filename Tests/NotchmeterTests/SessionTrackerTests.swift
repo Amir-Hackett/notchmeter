@@ -661,6 +661,8 @@ import Testing
 
         var slow = try #require(tracker.sessions["cursor:c1"])
         slow.quietFalseAlarms = 9
+        #expect(tracker.quietSpell(slow) == 8 * SessionTracker.quietAfterDefault, "three doublings at most")
+        tracker.quietAfter = 120
         #expect(tracker.quietSpell(slow) == SessionTracker.quietSpellCap, "never past the cap")
     }
 }
