@@ -247,6 +247,8 @@ h2 {
 .tool h3 { margin: 0 0 8px; font-size: 1.02rem; display: flex; align-items: center; gap: 9px; font-weight: 600; }
 .tool .ring { width: 11px; height: 11px; border-radius: 50%; border: 2.5px solid currentColor; flex: none; }
 .tool p { margin: 0; color: var(--text-dim); font-size: 14.6px; line-height: 1.6; }
+/* A card left over at the end, the guides' closing link, takes the whole row rather than half of it beside nothing. */
+.tools > .tool:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 /* ---------- advice ---------- */
 
