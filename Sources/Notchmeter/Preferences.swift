@@ -941,6 +941,16 @@ final class Preferences {
         didSet { defaults.set(notchNews, forKey: Keys.notchNews); report(Keys.notchNews, notchNews, changed: notchNews != oldValue) }
     }
     /// Whether that news names the assistant in words or by its symbol (NotchNewsStyle).
+    /// Whether a session's name too long for its half of the strip scrolls through (Marquee) or ends in an ellipsis.
+    /// Its own setting rather than Reduce animations: the owner keeps the animations reduced and still wants the
+    /// name, which is information rather than decoration (2026-10-02). Unset, it follows the system's Reduce Motion.
+    var newsScroll: Bool? {
+        didSet {
+            if let newsScroll { defaults.set(newsScroll, forKey: Keys.newsScroll) } else { defaults.removeObject(forKey: Keys.newsScroll) }
+            report(Keys.newsScroll, newsScroll as Any, changed: newsScroll != oldValue)
+        }
+    }
+    var scrollsLongNames: Bool { newsScroll ?? !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
     var notchNewsStyle: NotchNewsStyle {
         didSet { defaults.set(notchNewsStyle.rawValue, forKey: Keys.notchNewsStyle); report(Keys.notchNewsStyle, notchNewsStyle.rawValue, changed: notchNewsStyle != oldValue) }
     }
@@ -1433,6 +1443,7 @@ final class Preferences {
         static let signalRings = "signalRings"
         static let notchNews = "notchNews"
         static let notchNewsStyle = "notchNewsStyle"
+        static let newsScroll = "newsScroll"
         static let notchGlow = "notchGlow"
         static let notificationSound = "notificationSound"
         /// The limit category's sound. The name is from before the category was widened from pace crossings to
@@ -1604,6 +1615,7 @@ final class Preferences {
         signalRings = defaults.object(forKey: Keys.signalRings) as? Bool ?? true
         notchNews = defaults.object(forKey: Keys.notchNews) as? Bool ?? true
         notchNewsStyle = NotchNewsStyle(rawValue: defaults.string(forKey: Keys.notchNewsStyle) ?? "") ?? .full
+        newsScroll = defaults.object(forKey: Keys.newsScroll) as? Bool
         notchGlow = defaults.object(forKey: Keys.notchGlow) as? Bool ?? true
         notificationSound = defaults.object(forKey: Keys.notificationSound) as? Bool ?? true
         let installedSounds = NotificationSound.systemSounds()

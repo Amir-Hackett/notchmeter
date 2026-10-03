@@ -2,12 +2,10 @@
    The palette is the app's own: Wong's colour-blind-safe set, with #0072B2 as the accent because that is the
    blue the app already uses to mean "needs you, not running out". Dark by default, because the product lives in
    a black notch and a light page would show it as a rectangle floating on white.
-   A reader whose Mac asks for light pages gets a light page (2026-09-24): the guides are long reading, and
-   white-on-black prose is the harder of the two for many people to read for ten minutes. The objection above
-   still decides one thing, the pictures: every .shot keeps its dark frame (--shot-bg) in both schemes, so the
-   panel is shown on the black it is drawn on and never as a rectangle floating on white. Nothing is stored and
-   there is no toggle, because a toggle would need browser storage and the privacy page promises none. Every
-   pair below was measured: text at 4.5:1 or better on every surface it sits on, in both schemes. */
+   Dark only, again, since 2026-10-02. A light page for readers whose Mac asks for one was added on 2026-09-24,
+   for the guides' long reading; the owner found its near-white glaring, most of all around the dark pictures
+   every section shows, and chose one dark scheme over a softer light one. Every pair below was measured: text at
+   4.5:1 or better on every surface it sits on. */
 
 :root {
   color-scheme: dark;
@@ -43,30 +41,6 @@
   --wrap: 1080px;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-/* The light page. Measured against --bg #f7f8fa, --bg-raised #eef0f4 and --bg-card #fff: --text 16.6:1 at worst,
-   --text-dim 7.8:1, --text-faint 5.45:1, --calm-lift (links, the advice lines, the ticks) 5.98:1, and white on
-   --calm, the primary button, 5.19:1 as in the dark scheme. --calm-lift is the darker step here because a link
-   has to hold 4.5:1 on white, where the dark scheme's #3897d8 would measure 3.2:1. */
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
-    --bg: #f7f8fa;
-    --bg-raised: #eef0f4;
-    --bg-card: #ffffff;
-    --line: #c9cdd6;
-    --line-soft: #e1e4ea;
-    --text: #0e1116;
-    --text-dim: #434a58;
-    --text-faint: #5a6170;
-    --calm-lift: #005f96;
-    --header-bg: rgba(247, 248, 250, 0.86);
-    --code-bg: #eef0f4;
-    --ghost-hover-line: #9aa1ae;
-    --shot-line: #c9cdd6;
-    --shot-shadow: rgba(15, 20, 30, 0.28);
-  }
 }
 
 * { box-sizing: border-box; }

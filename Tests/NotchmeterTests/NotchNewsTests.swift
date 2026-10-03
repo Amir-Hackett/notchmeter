@@ -289,6 +289,37 @@ import Testing
         }
     }
 
+    // MARK: - A long name scrolls
+
+    @Test func aNameThatFitsNeitherMovesNorStaysLonger() {
+        #expect(Marquee.shown(overflow: 0, base: 5, scrolls: true) == 5)
+        #expect(Marquee.offset(elapsed: 3, overflow: 0, shown: 5) == 0)
+        #expect(NotchNews.shownFor == 5, "Five seconds since 0.9.11, four before.")
+    }
+
+    @Test func aLongNameWaitsThenScrollsAtAReadingPaceAndHoldsItsEnd() {
+        let shown = Marquee.shown(overflow: 100, base: 5, scrolls: true)
+        #expect(shown == 5, "A second still, 2.5 s to read 100 pt and the tail fit in five.")
+        #expect(Marquee.offset(elapsed: 0.9, overflow: 100, shown: shown) == 0, "Still while its start is read.")
+        #expect(Marquee.offset(elapsed: 2, overflow: 100, shown: shown) == Marquee.pace, "A reading pace.")
+        #expect(Marquee.offset(elapsed: 4.5, overflow: 100, shown: shown) == 100, "Its end in view, and held there.")
+    }
+
+    /// The owner's "longer than seven seconds at most": the news stays as long as reading the whole name takes.
+    @Test func aLongerNameKeepsTheNewsUpToSevenSeconds() {
+        #expect(abs(Marquee.shown(overflow: 200, base: 5, scrolls: true) - 6.8) < 0.001, "1 s still, 5 s at 40 pt/s, 0.8 s held.")
+        #expect(Marquee.shown(overflow: 1000, base: 5, scrolls: true) == Marquee.longest)
+        #expect(Marquee.shown(overflow: 200, base: 5, scrolls: false) == 5, "Not scrolling, the news keeps its five seconds.")
+        #expect(Marquee.shown(overflow: 20, base: 6, scrolls: true) == 6, "Reduce Motion's extra second still counts.")
+    }
+
+    @Test func aNameTooLongForSevenSecondsGoesFasterAndEndsInAnEllipsis() {
+        let travel = Marquee.travel(overflow: 1000, shown: Marquee.longest)
+        #expect(travel == Marquee.fastest * Marquee.window(shown: Marquee.longest), "As far as the fastest pace takes it.")
+        #expect(travel < 1000, "The rest is cut with an ellipsis.")
+        #expect(Marquee.speed(travel: travel, shown: Marquee.longest) == Marquee.fastest)
+    }
+
     // MARK: - Opening on the session
 
     @Test func thePointerReachingThePeekOpensOnItsSession() {

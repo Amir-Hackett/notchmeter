@@ -915,6 +915,8 @@
 "%@ has a question" = "%@ 在提問";
 "%@ needs input" = "%@ 需要輸入";
 "News style" = "動態樣式";
+"Scroll long names" = "捲動顯示長名稱";
+"When a session's name is longer than the room beside the notch, it scrolls through once so you can read all of it, and the news stays up to seven seconds to make the time. Off, a long name ends in an ellipsis. This is separate from Reduce animations." = "工作階段名稱比瀏海旁的空間長時，會捲動一次讓你讀完整個名稱，動態最多顯示七秒以留出時間。關閉後，長名稱以刪節號結尾。此設定與「減少動畫」彼此獨立。";
 "Full: the assistant's name" = "完整：助理名稱";
 "Compact: its symbol" = "緊湊：僅符號";
 "Full names the assistant and what happened, \"Claude Code finished\". Compact shows only the assistant's symbol and the reason's, which leaves more of the line to the session." = "完整會寫出助理和發生的事，如「Claude Code 已完成」。緊湊只顯示助理和原因的符號，把一行中更多的空間留給工作階段。";
@@ -1135,7 +1137,7 @@
 "Notify when a session compacts, may be stuck or is refused" = "工作階段壓縮、可能卡住或被拒絕時通知";
 "Claude Code's hook only: once when a session starts compacting its context by itself, once when five tool calls in a row have failed with none succeeding between them, and the first time in a turn auto mode refuses a tool. Each arrives without a sound, stays in the background while a terminal or editor is in front, and follows the quiet hours. The session's row and the word beside the notch say all three without it." = "僅限 Claude Code 的掛鉤：工作階段自行開始壓縮上下文時一次，連續五次工具呼叫失敗且其間沒有成功時一次，以及一輪中自動模式首次拒絕某個工具時。每則通知都不帶聲音，終端機或編輯器在最前時留在背景，並遵守勿擾時段。沒有通知時，工作階段的列和瀏海旁的文字也會說明這三種情況。";
 "Claude Code reports session starts and ends, prompt sends, waits for your input, stops and stop failures, subagent starts and stops, compactions, model switches, an MCP server asking for input and its answer, teammates going idle, failed and auto-refused tool calls, each finished batch of tool calls and a change of directory. It is never registered for WorktreeCreate, WorktreeRemove or PreModelSwitch, which would put the app in the way of worktrees and model switches." = "Claude Code 回報工作階段的開始與結束、提示的送出、等待你的輸入、停止與停止失敗、子代理的啟動與停止、上下文壓縮、模型切換、MCP 伺服器的輸入請求及其回答、隊友轉為閒置、失敗或被自動模式拒絕的工具呼叫、每批完成的工具呼叫，以及目錄的切換。它從不註冊 WorktreeCreate、WorktreeRemove 或 PreModelSwitch，否則 App 會擋住工作樹和模型切換。";
-"When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip says so across the notch for four seconds: what happened on the left, the session's name on the right, over the menus beside the notch while it shows. Click it to open the panel on that session. While your screen is shared the name is left out." = "當工作階段開始等待你、完成一輪、自行開始壓縮、可能卡住或被自動模式拒絕時，橫跨瀏海的條帶會顯示四秒：左邊是發生的事，右邊是工作階段名稱，顯示期間會蓋住瀏海旁的選單。點按即可在該工作階段上打開面板。分享螢幕時不顯示名稱。";
+"When a session starts waiting for you, finishes a turn, starts compacting by itself, may be stuck or is refused by auto mode, the strip says so across the notch for five seconds, up to seven while a long name scrolls: what happened on the left, the session's name on the right, over the menus beside the notch while it shows. Click it to open the panel on that session. While your screen is shared the name is left out." = "當工作階段開始等待你、完成一輪、自行開始壓縮、可能卡住或被自動模式拒絕時，橫跨瀏海的條帶會顯示五秒（長名稱捲動時最多七秒）：左邊是發生的事，右邊是工作階段名稱，顯示期間會蓋住瀏海旁的選單。點按即可在該工作階段上打開面板。分享螢幕時不顯示名稱。";
 /* Theming: the panel's colour, material, accent, usage style and hour clock (PanelTheme, UsageGauge, ThemePreview, SettingsWindow) */
 "Theme" = "主題";
 "Black" = "黑色";

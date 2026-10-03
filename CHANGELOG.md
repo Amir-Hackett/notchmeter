@@ -2,6 +2,19 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.11](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.11) — 2026-10-02
+
+### Long names scroll through
+
+- The news across the notch stays five seconds instead of four.
+- A session's name too long for the room beside the notch now scrolls through once: it pauses so you can read the start, scrolls at a comfortable reading pace, and holds on the end. The news stays as long as that takes, up to seven seconds.
+- *Scroll long names* (Settings › Notifications, under *News style*) turns it off. It is separate from *Reduce animations*, so you can keep other motion reduced and still read the whole name; left alone, it follows macOS's Reduce Motion.
+- Everything new reads the same way in all eleven languages.
+
+### A calmer Settings sidebar
+
+- The app's own sections in Settings now share one graphite tile, so the only colours in the sidebar are your assistants', in the colours their rings wear.
+
 ## [0.9.10](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.10) — 2026-10-02
 
 ### Every symbol inside its rings

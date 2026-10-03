@@ -21,6 +21,8 @@ struct NotchPeekHalf: View {
     let parts: [NotchPeek.Part]
     let room: CGFloat
     let side: NotchCompactView.Side
+    /// Whether a name too long for its half scrolls through (Preferences.scrollsLongNames).
+    var scrolls = true
 
     static let fontSize: CGFloat = 11
     static let symbolSize: CGFloat = 10
@@ -36,9 +38,9 @@ struct NotchPeekHalf: View {
                         .font(.system(size: Self.symbolSize, weight: .semibold))
                         .foregroundStyle(news.tool.color)
                 case .name:
-                    Text(verbatim: words.name ?? "")
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    // Alone in its half, so its room is the half less the padding.
+                    MarqueeName(text: words.name ?? "", room: Self.width(parts: parts, words: words, style: style, room: room) - 2 * Self.padding,
+                                start: news.at, scrolls: scrolls)
                 case .reason:
                     Image(systemName: words.reasonSymbol)
                         .font(.system(size: Self.symbolSize, weight: .semibold))
@@ -109,6 +111,66 @@ struct NotchPeekHalf: View {
         let base = NSFont.systemFont(ofSize: fontSize, weight: .semibold)
         let font = base.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: fontSize) } ?? base
         return ceil((text as NSString).size(withAttributes: [.font: font]).width) + 1
+    }
+}
+
+/// The session's name in its half of the strip, scrolled through when it is longer than the half (Marquee). The text
+/// is laid out as wide as the scroll needs, cut with an ellipsis beyond what the time can show, moved left by the
+/// scroll's offset and clipped to the half, with its edges fading where text runs on past them.
+struct MarqueeName: View {
+    let text: String
+    /// The width the name has: its half less the half's padding.
+    let room: CGFloat
+    /// When the news began, which the scroll is timed from.
+    let start: Date
+    /// Whether it scrolls at all (Preferences.scrollsLongNames); off, a long name ends in an ellipsis.
+    let scrolls: Bool
+    /// A fixed moment into the scroll, for a still of it (`--render-assets`); nil runs on the clock.
+    @Environment(\.marqueeElapsed) private var frozen
+
+    var body: some View {
+        let overflow = NotchPeekHalf.textWidth(text) - room
+        let base = NotchNews.shownFor(motionReduced: AccessibilityDisplay.shared.motionReduced)
+        let shown = Marquee.shown(overflow: overflow, base: base, scrolls: true)
+        let travel = Marquee.travel(overflow: overflow, shown: shown)
+        if travel < 1 || (frozen == nil && !scrolls) {
+            Text(verbatim: text).lineLimit(1).truncationMode(.tail)
+        } else if let frozen {
+            line(offset: Marquee.offset(elapsed: frozen, overflow: overflow, shown: shown), travel: travel)
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                line(offset: Marquee.offset(elapsed: context.date.timeIntervalSince(start), overflow: overflow, shown: shown), travel: travel)
+            }
+        }
+    }
+
+    private func line(offset: CGFloat, travel: CGFloat) -> some View {
+        let fade = min(8, room / 4) / max(1, room)
+        return Text(verbatim: text)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(width: room + travel, alignment: .leading)
+            .offset(x: -offset)
+            .frame(width: room, alignment: .leading)
+            .clipped()
+            .mask {
+                LinearGradient(stops: [.init(color: offset > 0.5 ? .clear : .black, location: 0),
+                                       .init(color: .black, location: fade),
+                                       .init(color: .black, location: 1 - fade),
+                                       .init(color: offset < travel - 0.5 ? .clear : .black, location: 1)],
+                               startPoint: .leading, endPoint: .trailing)
+            }
+    }
+}
+
+private struct MarqueeElapsedKey: EnvironmentKey {
+    static let defaultValue: TimeInterval? = nil
+}
+
+extension EnvironmentValues {
+    var marqueeElapsed: TimeInterval? {
+        get { self[MarqueeElapsedKey.self] }
+        set { self[MarqueeElapsedKey.self] = newValue }
     }
 }
 
