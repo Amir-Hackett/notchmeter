@@ -12,7 +12,7 @@ site/
   usage-trackers/       the hub of the usage-tracker pages, one folder per page beside it
   sitemap.xml           every page at its canonical URL
   robots.txt            allows everything and names the sitemap
-  style.css             the whole design, dark and light
+  style.css             the whole design, dark
   landing.css           what the usage-tracker pages add, built from style.css's tokens
   img/                  copied from ../docs/media by scripts/site-assets.sh
 ```
@@ -38,12 +38,11 @@ fails when a guide is missing its stamp, its date, its canonical URL or its site
 folder disagree, or when any page loads a script or a tracker. The comparison guide's star counts are dated
 2026-09-24; refresh them with `gh api repos/<owner>/<repo> --jq .stargazers_count` and change the date with them.
 
-## Light and dark
+## Dark only
 
-Dark by default, since the product lives in a black notch. A reader whose Mac asks for light pages gets a light page
-(`prefers-color-scheme: light`), with every pair of colours measured at 4.5:1 or better for text; the pictures keep
-their dark frame in both, so the panel is never shown floating on white. There is no toggle, because a toggle would
-need browser storage and the privacy page promises none.
+Dark, since the product lives in a black notch and every section shows it on black. A light page for readers whose
+Mac asks for one ran from 2026-09-24 to 2026-10-02; the owner found its near-white glaring around those dark pictures
+and chose one dark scheme over a softer light one. Every pair of colours is measured at 4.5:1 or better for text.
 
 ## Deploying
 
@@ -94,10 +93,10 @@ Each page says what Notchmeter shows for that tool, where every figure comes fro
 file, the login it uses and what the card labels it), what the Advice strip says about it, and four to six questions
 with answers. Nothing on a page goes past `docs/accuracy.md`, `docs/features.md`, `docs/hooks.md` and the code; a
 rule is quoted with the section it lives in, and the page links that section rather than restating a figure that
-could drift. The pages follow the site's two schemes (*Light and dark*, above): every colour in `landing.css` is a
-`style.css` token, and each page declares `<meta name="color-scheme" content="dark light">` so that what the browser
+could drift. The pages follow the site's one scheme (*Dark only*, above): every colour in `landing.css` is a
+`style.css` token, and each page declares `<meta name="color-scheme" content="dark">` so that what the browser
 draws for itself before the stylesheet arrives, the scrollbar under the sources table or a code block at phone
-width, follows the scheme the reader asked for rather than showing a white track across a dark card.
+width, is dark too rather than a white track across a dark card.
 Each page carries a canonical URL, Open Graph tags and two JSON-LD blocks for search engines: a
 `SoftwareApplication` (this app, free, macOS 15+, with aliases that are its own name and never another product's) and
 a `FAQPage` that repeats the visible questions and answers word for word. No page names a competitor, and none runs a

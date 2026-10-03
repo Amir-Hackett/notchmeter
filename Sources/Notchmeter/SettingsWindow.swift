@@ -143,25 +143,19 @@ enum SettingsPane: Hashable, Identifiable, CaseIterable {
     /// would read as alarmed.
     ///
     /// Every tile carries an 11 pt semibold white glyph (`glyph`), so
-    /// every tile owes it the 3:1 WCAG 1.4.11 asks of a graphical object. Measured against white under `performAsCurrentDrawingAppearance`, light then dark:
-    /// purple 4.17/3.63, calm 5.19/5.19, pink 3.65/3.52, indigo 5.09/3.51, brown 3.53/3.07, slate 6.45/6.45.
-    /// The system colours do **not** buy adaptivity here: they shift a little between `.aqua` and `.darkAqua`
-    /// and `Increase Contrast` returns the identical sRGB values (`accessibilityHighContrastDarkAqua` answers
-    /// systemGray with the same rgb(152,152,157) `.darkAqua` does), so a tile that fails does so with every
-    /// system remedy switched on. That is why General wears a fixed sRGB grey rather than `.gray`, which is
-    /// 2.87:1 in dark — the worst tile in the sidebar on the pane the window opens on. Brown at 3.07 dark is the
-    /// thinnest margin left; check a replacement against these numbers rather than against the eye.
+    /// every tile owes it the 3:1 WCAG 1.4.11 asks of a graphical object. Slate, a fixed sRGB grey, measures
+    /// 6.45:1 against white in both appearances; the system's `.gray` would be 2.87:1 in dark, and the system
+    /// colours do not buy adaptivity here (Increase Contrast returns the same sRGB values), so check a replacement
+    /// against `SettingsSidebarTiles` rather than against the eye.
+    ///
+    /// Since 0.9.11 the app's own panes all wear slate, and colour in the sidebar is the assistants' alone. Seven
+    /// hues for the chrome beside eight for the assistants made fifteen tiles in a dozen colours, three of them
+    /// greens and four purples, so colour told no row from another and the list read as noise (the owner,
+    /// 2026-10-02: "I'm not liking these colors"). Grey chrome leaves the glyphs to tell the panes apart and the
+    /// colours to say which rows are assistants, in the colours their rings wear.
     var tint: Color {
         switch self {
-        case .general: return Palette.slate
-        // Not Palette.calm, which Assistants already wears two rows down; a fixed green rather than the system's,
-        // which is under 3:1 against a white glyph in both appearances.
-        case .dashboard: return Palette.pine
-        case .appearance: return .purple
-        case .assistants: return Palette.calm
-        case .notifications: return .pink
-        case .integrations: return .indigo
-        case .advanced: return .brown
+        case .general, .dashboard, .appearance, .assistants, .notifications, .integrations, .advanced: return Palette.slate
         // Its own hue in the deep tone its rings wear on Paper, not the light tone they wear on the notch's black:
         // the light tones carry only a black glyph (white is 1.3:1 on Copilot's yellow), and a black-glyph tile
         // among the white-glyph chrome tiles broke the list in two. The deep tones carry white at 5.1 to 5.9:1,

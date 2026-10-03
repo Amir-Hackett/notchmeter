@@ -78,7 +78,7 @@ import Testing
             #expect(Self.meta("og:url", in: html) == url, "\(slug): og:url is the canonical URL")
             #expect(Self.meta("og:type", in: html) == "website", "\(slug): og:type")
             #expect(Self.meta("og:site_name", in: html) == "Notchmeter", "\(slug): og:site_name")
-            #expect(Self.meta("color-scheme", in: html) == "dark light", "\(slug): the pages follow the site's two schemes, so the browser's own scrollbars and controls do before the stylesheet arrives")
+            #expect(Self.meta("color-scheme", in: html) == "dark", "\(slug): the pages follow the site's one scheme, so the browser's own scrollbars and controls do before the stylesheet arrives")
             for key in ["description", "og:title", "og:description", "og:image"] {
                 #expect(!(Self.meta(key, in: html) ?? "").isEmpty, "\(slug): \(key)")
             }
