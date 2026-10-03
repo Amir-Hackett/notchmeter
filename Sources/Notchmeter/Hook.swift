@@ -38,6 +38,8 @@ enum Hook {
     static let toolKey = "tool"
     /// The prompt's first line, on `UserPromptSubmit` only (`title(fromPrompt:)`).
     static let titleKey = "title"
+    /// Present, and true, on a `UserPromptSubmit` nobody typed (`Hook.harnessTags`).
+    static let harnessTurnKey = "harnessTurn"
     /// The request keys, present together on a deciding event and absent otherwise.
     static let awaitsDecisionKey = "awaitsDecision"
     static let requestIDKey = "requestID"
@@ -132,6 +134,9 @@ enum Hook {
         /// The prompt's first line on `UserPromptSubmit` (`Hook.title(fromPrompt:)`); nil on every other event, and
         /// dropped by the store when *Show what a session is working on* is off.
         var title: String?
+        /// A `UserPromptSubmit` the assistant's harness wrote rather than the person (`Hook.harnessTags`): it starts
+        /// a turn but leaves the session's title as it was, where a prompt with no title clears it.
+        var harnessTurn = false
         /// A decision the assistant is holding the session for; the command waits on the socket while it is set.
         var request: Request?
         /// Where the hook process's terminal is; absent for a remote post, whose terminal is on another machine.
@@ -203,6 +208,7 @@ enum Hook {
             host = userInfo?[Hook.hostKey] as? String
             tool = (userInfo?[Hook.toolKey] as? String).flatMap(ToolID.init(rawValue:)) ?? .claude
             title = (userInfo?[Hook.titleKey] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            harnessTurn = userInfo?[Hook.harnessTurnKey] as? Bool ?? false
             request = Hook.request(userInfo: userInfo)
             terminal = Hook.terminal(userInfo: userInfo)
             // Read back under the command's own limits, since a line on the socket may not be the command's.
@@ -241,6 +247,7 @@ enum Hook {
             // The same rule for everything 0.7.0 added: an absent field writes no key, so an event that carries
             // none of them is byte for byte the line it was.
             if let title { info[Hook.titleKey] = title }
+            if harnessTurn { info[Hook.harnessTurnKey] = true }
             if let request { info.merge(Hook.userInfo(request: request)) { _, new in new } }
             if let terminal { info.merge(Hook.userInfo(terminal: terminal)) { _, new in new } }
             if let todos { info[Hook.todosKey] = Hook.userInfo(todos: todos) }
@@ -430,6 +437,7 @@ enum Hook {
                                   failure: event == "StopFailure" ? failure : nil,
                                   tool: tool)
             message.title = event == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
+            message.harnessTurn = event == "UserPromptSubmit" && Hook.isHarnessTurn(prompt: object["prompt"])
             message.request = request
             message.worktree = place?.worktree ?? false
             switch event {

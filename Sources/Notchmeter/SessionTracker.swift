@@ -894,7 +894,7 @@ struct SessionTracker: Equatable, Sendable {
             session.limitHitAt = nil
             session.finished = nil
             session.pending = nil
-            session.title = message.title
+            if !message.harnessTurn { session.title = message.title }
             // A new turn: the last one's denials and failures are the last one's, and a new instruction to the
             // lead of a team is the lead's cue to set its idle teammates going again.
             session.denials = []

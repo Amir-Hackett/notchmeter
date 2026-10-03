@@ -14,10 +14,14 @@ import Foundation
 /// never sees `tool_input`, and docs/hooks.md lists what it sees instead.
 extension Hook {
     /// The prompt's first line, its whitespace collapsed, at most `titleLimit` characters with an ellipsis; nil
-    /// for anything that is not a non-empty string.
+    /// for anything that is not a non-empty string, and for a turn the assistant's harness wrote (`harnessTags`).
+    /// A prompt that opens with pasted text (`<pasted_content …>`) is titled from the text, not the tag.
     static func title(fromPrompt value: Any?) -> String? {
         guard let prompt = value as? String else { return nil }
-        let firstLine = prompt.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+        var lines = prompt.split(whereSeparator: \.isNewline).map(String.init)
+        if isHarnessTurn(prompt: prompt) { return nil }
+        if lines.first.flatMap(openingTag) == pastedTag { lines.removeFirst() }
+        let firstLine = lines.first { !$0.allSatisfy(\.isWhitespace) } ?? ""
         let collapsed = firstLine.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard !collapsed.isEmpty else { return nil }
         guard collapsed.count > titleLimit else { return collapsed }
@@ -25,6 +29,31 @@ extension Hook {
     }
 
     static let titleLimit = 96
+
+    /// Turns Claude Code sends as `UserPromptSubmit` that nobody typed: a background task's or another agent's
+    /// report, a slash command's echo, a shell escape's output, a reminder. Each opens with its wrapper's tag, and
+    /// that line (`<agent-message from="a93f…">`, seen as a session's title in 0.9.11) names no task, so the
+    /// session keeps the title it had. The names are the ones that open user turns in real transcripts.
+    static let harnessTags: Set<String> = ["agent-message", "task-notification", "teammate-message", "system-reminder", "ci-monitor-event",
+                                           "command-name", "command-message", "command-args", "local-command-caveat", "local-command-stdout",
+                                           "local-command-stderr", "bash-input", "bash-stdout", "bash-stderr", "fork-boilerplate"]
+    static let pastedTag = "pasted_content"
+
+    static func isHarnessTurn(prompt value: Any?) -> Bool {
+        guard let prompt = value as? String, let first = prompt.split(whereSeparator: \.isNewline).first else { return false }
+        return openingTag(String(first)).map(harnessTags.contains) ?? false
+    }
+
+    /// The name of the tag a line opens with (`<agent-message from="…">` → `agent-message`), or nil when it does
+    /// not open with one.
+    static func openingTag(_ line: String) -> String? {
+        let text = line.drop { $0.isWhitespace }
+        guard text.first == "<" else { return nil }
+        let name = text.dropFirst().prefix { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
+        let after = text.dropFirst(1 + name.count).first
+        guard !name.isEmpty, after == nil || after == ">" || after == " " || after == "/" else { return nil }
+        return String(name)
+    }
     /// The most a `detail` carries, in UTF-8 bytes.
     static let detailLimit = 4 * 1024
     /// How many lines of a `Write`'s content the detail shows before it says how many more there are.
