@@ -30,6 +30,14 @@ import Testing
         Fixture(era: "future", json: #"{"hook_event_name":"sessionStart","conversation_id":"c-next","composer_mode":"galaxy","is_background_agent":"yes","hologram":{"x":1},"workspace_roots":["/Users/x/proj"]}"#, event: "SessionStart"),
         Fixture(era: "future", json: #"{"hook_event_name":"preCompact","conversation_id":"c-next","context_usage_percent":"lots","trigger":"warp","workspace_roots":["/Users/x/proj"]}"#, event: "PreCompact"),
         Fixture(era: "future", json: #"{"hook_event_name":"afterQuantumLeap","conversation_id":"c-next","workspace_roots":["/Users/x/proj"]}"#, event: "afterQuantumLeap"),
+        // What Cursor 3.23.12 sent a recorder on 2026-10-03, key for key, during a plan's Build with one command
+        // allowed, one denied from the notch and one handed back: the ids, paths, address and words replaced.
+        Fixture(era: "3.23.12", json: #"{"attachments":[],"composer_mode":"agent","conversation_id":"c-live","cursor_version":"3.23.12","generation_id":"g-live","hook_event_name":"beforeSubmitPrompt","model":"cursor-grok-4.6-medium","model_id":"grok-4.6","model_params":[{"id":"effort","value":"medium"},{"id":"fast","value":"false"}],"prompt":"Implement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself.\n\nTo-do's from the plan have already been created. SECRET-MARKER","session_id":"c-live","transcript_path":"/Users/x/.cursor/projects/proj/agent-transcripts/c-live/c-live.jsonl","user_email":"SECRET-MARKER@example.com","workspace_roots":["/Users/x/proj"]}"#, event: "UserPromptSubmit"),
+        Fixture(era: "3.23.12", json: #"{"command":"echo SECRET-MARKER","conversation_id":"c-live","cursor_version":"3.23.12","cwd":"","generation_id":"g-live","hook_event_name":"beforeShellExecution","model":"grok-4.6","sandbox":true,"session_id":"c-live","transcript_path":"/Users/x/.cursor/projects/proj/agent-transcripts/c-live/c-live.jsonl","user_email":"SECRET-MARKER@example.com","workspace_roots":["/Users/x/proj"]}"#, event: "beforeShellExecution"),
+        Fixture(era: "3.23.12", json: #"{"command":"echo SECRET-MARKER","conversation_id":"c-live","cursor_version":"3.23.12","duration":2033.566,"generation_id":"g-live","hook_event_name":"afterShellExecution","model":"grok-4.6","output":"SECRET-MARKER\n","sandbox":true,"session_id":"c-live","transcript_path":"/Users/x/.cursor/projects/proj/agent-transcripts/c-live/c-live.jsonl","user_email":"SECRET-MARKER@example.com","workspace_roots":["/Users/x/proj"]}"#, event: "afterShellExecution"),
+        Fixture(era: "3.23.12", json: #"{"conversation_id":"c-live","cursor_version":"3.23.12","cwd":"","duration":0,"error_message":"Command execution was blocked by a hook: SECRET-MARKER","failure_type":"permission_denied","generation_id":"g-live","hook_event_name":"postToolUseFailure","is_interrupt":false,"model":"grok-4.6","session_id":"c-live","tool_input":{"command":"echo SECRET-MARKER","cwd":"","timeout":30000},"tool_name":"Shell","tool_use_id":"t-live","transcript_path":"/Users/x/.cursor/projects/proj/agent-transcripts/c-live/c-live.jsonl","user_email":"SECRET-MARKER@example.com","workspace_roots":["/Users/x/proj"]}"#, event: "PostToolUseFailure"),
+        Fixture(era: "3.23.12", json: #"{"conversation_id":"c-live","cursor_version":"3.23.12","duration_ms":895,"generation_id":"g-live","hook_event_name":"afterAgentThought","model":"cursor-grok-4.6-medium","model_id":"grok-4.6","model_params":[{"id":"effort","value":"medium"}],"session_id":"c-live","text":"SECRET-MARKER","transcript_path":"/Users/x/.cursor/projects/proj/agent-transcripts/c-live/c-live.jsonl","user_email":"SECRET-MARKER@example.com","workspace_roots":["/Users/x/proj"]}"#, event: "afterAgentThought"),
+        Fixture(era: "3.23.12", json: #"{"cache_read_tokens":205952,"cache_write_tokens":0,"conversation_id":"c-live","cursor_version":"3.23.12","generation_id":"g-live","hook_event_name":"stop","input_tokens":209917,"loop_count":0,"model":"cursor-grok-4.6-medium","model_id":"grok-4.6","model_params":[{"id":"effort","value":"medium"}],"output_tokens":654,"session_id":"c-live","status":"completed","transcript_path":"/Users/x/.cursor/projects/proj/agent-transcripts/c-live/c-live.jsonl","user_email":"SECRET-MARKER@example.com","workspace_roots":["/Users/x/proj"]}"#, event: "Stop"),
     ]
 
     func parse(_ fixture: Fixture) -> Hook.Message? {
@@ -66,6 +74,35 @@ import Testing
         #expect(compact.context == 0.87)
         let build = try #require(parse(Self.fixtures[9]))
         #expect(build.harnessTurn, "a Build whose plan cannot be read is the harness's turn, not the user's")
+    }
+
+    @Test func whatCursorReallySendsOnABuildIsReadAsOne() throws {
+        let live = Self.fixtures.filter { $0.era == "3.23.12" }
+        let build = try #require(parse(live[0]))
+        #expect(build.planBuild && build.composerMode == "agent")
+        #expect(build.planFile == nil && build.title == nil && build.harnessTurn,
+                "Cursor attaches no plan file to its Build prompt, so the app names the turn from the chat's own plan")
+        #expect(build.reportedModel == "cursor-grok-4.6-medium")
+
+        // The command it denied from the notch came back as a failure of type permission_denied: an answer, and no
+        // step towards "may be stuck".
+        let denied = try #require(parse(live[3]))
+        #expect(denied.toolFailure == ToolFailure(tool: "Shell", interrupt: true))
+        var tracker = SessionTracker()
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        _ = tracker.apply(build, now: t0)
+        for second in 1...6 { _ = tracker.apply(denied, now: t0.addingTimeInterval(TimeInterval(second))) }
+        let session = try #require(tracker.sessions[SessionTracker.key(tool: .cursor, session: "c-live", host: nil)])
+        #expect(session.failureStreaks.isEmpty, "six denials in a row are six answers")
+
+        // The same shell call with Require notch approval on: held, with the command as its summary; `cwd` comes
+        // empty and is no folder.
+        let held = try #require(Hook.message(from: Data(live[1].json.utf8), tool: .cursor, environment: [:], branch: { _ in nil },
+                                             requestID: "r1", cursorApproval: true))
+        #expect(held.needsInput && held.request?.id == "r1")
+        guard case .permission(let tool, _, _, _)? = held.request?.kind else { Issue.record("a held shell call is a permission request"); return }
+        #expect(tool == Hook.Cursor.shellTool)
+        #expect(try #require(parse(live[5])).event == "Stop")
     }
 
     @Test func aFutureShapeDegradesToNothingRatherThanToAGuess() throws {

@@ -202,20 +202,26 @@ enum CursorPlanFiles {
     }
 
     /// The plan file whose tasks are this conversation's. A shared name is not enough: at least one task id must
-    /// match as well, and two ids match when the name does not.
-    static func match(name: String?, ids: Set<String>, home: URL = Paths.home) -> URL? {
+    /// match as well, and two ids match when the name does not. Two chats can make a plan of the same name with
+    /// the same task ids (seen 2026-10-03: "three echoes" twice, and the new chat's row took the old plan's file
+    /// and read 3/3 done), so a file last written before the conversation began (`since`, its transcript's
+    /// creation) is another conversation's, and among equals the file written last is the one.
+    static func match(name: String?, ids: Set<String>, since: Date? = nil, home: URL = Paths.home) -> URL? {
         guard !ids.isEmpty || name != nil else { return nil }
         let folder = directory(home: home)
-        guard let files = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) else { return nil }
-        var best: (url: URL, score: Int)?
+        guard let files = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey]) else { return nil }
+        var best: (url: URL, score: Int, modified: Date)?
         for file in files where file.lastPathComponent.hasSuffix(".plan.md") {
-            guard let url = allowed(file.path, home: home), let call = call(in: url) else { continue }
+            guard let url = allowed(file.path, home: home) else { continue }
+            let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+            if let since, modified < since { continue }
+            guard let call = call(in: url) else { continue }
             let fileIDs = Set(call.todos.compactMap(\.id))
             let overlap = fileIDs.intersection(ids).count
             let nameMatch = name != nil && call.name == name
             guard (nameMatch && overlap >= 1) || overlap >= 2 else { continue }
             let score = overlap + (nameMatch ? 100 : 0)
-            if best == nil || score > best!.score { best = (url, score) }
+            if best == nil || score > best!.score || (score == best!.score && modified > best!.modified) { best = (url, score, modified) }
         }
         return best?.url
     }

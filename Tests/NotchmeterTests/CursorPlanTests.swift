@@ -200,6 +200,34 @@ import Testing
         #expect(follower.items.map(\.id) == ["a", "z"])
     }
 
+    @Test func twoPlansOfOneNameAreToldApartByWhenTheyWereWritten() throws {
+        // Seen live on 2026-10-03: "three echoes" made twice, in two chats, with the same task ids. The new chat's
+        // row took the old plan's file, read 3/3 done and offered no Build.
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("cursor-twins-\(UUID().uuidString)").resolvingSymlinksInPath()
+        let plans = home.appendingPathComponent(".cursor/plans")
+        try FileManager.default.createDirectory(at: plans, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let began = Date(timeIntervalSince1970: 1_800_000_000)
+        func write(_ file: String, status: String, modified: Date) throws -> URL {
+            let url = plans.appendingPathComponent(file)
+            try "---\nname: three echoes\ntodos:\n  - id: echo-one\n    content: one\n    status: \(status)\n  - id: echo-two\n    content: two\n    status: \(status)\n---\n"
+                .write(to: url, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: url.path)
+            return url.resolvingSymlinksInPath()
+        }
+        let old = try write("three_echoes_fb726162.plan.md", status: "completed", modified: began.addingTimeInterval(-3600))
+        let new = try write("three_echoes_f5e37547.plan.md", status: "pending", modified: began.addingTimeInterval(20))
+        let ids: Set<String> = ["echo-one", "echo-two"]
+
+        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began, home: home) == new, "the old plan was last written before this chat began")
+        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, home: home) == new, "and with no date to go by, the file written last")
+        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began.addingTimeInterval(60), home: home) == nil,
+                "a chat that began after both were written made neither")
+        try FileManager.default.removeItem(at: new)
+        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began, home: home) == nil, "never the other chat's plan for want of this one's")
+        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, home: home) == old)
+    }
+
     @Test func aPlanFilesQuotedScalarsAreReadWithoutTheirQuotes() throws {
         // Cursor writes `content: "Run: echo one"`; YAML allows single quotes as well, a quote inside doubled.
         let text = [

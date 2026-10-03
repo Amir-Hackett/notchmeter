@@ -2300,8 +2300,10 @@ final class UsageStore {
                 var follower = follower
                 let start = follower.offset
                 var changed = follower.read(url)
+                // A plan file older than the conversation is another conversation's, whatever it is called.
+                let began = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.creationDate] as? Date
                 if let plan = named ?? follower.planFile.flatMap({ CursorPlanFiles.allowed($0, home: home) })
-                    ?? CursorPlanFiles.match(name: follower.planName, ids: Set(follower.items.map(\.id)), home: home) {
+                    ?? CursorPlanFiles.match(name: follower.planName, ids: Set(follower.items.map(\.id)), since: began, home: home) {
                     changed = follower.readPlanFile(plan) || changed
                 }
                 let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.uint64Value ?? 0
@@ -2321,16 +2323,25 @@ final class UsageStore {
         var planFileModified: Date?
     }
 
+    static let planFileSearch: TimeInterval = 30
+
     private nonisolated static func modified(_ path: String) -> Date? {
         (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date
     }
 
     /// A plan file that changed with no hook to say so (a to-do ticked in Cursor's plan editor between turns) has
     /// its chat's list read again. One `stat` per followed plan, on the once-a-second loop the card watch runs on.
-    func refreshChangedCursorPlans() {
+    /// A plan the transcript named whose file was not there yet is looked for again for `planFileSearch` after
+    /// the chat was last heard from, should Cursor write the file after the event that announced the plan.
+    func refreshChangedCursorPlans(now: Date = Date()) {
         guard prefs.readsSessions(of: .cursor) else { return }
         for (path, entry) in cursorPlans where !cursorPlanReads.contains(path) {
-            guard let file = entry.follower.planFile, let modified = Self.modified(file), modified != entry.planFileModified else { continue }
+            if entry.follower.planFile == nil {
+                guard entry.follower.planName != nil, let heard = sessions.sessions[entry.key]?.lastEvent,
+                      now.timeIntervalSince(heard) < Self.planFileSearch else { continue }
+            } else {
+                guard let file = entry.follower.planFile, let modified = Self.modified(file), modified != entry.planFileModified else { continue }
+            }
             var message = Hook.Message(event: "afterAgentResponse", needsInput: false, sessionID: entry.sessionID, host: entry.host, tool: .cursor)
             message.transcriptPath = path
             followCursorPlan(message)

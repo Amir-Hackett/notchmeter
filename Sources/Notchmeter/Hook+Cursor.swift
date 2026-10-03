@@ -71,8 +71,8 @@ extension Hook {
         /// Only the event name, `status`, `parent_conversation_id` (or `conversation_id`, or `session_id`), the
         /// workspace root's project name (ProjectName) and `subagent_id` are read, with the prompt's first line, the
         /// model, the transcript path, `composer_mode`, `is_background_agent`, a compaction's trigger and fill, a
-        /// failed tool's name and `is_interrupt`, and the plan file a Build attaches. Email, timings, a failure's
-        /// error text and every tool's input and output are not.
+        /// failed tool's name, `is_interrupt` and whether its `failure_type` is a denial, and the plan file a Build
+        /// attaches. Email, timings, a failure's error text and every tool's input and output are not.
         ///
         /// The session is the conversation the user is in, so `subagentStart`'s `parent_conversation_id` outranks
         /// the common `conversation_id`: the reference sends both on that event without saying whether the common
@@ -118,8 +118,12 @@ extension Hook {
             // made in Plan and built in Agent), so each prompt's is taken.
             if canonical == "SessionStart" || canonical == "UserPromptSubmit" { message.composerMode = Hook.composerMode(object["composer_mode"]) }
             if canonical == "PostToolUseFailure" {
+                // A call that was denied, from the notch or in Cursor, comes back as a failure of type
+                // `permission_denied` (Cursor 3.23.12). It is an answer, not a try that failed, so it is no step
+                // towards "may be stuck", the same as a call the user interrupted.
+                let denied = object["failure_type"] as? String == "permission_denied"
                 message.toolFailure = Hook.toolName(object["tool_name"]).map {
-                    ToolFailure(tool: $0, interrupt: object["is_interrupt"] as? Bool == true)
+                    ToolFailure(tool: $0, interrupt: denied || object["is_interrupt"] as? Bool == true)
                 }
             }
             // Since 0.9.13: the model, on whichever event names one (cursor.com/docs/agent/hooks shows `model` on the
