@@ -2422,6 +2422,9 @@ final class UsageStore {
         // Since 0.9.13: the model another assistant names (an id, never words of the session's), and a turn nobody typed.
         if let model = message.reportedModel { facts["reportedModel"] = model }
         if message.harnessTurn { facts["harnessTurn"] = true }
+        // Since 0.9.15, Cursor's: the chat's mode (one of Cursor's own ids) and a turn that is a plan's Build.
+        if let mode = message.composerMode { facts["composerMode"] = mode }
+        if message.planBuild { facts["planBuild"] = true }
         if let task = message.task { facts["task"] = ["kind": task.kind.rawValue, "status": task.deleted ? "deleted" : task.status?.rawValue as Any] }
         if message.needsInput || message.request != nil { facts["wait"] = (wait ?? message.waitKind).rawValue }
         // The 0.11 events: a trigger, a model id and its source, the MCP server's name, a tool's name, the kind of

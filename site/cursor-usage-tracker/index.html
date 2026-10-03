@@ -80,7 +80,7 @@
    "name": "Does it show when Cursor is waiting for me?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Not as a certainty. Cursor's hooks document no event that means the agent is asking you, so the Cursor ring shows the tick when a turn ends and the session count, and the waiting dot only for a possible wait: a turn that goes 45 seconds without activity and with no command running, worded “may be” because it is Notchmeter's inference rather than a Cursor event. Nothing of Cursor's can be answered from the notch."
+    "text": "By default, only as a maybe. Cursor's hooks document no event that means the agent is asking you, so the Cursor ring shows the tick when a turn ends and the session count, and the waiting dot only for a possible wait: a turn that goes 45 seconds without activity and with no command running, worded “may be” because it is Notchmeter's inference rather than a Cursor event. Two switches on Cursor's page in Settings, both off until you turn them on, make it certain and let you answer: Require notch approval holds every shell command and MCP call for Allow or Deny in the notch, and Mirror Cursor's cards shows Cursor's own Run prompt and its switch-to-Plan-Mode card on the session's row and presses the button you pick."
    }
   },
   {
@@ -151,12 +151,34 @@
           <li><strong>Grok Bot</strong>: the seven-day allowance a seat may have, or its trial, captioned as one.</li>
           <li><strong>Today's spend</strong>, on a seat the summary meters nothing for: today's dollars from the export against your usual day. A comparison, so it paces but never runs out, warns or notifies.</li>
           <li><strong>Cost</strong>: today, yesterday, the week, the month, 30 and 90 days, by model, every dollar the one Cursor put on that event; and the 30-day trend under the card.</li>
+          <li><strong>Plans and approvals</strong>: a plan on its chat's row the moment Cursor creates it, with its to-dos, <em>View Plan</em> and <em>Build</em>; and, with the two switches on Cursor's page in Settings, each shell command held for Allow or Deny in the notch, and Cursor's own Run and switch-mode cards on the row.</li>
           <li><strong>Sessions</strong>: with Cursor's hook, every running agent with its title and elapsed time, and a tick on the ring and a refresh the moment a turn ends. Without it, a Cursor CLI (<code>cursor-agent</code>) session running in a terminal is still listed, marked as found without the hook; the editor's own agents are seen only through the hook.</li>
         </ul>
       </div>
       <figure class="lp-figure fit-narrow">
         <div class="shot"><img src="../img/expanded-detailed.png" alt="The Detailed panel: the Sessions card with two Claude Code sessions, one waiting; the Cost card with today's $131 split between Claude and Cursor; the Advice strip; the Claude card with Session, Weekly and Fable meters, each with a pace tick, a projection and its reset; the Codex and Cursor cards on free plans." loading="lazy"></div>
         <figcaption>The Detailed panel over a fixed set of readings, so it shows nobody's usage: Claude on Max 5x, Codex and Cursor on free plans.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="notch">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2>Cursor, answered from the notch</h2>
+        <p>Cursor's hooks report no task list, no plan and no event that says it is waiting for you, so Notchmeter reads the rest from Cursor itself: the plan from the conversation's transcript and the file Cursor keeps in <code>~/.cursor/plans</code>, and Cursor's own cards from its window.</p>
+        <ul class="lp-points">
+          <li><strong>A plan on its row</strong> the moment Cursor creates it, before you build it: its to-dos crossed off as they finish, <em>View Plan</em> to open it in Cursor, and <em>Build</em>.</li>
+          <li><strong>Require notch approval for every command</strong>: each shell command and MCP call waits for Allow or Deny in the notch. One nobody answers goes back to Cursor's own prompt, so nothing runs on silence.</li>
+          <li><strong>Mirror Cursor's cards</strong>: Cursor's Run prompt, headed by the command it would run, and its switch-to-Plan-Mode card appear on the row, and the button you pick is pressed in Cursor. It needs the Accessibility permission, and Cursor's editor shows <em>Screen Reader Optimized</em> while it is on unless you turn that off in Cursor's settings.</li>
+        </ul>
+        <p>Both switches are off until you turn them on.</p>
+      </div>
+      <figure class="lp-figure fit-narrow">
+        <div class="shot"><img src="../img/cursor-notch.png" alt="The Sessions card with three Cursor chats. One asks to switch to Plan Mode, with Skip and Switch on its row. One is building a plan, its task list open at one of three done, with Cursor's Run prompt on the row: the command, Skip and Run. One has a plan ready, with its Plan mode chip, View Plan and Build." loading="lazy"></div>
+        <figcaption>The Sessions card over three made-up Cursor chats: a mode switch waiting, a plan being built with a command waiting, and a plan ready to build.</figcaption>
       </figure>
     </div>
   </div>
@@ -226,7 +248,7 @@
       </details>
       <details>
         <summary>Does it show when Cursor is waiting for me?</summary>
-        <p class="a">Not as a certainty. Cursor's hooks document no event that means the agent is asking you, so the Cursor ring shows the tick when a turn ends and the session count, and the waiting dot only for a possible wait: a turn that goes 45 seconds without activity and with no command running, worded “may be” because it is Notchmeter's inference rather than a Cursor event. Nothing of Cursor's can be answered from the notch.</p>
+        <p class="a">By default, only as a maybe. Cursor's hooks document no event that means the agent is asking you, so the Cursor ring shows the tick when a turn ends and the session count, and the waiting dot only for a possible wait: a turn that goes 45 seconds without activity and with no command running, worded “may be” because it is Notchmeter's inference rather than a Cursor event. Two switches on Cursor's page in Settings, both off until you turn them on, make it certain and let you answer: Require notch approval holds every shell command and MCP call for Allow or Deny in the notch, and Mirror Cursor's cards shows Cursor's own Run prompt and its switch-to-Plan-Mode card on the session's row and presses the button you pick.</p>
       </details>
       <details>
         <summary>Does it sign into Cursor or store my token?</summary>

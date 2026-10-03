@@ -51,6 +51,11 @@ enum DemoFixtures {
         /// An MCP server's form a click can answer, held for the notch like a permission request
         /// (`elicitation.png`, for review).
         case elicitation
+        /// Cursor answered from the notch (0.9.15), across three Cursor chats: a plan just made in Plan mode, with
+        /// View Plan and Build on its row; a plan being built, its list open and a command waiting on Cursor's own
+        /// Run card; and a chat asking to switch to Plan mode (`cursor-notch.png`; the two cards are put on by
+        /// AssetRenderer, as the app puts on what it reads from Cursor's window).
+        case cursorNotch
         /// Both turns over, the notchmeter one three minutes ago: twice `ToolSignal.heldFor` past its finish, so
         /// nothing is lit and every session idles. The closed notch's quiet phase, for the symbols mode while
         /// nothing runs, where the hollow ring under an idle assistant is the picture.
@@ -116,6 +121,10 @@ enum DemoFixtures {
         // The hook-events moment is three sessions of its own, replayed whole (`hookEvents`).
         if moment == .hookEvents {
             hookEvents(&tracker, now: now)
+            return tracker
+        }
+        if moment == .cursorNotch {
+            cursorNotch(&tracker, now: now)
             return tracker
         }
         func send(_ event: String, _ ago: TimeInterval, session: String, project: String, branch: String, type: String? = nil, title: String? = nil) {
@@ -202,7 +211,7 @@ enum DemoFixtures {
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
         case .firstLaunch, .everyAssistant:
             break
-        case .hookEvents:
+        case .hookEvents, .cursorNotch:
             break
         case .elicitation:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
@@ -327,7 +336,7 @@ enum DemoFixtures {
         case .waiting, .permissionRequest: reason = .approval
         case .question: reason = .question
         case .justFinished: reason = .finished
-        case .working, .firstLaunch, .idle, .everyAssistant: return nil
+        case .working, .firstLaunch, .idle, .everyAssistant, .cursorNotch: return nil
         case .hookEvents: reason = .compacting
         case .elicitation: reason = .input
         }
@@ -808,6 +817,53 @@ extension DemoFixtures {
 
     /// Each payload as the assistant's hook sends it, parsed by the hook's own parser; Cursor's plan as its transcript
     /// records it, replayed by the app's own follower (CursorPlans), since Cursor's hooks never report it.
+    /// The three Cursor chats of `cursor-notch.png`, each fed what Cursor's own hook sends and the list its
+    /// transcript's `CreatePlan` and `TodoWrite` make. The plan files are named, never read: nothing here touches
+    /// `~/.cursor`.
+    static let cursorNotchChats = (ready: "n-1", building: "n-2", switching: "n-3")
+
+    static func cursorNotch(_ tracker: inout SessionTracker, now: Date) {
+        func feed(_ ago: TimeInterval, _ json: String) {
+            guard let message = Hook.message(from: Data(json.utf8), tool: .cursor, event: nil, environment: [:], branch: { _ in "main" },
+                                             requestID: "demo", cursorApproval: false) else { return }
+            tracker.apply(message, now: now.addingTimeInterval(-ago))
+        }
+        func plan(_ session: String, _ ago: TimeInterval, file: String, _ lines: [String]) {
+            var transcript = CursorPlanFollower()
+            _ = transcript.feed(Data((lines.joined(separator: "\n") + "\n").utf8))
+            var message = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: session, tool: .cursor)
+            message.todos = transcript.plan
+            message.planFile = file
+            tracker.apply(message, now: now.addingTimeInterval(-ago))
+        }
+        let chats = cursorNotchChats
+        // A plan made in Plan mode and not yet built: View Plan and Build are on its row.
+        feed(380, #"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"n-1","workspace_roots":["/Users/me/web-app"],"composer_mode":"plan","model":"claude-opus-4-7","prompt":"Plan the holiday greeting line"}"#)
+        plan(chats.ready, 300, file: "/Users/me/.cursor/plans/holiday_greeting_1a2b3c4d.plan.md", [
+            #"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CreatePlan","input":{"name":"Holiday greeting line","todos":[{"id":"a","content":"Publish the holiday calendar"},{"id":"b","content":"Record the greeting"},{"id":"c","content":"Route the inbound line to it"},{"id":"d","content":"Call the number and listen"}]}}]}}"#,
+        ])
+        feed(290, #"{"hook_event_name":"stop","conversation_id":"n-1","workspace_roots":["/Users/me/web-app"],"status":"completed"}"#)
+        // A plan being built: the turn is named for the plan, and a command is waiting on Cursor's own Run card.
+        feed(140, #"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"n-2","workspace_roots":["/Users/me/api-server"],"composer_mode":"agent","model":"gpt-5.5","prompt":"Usage export\n\nImplement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself."}"#)
+        plan(chats.building, 60, file: "/Users/me/.cursor/plans/usage_export_5e6f7a8b.plan.md", [
+            #"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CreatePlan","input":{"name":"Usage export","todos":[{"id":"a","content":"Add the export endpoint"},{"id":"b","content":"Run the export once, dry"},{"id":"c","content":"Write the test"}]}}]}}"#,
+            #"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CallDynamicTool","input":{"namespace":"cursor","toolName":"TodoWrite","arguments":{"merge":true,"todos":[{"id":"a","status":"completed"},{"id":"b","status":"in_progress"}]}}}]}}"#,
+        ])
+        feed(8, #"{"hook_event_name":"afterAgentThought","conversation_id":"n-2","workspace_roots":["/Users/me/api-server"]}"#)
+        // A chat that has asked to switch to Plan mode.
+        feed(45, #"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"n-3","workspace_roots":["/Users/me/scout"],"composer_mode":"agent","model":"claude-opus-4-7","prompt":"Rework the crawler's retry queue"}"#)
+        feed(6, #"{"hook_event_name":"afterAgentThought","conversation_id":"n-3","workspace_roots":["/Users/me/scout"]}"#)
+    }
+
+    /// The cards Cursor's windows would be showing for `cursorNotch`: the building chat's Run prompt and the
+    /// third chat's mode switch, as CursorCards.detect reads them.
+    static let cursorNotchCards: [CursorCard] = [
+        CursorCard(kind: .run, window: "api-server", heading: "npm run export -- --dry-run",
+                   options: [.init(label: "Skip", path: [0]), .init(label: "Run", path: [1])]),
+        CursorCard(kind: .modeSwitch, window: "scout", heading: "Switch to Plan Mode",
+                   options: [.init(label: "Skip", path: [0]), .init(label: "Switch", path: [1])]),
+    ]
+
     static func everyAssistant(_ tracker: inout SessionTracker, now: Date) {
         func feed(_ tool: ToolID, _ ago: TimeInterval, _ json: String, event: String? = nil) {
             guard let message = Hook.message(from: Data(json.utf8), tool: tool, event: event, environment: [:], branch: { _ in "main" }, requestID: "demo") else { return }

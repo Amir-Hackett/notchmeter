@@ -14,13 +14,17 @@ Every figure sourced, dated and tested — here is the document: [docs/accuracy.
 
 **Answer Claude Code from the notch.** When Claude Code stops for a permission, approve or deny it there; when it asks a multiple-choice question, pick the answer there; then jump back to the terminal window, tab or pane the session is running in. A request nobody answers falls back to the terminal's own prompt, as if the notch were not there, and each part has its own switch under Settings › Assistants › Sessions. What the hook sends for it, and how the channel fails open, is in [docs/hooks.md](docs/hooks.md).
 
+**Cursor works differently, so it gets its own treatment.** Cursor's hooks report less than the other assistants': no task list, no plan, and no event that says it is waiting for you. Notchmeter reads the rest from Cursor itself. A plan appears on its chat's row the moment Cursor creates it, with its to-dos, **View Plan** and **Build**, and the turn that builds it is named for the plan. Two switches under Settings › Assistants › Cursor, both off until you turn them on, let you answer it: *Require notch approval for every command* holds each shell command and MCP call for Allow or Deny in the notch, and *Mirror Cursor's cards* puts Cursor's own Run prompt and its switch-to-Plan-Mode card on the row and presses the button you pick in Cursor. What each one reads, and the Accessibility permission the second needs: [docs/hooks.md](docs/hooks.md#cursor).
+
+![The Sessions card with three Cursor chats. One asks to switch to Plan Mode, with Skip and Switch on its row. One is building a plan, its task list open at one of three done, with Cursor's Run prompt on the row: the command, Skip and Run. One has a plan ready, with its Plan mode chip, View Plan and Build.](docs/media/cursor-notch.png)
+
 **[notchmeter.com](https://www.notchmeter.com)** · [Download](https://github.com/Amir-Hackett/notchmeter/releases/latest/download/Notchmeter.dmg) · [Guides](https://www.notchmeter.com/guides/) · [Support the project](https://buy.stripe.com/8x2bIVbYF8wsgP2cvVao800)
 
 ## What it shows
 
 - **Claude Code** — the 5-hour session window, the weekly window and the per-model weekly limits, plus what your local sessions would have cost at API list prices.
 - **Codex** — the session, weekly or monthly rate-limit windows Codex itself reads.
-- **Cursor** — included plan usage and on-demand spend for the billing cycle, the way cursor.com's dashboard reads it.
+- **Cursor** — included plan usage and on-demand spend for the billing cycle, the way cursor.com's dashboard reads it. On the Sessions card, each chat's plan and to-dos, Build, and its approvals when you turn them on.
 - **Gemini CLI** — the per-model quota Google meters for Gemini CLI.
 - **Antigravity** — the session and weekly quota Antigravity's own panel shows, read under Antigravity's identity, so it can differ from Gemini CLI's on the same account.
 - **GitHub Copilot** — the month's AI-credit allowance, or a legacy seat's premium requests.
