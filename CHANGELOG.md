@@ -2,6 +2,23 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.14](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.14) — 2026-10-03
+
+### The news across the notch
+
+- A session that ends right after its turn keeps its name in the news. A `claude -p` run, or an agent that starts one every few minutes, used to be named by the temporary folder it ran in, often just "T"; it is now named by its prompt.
+- A prompt that opens on a line of punctuation alone, such as a lone "-", is titled from the first line with words on it.
+- The words fade where they stand before the strip goes back to its readouts, rather than passing across the camera housing on the way out.
+- "Codex finished" fits whole: each assistant's symbol is measured as it is drawn.
+
+### Answering from the notch
+
+- The permission card says which assistant is asking: Claude, Codex or Copilot needs approval.
+
+### Fixes
+
+- With *Open on hover*, a panel opened with the keyboard shortcut stays open until the pointer has been in and gone again, or you close it. It used to close within a second when the pointer was elsewhere.
+
 ## [0.9.13](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.13) — 2026-10-02
 
 ### Every assistant's plan, crossed off as it goes

@@ -60,7 +60,8 @@ enum DemoFixtures {
     /// `cowork` adds two Claude Cowork tasks to the afternoon (`coworkTasks`), for `cowork.png` and
     /// `cowork-news.png`; the README's own pictures leave them out, so they stay the pictures they were.
     @MainActor
-    static func store(now: Date = Date(), moment: Moment = .waiting, cowork: Bool = false, suite: String = suiteName) -> (store: UsageStore, prefs: Preferences) {
+    static func store(now: Date = Date(), moment: Moment = .waiting, cowork: Bool = false, everyRing: Bool = false,
+                      suite: String = suiteName) -> (store: UsageStore, prefs: Preferences) {
         // A suite nothing writes to. The registration domain lives in memory only, so the countdown style the
         // pictures rely on is neither read from nor written to the user's own preferences. Peak hours are off: the
         // window is read against the wall clock, so a render during it grew an advice line and a footer word that
@@ -75,6 +76,7 @@ enum DemoFixtures {
                                cache: ReadingCache(defaults: defaults), defaults: defaults, drainLog: nil)
         var tracker = sessions(now: now, moment: moment)
         if cowork { coworkTasks(into: &tracker, now: now) }
+        if everyRing { Self.everyRing(&tracker, now: now, finished: moment == .justFinished) }
         store.seed(readings: readings, cost: cost(now: now), nextUpdate: now.addingTimeInterval(2 * 60 + 40),
                    sessions: tracker, now: now)
         // The afternoon has the Claude Code hook installed, which is what keeps the Sessions card on the panel; the
@@ -83,6 +85,7 @@ enum DemoFixtures {
         store.hookInstalledTools = moment == .firstLaunch ? [] : [.claude]
         // The task list open on the notchmeter row, so the pictures show the checklist and not only its count.
         store.openSessionLists = moment == .firstLaunch ? [] : [SessionsCard.listKey("notchmeter", .todos)]
+        if everyRing { store.hookInstalledTools = [.claude, .codex, .cursor] }
         if moment == .everyAssistant {
             store.hookInstalledTools = Set(ToolID.allCases)
             store.openSessionLists = Set(everyAssistantPlans.map { SessionsCard.listKey(SessionTracker.key(tool: $0.tool, session: $0.session, host: nil), .todos) })
@@ -783,6 +786,28 @@ extension DemoFixtures {
 
     /// Each payload as the assistant's hook sends it, parsed by the hook's own parser; Cursor's plan as its transcript
     /// records it, replayed by the app's own follower (CursorPlans), since Cursor's hooks never report it.
+    /// Codex and Cursor beside Claude Code in the same state, for the picture of the rings' marks (signal-rings.png):
+    /// the owner, on the site's copy of it, where only Claude's ring carried the dot and the tick, "every assistant
+    /// should have the checkmark when done" (2026-10-03). Waiting, Codex has asked for a permission and Cursor, which
+    /// has no wait event, has gone quiet with nothing running and is nudged as a possible wait; finished, both have
+    /// ended a long turn. Fed as their hooks send it, in ascending time, so the marks are states the tracker reaches.
+    static func everyRing(_ tracker: inout SessionTracker, now: Date, finished: Bool) {
+        func feed(_ tool: ToolID, _ ago: TimeInterval, _ json: String) {
+            guard let message = Hook.message(from: Data(json.utf8), tool: tool, environment: [:], branch: { _ in "main" }, requestID: "demo-ring") else { return }
+            tracker.apply(message, now: now.addingTimeInterval(-ago))
+        }
+        feed(.codex, 300, #"{"hook_event_name":"UserPromptSubmit","session_id":"x-ring","cwd":"/Users/me/api-server","prompt":"Add rate limiting to the upload endpoint"}"#)
+        feed(.cursor, 200, #"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"u-ring","workspace_roots":["/Users/me/web-app"],"prompt":"Fix the checkout form validation"}"#)
+        if finished {
+            feed(.codex, 15, #"{"hook_event_name":"Stop","session_id":"x-ring","cwd":"/Users/me/api-server"}"#)
+            feed(.cursor, 10, #"{"hook_event_name":"stop","conversation_id":"u-ring","status":"completed","workspace_roots":["/Users/me/web-app"]}"#)
+        } else {
+            feed(.cursor, 100, #"{"hook_event_name":"afterAgentThought","conversation_id":"u-ring","workspace_roots":["/Users/me/web-app"]}"#)
+            _ = tracker.quietNudges(now: now.addingTimeInterval(-50))
+            feed(.codex, 40, #"{"hook_event_name":"PermissionRequest","session_id":"x-ring","cwd":"/Users/me/api-server","tool_name":"Bash","tool_input":{"command":"npm test"}}"#)
+        }
+    }
+
     static func everyAssistant(_ tracker: inout SessionTracker, now: Date) {
         func feed(_ tool: ToolID, _ ago: TimeInterval, _ json: String, event: String? = nil) {
             guard let message = Hook.message(from: Data(json.utf8), tool: tool, event: event, environment: [:], branch: { _ in "main" }, requestID: "demo") else { return }
