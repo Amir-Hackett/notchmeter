@@ -11,6 +11,10 @@ Every released version of Notchmeter, newest first. From 0.7.0 each section is t
 - *Scroll long names* (Settings › Notifications, under *News style*) turns it off. It is separate from *Reduce animations*, so you can keep other motion reduced and still read the whole name; left alone, it follows macOS's Reduce Motion.
 - Everything new reads the same way in all eleven languages.
 
+### A calmer Settings sidebar
+
+- The app's own sections in Settings now share one graphite tile, so the only colours in the sidebar are your assistants', in the colours their rings wear.
+
 ## [0.9.10](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.10) — 2026-10-02
 
 ### Every symbol inside its rings
