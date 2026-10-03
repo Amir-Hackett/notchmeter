@@ -685,10 +685,12 @@ final class UsageStore {
         if !titles { dropTitles() }
     }
 
-    /// Everything of a prompt the app holds, gone: the sessions' titles and names, the titles the news kept for a
-    /// session that has since ended (NotchNews.title), and the Cowork reader's.
+    /// Everything of a prompt the app holds, gone: the sessions' titles and names, the copy of its session an open
+    /// notice holds (AttentionNotice, a value the tracker never sees), the titles the news kept for a session that
+    /// has since ended (NotchNews.title), and the Cowork reader's.
     func dropTitles() {
         sessions.clearTitles()
+        attentionNotice = attentionNotice.map { AttentionNotice(session: $0.session.withoutTitles(), event: $0.event) }
         peek = peek?.withoutTitle()
         glowNews = glowNews?.withoutTitle()
         latestNews = latestNews?.withoutTitle()

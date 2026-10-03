@@ -784,8 +784,6 @@ extension DemoFixtures {
     static let everyAssistantPlans: [(tool: ToolID, session: String)] = [(.cursor, "u-1"), (.codex, "x-1"), (.gemini, "g-1"), (.copilot, "c-1"),
                                                                          (.kimi, "k-1"), (.opencode, "o-1")]
 
-    /// Each payload as the assistant's hook sends it, parsed by the hook's own parser; Cursor's plan as its transcript
-    /// records it, replayed by the app's own follower (CursorPlans), since Cursor's hooks never report it.
     /// Codex and Cursor beside Claude Code in the same state, for the picture of the rings' marks (signal-rings.png):
     /// the owner, on the site's copy of it, where only Claude's ring carried the dot and the tick, "every assistant
     /// should have the checkmark when done" (2026-10-03). Waiting, Codex has asked for a permission and Cursor, which
@@ -808,6 +806,8 @@ extension DemoFixtures {
         }
     }
 
+    /// Each payload as the assistant's hook sends it, parsed by the hook's own parser; Cursor's plan as its transcript
+    /// records it, replayed by the app's own follower (CursorPlans), since Cursor's hooks never report it.
     static func everyAssistant(_ tracker: inout SessionTracker, now: Date) {
         func feed(_ tool: ToolID, _ ago: TimeInterval, _ json: String, event: String? = nil) {
             guard let message = Hook.message(from: Data(json.utf8), tool: tool, event: event, environment: [:], branch: { _ in "main" }, requestID: "demo") else { return }

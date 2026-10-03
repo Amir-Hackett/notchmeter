@@ -446,7 +446,14 @@ import Testing
         titled.title = "Summarise the overnight build failures"
         store.announce(titled)
         #expect(store.peekTitle(titled) == "Summarise the overnight build failures")
+        let now = Date()
+        var open = AgentSession(id: "gone", project: "notchmeter", state: .waiting(since: now), started: now, lastEvent: now, turnStarted: nil)
+        open.title = "Summarise the overnight build failures"
+        open.sessionName = "nightly"
+        store.attentionNotice = AttentionNotice(session: open, event: .waiting(blocking: true))
         store.dropTitles()
+        #expect(store.attentionNotice?.session.title == nil, "the open notice's own copy of the session goes too")
+        #expect(store.attentionNotice?.session.sessionName == nil)
         #expect(store.peek?.title == nil)
         #expect(store.glowNews?.title == nil)
         #expect(store.latestNews?.title == nil)
