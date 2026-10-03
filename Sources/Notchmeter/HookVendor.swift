@@ -121,9 +121,11 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// its `PreToolUse` matched to `AskUserQuestion` and (since 0.11) its `Elicitation`, whose form the notch
     /// answers when a click can (Hook+Elicitation.swift) and hands to the terminal at once when it cannot; Codex's
     /// `PermissionRequest`; Copilot's PascalCase `PermissionRequest`, which documents the same decision shape.
-    /// Cursor has no event that waits for the user, Gemini CLI's hook is observability only, and Kimi Code has no
-    /// permission event at all, so none of the three has one. OpenCode's plugin reports its permission requests and
-    /// their answers but does not answer them, so it has none either (docs/hooks.md, *OpenCode*).
+    /// Cursor's two are `beforeShellExecution` and `beforeMCPExecution`, which it waits on for every call and
+    /// whose flat `permission` it obeys; they hold a call only with *Require notch approval* on
+    /// (Hook.Cursor.decisionEvents). Gemini CLI's hook is observability only and Kimi Code has no permission
+    /// event at all, so neither has one. OpenCode's plugin reports its permission requests and their answers but
+    /// does not answer them, so it has none either (docs/hooks.md, *OpenCode*).
     var decidingEvents: Set<String> {
         switch self {
         case .claude: ["PermissionRequest", "PreToolUse", "Elicitation"]
@@ -287,8 +289,9 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
 
 extension ToolID {
     /// Whether this assistant's hook has an event the notch can answer (`HookVendor.decidingEvents`): Claude Code,
-    /// Codex and Copilot today. Its Settings page offers *Answer from the notch* only then, and says why not
-    /// otherwise, rather than offering a switch that could never do anything.
+    /// Codex, Copilot and, since 0.9.15, Cursor, whose page adds *Require notch approval* under it. Its Settings
+    /// page offers *Answer from the notch* only then, and says why not otherwise, rather than offering a switch
+    /// that could never do anything.
     var hasAnswerableHook: Bool {
         HookVendor.vendor(for: self).map { !$0.decidingEvents.isEmpty } ?? false
     }

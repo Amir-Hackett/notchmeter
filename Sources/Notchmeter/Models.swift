@@ -351,16 +351,33 @@ enum JSON {
     /// from a JSON number or a numeric string; nil for anything else, never a trap on an out-of-range value.
     static func count(_ value: Any?) -> Int? {
         guard let number = number(value) ?? (value as? String).flatMap({ Double($0.trimmingCharacters(in: .whitespaces)) }),
-              number.isFinite, number >= 0, number <= 9_007_199_254_740_992 else { return nil }
-        return Int(number.rounded(.down))
+              number.isFinite, number >= 0, number <= 9_007_199_254_740_992, number.rounded(.down) == number else { return nil }
+        return Int(number)
     }
 
-    /// An amount written as text ("$1,234.56", "-$0.05", "0.5"): its digits, one decimal point and its sign, read
-    /// through Decimal so the text is not rounded on the way in; nil when it holds no single number.
+    /// An amount written as text ("$1,234.56", "-$0.05", "0.5 (included)"): the one number in it, its thousands
+    /// separators dropped and its sign kept, read through Decimal so the text is not rounded on the way in. nil when
+    /// the text holds no number or more than one ("$1 + $2", "1.2.3"): digits from two amounts are never joined.
     static func money(_ text: String) -> Double? {
-        let negative = text.trimmingCharacters(in: .whitespaces).hasPrefix("-")
-        let digits = text.filter { $0.isASCII && ($0.isNumber || $0 == ".") }
-        guard !digits.isEmpty, digits.filter({ $0 == "." }).count <= 1, let decimal = Decimal(string: digits, locale: Locale(identifier: "en_US_POSIX")) else { return nil }
+        let scalars = Array(text.unicodeScalars)
+        var numbers: [(text: String, start: Int)] = []
+        var index = 0
+        func isDigit(_ i: Int) -> Bool { scalars.indices.contains(i) && scalars[i].isASCII && ("0"..."9").contains(Character(scalars[i])) }
+        while index < scalars.count {
+            guard isDigit(index) || (scalars[index] == "." && isDigit(index + 1)) else { index += 1; continue }
+            let start = index
+            var digits = "", seenPoint = false
+            while index < scalars.count {
+                if isDigit(index) { digits.unicodeScalars.append(scalars[index]) }
+                else if scalars[index] == ",", isDigit(index + 1), !seenPoint {}
+                else if scalars[index] == ".", isDigit(index + 1), !seenPoint { seenPoint = true; digits.append(".") }
+                else { break }
+                index += 1
+            }
+            numbers.append((digits, start))
+        }
+        guard numbers.count == 1, let decimal = Decimal(string: numbers[0].text, locale: Locale(identifier: "en_US_POSIX")) else { return nil }
+        let negative = scalars[..<numbers[0].start].contains { $0 == "-" || $0 == "\u{2212}" }
         let value = NSDecimalNumber(decimal: negative ? -decimal : decimal).doubleValue
         return value.isFinite ? value : nil
     }

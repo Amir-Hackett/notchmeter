@@ -29,7 +29,7 @@ enum CursorCapabilities {
 
     static func entries(_ inputs: Inputs) -> [Entry] {
         guard inputs.readsSessions else { return [Entry(feature: "everything", source: .unavailable, reason: "Cursor's sessions are not read")] }
-        let cards = inputs.mirrorCards && inputs.trusted
+        let cards = inputs.mirrorCards && inputs.trusted && inputs.running
         let cardsReason = !inputs.mirrorCards ? "Mirror Cursor's cards is off" : !inputs.trusted ? "Accessibility is not granted" : !inputs.running ? "Cursor is not running" : "reads Cursor's cards"
         var out: [Entry] = []
         out.append(inputs.hookInstalled

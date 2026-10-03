@@ -434,8 +434,52 @@ import Testing
         store.releaseCursorTree()
         await until { ui.released == 1 }
         store.releaseCursorTree()
-        await until { ui.released > 1 }
+        try? await Task.sleep(for: .milliseconds(50))
         #expect(ui.released == 1, "Cursor is told once per spell of reading")
+    }
+
+    @Test @MainActor func aPlanFileChangedWithNoHookIsReadAgain() async throws {
+        let suite = "NotchmeterTests.CursorCardStore.planfile"
+        let (store, _, defaults) = store(suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("cursor-plan-watch-\(UUID().uuidString)").resolvingSymlinksInPath()
+        defer { try? FileManager.default.removeItem(at: home) }
+        let transcript = home.appendingPathComponent(".cursor/projects/p/agent-transcripts/c1/c1.jsonl")
+        let plan = home.appendingPathComponent(".cursor/plans/watch_1a2b3c4d.plan.md")
+        try FileManager.default.createDirectory(at: transcript.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: plan.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let created = #"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CreatePlan","input":{"name":"watch","todos":[{"id":"a","content":"One"},{"id":"b","content":"Two"}]}}]}}"#
+        try Data(created.utf8 + [0x0A]).write(to: transcript)
+        func write(_ a: String, _ b: String, at date: Date) throws {
+            try "---\nname: watch\ntodos:\n  - id: a\n    content: One\n    status: \(a)\n  - id: b\n    content: Two\n    status: \(b)\n---\n"
+                .write(to: plan, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: plan.path)
+        }
+        // The store stamps what it reads with the real clock, so the hook events here are on it too: a turn dated
+        // months from the read would age the session out between them.
+        let start = Date()
+        try write("pending", "pending", at: start)
+        store.cursorHome = home
+
+        var prompt = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "c1", project: "proj", tool: .cursor)
+        prompt.transcriptPath = transcript.path
+        store.hookReceived(prompt, now: start)
+        await until { store.sessions.sessions[key("c1")]?.todos?.total == 2 }
+        #expect(store.sessions.sessions[key("c1")]?.todos?.done == 0)
+        #expect(store.sessions.sessions[key("c1")]?.planFile == plan.path)
+        store.hookReceived(Hook.Message(event: "Stop", needsInput: false, sessionID: "c1", project: "proj", tool: .cursor), now: Date())
+
+        // Nothing changed: the check costs a stat and reads nothing.
+        store.refreshChangedCursorPlans()
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(store.sessions.sessions[key("c1")]?.todos?.done == 0)
+
+        // Both ticked in Cursor's plan editor, between turns, with no hook to say so.
+        try write("completed", "completed", at: start.addingTimeInterval(60))
+        store.refreshChangedCursorPlans()
+        await until { store.sessions.sessions[key("c1")]?.todos?.done == 2 }
+        #expect(store.sessions.sessions[key("c1")]?.todos?.done == 2)
+        #expect(store.sessions.sessions[key("c1")]?.isWorking == false, "a file read is no turn")
     }
 
     @Test @MainActor func withTheSettingOffBuildPressesNothing() async {
@@ -467,6 +511,9 @@ import Testing
         inputs.mirrorCards = true
         #expect(source("build") == .openOnly, "the switch alone is not the permission")
         inputs.trusted = true
+        #expect(source("build") == .openOnly, "a closed Cursor has no card to read")
+        #expect(CursorCapabilities.entries(inputs).first { $0.feature == "build" }?.reason == "Cursor is not running")
+        inputs.running = true
         #expect(source("build") == .accessibility)
         #expect(source("run approval") == .accessibility)
         inputs.requireApproval = true
@@ -483,7 +530,9 @@ import Testing
 @Suite struct CursorNumberValidation {
     @Test func countsAreWholeFiniteAndNonNegative() {
         #expect(JSON.count(42) == 42)
-        #expect(JSON.count(42.9) == 42)
+        #expect(JSON.count(42.0) == 42)
+        #expect(JSON.count(42.9) == nil, "a fraction of a token is no count, and is not rounded into one")
+        #expect(JSON.count("1.5") == nil)
         #expect(JSON.count("17") == 17)
         #expect(JSON.count(-1) == nil)
         #expect(JSON.count(1e300) == nil, "Int(1e300) would trap the app")
@@ -501,6 +550,12 @@ import Testing
         #expect(JSON.money("-") == nil)
         #expect(JSON.money("1.2.3") == nil, "two decimal points are no number")
         #expect(JSON.money("") == nil)
+        #expect(JSON.money("$1 + $2") == nil, "two amounts are never joined into twelve dollars")
+        #expect(JSON.money("0.05 (2 requests)") == nil)
+        #expect(JSON.money("$12") == 12)
+        #expect(JSON.money(".5") == 0.5)
+        #expect(JSON.money("\u{2212}$3.10") == -3.1, "a typographic minus is a minus")
+        #expect(JSON.money("1,000,000.25") == 1_000_000.25)
     }
 
     @Test func eventTimesOutsideAnyPossibleCursorEventAreDropped() {

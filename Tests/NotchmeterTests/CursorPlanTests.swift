@@ -172,4 +172,52 @@ import Testing
                                                   tool: .cursor, event: nil, environment: [:], branch: { _ in nil }, requestID: "r"))
         #expect(elsewhere.transcriptPath == nil)
     }
+
+    @Test func aSecondPlanInTheSameChatStartsFromItsOwnList() throws {
+        // The first plan's name and file are the first plan's: a later CreatePlan with no name must not be matched
+        // to the old file, nor have the old file's tasks laid over its list.
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("cursor-second-plan-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("first_1a2b3c4d.plan.md")
+        try "---\nname: first\ntodos:\n  - id: a\n    content: One\n    status: completed\n  - id: b\n    content: Two\n    status: completed\n---\n"
+            .write(to: file, atomically: true, encoding: .utf8)
+
+        var follower = CursorPlanFollower()
+        func line(_ input: String) -> Data {
+            Data(#"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"CreatePlan","input":\#(input)}]}}"#.utf8 + [0x0A])
+        }
+        _ = follower.feed(line(#"{"name":"first","todos":[{"id":"a","content":"One"},{"id":"b","content":"Two"}]}"#))
+        let overlaid = follower.readPlanFile(file)
+        #expect(overlaid)
+        #expect(follower.planFile == file.path && follower.planName == "first")
+        #expect(follower.plan.done == 2)
+
+        _ = follower.feed(line(#"{"todos":[{"id":"a","content":"Something else"},{"id":"z","content":"New"}]}"#))
+        #expect(follower.planName == nil, "a plan with no name does not keep the last plan's")
+        #expect(follower.planFile == nil, "nor its file")
+        #expect(follower.plan.done == 0 && follower.plan.total == 2)
+        #expect(follower.items.map(\.id) == ["a", "z"])
+    }
+
+    @Test func aPlanFilesQuotedScalarsAreReadWithoutTheirQuotes() throws {
+        // Cursor writes `content: "Run: echo one"`; YAML allows single quotes as well, a quote inside doubled.
+        let text = [
+            "---",
+            "name: 'it''s a plan'",
+            "todos:",
+            "  - id: 'pick-number'",
+            #"    content: "Run: echo \"one\"""#,
+            "    status: 'completed'",
+            #"  - id: "second""#,
+            "    content: 'Say ''hi'''",
+            #"    status: "in_progress""#,
+            "---",
+        ].joined(separator: "\n")
+        let call = try #require(CursorPlanFiles.call(parsing: text))
+        #expect(call.name == "it's a plan")
+        #expect(call.todos.map(\.id) == ["pick-number", "second"])
+        #expect(call.todos.map(\.status) == [.completed, .inProgress], "a quoted status is still a status")
+        #expect(call.todos.map(\.content) == [#"Run: echo "one""#, "Say 'hi'"])
+    }
 }

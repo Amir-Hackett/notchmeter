@@ -161,7 +161,9 @@ final class UsageStore {
     /// Each Cursor transcript followed for its task list, by path, and the ones being read now (followCursorPlan).
     /// `cursorPlanAgain` is a conversation whose transcript changed while its read was already running; one coalesced
     /// read follows when the current one finishes, so a `TodoWrite` that lands mid-read is not left until a later event.
-    @ObservationIgnored private var cursorPlans: [String: (key: String, follower: CursorPlanFollower)] = [:]
+    @ObservationIgnored private var cursorPlans: [String: FollowedCursorPlan] = [:]
+    /// Whose `~/.cursor` the plan and transcript paths are checked against; a test's is a folder of its own.
+    @ObservationIgnored var cursorHome: URL = Paths.home
     @ObservationIgnored private var cursorPlanReads: Set<String> = []
     @ObservationIgnored private var cursorPlanAgain: [String: (sessionID: String, host: String?)] = [:]
     /// Cursor's own cards on screen, by session (CursorAccessibility), while *Mirror Cursor's cards* is on.
@@ -2282,7 +2284,7 @@ final class UsageStore {
     /// the transcript overlays the statuses Cursor's plan UI is showing.
     func followCursorPlan(_ message: Hook.Message) {
         guard message.agentID == nil, let sessionID = message.sessionID, let path = message.transcriptPath,
-              let url = CursorPlans.transcript(path) else { return }
+              let url = CursorPlans.transcript(path, home: cursorHome) else { return }
         if cursorPlanReads.contains(path) {
             cursorPlanAgain[path] = (sessionID, message.host)
             return
@@ -2291,10 +2293,10 @@ final class UsageStore {
         // A transcript whose conversation the panel no longer follows (dismissed, aged out) is let go.
         cursorPlans = cursorPlans.filter { sessions.sessions[$0.value.key] != nil }
         let follower = cursorPlans[path]?.follower ?? CursorPlanFollower()
-        let named = message.planFile.flatMap { CursorPlanFiles.allowed($0) }
-        let home = Paths.home
+        let home = cursorHome
+        let named = message.planFile.flatMap { CursorPlanFiles.allowed($0, home: home) }
         Task { [weak self] in
-            let (read, changed, grew) = await Task.detached(priority: .utility) { () -> (CursorPlanFollower, Bool, Bool) in
+            let (read, changed, grew, modified) = await Task.detached(priority: .utility) { () -> (CursorPlanFollower, Bool, Bool, Date?) in
                 var follower = follower
                 let start = follower.offset
                 var changed = follower.read(url)
@@ -2303,13 +2305,39 @@ final class UsageStore {
                     changed = follower.readPlanFile(plan) || changed
                 }
                 let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.uint64Value ?? 0
-                return (follower, changed, follower.offset > start && size > follower.offset)
+                return (follower, changed, follower.offset > start && size > follower.offset, follower.planFile.flatMap(Self.modified))
             }.value
-            self?.cursorPlanRead(read, changed: changed, grew: grew, path: path, sessionID: sessionID, host: message.host)
+            self?.cursorPlanRead(read, changed: changed, grew: grew, planFileModified: modified, path: path, sessionID: sessionID, host: message.host)
         }
     }
 
-    private func cursorPlanRead(_ follower: CursorPlanFollower, changed: Bool, grew: Bool, path: String, sessionID: String, host: String?) {
+    /// One transcript being followed: its session, the list replayed so far, and when its plan file was last seen
+    /// changed, so a change no hook announced is seen too (refreshChangedCursorPlans).
+    private struct FollowedCursorPlan {
+        var key: String
+        var sessionID: String
+        var host: String?
+        var follower: CursorPlanFollower
+        var planFileModified: Date?
+    }
+
+    private nonisolated static func modified(_ path: String) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date
+    }
+
+    /// A plan file that changed with no hook to say so (a to-do ticked in Cursor's plan editor between turns) has
+    /// its chat's list read again. One `stat` per followed plan, on the once-a-second loop the card watch runs on.
+    func refreshChangedCursorPlans() {
+        guard prefs.readsSessions(of: .cursor) else { return }
+        for (path, entry) in cursorPlans where !cursorPlanReads.contains(path) {
+            guard let file = entry.follower.planFile, let modified = Self.modified(file), modified != entry.planFileModified else { continue }
+            var message = Hook.Message(event: "afterAgentResponse", needsInput: false, sessionID: entry.sessionID, host: entry.host, tool: .cursor)
+            message.transcriptPath = path
+            followCursorPlan(message)
+        }
+    }
+
+    private func cursorPlanRead(_ follower: CursorPlanFollower, changed: Bool, grew: Bool, planFileModified: Date?, path: String, sessionID: String, host: String?) {
         cursorPlanReads.remove(path)
         let key = SessionTracker.key(tool: .cursor, session: sessionID, host: host)
         // Dismissed while the read was on: the plan must not bring the row back.
@@ -2318,7 +2346,7 @@ final class UsageStore {
             cursorPlanAgain[path] = nil
             return
         }
-        cursorPlans[path] = (key, follower)
+        cursorPlans[path] = FollowedCursorPlan(key: key, sessionID: sessionID, host: host, follower: follower, planFileModified: planFileModified)
         if changed, prefs.readsSessions(of: .cursor) {
             var message = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: sessionID, host: host, tool: .cursor)
             message.todos = prefs.sessionTitles ? follower.plan : follower.plan.withoutContent()
@@ -2640,12 +2668,14 @@ extension UsageStore {
     }
 
     /// One read of Cursor's windows a second while wanted, off the main actor; nothing at all otherwise. Turning
-    /// the setting off hands Cursor's accessibility tree back (CursorUIControlling.release).
+    /// the setting off hands Cursor's accessibility tree back (CursorUIControlling.release). The same loop looks
+    /// at each followed plan file's date, whatever the setting (refreshChangedCursorPlans).
     func startCursorWatch() {
         cursorWatch?.cancel()
         cursorWatch = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
+                self.refreshChangedCursorPlans()
                 if self.cursorWatchWanted {
                     let ui = self.cursorUI
                     self.cursorTreeAsked = true

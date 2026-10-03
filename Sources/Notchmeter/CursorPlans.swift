@@ -76,7 +76,9 @@ struct CursorPlanFollower: Equatable, Sendable {
 
     private mutating func apply(_ call: CursorPlans.Call) {
         if call.created {
-            if let name = call.name, !name.isEmpty { planName = name }
+            // Another plan: the last one's name and file are the last one's, and its file must not overlay this list.
+            planName = call.name.flatMap { $0.isEmpty ? nil : $0 }
+            planFile = nil
             items = call.todos.compactMap { todo in
                 guard let id = todo.id else { return nil }
                 return Item(id: id, content: todo.content, status: todo.status?.plan ?? .pending)
@@ -266,8 +268,12 @@ enum CursorPlanFiles {
         let prefix = key + ":"
         guard line.hasPrefix(prefix) else { return nil }
         var value = line.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces)
+        // YAML's two quoted scalars: Cursor writes `content: "Run: echo one"`, and a serializer may as well write
+        // 'single quotes', where a quote inside is doubled.
         if value.count >= 2, value.hasPrefix("\""), value.hasSuffix("\"") {
-            value = String(value.dropFirst().dropLast())
+            value = String(value.dropFirst().dropLast()).replacingOccurrences(of: "\\\"", with: "\"").replacingOccurrences(of: "\\\\", with: "\\")
+        } else if value.count >= 2, value.hasPrefix("'"), value.hasSuffix("'") {
+            value = String(value.dropFirst().dropLast()).replacingOccurrences(of: "''", with: "'")
         }
         return value.isEmpty ? nil : value
     }

@@ -331,11 +331,17 @@ final class LiveCursorUI: CursorUIControlling, @unchecked Sendable {
 
     func press(_ card: CursorCard, option: String) -> CursorPressResult {
         guard trusted, let app = application() else { return .unavailable }
-        // The same card, read again: same window, same words, same buttons.
-        guard let window = windows(of: app).first(where: { (attribute($0, kAXTitleAttribute) as? String ?? "") == card.window }) else { return .gone }
-        var budget = Self.nodeBudget
-        let current = CursorCards.detect(in: snapshot(window, depth: 0, budget: &budget), title: card.window)
-        guard let same = current.first(where: { $0.id == card.id }), let target = same.options.first(where: { $0.label == option }),
+        // The same card, read again: same window, same words, same buttons. Two windows on one workspace share a
+        // title, so each of that title is read until one holds the card.
+        var found: (window: AXUIElement, card: CursorCard)?
+        for window in windows(of: app) where (attribute(window, kAXTitleAttribute) as? String ?? "") == card.window {
+            var budget = Self.nodeBudget
+            if let same = CursorCards.detect(in: snapshot(window, depth: 0, budget: &budget), title: card.window).first(where: { $0.id == card.id }) {
+                found = (window, same)
+                break
+            }
+        }
+        guard let (window, same) = found, let target = same.options.first(where: { $0.label == option }),
               let element = element(at: target.path, from: window),
               CursorCards.normalized(label(of: element)) == option else { return .gone }
         guard AXUIElementPerformAction(element, kAXPressAction as CFString) == .success else { return .gone }
