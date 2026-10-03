@@ -10,7 +10,7 @@
 <!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
 
 <meta property="og:title" content="How much is your prompt cache actually costing you?">
-<meta property="og:description" content="A miss costs 12.5 to 20 times what the hit would have. Claude Code now says when it happens and why; here is how to read it.">
+<meta property="og:description" content="On most Claude models a miss costs 12.5 to 20 times what the hit would have. Claude Code now says when it happens and why; here is how to read it.">
 <meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
 <meta property="og:url" content="https://www.notchmeter.com/guides/prompt-cache-cost.html">
 <meta property="og:site_name" content="Notchmeter">
@@ -44,11 +44,11 @@
     <div class="wrap">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Guides</a> <span aria-hidden="true">›</span> Prompt cache cost</nav>
       <h1>How much is your prompt cache actually costing you?</h1>
-      <p class="lede">Prompt caching is why a long Claude Code session costs a fraction of what its token count suggests. It is also where some of the day's most expensive turns hide: a cache miss writes back what the cache already held, at a write rate, instead of reading it at a tenth of the input price.</p>
+      <p class="lede">Prompt caching is why a long Claude Code session costs a fraction of what its token count suggests. It is also where some of the day's most expensive turns hide: a cache miss writes back what the cache already held, at a write rate, instead of reading it at a tenth of the input price or less.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
         <li class="stamp">Tested on Notchmeter 0.9.13</li>
-        <li>Rates from Anthropic's pricing page, 2026-09-01</li>
+        <li>Rates from Anthropic's pricing page, 2026-09-24</li>
       </ul>
     </div>
   </header>
@@ -56,14 +56,14 @@
   <div class="wrap guide-body">
     <div class="answer">
       <p class="label">The short answer</p>
-      <p>A cache read costs a tenth of the input rate. A cache write costs 1.25 times it on the 5-minute tier and twice it on the 1-hour tier. So a miss costs 12.5 to 20 times what the hit would have: rewriting 310,000 tokens on Opus 5 is about $3.10 on the 1-hour tier, where reading them would have been $0.16. Claude Code reports its own misses in the status line (since 2.1.251) and their causes (since 2.1.260). Notchmeter prices those rewrites and names the cause. It never infers a miss from a transcript, where a miss and the first turn of a session look exactly alike.</p>
+      <p>A cache read costs a tenth of the input rate on most models (a twentieth on Opus 5.5, a fortieth on Fable 5.1 and Mythos 5.1). A cache write costs 1.25 times it on the 5-minute tier and twice it on the 1-hour tier. So on a model that reads at a tenth, a miss costs 12.5 to 20 times what the hit would have: rewriting 310,000 tokens on Opus 5 is about $3.10 on the 1-hour tier, where reading them would have been $0.16. Claude Code reports its own misses in the status line (since 2.1.251) and their causes (since 2.1.260). Notchmeter prices those rewrites and names the cause. It never infers a miss from a transcript, where a miss and the first turn of a session look exactly alike.</p>
     </div>
 
     <h2 id="multipliers">What each part of the cache costs</h2>
     <p>Anthropic prices the cache as multiples of a model's base input rate, and they stack with the other modifiers, US-only residency included.</p>
     <div class="tablewrap" role="region" aria-label="Cache prices for three models" tabindex="0">
       <table class="dtable">
-        <caption>Dollars per million tokens, from Anthropic's pricing page on 2026-09-01</caption>
+        <caption>Dollars per million tokens, from Anthropic's pricing page on 2026-09-24</caption>
         <thead><tr><th scope="col">Part</th><th scope="col">Multiplier</th><th scope="col" class="num">Opus 5</th><th scope="col" class="num">Sonnet 5</th><th scope="col" class="num">Haiku 4.5</th></tr></thead>
         <tbody>
           <tr><th scope="row">Input (no cache)</th><td>1 ×</td><td class="num">5.00</td><td class="num">2.00</td><td class="num">1.00</td></tr>
@@ -73,7 +73,7 @@
         </tbody>
       </table>
     </div>
-    <p>Fable 5.1 and Mythos 5.1 read from the cache at 0.025 ×, not 0.1 ×, which makes a miss on those models even more lopsided.</p>
+    <p>Opus 5.5 reads from the cache at 0.05 × ($0.20 a million), and Fable 5.1 and Mythos 5.1 at 0.025 ×, not 0.1 ×, which makes a miss on those models even more lopsided.</p>
     <div class="tablewrap" role="region" aria-label="What 310,000 tokens cost as a hit and as a miss" tabindex="0">
       <table class="dtable">
         <caption>The same 310,000 cached tokens, read as a hit or rewritten after a miss</caption>
@@ -128,7 +128,7 @@
       <ul>
         <li><a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md#the-prompt-cache">docs/accuracy.md, The prompt cache</a> and <em>The cache tier shift</em>: the rules, pinned by <code>PromptCacheTests</code> and <code>StatuslineTests</code>.</li>
         <li>Anthropic, <a href="https://code.claude.com/docs/en/statusline">Status line</a>: the <code>prompt_cache</code> object and its fields.</li>
-        <li>Anthropic, <a href="https://platform.claude.com/docs/en/about-claude/pricing">Pricing</a>, prompt-caching multipliers, read 2026-09-01.</li>
+        <li>Anthropic, <a href="https://platform.claude.com/docs/en/about-claude/pricing">Pricing</a>, prompt-caching multipliers, read 2026-09-01, and the per-model rates, read 2026-09-24.</li>
         <li>Anthropic, <a href="https://code.claude.com/docs/en/agent-sdk/cost-tracking">Track cost and usage</a>, on the 1-hour and 5-minute tiers, read 2026-09-01.</li>
       </ul>
     </div>
