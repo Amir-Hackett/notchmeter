@@ -112,60 +112,46 @@ enum SettingsPane: Hashable, Identifiable, CaseIterable {
         }
     }
 
-    /// One family and one fill weight across the app's panes. An outline glyph beside a solid one reads as two
-    /// sets rather than one list, which is what the first pass shipped: gearshape and terminal were outlines
-    /// against a solid bell and puzzle piece. Every tile is a fill now, and each glyph has to hold at 11 pt — two
-    /// crossed tools (`wrench.and.screwdriver`) turn to mush at that size, so Advanced wears a single wrench.
-    /// An assistant's page wears the symbol on its card and beside its rings instead: there the glyph's job is to
-    /// be recognised as that assistant, which a new drawing would undo.
+    /// Line icons, one weight down the whole list, and no tiles behind them (since 0.9.12, the owner's choice from
+    /// drawings of four styles, 2026-10-02): the filled glyphs on coloured tiles read as a dozen colours and two icon
+    /// sets. Each glyph has to hold at 14 pt — two crossed tools (`wrench.and.screwdriver`) turn to mush small, so
+    /// Advanced wears a single wrench. An assistant's page wears the symbol on its card and beside its rings
+    /// instead: there the glyph's job is to be recognised as that assistant, which a new drawing would undo.
     /// `SettingsSidebarTiles` asserts each of these still resolves; a name macOS does not know draws nothing at
     /// all, with no warning and no crash.
     var symbol: String {
         switch self {
-        case .general: return "gearshape.fill"
-        case .dashboard: return "chart.bar.fill"
-        case .appearance: return "paintpalette.fill"
+        case .general: return "gearshape"
+        case .dashboard: return "chart.bar"
+        case .appearance: return "paintpalette"
         // Not `terminal.fill`: Gemini CLI's own mark is the terminal, and the Assistants row sits directly above
         // Gemini's page, so the two read as one row drawn twice. A grid is the pages under it.
-        case .assistants: return "square.grid.2x2.fill"
-        case .notifications: return "bell.fill"
-        case .integrations: return "powerplug.fill"
-        case .advanced: return "wrench.adjustable.fill"
+        case .assistants: return "square.grid.2x2"
+        case .notifications: return "bell"
+        case .integrations: return "powerplug"
+        case .advanced: return "wrench.adjustable"
         case .agent(let tool): return tool.symbolName
         }
     }
 
-    /// The glyph's colour on its tile: white on every tile, the chrome's and the assistants' alike. A black glyph
-    /// on the assistants' light ring colours once sat under white glyphs on saturated chrome tiles in the same
-    /// list, two icon systems stacked on top of each other, and the sidebar read as two lists. The assistants'
-    /// tiles wear their deep tone for it (`tint`). `SettingsSidebarTiles` measures every one.
-    var glyph: Color { .white }
-
-    /// The tile behind the glyph. Palette.warn and Palette.danger are deliberately absent: they mean "needs
-    /// attention" and "out" a few rows to the right in this same window, and a sidebar that wore them at rest
-    /// would read as alarmed.
-    ///
-    /// Every tile carries an 11 pt semibold white glyph (`glyph`), so
-    /// every tile owes it the 3:1 WCAG 1.4.11 asks of a graphical object. Slate, a fixed sRGB grey, measures
-    /// 6.45:1 against white in both appearances; the system's `.gray` would be 2.87:1 in dark, and the system
-    /// colours do not buy adaptivity here (Increase Contrast returns the same sRGB values), so check a replacement
-    /// against `SettingsSidebarTiles` rather than against the eye.
-    ///
-    /// Since 0.9.11 the app's own panes all wear slate, and colour in the sidebar is the assistants' alone. Seven
-    /// hues for the chrome beside eight for the assistants made fifteen tiles in a dozen colours, three of them
-    /// greens and four purples, so colour told no row from another and the list read as noise (the owner,
-    /// 2026-10-02: "I'm not liking these colors"). Grey chrome leaves the glyphs to tell the panes apart and the
-    /// colours to say which rows are assistants, in the colours their rings wear.
-    var tint: Color {
-        switch self {
-        case .general, .dashboard, .appearance, .assistants, .notifications, .integrations, .advanced: return Palette.slate
-        // Its own hue in the deep tone its rings wear on Paper, not the light tone they wear on the notch's black:
-        // the light tones carry only a black glyph (white is 1.3:1 on Copilot's yellow), and a black-glyph tile
-        // among the white-glyph chrome tiles broke the list in two. The deep tones carry white at 5.1 to 5.9:1,
-        // the band the chrome tiles sit in (5.2 to 6.5), so all fifteen read as one set and each keeps its hue.
-        case .agent(let tool): return PanelInk.tool(tool).onPaper.color
-        }
+    /// The icon's colour, with no tile behind it. The app's own panes are in the system's secondary grey, so they
+    /// recede; each assistant is in its own hue, the only colour in the list, so colour says "an assistant" and
+    /// which one. Under Dark that is the colour its rings wear on the notch's black; under Light, the deep tone they
+    /// wear on Paper, because the notch's light tints (Copilot's yellow above all) fade on a light sidebar. Either
+    /// is moved in lightness by the least that clears 3:1 on `sidebar` (`RGB.readable`), which today lifts only
+    /// OpenCode's orchid in Dark (2.7:1 as it is), so the hue stays the assistant's own.
+    var iconColor: Color {
+        guard let tool else { return Color(nsColor: .secondaryLabelColor) }
+        let ink = PanelInk.tool(tool)
+        let light = ink.onPaper.readable(against: [Self.sidebar.light], target: 3, lighter: false)
+        let dark = ink.onBlack.readable(against: [Self.sidebar.dark], target: 3, lighter: true)
+        return Color(nsColor: .adaptive(light: light.hex, dark: dark.hex))
     }
+
+    /// The sidebar's ground for the icons' contrast. It is a vibrant material whose colour follows the desktop
+    /// behind it, so each is taken on the side that costs a coloured icon contrast: a little darker than its usual
+    /// light grey, a little lighter than its usual dark one.
+    static let sidebar = (light: RGB(hex: 0xD8D8D8), dark: RGB(hex: 0x3A3A3A))
 }
 
 struct SettingsView: View {
@@ -347,12 +333,11 @@ struct SettingsView: View {
             Label {
                 Text(item.sidebarTitle).fontWeight(item == pane ? .semibold : .regular)
             } icon: {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(item.tint)
+                Image(systemName: item.symbol)
+                    .symbolVariant(.none)
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(item.iconColor)
                     .frame(width: 20, height: 20)
-                    // Filled where the symbol has a fill, as every chrome glyph is, so an assistant's outline mark
-                    // (Kimi's moon, Gemini's terminal) carries the same weight of white as the tiles around it.
-                    .overlay(Image(systemName: item.symbol).symbolVariant(.fill).font(.system(size: 11, weight: .semibold)).foregroundStyle(item.glyph))
                     // Decoration: the row already says "General" in words, and VoiceOver would otherwise read
                     // the pane name twice, once as the glyph's own name.
                     .accessibilityHidden(true)
@@ -418,10 +403,14 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
-            .padding(.bottom, -4)
-            // Over the Form, not under it: the pad above pulls the Form up into the header, and the search field,
-            // set on the title's baseline, hangs below the title's frame, so the Form (the later sibling, drawn
-            // over it) cut off the field's bottom border and the title's descenders.
+            .padding(.bottom, 10)
+            // A solid ground and a gap under it: the header used to be pulled 4 pt down into the Form and drawn over
+            // it with nothing behind it, so a scrolled pane's rows slid up under the title and the search field and
+            // read through them (the owner, 2026-10-02: "the search needs a little gap when you're scrolling").
+            // Now the rows pass beneath the window's own colour and stop 10 pt short of the field.
+            .background(Color(nsColor: .windowBackgroundColor))
+            // Over the Form, not under it: the search field, set on the title's baseline, hangs below the title's
+            // frame, and the Form (the later sibling) would otherwise draw over the field's bottom border.
             .zIndex(1)
             Form {
                 paneContent

@@ -60,14 +60,14 @@ import Testing
     }
 }
 
-/// The sidebar's tiles carry an 11 pt white glyph, which makes each one a graphical object owing WCAG 1.4.11's
-/// 3:1. The system colours do not earn it by being system colours: `.gray` is 2.87:1 against white in the dark
-/// appearance, and Increase Contrast hands back the identical sRGB values, so a tile that fails fails with every
-/// system remedy on. The numbers are measured in the appearance the window is actually drawn in — the app applies
-/// its own Appearance preference to the window — rather than in whichever one the test machine happens to be set
-/// to.
+/// The sidebar's icons stand on the sidebar itself since 0.9.12, with no tile behind them, so each assistant's icon
+/// is a graphical object owing WCAG 1.4.11's 3:1 against the sidebar. The numbers are measured in the appearance the
+/// window is drawn in — the app applies its own Appearance preference to the window — rather than in whichever one
+/// the test machine happens to be set to, against `SettingsPane.sidebar`.
 @MainActor
 @Suite struct SettingsSidebarTiles {
+    static let ground: [NSAppearance.Name: NSColor] = [.aqua: NSColor(SettingsPane.sidebar.light.color), .darkAqua: NSColor(SettingsPane.sidebar.dark.color)]
+
     /// WCAG's relative luminance, on the sRGB values the appearance resolves the colour to.
     static func luminance(_ colour: NSColor) -> Double {
         guard let srgb = colour.usingColorSpace(.sRGB) else { return 0 }
@@ -83,8 +83,18 @@ import Testing
         return (max(a, b) + 0.05) / (min(a, b) + 0.05)
     }
 
-    /// A symbol name macOS does not know is not an error anywhere: `Image(systemName:)` draws nothing, the tile
-    /// keeps its colour, and the row goes out with an empty square. Only a test notices.
+    /// `ToolID.color` and the icon colours are adaptive, a fresh provider on every read, so two reads are never equal
+    /// as `Color` values: they are compared as the sRGB values they resolve to under an appearance instead.
+    static func resolved(_ colour: Color, under name: NSAppearance.Name) throws -> String {
+        let appearance = try #require(NSAppearance(named: name))
+        var out: NSColor?
+        appearance.performAsCurrentDrawingAppearance { out = NSColor(colour).usingColorSpace(.sRGB) }
+        let c = try #require(out)
+        return String(format: "%02X%02X%02X", Int((c.redComponent * 255).rounded()), Int((c.greenComponent * 255).rounded()), Int((c.blueComponent * 255).rounded()))
+    }
+
+    /// A symbol name macOS does not know is not an error anywhere: `Image(systemName:)` draws nothing and the row
+    /// goes out with an empty space where its icon was. Only a test notices.
     @Test func everyPaneNamesASymbolThisMacCanDraw() {
         for pane in SettingsPane.allCases {
             #expect(NSImage(systemSymbolName: pane.symbol, accessibilityDescription: nil) != nil,
@@ -92,63 +102,65 @@ import Testing
         }
     }
 
-    /// One fill weight across the app's own panes, so the sidebar reads as one list. Outline and solid glyphs side
-    /// by side were the first pass's mistake; this pins the fix rather than trusting the next editor to see it.
-    @Test func theAppPanesGlyphsShareOneFillWeight() {
+    /// Line icons down the app's own panes, so the sidebar reads as one list: a filled glyph among outlines was
+    /// the first sidebar's mistake, and the filled set on tiles was the owner's complaint in 0.9.11.
+    @Test func theAppPanesWearLineIcons() {
         for pane in SettingsPane.app {
-            #expect(pane.symbol.hasSuffix(".fill"), "\(pane.title) wears \(pane.symbol), which is not a fill")
+            #expect(!pane.symbol.hasSuffix(".fill"), "\(pane.title) wears \(pane.symbol), which is filled")
         }
     }
 
-    /// An assistant's page wears its own card's symbol and its own hue, in the deep tone its rings wear on Paper,
-    /// so the sidebar and the notch name it the same way and the tile carries the white glyph every other tile does.
-    @Test func anAssistantsPageWearsItsCardsSymbolInItsDeepTone() throws {
-        // `ToolID.color` is adaptive since 0.9.0, a fresh provider on every read, so two reads are never equal as
-        // `Color` values: the tint and the ring colour are compared as the sRGB values they resolve to under each
-        // appearance instead.
-        func resolved(_ colour: Color, under appearance: NSAppearance) throws -> String {
-            var out: NSColor?
-            appearance.performAsCurrentDrawingAppearance { out = NSColor(colour).usingColorSpace(.sRGB) }
-            let c = try #require(out)
-            return String(format: "%02X%02X%02X", Int((c.redComponent * 255).rounded()), Int((c.greenComponent * 255).rounded()), Int((c.blueComponent * 255).rounded()))
+    /// The app's own panes are grey, so the only colour in the list is the assistants'.
+    @Test func theAppPanesAreTheSystemsSecondaryGrey() throws {
+        for name in [NSAppearance.Name.aqua, .darkAqua] {
+            let grey = try Self.resolved(Color(nsColor: .secondaryLabelColor), under: name)
+            for pane in SettingsPane.app {
+                #expect(try Self.resolved(pane.iconColor, under: name) == grey, "\(pane.title) in \(name.rawValue)")
+            }
         }
-        let aqua = try #require(NSAppearance(named: .aqua))
-        let darkAqua = try #require(NSAppearance(named: .darkAqua))
+    }
+
+    /// An assistant's page wears its own card's symbol in the colour its rings wear: on the notch's black under
+    /// Dark, and in their deep tone on Paper under Light, so the sidebar and the notch name it the same way. Where
+    /// that colour falls short on the sidebar it is moved in lightness alone, so it is still recognisably the same.
+    @Test func anAssistantsPageWearsItsCardsSymbolInItsRingColour() throws {
+        var moved: [String] = []
         for tool in ToolID.allCases {
             let pane = SettingsPane.agent(tool)
+            let ink = PanelInk.tool(tool)
             #expect(pane.symbol == tool.symbolName)
-            let deep = PanelInk.tool(tool).onPaper.color
-            #expect(try resolved(pane.tint, under: aqua) == resolved(deep, under: aqua), "\(tool)'s page in light")
-            #expect(try resolved(pane.tint, under: darkAqua) == resolved(deep, under: darkAqua), "\(tool)'s page in dark")
             #expect(pane.title == tool.productName)
+            for (name, ring) in [(NSAppearance.Name.aqua, ink.onPaper), (.darkAqua, ink.onBlack)] {
+                let icon = try Self.resolved(pane.iconColor, under: name)
+                guard icon != ring.description.dropFirst() else { continue }
+                moved.append("\(tool) \(name.rawValue)")
+                var drawn: NSColor?
+                try #require(NSAppearance(named: name)).performAsCurrentDrawingAppearance { drawn = NSColor(pane.iconColor) }
+                #expect(Self.contrast(try #require(drawn), NSColor(ring.color)) < 1.5, "\(tool)'s icon in \(name.rawValue) is no longer its ring colour")
+            }
         }
+        #expect(moved == ["opencode NSAppearanceNameDarkAqua"], "the icons that leave their ring colour: \(moved)")
     }
 
-    /// White on every tile, measured against each tile in both appearances.
-    @Test func everyTileClearsThreeToOneAgainstItsGlyphInBothAppearances() throws {
-        for name in [NSAppearance.Name.aqua, .darkAqua] {
+    /// Every assistant's icon against the sidebar in both appearances.
+    @Test func everyAssistantsIconClearsThreeToOneOnTheSidebar() throws {
+        for (name, ground) in Self.ground {
             let appearance = try #require(NSAppearance(named: name))
             appearance.performAsCurrentDrawingAppearance {
-                for pane in SettingsPane.allCases {
-                    let ratio = Self.contrast(NSColor(pane.tint), NSColor(pane.glyph))
-                    #expect(ratio >= 3, "\(pane.title) is \(ratio) against its glyph in \(name.rawValue)")
+                for tool in ToolID.allCases {
+                    let ratio = Self.contrast(NSColor(SettingsPane.agent(tool).iconColor), ground)
+                    #expect(ratio >= 3, "\(tool) is \(ratio) against the sidebar in \(name.rawValue)")
                 }
             }
         }
     }
 
-    /// The reason the assistants' tiles wear their deep tone rather than their ring colour on the notch: those are
-    /// light tints chosen for the panel's black, and a white glyph would vanish on the lightest of them.
-    @Test func aWhiteGlyphWouldFailOnAnAssistantsOwnColour() {
-        let ratios = ToolID.allCases.map { Self.contrast(NSColor($0.color), .white) }
-        #expect(ratios.contains { $0 < 3 }, "every identity colour now carries white: \(ratios)")
-    }
-
-    /// One glyph colour down the whole list: a black glyph on some tiles and white on others read as two lists.
-    @Test func everyTileWearsTheSameWhiteGlyph() {
-        for pane in SettingsPane.allCases {
-            #expect(NSColor(pane.glyph).usingColorSpace(.sRGB) == NSColor.white.usingColorSpace(.sRGB), "\(pane.title)'s glyph is not white")
-        }
+    /// The reason Light takes the deep tone rather than the ring colour on the notch: those are light tints chosen
+    /// for the panel's black, and the lightest of them fades on a light sidebar.
+    @Test func theNotchsOwnColoursWouldFadeOnALightSidebar() throws {
+        let light = try #require(Self.ground[.aqua])
+        let ratios = ToolID.allCases.map { Self.contrast(NSColor(PanelInk.tool($0).onBlack.color), light) }
+        #expect(ratios.contains { $0 < 3 }, "every ring colour now clears a light sidebar: \(ratios)")
     }
 
     /// No chrome pane borrows an assistant's mark: the Assistants row once wore the terminal, Gemini CLI's own
@@ -156,7 +168,7 @@ import Testing
     @Test func noAppPaneWearsAnAssistantsSymbol() {
         let marks = Set(ToolID.allCases.map { $0.symbolName.replacingOccurrences(of: ".fill", with: "") })
         for pane in SettingsPane.app {
-            #expect(!marks.contains(pane.symbol.replacingOccurrences(of: ".fill", with: "")), "\(pane.title) wears \(pane.symbol), an assistant's mark")
+            #expect(!marks.contains(pane.symbol), "\(pane.title) wears \(pane.symbol), an assistant's mark")
         }
     }
 
@@ -182,16 +194,6 @@ import Testing
             let line = text.substring(to: start).components(separatedBy: "\n").count
             let styled = segment.components(separatedBy: modifier).count - 1
             #expect(styled == 1, "the disclosure at SettingsWindow.swift:\(line) wears SettingsDisclosureStyle \(styled) times")
-        }
-    }
-
-    /// General is the pane the window opens on, so its tile is the first one a low-vision reader meets. It wears a
-    /// fixed sRGB grey rather than `.gray`, which is the worst tile in the sidebar at 2.87:1 in the dark.
-    @Test func theDefaultPanesTileIsTheOneSystemGreyCouldNotBe() throws {
-        let dark = try #require(NSAppearance(named: .darkAqua))
-        dark.performAsCurrentDrawingAppearance {
-            #expect(Self.contrast(NSColor(SettingsPane.general.tint), .white) > 6)
-            #expect(Self.contrast(NSColor(.gray), .white) < 3, "system grey against white in the dark appearance")
         }
     }
 }
