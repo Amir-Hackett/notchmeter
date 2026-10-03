@@ -407,6 +407,7 @@
 "Hook repaired" = "훅을 수리했습니다";
 "Hover delay" = "마우스 오버 지연";
 "Hover the rings. The panel opens." = "링에 마우스를 올리면 패널이 열립니다.";
+"News across the notch: who needs you, and why." = "노치를 가로지르는 소식: 누가 당신을 필요로 하는지, 그리고 왜.";
 "Icon style" = "아이콘 스타일";
 "Importing %@…" = "%@ 가져오는 중…";
 "In the Cost card" = "비용 카드에 표시";
@@ -1002,7 +1003,7 @@
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "첫 어시스턴트는 노치 왼쪽에, 나머지는 오른쪽에 놓입니다. 패널 카드와 가장자리 알약도 같은 순서를 따릅니다. 어시스턴트의 나머지 설정은 사이드바의 어시스턴트 아래에 있는 각자의 페이지에 있습니다.";
 "These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "이 설정은 모든 어시스턴트에 적용됩니다. 각 어시스턴트 페이지에서 그 어시스턴트의 한도 알림과 기다림·턴 종료 알림을 뺄 수 있습니다.";
 "Open Claude Code in Settings…" = "설정에서 Claude Code 열기…";
-"The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "설정의 여섯 개 창과 Claude Code 전용 페이지: 위치, 마우스 오버 또는 항상 열림, 백업이 있는 훅 설치.";
+"Settings: a black or paper panel, your accent, and a page for each assistant." = "설정: 검은색 또는 종이색 패널, 강조 색상, 어시스턴트마다 한 페이지.";
 /* 0.9.0: Gemini CLI and Antigravity as two rows, Kimi Code (CodeAssistProvider, KimiProvider, KimiHookFile, HookSettings, SettingsWindow) */
 "%@ already defines hooks in a form Notchmeter does not edit, so it was left untouched: paste the snippet instead" = "%@은(는) Notchmeter가 편집하지 않는 형식으로 이미 훅을 정의하고 있어 변경하지 않았습니다. 대신 스니펫을 붙여 넣으세요";
 "Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota" = "Antigravity는 자체 로그인을 키체인에 보관합니다. 그 할당량을 읽으려면 같은 Google 계정으로 Gemini CLI에 로그인하세요 (`gemini` 실행 후 Login with Google 선택)";

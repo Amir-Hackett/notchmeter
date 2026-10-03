@@ -424,6 +424,7 @@
 "Hook repaired" = "Hook réparé";
 "Hover delay" = "Délai de survol";
 "Hover the rings. The panel opens." = "Survolez les anneaux. Le panneau s'ouvre.";
+"News across the notch: who needs you, and why." = "Les nouvelles de part et d'autre de l'encoche : qui a besoin de vous, et pourquoi.";
 "Icon style" = "Style d'icône";
 "Importing %@…" = "Importation de %@…";
 "In the Cost card" = "Dans la carte Coût";
@@ -1019,7 +1020,7 @@
 "The first assistant sits left of the notch and the rest to its right; the panel's cards and the edge pills follow the same order. Everything else about an assistant is on its own page, listed under Assistants in the sidebar." = "Le premier assistant se place à gauche de l'encoche et les autres à sa droite ; les cartes du panneau et les pastilles de bord suivent le même ordre. Tout le reste d'un assistant se trouve sur sa propre page, sous Assistants dans la barre latérale.";
 "These apply to every assistant. Each assistant's page can leave out its own limit notices and its own waiting and finished-turn notices." = "Ces réglages s'appliquent à tous les assistants. La page de chaque assistant peut omettre ses propres notifications de limite et ses notifications d'attente et de tour terminé.";
 "Open Claude Code in Settings…" = "Ouvrir Claude Code dans les Réglages…";
-"The six Settings panes and Claude Code's own page: position, hover or always open, hook install with a backup." = "Les six sections des Réglages et la page propre à Claude Code : position, survol ou toujours ouvert, installation du hook avec sauvegarde.";
+"Settings: a black or paper panel, your accent, and a page for each assistant." = "Réglages : un panneau noir ou papier, votre couleur d'accent et une page pour chaque assistant.";
 /* 0.9.0: Gemini CLI and Antigravity as two rows, Kimi Code (CodeAssistProvider, KimiProvider, KimiHookFile, HookSettings, SettingsWindow) */
 "%@ already defines hooks in a form Notchmeter does not edit, so it was left untouched: paste the snippet instead" = "%@ définit déjà des hooks sous une forme que Notchmeter ne modifie pas ; il n'a pas été modifié : collez plutôt l'extrait";
 "Antigravity keeps its own login in the Keychain; sign in to Gemini CLI with the same Google account (run `gemini` and choose Login with Google) to read its quota" = "Antigravity garde sa propre connexion dans le trousseau ; connectez-vous à Gemini CLI avec le même compte Google (lancez `gemini` et choisissez Login with Google) pour lire son quota";

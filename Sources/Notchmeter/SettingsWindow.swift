@@ -8,6 +8,9 @@ import UniformTypeIdentifiers
 @MainActor
 @Observable
 final class SettingsRequests {
+    /// `--render-gallery`: the sidebar without the selection's fill. Drawn offscreen the window is never key, and
+    /// its selected row came out as a black bar with no label; the row keeps its heavier title, the other cue.
+    var rendersSelectionFill = true
     /// The one-time first-launch offer: open on the Claude Code hook section with the offer sheet up.
     var hookOffer = false
     /// `--smoke`: drive the hook-install sheet against this file instead of settings.json, then close it.
@@ -332,8 +335,15 @@ struct SettingsView: View {
     /// that fill is often the inactive grey, which makes the second cue do real work rather than being belt and
     /// braces.) The assistants' pages are indented under Assistants, which reads as "these belong to that" without
     /// a disclosure to open first; the whole row stays the click target.
-    private var sidebar: some View {
-        List(SettingsPane.sidebar(order: prefs.toolOrder), selection: $pane) { item in
+    @ViewBuilder private var sidebar: some View {
+        if requests.rendersSelectionFill {
+            sidebarFrame(List(SettingsPane.sidebar(order: prefs.toolOrder), selection: $pane) { sidebarRow($0) })
+        } else {
+            sidebarFrame(List(SettingsPane.sidebar(order: prefs.toolOrder), selection: .constant(Optional<SettingsPane>.none)) { sidebarRow($0) })
+        }
+    }
+
+    private func sidebarRow(_ item: SettingsPane) -> some View {
             Label {
                 Text(item.sidebarTitle).fontWeight(item == pane ? .semibold : .regular)
             } icon: {
@@ -349,7 +359,11 @@ struct SettingsView: View {
             }
             .padding(.vertical, 2)
             .padding(.leading, item.tool == nil ? 0 : 10)
-        }
+    }
+
+    /// The sidebar list's style and width, whichever selection it is drawn with.
+    private func sidebarFrame<Content: View>(_ list: Content) -> some View {
+        list
         .listStyle(.sidebar)
         // Wide enough for the longest pane names in the shipped languages: at the width the split view chose on
         // its own (about 145 pt) the German "Erscheinungsbild" came out as "Erscheinun…", and Russian, Spanish,
