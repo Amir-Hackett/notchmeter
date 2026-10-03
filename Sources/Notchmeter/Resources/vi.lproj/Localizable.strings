@@ -909,7 +909,7 @@
 "Finished" = "Đã xong";
 "Opens the panel on this session" = "Mở bảng ở phiên này";
 "Show assistant symbols in the rings" = "Hiện biểu tượng trợ lý trong các vòng";
-"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "Biểu tượng của mỗi trợ lý, cái trên thẻ của nó, vẽ nhỏ ở giữa các vòng, hoặc ở góc khi ba vòng để lại quá ít chỗ, dành cho khi khó phân biệt màu của các trợ lý.";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, for when the assistants' colours are hard to tell apart. The rings grow a little to make room for it." = "Biểu tượng của mỗi trợ lý, cái trên thẻ của nó, vẽ nhỏ ở giữa các vòng, dành cho khi khó phân biệt màu của các trợ lý. Các vòng to ra một chút để có chỗ cho nó.";
 "Show news in the notch" = "Hiện tin trong notch";
 "%@ needs approval" = "%@ cần phê duyệt";
 "%@ has a question" = "%@ có câu hỏi";

@@ -926,7 +926,7 @@
 "Finished" = "Готово";
 "Opens the panel on this session" = "Открывает панель на этой сессии";
 "Show assistant symbols in the rings" = "Показывать значки ассистентов в кольцах";
-"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "Значок каждого ассистента — тот, что на его карточке, — мелко в центре его колец или на их углу, когда при трёх кольцах места слишком мало: на случай, если цвета ассистентов трудно различить.";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, for when the assistants' colours are hard to tell apart. The rings grow a little to make room for it." = "Значок каждого ассистента — тот, что на его карточке, — мелко в центре его колец: на случай, если цвета ассистентов трудно различить. Кольца немного увеличиваются, чтобы освободить для него место.";
 "Show news in the notch" = "Показывать новости в вырезе";
 "%@ needs approval" = "%@ ждёт одобрения";
 "%@ has a question" = "У %@ вопрос";

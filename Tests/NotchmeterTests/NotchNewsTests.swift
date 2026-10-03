@@ -1,4 +1,6 @@
+import AppKit
 import Foundation
+import SwiftUI
 import Testing
 @testable import Notchmeter
 
@@ -243,23 +245,48 @@ import Testing
 
     // MARK: - The symbol in the rings
 
-    @Test func theSymbolSitsInTheMiddleOfOneRingAndBesideAnyMore() {
-        guard case .centre(let one) = CompactRings.glyph(rings: 1) else {
-            Issue.record("One ring leaves the whole middle free, even quiet.")
-            return
+    /// Since 0.9.10 the symbol sits in the middle of the rings whatever their count: the owner saw one symbol in its
+    /// ring and the next beside its nest (2026-10-02), and the nest grows to `symbolSide` to make room.
+    @Test func theSymbolHasRoomInTheMiddleOfEveryNest() {
+        for rings in 1...3 {
+            for quiet in [false, true] {
+                #expect(CompactRings.hole(rings: rings, quiet: quiet) >= 6, "\(rings) ring(s), quiet \(quiet): a hole a symbol reads in")
+            }
         }
-        #expect(one >= CompactRings.smallestCentreGlyph)
-        #expect(CompactRings.glyph(rings: 2) == .beside(CompactRings.besideGlyph),
-                "The quiet two-ring nest leaves a hole under six points, and the place is the quiet nest's in both states.")
-        #expect(CompactRings.glyph(rings: 3) == .beside(CompactRings.besideGlyph), "Three rings leave a hole the size of a dot.")
+        #expect(CompactRings.nest(count: 3, quiet: false, symbol: true)[0].diameter == CompactRings.symbolSide)
+        #expect(CompactRings.nest(count: 3, quiet: false)[0].diameter == CompactRings.side, "Without the symbol the nest is as it was.")
     }
 
-    /// Beside the nest the symbol has room of its own, which the fit measures; in the middle it takes none.
-    @Test func theSymbolBesideTheRingsWidensTheReadoutAndTheOneInsideDoesNot() {
-        #expect(CompactRings.width(rings: 1, symbol: true) == CompactRings.side)
-        #expect(CompactRings.width(rings: 2, symbol: false) == CompactRings.side)
-        #expect(CompactRings.width(rings: 2, symbol: true) > CompactRings.side)
-        #expect(CompactRings.width(rings: 3, symbol: true) == CompactRings.width(rings: 2, symbol: true))
+    /// The symbol takes no room of its own: the readout is its box, 22 pt with the symbol and 18 without.
+    @Test func theReadoutIsItsBox() {
+        for rings in 1...3 {
+            #expect(CompactRings.width(rings: rings, symbol: true) == CompactRings.symbolSide)
+            #expect(CompactRings.width(rings: rings, symbol: false) == CompactRings.side)
+        }
+    }
+
+    /// Every assistant's symbol, drawn as the rings draw it, has its visible shape centred on the rings' centre and
+    /// inside the clear disc of the innermost ring, at every ring count. Rendered, not reasoned about: an SF
+    /// Symbol's box is not where its ink is. The glyph is drawn four times over (it is vector, so it scales
+    /// cleanly) and measured there, so the reading is in quarter points rather than in the 2x render's half-point
+    /// pixels, whose rounding alone reads as a quarter to half a point off.
+    @Test @MainActor func everySymbolsInkIsCentredAndInsideTheInnermostRing() throws {
+        let box = CompactRings.symbolSide, magnify: CGFloat = 4
+        for tool in ToolID.allCases {
+            for rings in 1...3 {
+                let fit = min(CompactRings.hole(rings: rings, quiet: false), CompactRings.largestGlyph)
+                let content = ToolGlyph(tool: tool, fit: fit).frame(width: box, height: box)
+                    .scaleEffect(magnify).frame(width: box * magnify, height: box * magnify)
+                let pixels = try #require(ImageRenderer(content: content).cgImage, "\(tool) renders")
+                let image = NSImage(cgImage: pixels, size: NSSize(width: box * magnify, height: box * magnify))
+                let ink = try #require(SymbolInk.measure(image), "\(tool) has ink")
+                let offCentre: CGFloat = max(abs(ink.offset.width), abs(ink.offset.height)) / magnify
+                let diagonal: CGFloat = (ink.width * ink.width + ink.height * ink.height).squareRoot() / magnify
+                #expect(offCentre <= 0.15, "\(tool), \(rings) ring(s): ink centred within 0.15 pt, off by \(offCentre)")
+                // A quarter point for the antialiased edge, which the measure counts as ink.
+                #expect(diagonal <= fit + 0.25, "\(tool), \(rings) ring(s): ink \(diagonal) pt across fits the clear disc of \(fit) pt")
+            }
+        }
     }
 
     // MARK: - Opening on the session

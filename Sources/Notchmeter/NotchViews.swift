@@ -360,8 +360,15 @@ struct CompactRings: View {
     /// identity colours apart.
     var symbol = false
 
-    /// Diameter and stroke for each nested ring, outermost first.
-    static func nest(count: Int, quiet: Bool) -> [(diameter: CGFloat, lineWidth: CGFloat)] {
+    /// Diameter and stroke for each nested ring, outermost first. With the assistant's symbol in the middle
+    /// (`symbol`) the nest is the roomier one in `symbolSide`, with thinner inner rings, so that two or three rings
+    /// still leave a hole the symbol can be read in.
+    static func nest(count: Int, quiet: Bool, symbol: Bool = false) -> [(diameter: CGFloat, lineWidth: CGFloat)] {
+        if symbol {
+            let scale: CGFloat = quiet ? 0.8 : 1
+            let rings: [(CGFloat, CGFloat)] = count > 2 ? [(22, 2), (16.5, 1.5), (11.5, 1.25)] : [(22, 2.5), (14, 2)]
+            return rings.map { (diameter: $0.0 * scale, lineWidth: $0.1 * scale) }
+        }
         let outer: CGFloat = quiet ? 14 : 18
         if count > 2 {
             return [(outer, quiet ? 2 : 2.5), (quiet ? 9.5 : 12.5, quiet ? 1.5 : 2), (quiet ? 5 : 7, quiet ? 1.25 : 1.5)]
@@ -369,40 +376,35 @@ struct CompactRings: View {
         return [(outer, quiet ? 2 : 2.5), (quiet ? 8 : 10, quiet ? 1.5 : 2)]
     }
 
-    /// Where the assistant's symbol goes: in the middle of the nest when the innermost ring leaves a hole a glyph
-    /// can be read in, and otherwise beside the nest, never over it. Anywhere over the rings would hide an arc's
-    /// end or the pace cap for the windows whose fill has reached it, and those are the shape channel for on track,
-    /// behind and nearly gone. The place is fixed by the number of rings alone, worked out on the quiet nest (the
-    /// smaller hole), so the symbol does not jump as the strip goes quiet or wakes: it is a mark learnt by where it
-    /// is as much as by its shape. One ring holds it in the middle; two leave a hole under six points and three a
-    /// dot's worth, so they carry it beside.
-    enum Glyph: Equatable {
-        case centre(CGFloat)
-        case beside(CGFloat)
-    }
+    /// The box the nest is drawn in when the assistant's symbol sits in its middle. Until 0.9.10 the symbol went in
+    /// the middle of one ring and beside a nest of two or three, whose 18 pt holes were too small to read it in, and
+    /// the strip then read as inconsistent: one symbol in its ring and the next beside it (the owner's screenshot,
+    /// 2026-10-02). Four points more, with thinner inner rings, leave room for it at every count; a nest that used
+    /// to carry its symbol beside comes out narrower than it was, and a single ring 4 pt wider.
+    static let symbolSide: CGFloat = 22
 
-    /// The smallest glyph worth drawing in the middle; below it the symbol goes beside the nest.
-    static let smallestCentreGlyph: CGFloat = 6
-    /// The symbol's size beside the nest, and the gap between them.
-    static let besideGlyph: CGFloat = 8
-    static let besideGap: CGFloat = 2
+    /// The hard box for this readout: 18 pt, or `symbolSide` with the symbol in the middle.
+    static func box(symbol: Bool) -> CGFloat { symbol ? symbolSide : side }
 
-    static func glyph(rings: Int) -> Glyph {
-        let nest = nest(count: rings, quiet: true)
+    /// The clear disc inside the innermost ring the symbol has to fit in: the ring's inner edge less a point and a
+    /// half, so no part of the symbol touches an arc or the pace cap on it.
+    static func hole(rings: Int, quiet: Bool) -> CGFloat {
+        let nest = nest(count: rings, quiet: quiet, symbol: true)
         let innermost = nest[max(0, min(rings, nest.count) - 1)]
-        let hole = innermost.diameter - innermost.lineWidth - 1
-        return hole >= smallestCentreGlyph ? .centre(min(hole, 9)) : .beside(besideGlyph)
+        return innermost.diameter - innermost.lineWidth - 1.5
     }
 
-    /// The width the readout takes: the 18 pt box, and the symbol beside it when that is where it goes.
-    static func width(rings: Int, symbol: Bool) -> CGFloat {
-        guard symbol, case .beside(let size) = glyph(rings: rings) else { return side }
-        return side + besideGap + size + 2
-    }
+    /// The largest the symbol's visible shape is drawn, so a lone ring does not carry a symbol out of scale with
+    /// the others.
+    static let largestGlyph: CGFloat = 11
+
+    /// The width the readout takes: its box, which holds the symbol as well when there is one.
+    static func width(rings: Int, symbol: Bool) -> CGFloat { box(symbol: symbol) }
 
     var body: some View {
         let quiet = presence == .quiet
-        let nest = Self.nest(count: windows.count, quiet: quiet)
+        let nest = Self.nest(count: windows.count, quiet: quiet, symbol: symbol)
+        let box = Self.box(symbol: symbol)
         let painted = signalColours ? signal : nil
         ZStack {
             ZStack {
@@ -423,50 +425,176 @@ struct CompactRings: View {
                             .frame(width: pair.1.diameter, height: pair.1.diameter)
                     }
                     if let contextUsed {
-                        ContextArc(fraction: contextUsed, diameter: quiet ? 18 : 22)
+                        // Outside the nest, whichever nest it is.
+                        ContextArc(fraction: contextUsed, diameter: (quiet ? 18 : 22) + (symbol ? 4 : 0))
                     }
                     if status.problem != nil {
                         ProblemMark()
                     }
-                    if symbol, status.problem == nil, case .centre(let size) = Self.glyph(rings: windows.count) {
-                        ToolGlyph(tool: tool, size: size)
+                    if symbol, status.problem == nil {
+                        ToolGlyph(tool: tool, fit: min(Self.hole(rings: max(1, windows.count), quiet: quiet), Self.largestGlyph))
                     }
                 }
             }
             .opacity(presence.readoutOpacity)
             if presence != .hidden, let signal {
-                SignalMark(signal: signal).offset(SignalMark.cornerOffset(of: signal, in: Self.side))
+                SignalMark(signal: signal).offset(SignalMark.cornerOffset(of: signal, in: box))
             }
         }
-        .frame(width: Self.side, height: Self.side)
-        .overlay(alignment: .leading) {
-            // Beside the nest, in room of its own the fit measures (`width`), so it covers no arc and no cap. Kept,
-            // invisible, while the rings are a dot, so the strip's width does not move with the presence.
-            if symbol, case .beside(let size) = Self.glyph(rings: windows.count) {
-                ToolGlyph(tool: tool, size: size)
-                    .opacity(presence == .hidden ? 0 : presence.readoutOpacity)
-                    .offset(x: Self.side + Self.besideGap)
-            }
-        }
-        .frame(width: Self.width(rings: windows.count, symbol: symbol), height: Self.side, alignment: .leading)
+        .frame(width: box, height: box)
         .opacity(status.reading == nil && status.problem == nil ? 0.5 : 1)
         .animation(AccessibilityDisplay.shared.motionReduced ? nil : .snappy(duration: 0.4), value: presence)
     }
 }
 
-/// An assistant's symbol (ToolID.symbolName, the one on its card) at ring size. White, for the reason the signal
-/// marks are: it has to read on any of the identity colours and on the black notch, and the shape is the point
-/// of it. It never sits over a ring, so it needs no backing to keep an arc out of its outline.
-private struct ToolGlyph: View {
+/// An assistant's symbol (ToolID.symbolName, the one on its card) in the middle of its rings. White, for the reason
+/// the signal marks are: it has to read on any of the identity colours and on the black notch, and the shape is the
+/// point of it.
+///
+/// It is placed by its visible shape, not by its box. An SF Symbol's box is laid out for type, and the ink inside it
+/// is not centred: the cursor arrow leans to its tip, and `</>` is half again as wide as it is tall. Centring the box
+/// put some symbols visibly off the ring's centre and let a wide one touch the inner ring, so the shape is measured
+/// once (SymbolInk), sized so its whole extent fits the clear disc inside the innermost ring (`fit`), and moved so
+/// the middle of the ink is the middle of the rings.
+struct ToolGlyph: View {
     let tool: ToolID
-    let size: CGFloat
+    /// The diameter of the disc the symbol's visible shape must fit inside.
+    let fit: CGFloat
 
     var body: some View {
-        Image(systemName: tool.symbolName)
-            .font(.system(size: size, weight: .bold))
-            .foregroundStyle(.white)
-            .frame(width: size + 2, height: size + 2)
+        if let ink = SymbolInk.placed(tool.symbolName, fit: fit) {
+            // A whole, even number of points, so the canvas centred in the even box starts on a whole point: a
+            // fractional side put its origin on a half point, which layout rounds, half a point off the middle.
+            let side = (max(ink.size.width, ink.size.height) / 2 + 1).rounded(.up) * 2
+            // The image is the symbol's ink and nothing else, so its centre is the ink's centre; drawn in a canvas,
+            // which places it at the exact point, where a laid-out image's origin is rounded to the pixel grid.
+            Canvas { context, size in
+                var symbol = context.resolve(Image(nsImage: ink).renderingMode(.template))
+                symbol.shading = .color(.white)
+                context.draw(symbol, in: CGRect(x: (size.width - ink.size.width) / 2, y: (size.height - ink.size.height) / 2,
+                                                width: ink.size.width, height: ink.size.height))
+            }
+            .frame(width: side, height: side)
             .accessibilityHidden(true)
+        }
+    }
+}
+
+/// An SF Symbol's ink: the symbol drawn into a bitmap and cut down to its visible pixels. It is measured at the size it
+/// is drawn at rather than scaled from a large one, because a symbol is redrawn for small point sizes, and it is
+/// drawn as the cut-down bitmap rather than as a symbol image, because SwiftUI lays a symbol image out by its own
+/// alignment box. Both shortcuts were tried, and each put some symbols half a point or more off the rings' centre.
+@MainActor
+enum SymbolInk {
+    struct Shape: Equatable {
+        /// The ink's extent.
+        var width: CGFloat
+        var height: CGFloat
+        /// The ink's centre less the image's centre, in view coordinates (y grows down).
+        var offset: CGSize
+
+        var diagonal: CGFloat { (width * width + height * height).squareRoot() }
+    }
+
+    static let reference: CGFloat = 40
+    /// Pixels a point in the bitmap a symbol is cut from: fine enough that the cut is within an eighth of a point.
+    static let density: CGFloat = 8
+    private static var placements: [String: NSImage] = [:]
+
+    /// The symbol's ink, a template image sized in points, at the largest point size whose ink's diagonal is no more
+    /// than `fit`. A first size comes from the shape at `reference`; each size is then measured as drawn and shrunk
+    /// by what it is over, which settles in a pass or two.
+    static func placed(_ name: String, fit: CGFloat) -> NSImage? {
+        let key = "\(name)@\(fit)"
+        if let known = placements[key] { return known }
+        guard let large = image(name, pointSize: reference), let shape = measure(large), shape.diagonal > 0 else { return nil }
+        var size = reference * fit / shape.diagonal
+        var cut: NSImage?
+        for _ in 0..<4 {
+            guard let image = image(name, pointSize: size), let raster = raster(image, density: density),
+                  let ink = raster.cut() else { return nil }
+            let width = CGFloat(ink.width) / density, height = CGFloat(ink.height) / density
+            guard let pixels = raster.bitmap.cgImage?.cropping(to: ink) else { return nil }
+            let cropped = NSImage(cgImage: pixels, size: NSSize(width: width, height: height))
+            cropped.isTemplate = true
+            cut = cropped
+            let diagonal = (width * width + height * height).squareRoot()
+            if diagonal <= fit { break }
+            size *= fit / diagonal * 0.99
+        }
+        guard let cut else { return nil }
+        placements[key] = cut
+        return cut
+    }
+
+    static func image(_ name: String, pointSize: CGFloat) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: pointSize, weight: .bold))
+    }
+
+    /// `image` drawn into a bitmap at `density` pixels a point.
+    struct Raster {
+        let bitmap: NSBitmapImageRep
+
+        /// The pixel rectangle of every pixel whose alpha is over `threshold`, row 0 at the top as in the bitmap's
+        /// data and in a CGImage crop; nil for an empty image.
+        func ink(threshold: UInt8) -> CGRect? {
+            guard let data = bitmap.bitmapData else { return nil }
+            let width = bitmap.pixelsWide, height = bitmap.pixelsHigh, row = bitmap.bytesPerRow
+            var minX = width, maxX = -1, minY = height, maxY = -1
+            for y in 0..<height {
+                for x in 0..<width where data[y * row + x * 4 + 3] > threshold {
+                    minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+                }
+            }
+            guard maxX >= minX, maxY >= minY else { return nil }
+            return CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)
+        }
+
+        /// The rectangle to cut the symbol out by: centred on the ink that is clearly drawn (alpha over 64, what the
+        /// eye reads as the shape and what `measure` measures), and wide enough to keep every faint edge pixel. Cut
+        /// to the faint pixels alone, a symbol whose fine detail fades unevenly (a terminal's prompt, a moon's
+        /// stars, braces at seven points) came out half a point off its centre.
+        func cut() -> CGRect? {
+            guard let faint = ink(threshold: 0), let clear = ink(threshold: 64) else { return nil }
+            func span(_ centre: CGFloat, _ low: CGFloat, _ high: CGFloat) -> (CGFloat, CGFloat) {
+                // A half extent with the centre's own fraction, so the cut starts on a whole pixel.
+                let fraction = centre - centre.rounded(.down)
+                let half = (max(centre - low, high - centre) - fraction).rounded(.up) + fraction
+                return (centre - half, 2 * half)
+            }
+            let (x, width) = span(clear.midX, faint.minX, faint.maxX)
+            let (y, height) = span(clear.midY, faint.minY, faint.maxY)
+            return CGRect(x: x, y: y, width: width, height: height)
+        }
+    }
+
+    /// `image` drawn into a bitmap at `density` pixels a point, with `margin` clear pixels round it so that a cut
+    /// centred on the ink never runs off the bitmap's edge.
+    static func raster(_ image: NSImage, density: CGFloat, margin: Int = 8) -> Raster? {
+        let inner = (width: Int((image.size.width * density).rounded(.up)), height: Int((image.size.height * density).rounded(.up)))
+        let width = inner.width + 2 * margin, height = inner.height + 2 * margin
+        guard width > 0, height > 0,
+              let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8,
+                                            samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                                            bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return nil }
+        // The bitmap's own size is its pixels, so the image is drawn across all of them: drawn at its point size it
+        // filled a corner of the bitmap, and every centre came out a quarter of the way across.
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        image.draw(in: NSRect(x: CGFloat(margin), y: CGFloat(margin), width: CGFloat(inner.width), height: CGFloat(inner.height)))
+        context.flushGraphics()
+        NSGraphicsContext.restoreGraphicsState()
+        return Raster(bitmap: bitmap)
+    }
+
+    /// The extent of every pixel more than faintly drawn, and where its centre sits from the image's centre.
+    static func measure(_ image: NSImage, density: CGFloat = 4) -> Shape? {
+        guard let raster = raster(image, density: density, margin: 0), let ink = raster.ink(threshold: 64) else { return nil }
+        let size = CGSize(width: CGFloat(raster.bitmap.pixelsWide) / density, height: CGFloat(raster.bitmap.pixelsHigh) / density)
+        return Shape(width: ink.width / density, height: ink.height / density,
+                     offset: CGSize(width: ink.midX / density - size.width / 2, height: ink.midY / density - size.height / 2))
     }
 }
 

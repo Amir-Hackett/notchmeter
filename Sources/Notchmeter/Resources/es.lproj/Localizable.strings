@@ -926,7 +926,7 @@
 "Finished" = "Terminado";
 "Opens the panel on this session" = "Abre el panel en esta sesión";
 "Show assistant symbols in the rings" = "Mostrar los símbolos de los asistentes en los anillos";
-"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "El símbolo de cada asistente, el de su tarjeta, dibujado en pequeño en el centro de sus anillos, o en su esquina cuando tres anillos dejan muy poco espacio, para cuando cuesta distinguir los colores de los asistentes.";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, for when the assistants' colours are hard to tell apart. The rings grow a little to make room for it." = "El símbolo de cada asistente, el de su tarjeta, dibujado en pequeño en el centro de sus anillos, para cuando cuesta distinguir los colores de los asistentes. Los anillos crecen un poco para dejarle sitio.";
 "Show news in the notch" = "Mostrar novedades en la muesca";
 "%@ needs approval" = "%@ necesita aprobación";
 "%@ has a question" = "%@ tiene una pregunta";
