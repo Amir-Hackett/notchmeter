@@ -284,8 +284,14 @@ import os
         ready.wait()
         let started = Date()
         let result = HookSocket.send(.hook, Hook.Message(event: "Stop", needsInput: false).userInfo, to: url.path)
+        let elapsed = Date().timeIntervalSince(started)
         #expect(result == .sent(reply: nil), "a refusal from a full backlog is a reason to try again, not a missing app")
-        #expect(Date().timeIntervalSince(started) < 1)
+        // The bound is against a hang, not a stopwatch. The retries cost 35 ms, but the send then waits up to its
+        // one-second budget for the acceptor to hang up, and a loaded runner can starve this test's acceptor thread
+        // past it: CI on #129 measured 1.016 s against a one-second line, with the line sent all the same. A retry
+        // that ran out its deadline answers no listener, which the expectation above catches; this one catches a
+        // send that takes far past its budget, and sits half a budget beyond it, as d719861 did for the others.
+        #expect(elapsed < 1.5, "a full backlog must cost a few retries, not more than the budget: \(elapsed) s")
     }
 
     @Test func aHundredPeersConnectingAtOnceAreAllTaken() throws {
