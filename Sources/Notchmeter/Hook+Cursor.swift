@@ -11,7 +11,7 @@ extension Hook {
         /// Cursor name → canonical name. `stop` depends on `status` and is handled in canonicalEvent.
         static let events: [String: String] = [
             "sessionStart": "SessionStart", "sessionEnd": "SessionEnd", "beforeSubmitPrompt": "UserPromptSubmit",
-            "subagentStart": "SubagentStart", "subagentStop": "SubagentStop",
+            "subagentStart": "SubagentStart", "subagentStop": "SubagentStop", "preCompact": "PreCompact",
         ]
 
         /// Every name the reference documents, for recognising a payload that arrived on a plain --hook.
@@ -73,6 +73,12 @@ extension Hook {
             // Since 0.7.0 the prompt's first line rides along on beforeSubmitPrompt as the session's title
             // (Hook.title(fromPrompt:)); the attachments and the rest of the prompt stay unread.
             message.title = canonical == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
+            // Since 0.9.13: the model, on whichever event names one (cursor.com/docs/agent/hooks shows `model` on the
+            // tool events), and a compaction's trigger, its start alone (ToolID.reportsCompactionEnd).
+            message.reportedModel = Hook.reportedModel(object["model"])
+            // The task list's source: Cursor's hooks never fire for its to-do tool, but its transcript records it.
+            message.transcriptPath = CursorPlans.transcript(object["transcript_path"] as? String)?.path
+            if canonical == "PreCompact" { message.compaction = Hook.compactionTrigger(object["trigger"]) }
             return message
         }
 

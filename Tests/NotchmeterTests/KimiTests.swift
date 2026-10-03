@@ -318,7 +318,9 @@ import Testing
         let extras = ["SessionStart": #""source":"startup""#, "UserPromptSubmit": #""prompt":"write the tests\nand more""#, "Stop": #""stop_hook_active":false"#,
                       "StopFailure": #""error_type":"RateLimitError","error_message":"429 Too Many Requests""#,
                       "SubagentStart": #""agent_name":"coder","prompt":"secret""#, "SubagentStop": #""agent_name":"coder","response":"done""#,
-                      "SessionEnd": #""reason":"exit""#]
+                      "SessionEnd": #""reason":"exit""#,
+                      "PostToolUse": #""tool_name":"SetTodoList","tool_input":{"todos":[{"title":"Write the tests","status":"done"}]},"tool_output":"ok""#,
+                      "PreCompact": #""trigger":"auto","token_count":180000"#, "PostCompact": #""trigger":"manual-with-prompt","estimated_token_count":20000"#]
         #expect(Set(extras.keys) == Set(HookVendor.kimi.events))
         for event in HookVendor.kimi.events {
             let message = try #require(parse(payload(event, extras[event] ?? "")), "\(event)")
@@ -378,9 +380,11 @@ import Testing
         #expect(HookVendor.kimi.shape == .tomlTables)
         #expect(HookVendor.kimi.flag == "--hook --tool kimi")
         #expect(HookVendor.kimi.flag(for: "Stop") == "--hook --tool kimi", "Kimi's payload names its event, so no --event is added")
-        #expect(HookVendor.kimi.events == ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd"])
+        #expect(HookVendor.kimi.events == ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "SubagentStart", "SubagentStop", "SessionEnd", "PostToolUse",
+                                           "PreCompact", "PostCompact"])
         #expect(!HookVendor.kimi.reloadsLive)
         #expect(HookVendor.kimi.matcher(for: "Stop") == nil)
+        #expect(HookVendor.kimi.matcher(for: "PostToolUse") == "SetTodoList", "the plan tool alone, so no other tool call launches the command")
         let handler = HookVendor.kimi.handler(command: "c", event: "Stop")
         #expect(NSDictionary(dictionary: handler) == ["command": "c", "timeout": 5] as NSDictionary)
     }
@@ -514,7 +518,8 @@ import Testing
         let old = "/Users/me/Downloads/Notchmeter.app/Contents/MacOS/Notchmeter"
         var text = Self.userConfig + "\n"
         for event in HookVendor.kimi.events where event != "SubagentStop" {
-            text += "\n[[hooks]]\nevent = \"\(event)\"\ncommand = \"'\(old)' --hook --tool kimi\" # ours\ntimeout = 7\n"
+            let matcher = HookVendor.kimi.matcher(for: event).map { "matcher = \"\($0)\"\n" } ?? ""
+            text += "\n[[hooks]]\nevent = \"\(event)\"\ncommand = \"'\(old)' --hook --tool kimi\" # ours\n\(matcher)timeout = 7\n"
         }
         let url = try scratchFile(text)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -567,7 +572,8 @@ import Testing
         let old = "/Users/me/Downloads/Notchmeter.app/Contents/MacOS/Notchmeter"
         var text = crlf
         for event in HookVendor.kimi.events {
-            text += "\r\n[[hooks]]\r\nevent = \"\(event)\"\r\ncommand = \"'\(old)' --hook --tool kimi\"\r\ntimeout = 5\r\n"
+            let matcher = HookVendor.kimi.matcher(for: event).map { "matcher = \"\($0)\"\r\n" } ?? ""
+            text += "\r\n[[hooks]]\r\nevent = \"\(event)\"\r\ncommand = \"'\(old)' --hook --tool kimi\"\r\n\(matcher)timeout = 5\r\n"
         }
         let url = try scratchFile(text)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }

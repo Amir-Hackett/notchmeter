@@ -27,6 +27,32 @@ import Testing
         #expect(Hook.title(fromPrompt: spaced) == trimmed, "a cut that lands on a space does not leave it before the ellipsis")
     }
 
+    /// A turn the harness wrote is no title: the row read `<agent-message from="a93fce7cf…` in 0.9.11.
+    @Test func aTurnNobodyTypedIsNoTitle() {
+        #expect(Hook.title(fromPrompt: "<agent-message from=\"a93fce7cf\">\nThe build is green.\n</agent-message>") == nil)
+        #expect(Hook.title(fromPrompt: "<task-notification>\n<task-id>b1</task-id>\n</task-notification>") == nil)
+        #expect(Hook.title(fromPrompt: "  <command-name>/clear</command-name>") == nil)
+        #expect(Hook.title(fromPrompt: "<pasted_content id=\"7\">\nTypeError: x is undefined\n</pasted_content>\nwhy") == "TypeError: x is undefined",
+                "pasted text is titled by the text, not the tag")
+        #expect(Hook.title(fromPrompt: "<div> is not centred on the page") == "<div> is not centred on the page", "a tag the harness never writes is the person's words")
+        #expect(Hook.title(fromPrompt: "<3 the new sidebar") == "<3 the new sidebar")
+    }
+
+    @Test func aTurnNobodyTypedKeepsTheSessionsTitle() throws {
+        var tracker = SessionTracker()
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        var typed = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "s", project: "notchmeter")
+        typed.title = Hook.title(fromPrompt: "Add line icons to the sidebar")
+        tracker.apply(typed, now: start)
+        let report = try #require(parse(#"{"hook_event_name":"UserPromptSubmit","session_id":"s","cwd":"/tmp/notchmeter","prompt":"<agent-message from=\"a93f\">\ndone\n</agent-message>"}"#))
+        #expect(report.harnessTurn && report.title == nil)
+        let line = try #require(Hook.Message(userInfo: report.userInfo))
+        #expect(line.harnessTurn, "the mark survives the socket")
+        tracker.apply(line, now: start.addingTimeInterval(60))
+        #expect(tracker.sessions.values.first?.title == "Add line icons to the sidebar")
+        #expect(tracker.sessions.values.first.map { if case .working = $0.state { true } else { false } } == true, "it is still a turn")
+    }
+
     /// Only a `PermissionRequest` with a tool's name, or a `PreToolUse` asking `AskUserQuestion` something, is a
     /// request; every other event, and either of those with its deciding field missing, is not, so the command
     /// never holds the socket for an answer the notch could not ask for.
@@ -276,7 +302,7 @@ import Testing
 
     @Test func everyVendorsTableMapsOntoClaudesGrammarAndPassesTheRestThrough() {
         let claude: Set<String> = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Notification", "Stop", "StopFailure",
-                                   "SubagentStart", "SubagentStop", "SessionEnd"]
+                                   "SubagentStart", "SubagentStop", "SessionEnd", "PostToolUse", "PreCompact", "PostCompact"]
         for (name, canonical) in Hook.Codex.events { #expect(claude.contains(canonical), "Codex \(name) → \(canonical)") }
         for (name, canonical) in Hook.Copilot.events { #expect(claude.contains(canonical), "Copilot \(name) → \(canonical)") }
         for (name, canonical) in Hook.Cursor.events { #expect(claude.contains(canonical), "Cursor \(name) → \(canonical)") }

@@ -1,0 +1,126 @@
+import Foundation
+import Testing
+@testable import Notchmeter
+
+/// Cursor's task list, replayed from its transcript (CursorPlans): the lines are shaped as Cursor writes them, an
+/// assistant message whose content holds a `tool_use` named `TodoWrite`.
+@Suite struct CursorPlanFollowing {
+    func line(_ input: String, name: String = "TodoWrite") -> String {
+        #"{"role":"assistant","message":{"content":[{"type":"text","text":"Updating the list."},{"type":"tool_use","name":"\#(name)","input":\#(input)}]}}"# + "\n"
+    }
+
+    func lines(_ plan: TodoPlan) -> [String] { plan.items.map { "\($0.status.rawValue) \($0.content ?? "-")" } }
+
+    @Test func aWholeListThenMergesByID() {
+        var follower = CursorPlanFollower()
+        let write = line(#"{"merge":false,"todos":[{"id":"a","content":"Create docker-compose.yml","status":"in_progress"},{"id":"b","content":"Create .gitignore","status":"pending"},{"id":"c","content":"Write the README","status":"pending"}]}"#)
+        let changed1 = follower.feed(Data(write.utf8))
+        #expect(changed1)
+        #expect(lines(follower.plan) == ["in_progress Create docker-compose.yml", "pending Create .gitignore", "pending Write the README"])
+        let merge = line(#"{"merge":true,"todos":[{"id":"a","status":"completed"},{"id":"b","content":"Create the .gitignore","status":"in_progress"}]}"#)
+        let changed2 = follower.feed(Data(merge.utf8))
+        #expect(changed2)
+        #expect(lines(follower.plan) == ["completed Create docker-compose.yml", "in_progress Create the .gitignore", "pending Write the README"],
+                "a merge changes the items it names, keeps a missing field, and leaves the rest")
+        let cancel = line(#"{"merge":true,"todos":[{"id":"c","status":"cancelled"},{"id":"d","content":"Push it","status":"pending"}]}"#)
+        let changed3 = follower.feed(Data(cancel.utf8))
+        #expect(changed3)
+        #expect(lines(follower.plan) == ["completed Create docker-compose.yml", "in_progress Create the .gitignore", "cancelled Write the README", "pending Push it"],
+                "a cancelled item stays, crossed out; a new id joins the list")
+        #expect(follower.plan.total == 3)
+        let replace = line(#"{"merge":false,"todos":[{"id":"x","content":"Start over","status":"pending"},{"id":"y","content":"Old idea","status":"cancelled"}]}"#)
+        let changed4 = follower.feed(Data(replace.utf8))
+        #expect(changed4)
+        #expect(lines(follower.plan) == ["pending Start over", "cancelled Old idea"])
+    }
+
+    @Test func aLineStillBeingWrittenWaitsForItsNewline() {
+        var follower = CursorPlanFollower()
+        let write = Data(line(#"{"merge":false,"todos":[{"id":"a","content":"One","status":"pending"},{"id":"b","content":"Two","status":"pending"}]}"#).utf8)
+        let cut = write.count / 2
+        let changed5 = follower.feed(write.prefix(cut))
+        #expect(!changed5)
+        #expect(follower.plan.total == 0)
+        let changed6 = follower.feed(write.suffix(from: cut))
+        #expect(changed6)
+        #expect(follower.plan.total == 2)
+        let other = #"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"Shell","input":{"command":"ls"}}]}}"# + "\n"
+        let changed7 = follower.feed(Data(other.utf8))
+        #expect(!changed7, "a line without the tool changes nothing")
+    }
+
+    @Test func aCallThroughCallDynamicToolIsReadToo() {
+        var follower = CursorPlanFollower()
+        let wrapped = line(#"{"namespace":"cursor","toolName":"TodoWrite","arguments":{"merge":false,"todos":[{"id":"1","content":"Read the card","status":"completed"},{"id":"2","content":"Group the rows","status":"in_progress"}]}}"#, name: "CallDynamicTool")
+        let changed8 = follower.feed(Data(wrapped.utf8))
+        #expect(changed8)
+        #expect(lines(follower.plan) == ["completed Read the card", "in_progress Group the rows"])
+        let asString = line(#"{"namespace":"cursor","toolName":"TodoWrite","arguments":"{\"merge\":true,\"todos\":[{\"id\":\"2\",\"status\":\"completed\"}]}"}"#, name: "CallDynamicTool")
+        let changed9 = follower.feed(Data(asString.utf8))
+        #expect(changed9)
+        #expect(follower.plan.done == 2)
+        let elsewhere = line(#"{"namespace":"cursor","toolName":"WebSearch","arguments":{"todos":[{"id":"9","content":"x","status":"pending"}]}}"#, name: "CallDynamicTool")
+        let changed10 = follower.feed(Data(elsewhere.utf8))
+        #expect(!changed10)
+    }
+
+    @Test func aFileIsFollowedFromWhereTheLastReadEnded() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("cursor-plans-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let folder = home.appendingPathComponent(".cursor/projects/Users-me-app/agent-transcripts/c1")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appendingPathComponent("c1.jsonl")
+        try Data(line(#"{"merge":false,"todos":[{"id":"a","content":"One","status":"in_progress"},{"id":"b","content":"Two","status":"pending"}]}"#).utf8).write(to: file)
+        var follower = CursorPlanFollower()
+        let changed11 = follower.read(file)
+        #expect(changed11)
+        let first = follower.offset
+        let changed12 = follower.read(file)
+        #expect(!changed12, "nothing added, nothing read")
+        let handle = try FileHandle(forWritingTo: file)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(line(#"{"merge":true,"todos":[{"id":"a","status":"completed"},{"id":"b","status":"in_progress"}]}"#).utf8))
+        try handle.close()
+        let changed13 = follower.read(file)
+        #expect(changed13)
+        #expect(follower.offset > first)
+        #expect(follower.plan.done == 1)
+        #expect(CursorPlans.transcript(file.path, home: home) == file.standardizedFileURL)
+    }
+
+    @Test func onlyCursorsOwnTranscriptsAreEverRead() {
+        let home = URL(fileURLWithPath: "/Users/me")
+        #expect(CursorPlans.transcript("/Users/me/.cursor/projects/p/agent-transcripts/c/c.jsonl", home: home) != nil)
+        #expect(CursorPlans.transcript("/Users/me/.cursor/projects/p/agent-transcripts/../../../../.ssh/id_rsa.jsonl", home: home) == nil)
+        #expect(CursorPlans.transcript("/Users/me/.ssh/known_hosts", home: home) == nil)
+        #expect(CursorPlans.transcript("/Users/me/.cursor/projects/p/notes.jsonl", home: home) == nil, "a transcript lives under agent-transcripts")
+        #expect(CursorPlans.transcript("/tmp/.cursor/projects/p/agent-transcripts/c.jsonl", home: home) == nil, "and in this account's home")
+        #expect(CursorPlans.transcript(nil, home: home) == nil)
+    }
+
+    @Test func aLinkInTheTranscriptsFolderCannotLeadOutOfIt() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("cursor-links-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let folder = home.appendingPathComponent(".cursor/projects/p/agent-transcripts/c")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let outside = home.appendingPathComponent("secret.jsonl")
+        try Data("{}\n".utf8).write(to: outside)
+        let link = folder.appendingPathComponent("c.jsonl")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: outside)
+        #expect(CursorPlans.transcript(link.path, home: home) == nil, "a link to a file outside ~/.cursor/projects is refused")
+        let real = folder.appendingPathComponent("d.jsonl")
+        try Data("{}\n".utf8).write(to: real)
+        #expect(CursorPlans.transcript(real.path, home: home) != nil)
+    }
+
+    @Test func theHookPassesTheTranscriptAlong() throws {
+        let path = Paths.home.appendingPathComponent(".cursor/projects/p/agent-transcripts/c/c.jsonl").path
+        let json = #"{"hook_event_name":"afterAgentResponse","conversation_id":"c","transcript_path":"\#(path)","text":"done"}"#
+        let message = try #require(Hook.message(from: Data(json.utf8), tool: .cursor, event: nil, environment: [:], branch: { _ in nil }, requestID: "r"))
+        #expect(message.transcriptPath == path)
+        #expect(Hook.Message(userInfo: message.userInfo)?.transcriptPath == path, "it survives the socket")
+        let elsewhere = try #require(Hook.message(from: Data(#"{"hook_event_name":"stop","conversation_id":"c","status":"completed","transcript_path":"/etc/passwd"}"#.utf8),
+                                                  tool: .cursor, event: nil, environment: [:], branch: { _ in nil }, requestID: "r"))
+        #expect(elsewhere.transcriptPath == nil)
+    }
+}

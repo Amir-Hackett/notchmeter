@@ -199,6 +199,12 @@ struct TodoPlan: Equatable, Sendable {
         case pending
         case inProgress = "in_progress"
         case completed
+        /// Since 0.9.13, for the assistants that have them (the owner's picks): a step waiting on something (Gemini
+        /// CLI's `blocked`), drawn with a mark of its own and still counted as to do; and a step dropped from the plan
+        /// (Cursor's, Gemini CLI's and OpenCode's `cancelled`), kept on the list crossed out in grey, with a mark of its
+        /// own, and left out of the count.
+        case blocked
+        case cancelled
     }
 
     struct Item: Equatable, Sendable {
@@ -225,7 +231,8 @@ struct TodoPlan: Equatable, Sendable {
     }
 
     var done: Int { items.count { $0.status == .completed } }
-    var total: Int { items.count }
+    /// A cancelled step is on the list but not in the count: "2/3" is what is still planned.
+    var total: Int { items.count { $0.status != .cancelled } }
 
     /// The same plan with every item's text gone and its status (and id) kept.
     func withoutContent() -> TodoPlan {
@@ -238,7 +245,7 @@ struct TodoPlan: Equatable, Sendable {
     /// at a prompt, because within a turn Claude Code may create a task, finish it and create the next.
     func sealedIfDone() -> TodoPlan {
         var plan = self
-        if !items.isEmpty, items.allSatisfy({ $0.status == .completed }) { plan.sealed = true }
+        if !items.isEmpty, items.allSatisfy({ $0.status == .completed || $0.status == .cancelled }) { plan.sealed = true }
         return plan
     }
 
@@ -865,6 +872,10 @@ struct SessionTracker: Equatable, Sendable {
         }
         if let branch = message.branch { session.branch = branch }
         if let mode = message.permissionMode { session.permissionMode = mode }
+        if let model = message.reportedModel, !session.modelFromStatusline { session.model = Hook.tidyModelName(model) }
+        // An assistant that reports only a compaction's start (ToolID.reportsCompactionEnd) has finished it by the time
+        // it sends anything else.
+        if session.compacting != nil, message.event != "PreCompact", !message.tool.reportsCompactionEnd { session.compacting = nil }
         if let terminal = message.terminal, !terminal.isEmpty { session.terminal = session.terminal?.merging(terminal) ?? terminal }
         // A subagent's task calls reach the same hook under the parent's session id, carrying its `agent_id`: they
         // are its own plan, not the session's, so they never replace or change the list on the parent's row.
@@ -894,7 +905,7 @@ struct SessionTracker: Equatable, Sendable {
             session.limitHitAt = nil
             session.finished = nil
             session.pending = nil
-            session.title = message.title
+            if !message.harnessTurn { session.title = message.title }
             // A new turn: the last one's denials and failures are the last one's, and a new instruction to the
             // lead of a team is the lead's cue to set its idle teammates going again.
             session.denials = []

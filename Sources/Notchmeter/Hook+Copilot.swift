@@ -27,7 +27,14 @@ extension Hook {
             // fires for calls that never prompt; the PascalCase event, registered under `--event`, is the one
             // whose decision output Copilot documents in Claude Code's shape.
             "PermissionRequest": "PermissionRequest",
+            "postToolUse": "PostToolUse", "preCompact": "PreCompact",
         ]
+
+        /// The tool Copilot keeps its plan with, which its hooks reference maps to Claude Code's `TodoWrite` and
+        /// documents no further. Its `postToolUse` entry is matched to this name (Copilot anchors the matcher as a
+        /// regular expression on `toolName`), and `toolArgs` is read by `Hook.plan(fromUndocumented:)`, which shows
+        /// a list only when it recognises the shape.
+        static let planTool = "update_todo"
 
         /// The two notification types the reference documents as the agent asking the user, and the only ones that
         /// light the hand. The other four (shell_completed, shell_detached_completed, agent_completed, agent_idle)
@@ -97,6 +104,11 @@ extension Hook {
                                   host: nil, tool: .copilot)
             message.title = canonical == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
             message.request = request
+            // Since 0.9.13 a compaction's trigger, its start alone (ToolID.reportsCompactionEnd).
+            if canonical == "PreCompact" { message.compaction = Hook.compactionTrigger(object["trigger"]) }
+            if canonical == "PostToolUse", ((object["toolName"] ?? object["tool_name"]) as? String) == planTool {
+                message.todos = Hook.plan(fromUndocumented: object["toolArgs"] ?? object["tool_input"])
+            }
             return message
         }
 

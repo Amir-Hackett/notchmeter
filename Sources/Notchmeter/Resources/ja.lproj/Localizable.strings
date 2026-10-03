@@ -408,6 +408,7 @@
 "Hover delay" = "ホバーの遅延";
 "Hover the rings. The panel opens." = "リングにホバーするとパネルが開きます。";
 "News across the notch: who needs you, and why." = "ノッチをまたぐお知らせ：誰があなたを必要としていて、なぜか。";
+"Every assistant's plan on its row, crossed off as it goes." = "どのアシスタントの計画もその行に。進むごとに消し込まれます。";
 "Icon style" = "アイコンのスタイル";
 "Importing %@…" = "%@ を取り込んでいます…";
 "In the Cost card" = "コストカードに表示";
@@ -902,6 +903,8 @@
 "Subagent %ld" = "サブエージェント %ld";
 "How full this session's context window is, from its status line" = "このセッションのコンテキストウインドウの使用率（ステータスラインから）";
 "In progress" = "進行中";
+"Cancelled" = "キャンセル済み";
+"Blocked by something else" = "ほかの作業待ち";
 "Completed" = "完了済み";
 "The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "各プロンプトの 1 行目（最大 96 文字）と Claude Code のタスクリストのテキストで、フックが送信し、実行中のアプリだけが保持します。オフにすると、アプリはどちらもどこにも保持する前に破棄し、行にはプロジェクトが、タスクリストには件数だけが表示されます。この設定にかかわらず、画面共有中はどちらも隠します。";
 

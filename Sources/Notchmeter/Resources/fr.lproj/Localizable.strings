@@ -425,6 +425,7 @@
 "Hover delay" = "Délai de survol";
 "Hover the rings. The panel opens." = "Survolez les anneaux. Le panneau s'ouvre.";
 "News across the notch: who needs you, and why." = "Les nouvelles de part et d'autre de l'encoche : qui a besoin de vous, et pourquoi.";
+"Every assistant's plan on its row, crossed off as it goes." = "Le plan de chaque assistant sur sa ligne, barré au fil de l’avancement.";
 "Icon style" = "Style d'icône";
 "Importing %@…" = "Importation de %@…";
 "In the Cost card" = "Dans la carte Coût";
@@ -919,6 +920,8 @@
 "Subagent %ld" = "Sous-agent %ld";
 "How full this session's context window is, from its status line" = "Le remplissage de la fenêtre de contexte de cette session, d'après sa ligne d'état";
 "In progress" = "En cours";
+"Cancelled" = "Annulée";
+"Blocked by something else" = "Bloquée par autre chose";
 "Completed" = "Terminée";
 "The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "La première ligne de chaque prompt, 96 caractères au plus, et le texte de la liste de tâches de Claude Code, que le hook envoie et que seule l'app en cours conserve. Désactivé, l'app écarte les deux avant de les stocker : la ligne affiche le projet à la place, et la liste de tâches seulement son décompte. Les deux sont masqués pendant le partage d'écran, quel que soit ce réglage.";
 

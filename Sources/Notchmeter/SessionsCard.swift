@@ -874,8 +874,8 @@ private struct SessionRow: View {
                     Image(systemName: item.status.symbol).font(.caption2.weight(.semibold)).foregroundStyle(Themed(item.status.colour))
                     Text(text ?? L("Untitled task")).font(.caption).lineLimit(2)
                         .italic(text == nil)
-                        .strikethrough(item.status == .completed)
-                        .foregroundStyle(item.status == .completed || text == nil ? AnyShapeStyle(Caption.style) : AnyShapeStyle(Ink.primary))
+                        .strikethrough(item.status == .completed || item.status == .cancelled)
+                        .foregroundStyle(item.status == .completed || item.status == .cancelled || text == nil ? AnyShapeStyle(Caption.style) : AnyShapeStyle(Ink.primary))
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(text ?? L("Untitled task"))
@@ -1039,12 +1039,15 @@ extension TodoPlan {
 }
 
 private extension TodoPlan.Status {
-    /// Shape first: an empty ring, a half-filled one, a tick.
+    /// Shape first: an empty ring, a half-filled one, a tick; a blocked step's ring is struck through, and a
+    /// cancelled one's crossed out.
     var symbol: String {
         switch self {
         case .pending: "circle"
         case .inProgress: "circle.lefthalf.filled"
         case .completed: "checkmark.circle.fill"
+        case .blocked: "nosign"
+        case .cancelled: "xmark.circle"
         }
     }
 
@@ -1053,7 +1056,8 @@ private extension TodoPlan.Status {
     @MainActor var colour: Color {
         let contrast = AccessibilityDisplay.shared.contrast
         return switch self {
-        case .pending: .secondary
+        case .pending, .cancelled: .secondary
+        case .blocked: contrast ? .white : Palette.warn
         case .inProgress: contrast ? .white : Palette.calm
         case .completed: contrast ? .white : Palette.pine
         }
@@ -1064,6 +1068,9 @@ private extension TodoPlan.Status {
         case .pending: L("Not started")
         case .inProgress: L("In progress")
         case .completed: L("Completed")
+        // Not the news's "Blocked", which is auto mode refusing a tool: this step is waiting on something.
+        case .blocked: L("Blocked by something else")
+        case .cancelled: L("Cancelled")
         }
     }
 }

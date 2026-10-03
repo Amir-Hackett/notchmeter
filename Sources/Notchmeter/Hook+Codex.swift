@@ -27,7 +27,14 @@ extension Hook {
         static let events: [String: String] = [
             "SessionStart": "SessionStart", "UserPromptSubmit": "UserPromptSubmit", "PermissionRequest": "PermissionRequest",
             "Stop": "Stop", "Interrupt": "StopFailure", "SubagentStart": "SubagentStart", "SubagentStop": "SubagentStop", "SessionEnd": "SessionEnd",
+            "PostToolUse": "PostToolUse", "PreCompact": "PreCompact", "PostCompact": "PostCompact",
         ]
+
+        /// The tool Codex keeps its plan with, the whole list per call (codex-rs `protocol/src/plan_tool.rs`, read at
+        /// rust-v0.160.0): `{explanation?, plan: [{step, status}]}`, status `pending`, `in_progress` or `completed`.
+        /// Its `PostToolUse` entry is matched to this name alone (HookVendor.matcher(for:)), which Codex applies as an
+        /// exact name, so no other tool call launches the command.
+        static let planTool = "update_plan"
 
         static func canonicalEvent(_ event: String) -> String { events[event] ?? event }
 
@@ -75,6 +82,13 @@ extension Hook {
                                   host: nil, tool: .codex)
             message.title = event == "UserPromptSubmit" && agentID == nil ? Hook.title(fromPrompt: object["prompt"]) : nil
             message.request = request
+            // Since 0.9.13: the model every payload names, a compaction's trigger (`manual` or `auto`), and the plan,
+            // from `tool_input` (its `tool_response` is only "Plan updated").
+            message.reportedModel = Hook.reportedModel(object["model"])
+            if event == "PreCompact" || event == "PostCompact" { message.compaction = Hook.compactionTrigger(object["trigger"]) }
+            if event == "PostToolUse", object["tool_name"] as? String == planTool {
+                message.todos = Hook.plan(from: (object["tool_input"] as? [String: Any])?["plan"], text: "step", statuses: Hook.planStatuses)
+            }
             return message
         }
 

@@ -281,8 +281,9 @@ import Testing
         #expect(Set(root.keys) == ["version", "hooks"])
         let hooks = try #require(root["hooks"] as? [String: Any])
         #expect(Set(hooks.keys) == Set(HookVendor.copilot.events))
-        #expect(HookVendor.copilot.events.count == 8)
-        #expect(HookVendor.copilot.events == ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "sessionEnd"])
+        #expect(HookVendor.copilot.events.count == 10)
+        #expect(HookVendor.copilot.events == ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "sessionEnd",
+                                              "postToolUse", "preCompact"])
         for event in HookVendor.copilot.events {
             let entries = try #require(hooks[event] as? [[String: Any]], "\(event)")
             #expect(entries.count == 1, "\(event)")
@@ -298,6 +299,9 @@ import Testing
             if event == "notification" {
                 #expect(Set(entry.keys) == ["type", "command", "matcher", "timeoutSec"], "\(event)")
                 #expect(entry["matcher"] as? String == "permission_prompt|elicitation_dialog", "the four other types never launch the command")
+            } else if event == "postToolUse" {
+                #expect(Set(entry.keys) == ["type", "command", "matcher", "timeoutSec"], "\(event)")
+                #expect(entry["matcher"] as? String == "update_todo", "the plan tool alone, so no other tool call launches the command")
             } else {
                 #expect(Set(entry.keys) == ["type", "command", "timeoutSec"], "\(event)")
             }
@@ -428,7 +432,8 @@ import Testing
             ],
         ]
         let merged = HookSettings.merge(into: edited, vendor: .copilot, executable: executable)
-        #expect(merged.added == ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest"])
+        #expect(merged.added == ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "postToolUse",
+                                 "preCompact"])
         #expect(merged.present == ["sessionEnd"], "a value that is not an array is left alone rather than replaced")
         #expect(merged.settings["version"] as? Int == 2, "an existing version is never overwritten")
         #expect(merged.settings["disableAllHooks"] as? Bool == false)
@@ -460,7 +465,7 @@ import Testing
         #expect(Set(written.keys) == ["version", "hooks"], "the file is Notchmeter's own and carries nothing else")
         let hooks = try #require(written["hooks"] as? [String: Any])
         #expect(Set(hooks.keys) == Set(HookVendor.copilot.events))
-        #expect(hooks.count == 8)
+        #expect(hooks.count == 10)
         for event in HookVendor.copilot.events {
             let entries = try #require(hooks[event] as? [[String: Any]], "\(event)")
             #expect(entries.first?["command"] as? String == expected(event), "\(event): every entry carries its own --event")

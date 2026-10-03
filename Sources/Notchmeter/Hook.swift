@@ -38,6 +38,8 @@ enum Hook {
     static let toolKey = "tool"
     /// The prompt's first line, on `UserPromptSubmit` only (`title(fromPrompt:)`).
     static let titleKey = "title"
+    /// Present, and true, on a `UserPromptSubmit` nobody typed (`Hook.harnessTags`).
+    static let harnessTurnKey = "harnessTurn"
     /// The request keys, present together on a deciding event and absent otherwise.
     static let awaitsDecisionKey = "awaitsDecision"
     static let requestIDKey = "requestID"
@@ -54,6 +56,12 @@ enum Hook {
     /// switch's target, origin and source; the teammate that went idle; a failed tool and whether it was an abort; a
     /// tool auto mode denied and the kind of denial; the size of a batch; and whether `cwd` is a git worktree.
     static let compactionKey = "compaction"
+    /// The model an assistant other than Claude Code names on an event (0.9.13): Codex on every payload, Cursor where
+    /// it sends one, OpenCode's plugin on a prompt. Claude Code's comes from its status line and its model switches.
+    static let reportedModelKey = "reportedModel"
+    /// The conversation's transcript a Cursor event names (0.9.13), which the app follows for Cursor's task list
+    /// (CursorPlans); only ever one of Cursor's own transcripts.
+    static let transcriptKey = "transcriptPath"
     static let modelKey = "model"
     static let fromModelKey = "from_model"
     static let modelSourceKey = "model_source"
@@ -132,6 +140,9 @@ enum Hook {
         /// The prompt's first line on `UserPromptSubmit` (`Hook.title(fromPrompt:)`); nil on every other event, and
         /// dropped by the store when *Show what a session is working on* is off.
         var title: String?
+        /// A `UserPromptSubmit` the assistant's harness wrote rather than the person (`Hook.harnessTags`): it starts
+        /// a turn but leaves the session's title as it was, where a prompt with no title clears it.
+        var harnessTurn = false
         /// A decision the assistant is holding the session for; the command waits on the socket while it is set.
         var request: Request?
         /// Where the hook process's terminal is; absent for a remote post, whose terminal is on another machine.
@@ -149,6 +160,10 @@ enum Hook {
         // no key, so every line from before them is byte for byte what it was.
         /// `trigger` on `PreCompact` and `PostCompact`.
         var compaction: Compaction.Trigger?
+        /// The model the assistant says the session runs on (`Hook.reportedModelKey`); nil when it said none.
+        var reportedModel: String?
+        /// Cursor's transcript for the conversation (`Hook.transcriptKey`, CursorPlans.transcript); nil otherwise.
+        var transcriptPath: String?
         /// The models and the source of a `PostModelSwitch`.
         var modelSwitch: ModelSwitch?
         /// The MCP server an `Elicitation` or `ElicitationResult` names.
@@ -203,12 +218,15 @@ enum Hook {
             host = userInfo?[Hook.hostKey] as? String
             tool = (userInfo?[Hook.toolKey] as? String).flatMap(ToolID.init(rawValue:)) ?? .claude
             title = (userInfo?[Hook.titleKey] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            harnessTurn = userInfo?[Hook.harnessTurnKey] as? Bool ?? false
             request = Hook.request(userInfo: userInfo)
             terminal = Hook.terminal(userInfo: userInfo)
             // Read back under the command's own limits, since a line on the socket may not be the command's.
             todos = Hook.todos(from: userInfo?[Hook.todosKey])
             task = Hook.task(userInfo: userInfo?[Hook.taskKey])
             compaction = Hook.compactionTrigger(userInfo?[Hook.compactionKey])
+            reportedModel = Hook.reportedModel(userInfo?[Hook.reportedModelKey])
+            transcriptPath = CursorPlans.transcript(userInfo?[Hook.transcriptKey] as? String)?.path
             if let to = Hook.modelID(userInfo?[Hook.modelKey]) {
                 modelSwitch = ModelSwitch(from: Hook.modelID(userInfo?[Hook.fromModelKey]), to: to,
                                           source: (userInfo?[Hook.modelSourceKey] as? String).flatMap(ModelSwitch.Source.init(rawValue:)))
@@ -241,11 +259,14 @@ enum Hook {
             // The same rule for everything 0.7.0 added: an absent field writes no key, so an event that carries
             // none of them is byte for byte the line it was.
             if let title { info[Hook.titleKey] = title }
+            if harnessTurn { info[Hook.harnessTurnKey] = true }
             if let request { info.merge(Hook.userInfo(request: request)) { _, new in new } }
             if let terminal { info.merge(Hook.userInfo(terminal: terminal)) { _, new in new } }
             if let todos { info[Hook.todosKey] = Hook.userInfo(todos: todos) }
             if let task { info[Hook.taskKey] = Hook.userInfo(task: task) }
             if let compaction { info[Hook.compactionKey] = compaction.rawValue }
+            if let reportedModel { info[Hook.reportedModelKey] = reportedModel }
+            if let transcriptPath { info[Hook.transcriptKey] = transcriptPath }
             if let modelSwitch {
                 info[Hook.modelKey] = modelSwitch.to
                 if let from = modelSwitch.from { info[Hook.fromModelKey] = from }
@@ -430,6 +451,7 @@ enum Hook {
                                   failure: event == "StopFailure" ? failure : nil,
                                   tool: tool)
             message.title = event == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
+            message.harnessTurn = event == "UserPromptSubmit" && Hook.isHarnessTurn(prompt: object["prompt"])
             message.request = request
             message.worktree = place?.worktree ?? false
             switch event {
@@ -445,7 +467,8 @@ enum Hook {
             if event == "PostToolUse" {
                 let tool = object["tool_name"] as? String
                 if tool == todoWriteTool {
-                    message.todos = Hook.todos(from: (object["tool_input"] as? [String: Any])?["todos"])
+                    // Claude Code's three statuses only: the two later ones are other assistants' (TodoPlan.Status).
+                    message.todos = Hook.plan(from: (object["tool_input"] as? [String: Any])?["todos"], text: "content", statuses: Hook.planStatuses)
                 } else {
                     message.task = Hook.taskChange(tool: tool, input: object["tool_input"], response: object["tool_response"])
                 }
@@ -480,6 +503,69 @@ enum Hook {
             return TodoPlan.Item(content: title(fromPrompt: entry["content"]), status: status)
         }
         return TodoPlan(items: items)
+    }
+
+    /// Another assistant's task list reduced as `todos(from:)` reduces Claude Code's (0.9.13): `value` is its array
+    /// of items, `text` the key each item's words are under, and `statuses` that assistant's own words for the three
+    /// states the row draws. An item whose status is not among them is dropped rather than guessed at, and nil when
+    /// the value is not an array at all.
+    static func plan(from value: Any?, text: String, statuses: [String: TodoPlan.Status]) -> TodoPlan? {
+        guard let entries = value as? [[String: Any]] else { return nil }
+        let items = entries.prefix(todoLimit).compactMap { entry -> TodoPlan.Item? in
+            guard let status = (entry["status"] as? String).flatMap({ statuses[$0] }) else { return nil }
+            return TodoPlan.Item(content: title(fromPrompt: entry[text]), status: status)
+        }
+        return TodoPlan(items: items)
+    }
+
+    /// The three states in the words Claude Code, Codex and OpenCode share.
+    static let planStatuses: [String: TodoPlan.Status] = ["pending": .pending, "in_progress": .inProgress, "completed": .completed]
+
+    /// A list whose shape no vendor documents (GitHub Copilot's `update_todo`, which its hooks reference maps to
+    /// `TodoWrite` and says no more of), read in either form a to-do tool takes: an array of items under `todos`,
+    /// `items` or `plan`, with their words under `content`, `title`, `description` or `step` and a status in
+    /// `planStatuses` (or `done`); or a Markdown checklist (`- [x] Read the card`) as a string under one of those keys
+    /// or as the whole value. Anything else is nil, so a shape this does not recognise shows no list rather than a
+    /// wrong one.
+    static func plan(fromUndocumented value: Any?) -> TodoPlan? {
+        var value = value
+        if let text = value as? String, let data = text.data(using: .utf8), let decoded = try? JSONSerialization.jsonObject(with: data),
+           decoded is [String: Any] || decoded is [Any] {
+            value = decoded
+        }
+        if let object = value as? [String: Any] {
+            guard let list = ["todos", "items", "plan"].lazy.compactMap({ object[$0] }).first else { return nil }
+            value = list
+        }
+        if let checklist = value as? String { return plan(fromChecklist: checklist) }
+        guard let entries = value as? [[String: Any]] else { return nil }
+        let statuses = planStatuses.merging(["done": .completed]) { first, _ in first }
+        let items = entries.prefix(todoLimit).compactMap { entry -> TodoPlan.Item? in
+            guard let status = (entry["status"] as? String).flatMap({ statuses[$0] }) else { return nil }
+            let words = ["content", "title", "description", "step"].lazy.compactMap { entry[$0] as? String }.first
+            return TodoPlan.Item(content: title(fromPrompt: words), status: status)
+        }
+        // An item dropped for a status this does not know would leave a count that is wrong, not short: no list.
+        return items.count < min(entries.count, todoLimit) ? nil : TodoPlan(items: items)
+    }
+
+    /// `- [ ] step` and `- [x] step` lines (also `*`, and `[X]`); an in-progress state has no Markdown form. nil when
+    /// no line is a checklist item.
+    static func plan(fromChecklist text: String) -> TodoPlan? {
+        let items = text.split(whereSeparator: \.isNewline).prefix(todoLimit * 4).compactMap { line -> TodoPlan.Item? in
+            let trimmed = line.drop { $0.isWhitespace }
+            guard trimmed.hasPrefix("- [") || trimmed.hasPrefix("* [") else { return nil }
+            let rest = trimmed.dropFirst(3)
+            guard let mark = rest.first, rest.dropFirst().first == "]" else { return nil }
+            let status: TodoPlan.Status
+            switch mark {
+            case " ": status = .pending
+            case "x", "X": status = .completed
+            default: return nil
+            }
+            return TodoPlan.Item(content: title(fromPrompt: String(rest.dropFirst(2))), status: status)
+        }
+        return items.isEmpty ? nil : TodoPlan(items: Array(items.prefix(todoLimit)))
     }
 
     /// A `TaskCreate` or `TaskUpdate` call reduced to what the plan needs: the task's id (the response's `task.id`

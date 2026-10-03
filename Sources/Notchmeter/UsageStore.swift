@@ -158,6 +158,9 @@ final class UsageStore {
     /// the follow-up armed for a chat Cursor may name after its turn has ended.
     @ObservationIgnored private var cursorNamesTried: [String: Date] = [:]
     @ObservationIgnored private var cursorNameRead: Task<Void, Never>?
+    /// Each Cursor transcript followed for its task list, by path, and the ones being read now (followCursorPlan).
+    @ObservationIgnored private var cursorPlans: [String: (key: String, follower: CursorPlanFollower)] = [:]
+    @ObservationIgnored private var cursorPlanReads: Set<String> = []
     @ObservationIgnored private var cursorNameFollowUp: Task<Void, Never>?
     /// OpenCode's sessions read from its own database while its plugin is silent (OpenCodeSessions): the loop, what
     /// the last read said of each session, the files' fingerprint at that read and when it was taken, and whether
@@ -2044,7 +2047,10 @@ final class UsageStore {
             Oracle.shared.emit("detection", Self.detectionFields(working: sessions.all.filter { $0.isDetected && $0.isWorking }.map(\.id).sorted(),
                                                                  adopted: adopted.sorted()))
         }
-        if tool == .cursor { lookUpCursorNames(now: now) }
+        if tool == .cursor {
+            lookUpCursorNames(now: now)
+            followCursorPlan(message)
+        }
         if publish {
             pruneOpenSessionLists()
             applyAwake()
@@ -2232,6 +2238,46 @@ final class UsageStore {
     /// user's Cursor state database off the main thread, one read at a time and each id at most every 30 s. Only
     /// while titles are on and the screen is not shared, checked again when the read comes back; a store with no
     /// Cursor provider (a test's) has no database to read.
+    /// Reads what Cursor added to the conversation's transcript since the last event, off the main actor, and puts
+    /// the task list it replays on the conversation's row (CursorPlans). One read per transcript at a time; an event
+    /// that arrives during one is covered by the next, since every read takes up where the last ended.
+    func followCursorPlan(_ message: Hook.Message) {
+        guard message.agentID == nil, let sessionID = message.sessionID, let path = message.transcriptPath,
+              let url = CursorPlans.transcript(path), !cursorPlanReads.contains(path) else { return }
+        cursorPlanReads.insert(path)
+        // A transcript whose conversation the panel no longer follows (dismissed, aged out) is let go.
+        cursorPlans = cursorPlans.filter { sessions.sessions[$0.value.key] != nil }
+        let follower = cursorPlans[path]?.follower ?? CursorPlanFollower()
+        Task { [weak self] in
+            let (read, changed) = await Task.detached(priority: .utility) { () -> (CursorPlanFollower, Bool) in
+                var follower = follower
+                let changed = follower.read(url)
+                return (follower, changed)
+            }.value
+            self?.cursorPlanRead(read, changed: changed, path: path, sessionID: sessionID, host: message.host)
+        }
+    }
+
+    private func cursorPlanRead(_ follower: CursorPlanFollower, changed: Bool, path: String, sessionID: String, host: String?) {
+        cursorPlanReads.remove(path)
+        let key = SessionTracker.key(tool: .cursor, session: sessionID, host: host)
+        // Dismissed while the read was on: the plan must not bring the row back.
+        guard sessions.sessions[key] != nil else {
+            cursorPlans[path] = nil
+            return
+        }
+        cursorPlans[path] = (key, follower)
+        guard changed, prefs.readsSessions(of: .cursor) else { return }
+        var message = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: sessionID, host: host, tool: .cursor)
+        message.todos = prefs.sessionTitles ? follower.plan : follower.plan.withoutContent()
+        Oracle.shared.emit("session", ["action": "plan", "tool": "cursor", "session": sessionID, "source": "transcript",
+                                       "todos": ["done": follower.plan.done, "total": follower.plan.total]])
+        var tracker = sessions
+        _ = tracker.apply(message, now: Date())
+        sessions = tracker
+        pruneOpenSessionLists()
+    }
+
     func lookUpCursorNames(now: Date = Date()) {
         guard cursorNameRead == nil, let database = (providers[.cursor] as? CursorProvider)?.stateDatabase else { return }
         cursorNamesTried = cursorNamesTried.filter { now.timeIntervalSince($0.value) < CursorChatNames.followUpWindow }
@@ -2285,6 +2331,9 @@ final class UsageStore {
         if let request = message.request { facts["request"] = request.kind.name }
         // A task list is reported by its counts, never its words.
         if let todos = message.todos { facts["todos"] = ["done": todos.done, "total": todos.total] }
+        // Since 0.9.13: the model another assistant names (an id, never words of the session's), and a turn nobody typed.
+        if let model = message.reportedModel { facts["reportedModel"] = model }
+        if message.harnessTurn { facts["harnessTurn"] = true }
         if let task = message.task { facts["task"] = ["kind": task.kind.rawValue, "status": task.deleted ? "deleted" : task.status?.rawValue as Any] }
         if message.needsInput || message.request != nil { facts["wait"] = (wait ?? message.waitKind).rawValue }
         // The 0.11 events: a trigger, a model id and its source, the MCP server's name, a tool's name, the kind of
