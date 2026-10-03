@@ -142,7 +142,8 @@ wait_for "the hook reached the app" 'o["event"] == "hook" and o.get("session") =
 answered "Allow" beforeShellExecution ',"command":"echo one"' "Allow (⌘Y)" '"permission":"allow"' allow
 answered "Deny" beforeShellExecution ',"command":"echo two"' "Deny (⌘N)" '"permission":"deny"' deny
 answered "Answer in Cursor" beforeShellExecution ',"command":"echo three"' "Answer in Cursor" '{"permission":"ask"}' pass
-answered "an MCP call, allowed" beforeMCPExecution ',"tool_name":"search","tool_input":{"query":"notchmeter"}' "Allow (⌘Y)" '"permission":"allow"' allow
+# Cursor documents an MCP call's `tool_input` as a JSON string, not an object.
+answered "an MCP call, allowed" beforeMCPExecution ',"tool_name":"search","tool_input":"{\"query\":\"notchmeter\"}"' "Allow (⌘Y)" '"permission":"allow"' allow
 
 kill -0 "$APP_PID" 2>/dev/null || { echo "FAIL: the app exited during the run" >&2; exit 1; }
 echo "e2e-cursor: all checks passed"

@@ -357,30 +357,33 @@ enum JSON {
 
     /// An amount written as text ("$1,234.56", "-$0.05", "0.5 (included)"): the one number in it, its thousands
     /// separators dropped and its sign kept, read through Decimal so the text is not rounded on the way in. nil when
-    /// the text holds no number or more than one ("$1 + $2", "1.2.3"): digits from two amounts are never joined.
+    /// the text holds no number, more than one ("$1 + $2"), or one that is not written as a number is ("1.2.3", or
+    /// "$1,2", whose comma separates no thousands): digits are never joined across what stood between them.
     static func money(_ text: String) -> Double? {
         let scalars = Array(text.unicodeScalars)
+        func isDigit(_ i: Int) -> Bool { scalars.indices.contains(i) && scalars[i].isASCII && ("0"..."9").contains(Character(scalars[i])) }
         var numbers: [(text: String, start: Int)] = []
         var index = 0
-        func isDigit(_ i: Int) -> Bool { scalars.indices.contains(i) && scalars[i].isASCII && ("0"..."9").contains(Character(scalars[i])) }
         while index < scalars.count {
             guard isDigit(index) || (scalars[index] == "." && isDigit(index + 1)) else { index += 1; continue }
             let start = index
-            var digits = "", seenPoint = false
-            while index < scalars.count {
-                if isDigit(index) { digits.unicodeScalars.append(scalars[index]) }
-                else if scalars[index] == ",", isDigit(index + 1), !seenPoint {}
-                else if scalars[index] == ".", isDigit(index + 1), !seenPoint { seenPoint = true; digits.append(".") }
-                else { break }
+            var run = ""
+            // Digits, and a comma or a point only where a digit follows it: a full stop ending a sentence is not the number's.
+            while index < scalars.count, isDigit(index) || ((scalars[index] == "," || scalars[index] == ".") && isDigit(index + 1)) {
+                run.unicodeScalars.append(scalars[index])
                 index += 1
             }
-            numbers.append((digits, start))
+            numbers.append((run, start))
         }
-        guard numbers.count == 1, let decimal = Decimal(string: numbers[0].text, locale: Locale(identifier: "en_US_POSIX")) else { return nil }
+        guard numbers.count == 1, numbers[0].text.range(of: wellFormedAmount, options: .regularExpression) != nil,
+              let decimal = Decimal(string: numbers[0].text.replacingOccurrences(of: ",", with: ""), locale: Locale(identifier: "en_US_POSIX")) else { return nil }
         let negative = scalars[..<numbers[0].start].contains { $0 == "-" || $0 == "\u{2212}" }
         let value = NSDecimalNumber(decimal: negative ? -decimal : decimal).doubleValue
         return value.isFinite ? value : nil
     }
+
+    /// Digits with an optional fraction, the whole part either unbroken or in groups of three after the first.
+    private static let wellFormedAmount = #"^(\d{1,3}(,\d{3})+|\d+)?(\.\d+)?$"#
 
     static func fraction(_ percent: Double) -> Double {
         min(max(percent / 100, 0), 1)

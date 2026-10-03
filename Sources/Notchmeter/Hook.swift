@@ -176,6 +176,9 @@ enum Hook {
         var planFile: String?
         /// The turn is a Build of the chat's plan (`Hook.planBuildKey`).
         var planBuild = false
+        /// The chat made another plan: the row's plan file and its built mark were the last plan's. Set by the
+        /// app on what it reads from a transcript (UsageStore.cursorPlanRead), never sent by a hook.
+        var planReplaced = false
         /// Cursor's composer mode on `sessionStart` and on a prompt (`Hook.composerMode`); nil otherwise.
         var composerMode: String?
         /// Cursor's `is_background_agent`, on the events that carry it.

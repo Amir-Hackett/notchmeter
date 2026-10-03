@@ -943,6 +943,10 @@ struct SessionTracker: Equatable, Sendable {
         if let mode = message.permissionMode { session.permissionMode = mode }
         if let mode = message.composerMode { session.composerMode = mode }
         if message.background { session.background = true }
+        if message.planReplaced {
+            session.planFile = nil
+            session.planBuilt = false
+        }
         if let planFile = message.planFile {
             // Another plan has not been built; the chat's first plan file changes nothing a Build already said.
             if let old = session.planFile, planFile != old { session.planBuilt = false }

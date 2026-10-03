@@ -198,6 +198,24 @@ import Testing
         #expect(follower.planFile == nil, "nor its file")
         #expect(follower.plan.done == 0 && follower.plan.total == 2)
         #expect(follower.items.map(\.id) == ["a", "z"])
+        #expect(follower.plansCreated == 2, "the store tells a new plan from the one it knew by this")
+
+        // The row drops the last plan's file and its built mark with it: View Plan and Build are not the old plan's.
+        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
+        let key = SessionTracker.key(tool: .cursor, session: "c1", host: nil)
+        var tracker = SessionTracker()
+        var build = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "c1", project: "proj", tool: .cursor)
+        build.planFile = file.path
+        build.planBuild = true
+        _ = tracker.apply(build, now: t0)
+        #expect(tracker.sessions[key]?.planFile == file.path && tracker.sessions[key]?.planBuilt == true)
+        var replaced = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: "c1", tool: .cursor)
+        replaced.todos = follower.plan
+        replaced.planReplaced = true
+        _ = tracker.apply(replaced, now: t0.addingTimeInterval(1))
+        #expect(tracker.sessions[key]?.planFile == nil, "the new plan's file is not known yet, and the old one's is not it")
+        #expect(tracker.sessions[key]?.planBuilt == false)
+        #expect(tracker.sessions[key]?.todos?.total == 2)
     }
 
     @Test func twoPlansOfOneNameAreToldApartByWhenTheyWereWritten() throws {
@@ -220,12 +238,24 @@ import Testing
         let ids: Set<String> = ["echo-one", "echo-two"]
 
         #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began, home: home) == new, "the old plan was last written before this chat began")
-        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, home: home) == new, "and with no date to go by, the file written last")
         #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began.addingTimeInterval(60), home: home) == nil,
                 "a chat that began after both were written made neither")
+
+        // Two that match equally well, with nothing to tell them apart, are two chats' plans made side by side: no
+        // transcript names its plan's file, so neither is taken, rather than one chat's row showing the other's plan.
+        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, home: home) == nil, "with no date to go by the two are a tie, and a tie is not guessed")
+        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began.addingTimeInterval(-7200), home: home) == nil,
+                "nor when both were written during the chat")
+        // A better match is not a tie: a third file sharing only the ids scores lower and changes nothing.
+        let other = plans.appendingPathComponent("another_9c9c9c9c.plan.md")
+        try "---\nname: another\ntodos:\n  - id: echo-one\n    content: one\n    status: pending\n  - id: echo-two\n    content: two\n    status: pending\n---\n"
+            .write(to: other, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.modificationDate: began.addingTimeInterval(30)], ofItemAtPath: other.path)
+        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began, home: home) == new)
+
         try FileManager.default.removeItem(at: new)
-        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began, home: home) == nil, "never the other chat's plan for want of this one's")
-        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, home: home) == old)
+        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began.addingTimeInterval(40), home: home) == nil, "never the other chat's plan for want of this one's")
+        #expect(CursorPlanFiles.match(name: "three echoes", ids: ids, since: began.addingTimeInterval(-7200), home: home) == old, "one match by name is the match")
     }
 
     @Test func aPlanFilesQuotedScalarsAreReadWithoutTheirQuotes() throws {

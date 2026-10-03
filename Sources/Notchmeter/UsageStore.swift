@@ -2321,9 +2321,12 @@ final class UsageStore {
         var host: String?
         var follower: CursorPlanFollower
         var planFileModified: Date?
+        /// When a plan with no file yet was last looked for, so the look is every `planFileSearchEvery`, not every tick.
+        var planFileSearched: Date?
     }
 
     static let planFileSearch: TimeInterval = 30
+    static let planFileSearchEvery: TimeInterval = 5
 
     private nonisolated static func modified(_ path: String) -> Date? {
         (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date
@@ -2337,8 +2340,11 @@ final class UsageStore {
         guard prefs.readsSessions(of: .cursor) else { return }
         for (path, entry) in cursorPlans where !cursorPlanReads.contains(path) {
             if entry.follower.planFile == nil {
+                // Each look lists ~/.cursor/plans and reads its plans, so it is taken every few seconds, not every tick.
                 guard entry.follower.planName != nil, let heard = sessions.sessions[entry.key]?.lastEvent,
-                      now.timeIntervalSince(heard) < Self.planFileSearch else { continue }
+                      now.timeIntervalSince(heard) < Self.planFileSearch,
+                      now.timeIntervalSince(entry.planFileSearched ?? .distantPast) >= Self.planFileSearchEvery else { continue }
+                cursorPlans[path]?.planFileSearched = now
             } else {
                 guard let file = entry.follower.planFile, let modified = Self.modified(file), modified != entry.planFileModified else { continue }
             }
@@ -2357,10 +2363,14 @@ final class UsageStore {
             cursorPlanAgain[path] = nil
             return
         }
-        cursorPlans[path] = FollowedCursorPlan(key: key, sessionID: sessionID, host: host, follower: follower, planFileModified: planFileModified)
+        // A plan made after the one this transcript was known by: its file and its built mark are not the row's.
+        let replaced = cursorPlans[path].map { follower.plansCreated > $0.follower.plansCreated } ?? false
+        cursorPlans[path] = FollowedCursorPlan(key: key, sessionID: sessionID, host: host, follower: follower, planFileModified: planFileModified,
+                                               planFileSearched: cursorPlans[path]?.planFileSearched)
         if changed, prefs.readsSessions(of: .cursor) {
             var message = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: sessionID, host: host, tool: .cursor)
             message.todos = prefs.sessionTitles ? follower.plan : follower.plan.withoutContent()
+            message.planReplaced = replaced
             message.planFile = follower.planFile
             Oracle.shared.emit("session", ["action": "plan", "tool": "cursor", "session": sessionID, "source": follower.planFile == nil ? "transcript" : "plan",
                                            "todos": ["done": follower.plan.done, "total": follower.plan.total]])

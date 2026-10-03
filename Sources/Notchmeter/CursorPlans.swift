@@ -29,6 +29,8 @@ struct CursorPlanFollower: Equatable, Sendable {
     private(set) var planName: String?
     /// The plan file whose statuses last overlayed this list, when one matched.
     private(set) var planFile: String?
+    /// How many plans the transcript has made so far, so the store can tell a new plan from the one it knew.
+    private(set) var plansCreated = 0
 
     /// The list as the row draws it; an empty one once every item is gone.
     var plan: TodoPlan { TodoPlan(items: items.map { TodoPlan.Item(id: $0.id, content: $0.content, status: $0.status) }) }
@@ -58,11 +60,11 @@ struct CursorPlanFollower: Equatable, Sendable {
         }
         partial = buffer[buffer.index(after: lastNewline)...]
         buffer = buffer[..<lastNewline]
-        let before = (items, planName, planFile)
+        let before = (items, planName, planFile, plansCreated)
         for line in buffer.split(separator: 0x0A) where CursorPlans.mentionsPlanTool(Data(line)) {
             for call in CursorPlans.calls(in: Data(line)) { apply(call) }
         }
-        return (items, planName, planFile) != before
+        return (items, planName, planFile, plansCreated) != before
     }
 
     /// Overlays statuses from the plan file Cursor keeps for this conversation. True when the list changed.
@@ -79,6 +81,7 @@ struct CursorPlanFollower: Equatable, Sendable {
             // Another plan: the last one's name and file are the last one's, and its file must not overlay this list.
             planName = call.name.flatMap { $0.isEmpty ? nil : $0 }
             planFile = nil
+            plansCreated += 1
             items = call.todos.compactMap { todo in
                 guard let id = todo.id else { return nil }
                 return Item(id: id, content: todo.content, status: todo.status?.plan ?? .pending)
@@ -205,12 +208,16 @@ enum CursorPlanFiles {
     /// match as well, and two ids match when the name does not. Two chats can make a plan of the same name with
     /// the same task ids (seen 2026-10-03: "three echoes" twice, and the new chat's row took the old plan's file
     /// and read 3/3 done), so a file last written before the conversation began (`since`, its transcript's
-    /// creation) is another conversation's, and among equals the file written last is the one.
+    /// creation) is another conversation's. Two files that match equally well after that are two chats' plans
+    /// made side by side, and nothing in a transcript says which is whose (it never names its plan's file), so
+    /// neither is taken: the row keeps the list its transcript gives it and offers no View Plan or Build, which is
+    /// better than another chat's statuses and another chat's plan behind the buttons.
     static func match(name: String?, ids: Set<String>, since: Date? = nil, home: URL = Paths.home) -> URL? {
         guard !ids.isEmpty || name != nil else { return nil }
         let folder = directory(home: home)
         guard let files = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.contentModificationDateKey]) else { return nil }
-        var best: (url: URL, score: Int, modified: Date)?
+        var best: (url: URL, score: Int)?
+        var tied = false
         for file in files where file.lastPathComponent.hasSuffix(".plan.md") {
             guard let url = allowed(file.path, home: home) else { continue }
             let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
@@ -221,9 +228,14 @@ enum CursorPlanFiles {
             let nameMatch = name != nil && call.name == name
             guard (nameMatch && overlap >= 1) || overlap >= 2 else { continue }
             let score = overlap + (nameMatch ? 100 : 0)
-            if best == nil || score > best!.score || (score == best!.score && modified > best!.modified) { best = (url, score, modified) }
+            if let current = best, score <= current.score {
+                if score == current.score { tied = true }
+                continue
+            }
+            best = (url, score)
+            tied = false
         }
-        return best?.url
+        return tied ? nil : best?.url
     }
 
     /// The frontmatter as a merge onto the transcript's list: statuses and any content the file now carries.

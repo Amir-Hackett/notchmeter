@@ -3,7 +3,8 @@
 //
 //   notch-press --trusted            exit 0 when this process may use Accessibility (the terminal's grant)
 //   notch-press --list               the labels of the buttons on Notchmeter's windows, one a line
-//   notch-press --click <x> <y>      one click at a point in AppKit screen points (origin bottom left), to open the panel
+//   notch-press --click <x> <y>      one click at a point in AppKit screen points (origin bottom left), to open the
+//                                    panel; refused unless the frontmost window at that point is Notchmeter's own
 //   notch-press <label> [seconds]    waits up to `seconds` (default 10) for a button labelled exactly so, and presses it
 //
 // It reads and presses Notchmeter's windows only, never another app's.
@@ -51,6 +52,18 @@ case "--list":
 case "--click":
     guard arguments.count == 3, let x = Double(arguments[1]), let y = Double(arguments[2]), let screen = NSScreen.screens.first else { exit(2) }
     let point = CGPoint(x: x, y: screen.frame.height - y)
+    // A click is desktop-wide, so it is posted only where the window in front at that point is Notchmeter's: a notch
+    // that has moved, or is not there, must not turn this into a click on whatever else is.
+    let own = Set(NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).map { Int($0.processIdentifier) })
+    let onScreen = (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? []
+    let front = onScreen.first { window in
+        guard let bounds = window[kCGWindowBounds as String] as? [String: CGFloat] else { return false }
+        return CGRect(x: bounds["X"] ?? 0, y: bounds["Y"] ?? 0, width: bounds["Width"] ?? 0, height: bounds["Height"] ?? 0).contains(point)
+    }
+    guard let owner = front?[kCGWindowOwnerPID as String] as? Int, own.contains(owner) else {
+        print("no Notchmeter window at \(Int(x)), \(Int(y)): not clicking")
+        exit(1)
+    }
     let source = CGEventSource(stateID: .hidSystemState)
     CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
     usleep(150_000)
