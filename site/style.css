@@ -247,11 +247,8 @@ h2 {
 .tool h3 { margin: 0 0 8px; font-size: 1.02rem; display: flex; align-items: center; gap: 9px; font-weight: 600; }
 .tool .ring { width: 11px; height: 11px; border-radius: 50%; border: 2.5px solid currentColor; flex: none; }
 .tool p { margin: 0; color: var(--text-dim); font-size: 14.6px; line-height: 1.6; }
-/* A card left over at the end takes the whole row rather than half of it, with nothing beside it. A long one
-   (.prose-columns) runs its text in two columns that line up with the text of the cards above: 62px is the grid's 16px gap
-   plus each card's 22px padding and 1px border, on both sides. */
+/* A card left over at the end, the guides' closing link, takes the whole row rather than half of it beside nothing. */
 .tools > .tool:last-child:nth-child(odd) { grid-column: 1 / -1; }
-.tool.prose-columns p { columns: 2; column-gap: 62px; }
 
 /* ---------- advice ---------- */
 
@@ -525,7 +522,6 @@ footer.bottom { border-top: 1px solid var(--line-soft); padding: 52px 0 40px; co
   .hero { padding: 56px 0 40px; }
   section { padding: 56px 0; }
   .pillars, .gap-grid, .tools, .plans, .guide-list, .related { grid-template-columns: 1fr; }
-  .tool.prose-columns p { columns: auto; }
   .guide-head, .guide-index-head { padding-top: 40px; }
   .advice { grid-template-columns: 1fr; gap: 6px; }
   nav.links { gap: 16px; }
