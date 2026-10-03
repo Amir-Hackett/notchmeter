@@ -22,6 +22,8 @@ enum Diagnostics {
         var tools: [(name: String, status: String)] = []
         var hook = ""
         var statusline = ""
+        /// Where each Cursor feature comes from (CursorCapabilities.line); empty when not gathered.
+        var cursor = ""
         var localAPI = false
         var debugLogging = false
     }
@@ -35,6 +37,7 @@ enum Diagnostics {
         for tool in facts.tools { out.append("\(tool.name): \(tool.status)") }
         out.append("hook: \(facts.hook)")
         out.append("status line: \(facts.statusline)")
+        if !facts.cursor.isEmpty { out.append("cursor: \(facts.cursor)") }
         out.append("local API: \(facts.localAPI ? "on" : "off"); debug logging: \(facts.debugLogging ? "on" : "off")")
         out.append("")
         out.append("\(logHeading)10 minutes (\(lines.count) lines):")

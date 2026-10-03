@@ -62,6 +62,12 @@ enum Hook {
     /// The conversation's transcript a Cursor event names (0.9.13), which the app follows for Cursor's task list
     /// (CursorPlans); only ever one of Cursor's own transcripts.
     static let transcriptKey = "transcriptPath"
+    /// The Cursor plan file a Build names (`~/.cursor/plans/*.plan.md`, CursorPlanFiles.allowed), its composer mode
+    /// (agent, ask, plan…), whether the conversation is a background agent, and the context fill a compaction reports.
+    static let planFileKey = "planFile"
+    static let composerModeKey = "composerMode"
+    static let backgroundKey = "background"
+    static let contextKey = "context"
     static let modelKey = "model"
     static let fromModelKey = "from_model"
     static let modelSourceKey = "model_source"
@@ -164,6 +170,14 @@ enum Hook {
         var reportedModel: String?
         /// Cursor's transcript for the conversation (`Hook.transcriptKey`, CursorPlans.transcript); nil otherwise.
         var transcriptPath: String?
+        /// The Cursor plan this turn builds or this list came from (`Hook.planFileKey`); nil otherwise.
+        var planFile: String?
+        /// Cursor's composer mode on `sessionStart` (`Hook.composerMode`); nil otherwise.
+        var composerMode: String?
+        /// Cursor's `is_background_agent`, on the events that carry it.
+        var background = false
+        /// How full the context window was, 0…1, when a compaction began (Cursor's `context_usage_percent`).
+        var context: Double?
         /// The models and the source of a `PostModelSwitch`.
         var modelSwitch: ModelSwitch?
         /// The MCP server an `Elicitation` or `ElicitationResult` names.
@@ -227,6 +241,10 @@ enum Hook {
             compaction = Hook.compactionTrigger(userInfo?[Hook.compactionKey])
             reportedModel = Hook.reportedModel(userInfo?[Hook.reportedModelKey])
             transcriptPath = CursorPlans.transcript(userInfo?[Hook.transcriptKey] as? String)?.path
+            planFile = (userInfo?[Hook.planFileKey] as? String).flatMap { CursorPlanFiles.allowed($0)?.path }
+            composerMode = Hook.composerMode(userInfo?[Hook.composerModeKey])
+            background = userInfo?[Hook.backgroundKey] as? Bool == true
+            context = Hook.contextFraction(userInfo?[Hook.contextKey])
             if let to = Hook.modelID(userInfo?[Hook.modelKey]) {
                 modelSwitch = ModelSwitch(from: Hook.modelID(userInfo?[Hook.fromModelKey]), to: to,
                                           source: (userInfo?[Hook.modelSourceKey] as? String).flatMap(ModelSwitch.Source.init(rawValue:)))
@@ -267,6 +285,10 @@ enum Hook {
             if let compaction { info[Hook.compactionKey] = compaction.rawValue }
             if let reportedModel { info[Hook.reportedModelKey] = reportedModel }
             if let transcriptPath { info[Hook.transcriptKey] = transcriptPath }
+            if let planFile { info[Hook.planFileKey] = planFile }
+            if let composerMode { info[Hook.composerModeKey] = composerMode }
+            if background { info[Hook.backgroundKey] = true }
+            if let context { info[Hook.contextKey] = context }
             if let modelSwitch {
                 info[Hook.modelKey] = modelSwitch.to
                 if let from = modelSwitch.from { info[Hook.fromModelKey] = from }
@@ -387,7 +409,8 @@ enum Hook {
     /// directory's `.git`.
     static func message(from payload: Data, tool: ToolID? = nil, event argumentEvent: String? = nil,
                         environment: [String: String] = ProcessInfo.processInfo.environment,
-                        branch: (String) -> String? = gitBranch(cwd:), requestID: String = UUID().uuidString) -> Message? {
+                        branch: (String) -> String? = gitBranch(cwd:), requestID: String = UUID().uuidString,
+                        cursorApproval: Bool? = nil) -> Message? {
         // A payload cut short at the command's read limit is read up to its head, for the few events that carry
         // their bulk after the fields kept (Hook.headEvents); any other event that does not parse is dropped, as ever.
         let parsed = (try? JSONSerialization.jsonObject(with: payload)) as? [String: Any]
@@ -405,7 +428,8 @@ enum Hook {
         var message: Message? = switch vendor {
         case .claude: Claude.message(event: event, object: object, tool: claimed ?? .claude, branch: branch, requestID: requestID)
         case .codex: Codex.message(event: event, object: object, branch: branch, requestID: requestID)
-        case .cursor: Cursor.message(event: event, object: object, environment: environment, branch: branch)
+        case .cursor: Cursor.message(event: event, object: object, environment: environment, branch: branch, requestID: requestID,
+                                     approval: Cursor.decisionEvents.contains(event) && (cursorApproval ?? Cursor.approvalEnabled()))
         case .gemini: Gemini.message(event: event, object: object, environment: environment, branch: branch)
         case .copilot: Copilot.message(event: event, object: object, branch: branch, requestID: requestID)
         case .kimi: Kimi.message(event: event, object: object, branch: branch)
@@ -673,10 +697,14 @@ enum Hook {
         message.terminal = message.event == Hook.batchEvent ? nil : TerminalIdentity.capture(tool: message.tool)
         if TerminalJump.opensFolders(message.terminal?.bundleID) { message.terminal?.workspace = folder(in: payload) }
         if message.request != nil {
-            if case .sent(let reply?) = HookSocket.send(.hook, message.userInfo, timeout: decisionWait),
-               let output = Answer.output(event: message.event, reply: reply, payload: payload) {
-                print(output)
+            var output: String?
+            if case .sent(let reply?) = HookSocket.send(.hook, message.userInfo, timeout: decisionWait) {
+                output = Answer.output(event: message.event, reply: reply, payload: payload)
             }
+            // A held Cursor call with no answer (a pass, the hold running out, no app) is never left to run: these
+            // hooks fire after Cursor's own allowlist, so silence would be an allow. `ask` hands it to Cursor's prompt.
+            if output == nil, message.tool == .cursor { output = Answer.cursorDefer }
+            if let output { print(output) }
         } else {
             HookSocket.send(.hook, message.userInfo)
         }

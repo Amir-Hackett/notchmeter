@@ -194,6 +194,24 @@ enum Decision: Equatable, Sendable {
 /// replaces the plan and has no ids. The text is the user's plan in the assistant's words, so it is held under the
 /// same setting as a prompt's first line and dropped the same way (`withoutContent`); the statuses alone are
 /// counts, and are what the row's "2/3" is made of.
+/// Where a Cursor plan stands, told from its tasks and from whether Build was pressed (AgentSession.planState).
+enum CursorPlanState: String, Equatable, Sendable {
+    /// Created and not built: View Plan and Build apply.
+    case ready
+    case building
+    case completed
+    /// Every task was cancelled.
+    case cancelled
+
+    static func of(_ todos: TodoPlan?, built: Bool) -> CursorPlanState {
+        guard let todos, !todos.items.isEmpty else { return built ? .building : .ready }
+        if todos.items.allSatisfy({ $0.status == .cancelled }) { return .cancelled }
+        if todos.total > 0, todos.done == todos.total { return .completed }
+        let started = todos.items.contains { $0.status == .inProgress || $0.status == .completed }
+        return built || started ? .building : .ready
+    }
+}
+
 struct TodoPlan: Equatable, Sendable {
     enum Status: String, Equatable, Sendable {
         case pending
@@ -355,6 +373,15 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     var branch: String?
     var prURL: String?
     var permissionMode: String?
+    /// Cursor's composer mode as `sessionStart` named it (agent, ask, plan…).
+    var composerMode: String?
+    /// A Cursor background agent rather than a chat in the editor.
+    var background = false
+    /// The Cursor plan file the session's task list is read from, for View Plan (CursorPlanFiles).
+    var planFile: String?
+    /// Cursor submitted its Build prompt for `planFile`.
+    var planBuilt = false
+    var planState: CursorPlanState { .of(todos, built: planBuilt) }
     /// The machine a remote hook posted from; nil for this Mac.
     var host: String?
     /// Subagents running under this session, by agent id, with when each started.
@@ -412,6 +439,8 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// (`SessionTracker.quietSpell`), so a session that thinks slowly stops crying wolf; a nudge that was right (a
     /// command started next) takes one back.
     var quietFalseAlarms = 0
+    /// The standing wait is one of Cursor's own cards, seen through Accessibility (CursorAccessibility): proof, not a guess.
+    var cardWait = false
     // What Claude Code's 0.11 events report (Hook+Events.swift). Each is a fact a hook stated, kept only as long
     // as it stays true, and none of it is ever inferred from a file.
     /// A compaction begun (`PreCompact`) and not yet done (`PostCompact`), with its trigger when the hook named one.
@@ -794,6 +823,29 @@ struct SessionTracker: Equatable, Sendable {
 
     /// The turns that have gone quiet (`quietDue`) by `now`, each moved to a wait marked as a nudge, so the
     /// ring, the card and the notification can say it may be waiting. Returns the sessions just nudged.
+    /// A Cursor card asking for the user (Run, a mode switch) is on screen for `id`: the turn is waiting, now, as a
+    /// nudge the card itself proves, so the next sign of life ends it like any nudge. Returns the session when this
+    /// started the wait, for its notification.
+    mutating func cursorCardShown(_ id: String, now: Date) -> AgentSession? {
+        guard var session = sessions[id], session.tool == .cursor, session.pending == nil else { return nil }
+        let started = !session.isWaiting
+        session.quietNudge = true
+        session.cardWait = true
+        if started { session.state = .waiting(since: now) }
+        sessions[id] = session
+        return started ? session : nil
+    }
+
+    /// The card is gone (answered in Cursor or from the notch) and nothing else has ended the wait yet.
+    mutating func cursorCardGone(_ id: String, now: Date) -> Bool {
+        guard var session = sessions[id], session.cardWait else { return false }
+        session.cardWait = false
+        let ended = session.isWaiting && session.pending == nil
+        if ended { session.state = .working(since: now) }
+        sessions[id] = session
+        return ended
+    }
+
     mutating func quietNudges(now: Date) -> [AgentSession] {
         var nudged: [AgentSession] = []
         for (id, var session) in sessions {
@@ -887,6 +939,13 @@ struct SessionTracker: Equatable, Sendable {
         }
         if let branch = message.branch { session.branch = branch }
         if let mode = message.permissionMode { session.permissionMode = mode }
+        if let mode = message.composerMode { session.composerMode = mode }
+        if message.background { session.background = true }
+        if let planFile = message.planFile {
+            if planFile != session.planFile { session.planBuilt = false }
+            session.planFile = planFile
+            if message.event == "UserPromptSubmit" { session.planBuilt = true }
+        }
         if let model = message.reportedModel, !session.modelFromStatusline { session.model = Hook.tidyModelName(model) }
         // An assistant that reports only a compaction's start (ToolID.reportsCompactionEnd) has finished it by the time
         // it sends anything else.
@@ -981,7 +1040,7 @@ struct SessionTracker: Equatable, Sendable {
             session.compacting = Stamped(value: message.compaction, at: now)
             // Only a compaction Claude Code began by itself is news: `/compact` is the user's own doing. The fill
             // the status line last reported goes with it, since that is the gauge the compaction is about to empty.
-            if message.compaction == .auto { outcome.trouble = (session, .compacting(context: session.contextUsed)) }
+            if message.compaction == .auto { outcome.trouble = (session, .compacting(context: message.context ?? session.contextUsed)) }
         case "PostCompact":
             session.compacting = nil
             session.compactions += 1
@@ -1050,7 +1109,9 @@ struct SessionTracker: Equatable, Sendable {
         case "CwdChanged":
             // The project, branch and worktree the new directory gives were taken above.
             break
-        case _ where Self.heartbeatEvents.contains(message.event):
+        // A call held for the notch (*Require notch approval*) is a request, not a sign of life: it takes the
+        // request path below and waits until it is answered.
+        case _ where Self.heartbeatEvents.contains(message.event) && message.request == nil:
             // In-turn activity: a turn shown as a possible wait was not waiting after all, or has been answered.
             session.heartbeats = true
             if message.event == "beforeShellExecution" || message.event == "beforeMCPExecution" {
@@ -1058,7 +1119,10 @@ struct SessionTracker: Equatable, Sendable {
             } else if message.event == "afterShellExecution" || message.event == "afterMCPExecution" {
                 session.commandsInFlight = Swift.max(0, session.commandsInFlight - 1)
             }
-            if session.quietNudge, session.isWaiting {
+            if session.quietNudge, session.isWaiting, session.cardWait {
+                // A wait Cursor's own card proved (CursorAccessibility) was no false alarm, whatever ended it.
+                session.state = .working(since: now)
+            } else if session.quietNudge, session.isWaiting {
                 // A command starting is the approval the nudge was for, and takes one false alarm back, so a
                 // session that was slow once does not keep its longest spell for the rest of the conversation;
                 // anything else means the turn was only slow, and the next quiet spell for this session is longer.
@@ -1123,6 +1187,7 @@ struct SessionTracker: Equatable, Sendable {
         }
         if wasWaiting, !session.isWaiting { outcome.stoppedWaiting.append(id) }
         if !session.isWaiting {
+            session.cardWait = false
             session.waitsOnMCP = false
             session.waitsOnAgent = false
         }

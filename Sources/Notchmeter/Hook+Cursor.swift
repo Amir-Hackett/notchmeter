@@ -5,14 +5,20 @@ extension Hook {
     /// event name is put onto Claude Code's vocabulary so the session tracker needs no second grammar; the session
     /// is the conversation; the project is the first workspace root's name (the repository's when the root is a git
     /// worktree: ProjectName); the branch is read from that root.
-    /// Cursor has no event that says "waiting for you", so needsInput is always false here — a hand lit on
-    /// beforeShellExecution would claim a wait Cursor may never ask for.
+    /// Cursor has no event that says "waiting for you", so needsInput is false here — a hand lit on
+    /// beforeShellExecution would claim a wait Cursor may never ask for — except on a shell or MCP call held for
+    /// the notch under *Require notch approval*, which is waiting on the user by construction.
     enum Cursor {
         /// Cursor name → canonical name. `stop` depends on `status` and is handled in canonicalEvent.
         static let events: [String: String] = [
             "sessionStart": "SessionStart", "sessionEnd": "SessionEnd", "beforeSubmitPrompt": "UserPromptSubmit",
             "subagentStart": "SubagentStart", "subagentStop": "SubagentStop", "preCompact": "PreCompact",
+            "postToolUseFailure": "PostToolUseFailure",
         ]
+
+        /// The opening of the prompt Cursor submits when Build is pressed on a plan; nobody types it.
+        static let buildPrompt = "Implement the plan as specified"
+        static let composerModes: Set<String> = ["agent", "ask", "edit", "plan", "debug", "manual", "background"]
 
         /// Every name the reference documents, for recognising a payload that arrived on a plain --hook.
         static let knownEvents: Set<String> = [
@@ -48,20 +54,26 @@ extension Hook {
         }
 
         /// Only the event name, `status`, `parent_conversation_id` (or `conversation_id`, or `session_id`), the
-        /// workspace root's project name (ProjectName) and `subagent_id` are read; the prompt, attachments, transcript path, email,
-        /// model and timings are not.
+        /// workspace root's project name (ProjectName) and `subagent_id` are read, with the prompt's first line, the
+        /// model, the transcript path, `composer_mode`, `is_background_agent`, a compaction's trigger and fill, a
+        /// failed tool's name and `is_interrupt`, and the plan file a Build attaches. Email, timings, a failure's
+        /// error text and every tool's input and output are not.
         ///
         /// The session is the conversation the user is in, so `subagentStart`'s `parent_conversation_id` outranks
         /// the common `conversation_id`: the reference sends both on that event without saying whether the common
         /// one is the parent's or the subagent's own, and keying on the parent is right either way, while keying on
         /// a subagent's own id would open a phantom session per subagent that the card counts and nothing ends.
-        static func message(event: String, object: [String: Any], environment: [String: String], branch: (String) -> String?) -> Message {
+        static func message(event: String, object: [String: Any], environment: [String: String], branch: (String) -> String?,
+                            requestID: String? = nil, approval: Bool = false) -> Message {
             let status = object["status"] as? String
             let isStop = event == "stop" || event == "Stop"
             let root = root(of: object, environment: environment)
             let sessionID = nonEmpty(object["parent_conversation_id"]) ?? nonEmpty(object["conversation_id"]) ?? nonEmpty(object["session_id"])
             let canonical = canonicalEvent(event, status: status)
-            var message = Message(event: canonical, needsInput: false,
+            // Only with *Require notch approval* on does a shell or MCP call wait for the notch, and then it does
+            // wait on the user: the one case a Cursor event needs input.
+            let held: Request? = approval ? requestID.flatMap { Cursor.request(event: event, object: object, id: $0) } : nil
+            var message = Message(event: canonical, needsInput: held != nil,
                                   sessionID: sessionID,
                                   project: root.flatMap(ProjectName.ofPath),
                                   notificationType: nil,
@@ -73,17 +85,97 @@ extension Hook {
             // Since 0.7.0 the prompt's first line rides along on beforeSubmitPrompt as the session's title
             // (Hook.title(fromPrompt:)); the attachments and the rest of the prompt stay unread.
             message.title = canonical == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
+            // A Build: the turn is titled with the plan's name, and the plan file is the task list's source.
+            if canonical == "UserPromptSubmit", let prompt = object["prompt"] as? String,
+               prompt.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix(buildPrompt) {
+                message.planFile = planFile(attachments: object["attachments"], prompt: prompt)
+                if let title = buildTitle(planFile: message.planFile) {
+                    message.title = title
+                } else {
+                    message.title = nil
+                    message.harnessTurn = true
+                }
+            }
+            message.background = object["is_background_agent"] as? Bool == true
+            if canonical == "SessionStart" { message.composerMode = Hook.composerMode(object["composer_mode"]) }
+            if canonical == "PostToolUseFailure" {
+                message.toolFailure = Hook.toolName(object["tool_name"]).map {
+                    ToolFailure(tool: $0, interrupt: object["is_interrupt"] as? Bool == true)
+                }
+            }
             // Since 0.9.13: the model, on whichever event names one (cursor.com/docs/agent/hooks shows `model` on the
             // tool events), and a compaction's trigger, its start alone (ToolID.reportsCompactionEnd).
             message.reportedModel = Hook.reportedModel(object["model"])
             // The task list's source: Cursor's hooks never fire for its to-do tool, but its transcript records it.
             message.transcriptPath = CursorPlans.transcript(object["transcript_path"] as? String)?.path
-            if canonical == "PreCompact" { message.compaction = Hook.compactionTrigger(object["trigger"]) }
+            message.request = held
+            if canonical == "PreCompact" {
+                message.compaction = Hook.compactionTrigger(object["trigger"])
+                message.context = (object["context_usage_percent"] as? NSNumber).flatMap { Hook.contextFraction($0.doubleValue / 100) }
+            }
             return message
+        }
+
+        /// The events whose hook Cursor waits on before it runs the call, and whose flat `permission` it obeys.
+        /// They fire for every call, after Cursor's own allowlist, so they are never a sign Cursor itself asked.
+        static let decisionEvents: Set<String> = ["beforeShellExecution", "beforeMCPExecution"]
+        static let shellTool = "Shell"
+
+        /// *Require notch approval*, read by the hook process from the app's own defaults (Preferences).
+        static func approvalEnabled(defaults: UserDefaults = .standard) -> Bool {
+            defaults.bool(forKey: "cursorRequireApproval")
+        }
+
+        /// The Run/Deny request a shell command or MCP call becomes, reduced to a summary and a bounded detail
+        /// here in the hook process; the raw command and arguments never reach the app.
+        static func request(event: String, object: [String: Any], id: String) -> Request? {
+            let cwd = (object["cwd"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            switch event {
+            case "beforeShellExecution":
+                guard let command = object["command"] as? String, !command.isEmpty else { return nil }
+                let (summary, detail) = ToolSummary.describe(tool: "Bash", input: ["command": command], cwd: cwd)
+                return Request(id: id, kind: .permission(tool: shellTool, summary: summary, detail: detail, suggestions: []))
+            case "beforeMCPExecution":
+                guard let tool = Hook.toolName(object["tool_name"]) else { return nil }
+                let input = (object["tool_input"] as? [String: Any])
+                    ?? (object["tool_input"] as? String).flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] }
+                    ?? [:]
+                let (summary, detail) = ToolSummary.describe(tool: tool, input: input, cwd: cwd)
+                return Request(id: id, kind: .permission(tool: tool, summary: summary, detail: detail, suggestions: []))
+            default:
+                return nil
+            }
+        }
+
+        /// The plan file a Build attaches, or names in its prompt; only one of Cursor's own (CursorPlanFiles.allowed).
+        static func planFile(attachments: Any?, prompt: String, home: URL = Paths.home) -> String? {
+            let attached = (attachments as? [[String: Any]] ?? []).compactMap { ($0["file_path"] ?? $0["filePath"] ?? $0["path"]) as? String }
+            let named = prompt.split(whereSeparator: { $0.isWhitespace || $0 == "(" || $0 == ")" || $0 == "`" })
+                .map(String.init).filter { $0.hasSuffix(".plan.md") }
+                .map { $0.hasPrefix("~/") ? home.appendingPathComponent(String($0.dropFirst(2))).path : $0 }
+            return (attached + named).lazy.compactMap { CursorPlanFiles.allowed($0, home: home)?.path }.first
+        }
+
+        /// "Build: <plan name>", from the plan file's frontmatter; nil when it names none.
+        static func buildTitle(planFile: String?) -> String? {
+            guard let name = planFile.flatMap({ CursorPlanFiles.call(in: URL(fileURLWithPath: $0))?.name }) else { return nil }
+            return Hook.title(fromPrompt: "Build: " + name)
         }
 
         private static func nonEmpty(_ value: Any?) -> String? {
             (value as? String).flatMap { $0.isEmpty ? nil : $0 }
         }
+    }
+
+    /// One of Cursor's composer modes, lowercased; nil for anything else.
+    static func composerMode(_ value: Any?) -> String? {
+        (value as? String).map { $0.lowercased() }.flatMap { Cursor.composerModes.contains($0) ? $0 : nil }
+    }
+
+    /// A fill between 0 and 1; nil for anything outside it or not a number.
+    static func contextFraction(_ value: Any?) -> Double? {
+        guard let number = value as? NSNumber ?? (value as? Double).map(NSNumber.init(value:)) else { return nil }
+        let fraction = number.doubleValue
+        return fraction.isFinite && fraction >= 0 && fraction <= 1 ? fraction : nil
     }
 }

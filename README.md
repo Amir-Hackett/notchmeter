@@ -60,7 +60,7 @@ The whole of it — every file read, every host and path asked, what is kept on 
 - [docs/privacy.md](docs/privacy.md): what is read, where it is sent, what is kept, how often, and the vendors' terms.
 - [docs/accuracy.md](docs/accuracy.md): every rule behind the cost estimate, the primary sources, where it is known to differ from a bill, and why there is no rate-limit-header probe.
 - [docs/hooks.md](docs/hooks.md): the optional hooks for Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot CLI and Kimi Code, and the OpenCode plugin, what each sends and what each cannot report, how to install and remove them, and the status line.
-- [docs/permissions.md](docs/permissions.md): Accessibility for *Readouts › Auto*, Automation for the jump to a terminal, and why local builds lose their grants.
+- [docs/permissions.md](docs/permissions.md): Accessibility for *Readouts › Auto* and *Mirror Cursor's cards*, Automation for the jump to a terminal, and why local builds lose their grants.
 - [docs/energy.md](docs/energy.md): CPU and memory, measured, with the commands to reproduce them.
 - [docs/troubleshooting.md](docs/troubleshooting.md): what each message on a card means and what to do about it.
 - [docs/testing.md](docs/testing.md): the unit tests, the `--smoke` self check and its flags, `--probe --json`, the platform matrix, and the `--e2e-oracle` event log an automated tester can read.

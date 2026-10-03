@@ -1483,6 +1483,7 @@ struct SettingsView: View {
                 if tool == .claude, !claudeHookIsCurrent {
                     pageText(L("Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them."))
                 }
+                if tool == .cursor { cursorControls }
             } else if let note = noAnswerNote(tool) {
                 pageText(note)
             }
@@ -1649,9 +1650,27 @@ struct SettingsView: View {
     }
 
     /// Why an assistant whose hook has nothing to answer offers no *Answer from the notch*.
+    /// Cursor's two stricter switches: holding every command for the notch, and mirroring Cursor's own cards
+    /// through Accessibility. Both off until turned on; the second asks macOS for the permission when it is.
+    @ViewBuilder
+    private var cursorControls: some View {
+        Toggle(L("Require notch approval for every command"), isOn: Binding(get: { prefs.cursorRequireApproval }, set: { prefs.cursorRequireApproval = $0 }))
+            .disabled(!prefs.answersFromNotch(.cursor))
+            .help(L("Every shell command and MCP call Cursor runs waits for Run or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence."))
+        Toggle(L("Mirror Cursor's cards"), isOn: Binding(get: { prefs.cursorControl }, set: {
+            prefs.cursorControl = $0
+            if $0, !AXIsProcessTrusted() { LiveCursorUI.requestTrust() }
+        }))
+        .disabled(!prefs.readsSessions(of: .cursor))
+        .help(L("Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen."))
+        if prefs.cursorControl, !AXIsProcessTrusted() {
+            caption(L("Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter."))
+        }
+    }
+
     private func noAnswerNote(_ tool: ToolID) -> String? {
         switch tool {
-        case .cursor: L("Cursor has no event that can be answered: its approvals are always answered in Cursor.")
+        case .cursor: nil
         case .gemini: L("Gemini CLI's hook only reports: its permission prompts are always answered in the terminal.")
         case .kimi: L("Kimi Code has no event that can be answered: its approvals are always answered in the terminal.")
         case .antigravity: L("Antigravity has no hook: its IDE reports no event the notch could read or answer.")

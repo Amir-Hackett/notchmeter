@@ -347,6 +347,24 @@ enum JSON {
         }
     }
 
+    /// A counter (tokens, requests): a finite, non-negative whole number inside the range a Double holds exactly,
+    /// from a JSON number or a numeric string; nil for anything else, never a trap on an out-of-range value.
+    static func count(_ value: Any?) -> Int? {
+        guard let number = number(value) ?? (value as? String).flatMap({ Double($0.trimmingCharacters(in: .whitespaces)) }),
+              number.isFinite, number >= 0, number <= 9_007_199_254_740_992 else { return nil }
+        return Int(number.rounded(.down))
+    }
+
+    /// An amount written as text ("$1,234.56", "-$0.05", "0.5"): its digits, one decimal point and its sign, read
+    /// through Decimal so the text is not rounded on the way in; nil when it holds no single number.
+    static func money(_ text: String) -> Double? {
+        let negative = text.trimmingCharacters(in: .whitespaces).hasPrefix("-")
+        let digits = text.filter { $0.isASCII && ($0.isNumber || $0 == ".") }
+        guard !digits.isEmpty, digits.filter({ $0 == "." }).count <= 1, let decimal = Decimal(string: digits, locale: Locale(identifier: "en_US_POSIX")) else { return nil }
+        let value = NSDecimalNumber(decimal: negative ? -decimal : decimal).doubleValue
+        return value.isFinite ? value : nil
+    }
+
     static func fraction(_ percent: Double) -> Double {
         min(max(percent / 100, 0), 1)
     }

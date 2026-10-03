@@ -1148,6 +1148,17 @@ final class Preferences {
     var answerFromNotch: Bool {
         didSet { defaults.set(answerFromNotch, forKey: Keys.answerFromNotch); report(Keys.answerFromNotch, answerFromNotch, changed: answerFromNotch != oldValue) }
     }
+    /// Every Cursor shell command and MCP call waits for Run or Deny in the notch (Hook.Cursor.approvalEnabled reads
+    /// the same key from the hook process). Off by default: it is stricter than Cursor's own prompts, which ask
+    /// only for what Cursor's allowlist does not cover.
+    var cursorRequireApproval: Bool {
+        didSet { defaults.set(cursorRequireApproval, forKey: Keys.cursorRequireApproval); report(Keys.cursorRequireApproval, cursorRequireApproval, changed: cursorRequireApproval != oldValue) }
+    }
+    /// Mirror Cursor's own Run, mode-switch and plan cards into the notch and press their buttons through
+    /// Accessibility (CursorAccessibility). Off by default; needs the Accessibility permission.
+    var cursorControl: Bool {
+        didSet { defaults.set(cursorControl, forKey: Keys.cursorControl); report(Keys.cursorControl, cursorControl, changed: cursorControl != oldValue) }
+    }
     /// The four switches on each assistant's own Settings page (SettingsPane.agent), each kept as the set of
     /// assistants it is off for rather than on for. An assistant a later version adds is then on from its first
     /// launch like every one before it, with no migration, and an install that never touched a page stores
@@ -1490,6 +1501,8 @@ final class Preferences {
         static let sessionTitles = "sessionTitles"
         static let openCodeStorageSessions = "openCodeStorageSessions"
         static let answerFromNotch = "answerFromNotch"
+        static let cursorRequireApproval = "cursorRequireApproval"
+        static let cursorControl = "cursorControl"
         static let sessionReadingOff = "sessionReadingOffTools"
         static let notchAnswersOff = "answerFromNotchOffTools"
         static let limitNoticesOff = "limitNoticesOffTools"
@@ -1655,6 +1668,8 @@ final class Preferences {
         sessionTitles = defaults.object(forKey: Keys.sessionTitles) as? Bool ?? true
         openCodeStorageSessions = defaults.object(forKey: Keys.openCodeStorageSessions) as? Bool ?? true
         answerFromNotch = defaults.object(forKey: Keys.answerFromNotch) as? Bool ?? true
+        cursorRequireApproval = defaults.bool(forKey: Keys.cursorRequireApproval)
+        cursorControl = defaults.bool(forKey: Keys.cursorControl)
         sessionReadingOff = Self.tools(defaults, Keys.sessionReadingOff)
         notchAnswersOff = Self.tools(defaults, Keys.notchAnswersOff)
         limitNoticesOff = Self.tools(defaults, Keys.limitNoticesOff)

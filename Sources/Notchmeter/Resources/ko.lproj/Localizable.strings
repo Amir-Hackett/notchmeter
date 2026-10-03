@@ -898,8 +898,6 @@
 "%1$ld of %2$ld done" = "%2$ld개 중 %1$ld개 완료";
 "Task list" = "작업 목록";
 "Untitled task" = "제목 없는 작업";
-"Claude Code's task list for this session; click to show it" = "이 세션의 Claude Code 작업 목록, 클릭하면 표시";
-"Claude Code's task list for this session" = "이 세션의 Claude Code 작업 목록";
 "Subagent %ld" = "하위 에이전트 %ld";
 "How full this session's context window is, from its status line" = "상태 줄이 알려 준 이 세션의 컨텍스트 창 사용량";
 "In progress" = "진행 중";
@@ -967,7 +965,6 @@
 "Off for every assistant under Assistants › Sessions." = "어시스턴트 › 세션에서 모든 어시스턴트에 대해 꺼져 있습니다.";
 "Its sessions are not read." = "이 어시스턴트의 세션은 읽지 않습니다.";
 "Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them." = "Claude Code는 0.7.0 훅 항목이 있어야 노치에서 답할 수 있습니다. 그 전까지 위의 훅 섹션에 복구(또는 추가)가 표시됩니다.";
-"Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor에는 답할 수 있는 이벤트가 없습니다. 승인은 항상 Cursor에서 합니다.";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Gemini CLI의 훅은 보고만 합니다. 권한 요청은 항상 터미널에서 답합니다.";
 /* 0.9.0: the Gemini CLI, Antigravity and Kimi Code pages (SettingsWindow loginNote, readingsNote, noAnswerNote) */
 "The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. Read only: never refreshed or written." = "Gemini CLI가 ~/.gemini/oauth_creds.json에 보관하는 Google 로그인입니다. 읽기만 하며 갱신하거나 기록하지 않습니다.";
@@ -1300,3 +1297,30 @@
 "Notchmeter's catalog of %@" = "%@ Notchmeter 카탈로그";
 "this build's table of %@" = "%@ 이 빌드의 표";
 "a family guess" = "모델 계열에 따른 추정";
+
+"This session's task list; click to show it" = "이 세션의 작업 목록. 클릭하면 표시";
+"This session's task list" = "이 세션의 작업 목록";
+"The plan file is gone" = "계획 파일이 없습니다";
+"Cursor or the Accessibility permission is unavailable; nothing was pressed" = "Cursor 또는 손쉬운 사용 권한을 쓸 수 없습니다. 아무것도 누르지 않았습니다";
+"Mode" = "모드";
+"Mirror Cursor's cards" = "Cursor 카드 미러링";
+"Background" = "백그라운드";
+"Cursor asks to switch mode" = "Cursor가 모드 전환을 요청합니다";
+"Open this plan in Cursor" = "이 계획을 Cursor에서 열기";
+"The mode this Cursor chat runs in" = "이 Cursor 채팅이 실행되는 모드";
+"Build" = "Build";
+"Press Build on this plan in Cursor" = "Cursor에서 이 계획의 Build 누르기";
+"Cursor's plan is ready to build" = "Cursor의 계획을 빌드할 준비가 되었습니다";
+"Opened in Cursor: its Build card is not on screen, so press Build there" = "Cursor에서 열었습니다. Build 카드가 화면에 없으니 그곳에서 Build를 누르세요";
+"Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter." = "손쉬운 사용 필요: 시스템 설정 › 개인정보 보호 및 보안 › 손쉬운 사용 › Notchmeter.";
+"View Plan" = "View Plan";
+"A Cursor background agent" = "Cursor 백그라운드 에이전트";
+"Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Cursor에서 열었습니다. 노치에서 빌드하려면 ‘Cursor 카드 미러링’을 켜세요";
+"Pressed %@ in Cursor" = "Cursor에서 %@ 누름";
+"Require notch approval for every command" = "모든 명령에 노치 승인 요구";
+"Pressed %@, but Cursor's card is still showing" = "%@ 눌렀지만 Cursor 카드가 아직 보입니다";
+"Cursor's card changed before the press; nothing was pressed" = "누르기 전에 Cursor 카드가 바뀌었습니다. 아무것도 누르지 않았습니다";
+"Every shell command and MCP call Cursor runs waits for Run or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Cursor가 실행하는 모든 셸 명령과 MCP 호출이 노치에서 Run 또는 Deny를 기다립니다. Cursor 허용 목록이 묻지 않고 실행할 것도 포함됩니다. 답이 없으면 Cursor가 자체 확인을 보여 주며, 아무 응답 없이 실행되지 않습니다.";
+"Presses this button on Cursor's card" = "Cursor 카드의 이 버튼을 누릅니다";
+"Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Cursor의 Run, 모드 전환, 계획 카드를 세션 행에 보여 주고 고른 버튼을 누릅니다. Cursor 창은 손쉬운 사용으로 읽으며 화면은 읽지 않습니다.";
+"Cursor is waiting to run a command" = "Cursor가 명령 실행을 기다리고 있습니다";

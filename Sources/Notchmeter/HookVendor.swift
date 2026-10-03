@@ -105,7 +105,7 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         // only way to tell. A process launch per shell command, file edit and model step is the price.
         case .cursor: ["sessionStart", "beforeSubmitPrompt", "stop", "subagentStart", "subagentStop", "sessionEnd",
                        "beforeShellExecution", "afterShellExecution", "beforeMCPExecution", "afterMCPExecution",
-                       "afterFileEdit", "afterAgentThought", "afterAgentResponse", "preCompact"]
+                       "afterFileEdit", "afterAgentThought", "afterAgentResponse", "preCompact", "postToolUseFailure"]
         case .gemini: ["SessionStart", "BeforeAgent", "AfterAgent", "Notification", "SessionEnd", "AfterTool", "PreCompress"]
         case .copilot: ["sessionStart", "userPromptSubmitted", "agentStop", "subagentStart", "subagentStop", "notification", "PermissionRequest", "sessionEnd",
                         "postToolUse", "preCompact"]
@@ -128,7 +128,10 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         switch self {
         case .claude: ["PermissionRequest", "PreToolUse", "Elicitation"]
         case .codex, .copilot: ["PermissionRequest"]
-        case .cursor, .gemini, .kimi, .opencode: []
+        // Synchronous with the 600 s ceiling so *Require notch approval* can hold a call; with it off the command
+        // prints nothing and is back in milliseconds (Hook.Cursor.decisionEvents).
+        case .cursor: Hook.Cursor.decisionEvents
+        case .gemini, .kimi, .opencode: []
         }
     }
 
@@ -209,6 +212,7 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
     /// out, so five seconds is a ceiling the command, which exits in milliseconds, never comes near.
     func handler(command: String, event: String) -> [String: Any] {
         if decidingEvents.contains(event) {
+            if self == .cursor { return ["command": command, "timeout": Self.decisionTimeout] }
             return ["type": "command", "command": command, timeoutKey: Self.decisionTimeout]
         }
         switch self {
@@ -250,7 +254,8 @@ enum HookVendor: String, CaseIterable, Identifiable, Equatable, Sendable {
         if handler["async"] as? Bool == true { return false }
         if let timeout = (handler[timeoutKey] as? NSNumber)?.intValue {
             if timeout < Self.decisionTimeout { return false }
-        } else if self == .copilot {
+        } else if self == .copilot || self == .cursor {
+            // Copilot's default is 30 s; Cursor documents none, so an entry without one could be cut short.
             return false
         }
         return true

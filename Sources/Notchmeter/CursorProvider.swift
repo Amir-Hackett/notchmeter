@@ -306,6 +306,15 @@ actor CursorProvider: UsageProvider {
         return UsageReading(tool: .cursor, windows: windows, plan: planName, fetchedAt: now, observedAt: nil)
     }
 
+    /// A usage event's time from seconds or milliseconds since 1970; nil outside 2020…2100, where no Cursor event
+    /// can be and where a value in the wrong unit lands.
+    static func eventDate(_ stamp: Double) -> Date? {
+        guard stamp.isFinite, stamp > 0 else { return nil }
+        let seconds = stamp > 1e11 ? stamp / 1000 : stamp
+        guard seconds >= 1_577_836_800, seconds < 4_102_444_800 else { return nil }
+        return Date(timeIntervalSince1970: seconds)
+    }
+
     /// `/api/usage?user=` for request-metered plans: fast requests used against the monthly cap.
     static func parseLegacyUsage(_ data: Data, now: Date = Date()) throws -> UsageReading {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -322,7 +331,7 @@ actor CursorProvider: UsageProvider {
             label: .key("Fast requests"),
             usedFraction: limit.flatMap { $0 > 0 ? min(max(used / $0, 0), 1) : nil },
             resetsAt: resets,
-            note: limit.map { L("%1$ld of %2$ld requests", Int(used), Int($0)) }
+            note: limit.flatMap { limit in JSON.count(used).flatMap { used in JSON.count(limit).map { L("%1$ld of %2$ld requests", used, $0) } } }
         )
         return UsageReading(tool: .cursor, windows: [window], plan: nil, fetchedAt: now, observedAt: nil)
     }
@@ -472,17 +481,17 @@ actor CursorProvider: UsageProvider {
         let events = list.compactMap { item -> UsageEvent? in
             guard let object = item as? [String: Any] else { return nil }
             let stamp: Double? = (object["timestamp"] as? String).flatMap(Double.init) ?? JSON.number(object["timestamp"])
-            guard let stamp else { return nil }
-            let timestamp = Date(timeIntervalSince1970: stamp > 1e11 ? stamp / 1000 : stamp)
+            guard let stamp, let timestamp = Self.eventDate(stamp) else { return nil }
             let usage = object["tokenUsage"] as? [String: Any]
             var tokens = TokenBreakdown()
-            tokens.input = Int(JSON.number(usage?["inputTokens"]) ?? 0)
-            tokens.output = Int(JSON.number(usage?["outputTokens"]) ?? 0)
-            tokens.cacheWrite5m = Int(JSON.number(usage?["cacheWriteTokens"]) ?? 0)
-            tokens.cacheRead = Int(JSON.number(usage?["cacheReadTokens"]) ?? 0)
-            var cost = (JSON.number(usage?["totalCents"]) ?? 0) / 100
+            // A malformed counter counts as nothing rather than trapping the app or going negative.
+            tokens.input = JSON.count(usage?["inputTokens"]) ?? 0
+            tokens.output = JSON.count(usage?["outputTokens"]) ?? 0
+            tokens.cacheWrite5m = JSON.count(usage?["cacheWriteTokens"]) ?? 0
+            tokens.cacheRead = JSON.count(usage?["cacheReadTokens"]) ?? 0
+            var cost = JSON.number(usage?["totalCents"]).flatMap { $0.isFinite ? $0 / 100 : nil } ?? 0
             if cost == 0, let text = object["usageBasedCosts"] as? String {
-                cost = Double(text.filter { $0.isNumber || $0 == "." }) ?? 0
+                cost = JSON.money(text) ?? 0
             }
             return UsageEvent(timestamp: timestamp, model: object["model"] as? String, tokens: tokens, costUSD: cost)
         }

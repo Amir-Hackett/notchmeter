@@ -9,8 +9,78 @@ import Testing
 @Suite struct CursorHookMessages {
     /// The branch closure stands in for `.git/HEAD`: it answers only for the root the payload names, so a branch
     /// on the message proves the parser asked about the right folder.
-    func parse(_ json: String, tool: ToolID? = nil, environment: [String: String] = [:]) -> Hook.Message? {
-        Hook.message(from: Data(json.utf8), tool: tool, environment: environment, branch: { $0 == "/Users/x/proj" ? "main" : nil })
+    func parse(_ json: String, tool: ToolID? = nil, environment: [String: String] = [:], approval: Bool = false) -> Hook.Message? {
+        Hook.message(from: Data(json.utf8), tool: tool, environment: environment, branch: { $0 == "/Users/x/proj" ? "main" : nil },
+                     requestID: "r1", cursorApproval: approval)
+    }
+
+    @Test func withNotchApprovalOnAShellCallIsHeldAndOffItIsNot() throws {
+        let shell = #"{"hook_event_name":"beforeShellExecution","conversation_id":"c1","command":"rm -rf build","cwd":"/Users/x/proj"}"#
+        let off = try #require(parse(shell))
+        #expect(off.request == nil && !off.needsInput, "off, every shell call is only a sign of life, as before")
+        let on = try #require(parse(shell, approval: true))
+        #expect(on.needsInput)
+        guard case .permission(let tool, let summary, _, let suggestions)? = on.request?.kind else { Issue.record("no request"); return }
+        #expect(tool == Hook.Cursor.shellTool)
+        #expect(summary.contains("rm -rf build"))
+        #expect(suggestions.isEmpty, "Cursor offers no rule to echo back")
+        #expect(on.request?.id == "r1")
+        let mcp = try #require(parse(#"{"hook_event_name":"beforeMCPExecution","conversation_id":"c1","tool_name":"create_issue","tool_input":"{\"title\":\"x\"}"}"#, approval: true))
+        guard case .permission(let mcpTool, _, _, _)? = mcp.request?.kind else { Issue.record("no MCP request"); return }
+        #expect(mcpTool == "create_issue")
+        let read = try #require(parse(#"{"hook_event_name":"beforeReadFile","conversation_id":"c1","file_path":"/x"}"#, approval: true))
+        #expect(read.request == nil, "only the two events Cursor waits on can be held")
+        let empty = try #require(parse(#"{"hook_event_name":"beforeShellExecution","conversation_id":"c1","command":""}"#, approval: true))
+        #expect(empty.request == nil)
+    }
+
+    @Test func cursorsAnswersAreItsFlatShapeAndSilenceIsNeverAnAllow() throws {
+        let payload = Data(#"{"hook_event_name":"beforeShellExecution","command":"ls"}"#.utf8)
+        func output(_ decision: Decision) -> String? {
+            Hook.Answer.line(for: decision).flatMap { Hook.Answer.output(event: "beforeShellExecution", reply: $0, payload: payload) }
+        }
+        #expect(output(.allow) == #"{"permission":"allow"}"#)
+        let denied = try #require(output(.deny(message: nil)).flatMap { try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: String] })
+        #expect(denied["permission"] == "deny")
+        #expect(denied["user_message"] != nil && denied["agent_message"] != nil)
+        #expect(denied["hookSpecificOutput"] == nil)
+        #expect(output(.pass) == nil, "a pass prints nothing from Answer; the command prints the defer instead")
+        #expect(Hook.Answer.cursorDefer == #"{"permission":"ask"}"#)
+        #expect(Hook.Answer.line(for: .allow).flatMap { Hook.Answer.output(event: "beforeReadFile", reply: $0, payload: payload) } == nil)
+    }
+
+    @Test func aBuildIsTitledWithItsPlanAndNamesThePlanFile() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("cursor-build-\(UUID().uuidString)")
+        let plans = home.appendingPathComponent(".cursor/plans")
+        try FileManager.default.createDirectory(at: plans, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let file = plans.appendingPathComponent("holiday_ivr_1a2b3c4d.plan.md")
+        try "---\nname: NBSCTe holiday IVR\ntodos:\n  - id: a\n    content: One\n    status: pending\n---\n".write(to: file, atomically: true, encoding: .utf8)
+        let attached = Hook.Cursor.planFile(attachments: [["type": "file", "file_path": file.path]], prompt: "", home: home)
+        #expect(attached == file.resolvingSymlinksInPath().path)
+        let named = Hook.Cursor.planFile(attachments: nil, prompt: "Implement the plan as specified (\(file.path))", home: home)
+        #expect(named == attached, "a path written in the prompt is found as well")
+        #expect(Hook.Cursor.buildTitle(planFile: attached) == "Build: NBSCTe holiday IVR")
+        let outside = Hook.Cursor.planFile(attachments: [["file_path": "/etc/passwd.plan.md"]], prompt: "see /tmp/x.plan.md", home: home)
+        #expect(outside == nil, "only a file inside ~/.cursor/plans is ever named")
+        let typed = try #require(parse(#"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1","prompt":"Implement the plan as specified, it is attached for your reference."}"#))
+        #expect(typed.title == nil && typed.harnessTurn, "a Build whose plan cannot be read keeps the title it had rather than showing Cursor's own words")
+    }
+
+    @Test func modeBackgroundFailureAndCompactionFillAreRead() throws {
+        let start = try #require(parse(#"{"hook_event_name":"sessionStart","conversation_id":"c1","composer_mode":"Plan","is_background_agent":true}"#))
+        #expect(start.composerMode == "plan")
+        #expect(start.background)
+        #expect(try #require(parse(#"{"hook_event_name":"sessionStart","conversation_id":"c1","composer_mode":"rm -rf"}"#)).composerMode == nil)
+        let failure = try #require(parse(#"{"hook_event_name":"postToolUseFailure","conversation_id":"c1","tool_name":"Shell","error_message":"secret output","is_interrupt":true}"#))
+        #expect(failure.event == "PostToolUseFailure")
+        #expect(failure.toolFailure == ToolFailure(tool: "Shell", interrupt: true))
+        #expect(!String(describing: failure.userInfo).contains("secret output"), "a failure's error text never leaves the hook")
+        let compact = try #require(parse(#"{"hook_event_name":"preCompact","conversation_id":"c1","trigger":"auto","context_usage_percent":87.5}"#))
+        #expect(compact.context == 0.875)
+        #expect(try #require(parse(#"{"hook_event_name":"preCompact","conversation_id":"c1","context_usage_percent":140}"#)).context == nil, "an impossible fill is no fill")
+        let round = try #require(Hook.Message(userInfo: start.userInfo))
+        #expect(round.composerMode == "plan" && round.background)
     }
 
     @Test func sessionStartReadsAsCursorByShape() throws {
@@ -65,6 +135,7 @@ import Testing
         #expect(nested.agentID == "abc-123")
     }
 
+    /// With *Require notch approval* off (the default), as here.
     @Test func noCursorEventEverNeedsInput() throws {
         let mapped = Set(Hook.Cursor.events.keys).union(["stop"])
         for name in Hook.Cursor.knownEvents.sorted() {
@@ -125,10 +196,11 @@ import Testing
 
     /// A hooks.json with every event Notchmeter registers, each carrying `command` (the one the other account
     /// wrote by hand carries only `--hook`).
-    func file(command: String, version: Any? = 1, without missing: String? = nil) -> [String: Any] {
+    func file(command: String, version: Any? = 1, without missing: String? = nil, timeouts: Bool = true) -> [String: Any] {
         var hooks: [String: Any] = [:]
         for event in HookVendor.cursor.events where event != missing {
-            hooks[event] = [["command": command]]
+            let deciding = timeouts && HookVendor.cursor.decidingEvents.contains(event)
+            hooks[event] = [deciding ? ["command": command, "timeout": HookVendor.decisionTimeout] : ["command": command]]
         }
         var settings: [String: Any] = ["hooks": hooks]
         if let version { settings["version"] = version }
@@ -145,8 +217,13 @@ import Testing
             let entries = try #require(hooks[event] as? [[String: Any]], "\(event)")
             #expect(entries.count == 1)
             let entry = try #require(entries.first)
-            #expect(Set(entry.keys) == ["command"],
-                    "\(event): no type (Cursor has none), no timeout (the command exits in under 50 ms), no hooks array (Cursor's entries are flat)")
+            if HookVendor.cursor.decidingEvents.contains(event) {
+                #expect(Set(entry.keys) == ["command", "timeout"], "\(event): held for the notch under Require notch approval, so it carries the socket's ceiling")
+                #expect(entry["timeout"] as? Int == HookVendor.decisionTimeout)
+            } else {
+                #expect(Set(entry.keys) == ["command"],
+                        "\(event): no type (Cursor has none), no timeout (the command exits in under 50 ms), no hooks array (Cursor's entries are flat)")
+            }
             #expect(entry["command"] as? String == "'/Users/me/My Apps/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor")
         }
         #expect(HookVendor.cursor.flag == "--hook --tool cursor")
@@ -221,6 +298,8 @@ import Testing
         #expect(plain.needsRepair)
         let decorated = HookSettings.status(settings: file(command: "\(expected) 2>/dev/null"), vendor: .cursor, executable: executable)
         #expect(decorated == .installed(path: executable), "the path and the flag are what count; a redirect the user added is theirs to keep, not the launch repair's to strip")
+        let untimed = HookSettings.status(settings: file(command: expected, timeouts: false), vendor: .cursor, executable: executable)
+        #expect(untimed == .partial(path: executable), "a shell or MCP entry from before 0.12 has no ceiling, so a held call could be cut short; Repair adds it")
     }
 
     @Test func repairRewritesPlainEntriesAddsMissingEventsAndLeavesForeignOnesAlone() throws {

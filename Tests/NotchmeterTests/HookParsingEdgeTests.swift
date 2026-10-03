@@ -302,7 +302,7 @@ import Testing
 
     @Test func everyVendorsTableMapsOntoClaudesGrammarAndPassesTheRestThrough() {
         let claude: Set<String> = ["SessionStart", "UserPromptSubmit", "PermissionRequest", "Notification", "Stop", "StopFailure",
-                                   "SubagentStart", "SubagentStop", "SessionEnd", "PostToolUse", "PreCompact", "PostCompact"]
+                                   "SubagentStart", "SubagentStop", "SessionEnd", "PostToolUse", "PostToolUseFailure", "PreCompact", "PostCompact"]
         for (name, canonical) in Hook.Codex.events { #expect(claude.contains(canonical), "Codex \(name) → \(canonical)") }
         for (name, canonical) in Hook.Copilot.events { #expect(claude.contains(canonical), "Copilot \(name) → \(canonical)") }
         for (name, canonical) in Hook.Cursor.events { #expect(claude.contains(canonical), "Cursor \(name) → \(canonical)") }

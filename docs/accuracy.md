@@ -465,6 +465,8 @@ Events are folded by local day into the daily-history file under the `cursor` to
 
 Two limits are worth stating. The export is **day resolution**: an event carries a day, not an hour that can be trusted for a last-hour figure, so Cursor reports no hour and takes no part in the burn line. And the export reaches back **30 days**; the 90-day range and anything older is whatever the daily-history file has accumulated since Notchmeter was installed, and is short until it has been running that long.
 
+Since 0.9.15 every number in an event is read defensively: token counts and request counts may arrive as numbers or numeric strings, and one that is negative, non-finite or past 2^53 is dropped rather than trapped on; a cost written as text ("$1,234.56", "-$0.05" for a credit) is read through `Decimal` so it is not rounded on the way in, and must be finite; and an event's timestamp must fall between 2020 and 2100 (in seconds or milliseconds) or the event is skipped. `CursorAccessibilityTests` pins these bounds.
+
 The fetch happens on the Cursor provider's own polling loop, and the Cost card reads only the file it writes, so a slow, refused or expired Cursor read never delays a cost scan: the row keeps its last figures, its timestamp stays at the last successful read, and the failure is printed under the row. The endpoint is undocumented, its shape was taken from the dashboard's own traffic and pinned in `CursorParsingTests`, and this Mac's free plan returns no events, so the first live run with a paid plan is a user's.
 
 ## Cursor's cycle figures and the Grok Bot window

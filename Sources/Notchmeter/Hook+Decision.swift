@@ -412,6 +412,9 @@ extension Hook {
         /// `Elicitation`'s `action` and `content`, checked against the form (`elicitationOutput`). nil, and so
         /// nothing printed, for a pass, a reply that is no decision, an answer to a permission or a permission to a
         /// question, or a payload the command can no longer read; the terminal then asks.
+        /// What a held Cursor call prints when the notch did not answer it: Cursor's own prompt decides.
+        static let cursorDefer = #"{"permission":"ask"}"#
+
         static func output(event: String, reply: Data, payload: Data) -> String? {
             guard let decision = decision(from: reply) else { return nil }
             let object: [String: Any]
@@ -432,6 +435,14 @@ extension Hook {
             case ("Elicitation", .elicitation(let answer)):
                 guard let output = elicitationOutput(answer, payload: payload) else { return nil }
                 object = output
+            // Cursor's flat contract (cursor.com/docs/agent/hooks), never Claude's `hookSpecificOutput`. Only an
+            // explicit answer prints; a pass prints nothing and Cursor's own flow decides.
+            case (let event, .allow) where Cursor.decisionEvents.contains(event),
+                 (let event, .allowAlways) where Cursor.decisionEvents.contains(event):
+                object = ["permission": "allow"]
+            case (let event, .deny(let message)) where Cursor.decisionEvents.contains(event):
+                object = ["permission": "deny", "user_message": message ?? deniedMessage,
+                          "agent_message": "The user denied this from Notchmeter."]
             default:
                 return nil
             }

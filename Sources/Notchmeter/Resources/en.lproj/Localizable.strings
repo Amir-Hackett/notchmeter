@@ -915,8 +915,6 @@
 "%1$ld of %2$ld done" = "%1$ld of %2$ld done";
 "Task list" = "Task list";
 "Untitled task" = "Untitled task";
-"Claude Code's task list for this session; click to show it" = "Claude Code's task list for this session; click to show it";
-"Claude Code's task list for this session" = "Claude Code's task list for this session";
 "Subagent %ld" = "Subagent %ld";
 "How full this session's context window is, from its status line" = "How full this session's context window is, from its status line";
 "In progress" = "In progress";
@@ -984,7 +982,6 @@
 "Off for every assistant under Assistants › Sessions." = "Off for every assistant under Assistants › Sessions.";
 "Its sessions are not read." = "Its sessions are not read.";
 "Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them." = "Claude Code answers from the notch only with the 0.7.0 hook entries: the hook section above shows Repair (or Add) until it has them.";
-"Cursor has no event that can be answered: its approvals are always answered in Cursor." = "Cursor has no event that can be answered: its approvals are always answered in Cursor.";
 "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal." = "Gemini CLI's hook only reports: its permission prompts are always answered in the terminal.";
 /* 0.9.0: the Gemini CLI, Antigravity and Kimi Code pages (SettingsWindow loginNote, readingsNote, noAnswerNote) */
 "The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. Read only: never refreshed or written." = "The Google login Gemini CLI keeps in ~/.gemini/oauth_creds.json. Read only: never refreshed or written.";
@@ -1317,3 +1314,30 @@
 "Notchmeter's catalog of %@" = "Notchmeter's catalog of %@";
 "this build's table of %@" = "this build's table of %@";
 "a family guess" = "a family guess";
+
+"This session's task list; click to show it" = "This session's task list; click to show it";
+"This session's task list" = "This session's task list";
+"The plan file is gone" = "The plan file is gone";
+"Cursor or the Accessibility permission is unavailable; nothing was pressed" = "Cursor or the Accessibility permission is unavailable; nothing was pressed";
+"Mode" = "Mode";
+"Mirror Cursor's cards" = "Mirror Cursor's cards";
+"Background" = "Background";
+"Cursor asks to switch mode" = "Cursor asks to switch mode";
+"Open this plan in Cursor" = "Open this plan in Cursor";
+"The mode this Cursor chat runs in" = "The mode this Cursor chat runs in";
+"Build" = "Build";
+"Press Build on this plan in Cursor" = "Press Build on this plan in Cursor";
+"Cursor's plan is ready to build" = "Cursor's plan is ready to build";
+"Opened in Cursor: its Build card is not on screen, so press Build there" = "Opened in Cursor: its Build card is not on screen, so press Build there";
+"Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter." = "Needs Accessibility: System Settings › Privacy & Security › Accessibility › Notchmeter.";
+"View Plan" = "View Plan";
+"A Cursor background agent" = "A Cursor background agent";
+"Opened in Cursor: turn on Mirror Cursor's cards to build from the notch" = "Opened in Cursor: turn on Mirror Cursor's cards to build from the notch";
+"Pressed %@ in Cursor" = "Pressed %@ in Cursor";
+"Require notch approval for every command" = "Require notch approval for every command";
+"Pressed %@, but Cursor's card is still showing" = "Pressed %@, but Cursor's card is still showing";
+"Cursor's card changed before the press; nothing was pressed" = "Cursor's card changed before the press; nothing was pressed";
+"Every shell command and MCP call Cursor runs waits for Run or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence." = "Every shell command and MCP call Cursor runs waits for Run or Deny in the notch, including the ones Cursor's allowlist would run without asking. Unanswered, Cursor shows its own prompt; nothing runs on silence.";
+"Presses this button on Cursor's card" = "Presses this button on Cursor's card";
+"Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen." = "Shows Cursor's Run, mode-switch and plan cards on the session's row and presses the button you pick. Reads Cursor's windows through Accessibility, never the screen.";
+"Cursor is waiting to run a command" = "Cursor is waiting to run a command";
