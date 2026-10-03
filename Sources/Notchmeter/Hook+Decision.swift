@@ -19,7 +19,7 @@ extension Hook {
     static func title(fromPrompt value: Any?) -> String? {
         guard let prompt = value as? String else { return nil }
         var lines = prompt.split(whereSeparator: \.isNewline).map(String.init)
-        if isHarnessTurn(prompt: prompt) { return nil }
+        if let first = lines.first, openingTag(first).map(harnessTags.contains) ?? false { return nil }
         if lines.first.flatMap(openingTag) == pastedTag { lines.removeFirst() }
         let firstLine = lines.first { !$0.allSatisfy(\.isWhitespace) } ?? ""
         let collapsed = firstLine.split(whereSeparator: \.isWhitespace).joined(separator: " ")

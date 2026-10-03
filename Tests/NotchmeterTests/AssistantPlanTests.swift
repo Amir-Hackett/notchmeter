@@ -50,6 +50,8 @@ import Testing
         #expect(unknown.todos == nil, "a shape nobody recognises shows no list rather than a wrong one")
         let wrongStatuses = Hook.plan(fromUndocumented: ["todos": [["content": "a", "status": "someday"]]])
         #expect(wrongStatuses == nil, "items none of whose statuses are known are not a list")
+        let mixed = Hook.plan(fromUndocumented: ["todos": [["content": "a", "status": "completed"], ["content": "b", "status": "someday"], ["content": "c", "status": "pending"]]])
+        #expect(mixed == nil, "a list with one step it cannot read would count 1 of 2 for a plan of 3: no list instead")
     }
 
     @Test func aChecklistReadsOnlyItsCheckboxLines() {

@@ -98,6 +98,21 @@ import Testing
         #expect(CursorPlans.transcript(nil, home: home) == nil)
     }
 
+    @Test func aLinkInTheTranscriptsFolderCannotLeadOutOfIt() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("cursor-links-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let folder = home.appendingPathComponent(".cursor/projects/p/agent-transcripts/c")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let outside = home.appendingPathComponent("secret.jsonl")
+        try Data("{}\n".utf8).write(to: outside)
+        let link = folder.appendingPathComponent("c.jsonl")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: outside)
+        #expect(CursorPlans.transcript(link.path, home: home) == nil, "a link to a file outside ~/.cursor/projects is refused")
+        let real = folder.appendingPathComponent("d.jsonl")
+        try Data("{}\n".utf8).write(to: real)
+        #expect(CursorPlans.transcript(real.path, home: home) != nil)
+    }
+
     @Test func theHookPassesTheTranscriptAlong() throws {
         let path = Paths.home.appendingPathComponent(".cursor/projects/p/agent-transcripts/c/c.jsonl").path
         let json = #"{"hook_event_name":"afterAgentResponse","conversation_id":"c","transcript_path":"\#(path)","text":"done"}"#

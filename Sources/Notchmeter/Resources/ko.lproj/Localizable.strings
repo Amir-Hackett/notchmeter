@@ -408,7 +408,7 @@
 "Hover delay" = "마우스 오버 지연";
 "Hover the rings. The panel opens." = "링에 마우스를 올리면 패널이 열립니다.";
 "News across the notch: who needs you, and why." = "노치를 가로지르는 소식: 누가 당신을 필요로 하는지, 그리고 왜.";
-"Every assistant's plan on its row, crossed off as it goes." = "모든 어시스턴트의 계획이 각 줄에, 진행하면서 지워집니다.";
+"Every assistant's plan on its row, crossed off as it goes." = "모든 어시스턴트의 계획을 각 행에 표시하고, 진행에 따라 항목에 취소선을 표시합니다.";
 "Icon style" = "아이콘 스타일";
 "Importing %@…" = "%@ 가져오는 중…";
 "In the Cost card" = "비용 카드에 표시";

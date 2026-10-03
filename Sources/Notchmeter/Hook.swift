@@ -545,7 +545,8 @@ enum Hook {
             let words = ["content", "title", "description", "step"].lazy.compactMap { entry[$0] as? String }.first
             return TodoPlan.Item(content: title(fromPrompt: words), status: status)
         }
-        return items.isEmpty && !entries.isEmpty ? nil : TodoPlan(items: items)
+        // An item dropped for a status this does not know would leave a count that is wrong, not short: no list.
+        return items.count < min(entries.count, todoLimit) ? nil : TodoPlan(items: items)
     }
 
     /// `- [ ] step` and `- [x] step` lines (also `*`, and `[X]`); an in-progress state has no Markdown form. nil when

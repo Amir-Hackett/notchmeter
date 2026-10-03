@@ -137,12 +137,12 @@ enum CursorPlans {
     }
 
     /// The transcript a payload names, only when it is one of Cursor's own: a `.jsonl` under
-    /// `~/.cursor/projects/<project>/agent-transcripts/`, with no `..` in it, so a payload can never point the app at
-    /// any other file.
+    /// `~/.cursor/projects/<project>/agent-transcripts/`, with no `..` in it and checked after every symbolic link on
+    /// the way is followed, so a payload, or a link left in that folder, can never point the app at any other file.
     static func transcript(_ path: String?, home: URL = Paths.home) -> URL? {
         guard let path, path.hasSuffix(".jsonl"), !path.contains("/../"), !path.hasSuffix("/..") else { return nil }
-        let url = URL(fileURLWithPath: path).standardizedFileURL
-        let root = home.appendingPathComponent(".cursor/projects").standardizedFileURL.path + "/"
+        let url = URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath()
+        let root = home.appendingPathComponent(".cursor/projects").standardizedFileURL.resolvingSymlinksInPath().path + "/"
         guard url.path.hasPrefix(root), url.path.contains("/agent-transcripts/") else { return nil }
         return url
     }

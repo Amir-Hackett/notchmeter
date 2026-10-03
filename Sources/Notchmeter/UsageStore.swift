@@ -159,7 +159,7 @@ final class UsageStore {
     @ObservationIgnored private var cursorNamesTried: [String: Date] = [:]
     @ObservationIgnored private var cursorNameRead: Task<Void, Never>?
     /// Each Cursor transcript followed for its task list, by path, and the ones being read now (followCursorPlan).
-    @ObservationIgnored private var cursorPlans: [String: CursorPlanFollower] = [:]
+    @ObservationIgnored private var cursorPlans: [String: (key: String, follower: CursorPlanFollower)] = [:]
     @ObservationIgnored private var cursorPlanReads: Set<String> = []
     @ObservationIgnored private var cursorNameFollowUp: Task<Void, Never>?
     /// OpenCode's sessions read from its own database while its plugin is silent (OpenCodeSessions): the loop, what
@@ -2245,7 +2245,9 @@ final class UsageStore {
         guard message.agentID == nil, let sessionID = message.sessionID, let path = message.transcriptPath,
               let url = CursorPlans.transcript(path), !cursorPlanReads.contains(path) else { return }
         cursorPlanReads.insert(path)
-        let follower = cursorPlans[path] ?? CursorPlanFollower()
+        // A transcript whose conversation the panel no longer follows (dismissed, aged out) is let go.
+        cursorPlans = cursorPlans.filter { sessions.sessions[$0.value.key] != nil }
+        let follower = cursorPlans[path]?.follower ?? CursorPlanFollower()
         Task { [weak self] in
             let (read, changed) = await Task.detached(priority: .utility) { () -> (CursorPlanFollower, Bool) in
                 var follower = follower
@@ -2258,7 +2260,13 @@ final class UsageStore {
 
     private func cursorPlanRead(_ follower: CursorPlanFollower, changed: Bool, path: String, sessionID: String, host: String?) {
         cursorPlanReads.remove(path)
-        cursorPlans[path] = follower
+        let key = SessionTracker.key(tool: .cursor, session: sessionID, host: host)
+        // Dismissed while the read was on: the plan must not bring the row back.
+        guard sessions.sessions[key] != nil else {
+            cursorPlans[path] = nil
+            return
+        }
+        cursorPlans[path] = (key, follower)
         guard changed, prefs.readsSessions(of: .cursor) else { return }
         var message = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: sessionID, host: host, tool: .cursor)
         message.todos = prefs.sessionTitles ? follower.plan : follower.plan.withoutContent()

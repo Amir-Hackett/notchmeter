@@ -248,6 +248,15 @@ Codex's [hooks](https://learn.chatgpt.com/docs/hooks) borrow Claude Code's vocab
     ],
     "SessionEnd": [
       { "hooks": [ { "type": "command", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool codex", "timeout": 3 } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "update_plan", "hooks": [ { "type": "command", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool codex", "async": true, "timeout": 5 } ] }
+    ],
+    "PreCompact": [
+      { "hooks": [ { "type": "command", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool codex", "async": true, "timeout": 5 } ] }
+    ],
+    "PostCompact": [
+      { "hooks": [ { "type": "command", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool codex", "async": true, "timeout": 5 } ] }
     ]
   }
 }
@@ -300,7 +309,15 @@ Cursor's [hooks](https://cursor.com/docs/agent/hooks) run a command on the agent
     "stop": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ],
     "subagentStart": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ],
     "subagentStop": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ],
-    "sessionEnd": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ]
+    "sessionEnd": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ],
+    "beforeShellExecution": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ],
+    "afterShellExecution": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ],
+    "beforeMCPExecution": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ],
+    "afterMCPExecution": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ],
+    "afterFileEdit": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ],
+    "afterAgentThought": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ],
+    "afterAgentResponse": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ],
+    "preCompact": [ { "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool cursor" } ]
   }
 }
 ```
@@ -364,6 +381,12 @@ Gemini CLI's [hooks](https://geminicli.com/docs/hooks/reference/) run a command 
     ],
     "SessionEnd": [
       { "hooks": [ { "type": "command", "name": "notchmeter", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool gemini", "timeout": 5000 } ] }
+    ],
+    "AfterTool": [
+      { "matcher": "write_todos", "hooks": [ { "type": "command", "name": "notchmeter", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool gemini", "timeout": 5000 } ] }
+    ],
+    "PreCompress": [
+      { "hooks": [ { "type": "command", "name": "notchmeter", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool gemini", "timeout": 5000 } ] }
     ]
   }
 }
@@ -420,7 +443,9 @@ GitHub Copilot CLI's [hooks](https://docs.github.com/en/copilot/reference/hooks-
     "subagentStop": [ { "type": "command", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool copilot --event subagentStop", "timeoutSec": 5 } ],
     "notification": [ { "type": "command", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool copilot --event notification", "matcher": "permission_prompt|elicitation_dialog", "timeoutSec": 5 } ],
     "PermissionRequest": [ { "type": "command", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool copilot --event PermissionRequest", "timeoutSec": 600 } ],
-    "sessionEnd": [ { "type": "command", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool copilot --event sessionEnd", "timeoutSec": 5 } ]
+    "sessionEnd": [ { "type": "command", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool copilot --event sessionEnd", "timeoutSec": 5 } ],
+    "postToolUse": [ { "type": "command", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool copilot --event postToolUse", "matcher": "update_todo", "timeoutSec": 5 } ],
+    "preCompact": [ { "type": "command", "command": "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool copilot --event preCompact", "timeoutSec": 5 } ]
   }
 }
 ```
@@ -463,16 +488,22 @@ Kimi Code's CLI ([MoonshotAI/kimi-cli](https://github.com/MoonshotAI/kimi-cli), 
 
 **What Kimi Code does not report.** No wait on you: Kimi has no permission event, and its `Notification` is the background-task notice it hands the model (a task or agent `notification_type`, `sink: "llm"`), not a prompt waiting on the user, so it is not registered and the Kimi ring never shows the waiting hand. Nothing can be answered from the notch. `StopFailure` ends a turn without the tick, but its `error_type` is the Python exception's class name (`APIStatusError`, say) rather than a documented kind, so it never marks a limit hit. No permission mode.
 
-**The file and the snippet.** The row has the same three parts as the others: **Show snippet…**, **Add to config.toml…** and **Repair**. `config.toml` is TOML, and the app edits it as text rather than parsing it and writing it back, so every comment, key and blank line of yours stays exactly where it was ([KimiHookFile.swift](../Sources/Notchmeter/KimiHookFile.swift)): Add appends one `[[hooks]]` table per missing event at the end of the file, under a one-line comment saying they are Notchmeter's, after a `config.toml.bak-<yyyyMMdd-HHmmss>` backup; Repair rewrites the `command` value of each table of ours in place, keeping its `timeout` and anything after the value on its line, and appends the tables that are missing. The tables are found only outside multi-line strings and arrays, whose lines can begin with `[` without being headers. A file with Windows line endings is read line by line all the same (the scan splits on the LF byte and drops a CR before it, since Swift reads CRLF as one character and a character split saw such a file as one line), so its tables are seen and a root `hooks` in it is refused like any other. One refusal is deliberate: a file that already defines `hooks` another way — a root `hooks = [...]` array, a `[hooks]` table, a dotted `hooks.x` key — or ends inside an unclosed string or array would be broken by an appended `[[hooks]]`, since TOML forbids defining a key twice, so it is left exactly as it is and Add says to paste the snippet. The snippet, for an app in `/Applications` (seven tables; the first shown):
+**The file and the snippet.** The row has the same three parts as the others: **Show snippet…**, **Add to config.toml…** and **Repair**. `config.toml` is TOML, and the app edits it as text rather than parsing it and writing it back, so every comment, key and blank line of yours stays exactly where it was ([KimiHookFile.swift](../Sources/Notchmeter/KimiHookFile.swift)): Add appends one `[[hooks]]` table per missing event at the end of the file, under a one-line comment saying they are Notchmeter's, after a `config.toml.bak-<yyyyMMdd-HHmmss>` backup; Repair rewrites the `command` value of each table of ours in place, keeping its `timeout` and anything after the value on its line, and appends the tables that are missing. The tables are found only outside multi-line strings and arrays, whose lines can begin with `[` without being headers. A file with Windows line endings is read line by line all the same (the scan splits on the LF byte and drops a CR before it, since Swift reads CRLF as one character and a character split saw such a file as one line), so its tables are seen and a root `hooks` in it is refused like any other. One refusal is deliberate: a file that already defines `hooks` another way — a root `hooks = [...]` array, a `[hooks]` table, a dotted `hooks.x` key — or ends inside an unclosed string or array would be broken by an appended `[[hooks]]`, since TOML forbids defining a key twice, so it is left exactly as it is and Add says to paste the snippet. The snippet, for an app in `/Applications` (ten tables; the first, and the one matched to a tool, shown):
 
 ```toml
 [[hooks]]
 event = "SessionStart"
 command = "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool kimi"
 timeout = 5
+
+[[hooks]]
+event = "PostToolUse"
+command = "'/Applications/Notchmeter.app/Contents/MacOS/Notchmeter' --hook --tool kimi"
+matcher = "SetTodoList"
+timeout = 5
 ```
 
-…and the same for `UserPromptSubmit`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop` and `SessionEnd`. `timeout` is in seconds (Kimi's default is 30, and it fails open when one runs out); Kimi runs every matching hook to completion before it goes on, which is why it matters that the command returns in milliseconds and prints nothing, since Kimi adds a hook's standard output to the model's context when it exits 0. No `matcher` is written but on `PostToolUse` (0.9.13), which matches `SetTodoList` alone, so each other table matches every occurrence of its event; `PreCompact` and `PostCompact` carry the *Compacting* mark. Kimi reads `config.toml` when it starts, so the hook works from the next session, and `/hooks` inside Kimi lists it.
+…and the same for `UserPromptSubmit`, `Stop`, `StopFailure`, `SubagentStart`, `SubagentStop`, `SessionEnd`, `PreCompact` and `PostCompact`. `timeout` is in seconds (Kimi's default is 30, and it fails open when one runs out); Kimi runs every matching hook to completion before it goes on, which is why it matters that the command returns in milliseconds and prints nothing, since Kimi adds a hook's standard output to the model's context when it exits 0. No `matcher` is written but on `PostToolUse` (0.9.13), which matches `SetTodoList` alone, so each other table matches every occurrence of its event; `PreCompact` and `PostCompact` carry the *Compacting* mark. Kimi reads `config.toml` when it starts, so the hook works from the next session, and `/hooks` inside Kimi lists it.
 
 **What the command reads, and what it never reads.** From Kimi's JSON the command keeps `hook_event_name`, `session_id`, `cwd` for the project name and the branch, and the first line of `prompt` on `UserPromptSubmit` as `title`. It never reads `source`, `reason`, `stop_hook_active`, `error_type`, `error_message`, `agent_name`, a subagent's `prompt` or `response`, or any tool field. The payload therefore carries no `needsInput`, `permission_mode`, `agent_id`, `failure` or request, and `tool` is `kimi`. The payload is shaped like Claude Code's, so nothing recognises it by shape: an entry on a plain `--hook` reads as Claude Code's, which is what the flag is for. A session's id reads `kimi:<session_id>`. The code is [Hook+Kimi.swift](../Sources/Notchmeter/Hook+Kimi.swift).
 ## OpenCode
