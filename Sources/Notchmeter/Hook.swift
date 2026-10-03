@@ -467,7 +467,8 @@ enum Hook {
             if event == "PostToolUse" {
                 let tool = object["tool_name"] as? String
                 if tool == todoWriteTool {
-                    message.todos = Hook.todos(from: (object["tool_input"] as? [String: Any])?["todos"])
+                    // Claude Code's three statuses only: the two later ones are other assistants' (TodoPlan.Status).
+                    message.todos = Hook.plan(from: (object["tool_input"] as? [String: Any])?["todos"], text: "content", statuses: Hook.planStatuses)
                 } else {
                     message.task = Hook.taskChange(tool: tool, input: object["tool_input"], response: object["tool_response"])
                 }
@@ -506,8 +507,8 @@ enum Hook {
 
     /// Another assistant's task list reduced as `todos(from:)` reduces Claude Code's (0.9.13): `value` is its array
     /// of items, `text` the key each item's words are under, and `statuses` that assistant's own words for the three
-    /// states the row draws. An item whose status is not among them is dropped rather than guessed at — Gemini CLI's
-    /// and OpenCode's `cancelled` is neither done nor still to do — and nil when the value is not an array at all.
+    /// states the row draws. An item whose status is not among them is dropped rather than guessed at, and nil when
+    /// the value is not an array at all.
     static func plan(from value: Any?, text: String, statuses: [String: TodoPlan.Status]) -> TodoPlan? {
         guard let entries = value as? [[String: Any]] else { return nil }
         let items = entries.prefix(todoLimit).compactMap { entry -> TodoPlan.Item? in

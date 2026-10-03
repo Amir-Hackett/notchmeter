@@ -6,7 +6,8 @@ import Foundation
 /// conversation's transcript (`transcript_path`), and the transcript records each `TodoWrite` call whole, as an
 /// assistant message's `tool_use` with its input: `{merge, todos: [{id, content, status}]}`, status `pending`,
 /// `in_progress`, `completed` or `cancelled`. `merge: false` replaces the list; `merge: true` updates the items it
-/// names by id, a missing field left as it was, and leaves the rest. The calls are replayed here in that way, so the
+/// names by id, a missing field left as it was, and leaves the rest. A cancelled step stays on the list, crossed out
+/// and out of the count (TodoPlan.Status.cancelled). The calls are replayed here in that way, so the
 /// row shows the list Cursor holds.
 ///
 /// A transcript is followed, not reread: each read starts where the last one ended and parses only the lines that
@@ -62,20 +63,16 @@ struct CursorPlanFollower: Equatable, Sendable {
     private mutating func apply(_ call: CursorPlans.Call) {
         if !call.merge {
             items = call.todos.compactMap { todo in
-                guard let id = todo.id, let status = todo.status, status != .cancelled else { return nil }
+                guard let id = todo.id, let status = todo.status else { return nil }
                 return Item(id: id, content: todo.content, status: status.plan)
             }
         } else {
             for todo in call.todos {
                 guard let id = todo.id else { continue }
                 if let index = items.firstIndex(where: { $0.id == id }) {
-                    if todo.status == .cancelled {
-                        items.remove(at: index)
-                        continue
-                    }
                     if let content = todo.content { items[index].content = content }
                     if let status = todo.status { items[index].status = status.plan }
-                } else if let status = todo.status, status != .cancelled {
+                } else if let status = todo.status {
                     items.append(Item(id: id, content: todo.content, status: status.plan))
                 }
             }
@@ -94,9 +91,10 @@ enum CursorPlans {
 
         var plan: TodoPlan.Status {
             switch self {
-            case .pending, .cancelled: .pending
+            case .pending: .pending
             case .inProgress: .inProgress
             case .completed: .completed
+            case .cancelled: .cancelled
             }
         }
     }

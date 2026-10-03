@@ -18,7 +18,7 @@ extension Hook {
     /// - `session.deleted` ends the session;
     /// - `todo.updated` (0.9.13) is the session's task list, the whole list each time, read as the PostToolUse that
     ///   carries Claude Code's (`[{content, status}]`, status `pending`, `in_progress`, `completed` or `cancelled`, as
-    ///   sst/opencode `packages/schema/src/session-todo.ts` has it at v1.18.34; a cancelled task is dropped).
+    ///   sst/opencode `packages/schema/src/session-todo.ts` has it at v1.18.34).
     ///
     /// Nothing is answered from here: the plugin observes permissions and never replies to them, so OpenCode's
     /// entry has no deciding events (HookVendor.decidingEvents).
@@ -85,7 +85,7 @@ extension Hook {
             message.title = canonical == "UserPromptSubmit" ? Hook.title(fromPrompt: object["prompt"]) : nil
             message.reportedModel = event == "chat.message" ? Hook.reportedModel(object["model"]) : nil
             if event == "todo.updated", agent == nil {
-                message.todos = Hook.plan(from: object["todos"], text: "content", statuses: Hook.planStatuses)
+                message.todos = Hook.plan(from: object["todos"], text: "content", statuses: Hook.planStatuses.merging(["cancelled": .cancelled]) { first, _ in first })
             }
             return message
         }

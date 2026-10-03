@@ -902,6 +902,8 @@
 "Subagent %ld" = "하위 에이전트 %ld";
 "How full this session's context window is, from its status line" = "상태 줄이 알려 준 이 세션의 컨텍스트 창 사용량";
 "In progress" = "진행 중";
+"Cancelled" = "취소됨";
+"Blocked by something else" = "다른 일 때문에 막힘";
 "Completed" = "완료됨";
 "The first line of each prompt, at most 96 characters, and the text of Claude Code's task list, which the hook sends and only the running app keeps. Off, the app drops both before they are held anywhere: the row shows the project instead, and the task list only its count. Both are hidden while the screen is shared whatever this says." = "각 프롬프트의 첫 줄(최대 96자)과 Claude Code 작업 목록의 텍스트로, 훅이 보내고 실행 중인 앱만 보관합니다. 끄면 앱은 둘 다 어디에도 보관하기 전에 버리며, 행에는 프로젝트를, 작업 목록에는 개수만 표시합니다. 이 설정과 상관없이 화면을 공유하는 동안에는 둘 다 숨깁니다.";
 

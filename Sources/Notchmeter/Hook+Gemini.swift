@@ -23,12 +23,12 @@ extension Hook {
 
         /// The tool Gemini CLI keeps its plan with, the whole list per call (gemini-cli `core/src/tools/write-todos.ts`,
         /// read at v0.62.0): `{todos: [{description, status}]}`, status `pending`, `in_progress`, `completed`,
-        /// `cancelled` or `blocked`. A blocked step is still to do; a cancelled one is dropped. Gemini offers the tool
+        /// `cancelled` or `blocked`, each kept as it is (TodoPlan.Status). Gemini offers the tool
         /// under its 2.x models only (`config.ts`), so a session on another model simply never shows a list. The
         /// `AfterTool` entry is matched to this name (HookVendor.matcher(for:)), which Gemini reads as a regular
         /// expression, so no other tool call launches the command.
         static let planTool = "write_todos"
-        static let planStatuses: [String: TodoPlan.Status] = Hook.planStatuses.merging(["blocked": .pending]) { first, _ in first }
+        static let planStatuses: [String: TodoPlan.Status] = Hook.planStatuses.merging(["blocked": .blocked, "cancelled": .cancelled]) { first, _ in first }
 
         /// The one documented notification type, and the one that lights the hand. Empty this set to turn the wait off.
         static let waitingNotificationTypes: Set<String> = ["ToolPermission"]

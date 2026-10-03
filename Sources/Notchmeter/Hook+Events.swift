@@ -154,6 +154,28 @@ extension Hook {
         (value as? String).flatMap(Compaction.Trigger.init(rawValue:))
     }
 
+    /// Another assistant's model id as the row shows it (0.9.13, the owner's pick: tidied, as Claude's are): a Claude
+    /// model through `modelDisplayName` (Cursor runs them: `claude-opus-4-7-thinking-max` is Opus 4.7); `gpt-5.5` as
+    /// GPT-5.5 and `gpt-5-codex` as GPT-5 Codex; OpenAI's o-series as it is written (`o4-mini`); Cursor's
+    /// `auto-smart` as Auto; and anything else word by word, a letter before a version raised (`kimi-k2.5` is Kimi
+    /// K2.5, `gemini-2.5-pro` Gemini 2.5 Pro). A provider's prefix (`openai/`) and a date stamp are dropped.
+    static func tidyModelName(_ id: String) -> String {
+        var core = id
+        if let slash = core.lastIndex(of: "/") { core = String(core[core.index(after: slash)...]) }
+        if core.lowercased().hasPrefix("claude-") || core.lowercased().contains("-claude-") { return modelDisplayName(core) }
+        let parts = core.split(separator: "-").map(String.init).filter { !($0.count == 8 && $0.allSatisfy(\.isNumber)) && !$0.isEmpty }
+        guard let first = parts.first?.lowercased() else { return id }
+        func word(_ part: String) -> String {
+            if part.allSatisfy({ $0.isNumber || $0 == "." }) { return part }
+            if let letter = part.first, letter.isLetter, part.dropFirst().first?.isNumber == true { return letter.uppercased() + part.dropFirst() }
+            return part.prefix(1).uppercased() + part.dropFirst()
+        }
+        if first == "auto" { return "Auto" }
+        if first.count > 1, first.hasPrefix("o"), first.dropFirst().allSatisfy(\.isNumber) { return core }
+        if first == "gpt", parts.count > 1 { return (["GPT-" + parts[1]] + parts.dropFirst(2).map(word)).joined(separator: " ") }
+        return parts.map(word).joined(separator: " ")
+    }
+
     /// A model id an assistant reported, kept only when it is shaped like one: at most 80 characters of letters,
     /// digits and `.-_:/@[]`, so a field that held something else never reaches the row.
     static func reportedModel(_ value: Any?) -> String? {

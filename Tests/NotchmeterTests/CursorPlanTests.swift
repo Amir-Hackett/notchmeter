@@ -25,12 +25,13 @@ import Testing
         let cancel = line(#"{"merge":true,"todos":[{"id":"c","status":"cancelled"},{"id":"d","content":"Push it","status":"pending"}]}"#)
         let changed3 = follower.feed(Data(cancel.utf8))
         #expect(changed3)
-        #expect(lines(follower.plan) == ["completed Create docker-compose.yml", "in_progress Create the .gitignore", "pending Push it"],
-                "a cancelled item leaves the list; a new id joins it")
+        #expect(lines(follower.plan) == ["completed Create docker-compose.yml", "in_progress Create the .gitignore", "cancelled Write the README", "pending Push it"],
+                "a cancelled item stays, crossed out; a new id joins the list")
+        #expect(follower.plan.total == 3)
         let replace = line(#"{"merge":false,"todos":[{"id":"x","content":"Start over","status":"pending"},{"id":"y","content":"Old idea","status":"cancelled"}]}"#)
         let changed4 = follower.feed(Data(replace.utf8))
         #expect(changed4)
-        #expect(lines(follower.plan) == ["pending Start over"])
+        #expect(lines(follower.plan) == ["pending Start over", "cancelled Old idea"])
     }
 
     @Test func aLineStillBeingWrittenWaitsForItsNewline() {
