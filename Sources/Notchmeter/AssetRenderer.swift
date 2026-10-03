@@ -446,7 +446,9 @@ enum AssetRenderer {
                 // instruction: the two the fixtures produce report a state and an hour's spend, and a line of
                 // copy that the picture beside it disproves is the whole fault being corrected here.
                 ("03-advice", costAndAdvice.image, L("Tells you what to do, not just how much."), [
-                    "Seven rules over the live readings and the cost summary, pinned by unit tests.",
+                    // No count: "Seven rules" outlived the seven by nine (Advisor runs sixteen as of 0.9.14), and a
+                    // number here drifts silently as rules are added (2026-10-03).
+                    "Rules over the live readings and the cost summary, each pinned by unit tests.",
                     "At most three lines, highest priority first, and nothing at all when there is nothing to say.",
                     "The same words arrive as a notification when a window's pace crosses.",
                 ]),
