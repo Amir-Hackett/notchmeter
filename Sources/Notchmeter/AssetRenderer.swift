@@ -47,8 +47,12 @@ enum AssetRenderer {
             try write(stage.image(.compact, canvas: CGSize(width: 1200, height: 80), pixelScale: scale), png: directory.appendingPathComponent("compact-top.png"))
             try write(edgeNotch(store: store), png: directory.appendingPathComponent("edge-left.png"))
             try write(edgeNotchWithPanel(panel: stage.content, store: store), png: directory.appendingPathComponent("edge-right-panel.png"))
-            let (finished, finishedPrefs) = DemoFixtures.store(now: now, moment: .justFinished)
-            try write(signalRings(waiting: stage, finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
+            // Every ring with a hook carries its mark, not only Claude's: Codex and Cursor wait and finish beside it
+            // (DemoFixtures.everyRing), each from a store of its own so the pictures above stay as they were.
+            let (waitingAll, waitingAllPrefs) = DemoFixtures.store(now: now, moment: .waiting, everyRing: true)
+            let (finished, finishedPrefs) = DemoFixtures.store(now: now, moment: .justFinished, everyRing: true)
+            try write(signalRings(waiting: Stage(store: waitingAll, prefs: waitingAllPrefs, actions: actions),
+                                  finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
                       png: directory.appendingPathComponent("signal-rings.png"))
             try write(notchNews(now: now, actions: actions), png: review.appendingPathComponent("notch-news.png"))
             let newsLoop = try notchNewsLoop(now: now, actions: actions)

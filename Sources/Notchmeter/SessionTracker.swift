@@ -507,6 +507,21 @@ struct AgentSession: Equatable, Sendable, Identifiable {
     /// What a row calls the session: the prompt's first line when the hook sent one, else the name Claude Code's
     /// status line carries (`--name`, `/rename` or its own title). Both are held only while Preferences.sessionTitles
     /// is on, so a nil here is either "nothing said yet" or "the user asked not to show it".
+    /// The session with nothing of a prompt left in it: no title, no session name, its task list's statuses
+    /// without their words, its idle teammates by opaque key. What SessionTracker.clearTitles makes of every session,
+    /// and UsageStore.dropTitles of the copy an open notice holds (AttentionNotice), which the tracker never sees.
+    func withoutTitles() -> AgentSession {
+        var session = self
+        session.title = nil
+        session.sessionName = nil
+        session.todos = session.todos?.withoutContent()
+        session.idleTeammates = session.idleTeammates.map { entry in
+            guard let name = entry.value.name else { return entry }
+            return Stamped(value: Teammate(key: Teammate.opaqueKey(for: name), name: nil), at: entry.at)
+        }
+        return session
+    }
+
     var displayTitle: String? {
         if let title, !title.isEmpty { return title }
         if let sessionName, !sessionName.isEmpty { return sessionName }
@@ -1187,21 +1202,8 @@ struct SessionTracker: Equatable, Sendable {
     /// forbidden. A task list keeps its statuses, which are counts and not words, and an idle teammate its opaque
     /// key, so the count of them stays right.
     mutating func clearTitles() {
-        func cleared(_ table: [String: AgentSession]) -> [String: AgentSession] {
-            table.mapValues { session in
-                var session = session
-                session.title = nil
-                session.sessionName = nil
-                session.todos = session.todos?.withoutContent()
-                session.idleTeammates = session.idleTeammates.map { entry in
-                    guard let name = entry.value.name else { return entry }
-                    return Stamped(value: Teammate(key: Teammate.opaqueKey(for: name), name: nil), at: entry.at)
-                }
-                return session
-            }
-        }
-        sessions = cleared(sessions)
-        dismissed = cleared(dismissed)
+        sessions = sessions.mapValues { $0.withoutTitles() }
+        dismissed = dismissed.mapValues { $0.withoutTitles() }
     }
 
     /// A status-line update is proof the session is alive; its project, branch and pull request are taken. Only

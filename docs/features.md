@@ -66,11 +66,11 @@ Notchmeter never signs in anywhere and never stores a token. Each reading is bor
 
 | Answering a permission request | Answering a question |
 |---|---|
-| ![The panel open on a permission request alone: the hand, Permission request, the Bash and notchmeter chips, the command, the excerpt, Deny and Allow with their shortcuts, and Always allow with the rule Claude Code suggested in plain words](media/permission.png) | ![The panel open on a question alone: Claude asks, the header chip, the question, and one button per option with its description and its Command-number shortcut](media/question.png) |
+| ![The panel open on a permission request alone: the hand, Claude needs approval, the Bash and notchmeter chips, the command, the excerpt, Deny and Allow with their shortcuts, and Always allow with the rule Claude Code suggested in plain words](media/permission.png) | ![The panel open on a question alone: Claude asks, the header chip, the question, and one button per option with its description and its Command-number shortcut](media/question.png) |
 
 *A request opens the panel on its card and nothing else, with one link to the rest of the panel. The terminal shows its own prompt at the same time, so whichever you answer first wins; Escape, or* Answer in the terminal, *hands it straight back. See [docs/hooks.md](hooks.md#answering-from-the-notch) for what the hook sends and how every part of it fails open. Since 0.9.0 an MCP server's request for input opens the same way when every field of its form is a choice, one button per value; one that wants text or a sign-in is left to the terminal at once ([docs/hooks.md](hooks.md#answering-an-mcp-server); `--render-assets` draws the card in `elicitation.png` for review).*
 
-![The rings beside the notch, a moment apart: Claude Code waiting for an answer above, a turn just finished below](media/signal-rings.png)
+![The rings beside the notch, a moment apart: Claude Code, Codex and Cursor each waiting on you above, a dot on every ring; each turn just finished below, a tick on every ring](media/signal-rings.png)
 
 ![The Usage Dashboard: the week's total with the value line under it, and daily average, peak day and today beside it; daily spend stacked by assistant across the week with the peak day pinned under the chart; each limit on the panel's meter with its pace tick and per-day allowance; spend by model in each assistant's colour and by project in the accent](media/dashboard.png)
 

@@ -1004,8 +1004,11 @@ struct NotchCompactView: View {
     /// it displaced are back without a wait. It is only a crossfade (the shape's width follows at once under
     /// Reduce Motion, DynamicNotch.reduceMotion), so Reduce Motion keeps it.
     static func peekAnimation(appearing: Bool) -> Animation {
-        appearing ? .easeOut(duration: 0.25) : .easeIn(duration: 0.18)
+        appearing ? .easeOut(duration: 0.25) : .easeIn(duration: peekFadeOut)
     }
+
+    /// How long the peek's words take to fade where they stand before it leaves the strip (UsageStore.fadePeek).
+    static let peekFadeOut: TimeInterval = 0.18
 
     var body: some View {
         ZStack {
@@ -1013,6 +1016,8 @@ struct NotchCompactView: View {
                 if peek.speaks {
                     NotchPeekHalf(news: peek.news, words: peek.words, style: store.prefs.notchNewsStyle, parts: peek.parts, room: peek.room, side: side,
                                   scrolls: store.prefs.scrollsLongNames)
+                        .opacity(store.peekFading ? 0 : 1)
+                        .animation(.easeIn(duration: Self.peekFadeOut), value: store.peekFading)
                         .transition(.opacity)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(peek.words.spoken)
@@ -1022,6 +1027,8 @@ struct NotchCompactView: View {
                 } else {
                     NotchPeekHalf(news: peek.news, words: peek.words, style: store.prefs.notchNewsStyle, parts: peek.parts, room: peek.room, side: side,
                                   scrolls: store.prefs.scrollsLongNames)
+                        .opacity(store.peekFading ? 0 : 1)
+                        .animation(.easeIn(duration: Self.peekFadeOut), value: store.peekFading)
                         .transition(.opacity)
                         .accessibilityHidden(true)
                 }

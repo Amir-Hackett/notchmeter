@@ -88,6 +88,21 @@ import Testing
         #expect(short == nil, "A turn that ended while the user was still watching it is not news, the rule the ring keeps.")
     }
 
+    /// `claude -p` ends its session a few milliseconds after its turn, before the words are drawn; the news has to
+    /// carry the title itself or it is announced by the temporary folder it ran in.
+    @Test func newsKeepsTheSessionsTitleFromWhenItWasMade() {
+        var prompt = message("UserPromptSubmit")
+        prompt.title = "Summarise the overnight build failures"
+        let finished = newsAfter([(prompt, 120), (message("Stop"), 0)])
+        #expect(finished?.title == "Summarise the overnight build failures")
+        let waiting = newsAfter([(prompt, 60), (message("Notification", type: "permission_prompt"), 0)])
+        #expect(waiting?.reason == .approval)
+        #expect(waiting?.title == "Summarise the overnight build failures")
+        let untitled = newsAfter([(message("UserPromptSubmit"), 120), (message("Stop"), 0)])
+        #expect(untitled?.title == nil)
+        #expect(finished?.withoutTitle().title == nil)
+    }
+
     @Test func activityThatIsNeitherIsNotNews() {
         #expect(newsAfter([(message("SessionStart"), 10), (message("UserPromptSubmit"), 0)]) == nil)
     }
@@ -203,13 +218,29 @@ import Testing
         #expect(NotchPeekHalf.label(shared, style: .full) == "Claude Code finished")
     }
 
+    /// Each symbol is measured as drawn: Codex's `</>` is wider than the flat allowance that fitted the others, and
+    /// "Codex finished" was cut short in a room the longer "Cursor finished" fitted.
+    @Test @MainActor func everyAssistantsSymbolIsMeasuredAsItIsDrawn() {
+        let flat = NotchPeekHalf.symbolSize + 2
+        for tool in ToolID.allCases {
+            #expect(NotchPeekHalf.symbolWidth(tool.symbolName) >= flat, "\(tool) is never budgeted less than before")
+        }
+        #expect(NotchPeekHalf.symbolWidth(ToolID.codex.symbolName) > NotchPeekHalf.symbolWidth(ToolID.cursor.symbolName))
+        #expect(NotchPeekHalf.symbolWidth("no.such.symbol.anywhere") == flat)
+        let codex = NotchNews(reason: .finished, sessionID: "s", tool: .codex, project: "p", at: Date()).words(hidesFigures: false, title: nil)
+        let needed = NotchPeekHalf.needed(parts: [.tool, .reason], words: codex, style: .full)
+        let drawn = NotchPeekHalf.symbolWidth(codex.toolSymbol) + NotchPeekHalf.symbolWidth(codex.reasonSymbol)
+            + NotchPeekHalf.textWidth(codex.headline) + 2 * NotchPeekHalf.spacing + 2 * NotchPeekHalf.padding
+        #expect(needed >= drawn)
+    }
+
     @Test @MainActor func compactTakesLessOfTheStripThanFull() {
         let words = news(.finished).words(hidesFigures: false)
         let compact = NotchPeekHalf.needed(parts: [.tool, .reason], words: words, style: .compact)
         let full = NotchPeekHalf.needed(parts: [.tool, .reason], words: words, style: .full)
         #expect(compact < full)
-        #expect(compact == 2 * NotchPeekHalf.padding + 2 * (NotchPeekHalf.symbolSize + 2) + NotchPeekHalf.spacing,
-                "Two symbols and nothing beside them.")
+        let symbols = NotchPeekHalf.symbolWidth(words.toolSymbol) + NotchPeekHalf.symbolWidth(words.reasonSymbol)
+        #expect(compact == 2 * NotchPeekHalf.padding + symbols + NotchPeekHalf.spacing, "Two symbols and nothing beside them.")
     }
 
     @Test func theSessionsTitleNamesThePeekBeforeTheFolder() {
@@ -405,6 +436,46 @@ import Testing
         #expect(store.glowNews?.sessionID == "a")
         #expect(box.spoken.count == 1)
         store.endPeek()
+    }
+
+    /// The session gone (`claude -p` ends it right after its turn), the news names it by the title it kept; with
+    /// *Show what a session is working on* off it names nobody's prompt, and turning it off drops the kept ones.
+    @Test func aSessionThatHasEndedIsStillNamedByItsTitleUntilTitlesAreOff() {
+        let (store, _) = makeStore()
+        var titled = news(.finished, session: "gone")
+        titled.title = "Summarise the overnight build failures"
+        store.announce(titled)
+        #expect(store.peekTitle(titled) == "Summarise the overnight build failures")
+        let now = Date()
+        var open = AgentSession(id: "gone", project: "notchmeter", state: .waiting(since: now), started: now, lastEvent: now, turnStarted: nil)
+        open.title = "Summarise the overnight build failures"
+        open.sessionName = "nightly"
+        store.attentionNotice = AttentionNotice(session: open, event: .waiting(blocking: true))
+        store.dropTitles()
+        #expect(store.attentionNotice?.session.title == nil, "the open notice's own copy of the session goes too")
+        #expect(store.attentionNotice?.session.sessionName == nil)
+        #expect(store.peek?.title == nil)
+        #expect(store.glowNews?.title == nil)
+        #expect(store.latestNews?.title == nil)
+        store.prefs.sessionTitles = false
+        #expect(store.peekTitle(titled) == nil)
+        store.endPeek()
+    }
+
+    /// The words fade where they stand before the peek leaves: the halves only go back to the readouts' widths
+    /// once nothing is drawn in them, so no word is ever laid out across the camera housing on the way out.
+    @Test func thePeekFadesWhereItStandsBeforeItLeaves() {
+        let (store, _) = makeStore()
+        store.announce(news(.finished))
+        store.fadePeek()
+        #expect(store.peekFading)
+        #expect(store.peek != nil, "the peek keeps its place, and the halves their widths, while its words fade")
+        store.announce(news(.approval, session: "b"))
+        #expect(!store.peekFading, "news arriving during the fade is shown whole")
+        #expect(store.peek?.sessionID == "b")
+        store.endPeek()
+        #expect(store.peek == nil)
+        #expect(!store.peekFading)
     }
 
     @Test func aPanelOpenedOnARequestTakesThePeekButNotTheGlowOrTheAnnouncement() {

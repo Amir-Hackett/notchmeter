@@ -100,6 +100,12 @@ struct NotchNews: Equatable, Sendable {
     let at: Date
     /// A hook's session, or a Claude Cowork task (AgentSession.Source), which is announced under its own name.
     var source: SessionSource = .hook
+    /// The session's title as the news was made (AgentSession.displayTitle), for UsageStore.peekTitle once the
+    /// session itself has gone: `claude -p` ends its session a few milliseconds after its turn, so a title looked
+    /// up only while the words were up was already gone, and an agent's run every few minutes was announced by
+    /// its folder's name, `T`, the last part of the temporary folder it ran in (2026-10-03). Held only while
+    /// titles are (Preferences.sessionTitles; UsageStore.dropTitles takes it with every other).
+    var title: String?
 
     /// "Claude Code", or "Claude Cowork" for a Cowork task: the name the announcement speaks.
     var productName: String { source == .coworkLog ? CoworkSessions.productName : tool.productName }
@@ -144,11 +150,12 @@ struct NotchNews: Equatable, Sendable {
         if let waiting = outcome.startedWaiting,
            let reason = reason(event: message.event, notificationType: message.notificationType,
                                request: outcome.requested?.request.kind ?? message.request?.kind) {
-            return NotchNews(reason: reason, sessionID: waiting.id, tool: waiting.tool, project: waiting.project, at: now)
+            return NotchNews(reason: reason, sessionID: waiting.id, tool: waiting.tool, project: waiting.project, at: now,
+                             title: waiting.displayTitle)
         }
         if let trouble = outcome.trouble {
             return NotchNews(reason: Reason(trouble.trouble), sessionID: trouble.session.id, tool: trouble.session.tool,
-                             project: trouble.session.project, at: now)
+                             project: trouble.session.project, at: now, title: trouble.session.displayTitle)
         }
         if let finished = outcome.finished { return self.finished(finished.session, turn: finished.turn, now: now) }
         return nil
@@ -158,7 +165,15 @@ struct NotchNews: Equatable, Sendable {
     /// (SessionTracker.observeCowork). Nil for a turn shorter than `ToolSignal.finishedAfter`, the ring's own rule.
     static func finished(_ session: AgentSession, turn: TimeInterval, now: Date) -> NotchNews? {
         guard turn >= ToolSignal.finishedAfter else { return nil }
-        return NotchNews(reason: .finished, sessionID: session.id, tool: session.tool, project: session.project, at: now, source: session.source)
+        return NotchNews(reason: .finished, sessionID: session.id, tool: session.tool, project: session.project, at: now, source: session.source,
+                         title: session.displayTitle)
+    }
+
+    /// The same news with no title, for *Show what a session is working on* turned off (UsageStore.dropTitles).
+    func withoutTitle() -> NotchNews {
+        var news = self
+        news.title = nil
+        return news
     }
 
     /// Whether `candidate` earns an announcement. `showing` is the peek on screen now, `last` the most recent

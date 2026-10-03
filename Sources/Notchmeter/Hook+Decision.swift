@@ -13,15 +13,17 @@ import Foundation
 /// command, which needs it once more only to echo it back inside an answer (`Answer.output`). The app's side
 /// never sees `tool_input`, and docs/hooks.md lists what it sees instead.
 extension Hook {
-    /// The prompt's first line, its whitespace collapsed, at most `titleLimit` characters with an ellipsis; nil
-    /// for anything that is not a non-empty string, and for a turn the assistant's harness wrote (`harnessTags`).
-    /// A prompt that opens with pasted text (`<pasted_content …>`) is titled from the text, not the tag.
+    /// The prompt's first line with a letter or a digit on it, its whitespace collapsed, at most `titleLimit`
+    /// characters with an ellipsis; nil for anything that is not a non-empty string, and for a turn the
+    /// assistant's harness wrote (`harnessTags`). A prompt that opens with pasted text (`<pasted_content …>`) is
+    /// titled from the text, not the tag. A line of punctuation alone names nothing: an agent that hands
+    /// `claude -p` its prompt after a line holding only `-` was titled "-" (2026-10-03).
     static func title(fromPrompt value: Any?) -> String? {
         guard let prompt = value as? String else { return nil }
         var lines = prompt.split(whereSeparator: \.isNewline).map(String.init)
         if let first = lines.first, openingTag(first).map(harnessTags.contains) ?? false { return nil }
         if lines.first.flatMap(openingTag) == pastedTag { lines.removeFirst() }
-        let firstLine = lines.first { !$0.allSatisfy(\.isWhitespace) } ?? ""
+        let firstLine = lines.first { $0.contains { $0.isLetter || $0.isNumber } } ?? ""
         let collapsed = firstLine.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         guard !collapsed.isEmpty else { return nil }
         guard collapsed.count > titleLimit else { return collapsed }
