@@ -3,31 +3,43 @@ import Testing
 @testable import Notchmeter
 
 /// The updater starts only for a build that could take an update: an https feed, a real 32-byte EdDSA public key in
-/// place of the placeholder scripts/Info.plist ships, and a Developer ID code signature.
+/// place of the placeholder scripts/Info.plist ships, a Developer ID code signature, and a release's build number.
 @Suite struct UpdaterGate {
     let feed = "https://github.com/Amir-Hackett/notchmeter/releases/latest/download/appcast.xml"
     let key = Data((0..<32).map { UInt8($0) }).base64EncodedString()
 
     @Test func signedBuildWithARealKeyIsActive() {
-        #expect(Updater.gate(feed: feed, publicKey: key, signedWithCertificate: true) == .active)
+        #expect(Updater.gate(feed: feed, publicKey: key, build: "289", signedWithCertificate: true) == .active)
     }
 
     @Test func placeholderOrMalformedKeyStaysInactive() {
-        #expect(Updater.gate(feed: feed, publicKey: "REPLACE_WITH_SPARKLE_PUBLIC_KEY", signedWithCertificate: true) == .noPublicKey)
-        #expect(Updater.gate(feed: feed, publicKey: nil, signedWithCertificate: true) == .noPublicKey)
-        #expect(Updater.gate(feed: feed, publicKey: "", signedWithCertificate: true) == .noPublicKey)
+        #expect(Updater.gate(feed: feed, publicKey: "REPLACE_WITH_SPARKLE_PUBLIC_KEY", build: "289", signedWithCertificate: true) == .noPublicKey)
+        #expect(Updater.gate(feed: feed, publicKey: nil, build: "289", signedWithCertificate: true) == .noPublicKey)
+        #expect(Updater.gate(feed: feed, publicKey: "", build: "289", signedWithCertificate: true) == .noPublicKey)
         let short = Data(repeating: 1, count: 31).base64EncodedString()
-        #expect(Updater.gate(feed: feed, publicKey: short, signedWithCertificate: true) == .noPublicKey)
+        #expect(Updater.gate(feed: feed, publicKey: short, build: "289", signedWithCertificate: true) == .noPublicKey)
     }
 
     @Test func feedMustBeHTTPS() {
-        #expect(Updater.gate(feed: nil, publicKey: key, signedWithCertificate: true) == .noFeed)
-        #expect(Updater.gate(feed: "", publicKey: key, signedWithCertificate: true) == .noFeed)
-        #expect(Updater.gate(feed: "http://example.com/appcast.xml", publicKey: key, signedWithCertificate: true) == .noFeed)
+        #expect(Updater.gate(feed: nil, publicKey: key, build: "289", signedWithCertificate: true) == .noFeed)
+        #expect(Updater.gate(feed: "", publicKey: key, build: "289", signedWithCertificate: true) == .noFeed)
+        #expect(Updater.gate(feed: "http://example.com/appcast.xml", publicKey: key, build: "289", signedWithCertificate: true) == .noFeed)
     }
 
     @Test func buildNotSignedForDistributionStaysInactive() {
-        #expect(Updater.gate(feed: feed, publicKey: key, signedWithCertificate: false) == .unsignedForDistribution)
+        #expect(Updater.gate(feed: feed, publicKey: key, build: "289", signedWithCertificate: false) == .unsignedForDistribution)
+    }
+
+    /// A local build signed with Developer ID by hand (so the installed copy's hooks reach it) still carries
+    /// scripts/build.sh's stamp, and was offered the release over itself; only a release's build number opens it.
+    @Test func aLocalBuildsStampKeepsItInactiveWhateverItIsSignedWith() {
+        #expect(Updater.gate(feed: feed, publicKey: key, build: "be89029-dirty-20261003.0752", signedWithCertificate: true) == .localBuild)
+        #expect(Updater.gate(feed: feed, publicKey: key, build: "be89029-20261003.0752", signedWithCertificate: true) == .localBuild)
+        #expect(Updater.gate(feed: feed, publicKey: key, build: "1.0", signedWithCertificate: true) == .localBuild)
+        #expect(Updater.gate(feed: feed, publicKey: key, build: "", signedWithCertificate: true) == .localBuild)
+        #expect(Updater.gate(feed: feed, publicKey: key, build: nil, signedWithCertificate: true) == .localBuild)
+        #expect(Updater.gate(feed: feed, publicKey: key, build: "２８９", signedWithCertificate: true) == .localBuild, "digits Sparkle compares, not any numeral")
+        #expect(Updater.gate(feed: feed, publicKey: key, build: "289", signedWithCertificate: true) == .active)
     }
 
     /// Only the Developer ID leaf scripts/release.sh signs with opens the gate. The self-signed "Notchmeter Local"
@@ -52,7 +64,7 @@ import Testing
             .appendingPathComponent("scripts/Info.plist")
         let values = try #require(PropertyListSerialization.propertyList(from: Data(contentsOf: plist), format: nil) as? [String: Any])
         let publicKey = values["SUPublicEDKey"] as? String
-        let gate = Updater.gate(feed: values["SUFeedURL"] as? String, publicKey: publicKey, signedWithCertificate: true)
+        let gate = Updater.gate(feed: values["SUFeedURL"] as? String, publicKey: publicKey, build: "289", signedWithCertificate: true)
         #expect(gate == .active || (gate == .noPublicKey && publicKey == "REPLACE_WITH_SPARKLE_PUBLIC_KEY"))
         #expect(values["SUEnableAutomaticChecks"] as? Bool == true)
         #expect(values["SUScheduledCheckInterval"] as? Int == 86400)

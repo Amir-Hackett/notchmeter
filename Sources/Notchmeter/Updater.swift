@@ -13,7 +13,10 @@ private let log = Logger(subsystem: "com.amirhackett.notchmeter", category: "upd
 /// "Notchmeter Local" identity from scripts/signing-identity.sh over ad-hoc signing (since 2026-09-03), and until
 /// 0.5.0 that identity opened the gate, so a developer's own build polled the public appcast with a non-numeric
 /// CFBundleVersion and could be offered a release it could never install over its local signature. A local build,
-/// self-signed or ad hoc, therefore never starts the updater and never sees one of its alerts.
+/// self-signed or ad hoc, therefore never starts the updater and never sees one of its alerts. Nor does one signed with
+/// Developer ID by hand: a release's CFBundleVersion is its build number, digits alone (scripts/release.sh), where
+/// scripts/build.sh stamps the commit and the time (`be89029-dirty-20261003.0752`), and a local build signed so the
+/// installed copy's hooks would reach it was offered 0.9.13 (289) over itself on 2026-10-03.
 /// Settings › Updates binds the automatic check and download switches and the beta channel to it.
 @MainActor
 final class Updater {
@@ -22,6 +25,7 @@ final class Updater {
         case noFeed
         case noPublicKey
         case unsignedForDistribution
+        case localBuild
 
         var summary: String {
             switch self {
@@ -29,19 +33,23 @@ final class Updater {
             case .noFeed: "inactive: SUFeedURL is not an https URL"
             case .noPublicKey: "inactive: SUPublicEDKey is not a 32-byte EdDSA key"
             case .unsignedForDistribution: "inactive: not signed with Developer ID"
+            case .localBuild: "inactive: CFBundleVersion is a local build's stamp, not a release's build number"
             }
         }
     }
 
-    nonisolated static func gate(feed: String?, publicKey: String?, signedWithCertificate: Bool) -> Gate {
+    nonisolated static func gate(feed: String?, publicKey: String?, build: String?, signedWithCertificate: Bool) -> Gate {
         guard let feed, let url = URL(string: feed), url.scheme == "https", url.host != nil else { return .noFeed }
         guard let publicKey, let key = Data(base64Encoded: publicKey), key.count == 32 else { return .noPublicKey }
-        return signedWithCertificate ? .active : .unsignedForDistribution
+        guard signedWithCertificate else { return .unsignedForDistribution }
+        guard let build, !build.isEmpty, build.allSatisfy({ $0.isASCII && $0.isNumber }) else { return .localBuild }
+        return .active
     }
 
     nonisolated static func gate(bundle: Bundle = .main) -> Gate {
         gate(feed: bundle.object(forInfoDictionaryKey: "SUFeedURL") as? String,
              publicKey: bundle.object(forInfoDictionaryKey: "SUPublicEDKey") as? String,
+             build: bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
              signedWithCertificate: CodeSignature.runningCodeIsDeveloperIDSigned())
     }
 
