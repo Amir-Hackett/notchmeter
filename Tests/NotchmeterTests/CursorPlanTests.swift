@@ -62,6 +62,55 @@ import Testing
         let elsewhere = line(#"{"namespace":"cursor","toolName":"WebSearch","arguments":{"todos":[{"id":"9","content":"x","status":"pending"}]}}"#, name: "CallDynamicTool")
         let changed10 = follower.feed(Data(elsewhere.utf8))
         #expect(!changed10)
+        let otherNamespace = line(#"{"namespace":"user-tools","toolName":"TodoWrite","arguments":{"merge":false,"todos":[{"id":"9","content":"Not Cursor","status":"pending"}]}}"#, name: "CallDynamicTool")
+        let changed11 = follower.feed(Data(otherNamespace.utf8))
+        #expect(!changed11, "a TodoWrite outside the cursor namespace is not this list")
+    }
+
+    @Test func aCreatePlanSeedsPendingTasksAndThePlanFileSuppliesStatuses() throws {
+        var follower = CursorPlanFollower()
+        let created = line(#"{"name":"NBSCTe holiday IVR","overview":"Publish a holiday greeting.","todos":[{"id":"pick-number","content":"Pick a number"},{"id":"publish-calendar","content":"Publish the calendar"}]}"#, name: "CreatePlan")
+        let seeded = follower.feed(Data(created.utf8))
+        #expect(seeded)
+        #expect(lines(follower.plan) == ["pending Pick a number", "pending Publish the calendar"])
+        #expect(follower.plan.total == 2)
+        #expect(follower.plan.done == 0)
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("cursor-plan-file-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let folder = home.appendingPathComponent(".cursor/plans")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appendingPathComponent("nbscte_holiday_ivr_ec1e8ed4.plan.md")
+        let body = """
+        ---
+        name: NBSCTe holiday IVR
+        overview: Publish a holiday greeting.
+        todos:
+          - id: pick-number
+            content: Pick a number
+            status: completed
+          - id: publish-calendar
+            content: Publish the calendar
+            status: in_progress
+        isProject: false
+        ---
+
+        # The plan body is not the task list.
+        """
+        try Data(body.utf8).write(to: file)
+        let matched = try #require(CursorPlanFiles.match(name: follower.planName, ids: Set(follower.items.map(\.id)), home: home))
+        #expect(matched == file.standardizedFileURL.resolvingSymlinksInPath())
+        let overlaid = follower.readPlanFile(matched)
+        #expect(overlaid)
+        #expect(lines(follower.plan) == ["completed Pick a number", "in_progress Publish the calendar"])
+        #expect(follower.plan.done == 1)
+        #expect(follower.plan.total == 2)
+        let weak = folder.appendingPathComponent("same_name_aaaaaaaa.plan.md")
+        try Data("---\nname: NBSCTe holiday IVR\ntodos:\n  - id: other\n    content: Something else\n    status: pending\n---\n".utf8).write(to: weak)
+        #expect(CursorPlanFiles.match(name: "NBSCTe holiday IVR", ids: ["other"], home: home) == weak.standardizedFileURL.resolvingSymlinksInPath())
+        #expect(CursorPlanFiles.match(name: "NBSCTe holiday IVR", ids: ["unrelated"], home: home) == nil, "a shared name with no shared task is not this conversation")
+        let outside = home.appendingPathComponent("secret.plan.md")
+        try Data("---\nname: x\ntodos:\n  - id: pick-number\n    content: a\n    status: pending\n  - id: publish-calendar\n    content: b\n    status: pending\n---\n".utf8).write(to: outside)
+        #expect(CursorPlanFiles.allowed(outside.path, home: home) == nil)
     }
 
     @Test func aFileIsFollowedFromWhereTheLastReadEnded() throws {

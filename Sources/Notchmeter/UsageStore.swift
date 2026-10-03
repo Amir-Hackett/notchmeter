@@ -159,8 +159,11 @@ final class UsageStore {
     @ObservationIgnored private var cursorNamesTried: [String: Date] = [:]
     @ObservationIgnored private var cursorNameRead: Task<Void, Never>?
     /// Each Cursor transcript followed for its task list, by path, and the ones being read now (followCursorPlan).
+    /// `cursorPlanAgain` is a conversation whose transcript changed while its read was already running; one coalesced
+    /// read follows when the current one finishes, so a `TodoWrite` that lands mid-read is not left until a later event.
     @ObservationIgnored private var cursorPlans: [String: (key: String, follower: CursorPlanFollower)] = [:]
     @ObservationIgnored private var cursorPlanReads: Set<String> = []
+    @ObservationIgnored private var cursorPlanAgain: [String: (sessionID: String, host: String?)] = [:]
     @ObservationIgnored private var cursorNameFollowUp: Task<Void, Never>?
     /// OpenCode's sessions read from its own database while its plugin is silent (OpenCodeSessions): the loop, what
     /// the last read said of each session, the files' fingerprint at that read and when it was taken, and whether
@@ -2250,43 +2253,62 @@ final class UsageStore {
     /// while titles are on and the screen is not shared, checked again when the read comes back; a store with no
     /// Cursor provider (a test's) has no database to read.
     /// Reads what Cursor added to the conversation's transcript since the last event, off the main actor, and puts
-    /// the task list it replays on the conversation's row (CursorPlans). One read per transcript at a time; an event
-    /// that arrives during one is covered by the next, since every read takes up where the last ended.
+    /// the task list it replays on the conversation's row (CursorPlans). One read per transcript at a time. An event
+    /// that arrives during one is remembered and read once the current read finishes. A plan file whose tasks match
+    /// the transcript overlays the statuses Cursor's plan UI is showing.
     func followCursorPlan(_ message: Hook.Message) {
         guard message.agentID == nil, let sessionID = message.sessionID, let path = message.transcriptPath,
-              let url = CursorPlans.transcript(path), !cursorPlanReads.contains(path) else { return }
+              let url = CursorPlans.transcript(path) else { return }
+        if cursorPlanReads.contains(path) {
+            cursorPlanAgain[path] = (sessionID, message.host)
+            return
+        }
         cursorPlanReads.insert(path)
         // A transcript whose conversation the panel no longer follows (dismissed, aged out) is let go.
         cursorPlans = cursorPlans.filter { sessions.sessions[$0.value.key] != nil }
         let follower = cursorPlans[path]?.follower ?? CursorPlanFollower()
+        let home = Paths.home
         Task { [weak self] in
-            let (read, changed) = await Task.detached(priority: .utility) { () -> (CursorPlanFollower, Bool) in
+            let (read, changed, grew) = await Task.detached(priority: .utility) { () -> (CursorPlanFollower, Bool, Bool) in
                 var follower = follower
-                let changed = follower.read(url)
-                return (follower, changed)
+                let start = follower.offset
+                var changed = follower.read(url)
+                if let plan = CursorPlanFiles.match(name: follower.planName, ids: Set(follower.items.map(\.id)), home: home) {
+                    changed = follower.readPlanFile(plan) || changed
+                }
+                let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.uint64Value ?? 0
+                return (follower, changed, follower.offset > start && size > follower.offset)
             }.value
-            self?.cursorPlanRead(read, changed: changed, path: path, sessionID: sessionID, host: message.host)
+            self?.cursorPlanRead(read, changed: changed, grew: grew, path: path, sessionID: sessionID, host: message.host)
         }
     }
 
-    private func cursorPlanRead(_ follower: CursorPlanFollower, changed: Bool, path: String, sessionID: String, host: String?) {
+    private func cursorPlanRead(_ follower: CursorPlanFollower, changed: Bool, grew: Bool, path: String, sessionID: String, host: String?) {
         cursorPlanReads.remove(path)
         let key = SessionTracker.key(tool: .cursor, session: sessionID, host: host)
         // Dismissed while the read was on: the plan must not bring the row back.
         guard sessions.sessions[key] != nil else {
             cursorPlans[path] = nil
+            cursorPlanAgain[path] = nil
             return
         }
         cursorPlans[path] = (key, follower)
-        guard changed, prefs.readsSessions(of: .cursor) else { return }
-        var message = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: sessionID, host: host, tool: .cursor)
-        message.todos = prefs.sessionTitles ? follower.plan : follower.plan.withoutContent()
-        Oracle.shared.emit("session", ["action": "plan", "tool": "cursor", "session": sessionID, "source": "transcript",
-                                       "todos": ["done": follower.plan.done, "total": follower.plan.total]])
-        var tracker = sessions
-        _ = tracker.apply(message, now: Date())
-        sessions = tracker
-        pruneOpenSessionLists()
+        if changed, prefs.readsSessions(of: .cursor) {
+            var message = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: sessionID, host: host, tool: .cursor)
+            message.todos = prefs.sessionTitles ? follower.plan : follower.plan.withoutContent()
+            Oracle.shared.emit("session", ["action": "plan", "tool": "cursor", "session": sessionID, "source": follower.planFile == nil ? "transcript" : "plan",
+                                           "todos": ["done": follower.plan.done, "total": follower.plan.total]])
+            var tracker = sessions
+            _ = tracker.apply(message, now: Date())
+            sessions = tracker
+            pruneOpenSessionLists()
+        }
+        // One follow-up, whether a hook arrived during the read or the transcript grew after this read started.
+        guard grew || cursorPlanAgain[path] != nil else { return }
+        let again = cursorPlanAgain.removeValue(forKey: path) ?? (sessionID, host)
+        var message = Hook.Message(event: "afterAgentResponse", needsInput: false, sessionID: again.sessionID, host: again.host, tool: .cursor)
+        message.transcriptPath = path
+        followCursorPlan(message)
     }
 
     func lookUpCursorNames(now: Date = Date()) {
