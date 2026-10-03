@@ -266,8 +266,9 @@ struct DashboardLimit: Identifiable, Equatable {
 extension ToolID {
     /// The identity colours stepped for a window's own surface rather than the black notch. The light window
     /// takes the identity's own light value (`ToolID.identity`, 4.5:1 or better on white, which also clears the
-    /// 3:1 a chart mark needs); the dark window, at #1E1E1E rather than black, takes a step of its own for the
-    /// three older hues, whose notch values fall short of it. Both sets pass the dataviz validator (lightness band,
+    /// 3:1 a chart mark needs); the dark window takes a step of its own for the three older hues, made while that
+    /// window was the system's #1E1E1E, where their notch values fell short (it is black since 0.9.12, and the
+    /// step reads there too). Both sets pass the dataviz validator (lightness band,
     /// chroma, CVD and normal-vision separation, contrast) against their surface.
     var chartColor: Color {
         Color(nsColor: .adaptive(light: chartInk(dark: false).hex, dark: chartInk(dark: true).hex))
@@ -300,12 +301,21 @@ extension ToolID {
 /// desktop showing through it. The system's own accent is never used: it is the one colour on the Mac that says
 /// nothing about this app.
 enum DashboardLook {
-    /// The window's own ground under each appearance (`NSColor.windowBackgroundColor`, measured from the renders:
-    /// white under Light on macOS 26, #1E1E1E under Dark), which the audit holds the accent to: the panel's rules
-    /// measure against the black panel and the paper sheet, and a window is neither. Older releases drew the light
-    /// window a shade darker (#ECECEC), which `DashboardPresentation` holds the accent to as well.
-    static let darkWindow = RGB(hex: 0x1E1E1E)
+    /// The window's own ground under each appearance, which the audit holds the accent to. Under Dark it is the
+    /// panel's black since 0.9.12 (`windowColor`): the system's #1E1E1E made a grey window of the same cards the
+    /// panel draws on black, and the dashboard opens from that panel. Under Light it is still the system's own
+    /// (`NSColor.windowBackgroundColor`, white on macOS 26); older releases drew it a shade darker (#ECECEC), which
+    /// `DashboardPresentation` holds the accent to as well.
+    static let darkWindow = RGB.black
     static let lightWindow = RGB.white
+
+    /// What the window and a render of it are filled with: `darkWindow` under Dark, the system's window colour
+    /// under Light.
+    static var windowColor: NSColor {
+        NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .black : .windowBackgroundColor
+        }
+    }
 
     static func look(dark: Bool, accent: PanelAccent, contrast: Bool) -> PanelLook {
         PanelLook(theme: dark ? .black : .paper, material: .solid, accent: accent, contrast: contrast)
@@ -329,7 +339,7 @@ enum DashboardLook {
 
     /// A card's box on the window: CardBackground's wash of the look's ink over the window's ground, at the
     /// opacity the card names (stronger under Increase Contrast), scaled as the look scales it (`PanelLook.box`
-    /// is the same wash over the panel's own sheet). Measured from the dark render as #2E2E2E.
+    /// is the same wash over the panel's own sheet): #121212 on the dark window.
     static func box(dark: Bool, contrast: Bool) -> RGB {
         let look = look(dark: dark, accent: .terracotta, contrast: contrast)
         return look.ink.over(window(dark: dark), alpha: look.washOpacity(contrast ? 0.16 : 0.07))
@@ -338,9 +348,9 @@ enum DashboardLook {
     /// A status colour on the window (the spent line and the behind-pace note as words, the meter's fill as a
     /// mark): the look's value for the role, moved in lightness by the least that reads on the window and on a
     /// card's box there, at 4.5:1 for words and 3:1 for a mark, as the panel's palette moves it for the panel's own
-    /// grounds (`RGB.readable`). The black look's vermillion passes on black (5.4:1) and so comes back from the
-    /// panel as it is, but the dark window is #1E1E1E, where it reads at 4.3:1, and its card box 3.5:1. The status
-    /// colours are the same under every accent, so the look is taken for the default one.
+    /// grounds (`RGB.readable`). The window's grounds are not the panel's: before 0.9.12 the dark window was the
+    /// system's #1E1E1E, where the panel's vermillion read 4.3:1, and a card's box is a wash over the window
+    /// whatever it is. The status colours are the same under every accent, so the look is taken for the default one.
     static func status(_ name: PanelInk, role: PanelLook.Role, dark: Bool, contrast: Bool) -> RGB {
         let grounds = [window(dark: dark), box(dark: dark, contrast: contrast)]
         return look(dark: dark, accent: .terracotta, contrast: contrast).rgb(name, role: role)
@@ -1116,6 +1126,10 @@ final class DashboardWindowController: NSWindowController {
         host.sizingOptions = []
         panel.title = L("%@ Usage", AppInfo.name)
         panel.contentView = host
+        // The title bar over the same ground as the content, so Dark's black runs to the window's top edge rather
+        // than under a grey bar.
+        panel.backgroundColor = DashboardLook.windowColor
+        panel.titlebarAppearsTransparent = true
         panel.setContentSize(Self.contentSize)
         // Content, not frame: the frame's minimum includes the title bar and left the view 28 pt short of its own.
         panel.contentMinSize = Self.minSize

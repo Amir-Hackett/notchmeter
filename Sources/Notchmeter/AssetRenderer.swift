@@ -311,10 +311,10 @@ enum AssetRenderer {
         let weekStart = store.cost?.week?.start ?? now
         let pinned = pinPeak ? DashboardModel(providers: store.costSelection.providers, range: range, weekStart: weekStart, now: now).peak?.day : nil
         let host = NSHostingView(rootView: DashboardView(store: store, range: range, scrolls: false, pinned: pinned, now: now)
-            .frame(width: width).background(Color(nsColor: .windowBackgroundColor)))
+            .frame(width: width).background(Color(nsColor: DashboardLook.windowColor)))
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: CGSize(width: width, height: 1)), styleMask: .borderless, backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: appearance)
-        window.backgroundColor = .windowBackgroundColor
+        window.backgroundColor = DashboardLook.windowColor
         window.contentView = host
         host.layoutSubtreeIfNeeded()
         let size = CGSize(width: width, height: ceil(host.fittingSize.height))
