@@ -74,6 +74,11 @@ enum AssetRenderer {
                 try write(card.image(.expanded, canvas: card.panelCanvas, pixelScale: scale),
                           png: directory.appendingPathComponent("\(name).png"))
             }
+            // Every assistant's session with its plan open (0.9.13), the Sessions card alone at the panel's width, for
+            // the site: each row replayed from its assistant's own payloads (DemoFixtures.everyAssistant).
+            let (every, everyPrefs) = DemoFixtures.store(now: now, moment: .everyAssistant)
+            try write(panelCrop(SessionsCard(store: every, prefs: everyPrefs, actions: actions), prefs: everyPrefs).image,
+                      png: directory.appendingPathComponent("sessions-assistants.png"))
             // Claude Code's 0.11 hook events (DemoFixtures.Moment.hookEvents), for review: the Sessions card with a
             // compaction, a fallback, auto-mode refusals, idle teammates, a session that may be stuck and an MCP
             // wait, with their lists open; the peek the compaction raises; and an MCP server's form held for the notch.
@@ -326,7 +331,7 @@ enum AssetRenderer {
         return try bitmap(of: host, size: size, what: "the dashboard")
     }
 
-    /// `--render-gallery <dir>`: Product Hunt's ten 1270×760 frames and the 240×240 thumbnail, each one centred
+    /// `--render-gallery <dir>`: Product Hunt's eleven 1270×760 frames and the 240×240 thumbnail, each one centred
     /// on a #1c1c1e canvas with its caption drawn into the image (the gallery strips captions on mobile).
     ///
     /// Eight are stills and the first is the animated GIF the gallery spec always asked for. It was shipped as a
@@ -374,6 +379,8 @@ enum AssetRenderer {
                 SpendCard(store: store)
                 AdviceStrip(advice: store.advice)
             }, prefs: prefs)
+            let (every, everyPrefs) = DemoFixtures.store(now: now, moment: .everyAssistant)
+            let everyCard = try panelCrop(SessionsCard(store: every, prefs: everyPrefs, actions: actions), prefs: everyPrefs).image
             let claudeCard = try panelCrop(ToolCard(tool: .claude, status: store.status(.claude), store: store, prefs: prefs), prefs: prefs)
             // The Usage Dashboard's head, for frame 9. The whole window is about 1440x2360 at 1 px a point, an
             // aspect of 0.61 against this frame's 1.67, so fitted whole into the 568 points a caption band leaves
@@ -460,6 +467,9 @@ enum AssetRenderer {
                 // The lines describe the rest of the window, below the crop, rather than restating what the
                 // picture already shows — and none of them asserts a figure the crop can contradict, which is the
                 // rule frame 3 was rewritten to obey.
+                // Every assistant's plan (0.9.13), the same card the site shows, each row replayed from its
+                // assistant's own payloads.
+                ("11-assistants", everyCard, L("Every assistant's plan on its row, crossed off as it goes."), []),
                 ("09-dashboard", dashboardHead, L("The week in one window."), [
                     "Press Cmd-U. The range's total leads, with the daily average, the peak day and today beside it.",
                     "Each day's bar splits by assistant. Hover one for its figures; click several to keep them side by side.",

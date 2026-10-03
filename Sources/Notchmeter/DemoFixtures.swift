@@ -45,6 +45,9 @@ enum DemoFixtures {
         /// and atlas, waiting on an MCP server's sign-in that only the terminal can answer. For review
         /// (`hook-events.png`); nothing in the README uses it.
         case hookEvents
+        /// One session for each assistant but Claude Code, each fed the payloads its own hook (or, for Cursor, its
+        /// transcript) carries, with its plan open: what 0.9.13 put on every assistant's row (`sessions-assistants.png`).
+        case everyAssistant
         /// An MCP server's form a click can answer, held for the notch like a permission request
         /// (`elicitation.png`, for review).
         case elicitation
@@ -80,6 +83,10 @@ enum DemoFixtures {
         store.hookInstalledTools = moment == .firstLaunch ? [] : [.claude]
         // The task list open on the notchmeter row, so the pictures show the checklist and not only its count.
         store.openSessionLists = moment == .firstLaunch ? [] : [SessionsCard.listKey("notchmeter", .todos)]
+        if moment == .everyAssistant {
+            store.hookInstalledTools = Set(ToolID.allCases)
+            store.openSessionLists = Set(everyAssistantPlans.map { SessionsCard.listKey(SessionTracker.key(tool: $0.tool, session: $0.session, host: nil), .todos) })
+        }
         return (store, prefs)
     }
 
@@ -99,6 +106,10 @@ enum DemoFixtures {
     static func sessions(now: Date, moment: Moment) -> SessionTracker {
         if moment == .firstLaunch { return detectedSessions(now: now) }
         var tracker = SessionTracker()
+        if moment == .everyAssistant {
+            everyAssistant(&tracker, now: now)
+            return tracker
+        }
         // The hook-events moment is three sessions of its own, replayed whole (`hookEvents`).
         if moment == .hookEvents {
             hookEvents(&tracker, now: now)
@@ -186,7 +197,7 @@ enum DemoFixtures {
         case .working:
             send("UserPromptSubmit", 9 * 60, session: "notchmeter", project: "notchmeter", branch: "feat/side-notch", title: notchmeterTitle)
             send("Stop", 6 * 60, session: "scout", project: "scout", branch: "main")
-        case .firstLaunch:
+        case .firstLaunch, .everyAssistant:
             break
         case .hookEvents:
             break
@@ -313,7 +324,7 @@ enum DemoFixtures {
         case .waiting, .permissionRequest: reason = .approval
         case .question: reason = .question
         case .justFinished: reason = .finished
-        case .working, .firstLaunch, .idle: return nil
+        case .working, .firstLaunch, .idle, .everyAssistant: return nil
         case .hookEvents: reason = .compacting
         case .elicitation: reason = .input
         }
@@ -763,4 +774,39 @@ struct FixtureProvider: UsageProvider {
     var refreshInterval: TimeInterval { 300 }
     func isInstalled() -> Bool { true }
     func fetch() async throws -> UsageReading { reading }
+}
+
+extension DemoFixtures {
+    /// The sessions `everyAssistant` opens the plan of.
+    static let everyAssistantPlans: [(tool: ToolID, session: String)] = [(.cursor, "u-1"), (.codex, "x-1"), (.gemini, "g-1"), (.copilot, "c-1"),
+                                                                         (.kimi, "k-1"), (.opencode, "o-1")]
+
+    /// Each payload as the assistant's hook sends it, parsed by the hook's own parser; Cursor's plan as its transcript
+    /// records it, replayed by the app's own follower (CursorPlans), since Cursor's hooks never report it.
+    static func everyAssistant(_ tracker: inout SessionTracker, now: Date) {
+        func feed(_ tool: ToolID, _ ago: TimeInterval, _ json: String, event: String? = nil) {
+            guard let message = Hook.message(from: Data(json.utf8), tool: tool, event: event, environment: [:], branch: { _ in "main" }, requestID: "demo") else { return }
+            tracker.apply(message, now: now.addingTimeInterval(-ago))
+        }
+        feed(.cursor, 840, #"{"hook_event_name":"beforeSubmitPrompt","conversation_id":"u-1","workspace_roots":["/Users/me/web-app"],"prompt":"Fix the checkout form validation"}"#)
+        feed(.cursor, 30, #"{"hook_event_name":"afterFileEdit","conversation_id":"u-1","workspace_roots":["/Users/me/web-app"],"model":"claude-opus-4-7"}"#)
+        var transcript = CursorPlanFollower()
+        let write = #"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"TodoWrite","input":{"merge":false,"todos":[{"id":"1","content":"Read the checkout form","status":"in_progress"},{"id":"2","content":"Validate the card fields on blur","status":"pending"},{"id":"3","content":"Show errors under each field","status":"pending"}]}}]}}"#
+        let progress = #"{"role":"assistant","message":{"content":[{"type":"tool_use","name":"TodoWrite","input":{"merge":true,"todos":[{"id":"1","content":"Read the checkout form","status":"completed"},{"id":"2","content":"Validate the card fields on blur","status":"in_progress"}]}}]}}"#
+        _ = transcript.feed(Data((write + "\n" + progress + "\n").utf8))
+        var cursorPlan = Hook.Message(event: "PostToolUse", needsInput: false, sessionID: "u-1", tool: .cursor)
+        cursorPlan.todos = transcript.plan
+        tracker.apply(cursorPlan, now: now.addingTimeInterval(-25))
+        feed(.codex, 540, #"{"hook_event_name":"UserPromptSubmit","session_id":"x-1","cwd":"/Users/me/api-server","model":"gpt-5.5","prompt":"Add rate limiting to the upload endpoint"}"#)
+        feed(.codex, 60, #"{"hook_event_name":"PostToolUse","session_id":"x-1","cwd":"/Users/me/api-server","model":"gpt-5.5","tool_name":"update_plan","tool_input":{"plan":[{"step":"Read the upload handler","status":"completed"},{"step":"Add a token bucket per API key","status":"completed"},{"step":"Return 429 with Retry-After","status":"in_progress"},{"step":"Cover it with tests","status":"pending"}]}}"#)
+        feed(.gemini, 700, #"{"hook_event_name":"BeforeAgent","session_id":"g-1","cwd":"/Users/me/quota-lab","prompt":"Write the migration for the usage table"}"#)
+        feed(.gemini, 90, #"{"hook_event_name":"AfterTool","session_id":"g-1","cwd":"/Users/me/quota-lab","tool_name":"write_todos","tool_input":{"todos":[{"description":"Draft the schema change","status":"completed"},{"description":"Backfill last month's rows","status":"in_progress"},{"description":"Wait on the DBA's review","status":"blocked"},{"description":"Keep the old table as a view","status":"cancelled"}]}}"#)
+        feed(.copilot, 480, #"{"sessionId":"c-1","timestamp":1,"cwd":"/Users/me/docs-site","prompt":"Update the install guide for 2.0"}"#, event: "userPromptSubmitted")
+        feed(.copilot, 45, #"{"sessionId":"c-1","timestamp":1,"cwd":"/Users/me/docs-site","toolName":"update_todo","toolArgs":{"todos":"- [x] Find every 1.x command\n- [ ] Rewrite the Homebrew section\n- [ ] Check the links"}}"#, event: "postToolUse")
+        feed(.kimi, 380, #"{"hook_event_name":"UserPromptSubmit","session_id":"k-1","cwd":"/Users/me/notchmeter","prompt":"Translate the new strings"}"#)
+        feed(.kimi, 120, #"{"hook_event_name":"PostToolUse","session_id":"k-1","cwd":"/Users/me/notchmeter","tool_name":"SetTodoList","tool_input":{"todos":[{"title":"German and French","status":"done"},{"title":"Japanese and Korean","status":"done"},{"title":"The other six","status":"in_progress"}]}}"#)
+        feed(.kimi, 50, #"{"hook_event_name":"PreCompact","session_id":"k-1","cwd":"/Users/me/notchmeter","trigger":"auto","token_count":180000}"#)
+        feed(.opencode, 290, #"{"hook_event_name":"chat.message","session_id":"o-1","cwd":"/Users/me/scout","prompt":"Refactor the crawler queue","model":"kimi-k2.5"}"#)
+        feed(.opencode, 20, #"{"hook_event_name":"todo.updated","session_id":"o-1","cwd":"/Users/me/scout","todos":[{"content":"Split the queue from the fetcher","status":"completed"},{"content":"Retry with backoff","status":"in_progress"},{"content":"Drop the old scheduler","status":"pending"}]}"#)
+    }
 }

@@ -1,7 +1,9 @@
 #!/bin/bash
 # End to end: launches the built app, drives it with real hook commands (the same `Notchmeter --hook` an assistant
 # runs, over the same socket) and checks what it did from the oracle (docs/testing.md "The oracle"). Covers the
-# quiet-turn nudge, a muted project's nudge, and a session's back-off after a nudge it went on from by itself.
+# quiet-turn nudge, a muted project's nudge, and a session's back-off after a nudge it went on from by itself; and since
+# 0.9.13 every assistant's task list through its own hook command (Cursor's from a transcript the run writes under
+# ~/.cursor/projects and removes), the compaction and the model another assistant reports, and a turn nobody typed.
 #
 # It writes the app's preferences, so it runs only in CI or with E2E_ALLOW_PREFS=1, and puts the previous
 # preferences back on the way out. Needs a logged-in GUI session (a GitHub macOS runner has one).
@@ -24,6 +26,8 @@ if pgrep -U "$(id -u)" -x Notchmeter >/dev/null; then
 fi
 
 WORK="$(mktemp -d)"
+# Cursor's transcripts live under ~/.cursor/projects; the app reads none anywhere else, so the run's one goes there.
+CURSOR_PROJECT="$HOME/.cursor/projects/notchmeter-e2e-$$"
 ORACLE="$WORK/oracle.jsonl"
 BACKUP="$WORK/prefs.plist"
 defaults export "$DOMAIN" "$BACKUP" 2>/dev/null || true
@@ -35,6 +39,7 @@ cleanup() {
   if [ -s "$BACKUP" ]; then defaults import "$DOMAIN" "$BACKUP"; fi
   if [ -n "${KEEP_ORACLE:-}" ]; then cp "$ORACLE" "$KEEP_ORACLE" 2>/dev/null || true; fi
   rm -rf "$WORK"
+  rm -rf "$CURSOR_PROJECT"
 }
 trap cleanup EXIT
 
@@ -118,6 +123,50 @@ cursor e2e-loud loud-proj afterAgentThought
 sleep $((QUIET + 5))
 expect_none "the next nudge waits past the set spell" "$nudged and o.get(\"session\") == \"cursor:e2e-loud\" and o.get(\"quietFalseAlarms\") == 1"
 wait_for "and comes at the doubled one" "$nudged and o.get(\"session\") == \"cursor:e2e-loud\" and o.get(\"quietFalseAlarms\") == 1" 1 $((QUIET + 15))
+
+# Every assistant's task list (0.9.13), each through the hook command its installer writes.
+hook() { # tool, payload[, event]
+  if [ -n "${3:-}" ]; then printf '%s' "$2" | "$BIN" --hook --tool "$1" --event "$3" >/dev/null
+  else printf '%s' "$2" | "$BIN" --hook --tool "$1" >/dev/null; fi
+}
+heard='o["event"] == "hook"'
+hook codex '{"hook_event_name":"PostToolUse","session_id":"e2e-codex","cwd":"'"$WORK"'/loud-proj","model":"gpt-5.5","tool_name":"update_plan","tool_input":{"plan":[{"step":"Read","status":"completed"},{"step":"Draw","status":"in_progress"},{"step":"Ship","status":"pending"}]}}'
+wait_for "Codex's plan reaches the row" "$heard and o.get(\"tool\") == \"codex\" and o.get(\"todos\") == {\"done\": 1, \"total\": 3}" 1 10
+wait_for "and its model" "$heard and o.get(\"tool\") == \"codex\" and o.get(\"reportedModel\") == \"gpt-5.5\"" 1 5
+hook gemini '{"hook_event_name":"AfterTool","session_id":"e2e-gemini","cwd":"'"$WORK"'/loud-proj","tool_name":"write_todos","tool_input":{"todos":[{"description":"a","status":"completed"},{"description":"b","status":"blocked"},{"description":"c","status":"cancelled"},{"description":"d","status":"pending"}]}}'
+wait_for "Gemini's plan, a cancelled step out of the count" "$heard and o.get(\"tool\") == \"gemini\" and o.get(\"todos\") == {\"done\": 1, \"total\": 3}" 1 10
+hook kimi '{"hook_event_name":"PostToolUse","session_id":"e2e-kimi","cwd":"'"$WORK"'/loud-proj","tool_name":"SetTodoList","tool_input":{"todos":[{"title":"a","status":"done"},{"title":"b","status":"in_progress"}]}}'
+wait_for "Kimi's plan" "$heard and o.get(\"tool\") == \"kimi\" and o.get(\"todos\") == {\"done\": 1, \"total\": 2}" 1 10
+hook copilot '{"sessionId":"e2e-copilot","timestamp":1,"cwd":"'"$WORK"'/loud-proj","toolName":"update_todo","toolArgs":{"todos":"- [x] a\n- [ ] b\n- [ ] c"}}' postToolUse
+wait_for "Copilot's plan" "$heard and o.get(\"tool\") == \"copilot\" and o.get(\"todos\") == {\"done\": 1, \"total\": 3}" 1 10
+hook opencode '{"hook_event_name":"todo.updated","session_id":"e2e-opencode","cwd":"'"$WORK"'/loud-proj","todos":[{"content":"a","status":"completed"},{"content":"b","status":"completed"},{"content":"c","status":"pending"}]}'
+wait_for "OpenCode's plan" "$heard and o.get(\"tool\") == \"opencode\" and o.get(\"todos\") == {\"done\": 2, \"total\": 3}" 1 10
+
+# Cursor's, from the conversation's transcript: a whole list, then a merge by id.
+TRANSCRIPT="$CURSOR_PROJECT/agent-transcripts/e2e-cursor/e2e-cursor.jsonl"
+mkdir -p "$(dirname "$TRANSCRIPT")"
+todo_line() { printf '{"role":"assistant","message":{"content":[{"type":"tool_use","name":"TodoWrite","input":%s}]}}\n' "$1" >>"$TRANSCRIPT"; }
+cursor_event() { # event
+  printf '{"conversation_id":"e2e-cursor","hook_event_name":"%s","cursor_version":"e2e","workspace_roots":["%s"],"transcript_path":"%s","model":"claude-opus-4-7"}' "$1" "$WORK/loud-proj" "$TRANSCRIPT" \
+    | "$BIN" --hook --tool cursor --event "$1" >/dev/null
+}
+planned='o["event"] == "session" and o.get("action") == "plan" and o.get("session") == "e2e-cursor"'
+todo_line '{"merge":false,"todos":[{"id":"1","content":"a","status":"in_progress"},{"id":"2","content":"b","status":"pending"},{"id":"3","content":"c","status":"pending"}]}'
+cursor_event beforeSubmitPrompt
+wait_for "Cursor's plan, read from its transcript" "$planned and o.get(\"todos\") == {\"done\": 0, \"total\": 3}" 1 10
+todo_line '{"merge":true,"todos":[{"id":"1","status":"completed"},{"id":"3","status":"cancelled"}]}'
+cursor_event afterAgentResponse
+wait_for "and a merge by id, read from where the last read ended" "$planned and o.get(\"todos\") == {\"done\": 1, \"total\": 2}" 1 10
+
+# A compaction another assistant reports, start and end.
+hook codex '{"hook_event_name":"PreCompact","session_id":"e2e-codex","cwd":"'"$WORK"'/loud-proj","model":"gpt-5.5","trigger":"auto"}'
+hook codex '{"hook_event_name":"PostCompact","session_id":"e2e-codex","cwd":"'"$WORK"'/loud-proj","model":"gpt-5.5","trigger":"auto"}'
+wait_for "Codex's compaction starts and ends" "$heard and o.get(\"tool\") == \"codex\" and o.get(\"compaction\") == \"auto\"" 2 10
+
+# A turn nobody typed: another agent's message is a turn, never a title.
+printf '{"hook_event_name":"UserPromptSubmit","session_id":"e2e-claude","cwd":"%s","prompt":"<agent-message from=\\"e2e\\">done</agent-message>"}' "$WORK/loud-proj" \
+  | "$BIN" --hook >/dev/null
+wait_for "an agent's message is a turn nobody typed" "$heard and o.get(\"session\") == \"e2e-claude\" and o.get(\"harnessTurn\") is True" 1 10
 
 kill -0 "$APP_PID" 2>/dev/null || { echo "FAIL: the app exited during the run" >&2; exit 1; }
 echo "e2e: all checks passed"
