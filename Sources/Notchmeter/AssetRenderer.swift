@@ -51,9 +51,11 @@ enum AssetRenderer {
             try write(signalRings(waiting: stage, finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
                       png: directory.appendingPathComponent("signal-rings.png"))
             try write(notchNews(now: now, actions: actions), png: review.appendingPathComponent("notch-news.png"))
-            try write(notchNewsLoop(now: now, actions: actions), gif: directory.appendingPathComponent("notch-news.gif"))
-            try write(notchNewsScroll(now: now, actions: actions), gif: review.appendingPathComponent("notch-news-scroll.gif"))
-            try write(notchNewsScroll(now: now, actions: actions, title: "Move the cost scanner off the main actor and cache each transcript's totals by size and date"),
+            let newsLoop = try notchNewsLoop(now: now, actions: actions)
+            try write(newsLoop, gif: directory.appendingPathComponent("notch-news.gif"))
+            try write(notchNewsScroll(now: now, actions: actions, rest: newsLoop[0].image), gif: review.appendingPathComponent("notch-news-scroll.gif"))
+            try write(notchNewsScroll(now: now, actions: actions, title: "Move the cost scanner off the main actor and cache each transcript's totals by size and date",
+                                      rest: newsLoop[0].image),
                       gif: directory.appendingPathComponent("notch-news-scroll.gif"))
             // Claude Cowork's tasks among the hook's sessions, and the notch announcing one's finish: drawn from a
             // store of their own (DemoFixtures.coworkTasks), so the README's pictures stay as they were.
@@ -408,8 +410,12 @@ enum AssetRenderer {
             // frame and does not play it, and a card of the plain strip says nothing about news. The loop's frames are
             // the still and its six crossfade frames in turn, so the wait's still is the eighth.
             let loop = try notchNewsLoop(now: now, actions: actions)
-            let fromTheWait = Array(loop[7...] + loop[..<7])
-            for frame in try fromTheWait + notchNewsScroll(now: now, actions: actions, title: titled) {
+            let scroll = try notchNewsScroll(now: now, actions: actions, title: titled, rest: loop[0].image, then: loop[7].image)
+            // The wait, the plain strip, the finish and the plain strip again, then a fade into the scroll, which
+            // fades back into the wait: every join is a crossfade.
+            let row = CGSize(width: CGFloat(loop[0].image.width) / scale, height: CGFloat(loop[0].image.height) / scale)
+            let fromTheWait = Array(loop[7...]) + [loop[0]] + (try crossfade(from: loop[0].image, to: scroll[0].image, row: row))
+            for frame in fromTheWait + scroll {
                 let image = frame.image.cropping(to: CGRect(x: inset, y: 0, width: frame.image.width - 2 * inset, height: frame.image.height)) ?? frame.image
                 news.append(Frame(image: try composite(image, caption: newsCaption, lines: [], canvas: canvas), delay: frame.delay))
             }
@@ -817,8 +823,8 @@ enum AssetRenderer {
             if news { store.seed(news: DemoFixtures.news(in: store, moment: moment, now: now)) }
             return try Stage(store: store, prefs: prefs, actions: actions, drawsGlow: news)
         }
-        let stills = [try stage(.working, news: false), try stage(.waiting, news: true),
-                      try stage(.working, news: false), try stage(.justFinished, news: true)]
+        let plain = try plainStrip(now: now, actions: actions)
+        let stills = [plain, try stage(.waiting, news: true), plain, try stage(.justFinished, news: true)]
         let holds: [Double] = [1.4, 2.8, 1.2, 2.8]
         let row = CGSize(width: (stills.map(\.compactExtent).max() ?? 0) + 2 * NotchGlowView.spread + 80,
                          height: notch.height + NotchGlowView.depth + 8)
@@ -832,16 +838,30 @@ enum AssetRenderer {
         var frames: [Frame] = []
         for (index, image) in images.enumerated() {
             frames.append(Frame(image: image, delay: holds[index]))
-            let next = images[(index + 1) % images.count]
-            for step in 1...6 {
-                let mix = Double(step) / 7
-                frames.append(Frame(image: try bitmap(row, pixelScale: scale) { ctx in
-                    draw(image, in: CGRect(origin: .zero, size: row), alpha: 1, into: ctx)
-                    draw(next, in: CGRect(origin: .zero, size: row), alpha: mix, into: ctx)
-                }, delay: 0.04))
-            }
+            frames += try crossfade(from: image, to: images[(index + 1) % images.count], row: row)
         }
         return frames
+    }
+
+    /// The six frames, 40 ms each, the site's loops step between two stills with, so a loop never cuts.
+    @MainActor
+    static func crossfade(from image: CGImage, to next: CGImage, row: CGSize) throws -> [Frame] {
+        try (1...6).map { step in
+            let mix = Double(step) / 7
+            return Frame(image: try bitmap(row, pixelScale: scale) { ctx in
+                draw(image, in: CGRect(origin: .zero, size: row), alpha: 1, into: ctx)
+                draw(next, in: CGRect(origin: .zero, size: row), alpha: mix, into: ctx)
+            }, delay: 0.04)
+        }
+    }
+
+    /// The plain strip both news loops rest on between their news: the assistants' rings with each one's symbol in
+    /// the middle, while a session works. One stage for both, so the two loops on the site show the same strip.
+    @MainActor
+    static func plainStrip(now: Date, actions: NotchActions) throws -> Stage {
+        let (store, prefs) = DemoFixtures.store(now: now, moment: .working)
+        prefs.ringSymbols = true
+        return try Stage(store: store, prefs: prefs, actions: actions)
     }
 
     /// The moment into a long name's scroll (Marquee) every still is drawn at: its start, unless `notchNewsScroll` is
@@ -852,9 +872,13 @@ enum AssetRenderer {
     /// A long turn's finish across the notch with the session's name longer than its half: still while the name's
     /// start is read, scrolling at Marquee's pace, held at its end, then the plain strip. With the fixture's own title
     /// it is a review loop; with a longer `title`, passed through the hook's own prompt message, it is the loop the
-    /// site shows (`notch-news-scroll.gif`).
+    /// site shows (`notch-news-scroll.gif`). It fades into `rest`, the plain strip's frame `notchNewsLoop` drew, and
+    /// out of it into `then` (its own first frame unless given), so the loop starts over without a jump: until 0.9.12
+    /// it cut to a strip of its own, the finished tick's and without the rings' symbols, wider and further left.
+    /// The frame is taken whole from the other loop rather than drawn again here, where a strip drawn after the news
+    /// store took the long title came out wider still.
     @MainActor
-    static func notchNewsScroll(now: Date, actions: NotchActions, title: String? = nil) throws -> [Frame] {
+    static func notchNewsScroll(now: Date, actions: NotchActions, title: String? = nil, rest: CGImage, then next: CGImage? = nil) throws -> [Frame] {
         let (store, prefs) = DemoFixtures.store(now: now, moment: .justFinished)
         if let title {
             var prompt = Hook.Message(event: "UserPromptSubmit", needsInput: false, sessionID: "notchmeter", project: "notchmeter", tool: .claude)
@@ -867,15 +891,12 @@ enum AssetRenderer {
         let shown = Marquee.shown(overflow: overflow, base: NotchNews.shownFor, scrolls: true)
         let travel = Marquee.travel(overflow: overflow, shown: shown)
         let moving = TimeInterval(travel / Marquee.speed(travel: travel, shown: shown))
-        let (plainStore, plainPrefs) = DemoFixtures.store(now: now, moment: .justFinished)
-        let plain = try Stage(store: plainStore, prefs: plainPrefs, actions: actions)
         store.seed(news: news)
-        func still(_ elapsed: TimeInterval?, stage plainStage: Stage? = nil) throws -> CGImage {
-            marqueeElapsed = elapsed ?? 0
+        let row = CGSize(width: CGFloat(rest.width) / scale, height: CGFloat(rest.height) / scale)
+        func still(_ elapsed: TimeInterval) throws -> CGImage {
+            marqueeElapsed = elapsed
             defer { marqueeElapsed = 0 }
-            let stage = try plainStage ?? Stage(store: store, prefs: prefs, actions: actions, drawsGlow: true)
-            let row = CGSize(width: max(stage.compactExtent, plain.compactExtent) + 2 * NotchGlowView.spread + 80,
-                             height: notch.height + NotchGlowView.depth + 8)
+            let stage = try Stage(store: store, prefs: prefs, actions: actions, drawsGlow: true)
             let image = try stage.image(.compact, canvas: row, pixelScale: scale)
             return try bitmap(row, pixelScale: scale) { ctx in
                 wallpaper(in: ctx, canvas: row)
@@ -887,8 +908,11 @@ enum AssetRenderer {
         for tick in 1..<max(1, Int((moving / step).rounded(.up))) {
             frames.append(Frame(image: try still(Marquee.lead + Double(tick) * step), delay: step))
         }
-        frames.append(Frame(image: try still(shown), delay: max(Marquee.tail, shown - Marquee.lead - moving)))
-        frames.append(Frame(image: try still(nil, stage: plain), delay: 1.2))
+        let end = try still(shown)
+        frames.append(Frame(image: end, delay: max(Marquee.tail, shown - Marquee.lead - moving)))
+        frames += try crossfade(from: end, to: rest, row: row)
+        frames.append(Frame(image: rest, delay: 1.2))
+        frames += try crossfade(from: rest, to: next ?? frames[0].image, row: row)
         return frames
     }
 
