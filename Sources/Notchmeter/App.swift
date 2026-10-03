@@ -172,8 +172,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             exit(AssetRenderer.dashboard(into: URL(fileURLWithPath: arguments[index + 1])) ? 0 : 1)
         }
-        // --render-gallery <dir>: the Product Hunt composites and thumbnail, from the same fixtures.
+        // --render-gallery <dir> [--gallery-scale 2]: the Product Hunt composites and thumbnail, from the same fixtures;
+        // at 2 the same frames come out at 2540×1520, for the demo video.
         if let index = arguments.firstIndex(of: "--render-gallery"), index + 1 < arguments.count {
+            if let scaleIndex = arguments.firstIndex(of: "--gallery-scale"), scaleIndex + 1 < arguments.count,
+               let value = Double(arguments[scaleIndex + 1]), value >= 1, value <= 4 {
+                AssetRenderer.galleryScale = CGFloat(value)
+            }
             exit(AssetRenderer.gallery(into: URL(fileURLWithPath: arguments[index + 1])) ? 0 : 1)
         }
         if arguments.contains("--smoke"), let index = arguments.firstIndex(of: "--edge"), index + 1 < arguments.count,

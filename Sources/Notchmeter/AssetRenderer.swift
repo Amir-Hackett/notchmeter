@@ -23,6 +23,10 @@ enum AssetRenderer {
         return try body()
     }
 
+    /// Pixels a point for the gallery's frames: 1 for Product Hunt's 1270×760 upload set, 2 (`--gallery-scale 2`)
+    /// for the demo video built from the same frames, so it is drawn at 2540×1520 rather than stretched (2026-10-03).
+    nonisolated(unsafe) static var galleryScale: CGFloat = 1
+
     /// The scale for the pictures the site shows wide (sessions-assistants.png at about 494 pt, the news strip across
     /// the page's 1032, the rings' marks at 494): 2 px a point left them at 1.5 to 1.8 pixels per point on screen.
     static let siteScale: CGFloat = 3
@@ -542,7 +546,7 @@ enum AssetRenderer {
     /// so the second tile showed every signal mark in a corner the app never draws it in. So the caller renders
     /// the second picture for itself and this only has to place it.
     static func composite(_ image: CGImage?, caption: String, lines: [String], canvas: CGSize, beside: CGImage? = nil) throws -> CGImage {
-        try bitmap(canvas, pixelScale: 1) { ctx in
+        try bitmap(canvas, pixelScale: galleryScale) { ctx in
             ctx.setFillColor(CGColor(srgbRed: 0x1c / 255, green: 0x1c / 255, blue: 0x1e / 255, alpha: 1))
             ctx.fill(CGRect(origin: .zero, size: canvas))
             let captionHeight: CGFloat = 96
