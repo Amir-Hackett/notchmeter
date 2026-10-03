@@ -2,6 +2,27 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.13](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.13) — 2026-10-02
+
+### Every assistant's plan, crossed off as it goes
+
+- Codex, Gemini CLI, Kimi Code, GitHub Copilot and OpenCode sessions now show their task list on the row, the way Claude Code's does: how far along it is, opening to the steps, with the finished ones crossed off.
+- Cursor's too. Its hooks never report the to-do list, so Notchmeter reads it from the conversation's own transcript, with nothing to set up.
+- A blocked step has a mark of its own. A cancelled step stays on the list, crossed out in grey, and is left out of the count.
+
+### The model and compacting, for more assistants
+
+- Codex, Cursor and OpenCode sessions show the model they run on, written the way you'd say it: GPT-5.5, Opus 4.7, Kimi K2.5.
+- Codex, Kimi Code, Gemini CLI, Copilot and Cursor sessions show *Compacting* while the assistant summarises its context.
+
+### Fixes
+
+- A message from another agent, a background task or a command's output no longer becomes a session's title.
+
+### Your hooks
+
+- The new hook entries are added at the next launch while *Repair an out-of-date hook at launch* is on (it is by default), or with Repair in Settings › Integrations. Codex asks you to trust its changed hooks file again in `/hooks`. The OpenCode plugin updates itself.
+
 ## [0.9.12](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.12) — 2026-10-02
 
 ### Line icons in the Settings sidebar
