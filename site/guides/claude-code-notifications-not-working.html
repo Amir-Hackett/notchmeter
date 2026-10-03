@@ -47,7 +47,7 @@
       <p class="lede">When Claude Code stops for a permission and nothing tells you, the fix is usually in your terminal, not in another app. Start there. If you then want more than a banner, this is what a hook adds, how to fix one that has gone quiet, and when you are better off without it.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
-        <li class="stamp">Tested on Notchmeter 0.9.14</li>
+        <li class="stamp">Tested on Notchmeter 0.9.15</li>
         <li>Claude Code docs read 2026-09-24</li>
       </ul>
     </div>
@@ -93,7 +93,7 @@
       <div class="shot"><img src="../img/permission.png" width="1280" height="700" alt="The panel open on a permission request alone: the Bash and project chips, the command, its excerpt, and Deny and Allow with their keyboard shortcuts." loading="lazy"></div>
       <figcaption>A permission request, answered from the notch. Escape, or <em>Answer in the terminal</em>, hands it straight back.</figcaption>
     </figure>
-    <p>Codex, Gemini CLI, GitHub Copilot CLI and OpenCode each report a wait, so their hooks light the same dot; Kimi Code has no event for one. Cursor documents none, so its ring shows the tick and never claims a wait it cannot see; since 0.7.6 a Cursor turn quiet for 45 seconds with nothing running is shown as a <em>possible</em> wait, worded as "may be" because a slow model step looks the same. The 45 seconds is a setting (<em>Call a quiet Cursor turn a possible wait after</em>, Settings › Notifications), and since 0.9.8 a session that carries on by itself after a nudge waits twice as long before the next one, up to three doublings and never past ten minutes.</p>
+    <p>Codex, Gemini CLI, GitHub Copilot CLI and OpenCode each report a wait, so their hooks light the same dot; Kimi Code has no event for one. Cursor documents none, so its ring shows the tick and never claims a wait it cannot see; since 0.7.6 a Cursor turn quiet for 45 seconds with nothing running is shown as a <em>possible</em> wait, worded as "may be" because a slow model step looks the same. Since 0.9.15 two switches on Cursor's page in Settings, both off until you turn them on, give Cursor a wait Notchmeter can see: <em>Require notch approval for every command</em> holds each command for the notch, and <em>Mirror Cursor's cards</em> shows Cursor's own Run prompt on the session's row. The 45 seconds is a setting (<em>Call a quiet Cursor turn a possible wait after</em>, Settings › Notifications), and since 0.9.8 a session that carries on by itself after a nudge waits twice as long before the next one, up to three doublings and never past ten minutes.</p>
 
     <h2 id="notchmeter-quiet">When Notchmeter's notification does not come</h2>
     <p>The dot on the ring is always drawn. The banner is held back on purpose in five cases, and each has a switch.</p>
