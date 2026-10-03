@@ -2,6 +2,13 @@
 
 Every released version of Notchmeter, newest first. From 0.7.0 each section is that version's release notes, the same text the update alert and the GitHub release carry, copied from [`docs/release-notes/`](docs/release-notes); write a new version's notes there first and add them here. Earlier versions had no notes file, so each has one line taken from the commits its tag points at, and the GitHub release page has the rest.
 
+## [0.9.10](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.10) — 2026-10-02
+
+### Every symbol inside its rings
+
+- With *Show assistant symbols in the rings* on, each assistant's symbol now sits in the middle of its rings however many there are. Until now it fit inside a single ring but went beside two or three, so one symbol sat inside its ring and the next beside it. With the setting on, the rings grow from 18 to 22 points, with thinner inner rings, to leave room in the middle.
+- Each symbol is sized to fit inside its innermost ring and centred by its visible shape, so none sits off to one side or touches a ring.
+
 ## [0.9.9](https://github.com/Amir-Hackett/notchmeter/releases/tag/v0.9.9) — 2026-10-02
 
 ### News reads across the notch
