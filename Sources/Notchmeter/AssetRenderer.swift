@@ -51,6 +51,7 @@ enum AssetRenderer {
             try write(signalRings(waiting: stage, finished: Stage(store: finished, prefs: finishedPrefs, actions: actions)),
                       png: directory.appendingPathComponent("signal-rings.png"))
             try write(notchNews(now: now, actions: actions), png: review.appendingPathComponent("notch-news.png"))
+            try write(notchNewsLoop(now: now, actions: actions), gif: directory.appendingPathComponent("notch-news.gif"))
             // Claude Cowork's tasks among the hook's sessions, and the notch announcing one's finish: drawn from a
             // store of their own (DemoFixtures.coworkTasks), so the README's pictures stay as they were.
             let (cowork, coworkPrefs) = DemoFixtures.store(now: now, moment: .working, cowork: true)
@@ -771,6 +772,46 @@ enum AssetRenderer {
                 draw(image, in: CGRect(x: 0, y: CGFloat(index) * (row.height + gap), width: row.width, height: row.height), alpha: 1, into: ctx)
             }
         }
+    }
+
+    /// The collapsed notch announcing news, as the loop the site shows (`notch-news.gif`): the strip with the
+    /// assistants' symbols in their rings, a permission prompt's news across the notch with the blue bloom under it,
+    /// the strip again, and a long turn's finish with the white one. Each still is one frame held for its own time and
+    /// only the crossfades between them take many, so the file stays small. The bloom is drawn at its brightest
+    /// throughout, the still `--render-assets` draws of it, where the app fades it after three seconds.
+    @MainActor
+    static func notchNewsLoop(now: Date, actions: NotchActions) throws -> [Frame] {
+        func stage(_ moment: DemoFixtures.Moment, news: Bool) throws -> Stage {
+            let (store, prefs) = DemoFixtures.store(now: now, moment: moment)
+            prefs.ringSymbols = true
+            if news { store.seed(news: DemoFixtures.news(in: store, moment: moment, now: now)) }
+            return try Stage(store: store, prefs: prefs, actions: actions, drawsGlow: news)
+        }
+        let stills = [try stage(.working, news: false), try stage(.waiting, news: true),
+                      try stage(.working, news: false), try stage(.justFinished, news: true)]
+        let holds: [Double] = [1.4, 2.8, 1.2, 2.8]
+        let row = CGSize(width: (stills.map(\.compactExtent).max() ?? 0) + 2 * NotchGlowView.spread + 80,
+                         height: notch.height + NotchGlowView.depth + 8)
+        let images = try stills.map { stage in
+            let image = try stage.image(.compact, canvas: row, pixelScale: scale)
+            return try bitmap(row, pixelScale: scale) { ctx in
+                wallpaper(in: ctx, canvas: row)
+                draw(image, in: CGRect(origin: .zero, size: row), alpha: 1, into: ctx)
+            }
+        }
+        var frames: [Frame] = []
+        for (index, image) in images.enumerated() {
+            frames.append(Frame(image: image, delay: holds[index]))
+            let next = images[(index + 1) % images.count]
+            for step in 1...6 {
+                let mix = Double(step) / 7
+                frames.append(Frame(image: try bitmap(row, pixelScale: scale) { ctx in
+                    draw(image, in: CGRect(origin: .zero, size: row), alpha: 1, into: ctx)
+                    draw(next, in: CGRect(origin: .zero, size: row), alpha: mix, into: ctx)
+                }, delay: 0.04))
+            }
+        }
+        return frames
     }
 
     /// The collapsed notch announcing a Claude Cowork task's finish (DemoFixtures.coworkNews): the task's title

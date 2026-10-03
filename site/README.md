@@ -69,7 +69,7 @@ scripts/site-assets.sh
 ## What the pages promise
 
 The download button links at the `Notchmeter.dmg` of the latest GitHub release, so it serves whichever release is
-current (v0.1.0 since 2026-09-05), and the Homebrew line names the tap. The figures on the pages (energy, resident
+current (0.9.10 as of 2026-10-02), and the Homebrew line names the tap. The figures on the pages (energy, resident
 size, poll cadence, what is and is not read) are the README's; change them there first and here second, because a
 number on this page that the README cannot back is the one defect the README's own energy section exists to rule out.
 
