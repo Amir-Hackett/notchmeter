@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Which assistant should get this task? · Notchmeter</title>
-<meta name="description" content="Routing work between Claude Code, Codex, Cursor and Copilot by the room each has left: switch models before tools, when to wait for a reset, how to ask.">
+<meta name="description" content="Routing work between your coding assistants by the room each has left: switch models before tools, when to wait for a reset, how to ask.">
 <link rel="icon" href="../img/icon.png">
 <link rel="stylesheet" href="../style.css">
 <!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
@@ -84,10 +84,10 @@
     </div>
 
     <h3>Why models before tools</h3>
-    <p>Moving a task to a different assistant costs you its context, its conventions and often its permissions. Moving it to a different model in the same assistant costs a <code>/model</code>. Anthropic and Google both meter some limits per model, so the cheap move is often available and easy to miss. One caveat travels with it: Anthropic's pricing page says Claude 4.7 and later count roughly 30% more tokens than 4.6 and earlier for the same text, so when the two models named sit either side of that line, the advice adds <em>… counts about 30% more tokens for the same text</em>. The same work will move the newer model's meter further.</p>
+    <p>Moving a task to a different assistant costs you its context, its conventions and often its permissions. Moving it to a different model in the same assistant costs a <code>/model</code>. Anthropic, Google, OpenAI (for GPT-5.3-Codex-Spark) and OpenCode Go all meter some limits per model, so the cheap move is often available and easy to miss. One caveat travels with it: Anthropic's pricing page says Claude 4.7 and later count roughly 30% more tokens than 4.6 and earlier for the same text, so when the two models named sit either side of that line, the advice adds <em>… counts about 30% more tokens for the same text</em>. The same work will move the newer model's meter further.</p>
 
     <h3>What counts as "room"</h3>
-    <p>An assistant's <strong>main window</strong> is its longest plan-wide one: the weekly window for Claude Code and Codex, the billing cycle for Cursor, the month for Copilot, and the longest of Kimi Code's, its 31-day window where the plan meters one. Antigravity publishes only per-model windows, so it has no main window and is never named as the place to go. Half of a main window left is the threshold, and a tie goes to the assistant you placed first in Settings.</p>
+    <p>An assistant's <strong>main window</strong> is its longest plan-wide one: the weekly window for Claude Code and Codex, the billing cycle for Cursor, the month for Copilot, and the longest of Kimi Code's, its 31-day window where the plan meters one. Gemini CLI publishes only per-model windows, and Antigravity only per model group, so neither has a main window and neither is ever named as the place to go. Half of a main window left is the threshold, and a tie goes to the assistant you placed first in Settings.</p>
     <p>A <strong>free tier is never named as room</strong>, however empty it is: Codex's free plan, Copilot Free and a Claude free subscription meter so little that routing a paid tool's work there would stall it. A reading that names no plan counts as paid.</p>
 
     <h2 id="waiting">When waiting beats switching</h2>

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Monitoring coding agents without letting an app write to your config · Notchmeter</title>
-<meta name="description" content="Two tiers for watching Claude Code, Codex, Cursor, Gemini CLI and Copilot: meters that write nothing, and a hook added only on your click, after a backup.">
+<meta name="description" content="Two tiers for watching your coding agents: meters that write nothing, and a hook added only on your click, after a backup.">
 <link rel="icon" href="../img/icon.png">
 <link rel="stylesheet" href="../style.css">
 <!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
@@ -56,7 +56,7 @@
   <div class="wrap guide-body">
     <div class="answer">
       <p class="label">The short answer</p>
-      <p>Two tiers. With nothing written anywhere, Notchmeter 0.9.0 reads the login each tool already saved on the Mac and makes that tool's own read-only status request, reads the transcripts the tools already keep for the cost, and lists the sessions running in your terminals from what your own processes and the agents' own files say, each marked as detected. That tells you what each plan has left, when it resets, what the work is costing and which sessions are running. The moment a turn ends, that an agent is waiting for you, and answering it from the notch need the agent to say so, which is what a hook is. Notchmeter adds one only when you press the button, after a timestamped backup, merged so nothing of yours changes, and removing it is deleting its entries or restoring the backup.</p>
+      <p>Two tiers. With nothing written anywhere, Notchmeter 0.9.0 reads the login each tool already saved on the Mac and makes that tool's own read-only status request, reads the transcripts the tools already keep for the cost, and lists the sessions running in your terminals from what your own processes and the agents' own files say, each marked as detected. That tells you what each plan has left, when it resets, what the work is costing and which sessions are running. The moment a turn ends, that an agent is waiting for you, and answering it from the notch need the agent to say so, which is what a hook is. Notchmeter adds one only when you press the button, after a timestamped backup, merged so nothing of yours changes; after that, unless you turn it off, it keeps its own entries up to date at launch. Removing it is deleting its entries or restoring the backup.</p>
     </div>
 
     <h2 id="approaches">How apps in this space find out what your agents are doing</h2>
@@ -90,7 +90,7 @@
     <h2 id="tier-two">Tier two: the hook, on your click</h2>
     <p>A hook is the agent telling Notchmeter what happened, the moment it happens: a turn started, a turn ended, a permission is waiting, a question has options. That is what makes the waiting dot, the finished tick, the news in the notch and answering from the notch possible. Here is exactly how it is written.</p>
     <ol>
-      <li><strong>Only when you press it.</strong> Each assistant's page in Settings has its hook's <em>Add</em> button, and <em>Show snippet…</em> if you would rather paste it yourself; Settings › Integrations › Hooks lists where every assistant's hook stands, with a way to its page. The first launch offers the Claude Code hook once, as a button. No hook is ever installed without that click.</li>
+      <li><strong>Only when you press it.</strong> Each assistant's page in Settings has its hook's <em>Add</em> button, and <em>Show snippet…</em> if you would rather paste it yourself; Settings › Integrations › Hooks lists where every assistant's hook stands, with a way to its page. The first launch offers the Claude Code hook once, as a button. No hook is ever installed without that click; after it, the app keeps the entries you installed up to date at launch unless you turn that off (below).</li>
       <li><strong>A backup first,</strong> beside the file: <code>settings.json.bak-yyyyMMdd-HHmmss</code> (or <code>hooks.json.bak-…</code>).</li>
       <li><strong>A merge, not a rewrite.</strong> Notchmeter's entry is appended under each event that lacks one. Hooks already there, their matchers and their order are kept, and so are the file's permissions. Nothing is written when every event already has the entry. A file that is not a JSON object is left untouched, and the button says why.</li>
     </ol>
@@ -110,13 +110,13 @@
     </div>
 
     <h3>The one write that is not a click</h3>
-    <p>If you move the app, a hook you installed points at the old path and goes quiet; if you update to a version that listens for more events, the entry you installed is out of date. So by default the app repairs its <em>own</em> entries at launch: after the same backup, it points them at the running copy and adds an entry for any event the current version listens for, leaves every other hook untouched, and never does it from a copy running out of a build folder. It never adds a hook for an assistant you have not installed one for. If you want no write at all after the one you pressed, turn off <em>Repair an out-of-date hook at launch</em> in Settings › Integrations › Hooks, and use the Repair button on the assistant's page when you choose to.</p>
+    <p>If you move the app, a hook you installed points at the old path and goes quiet; if you update to a version that listens for more events, the entry you installed is out of date. So by default the app repairs its <em>own</em> entries at launch: after the same backup, it points them at the running copy and adds an entry for any event the current version listens for, leaves every other hook untouched, and never does it from a copy running out of a build folder. It never adds a hook for an assistant you have not installed one for. After a repair, Codex runs the changed entries only once you trust them again in <code>/hooks</code>, and the OpenCode plugin updates itself. If you want no write at all after the one you pressed, turn off <em>Repair an out-of-date hook at launch</em> in Settings › Integrations › Hooks, and use the Repair button on the assistant's page when you choose to.</p>
 
     <h3>The status line and the plugin</h3>
     <p><em>Install status line…</em> sets Claude Code's <code>statusLine</code> after the same backup. A status line you already had is kept: Notchmeter runs yours with the same input and passes its output through, so Claude Code's bar still shows your line. The Claude Code plugin installs no hook and no status line; those stay a button in Settings.</p>
 
     <h2 id="what-crosses">What the hook sends</h2>
-    <p>The event's name, the session id, the project folder's name, the branch and the permission mode; the first line of a prompt, which the app drops on arrival unless <em>Show what a session is working on</em> is on; and for a permission, the tool's name and a bounded summary, never the raw input. It goes over a Unix socket on the Mac that accepts a connection only from a copy of Notchmeter whose code signature matches, and it fails open: with the app not running, or anything wrong, the agent carries on as if no hook existed. <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md#what-the-hook-sends">docs/hooks.md</a> lists every field for every assistant.</p>
+    <p>The event's name, the session id, the project folder's name, the branch and the permission mode; where the hook's own terminal is (the terminal app, its tab or pane id, the tty, tmux and kitty ids), so a click on a session can bring that terminal forward; the first line of a prompt, which the app drops on arrival unless <em>Show what a session is working on</em> is on, and the items of the session's task list, whose words it drops the same way; the model, where the assistant names one; and for a permission, the tool's name and a bounded summary, never the raw input. Claude Code's transcript path never leaves the command. Cursor's does, since 0.9.13: Cursor's hooks never report its to-do list, so the app reads the list from the conversation's transcript. It goes over a Unix socket on the Mac that accepts a connection only from a copy of Notchmeter whose code signature matches, and it fails open: with the app not running, or anything wrong, the agent carries on as if no hook existed. <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md#what-the-hook-sends">docs/hooks.md</a> lists every field for every assistant.</p>
 
     <h2 id="undo">Undoing it</h2>
     <ul>

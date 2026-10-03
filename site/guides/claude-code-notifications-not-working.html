@@ -121,11 +121,11 @@
     </ul>
 
     <h2 id="what-it-sends">What the hook sends, and what it never does</h2>
-    <p>Each event carries its name, the session id, the project folder's name (the repository's, for a git worktree), the branch and the permission mode. The first line of your prompt, at most 96 characters, crosses too, because the hook command does not read Notchmeter's settings; the app drops it on arrival unless <em>Show what a session is working on</em> is on, so with that off nothing of a prompt is kept anywhere. A permission request carries the tool's name and a bounded summary, never the raw input. The transcript path, the rest of the prompt and the notification text never leave the command. It all goes over a Unix socket on your Mac, not the network.</p>
+    <p>Each event carries its name, the session id, the project folder's name (the repository's, for a git worktree), the branch and the permission mode, and where the hook's own terminal is (the terminal app, its tab or pane id, the tty, tmux and kitty ids), so a click on the session can bring that terminal forward. The first line of your prompt, at most 96 characters, crosses too, because the hook command does not read Notchmeter's settings; the app drops it on arrival unless <em>Show what a session is working on</em> is on, so with that off nothing of a prompt is kept anywhere. A change to the task list carries each task's status and one line of its words, which the app drops the same way when that setting is off, keeping only the count. A permission request carries the tool's name and a bounded summary, never the raw input. The rest of the prompt and the notification text never leave the command, and neither does Claude Code's transcript path. Cursor's hook does pass its transcript's path, since 0.9.13, because Cursor's hooks never report its to-do list and the app reads the list from that file. It all goes over a Unix socket on your Mac, not the network.</p>
     <p>Everything fails open. If Notchmeter is not running, if you do not answer within the hold (two minutes by default), or if anything at all goes wrong, the command prints nothing and Claude Code asks in the terminal exactly as it always has.</p>
 
     <h2 id="install-remove">Installing and removing it</h2>
-    <p><em>Add to settings.json…</em>, on Claude Code's page in Settings, merges the entries after copying your file to <code>settings.json.bak-yyyyMMdd-HHmmss</code> beside it, and keeps every hook already there. <em>Show snippet…</em> gives you the JSON to paste yourself instead. The first launch offers this once, as a button; it is never done for you. To remove it, delete the groups whose command contains <code>Notchmeter … --hook</code>, or restore the backup.</p>
+    <p><em>Add to settings.json…</em>, on Claude Code's page in Settings, merges the entries after copying your file to <code>settings.json.bak-yyyyMMdd-HHmmss</code> beside it, and keeps every hook already there. <em>Show snippet…</em> gives you the JSON to paste yourself instead. The first launch offers this once, as a button; the first install is never done for you. After it, while <em>Repair an out-of-date hook at launch</em> is on (Settings › Integrations › Hooks, on by default), the app brings the entries you installed up to date at launch, after the same backup: an old path, a missing event, older flags. That is how a release that listens for more events reaches your file. Turn it off and they change only when you press a button, such as Repair on Claude Code's page. To remove it, delete the groups whose command contains <code>Notchmeter … --hook</code>, or restore the backup.</p>
 
     <div class="sources">
       <h2 id="sources">Sources</h2>
@@ -152,7 +152,7 @@
 <section>
   <div class="wrap centered">
     <h2>See which session is waiting</h2>
-    <p class="section-lede">Free, MIT licensed, and the hook is always your click.</p>
+    <p class="section-lede">Free, MIT licensed, and the hook is never installed until you click.</p>
     <div class="cta-row">
       <a class="btn btn-primary" href="../index.html#install">Download for macOS</a>
       <a class="btn btn-ghost" href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/hooks.md">Read what the hook sends</a>

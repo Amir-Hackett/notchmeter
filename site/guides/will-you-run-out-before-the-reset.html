@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Will you run out before the window resets? · Notchmeter</title>
-<meta name="description" content="How to tell whether a Claude Code, Codex, Cursor or Copilot limit lasts to its reset: pace instead of percentage, and a run-out range from your own hours.">
+<meta name="description" content="How to tell whether a coding assistant's limit lasts to its reset: pace instead of percentage, and a run-out range from your own hours.">
 <link rel="icon" href="../img/icon.png">
 <link rel="stylesheet" href="../style.css">
 <!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
@@ -56,11 +56,11 @@
   <div class="wrap guide-body">
     <div class="answer">
       <p class="label">The short answer</p>
-      <p>Compare how much is used with how much of the window has gone by. 62% used three days into a seven-day week runs out about two days early at the same rate; 62% used six days in is comfortably fine. Notchmeter draws that comparison as a pace tick on every meter and projects it to the reset. Once it has a day of your own history, it projects a week at how far the week rose over the last day, nights and breaks included, and the five-hour session at the pace of the hours you worked in it, as a range from your slower hours to your faster ones.</p>
+      <p>Compare how much is used with how much of the window has gone by. 62% used three days into a seven-day week runs out about two days early at the same rate; 62% used six days in is comfortably fine. Notchmeter draws that comparison as a pace tick on every meter whose window has a known length and reset, and projects it to the reset. Once it has a day of your own history, it projects a week at how far the week rose over the last day, nights and breaks included, and the five-hour session at the pace of the hours you worked in it, as a range from your slower hours to your faster ones.</p>
     </div>
 
     <h2 id="pace">Pace, not percentage</h2>
-    <p>Every meter carries a tick at the point an even burn would have reached by now. The fill against the tick is the whole question: fill short of the tick is room, fill past it is borrowing from later. The projection beside the meter carries the same arithmetic to the reset, and the window gets one of three states.</p>
+    <p>Every meter whose window has a known length and reset carries a tick at the point an even burn would have reached by now (the few that do not are listed <a href="#what-can-be-wrong">below</a>). The fill against the tick is the whole question: fill short of the tick is room, fill past it is borrowing from later. The projection beside the meter carries the same arithmetic to the reset, and the window gets one of three states.</p>
     <div class="tablewrap" role="region" aria-label="Three weekly windows and their pace" tabindex="0">
       <table class="dtable">
         <caption>Three seven-day windows, projected at an even burn</caption>
@@ -118,7 +118,8 @@
       <li><strong>Other machines.</strong> The vendor's used fraction is the whole account's. Work on another Mac or on claude.ai drains the same window, and the log sees the figure move without seeing why.</li>
       <li><strong>The metering itself moves.</strong> Anthropic meters the session window in something other than tokens, and the same work can cost a different share on different days. Notchmeter records how many of this Mac's tokens made 1% of the session each day, and when today's figure is half the 30-day median or less it says so: <em>The session is metering about 2.1x heavier than your norm.</em> It needs five days to compare against, and a gap of six times or more is not called heavier metering at all, because another machine explains that far better.</li>
       <li><strong>The 2026-09-14 weekly-cap change.</strong> Anthropic changed what the weekly window measures on that date while the percentage kept reading the same. The log marks the boundary, and the metering norm starts after it.</li>
-      <li><strong>Windows with no declared length.</strong> Google declares no length for Gemini CLI's per-model buckets, so those meters carry no pace tick or projection until it does. Antigravity's session and weekly groups do declare theirs.</li>
+      <li><strong>Windows with no declared length or reset.</strong> Google declares no length for Gemini CLI's per-model buckets, so those meters carry no pace tick or projection until it does. Antigravity's session and weekly groups do declare theirs. OpenCode Go publishes no reading at all, so its 5-hour, 7-day and 31-day meters are computed on this Mac from your own turns, over trailing windows, and since Go does not say when its windows start they claim no reset and draw no pace tick; they can read high, never low.</li>
+      <li><strong>A Claude reading that has paused.</strong> Claude Code renews its login only when <code>claude</code> runs in that Mac account, so in an account where it rarely runs, Notchmeter's Claude reading pauses. The card keeps the last reading, with one grey line saying how old it is and what renews it; Notchmeter never renews the login itself.</li>
       <li><strong>Comparisons are not limits.</strong> Cursor's <em>Today's spend</em>, shown on a seat Cursor meters nothing for, is today's dollars against your usual day. It paces, but it never runs out, warns or notifies.</li>
     </ul>
 
