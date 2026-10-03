@@ -14,6 +14,10 @@ import Testing
         #expect(Hook.title(fromPrompt: "  fix   the\ttests\nand then some") == "fix the tests")
         #expect(Hook.title(fromPrompt: "\n\nsecond line first?") == "second line first?", "leading blank lines are skipped: the first line with words on it is the title")
         #expect(Hook.title(fromPrompt: "   ") == nil)
+        #expect(Hook.title(fromPrompt: "-\nYou are Scout. Decide whether to message Amir.") == "You are Scout. Decide whether to message Amir.",
+                "a line of punctuation alone names nothing, the way an agent's `claude -p` prompt opened")
+        #expect(Hook.title(fromPrompt: "---\n```\n-") == nil)
+        #expect(Hook.title(fromPrompt: "## 2 bugs") == "## 2 bugs", "a heading's marks stay when the line has words on it")
         #expect(Hook.title(fromPrompt: 42) == nil)
         let long = String(repeating: "word ", count: 40)
         let title = try #require(Hook.title(fromPrompt: long))

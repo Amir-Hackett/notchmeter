@@ -88,6 +88,21 @@ import Testing
         #expect(short == nil, "A turn that ended while the user was still watching it is not news, the rule the ring keeps.")
     }
 
+    /// `claude -p` ends its session a few milliseconds after its turn, before the words are drawn; the news has to
+    /// carry the title itself or it is announced by the temporary folder it ran in.
+    @Test func newsKeepsTheSessionsTitleFromWhenItWasMade() {
+        var prompt = message("UserPromptSubmit")
+        prompt.title = "Summarise the overnight build failures"
+        let finished = newsAfter([(prompt, 120), (message("Stop"), 0)])
+        #expect(finished?.title == "Summarise the overnight build failures")
+        let waiting = newsAfter([(prompt, 60), (message("Notification", type: "permission_prompt"), 0)])
+        #expect(waiting?.reason == .approval)
+        #expect(waiting?.title == "Summarise the overnight build failures")
+        let untitled = newsAfter([(message("UserPromptSubmit"), 120), (message("Stop"), 0)])
+        #expect(untitled?.title == nil)
+        #expect(finished?.withoutTitle().title == nil)
+    }
+
     @Test func activityThatIsNeitherIsNotNews() {
         #expect(newsAfter([(message("SessionStart"), 10), (message("UserPromptSubmit"), 0)]) == nil)
     }
@@ -405,6 +420,39 @@ import Testing
         #expect(store.glowNews?.sessionID == "a")
         #expect(box.spoken.count == 1)
         store.endPeek()
+    }
+
+    /// The session gone (`claude -p` ends it right after its turn), the news names it by the title it kept; with
+    /// *Show what a session is working on* off it names nobody's prompt, and turning it off drops the kept ones.
+    @Test func aSessionThatHasEndedIsStillNamedByItsTitleUntilTitlesAreOff() {
+        let (store, _) = makeStore()
+        var titled = news(.finished, session: "gone")
+        titled.title = "Summarise the overnight build failures"
+        store.announce(titled)
+        #expect(store.peekTitle(titled) == "Summarise the overnight build failures")
+        store.dropTitles()
+        #expect(store.peek?.title == nil)
+        #expect(store.glowNews?.title == nil)
+        #expect(store.latestNews?.title == nil)
+        store.prefs.sessionTitles = false
+        #expect(store.peekTitle(titled) == nil)
+        store.endPeek()
+    }
+
+    /// The words fade where they stand before the peek leaves: the halves only go back to the readouts' widths
+    /// once nothing is drawn in them, so no word is ever laid out across the camera housing on the way out.
+    @Test func thePeekFadesWhereItStandsBeforeItLeaves() {
+        let (store, _) = makeStore()
+        store.announce(news(.finished))
+        store.fadePeek()
+        #expect(store.peekFading)
+        #expect(store.peek != nil, "the peek keeps its place, and the halves their widths, while its words fade")
+        store.announce(news(.approval, session: "b"))
+        #expect(!store.peekFading, "news arriving during the fade is shown whole")
+        #expect(store.peek?.sessionID == "b")
+        store.endPeek()
+        #expect(store.peek == nil)
+        #expect(!store.peekFading)
     }
 
     @Test func aPanelOpenedOnARequestTakesThePeekButNotTheGlowOrTheAnnouncement() {

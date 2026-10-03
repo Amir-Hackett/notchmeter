@@ -272,6 +272,8 @@ final class UsageStore {
     /// The news the collapsed strip is naming right now (NotchNews, the peek), for `NotchNews.shownFor`; nil the
     /// rest of the time and always while Preferences.notchNews is off.
     private(set) var peek: NotchNews?
+    /// Whether the peek's words are fading out where they stand before it leaves the strip (fadePeek).
+    private(set) var peekFading = false
     /// The news the glow under the notch is blooming for (NotchGlow), for `NotchGlow.bloomFor`; nil otherwise.
     /// Separate from `peek` because the two last different times and are switched off separately.
     private(set) var glowNews: NotchNews?
@@ -680,12 +682,19 @@ final class UsageStore {
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeSessionTitles() }
         }
-        if !titles {
-            sessions.clearTitles()
-            cursorNamesTried = [:]
-            let reader = coworkReader
-            Task { await reader.dropTitles() }
-        }
+        if !titles { dropTitles() }
+    }
+
+    /// Everything of a prompt the app holds, gone: the sessions' titles and names, the titles the news kept for a
+    /// session that has since ended (NotchNews.title), and the Cowork reader's.
+    func dropTitles() {
+        sessions.clearTitles()
+        peek = peek?.withoutTitle()
+        glowNews = glowNews?.withoutTitle()
+        latestNews = latestNews?.withoutTitle()
+        cursorNamesTried = [:]
+        let reader = coworkReader
+        Task { await reader.dropTitles() }
     }
 
     /// Reading off is sessions gone, the way titles off is titles gone: the moment an assistant's page stops
@@ -2382,12 +2391,13 @@ final class UsageStore {
         if prefs.notchNews, !panelOpenedForPrompt, attentionNotice == nil, canPeek() {
             if let showing = peek { Oracle.shared.emit("peek", Self.peekFacts(showing, action: "hidden")) }
             peek = news
+            peekFading = false
             Oracle.shared.emit("peek", Self.peekFacts(news, action: "shown"))
             peekEnd?.cancel()
             peekEnd = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(self?.peekDuration(news) ?? NotchNews.shownFor))
                 guard !Task.isCancelled else { return }
-                self?.endPeek()
+                self?.fadePeek()
             }
         }
         announceNews(news.words(hidesFigures: hidesFigures, title: peekTitle(news)))
@@ -2423,13 +2433,29 @@ final class UsageStore {
 
     func peekTitle(_ news: NotchNews) -> String? {
         guard prefs.sessionTitles, !hidesFigures else { return nil }
-        return sessions.sessions[news.sessionID]?.displayTitle
+        return sessions.sessions[news.sessionID]?.displayTitle ?? news.title
     }
 
-    /// Takes the peek down now: its time ran out, or it was clicked and the panel is opening on its session.
+    /// The peek's time ran out: its words fade where they stand (NotchCompactView.peekFadeOut) and only then leave
+    /// the strip. Taken down at once, the halves went back to the readouts' widths under words still fading, and
+    /// the words on the left were drawn for a fifth of a second from the notch's left edge across the camera
+    /// housing, a long headline running out past its right edge into the name (2026-10-03).
+    func fadePeek() {
+        guard peek != nil, !peekFading else { return }
+        peekFading = true
+        peekEnd?.cancel()
+        peekEnd = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(NotchCompactView.peekFadeOut))
+            guard !Task.isCancelled else { return }
+            self?.endPeek()
+        }
+    }
+
+    /// Takes the peek down now: its fade ended, or it was clicked and the panel is opening on its session.
     func endPeek() {
         peekEnd?.cancel()
         peekEnd = nil
+        peekFading = false
         guard let showing = peek else { return }
         peek = nil
         Oracle.shared.emit("peek", Self.peekFacts(showing, action: "hidden"))
