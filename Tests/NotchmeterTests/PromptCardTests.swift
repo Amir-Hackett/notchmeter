@@ -26,6 +26,14 @@ import Testing
         #expect(PromptCard.detailFrameHeight == 120)
     }
 
+    /// Three assistants can ask from the notch; the card says which one is asking, as the question card does.
+    @Test func aPermissionCardNamesTheAssistantAsking() {
+        Localization.use(language: "en")
+        #expect(PromptCard.permissionTitle(.claude) == "Claude needs approval")
+        #expect(PromptCard.permissionTitle(.codex) == "Codex needs approval")
+        #expect(PromptCard.permissionTitle(.copilot) == "Copilot needs approval")
+    }
+
     /// *Allow always* says what it saves and where, with the rule quoted as the settings file will hold it.
     @Test func aSuggestionIsSaidInPlainWords() {
         typealias S = PendingRequest.Suggestion

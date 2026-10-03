@@ -51,7 +51,7 @@ struct PromptCard: View {
         VStack(alignment: .leading, spacing: density.rowSpacing) {
             switch request.kind {
             case .permission(let tool, let summary, let detail, let suggestions):
-                header(symbol: "hand.raised.fill", title: L("Permission request"), chips: [tool] + placeChips)
+                header(symbol: "hand.raised.fill", title: Self.permissionTitle(session.tool), chips: [tool] + placeChips)
                 Text(verbatim: summary)
                     .font(.callout.weight(.semibold))
                     .lineLimit(3)
@@ -100,6 +100,13 @@ struct PromptCard: View {
         .modifier(CardBackground())
         // The chosen options belong to one request: a new one under the same card starts clean.
         .id(request.id)
+    }
+
+    /// Who is asking, in the words the notch's own news uses for it: Codex and GitHub Copilot CLI ask from the
+    /// notch as well as Claude Code since 0.9.x, and a card headed "Permission request" left the reader to guess
+    /// which of them wanted to run the command (2026-10-03). The question card names its assistant the same way.
+    static func permissionTitle(_ tool: ToolID) -> String {
+        L("%@ needs approval", tool.displayName)
     }
 
     /// The project (and host) the request belongs to, so two sessions asking at once can be told apart.
