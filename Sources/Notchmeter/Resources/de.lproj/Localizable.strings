@@ -1274,7 +1274,7 @@
 "Measured with %@" = "Gemessen mit %@";
 "Metric" = "Kennzahl";
 "Money on black, tokens on blue, until a theme is chosen here." = "Geld auf Schwarz, Tokens auf Blau, bis hier ein Design gewählt wird.";
-"New in %1$@ %2$@: your usage as a card to share." = "Neu in %1$@ %2$@: Ihre Nutzung als Karte zum Teilen.";
+"Updated to %1$@ %2$@. Your usage, as a card to share." = "Aktualisiert auf %1$@ %2$@. Ihre Nutzung als Karte zum Teilen.";
 "No assistant has reported spend yet" = "Noch kein Assistent hat Ausgaben gemeldet";
 "No assistant is ticked; tick one under Assistants to draw the card." = "Kein Assistent ist angekreuzt; kreuze unter „Assistenten“ einen an, damit die Karte gezeichnet wird.";
 "Nothing recorded in this range" = "In diesem Zeitraum nichts aufgezeichnet";

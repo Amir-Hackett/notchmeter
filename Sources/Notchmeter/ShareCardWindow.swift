@@ -46,7 +46,9 @@ struct ShareCardStudio: View {
             if session.offered, prefs.offerShareCardAfterUpdate {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(L("New in %1$@ %2$@: your usage as a card to share.", AppInfo.name, AppInfo.version))
+                        // Not "New in": the offer comes after every update while the setting is on, and the card is
+                        // from 0.9.0, so "New in Notchmeter 0.9.14" was true of nothing in it (2026-10-03).
+                        Text(L("Updated to %1$@ %2$@. Your usage, as a card to share.", AppInfo.name, AppInfo.version))
                             .font(.callout.weight(.semibold))
                             .fixedSize(horizontal: false, vertical: true)
                         Text(L("It opened by itself this once, after the update. It never carries a project, a prompt or a session title."))

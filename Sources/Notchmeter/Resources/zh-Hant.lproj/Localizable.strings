@@ -1256,7 +1256,7 @@
 "Measured with %@" = "由 %@ 測量";
 "Metric" = "指標";
 "Money on black, tokens on blue, until a theme is chosen here." = "在此處選定主題之前，金額用黑色，token 用藍色。";
-"New in %1$@ %2$@: your usage as a card to share." = "%1$@ %2$@ 新功能：把你的用量做成可分享的卡片。";
+"Updated to %1$@ %2$@. Your usage, as a card to share." = "已更新至 %1$@ %2$@。把你的用量做成可分享的卡片。";
 "No assistant has reported spend yet" = "尚無助理回報支出";
 "No assistant is ticked; tick one under Assistants to draw the card." = "未勾選任何助理；在「助理」下勾選一個即可繪製卡片。";
 "Nothing recorded in this range" = "此範圍內沒有記錄";
