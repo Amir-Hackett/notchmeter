@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Every macOS agent-notch app compared (2026) · Notchmeter</title>
-<meta name="description" content="Eleven Mac apps that put Claude Code, Codex and other coding agents in the notch, compared from their own READMEs, with stars as of 24 September 2026.">
+<meta name="description" content="Seventeen Mac apps that show Claude Code, Codex and other coding agents in or near the notch, compared from their own READMEs, with stars as of 3 October 2026.">
 <link rel="icon" href="../img/icon.png">
 <link rel="stylesheet" href="../style.css">
 <!-- No analytics, by decision (2026-09-07). See the note in index.html. -->
 
 <meta property="og:title" content="Every macOS agent-notch app compared (2026)">
-<meta property="og:description" content="Eleven apps, their licences, prices and star counts as of 24 September 2026, and where each one beats Notchmeter.">
+<meta property="og:description" content="Seventeen apps, their licences, prices and star counts as of 3 October 2026, and where each one beats Notchmeter.">
 <meta property="og:image" content="https://www.notchmeter.com/img/expanded.png">
 <meta property="og:url" content="https://www.notchmeter.com/guides/macos-agent-notch-apps-compared.html">
 <meta property="og:site_name" content="Notchmeter">
@@ -44,11 +44,11 @@
     <div class="wrap">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Guides</a> <span aria-hidden="true">›</span> Agent-notch apps compared</nav>
       <h1>Every macOS agent-notch app compared (2026)</h1>
-      <p class="lede">At least ten apps now put coding agents in or beside the MacBook notch, every one of them released or updated this year. Notchmeter is one of them, and this page is ours, so read it with that in mind. It is written to be the fair one: every app below does something better than Notchmeter does, and its entry says what.</p>
+      <p class="lede">At least twelve apps now put coding agents in or beside the MacBook notch, every one of them released or updated this year, and more watch the same agents from the menu bar or a window of their own. Notchmeter is one of them, and this page is ours, so read it with that in mind. It is written to be the fair one: every app below does something better than Notchmeter does, and its entry says what.</p>
       <ul class="meta-strip">
         <li>Published <time datetime="2026-09-24">24 September 2026</time></li>
         <li class="stamp">Tested on Notchmeter 0.9.13</li>
-        <li>Stars read from GitHub on 2026-09-24</li>
+        <li>Stars and features checked 2026-10-03</li>
       </ul>
     </div>
   </header>
@@ -56,41 +56,52 @@
   <div class="wrap guide-body">
     <div class="answer">
       <p class="label">The short answer</p>
-      <p>For the most agents, Vibe Island. For the most polish and choice of look, AgentNotch. For the biggest community and no setup, Vibe Notch. For a character that reacts to your agents, Notchi or Buddi. For nothing ever written to your agents' config, agent-notch. For Claude and Codex limits with a usage history you can share, CodexIsland. For figures you can audit, several vendors' limits side by side and advice about them, Notchmeter.</p>
+      <p>For the most agents, Vibe Island. For the most polish and choice of look, AgentNotch. For the biggest community and no setup, Vibe Notch. For a character that reacts to your agents, Notchi or Buddi. For sessions with nothing ever written to your agents' config, agent-notch. For Claude and Codex limits with a usage history you can share, CodexIsland. For the most providers' limits, QuotaBar; for token counts across the most tools, on Linux and Windows too, TokenTracker. For a notch that stays empty until a limit is near, Headroom. For running Claude Code sessions, worktrees and pull requests from one window, claude-control. For figures you can audit, several vendors' limits side by side and advice about them, Notchmeter.</p>
     </div>
 
     <div class="note">
-      <p><strong>How this was put together.</strong> Star counts, licences and last-push dates are from GitHub's API on 24 September 2026; a licence is given as GitHub reports it, with the README's own claim where the two differ. Features are from each project's own README, site or changelog, read the same day. No two apps were run side by side for this page, so nothing here is a benchmark, and a feature missing from a project's own documentation is not proof it is missing from the app.</p>
+      <p><strong>How this was put together.</strong> Star counts, licences and last-push dates are from GitHub's API, read on 24 September 2026 and again on 3 October 2026; a licence is given as GitHub reports it, with the README's own claim where the two differ. Features are from each project's own README, site or changelog, read on the first date and checked again on the second, when QuotaBar, Headroom, TokenTracker, both apps called Claude Status and claude-control were added. No two apps were run side by side for this page, so nothing here is a benchmark, and a feature missing from a project's own documentation is not proof it is missing from the app.</p>
     </div>
 
     <h2 id="table">The field at a glance</h2>
     <div class="tablewrap" role="region" aria-label="Agent-notch apps at a glance" tabindex="0">
       <table class="dtable">
-        <caption>Sorted by GitHub stars as of 2026-09-24</caption>
+        <caption>Sorted by GitHub stars, checked 2026-10-03</caption>
         <thead><tr><th scope="col">App</th><th scope="col" class="num">Stars</th><th scope="col">Licence</th><th scope="col">Last push</th><th scope="col">Price</th><th scope="col">How it learns about sessions</th></tr></thead>
         <tbody>
-          <tr><th scope="row"><a href="#vibe-notch">Vibe Notch</a></th><td class="num">2,510</td><td>Apache-2.0</td><td class="date">2026-04-20</td><td>Free</td><td>Hooks, installed on first launch</td></tr>
-          <tr><th scope="row"><a href="#notchi">Notchi</a></th><td class="num">1,032</td><td>GPL-3.0</td><td class="date">2026-09-21</td><td>Free</td><td>Hooks, installed on first launch</td></tr>
+          <tr><th scope="row"><a href="#vibe-notch">Vibe Notch</a></th><td class="num">2,515</td><td>Apache-2.0</td><td class="date">2026-04-20</td><td>Free</td><td>Hooks, installed on first launch</td></tr>
+          <tr><th scope="row"><a href="#tokentracker">TokenTracker</a></th><td class="num">1,950</td><td>MIT</td><td class="date">2026-10-03</td><td>Free</td><td>No sessions: local logs, and hooks it installs on first run</td></tr>
+          <tr><th scope="row"><a href="#notchi">Notchi</a></th><td class="num">1,036</td><td>GPL-3.0</td><td class="date">2026-09-28</td><td>Free</td><td>Hooks, installed on first launch</td></tr>
           <tr><th scope="row"><a href="#mioisland">MioIsland</a></th><td class="num">541</td><td>CC BY-NC 4.0 per its README</td><td class="date">2026-08-14</td><td>Free, personal use</td><td>Hooks</td></tr>
-          <tr><th scope="row"><a href="#codexisland">CodexIsland</a></th><td class="num">341</td><td>MIT</td><td class="date">2026-09-24</td><td>Free</td><td>No sessions: usage endpoints and local logs</td></tr>
-          <tr><th scope="row"><a href="#agent-notch">agent-notch</a></th><td class="num">308</td><td>MIT</td><td class="date">2026-07-21</td><td>Free</td><td>Processes and transcripts, no hooks</td></tr>
-          <tr><th scope="row"><a href="#appgram">AgentNotch (AppGram)</a></th><td class="num">215</td><td>MIT per its README; no licence file</td><td class="date">2026-01-19</td><td>Free</td><td>OpenTelemetry the agents export</td></tr>
-          <tr><th scope="row"><a href="#vibe-island">Vibe Island</a></th><td class="num">151</td><td>Closed source</td><td class="date">2026-09-02</td><td>$19.99 once, per Mac</td><td>Integrations set up on first launch</td></tr>
-          <tr><th scope="row"><a href="#buddi">Buddi</a></th><td class="num">92</td><td>GPL-3.0</td><td class="date">2026-08-22</td><td>Free</td><td>Hooks, installed on first launch</td></tr>
-          <tr><th scope="row"><a href="#claude-stats">Claude Stats</a></th><td class="num">83</td><td>AGPL-3.0</td><td class="date">2026-08-27</td><td>Free</td><td>Local logs</td></tr>
-          <tr><th scope="row"><a href="#agentnotch-app">AgentNotch (agentnotch.app)</a></th><td class="num">—</td><td>Closed source</td><td class="date">v2.1.5, 2026-09-23</td><td>$9.99 once</td><td>Not described on its site</td></tr>
-          <tr class="self"><th scope="row"><a href="#notchmeter">Notchmeter</a></th><td class="num">1</td><td>MIT</td><td class="date">2026-09-24</td><td>Free</td><td>Hooks, added only on your click, after a backup; terminal sessions without one are found and marked</td></tr>
+          <tr><th scope="row"><a href="#codexisland">CodexIsland</a></th><td class="num">348</td><td>MIT</td><td class="date">2026-10-01</td><td>Free</td><td>No sessions: usage endpoints and local logs</td></tr>
+          <tr><th scope="row"><a href="#agent-notch">agent-notch</a></th><td class="num">310</td><td>MIT</td><td class="date">2026-07-21</td><td>Free</td><td>Processes and transcripts, no hooks</td></tr>
+          <tr><th scope="row"><a href="#appgram">AgentNotch (AppGram)</a></th><td class="num">216</td><td>MIT per its README; no licence file</td><td class="date">2026-01-19</td><td>Free</td><td>OpenTelemetry the agents export</td></tr>
+          <tr><th scope="row"><a href="#vibe-island">Vibe Island</a></th><td class="num">152</td><td>Closed source</td><td class="date">v1.0.51, 2026-09-26</td><td>$19.99 once, per Mac</td><td>Integrations set up on first launch</td></tr>
+          <tr><th scope="row"><a href="#claude-control">claude-control</a></th><td class="num">135</td><td>MIT</td><td class="date">2026-09-07</td><td>Free</td><td>Processes, and hooks installed on first launch</td></tr>
+          <tr><th scope="row"><a href="#buddi">Buddi</a></th><td class="num">93</td><td>GPL-3.0</td><td class="date">2026-08-22</td><td>Free</td><td>Hooks, installed on first launch</td></tr>
+          <tr><th scope="row"><a href="#claude-stats">Claude Stats</a></th><td class="num">82</td><td>AGPL-3.0</td><td class="date">2026-08-27</td><td>Free</td><td>Local logs</td></tr>
+          <tr><th scope="row"><a href="#claude-status-gmr">Claude Status (gmr)</a></th><td class="num">64</td><td>BSD-3-Clause</td><td class="date">2026-07-29</td><td>Free</td><td>A plugin hook, installed after asking</td></tr>
+          <tr><th scope="row"><a href="#quotabar">QuotaBar</a></th><td class="num">31</td><td>MIT</td><td class="date">2026-10-02</td><td>Free</td><td>No sessions: usage endpoints and local logs</td></tr>
+          <tr><th scope="row"><a href="#claude-status-runlocal">Claude Status (runlocal.dev)</a></th><td class="num">6</td><td>MIT</td><td class="date">2026-10-03</td><td>Free</td><td>No sessions: a usage endpoint and local logs</td></tr>
+          <tr><th scope="row"><a href="#headroom">Headroom</a></th><td class="num">2</td><td>MIT</td><td class="date">2026-09-22</td><td>Free</td><td>No sessions: usage endpoints</td></tr>
+          <tr><th scope="row"><a href="#agentnotch-app">AgentNotch (agentnotch.app)</a></th><td class="num">—</td><td>Closed source</td><td class="date">v2.1.8, 2026-10-02</td><td>$9.99 once</td><td>Not described on its site</td></tr>
+          <tr class="self"><th scope="row"><a href="#notchmeter">Notchmeter</a></th><td class="num">1</td><td>MIT</td><td class="date">2026-10-03</td><td>Free</td><td>Hooks, first added only on your click, after a backup, and kept current at launch unless you turn that off; terminal sessions without one are found and marked</td></tr>
         </tbody>
       </table>
     </div>
-    <p>Vibe Island's star count is for its public community repository; the app itself is closed source, as is agentnotch.app, which has no public repository to count.</p>
+    <p>Vibe Island's star count is for its public community repository, and its date is its latest release, from its changelog; the app itself is closed source, as is agentnotch.app, which has no public repository to count. TokenTracker, claude-control and both apps called Claude Status are not notch apps; they are here because they watch the same agents.</p>
 
     <h2 id="apps">Each app, and where it beats Notchmeter</h2>
 
     <h3 id="vibe-notch">Vibe Notch (formerly Claude Island)</h3>
     <p><a href="https://github.com/farouqaldori/vibe-notch">farouqaldori/vibe-notch</a>. Claude Code sessions in a Dynamic Island-style overlay, with permission approvals and the full chat history rendered in the notch.</p>
-    <p><strong>Where it beats Notchmeter:</strong> by far the largest community, and two other apps here, MioIsland and Buddi, started from its code. No setup at all. It shows a session's conversation, which Notchmeter deliberately does not.</p>
-    <p><strong>Worth knowing:</strong> its README says it installs its hooks automatically on first launch and collects anonymous usage events with Mixpanel (app launched, session started). No push since 2026-04-20.</p>
+    <p><strong>Where it beats Notchmeter:</strong> the largest community on this page, and two other apps here, MioIsland and Buddi, started from its code. No setup at all. It shows a session's conversation, which Notchmeter deliberately does not.</p>
+    <p><strong>Worth knowing:</strong> its README says it installs its hooks automatically on first launch and collects anonymous usage events with Mixpanel (app launched, session started). Its README calls it actively maintained; the last push was on 2026-04-20.</p>
+
+    <h3 id="tokentracker">TokenTracker</h3>
+    <p><a href="https://github.com/xiufengsun/TokenTracker">xiufengsun/TokenTracker</a>. A local token and cost dashboard for 43 AI coding tools by its README's count (its repository's description says 31), with a macOS menu-bar app, four desktop widgets, a desktop pet and fifteen achievement tracks. It is not a notch app.</p>
+    <p><strong>Where it beats Notchmeter:</strong> breadth, and reach beyond the Mac. It counts tokens for far more tools than Notchmeter meters, shows quota windows for seventeen providers, and runs on Linux and Windows as well, as a command line tool and a tray app. It draws your activity as a GitHub-style heatmap, and its widgets put usage and limits on the desktop.</p>
+    <p><strong>Worth knowing:</strong> usage, not sessions. Its first run installs a SessionEnd hook or a notify entry in each detected tool's own config, and <code>tokentracker uninstall</code> removes them all. A global leaderboard and cloud sync across machines are optional, and the leaderboard needs you to sign in. The menu-bar app shows the dashboard in a web view.</p>
 
     <h3 id="notchi">Notchi</h3>
     <p><a href="https://github.com/sk-ruban/notchi">sk-ruban/notchi</a>. A notch companion for Claude Code and Codex: a pixel sprite per session that reacts to thinking, working, permission requests, compaction and errors, with session time, usage quota and 30 days of cost and tokens a click away.</p>
@@ -104,8 +115,8 @@
 
     <h3 id="codexisland">CodexIsland</h3>
     <p><a href="https://github.com/ericjypark/codex-island">ericjypark/codex-island</a>. <em>"Your AI usage limits, living in your notch"</em>: Claude Code's and Codex's 5-hour and weekly windows, local-log cost estimates, and a year of usage history.</p>
-    <p><strong>Where it beats Notchmeter:</strong> it is the app closest to Notchmeter's own pitch, and it is moving fast (pushed the day this was written). Its usage history is a year-at-a-glance calendar kept in its own database, and it offers five chart styles. It also makes a shareable usage card and estimates OpenCode's cost, as Notchmeter has since 0.9.0.</p>
-    <p><strong>Worth knowing:</strong> Claude and Codex only, and no sessions. Its README says the app is unsigned by Apple and its Homebrew cask removes the quarantine attribute. It reads credentials written by Claude Code or Claude Desktop.</p>
+    <p><strong>Where it beats Notchmeter:</strong> it is the app closest to Notchmeter's own pitch, and it is moving fast (0.3.0 shipped on 2026-10-01). Its usage history is a year-at-a-glance calendar kept in its own database, it offers five chart styles, and it builds for macOS 13. It also makes a shareable usage card and estimates OpenCode's cost, as Notchmeter has since 0.9.0.</p>
+    <p><strong>Worth knowing:</strong> Claude and Codex only, and no sessions. Its README says the app is unsigned by Apple and its Homebrew cask removes the quarantine attribute. It reads the credentials Claude Code and Codex already keep on the Mac, and never refreshes them.</p>
 
     <h3 id="agent-notch">agent-notch</h3>
     <p><a href="https://github.com/realfishsam/agent-notch">realfishsam/agent-notch</a>. <em>"No hooks, no APIs, no accounts."</em> A session is an agent process attached to a terminal, polled every three seconds; a mascot walks beside the notch while it works.</p>
@@ -120,51 +131,77 @@
     <h3 id="vibe-island">Vibe Island</h3>
     <p><a href="https://vibeisland.app/">vibeisland.app</a>. A notch panel for a very long list of agents: live status, approvals, answers to questions, plan review, and a jump back to the exact terminal tab, split pane or IDE window.</p>
     <p><strong>Where it beats Notchmeter:</strong> breadth, clearly. Its site lists 30 agents (its repository description says 25) and 20 terminals and IDEs. SSH remote monitoring is built in, where Notchmeter's needs a tunnel and a hook you set up yourself. It reviews full Markdown plans, and its 8-bit sounds can be replaced with your own packs. Its usage view covers Claude, Codex, Kimi, GLM and DeepSeek.</p>
-    <p><strong>Worth knowing:</strong> closed source; $19.99 for one Mac with a year of updates, and a free trial. Its README says detected CLIs are set up automatically on first launch. It publishes <a href="https://vibeisland.app/best-ai-agent-notch-apps/">its own comparison of the field</a>, which is worth reading beside this one.</p>
+    <p><strong>Worth knowing:</strong> closed source; $19.99 for one Mac with a year of updates, and a free trial. Its README says detected CLIs are set up automatically on first launch, and that it needs macOS 14 or later. Its changelog shows a task checklist on each session card and rules that silence noisy sessions, close to Notchmeter's task lists and muted projects. It publishes <a href="https://vibeisland.app/best-ai-agent-notch-apps/">its own comparison of the field</a>, which is worth reading beside this one.</p>
+
+    <h3 id="claude-control">claude-control</h3>
+    <p><a href="https://github.com/sverrirsig/claude-control">sverrirsig/claude-control</a>. A desktop dashboard for many Claude Code sessions at once: each one's status, branch, changed files, pull request and CI state, and its last message, with permission prompts approved or rejected from the dashboard. It is not a notch app: it is a window.</p>
+    <p><strong>Where it beats Notchmeter:</strong> it runs the work as well as watching it. It starts new sessions, in a new git worktree if you want one, sends <code>/create-pr</code> to an idle session, shows a pull request's checks, review and conflicts, and removes the worktree and branch when you are done, with keyboard shortcuts for the common actions.</p>
+    <p><strong>Worth knowing:</strong> Claude Code only, and no usage limits. Its README says it installs its hooks into <code>~/.claude/settings.json</code> automatically on first launch. It is built with Electron and Next.js.</p>
 
     <h3 id="buddi">Buddi</h3>
-    <p><a href="https://github.com/talkvalue/Buddi">talkvalue/Buddi</a>. A home in the notch for Claude Code's buddy, built on boring.notch and Claude Island.</p>
+    <p><a href="https://github.com/talkvalue/Buddi">talkvalue/Buddi</a>. A home in the notch for Claude Code's buddy, built on boring.notch and Claude Island, with Claude's session and weekly usage beside it.</p>
     <p><strong>Where it beats Notchmeter:</strong> it is a whole notch utility, with a music player, calendar, file shelf and volume and brightness overlays beside the agent. It has eighteen buddy species, a chat view that can send messages back to Claude Code, and tmux and cmux support.</p>
     <p><strong>Worth knowing:</strong> Claude Code only, and it installs its hooks on first launch.</p>
 
     <h3 id="claude-stats">Claude Stats</h3>
     <p><a href="https://github.com/1pitaph/claude-stats">1pitaph/claude-stats</a>. A menu-bar stats app for AI coding work, with a notch island among many other modules.</p>
     <p><strong>Where it beats Notchmeter:</strong> scope. Dashboards, Git and GitHub views, daily reports, an iPhone and iPad companion through iCloud, an embedded terminal and a network debugger, and a Lite build for people who want less.</p>
-    <p><strong>Worth knowing:</strong> it parses Claude Code and Codex logs today; the notch is one module, not the product.</p>
+    <p><strong>Worth knowing:</strong> it parses Claude Code and Codex logs today; the notch is one module, not the product. Its current releases are for Apple silicon only, and its iOS companion is built from source rather than published.</p>
+
+    <h3 id="claude-status-gmr">Claude Status (gmr)</h3>
+    <p><a href="https://github.com/gmr/claude-status">gmr/claude-status</a>. A menu-bar monitor for every Claude Code session: one indicator for the state across them all (active, waiting, compacting or idle), a list to jump from, and desktop widgets. It is not a notch app.</p>
+    <p><strong>Where it beats Notchmeter:</strong> desktop widgets, which Notchmeter does not have, and a jump to the exact window, tab or pane in hosts where Notchmeter only brings the app forward, JetBrains IDEs, Zed and Xcode among them. It also records how long each session spent in each state and how many ran at once through the day.</p>
+    <p><strong>Worth knowing:</strong> Claude Code only, and no usage limits. It asks on first launch before installing its Claude Code plugin hook. It needs macOS 26.2 or later. Not the same app as Claude Status (runlocal.dev) below.</p>
+
+    <h3 id="quotabar">QuotaBar</h3>
+    <p><a href="https://github.com/QuotaBar/QuotaBar">QuotaBar/QuotaBar</a>, with a site at <a href="https://quota.bar/">quota.bar</a>. <em>"Every AI coding limit, at a glance"</em>: each provider's quota windows, resets and estimated spend, in the menu bar, either side of the notch, in a dock at the screen's edge or as cards on the desktop.</p>
+    <p><strong>Where it beats Notchmeter:</strong> providers, by a long way: 21 by its site's count, among them Grok, z.ai, MiniMax, DeepSeek, Qwen, OpenRouter, Windsurf and Kiro beside the ones Notchmeter reads, several of them marked experimental. Desktop cards in seven styles, eleven menu-bar glyphs, the providers' own status pages, and an iPhone app with widgets in the same repository, fed through iCloud.</p>
+    <p><strong>Worth knowing:</strong> limits and spend only, no sessions. Its README says twenty-two providers where its site counts 21. Its update check goes to quota.bar, which, by its README, keeps a salted hash of your IP address to count active installs and no usage data. Quota Run, an opt-in leaderboard, needs an account; the app works fully without one.</p>
+
+    <h3 id="claude-status-runlocal">Claude Status (runlocal.dev)</h3>
+    <p><a href="https://github.com/bcollard/claude-status-macos-menu-bar">bcollard/claude-status-macos-menu-bar</a>, with a site at <a href="https://claudestatus.runlocal.dev/">claudestatus.runlocal.dev</a>. Claude Code's plan limits, today's spend and a per-model breakdown in one menu-bar item. It is not a notch app.</p>
+    <p><strong>Where it beats Notchmeter:</strong> it is small and does one thing, in about 1,500 lines of Swift by its README's count, and it runs on macOS 14, which Notchmeter no longer supports.</p>
+    <p><strong>Worth knowing:</strong> Claude Code only, and no sessions. Apple silicon only for now; its README says a universal build is coming. Its call to Anthropic's usage endpoint can be turned off, leaving the local logs. Not the gmr app above.</p>
+
+    <h3 id="headroom">Headroom</h3>
+    <p><a href="https://github.com/PeytonNowlin/Headroom">PeytonNowlin/Headroom</a>. <em>"A quota island for your MacBook notch"</em>: limits for Claude, Codex, Grok, Cursor and OpenCode Go, as gauges beside the notch, rings on hover, and every window with its reset on a click.</p>
+    <p><strong>Where it beats Notchmeter:</strong> restraint. It draws nothing at all while every main agent has room, and a provider you mark as a side one never brings the island on screen by itself. It reads the Grok CLI's quota, which Notchmeter does not.</p>
+    <p><strong>Worth knowing:</strong> limits only: no sessions, and since it stopped reading session logs, no spend estimate. It needs macOS 26 on Apple silicon, and its README says it is ad-hoc signed rather than notarised, so the first launch needs <em>Open Anyway</em>.</p>
 
     <h3 id="agentnotch-app">AgentNotch (agentnotch.app)</h3>
-    <p><a href="https://www.agentnotch.app/">agentnotch.app</a>. <em>"Every coding agent. One place to look."</em> Sessions first, usage second, for Claude Code, Cursor, Codex, Kimi, OpenCode, Cowork, Antigravity, Pi and LM Studio, per its site.</p>
-    <p><strong>Where it beats Notchmeter:</strong> it feels finished, and its feedback from inside the app is anonymous, where Notchmeter's is filed under your own GitHub account or sent from your own address, because Notchmeter has no server to be anonymous through. The rest of what it had first, Notchmeter has matched since 0.9.0: a choice of panel colours and of how much desktop shows through, and a light Paper theme; distinct sounds for completions, questions, approvals, ready plans and other requests; a locally computed meter for the OpenCode Go plan, which publishes no usage endpoint; and a switch per display.</p>
+    <p><a href="https://www.agentnotch.app/">agentnotch.app</a>. <em>"Every coding agent. One place to look."</em> Sessions first, usage second, for Claude Code, Cursor, Codex, Kimi, OpenCode, Cowork, Antigravity, Pi and LM Studio, per its site, with plan usage for Claude, Codex, Cursor, Kimi and OpenCode Go.</p>
+    <p><strong>Where it beats Notchmeter:</strong> it feels finished, since 2.1.7 it shows Cursor's cloud agents beside local ones, and its feedback from inside the app is anonymous, where Notchmeter's is filed under your own GitHub account or sent from your own address, because Notchmeter has no server to be anonymous through. The rest of what it had first, Notchmeter has matched since 0.9.0: a choice of panel colours and of how much desktop shows through, and a light Paper theme; distinct sounds for completions, questions, approvals, ready plans and other requests; a locally computed meter for the OpenCode Go plan, which publishes no usage endpoint; and a switch per display.</p>
     <p><strong>Worth knowing:</strong> closed source; $9.99 once, with a three-day trial that needs no card and a 14-day refund. Its site does not say how it reads sessions; its changelog records that its Live Prompts <em>"can no longer overwrite your agent's configuration, and every write leaves a backup"</em>. Not the AppGram project above.</p>
 
     <h3 id="notchmeter">Notchmeter</h3>
     <p><a href="https://github.com/Amir-Hackett/notchmeter">Amir-Hackett/notchmeter</a>. Usage meters for Claude Code, Codex, Cursor, Gemini CLI, Antigravity, GitHub Copilot, Kimi Code and OpenCode, with sessions, answering from the notch, and advice about what to do next.</p>
-    <p><strong>Where it is behind:</strong> one star, so very few people have looked at it. Fewer agents than Vibe Island or AgentNotch. No mascot, no phone app, and remote sessions need a tunnel you set up yourself.</p>
+    <p>Each session's row carries its task list, crossed off as it goes, for every assistant with a hook or plugin; Cursor's hooks never report the list, so it is read from the conversation's own transcript. Where the assistant reports them, the row also names the model and shows <em>Compacting</em> while the session summarises its context. When a session waits for you or finishes a turn, the news reads across the notch, and a long name scrolls through once. Claude Code's permission requests and multiple-choice questions are answered from the notch, and so are Codex's and GitHub Copilot CLI's permission requests. A project can be muted for possible waits, a Cursor turn gone quiet or Claude Code's idle reminder, while its permission prompts and questions still reach you, and a Cursor nudge that turns out to be wrong waits twice as long the next time. Kimi Code reports no wait at all, so its sessions never show one.</p>
+    <p><strong>Where it is behind:</strong> one star, so very few people have looked at it. Fewer agents than Vibe Island, and a different set from agentnotch.app's, without its Pi, LM Studio or Cursor cloud agents; far fewer usage providers than QuotaBar or TokenTracker. No mascot, no phone app, no desktop widgets, and remote sessions need a tunnel you set up yourself. It needs macOS 15, where several apps here run on 14 or earlier.</p>
+    <p><strong>Worth knowing:</strong> the first hook for each assistant is added only when you press a button, after a backup (<a href="monitor-coding-agents-without-config-writes.html">what works with no hook</a>). After that, <em>Repair an out-of-date hook at launch</em>, on by default, rewrites Notchmeter's own entries and adds the ones a new version needs, after the same backup; that is how 0.9.13's new entries arrive. With it off under Settings › Integrations › Hooks, nothing is written without a click.</p>
     <p><strong>What it does that we did not find in the others' own documentation:</strong></p>
     <ul>
       <li>A <a href="https://github.com/Amir-Hackett/notchmeter/blob/main/docs/accuracy.md">published accuracy document</a>: every rule behind every figure, its primary source and date, and where it is known to differ from a bill, pinned by golden tests to nine decimal places.</li>
       <li>Every window labelled with where its figure came from, and a tool that cannot derive spend shown as missing, never as $0.</li>
-      <li>Pace, measured drain and a <a href="will-you-run-out-before-the-reset.html">run-out range</a> from your own hours, with peak hours and a budget treated as a window.</li>
+      <li>A week or a month projected at how far it rose over the last day, nights and breaks included, so a week spent on its first night does not read as running out; the five-hour session at the pace of the hours you worked in it, with a <a href="will-you-run-out-before-the-reset.html">run-out range</a>; and peak hours kept apart. QuotaBar, Headroom and Claude Stats forecast too, QuotaBar from the window's use so far and Headroom from up to an hour of readings.</li>
       <li>Advice worded as instructions, including <a href="which-assistant-should-get-this-task.html">routing work across vendors</a>.</li>
       <li><a href="prompt-cache-cost.html">Prompt-cache miss diagnostics</a>, priced.</li>
-      <li>A command line tool, an MCP server, a local API, a Claude Code plugin, and CSV or JSON export.</li>
-      <li>Eleven languages, a VoiceOver label on every readout, and status never carried by colour alone.</li>
-      <li>Nothing written to your agents' config until you press a button (<a href="monitor-coding-agents-without-config-writes.html">how</a>).</li>
+      <li>An MCP server and a Claude Code plugin, beside a command line tool, a local API and CSV or JSON export. QuotaBar also has a local API and JSON from the command line, and TokenTracker a command line tool.</li>
+      <li>Eleven languages, a VoiceOver label on every readout, and status never carried by colour alone, which Headroom's README promises too.</li>
     </ul>
 
-    <h2 id="anthropic">The one that is not a notch app</h2>
-    <p>If you work only in Claude's desktop app, you may not need any of these. Its documentation says it <em>"sends an OS notification when a Code session finishes a task and you aren't currently viewing that session"</em>, lets you <em>"filter sessions by status, project, or environment, and … group sessions by project"</em>, and shows your context and plan usage on a ring next to the model picker. It is first-party, and it costs nothing extra. What it does not do is meter Cursor, Copilot, Codex or Gemini, and that multi-vendor view is the ground every app on this page stands on.</p>
+    <h2 id="anthropic">The one from Anthropic</h2>
+    <p>If you work only in Claude's desktop app, you may not need any of these. Its documentation says it <em>"sends an OS notification when a Code session finishes a task and you aren't currently viewing that session"</em>, lets you <em>"filter sessions by status, project, or environment, and … group sessions by project"</em>, and shows your context and plan usage on a ring next to the model picker. It is first-party, and it costs nothing extra. What it does not do is meter Cursor, Copilot, Codex or Gemini, and that multi-vendor view is the ground most apps on this page stand on.</p>
 
     <h2 id="beyond">Beyond the notch</h2>
-    <p>A second group of apps tracks usage from the menu bar rather than the notch, among them ClaudeBar, coding-usage-bar, ClaudeUsageBar, Claude-Usage-Tracker and claude-code-monitor, and a third group browses past sessions, such as Claudoscope, Agent Sessions and so-agentbar. They were not reviewed for this page. Notchmeter's own pace projection and cost rules started from <a href="https://github.com/robinebers/openusage">OpenUsage</a>, which ports ccusage's transcript semantics, and both deserve a look.</p>
+    <p>Beyond the four apps above that do not use the notch, a larger group tracks usage from the menu bar, among them ClaudeBar, coding-usage-bar, ClaudeUsageBar, Claude-Usage-Tracker and claude-code-monitor, and another browses past sessions, such as Claudoscope, Agent Sessions and so-agentbar. There are more notch apps too: Vibe Island's comparison names several not on this page, and <a href="https://github.com/Octane0411/open-vibe-island">Open Island</a>, which its README calls an open-source Vibe Island, has more GitHub stars than any app above but Vibe Notch. None of these was reviewed for this page. Notchmeter's own pace projection and cost rules started from <a href="https://github.com/robinebers/openusage">OpenUsage</a>, which ports ccusage's transcript semantics, and both deserve a look.</p>
 
     <div class="sources">
       <h2 id="sources">Sources</h2>
       <ul>
-        <li>GitHub REST API, <code>GET /repos/{owner}/{repo}</code> for each repository above, read 2026-09-24: stars, licence and last push.</li>
-        <li>Each project's README, read 2026-09-24, linked from its entry.</li>
-        <li><a href="https://www.agentnotch.app/">agentnotch.app</a> and its <a href="https://www.agentnotch.app/changelog">changelog</a>, and <a href="https://vibeisland.app/">vibeisland.app</a>, read 2026-09-24: prices, trials and features.</li>
-        <li>Anthropic, <a href="https://code.claude.com/docs/en/desktop">Claude Code desktop app</a>, read 2026-09-24.</li>
+        <li>GitHub REST API, <code>GET /repos/{owner}/{repo}</code> for each repository above, read 2026-09-24 and again 2026-10-03: stars, licence and last push.</li>
+        <li>Each project's README, read 2026-10-03, linked from its entry; for QuotaBar, its <a href="https://github.com/QuotaBar/QuotaBar/blob/main/ARCHITECTURE.md">ARCHITECTURE.md</a> too.</li>
+        <li><a href="https://www.agentnotch.app/">agentnotch.app</a> and its <a href="https://www.agentnotch.app/changelog">changelog</a>, <a href="https://vibeisland.app/">vibeisland.app</a> and its <a href="https://vibeisland.app/changelog/">changelog</a>, <a href="https://quota.bar/">quota.bar</a> and <a href="https://claudestatus.runlocal.dev/">claudestatus.runlocal.dev</a>, read 2026-10-03: prices, trials, versions and features.</li>
+        <li>Anthropic, <a href="https://code.claude.com/docs/en/desktop">Claude Code desktop app</a>, read 2026-10-03.</li>
       </ul>
     </div>
   </div>
