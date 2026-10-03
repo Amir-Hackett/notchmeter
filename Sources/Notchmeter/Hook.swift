@@ -59,6 +59,9 @@ enum Hook {
     /// The model an assistant other than Claude Code names on an event (0.9.13): Codex on every payload, Cursor where
     /// it sends one, OpenCode's plugin on a prompt. Claude Code's comes from its status line and its model switches.
     static let reportedModelKey = "reportedModel"
+    /// The conversation's transcript a Cursor event names (0.9.13), which the app follows for Cursor's task list
+    /// (CursorPlans); only ever one of Cursor's own transcripts.
+    static let transcriptKey = "transcriptPath"
     static let modelKey = "model"
     static let fromModelKey = "from_model"
     static let modelSourceKey = "model_source"
@@ -159,6 +162,8 @@ enum Hook {
         var compaction: Compaction.Trigger?
         /// The model the assistant says the session runs on (`Hook.reportedModelKey`); nil when it said none.
         var reportedModel: String?
+        /// Cursor's transcript for the conversation (`Hook.transcriptKey`, CursorPlans.transcript); nil otherwise.
+        var transcriptPath: String?
         /// The models and the source of a `PostModelSwitch`.
         var modelSwitch: ModelSwitch?
         /// The MCP server an `Elicitation` or `ElicitationResult` names.
@@ -221,6 +226,7 @@ enum Hook {
             task = Hook.task(userInfo: userInfo?[Hook.taskKey])
             compaction = Hook.compactionTrigger(userInfo?[Hook.compactionKey])
             reportedModel = Hook.reportedModel(userInfo?[Hook.reportedModelKey])
+            transcriptPath = CursorPlans.transcript(userInfo?[Hook.transcriptKey] as? String)?.path
             if let to = Hook.modelID(userInfo?[Hook.modelKey]) {
                 modelSwitch = ModelSwitch(from: Hook.modelID(userInfo?[Hook.fromModelKey]), to: to,
                                           source: (userInfo?[Hook.modelSourceKey] as? String).flatMap(ModelSwitch.Source.init(rawValue:)))
@@ -260,6 +266,7 @@ enum Hook {
             if let task { info[Hook.taskKey] = Hook.userInfo(task: task) }
             if let compaction { info[Hook.compactionKey] = compaction.rawValue }
             if let reportedModel { info[Hook.reportedModelKey] = reportedModel }
+            if let transcriptPath { info[Hook.transcriptKey] = transcriptPath }
             if let modelSwitch {
                 info[Hook.modelKey] = modelSwitch.to
                 if let from = modelSwitch.from { info[Hook.fromModelKey] = from }
