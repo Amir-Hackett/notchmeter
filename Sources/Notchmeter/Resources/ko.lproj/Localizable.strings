@@ -909,7 +909,7 @@
 "Finished" = "완료";
 "Opens the panel on this session" = "이 세션에서 패널을 엽니다";
 "Show assistant symbols in the rings" = "링에 어시스턴트 기호 표시";
-"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "각 어시스턴트의 기호(카드에 있는 것)를 링 가운데에 작게 그립니다. 링이 세 개라 공간이 부족하면 링 모서리에 그립니다. 어시스턴트의 색을 구별하기 어려울 때를 위한 설정입니다.";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, for when the assistants' colours are hard to tell apart. The rings grow a little to make room for it." = "각 어시스턴트의 기호(카드에 있는 것)를 링 가운데에 작게 그립니다. 어시스턴트의 색을 구별하기 어려울 때를 위한 설정입니다. 기호가 들어갈 자리를 만들기 위해 링이 조금 커집니다.";
 "Show news in the notch" = "노치에 소식 표시";
 "%@ needs approval" = "%@ 승인 필요";
 "%@ has a question" = "%@ 질문 있음";

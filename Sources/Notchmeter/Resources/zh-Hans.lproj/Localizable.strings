@@ -926,7 +926,7 @@
 "Finished" = "已完成";
 "Opens the panel on this session" = "在此会话上打开面板";
 "Show assistant symbols in the rings" = "在圆环中显示助手符号";
-"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "每个助手的符号（即其卡片上的符号）以小尺寸画在圆环中央；三个圆环留下的空间不够时画在圆环的角上。适用于难以分辨各助手颜色的情况。";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, for when the assistants' colours are hard to tell apart. The rings grow a little to make room for it." = "每个助手的符号（即其卡片上的符号）以小尺寸画在圆环中央，适用于难以分辨各助手颜色的情况。圆环会稍微变大，为符号留出空间。";
 "Show news in the notch" = "在刘海处显示动态";
 "%@ needs approval" = "%@ 需要批准";
 "%@ has a question" = "%@ 在提问";

@@ -909,7 +909,7 @@
 "Finished" = "完了";
 "Opens the panel on this session" = "このセッションでパネルを開きます";
 "Show assistant symbols in the rings" = "リングにアシスタントのシンボルを表示";
-"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, or on their corner when three rings leave too little room, for when the assistants' colours are hard to tell apart." = "各アシスタントのシンボル（カードにあるもの）をリングの中央に小さく描きます。リングが3本で余裕がないときはリングの角に描きます。アシスタントの色を見分けにくいときのための設定です。";
+"Each assistant's symbol, the one on its card, drawn small in the middle of its rings, for when the assistants' colours are hard to tell apart. The rings grow a little to make room for it." = "各アシスタントのシンボル（カードにあるもの）をリングの中央に小さく描きます。アシスタントの色を見分けにくいときのための設定です。シンボルが収まるよう、リングが少し大きくなります。";
 "Show news in the notch" = "ノッチにお知らせを表示";
 "%@ needs approval" = "%@ が承認待ち";
 "%@ has a question" = "%@ から質問";
